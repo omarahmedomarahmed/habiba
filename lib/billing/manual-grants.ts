@@ -28,6 +28,8 @@ import {
   invoices,
   manualPayments,
   sessions,
+  therapistVerifications,
+  users,
   sponsorPots,
   type ManualPayment,
 } from "@/lib/db/schema";
@@ -91,7 +93,172 @@ async function grantSession(payment: ManualPayment): Promise<void> {
       paymentId: payment.id,
       sessionId: payment.refId,
     });
+    return;
   }
+
+  /*
+   * 🔴 AND THE BOOKS, WHICH FOR TWO SPRINTS THIS DID NOT DO AT ALL.
+   *
+   * Flipping `payment_status` is what lets the patient into the room. It is not
+   * what records that money moved, and until this sprint the manual rail did
+   * only the first. `postSessionPayment` is the single writer of
+   * `platform_revenue`, `vat_payable` and `therapist_payable` for a session, and
+   * it had exactly two call sites: Stripe, and a sponsor pot. Egypt has neither.
+   *
+   * What that cost, in the market this product launches in, where EVERY patient
+   * pays by bank transfer:
+   *
+   *   - our 15% was never recognised, so every revenue figure on `/admin/vault`,
+   *     the board and the trial balance read zero for Egypt
+   *   - the therapist's held balance stayed at zero, so `requestPayout` refused
+   *     every withdrawal with "you can withdraw up to 0.00". **An Egyptian
+   *     therapist could never be paid through the product at all.**
+   *   - `settleInvoicesFromHeld` could never fire, so their session fees were
+   *     billed as cash they owed us separately rather than netted off earnings
+   *
+   * The only remedy was an operator hand-posting every session as a ledger
+   * adjustment.
+   *
+   * 🔴 SAFE TO POST HERE because the UPDATE above is guarded on
+   * `payment_status = 'pending'` and we returned early when it matched nothing.
+   * That guard is the idempotency, exactly as `connect.ts` relies on its own
+   * `status = 'pending'` guard, so this body runs once per session however many
+   * times an operator presses Confirm.
+   */
+  const [row] = await db
+    .select({
+      organizationId: sessions.organizationId,
+      therapistId: sessions.therapistId,
+      priceCents: sessions.priceCents,
+      stripeAccountId: users.stripeAccountId,
+      payoutsEnabled: users.payoutsEnabled,
+      /*
+       * 🔴 Their own country, because Egypt is always a manual payout however
+       * the money arrived. Left joined: a clinician who has not filed a
+       * verification has no country, and `payoutRailFor` reads that as manual
+       * rather than assuming Connect.
+       */
+      therapistCountry: therapistVerifications.country,
+    })
+    .from(sessions)
+    .innerJoin(users, eq(users.id, sessions.therapistId))
+    .leftJoin(therapistVerifications, eq(therapistVerifications.userId, users.id))
+    .where(eq(sessions.id, payment.refId))
+    .limit(1);
+
+  if (!row) {
+    log.error("manual session payment confirmed for a session that vanished", {
+      paymentId: payment.id,
+      sessionId: payment.refId,
+    });
+    return;
+  }
+
+  /* A free session has nothing to split. The room still opened; nobody paid. */
+  if (row.priceCents <= 0) return;
+
+  const { getSettings, sessionMoney } = await import("@/lib/settings");
+  const settings = await getSettings();
+
+  /*
+   * 🔴 `vatBps: 0`, AND IT IS A RECORD OF WHAT HAPPENED RATHER THAN A CHOICE.
+   *
+   * `app/pay/[token]/actions.ts` quotes the patient `session.priceCents` and no
+   * more, so no VAT was asked for and none arrived. Posting a VAT liability for
+   * money we did not collect would put a debt on our own books against a tax
+   * authority, sourced from nothing.
+   *
+   * ⚠️ That the Egyptian rail quotes no VAT while `country_settings` for EG says
+   * 14% is a real under-collection and it is NOT fixed here, because fixing it
+   * changes what a patient is asked to send. It is named in the report as a
+   * decision for the founders rather than papered over with a journal entry.
+   */
+  const money = sessionMoney({
+    grossCents: row.priceCents,
+    feeBps: settings.session.platformFeeBps,
+    vatBps: 0,
+  });
+
+  const { crossingFor, payoutRailFor } = await import("./money");
+  const { sessionPayments } = await import("@/lib/db/schema");
+
+  const [created] = await db
+    .insert(sessionPayments)
+    .values({
+      organizationId: row.organizationId,
+      therapistId: row.therapistId,
+      sessionId: payment.refId,
+      payerName: null,
+      payerEmail: null,
+      grossCents: row.priceCents,
+      currency: "usd",
+      vatCents: 0,
+      vatBps: 0,
+      coverageBps: 0,
+      sponsorShareCents: 0,
+      patientShareCents: row.priceCents,
+      platformFeeCents: money.platformCutCents,
+      platformFeeBps: settings.session.platformFeeBps,
+      settledInvoiceCents: 0,
+      therapistNetCents: money.therapistNetCents,
+      /*
+       * 🔴 `platform`, because WE are holding it. The pounds landed in our
+       * account and the therapist's share is ours to pay out by hand, which is
+       * the whole reason the payouts queue exists.
+       */
+      capture: "platform",
+      crossing: crossingFor({
+        paidVia: "local_egp",
+        therapist: payoutRailFor({
+          stripeAccountId: row.stripeAccountId,
+          payoutsEnabled: row.payoutsEnabled,
+          country: row.therapistCountry,
+        }),
+      }),
+      status: "paid",
+      paidAt: payment.decidedAt ?? new Date(),
+      /*
+       * ⚠️ `card` is the wrong WORD and the right BEHAVIOUR. The column allows
+       * only `card` and `pot`, every reader in the product asks it exactly one
+       * question (`=== "pot"`), and the honest answer to that question is no.
+       * The rail itself is recorded truthfully one field up, in `crossing`, as
+       * `egp_local_to_manual`. Widening the CHECK to add `transfer` is a
+       * migration, and a migration to rename a value nothing reads is not what
+       * should be shipped in the same change as the money it was hiding.
+       */
+      fundingSource: "card",
+    })
+    .onConflictDoNothing({ target: sessionPayments.sessionId })
+    .returning({ id: sessionPayments.id });
+
+  if (!created) {
+    /* Something else already booked this session's money. Do not post twice. */
+    log.warn("manual session payment: a payment row already existed", {
+      paymentId: payment.id,
+      sessionId: payment.refId,
+    });
+    return;
+  }
+
+  const { postSessionPayment } = await import("./ledger");
+  await postSessionPayment({
+    id: created.id,
+    organizationId: row.organizationId,
+    therapistId: row.therapistId,
+    capture: "platform",
+    grossCents: row.priceCents,
+    vatCents: 0,
+    platformFeeCents: money.platformCutCents,
+    settledInvoiceCents: 0,
+    therapistNetCents: money.therapistNetCents,
+  });
+
+  log.info("manual session payment posted to the ledger", {
+    paymentId: payment.id,
+    sessionId: payment.refId,
+    ourFeeCents: money.platformCutCents,
+    therapistNetCents: money.therapistNetCents,
+  });
 }
 
 /* ---------------------------------------------------------- subscription -- */

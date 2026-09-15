@@ -141,6 +141,8 @@ export async function reassignSession(input: {
       patientId: sessions.patientId,
       personId: patients.personId,
       status: sessions.status,
+      startedAt: sessions.startedAt,
+      outcome: sessions.recoveryOutcome,
       organizationId: sessions.organizationId,
     })
     .from(sessions)
@@ -152,6 +154,31 @@ export async function reassignSession(input: {
   if (row.status === "completed") {
     return { ok: false, error: "That session has already finished." };
   }
+
+  /*
+   * 🔴 THE SAME HOLE `refundNoShow` HAD, AND IT WAS WORSE HERE.
+   *
+   * This function sets BOTH `therapist_id` and `organization_id` to the
+   * replacement's, and `getSession` scopes its read on exactly those two
+   * columns. So reassigning a session is the same act as granting somebody full
+   * read on its transcript, its note and the patient's chart.
+   *
+   * Refusing only `completed` left every `scheduled` and `in_progress` session
+   * reassignable by anybody who learned the id, through a server action with no
+   * caller check at all. A live therapy session could be taken over mid
+   * sentence, and the taker would then hold the record.
+   *
+   * `started_at IS NULL` is the condition that makes "the session id is the
+   * capability" true: the id can do one thing, and only in the state the
+   * feature exists for. `recovery_outcome IS NULL` closes the second press.
+   */
+  if (row.startedAt) {
+    return { ok: false, error: "That session has already started." };
+  }
+  if (row.outcome) {
+    return { ok: false, error: "That session has already been resolved." };
+  }
+
   if (row.therapistId === input.toUserId) {
     return { ok: false, error: "That is the same clinician." };
   }
@@ -232,6 +259,32 @@ export async function reassignSession(input: {
 export async function refundNoShow(input: { sessionId: string }): Promise<RecoveryResult> {
   const now = new Date();
 
+  /*
+   * 🔴 THE THERAPIST MUST ACTUALLY HAVE FAILED TO APPEAR, AND UNTIL THIS SPRINT
+   * NOTHING CHECKED IT.
+   *
+   * The caller is unauthenticated on purpose: somebody who booked from a public
+   * profile has no account, and the moment their therapist does not turn up is
+   * the worst possible moment to ask them to make one. The session id is the
+   * capability, exactly as it is for the join link.
+   *
+   * That argument only holds while the id can do **one** thing. The WHERE below
+   * used to be `id = X AND recovery_outcome IS NULL`, which is every scheduled,
+   * live and completed session in the product. So a server action reachable by
+   * anybody who learned a session UUID could:
+   *
+   *   - set a session that was `in_progress` to `cancelled`, which makes
+   *     `resolveJoinToken` return null and ejects a patient from a live therapy
+   *     session with no explanation and no way back, or
+   *   - refund a completed, delivered, fully paid session in full, reversing
+   *     the therapist's earnings and our fee, on a rail with no chargeback to
+   *     recover it.
+   *
+   * `started_at IS NULL` is the whole of the fix, and it belongs here rather
+   * than in the action so that it holds for every caller. It is the same
+   * condition `offerReplacements` already checked before OFFERING the choice;
+   * the read path had it and the two write paths did not.
+   */
   const [marked] = await db
     .update(sessions)
     .set({
@@ -240,7 +293,13 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
       recoveryOfferedAt: now,
       updatedAt: now,
     })
-    .where(and(eq(sessions.id, input.sessionId), isNull(sessions.recoveryOutcome)))
+    .where(
+      and(
+        eq(sessions.id, input.sessionId),
+        isNull(sessions.recoveryOutcome),
+        isNull(sessions.startedAt),
+      ),
+    )
     .returning({ id: sessions.id, priceCents: sessions.priceCents });
 
   if (!marked) return { ok: false, error: "That session has already been resolved." };

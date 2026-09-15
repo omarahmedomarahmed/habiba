@@ -141,8 +141,9 @@ export async function PricingTiers({
   /*
    * 🔴 THE STEP, at the first band boundary, with both figures on it.
    *
-   * On the shipped ladder that is seat three: $179 becomes $270 rather than $179
-   * plus $90, because the rate is retroactive. Computed rather than written, so
+   * On the shipped ladder that is seat two: $80 becomes $144 rather than $80
+   * plus $72, because the rate is retroactive and the FIRST seat reprices to the
+   * clinic rate the moment there are two. Computed rather than written, so
    * the sentence cannot survive a reprice as a wrong number. Null when there is
    * only one band, in which case there is no step to warn about.
    */

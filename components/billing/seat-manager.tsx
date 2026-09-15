@@ -25,12 +25,15 @@ export type SeatQuote = {
  * that changed the count and then said what happened would satisfy every other
  * sentence in this sprint and miss the one that matters.
  *
- * ## 🔴 THE 2 TO 3 STEP IS A $91 JUMP AND IT IS NAMED
+ * ## 🔴 THE STEP AT THE FIRST BAND BOUNDARY IS NAMED, WHATEVER IT IS
  *
- * Because the rate is retroactive: $179 becomes $270, not $179 plus $90. A
- * clinic adding their third clinician and finding a number they did not expect
- * is a support ticket and a refund conversation, and the slider is where that
- * is cheapest to prevent.
+ * Because the rate is retroactive. On the shipped ladder the boundary is seat
+ * two and the step is $64 rather than $72: $80 becomes $144, because the first
+ * seat reprices from the solo rate to the clinic rate the moment there are two
+ * of them. A practice adding their second clinician and finding a number they
+ * did not expect is a support ticket and a refund conversation, and the slider
+ * is where that is cheapest to prevent. The figure is computed from the bands,
+ * never written, so a reprice cannot leave a wrong number on the screen.
  */
 export function SeatManager({
   seats,

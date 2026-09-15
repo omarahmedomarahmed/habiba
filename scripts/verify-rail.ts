@@ -769,6 +769,73 @@ async function main() {
     "a balance or an unpaid invoice is a fact about the company that billed it",
   );
 
+  /* ================================================================== */
+  /*  The money actually moves, and not only the gate                    */
+  /* ================================================================== */
+
+  /*
+   * 🔴 THE DEFECT THIS EXISTS FOR, AND IT SURVIVED EVERY OTHER CHECK IN THIS
+   * FILE.
+   *
+   * `grantSession` flipped `sessions.payment_status` to `paid` and stopped.
+   * That is the JOIN GATE: it is what lets the patient into the room, and every
+   * check above was satisfied by it. It is not the BOOKS.
+   *
+   * `postSessionPayment` is the only writer of `platform_revenue`,
+   * `vat_payable` and `therapist_payable` for a session, and it had exactly two
+   * call sites: Stripe and a sponsor pot. Egypt has neither. So in the only
+   * market this product launches in, where every patient pays by transfer:
+   * our 15% was never recognised, no VAT liability was ever recorded, and a
+   * therapist's held balance stayed at zero, which made `requestPayout` refuse
+   * every withdrawal they ever attempted.
+   *
+   * A rail that opens the door and records no money is worse than one that does
+   * neither, because everything on the screen says it worked.
+   */
+  check(
+    "🔴 a confirmed session transfer posts the money, not just the join gate",
+    /postSessionPayment\(\{/.test(grants) &&
+      /insert\(sessionPayments\)/.test(grants) &&
+      /crossingFor\(\{/.test(grants),
+    "flipping payment_status lets them into the room; it does not pay anybody",
+  );
+
+  /*
+   * 🔴 AND IT POSTS EXACTLY ONCE. The `payment_status = 'pending'` guard is the
+   * idempotency for the whole body, so the function must RETURN when that
+   * update matches nothing rather than falling through to post a second time.
+   * An operator double-clicking Confirm is the ordinary case, not the exotic
+   * one.
+   */
+  check(
+    "🔴 …and it returns when the session was not pending, so a second Confirm posts nothing",
+    /was not pending[\s\S]{0,220}?\n\s*return;/.test(grants) &&
+      /onConflictDoNothing\(\{ target: sessionPayments\.sessionId \}\)/.test(grants),
+    "two guards: the status guard for the grant, the unique session for the payment row",
+  );
+
+  /*
+   * 🔴 AND IT IS HELD, NOT ROUTED. The pounds landed in our account and the
+   * therapist's share is ours to pay out by hand. A `destination` capture would
+   * claim Stripe routed it, which is the one thing that certainly did not
+   * happen on a rail with no Stripe in it.
+   */
+  check(
+    "🔴 …and the capture says we are holding it, which is why the payouts queue exists",
+    /capture: "platform"/.test(grants) && /paidVia: "local_egp"/.test(grants),
+    "egp_local_to_manual is a crossing the schema already knew about and nothing wrote",
+  );
+
+  /*
+   * ⚠️ THESE THREE READ SOURCE, AND SOURCE IS THE WEAKER KIND OF EVIDENCE HERE.
+   *
+   * Sprint 74's own lesson, written down because it cost a sprint: all three
+   * defects found in the entitlement loop were true of the source and false of
+   * the database. These catch the posting being DELETED. They cannot catch it
+   * posting the wrong number, and only a run against real rows can.
+   * `verify:entitlement` is where that belongs and it does not cover this yet.
+   */
+
   finish("sprints 73 and 74");
 }
 

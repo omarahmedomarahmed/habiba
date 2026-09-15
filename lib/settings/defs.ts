@@ -104,18 +104,28 @@ export type PlatformSettings = {
     /**
      * 🔴 62.1 / C323 — SEATS, AND THE RATE IS RETROACTIVE RATHER THAN MARGINAL.
      *
-     * The founder's figures only work one way round:
+     * The shipped ladder, repriced for Egypt in sprint 75:
      *
-     *     1 to 2 seats   included in the clinic plan   $179
-     *     3 to 4 seats   $90 each                      $270 · $360
-     *     5 or more      $80 each                      $400 · $480 · …
+     *     1 seat        the solo price      $80
+     *     2 or more     $72 each            $144 · $216 · $288 · …
      *
      * Reaching a band reprices EVERY seat, not just the ones above the
-     * threshold. A marginal reading gives $179 + $90 = $269 at three seats and
-     * the founder's table says $270, which looks like a rounding argument and
-     * is not: at five seats marginal gives $179 + 2×$90 + 1×$80 = $439 against
-     * a stated $400. The difference compounds, and a clinic reading the public
-     * table would be billed a number that never appears on it.
+     * threshold. So the step from one seat to two is **$64 and not $72**: the
+     * first seat drops from the solo rate to the clinic rate the moment there
+     * are two of them. A marginal reading would give $80 + $72 = $152 where the
+     * table says $144, and the gap compounds with every seat, so a clinic
+     * reading the public table would be billed a number that never appears on
+     * it.
+     *
+     * 🔴 THE FIRST BAND STARTS AT ONE SEAT ON PURPOSE. A ladder beginning at two
+     * would bill a clinic that has dropped to a single clinician nothing at all,
+     * and `settingsProblem` refuses exactly that shape. Pricing it at the solo
+     * rate closes the gap without inventing a third number.
+     *
+     * ⚠️ It replaced a three-rung US ladder of $179 flat for two seats, then $90
+     * each, then $80 each. Those were dollars nobody in Cairo was going to pay,
+     * and a two-person practice was being asked $179 where two solo therapists
+     * would have paid $160.
      */
     seatBands: SeatBand[];
     /**
@@ -345,7 +355,7 @@ export type PlatformSettings = {
     /**
      * 🔴 73.10 — WHAT A SESSION COSTS ON AVERAGE, for the sponsor's own arithmetic.
      *
-     * "10% coverage" is abstract. "Your $200 covers 100 sessions" is a decision a
+     * "10% coverage" is abstract. "Your $100 covers 50 sessions" is a decision a
      * finance team can actually take, and it is the sum they would do on paper
      * before agreeing to anything. That sum needs an average session price.
      *
@@ -449,14 +459,20 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
      */
     tiers: [
       /*
-       * 🔴 $99 and $179, not $49 and $99, and the number is measured rather than
-       * chosen. From our own rate table: transcription $0.15 a session, the note,
-       * risk, profile and suggestions $0.13, the free in-room copilot $0.05. About
-       * $0.33, so roughly $36 a month for a therapist at 25 sessions a week.
+       * 🔴 THE METERED DOOR: $1 for the room and $3 more for the note, and the
+       * $3 is the one that rides on the patient's consent (C209).
        *
-       * $49 unlimited is a 26% margin against that and is the number that stopped
-       * us. $99 is 64%. Break-even at $99 is around 300 sessions a month, which
-       * nobody runs, so fair use is a sentence in the FAQ and not a control.
+       * $4 a session is what makes $80 defensible, because it is exactly twenty
+       * sessions and a therapist can do that division themselves. Below twenty
+       * a month they are better off metered and the product must not push them;
+       * above it the plan wins and the note writing comes free.
+       *
+       * ⚠️ The margin argument that used to sit here was written against a $99
+       * plan and a US rate table, and it is superseded. The current floor is set
+       * from the other end: a fifty-minute session costs us about $0.62 all in,
+       * so a flat plan stops paying for itself past `price / 0.62` sessions,
+       * which is 130 at $80 against roughly 120 for a heavy full-time load.
+       * `verify:plan` holds both ends of that argument.
        */
       { key: "payg", name: "Pay as you go", unlockCents: 0, aiRateCents: 300, monthlyCents: 0 },
       /*
@@ -471,18 +487,6 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
       { key: "clinic", name: "Clinic", unlockCents: 0, aiRateCents: 0, monthlyCents: 14400 },
     ],
     creditExpiryMonths: 12,
-    /*
-     * 🔴 The founder's table, as data. C323.
-     *
-     * 1 to 2 seats is the clinic plan itself, so the flat price here is the
-     * same $179 the tier carries and the first two seats are included in it.
-     * From three, every seat is priced, which is why 2 to 3 is a $91 jump
-     * rather than a $90 one: $179 becomes $270, not $179 plus $90.
-     *
-     * That step is stated on the slider before the click (62.2), because a
-     * clinic adding their third clinician and finding a number they did not
-     * expect is a support ticket and a refund conversation.
-     */
     /*
      * 🔴 $72 A SEAT FROM TWO SEATS UP, AND NO LADDER.
      *
@@ -695,8 +699,8 @@ function parseSeatBands(value: unknown, fallback: SeatBand[]): SeatBand[] {
  * The band that applies is the highest one the count has REACHED, and it then
  * prices every seat. Retroactive, not marginal.
  *
- * The difference is not a rounding argument. Marginal at five seats gives
- * $179 + 2×$90 + 1×$80 = $439 against the founder's stated $400, and the gap
+ * The difference is not a rounding argument. On the shipped ladder, marginal at
+ * four seats gives $80 + 3×$72 = $296 against the retroactive $288, and the gap
  * grows with every seat: a clinic reading the public table would be billed a
  * number that never appears on it.
  *
@@ -737,11 +741,11 @@ export function seatMonthlyCents(seats: number, bands: SeatBand[]): number {
  *
  * ## 🔴 RETROACTIVE WITHIN THE PERIOD (C351)
  *
- * Going from two seats to three does not add one seat at $90. It reprices the
- * whole account from $179 to $270 for the remainder of the month. So the
- * difference is computed on the WHOLE monthly figure at each count, not on the
- * seats being added, and the remaining days decide how much of that difference
- * is owed now.
+ * Going from one seat to two does not add one seat at $72. It reprices the
+ * whole account from $80 to $144 for the remainder of the month, so the step is
+ * $64 rather than $72. The difference is computed on the WHOLE monthly figure at
+ * each count, not on the seats being added, and the remaining days decide how
+ * much of that difference is owed now.
  *
  * ## 🔴 TO THE DAY, AND THE DAY THE CHANGE HAPPENS IS CHARGED
  *
@@ -877,7 +881,7 @@ function parseTiers(value: unknown): PricingTier[] {
    *
    * 🔴 Sprint 57 — the tie-break is not cosmetic. Every tier this product now
    * ships has an `unlockCents` of zero, so a sort on that key alone leaves the
-   * order entirely to whatever the admin last saved: the $179 tier could sort
+   * order entirely to whatever the admin last saved: the clinic tier could sort
    * ahead of the free one and become the headline rate on the public page. The
    * monthly price is the second axis, so free sorts first whatever order the
    * rows arrive in.
@@ -1184,7 +1188,7 @@ export function settingsProblem(settings: PlatformSettings): string | null {
   /*
    * 🔴 62.1 / C323 — THE SEAT LADDER MUST NOT REWARD BUYING A SEAT.
    *
-   * A retroactive ladder can go backwards: three seats at $90 each is $270, and
+   * A retroactive ladder can go backwards: three seats at $72 each is $216, and
    * if somebody set the five-seat band to $50 then five seats would cost $250.
    * A clinic with four clinicians would then pay less by buying a fifth they do
    * not have, and every one of them would, because it is arithmetic rather than
@@ -1221,7 +1225,7 @@ export function settingsProblem(settings: PlatformSettings): string | null {
    * monthly price, and the old rail only asked about the threshold.
    *
    * That is this repository's §6 family arriving in the rails themselves: after
-   * sprint 57 every tier has a zero threshold, including the $179 one, so the
+   * sprint 57 every tier has a zero threshold, including the clinic one, so the
    * check went on passing while describing a condition that no longer held. An
    * admin could delete pay-as-you-go outright and the only rail meant to stop
    * them would raise nothing, leaving a therapist who has bought nothing billed
@@ -1232,7 +1236,7 @@ export function settingsProblem(settings: PlatformSettings): string | null {
   }
   /*
    * 🔴 A subscription is bought, never earned. A tier carrying both a monthly
-   * price and a credit threshold reads as "spend $60 and the $179 plan is
+   * price and a credit threshold reads as "spend $60 and the clinic plan is
    * yours", which `tierForSpend` will not honour: it walks credit tiers only.
    * A control that promises something the billing code refuses is worse than no
    * control, so the configuration is refused instead of quietly ignored.
