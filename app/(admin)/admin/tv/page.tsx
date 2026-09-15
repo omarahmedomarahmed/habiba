@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { Board } from "@/components/admin/board";
 import { TotalView } from "@/components/admin/total-view";
 import { Gate } from "@/components/admin/gate";
 import { requireManager } from "@/lib/auth/guard";
@@ -16,6 +17,7 @@ import {
   sessionsFor,
   timeline,
 } from "@/lib/console/reads";
+import { wholeBoard } from "@/lib/console/board";
 
 export const metadata: Metadata = {
   title: "Total View",
@@ -36,7 +38,16 @@ export default async function Page({
 
   const hours = Math.min(720, Math.max(1, Number(params.hours) || 24));
 
-  const [now, live, radar, events, people, roster, audits] = await Promise.all([
+  const [board, now, live, radar, events, people, roster, audits] = await Promise.all([
+    /*
+     * 🔴 76.1 — THE BUSINESS BOARD, above the live console.
+     *
+     * The console below answers "what is going on right now" and reaches
+     * clinical rows, which is why the whole page is behind the elevation gate.
+     * This answers "how is the business doing", reads nothing clinical, and is
+     * what a founder actually opens this page for on an ordinary Tuesday.
+     */
+    wholeBoard(),
     counts(),
     liveSessions(),
     radarNow(),
@@ -54,7 +65,9 @@ export default async function Page({
   ]);
 
   return (
-    <TotalView
+    <div className="space-y-6">
+      <Board initial={board} />
+      <TotalView
       until={state.until.toISOString()}
       hours={hours}
       query={params.q ?? ""}
@@ -172,5 +185,6 @@ export default async function Page({
           : null
       }
     />
+    </div>
   );
 }

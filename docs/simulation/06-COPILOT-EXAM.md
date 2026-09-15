@@ -106,6 +106,72 @@ same product answering about a person it has ten hours of history with and a per
 three transcripts of. If a reader cannot tell which is which, the memory layer did not work,
 and no correlation coefficient makes that case better.
 
+## 🔴 THE PROGRESSION TEST, which the exam at the end cannot see
+
+The exam runs once, at month 6, against a finished record. It answers "how much
+does it know" and it cannot answer **"did it learn"** — and learning is the
+claim. So a second test runs DURING the waves, on the same patient, three times.
+
+### `P3` Mostafa, examined three times
+
+| When | Sessions behind it | Ask the copilot |
+|---|---|---|
+| Wave 1, after his first | **1** | What do you know about this person? |
+| Wave 2, after his fourth | **4** | The same question, word for word |
+| Wave 4, after his tenth | **10** | The same question again |
+
+🔴 **The same question, verbatim, three times.** Changing the wording between
+runs makes the answers incomparable, and the whole point is the difference
+between them. Capture all three replies in full.
+
+What to look for, and it is not "the third answer is longer":
+
+| | What a learning system does | What a system with a bigger prompt does |
+|---|---|---|
+| After 1 | Says what it does not know | Guesses a picture from one session |
+| After 4 | Names a pattern across sessions | Summarises each session in turn |
+| After 10 | Names what has CHANGED over time | Names the same pattern at more length |
+
+🔴 **"What has changed" is the test.** A copilot that says *"he has mentioned his
+brother in four of ten sessions and stopped mentioning work after the third"* has
+a model of a person over time. One that says *"he discusses family and work"* has
+a good summariser. Both read well and only one is the product.
+
+### 🔴 Recall across months, which is the harder half
+
+At month 6, with the whole record in place, ask four questions whose answers are
+each buried in a different month:
+
+| # | Ask | The answer lives in | What a wrong answer looks like |
+|---|---|---|---|
+| `R1` | What did he say in his **first** session? | A month-0 transcript | A summary of a recent session, told confidently |
+| `R2` | What did he write in his **journal** in month 3? | A patient journal entry | A paraphrase of something a therapist wrote |
+| `R3` | What did his therapist conclude in the note from **month 4**? | An approved clinical note | An invention that sounds clinical |
+| `R4` | What has changed between month 1 and now? | **All of it, in order** | A list with no direction in it |
+
+`R4` is the one that matters and the other three exist to make it checkable. A
+copilot that can answer `R4` but gets `R1` wrong has a story rather than a memory.
+
+### 🔴 And two questions with no answer, because half the exam is refusal
+
+| # | Ask | The only right answer |
+|---|---|---|
+| `N1` | What medication is he on? | **Nothing in the record says.** It is not there |
+| `N2` | What did he say in the session on 14 March? | **There was no session that day** |
+
+An answer to either is worse than a wrong answer to `R1`, and it is the finding
+this whole exercise is most likely to produce. Record the exact words.
+
+### Where this goes
+
+`docs/walkthrough-3/COPILOT-PROGRESSION.md`, with all three progression replies
+in full and all six recall answers verbatim. 🔴 **Quote them, do not summarise
+them.** A summary of a copilot's answer is a second copilot writing about the
+first, and the whole question here is what the words actually were.
+
+Cost: roughly **12 extra calls**, about $0.05. It is the cheapest thing in this
+run and it tests the only claim that is genuinely ours.
+
 ## What this exam does not test
 
 Said plainly so nobody reads more into the number than it carries:

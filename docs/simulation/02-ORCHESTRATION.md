@@ -80,7 +80,7 @@ copilot exam at the end has nothing to measure.**
 If a wave ends with every patient on three sessions, the orchestrator says so and the main
 session decides whether to run a catch-up pass before ageing.
 
-## The seven standing agents
+## The eight standing agents
 
 These never sleep. They are awake for the whole simulation because their real-world
 counterparts are.
@@ -160,6 +160,41 @@ It lives on `/admin/transfers` and does four things:
 the evidence is the reference the payer typed and the receipt they uploaded. An agent that
 confirms everything that arrives is not testing an operator, it is testing a rubber stamp,
 and the whole rail rests on the difference.
+
+### 🔴 The Total View watcher, who does nothing else for six months
+
+One agent, signed in as the operator, whose entire job is `/admin/tv`.
+
+> *"I run the company by sitting back and watching TV."*
+
+That is the joke the board exists to make true, and this agent is how the run
+finds out whether it is. It does **not** act, does not approve anything, does not
+work a queue. It watches, and once a week it:
+
+1. **Refreshes every section** and notes how long the whole board takes to read.
+2. **Screenshots the board**, whole, to `docs/walkthrough-3/tv/week-NN.png`.
+3. **Expands and collapses each of the nine sections**, so the frames show both.
+4. 🔴 **Writes down the one number that changed most since last week**, and
+   whether the board made that visible or whether it had to go looking.
+5. 🔴 **Follows one door.** Each week it picks a different section, clicks
+   through to the page that manages it, and confirms that the page agrees with
+   the number the board showed. **A board and a page that disagree is the single
+   most damaging defect this screen can have**, because the board is the one a
+   founder trusts without checking.
+
+### 🔴 What this agent is really testing
+
+Not the pixels. Three questions no other agent can answer:
+
+| Question | Why nobody else can answer it |
+|---|---|
+| Can a founder see what happened this week **without opening anything else**? | Every other agent is inside one flow and cannot tell what is missing from the whole |
+| Does a number on the board match the page behind it? | The two are read by different people at different times, so only somebody reading both notices |
+| Is there a week where the board looked fine and something was wrong? | 🔴 The most valuable finding available. A dashboard that stayed green through a bad week is worse than no dashboard |
+
+At the end it writes **one page**: what it could see, what it could not, and what
+it would add. A founder who has watched six months of this company through one
+screen is the only person qualified to say what is missing from it.
 
 ### 🔴 The business strategist, monthly
 

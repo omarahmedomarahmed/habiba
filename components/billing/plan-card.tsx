@@ -33,7 +33,7 @@ export type TierRow = {
  *
  * ## What this replaced, three times
  *
- * A $99/month Unlimited subscription, then a session-bundle slider, then a
+ * An unlimited monthly subscription, then a session-bundle slider, then a
  * credit-threshold rate lock. Sprint 57 brings the subscription back, and the
  * reason is worth writing down rather than rediscovering: a therapist cannot
  * compare "a dollar plus two dollars a session" to anything. Every product they

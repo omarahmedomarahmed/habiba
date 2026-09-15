@@ -149,6 +149,7 @@
     "verify:plan": "node --import tsx --conditions=react-server scripts/verify-plan.ts",
     "verify:rail": "node --import tsx --conditions=react-server scripts/verify-rail.ts",
     "verify:entitlement": "node --import tsx --conditions=react-server scripts/verify-entitlement.ts",
+    "verify:board": "node --import tsx --conditions=react-server scripts/verify-board.ts",
     "forecast": "node --import tsx --conditions=react-server scripts/forecast.ts",
     "plan": "node --import tsx --conditions=react-server scripts/plan.ts",
     "test:seats": "node --import tsx --test tests/seats.test.ts"

@@ -85,7 +85,7 @@ Nine identities. Growth begins and the product stops being one therapist and one
 
 | # | Who | Signs up as | Exists to prove |
 |---|---|---|---|
-| `C1` | Nile Practice, Cairo, 3 seats | clinic, applied then approved | The practice buys seats and the seat ladder charges what the pricing page says |
+| `C1` | Nile Practice, Cairo, **3 seats** | clinic, applied then approved | The practice buys seats at $72 each and the invoice matches what the pricing page says. 🔴 Three, not four: a small Cairo practice is two clinicians, sometimes three, and the plan models nothing bigger |
 | `C1-M` | Hana Example, practice manager | clinic admin | Sees schedules and bills, and **must fail** to reach a note. That failure is captured as evidence |
 | `C1-S` | Fatma Example, practice staff | delegated by C1-M | 🔴 **Sprint 63's whole point.** Given some powers and not others. Must succeed at what she was given and be refused the rest, both captured |
 | `C1-A` | Dr Tarek Demo | clinician, invited | The ordinary path: invited, verifies his own licence, joins. Leaves again in wave 3 |
@@ -105,7 +105,7 @@ product claims to handle and has never been made to.
 
 | # | Who or what | Exists to prove |
 |---|---|---|
-| `E2` | Alexandria Textiles, **10% coverage** | 🔴 **The partial pot, and the arithmetic on the slider.** Covers a tenth. At 10% of a $20 session they pay $2, so their $200 welcome credit covers about 100 sessions, and the screen must say so before they press Save. Every patient of theirs pays the other 90% themselves, and both halves appear on both sides |
+| `E2` | Alexandria Textiles, **10% coverage** | 🔴 **The partial pot, and the arithmetic on the slider.** Covers a tenth. At 10% of a $20 session they pay $2, so their $100 welcome credit covers about 50 sessions, and the screen must say so before they press Save. Every patient of theirs pays the other 90% themselves, and both halves appear on both sides |
 | `E2-HR` | Mariam Example, sponsor admin | Sets coverage: **must press Edit first**, then move the slider, read the session estimate, then Save. Gets the notice period and cannot shorten it |
 | `P5` | Nadia Example | 🔴 Covered 10%, pays the rest herself, **and then is hired away by `E3`.** Her old funding stops, her new funding starts, her record does not move, and neither employer learns the other exists. If one line of this is wrong it is the worst defect the simulation can find |
 | `E3` | Delta Logistics | Hires `P5` away from `E2` |
@@ -136,7 +136,7 @@ purpose. A simulation in which nothing breaks proves only that the happy path is
 | `M4-1` | 🔴 **Wave 1's therapists are billed at FULL PRICE** | An invoice with **no discount line**. `08-THE-OFFER.md` calls this the single most important frame in the run, and it is: everything the forecast says about month 7 rests on what these people do when they see it |
 | `M4-2` | 🔴 **One of them does not pay** | `T3` lets the month lapse. Nothing anywhere demotes him: the obligation is never settled, `lapseOverdue` marks it lapsed, and `entitledTier` puts him back on pay as you go by itself. His next session bills at the metered rate and he can see why |
 | `M4-3` | 🔴 **`T2` subscribes by transfer and IS on the plan** | He presses Subscribe. There is no checkout. A bill is raised, the transfer card asks for it in pounds, he sends it, **and he is still on pay as you go until an operator confirms**. That gap is the design, not a delay |
-| `M4-4` | 🔴 **A therapist checks the promise is true** | `T1` compares one month of session earnings against her $100 bill. Ten sessions at $20 earns her $200 against it. **If that is not true on her own screens, the plan is wrong and the run has found it** |
+| `M4-4` | 🔴 **A therapist checks the promise is true** | `T1` compares one month of session earnings against her **$80** bill. 🔴 **NET, not gross.** Fifteen sessions at $20 earns $300, we take $45, so her screen shows **$255** and she pays $80. **If that is not true on her own screens, the plan is wrong and the run has found it.** An agent comparing against $300 will report a defect that is not one |
 | `M4-5` | 🔴 **A new therapist gets one free month and then full price** | `T5` joins this month. The offer after the beta is one month free, then the full $100. No half price, no schedule, no exception |
 
 ### The four bugs, injected deliberately

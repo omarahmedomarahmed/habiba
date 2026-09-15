@@ -166,6 +166,14 @@ const SCOPE: Record<string, Scope> = {
    * super_admin only, which `elevated()` enforces on top of the page's guard.
    */
   "console/reads": { who: ["admin"], clinical: true },
+  /*
+   * 🔴 76.1 — the board. Admin only, and NOT clinical, which is the whole
+   * difference between it and `console/reads` above. It counts rows: how many
+   * sessions, how much money, how many people. It never reads a transcript, a
+   * note, a message or a name from a clinical table, and this declaration is
+   * what the gate checks that claim against.
+   */
+  "console/board": { who: ["admin"] },
   "console/gate": { who: ["admin"] },
   "console/history": { who: ["admin"], clinical: true },
 

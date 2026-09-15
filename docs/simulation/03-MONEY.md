@@ -148,8 +148,9 @@ This wave is why the run is six months long.
   his own screen says why.**
 - 🔴 **`T2` subscribes by transfer.** No checkout. A bill is raised, he transfers, and he is
   still on pay as you go until the operator confirms. Capture the gap: it is the design.
-- 🔴 **`T1` checks the promise.** One month of her session earnings against her $100 bill.
-  Ten sessions at $20 earns $200 against it. **On her own screens.** If the arithmetic does
+- 🔴 **`T1` checks the promise.** One month of her session earnings against her $80 bill.
+  Fifteen sessions at $20 earns $300, we take $45, and her screen shows $255 against an $80
+  bill. **On her own screens, net.** If the arithmetic does
   not hold there, the plan is wrong and the run found it.
 - 🔴 **`E1`'s pot runs to nothing mid-month.** Coverage stops. HR is alerted **and so is the
   patient**, whose screen says "Account on hold, ask HR to activate" rather than a payment

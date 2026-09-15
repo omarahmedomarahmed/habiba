@@ -128,7 +128,7 @@ export const BENCHMARK: Assumptions = {
     freeSessionsPerNewTherapist: measured(1, "The first completed session is free, per therapist", MEASURED_ON, 5),
   },
   pricing: {
-    blendedSubscriptionUsd: assumed(33, "One therapist on a $99 plan out of three paying"),
+    blendedSubscriptionUsd: assumed(27, "One therapist on the $80 plan out of three paying"),
     payingShare: assumed(0.6, "Three of five"),
   },
   people: [],
@@ -180,7 +180,7 @@ export const BASE: Assumptions = {
     freeSessionsPerNewTherapist: assumed(1, "The first completed session is free"),
   },
   pricing: {
-    blendedSubscriptionUsd: assumed(99, "The practice tier, from platform_settings"),
+    blendedSubscriptionUsd: assumed(80, "The practice tier, from platform_settings"),
     payingShare: assumed(0.55, "The rest stay on pay as you go"),
   },
   people: [

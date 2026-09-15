@@ -1345,7 +1345,7 @@ export const en = {
    */
   "aclinic.nav": "Clinics",
   "aclinic.title": "Clinics and hospitals",
-  "aclinic.body": "A clinic IS an organisation row, which is why its clinicians sit inside its tenancy and a sponsor never could. Activating one opens a practice that will hold clinical records.",
+  "aclinic.body": "A clinic IS an organisation row, so its clinicians sit inside its tenancy and a sponsor never could. Activating one opens a practice that will hold clinical records.",
   "aclinic.none": "No practice enquiries yet.",
   "aclinic.contact": "Contact",
   "aclinic.clinicians": "{count} clinicians",
@@ -1373,10 +1373,10 @@ export const en = {
   "apartner.developer": "Developer, reads only",
   "apartner.create": "Create",
   /* 🔴 C265 — the reason this console never mints a key, said on the console. */
-  "apartner.neverMints": "Keys are minted by the partner, in their own portal, and scoped there. Nothing on this screen creates one: a key we minted is a credential nobody on their side chose the scope of, and an employment key is an identity oracle pointed at our own patients.",
+  "apartner.neverMints": "Keys are minted by the partner, in their own portal, and scoped there. Nothing here creates one: a key we minted is a credential nobody on their side chose the scope of.",
   "asponsor.nav": "Sponsors",
   "asponsor.title": "Sponsors",
-  "asponsor.body": "Corporate and university accounts. A company and a university are one type with two faces: the same controls, different words on their own screens.",
+  "asponsor.body": "Corporate and university accounts: one type with two faces, the same controls and different words on their own screens.",
   "asponsor.none": "No corporate enquiries yet.",
   "asponsor.contact": "Contact",
   "asponsor.email": "Email",
@@ -1899,9 +1899,9 @@ export const en = {
   /* The admin's measurement. C97: "measure the mute rate" — and act on it the same afternoon. */
   "acheckin.nav": "Check-ins",
   "acheckin.title": "Check-ins",
-  "acheckin.body": "A short message asking how somebody is, on a schedule. The ruling was to prove the cadence rather than assume it, so every number here is yours to change and the mute rate is the one to watch.",
+  "acheckin.body": "A short message asking how somebody is, on a schedule. Every number here is yours to change, and the mute rate is the one to watch.",
   "acheckin.rate": "The mute rate",
-  "acheckin.rateBody": "{muted} of {reachable} people who could be messaged have turned these off. Above {halt} the channel stops sending to everybody, because at that point continuing is choosing to be wrong at everyone.",
+  "acheckin.rateBody": "{muted} of {reachable} people who could be messaged have turned these off. Above {halt} the channel stops sending to everybody, because continuing is choosing to be wrong at everyone.",
   "acheckin.halted": "The channel is halted. Enough people have muted that it stopped on its own.",
   "acheckin.sent": "{count} sent",
   "acheckin.delivered": "{count} delivered",

@@ -22,8 +22,8 @@
  *
  * ## 🔴 THE PRICES ARE NOT THE ONES IN `platform_settings`, AND THAT IS ON PURPOSE
  *
- * The product currently ships $99 and $179 monthly tiers and a $3 AI fee. In
- * Egypt at roughly 50 EGP to the dollar, $99 is about 4,950 EGP a month, which
+ * The product shipped $99 and $179 monthly tiers until sprint 75. In
+ * Egypt at roughly 50 EGP to the dollar, $99 was about 4,950 EGP a month, which
  * is more than many Egyptian therapists net from a week of sessions. Selling it
  * is not a hard conversation, it is an impossible one.
  *
@@ -188,7 +188,7 @@ const COMPANY = {
   churnAtFullPrice: 0.33,
   churnSteady: 0.03,
   /** 🔴 DECIDED. $200 of welcome credit, which is their first ~20 sessions. */
-  welcomeCreditUsd: 200,
+  welcomeCreditUsd: 100,
 };
 
 /**
@@ -223,9 +223,21 @@ const CLINIC = {
    * less. **If Daily's real invoice comes in above $0.004 a participant-minute,
    * this is the first price to revisit.**
    */
-  monthlyUsd: 72 * 4,
-  /** 🔴 GUESS. Four practising clinicians in a typical small Cairo clinic. */
-  cliniciansEach: 4,
+  monthlyUsd: 72 * 2.5,
+  /**
+   * 🔴 DECIDED: **two or three, never four or five.**
+   *
+   * ⚠️ This was four, which is a plausible number for a clinic and the wrong one
+   * for the clinics this plan actually sells to. A small Cairo practice is two
+   * clinicians who share a waiting room, sometimes three. Four is already a
+   * different kind of business with a manager and a lease, and modelling it
+   * inflated both the seat revenue and the session volume per account by 60%.
+   *
+   * 2.5 is the average of a population that is two and three. The model carries
+   * fractional accounts everywhere else for the same reason, and a whole number
+   * here would mean choosing which of the two to be wrong about.
+   */
+  cliniciansEach: 2.5,
   patientsPerClinician: 10,
   sessionsPerPatient: 2.5,
   /** 🔴 GUESS. Three months to get four clinicians recording routinely. */
@@ -623,13 +635,13 @@ export const PROVENANCE: { path: string; kind: Provenance; why: string }[] = [
 
   { path: "company.arrivals", kind: "decided", why: "Two, one, none. What the first salesperson is paid to do" },
   { path: "company.patientsPerClinician", kind: "guess", why: "5% of a 1,000-person call centre enrol, 40% of those active monthly" },
-  { path: "company.welcomeCreditUsd", kind: "decided", why: "$200 of pot credit, which is their first twenty sessions" },
+  { path: "company.welcomeCreditUsd", kind: "decided", why: "$100 of pot credit: about 50 sponsored sessions at 10% coverage. Halved from $200 to open twice as many doors" },
   { path: "company.churnAtFullPrice", kind: "guess", why: "A third do not renew when the credit runs out and a real invoice arrives" },
   { path: "company.rampMonths", kind: "guess", why: "Three months from posters on a wall to a habit" },
 
   { path: "clinic.arrivals", kind: "decided", why: "Six over the quarter. The second salesperson's target" },
   { path: "clinic.monthlyUsd", kind: "decided", why: "$72 a seat, minimum two. Ten per cent off the solo plan, so it moves when that does" },
-  { path: "clinic.cliniciansEach", kind: "guess", why: "Four practising clinicians in a small Cairo clinic" },
+  { path: "clinic.cliniciansEach", kind: "decided", why: "Two or three, never four or five. 2.5 is the average of the population this plan sells to" },
   { path: "clinic.churnAtFullPrice", kind: "guess", why: "A quarter walk when the half-price months end" },
 
   { path: "therapist.arrivals", kind: "decided", why: "Nine over the quarter, inside the 8 to 10 target" },

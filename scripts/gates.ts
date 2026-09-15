@@ -137,6 +137,19 @@ const GATES = [
     script: "verify:entitlement",
     why: "and paying for a plan actually puts you on it",
   },
+  /*
+   * 🔴 The board is the screen the founders run the company from, and a
+   * dashboard is the easiest thing in a product to get wrong in a way nobody
+   * notices: a wrong number and a right number look identical. This runs all
+   * nine of its queries against a real database, checks that none of them
+   * writes, and checks the one error that describes a richer company than we
+   * have — counting invoiced money as collected.
+   */
+  {
+    name: "board",
+    script: "verify:board",
+    why: "and the board a founder trusts is counting the right things",
+  },
 ] as const;
 
 function main() {

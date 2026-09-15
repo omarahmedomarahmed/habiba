@@ -324,131 +324,181 @@ session lengths rather than one.
 
 ### The plan
 
-Egypt first. A session is **1,000 EGP, about $20**. A therapist pays **$100 a
+Egypt first. A session is **1,000 EGP, about $20**. A therapist pays **$80 a
 month unlimited**, which is exactly 20 pay-as-you-go sessions at $4, so a
-therapist doing fewer than that is right to stay metered and the product does not
-push them. Two founders at $500 each, two salespeople, one marketer, two support
-staff, because a bank transfer rail needs a person by the minute.
+therapist doing fewer than that is right to stay metered and the product does
+not push them. A clinic is **two or three clinicians at $72 a seat**. Two
+founders at $500 each, two salespeople, one marketer, two support staff, because
+a bank transfer rail needs a person by the minute.
 
 ```
 npm run plan            # five scenarios, thirty-six months
 npm run plan -- beta    # one of them, month by month
 ```
 
-| Scenario | What it asks | Break even | Where it ends |
-|---|---|---|---|
-| `beta` | Three months on the angel cheque | not in 3 months | $2,240/mo at m3, $5,701 of cash |
-| `beta-cliff` | Six months, no new money | **month 6** | $8,041/mo at m6, $4,501 of cash |
-| 🔴 `runway` | **Can the $20k alone do it?** | **month 6** | $21,318/mo at m18, $92,397 of cash |
-| `grandfathered` | Raise at month 6, early adopters keep half price for ever | month 6 | $47,609/mo at m36 |
-| `half-price` | Raise at month 6, half price for everybody | month 6 | $50,275/mo at m36 |
+### 🔴 The six months, month by month
 
-### 🔴 The headline, which surprised us
+This is the plan a $20,000 cheque actually buys. Nothing here is a raise.
 
-**The $20,000 angel cheque alone reaches break-even at month 6 and never goes
-negative.** The three-month framing the plan started from understated the
-founders' own runway by a factor of six. On six months with no new money the
-account ends with **$4,501** in it and the month itself is profitable.
+| Month | In | Out | Net | **In the bank** |
+|---|---|---|---|---|
+| start | | | | **$20,000** |
+| 1 | $183 | $6,816 | −$6,633 | $13,367 |
+| 2 | $770 | $5,112 | −$4,342 | $9,025 |
+| 3 | $1,715 | $5,309 | −$3,594 | $5,431 |
+| 4 | $3,011 | $5,695 | −$2,684 | $2,747 |
+| 5 | $4,519 | $5,979 | −$1,460 | $1,287 |
+| **6** | **$6,020** | $6,230 | −$210 | **$1,077** |
 
-⚠️ That improved twice in one day and both reasons are worth knowing. The
-pricing was reconciled with what the product actually charges, which had been
-understated. And the model stopped deleting people at the price cliff: a
-therapist who decides $80 is not worth it **does not stop seeing patients**, they
-drop to the metered rate and keep paying $1 a session, $3 more when the patient
-consents, and 15% of everything the patient pays them. Modelling the cliff as
-departure had made the plan pessimistic by roughly the size of the one number the
-whole beta exists to measure.
+**Six months of revenue: $16,218. Six months of spend: $35,141.** The month-6
+run rate is $6,020, which is **$72,240 of ARR**, and the month itself is within
+$210 of breaking even.
 
-### Executive summary of the $20,000
+⚠️ **That ending balance is thin and it is the honest number.** $1,077 is about
+five days of payroll. The plan does not run out of money and it does not have a
+buffer either, and anything that slips — a month of slower sales, one company
+not renewing — is felt immediately. This is what a $20,000 cheque buys with
+seven people on it, and the answer to it is either fewer people, more months, or
+a second cheque at month 5 rather than month 6.
+
+### Where the money goes
+
+| Line | Six months |
+|---|---|
+| People, seven at $500 | $21,000 |
+| Marketing: $1,000 a month plus three videos | $6,600 |
+| Welcome credit to companies | $510 |
+| Models, video, card and wallet fees, hosting | $7,031 |
+| **Total** | **$35,141** |
+
+🔴 The **beta discount is not in that table.** It is revenue we chose not to
+charge, not money we spent, and a spend column would count it twice.
+
+### 🔴 The angel's return at month 6, which is the one that matters
+
+The 36-month numbers are further down. **This is what a cheque today is worth
+when the six months are over**, which is the point an angel can actually check.
 
 | | |
 |---|---|
-| Two founders, six months | $6,000 |
-| Two salespeople, six months | $6,000 |
-| One marketer, six months | $3,000 |
-| Two support staff, six months | $6,000 |
-| Marketing: $1,000 a month of ad spend and three sponsored therapists, plus three explainer videos in month 1 | $6,600 |
-| Welcome credit given to companies | $1,020 |
-| AI, Daily video, card and wallet processing, hosting and the rest | $7,556 |
-| **Total spend** | **$36,177** |
-| **Revenue over the six months** | **$17,171** |
-| **Net, against $20,000 of starting cash** | **$4,502 left** |
+| The cheque | **$20,000 for 20%** |
+| Implied valuation today | **$100,000 post-money** |
+| Month-6 run rate | **$6,020 a month** |
+| Month-6 ARR | **$72,240** |
 
-🔴 **The $4,029 of beta discount is not in that table**, because it is not money
-spent. It is revenue we chose not to charge, and putting it in a spend column
-would count it twice: once as cash we never had and once as cash we never lost.
+| If the company is valued at | It is worth | The 20% is | **Return** |
+|---|---|---|---|
+| 2x ARR | $144,480 | $28,896 | **1.4x** |
+| 3x ARR | $216,720 | $43,344 | **2.2x** |
+| 4x ARR | $288,960 | $57,792 | **2.9x** |
+| 5x ARR | $361,200 | $72,240 | **3.6x** |
 
-Everybody is paid **$500 a month**, founders included. That is the number the
-founders said they need to live on, not a placeholder, and seven people at $500
-is the $3,500 a month the plan carries from month 1.
+**So: roughly 2x to 3.6x in six months, on paper.** Not 29x. The big multiples
+come from holding for three years and are in the long-horizon table below;
+this is the near one, and it is the one nobody can wave away.
 
-| At month 6 | |
-|---|---|
-| MRR | **$8,041** |
-| Implied ARR | **$96,492** |
-| Gross margin | **75%** |
-| Accounts | 6 companies, 11 clinics, 19 therapists, 69 clinicians |
-| Sessions that month | 1,396 |
+⚠️ **Three things that table is not.** It is not cash: nobody has sold anything,
+and a valuation is what a next investor would pay rather than what is in the
+bank. The ARR multiple is **my assumption**, not an output of the model. And
+every revenue figure it rests on comes from fourteen guesses the beta exists to
+replace.
 
-🔴 **How much of that MRR is collected rather than invoiced is a question the
-model cannot answer and the simulation can.** A forecast built on invoiced
-revenue is a forecast of a company that runs out of money, and the CFO agent is
-asked for exactly this number at month 3 and again at month 6.
+### Two angels instead of one
+
+| | Cheque | Stake | Same valuation |
+|---|---|---|---|
+| One angel | $20,000 | 20% | $100,000 post-money |
+| Two angels | $10,000 each | 10% each | $100,000 post-money |
+
+The return per dollar is **identical** either way, because both price the
+company the same. Two angels is not a worse deal, it is the same deal split, and
+it is usually the easier one to close.
+
+### 🔴 What "dilution" means here, and why there is a row without it
+
+If the company raises again later, new shares are issued and every existing
+holder owns a smaller slice of a bigger company. A 40% dilution row means: after
+one normal later round, a 20% stake has become 12%.
+
+**The no-dilution row is not optimism, it is the case where no further round
+happens** — which the `runway` scenario says is genuinely possible, because the
+$20,000 alone reaches break-even. An angel should see both, because the two are
+different bets: one on a company that raises and grows faster, one on a company
+that never needs to.
+
+### The three-year scenarios, and who decides between them
+
+Two of the five scenarios are the same company with a different decision made at
+month 6 about **what early customers pay from then on.**
+
+| | In plain language | Whose decision |
+|---|---|---|
+| **`grandfathered`** | Everybody who joined during the beta **keeps half price for ever.** New customers pay full price | 🔴 **Yours.** It is a promise to the first hundred customers and it cannot be taken back |
+| **`half-price`** | **Everybody** pays half price for ever, old and new, and there is no free first month | 🔴 **Yours.** It is a permanent price cut, not an offer |
+
+`grandfathered` rewards the people who took a risk on an unproven product and
+charges the market rate to everybody after them. `half-price` is a decision that
+the market rate *is* half price, and it buys growth by giving up margin on every
+customer for ever: it reaches more accounts and lower gross margin, and in this
+model it ends up at roughly the same revenue by a longer road.
+
+**Neither is a forecast and neither is mine to make.** The model prices both so
+the decision is made with the difference on a page rather than in a conversation.
+
+| Scenario | What it asks | Break even | Where it ends |
+|---|---|---|---|
+| `beta` | Three months on the cheque | not in 3 | $1,715/mo at m3 |
+| `beta-cliff` | **Six months, no new money** | not in 6 | $6,020/mo, $1,077 of cash |
+| 🔴 `runway` | **Can the $20k alone do it?** | **month 7** | $15,949/mo at m18, $52,977 of cash |
+| `grandfathered` | Raise at m6, early adopters keep half price | month 6 | $35,442/mo at m36 |
+| `half-price` | Raise at m6, half price for everybody | month 14 | $37,951/mo at m36 |
+
+### The three-year table, for completeness
+
+⚠️ **Read the six-month one above first.** This is the same arithmetic held for
+three years, and every extra month multiplies the fourteen guesses by another
+month of compounding. It is here because an angel is entitled to see it, not
+because it is more reliable than the near one.
+
+| Scenario at month 36 | Run rate | ARR | At 3x ARR | At 5x ARR |
+|---|---|---|---|---|
+| `grandfathered` | $35,442/mo | $425,304 | $1.28M | $2.13M |
+| `half-price` | $37,951/mo | $455,412 | $1.37M | $2.28M |
+
+| Stake | Diluted by a later round | `grandfathered`, 5x | `half-price`, 5x |
+|---|---|---|---|
+| 20% on $20k | none | $425k, **21x** | $455k, **23x** |
+| 20% on $20k | 40% | $255k, **13x** | $273k, **14x** |
+| 10% on $10k | none | $213k, **21x** | $228k, **23x** |
+| 10% on $10k | 40% | $128k, **13x** | $137k, **14x** |
+
+🔴 The 3x and 5x multiples and the 40% dilution are **assumptions I applied by
+hand.** Nothing in the model computes them.
 
 ### The raise, and what it is for
 
 **Recommended: $20,000 now, and a decision at month 6 rather than a plan for
-one.** The model says the cheque alone reaches break-even at month 6; it also
-says that raising at that point takes month-36 revenue from $21,318 to between
-$47,609 and $50,275 a month. Both of those are projections off the same fourteen
-guesses. What changes between them is not the product, it is how fast sales and
-marketing are funded.
+one.** The model says the cheque alone reaches break-even in month 7 and then
+compounds to $52,977 of cash by month 18 with no round at all. It also says a
+round at month 6 roughly doubles month-36 revenue. Both are projections off the
+same fourteen guesses.
 
 So the honest shape is: take the $20k, run the six months, **replace the guesses
 with counts**, and decide with evidence rather than committing now to a round
 priced on a model.
 
-### Angel scenarios, with the arithmetic shown
+🔴 **The first of those guesses is the one that matters.** At 500 EGP a session
+the plan runs out of cash; at 1,000 it ends the six months at break-even with
+$1,077 left. The session price is the most load-bearing number in the business
+and nothing except a real customer can settle it.
 
-Both of these price the company at a **$100,000 post-money valuation**, which is
-a friends-and-family number and is stated as one.
+The five things `npm run plan` prints as unknowable every time it runs:
 
-| | Cheque | Stake | Implies |
-|---|---|---|---|
-| One angel | $20,000 | 20% | $100,000 post-money |
-| Two angels | $10,000 each | 10% each | $100,000 post-money |
-
-Returns, if the `grandfathered` or `half-price` scenario happens and the company
-is valued on revenue at exit:
-
-| Scenario at month 36 | ARR | At 3x ARR | At 5x ARR |
-|---|---|---|---|
-| `grandfathered` | $571,308 | $1.71M | $2.86M |
-| `half-price` | $603,300 | $1.81M | $3.02M |
-
-| Stake | Diluted by a later round | `grandfathered`, 5x | `half-price`, 5x |
-|---|---|---|---|
-| 20% on $20k | none | $571k, **29x** | $603k, **30x** |
-| 20% on $20k | 40% | $343k, **17x** | $362k, **18x** |
-| 10% on $10k | none | $286k, **29x** | $302k, **30x** |
-| 10% on $10k | 40% | $171k, **17x** | $181k, **18x** |
-
-⚠️ **Every figure in those two tables is a projection multiplied by an assumption
-about a future round, and both are built on the fourteen guesses named above.**
-They are here because an angel is entitled to see the arithmetic somebody is
-asking them to believe, not because we believe it. The five things the model
-cannot know are printed by `npm run plan` every time it runs:
-
-- whether an Egyptian therapist will pay 1,000 EGP a month at all
+- whether an Egyptian therapist will pay 4,000 EGP a month at all
 - how many leave the month the discount ends. **Assumed 40%**
 - what share of a call centre's staff enrol. **Assumed 5%**, then 40% active monthly
 - what card and wallet processing actually costs in Egypt. **Assumed 3%**
 - whether a company renews once the welcome credit runs out. **Assumed two in three**
-
-🔴 **The first of those is the one that matters.** At 500 EGP a session the plan
-ends the six months in deficit; at 1,000 it breaks even. The session price is the
-most load-bearing number in the business and nothing except a real customer can
-settle it.
 
 ---
 

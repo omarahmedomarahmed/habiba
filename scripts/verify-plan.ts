@@ -64,11 +64,34 @@ async function main() {
   );
 
   const company = BETA.segments.find((s) => s.key === "company")!;
+  /*
+   * 🔴 THE CREDIT IS THE COMPANY OFFER AND NOBODY ELSE GETS ANY.
+   *
+   * ⚠️ This asserted the literal $200 and went red when it was halved to $100.
+   * The amount is a commercial decision that will move again; what must not move
+   * is WHO gets it. A therapist or a clinic with welcome credit would be a
+   * discount wearing a pot's clothes, and it would land in the ledger as cash
+   * out rather than as revenue foregone.
+   */
   check(
-    "🔴 a company gets two hundred dollars of welcome credit and nobody else gets any",
-    company.welcomeCreditUsd === 200 &&
+    "🔴 the welcome credit goes to companies and to nobody else",
+    company.welcomeCreditUsd > 0 &&
       BETA.segments.filter((s) => s.key !== "company").every((s) => s.welcomeCreditUsd === 0),
-    "the pot credit is the company offer, and it is not a discount",
+    `$${company.welcomeCreditUsd} to a company, $0 to everyone else`,
+  );
+
+  /*
+   * 🔴 AND A CLINIC IS TWO OR THREE CLINICIANS, NEVER FOUR.
+   *
+   * A small Cairo practice is two people who share a waiting room, sometimes
+   * three. Four is a different kind of business with a manager and a lease, and
+   * modelling it inflates both seat revenue and session volume per account.
+   */
+  const clinicSeg = BETA.segments.find((s) => s.key === "clinic")!;
+  check(
+    "🔴 a clinic is two or three clinicians, never four",
+    clinicSeg.cliniciansEach >= 2 && clinicSeg.cliniciansEach <= 3,
+    `${clinicSeg.cliniciansEach} on average, which is the midpoint of two and three`,
   );
 
   /* ================================================================== */

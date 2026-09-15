@@ -34,12 +34,13 @@ invoice.
 free, then $40, then $40, then $80; and for a two-seat clinic free, then $72, then $72, then
 $144.
 
-Plus: a company or university gets **$200 of welcome credit** in its pot.
+Plus: a company or university gets **$100 of welcome credit** in its pot.
 
-🔴 **$200 is not a round number, it is an argument.** At 10% coverage a company
-pays $2 of a $20 session, so $200 is about **100 sponsored sessions**. At 100% it
-is ten. The coverage slider says that arithmetic out loud before an HR manager
-presses Save, because "10%" is abstract and "your $200 covers 100 sessions" is a
+🔴 **$100 is not a round number, it is an argument.** At 10% coverage a company
+pays $2 of a $20 session, so $100 is about **50 sponsored sessions**. At 100% it
+is five. It was $200 until sprint 76 and was halved deliberately: the number that
+matters is how many companies try us, not how long the first one lasts. The coverage slider says that arithmetic out loud before an HR manager
+presses Save, because "10%" is abstract and "your $100 covers 50 sessions" is a
 decision a finance team can actually take.
 
 🔴 **The month is theirs, not the calendar's.** A therapist who signs in wave 3
@@ -100,7 +101,7 @@ Capture: the invoice, and the therapist's own view of it.
 
 ### 4. The welcome credit, funded and consumed
 
-A company's pot, funded with the **$200 welcome credit**, then drawn down by its
+A company's pot, funded with the **$100 welcome credit**, then drawn down by its
 employees' sessions until it is empty, then the moment it runs out.
 
 🔴 **A pot that empties is the feature.** The employee must be told clearly, must
@@ -157,7 +158,7 @@ people cannot move any of them.
 | 2 | Wave 2: half-price invoices for the wave 1 cohort | `03-MONEY.md` |
 | 3 | Wave 3: half price again for wave 1, free for whoever just joined | |
 | 4 | 🔴 **Age one wave further and bill wave 1 at full price** | `05-AGEING.md` |
-| 5 | Fund a pot with $200, drain it, capture the refusal | `03-MONEY.md` |
+| 5 | Fund a pot with $100, drain it, capture the refusal | `03-MONEY.md` |
 | 6 | Count consent, sessions per patient, patients per clinician | `07-FINANCIAL-MODEL.md` |
 | 7 | `npm run plan` and `npm run forecast`, with those counts in hand | |
 

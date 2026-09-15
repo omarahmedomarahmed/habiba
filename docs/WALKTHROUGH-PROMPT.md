@@ -96,10 +96,19 @@ own screen, and **nothing moves until an operator confirms it**. That rail is ne
 never carried a real payment, and it is the largest surface this run exercises.
 `09-THE-RAIL.md` is the whole of it.
 
-**Four new standing agents.** A payments operator working the transfer queue by the minute,
+**Five new standing agents.** A payments operator working the transfer queue by the minute,
 a business strategist writing one note a month off the operator's own screens, a CFO after
-month 3 and again after month 6, and a CTO keeping the dev log. All four work by clicking.
-`02-ORCHESTRATION.md` says what each one is for.
+month 3 and again after month 6, a CTO keeping the dev log, and 🔴 **an agent who does
+nothing for six months but watch `/admin/tv`** and screenshot it every week. All five work by
+clicking. `02-ORCHESTRATION.md` says what each one is for.
+
+🔴 **The board is new and it is the screen the founders run the company from.** Nine
+collapsible dashboards on `/admin/tv`: money in and owed, every company and what its pot
+holds, every clinic and its seats, every clinician and **which way they pay us**, sessions,
+model spend by kind, the transfer queue with the longest wait in it, people, and every
+recorded act by category. Each section refreshes on its own and each ends in a door to the
+page that manages it. The joke it exists to make true is *"I run the company by sitting back
+and watching TV."* The run finds out whether it is.
 
 ## 🔴 What we charge, settled in sprint 75, and the run bills against exactly this
 
@@ -377,6 +386,26 @@ npm run age -- --marker wave2 --start               # 6. open the next wave
 🔴 **Never age before the capture.** The frames would show the wrong dates and cannot be
 retaken.
 
+### Step 5b · 🔴 The copilot progression test, which runs DURING the waves
+
+The exam in step 6 runs once at the end and answers "how much does it know". It cannot
+answer **"did it learn"**, and learning is the claim. So ask `P3` Mostafa's copilot the same
+question, word for word, three times:
+
+| After | Sessions behind it |
+|---|---|
+| Wave 1 | **1** |
+| Wave 2 | **4** |
+| Wave 4 | **10** |
+
+Capture all three replies **in full, quoted**. A copilot that says "he has stopped mentioning
+work since the third session" has a model of a person over time; one that says "he discusses
+family and work" has a good summariser. Both read well and only one is the product.
+
+Then at month 6, four recall questions whose answers each live in a different month (a
+month-0 transcript, a month-3 journal, a month-4 clinical note, and the whole arc), plus two
+with **no answer in the record at all**. `06-COPILOT-EXAM.md` has all of them. About $0.05.
+
 ### Step 6 · The exam, and the cost model
 
 ```bash
@@ -456,13 +485,14 @@ whether the product bills them correctly, which is the half that is our fault if
 exist; the schedule does not. An operator applies each one by hand from `/admin/therapists`.
 Record how long that takes: it is the first thing to build after the beta.
 
-Also: fund a company pot with the **$200 welcome credit**, drain it, and capture the moment it
+Also: fund a company pot with the **$100 welcome credit**, drain it, and capture the moment it
 empties. 🔴 **The patient's screen must say "Account on hold, ask HR to activate"**, not a
 payment error, and HR must be alerted at the same moment.
 
 🔴 **And one arithmetic check that outranks every defect in the log.** `T1` compares one
-month of her session earnings against her $100 bill, on her own screens. At $20 a session,
-ten sessions earns her $200 against it. The plan's central promise is that a therapist's
+month of her session earnings against her **$80** bill, on her own screens. 🔴 **Net, not
+gross:** fifteen sessions at $20 earns $300, we take $45, and her screen shows **$255**. An
+agent comparing against $300 will report a defect that is not one. The central promise is that a therapist's
 earnings cover their subscription. **If that is not visibly true, the plan is wrong**, and no
 number of working screens makes up for it.
 
@@ -480,6 +510,7 @@ They are not extras and they do not run at the end. Three of them run **during**
 | **Business strategist** | once per wave | One note a month, at most a page, read off the operator's own screens. What changed that nobody planned for, which number is moving the wrong way, what it would do differently |
 | **CFO** | after month 3 **and** after month 6 | Tries to break the numbers. Does income minus expenses match the ledger, what is recognised that nobody has paid, what in the pots is somebody else's money, which inputs are still guesses. **The two passes are compared** |
 | **CTO** | continuously | `docs/walkthrough-3/DEV-LOG.md`. One entry per defect, at the moment it was hit, with `Blast` and `Fix later`. **Fixes nothing during the run** |
+| 🔴 **Total View watcher** | **every week, for six months** | `/admin/tv`. Refreshes all nine sections, screenshots the whole board to `docs/walkthrough-3/tv/week-NN.png`, expands and collapses each section, names the number that moved most, and **follows one door a week** to check the board and the page agree |
 
 🔴 **All four work by clicking.** No standing agent writes SQL or calls a server action
 directly. An agent that reached around the product cannot find the defect it was launched to
