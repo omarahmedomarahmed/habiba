@@ -20,7 +20,7 @@ money.
 | Metered: the note | **$3 more**, and **only** where the patient consented to recording |
 | So metered is | **$4 a session**, or **$1** where consent was declined |
 | Solo plan | **$80 a month**, one therapist, and **no per session charge at all** |
-| Clinic plan | **$72 a seat**, minimum two, so $144. Ten per cent under solo |
+| Clinic plan | **$72 a seat**, so $144 for the smallest practice. Ten per cent under solo. A practice that drops to one clinician pays the $80 solo price rather than nothing |
 | Pounds to the dollar | **50**, an operator's setting on `/admin/settings`, edited daily |
 
 ### The two charges are separate, and the run must show both
@@ -163,9 +163,11 @@ recorded through the product, that is the finding, and it is a large one.
 - `T1`, `T2` and `T3` are all Egyptian and all metered. There is no card rail for any of them.
 - Every session bills **$1 for the room**. The **$3 note fee** bills only where the patient
   turned recording on, which is not every session and must not be.
-- **The first session is free to the patient** for each therapist. Prove it: the first invoice
-  to the patient is zero and the second is not. **The $1 and the $3 still bill to the
-  therapist**, and that is the point of `C209`.
+- **The first session is free to the THERAPIST**, once per organisation, and that is what the
+  product actually does: `chargeForSession` claims `trialSessionUsed` and raises a `waived`
+  invoice with both lines zeroed and the description "First session, on us". The PATIENT still
+  pays the therapist's price. Prove it: the therapist's first invoice is zero and says why, and
+  the second is not.
 - Each therapist's own first month is **free** under the offer. The invoice must **exist**, must
   be **zero**, and must **say why.** An invoice that is simply absent is indistinguishable from
   a billing bug.
@@ -218,9 +220,20 @@ This wave is why the run is six months long.
 - **`T1` checks the promise.** One month of earnings against her $80 bill, on her own screens,
   **net**. If the arithmetic does not hold there, the plan is wrong and the run found it.
 - **`E1`'s pot runs to nothing mid month.** Not artificially: let the sessions spend it. The
-  meter goes amber, then red, coverage stops, HR is alerted **and so is the patient**, whose
-  screen says **"Account on hold, ask HR to activate"** rather than a payment error, HR tops up,
-  coverage resumes. **Capture all five states.** The most important sequence in this document.
+  meter goes amber, then red, coverage stops, **the sponsor's admins are emailed** (naming no
+  patient, no time and no therapist: C243), the patient falls through to the ordinary paid route,
+  HR tops up, coverage resumes. **Capture all five states.** The most important sequence in this
+  document.
+
+  🔴 **Fund it with the $100 welcome credit and nothing else**, or it cannot empty inside the
+  run: a $5,000 top-up is 250 covered sessions and the whole run has 62. The credit is granted by
+  the operator when they open the pot on `/admin/sponsors`, which is the only place in the product
+  that can put a figure below the $5,000 floor into a pot.
+
+  ⚠️ **The patient is NOT shown "Account on hold, ask HR to activate".** No such screen exists.
+  What happens is that the session falls back to the paid route and they are asked to pay. Report
+  that as what it is: correct behaviour, thin copy, and a finding for the dev log rather than a
+  defect.
 - **`B3`: a transfer that never arrives**, rejected with a reason in the operator's own words,
   read back verbatim on HR's screen, then a real one sent.
 - **`T5` upgrades to three seats on the 15th.** The screen quotes the difference for the days
@@ -233,7 +246,8 @@ This wave is why the run is six months long.
 
 ### Wave 5 · month 5 · churn, which is the number everything turns on
 
-- **Somebody cancels rather than pay $80.** One observation. It is not a rate,
+- **`T2` cancels rather than keep paying $80.** He is the only wave 1 therapist who can: `T1` is
+  on a practice seat, `T3` lapsed in wave 4 and `T4` is the rejection case. One observation. It is not a rate,
   `08-THE-NUMBERS.md` says so, and it is still worth more than the guess it replaces. Capture the
   cancellation screen and what it says about the month already paid for.
 - `T6` joins on the post beta offer: **one free month, then full price.** No half price.

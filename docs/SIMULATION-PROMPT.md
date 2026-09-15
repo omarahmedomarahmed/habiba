@@ -19,13 +19,22 @@ OPENAI_API_KEY=sk-paste-yours-here
 DAILY_API_KEY=paste-yours-here
 STRIPE_SECRET_KEY=sk_test_paste-yours-here
 BLOB_READ_WRITE_TOKEN=paste-yours-here
+CRON_SECRET=simulation-cron-secret
 DATABASE_URL=postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 ```
 
-**Your first action, before reading anything else: write those five lines into `.env.local` in
-the repository root, and add nothing else to that file.** The fifth is already correct and is in
-the block so the database survives a new shell: an `export` does not, and a script that silently
-falls back to another database is the worst possible way to discover that.
+**Your first action, before reading anything else: write those six lines into `.env.local` in
+the repository root, and add nothing else to that file.** The last two are already correct and
+are in the block so the database and the cron secret survive a new shell: an `export` does not,
+and a script that silently falls back to another database is the worst possible way to discover
+that.
+
+🔴 **`CRON_SECRET` is not optional and it is new to this prompt.** The scheduled jobs are behind
+it, and two of them are scenes the run has to produce: `lapseOverdue` is how `T3` drops back to
+metered in wave 4, and `sweepUndeliveredAlerts` is the crisis retry. Trigger a job by POSTing to
+`/api/cron/<job>` with `Authorization: Bearer $CRON_SECRET`. The jobs are `billing`, `crisis`,
+`reminders` and `sessions`. **That is not reaching around the product**, it is standing in for
+Vercel's scheduler, which is the only caller in production either.
 
 If any of the first four still says "paste-yours-here", **stop and say so.** A run that starts
 without a funded key produces six months of empty notes and spends an afternoon doing it.
@@ -256,6 +265,17 @@ npm run age -- --marker wave1 --start
 Everything created from this moment is wave one's and ages together. **Do this before any agent
 acts.**
 
+### Step 3a · Give the 24/7 team an account
+
+Signed in as the operator, on `/admin/settings`, the **back office team** card. Make two `staff`
+accounts and one `manager`. The payments operator and the Total View watcher sign in as those,
+at `/staff/sign-in`, **not as the owner.**
+
+🔴 **This is new and the run is the first thing that has ever used it.** Until this sprint no
+screen in the product could create a `staff` or `manager` account at all, so the only way to work
+a queue was to share the owner's login, which attributes every confirmation to somebody who did
+not make it. Five admin pages and the board are behind those two roles.
+
 ### Step 3b · Open the rail, before any money moves
 
 Signed in as the operator, through the browser, not a script:
@@ -452,8 +472,17 @@ schedule does not. An operator applies each one by hand from `/admin/therapists`
 that takes**: it is the first thing to build after the beta.
 
 Also: fund a company pot with the **$100 welcome credit**, drain it, and capture the moment it
-empties. **The patient's screen must say "Account on hold, ask HR to activate"**, not a payment
-error, and HR must be alerted at the same moment.
+empties.
+
+🔴 **The credit is granted when the operator OPENS the pot**, on `/admin/sponsors`, in the welcome
+credit field. That is the only place in the product that can put a figure below the $5,000 floor
+into a pot, and it is new this sprint: before it, the $100 the plan promises every company was
+unreachable by any screen. **Do not top the pot up by transfer as well**, or it cannot empty
+inside the run: $5,000 is 250 covered sessions and the whole run has 62.
+
+⚠️ **The patient is not shown a special screen.** They fall through to the ordinary paid route and
+are asked to pay. The **sponsor's admins are emailed**, naming no patient, no time and no
+therapist. Report the thin patient copy as a finding, not as a defect.
 
 **And one arithmetic check that outranks every defect in the log.** `T1` compares one month of her
 session earnings against her **$80** bill, on her own screens, **net**. Fifteen sessions at $20
@@ -514,5 +543,24 @@ makes up for it.
 | Blob storage | **Configured.** Receipts and identity documents upload for real. `T4`'s rejection cycle turns on documents being deleted, so check the row **and** that the blob is gone |
 | Dates in Arabic | A known gap. Photograph it anyway |
 | Promotional billing | Manual. An operator applies each discount from `/admin/therapists` |
+
+---
+
+## What the product does NOT do, so you do not spend an afternoon finding out
+
+Nine things a careful agent would otherwise file as defects. Every one was checked against the
+code this week. **None of them is a bug to chase; each is a sentence for the report.**
+
+| | What actually happens |
+|---|---|
+| **The offer is applied by hand** | `discount_cents` and `discount_reason` exist; the schedule does not. An operator types each discount on `/admin/therapists`. **Record how long it takes**: it is the first thing to build after the beta |
+| **Nothing renews by itself** | `subscribeByTransfer` raises ONE period at full price. There is no monthly cron that opens the next one, so the free-then-half-then-full sequence is walked by the operator, month by month |
+| **A pot that empties tells the SPONSOR, not the patient** | The admins get an email naming nobody. The patient falls through to the ordinary paid route and is asked to pay. There is no "account on hold" screen |
+| **A therapist lapses only when the billing cron runs** | `lapseOverdue` has one caller. POST `/api/cron/billing` with the bearer token to make wave 4's `M2` happen |
+| **The Egyptian rail collects no VAT** | The pay screen quotes the price and no more, while `country_settings` for EG says 14%. So the books post `vat_cents = 0`, which is truthful about what arrived. **It is a real under-collection and a decision for the founders**, not something to work around |
+| **`/admin/usage` is a 30 day window** | After ageing, only wave 6 falls inside it. The figures photographed at month 6 describe one wave, not the run. Use `npm run physics` for the run's own cost |
+| **`/admin/vault`'s card is all time and its table is six calendar months** | They are not required to be equal, and a month with no activity is simply absent. Do not stop the run over the difference |
+| **The transfer details lock almost permanently** | `detailsLockedBy` counts every `awaiting_proof` row, and one opens the moment any payer presses the button. Expect the refusal in `R7` to be the ordinary state |
+| **A therapist sets their own price** | Nothing charges $20. `minPriceCents` is $5 and `maxPriceCents` is $500. Every arithmetic claim in these documents assumes the agents choose 1,000 EGP, so **have them choose it** |
 
 **A clean report would mean you did not look.**

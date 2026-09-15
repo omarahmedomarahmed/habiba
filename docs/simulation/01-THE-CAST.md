@@ -95,7 +95,7 @@ produce, and it is written down rather than worked around.
 
 ## Wave 2 · month 1 · the first practice and the first employer
 
-Eight new people and two organisations. The product stops being one therapist and one patient.
+Six new people and two organisations. The product stops being one therapist and one patient. `C1-B` and `C1-C` are wave 1's `T1` and `T4` arriving somewhere new, not new people.
 
 | # | Who | Signs up as | Exists to prove |
 |---|---|---|---|
@@ -114,7 +114,7 @@ Eight new people and two organisations. The product stops being one therapist an
 
 ## Wave 3 · month 3 · scale, strain and the edge cases
 
-Five new people, one new organisation, and seven events. **Nothing here is decoration.** Each
+Five new people, one new organisation, and four events. **Nothing here is decoration.** Each
 is a case this product claims to handle and has never been made to.
 
 | # | Who or what | Exists to prove |
@@ -190,7 +190,7 @@ Two new people, and the month the plan is actually tested.
 |---|---|---|
 | `T6` | Dr Sameh Demo | Joins on the post beta offer: **one free month, then $80.** The second therapist to see that sequence, so it reads as a rule rather than an accident |
 | `P7` | Yousra Demo | **The metered therapist's patient.** `T6` never subscribes at all: $4 a session on a $20 session is why $80 is exactly 20 sessions. A therapist below 20 a month is right to stay metered, and **the product must not push them** |
-| `churn` | **Somebody leaves at full price** | One of wave 1's therapists cancels rather than pay $80. **The number the whole plan turns on**, and the run produces exactly one observation of it. One observation is not a rate, and `08-THE-NUMBERS.md` says so. It is still worth more than the guess it replaces |
+| `churn` | **`T2` leaves at full price** | He subscribed by transfer in wave 4 and cancels in wave 5 rather than keep paying $80. He is the only wave 1 therapist who can: `T1` is on a practice seat, `T3` lapsed in wave 4 and `T4` is the rejection case. **The number the whole plan turns on**, and the run produces exactly one observation of it. One observation is not a rate, and `08-THE-NUMBERS.md` says so. It is still worth more than the guess it replaces |
 | `E3` tops up | Delta Logistics funds its pot by transfer | The second company on the rail |
 
 ---
@@ -258,7 +258,8 @@ So the cadence is **designed**, and it is the first thing the orchestrator drive
 
 ### The ladder has to be driven, or the exam measures nothing
 
-`P3` at 20 sessions against `P6` at 3 is a depth score of roughly 80 against 15. If the run
+`P3` at 20 sessions against `P6` at 3 is a depth score of roughly 137 against 15, on the
+weighting `scripts/copilot-exam.ts` actually uses. If the run
 ends with everybody on four sessions because each agent did its task once and reported
 success, `07-THE-EXAM.md` will correlate nothing and the most interesting question in the
 simulation goes unanswered.
@@ -270,7 +271,8 @@ simulation goes unanswered.
 
 1. **The radar strangers and the partner sessions.** Four sessions. They prove a path each and
    neither is on the ladder.
-2. **`P2` and `P4` down to two sessions each.** The exam only needs them as middle ground.
+2. **`P2` and `P4` down to two sessions each IN TOTAL**, from five. The exam only needs them
+   as middle ground.
 3. **Never `P3`, and never shorten his sessions.** His twenty sessions, every one of them 8
    minutes, are two things at once: the top of the exam's ladder, and the **whole long cluster
    the cost model is fitted from.** Cutting him to save a dollar throws away the most

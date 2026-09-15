@@ -14,11 +14,14 @@ patient, three times, as his record grows.
 
 ### `P3` Mostafa, examined three times
 
+🔴 **He arrives in wave 2, not wave 1**, so the first ask is on his first session in that
+wave. His eleventh session lands in wave 3, so the ten-session ask is there.
+
 | When | Sessions behind it | Ask the copilot |
 |---|---|---|
-| Wave 1, after his first session | **1** | What do you know about this person? |
+| Wave 2, on his first session | **1** | What do you know about this person? |
 | Wave 2, after his fourth | **4** | The same question, word for word |
-| Wave 4, after his tenth | **10** | The same question again |
+| Wave 3, after his tenth | **10** | The same question again |
 
 **The same question, verbatim, three times.** Changing the wording between runs makes the answers
 incomparable, and the difference between them is the whole point. **Capture all three replies in
@@ -135,10 +138,10 @@ incident, and a clinician who has to look something up is not.
 ### What it prints
 
 ```
-  Mostafa Demo            20 sessions ·  20 notes ·  22 journals ·  2 documents · depth 92
-  Layla Demo              11 sessions ·  11 notes ·  13 journals ·  1 documents · depth 58
+  Mostafa Demo            20 sessions ·  20 notes ·  22 journals ·  2 documents · depth 137
+  Layla Demo              11 sessions ·  11 notes ·  13 journals ·  1 documents · depth 76
   ...
-  Mostafa Demo           depth    92  knows 4.6/5  refuses 5.0/5  handover 5/5
+  Mostafa Demo           depth   137  knows 4.6/5  refuses 5.0/5  handover 5/5
   Ziad Example           depth    15  knows 2.1/5  refuses 4.0/5  handover 2/5
 
   Correlation between how much there is to know and how much is known: 0.81

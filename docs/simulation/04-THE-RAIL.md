@@ -119,7 +119,9 @@ converting in their head at a rate we have not agreed to.
 - the **receipt**, opening in a new tab through a route that audits the read
 - **how long they have been waiting**, in red past fifteen minutes
 
-Two buttons: **Confirm**, and **Reject**, which is disabled until a reason has been typed.
+Two buttons: **Confirm**, and **Reject**, which opens a panel. The panel's own button is
+**"Reject and tell them"** and it stays disabled until the reason is at least ten characters, so
+a rejection cannot arrive as one word.
 
 **There is no third button, deliberately.** An operator cannot edit an amount and cannot reopen
 a decision. A record that can be edited after the fact is not a record of what happened.
@@ -137,6 +139,11 @@ a decision. A record that can be edited after the fact is not a record of what h
 | `R5` | 4 | `T2` subscribes by transfer | No checkout. A bill, a transfer, and **he is metered until it is confirmed** |
 | `R6` | 4 | `B3`: a transfer that never arrives is rejected with a reason | HR reads that reason **verbatim** and sends a real one |
 | `R7` | 4 | The details are edited while `R6` is in the queue | **Refused, with the count in the message** |
+
+⚠️ `detailsLockedBy` counts `awaiting_proof` **and** `submitted`, and an `awaiting_proof` row
+opens the moment any payer presses the button. So once the run has volume the details are locked
+almost permanently rather than only while `B3` sits there. Try the edit in wave 4 anyway; expect
+the refusal to be the ordinary state rather than the exceptional one, and say so.
 
 ### And one that is an absence
 

@@ -81,7 +81,7 @@ can bill them correctly when they try, which is the half that is our fault if it
 ### The cost model, and why it needs two clusters
 
 The obvious way to get a fifty minute number is to run fifty minute sessions. That would cost
-roughly **$7.60** against **$1.98**, which is most of the budget spent proving something
+roughly **$13.44** against **$1.98**, which is most of the budget spent proving something
 arithmetic already knows.
 
 So the run produces **two clusters**, 42 sessions at 3 minutes and 20 at 8, and
@@ -102,6 +102,9 @@ slope drawn through noise that looks exactly as authoritative as a real fit.
 | 50, by multiplying the 3 minute figure | $0.4230, **95% too high** |
 | This whole run, 42 short and 20 long | **$1.98** |
 | A fully booked therapist, 66 fifty minute sessions | **$14.31 a month** |
+
+(`verify:finance` prints $14.30 for the same quantity. The gap is one rounding step, not a
+disagreement: 66 x $0.21675 is $14.3055.)
 
 That last row is why the $70 spend flag is a flag and not a cost control: it sits nearly five
 times above what somebody who cannot physically work harder can spend. It fires for a practice
