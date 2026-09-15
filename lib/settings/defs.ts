@@ -322,6 +322,23 @@ export type PlatformSettings = {
   sponsor: {
     /** 53.11 — the smallest top-up we will take, in cents of the entity's currency. */
     minTopUpCents: number;
+    /**
+     * 🔴 73.10 — WHAT A SESSION COSTS ON AVERAGE, for the sponsor's own arithmetic.
+     *
+     * "10% coverage" is abstract. "Your $200 covers 100 sessions" is a decision a
+     * finance team can actually take, and it is the sum they would do on paper
+     * before agreeing to anything. That sum needs an average session price.
+     *
+     * 🔴 It is an ESTIMATE and the screen says so. A real session is priced by
+     * the therapist within `session.minPriceCents` and `session.maxPriceCents`,
+     * so no single number is true of all of them. Showing a projection built on
+     * an average without labelling it as one is how a company budgets for a
+     * hundred sessions and gets sixty.
+     *
+     * A setting rather than a constant because it is a market fact that changes,
+     * and the Egyptian benchmark the founders set is 1,000 EGP, or $20.
+     */
+    averageSessionCents: number;
     /** 53.3 / C229 — below this headcount a sponsor sees the balance and nothing else. */
     activityFloor: number;
     /** 53.19b / C247 — how often an identifier is re-checked. */
@@ -530,6 +547,7 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
   },
   sponsor: {
     minTopUpCents: 500_000,
+    averageSessionCents: 2_000,
     activityFloor: 5,
     verifyCycleMonths: 6,
     coverageNoticeDays: 30,
@@ -1031,6 +1049,15 @@ export function parseGroup<G extends SettingsGroup>(
         minTopUpCents: int(v.minTopUpCents, d.sponsor.minTopUpCents, {
           min: 1_000,
           max: 1_000_000_000,
+        }),
+        /*
+         * 🔴 Bounded by the same floor and ceiling a real session is priced
+         * between, so an average can never sit outside the range of the thing it
+         * is an average of. Zero would make the sponsor's estimate divide by it.
+         */
+        averageSessionCents: int(v.averageSessionCents, d.sponsor.averageSessionCents, {
+          min: 100,
+          max: 100_000,
         }),
         /*
          * 🔴 THE FLOOR CANNOT BE SET BELOW TWO, and there is no way to switch

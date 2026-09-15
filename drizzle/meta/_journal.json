@@ -722,6 +722,20 @@
       "when": 1789700000000,
       "tag": "0102_manual_rail",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1789710000000,
+      "tag": "0103_payment_survives_the_payer",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1789720000000,
+      "tag": "0104_num_nonnulls",
+      "breakpoints": true
     }
   ]
 }

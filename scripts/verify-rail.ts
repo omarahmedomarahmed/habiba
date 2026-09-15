@@ -281,6 +281,121 @@ async function main() {
     "the payment row is what the payer reads and the audit row is what we read in six months",
   );
 
+  /* ================================================================== */
+  /*  It is wired into a real flow, and the details cannot move under it  */
+  /* ================================================================== */
+
+  const potActions = readSource("app/(sponsor)/sponsor/pot/actions.ts");
+
+  /*
+   * 🔴 THE CARD RAIL AND THE TRANSFER RAIL ARE NEVER BOTH OFFERED.
+   *
+   * `sponsorNeedsTransfer` reads the same `entity` column `topUpPot` refuses on,
+   * so a sponsor is on exactly one of them. Two opinions about which rail
+   * somebody is on is how a company is shown a bank account and then charged a
+   * card, or shown neither.
+   */
+  check(
+    "🔴 the transfer door asks the same column the card door refuses on",
+    /sponsorNeedsTransfer/.test(potActions) && /declarePaid/.test(potActions),
+    "one sponsor, one rail, decided by `entity` in both places",
+  );
+
+  /*
+   * 🔴 AND IT IS ASKED AGAIN IN THE ACTION, not trusted from the screen. A form
+   * that renders on a condition is a form somebody can post without meeting it.
+   */
+  check(
+    "🔴 …and the action re-asks it rather than trusting the form was rendered",
+    /if \(!\(await sponsorNeedsTransfer/.test(potActions),
+    "a form rendered on a condition is a form somebody can post without meeting it",
+  );
+
+  const settingsActions = readSource("app/(admin)/admin/settings/actions.ts");
+
+  /*
+   * 🔴 C366 — `savePayouts` MUST READ BEFORE IT WRITES.
+   *
+   * `writeSettingsGroup` replaces the row. This action built the object from its
+   * six form fields, so the moment the transfer details joined the same group an
+   * admin saving the netting toggle would have deleted the Egyptian bank details
+   * every payer's screen reads. Exactly C364's shape, one file over.
+   */
+  check(
+    "🔴 C366 saving the payouts form carries the whole group forward",
+    /const existing = await getSettings\(\);[\s\S]{0,400}\.\.\.existing\.payouts,/.test(
+      settingsActions,
+    ),
+    "a writer built from a fixed list of keys drops everything it was not told about",
+  );
+
+  /*
+   * 🔴 THE LOCK IS A REFUSAL, NOT A WARNING, and it names the number blocking.
+   *
+   * Editing the account number while people are mid-transfer sends real payments
+   * into an account we are no longer checking, with no processor to ask.
+   */
+  check(
+    "🔴 the details cannot be saved while a payment is in flight",
+    /detailsLockedBy\(\)/.test(settingsActions) &&
+      /if \(inFlight > 0\) \{[\s\S]{0,200}return \{/.test(settingsActions),
+    "a refusal with the count in it, so the message is what is happening rather than what is forbidden",
+  );
+
+  /*
+   * 🔴 THE AUDIT ROW CARRIES THE LABELS AND NOT THE VALUES. This is an account
+   * number, and an audit log is read by more people than a settings screen is.
+   */
+  check(
+    "🔴 …and the audit records which fields changed, never the account numbers",
+    /transferFields\.map\(\(f\) => f\.label\)/.test(settingsActions) &&
+      !/f\.value/.test(settingsActions.slice(settingsActions.indexOf("settings.transferFields"))),
+    "what we need six months from now is which fields changed and when",
+  );
+
+  const coverage = readSource("components/sponsor/coverage-form.tsx");
+
+  /*
+   * 🔴 THE COVERAGE SLIDER IS LOCKED UNTIL EDIT, AND SAYS WHAT THE MONEY BUYS.
+   *
+   * A slider that moves on first touch is one somebody drags by accident on a
+   * phone, and this decides what a company pays for every session its staff
+   * book. And "10%" is abstract where "your $200 covers 100 sessions" is a
+   * decision a finance team can actually take.
+   */
+  check(
+    "🔴 the coverage slider needs Edit first, and Save after",
+    /setEditing\(true\)/.test(coverage) && /editing \?/.test(coverage),
+    "two deliberate acts around a number that decides what every session costs them",
+  );
+
+  check(
+    "🔴 …and it says how many sessions the balance covers at that percentage",
+    /balanceUsd \/ \(\(sessionPriceUsd \* draft\) \/ 100\)/.test(coverage),
+    "the same sum a finance team would do on paper before agreeing to anything",
+  );
+
+  check(
+    "🔴 …from a setting, so the average is not invented on the screen",
+    /averageSessionCents/.test(readSource("lib/settings/defs.ts")) &&
+      /sessionPriceUsd=\{settings\.sponsor\.averageSessionCents/.test(
+        readSource("app/(sponsor)/sponsor/pot/page.tsx"),
+      ),
+    "a projection built on an average nobody can change is a projection nobody can correct",
+  );
+
+  /*
+   * 🔴 A RECEIPT IS NOT A CREDENTIAL. Identity documents sit under a retention
+   * rule; a payment receipt should not land in the same bucket as somebody's
+   * licence just because both are uploads.
+   */
+  const uploads = readSource("lib/uploads.ts");
+  check(
+    "🔴 a transfer receipt has its own upload kind, apart from identity documents",
+    /"receipt"/.test(uploads) && /receiptUploadProblem/.test(uploads),
+    "a payment receipt does not belong in the bucket a licence is retained in",
+  );
+
   finish("sprint 73");
 }
 

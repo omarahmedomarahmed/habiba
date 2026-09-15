@@ -44,7 +44,7 @@ export const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "i
  * because a patient photographing a prescription for a support agent has sent
  * us a medical record and the door it arrived through does not change that.
  */
-export type UploadKind = "credential" | "headshot" | "support" | "avatar";
+export type UploadKind = "credential" | "headshot" | "support" | "avatar" | "receipt";
 
 /**
  * 25.7 / C115 — a patient's own picture. 2 MB, images only.
@@ -83,6 +83,26 @@ export function supportUploadProblem(file: { size: number; type: string } | null
   if (!SUPPORT_TYPES.includes(file.type)) {
     return "Attach a photo or a PDF.";
   }
+  return null;
+}
+
+/**
+ * 🔴 73.9 — A TRANSFER RECEIPT. Same shapes as a support attachment, and the
+ * limit is deliberately generous rather than tight.
+ *
+ * This is a photograph of a banking app, taken on a phone, by somebody who has
+ * just sent us money and wants to get on with their day. A refusal here is a
+ * payment that does not complete, and "your screenshot is 6 MB" is the worst
+ * possible reason for that to happen. A PDF is allowed because some Egyptian
+ * banks email a receipt rather than showing one on screen.
+ *
+ * It is NOT `credential`: those are identity documents under a retention rule,
+ * and a payment receipt should not sit in the same bucket as somebody's licence.
+ */
+export function receiptUploadProblem(file: { size: number; type: string } | null): string | null {
+  if (!file || file.size === 0) return "Choose the receipt or a screenshot of it.";
+  if (file.size > SUPPORT_MAX_BYTES) return "That file is over 25 MB.";
+  if (!SUPPORT_TYPES.includes(file.type)) return "Attach a photo or a PDF of the transfer.";
   return null;
 }
 
@@ -137,9 +157,11 @@ export async function uploadDocument(opts: {
   const problem =
     opts.kind === "support"
       ? supportUploadProblem(opts.file)
-      : opts.kind === "avatar"
-        ? avatarUploadProblem(opts.file)
-        : uploadProblem(opts.file);
+      : opts.kind === "receipt"
+        ? receiptUploadProblem(opts.file)
+        : opts.kind === "avatar"
+          ? avatarUploadProblem(opts.file)
+          : uploadProblem(opts.file);
   if (problem) return { error: problem };
 
   const extension = extensionFor(opts.file.type);

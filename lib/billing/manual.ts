@@ -60,6 +60,7 @@ function payerColumns(payer: Payer) {
   switch (payer.kind) {
     case "user":
       return {
+        payerKind: "user" as const,
         userId: payer.userId,
         patientAccountId: null,
         sponsorId: null,
@@ -67,13 +68,20 @@ function payerColumns(payer: Payer) {
       };
     case "patient":
       return {
+        payerKind: "patient" as const,
         userId: null,
         patientAccountId: payer.patientAccountId,
         sponsorId: null,
         organizationId: null,
       };
     case "sponsor":
-      return { userId: null, patientAccountId: null, sponsorId: payer.sponsorId, organizationId: null };
+      return {
+        payerKind: "sponsor" as const,
+        userId: null,
+        patientAccountId: null,
+        sponsorId: payer.sponsorId,
+        organizationId: null,
+      };
   }
 }
 

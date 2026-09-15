@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { TransferFieldsEditor } from "@/components/admin/transfer-fields-editor";
+import { detailsLockedBy } from "@/lib/billing/manual";
 import {
   CopilotEditor,
   CountryEditor,
@@ -39,10 +41,12 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   await requireRole("super_admin");
 
-  const [settings, countries, traction] = await Promise.all([
+  const [settings, countries, traction, inFlight] = await Promise.all([
     getSettings(),
     getCountries(),
     tractionMetrics(),
+    /* 🔴 73.11 — how many payers are mid-transfer, which locks the details below. */
+    detailsLockedBy(),
   ]);
 
   const unreachable = countries.filter(hasNoRail);
@@ -91,8 +95,8 @@ export default async function SettingsPage() {
           />
         </dl>
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          Cost is what the models charged, summed from microcents and divided once (C17). The
-          percentage is absent rather than zero when nothing was collected.
+          Cost is what the models charged, from microcents, divided once (C17). The percentage is
+          absent rather than zero when nothing was collected.
         </p>
       </Card>
 
@@ -153,7 +157,7 @@ export default async function SettingsPage() {
           </ul>
           <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
             Until then an Egyptian patient pays by transfer and the therapist is on the manual
-            payout queue. No code shortens the contract.
+            payout queue.
           </p>
         </Card>
       ) : null}
@@ -165,6 +169,16 @@ export default async function SettingsPage() {
       <SessionEditor {...settings.session} />
       <CopilotEditor {...settings.copilot} />
       <PayoutsEditor {...settings.payouts} />
+      {/*
+        🔴 73.11 — beside the gateway key, because it is the same decision:
+        how money reaches us from Egypt. The day a gateway arrives, one of these
+        two is switched off and the other is not.
+      */}
+      <TransferFieldsEditor
+        fields={settings.payouts.transferFields}
+        cardsComingSoon={settings.payouts.cardsComingSoon}
+        inFlight={inFlight}
+      />
 
       <div>
         <h2 className="mb-2 text-sm font-bold tracking-wide text-slate-500 uppercase">

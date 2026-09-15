@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { setCoveragePercent, type CoverageState } from "@/app/(sponsor)/sponsor/pot/actions";
@@ -38,14 +38,22 @@ export function CoverageForm({
   pendingCoverageBps,
   pendingFromLabel,
   noticeDays,
+  balanceUsd,
+  sessionPriceUsd,
 }: {
   coverageBps: number;
   pendingCoverageBps: number | null;
   pendingFromLabel: string | null;
   noticeDays: number;
+  /** What is in the pot right now, so the slider can say what it buys. */
+  balanceUsd: number;
+  /** The average a session costs, from settings. Not guessed here. */
+  sessionPriceUsd: number;
 }) {
   const [state, action] = useActionState(setCoveragePercent, INITIAL);
   const current = Math.round(coverageBps / 100);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(current);
 
   return (
     <Card className="p-5">
@@ -70,23 +78,84 @@ export function CoverageForm({
         </p>
       ) : null}
 
-      <form action={action} className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-slate-600">Set a new percentage</span>
-          <select
-            name="percent"
-            defaultValue={String(current)}
-            className="h-12 rounded-xl border border-slate-200 bg-white px-3 text-sm"
-          >
-            {STEPS.map((step) => (
-              <option key={step} value={step}>
-                {step}%
-              </option>
-            ))}
-          </select>
-        </label>
-        <Save />
-      </form>
+      {/*
+        🔴 LOCKED UNTIL THEY PRESS EDIT, and that is not a flourish.
+        
+        A slider that moves on the first touch is a slider somebody drags by
+        accident on a phone, and this one decides what a company pays for every
+        session its staff book. Edit is a deliberate act; the slider only moves
+        after it; Save is the second deliberate act. Between them they see
+        exactly what the change buys.
+      */}
+      {editing ? (
+        <form action={action} className="mt-4 rounded-2xl bg-slate-50 p-4">
+          <label htmlFor="coverage-slider" className="text-xs font-medium text-slate-600">
+            Move it, then save
+          </label>
+          <input type="hidden" name="percent" value={String(draft)} />
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              id="coverage-slider"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={draft}
+              onChange={(e) => setDraft(Number(e.target.value))}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-500"
+            />
+            <span className="w-14 shrink-0 text-end text-lg font-bold tabular-nums text-slate-900">
+              {draft}%
+            </span>
+          </div>
+
+          {/*
+            🔴 THE NUMBER THAT MAKES THE PERCENTAGE MEAN SOMETHING.
+            
+            "10%" is abstract. "Your 200 dollars covers 100 sessions" is a
+            decision a finance team can take, and it is the same arithmetic
+            they would do on paper before agreeing to anything.
+          */}
+          <p className="mt-3 rounded-xl bg-white p-3 text-sm leading-relaxed text-slate-700">
+            {draft === 0 ? (
+              <>Your people pay for their own. Nothing is drawn from your balance.</>
+            ) : (
+              <>
+                At {draft}% you pay{" "}
+                <strong className="text-slate-900">{fmtUsd((sessionPriceUsd * draft) / 100)}</strong>{" "}
+                of a {fmtUsd(sessionPriceUsd)} session, so your balance of{" "}
+                <strong className="text-slate-900">{fmtUsd(balanceUsd)}</strong> covers about{" "}
+                <strong className="text-slate-900">
+                  {Math.floor(balanceUsd / ((sessionPriceUsd * draft) / 100))} sessions
+                </strong>
+                .
+              </>
+            )}
+          </p>
+
+          <div className="mt-3 flex gap-2">
+            <Save />
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(current);
+                setEditing(false);
+              }}
+              className="h-12 rounded-xl px-4 text-sm font-semibold text-slate-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="mt-4 h-12 rounded-xl bg-slate-100 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+        >
+          Edit what you cover
+        </button>
+      )}
 
       <div className="mt-4 space-y-2 text-xs leading-relaxed text-slate-500">
         <p>
@@ -100,8 +169,8 @@ export function CoverageForm({
           somebody is a different thing and is done from your people page.
         </p>
         <p>
-          You cover the session price your people are quoted. Nothing else is charged to you,
-          and we never tell you who used it.
+          You cover the session price your people are quoted. Nothing else is charged, and we
+          never tell you who used it.
         </p>
       </div>
 
@@ -113,6 +182,19 @@ export function CoverageForm({
       ) : null}
     </Card>
   );
+}
+
+/**
+ * Whole dollars, grouped by hand.
+ *
+ * 🔴 C84: `toLocaleString` is banned in a client file, and an explicit `"en-US"`
+ * is banned with it, because it is indistinguishable in a diff from the
+ * `undefined` that means "ask whatever machine is running this". A finance team
+ * reads round numbers, so no cents either.
+ */
+function fmtUsd(n: number): string {
+  const whole = String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `$${whole}`;
 }
 
 function Save() {

@@ -84,8 +84,8 @@ export default async function AdminOverviewPage() {
             </div>
           </dl>
           <p className="mt-4 text-xs leading-relaxed text-slate-500">
-            Figures come from this database, not from Stripe. Treat Stripe as the ledger of record
-            and this as an operational view.
+            From this database, not Stripe. Stripe is the ledger of record; this is an operational
+            view.
           </p>
         </Card>
       </div>

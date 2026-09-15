@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { CoverageForm } from "@/components/sponsor/coverage-form";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
+import { TransferTopUp } from "@/components/sponsor/transfer-top-up";
+import { manualEntry, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { Card } from "@/components/ui";
 import { Meter } from "@/components/visual/primitives";
 import { topUpHistory } from "@/lib/billing/invoice";
@@ -38,6 +40,20 @@ export default async function SponsorPotPage() {
    * the moment one session happens, and this page is where a sponsor would
    * check it twice.
    */
+  /*
+   * 🔴 73.13 — which rail this sponsor is on, asked of the same `entity` column
+   * `topUpPot` refuses. Assembled here so the page renders one form and never
+   * both, and never a card form that would refuse them.
+   */
+  const needsTransfer = await sponsorNeedsTransfer(actor.sponsorId);
+  const rail = await manualEntry({
+    audience: "company",
+    purpose: "pot_topup",
+    refId: actor.sponsorId,
+    payer: { kind: "sponsor", sponsorId: actor.sponsorId },
+    needed: needsTransfer,
+  });
+
   const [pot, terms, history, coverage] = await Promise.all([
     potBalance(actor.sponsorId),
     potTerms(actor.sponsorId),
@@ -114,10 +130,26 @@ export default async function SponsorPotPage() {
               : null
           }
           noticeDays={settings.sponsor.coverageNoticeDays}
+          balanceUsd={(pot.balanceCents ?? 0) / 100}
+          sessionPriceUsd={settings.sponsor.averageSessionCents / 100}
         />
       ) : null}
 
-      {terms?.refundPolicy && terms.expiresAt ? (
+      {/*
+        🔴 73.13 — ONE RAIL PER SPONSOR, decided by the same `entity` column
+        `topUpPot` refuses on. An Egyptian company cannot be charged a card, so
+        it is shown a bank account instead of a form that would refuse them.
+      */}
+      {terms?.refundPolicy && terms.expiresAt && actor.role === "admin" && rail.needed ? (
+        <TransferTopUp
+          fields={rail.details.fields}
+          cardsComingSoon={rail.details.cardsComingSoon}
+          waiting={rail.live.state === "submitted"}
+          minimumLabel={fmt(settings.sponsor.minTopUpCents)}
+        />
+      ) : null}
+
+      {terms?.refundPolicy && terms.expiresAt && !rail.needed ? (
         actor.role === "admin" ? (
           <TopUpForm
             minimumLabel={fmt(settings.sponsor.minTopUpCents)}
@@ -138,11 +170,13 @@ export default async function SponsorPotPage() {
             </p>
           </Card>
         )
-      ) : (
+      ) : null}
+
+      {!terms?.refundPolicy || !terms.expiresAt ? (
         <Card className="p-5">
           <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.noPot")}</p>
         </Card>
-      )}
+      ) : null}
 
       {/*
         🔴 53.15 — the documents, one per top-up, rendered from the ledger.

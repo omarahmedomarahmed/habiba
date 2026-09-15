@@ -120,3 +120,70 @@ export async function setCoveragePercent(
       : `Saved. This takes effect on ${from.toISOString().slice(0, 10)}, so anybody who has already booked keeps the percentage they agreed to.`,
   };
 }
+
+/* ======================================================= the Egyptian rail == */
+
+/**
+ * 🔴 The Egyptian company's way in, because `topUpPot` refuses their entity.
+ *
+ * `addToPot` above is the card rail and it stays exactly as it was: the entity
+ * gate lives inside `topUpPot`, so an Egyptian sponsor pressing that button still
+ * gets the same refusal it always gave. This is the other door, and it does not
+ * touch the pot at all. It records a claim that money was sent, and an operator
+ * credits the pot when they have seen it arrive.
+ *
+ * The two never both apply: `sponsorNeedsTransfer` reads the same `entity`
+ * column `topUpPot` refuses on, so a sponsor is on exactly one rail.
+ */
+export async function declarePotTransfer(
+  _prev: TopUpState,
+  formData: FormData,
+): Promise<TopUpState> {
+  const actor = await requireSponsorAdmin();
+
+  const units = Number(String(formData.get("amount") ?? "").replace(/[, ]/g, ""));
+  if (!Number.isFinite(units) || units <= 0) return { error: "Enter the amount you sent." };
+
+  const reference = String(formData.get("reference") ?? "").trim();
+  const proofUrl = String(formData.get("proofUrl") ?? "").trim() || null;
+
+  const { declarePaid, sponsorNeedsTransfer } = await import("@/lib/billing/manual-entry");
+
+  /*
+   * 🔴 Asked again here rather than trusted from the screen. A form that renders
+   * on a condition is a form somebody can post without meeting it.
+   */
+  if (!(await sponsorNeedsTransfer(actor.sponsorId))) {
+    return { error: "Your account pays by card. Use the form above." };
+  }
+
+  const result = await declarePaid({
+    purpose: "pot_topup",
+    /*
+     * 🔴 The sponsor's own id is the ref, so the partial unique index means one
+     * live top-up claim per company. A finance team pressing twice while the
+     * page loads does not create two claims an operator credits separately.
+     */
+    refId: actor.sponsorId,
+    amountCents: Math.round(units * 100),
+    payer: { kind: "sponsor", sponsorId: actor.sponsorId },
+    reference,
+    proofUrl,
+  });
+
+  if (result.error) return { error: result.error };
+
+  await audit({
+    /* Explicit, like every other call site: this act has no clinician actor. */
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "billing",
+    action: "pot.transfer.declared",
+    resourceType: "sponsor",
+    resourceId: actor.sponsorId,
+    reason: `Declared a bank transfer of ${units}, reference ${reference || "none"}`,
+  });
+
+  revalidatePath("/sponsor/pot");
+  return { ok: true };
+}

@@ -211,7 +211,24 @@ export async function savePayouts(
 ): Promise<SettingsFormState> {
   const actor = await requireRole("super_admin");
 
+  /*
+   * 🔴 C366 — READ FIRST, THEN OVERLAY. This form does not own the whole group.
+   *
+   * `writeSettingsGroup` replaces the row, and this action used to build the
+   * object from its six form fields alone. The moment sprint 73 added
+   * `transferFields` and `cardsComingSoon` to the same group, an admin saving
+   * the netting toggle would have silently deleted the Egyptian bank details
+   * that every payer's screen reads — while eleven people were mid-transfer
+   * against them.
+   *
+   * Exactly C364's shape, one file over: a writer built from a fixed list of
+   * keys drops everything it was not told about. Same fix, same reason, and the
+   * default is now KEEP.
+   */
+  const existing = await getSettings();
+
   const value = {
+    ...existing.payouts,
     egyptCollectionProvider: String(formData.get("provider") ?? "").trim(),
     egyptPayoutMethods: String(formData.get("methods") ?? "")
       .split(",")
@@ -337,4 +354,95 @@ export async function saveCountry(
 
   revalidatePath("/admin/settings");
   return { ok: `${country.name} saved.` };
+}
+
+/* ======================================================= the Egyptian rail == */
+
+/**
+ * The bank details a payer is shown. 73.11.
+ *
+ * ## 🔴 THE LOCK, AND IT IS THE POINT OF THIS ACTION
+ *
+ * An operator who edits the account number while eleven people are mid-transfer
+ * has sent eleven real payments into an account we are no longer checking, with
+ * nothing tying any of them to anything we can find. There is no processor to
+ * ask and no chargeback to raise; the money is simply in a bank account with a
+ * reference nobody will look for.
+ *
+ * So the queue has to be empty. Not a warning, not a confirmation dialog: a
+ * refusal, with the number blocking it, so the message is "four people are
+ * transferring right now" rather than "you cannot do that".
+ *
+ * ## 🔴 THE LABELS ARE THE OPERATOR'S OWN WORDS
+ *
+ * Which rails an Egyptian bank offers this quarter is not something a deploy
+ * should be needed to keep up with. They add a field, name it "InstaPay handle"
+ * or "Mobile wallet number", put an example underneath, and choose who sees it.
+ */
+export async function saveTransferFields(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const actor = await requireRole("super_admin");
+
+  const { detailsLockedBy } = await import("@/lib/billing/manual");
+  const inFlight = await detailsLockedBy();
+  if (inFlight > 0) {
+    return {
+      error: `${inFlight} payment${inFlight === 1 ? " is" : "s are"} in flight against these details. Clear the transfers queue first, or somebody transfers into an account nobody is checking.`,
+    };
+  }
+
+  /*
+   * The form posts parallel arrays, one entry per row. A row missing a label or
+   * a value is dropped by the sanitiser rather than saved half-built: a payment
+   * screen showing a labelled blank reads as "we forgot the number", and a payer
+   * who cannot tell that from "there is no number" transfers to the wrong place.
+   */
+  const labels = formData.getAll("fieldLabel").map(String);
+  const values = formData.getAll("fieldValue").map(String);
+  const hints = formData.getAll("fieldHint").map(String);
+  const audiences = formData.getAll("fieldAudiences").map(String);
+
+  const transferFields = labels.map((label, i) => ({
+    key: (formData.getAll("fieldKey").map(String)[i] ?? "").trim(),
+    label: label.trim(),
+    value: (values[i] ?? "").trim(),
+    hint: (hints[i] ?? "").trim(),
+    position: i,
+    audiences: (audiences[i] ?? "")
+      .split(",")
+      .map((a) => a.trim())
+      .filter((a) => ["patient", "therapist", "clinic", "company"].includes(a)) as (
+      | "patient"
+      | "therapist"
+      | "clinic"
+      | "company"
+    )[],
+  }));
+
+  const existing = await getSettings();
+  const value = {
+    ...existing.payouts,
+    transferFields,
+    cardsComingSoon: formData.get("cardsComingSoon") === "on",
+  };
+
+  await writeSettingsGroup({ group: "payouts", value, updatedBy: actor.userId });
+  await audit({
+    actor,
+    category: "admin",
+    action: "settings.transferFields",
+    resourceType: "platform_settings",
+    resourceId: "payouts",
+    /*
+     * 🔴 The LABELS in the audit row, never the values. This is an account
+     * number, and an audit log is read by more people than the settings screen
+     * is. What we need six months from now is which fields changed and when.
+     */
+    reason: `${transferFields.length} field(s): ${transferFields.map((f) => f.label).join(", ")}`,
+  });
+
+  revalidatePath("/admin/settings");
+  return { ok: "Saved. This is what a payer sees now." };
 }

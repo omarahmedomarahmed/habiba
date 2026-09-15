@@ -530,7 +530,7 @@ export function CountryEditor({
         <Field
           label="Regulators"
           htmlFor={`reg-${country.code}`}
-          hint="One per line, beside a free-text field. A list missing somebody's regulator reads as 'you are not welcome here', so it never constrains."
+          hint="One per line. A list missing somebody's regulator reads as 'you are not welcome here', so it never constrains."
         >
           <Textarea
             id={`reg-${country.code}`}

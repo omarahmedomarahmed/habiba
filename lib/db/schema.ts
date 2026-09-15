@@ -8370,7 +8370,21 @@ export const manualPayments = pgTable(
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull().default("EGP"),
 
-    /** 🔴 Exactly one of these three, enforced by a CHECK in 0102. */
+    /**
+     * 🔴 C367 — WHICH KIND OF PAYER, kept forever.
+     *
+     * The three ids below are `ON DELETE SET NULL`, because this table is the
+     * only record that money moved and it has to outlive the company that
+     * closed, the therapist who left and the operator who checked the receipt.
+     * This column is the half that survives them: after a deletion the row still
+     * says "a company paid this" even though it can no longer say which.
+     *
+     * 0102 had `exactly one id` as a CHECK beside those SET NULLs, which
+     * contradicted them — `verify:sprint43` caught it the first time it ran.
+     */
+    payerKind: text("payer_kind").$type<"user" | "patient" | "sponsor">().notNull(),
+
+    /** 🔴 AT MOST one of these three, and it must match `payerKind`. 0103. */
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     patientAccountId: uuid("patient_account_id").references(() => patientAccounts.id, {
       onDelete: "set null",
