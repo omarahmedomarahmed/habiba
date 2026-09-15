@@ -205,7 +205,22 @@ const THERAPIST = {
   arrivals: [2, 3, 4],
   /** 🔴 GUESS. Four a month, from referrals and the influencer posts. */
   steadyPerMonth: 4,
-  monthlyUsd: egp(1000),
+  /**
+   * 🔴 DECIDED: **$100 a month**, the unlimited tier the product already ships.
+   *
+   * The pitch that makes it defensible is arithmetic the therapist can check
+   * themselves. Pay as you go costs **$4 a session**, so $100 is **exactly 25
+   * sessions**. Below 25 a month, pay as you go is cheaper and they should use
+   * it. Above it, unlimited is, and the note writing comes free. Nobody has to
+   * be talked into a number they can work out.
+   *
+   * 🔴 And the promise underneath is arithmetic too, not marketing: at a $20
+   * session, **ten sessions earns them $200 against a $100 bill.** A therapist
+   * who works at all pays for this out of what they earned through it, which is
+   * what `payouts.netFeeFromHeldEarnings` already implements rather than
+   * something we would have to build.
+   */
+  monthlyUsd: 100,
   cliniciansEach: 1,
   patientsPerClinician: 8,
   sessionsPerPatient: 2.5,
@@ -279,6 +294,25 @@ const SALES = [
 ];
 
 /**
+ * 🔴 TWO SUPPORT STAFF, AND THEY ARE NOT OPTIONAL. 73.4.
+ *
+ * The Egyptian rail is a bank transfer and a person who checks it. Somebody is
+ * sitting on a spinner waiting to join a therapy session, and the queue has to
+ * be worked by the minute or the product does not function. That is a staffing
+ * decision the payment design forces, not a nice-to-have, and a plan that
+ * modelled the rail without modelling the people would be describing a product
+ * nobody can operate.
+ *
+ * The founders work the same queue alongside them, and cover marketing and sales
+ * too. That does not appear as a cost because they are already on the payroll;
+ * it appears as the reason there are five people rather than nine.
+ */
+const SUPPORT = [
+  { role: "Support, the transfer queue", startMonth: 1, monthlyUsd: 500 },
+  { role: "Support, the transfer queue and onboarding", startMonth: 1, monthlyUsd: 500 },
+];
+
+/**
  * 🔴 THE MARKETING BUDGET, AND WHERE EACH LINE COMES FROM.
  *
  * Videos: three of them, produced once, in month one. A competent 60 to 90
@@ -341,8 +375,20 @@ export const BETA: Plan = {
   raiseMonth: 99,
   unit: UNIT,
   segments: [COMPANY, CLINIC, THERAPIST],
-  promo: { ...BETA_OFFER, lastMonth: 3, afterBeta: BETA_OFFER },
-  people: [...FOUNDERS, ...SALES],
+  /**
+   * 🔴 THE OFFER ENDS WITH THE BETA, and what replaces it is thinner on purpose.
+   *
+   * Beta cohorts (joined months 1-3): free, half, half, then full.
+   * Everybody after: **one free month, then full price.** No half-price months.
+   *
+   * That is the founders' decision and it is the right shape: the beta's job was
+   * to buy evidence, and evidence bought once does not need buying again. It
+   * also makes months 4 to 6 the honest test, because two different cohorts hit
+   * full price in them from two different schedules and the model has to keep
+   * them apart. An aggregate model could not.
+   */
+  promo: { ...BETA_OFFER, lastMonth: 3, afterBeta: { schedule: [0], after: 1 } },
+  people: [...FOUNDERS, ...SALES, ...SUPPORT],
   spend: [...MARKETING, ...OVERHEAD],
 };
 
@@ -420,6 +466,7 @@ export const GRANDFATHERED: Plan = {
     ...FOUNDERS,
     ...FOUNDERS.map((p) => ({ ...p, monthlyUsd: 1000, startMonth: 7 })),
     ...SALES,
+    ...SUPPORT,
     { role: "Sales, third", startMonth: 7, monthlyUsd: 700 },
     { role: "Support and onboarding", startMonth: 7, monthlyUsd: 500 },
     { role: "Engineer", startMonth: 9, monthlyUsd: 1800 },
@@ -516,12 +563,15 @@ export const PROVENANCE: { path: string; kind: Provenance; why: string }[] = [
   { path: "clinic.churnAtFullPrice", kind: "guess", why: "A quarter walk when the half-price months end" },
 
   { path: "therapist.arrivals", kind: "decided", why: "Nine over the quarter, inside the 8 to 10 target" },
-  { path: "therapist.monthlyUsd", kind: "guess", why: "1,000 EGP, two sessions' fee for a tool used forty times" },
+  { path: "therapist.monthlyUsd", kind: "decided", why: "$100 unlimited, which is exactly 25 PAYG sessions at $4. The therapist can check it" },
+  { path: "payg.perSessionUsd", kind: "decided", why: "$4 a session, 20% of a $20 session, and the alternative to the $100 plan" },
   { path: "therapist.patientsPerClinician", kind: "guess", why: "Eight patients, a part-time private caseload" },
   { path: "therapist.churnAtFullPrice", kind: "guess", why: "🔴 40%. The number the whole beta exists to find out" },
 
-  { path: "promo.schedule", kind: "decided", why: "Free, half, half, then full. The offer" },
-  { path: "people", kind: "decided", why: "Two founders, two salespeople and one marketer, $500 each" },
+  { path: "promo.schedule", kind: "decided", why: "Free, half, half, then full. The beta offer" },
+  { path: "promo.afterBeta", kind: "decided", why: "Months 4 on: one free month then full price. The beta buys evidence once" },
+  { path: "people", kind: "decided", why: "Two founders, two sales, one marketer, two support. $500 each" },
+  { path: "support", kind: "decided", why: "🔴 Forced by the rail: a bank transfer needs a person, by the minute" },
   { path: "spend.videos", kind: "guess", why: "10,000 EGP each for a 60 to 90 second explainer in Cairo" },
   { path: "spend.ads", kind: "decided", why: "Part of the $1,000 a month the marketing hire spends" },
   { path: "spend.influencers", kind: "decided", why: "The rest of the $1,000. Three therapists with an audience" },
@@ -533,6 +583,75 @@ export function provenanceCounts(): Record<Provenance, number> {
   const out: Record<Provenance, number> = { measured: 0, decided: 0, guess: 0 };
   for (const row of PROVENANCE) out[row.kind]++;
   return out;
+}
+
+/* ========================================================== the variables = */
+
+/**
+ * 🔴 THE TWO NUMBERS NOBODY KNOWS, AS THREE NAMED CASES EACH. 73.5.
+ *
+ * The founders asked for the MEDIUM case to be the one reported, and for the
+ * good and bad cases to exist beside it rather than instead of it. That is the
+ * right instinct and it is worth saying why:
+ *
+ * A single number invites a reader to treat it as a forecast. Three numbers with
+ * names on them invite the only useful question, which is **which of these do
+ * you think we are?** The beta answers that by counting, and until it does, the
+ * honest position is that we do not know and have said so in three places.
+ *
+ * 🔴 `medium` IS THE DEFAULT AND THE OTHERS ARE NOT SHIPPED AS PLANS. A reader
+ * who can click "good" gets the good one, and every deck ever assembled from a
+ * model with an optimistic toggle has used it.
+ */
+export type Case = "good" | "medium" | "bad";
+
+/**
+ * Churn the month full price lands, as a multiplier on each segment's own rate.
+ *
+ * A company and a solo therapist do not leave at the same rate, so this scales
+ * what each already has rather than flattening all three to one number. The
+ * founders named the ends: 10% is the good case and 50% the bad one, against a
+ * medium of the plan's own 25 to 40%.
+ */
+export const CHURN_CASES: Record<Case, { multiplier: number; why: string }> = {
+  good: { multiplier: 0.3, why: "Roughly one in ten leaves. Everybody stayed for the product, not the discount" },
+  medium: { multiplier: 1, why: "🔴 THE REPORTED CASE. A quarter to two fifths leave when the price arrives" },
+  bad: { multiplier: 1.4, why: "Half leave. The free month bought sign-ups and nothing else" },
+};
+
+/**
+ * What the two salespeople close in a month, once the first easy wins are gone.
+ *
+ * Expressed as accounts per month across both of them, because that is the unit
+ * a salesperson is actually managed in and the unit the beta will report.
+ */
+export const GROWTH_CASES: Record<Case, { multiplier: number; why: string }> = {
+  good: { multiplier: 1.5, why: "Referrals compound and the case studies do the selling" },
+  medium: { multiplier: 1, why: "🔴 THE REPORTED CASE. Each rep holds two to four accounts a month" },
+  bad: { multiplier: 0.6, why: "It gets harder after the first free month, and nobody refers anybody" },
+};
+
+/**
+ * Apply a case to a plan. Pure, so a screen can run all three side by side.
+ *
+ * 🔴 It multiplies rather than replaces, for the same reason the cliff slider
+ * does: the three segments keep their relationship to each other, and a single
+ * flat rate would quietly assert that a call centre and a solo therapist behave
+ * the same way.
+ */
+export function withCase(plan: Plan, churn: Case, growth: Case): Plan {
+  const c = CHURN_CASES[churn].multiplier;
+  const g = GROWTH_CASES[growth].multiplier;
+  return {
+    ...plan,
+    name: `${plan.name} · churn ${churn}, growth ${growth}`,
+    segments: plan.segments.map((seg) => ({
+      ...seg,
+      churnAtFullPrice: Math.min(0.95, seg.churnAtFullPrice * c),
+      steadyPerMonth: seg.steadyPerMonth * g,
+      /* The named arrivals are TARGETS somebody is paid to hit, so they do not scale. */
+    })),
+  };
 }
 
 export const PLANS = [BETA, BETA_THEN_CLIFF, RUNWAY, GRANDFATHERED, HALF_PRICE_FOR_ALL];

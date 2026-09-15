@@ -131,7 +131,18 @@ const PORTALS: Record<string, readonly string[]> = {
    * portal, so attributing them to one would make that portal's ratchet move when a
    * different portal's chrome changed. They get their own line and their own number.
    */
-  shared: ["common", "nav", "lang", "tab", "when", "urgent", "crisis", "radar", "nf"],
+  /*
+   * 🔴 `transfer` is SHARED, checked the same way as the rest of this list.
+   *
+   *   grep -rn 't("transfer\.' app components lib
+   *
+   * comes back as one component, `components/billing/pay-by-transfer.tsx`, which is
+   * rendered to a patient, a therapist, a clinic manager and a company finance team.
+   * The letter rule would have put it under the clinician on the `t`, which is the
+   * exact misattribution the note above this list was written about: a payment screen
+   * counted against the wrong portal is a wall of text nobody is asked to cut.
+   */
+  shared: ["common", "nav", "lang", "tab", "when", "urgent", "crisis", "radar", "nf", "transfer"],
 };
 
 const PREFIX_TO_PORTAL = new Map<string, string>();

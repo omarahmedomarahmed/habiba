@@ -1549,6 +1549,30 @@ export const en = {
   "feedback.seeTitle": "Do you want to see this yourself?",
   "feedback.seeBody": "Your therapist keeps this record either way. An account changes who can read it, and lets it travel with you.",
   "feedback.makeMine": "Make it mine",
+  /* ---------------------------------------------------- the Egyptian rail -- */
+  /*
+   * 🔴 73.3 — KEYED, NOT LEFT IN ENGLISH, and the gate is why.
+   *
+   * The first draft of `pay-by-transfer.tsx` was a hundred words of English on
+   * the screen where an Egyptian patient hands over money. `verify:sprint37l`
+   * caught it against a patient floor of ZERO, which is exactly the surface that
+   * floor exists to protect. A payment screen somebody cannot read is a payment
+   * that does not happen, and in this market it is most of them.
+   */
+  "transfer.checking": "We are checking your transfer",
+  "transfer.checkingBody": "Usually a few minutes.",
+  "transfer.closePage": "You can close this page. It will be waiting for you here.",
+  "transfer.rejected": "We could not confirm that transfer",
+  "transfer.rejectedBody": "Send the reference again below, or reply to us.",
+  "transfer.unset": "Payment is not set up yet",
+  "transfer.unsetBody": "Tell us and we will send them to you.",
+  "transfer.send": "Send",
+  "transfer.cardsSoon": "Card payments coming soon.",
+  "transfer.refLabel": "Put the reference here",
+  "transfer.refHint": "A screenshot of the receipt works too.",
+  "transfer.refPlaceholder": "The reference number from your bank or InstaPay",
+  "transfer.paid": "I have paid",
+  "transfer.sending": "Sending…",
   "pay.title": "Pay for your session",
   "pay.whereFrom": "Where are you paying from?",
   "pay.chooseCountry": "Choose your country…",
@@ -4527,6 +4551,20 @@ export const ar: Record<MessageKey, string> = {
   "feedback.seeTitle": "تريد أن ترى هذا بنفسك؟",
   "feedback.seeBody": "يحتفظ معالجك بهذا السجل في الحالتين. والحساب يغيّر من يقرؤه، ويجعله يسافر معك.",
   "feedback.makeMine": "اجعله ملكي",
+  "transfer.checking": "نراجع التحويل الآن",
+  "transfer.checkingBody": "عادة دقائق قليلة.",
+  "transfer.closePage": "يمكنك إغلاق الصفحة. ستجدها في انتظارك هنا.",
+  "transfer.rejected": "لم نتمكن من تأكيد هذا التحويل",
+  "transfer.rejectedBody": "أرسل الرقم المرجعي مرة أخرى بالأسفل، أو راسلنا.",
+  "transfer.unset": "طريقة الدفع غير مُعدّة بعد",
+  "transfer.unsetBody": "أخبرنا وسنرسلها إليك.",
+  "transfer.send": "حوّل",
+  "transfer.cardsSoon": "الدفع بالبطاقة قريبًا.",
+  "transfer.refLabel": "اكتب الرقم المرجعي هنا",
+  "transfer.refHint": "لقطة شاشة من الإيصال تكفي أيضًا.",
+  "transfer.refPlaceholder": "الرقم المرجعي من البنك أو إنستاباي",
+  "transfer.paid": "لقد دفعت",
+  "transfer.sending": "جارٍ الإرسال…",
   "pay.title": "ادفع مقابل جلستك",
   "pay.whereFrom": "من أين تدفع؟",
   "pay.chooseCountry": "اختر بلدك…",

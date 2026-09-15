@@ -229,6 +229,51 @@ export type PlatformSettings = {
      * statement afterwards.
      */
     egpSpreadBps: number;
+    /**
+     * 🔴 73.1 — THE FALLBACK RAIL, AND IT IS A HUMAN BEING.
+     *
+     * `egyptCollectionProvider` above names a gateway we do not have yet, and
+     * `topUpPot` refuses an Egyptian entity outright because of it. The cost
+     * nobody had counted is that the entire Egyptian market then has no way to
+     * pay us: three call centres, six clinics, nine therapists and every patient
+     * behind them.
+     *
+     * So until there is a gateway, the rail is a bank transfer, and these are
+     * the details a payer is shown. They sit beside the provider key rather than
+     * in their own screen because they are the same decision: **how money
+     * reaches us from Egypt.** The day the gateway arrives, one of these two is
+     * switched off and the other is not.
+     *
+     * 🔴 The LABEL is data, not code. An operator adds "InstaPay handle" or
+     * "Mobile wallet number" themselves, in their own words, in the order they
+     * want it read, because which rails an Egyptian bank offers this quarter is
+     * not something a deploy should be needed to keep up with.
+     */
+    transferFields: {
+      /** Stable key, generated once, so reordering never re-points a value. */
+      key: string;
+      /** What the payer reads. The operator's words. */
+      label: string;
+      /** The account number, handle or name itself. */
+      value: string;
+      /** Greyed subtext under the value. An example, or where to find it. */
+      hint: string;
+      /** Lower sorts first. */
+      position: number;
+      /**
+       * 🔴 Who sees this line. A patient does not need the corporate account and
+       * a company does not need the wallet number, and showing everybody
+       * everything is how somebody pays into the wrong one.
+       */
+      audiences: ("patient" | "therapist" | "clinic" | "company")[];
+    }[];
+    /**
+     * Shown under the details, verbatim. Switched off the day cards work.
+     *
+     * Not a translated key because an operator has to be able to change the
+     * sentence the same afternoon the gateway goes live.
+     */
+    cardsComingSoon: boolean;
   };
   /**
    * 🔴 53.3 / 53.11 / 53.19b — the three corporate numbers, as settings.
@@ -448,6 +493,16 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     alertAfterHours: 12,
     netFeeFromHeldEarnings: true,
     egpSpreadBps: 0,
+    /*
+     * 🔴 EMPTY BY DEFAULT, and the screens say "not configured yet" rather than
+     * inventing a plausible Egyptian bank account.
+     *
+     * A seeded example here would be an account number in a repository, and the
+     * one thing worse than no payment details is wrong payment details that look
+     * right. The operator types the real ones once.
+     */
+    transferFields: [],
+    cardsComingSoon: true,
   },
   /*
    * 53.11 / 53.3 / 53.19b — $5,000, five people, six months.
@@ -898,6 +953,42 @@ export function parseGroup<G extends SettingsGroup>(
         // 1000bps is 10% on top of the market rate. Anything beyond that is a
         // margin being hidden in a rate, which is the thing C76 forbids.
         egpSpreadBps: int(v.egpSpreadBps, d.payouts.egpSpreadBps, { min: 0, max: 1_000 }),
+        /*
+         * 🔴 73.1 — A FIELD WITHOUT A LABEL OR A VALUE IS DROPPED, not defaulted.
+         *
+         * A half-filled row on a payment-details screen reads as "we forgot to
+         * put the number in", and a payer who cannot tell that from "there is no
+         * number" transfers to the wrong place. Same ruling as the invoice
+         * entities below: an unusable row is no row.
+         *
+         * `position` is renumbered from the array order rather than trusted, so
+         * two rows can never claim the same slot and the list cannot be made
+         * unstable by an edit that skipped a number.
+         */
+        transferFields: (Array.isArray(v.transferFields) ? v.transferFields : [])
+          .map((raw) => {
+            const row = record(raw);
+            const label = str(row.label, "").trim();
+            const value = str(row.value, "").trim();
+            if (!label || !value) return null;
+            const audiences = strings(row.audiences, []).filter((a) =>
+              ["patient", "therapist", "clinic", "company"].includes(a),
+            ) as ("patient" | "therapist" | "clinic" | "company")[];
+            return {
+              key: str(row.key, "").trim() || label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+              label: label.slice(0, 80),
+              value: value.slice(0, 200),
+              hint: str(row.hint, "").trim().slice(0, 160),
+              position: 0,
+              /* No audience means nobody sees it, which is a mistake. Default to everyone. */
+              audiences: audiences.length > 0 ? audiences : ["patient", "therapist", "clinic", "company"],
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null)
+          .slice(0, 12)
+          .map((row, i) => ({ ...row, position: i })),
+        cardsComingSoon:
+          typeof v.cardsComingSoon === "boolean" ? v.cardsComingSoon : d.payouts.cardsComingSoon,
       } as PlatformSettings[G];
 
     case "invoice": {

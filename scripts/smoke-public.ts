@@ -78,6 +78,44 @@ async function main() {
     return;
   }
 
+  /*
+   * 🔴 A BUSY PORT IS REPORTED AS A BUSY PORT, NOT AS TWENTY-FOUR DEAD PAGES.
+   *
+   * ⚠️ Found by hitting it three times in one sprint. A leftover `next start`
+   * from an interrupted run holds 3210; this script then starts a server that
+   * dies on EADDRINUSE, talks to the OLD one, and every request times out. The
+   * gate printed "every public page in both languages timed out", which is the
+   * most alarming possible sentence and had nothing to do with the pages.
+   *
+   * That is the §6 family aimed at a runner rather than a check: it passed the
+   * wrong cause upward, and the cost was three rounds of explaining a red gate
+   * away. H20's rule says the third time you explain a gate away you fix the
+   * gate.
+   */
+  /*
+   * 🔴 ASKED BY BINDING, NOT BY FETCHING. The first version of this probe sent a
+   * request and treated a timeout as "free", which is exactly backwards: the
+   * server that causes this problem is a HUNG one, bound to the port and
+   * answering nothing. Trying to listen is the only question with one answer.
+   */
+  const { createServer } = await import("node:net");
+  const inUse = await new Promise<boolean>((resolve) => {
+    const probe = createServer();
+    probe.once("error", () => resolve(true));
+    probe.once("listening", () => probe.close(() => resolve(false)));
+    probe.listen(PORT, "0.0.0.0");
+  });
+
+  if (inUse) {
+    check(
+      "🔴 the port is free before we start",
+      false,
+      `something is already serving on ${PORT}. Stop it and run this again: the pages below would be ITS pages, not this build's`,
+    );
+    finish("smoke");
+    return;
+  }
+
   const server = spawn("npx", ["next", "start", "-p", String(PORT)], {
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,

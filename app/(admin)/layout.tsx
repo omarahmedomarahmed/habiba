@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowLeftRight,
   Banknote,
   Building2,
   FileEdit,
@@ -31,6 +32,7 @@ import { openChanges } from "@/lib/data/phone-change";
 import { ticketCounts } from "@/lib/data/support";
 import { countOpenReports } from "@/lib/data/radar-admin";
 import { pendingReviewCount } from "@/lib/data/verification";
+import { waitingCount } from "@/lib/billing/manual";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   /*
@@ -55,11 +57,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const isManager = actor.role === "manager" || actor.role === "super_admin";
   const isOwner = actor.role === "super_admin";
 
-  const [waiting, reports, tickets, changes] = await Promise.all([
+  const [waiting, reports, tickets, changes, transfers] = await Promise.all([
     pendingReviewCount(),
     countOpenReports(),
     ticketCounts(),
     openChanges(200).then((rows) => rows.length),
+    waitingCount(),
   ]);
 
   return (
@@ -129,6 +132,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             ) : null}
           </AdminLink>
           <AdminLink href="/admin/payouts" icon={Banknote}>Payouts</AdminLink>
+          {/*
+            🔴 73.2 — THE BADGE IS NOT DECORATION. Every number in it is a person
+            on a spinner, and several of them are waiting to join a therapy
+            session. Red rather than the muted style the other counts use,
+            because this queue is worked by the minute and the others are not.
+          */}
+          <AdminLink href="/admin/transfers" icon={ArrowLeftRight}>
+            Transfers
+            {transfers > 0 ? (
+              <span className="ms-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                {transfers}
+              </span>
+            ) : null}
+          </AdminLink>
 
           {/*
             20.8 — the money, the lists and the settings are the owner's, and

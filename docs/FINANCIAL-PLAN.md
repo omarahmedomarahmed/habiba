@@ -106,7 +106,8 @@ made for you.
 
 | | EGP/month | USD/month | Label |
 |---|---|---|---|
-| Solo therapist | 1,000 | $20 | **GUESS.** Two sessions' fee for a tool they use forty times |
+| Solo therapist, unlimited | 5,000 | **$100** | **DECIDED.** The shipped tier. Exactly 25 pay-as-you-go sessions |
+| Solo therapist, pay as you go | 200/session | **$4** | **DECIDED.** 20% of a $20 session |
 | Clinic, up to 5 clinicians | 3,000 | $60 | **GUESS.** 600 EGP a clinician |
 | Company or university | 0 | $0 | **DECIDED.** They fund a pot; we take our cut of sessions |
 
@@ -128,6 +129,29 @@ seeing a hundred sessions in month 3. Without a ramp the model hands a
 month-three signature a month-three caseload, which flatters exactly the months a
 beta is judged on. Volume climbs to full over 2–3 months.
 
+### The pitch a therapist can check themselves
+
+| | |
+|---|---|
+| Unlimited | **$100 a month** |
+| Pay as you go | **$4 a session** |
+| The break-even between them | **exactly 25 sessions** |
+
+Below 25 sessions a month, pay as you go is cheaper and they should use it. Above
+it, unlimited is, and the note writing comes free. Nobody has to be talked into a
+number they can work out on their own.
+
+🔴 **And the promise underneath is arithmetic, not marketing.** At a $20 session,
+**ten sessions earns them $200 against a $100 bill.** A therapist who works at all
+pays for this out of what they earned through it. That is not something we have to
+build: `payouts.netFeeFromHeldEarnings` already takes the fee out of held earnings
+rather than invoicing it separately, which is why the sentence is publishable.
+
+The one case where a session bills with no platform earnings is an **in-person
+session the patient already paid for at the clinic**. The therapist still got
+their money; our bill is for the note, the risk pass, the copilot and the patient
+history that was ready before they walked in.
+
 ### The offer
 
 | Month of *their* life | They pay | Label |
@@ -136,6 +160,10 @@ beta is judged on. Volume climbs to full over 2–3 months.
 | 2 | 50% | **DECIDED** |
 | 3 | 50% | **DECIDED** |
 | 4 onward | Full price | **DECIDED** |
+
+**Anyone joining after month 3 gets one free month and then full price.** No
+half-price months. The beta's job was to buy evidence, and evidence bought once
+does not need buying again.
 
 Plus: companies get **$200 of welcome credit** in their pot.
 
@@ -158,7 +186,17 @@ spent over the ~3 weeks their staff burn through it.
 | Solo therapist | 3% | **40%** | 6% |
 
 All **GUESS**, and the middle column is the single most important number in this
-document. Free-trial conversion for unproven small-business software is commonly
+document. It is now a named variable with three cases, and **medium is the one
+reported**:
+
+| Case | vs the plan | Break even | Lowest cash |
+|---|---|---|---|
+| Good, roughly 1 in 10 leaves | ×0.3 | month 6 | +$2,800 |
+| **Medium, the reported case** | **×1** | **month 8** | **+$669** |
+| Bad, half leave | ×1.4 | month 10 | **−$2,025** |
+
+🔴 **Only the medium case is shipped as a plan.** Every deck ever assembled from a
+model with an optimistic toggle has used the optimistic toggle. Free-trial conversion for unproven small-business software is commonly
 worse than these. **The entire purpose of your beta is to replace this column
 with counted facts.**
 
@@ -171,7 +209,11 @@ with counted facts.**
 | Sales — companies and universities | 500 | month 1 | **DECIDED** |
 | Sales — clinics and therapists | 500 | month 1 | **DECIDED** |
 | Marketing | 500 | month 1 | **DECIDED** |
-| **Total payroll** | **$2,500** | | |
+| Support, the transfer queue | 500 | month 1 | **DECIDED** |
+| Support, the transfer queue | 500 | month 1 | **DECIDED** |
+| **Total payroll** | **$3,500** | | |
+
+🔴 **The two support staff are forced by the payment rail, not chosen.** Egypt has no card gateway for us yet, so every payment is a bank transfer somebody checks. A person is on a spinner waiting to join a therapy session while that happens. A plan that modelled the rail without modelling the people would be describing a product nobody can operate. The founders work the same queue alongside them, and cover sales and marketing too — that is why there are seven people and not eleven.
 
 🔴 **The marketer's salary is not CAC.** CAC counts who sells and what markets. Their pay is an operating cost; the budget they spend is the acquisition cost. `verify:plan` proves it by paying them ten times more and watching CAC not move.
 

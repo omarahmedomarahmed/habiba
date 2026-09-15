@@ -715,6 +715,13 @@
       "when": 1789600000067,
       "tag": "0101_financial_model",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1789700000000,
+      "tag": "0102_manual_rail",
+      "breakpoints": true
     }
   ]
 }

@@ -8328,3 +8328,76 @@ export const financeScenarios = pgTable(
 
 export type FinanceBenchmark = typeof financeBenchmarks.$inferSelect;
 export type FinanceScenario = typeof financeScenarios.$inferSelect;
+
+/* ======================================================= the Egyptian rail == */
+
+/**
+ * 🔴 Sprint 73 — a bank transfer, a claim, and an operator who checks it.
+ *
+ * `topUpPot` refuses an Egyptian entity, correctly, because we cannot take a
+ * corporate card payment into an entity that does not exist yet. The cost
+ * nobody had counted is that the whole Egyptian go-to-market then has no way to
+ * pay us at all. This is the rail that fixes that, and it is a person.
+ *
+ * One queue for three kinds of payment rather than a flag on each of the three
+ * tables, because three half-built states is how a rejection path gets
+ * forgotten. `purpose` and `refId` name what confirming this row will do.
+ */
+export const MANUAL_PAYMENT_PURPOSES = [
+  "session",
+  "subscription",
+  "payg_session",
+  "pot_topup",
+] as const;
+export type ManualPaymentPurpose = (typeof MANUAL_PAYMENT_PURPOSES)[number];
+
+export const MANUAL_PAYMENT_STATES = [
+  "awaiting_proof",
+  "submitted",
+  "confirmed",
+  "rejected",
+] as const;
+export type ManualPaymentState = (typeof MANUAL_PAYMENT_STATES)[number];
+
+export const manualPayments = pgTable(
+  "manual_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    purpose: text("purpose").$type<ManualPaymentPurpose>().notNull(),
+    /** The session, invoice or sponsor this unlocks. */
+    refId: uuid("ref_id"),
+
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default("EGP"),
+
+    /** 🔴 Exactly one of these three, enforced by a CHECK in 0102. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    patientAccountId: uuid("patient_account_id").references(() => patientAccounts.id, {
+      onDelete: "set null",
+    }),
+    sponsorId: uuid("sponsor_id").references(() => sponsors.id, { onDelete: "set null" }),
+
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+
+    state: text("state").$type<ManualPaymentState>().notNull().default("awaiting_proof"),
+
+    /** What they typed off their banking app, and what they uploaded. */
+    reference: text("reference"),
+    proofUrl: text("proof_url"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    /** 🔴 A rejection carries its reason. The CHECK in 0102 enforces it. */
+    rejectReason: text("reject_reason"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("manual_payments_payer_idx").on(t.userId, t.patientAccountId, t.sponsorId, t.createdAt),
+  ],
+);
+
+export type ManualPayment = typeof manualPayments.$inferSelect;

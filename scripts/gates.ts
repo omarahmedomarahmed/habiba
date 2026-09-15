@@ -108,6 +108,17 @@ const GATES = [
     script: "verify:plan",
     why: "and the plan still says which numbers are guesses",
   },
+  /*
+   * 🔴 The Egyptian rail has no processor behind it. No webhook confirms the
+   * money, no chargeback reverses it, and the row in `manual_payments` is the
+   * only record that anybody checked anything. That makes its invariants the
+   * kind that belong in the product's own pass rather than one sprint's.
+   */
+  {
+    name: "rail",
+    script: "verify:rail",
+    why: "and nothing is granted before a person confirms it",
+  },
 ] as const;
 
 function main() {

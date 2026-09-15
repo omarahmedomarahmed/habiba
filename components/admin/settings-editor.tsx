@@ -251,8 +251,8 @@ export function CopilotEditor({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">Copilot allowances</p>
       <p className="mt-1 text-xs text-slate-500">
-        Per patient per session, rolling over on that patient. The pricing page reads the first
-        figure, so changing it changes what the cards promise.
+        Per patient per session, rolling over on that patient. The pricing page reads the
+        first figure.
       </p>
       <form action={action} className="mt-3 grid gap-2 sm:grid-cols-3">
         <Field label="Per patient, per session" htmlFor="perSession">

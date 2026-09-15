@@ -152,8 +152,8 @@ export default async function SettingsPage() {
             ))}
           </ul>
           <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
-            Until then an Egyptian patient cannot pay in EGP and the therapist is on the manual
-            payout queue, which is the designed path either way. No code shortens the contract.
+            Until then an Egyptian patient pays by transfer and the therapist is on the manual
+            payout queue. No code shortens the contract.
           </p>
         </Card>
       ) : null}

@@ -181,8 +181,7 @@ function Patients({ rows }: { rows: Patient[] }) {
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="text-sm font-semibold text-slate-900">Caseload, identifiers only</p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-          If one asks for their data, send it from here. You never see it: the link goes to their
-          address and the clinician is told.
+          If one asks for their data, send it from here. You never see it.
         </p>
       </div>
       {rows.length === 0 ? (
@@ -834,8 +833,8 @@ function Manage({
           Email {therapistName}
         </p>
         <p className="mt-0.5 text-sm text-slate-500">
-          Plain text. It goes out from 24Therapy, not from a patient, no links are rendered, so it
-          cannot be turned into a phishing template.
+          Plain text, from 24Therapy, no links rendered. It cannot be made into a phishing
+          template.
         </p>
 
         <div className="mt-3 space-y-3">

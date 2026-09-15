@@ -192,9 +192,8 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
 
             {partner.approvedAt ? (
               <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                Withdrawing stops new live keys and revokes none they hold. A key pulled
-                mid-afternoon stops transcription in open rooms, and a dispute with a platform
-                must never arrive in somebody's session.
+                Withdrawing stops new keys and revokes none they hold. A key pulled
+                mid-afternoon stops transcription in open rooms.
               </p>
             ) : null}
           </div>

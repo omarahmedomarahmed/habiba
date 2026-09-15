@@ -36,10 +36,10 @@ async function main() {
   );
 
   check(
-    "🔴 the beta is three months, on twenty thousand dollars, with five people on the payroll at $500",
+    "🔴 the beta is three months, on twenty thousand dollars, with seven people on the payroll at $500",
     BETA.months === 3 &&
       BETA.openingCashUsd === 20_000 &&
-      BETA.people.length === 5 &&
+      BETA.people.length === 7 &&
       BETA.people.every((p) => p.monthlyUsd === 500),
     `${BETA.people.length} people at $${BETA.people[0]?.monthlyUsd} a month, $${BETA.openingCashUsd} in the bank`,
   );
@@ -361,6 +361,58 @@ async function main() {
     Math.abs(richerMarketer.blendedCacUsd - runPlan(BETA).blendedCacUsd) < 0.01 &&
       richerMarketer.months[0]!.peopleUsd > runPlan(BETA).months[0]!.peopleUsd,
     "paying the marketer ten times more moves the payroll and leaves CAC exactly where it was",
+  );
+
+  /*
+   * 🔴 73.4 — THE RAIL FORCES TWO SUPPORT STAFF, AND THE PLAN MUST CARRY THEM.
+   *
+   * A bank transfer is a person checking it, by the minute, or somebody sits on
+   * a spinner waiting to join a therapy session. A plan that modelled the rail
+   * without the people would describe a product nobody can operate.
+   */
+  check(
+    "🔴 the payment rail's two support staff are on the payroll from month one",
+    BETA.people.filter((p) => /support/i.test(p.role)).length === 2 &&
+      BETA.people.filter((p) => /support/i.test(p.role)).every((p) => p.startMonth === 1),
+    "the queue is worked from the first transfer, not from the first complaint",
+  );
+
+  /*
+   * 🔴 THE THERAPIST PRICE IS THE ONE A THERAPIST CAN CHECK.
+   *
+   * $100 unlimited against $4 a session pay as you go is exactly 25 sessions.
+   * A pitch whose arithmetic the customer can do in their head is a pitch that
+   * does not need a salesperson to defend it, and an off-by-anything here turns
+   * "you can check this" into "we rounded it".
+   */
+  const therapist = BETA.segments.find((s) => s.key === "therapist")!;
+  check(
+    "🔴 the $100 plan is exactly 25 pay-as-you-go sessions, so the pitch is checkable",
+    therapist.monthlyUsd === 100 && therapist.monthlyUsd / 4 === 25,
+    "below 25 sessions pay as you go is cheaper and they should use it; above it, unlimited is",
+  );
+
+  /*
+   * 🔴 AND THE PROMISE IS TRUE. "Your sessions pay for your subscription" has to
+   * be arithmetic, not marketing, or it is the first thing a churned therapist
+   * quotes back. Ten sessions at a $20 session earns $200 against a $100 bill.
+   */
+  check(
+    "🔴 ten sessions a month earns a therapist more than the subscription costs",
+    10 * BETA.unit.sessionPriceUsd > therapist.monthlyUsd,
+    `ten sessions earns $${(10 * BETA.unit.sessionPriceUsd).toFixed(0)} against a $${therapist.monthlyUsd} bill`,
+  );
+
+  /*
+   * 🔴 THE OFFER ENDS WITH THE BETA. Months 4 on get one free month and no
+   * half-price months, and the two cohorts must be kept apart.
+   */
+  check(
+    "🔴 a post-beta joiner gets one free month and then full price",
+    BETA.promo.afterBeta.schedule.length === 1 &&
+      BETA.promo.afterBeta.schedule[0] === 0 &&
+      BETA.promo.afterBeta.after === 1,
+    "the beta bought evidence once; it does not need buying again",
   );
 
   const runway = runPlan(RUNWAY);
