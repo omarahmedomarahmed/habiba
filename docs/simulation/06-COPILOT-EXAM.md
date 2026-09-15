@@ -9,7 +9,7 @@ npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json
 
 ## The claim being tested
 
-> *The patient we know the most about has the smartest copilot, and after three months it
+> *The patient we know the most about has the smartest copilot, and after six months it
 > can prepare a therapist who has never met them.*
 
 That is the claim the whole memory layer exists to make good on. It is on the public site,

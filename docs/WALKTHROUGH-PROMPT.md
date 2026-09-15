@@ -1,4 +1,4 @@
-# The three-month simulation: the prompt for a fresh session
+# The six-month simulation: the prompt for a fresh session
 
 Paste everything below the line into a new session. Nothing above it is part of the prompt.
 
@@ -26,32 +26,33 @@ with `npm run spend -- --budget 10`, which needs a database and not a key, and w
 cheap call once you reach step 2.
 
 If any of the three still says "paste-yours-here", **stop and say so**. A run that starts
-without a funded key produces three months of empty notes and spends an hour doing it.
+without a funded key produces six months of empty notes and spends an afternoon doing it.
 
 `STRIPE_SECRET_KEY` must begin `sk_test_`. If it begins `sk_live_`, stop: this simulation
 moves money through every path it can find and a live key would move real money.
 
 ---
 
-You are running a three-month simulation of 24Therapy: a swarm of agents behaving as real
-people, using the real product, producing a database that looks like a quarter of trading
+You are running a six-month simulation of 24Therapy: a swarm of agents behaving as real
+people, using the real product, producing a database that looks like half a year of trading
 and a folder of screenshots that proves it.
 
-**Read these nine files from the repository first, in this order, before doing anything:**
+**Read these ten files from the repository first, in this order, before doing anything:**
 
 ```
 docs/simulation/00-START-HERE.md      the shape, the five rules, the order of work, the $10 budget
-docs/simulation/01-SEED.md            the cast: 22 identities, 3 waves, and how often each patient comes
+docs/simulation/01-SEED.md            the cast: 28 identities, 6 waves, and how often each patient comes
 docs/simulation/02-ORCHESTRATION.md   the swarm: who launches what, how claims are verified
 docs/simulation/03-MONEY.md           income, expenses, and Egypt, which has no card rail
 docs/simulation/04-CAPTURE.md         what is photographed, where it goes, the video scripts
-docs/simulation/05-AGEING.md          how three months happens in one hour
+docs/simulation/05-AGEING.md          how six months happens in one afternoon
 docs/simulation/06-COPILOT-EXAM.md    the test at the end: what the copilot really knows
 docs/simulation/07-FINANCIAL-MODEL.md what the run feeds into the 36-month forecast, and what it can never measure
-docs/simulation/08-THE-OFFER.md        🔴 the commercial offer: free month, half price, and the full-price invoice
+docs/simulation/08-THE-OFFER.md       🔴 the commercial offer: free month, half price, and the full-price invoice
+docs/simulation/09-THE-RAIL.md        🔴 how money reaches us in Egypt: a bank transfer and a person checking it
 ```
 
-They are one design in nine documents. **Do not start until you have read all nine.**
+They are one design in ten documents. **Do not start until you have read all ten.**
 
 🔴 **And read `docs/FINANCIAL-PLAN.md` once before you begin.** It is not part of the run; it
 is the business this run is a rehearsal of. Twenty thousand dollars, Egypt, two salespeople,
@@ -60,24 +61,50 @@ Everything the simulation captures is evidence for or against something in that 
 
 ## In one paragraph
 
-Twenty-two synthetic people sign themselves up and use the product: five therapists, six
-patients, a practice, three employers, an integrator and an operator. They arrive in three
-waves. Cheap agents act as them. One expensive orchestrator sequences them and **verifies
-every claim against the database rather than believing the agent that made it**. Between
-waves, a script ages the rows that wave created, so at the end the database holds three
-months of history produced in one hour by real interactions with the real product.
-Screenshots are taken at month 0, 1 and 3, per person, on the same screens each time. Then
-the copilot sits an exam about every one of those patients.
+Twenty-eight synthetic people sign themselves up and use the product: seven therapists,
+seven patients, a practice, three companies, an integrator and an operator. **All of them
+are Egyptian**, which means none of them can pay by card. They arrive in six waves. Cheap
+agents act as them. One expensive orchestrator sequences them and **verifies every claim
+against the database rather than believing the agent that made it**. Between waves, a script
+ages the rows that wave created, so at the end the database holds six months of history
+produced in one afternoon by real interactions with the real product. Screenshots are taken
+at month 0, 1, 3 and 6, per person, on the same screens each time. Then the copilot sits an
+exam about every one of those patients.
+
+## 🔴 The three things that make this run different from the last one
+
+**It is six months, not three, and the second half is the point.** Three months ends inside
+the beta, when everything is free and everybody is happy. **Month 4 is when the first
+full-price invoice goes out**, and what people do that week is the number the entire
+thirty-six month forecast turns on. A three-month run photographs the easy half.
+
+**Everybody is Egyptian, so there is no card rail.** `topUpPot` refuses `entity = 'eg'` and
+it is right to. Money reaches us by InstaPay or bank transfer: the payer claims it on their
+own screen, and **nothing moves until an operator confirms it**. That rail is new, it has
+never carried a real payment, and it is the largest surface this run exercises.
+`09-THE-RAIL.md` is the whole of it.
+
+**Four new standing agents.** A payments operator working the transfer queue by the minute,
+a business strategist writing one note a month off the operator's own screens, a CFO after
+month 3 and again after month 6, and a CTO keeping the dev log. All four work by clicking.
+`02-ORCHESTRATION.md` says what each one is for.
 
 ## 🔴 The budget is $10 and it must not run out halfway
 
 | | |
 |---|---|
-| Sessions | **35**: 🔴 **24 at 3 minutes and 11 at 8**, not one length |
-| Total audio | 160 minutes |
-| Planned model spend | **≈ $3.00** |
-| Left over | **≈ $7.00**, which is headroom, not a licence to add sessions |
+| Sessions | **62** over six months: 🔴 **42 at 3 minutes and 20 at 8**, not one length |
+| Total audio | 265 minutes |
+| Planned model spend | **≈ $4.75** |
+| Left over | **≈ $5.25**, which is headroom, not a licence to add sessions |
 | In-session copilot | capped at **4** messages. Already set on the branch |
+
+🔴 **Doubling the months did not double the bill, and that is not luck.** The model spend
+tracks the SESSION COUNT and not the calendar. Three more months of trading is twenty-seven
+more sessions, about ninety cents. Everything else months 4 to 6 contain, from invoices and
+transfers to a pot running dry and somebody cancelling, calls no model at all. **So there is
+nothing to save by compressing the run back to three months**, and what would be lost is the
+only part that shows what happens when the free month ends.
 
 🔴 **The two session lengths are not a detail and must not be flattened.** Session cost is
 `FIXED + VARIABLE x minutes`; the fixed half is 52% of a 3-minute session and 6% of a
@@ -105,12 +132,13 @@ On it, already:
 
 | | |
 |---|---|
-| Schema | Migrated 0000 to 0101. 102 journal, 102 ledger, 114 tables, 252 foreign keys, every CHECK validated |
+| Schema | Migrated 0000 to 0106. 107 journal, 107 ledger, every CHECK validated |
 | Settings | 9 groups, 2 countries, the rate table |
 | Public site | 14 published pages. All 24 page-and-locale pairs render |
 | Operator | `nour.example@example.com` / `Simulation2026!`, super admin |
-| Waiting in his queue | Nile Practice, Cairo Foundry, Thames Analytics, Delta Logistics. **All four held, none approved** |
+| Waiting in his queue | Nile Practice, Cairo Foundry, Alexandria Textiles, Delta Logistics. **All four held, none approved, and all four on the `us` entity** |
 | People | **Zero** therapists, zero patients, zero sessions. They sign themselves up |
+| 🔴 The transfer details | **Empty.** An operator types the real bank account in on camera, in wave 1. A seeded one would be a bank account in this repository and a screen nobody walks |
 | Spent | **$0.00** |
 
 **Confirm that yourself before you trust this paragraph.** A prompt that says a database is
@@ -125,7 +153,7 @@ ready is exactly the kind of claim rule 1 exists to distrust. Step 1 below is ho
 
 export DATABASE_URL='postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require'
 
-npm run verify:migrations      # 102 journal, 102 ledger, 114 tables
+npm run verify:migrations      # 107 journal, 107 ledger
 npm run simulate:seed          # MUST REFUSE: "already has an operator". That refusal is the proof
 npm run verify:age             # 8 checks. The ageing script obeys its own rule
 npm run verify:synthetic       # 5 checks. Every person here is invented
@@ -139,11 +167,15 @@ If `simulate:seed` does not refuse, you are pointed at the wrong database. Stop.
 
 ```bash
 npm run build
-npm run gates                  # prose · claims · principals · i18n · boundary · renders
+npm run gates    # prose · claims · principals · i18n · boundary · renders · finance · plan · rail · entitlement
 ```
 
-Six gates. `renders` starts the built app and fetches all 24 public pages; it is there
+Ten gates. `renders` starts the built app and fetches all 24 public pages; it is there
 because `/pricing` answered 500 in production for seven sprints and nothing asked.
+🔴 **`entitlement` is the only one that writes.** It makes a throwaway practice, subscribes
+it by transfer, checks it is NOT on the plan until a confirmation, checks it IS after, and
+deletes the lot in a `finally`. Three defects it found were true of the source and false of
+the database, which is why it exists.
 
 ### Step 3 · Mark the start of wave one
 
@@ -154,13 +186,28 @@ npm run age -- --marker wave1 --start
 Everything created from this moment is wave one's and ages together. **Do this before any
 agent acts.**
 
+### Step 3b · 🔴 Open the rail, before any money moves
+
+Signed in as the operator, through the browser, not a script:
+
+| Where | What |
+|---|---|
+| `/admin/settings` | Type the Egyptian bank details in. Until you do, every payer sees "not on the system yet" |
+| `/admin/sponsors` | Move all three companies from `us` to `eg` |
+| `/admin/clinics` and each solo therapist's own `/settings` | Move each practice to Egypt |
+
+**Nothing in the Egyptian half of this run works until those are done**, because
+`sponsorNeedsTransfer` and `organizationNeedsTransfer` read exactly those two columns. The
+run starts with the rail shut on purpose: opening it is a photographed act rather than a
+seeded fact, and until sprint 74 nothing in the product could do it at all.
+
 ### Step 4 · Launch the orchestrator
 
 Hand it `02-ORCHESTRATION.md` and `01-SEED.md`. Make it report its plan before it launches
 anybody. Six agents awake at most. Wave one is seven identities: the operator, four
 therapists and two patients.
 
-### Step 5 · Each wave, in this order, three times
+### Step 5 · Each wave, in this order, six times
 
 ```bash
 # 1. the wave acts, agents report DID / SAW / ROW, the orchestrator verifies every ROW
@@ -171,7 +218,14 @@ npm run verify:migrations                           # 5. did the shift break an 
 npm run age -- --marker wave2 --start               # 6. open the next wave
 ```
 
-Wave 1 ages by **90** days, wave 2 by **60**, wave 3 not at all. Wave 3 is today.
+| Wave | Ages by | Lands at |
+|---|---|---|
+| 1 | **180** days | month 0 |
+| 2 | **150** days | month 1 |
+| 3 | **90** days | month 3 |
+| 4 | **60** days | month 4 |
+| 5 | **30** days | month 5 |
+| 6 | not at all | month 6, which is today |
 
 🔴 **Never age before the capture.** The frames would show the wrong dates and cannot be
 retaken.
@@ -243,7 +297,8 @@ price**. `08-THE-OFFER.md` is the brief. Three invoices have to exist and be pho
 |---|---|
 | The free one | Wave 1, a therapist's first invoice. **Zero, and it says why.** An invoice that is simply absent is indistinguishable from a billing bug |
 | The half-price one | A wave later. List price, discount line and payable amount, all three visible |
-| 🔴 **The full-price one** | **Age wave 1 one wave further** so a cohort reaches its fourth month and is billed with no discount line |
+| 🔴 **The full-price one** | **Wave 4.** It is a wave of the run now, not an extra step at the end: a cohort reaches its fourth month and is billed with no discount line |
+| 🔴 **The post-beta one** | `T5` and `T6` join in months 4 and 5 and get **one free month, then full price**. No half price, no schedule. Two people see it so it reads as a rule |
 
 The third is the single most important frame in the run. The plan assumes a quarter to two
 fifths of customers leave at that moment, and that guess moves break-even by nine months
@@ -252,14 +307,36 @@ whether the product bills them correctly, which is the half that is our fault if
 
 ⚠️ **Automatic promotional billing is not built.** `discount_cents` and `discount_reason`
 exist; the schedule does not. An operator applies each one by hand from `/admin/therapists`.
-Record how long that takes — it is the first thing to build after the beta.
+Record how long that takes: it is the first thing to build after the beta.
 
 Also: fund a company pot with the **$200 welcome credit**, drain it, and capture the moment it
-empties and the employee is offered the paid route.
+empties. 🔴 **The patient's screen must say "Account on hold, ask HR to activate"**, not a
+payment error, and HR must be alerted at the same moment.
+
+🔴 **And one arithmetic check that outranks every defect in the log.** `T1` compares one
+month of her session earnings against her $100 bill, on her own screens. At $20 a session,
+ten sessions earns her $200 against it. The plan's central promise is that a therapist's
+earnings cover their subscription. **If that is not visibly true, the plan is wrong**, and no
+number of working screens makes up for it.
 
 ```bash
 npm run plan                     # the five scenarios, with the counts you just measured
 ```
+
+### Step 8d · 🔴 The four standing agents that are new
+
+They are not extras and they do not run at the end. Three of them run **during** the waves.
+
+| Agent | When | What it produces |
+|---|---|---|
+| **Payments operator** | continuously | Works `/admin/transfers`. Types the bank details in, moves everybody to the `eg` entity, confirms real transfers and **rejects one with a reason in its own words** |
+| **Business strategist** | once per wave | One note a month, at most a page, read off the operator's own screens. What changed that nobody planned for, which number is moving the wrong way, what it would do differently |
+| **CFO** | after month 3 **and** after month 6 | Tries to break the numbers. Does income minus expenses match the ledger, what is recognised that nobody has paid, what in the pots is somebody else's money, which inputs are still guesses. **The two passes are compared** |
+| **CTO** | continuously | `docs/walkthrough-3/DEV-LOG.md`. One entry per defect, at the moment it was hit, with `Blast` and `Fix later`. **Fixes nothing during the run** |
+
+🔴 **All four work by clicking.** No standing agent writes SQL or calls a server action
+directly. An agent that reached around the product cannot find the defect it was launched to
+find, and three of these four exist to be the first person ever to use a screen.
 
 ### Step 9 · The report
 
@@ -281,6 +358,8 @@ npm run plan                     # the five scenarios, with the counts you just 
 | `npm run plan` | The operating plan: Egypt, the $20k, the offer, five scenarios |
 | `npm run verify:plan` | 25 checks that the plan says which numbers are guesses |
 | `npm run verify:finance` | 30 checks that the forecast is pure, reconciles, and cannot move a price |
+| `npm run verify:rail` | 52 checks on the Egyptian rail: nothing is granted before a person confirms, and every column that decides which rail somebody is on can be set through a screen |
+| `npm run verify:entitlement` | 13 checks, **against a real database**: subscribing by transfer bills but grants nothing, confirming grants, lapsing takes it away, and a mid-month seat change bills what it quoted |
 
 ## The five rules, repeated here because they are the whole design
 
@@ -296,9 +375,11 @@ npm run plan                     # the five scenarios, with the counts you just 
 
 | | |
 |---|---|
-| 🔴 **The rejection cycle** | A therapist rejected twice, his documents deleted, locked out, invited by a practice, **still refused**, and finally approved after reapplying. Thirteen steps in `01-SEED.md`. Built in sprint 69 (C351), never exercised |
+| 🔴 **The Egyptian rail, end to end** | A patient, a therapist and a company all paying by bank transfer, and an operator confirming each one by hand. Built in sprints 73 and 74, **never carried a payment**. `09-THE-RAIL.md`, and six numbered things it must put through it |
 | 🔴 **Expenses beside income** | `/admin/vault` prints subscriptions, session fees, income, model spend and what was left over, per month. Until C349 the chart and the card on that page disagreed about what income meant |
 | 🔴 **Egypt's crisis line** | `lib/crisis/line.ts` now holds 105, with the instruction to press 1 for Arabic and then 1 for mental health. Photograph it in Arabic, as Layla. That button was empty in the first market from the day the product opened |
+| 🔴 **The rejection cycle** | A therapist rejected twice, documents deleted, locked out, invited by a practice, **still refused**, finally approved. Thirteen steps in `01-SEED.md` |
+| 🔴 **Months 4 to 6** | The full-price invoice, a lapse back to metered, a mid-month upgrade billed for the days it bought, a pot running dry with the patient told to ask HR, and one person cancelling. None of it has ever happened |
 
 ## Known environment limits, so they are not filed as bugs
 
@@ -307,7 +388,8 @@ npm run plan                     # the five scenarios, with the counts you just 
 | OpenAI | **Live, and capped at $10.** If notes do not generate, check `npm run spend` before filing a defect |
 | Daily | Live |
 | Stripe | Test mode, deliberately |
-| Egypt card payments | **There is no gateway and the product refuses honestly.** That refusal is correct behaviour and is captured, not worked around. See `03-MONEY.md` |
+| Egypt card payments | **There is no gateway.** That is not a limitation to work around, it is the product: money arrives by transfer and an operator confirms it. See `09-THE-RAIL.md` |
+| The pounds-per-dollar rate | An operator's setting, default **50**, not a market feed. `quoteFor` refuses a static rate in production for a good reason, so a rail built on it would have no price to show anybody |
 | Email and WhatsApp codes | 🔴 **Assumed delivered.** The codes agent reads the real code and types it into the real form. Every agent tries one wrong code first and reports the refusal |
 | Blob storage | Not configured. **Document upload is simulated only as far as the form goes**, which matters for `T4`: his rejection cycle turns on documents being deleted, so record what the row says rather than what storage did |
 | Dates in Arabic | A known gap. Photograph it anyway |

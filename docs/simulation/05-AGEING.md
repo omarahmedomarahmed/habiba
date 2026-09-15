@@ -1,10 +1,10 @@
-# How three months happens in one hour
+# How six months happens in one afternoon
 
 **Read this before wave one. Everything else depends on it.**
 
 ## The problem, stated exactly
 
-Agents act now. They cannot wait three months, and a database whose rows were all written in
+Agents act now. They cannot wait six months, and a database whose rows were all written in
 the same hour is not a quarter of trading, it is one busy hour. Every screen that means
 anything in this product reads a date: the therapist's earnings this month, the employer's
 weekly spend, the patient's session history, the clinic's bill for the period, the seat that
@@ -31,7 +31,7 @@ minute, and then aged.
 Each wave is aged **only after its capture is taken**, so the screenshots show the product
 as it looked to that person on that day.
 
-### 🔴 Three months is a shorter runway, and two things get harder
+### 🔴 Six months is a longer runway, and two things get harder
 
 The six-month version had four waves and −180 days of room. Three months has three waves and
 −90. Two consequences worth knowing before you start rather than after:
@@ -57,7 +57,7 @@ without anybody having to list them:
 | `sessions.created_at` | past | moves back | The session happened two months ago |
 | `sessions.ended_at` | past | moves back | So did its ending |
 | `session_payments.created_at` | past | moves back | The money moved then |
-| `ai_request_logs.created_at` | past | moves back | 🔴 And this one matters: it is the expense side of `/admin/vault`'s month table, and a spend row left at today's date puts three months of model cost into one month |
+| `ai_request_logs.created_at` | past | moves back | 🔴 And this one matters: it is the expense side of `/admin/vault`'s month table, and a spend row left at today's date puts six months of model cost into one month |
 | `availability_slots.starts_at` for a past hour | past | moves back | It was a Tuesday in March |
 | `availability_slots.starts_at` for a future hour | future | **stays** | It is next Tuesday, and it still is |
 | `subscriptions.current_period_end` | future | **stays** | The plan still renews on the 14th |
@@ -147,6 +147,6 @@ pressing the button a person would press. The only thing that is not real is *wh
 the rule above keeps even that internally consistent.
 
 **Say so in the report.** The simulation's honesty is the reason it is worth anything: a
-reader who thinks these sessions happened over three months of wall-clock time has been
+reader who thinks these sessions happened over six months of wall-clock time has been
 misled, and a reader who understands they happened in one hour and were then aged
 coherently has been told something true and useful.

@@ -32,9 +32,31 @@ invoice.
 
 Plus: a company or university gets **$200 of welcome credit** in its pot.
 
+🔴 **$200 is not a round number, it is an argument.** At 10% coverage a company
+pays $2 of a $20 session, so $200 is about **100 sponsored sessions**. At 100% it
+is ten. The coverage slider says that arithmetic out loud before an HR manager
+presses Save, because "10%" is abstract and "your $200 covers 100 sessions" is a
+decision a finance team can actually take.
+
 🔴 **The month is theirs, not the calendar's.** A therapist who signs in wave 3
 is free in wave 3. Their first full-price invoice is three months after they
 joined, whenever that was.
+
+## 🔴 And the offer CHANGES after the beta, which is the second thing to capture
+
+The schedule above is the **beta**, and the beta closes at the end of month 3. It
+buys evidence, once. Paying for it forever would be a discount rather than a
+launch.
+
+| Who joined | What they get |
+|---|---|
+| Months 0 to 3 | Two months free, then half price, then full price |
+| 🔴 **Months 4 to 6** | **One month free. Then the full $100.** No half price, no schedule |
+
+Two therapists in the run see the second sequence, `T5` in wave 4 and `T6` in
+wave 5, so that it reads as a rule rather than as one person's exception. If
+either of them is quietly given the beta schedule, the model's month-7 revenue is
+wrong and nothing on any screen would say so.
 
 ## The five moments that must be captured
 
@@ -120,7 +142,7 @@ in the model are never labelled as measured.
 
 The same goes for: what anybody will actually pay, card processing costs in
 Egypt, how many of a call centre's staff would enrol, and whether a company
-renews. All four are in the model as **GUESS**, and three months of invented
+renews. All four are in the model as **GUESS**, and six months of invented
 people cannot move any of them.
 
 ## The order

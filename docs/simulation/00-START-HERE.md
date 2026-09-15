@@ -1,26 +1,32 @@
-# The three-month simulation: start here
+# The six-month simulation: start here
 
-**You are the main session. Read all nine of these files before you do anything.** They are
-one design split across nine documents because they are read by different agents.
+**You are the main session. Read all ten of these files before you do anything.** They are
+one design split across ten documents because they are read by different agents.
 
 | Read | What it is | Who reads it |
 |---|---|---|
 | `00-START-HERE.md` | This. The shape, the rules that bind everyone, the order of work, and the budget | You |
-| `01-SEED.md` | The exact cast: 22 identities, three waves, one scenario each, and how often each patient comes | You and the seed agent |
+| `01-SEED.md` | The exact cast: 28 identities, six waves, one scenario each, and how often each patient comes | You and the seed agent |
 | `02-ORCHESTRATION.md` | The swarm: who launches what, how agents wait, how claims are verified | You and the orchestrator |
-| `03-MONEY.md` | Income, expenses and the full cycle for three months, including Egypt, which has no card rail | The money agent |
+| `03-MONEY.md` | Income, expenses and the full cycle, month by month, including Egypt, which has no card rail | The money agent |
 | `04-CAPTURE.md` | What is photographed, when, where it is saved, and the video scripts | Every agent |
-| `05-AGEING.md` | How three months happens in one hour, and the one rule that keeps it honest | You, before wave one |
+| `05-AGEING.md` | How six months happens in one afternoon, and the one rule that keeps it honest | You, before wave one |
 | `06-COPILOT-EXAM.md` | The test at the end: how much the copilot actually knows about each person | You, after the last wave |
-| `07-FINANCIAL-MODEL.md` | What the run feeds into the thirty-six month forecast, and the four things it can never measure | You, after the money agent closes month three |
+| `07-FINANCIAL-MODEL.md` | What the run feeds into the thirty-six month forecast, and the four things it can never measure | You, after the money agent closes month six |
 | `08-THE-OFFER.md` | 🔴 The commercial offer, rehearsed: free month, half price, and the full-price invoice that decides everything | You and the money agent, every wave |
+| `09-THE-RAIL.md` | 🔴 **How money actually reaches us in Egypt**, which is a bank transfer and a person checking it. New, and the largest surface this run exercises | Every money agent, and the payments operator |
 
 ---
 
 ## What this is
 
-Not a walkthrough. **A simulation of three months of operating this product**, run by a swarm
+Not a walkthrough. **A simulation of six months of operating this product**, run by a swarm
 of agents, each one behaving as a real person with a real reason to be there, in one sitting.
+
+🔴 **Six, not three, and the extra three are where the answer is.** Three months ends inside
+the beta, when everything is free and everybody is happy. Month 4 is when the first
+full-price invoice goes out, and what people do that week is the number the whole forecast
+turns on. A three-month run would have photographed the easy half.
 
 At the end you have: a database that looks like a quarter of trading, screenshots of every
 principal's own screens at three points in that history, a full money cycle with income and
@@ -33,23 +39,34 @@ That is the constraint everything else was sized against. Read this section befo
 
 | | |
 |---|---|
-| Sessions | **35** |
-| Approved notes | one per session, so 35 |
-| Journal entries | **28** |
-| Audio per session | 🔴 **two lengths: 24 at 3 minutes, 11 at 8**. See below |
-| Total audio | **160 minutes** |
+| Sessions | **62** over six months |
+| Approved notes | one per session, so 62 |
+| Journal entries | **46** |
+| Audio per session | 🔴 **two lengths: 42 at 3 minutes, 20 at 8**. See below |
+| Total audio | **265 minutes** |
 | In-session copilot | **4 messages**, not the shipped 10. The seed sets it |
 
 | What | Cost |
 |---|---|
 | A 3-minute session: transcribe, diarise, note, risk, 4 copilot turns, profile | **$0.0254** |
 | An 8-minute session, same calls | **$0.0457** |
-| 24 short + 11 long | **$1.11** |
+| 42 short + 20 long | **$1.98** |
 | The copilot exam, one full run | **$0.36** |
-| Journal risk scans, document reading, copilot chats between sessions | **$0.31** |
+| Journal risk scans, document reading, copilot chats between sessions | **$0.62** |
 | Retries, re-tasked agents, flows run twice: **× 1.6** | |
-| **Planned total** | **≈ $3.00** |
-| **Left of the $10** | **≈ $7.00** |
+| **Planned total** | **≈ $4.75** |
+| **Left of the $10** | **≈ $5.25** |
+
+### 🔴 Doubling the months did not double the bill, and that is not luck
+
+The model bill tracks the **session count**, not the calendar. Three more months of trading
+is twenty-seven more sessions, which is about eighty cents at the measured rate. The rest of
+what months 4 to 6 contain, from invoices and transfers to a pot running dry and somebody
+cancelling, costs nothing at all, because none of it calls a model.
+
+🔴 **So do not be tempted to compress the run back to three months to save money.** There is
+no money to save. What would be lost is the only part of the run that shows what happens
+when the free month ends.
 
 🔴 **Those three are measured, not estimated.** On 2026-09-14 the four prompts were run
 against the live OpenAI API at four transcript lengths, for $0.37 in total. `evals/physics.json`
@@ -117,7 +134,7 @@ produce and every pricing decision downstream would inherit either.
 
 ```
   You  ·  Opus 5  ·  the main session
-   │     reads the nine documents, checks the branch, launches the orchestrator,
+   │     reads the ten documents, checks the branch, launches the orchestrator,
    │     checks on it, ages each wave, runs the exam, writes the report
    ▼
   The orchestrator  ·  one agent, the smartest one you can afford
@@ -213,11 +230,12 @@ both scripts this design used to ask you to build are built and have their own v
 | 4b | Confirm the physics fitter refuses an empty database | `npm run physics` | It says there is nothing to fit. After the run it will say something else |
 | 5 | Mark the start of wave one | `npm run age -- --marker wave1 --start` | Writes `.simulation-wave1.json` |
 | 6 | Launch the orchestrator with `02-ORCHESTRATION.md` | | It reports its plan before it launches anybody |
-| 7 | Waves one to three | | Each wave: capture, then `npm run spend`, then age |
+| 7 | Waves one to six | | Each wave: capture, then `npm run spend`, then age |
+| 7b | 🔴 **The rail is opened before any money moves** | `/admin/settings` | An operator types the Egyptian bank details in, and moves all three companies and both practices onto the `eg` entity. **Nothing in the Egyptian half of this run works until they do**, which is why it is a numbered step and not an assumption |
 | 8 | The copilot exam | `npm run copilot:exam -- --json docs/walkthrough-3/COPILOT.json` | |
 | 8b | **Fit the cost model** | `npm run physics -- --at 50 --json docs/walkthrough-3/PHYSICS.json` | Every kind fitted, no refusals. A refusal means the durations came out flat |
 | 8c | **Feed the financial model**, per `07-FINANCIAL-MODEL.md` | `npm run forecast` and **Measure and freeze** on `/admin/financial-model` | One row in `finance_benchmarks`, and the provenance split on the page moves |
-| 8d | 🔴 **Bill wave 1 at full price**, per `08-THE-OFFER.md` | `npm run age -- --marker wave4 --start`, then run the billing cycle | An invoice with NO discount line. The single most important frame in the run |
+| 8d | 🔴 **Bill wave 1 at full price**, per `08-THE-OFFER.md` | this is wave 4, not an afterthought | An invoice with NO discount line. The single most important frame in the run |
 | 8e | **Print the plan with the counts in hand** | `npm run plan` | The tables in `docs/FINANCIAL-PLAN.md`, re-run against what was measured |
 | 9 | Re-record accuracy **only if there is budget** | `npm run evals -- --record` | |
 | 10 | The report | | `docs/walkthrough-3/REPORT.md`, and it is honest |

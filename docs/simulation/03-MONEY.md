@@ -1,4 +1,4 @@
-# The money, for three months
+# The money, for six months
 
 **Handed to the money agent. This is the longest document because money is the half of the
 product that cannot be checked by looking at a screen.**
@@ -45,13 +45,19 @@ screens cannot produce it, that is a finding about the product, not a reason to 
 
 | Rail | Who is on it | What actually happens |
 |---|---|---|
-| **Stripe, direct** | A therapist with a verified Stripe account, mostly the UK ones | The patient's card charges straight into the therapist's own account. We never hold it. Our share is taken as a fee on the same charge |
+| **Stripe, direct** | A therapist with a verified Stripe account and a practice outside Egypt | The patient's card charges straight into the therapist's own account. We never hold it. Our share is taken as a fee on the same charge |
 | **Stripe, held** | A therapist who has connected but is not verified yet | The charge happens, we hold their share, and it moves to them by itself the moment Stripe finishes |
-| **Manual, Egypt** | 🔴 **Every Egyptian therapist, clinic and employer** | **Egypt has no Stripe.** There is no card rail. Money is collected outside the product, recorded inside it, held by us, and paid out by hand on request |
+| **Manual, Egypt** | 🔴 **Everybody in this simulation** | **Egypt has no Stripe.** Money in arrives by InstaPay or bank transfer, is claimed by the payer on their own screen, and **moves nothing until an operator confirms it**. Money out is held by us and paid by hand on request. `09-THE-RAIL.md` is the whole of it |
 
-**Stripe runs in test mode.** Test-mode money is still a real money cycle: real charges,
-real fees, real payouts, real failures. Report it as test-mode and the numbers mean
-something.
+**Stripe runs in test mode**, and in this run it carries almost nothing: the cast is
+Egyptian, so the first two rows above are the exception and the third is the product. That
+is the correct proportion and the earlier design had it backwards.
+
+🔴 **A session is $20**, which is 1,000 EGP, and that is the benchmark every figure in this
+document is against. The plan's whole gross margin rests on it: at 500 EGP the six months end
+in deficit and at 1,000 they break even. If the run shows patients balking at that price,
+**that is the most important finding the simulation can produce**, and it outranks every
+defect in the dev log.
 
 ## 🔴 Egypt is not a special case to be skipped. It is the main case
 
@@ -75,7 +81,7 @@ that queue.
 **Never write a ledger row directly to make the totals look right.** If a collection cannot
 be recorded through the product, that is the finding, and it is a large one.
 
-## The three-month money story, wave by wave
+## The six-month money story, wave by wave
 
 ### Wave 1 · month 0
 
@@ -129,6 +135,52 @@ be recorded through the product, that is the finding, and it is a large one.
   which of their patients turned recording on.
 - A card declines somewhere. Let it. Capture what the patient sees and what the therapist
   sees, and prove that the session did not silently proceed as paid.
+
+### Wave 4 · month 4 · 🔴 the month the money stops being free
+
+This wave is why the run is six months long.
+
+- 🔴 **Wave 1's therapists are billed at full price**, with **no discount line**. Capture the
+  invoice. `08-THE-OFFER.md` calls it the single most important frame in the run.
+- 🔴 **One of them does not pay.** `T3` lets it lapse. Watch what happens: nothing demotes
+  him. The obligation is never settled, `lapseOverdue` marks it lapsed, and `entitledTier`
+  puts him back on metered by itself. **His next session bills at the pay-as-you-go rate and
+  his own screen says why.**
+- 🔴 **`T2` subscribes by transfer.** No checkout. A bill is raised, he transfers, and he is
+  still on pay as you go until the operator confirms. Capture the gap: it is the design.
+- 🔴 **`T1` checks the promise.** One month of her session earnings against her $100 bill.
+  Ten sessions at $20 earns $200 against it. **On her own screens.** If the arithmetic does
+  not hold there, the plan is wrong and the run found it.
+- 🔴 **`E1`'s pot runs to nothing mid-month.** Coverage stops. HR is alerted **and so is the
+  patient**, whose screen says "Account on hold, ask HR to activate" rather than a payment
+  error. Capture both.
+- 🔴 **`B3`: a transfer that never arrives.** Rejected with a reason in the operator's own
+  words, read back verbatim on HR's screen, then a real one sent.
+- 🔴 **`T5` upgrades to three seats on the 15th.** The screen quotes the difference for the
+  days remaining **before** she agrees; then that exact figure is billed. Compare the two
+  numbers by hand.
+- `C1-A` leaves the practice and lands on metered by himself.
+
+### Wave 5 · month 5 · churn, which is the number everything turns on
+
+- 🔴 **Somebody cancels rather than pay $100.** One observation. It is not a rate and
+  `07-FINANCIAL-MODEL.md` says so, and it is still worth more than the guess it replaces.
+  Capture the cancellation screen and what it says about the month already paid for.
+- `T6` joins on the post-beta offer: **one free month, then full price.** No half price.
+- 🔴 **`T6` never subscribes at all**, and is right not to: at $4 a session he would need 25
+  a month to reach $100. **The product must not push him**, and a screen that nags a
+  therapist for whom the plan is worse value is a finding.
+- `E3` funds its pot by transfer, so the queue carries more than one kind of row.
+
+### Wave 6 · month 6 · the close
+
+- The whole cycle, read off the operator's own screens rather than the database.
+- 🔴 **Compare month 3 against month 6.** Revenue, cost, what is held, what is owed. The
+  CFO agent's two passes sit side by side and a number that moved between them is worth more
+  than either alone.
+- **Month-6 MRR and the ARR it implies**, stated plainly, with how much of it is invoiced
+  rather than collected. A forecast built on invoiced revenue is a forecast of a company that
+  runs out of money.
 
 ## What the money agent must produce at the end
 

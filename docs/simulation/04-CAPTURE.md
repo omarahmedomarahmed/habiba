@@ -85,7 +85,7 @@ capture shows a console nobody on the rota actually sees.
 
 | Page | Seen by | What the frame has to show |
 |---|---|---|
-| `/admin` | owner | The dashboard with three months behind it, not an empty state |
+| `/admin` | owner | The dashboard with six months behind it, not an empty state |
 | `/admin/verifications` | **staff** | The queue, and `T4`'s card at the second rejection with the "Reject and clear" warning on it |
 | `/admin/payouts` | **staff** | `T1`'s Egyptian manual payout, before and after the stamp |
 | `/admin/numbers` | **staff** | The number-change queue |
@@ -107,13 +107,13 @@ capture shows a console nobody on the rota actually sees.
 | `/admin/content` | owner | The CMS, with the published pages |
 | `/admin/strings` | owner | The interface dictionary, overridable |
 | `/admin/announce` | owner | An announcement drafted |
-| `/admin/errors` | owner | 🔴 Whatever broke during the run. **An empty errors page after three months of agents is a finding, not a pass** |
+| `/admin/errors` | owner | 🔴 Whatever broke during the run. **An empty errors page after six months of agents is a finding, not a pass** |
 | `/admin/tv` | manager | The wallboard |
 
 **Twenty-four pages, one frame each, at month 3**, plus the four money moments and the
 rejection cycle below. They go in `docs/walkthrough-3/m3/op-nour/` named for the page.
 
-🔴 **The console is only worth photographing full.** A dashboard with three months of real
+🔴 **The console is only worth photographing full.** A dashboard with six months of real
 trading behind it is the single most convincing frame this run can produce, and it is the one
 the last two walkthroughs never took.
 
@@ -167,7 +167,7 @@ twice the frames for one tenth the new information.
 
 Arabic captures **the patient app and the public site, in full, at month 3**, plus
 **`P1` Layla at every checkpoint**, because she uses this product only in Arabic and her
-history is the only honest test of whether three months of it reads correctly right to left.
+history is the only honest test of whether six months of it reads correctly right to left.
 
 🔴 **And one frame that did not exist before**: Layla's SOS sheet, in Arabic, showing
 Egypt's line. The number is 105 and under it the instruction to press 1 for Arabic and then
@@ -198,7 +198,7 @@ Five cuts, and each one is a story the simulation can now tell honestly because 
 
 | Cut | The story | Frames it is built from |
 |---|---|---|
-| **The patient** | Layla finds somebody free at 2am with no account, and three months later owns her record and takes a therapist's access back | `p1-layla/` at m0, m1, m3 · the Arabic pass |
+| **The patient** | Layla finds somebody free at 2am with no account, and six months later owns her record and takes a therapist's access back | `p1-layla/` at m0, m1, m3, m6 · the Arabic pass |
 | **The therapist** | Amira's first free session in month 0, and her month-3 earnings screen with a payout on it | `t1-amira/` across all three |
 | **The employer** | A pot funded, spent, run dry, topped up, and never once naming a person | `e1-cairo-foundry/` and the five pot frames |
 | **The wall** | What a practice and an employer are shown, side by side with what they are never shown | The standing bars, the two-column comparisons, the failed attempts |

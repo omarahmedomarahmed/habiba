@@ -13,7 +13,7 @@ And on the screen, signed in as the operator: **`/admin/financial-model`**.
 
 ## Why this document exists
 
-The simulation is three months, twenty-two synthetic people and 160 minutes of audio. Nobody
+The simulation is six months, twenty-eight synthetic people and 265 minutes of audio. Nobody
 is going to raise money on that, and nobody should. What it CAN do is establish a handful of
 numbers that no amount of spreadsheet work can, and hand them to a model that is honest about
 which half it measured.
