@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { ClinicManagerList } from "@/components/admin/clinic-manager";
 import { requireRole } from "@/lib/auth/guard";
+import { REGIONS } from "@/lib/db/region";
 import { clinicsForAdmin } from "@/lib/data/clinic-admin";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -38,7 +39,7 @@ export default async function AdminClinicsPage() {
         <p className="mt-1 text-sm text-slate-600">{t("aclinic.body")}</p>
       </div>
 
-      <ClinicManagerList clinics={rows} />
+      <ClinicManagerList clinics={rows} regions={REGIONS} />
     </div>
   );
 }

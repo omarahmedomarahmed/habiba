@@ -13,6 +13,7 @@ import {
   sponsorPots,
   sponsorUsers,
   sponsors,
+  type Entity,
   type IdentifierKind,
   type SponsorKind,
   type SponsorState,
@@ -140,6 +141,56 @@ export async function setSponsorState(
     .where(eq(sponsors.id, sponsorId));
 
   log.info("sponsor state changed", { sponsor: ref(sponsorId), state });
+  return { ok: true };
+}
+
+/**
+ * 🔴 74.5 — WHICH ENTITY BILLS THIS CUSTOMER, WHICH DECIDES WHICH RAIL THEY ARE ON.
+ *
+ * `applyToSponsor` lands every enquiry on `us` and its comment said "an operator
+ * moves it when that changes". Nothing did. So an Egyptian company applied,
+ * landed on the US entity, and was offered a corporate card charge into an
+ * entity that cannot invoice them — while the transfer rail built for exactly
+ * them was unreachable, because `sponsorNeedsTransfer` reads this column.
+ *
+ * 🔴 IT IS AN OPERATOR'S DECISION AND NOT A FORM FIELD. Which legal entity
+ * bills a customer is a commercial and tax question answered by a person who
+ * has seen the paperwork, not something a lead form guesses from a phone number.
+ *
+ * 🔴 AND IT IS REFUSED ONCE MONEY HAS MOVED. Moving the entity under a pot that
+ * already holds a balance changes which company's books that money is in,
+ * retrospectively, with an invoice already issued against the old one. That is
+ * not a settings change, it is an accounting event, and it needs a person
+ * closing one account and opening another.
+ */
+export async function setSponsorEntity(
+  sponsorId: string,
+  entity: Entity,
+): Promise<{ ok?: true; error?: string }> {
+  const [pot] = await controlDb
+    .select({ balanceCents: sponsorPots.balanceCents })
+    .from(sponsorPots)
+    .where(eq(sponsorPots.sponsorId, sponsorId))
+    .limit(1);
+
+  if ((pot?.balanceCents ?? 0) > 0) {
+    return {
+      error:
+        "Their pot already holds money. Moving the entity now would move that balance into another company's books after we invoiced it. Close this account and open a new one.",
+    };
+  }
+
+  await controlDb
+    .update(sponsors)
+    .set({
+      entity,
+      /* 🔴 The currency follows the entity. Two columns, one decision. */
+      currency: entity === "eg" ? "egp" : "usd",
+      updatedAt: new Date(),
+    })
+    .where(eq(sponsors.id, sponsorId));
+
+  log.info("sponsor entity changed", { sponsor: ref(sponsorId), entity });
   return { ok: true };
 }
 
@@ -428,6 +479,8 @@ export async function allSponsors() {
       kind: sponsors.kind,
       state: sponsors.state,
       listedPublicly: sponsors.listedPublicly,
+      /* 🔴 74.5 — which of our companies bills them, which decides their rail. */
+      entity: sponsors.entity,
       contactName: sponsors.contactName,
       contactEmail: sponsors.contactEmail,
       contactPhone: sponsors.contactPhone,

@@ -9,6 +9,7 @@ import { controlDb } from "@/lib/db";
 import {
   clinicManagers,
   clinicianInvitations,
+  invoices,
   meetingConnections,
   organizations,
   patients,
@@ -16,6 +17,7 @@ import {
   users,
   type ClinicState,
 } from "@/lib/db/schema";
+import type { Region } from "@/lib/db/region";
 import { log, ref } from "@/lib/logger";
 
 /**
@@ -842,6 +844,8 @@ async function allClinics() {
       id: organizations.id,
       name: organizations.name,
       clinicState: organizations.clinicState,
+      /* 🔴 74.6 — which of our companies bills them, and so how they pay. */
+      region: organizations.region,
       contactName: organizations.contactName,
       contactEmail: organizations.contactEmail,
       contactPhone: organizations.contactPhone,
@@ -850,6 +854,52 @@ async function allClinics() {
     .from(organizations)
     .where(and(eq(organizations.kind, "clinic"), isNull(organizations.deletedAt)))
     .orderBy(desc(organizations.createdAt));
+}
+
+/**
+ * 🔴 74.6 — WHERE A PRACTICE BILLS FROM, SET BY AN OPERATOR.
+ *
+ * ⚠️ `organizations.region` has existed since C118 and nothing in the product
+ * ever wrote it. Every practice was `us`, so `organizationNeedsTransfer` was
+ * false for everybody and the whole Egyptian rail was unreachable.
+ *
+ * A solo clinician answers this for themselves on their own settings page: it
+ * is their practice. A CLINIC's jurisdiction is not one clinician's to change,
+ * and it is the answer that decides which of our companies invoices a roster of
+ * colleagues, so it is an operator's, made once, with the registration document
+ * in front of them.
+ *
+ * 🔴 Refused while money is outstanding. Moving the region under a due invoice
+ * changes which rail that invoice is paid on and which company's books it is
+ * in, after it was issued. Settle first, then move.
+ */
+export async function setClinicRegion(
+  clinicOrganizationId: string,
+  region: Region,
+): Promise<{ ok?: true; error?: string }> {
+  const [outstanding] = await controlDb
+    .select({ n: sql<number>`count(*)::int` })
+    .from(invoices)
+    .where(
+      and(eq(invoices.organizationId, clinicOrganizationId), eq(invoices.status, "due")),
+    );
+
+  if ((outstanding?.n ?? 0) > 0) {
+    return {
+      error: `They have ${outstanding!.n} unpaid invoices. Moving the region now would change which rail those are paid on after we issued them. Settle them first.`,
+    };
+  }
+
+  const moved = await controlDb
+    .update(organizations)
+    .set({ region, updatedAt: new Date() })
+    .where(and(eq(organizations.id, clinicOrganizationId), eq(organizations.kind, "clinic")))
+    .returning({ id: organizations.id });
+
+  if (moved.length === 0) return { error: "That is not a clinic." };
+
+  log.info("clinic region changed", { org: ref(clinicOrganizationId), region });
+  return { ok: true };
 }
 
 /**

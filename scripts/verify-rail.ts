@@ -691,6 +691,84 @@ async function main() {
     "C331: otherwise a practice adds five seats on the first, removes them on the last, and pays for none",
   );
 
+  /* ================================================================== */
+  /*  74 · and somebody can actually GET onto the rail                   */
+  /* ================================================================== */
+
+  /*
+   * 🔴 THE DEFECT CLASS BEHIND THIS WHOLE SPRINT: A COLUMN NOTHING WRITES.
+   *
+   * ⚠️ Two sprints built a bank transfer rail for Egypt. Which side of it
+   * anybody is on is decided by exactly two columns: `sponsors.entity` and
+   * `organizations.region`. `applyToSponsor` hard-codes the first to `us` with a
+   * comment saying "an operator moves it when that changes", and nothing did.
+   * The second had NEVER been written by anything since C118 added it.
+   *
+   * So every sponsor was `us` and every practice was `us`, `sponsorNeedsTransfer`
+   * and `organizationNeedsTransfer` were false for every account in existence,
+   * and the entire rail — the queue, the screens, the grants, the gates above —
+   * was reachable by nobody. Every one of those checks passed the whole time.
+   *
+   * `verify:reachable` finds a server action no screen calls. This is the other
+   * half of the same idea: a COLUMN a feature branches on that no screen sets.
+   */
+  const WRITERS = [
+    [
+      "a sponsor's entity",
+      "sponsors.entity",
+      readSource("lib/data/sponsor-admin.ts"),
+      /export async function setSponsorEntity/,
+      readSource("components/admin/sponsor-manager.tsx"),
+      /setEntity\(sponsor\.id, entity\)/,
+    ],
+    [
+      "a clinic's region",
+      "organizations.region",
+      readSource("lib/data/clinic-admin.ts"),
+      /export async function setClinicRegion/,
+      readSource("components/admin/clinic-manager.tsx"),
+      /setRegion\(clinic\.id, region\)/,
+    ],
+    [
+      "a solo practice's region",
+      "organizations.region",
+      readSource("app/(app)/settings/actions.ts"),
+      /\.update\(organizations\)[\s\S]{0,200}\.set\(\{ region/,
+      readSource("components/settings/payouts.tsx"),
+      /name="practiceRegion"/,
+    ],
+  ] as const;
+
+  const unwritable = WRITERS.filter(
+    ([, , writer, writes, screen, clicks]) => !writes.test(writer) || !clicks.test(screen),
+  );
+  check(
+    "🔴 every column that decides WHICH RAIL somebody is on can be set through a screen",
+    unwritable.length === 0,
+    unwritable.map(([why]) => why).join(", ") || WRITERS.map(([why]) => why).join(" · "),
+  );
+
+  check(
+    "🔴 CONTROL the same scan catches a writer that exists with no screen behind it",
+    !/setEntity\(sponsor\.id, entity\)/.test("export async function setSponsorEntity() {}"),
+    "a function nobody can click is the exact shape this sprint spent a day on",
+  );
+
+  /*
+   * 🔴 AND MOVING ONE IS REFUSED ONCE MONEY HAS MOVED.
+   *
+   * Changing the entity under a pot that holds a balance moves money we have
+   * already invoiced into another company's books, retrospectively. Changing a
+   * clinic's region under a due invoice changes which rail an issued bill is
+   * paid on. Neither is a settings change; both are accounting events.
+   */
+  check(
+    "🔴 …and neither can be moved once there is money on the old one",
+    /balanceCents \?\? 0\) > 0/.test(readSource("lib/data/sponsor-admin.ts")) &&
+      /eq\(invoices\.status, "due"\)/.test(readSource("lib/data/clinic-admin.ts")),
+    "a balance or an unpaid invoice is a fact about the company that billed it",
+  );
+
   finish("sprints 73 and 74");
 }
 

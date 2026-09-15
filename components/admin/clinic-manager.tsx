@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
-import { addManager, setState } from "@/app/(admin)/admin/clinics/actions";
+import { addManager, setRegion, setState } from "@/app/(admin)/admin/clinics/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { CLINIC_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
@@ -36,6 +36,8 @@ export type AdminClinicRow = {
   id: string;
   name: string;
   clinicState: string | null;
+  /** 🔴 74.6 — which of our companies bills them, which decides their rail. */
+  region: string;
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
@@ -43,7 +45,19 @@ export type AdminClinicRow = {
   managers: { id: string; email: string; role: string }[];
 };
 
-export function ClinicManagerList({ clinics }: { clinics: AdminClinicRow[] }) {
+export function ClinicManagerList({
+  clinics,
+  regions,
+}: {
+  clinics: AdminClinicRow[];
+  /*
+   * 🔴 74.6 — handed down rather than imported. `REGIONS` lives in a
+   * `server-only` module, and importing it here is a webpack failure rather than
+   * a runtime surprise: the boundary is doing its job. The page is a server
+   * component and already has it.
+   */
+  regions: readonly string[];
+}) {
   const t = useT();
 
   if (clinics.length === 0) {
@@ -57,16 +71,17 @@ export function ClinicManagerList({ clinics }: { clinics: AdminClinicRow[] }) {
   return (
     <div className="space-y-3">
       {clinics.map((clinic) => (
-        <ClinicRow key={clinic.id} clinic={clinic} />
+        <ClinicRow key={clinic.id} clinic={clinic} regions={regions} />
       ))}
     </div>
   );
 }
 
-function ClinicRow({ clinic }: { clinic: AdminClinicRow }) {
+function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: readonly string[] }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [regionState, setRegionState] = useState<{ error?: string }>({});
   const [managerState, managerAction] = useActionState(addManager, {});
 
   return (
@@ -124,6 +139,32 @@ function ClinicRow({ clinic }: { clinic: AdminClinicRow }) {
                 {state}
               </button>
             ))}
+          </div>
+
+          {/*
+            🔴 74.6 — WHERE THEY BILL FROM, which decides the rail every
+            clinician on this roster pays us on. Refused while an invoice is
+            outstanding: moving it then changes which rail an issued bill is
+            paid on, and which company's books it sits in.
+          */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">{t("clinic.billedFrom")}</span>
+            {regions.filter((region) => region !== clinic.region).map((region) => (
+              <button
+                key={region}
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => setRegionState(await setRegion(clinic.id, region)))
+                }
+                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 uppercase hover:bg-slate-200 disabled:opacity-50"
+              >
+                {region}
+              </button>
+            ))}
+            {regionState.error ? (
+              <p className="w-full text-xs text-rose-600">{regionState.error}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
-import { createClinicManager, setClinicState } from "@/lib/data/clinic-admin";
+import { createClinicManager, setClinicRegion, setClinicState } from "@/lib/data/clinic-admin";
+import { isRegion } from "@/lib/db/region";
 import { CLINIC_STATES, type ClinicState } from "@/lib/db/schema";
 
 export type AdminClinicState = { error?: string; ok?: boolean };
@@ -38,6 +39,38 @@ export async function setState(
     action: `clinic.${state}`,
     resourceType: "organization",
     resourceId: clinicOrganizationId,
+  });
+
+  revalidatePath("/admin/clinics");
+  return { ok: true };
+}
+
+/**
+ * 🔴 74.6 — WHERE THE PRACTICE BILLS FROM.
+ *
+ * A solo clinician answers this on their own settings page: it is their
+ * practice. A clinic's is an operator's, because it decides which of our
+ * companies invoices a roster of colleagues and it is answered from a
+ * registration document rather than from a dropdown somebody guessed at.
+ */
+export async function setRegion(
+  clinicOrganizationId: string,
+  region: string,
+): Promise<AdminClinicState> {
+  const actor = await requireRole("super_admin");
+
+  if (!isRegion(region)) return { error: "Not a region." };
+
+  const result = await setClinicRegion(clinicOrganizationId, region);
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "clinic.region",
+    resourceType: "organization",
+    resourceId: clinicOrganizationId,
+    reason: `Billed from the ${region} entity`,
   });
 
   revalidatePath("/admin/clinics");

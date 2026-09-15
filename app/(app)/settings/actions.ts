@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/guard";
@@ -15,10 +15,10 @@ import {
 import { quoteFor } from "@/lib/billing/fx";
 import { convert } from "@/lib/billing/money";
 import { dbFor} from "@/lib/db";
-import { pinnedToDefaultRegion } from "@/lib/db/region";
+import { isRegion, pinnedToDefaultRegion } from "@/lib/db/region";
 import { writeTimezone } from "@/lib/data/timezone";
 import { getSettings } from "@/lib/settings";
-import { users, type TherapistProfile } from "@/lib/db/schema";
+import { organizations, users, type TherapistProfile } from "@/lib/db/schema";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -240,6 +240,43 @@ export async function updatePaymentSettings(
       updatedAt: new Date(),
     })
     .where(eq(users.id, actor.userId));
+
+  /*
+   * 🔴 74.6 — WHERE THEY PRACTISE, WHICH DECIDES HOW THEY PAY US AND HOW THEIR
+   * PATIENTS PAY THEM.
+   *
+   * ⚠️ `organizations.region` has existed since C118 and **nothing anywhere ever
+   * wrote it.** Every practice in the product has been `us` since the column was
+   * added, which meant `organizationNeedsTransfer` was false for everybody and
+   * the entire Egyptian rail — two sprints of it — was reachable by nobody.
+   * A door built at both ends with no handle in the middle.
+   *
+   * 🔴 IT IS A SEPARATE ANSWER FROM THE CURRENCY BESIDE IT, deliberately. A
+   * therapist in Cairo may well price in dollars, and deriving one from the
+   * other would be two opinions about one fact. The form asks both.
+   *
+   * 🔴 AND ONLY A SOLO PRACTICE CAN BE CHANGED HERE. A clinic's jurisdiction is
+   * the clinic's, and one clinician on the roster must not be able to move which
+   * of our companies bills their colleagues. `/admin/clinics` is where that one
+   * is answered, by somebody who has seen the paperwork.
+   */
+  const region = String(formData.get("practiceRegion") ?? "").trim();
+  if (region) {
+    if (!isRegion(region)) return { error: "Choose where you practise." };
+
+    const moved = await db
+      .update(organizations)
+      .set({ region, updatedAt: new Date() })
+      .where(and(eq(organizations.id, actor.organizationId), eq(organizations.kind, "solo")))
+      .returning({ id: organizations.id });
+
+    if (moved.length === 0) {
+      return {
+        error:
+          "Your practice is part of a clinic, so where it bills from is the clinic's to set. Ask us and we will change it.",
+      };
+    }
+  }
 
   revalidatePath("/settings");
   revalidatePath("/billing");

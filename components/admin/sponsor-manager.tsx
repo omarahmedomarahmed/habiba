@@ -8,9 +8,10 @@ import {
   addPortalUser,
   mintCode,
   openTheirPot,
+  setEntity,
 } from "@/app/(admin)/admin/sponsors/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
-import { SPONSOR_STATES } from "@/lib/db/schema";
+import { ENTITIES, SPONSOR_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
@@ -56,6 +57,8 @@ export type AdminSponsorRow = {
   kind: string;
   state: string;
   listedPublicly: boolean;
+  /** 🔴 74.5 — which of our companies bills them, which decides their rail. */
+  entity: string;
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
@@ -93,6 +96,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [entityState, setEntityState] = useState<{ error?: string }>({});
   const [potState, potAction] = useActionState(openTheirPot, {});
   const [userState, userAction] = useActionState(addPortalUser, {});
 
@@ -111,6 +115,15 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           }
         >
           {sponsor.state}
+        </span>
+        {/*
+          🔴 74.5 — THE ENTITY, ON THE ROW RATHER THAN BEHIND THE FOLD.
+          It decides whether this customer is shown a card form or a bank
+          account, so an operator looking at a list of accounts needs to see it
+          without opening each one.
+        */}
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 uppercase">
+          {sponsor.entity}
         </span>
         {sponsor.listedPublicly ? (
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
@@ -164,6 +177,33 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
                 {state}
               </button>
             ))}
+          </div>
+
+          {/*
+            🔴 74.5 — WHICH ENTITY BILLS THEM. An Egyptian customer moved here
+            is on the bank transfer rail from their next page load, because
+            `sponsorNeedsTransfer` reads this same column. Refused once their pot
+            holds money: that would move a balance we have already invoiced into
+            another company's books.
+          */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">{t("asponsor.billedFrom")}</span>
+            {ENTITIES.filter((entity) => entity !== sponsor.entity).map((entity) => (
+              <button
+                key={entity}
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => setEntityState(await setEntity(sponsor.id, entity)))
+                }
+                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 uppercase hover:bg-slate-200 disabled:opacity-50"
+              >
+                {entity}
+              </button>
+            ))}
+            {entityState.error ? (
+              <p className="w-full text-xs text-rose-600">{entityState.error}</p>
+            ) : null}
           </div>
 
           {/* 53.9 — the joining code. Rotating it kills every printed poster. */}

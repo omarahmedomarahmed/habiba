@@ -16,7 +16,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { AssistantPrefsSettings } from "@/components/assistant/prefs-settings";
 import { assistantPrefs } from "@/lib/ai/assistant";
 import { practiceState } from "@/lib/data/verification";
-import { invoices, users } from "@/lib/db/schema";
+import { invoices, organizations, users } from "@/lib/db/schema";
 import { getI18n } from "@/lib/i18n/server";
 
 /*
@@ -64,6 +64,17 @@ export default async function SettingsPage({
     assistantPrefs(actor.userId),
     practiceState(actor.userId),
   ]);
+
+  /*
+   * 🔴 74.6 — the practice's own row: what kind it is, and where it bills from.
+   * `practiceState` above is a verification state and not this; the names are
+   * close and the two answer entirely different questions.
+   */
+  const [ownPractice] = await db
+    .select({ kind: organizations.kind, region: organizations.region })
+    .from(organizations)
+    .where(eq(organizations.id, actor.organizationId))
+    .limit(1);
 
   /*
    * 24.4 — the sections, in the order somebody arrives looking for them.
@@ -188,6 +199,12 @@ export default async function SettingsPage({
               payoutsEnabled: connect.payoutsEnabled,
               sessionRateCents: connect.sessionRateCents,
               rateCurrency: connect.rateCurrency,
+              /*
+               * 🔴 74.6 — null for a clinician on a clinic's roster, which hides
+               * the control rather than disabling it. A disabled select invites
+               * somebody to ask why; an absent one is answered by the clinic.
+               */
+              practiceRegion: ownPractice?.kind === "solo" ? ownPractice.region : null,
               autoSettleFromEarnings: connect.autoSettleFromEarnings,
               availableCents: balance?.availableCents ?? null,
               pendingCents: balance?.pendingCents ?? null,

@@ -69,6 +69,7 @@ export default async function AdminSponsorsPage() {
         kind: sponsor.kind,
         state: sponsor.state,
         listedPublicly: sponsor.listedPublicly,
+        entity: sponsor.entity,
         contactName: sponsor.contactName,
         contactEmail: sponsor.contactEmail,
         contactPhone: sponsor.contactPhone,

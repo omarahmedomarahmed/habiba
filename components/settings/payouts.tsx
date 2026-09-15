@@ -25,6 +25,11 @@ export type PayoutState = {
   sessionRateCents: number;
   /** 16.5 — the currency that number is denominated in. */
   rateCurrency: string;
+  /**
+   * 🔴 74.6 — where this practice bills from, and null when it is not theirs to
+   * set because they are on a clinic's roster.
+   */
+  practiceRegion: string | null;
   autoSettleFromEarnings: boolean;
   availableCents: number | null;
   pendingCents: number | null;
@@ -248,6 +253,36 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             </select>
           </div>
         </Field>
+
+        {/*
+          🔴 74.6 — WHERE THEY PRACTISE, WHICH IS NOT THE SAME QUESTION AS WHAT
+          THEY PRICE IN.
+
+          It decides which of our companies bills them and therefore how they pay
+          us: a practice in Egypt is invoiced and pays by InstaPay or bank
+          transfer, because there is no card rail there yet. Somebody in Cairo
+          may still price in dollars, so the two selects are two answers.
+
+          Rendered only for a practice of one. A clinic's jurisdiction belongs to
+          the clinic, and one clinician must not be able to move which company
+          bills their colleagues.
+        */}
+        {state.practiceRegion !== null ? (
+          <Field label={t("tpay.whereYouPractise")} htmlFor="practice-region">
+            <select
+              id="practice-region"
+              name="practiceRegion"
+              defaultValue={state.practiceRegion}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            >
+              <option value="us">{t("tpay.regionUs")}</option>
+              <option value="eg">{t("tpay.regionEg")}</option>
+            </select>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              {t("tpay.whereYouPractiseBody")}
+            </p>
+          </Field>
+        ) : null}
 
         {/*
           🔴 65.10 — THE SAME SPLIT BAR THE SESSION FORM DRAWS.

@@ -8,9 +8,10 @@ import {
   createSponsorUser,
   openPot,
   rotateCode,
+  setSponsorEntity,
   setSponsorState,
 } from "@/lib/data/sponsor-admin";
-import { SPONSOR_STATES, type SponsorState } from "@/lib/db/schema";
+import { ENTITIES, SPONSOR_STATES, type Entity, type SponsorState } from "@/lib/db/schema";
 
 export type AdminSponsorState = { error?: string; ok?: boolean };
 
@@ -42,6 +43,39 @@ export async function activate(
     action: `sponsor.${state}`,
     resourceType: "sponsor",
     resourceId: sponsorId,
+  });
+
+  revalidatePath("/admin/sponsors");
+  return { ok: true };
+}
+
+/**
+ * 🔴 74.5 — WHICH ENTITY BILLS THIS CUSTOMER, AND THEREFORE WHICH RAIL THEY PAY ON.
+ *
+ * `applyToSponsor` lands every enquiry on `us`, with a comment saying an
+ * operator moves it. Nothing did, for two sprints: an Egyptian company was
+ * offered a corporate card charge into an entity that cannot invoice them,
+ * while the bank transfer rail built for exactly them could not be reached,
+ * because `sponsorNeedsTransfer` reads this column.
+ *
+ * `super_admin`, like every other action in this file, and for a harder reason
+ * than most: this decides which company's books a customer's money lands in.
+ */
+export async function setEntity(sponsorId: string, entity: string): Promise<AdminSponsorState> {
+  const actor = await requireRole("super_admin");
+
+  if (!ENTITIES.includes(entity as Entity)) return { error: "Not an entity." };
+
+  const result = await setSponsorEntity(sponsorId, entity as Entity);
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "sponsor.entity",
+    resourceType: "sponsor",
+    resourceId: sponsorId,
+    reason: `Billed from the ${entity} entity`,
   });
 
   revalidatePath("/admin/sponsors");

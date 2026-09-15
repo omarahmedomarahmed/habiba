@@ -78,6 +78,16 @@ export const CLINIC_APPLICATION = {
   intendedClinicians: ["Tarek Demo", "Amira Demo", "Omar Demo"],
 };
 
+/**
+ * 🔴 ALL THREE ARE EGYPTIAN, WHICH IS THE POINT OF THE RUN.
+ *
+ * The earlier cast had a London company in it, which made the go-to-market look
+ * like two markets and gave the money half of the simulation a card rail to fall
+ * back on. There is no card rail in Egypt: `topUpPot` refuses `entity = 'eg'`,
+ * and the bank transfer queue is the whole of how money reaches us.
+ *
+ * A run with one non-Egyptian customer would have proved the easy path works.
+ */
 export const SPONSOR_APPLICATIONS = [
   {
     key: "E1",
@@ -90,12 +100,12 @@ export const SPONSOR_APPLICATIONS = [
   },
   {
     key: "E2",
-    name: "Thames Analytics",
+    name: "Alexandria Textiles",
     kind: "company",
-    contactName: "Grace Example",
-    contactEmail: "grace.example@example.com",
-    contactPhone: "+44 7700 900 032",
-    contactBestTime: "Afternoons, London time",
+    contactName: "Mariam Example",
+    contactEmail: "mariam.example@example.com",
+    contactPhone: "+20 100 900 0032",
+    contactBestTime: "Afternoons, Cairo time",
   },
   {
     key: "E3",
@@ -270,6 +280,51 @@ async function main() {
       "🔴 CONTROL nothing was approved by the seed, which is the operator's decision on camera",
       Number(held.rows[0]?.n ?? 0) === 0 && Number(clinicHeld.rows[0]?.n ?? 0) === 0,
       "four applications, four waiting",
+    );
+
+    /* ------------------------------------------------ the rail, left empty */
+
+    /*
+     * 🔴 THE BANK DETAILS ARE NOT SEEDED, AND THAT IS THE TEST.
+     *
+     * `payouts.transferFields` ships empty, so the first Egyptian company to
+     * open its pot is shown "not on the system yet" rather than an account
+     * number somebody committed to a repository. An operator types the real ones
+     * in on camera, in wave one, through `/admin/settings`, and the screens that
+     * were empty fill in.
+     *
+     * A seed that wrote plausible-looking details would skip the one screen this
+     * whole rail depends on, and would put a bank account in git.
+     */
+    const fields = await db.execute<{ n: string }>(sql`
+      SELECT COALESCE(jsonb_array_length(value->'transferFields'), 0)::text AS n
+        FROM platform_settings WHERE key = 'payouts'`);
+
+    check(
+      "🔴 the transfer details are EMPTY, so an operator types them in on camera",
+      Number(fields.rows[0]?.n ?? 0) === 0,
+      "a seeded bank account is a bank account in git, and a screen nobody walks",
+    );
+
+    /*
+     * 🔴 AND EVERY APPLICANT IS ON THE `us` ENTITY, WHICH IS ALSO THE TEST.
+     *
+     * `applyToSponsor` lands every enquiry there, because which company bills a
+     * customer is a decision somebody makes with the paperwork in front of them.
+     * Moving these three to `eg` is an operator's click in wave one, and it is
+     * the click that puts them on the transfer rail: `sponsorNeedsTransfer`
+     * reads that column.
+     *
+     * Until sprint 74 nothing could make that click, so this is the assertion
+     * that the run starts from the state a real Tuesday starts from.
+     */
+    const entities = await db.execute<{ n: string }>(sql`
+      SELECT COUNT(*)::text AS n FROM sponsors WHERE entity <> 'us'`);
+
+    check(
+      "🔴 CONTROL every applicant starts on the us entity, and an operator moves them",
+      Number(entities.rows[0]?.n ?? 0) === 0,
+      "three enquiries, three still to be placed on the right company's books",
     );
 
     console.log("\n  Next:");
