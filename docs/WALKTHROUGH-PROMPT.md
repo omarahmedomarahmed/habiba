@@ -12,21 +12,27 @@ Rotate both keys when the run is done. They will have been in a chat transcript.
 
 ---
 
-## 🔴 KEYS. Replace these three lines, then send the whole message.
+## 🔴 KEYS. Replace the first three lines, then send the whole message.
 
 ```
 OPENAI_API_KEY=sk-paste-yours-here
 DAILY_API_KEY=paste-yours-here
 STRIPE_SECRET_KEY=sk_test_paste-yours-here
+DATABASE_URL=postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 ```
 
-**Your first action, before reading anything else: write those three lines into
-`.env.local` in the repository root, and add nothing else to that file.** Then confirm it
-with `npm run spend -- --budget 10`, which needs a database and not a key, and with a single
-cheap call once you reach step 2.
+**Your first action, before reading anything else: write those four lines into `.env.local`
+in the repository root, and add nothing else to that file.** The fourth is already correct
+and is in the block so that the database survives a new shell: an `export` does not, and a
+script that silently falls back to another database is the worst possible way to discover
+that.
 
-If any of the three still says "paste-yours-here", **stop and say so**. A run that starts
-without a funded key produces six months of empty notes and spends an afternoon doing it.
+Then confirm with `npm run spend -- --budget 10`, which needs a database and not a key, and
+with a single cheap call once you reach step 2.
+
+If any of the first three still says "paste-yours-here", **stop and say so**. A run that
+starts without a funded key produces six months of empty notes and spends an afternoon doing
+it.
 
 `STRIPE_SECRET_KEY` must begin `sk_test_`. If it begins `sk_live_`, stop: this simulation
 moves money through every path it can find and a live key would move real money.
@@ -144,6 +150,45 @@ On it, already:
 **Confirm that yourself before you trust this paragraph.** A prompt that says a database is
 ready is exactly the kind of claim rule 1 exists to distrust. Step 1 below is how.
 
+## 🔴 What you report back, and when. Do not save it all for the end.
+
+The person who pasted this is not watching a terminal for four hours. **Report upward at
+seven fixed points**, each one short enough to read on a phone.
+
+| When | What, in at most eight lines |
+|---|---|
+| After step 2 | The branch is what the prompt claimed, or it is not. Gate results. **Say plainly if anything is already red before a single agent has acted** |
+| After step 3b | The rail is open: the bank details are in, three companies and two practices moved to `eg`. This is the first thing that has ever done it |
+| End of each wave, six times | One table: sessions so far, the depth ladder (`P3` against `P6`), `npm run spend` against $10, defects found this wave, and **anything an agent is blocked on** |
+| After wave 4 | 🔴 **The full-price invoice.** Whether it rendered with no discount line, and what the therapists did. This is the single most important moment in the run |
+| After the exam | The mark per patient, and whether the claim held: does a thicker record make a better copilot |
+| After the CFO's second pass | The money, end to end, and the two passes side by side |
+| At the end | The report, the dev log, and 🔴 **the five things `npm run plan` says the model cannot know, answered or still open** |
+
+### 🔴 Three things to say immediately, without waiting for a checkpoint
+
+1. **The spend passes 70% of $10.** Say so the moment `npm run spend` warns, with what is
+   left to do. Do not decide alone to cut the run.
+2. **An agent is blocked and cannot resume.** One `BLOCK-<n>`, the screen, and what it needs.
+3. 🔴 **A defect that would lose somebody money or expose a record.** Everything else goes in
+   the log and waits; these two do not.
+
+### What the final report contains
+
+`docs/walkthrough-3/REPORT.md`, and `00-START-HERE.md` lists it in full. The eight headings:
+
+1. **The money**, end to end, read off the operator's own screens, not queried
+2. **The copilot exam**, per patient, and what it invented about people it knew nothing about
+3. **Every defect**, with the screenshot and the person who hit it
+4. **A verdict per screen**: finished, thin, unstyled
+5. **What was actually spent**, against the $4.75 estimate, and why it differed
+6. 🔴 **The fitted cost model**: the two terms per AI kind, the r², and a 50-minute session
+7. **The AI accuracy**, or plainly "not re-recorded, no budget"
+8. **What could not be simulated**, and why
+
+🔴 **A clean report means you did not look.** The last two walkthroughs each found defects
+that sixty verifiers had missed, and this run exercises far more of the product than either.
+
 ## 🔴 Step by step, from a cold start
 
 ### Step 1 · Write the keys, point at the branch, check it
@@ -151,7 +196,9 @@ ready is exactly the kind of claim rule 1 exists to distrust. Step 1 below is ho
 ```bash
 # 1. Write .env.local from the KEYS block at the top of this message. Nothing else in it.
 
-export DATABASE_URL='postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require'
+# DATABASE_URL is in .env.local from the block above. Scripts do NOT read that file
+# themselves, so export it once per shell as well, from the same value:
+export DATABASE_URL=$(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)
 
 npm run verify:migrations      # 107 journal, 107 ledger
 npm run simulate:seed          # MUST REFUSE: "already has an operator". That refusal is the proof
@@ -201,11 +248,79 @@ Signed in as the operator, through the browser, not a script:
 run starts with the rail shut on purpose: opening it is a photographed act rather than a
 seeded fact, and until sprint 74 nothing in the product could do it at all.
 
-### Step 4 · Launch the orchestrator
+### Step 4 · Launch the orchestrator, and through it everybody else
 
-Hand it `02-ORCHESTRATION.md` and `01-SEED.md`. Make it report its plan before it launches
-anybody. Six agents awake at most. Wave one is seven identities: the operator, four
-therapists and two patients.
+Hand it `02-ORCHESTRATION.md` and `01-SEED.md`. **Make it report its plan before it launches
+anybody.** Six agents awake at most.
+
+#### 🔴 You launch ONE agent. It launches the rest.
+
+```
+  YOU  ·  the main session
+   │   reads the ten documents, checks the branch, opens the rail, ages each wave,
+   │   runs the exam, writes the report, and reports upward to the human
+   ▼
+  THE ORCHESTRATOR  ·  one agent, the most capable one available
+   │   owns the wave clock. Wakes agents, sequences them, VERIFIES EVERY CLAIM
+   │   against the database, watches the depth ladder and the spend
+   │
+   ├── standing agents, awake for the whole run ──────────────────────────────
+   │     growth and operations      approvals, the verification queue, T4's rejection cycle
+   │     money                      03-MONEY.md, every wave, income AND expenses
+   │     codes                      reads real verification codes so twenty agents do not each improvise
+   │     🔴 payments operator        /admin/transfers, by the minute. 09-THE-RAIL.md
+   │     🔴 business strategist      one note per month, off the operator's own screens
+   │     🔴 CFO                      after month 3, and again after month 6. The two are compared
+   │     🔴 CTO                      the dev log. Fixes nothing during the run
+   │
+   ├── cast agents, one per identity, woken for their wave and then idle ─────
+   │     7 therapists · 7 patients · 1 practice manager · 1 practice staff
+   │     3 company HR admins · 1 integrator · 1 operator
+   │
+   └── capture agent, at the end of every wave ───────────────────────────────
+         04-CAPTURE.md. Runs BEFORE the ageing, never after
+```
+
+**Cheap agents do the acting. One expensive agent keeps them honest. You supervise the one
+that keeps them honest.**
+
+#### The launch order, which is not alphabetical
+
+| When | Who wakes | Why then |
+|---|---|---|
+| Before wave 1 | growth and operations, codes, **payments operator**, CTO | The rail has to be open and the console has to work before anybody can do anything |
+| Wave 1 | operator, `T1` `T2` `T3` `T4`, `P1` `P2` | Seven identities. The product with nobody on it |
+| End of every wave | capture, money, **strategist** | In that order. The strategist reads what the money agent just closed |
+| Wave 2 | `C1` and its three people, `E1` and its HR admin, `P3` `P4` | Growth is an event: when the operator approves a clinic, a clinic agent wakes |
+| After wave 3 | **CFO, first pass** | Three months of rows |
+| Wave 4 | `T5`, and the four injected bugs | The month the bills come |
+| Wave 5 | `T6`, `P7` | Churn, and a therapist for whom the plan is worse value |
+| Wave 6 | **CFO, second pass** | Compared against the first, which it reads before it starts |
+
+🔴 **Every one of them works by clicking.** No agent writes SQL, calls a server action
+directly, or runs a script that changes a row. They sign in on the sign-in form and press the
+buttons. An agent that reached around the product cannot find the defect it was launched to
+find, and four of the seven standing agents exist to be the first person ever to use a screen.
+
+#### 🔴 What every agent reports, in this shape and no other
+
+```
+DID: booked a session with T2 for Thursday 14:00
+SAW: docs/walkthrough-3/m1/p2-salma/booking-confirmed.png
+ROW: availability_slots id 8f3e… state=booked session_id=41ba…
+```
+
+**The orchestrator verifies `ROW` against the database itself.** An agent's word is an input,
+never a fact. An agent that cannot produce a row id did not do the thing, and it is re-tasked
+rather than recorded as a success.
+
+#### 🔴 When an agent hits a wall: PAUSE, report, wait, resume
+
+It does **not** restart from scratch and it does **not** work around the product. It stops,
+writes one `BLOCK-<n>` block naming the screen, what it expected, what it got, and **the step
+to resume from**, and waits. `02-ORCHESTRATION.md` has the exact shape. An agent that
+restarts loses everything the wave built; an agent that works around the product destroys the
+only thing this exercise produces.
 
 ### Step 5 · Each wave, in this order, six times
 
