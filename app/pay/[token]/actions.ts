@@ -1,9 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { quoteFor } from "@/lib/billing/fx";
+import { declarePaid, organizationNeedsTransfer } from "@/lib/billing/manual-entry";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
+import { uploadDocument } from "@/lib/uploads";
 
 export type PayState = {
   error?: string;
@@ -117,4 +121,91 @@ export async function startPayment(input: {
     return { error: checkout.error ?? "Could not start the payment." };
   }
   return { payUrl: checkout.url };
+}
+
+/* ======================================================= the Egyptian rail == */
+
+export type TransferState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 74.1 — A PATIENT IN EGYPT PAYS FOR A SESSION BY TRANSFER.
+ *
+ * `startPayment` above is the card rail and is untouched. The two never both
+ * render: the page asks `organizationNeedsTransfer` once and shows one of them.
+ *
+ * ## 🔴 THE LINK IS THE AUTHENTICATION, AND THAT IS NOT A GAP
+ *
+ * Everything else on this rail is a signed-in payer. This one is not, because
+ * the commonest payment this product will ever take is from somebody who found
+ * a therapist on the radar at eleven at night and has no account. The token is
+ * the credential — it is the same credential the join page runs on — and
+ * nothing here reads anything clinical or writes anything but a claim about
+ * money.
+ *
+ * ## 🔴 AND THE PRICE IS NEVER TAKEN FROM THE FORM
+ *
+ * `settlesCents` comes off the session row. The form carries a reference and a
+ * photograph and nothing else that costs anything, which is the same rule
+ * `startPayment` follows for exactly the same reason.
+ */
+export async function declareSessionTransfer(
+  token: string,
+  _prev: TransferState,
+  formData: FormData,
+): Promise<TransferState> {
+  const session = await resolveJoinToken(token);
+  if (!session) return { error: "That link has expired." };
+  if (session.priceCents <= 0) return { error: "This session is free to join." };
+  if (session.paymentStatus === "paid") return { error: "This session is already paid for." };
+
+  /*
+   * 🔴 Asked again here rather than trusted from the screen. A form that renders
+   * on a condition is a form somebody can post without meeting it.
+   */
+  if (!(await organizationNeedsTransfer(session.organizationId))) {
+    return { error: "This session is paid by card. Reload the page." };
+  }
+
+  const reference = String(formData.get("reference") ?? "").trim();
+  const proof = formData.get("proof");
+
+  let proofUrl: string | null = null;
+  if (proof instanceof File && proof.size > 0) {
+    /*
+     * 🔴 The SESSION id owns the path, because the payer has no account. The
+     * segment is there for operability — an operator tracing a receipt back
+     * should not need a database round trip — and it grants no access on its
+     * own: the random secret in the filename is what makes the URL work.
+     */
+    const stored = await uploadDocument({
+      kind: "receipt",
+      userId: session.id,
+      label: "transfer",
+      file: proof,
+    });
+    if (stored.error) return { error: stored.error };
+    proofUrl = stored.url ?? null;
+  }
+
+  const result = await declarePaid({
+    purpose: "session",
+    /* The session is both what this pays for and who is paying. See 0105. */
+    refId: session.id,
+    settlesCents: session.priceCents,
+    payer: { kind: "session", organizationId: session.organizationId },
+    reference,
+    proofUrl,
+  });
+
+  if (result.error) return { error: result.error };
+
+  /*
+   * 🔴 No audit row, deliberately, and it is the one call site on this rail with
+   * none. `audit` records an actor, and there is no actor here: a guest holding
+   * a link is not an account. The payment row itself is the record, it carries
+   * the session, the reference and the receipt, and an operator's confirmation
+   * IS audited with their name on it.
+   */
+  revalidatePath(`/pay/${token}`);
+  return { ok: true };
 }

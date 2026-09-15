@@ -274,6 +274,26 @@ export type PlatformSettings = {
      * sentence the same afternoon the gateway goes live.
      */
     cardsComingSoon: boolean;
+    /**
+     * 🔴 POUNDS PER DOLLAR, AND IT IS A DECISION RATHER THAN A QUOTE.
+     *
+     * `quoteFor` exists and would be the obvious source, and it is the wrong one
+     * twice over. It refuses a `static` rate in production (C37, correctly: a
+     * guessed rate must never settle a card payment), so in production it would
+     * return nothing at all and the Egyptian rail would have no price to show.
+     * And a market rate that moves hourly is not what this rail runs on anyway:
+     * we are not hedging anything, an operator is reading a bank statement and
+     * matching the number we asked for.
+     *
+     * So it is a rate an operator sets and can change the afternoon the pound
+     * moves, stored on every payment it prices (`settles_cents`) so a row can
+     * always be read back against the rate that made it.
+     *
+     * Pounds per dollar times a million, which is the unit `fx.ts` already
+     * quotes in (`rateMicro`). One convention for rates, so nobody has to
+     * remember which of two files means what by "rate".
+     */
+    egpRateMicro: number;
   };
   /**
    * 🔴 53.3 / 53.11 / 53.19b — the three corporate numbers, as settings.
@@ -520,6 +540,13 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
      */
     transferFields: [],
     cardsComingSoon: true,
+    /*
+     * 50, which is the rate the operating plan is written against
+     * (`EGP_PER_USD` in lib/finance/plans.ts) and a round number an operator can
+     * hold in their head while checking a statement. Indicative, like every
+     * other default here, and meant to be changed on the settings screen.
+     */
+    egpRateMicro: 50_000_000,
   },
   /*
    * 53.11 / 53.3 / 53.19b — $5,000, five people, six months.
@@ -1007,6 +1034,18 @@ export function parseGroup<G extends SettingsGroup>(
           .map((row, i) => ({ ...row, position: i })),
         cardsComingSoon:
           typeof v.cardsComingSoon === "boolean" ? v.cardsComingSoon : d.payouts.cardsComingSoon,
+        /*
+         * 🔴 A FLOOR OF ONE POUND TO THE DOLLAR, not of zero.
+         *
+         * Zero would pass a `min: 0` check and then quote every Egyptian payer
+         * "send 0 EGP", which is a rail that silently stops asking for money.
+         * The ceiling is equally arbitrary and equally deliberate: a fat finger
+         * that turns 50 into 50,000 must not reach a patient's screen.
+         */
+        egpRateMicro: int(v.egpRateMicro, d.payouts.egpRateMicro, {
+          min: 1_000_000,
+          max: 1_000_000_000,
+        }),
       } as PlatformSettings[G];
 
     case "invoice": {

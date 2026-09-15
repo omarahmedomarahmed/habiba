@@ -141,11 +141,46 @@ export async function declarePotTransfer(
 ): Promise<TopUpState> {
   const actor = await requireSponsorAdmin();
 
-  const units = Number(String(formData.get("amount") ?? "").replace(/[, ]/g, ""));
+  /*
+   * 🔴 DOLLARS, WHICH IS WHAT THE POT IS IN, AND THE POUNDS ARE OURS TO WORK OUT.
+   *
+   * The minimum on the screen, the balance, the coverage arithmetic and the
+   * invoice are all USD. A form that took pounds would put the rate in a finance
+   * team's hands and then in ours as well, and two places that know a rate are
+   * two places that can disagree. `declarePaid` converts, once, and 0106 stores
+   * both sides of it.
+   */
+  const units = Number(String(formData.get("amount") ?? "").replace(/[, $]/g, ""));
   if (!Number.isFinite(units) || units <= 0) return { error: "Enter the amount you sent." };
 
+  const settlesCents = Math.round(units * 100);
+
+  /*
+   * 🔴 The same floor `topUpPot` enforces on the card rail, asked of the same
+   * setting. A minimum that held on one rail and not the other would be a
+   * minimum, and the way around it would be to be Egyptian.
+   */
+  const settings = await getSettings();
+  if (settlesCents < settings.sponsor.minTopUpCents) {
+    const { formatUsd } = await import("@/lib/billing/plans");
+    return { error: `The smallest top-up is ${formatUsd(settings.sponsor.minTopUpCents)}.` };
+  }
+
   const reference = String(formData.get("reference") ?? "").trim();
-  const proofUrl = String(formData.get("proofUrl") ?? "").trim() || null;
+
+  const proof = formData.get("proof");
+  let proofUrl: string | null = null;
+  if (proof instanceof File && proof.size > 0) {
+    const { uploadDocument } = await import("@/lib/uploads");
+    const stored = await uploadDocument({
+      kind: "receipt",
+      userId: actor.sponsorUserId,
+      label: "pot",
+      file: proof,
+    });
+    if (stored.error) return { error: stored.error };
+    proofUrl = stored.url ?? null;
+  }
 
   const { declarePaid, sponsorNeedsTransfer } = await import("@/lib/billing/manual-entry");
 
@@ -165,7 +200,7 @@ export async function declarePotTransfer(
      * page loads does not create two claims an operator credits separately.
      */
     refId: actor.sponsorId,
-    amountCents: Math.round(units * 100),
+    settlesCents,
     payer: { kind: "sponsor", sponsorId: actor.sponsorId },
     reference,
     proofUrl,
@@ -181,7 +216,7 @@ export async function declarePotTransfer(
     action: "pot.transfer.declared",
     resourceType: "sponsor",
     resourceId: actor.sponsorId,
-    reason: `Declared a bank transfer of ${units}, reference ${reference || "none"}`,
+    reason: `Declared a bank transfer worth ${settlesCents} cents, reference ${reference || "none"}`,
   });
 
   revalidatePath("/sponsor/pot");

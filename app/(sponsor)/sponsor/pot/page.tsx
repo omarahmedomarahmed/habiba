@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CoverageForm } from "@/components/sponsor/coverage-form";
+import { declarePotTransfer } from "./actions";
+import { PayByTransfer } from "@/components/billing/pay-by-transfer";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
-import { TransferTopUp } from "@/components/sponsor/transfer-top-up";
 import { manualEntry, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
+import { localeTag } from "@/lib/i18n/config";
 import { Card } from "@/components/ui";
 import { Meter } from "@/components/visual/primitives";
 import { topUpHistory } from "@/lib/billing/invoice";
@@ -52,6 +54,12 @@ export default async function SponsorPotPage() {
     refId: actor.sponsorId,
     payer: { kind: "sponsor", sponsorId: actor.sponsorId },
     needed: needsTransfer,
+    /*
+     * 🔴 Null, because a pot is the one place on this rail where the PAYER
+     * decides the amount. A session and an invoice cost what they cost.
+     */
+    settlesCents: null,
+    locale: localeTag(locale),
   });
 
   const [pot, terms, history, coverage] = await Promise.all([
@@ -141,11 +149,16 @@ export default async function SponsorPotPage() {
         it is shown a bank account instead of a form that would refuse them.
       */}
       {terms?.refundPolicy && terms.expiresAt && actor.role === "admin" && rail.needed ? (
-        <TransferTopUp
-          fields={rail.details.fields}
-          cardsComingSoon={rail.details.cardsComingSoon}
-          waiting={rail.live.state === "submitted"}
+        <PayByTransfer
+          details={rail.details}
+          /* 🔴 Empty, and `askAmount` is why: they have not chosen one yet. */
+          amountLabel=""
+          what={t("transfer.forPot")}
+          live={rail.live}
+          action={declarePotTransfer}
+          askAmount
           minimumLabel={fmt(settings.sponsor.minTopUpCents)}
+          rateLabel={rail.rateLabel}
         />
       ) : null}
 

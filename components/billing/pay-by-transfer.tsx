@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useEffect } from "react";
+import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
 /**
  * How anybody in Egypt pays us, until there is a gateway.
+ *
+ * ## 🔴 ONE COMPONENT FOR ALL THREE FLOWS
+ *
+ * A session, a subscription and a pot top-up are the same act: read an account,
+ * send money from a banking app, say you have. Three components would be three
+ * copies of the Arabic, three chances to forget the rejection path, and three
+ * places to fix the day the account number changes. The only real difference is
+ * whether the payer chooses the amount, and that is one prop.
  *
  * ## 🔴 THE THREE STATES, AND THE MIDDLE ONE IS THE DESIGN
  *
@@ -17,9 +27,6 @@ import { useT } from "@/lib/i18n/client";
  * A spinner that only exists while the page is open would mean a patient who
  * locked their phone loses the fact that they paid, and the whole rail rests on
  * them not losing that.
- *
- * So this component renders what the server says the state is. It polls, it
- * does not hold anything, and closing it costs nothing.
  *
  * ## 🔴 THE LABEL DIFFERS BY AUDIENCE AND THE DETAILS DO NOT
  *
@@ -33,6 +40,8 @@ import { useT } from "@/lib/i18n/client";
  *
  * Neither is unverifiable and wastes the operator's afternoon. Both turns away
  * somebody whose banking app shows a reference but will not export a receipt.
+ * `submitProof` is where that rule actually lives; the button below only stops
+ * the obvious case of an empty form.
  */
 export type TransferView = {
   label: string;
@@ -47,25 +56,66 @@ export type LiveState =
   | { state: "submitted"; paymentId: string; submittedAt: string | null }
   | { state: "rejected"; reason: string };
 
+export type TransferFormState = { error?: string; ok?: boolean };
+
+/** How often a waiting payer's page re-asks the server. */
+const POLL_MS = 15_000;
+
 export function PayByTransfer({
   details,
   amountLabel,
   what,
   live,
-  onSubmit,
+  action,
+  askAmount = false,
+  minimumLabel,
+  rateLabel,
 }: {
   details: TransferView;
-  /** "1,000 EGP", already formatted by the server in the payer's currency. */
+  /** "1,000 EGP", already formatted by the server in the payer's language. */
   amountLabel: string;
-  /** "this session", "your October invoice", "your pot". */
+  /** "this session", "your bill", "your pot". Server copy, already translated. */
   what: string;
   live: LiveState;
-  onSubmit: (input: { reference: string; proofUrl: string | null }) => Promise<{ error?: string }>;
+  action: (prev: TransferFormState, form: FormData) => Promise<TransferFormState>;
+  /**
+   * 🔴 Only a pot. A session and an invoice cost what they cost, and asking a
+   * patient to type the price is asking them to get it wrong.
+   */
+  askAmount?: boolean;
+  /** The floor, formatted on the server. Only meaningful beside `askAmount`. */
+  minimumLabel?: string;
+  /**
+   * 🔴 "50 EGP", only meaningful beside `askAmount`, and required by it.
+   *
+   * A payer typing dollars and transferring pounds needs the sum in between.
+   * Without it the form asks for one currency and the account details above it
+   * take another, and the payer does the conversion in their head at a rate we
+   * have not agreed to.
+   */
+  rateLabel?: string;
 }) {
   const t = useT();
-  const [reference, setReference] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
+  const router = useRouter();
+  const [state, submit] = useActionState(action, {} as TransferFormState);
+
+  /*
+   * 🔴 THE WAIT IS WHAT MAKES THIS A PRODUCT RATHER THAN A FORM.
+   *
+   * A patient who has paid for a session at eleven at night is waiting on an
+   * operator, and the moment that operator presses Confirm their session
+   * becomes joinable. Without this they find out by reloading, and somebody in
+   * that state does not reload — they decide it is broken.
+   *
+   * `router.refresh()` rather than a fetch loop: the whole answer is a server
+   * render, and the page that holds this component is the thing that knows
+   * where to send them next.
+   */
+  useEffect(() => {
+    if (live.state !== "submitted") return;
+    const timer = setInterval(() => router.refresh(), POLL_MS);
+    return () => clearInterval(timer);
+  }, [live.state, router]);
 
   /* ------------------------------------------------------ already waiting -- */
 
@@ -102,9 +152,7 @@ export function PayByTransfer({
         <p className="mt-2 rounded-xl bg-white/70 p-3 text-sm leading-relaxed text-rose-900">
           {live.reason}
         </p>
-        <p className="mt-3 text-sm text-rose-900/90">
-          {t("transfer.rejectedBody")}
-        </p>
+        <p className="mt-3 text-sm text-rose-900/90">{t("transfer.rejectedBody")}</p>
       </Card>
     );
   }
@@ -120,9 +168,7 @@ export function PayByTransfer({
           rendering a plausible-looking blank account, is how somebody transfers
           money into the void.
         */}
-        <p className="mt-1 text-sm text-slate-600">
-          {t("transfer.unsetBody")}
-        </p>
+        <p className="mt-1 text-sm text-slate-600">{t("transfer.unsetBody")}</p>
       </Card>
     );
   }
@@ -133,7 +179,15 @@ export function PayByTransfer({
     <Card className="p-5">
       <p className="text-sm font-semibold text-slate-900">{details.label}</p>
       <p className="mt-1 text-sm text-slate-600">
-        {t("transfer.send")} <strong className="text-slate-900">{amountLabel}</strong> · {what}
+        {askAmount ? (
+          <>
+            {t("transfer.sendAtLeast", { amount: minimumLabel ?? "" })} · {what}
+          </>
+        ) : (
+          <>
+            {t("transfer.send")} <strong className="text-slate-900">{amountLabel}</strong> · {what}
+          </>
+        )}
       </p>
 
       <dl className="mt-4 space-y-2">
@@ -153,38 +207,81 @@ export function PayByTransfer({
         <p className="mt-3 text-xs text-slate-500">{t("transfer.cardsSoon")}</p>
       ) : null}
 
-      <div className="mt-5 border-t border-slate-100 pt-4">
-        <label htmlFor="transfer-ref" className="text-sm font-medium text-slate-800">
+      {/*
+        🔴 A PLAIN FORM WITH `encType`, not a fetch. A receipt is a 6 MB photo
+        from a phone on Egyptian mobile data, and a multipart post is the one
+        upload path that survives a browser deciding to retry it.
+      */}
+      <form
+        action={submit}
+        encType="multipart/form-data"
+        className="mt-5 space-y-3 border-t border-slate-100 pt-4"
+      >
+        {askAmount ? (
+          <label className="block text-sm font-medium text-slate-800">
+            {t("transfer.amountLabel")}
+            <input
+              name="amount"
+              inputMode="decimal"
+              placeholder={t("transfer.amountPlaceholder")}
+              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900"
+            />
+            {/*
+              🔴 THE SUM BETWEEN THE TWO CURRENCIES, SAID OUT LOUD.
+              The field is in dollars because that is what a pot holds; the
+              transfer is in pounds because that is what a bank moves. A finance
+              team that has to guess the rate guesses a different one.
+            */}
+            <p className="mt-1 text-[11px] font-normal text-slate-500">
+              {t("transfer.rateNote", { rate: rateLabel ?? "" })}
+            </p>
+          </label>
+        ) : null}
+
+        <label className="block text-sm font-medium text-slate-800" htmlFor="transfer-ref">
           {t("transfer.refLabel")}
         </label>
         <input
           id="transfer-ref"
-          value={reference}
-          onChange={(e) => setReference(e.target.value)}
+          name="reference"
           placeholder={t("transfer.refPlaceholder")}
           className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900"
         />
-        <p className="mt-1 text-[11px] text-slate-500">
-          {t("transfer.refHint")}
-        </p>
+        <p className="text-[11px] text-slate-500">{t("transfer.refHint")}</p>
 
-        {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
+        <label className="block text-sm font-medium text-slate-800" htmlFor="transfer-proof">
+          {t("transfer.proofLabel")}
+          <input
+            id="transfer-proof"
+            name="proof"
+            type="file"
+            accept="image/*,application/pdf"
+            className="mt-1 block w-full text-sm text-slate-600 file:me-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700"
+          />
+        </label>
 
-        <button
-          type="button"
-          disabled={pending || reference.trim().length < 3}
-          onClick={() =>
-            start(async () => {
-              setError(null);
-              const result = await onSubmit({ reference: reference.trim(), proofUrl: null });
-              if (result.error) setError(result.error);
-            })
-          }
-          className="mt-3 h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white disabled:opacity-40"
-        >
-          {pending ? t("transfer.sending") : t("transfer.paid")}
-        </button>
-      </div>
+        {state.error ? (
+          <p role="alert" className="text-sm text-rose-600">
+            {state.error}
+          </p>
+        ) : null}
+
+        <Declare />
+      </form>
     </Card>
+  );
+}
+
+function Declare() {
+  const t = useT();
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white disabled:opacity-40"
+    >
+      {pending ? t("transfer.sending") : t("transfer.paid")}
+    </button>
   );
 }

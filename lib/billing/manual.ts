@@ -54,7 +54,14 @@ import { getSettings } from "@/lib/settings";
 export type Payer =
   | { kind: "user"; userId: string; organizationId?: string | null }
   | { kind: "patient"; patientAccountId: string }
-  | { kind: "sponsor"; sponsorId: string };
+  | { kind: "sponsor"; sponsorId: string }
+  /**
+   * 🔴 A guest paying for a session off the radar. They have no account and may
+   * never make one, and asking for one before a crisis session would be the
+   * wrong trade. The session in `refId` is the identification: it carries the
+   * therapist, the price, the time and the token they held.
+   */
+  | { kind: "session"; organizationId?: string | null };
 
 function payerColumns(payer: Payer) {
   switch (payer.kind) {
@@ -81,6 +88,14 @@ function payerColumns(payer: Payer) {
         patientAccountId: null,
         sponsorId: payer.sponsorId,
         organizationId: null,
+      };
+    case "session":
+      return {
+        payerKind: "session" as const,
+        userId: null,
+        patientAccountId: null,
+        sponsorId: null,
+        organizationId: payer.organizationId ?? null,
       };
   }
 }
@@ -120,6 +135,36 @@ export async function transferDetails(audience: Audience): Promise<TransferDetai
   };
 }
 
+/* --------------------------------------------------------------- the rate -- */
+
+/**
+ * 🔴 WHAT WE ASK AN EGYPTIAN PAYER TO SEND, FOR A PRICE WE HOLD IN DOLLARS.
+ *
+ * Every price in this product is USD cents: a session, an invoice, a pot. Every
+ * payer on this rail sends pounds. Something has to bridge that, and it is
+ * deliberately NOT `quoteFor`:
+ *
+ *   * `quoteFor` refuses a `static` rate in production (C37), so in production
+ *     it returns nothing and this rail would have no number to show at all.
+ *   * A rate that moves hourly is not what a manual rail runs on. Nobody is
+ *     hedging: an operator reads a bank statement and matches the figure we
+ *     asked for, and a figure that changed between the quote and the morning is
+ *     a transfer they cannot match.
+ *
+ * So it is an operator's decided rate, and `settles_cents` on the row records
+ * what the dollars were, so a payment can always be read back against the rate
+ * that priced it.
+ */
+export async function egpRateMicro(): Promise<number> {
+  const settings = await getSettings();
+  return settings.payouts.egpRateMicro;
+}
+
+/** USD cents to piastres. 2,000 at 50 pounds is 100,000, which is 1,000 EGP. */
+export function egpMinorFor(usdCents: number, rateMicro: number): number {
+  return Math.round((usdCents * rateMicro) / 1_000_000);
+}
+
 /* ---------------------------------------------------------- raising a row -- */
 
 /**
@@ -133,11 +178,15 @@ export async function transferDetails(audience: Audience): Promise<TransferDetai
 export async function openManualPayment(input: {
   purpose: ManualPaymentPurpose;
   refId: string | null;
+  /** 🔴 What the payer sends, in minor units of `currency`. */
   amountCents: number;
+  /** 🔴 What it is worth to us, in USD cents. See the column comment in 0106. */
+  settlesCents: number;
   currency?: string;
   payer: Payer;
 }): Promise<{ id?: string; error?: string }> {
   if (input.amountCents <= 0) return { error: "There is nothing to pay." };
+  if (input.settlesCents <= 0) return { error: "There is nothing to pay." };
 
   /* An existing live row for the same thing IS the answer, not a conflict. */
   if (input.refId) {
@@ -161,6 +210,7 @@ export async function openManualPayment(input: {
       purpose: input.purpose,
       refId: input.refId,
       amountCents: input.amountCents,
+      settlesCents: input.settlesCents,
       currency: input.currency ?? "EGP",
       ...payerColumns(input.payer),
     })
@@ -234,6 +284,14 @@ export async function waitingCount(): Promise<number> {
 /** One payer's payments, for the screen they come back to. */
 export async function paymentsFor(payer: Payer): Promise<ManualPayment[]> {
   const cols = payerColumns(payer);
+  /*
+   * 🔴 A session payer has no id to look them up by, so there is no history to
+   * show them: their whole record is the one payment on the session in front of
+   * them, and `livePaymentFor` is what finds it. Returning everything with a
+   * null payer would show one guest another guest's payments.
+   */
+  if (cols.payerKind === "session") return [];
+
   const who =
     cols.userId !== null
       ? eq(manualPayments.userId, cols.userId)

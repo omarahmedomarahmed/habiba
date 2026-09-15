@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Wallet } from "lucide-react";
 
+import { declareBillTransfer } from "./actions";
 import { BillingLedger } from "@/components/billing/ledger";
+import { PayByTransfer } from "@/components/billing/pay-by-transfer";
 import { PlanCard } from "@/components/billing/plan-card";
 import { SeatManager } from "@/components/billing/seat-manager";
 import { PageHeader } from "@/components/ui";
@@ -10,10 +12,12 @@ import { requireUser } from "@/lib/auth/guard";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";
 import { formatUsd } from "@/lib/billing/plans";
 import { currentSeatBill } from "@/lib/billing/seats";
+import { manualEntry, organizationNeedsTransfer } from "@/lib/billing/manual-entry";
 import { billingSummary, listInvoices, usageBySession } from "@/lib/billing/service";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { features } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
+import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Billing", robots: { index: false } };
@@ -43,6 +47,30 @@ export default async function BillingPage({
     /* 🔴 62.1 — what this account pays for seats, if it has any. */
     currentSeatBill(actor.organizationId),
   ]);
+
+  /*
+   * 🔴 74.2 — WHICH RAIL, ASKED ONCE, OF THE PRACTICE'S REGION.
+   *
+   * A clinic pays for seats and a solo therapist does not, and the two see
+   * different account lines: `audiences` on each transfer field is how an
+   * operator says which. `seatBill.seats` is the same number the seat manager
+   * above renders from, so the two can never disagree about what this account is.
+   */
+  const needsTransfer = await organizationNeedsTransfer(actor.organizationId);
+  const rail = await manualEntry({
+    audience: seatBill.seats > 0 ? "clinic" : "therapist",
+    purpose: "subscription",
+    /* The ORGANISATION, not an invoice: one transfer settles the whole bill. */
+    refId: actor.organizationId,
+    payer: {
+      kind: "user",
+      userId: actor.userId,
+      organizationId: actor.organizationId,
+    },
+    needed: needsTransfer && summary.outstandingCents > 0,
+    settlesCents: summary.outstandingCents,
+    locale: localeTag(locale),
+  });
 
   // One grouped query for every session on the page, rather than one per row.
   const usage = await usageBySession(
@@ -120,6 +148,32 @@ export default async function BillingPage({
               : null
           }
         />
+
+        {/*
+          🔴 74.2 — THE EGYPTIAN BILL, ABOVE EVERYTHING THEY CANNOT ACT ON.
+          -------------------------------------------------------------------
+          Directly under the plan, because what a therapist opens this page to
+          do is pay. The ledger below is the record and the record can wait.
+        */}
+        {rail.needed ? (
+          <>
+            <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">
+              {summary.outstandingCount === 1
+                ? t("transfer.billDueOne", { amount: formatUsd(summary.outstandingCents) })
+                : t("transfer.billDue", {
+                    amount: formatUsd(summary.outstandingCents),
+                    count: String(summary.outstandingCount),
+                  })}
+            </p>
+            <PayByTransfer
+              details={rail.details}
+              amountLabel={rail.amountLabel}
+              what={t("transfer.forBill")}
+              live={rail.live}
+              action={declareBillTransfer}
+            />
+          </>
+        ) : null}
 
         {!summary.subscription.trialSessionUsed ? (
           <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">

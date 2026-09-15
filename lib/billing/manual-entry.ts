@@ -27,6 +27,8 @@ import { controlDb as db } from "@/lib/db";
 import { organizations, sponsors } from "@/lib/db/schema";
 
 import {
+  egpMinorFor,
+  egpRateMicro,
   livePaymentFor,
   openManualPayment,
   paymentsFor,
@@ -35,6 +37,7 @@ import {
   type Audience,
   type Payer,
 } from "./manual";
+import { formatMoney } from "./plans";
 import type { ManualPaymentPurpose } from "@/lib/db/schema";
 
 /** What a screen renders. Assembled once so no flow has to sequence the calls. */
@@ -47,6 +50,26 @@ export type ManualEntry = {
     | { state: "awaiting_proof"; paymentId: string }
     | { state: "submitted"; paymentId: string; submittedAt: string | null }
     | { state: "rejected"; reason: string };
+  /**
+   * 🔴 THE NUMBER TO SEND, IN POUNDS, FORMATTED ON THE SERVER.
+   *
+   * Formatted here rather than handed down as cents, for two reasons that are
+   * both the same reason. C84: `Intl` inside a client component renders one
+   * string on the server pass and another in the browser, and this is the
+   * figure somebody types into a banking app. And the rate is a server fact —
+   * a client that could compute this number is a client that could be shown a
+   * different one.
+   */
+  amountLabel: string;
+  /**
+   * 🔴 "50", so a pot screen can say what it converts at.
+   *
+   * A session and an invoice cost what they cost and the payer only ever sees
+   * the pounds. A pot is the one place the payer types a number, and it is in
+   * dollars because that is what a pot holds — so without this they are asked
+   * for one currency and told to send another with no sum in between.
+   */
+  rateLabel: string;
 };
 
 /* -------------------------------------------------------- who needs this -- */
@@ -101,16 +124,31 @@ export async function manualEntry(input: {
   refId: string | null;
   payer: Payer;
   needed: boolean;
+  /**
+   * What the thing costs, in USD cents. Null when the payer chooses the amount
+   * themselves, which is only ever a pot top-up.
+   */
+  settlesCents: number | null;
+  /** 🔴 19.4 — the reader's language, so the figure is in their numerals. */
+  locale: string;
 }): Promise<ManualEntry> {
   if (!input.needed) {
     return {
       needed: false,
       details: { label: "", fields: [], cardsComingSoon: false, unconfigured: true },
       live: { state: "none" },
+      amountLabel: "",
+      rateLabel: "",
     };
   }
 
-  const details = await transferDetails(input.audience);
+  const [details, rateMicro] = await Promise.all([transferDetails(input.audience), egpRateMicro()]);
+  const amountLabel =
+    input.settlesCents === null
+      ? ""
+      : formatMoney(egpMinorFor(input.settlesCents, rateMicro), "EGP", input.locale);
+  /* Pounds per dollar, which is what `egpRateMicro` is a millionth of. */
+  const rateLabel = formatMoney(egpMinorFor(100, rateMicro), "EGP", input.locale);
 
   /*
    * 🔴 The live row first, and a REJECTED one second.
@@ -125,6 +163,8 @@ export async function manualEntry(input: {
     return {
       needed: true,
       details,
+      amountLabel,
+      rateLabel,
       live:
         live.state === "submitted"
           ? {
@@ -144,6 +184,8 @@ export async function manualEntry(input: {
   return {
     needed: true,
     details,
+    amountLabel,
+    rateLabel,
     live: lastRejection
       ? { state: "rejected", reason: lastRejection.rejectReason ?? "" }
       : { state: "none" },
@@ -160,11 +202,21 @@ export async function manualEntry(input: {
 export async function declarePaid(input: {
   purpose: ManualPaymentPurpose;
   refId: string | null;
-  amountCents: number;
+  /**
+   * 🔴 USD CENTS, ALWAYS, AND EVERY CALLER SPEAKS DOLLARS.
+   *
+   * The pounds are computed here, once, from the operator's rate. A call site
+   * that passed pounds would be a call site that had to know the rate, and the
+   * moment two of them know it they can disagree — which is how a pot came to
+   * be credited fifty times what was sent (0106).
+   */
+  settlesCents: number;
   payer: Payer;
   reference: string;
   proofUrl: string | null;
 }): Promise<{ error?: string; ok?: true }> {
+  const rateMicro = await egpRateMicro();
+
   /*
    * 🔴 EGP, and the column exists so that stops being true one day rather than
    * because it varies today. This rail is Egypt's: the moment there is a second
@@ -173,7 +225,8 @@ export async function declarePaid(input: {
   const opened = await openManualPayment({
     purpose: input.purpose,
     refId: input.refId,
-    amountCents: input.amountCents,
+    amountCents: egpMinorFor(input.settlesCents, rateMicro),
+    settlesCents: input.settlesCents,
     currency: "EGP",
     payer: input.payer,
   });

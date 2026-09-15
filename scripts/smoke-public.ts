@@ -60,6 +60,54 @@ async function waitForReady(timeoutMs = 60_000): Promise<boolean> {
   return false;
 }
 
+/** True when nothing is listening on the smoke port. Asked by binding to it. */
+async function portFree(): Promise<boolean> {
+  const { createServer } = await import("node:net");
+  return new Promise<boolean>((resolve) => {
+    const probe = createServer();
+    probe.once("error", () => resolve(false));
+    probe.once("listening", () => probe.close(() => resolve(true)));
+    probe.listen(PORT, "0.0.0.0");
+  });
+}
+
+/**
+ * 🔴 STOP THE WHOLE GROUP, AND WAIT UNTIL THE PORT IS ACTUALLY FREE.
+ *
+ * Signalling is asynchronous, so returning the moment SIGTERM is sent leaves
+ * the next run racing a process that has not exited. And a server that ignores
+ * SIGTERM would hold the port forever, so there is a SIGKILL behind it.
+ *
+ * It waits on the PORT rather than on the process, because the port is the
+ * thing the next run cares about and the thing the old teardown got wrong.
+ */
+async function stop(pid: number | undefined): Promise<void> {
+  if (pid === undefined) return;
+
+  const signal = (sig: NodeJS.Signals) => {
+    try {
+      /* Negative pid: the process GROUP, which is why `detached` is set. */
+      process.kill(-pid, sig);
+    } catch {
+      /* Already gone, which is the outcome we wanted. */
+    }
+  };
+
+  signal("SIGTERM");
+  for (let i = 0; i < 20; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (await portFree()) return;
+  }
+
+  signal("SIGKILL");
+  for (let i = 0; i < 20; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (await portFree()) return;
+  }
+
+  console.error(`  --   warning: ${PORT} is still held after SIGKILL.`);
+}
+
 async function main() {
   writesTo();
 
@@ -98,15 +146,7 @@ async function main() {
    * server that causes this problem is a HUNG one, bound to the port and
    * answering nothing. Trying to listen is the only question with one answer.
    */
-  const { createServer } = await import("node:net");
-  const inUse = await new Promise<boolean>((resolve) => {
-    const probe = createServer();
-    probe.once("error", () => resolve(true));
-    probe.once("listening", () => probe.close(() => resolve(false)));
-    probe.listen(PORT, "0.0.0.0");
-  });
-
-  if (inUse) {
+  if (!(await portFree())) {
     check(
       "🔴 the port is free before we start",
       false,
@@ -116,9 +156,23 @@ async function main() {
     return;
   }
 
+  /*
+   * 🔴 C365 AGAIN, ON THE OTHER END OF THE SAME RUN.
+   *
+   * The port check above was added because a busy port reported as 24 dead
+   * pages. This is what was busying it: `npx next start` FORKS `next-server`,
+   * so the process this handle refers to is a wrapper and the thing holding
+   * 3210 is its child. `server.kill()` killed the wrapper, the grandchild kept
+   * the port, and the next run of this gate failed on a server nobody could
+   * see — including inside `npm run gates`, one line after a green smoke.
+   *
+   * A gate that cannot be run twice in a row is a gate nobody runs. So the
+   * child gets its own process group and the whole group is signalled.
+   */
   const server = spawn("npx", ["next", "start", "-p", String(PORT)], {
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
+    detached: true,
   });
 
   /*
@@ -188,7 +242,7 @@ async function main() {
       console.error(log.slice(-6000));
     }
   } finally {
-    server.kill("SIGTERM");
+    await stop(server.pid);
   }
 
   finish("smoke");

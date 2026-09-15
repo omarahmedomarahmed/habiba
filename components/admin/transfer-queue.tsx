@@ -25,8 +25,11 @@ import { Card } from "@/components/ui";
 type Row = {
   id: string;
   purpose: string;
+  /** What they sent, in minor units of `currency`. */
   amountCents: number;
   currency: string;
+  /** What it settles, in USD cents. 0106. */
+  settlesCents: number;
   reference: string | null;
   proofUrl: string | null;
   submittedAt: string | null;
@@ -92,8 +95,17 @@ function TransferRow({
           <p className="text-sm font-semibold text-slate-900">
             {row.payer} · {WHAT[row.purpose] ?? row.purpose}
           </p>
+          {/*
+            🔴 THE NUMBER THEY SENT FIRST, BECAUSE THAT IS WHAT THE STATEMENT SAYS.
+            The operator is matching a line in a banking app, and that line is in
+            pounds. What it settles is beside it in grey: it is what we will
+            credit, and it is the one number the payer never saw.
+          */}
           <p className="mt-0.5 text-sm text-slate-600">
             {(row.amountCents / 100).toFixed(2)} {row.currency}
+            <span className="ms-2 text-slate-400">
+              settles ${(row.settlesCents / 100).toFixed(2)}
+            </span>
             {waited !== null ? (
               <span className={waited > 15 ? "ms-2 font-semibold text-rose-600" : "ms-2 text-slate-500"}>
                 waiting {waited} min

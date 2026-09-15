@@ -175,9 +175,17 @@ async function main() {
     ["cards are coming", "transfer.cardsSoon"],
     ["what to do after a rejection", "transfer.rejectedBody"],
     ["where the reference goes", "transfer.refLabel"],
+    ["where the receipt goes", "transfer.proofLabel"],
+    ["what a pot top-up asks for", "transfer.amountLabel"],
+    ["the rate a pot top-up converts at", "transfer.rateNote"],
   ] as const;
 
-  const unrendered = RENDERED.filter(([, key]) => !ui.includes(`t("${key}")`));
+  /*
+   * 🔴 `t("key"` rather than `t("key")`, because some of these take a value.
+   * Matching the closing bracket would quietly fail every interpolated string
+   * and look like a missing key, which is the wrong cause reported upward.
+   */
+  const unrendered = RENDERED.filter(([, key]) => !ui.includes(`t("${key}"`));
   check(
     "🔴 the payer's screen renders every string it needs through the dictionary",
     unrendered.length === 0,
@@ -396,7 +404,137 @@ async function main() {
     "a payment receipt does not belong in the bucket a licence is retained in",
   );
 
-  finish("sprint 73");
+  /* ================================================================== */
+  /*  74 · the rail reaches all three payers, and in the right currency   */
+  /* ================================================================== */
+
+  /*
+   * 🔴 TWO AMOUNTS, BECAUSE THERE ARE TWO FACTS AND NEITHER IS DERIVABLE LATER.
+   *
+   * ⚠️ `grantPotTopUp` added `amount_cents` — pounds — straight onto
+   * `sponsor_pots.balance_cents`, which is dollars. A company sending 10,000 EGP
+   * had a million cents credited: fifty times what it paid, with no processor
+   * anywhere to reverse it. 0106 is the column that makes the two sayable apart,
+   * and these are the checks that keep them apart.
+   */
+  const settlesSql = readFileSync("drizzle/0106_what_it_settles.sql", "utf8");
+  check(
+    "🔴 0106 what a transfer SETTLES is its own NOT NULL column, with a floor",
+    /ADD COLUMN IF NOT EXISTS settles_cents integer/.test(settlesSql) &&
+      /ALTER COLUMN settles_cents SET NOT NULL/.test(settlesSql) &&
+      /CHECK \(settles_cents > 0\)/.test(settlesSql),
+    "the payer's pounds and our dollars are two facts, and a rate applied twice is a rate two places can disagree about",
+  );
+
+  /*
+   * 🔴 EVERY GRANT SPENDS `settlesCents`, AND NONE OF THEM SPENDS `amountCents`.
+   *
+   * An absence assertion, so it gets a planted offender below (§6).
+   */
+  const grantBody = grants.slice(grants.indexOf("export async function grantFor"));
+  check(
+    "🔴 a grant credits what the transfer SETTLES, never what was sent",
+    /payment\.settlesCents/.test(grantBody) && !/payment\.amountCents/.test(grantBody),
+    "pounds added to a dollar balance is the bug 0106 exists for",
+  );
+
+  check(
+    "🔴 CONTROL the same scan catches a grant reading the payer's own currency",
+    /payment\.amountCents/.test("balance_cents + ${payment.amountCents}"),
+    "an absence assertion is worth nothing until it is watched finding something",
+  );
+
+  /*
+   * 🔴 THE RATE IS THE OPERATOR'S, NOT THE MARKET'S, AND IT IS ASKED IN ONE PLACE.
+   *
+   * `quoteFor` refuses a static rate in production (C37), so a rail built on it
+   * would have no number to show an Egyptian payer at all. And two call sites
+   * that each knew a rate could quote two different ones for the same session.
+   */
+  const entry = readSource("lib/billing/manual-entry.ts");
+  check(
+    "🔴 one place converts dollars to pounds, from a setting an operator can change",
+    /egpRateMicro/.test(lib) &&
+      /egpRateMicro/.test(readSource("lib/settings/defs.ts")) &&
+      !/quoteFor/.test(lib) &&
+      !/quoteFor/.test(entry),
+    "a market feed that refuses in production is a rail with no price on it",
+  );
+
+  check(
+    "🔴 …and every caller hands it dollars, so no screen has to know the rate",
+    /settlesCents: number;/.test(entry) && /egpMinorFor\(input\.settlesCents/.test(entry),
+    "a call site that passed pounds is a call site that had to know the rate",
+  );
+
+  /*
+   * 🔴 ALL THREE PAYERS ARE ON IT, AND EACH ASKS AGAIN IN ITS OWN ACTION.
+   *
+   * The patient's session, the clinician's bill and the company's pot. A rail
+   * that reached one of them would leave the other two with no way to pay us at
+   * all, which was the whole blocker this work exists to clear.
+   */
+  const payActions = readSource("app/pay/[token]/actions.ts");
+  const billActions = readSource("app/(app)/billing/actions.ts");
+
+  const FLOWS = [
+    ["the patient's session", payActions, "organizationNeedsTransfer"],
+    ["the clinician's bill", billActions, "organizationNeedsTransfer"],
+    ["the company's pot", potActions, "sponsorNeedsTransfer"],
+  ] as const;
+
+  const unguarded = FLOWS.filter(
+    ([, source, guard]) =>
+      !source.includes("declarePaid") || !new RegExp(`if \\(!\\(await ${guard}`).test(source),
+  );
+  check(
+    "🔴 all three payers can pay by transfer, and each action re-asks which rail they are on",
+    unguarded.length === 0,
+    unguarded.map(([why]) => why).join(", ") || FLOWS.map(([why]) => why).join(" · "),
+  );
+
+  /*
+   * 🔴 AND NOT ONE OF THEM TAKES THE PRICE FROM THE FORM.
+   *
+   * The session reads `priceCents` off its own row; the bill reads
+   * `outstandingCents` off the invoices. The pot is the exception and is meant
+   * to be: the company is choosing how much to put in.
+   */
+  check(
+    "🔴 the session and the bill price themselves from stored rows, never from the post",
+    /settlesCents: session\.priceCents/.test(payActions) &&
+      /settlesCents: summary\.outstandingCents/.test(billActions),
+    "a payer who can type what they owe is a payer who owes less",
+  );
+
+  /*
+   * 🔴 THE WAITING SCREEN COMES BACK BY ITSELF.
+   *
+   * The whole rail rests on the middle state being durable, and a patient who
+   * has paid at eleven at night is waiting on an operator pressing Confirm. Told
+   * to reload, somebody in that state does not reload: they decide it is broken.
+   */
+  check(
+    "🔴 a payer left waiting has their page re-ask the server without touching it",
+    /live\.state !== "submitted"/.test(ui) && /router\.refresh\(\)/.test(ui),
+    "the moment an operator confirms, the session becomes joinable and nothing else tells them",
+  );
+
+  /*
+   * 🔴 ONE TRANSFER SETTLES THE WHOLE BILL, LIKE THE CARD RAIL ALREADY DOES.
+   *
+   * `createInvoiceCheckout` puts every outstanding invoice in one checkout. One
+   * invoice per transfer would mean six bank transfers of $4 and an operator
+   * matching them by hand.
+   */
+  check(
+    "🔴 a clinician's transfer settles their outstanding invoices, oldest first",
+    /eq\(invoices\.status, "due"\)\)\)\s*\.orderBy\(invoices\.issuedAt\)/.test(grants) &&
+      /if \(payable > remaining\) continue;/.test(grants),
+    "and it stops rather than part-paying one, because a half-settled invoice is a number two systems disagree about",
+  );
+
+  finish("sprints 73 and 74");
 }
 
 main();

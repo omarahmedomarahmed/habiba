@@ -97,26 +97,96 @@ async function grantSession(payment: ManualPayment): Promise<void> {
 /* ---------------------------------------------------------- subscription -- */
 
 /**
- * The invoice is settled.
+ * The bill is settled, oldest invoice first, until the money runs out.
  *
- * 🔴 `paidAt` is only stamped when it was not already set, so a second run does
- * not move the date. A payment date that drifts is a payment date nobody can
- * reconcile a bank statement against, which is the one thing this rail exists to
- * make possible.
+ * ## 🔴 A WHOLE BILL, NOT ONE INVOICE, BECAUSE THE CARD RAIL DOES THE SAME
+ *
+ * `createInvoiceCheckout` puts every outstanding invoice into one Stripe
+ * checkout. A transfer rail that settled one invoice per transfer would mean a
+ * therapist on pay-as-you-go making six bank transfers of $4, which nobody does:
+ * they would make one transfer for the total and an operator would be left
+ * deciding by hand which invoices it covered.
+ *
+ * So `ref_id` on a subscription payment is the ORGANISATION, which is also what
+ * makes the partial unique index mean "one claim in flight per account", and the
+ * money is applied here the way a person would apply it.
+ *
+ * ## 🔴 IDEMPOTENT BECAUSE `due` IS IN THE WHERE
+ *
+ * A second run finds the invoices it settled already `paid`, so they no longer
+ * match and nothing moves. `paidAt` cannot drift for the same reason — the row
+ * is only touched while it is still due — and a payment date that drifts is one
+ * nobody can reconcile against a bank statement.
+ *
+ * ## 🔴 AND IT STOPS RATHER THAN PART-PAYING
+ *
+ * An invoice the money does not fully cover is left alone. A half-settled
+ * invoice is a number two systems disagree about, and the therapist's next
+ * transfer clears it whole.
  */
 async function grantSubscription(payment: ManualPayment): Promise<void> {
-  if (!payment.refId) throw new Error("A subscription payment with no invoice");
+  /*
+   * 🔴 From `ref_id`, NOT from `organization_id`. That column is
+   * `ON DELETE SET NULL` for C367's reason, and a grant that reads it would
+   * stop working on exactly the rows the null was there to preserve.
+   */
+  if (!payment.refId) throw new Error("A subscription payment with no organisation");
 
-  const updated = await db
-    .update(invoices)
-    .set({ status: "paid", paidAt: new Date() })
-    .where(and(eq(invoices.id, payment.refId), eq(invoices.status, "due")))
-    .returning({ id: invoices.id });
+  const due = await db
+    .select({
+      id: invoices.id,
+      amountCents: invoices.amountCents,
+      discountCents: invoices.discountCents,
+    })
+    .from(invoices)
+    .where(and(eq(invoices.organizationId, payment.refId), eq(invoices.status, "due")))
+    .orderBy(invoices.issuedAt);
 
-  if (updated.length === 0) {
-    log.warn("manual subscription payment confirmed but the invoice was not due", {
+  let remaining = payment.settlesCents;
+  const settled: string[] = [];
+
+  for (const invoice of due) {
+    const payable = Math.max(0, invoice.amountCents - invoice.discountCents);
+    if (payable > remaining) continue;
+
+    const updated = await db
+      .update(invoices)
+      .set({ status: "paid", paidAt: new Date() })
+      .where(and(eq(invoices.id, invoice.id), eq(invoices.status, "due")))
+      .returning({ id: invoices.id });
+
+    if (updated.length > 0) {
+      remaining -= payable;
+      settled.push(invoice.id);
+    }
+  }
+
+  if (settled.length === 0) {
+    /*
+     * Not an error. Either this ran twice (fine) or the bill was cleared some
+     * other way while the transfer was being checked, which an operator needs to
+     * see rather than have swallowed. The money is recorded either way, and the
+     * next invoice is the one it should have gone to.
+     */
+    log.warn("manual subscription payment confirmed but nothing was due", {
       paymentId: payment.id,
-      invoiceId: payment.refId,
+      organizationId: payment.refId,
+      settlesCents: payment.settlesCents,
+    });
+    return;
+  }
+
+  if (remaining > 0) {
+    /*
+     * They sent more than the bill. Loud rather than silently kept: there is no
+     * credit balance on this rail to put it in, so an operator decides — refund
+     * it, or hold it against next month.
+     */
+    log.warn("manual subscription payment left money over", {
+      paymentId: payment.id,
+      organizationId: payment.refId,
+      settledCount: settled.length,
+      remainingCents: remaining,
     });
   }
 }
@@ -135,6 +205,11 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
  * That check is deliberately conservative. When it cannot prove the credit is
  * new it refuses, and an operator re-runs it, which is the right direction to
  * be wrong in for money moving into an account.
+ *
+ * 🔴 AND IT CREDITS `settles_cents`, NOT `amount_cents`. 0106: the pot is in
+ * dollars and the payer sent pounds. This line read `amount_cents` before that
+ * column existed, so a company that sent 10,000 EGP had a million cents put in
+ * its pot — fifty times what it paid, with no processor to reverse it.
  */
 async function grantPotTopUp(payment: ManualPayment): Promise<void> {
   if (!payment.sponsorId) throw new Error("A pot top-up with no sponsor");
@@ -145,7 +220,7 @@ async function grantPotTopUp(payment: ManualPayment): Promise<void> {
    */
   const result = await db.execute(sql`
     UPDATE sponsor_pots
-       SET balance_cents = balance_cents + ${payment.amountCents},
+       SET balance_cents = balance_cents + ${payment.settlesCents},
            updated_at = now()
      WHERE sponsor_id = ${payment.sponsorId}
        AND NOT EXISTS (

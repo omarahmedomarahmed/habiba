@@ -8367,8 +8367,22 @@ export const manualPayments = pgTable(
     /** The session, invoice or sponsor this unlocks. */
     refId: uuid("ref_id"),
 
+    /** 🔴 What the payer SENDS, in minor units of `currency`. 1,000 EGP is 100_000. */
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull().default("EGP"),
+
+    /**
+     * 🔴 WHAT IT SETTLES, in USD cents, fixed when the row was opened. 0106.
+     *
+     * A session price, an invoice and a pot balance are all dollars; every payer
+     * on this rail sends pounds. Converting at confirmation time would credit a
+     * different number from the one the payer was quoted, so the rate is applied
+     * once, here, and both sides of it survive.
+     *
+     * `grantPotTopUp` added `amount_cents` straight onto a dollar balance before
+     * this column existed, which credited a company fifty times what it sent.
+     */
+    settlesCents: integer("settles_cents").notNull(),
 
     /**
      * 🔴 C367 — WHICH KIND OF PAYER, kept forever.
@@ -8382,7 +8396,9 @@ export const manualPayments = pgTable(
      * 0102 had `exactly one id` as a CHECK beside those SET NULLs, which
      * contradicted them — `verify:sprint43` caught it the first time it ran.
      */
-    payerKind: text("payer_kind").$type<"user" | "patient" | "sponsor">().notNull(),
+    payerKind: text("payer_kind")
+      .$type<"user" | "patient" | "sponsor" | "session">()
+      .notNull(),
 
     /** 🔴 AT MOST one of these three, and it must match `payerKind`. 0103. */
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),

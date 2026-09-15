@@ -109,6 +109,94 @@ export async function payInvoices(invoiceIds: string[]): Promise<BillingActionSt
   redirect(result.url);
 }
 
+/* ======================================================= the Egyptian rail == */
+
+export type TransferState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 74.2 — A THERAPIST OR CLINIC IN EGYPT PAYS THEIR BILL BY TRANSFER.
+ *
+ * `payInvoices` above is the card rail and is untouched. The two never both
+ * render: the page asks `organizationNeedsTransfer` once.
+ *
+ * ## 🔴 ONE TRANSFER FOR THE WHOLE BILL, LIKE THE CARD RAIL
+ *
+ * `createInvoiceCheckout` puts every outstanding invoice into one checkout. A
+ * transfer rail that took one invoice at a time would mean a therapist on
+ * pay-as-you-go making six bank transfers of $4, and an operator matching them
+ * by hand. So `refId` is the ORGANISATION — which also makes the partial unique
+ * index mean "one claim in flight per account" — and `grantSubscription`
+ * settles oldest first.
+ *
+ * ## 🔴 AND THE AMOUNT IS READ, NEVER SENT
+ *
+ * `billingSummary().outstandingCents` is computed from stored invoice rows. A
+ * therapist who could type what they owe is a therapist who owes less.
+ */
+export async function declareBillTransfer(
+  _prev: TransferState,
+  formData: FormData,
+): Promise<TransferState> {
+  const actor = await requireUser();
+
+  const { declarePaid, organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+
+  /*
+   * 🔴 Asked again here rather than trusted from the screen. A form that renders
+   * on a condition is a form somebody can post without meeting it.
+   */
+  if (!(await organizationNeedsTransfer(actor.organizationId))) {
+    return { error: "Your account pays by card. Reload the page." };
+  }
+
+  const { billingSummary } = await import("@/lib/billing/service");
+  const summary = await billingSummary(actor.organizationId);
+  if (summary.outstandingCents <= 0) return { error: "You have nothing outstanding." };
+
+  const reference = String(formData.get("reference") ?? "").trim();
+  const proof = formData.get("proof");
+
+  let proofUrl: string | null = null;
+  if (proof instanceof File && proof.size > 0) {
+    const { uploadDocument } = await import("@/lib/uploads");
+    const stored = await uploadDocument({
+      kind: "receipt",
+      userId: actor.userId,
+      label: "bill",
+      file: proof,
+    });
+    if (stored.error) return { error: stored.error };
+    proofUrl = stored.url ?? null;
+  }
+
+  const result = await declarePaid({
+    purpose: "subscription",
+    refId: actor.organizationId,
+    settlesCents: summary.outstandingCents,
+    payer: {
+      kind: "user",
+      userId: actor.userId,
+      organizationId: actor.organizationId,
+    },
+    reference,
+    proofUrl,
+  });
+
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "bill.transfer.declared",
+    resourceType: "organization",
+    resourceId: actor.organizationId,
+    reason: `Declared a bank transfer for ${formatUsd(summary.outstandingCents)}, reference ${reference || "none"}`,
+  });
+
+  revalidatePath("/billing");
+  return { ok: true };
+}
+
 /* ------------------------------------------------------------ 62 · seats -- */
 
 export type SeatState = { error?: string; ok?: boolean };

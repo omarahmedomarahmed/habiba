@@ -79,6 +79,7 @@ export default async function TransfersPage() {
           purpose: r.purpose,
           amountCents: r.amountCents,
           currency: r.currency,
+          settlesCents: r.settlesCents,
           reference: r.reference,
           proofUrl: r.proofUrl,
           submittedAt: r.submittedAt?.toISOString() ?? null,

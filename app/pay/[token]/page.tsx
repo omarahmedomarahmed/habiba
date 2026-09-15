@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
+import { declareSessionTransfer } from "./actions";
+import { PayByTransfer } from "@/components/billing/pay-by-transfer";
 import { PayFlow } from "@/components/pay/pay-flow";
+import { manualEntry, organizationNeedsTransfer } from "@/lib/billing/manual-entry";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
@@ -67,8 +70,52 @@ export default async function PayPage({
   ]);
 
   // 19.4 — resolved on the server, handed down, never read from the runtime.
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
   const tag = localeTag(locale);
+
+  /*
+   * 🔴 74.1 — WHICH RAIL, ASKED ONCE, OF THE PRACTICE'S REGION.
+   *
+   * An Egyptian practice cannot take a card, so `PayFlow` would walk a patient
+   * through a country, a currency and a VAT rate and then hand them a checkout
+   * that refuses. The two forms are never both on the page.
+   */
+  const needsTransfer = await organizationNeedsTransfer(session.organizationId);
+  const rail = await manualEntry({
+    audience: "patient",
+    purpose: "session",
+    refId: session.id,
+    payer: { kind: "session", organizationId: session.organizationId },
+    needed: needsTransfer,
+    settlesCents: session.priceCents,
+    locale: tag,
+  });
+
+  if (rail.needed) {
+    return (
+      <>
+        {/* 51.4 — a payment screen is a patient screen, on both rails. */}
+        <SosOrb />
+        <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pay.title")}</h1>
+            {therapist ? (
+              <p className="mt-1 text-sm text-slate-500">
+                {[therapist.firstName, therapist.lastName].filter(Boolean).join(" ")}
+              </p>
+            ) : null}
+          </div>
+          <PayByTransfer
+            details={rail.details}
+            amountLabel={rail.amountLabel}
+            what={t("transfer.forSession")}
+            live={rail.live}
+            action={declareSessionTransfer.bind(null, token)}
+          />
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
