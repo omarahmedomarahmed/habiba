@@ -472,14 +472,19 @@ correctly, which is the half that is our fault if it is wrong.**
 schedule does not. An operator applies each one by hand from `/admin/therapists`. **Record how long
 that takes**: it is the first thing to build after the beta.
 
-Also: fund a company pot with the **$100 welcome credit**, drain it, and capture the moment it
-empties.
+Also: fund **`E2` Alexandria Textiles**'s pot with the **$100 welcome credit**, drain it, and
+capture the moment it empties.
 
 🔴 **The credit is granted when the operator OPENS the pot**, on `/admin/sponsors`, in the welcome
 credit field. That is the only place in the product that can put a figure below the $5,000 floor
 into a pot, and it is new this sprint: before it, the $100 the plan promises every company was
-unreachable by any screen. **Do not top the pot up by transfer as well**, or it cannot empty
+unreachable by any screen. **Do not top `E2`'s pot up by transfer as well**, or it cannot empty
 inside the run: $5,000 is 250 covered sessions and the whole run has 62.
+
+**This does not conflict with `R2`, which is a different company.** `E1` Cairo Foundry funds its
+pot **by transfer** in wave 2, because the rail has to carry a corporate payment and `E2`'s pot is
+the one that has to run dry. Two companies, two jobs, and confusing them costs you one of the two
+findings.
 
 ⚠️ **The patient is not shown a special screen.** They fall through to the ordinary paid route and
 are asked to pay. The **sponsor's admins are emailed**, naming no patient, no time and no

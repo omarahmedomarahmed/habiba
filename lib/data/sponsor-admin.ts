@@ -285,12 +285,18 @@ export async function openPot(input: {
        */
       overdraftCents: Math.max(0, Math.round(input.overdraftCents)),
       /*
-       * Posted as a balance and no ledger leg, which is how a confirmed top-up
-       * behaves too: a pot is a LIABILITY and the cash leg lands when a session
-       * spends it (`pot.ts` posts `sponsor_pot` positive and `cash` negative at
-       * that moment). For a welcome credit that is exactly right, and it is why
-       * the plan counts the credit as real cash leaving rather than as a
-       * discount: we pay out money for sessions nobody ever sent us money for.
+       * 🔴 75.8 — AND A LEG IS POSTED FOR IT BELOW, WHICH THERE WAS NOT.
+       *
+       * The note that stood here said a welcome credit needs no ledger leg,
+       * *"which is how a confirmed top-up behaves too"*. That was not true of
+       * either rail: `topUpPot` posts `sponsor_pot` negative at the moment the
+       * money arrives, and the manual rail now does the same.
+       *
+       * So a pot opened with a credit had a balance every booking decision
+       * could spend and no leg anywhere. `reconcilePots` reports exactly that
+       * gap as drift, and `ledgerPotBalance` is what the SPONSOR is shown, so
+       * a company granted $100 read $0 on its own screen. The plan gives all
+       * three companies a welcome credit, so all three would have drifted.
        */
       balanceCents: credit,
     });
@@ -299,6 +305,33 @@ export async function openPot(input: {
   }
 
   if (credit > 0) {
+    /*
+     * 🔴 `platform_expense`, not `cash`, and the distinction is the whole
+     * point of counting it this way. No money arrived: we gave a company
+     * therapy it did not pay for, and we will pay a clinician real money the
+     * first time somebody spends it. The plan already treats the credit as
+     * cash leaving rather than as a discount, and this is that sentence in
+     * the books.
+     */
+    const { journal } = await import("@/lib/billing/ledger");
+    await journal({
+      kind: "pot_topup",
+      refType: "sponsor",
+      refId: input.sponsorId,
+      legs: [
+        {
+          account: "platform_expense",
+          amountCents: credit,
+          memo: "Welcome credit granted to a new employer",
+        },
+        {
+          account: "sponsor_pot",
+          amountCents: -credit,
+          memo: "Held for this sponsor until a session spends it",
+        },
+      ],
+    });
+
     log.info("welcome credit granted", { sponsor: ref(input.sponsorId), amountCents: credit });
   }
 

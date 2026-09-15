@@ -445,6 +445,79 @@ async function main() {
   );
 
   /*
+   * 🔴 75.8 — A MANUAL POT TOP-UP REACHES THE BOOKS, WHICH IT DID NOT.
+   *
+   * `topUpPot` credits the NET, raises `vat_payable` and journals three legs.
+   * `grantPotTopUp` credited the gross and journalled NOTHING, and `topUpPot`
+   * refuses `entity = 'eg'`, so for an Egyptian sponsor this was not a fallback
+   * with a correct card branch underneath: it was the only path.
+   *
+   * The visible half is `ledgerPotBalance`, which is what a sponsor is SHOWN on
+   * `pot.ts`'s own rule that a screen disagreeing with the books is how a
+   * customer finds a bug we should have found. With no legs it returned zero, so
+   * a company that transferred $5,000 read $0 on its own pot screen while every
+   * booking decision thought the money was there.
+   */
+  const potGrant = grants.slice(grants.indexOf("async function grantPotTopUp"));
+  check(
+    "🔴 a pot funded by transfer posts the same three legs the card rail posts",
+    /journal\(\{/.test(potGrant) &&
+      /kind: "pot_topup"/.test(potGrant) &&
+      /account: "cash"/.test(potGrant) &&
+      /account: "vat_payable"/.test(potGrant) &&
+      /account: "sponsor_pot"/.test(potGrant),
+    "with no legs, reconcilePots reports the whole top-up as drift and the sponsor's own screen reads zero",
+  );
+
+  check(
+    "🔴 …and it credits the NET, so a sponsor cannot spend the tax on sessions",
+    /balance_cents = balance_cents \+ \$\{net\}/.test(potGrant) &&
+      /10_000 \+ vatBps/.test(potGrant),
+    "pot.ts says what crediting the gross costs, and it was describing this exact path",
+  );
+
+  check(
+    "🔴 CONTROL neither the gross credit nor the missing journal survives",
+    !/balance_cents = balance_cents \+ \$\{payment\.settlesCents\}/.test(potGrant),
+    "watched finding the line that credited the tax to the company that owed it",
+  );
+
+  /*
+   * 🔴 AND THE WELCOME CREDIT, WHICH OPENS A POT THE SAME WAY AND HAD THE SAME HOLE.
+   *
+   * `openPot` wrote `balanceCents: credit` with no leg, under a comment claiming
+   * that is *"how a confirmed top-up behaves too"*. It is not: `topUpPot` posts
+   * `sponsor_pot` negative when the money lands. The plan gives all three
+   * companies a welcome credit, so all three would have opened with a balance
+   * every booking could spend, a sponsor screen reading zero, and
+   * `reconcilePots` reporting the credit as drift on day one.
+   *
+   * 🔴 `platform_expense` rather than `cash`, because no money arrived. We gave
+   * away therapy and we pay a clinician real money the first time it is spent.
+   */
+  const potAdmin = readSource("lib/data/sponsor-admin.ts");
+  check(
+    "🔴 a welcome credit posts a leg too, so a granted pot reconciles from the first day",
+    /journal\(\{/.test(potAdmin) &&
+      /account: "platform_expense"/.test(potAdmin) &&
+      /account: "sponsor_pot"/.test(potAdmin),
+    "a balance with no leg is a sponsor shown zero on the screen that tells them what they can spend",
+  );
+
+  check(
+    "🔴 CONTROL …and it is NOT booked as cash, because nobody sent us any",
+    !/account: "cash"/.test(potAdmin),
+    "booking a gift as cash is how a company's free credit becomes revenue in the board's own numbers",
+  );
+
+  check(
+    "🔴 …and the guard that refuses a second Confirm runs BEFORE the legs are posted",
+    potGrant.indexOf("RETURNING sponsor_pots.id") < potGrant.indexOf("journal({") &&
+      potGrant.indexOf("result.rows.length === 0") < potGrant.indexOf("journal({"),
+    "this rail has no webhook replay guard, and two sets of legs for one transfer is a book nothing can reconcile",
+  );
+
+  /*
    * 🔴 THE RATE IS THE OPERATOR'S, NOT THE MARKET'S, AND IT IS ASKED IN ONE PLACE.
    *
    * `quoteFor` refuses a static rate in production (C37), so a rail built on it
@@ -884,6 +957,33 @@ async function main() {
     "🔴 CONTROL the same scan catches the line it was written to find",
     /settlesCents: session\.priceCents/.test("settlesCents: session.priceCents,"),
     "an absence assertion is worth nothing until it is watched finding something",
+  );
+
+  /*
+   * 🔴 THE RAIL AND THE TAX ARE DECIDED BY ONE COLUMN, WHICH IS WHY THERE IS NO
+   * WINDOW BETWEEN THEM.
+   *
+   * `organizationNeedsTransfer` renders the transfer screen when `region = 'eg'`.
+   * `sessionTransferMoney` reads the SAME column to find the country whose
+   * `vatBps` it charges. So the screen cannot exist in a state where the tax does
+   * not: the run starts with Nile Practice on `us`, and the afternoon an operator
+   * moves it to `eg` in `R1`, the bank details and the 14% arrive together.
+   *
+   * Had the tax been read from anywhere else, that move would have been two
+   * separate switches with a gap between them, and the gap is a day of sessions
+   * quoted without the tax that was owed on them.
+   */
+  check(
+    "🔴 …and one column decides BOTH, so the screen cannot render without the tax",
+    /organizations\.region/.test(entry) &&
+      (entry.match(/select\(\{ region: organizations\.region \}\)/g) ?? []).length === 2,
+    "two columns would be two switches, and the gap between them is a day of untaxed sessions",
+  );
+
+  check(
+    "🔴 …and the country is matched case-insensitively, because the column is 'eg' and the row is 'EG'",
+    /toUpperCase\(\)/.test(readSource("lib/settings/index.ts")),
+    "a case-sensitive lookup would return no country, and no country is a silent 0% on the only rail",
   );
 
   check(

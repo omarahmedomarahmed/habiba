@@ -28,6 +28,7 @@ import {
   invoices,
   manualPayments,
   sessions,
+  sponsors,
   therapistVerifications,
   users,
   sponsorPots,
@@ -426,12 +427,65 @@ async function grantPotTopUp(payment: ManualPayment): Promise<void> {
   if (!payment.sponsorId) throw new Error("A pot top-up with no sponsor");
 
   /*
+   * 🔴 75.8 — THE TAX AND THE LEDGER, BOTH OF WHICH THIS PATH SKIPPED.
+   *
+   * `topUpPot` credits the pot the NET, raises `vat_payable` for the tax and
+   * journals three legs. This function did neither: it credited the whole
+   * amount to `sponsor_pots.balance_cents` and posted nothing at all.
+   *
+   * Two consequences, and the second is the one a customer sees:
+   *
+   *   - `pot.ts` says in its own words what crediting the gross costs, and it
+   *     was describing this path: it *"let the sponsor spend the tax on
+   *     sessions and left us owing a tax authority out of money we had already
+   *     promised to somebody else."*
+   *   - `ledgerPotBalance` is what a sponsor is SHOWN, on the rule that a
+   *     figure on a screen which disagrees with the books is how a customer
+   *     finds a bug we should have found. With no legs posted it returns zero,
+   *     so a company that transferred $5,000 read **$0** on its own pot screen
+   *     while every booking decision thought the money was there. And
+   *     `reconcilePots` would have reported the whole top-up as drift.
+   *
+   * `topUpPot` refuses `entity = 'eg'`, so for an Egyptian sponsor the manual
+   * rail is not the fallback path, it is the ONLY path. There was no card
+   * branch getting this right underneath.
+   */
+  const { entityVatBps } = await import("./pot");
+  const { journal } = await import("./ledger");
+
+  const [sponsor] = await db
+    .select({ entity: sponsors.entity })
+    .from(sponsors)
+    .where(eq(sponsors.id, payment.sponsorId))
+    .limit(1);
+
+  /*
+   * 🔴 WORKED BACKWARDS OUT OF WHAT ARRIVED, the same direction `invoiceFor`
+   * and `topUpPot` both take: the payer sent a number and that number is what
+   * cleared, so computing the tax forwards from it would credit a pot with
+   * money nobody paid.
+   */
+  const vatBps = await entityVatBps(sponsor?.entity ?? "us");
+  const net =
+    vatBps > 0
+      ? Math.round((payment.settlesCents * 10_000) / (10_000 + vatBps))
+      : payment.settlesCents;
+  const vat = payment.settlesCents - net;
+
+  /*
    * One statement, so the read and the write cannot be separated by another
    * confirmation of the same payment landing between them.
+   *
+   * 🔴 IT RUNS BEFORE THE JOURNAL, and that order is the idempotency. This is
+   * the only guard against a second Confirm, so a double press has to be
+   * refused HERE, before any leg is posted. `topUpPot` journals first because
+   * its caller is a Stripe webhook with its own replay guard; this one has
+   * none, and two sets of legs for one transfer is a set of books nothing can
+   * reconcile afterwards.
    */
   const result = await db.execute(sql`
     UPDATE sponsor_pots
-       SET balance_cents = balance_cents + ${payment.settlesCents},
+       SET balance_cents = balance_cents + ${net},
            updated_at = now()
      WHERE sponsor_id = ${payment.sponsorId}
        AND NOT EXISTS (
@@ -450,6 +504,43 @@ async function grantPotTopUp(payment: ManualPayment): Promise<void> {
     });
     throw new Error("The pot was not credited. Check it before confirming again.");
   }
+
+  /*
+   * The same three legs `topUpPot` posts, with the same signs, so
+   * `reconcilePots` and `ledgerPotBalance` read one rail exactly as they read
+   * the other. Cash is an asset and rises positive; the pot and the tax are
+   * both somebody else's money and rise negative.
+   */
+  await journal({
+    kind: "pot_topup",
+    refType: "sponsor",
+    refId: payment.sponsorId,
+    legs: [
+      {
+        account: "cash",
+        amountCents: payment.settlesCents,
+        memo: "A sponsor topped up their pot by bank transfer",
+      },
+      {
+        account: "vat_payable",
+        amountCents: -vat,
+        memo: "VAT on the top-up, owed to the tax authority",
+      },
+      {
+        account: "sponsor_pot",
+        amountCents: -net,
+        memo: "Held for this sponsor until a session spends it",
+      },
+    ],
+  });
+
+  log.info("manual pot top-up posted to the ledger", {
+    paymentId: payment.id,
+    sponsorId: payment.sponsorId,
+    settlesCents: payment.settlesCents,
+    netCents: net,
+    vatCents: vat,
+  });
 }
 
 /** Re-export so a caller needs one import rather than two. */

@@ -91,7 +91,7 @@ import { crossingFor, payoutRailFor } from "./money";
  * is backwards. Zero is a real answer, not a missing one, and both read the same
  * row so they cannot disagree about a jurisdiction.
  */
-async function entityVatBps(entity: string): Promise<number> {
+export async function entityVatBps(entity: string): Promise<number> {
   const rows = await controlDb.execute(sql`
     SELECT vat_bps FROM country_settings WHERE entity = ${entity} AND enabled = true LIMIT 1`);
 

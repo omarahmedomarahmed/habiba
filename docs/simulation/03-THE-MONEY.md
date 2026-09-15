@@ -43,6 +43,11 @@ earns $300, we take $45, she pays $80, **she keeps $175.** Her earnings screen s
 not $300, because the 15% has already come out. **An agent comparing against $300 will report a
 defect that is not one.**
 
+And the money that ARRIVED for those fifteen sessions is **$342**, not $300, because each
+patient sent the price plus 14% VAT. The extra $42 is the government's and sits in
+`vat_payable`. Her earnings, our cut and her bill are all computed on the $300. **An agent
+reconciling cash against earnings and finding $42 too much has found the tax, not a defect.**
+
 ---
 
 ## The offer, and what happens when it ends

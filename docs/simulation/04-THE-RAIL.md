@@ -115,6 +115,13 @@ field is in dollars because that is what a pot holds, what the minimum is quoted
 coverage arithmetic is done in. The screen says the rate underneath, so the finance team is not
 converting in their head at a rate we have not agreed to.
 
+**And the figure they type is VAT inclusive**, which is the convention the card rail already set
+and the manual one now matches. A company that sends $5,000 in a 14% jurisdiction has its pot
+credited **$4,386** and the other $614 goes to `vat_payable`, because the alternative is letting
+a company spend the government's money on sessions and leaving us to remit it out of money we
+had already promised somebody else. **Watch this in `R2`**: the pot does not go up by what was
+sent, and that is correct rather than a rounding bug.
+
 ---
 
 ## What the operator sees, and what they must not do
@@ -141,7 +148,7 @@ a decision. A record that can be edited after the fact is not a record of what h
 | # | Wave | What | The property |
 |---|---|---|---|
 | `R1` | 1 | The operator types the bank details in, and moves everybody onto `eg` | Screens that said "not on the system yet" fill in |
-| `R2` | 2 | `E1` Cairo Foundry funds its pot by transfer | The pot does not move until Confirm. **Watch the balance before and after** |
+| `R2` | 2 | `E1` Cairo Foundry funds its pot by transfer | The pot does not move until Confirm. **Watch the balance before and after**, and expect it to rise by the amount **less 14% VAT**. Then check `/sponsor/pot` agrees with `reconcilePots`: the screen reads the ledger and the booking reads the table, and the run is the first time either has carried a transfer |
 | `R3` | 2 | `P2` Salma pays for a session by transfer | She joins the session **the moment** the operator clears it, without reloading |
 | `R4` | 3 | `P6` Ziad pays as a guest, with no account at all | The payer is the session. He never signs up, three times |
 | `R5` | 4 | `T2` subscribes by transfer | No checkout. A bill, a transfer, and **he is metered until it is confirmed** |
