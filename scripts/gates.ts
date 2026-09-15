@@ -119,6 +119,24 @@ const GATES = [
     script: "verify:rail",
     why: "and nothing is granted before a person confirms it",
   },
+  /*
+   * 🔴 THE ONE GATE IN THIS PASS THAT WRITES.
+   *
+   * Every other line above reads files. All three defects sprint 74 found in
+   * the entitlement loop were true of the source and false of the database: an
+   * idempotency that leaned on a unique index the code could not trigger, a
+   * sort that handed back a due obligation in place of a paid one, and an
+   * `ON CONFLICT` about to meet its first null. Nothing that reads source could
+   * have seen any of them.
+   *
+   * It writes to a throwaway organisation, asserts what comes back, and deletes
+   * it in a `finally`. `writesTo()` refuses production by name.
+   */
+  {
+    name: "entitlement",
+    script: "verify:entitlement",
+    why: "and paying for a plan actually puts you on it",
+  },
 ] as const;
 
 function main() {

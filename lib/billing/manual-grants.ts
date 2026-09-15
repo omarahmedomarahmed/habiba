@@ -189,6 +189,25 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
       remainingCents: remaining,
     });
   }
+
+  /*
+   * 🔴 74.3 — AND THE PLAN STARTS, WHICH THE INVOICE ABOVE DOES NOT DO.
+   *
+   * A settled invoice is a debt cleared; an entitlement is a different row.
+   * `entitledTier` reads a PAID obligation first and the Stripe mirror second,
+   * and an Egyptian account has no mirror at all — so without this a therapist
+   * could transfer $100 a month forever and stay on pay as you go, with every
+   * screen agreeing they had paid.
+   *
+   * Not fatal if it finds nothing: a pay-as-you-go therapist clearing session
+   * fees has no obligation and wants none.
+   */
+  const { settleOldestObligationByTransfer } = await import("./service");
+  await settleOldestObligationByTransfer({
+    organizationId: payment.refId,
+    ref: payment.id,
+    paidAt: payment.decidedAt ?? new Date(),
+  });
 }
 
 /* -------------------------------------------------------------- the pot -- */

@@ -99,6 +99,16 @@ export async function applySeatChange(input: {
   const wanted = Math.max(0, Math.floor(input.toSeats));
   if (wanted > 500) return { error: "That is more seats than we can bill on one account." };
 
+  /*
+   * 🔴 QUOTED BEFORE THE WRITE, because after it `fromSeats` is `toSeats` and
+   * every figure is zero. Asked with the count the clinic was shown rather than
+   * read back off the row, so what is billed is what they agreed to.
+   */
+  const change = await quoteSeatChange({
+    organizationId: input.organizationId,
+    toSeats: wanted,
+  });
+
   const [updated] = await controlDb
     .update(organizations)
     .set({ seats: wanted, updatedAt: new Date() })
@@ -118,6 +128,45 @@ export async function applySeatChange(input: {
   }
 
   log.info("clinic seats changed", { organization: ref(input.organizationId), seats: wanted });
+
+  /*
+   * 🔴 74.4 — AND THE FIGURE THEY AGREED TO IS ACTUALLY CHARGED.
+   *
+   * ⚠️ `seatChange` has computed `proratedCents` since sprint 62 and the quote
+   * screen has shown it since sprint 62, and nothing ever billed it. A solo
+   * therapist taking their first seat on the 15th read "$89 for the 15 days
+   * remaining", pressed the button, and was charged nothing at all. The whole
+   * point of quoting first is that the quote is what happens.
+   *
+   * 🔴 AFTER the guarded update, and only when it succeeded. Billing first and
+   * then losing the race would charge a clinic for a change that never
+   * happened, and there is no processor on this path to reverse it. The
+   * guard IS the idempotency: a second click finds the seats already moved,
+   * returns the error above, and never reaches this line.
+   *
+   * 🔴 A DOWNGRADE BECOMES CREDIT, NEVER A REFUND. C331: a practice that adds
+   * five seats on the first and removes them on the last must not pay for none
+   * of them. The seat existed and was available; what they get back is the
+   * unused part, against next month.
+   */
+  if (change.proratedCents > 0) {
+    const { billSeatProration } = await import("./service");
+    await billSeatProration({
+      organizationId: input.organizationId,
+      amountCents: change.proratedCents,
+      fromSeats: change.fromSeats,
+      toSeats: change.toSeats,
+      daysRemaining: change.daysRemaining,
+    });
+  } else if (change.proratedCents < 0) {
+    const { setUpcomingDiscount } = await import("./service");
+    await setUpcomingDiscount({
+      organizationId: input.organizationId,
+      discountCents: -change.proratedCents,
+      reason: `${change.fromSeats} seats to ${change.toSeats}, for the ${change.daysRemaining} days left of this month`,
+    });
+  }
+
   return { ok: true };
 }
 

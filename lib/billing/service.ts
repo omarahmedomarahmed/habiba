@@ -823,3 +823,195 @@ export async function setUpcomingDiscount(opts: {
     })
     .where(eq(subscriptions.organizationId, opts.organizationId));
 }
+
+/* ================================================= 74 · the transfer rail == */
+
+/**
+ * 🔴 74.3 — AN EGYPTIAN THERAPIST SUBSCRIBES WITHOUT A GATEWAY.
+ *
+ * ## The hole this closes, which was invisible because it was an absence
+ *
+ * `entitledTier` reads a paid obligation first and the Stripe mirror second.
+ * Obligations were raised in exactly one place: the `invoice.paid` webhook. So
+ * a therapist paying by bank transfer had no obligation and no mirror, and
+ * `entitledTier` fell through to the tier their lifetime spend had earned —
+ * pay as you go — **however much money they sent us.** The rail could settle
+ * invoices and could not put anybody on a plan.
+ *
+ * The comment beside the Stripe call already described the fix: "an Egyptian
+ * renewal does not come through here at all: it is an invoice, settling the
+ * same obligation with a different `settled_via`." This is that, with an
+ * operator in place of the gateway.
+ *
+ * ## 🔴 IT RAISES A BILL, IT DOES NOT GRANT A PLAN
+ *
+ * Nothing here makes anybody entitled to anything. It writes a `due` obligation
+ * and a `due` invoice, and the plan starts when an operator confirms the money
+ * arrived. That is the same rule the whole rail runs on: no optimistic grant,
+ * anywhere, because a product that acts on a claim about money can be robbed by
+ * typing a plausible reference number.
+ *
+ * ## 🔴 ONE UNPAID MONTH AT A TIME, WHICH IS ALSO THE IDEMPOTENCY
+ *
+ * ⚠️ The first version leaned on `renewal_obligations_period_unique` for this
+ * and it did nothing, because the period started at `now`: two clicks a
+ * millisecond apart are two different periods, so both rows were accepted and
+ * the therapist was billed twice. Found by running it, not by reading it.
+ *
+ * The rule that actually holds is a product rule rather than an index: **you
+ * cannot start another month while one is unpaid.** A therapist with a due
+ * obligation pays that one; there is no second bill to be confused about, no
+ * second transfer for an operator to match, and pressing Subscribe again says
+ * so instead of quietly charging again.
+ */
+export async function subscribeByTransfer(input: {
+  organizationId: string;
+  tierKey: string;
+  now?: Date;
+}): Promise<{ ok?: true; error?: string; amountCents?: number }> {
+  const settings = await getSettings();
+  const tier = settings.pricing.tiers.find((t) => t.key === input.tierKey);
+
+  /*
+   * 🔴 Looked up by `find` rather than by `tierByKey`, whose fail-closed
+   * fallback returns the free tier for an unknown key. Here that would raise an
+   * obligation for $0 and read as a subscription nobody has to pay for.
+   */
+  if (!tier || tier.monthlyCents <= 0) {
+    return { error: "That is not a plan you can subscribe to." };
+  }
+
+  const { renewalObligations } = await import("@/lib/db/schema");
+  const [outstanding] = await db
+    .select({ id: renewalObligations.id })
+    .from(renewalObligations)
+    .where(
+      and(
+        eq(renewalObligations.organizationId, input.organizationId),
+        eq(renewalObligations.state, "due"),
+      ),
+    )
+    .limit(1);
+
+  if (outstanding) {
+    return { error: "You already have a month waiting to be paid. Pay that one first." };
+  }
+
+  const now = input.now ?? new Date();
+  const periodStart = new Date(now);
+  const periodEnd = new Date(now);
+  periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+
+  const { raiseObligation } = await import("./obligations");
+  const raised = await raiseObligation({
+    organizationId: input.organizationId,
+    plan: tier.key,
+    amountCents: tier.monthlyCents,
+    /*
+     * 🔴 USD, because that is what the plan costs. The pounds live on the
+     * payment row, where 0106 stores them beside what they settle. An
+     * obligation denominated in the payer's currency would make "what does this
+     * plan cost" a question with a different answer per customer.
+     */
+    currency: "usd",
+    periodStart,
+    periodEnd,
+    /* Due the day it is raised: the plan does not start until it is paid. */
+    dueAt: periodStart,
+  });
+
+  if (!raised.id) {
+    return { error: "You already have a bill for this month. Pay that one." };
+  }
+
+  await raiseInvoice({
+    organizationId: input.organizationId,
+    kind: "subscription",
+    amountCents: tier.monthlyCents,
+    status: "due",
+    description: `${tier.name}, monthly`,
+    periodStart,
+    periodEnd,
+  });
+
+  return { ok: true, amountCents: tier.monthlyCents };
+}
+
+/**
+ * 🔴 74.3 — THE OTHER HALF: a confirmed transfer starts the plan.
+ *
+ * Called from `grantSubscription` once the invoices are settled. Guarded on
+ * `state = 'due'` inside `settleObligation`, so an operator confirming twice
+ * settles once and the second call reports that it moved nothing.
+ *
+ * 🔴 It settles the EARLIEST due obligation rather than the one covering now.
+ * A therapist who let a month lapse and then transferred is paying off the
+ * month they missed, and settling the current one instead would leave the older
+ * row due forever while the dunning sweep chased somebody who had paid.
+ */
+export async function settleOldestObligationByTransfer(input: {
+  organizationId: string;
+  ref: string;
+  paidAt?: Date;
+}): Promise<{ settled: boolean }> {
+  const { renewalObligations } = await import("@/lib/db/schema");
+
+  const [oldest] = await db
+    .select({ periodStart: renewalObligations.periodStart })
+    .from(renewalObligations)
+    .where(
+      and(
+        eq(renewalObligations.organizationId, input.organizationId),
+        eq(renewalObligations.state, "due"),
+      ),
+    )
+    .orderBy(renewalObligations.periodStart)
+    .limit(1);
+
+  if (!oldest) return { settled: false };
+
+  const { settleObligation } = await import("./obligations");
+  return settleObligation({
+    organizationId: input.organizationId,
+    periodStart: oldest.periodStart,
+    via: "manual",
+    ref: input.ref,
+    paidAt: input.paidAt,
+  });
+}
+
+/**
+ * 🔴 74.4 — THE MID-MONTH SEAT CHANGE, BILLED FOR THE DAYS IT BOUGHT.
+ *
+ * `seatChange` has computed this figure since sprint 62 and the quote screen
+ * has shown it since sprint 62. Nothing ever charged it. A solo therapist
+ * becoming a clinic on the 15th read "$89 for the 15 days remaining", agreed,
+ * and was billed nothing — so the first month of every upgrade was free and the
+ * account only started costing what it said at the next renewal.
+ *
+ * 🔴 `due`, not `paid`. This is a bill, and how it gets paid is the rail the
+ * account is on: a card through `payInvoices`, a bank transfer through the
+ * queue. Marking it paid here would invent a receipt for money nobody sent.
+ *
+ * 🔴 And the description carries the ARITHMETIC, not just the amount. "3 seats
+ * from 1, for the 15 days left of this month" is a line somebody can check
+ * against the quote they agreed to; "Seat change" is a line they have to ask
+ * about.
+ */
+export async function billSeatProration(input: {
+  organizationId: string;
+  amountCents: number;
+  fromSeats: number;
+  toSeats: number;
+  daysRemaining: number;
+}): Promise<void> {
+  if (input.amountCents <= 0) return;
+
+  await raiseInvoice({
+    organizationId: input.organizationId,
+    kind: "subscription",
+    amountCents: input.amountCents,
+    status: "due",
+    description: `${input.toSeats} seats from ${input.fromSeats}, for the ${input.daysRemaining} days left of this month`,
+  });
+}

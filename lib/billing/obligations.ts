@@ -124,6 +124,22 @@ export async function settleObligation(input: {
  * that has paid ahead gets the furthest-reaching row rather than whichever the
  * planner happened to return first. A `void` row is excluded here rather than
  * in the caller, because a caller that forgets grants a plan somebody cancelled.
+ *
+ * ## 🔴 74.3 — AND A PAID ROW BEATS A DUE ONE, WHATEVER THE DATES SAY
+ *
+ * ⚠️ Found by running the transfer rail rather than by reading it. `period_end
+ * DESC` alone means the FURTHEST-REACHING row wins, and `entitledTier` grants
+ * only on `paid` — so a due obligation that overlaps a paid one takes the
+ * single slot and hands back "nothing is entitled here".
+ *
+ * On the Stripe rail that could not happen: obligations are raised and settled
+ * in the same breath, so a due row barely exists. The transfer rail raises the
+ * bill first and waits for a person, which is the whole design — and that put a
+ * live due row beside a paid one for the first time. A therapist who had paid
+ * for this month lost their plan the moment next month's bill was raised.
+ *
+ * So the sort asks "is this paid" before it asks "how far does it reach". The
+ * dates still break the tie between two paid rows, which is what they were for.
  */
 export async function obligationCovering(
   organizationId: string,
@@ -150,7 +166,10 @@ export async function obligationCovering(
         sql`${renewalObligations.state} <> 'void'`,
       ),
     )
-    .orderBy(desc(renewalObligations.periodEnd))
+    .orderBy(
+      sql`(${renewalObligations.state} = 'paid') DESC`,
+      desc(renewalObligations.periodEnd),
+    )
     .limit(1);
 
   return row ?? null;

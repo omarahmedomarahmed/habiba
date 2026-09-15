@@ -534,6 +534,163 @@ async function main() {
     "and it stops rather than part-paying one, because a half-settled invoice is a number two systems disagree about",
   );
 
+  /* ================================================================== */
+  /*  74 · a plan you can actually be on, and one you can fall off       */
+  /* ================================================================== */
+
+  const service = readSource("lib/billing/service.ts");
+
+  /*
+   * 🔴 THE RAIL CAN PUT SOMEBODY ON A PLAN, WHICH IT COULD NOT BEFORE.
+   *
+   * ⚠️ `entitledTier` reads a paid obligation first and the Stripe mirror
+   * second. Obligations were raised in exactly ONE place: the `invoice.paid`
+   * webhook. So an Egyptian therapist had neither, and fell through to the tier
+   * their lifetime spend had earned — pay as you go — however much they
+   * transferred. The rail settled invoices and granted nothing.
+   */
+  check(
+    "🔴 a transfer can start a subscription, by raising the obligation entitlement reads",
+    /export async function subscribeByTransfer/.test(service) &&
+      /raiseObligation/.test(service) &&
+      /export async function settleOldestObligationByTransfer/.test(service) &&
+      /settleOldestObligationByTransfer/.test(grants),
+    "settling an invoice clears a debt; entitlement is a different row, and nothing was writing it",
+  );
+
+  /*
+   * 🔴 AND IT RAISES A BILL RATHER THAN GRANTING A PLAN.
+   *
+   * The whole rail rests on nothing happening until a person confirms. A
+   * subscribe button that set the tier would be the one optimistic grant in it.
+   */
+  const subscribeBody = service.slice(
+    service.indexOf("export async function subscribeByTransfer"),
+    service.indexOf("export async function settleOldestObligationByTransfer"),
+  );
+  check(
+    "🔴 …and subscribing only BILLS: the plan starts when an operator confirms",
+    /state: "due"|status: "due"/.test(subscribeBody) &&
+      !/settleObligation/.test(subscribeBody) &&
+      !/mirrorSubscription/.test(subscribeBody),
+    "a subscribe button that granted the tier would be the one optimistic grant on this rail",
+  );
+
+  check(
+    "🔴 CONTROL the same scan catches a subscribe path that settled its own obligation",
+    /settleObligation/.test('await settleObligation({ organizationId, via: "manual" });'),
+    "an absence assertion is worth nothing until it is watched finding something",
+  );
+
+  /*
+   * 🔴 AND THE EGYPTIAN THERAPIST IS NOT SENT TO STRIPE.
+   *
+   * `createSubscriptionCheckout` has no entity gate, so Subscribe charged an
+   * Egyptian practice into the US entity — the same blocker `topUpPot` refuses
+   * out loud, happening silently one button over.
+   */
+  check(
+    "🔴 Subscribe bills an Egyptian practice instead of sending it to a checkout that would charge the wrong entity",
+    /organizationNeedsTransfer\(actor\.organizationId\)\)\s*\{[\s\S]{0,400}subscribeByTransfer/.test(
+      billActions,
+    ),
+    "one account, one rail, asked before the redirect rather than after the charge",
+  );
+
+  /*
+   * 🔴 FALLING OFF A PLAN IS THE OBLIGATION LAPSING, AND NOTHING ELSE.
+   *
+   * A failed card payment marks the subscription `past_due` and the therapist
+   * keeps the month they paid for; an unpaid transfer leaves the obligation
+   * `due` until `lapseOverdue` marks it `lapsed`. Both then land on the same
+   * line in `entitledTier`: a lapsed obligation grants nothing, so they are on
+   * whatever their spend earned, which is pay as you go.
+   */
+  const entitle = readSource("lib/billing/plans.ts");
+  check(
+    "🔴 only a PAID obligation grants a plan, so an unpaid month falls to pay as you go by itself",
+    /ob\.state === "paid"/.test(entitle) && /lapseOverdue/.test(readSource("lib/billing/obligations.ts")),
+    "no code anywhere has to remember to demote somebody: the entitlement expires because it was never paid",
+  );
+
+  /*
+   * 🔴 LEAVING A CLINIC LANDS ON PAY AS YOU GO, BY THE SAME MECHANISM.
+   *
+   * The departing clinician gets a fresh `solo` organisation with no
+   * subscription row at all, and `getSubscription` creates one as `payg`. No
+   * demotion step to forget.
+   */
+  const clinicAdmin = readSource("lib/data/clinic-admin.ts");
+  check(
+    "🔴 a clinician who leaves a clinic keeps their patients and lands on pay as you go",
+    /kind: "solo"/.test(clinicAdmin) &&
+      /releaseSeat/.test(clinicAdmin) &&
+      /plan: "payg", status: "active"/.test(service),
+    "a new organisation has no subscription, and the default for no subscription is metered",
+  );
+
+  /*
+   * 🔴 AND A CLINIC ADMIN CANNOT SUSPEND A CLINICIAN. An absence, so it has a
+   * planted offender. A practice manager can end the working relationship; they
+   * cannot reach into somebody's account and switch them off, because that
+   * account is the clinician's own and their patients are behind it.
+   */
+  check(
+    "🔴 a clinic admin can remove a clinician from the clinic and cannot suspend their account",
+    !/suspendUser|setUserStatus/.test(clinicAdmin),
+    "removing ends the relationship; suspending would reach into an account that is not theirs",
+  );
+
+  check(
+    "🔴 CONTROL the same scan catches a suspend reaching the clinic surface",
+    /suspendUser|setUserStatus/.test('await setUserStatus(userId, "suspended");'),
+    "an absence assertion is worth nothing until it is watched finding something",
+  );
+
+  /*
+   * 🔴 74.4 — THE PRORATED FIGURE IS CHARGED, NOT JUST SHOWN.
+   *
+   * ⚠️ `seatChange` has computed it since sprint 62 and the quote screen has
+   * shown it since sprint 62, and nothing billed it. A solo therapist becoming
+   * a clinic on the 15th read "$89 for the 15 days remaining", agreed, and paid
+   * nothing until the next renewal.
+   */
+  const seats = readSource("lib/billing/seats.ts");
+  /*
+   * ⚠️ The first version of this asserted `/billSeatProration/` against
+   * `seats.ts`, which the IMPORT LINE satisfies. Renaming the call site left it
+   * green: a check measuring that the function was mentioned rather than that
+   * it was called, which is the §6 family landing inside the file whose job is
+   * to catch it. It asserts the invocation now.
+   */
+  check(
+    "🔴 a mid-month seat change bills the prorated figure the clinic was shown",
+    /await billSeatProration\(\{/.test(seats) &&
+      /export async function billSeatProration/.test(service),
+    "quoting first only means anything if the quote is what happens",
+  );
+
+  check(
+    "🔴 CONTROL the same scan is not satisfied by the import alone",
+    !/await billSeatProration\(\{/.test(
+      'const { billSeatProration } = await import("./service");',
+    ),
+    "watched refusing the line that made the first version of this check pass",
+  );
+
+  check(
+    "🔴 …quoted BEFORE the write, because after it every figure is zero",
+    seats.indexOf("const change = await quoteSeatChange(") <
+      seats.indexOf("const [updated] = await controlDb"),
+    "reading the count back off the row after changing it asks what it changed from and gets the answer it changed to",
+  );
+
+  check(
+    "🔴 …and a downgrade is credit against next month, never a refund",
+    /change\.proratedCents < 0[\s\S]{0,300}setUpcomingDiscount/.test(seats),
+    "C331: otherwise a practice adds five seats on the first, removes them on the last, and pays for none",
+  );
+
   finish("sprints 73 and 74");
 }
 

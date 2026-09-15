@@ -61,6 +61,37 @@ export async function subscribeTo(tierKey: string): Promise<BillingActionState> 
     return { error: "Choose a plan." };
   }
 
+  /*
+   * 🔴 74.3 — AN EGYPTIAN ACCOUNT IS BILLED, NOT SENT TO A CHECKOUT.
+   *
+   * `createSubscriptionCheckout` has no entity gate, so before this an Egyptian
+   * therapist pressing Subscribe went to Stripe and was charged into the US
+   * entity — the same blocker `topUpPot` refuses out loud, silently. This
+   * raises the month's bill instead and the transfer card below it asks for the
+   * money. The plan starts when an operator confirms it arrived, not here.
+   */
+  const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  if (await organizationNeedsTransfer(actor.organizationId)) {
+    const { subscribeByTransfer } = await import("@/lib/billing/service");
+    const raised = await subscribeByTransfer({
+      organizationId: actor.organizationId,
+      tierKey,
+    });
+    if (raised.error) return { error: raised.error };
+
+    await audit({
+      actor,
+      category: "billing",
+      action: "subscription.invoiced",
+      resourceType: "organization",
+      resourceId: actor.organizationId,
+      reason: `${tierKey} raised for payment by transfer`,
+    });
+
+    revalidatePath("/billing");
+    return {};
+  }
+
   const result = await createSubscriptionCheckout({
     organizationId: actor.organizationId,
     email: actor.email,
