@@ -502,9 +502,19 @@ async function main() {
    */
   check(
     "🔴 the session and the bill price themselves from stored rows, never from the post",
-    /settlesCents: session\.priceCents/.test(payActions) &&
-      /settlesCents: summary\.outstandingCents/.test(billActions),
+    /priceCents: session\.priceCents/.test(payActions) &&
+      /settlesCents: summary\.outstandingCents/.test(billActions) &&
+      !/settlesCents: (?:Number|String|parse|amount|input\.amount)/.test(payActions) &&
+      !/settlesCents: (?:Number|String|parse|amount|input\.amount)/.test(billActions),
     "a payer who can type what they owe is a payer who owes less",
+  );
+
+  check(
+    "🔴 CONTROL the same scan catches a settles taken off the form",
+    /settlesCents: (?:Number|String|parse|amount|input\.amount)/.test(
+      'settlesCents: Number(formData.get("amount"))',
+    ),
+    "an absence assertion is worth nothing until it is watched finding something",
   );
 
   /*
@@ -824,6 +834,69 @@ async function main() {
     "🔴 …and the capture says we are holding it, which is why the payouts queue exists",
     /capture: "platform"/.test(grants) && /paidVia: "local_egp"/.test(grants),
     "egp_local_to_manual is a crossing the schema already knew about and nothing wrote",
+  );
+
+  /* ================================================================== */
+  /*  The tax the country says is owed is actually asked for             */
+  /* ================================================================== */
+
+  /*
+   * 🔴 THE EGYPTIAN RAIL COLLECTED NO VAT, ON THE ONLY RAIL THIS MARKET HAS.
+   *
+   * The CARD branch of `/pay/[token]` has always run `sessionMoney` with the
+   * country's `vatBps` and charged `patientTotalCents`. The TRANSFER branch
+   * quoted `session.priceCents` and stopped. Every Egyptian practice takes the
+   * transfer branch, and `collectionProblem` refuses the Stripe branch for a
+   * `paymob` country anyway, so no Egyptian session ever collected the 14% that
+   * `country_settings` says is owed.
+   *
+   * `lib/settings/defs.ts` says in its own words why that matters: a guessed 0%
+   * is an under-collection somebody eventually owes. It was being violated by
+   * the product's only live rail.
+   */
+  const payPage = readSource("app/pay/[token]/page.tsx");
+
+  check(
+    "🔴 an Egyptian payer is quoted the price WITH the VAT their country charges",
+    /export async function sessionTransferMoney/.test(entry) &&
+      /vatOn\(gross, vatBps\)/.test(entry) &&
+      /settlesCents: gross \+ vat/.test(entry),
+    "the card branch always charged it; the only rail this market has did not",
+  );
+
+  check(
+    "🔴 …and the screen that quotes it and the action that declares it use the SAME helper",
+    /sessionTransferMoney\(\{/.test(payPage) &&
+      /sessionTransferMoney\(\{/.test(payActions) &&
+      /settlesCents: money\.settlesCents/.test(payPage) &&
+      /settlesCents: money\.settlesCents/.test(payActions),
+    "two places deriving one number is how a payer is shown one amount and charged another",
+  );
+
+  check(
+    "🔴 neither of them quotes the bare price any more",
+    !/settlesCents: session\.priceCents/.test(payPage) &&
+      !/settlesCents: session\.priceCents/.test(payActions),
+    "that exact line is what under-collected on every Egyptian session",
+  );
+
+  check(
+    "🔴 CONTROL the same scan catches the line it was written to find",
+    /settlesCents: session\.priceCents/.test("settlesCents: session.priceCents,"),
+    "an absence assertion is worth nothing until it is watched finding something",
+  );
+
+  check(
+    "🔴 …and the payer is TOLD why the figure is bigger than the fee",
+    /taxNote/.test(entry) && /transfer\.taxNote/.test(readSource("components/billing/pay-by-transfer.tsx")),
+    "1,140 pounds for a 1,000 pound session reads as a markup unless a line says otherwise",
+  );
+
+  check(
+    "🔴 …and the ledger posts the VAT that ARRIVED, derived from the money rather than a rate",
+    /const vatCents = Math\.max\(0, payment\.settlesCents - row\.priceCents\)/.test(grants) &&
+      /vatCents,/.test(grants),
+    "a rate an operator changed between the quote and the confirmation must not move a posted figure",
   );
 
   /*

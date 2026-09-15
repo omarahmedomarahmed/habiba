@@ -4,7 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import { declareSessionTransfer } from "./actions";
 import { PayByTransfer } from "@/components/billing/pay-by-transfer";
 import { PayFlow } from "@/components/pay/pay-flow";
-import { manualEntry, organizationNeedsTransfer } from "@/lib/billing/manual-entry";
+import {
+  manualEntry,
+  organizationNeedsTransfer,
+  sessionTransferMoney,
+} from "@/lib/billing/manual-entry";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
@@ -95,13 +99,29 @@ export default async function PayPage({
     region: needsTransfer ? "eg" : null,
     locale: tag,
   });
+  /*
+   * 🔴 75.7 — THE POUNDS THEY ARE ASKED FOR INCLUDE VAT, AND THEY DID NOT.
+   *
+   * The card branch has always charged `patientTotalCents`, VAT on top. This
+   * branch quoted the bare price, and every Egyptian practice takes this branch,
+   * so the only rail in the launch market collected none of the 14% the country
+   * row says is owed. One helper now derives it for both the quote and the
+   * declare, because two places computing one number is how a payer is shown
+   * one amount and charged another.
+   */
+  const money = await sessionTransferMoney({
+    organizationId: session.organizationId,
+    priceCents: session.priceCents,
+  });
+
   const rail = await manualEntry({
     audience: "patient",
     purpose: "session",
     refId: session.id,
     payer: { kind: "session", organizationId: session.organizationId },
     needed: needsTransfer,
-    settlesCents: session.priceCents,
+    settlesCents: money.settlesCents,
+    vatCents: money.vatCents,
     locale: tag,
   });
 
@@ -124,6 +144,7 @@ export default async function PayPage({
           <PayByTransfer
             details={rail.details}
             amountLabel={rail.amountLabel}
+            taxNote={rail.taxNote}
             what={t("transfer.forSession")}
             live={rail.live}
             action={declareSessionTransfer.bind(null, token)}

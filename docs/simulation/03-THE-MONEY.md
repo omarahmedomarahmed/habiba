@@ -15,7 +15,8 @@ money.
 | | |
 |---|---|
 | A session | **1,000 EGP, about $20** |
-| Our cut of what the patient paid | **15%**, on paid sessions only |
+| What an Egyptian patient is actually asked to send | **1,140 EGP.** The price plus the 14% VAT `country_settings` says Egypt charges. The screen names the 140 in its own line, so it does not read as a markup |
+| Our cut of what the patient paid | **15%**, on paid sessions only, and on the **1,000**, never on the tax |
 | Metered: the room | **$1 a session**, on **every** session. Paid, free, radar, invite, in person |
 | Metered: the note | **$3 more**, and **only** where the patient consented to recording |
 | So metered is | **$4 a session**, or **$1** where consent was declined |
@@ -277,7 +278,7 @@ A single reconciliation, which either balances or the discrepancy is the finding
 | Our 15% | The fee lines, which must equal the published percentage of each session |
 | Room fees | **Every session**, including free, radar, invite and in person. Count them and check |
 | Note fees | **Only** sessions where recording was on. Count them and check |
-| VAT | A separate line on both sides, never folded into a total |
+| VAT | A separate line on both sides, never folded into a total. **Every confirmed Egyptian session transfer carries 280 cents of it**, and it sits in `vat_payable` as a liability. A run that reports it as revenue has counted the government's money as ours |
 | Paid out to therapists | Stripe transfers plus manual payouts |
 | Still held by us | And for each holder, the reason: unverified Stripe, or Egypt |
 | Employer pots: funded, spent, remaining | Per employer, and the sum must equal what their patients' sessions cost at their coverage rate |

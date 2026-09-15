@@ -118,7 +118,8 @@ whether it is.**
 | | |
 |---|---|
 | A session | **1,000 EGP, about $20** |
-| Our cut of what the patient paid | **15%**, on paid sessions only |
+| What an Egyptian patient is actually asked to send | **1,140 EGP.** The price plus the 14% VAT `country_settings` says Egypt charges. The screen names the 140 in its own line, so it does not read as a markup |
+| Our cut of what the patient paid | **15%**, on paid sessions only, and on the **1,000**, never on the tax |
 | Metered: the room | **$1 a session**, on **every** session. Paid, free, radar, invite, in person |
 | Metered: the note | **$3 more**, and **only** where the patient consented |
 | So metered is | **$4 a session**, or **$1** where consent was declined |
@@ -548,7 +549,7 @@ makes up for it.
 
 ## What the product does NOT do, so you do not spend an afternoon finding out
 
-Nine things a careful agent would otherwise file as defects. Every one was checked against the
+Eight things a careful agent would otherwise file as defects. Every one was checked against the
 code this week. **None of them is a bug to chase; each is a sentence for the report.**
 
 | | What actually happens |
@@ -557,7 +558,6 @@ code this week. **None of them is a bug to chase; each is a sentence for the rep
 | **Nothing renews by itself** | `subscribeByTransfer` raises ONE period at full price. There is no monthly cron that opens the next one, so the free-then-half-then-full sequence is walked by the operator, month by month |
 | **A pot that empties tells the SPONSOR, not the patient** | The admins get an email naming nobody. The patient falls through to the ordinary paid route and is asked to pay. There is no "account on hold" screen |
 | **A therapist lapses only when the billing cron runs** | `lapseOverdue` has one caller. POST `/api/cron/billing` with the bearer token to make wave 4's `M2` happen |
-| **The Egyptian rail collects no VAT** | The pay screen quotes the price and no more, while `country_settings` for EG says 14%. So the books post `vat_cents = 0`, which is truthful about what arrived. **It is a real under-collection and a decision for the founders**, not something to work around |
 | **`/admin/usage` is a 30 day window** | After ageing, only wave 6 falls inside it. The figures photographed at month 6 describe one wave, not the run. Use `npm run physics` for the run's own cost |
 | **`/admin/vault`'s card is all time and its table is six calendar months** | They are not required to be equal, and a month with no activity is simply absent. Do not stop the run over the difference |
 | **The transfer details lock almost permanently** | `detailsLockedBy` counts every `awaiting_proof` row, and one opens the moment any payer presses the button. Expect the refusal in `R7` to be the ordinary state |

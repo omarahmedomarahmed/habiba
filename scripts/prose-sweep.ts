@@ -75,6 +75,13 @@ const PORTALS: Record<string, readonly string[]> = {
   patient: [
     "home",
     /*
+     * 🔴 `error` is the PATIENT's, because there is exactly one route boundary using
+     * it and it is `app/(patient)/error.tsx`. Left unattributed it landed in `other`,
+     * which is a bucket with no ratchet: three strings a patient reads at the worst
+     * moment they have on this product, counted against nobody.
+     */
+    "error",
+    /*
      * `room` and `preset` are the PATIENT's too, checked the same way. `room.*` renders
      * in the join flow, the patient room, the rating form and the booking sheet and
      * nowhere else; `preset` is `components/patient/reset-form.tsx` and is a password

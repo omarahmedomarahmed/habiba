@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { quoteFor } from "@/lib/billing/fx";
-import { declarePaid, organizationNeedsTransfer } from "@/lib/billing/manual-entry";
+import {
+  declarePaid,
+  organizationNeedsTransfer,
+  sessionTransferMoney,
+} from "@/lib/billing/manual-entry";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
 import { uploadDocument } from "@/lib/uploads";
@@ -187,11 +191,22 @@ export async function declareSessionTransfer(
     proofUrl = stored.url ?? null;
   }
 
+  /*
+   * 🔴 75.7 — THE SAME FIGURE THE SCREEN QUOTED, VAT INCLUDED, from the same
+   * helper. Recomputed here rather than posted from the form for the reason
+   * every amount on this rail is: a number a payer can edit is a number a payer
+   * can lower.
+   */
+  const money = await sessionTransferMoney({
+    organizationId: session.organizationId,
+    priceCents: session.priceCents,
+  });
+
   const result = await declarePaid({
     purpose: "session",
     /* The session is both what this pays for and who is paying. See 0105. */
     refId: session.id,
-    settlesCents: session.priceCents,
+    settlesCents: money.settlesCents,
     payer: { kind: "session", organizationId: session.organizationId },
     reference,
     proofUrl,

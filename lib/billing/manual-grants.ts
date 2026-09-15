@@ -161,21 +161,34 @@ async function grantSession(payment: ManualPayment): Promise<void> {
   const settings = await getSettings();
 
   /*
-   * 🔴 `vatBps: 0`, AND IT IS A RECORD OF WHAT HAPPENED RATHER THAN A CHOICE.
+   * 🔴 75.7 — THE VAT THAT ACTUALLY ARRIVED, DERIVED FROM THE MONEY ITSELF.
    *
-   * `app/pay/[token]/actions.ts` quotes the patient `session.priceCents` and no
-   * more, so no VAT was asked for and none arrived. Posting a VAT liability for
-   * money we did not collect would put a debt on our own books against a tax
-   * authority, sourced from nothing.
+   * `settles_cents` is what the payer was asked for and what an operator
+   * matched on a bank statement. `price_cents` is the therapist's fee. The
+   * difference between them IS the tax, by construction, because
+   * `sessionTransferMoney` is the one place that builds the figure and it
+   * builds it as gross plus VAT.
    *
-   * ⚠️ That the Egyptian rail quotes no VAT while `country_settings` for EG says
-   * 14% is a real under-collection and it is NOT fixed here, because fixing it
-   * changes what a patient is asked to send. It is named in the report as a
-   * decision for the founders rather than papered over with a journal entry.
+   * Deriving it rather than re-reading the rate is deliberate. A rate an
+   * operator changed between the quote and the confirmation would make a
+   * recomputed figure disagree with the money in the account, and the money in
+   * the account is the fact. This cannot drift from it.
+   *
+   * ⚠️ It was ZERO for two sprints, and correctly so at the time: the transfer
+   * branch quoted the bare price, so no VAT was asked for and none arrived.
+   * Posting a liability for money we had not collected would have invented a
+   * debt. Now it is collected, so it is recorded.
    */
+  const vatCents = Math.max(0, payment.settlesCents - row.priceCents);
+
   const money = sessionMoney({
     grossCents: row.priceCents,
     feeBps: settings.session.platformFeeBps,
+    /*
+     * Zero here because `vatCents` is passed explicitly below. `sessionMoney`
+     * would recompute it from a rate, and the rate is exactly what must not be
+     * trusted at this point.
+     */
     vatBps: 0,
   });
 
@@ -192,8 +205,12 @@ async function grantSession(payment: ManualPayment): Promise<void> {
       payerEmail: null,
       grossCents: row.priceCents,
       currency: "usd",
-      vatCents: 0,
-      vatBps: 0,
+      vatCents,
+      /*
+       * The rate as it stands now, for the record. The AMOUNT above is the one
+       * that has to be right, and it came from the money rather than from here.
+       */
+      vatBps: vatCents > 0 ? Math.round((vatCents * 10_000) / row.priceCents) : 0,
       coverageBps: 0,
       sponsorShareCents: 0,
       patientShareCents: row.priceCents,
@@ -247,7 +264,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     therapistId: row.therapistId,
     capture: "platform",
     grossCents: row.priceCents,
-    vatCents: 0,
+    vatCents,
     platformFeeCents: money.platformCutCents,
     settledInvoiceCents: 0,
     therapistNetCents: money.therapistNetCents,
@@ -258,6 +275,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     sessionId: payment.refId,
     ourFeeCents: money.platformCutCents,
     therapistNetCents: money.therapistNetCents,
+    vatCents,
   });
 }
 

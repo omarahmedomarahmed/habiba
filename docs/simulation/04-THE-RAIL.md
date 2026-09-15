@@ -92,11 +92,19 @@ half settled invoice is a number two systems disagree about.
    pounds, so the conversion happens once, on the server, at a rate an operator sets and can
    change the afternoon the pound moves. It is stored on the payment beside what it settles, so a
    row can always be read back against the rate that priced it.
-3. **"Card payments coming soon"**, under the details, until the day they are.
-4. A **reference**, a **receipt**, or both. One of the two is required: neither is unverifiable
+3. **The VAT, inside that figure and named on its own line.** A patient is asked for **1,140
+   pounds** for a 1,000 pound session, because `country_settings` says Egypt charges 14% and the
+   card rail has always charged it. The tax is computed in dollars and the **total** is then
+   converted, never the other way round, because a tax authority cares about the amount in the
+   currency the invoice is denominated in. Without the line saying so, 1,140 for a 1,000 pound
+   session reads as a markup, and a payer who thinks they are being overcharged does not transfer:
+   they email. Our 15% is taken on the 1,000 and never on the tax, and the 140 is posted to
+   `vat_payable` as somebody else's money we are holding.
+4. **"Card payments coming soon"**, under the details, until the day they are.
+5. A **reference**, a **receipt**, or both. One of the two is required: neither is unverifiable
    and wastes an operator's afternoon, and demanding both turns away somebody whose banking app
    shows a reference but will not export a receipt.
-5. **The waiting screen, which says they may close the page.** Said explicitly, because the
+6. **The waiting screen, which says they may close the page.** Said explicitly, because the
    instinct is to sit and stare at it, and a person who waits is the one who decides this is
    broken. It polls, so the moment an operator confirms, their page moves on by itself.
 
@@ -128,7 +136,7 @@ a decision. A record that can be edited after the fact is not a record of what h
 
 ---
 
-## The seven things the run must put through it
+## The eight things the run must put through it
 
 | # | Wave | What | The property |
 |---|---|---|---|
@@ -139,6 +147,7 @@ a decision. A record that can be edited after the fact is not a record of what h
 | `R5` | 4 | `T2` subscribes by transfer | No checkout. A bill, a transfer, and **he is metered until it is confirmed** |
 | `R6` | 4 | `B3`: a transfer that never arrives is rejected with a reason | HR reads that reason **verbatim** and sends a real one |
 | `R7` | 4 | The details are edited while `R6` is in the queue | **Refused, with the count in the message** |
+| `R8` | 2 | `P2`'s pay screen is read against a calculator | **1,140 pounds, not 1,000**, with the 140 named as VAT on its own line. Confirm it, then check `session_payments.vat_cents` is 280 and the ledger holds it in `vat_payable` rather than counting it as ours |
 
 ⚠️ `detailsLockedBy` counts `awaiting_proof` **and** `submitted`, and an `awaiting_proof` row
 opens the moment any payer presses the button. So once the run has volume the details are locked
@@ -147,7 +156,7 @@ the refusal to be the ordinary state rather than the exceptional one, and say so
 
 ### And one that is an absence
 
-`R8`: at no point in the run does anybody's balance, plan or session move **before** an operator
+`R9`: at no point in the run does anybody's balance, plan or session move **before** an operator
 pressed Confirm. The money agent checks this at the end of every wave by comparing confirmation
 timestamps against the thing they unlocked.
 

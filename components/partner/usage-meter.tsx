@@ -186,10 +186,9 @@ export function UsageMeter({
             copilot and nobody could say why.
           */}
           <p className="mt-3 text-xs leading-relaxed text-slate-500">
-            We alert the contact on this account at 80% and again at 90%, with a link
-            straight back here. At the limit our part stops and yours does not, and we
-            never bill past it, because a session we did not do is not a session we
-            charge for.
+            We alert this account&rsquo;s contact at 80% and again at 90%, with a link
+            back here. At the limit our part stops and yours does not, and we never bill
+            past it: a session we did not do is not one we charge for.
           </p>
 
           {error ? (

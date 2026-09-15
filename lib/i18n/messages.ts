@@ -513,7 +513,7 @@ export const en = {
   /* ----------------------------------------- 🔴 when a page fails, in their language */
   "error.title": "Something went wrong at our end",
   "error.body":
-    "Nothing you did caused this and nothing you sent has been lost. Try again, and if it keeps happening the SOS button below still works.",
+    "Nothing you did caused this, and nothing you sent is lost. Try again. The SOS button below still works.",
   "error.retry": "Try again",
 
   /* ------------------------------------------------ 🔴 consent, the patient's */
@@ -1599,6 +1599,7 @@ export const en = {
   "transfer.amountPlaceholder": "In US dollars",
   "transfer.sendAtLeast": "Send at least {amount}",
   "transfer.rateNote": "We convert at {rate} to the dollar.",
+  "transfer.taxNote": "Includes {tax} of VAT.",
   "transfer.forSession": "for this session",
   "transfer.forBill": "for your bill",
   "transfer.forPot": "for your pot",
@@ -3775,7 +3776,7 @@ export const ar: Record<MessageKey, string> = {
 
   "error.title": "حدث خطأ من جانبنا",
   "error.body":
-    "لم يتسبب أي شيء فعلته في هذا، ولم يُفقد أي شيء أرسلته. حاول مرة أخرى، وإذا استمر الأمر فزر الاستغاثة أدناه ما زال يعمل.",
+    "لم يتسبب أي شيء فعلته في هذا، ولم يُفقد أي شيء أرسلته. حاول مرة أخرى. زر الاستغاثة أدناه ما زال يعمل.",
   "error.retry": "حاول مرة أخرى",
 
   /* --------------------------------------------------- 🔴 الإذن، من جهة المريض */
@@ -4623,6 +4624,7 @@ export const ar: Record<MessageKey, string> = {
   "transfer.sending": "جارٍ الإرسال…",
   "transfer.proofLabel": "أو أرفق الإيصال",
   "transfer.amountLabel": "المبلغ الذي تضيفه إلى رصيدك",
+  "transfer.taxNote": "يشمل {tax} ضريبة القيمة المضافة.",
   "transfer.amountPlaceholder": "بالدولار الأمريكي",
   "transfer.sendAtLeast": "أرسل {amount} على الأقل",
   "transfer.rateNote": "نحوّل بسعر {rate} للدولار.",

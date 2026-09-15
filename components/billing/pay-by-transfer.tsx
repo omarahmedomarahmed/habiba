@@ -64,6 +64,7 @@ const POLL_MS = 15_000;
 export function PayByTransfer({
   details,
   amountLabel,
+  taxNote,
   what,
   live,
   action,
@@ -74,6 +75,8 @@ export function PayByTransfer({
   details: TransferView;
   /** "1,000 EGP", already formatted by the server in the payer's language. */
   amountLabel: string;
+  /** 🔴 75.7 — the tax inside the figure above, in pounds. Empty where there is none. */
+  taxNote?: string;
   /** "this session", "your bill", "your pot". Server copy, already translated. */
   what: string;
   live: LiveState;
@@ -189,6 +192,19 @@ export function PayByTransfer({
           </>
         )}
       </p>
+
+      {/*
+        🔴 75.7 — WHY THE FIGURE IS BIGGER THAN THE FEE THEY WERE QUOTED.
+
+        An Egyptian patient is asked for 1,140 pounds for a 1,000 pound session.
+        With no line saying so that reads as a markup, and a payer who thinks
+        they are being overcharged does not transfer, they email. Rendered only
+        when there is tax, so nothing untrue is said about a country that
+        charges none.
+      */}
+      {taxNote ? (
+        <p className="mt-1 text-xs text-slate-500">{t("transfer.taxNote", { tax: taxNote })}</p>
+      ) : null}
 
       <dl className="mt-4 space-y-2">
         {details.fields.map((f) => (
