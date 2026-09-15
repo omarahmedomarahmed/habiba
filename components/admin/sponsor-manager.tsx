@@ -260,6 +260,25 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
                   defaultValue="0"
                 />
               </Field>
+              {/*
+                🔴 THE WELCOME CREDIT, and until this sprint there was nowhere to
+                put it. Both ways money reaches a pot enforce a $5,000 minimum,
+                so the $100 the plan promises every company was unreachable by
+                any screen. A minimum is the right rule for a purchase and the
+                wrong rule for a gift.
+              */}
+              <Field
+                label={t("asponsor.welcomeCredit")}
+                htmlFor={`welcome-${sponsor.id}`}
+                hint={t("asponsor.welcomeCreditHint")}
+              >
+                <Input
+                  id={`welcome-${sponsor.id}`}
+                  name="welcomeCredit"
+                  inputMode="decimal"
+                  defaultValue="0"
+                />
+              </Field>
               {potState.error ? (
                 <p role="alert" className="text-xs text-red-600">
                   {potState.error}

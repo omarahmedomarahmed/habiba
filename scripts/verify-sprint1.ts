@@ -92,17 +92,56 @@ async function main() {
      * the RULE survives the restatement. The rule was never "$30 buys a rate";
      * it was "the schedule in the database is the schedule we published".
      */
+    /*
+     * ⚠️ THIS ASSERTED `"9900,17900"` AND WAS RED FROM THE DAY OF THE REPRICE.
+     *
+     * It had been red for two sprints and nothing printed it, because
+     * `verify:sprint1` is wired to npm and to nothing else: `npm run gates`
+     * never called it. The same shape, on the same day, as the seats and safety
+     * suites. That is now closed by the `verifiers` gate, and this check is
+     * restated as the RULE rather than as two numbers.
+     *
+     * The rule was never "the tiers cost $99 and $179". It is that the paid
+     * tiers are monthly and unlimited, that a clinic seat is ten per cent under
+     * solo, and that the clinic tier IS the two-seat minimum rather than a
+     * third price somebody chose. State it that way and the next reprice has to
+     * survive the argument instead of editing the literal.
+     */
     check(
       "🔴 57.1 the two paid tiers are monthly and unlimited, not credit ladders",
       (() => {
         const paid = pricing.tiers.filter((t) => t.monthlyCents > 0);
+        if (paid.length !== 2) return false;
+        if (!paid.every((t) => t.unlockCents === 0 && t.aiRateCents === 0)) return false;
+
+        const solo = pricing.tiers.find((t) => t.key === "practice")?.monthlyCents ?? 0;
+        const clinic = pricing.tiers.find((t) => t.key === "clinic")?.monthlyCents ?? 0;
+        const seat = pricing.seatBands[1]?.perSeatCents ?? 0;
+
         return (
-          paid.length === 2 &&
-          paid.every((t) => t.unlockCents === 0 && t.aiRateCents === 0) &&
-          paid.map((t) => t.monthlyCents).join(",") === "9900,17900"
+          solo > 0 &&
+          seat === Math.round(solo * 0.9) &&
+          clinic === 2 * seat
         );
       })(),
       pricing.tiers.map((t) => `${t.key}=$${t.monthlyCents / 100}/mo`).join(" "),
+    );
+
+    /*
+     * 🔴 AND THE METERED DOOR IS WHAT MAKES THE SOLO PRICE DEFENSIBLE.
+     *
+     * $1 for the room plus $3 for the note is $4, so $80 is exactly twenty
+     * sessions: a number a therapist can divide themselves, and the reason a
+     * therapist doing fewer than twenty a month is right to stay metered.
+     */
+    check(
+      "🔴 57.1 …and the solo plan is exactly twenty metered sessions",
+      (() => {
+        const solo = pricing.tiers.find((t) => t.key === "practice")?.monthlyCents ?? 0;
+        const payg = pricing.tiers.find((t) => t.key === "payg")?.aiRateCents ?? 0;
+        return payg > 0 && solo / (session.platformFeeCents + payg) === 20;
+      })(),
+      "below twenty a month metered is cheaper, and the product must not push them off it",
     );
 
     /*

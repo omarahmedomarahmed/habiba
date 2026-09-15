@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console";
 import { listRadar } from "@/lib/data/radar";
+import { getI18n } from "@/lib/i18n/server";
+import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrb } from "@/components/patient/sos-orb";
 
 export const metadata: Metadata = {
@@ -50,7 +52,7 @@ export default async function RadarPage() {
         That is the honest answer rather than a degraded one, and it is a
         plain `tel:` away from a dialler either way.
       */}
-      <SosOrb />
+      <SosOrb country={crisisCountryFor({ locale: (await getI18n()).locale })} />
     </div>
   );
 }

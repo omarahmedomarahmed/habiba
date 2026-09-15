@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Phone, X } from "lucide-react";
 
-import { countryForNumber, lineForNumber, type CrisisLine } from "@/lib/crisis/line";
+import { countryForNumber, crisisLine, lineForNumber, type CrisisLine } from "@/lib/crisis/line";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -55,9 +55,33 @@ type Props = {
    * number: it looks like help and reaches nothing.
    */
   phone?: string | null;
+  /**
+   * 🔴 THE COUNTRY, FOR EVERY READER WHO HAS NO NUMBER ON FILE.
+   *
+   * `phone` was the only signal, and a GUEST HAS NO PHONE. So on the flagship
+   * radar flow, on `/join/[token]`, on the payment screen, on the public
+   * therapist profile and on the feedback and support pages, this component
+   * rendered the generic "call your local emergency number" sentence and no
+   * number at all, to an Arabic-reading Egyptian in the minute the orb exists
+   * for.
+   *
+   * Egypt's 105 was in `CRISIS_LINES` and reachable the whole time. The
+   * components simply never asked for it. Every one of those pages knows the
+   * country from the session's practice, the therapist, or the locale, and now
+   * passes it.
+   *
+   * The phone still wins when there is one: somebody's own number is a better
+   * guess at where they are than the page they are looking at.
+   */
+  country?: string | null;
 };
 
-export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: Props) {
+export function SosOrb({
+  practiceNumber = null,
+  dimmed = false,
+  phone = null,
+  country = null,
+}: Props) {
   const t = useT();
   const locale = useLocale();
   const [open, setOpen] = useState(false);
@@ -96,8 +120,12 @@ export function SosOrb({ practiceNumber = null, dimmed = false, phone = null }: 
    * most one entry long, and it exists as a list only because a second
    * verified country will slot into it without this component changing.
    */
-  const mine = lineForNumber(phone);
-  const mineCountry = countryForNumber(phone);
+  const fromPhone = lineForNumber(phone);
+  const phoneCountry = countryForNumber(phone);
+
+  /* Their own number first, then the page's country. Never a default. */
+  const mineCountry = phoneCountry ?? (country ? country.trim().toUpperCase() : null);
+  const mine = fromPhone ?? (mineCountry ? crisisLine(mineCountry) : null);
   const lines: { country: string; label: string; line: CrisisLine; word: string }[] =
     mine && mineCountry
       ? [

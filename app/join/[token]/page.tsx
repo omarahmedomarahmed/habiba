@@ -8,6 +8,7 @@ import { optionalPatient } from "@/lib/patient-auth/guard";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { BRAND } from "@/lib/brand";
+import { crisisCountryFor } from "@/lib/crisis/line";
 import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { feedbackContext, feedbackTokenForJoin } from "@/lib/data/feedback";
@@ -46,7 +47,7 @@ export default async function JoinPage({
 }) {
   const { token } = await params;
   const { checkout, booked } = await searchParams;
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
 
   // Settle on the redirect as well as by webhook. Stripe cannot reach a preview
   // deployment, and a patient who has just paid must not be told to pay again.
@@ -173,7 +174,7 @@ async function Shell({
   children: React.ReactNode;
   live?: { href: string } | null;
 }) {
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
   /*
    * The bar only appears for somebody who can use it. A guest on a bare link
    * has no account, so every destination in it would bounce them to a login
@@ -181,7 +182,13 @@ async function Shell({
    */
   const patient = await optionalPatient();
   return (
-    <PatientChrome nav={patient !== null} liveSession={live} phone={patient?.phone ?? null}>
+    <PatientChrome
+      nav={patient !== null}
+      liveSession={live}
+      phone={patient?.phone ?? null}
+      /* 🔴 75.4 — a stranger from the radar has no phone. The language is the signal. */
+      country={crisisCountryFor({ locale })}
+    >
     <div className="flex min-h-dvh flex-col bg-slate-50">
       {/*
         The language switch belongs here, not buried in a menu.

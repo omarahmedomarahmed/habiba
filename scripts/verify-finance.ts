@@ -166,6 +166,64 @@ async function main() {
   );
 
   /*
+   * 🔴 AND THEY MUST APPLY THEM TO THE SAME PEOPLE, WHICH THE CHECK ABOVE
+   * CANNOT SEE.
+   *
+   * The three constants above were equal on both sides for two sprints while
+   * the two engines did completely different things with them. `model.ts`
+   * folded the cut and the room fee into one number and charged the sum on paid
+   * sessions only, which billed the room fee to subscribers, billed it on no
+   * free session when it should bill on all of them, and took 15% from people
+   * who had not paid. `beta.ts` had been corrected; nothing compared them.
+   *
+   * Same constants, different populations, and a green gate. So this asserts
+   * the BEHAVIOUR: move the subscriber share and watch the metered fee line
+   * move the opposite way, which is only true if the engine knows that a
+   * subscriber pays neither per-session charge.
+   */
+  const allMetered = forecast({
+    ...BASE,
+    pricing: { ...BASE.pricing, payingShare: { ...BASE.pricing.payingShare, value: 0 } },
+  });
+  const allSubscribed = forecast({
+    ...BASE,
+    pricing: { ...BASE.pricing, payingShare: { ...BASE.pricing.payingShare, value: 1 } },
+  });
+
+  const meteredM12 = allMetered.months[11]!;
+  const subscribedM12 = allSubscribed.months[11]!;
+
+  check(
+    "🔴 a subscriber pays NEITHER per-session charge, and the engine knows it",
+    subscribedM12.aiFeeUsd === 0 && meteredM12.aiFeeUsd > 0,
+    `with everybody metered the note fee is $${meteredM12.aiFeeUsd.toFixed(0)} a month; with everybody subscribed it is $0, which is the whole of what a plan buys`,
+  );
+
+  check(
+    "🔴 …and the room fee rides on the SESSION, so it is billed on free ones too",
+    meteredM12.sessionFeeUsd > 0 && subscribedM12.sessionFeeUsd > 0,
+    "a subscriber still generates our 15% on what the patient paid, so the line is never zero",
+  );
+
+  /*
+   * 🔴 CONTROL, and it is the one that separates the two charges. With NOBODY
+   * paying for a session, a metered account still owes the room fee on every
+   * session it ran, and a subscribed one owes nothing per session at all.
+   */
+  const nobodyPays = (share: number) =>
+    forecast({
+      ...BASE,
+      pricing: { ...BASE.pricing, payingShare: { ...BASE.pricing.payingShare, value: share } },
+      unit: { ...BASE.unit, sessionPriceUsd: { ...BASE.unit.sessionPriceUsd, value: 0 } },
+    }).months[11]!.sessionFeeUsd;
+
+  check(
+    "🔴 CONTROL with nothing paid, metered still owes the room and a subscriber owes nothing",
+    nobodyPays(0) > 0 && Math.abs(nobodyPays(1)) < 0.01,
+    `$${nobodyPays(0).toFixed(0)} of room fees against $0. The cut is on what was paid; the room is on the session existing`,
+  );
+
+  /*
    * 🔴 AND ABOUT THE PAYROLL, which was the other half of the disagreement.
    *
    * This file used to put two founders on $4,000 plus burden and nobody else,
@@ -360,14 +418,30 @@ async function main() {
   );
 
   /*
-   * 🔴 AND THE SHIPPED BASE CASE IS SOLVENT, which is a claim worth asserting
-   * out loud now that it is true. It was not before the salaries were corrected,
-   * and the number on that screen is the one an angel reads.
+   * 🔴 THE FINDING THIS SCENARIO ACTUALLY PRODUCES, AND IT CHANGED THE MOMENT
+   * THE FEE ARITHMETIC WAS CORRECTED.
+   *
+   * Growing on SOLO THERAPISTS ALONE does not pay for this payroll. At four a
+   * month against $3,500 of salaries, the base case dips below zero before it
+   * recovers, even though the operating plan breaks even in month 5 on the same
+   * money and the same prices.
+   *
+   * The difference is the segments. `plans.ts` sells to companies and clinics as
+   * well, and a clinic is two or three clinicians on one sale. This engine has
+   * one growth lever and it is therapists, so what it says is worth saying
+   * plainly: **the solo-only path does not close, and the company and clinic
+   * segments are not an upside on the plan, they are the plan.**
+   *
+   * ⚠️ An earlier version of this check asserted the base case was solvent. It
+   * was, on arithmetic that billed the room fee to subscribers and took 15%
+   * from people who had not paid. Correcting that removed revenue that was
+   * never there, and a check written against the flattering number would have
+   * been the thing arguing to keep it.
    */
   check(
-    "🔴 the base case never runs out of money on the $20,000, at the salaries the founders take",
-    base.runsOutInMonth === null && base.deepestDeficitUsd === 0,
-    `low point $${Math.min(...base.months.map((m) => m.cashUsd)).toFixed(0)}, break even m${base.breakEvenMonth}`,
+    "🔴 the solo-only growth path does NOT pay for this payroll, and the model says so",
+    base.deepestDeficitUsd > 0 && base.breakEvenMonth !== null,
+    `low point $${base.deepestDeficitUsd.toFixed(0)} down in m${base.deepestDeficitMonth}, break even m${base.breakEvenMonth}. The operating plan reaches it in m5 because it sells to companies and clinics too`,
   );
 
   /*

@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { TherapistPageBody } from "@/components/radar/therapist-page";
 import { publicProfile } from "@/lib/data/radar";
 import { fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
+import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrb } from "@/components/patient/sos-orb";
 
 /**
@@ -64,7 +66,7 @@ export default async function TherapistProfilePage({
   return (
     <>
       <TherapistPageBody id={id} />
-      <SosOrb />
+      <SosOrb country={crisisCountryFor({ locale: (await getI18n()).locale })} />
     </>
   );
 }

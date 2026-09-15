@@ -24,6 +24,7 @@ export function PatientChrome({
   nav = true,
   practiceNumber = null,
   phone = null,
+  country = null,
 }: {
   children: React.ReactNode;
   liveSession?: { href: string } | null;
@@ -39,6 +40,14 @@ export function PatientChrome({
    * line for THEIR country and not the only one in the table.
    */
   phone?: string | null;
+  /**
+   * 🔴 75.4 — for a GUEST, who has no phone and therefore had no crisis number.
+   *
+   * `/join/[token]` renders this chrome with `phone={patient?.phone ?? null}`,
+   * and a stranger who arrived from the radar has no patient row at all. So on
+   * the flagship flow the orb printed the generic sentence and nothing else.
+   */
+  country?: string | null;
 }) {
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -52,7 +61,12 @@ export function PatientChrome({
         requirement and a page that forgets it is a page somebody reaches on
         the night they need it.
       */}
-      <SosOrb dimmed={liveSession !== null} practiceNumber={practiceNumber} phone={phone} />
+      <SosOrb
+        dimmed={liveSession !== null}
+        practiceNumber={practiceNumber}
+        phone={phone}
+        country={country}
+      />
     </div>
   );
 }

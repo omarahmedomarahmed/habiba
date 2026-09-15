@@ -188,7 +188,80 @@ export async function openManualPayment(input: {
   if (input.amountCents <= 0) return { error: "There is nothing to pay." };
   if (input.settlesCents <= 0) return { error: "There is nothing to pay." };
 
-  /* An existing live row for the same thing IS the answer, not a conflict. */
+  /*
+   * An existing live row for the same thing IS the answer, not a conflict.
+   *
+   * 🔴 BUT THE AMOUNT ON IT IS RE-STATED, AND IT USED TO BE FROZEN FOREVER.
+   *
+   * The row was returned untouched, so whatever the FIRST declaration said was
+   * the amount an operator would eventually credit, however many times the
+   * payer came back with a different one. `submitProof` writes the reference
+   * and the receipt and no money, so the two halves of a claim could describe
+   * different sums with nothing saying so.
+   *
+   * The worst case is the sponsor pot, where the payer types the figure and the
+   * floor is $5,000:
+   *
+   *   1. Finance declares $5,000. Row opens at 500000.
+   *   2. They change their mind, transfer $20,000, and declare again.
+   *   3. The old row came back, and the new reference was written onto it.
+   *   4. An operator matched a $20,000 line on the statement and confirmed.
+   *   5. The pot was credited $5,000.
+   *
+   * Fifteen thousand dollars received and not credited, on a rail with no
+   * processor to reverse it, and the only trace a log line nobody reads.
+   *
+   * Re-stating is safe because a live row is by definition one nobody has acted
+   * on: `awaiting_proof` and `submitted` are both before an operator's
+   * decision, and `confirmed` and `rejected` are excluded by the WHERE.
+   */
+  if (input.refId) {
+    const [live] = await db
+      .update(manualPayments)
+      .set({
+        amountCents: input.amountCents,
+        settlesCents: input.settlesCents,
+        currency: input.currency ?? "EGP",
+      })
+      .where(
+        and(
+          eq(manualPayments.purpose, input.purpose),
+          eq(manualPayments.refId, input.refId),
+          inArray(manualPayments.state, ["awaiting_proof", "submitted"]),
+        ),
+      )
+      .returning({ id: manualPayments.id });
+
+    if (live) return { id: live.id };
+  }
+
+  /*
+   * 🔴 `onConflictDoNothing` AND A RE-READ, because two taps are ordinary.
+   *
+   * The SELECT above and this INSERT are two statements, so two concurrent
+   * declares can both miss the first and both reach the second. There is a
+   * partial unique index (`manual_payments_one_live_per_ref`) and nothing was
+   * catching the 23505 it raises: the throw escaped the server action, and with
+   * no route-level error boundary the payer got a blank error page **with no
+   * SOS orb on it**. On Egyptian mobile data, with a receipt upload in flight,
+   * a double tap is not exotic.
+   */
+  const [row] = await db
+    .insert(manualPayments)
+    .values({
+      purpose: input.purpose,
+      refId: input.refId,
+      amountCents: input.amountCents,
+      settlesCents: input.settlesCents,
+      currency: input.currency ?? "EGP",
+      ...payerColumns(input.payer),
+    })
+    .onConflictDoNothing()
+    .returning({ id: manualPayments.id });
+
+  if (row) return { id: row.id };
+
+  /* The other tap won. Its row is the answer, exactly as if we had seen it above. */
   if (input.refId) {
     const [live] = await db
       .select({ id: manualPayments.id })
@@ -204,19 +277,7 @@ export async function openManualPayment(input: {
     if (live) return { id: live.id };
   }
 
-  const [row] = await db
-    .insert(manualPayments)
-    .values({
-      purpose: input.purpose,
-      refId: input.refId,
-      amountCents: input.amountCents,
-      settlesCents: input.settlesCents,
-      currency: input.currency ?? "EGP",
-      ...payerColumns(input.payer),
-    })
-    .returning({ id: manualPayments.id });
-
-  return { id: row!.id };
+  return { error: "That payment could not be opened. Try again." };
 }
 
 /**

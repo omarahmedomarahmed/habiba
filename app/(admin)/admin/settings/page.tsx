@@ -6,6 +6,7 @@ import {
   CopilotEditor,
   CountryEditor,
   PayoutsEditor,
+  TeamEditor,
   PricingEditor,
   SessionEditor,
 } from "@/components/admin/settings-editor";
@@ -169,6 +170,8 @@ export default async function SettingsPage() {
       <SessionEditor {...settings.session} />
       <CopilotEditor {...settings.copilot} />
       <PayoutsEditor {...settings.payouts} />
+      {/* 🔴 75.5 — the queues above are worked by people who need an account. */}
+      <TeamEditor />
       {/*
         🔴 73.11 — beside the gateway key, because it is the same decision:
         how money reaches us from Egypt. The day a gateway arrives, one of these

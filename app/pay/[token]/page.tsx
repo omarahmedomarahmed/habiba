@@ -9,6 +9,7 @@ import { resolveJoinToken } from "@/lib/data/sessions";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { getCountries } from "@/lib/settings";
+import { crisisCountryFor } from "@/lib/crisis/line";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
@@ -82,6 +83,18 @@ export default async function PayPage({
    * that refuses. The two forms are never both on the page.
    */
   const needsTransfer = await organizationNeedsTransfer(session.organizationId);
+
+  /*
+   * 🔴 75.4 — THE CRISIS LINE FOR A PERSON WITH NO ACCOUNT.
+   *
+   * `needsTransfer` is true exactly when the practice is on the Egyptian
+   * entity, which is the strongest signal this page has about where the payer
+   * is. The language they chose is the fallback.
+   */
+  const sosCountry = crisisCountryFor({
+    region: needsTransfer ? "eg" : null,
+    locale: tag,
+  });
   const rail = await manualEntry({
     audience: "patient",
     purpose: "session",
@@ -96,7 +109,7 @@ export default async function PayPage({
     return (
       <>
         {/* 51.4 — a payment screen is a patient screen, on both rails. */}
-        <SosOrb />
+        <SosOrb country={sosCountry} />
         {/* 🔴 75.3 — and the one where reading the wrong language costs money. */}
         <LanguageCorner />
         <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
@@ -129,7 +142,7 @@ export default async function PayPage({
       somebody who needed one an hour ago, and the orb is never conditional on
       having paid: 🔴 the crisis path does not depend on money.
     */}
-    <SosOrb />
+    <SosOrb country={sosCountry} />
     <LanguageCorner />
     <PayFlow
       locale={tag}

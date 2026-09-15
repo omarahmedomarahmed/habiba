@@ -127,6 +127,27 @@ async function main() {
   );
 
   /*
+   * 🔴 …AND IT IS $100, WHICH IS AN ARGUMENT RATHER THAN A ROUND NUMBER.
+   *
+   * ⚠️ The check above says only "more than zero", so a regression back to $200
+   * passes it. That is too loose for a figure that was deliberately HALVED: at
+   * 10% coverage a company pays $2 of a $20 session, so $100 is about fifty
+   * sponsored sessions and $200 was about a hundred. The number that matters is
+   * how many companies try us, not how long the first one lasts, and halving it
+   * buys twice as many front doors for the same cash.
+   *
+   * Stated as the arithmetic rather than the literal, so it moves when the
+   * session price moves and stays wrong when somebody doubles it back.
+   */
+  const sponsoredSessions =
+    company.welcomeCreditUsd / (BETA.unit.sessionPriceUsd * 0.1);
+  check(
+    "🔴 …and it is fifty sponsored sessions at ten per cent coverage, not a hundred",
+    Math.round(sponsoredSessions) === 50,
+    `$${company.welcomeCreditUsd} covers ${sponsoredSessions.toFixed(0)} sessions at 10% of a $${BETA.unit.sessionPriceUsd} session. It was $200 and was halved on purpose`,
+  );
+
+  /*
    * 🔴 AND A CLINIC IS TWO OR THREE CLINICIANS, NEVER FOUR.
    *
    * A small Cairo practice is two people who share a waiting room, sometimes

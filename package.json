@@ -153,7 +153,10 @@
     "forecast": "node --import tsx --conditions=react-server scripts/forecast.ts",
     "plan": "node --import tsx --conditions=react-server scripts/plan.ts",
     "test:seats": "node --import tsx --test tests/seats.test.ts",
-    "suites": "node --import tsx scripts/suites.ts"
+    "suites": "node --import tsx scripts/suites.ts",
+    "verifiers": "node --import tsx --conditions=react-server scripts/verifiers.ts",
+    "test:checkins": "node --import tsx --conditions=react-server --test tests/checkins.test.ts",
+    "test:patient-import": "node --import tsx --conditions=react-server --test tests/patient-import.test.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

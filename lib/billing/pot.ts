@@ -14,7 +14,7 @@ import {
   therapistVerifications,
   users,
 } from "@/lib/db/schema";
-import { log, ref } from "@/lib/logger";
+import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings, sessionMoney } from "@/lib/settings";
 import { coverageNow, coverageSplit } from "@/lib/settings/defs";
 
@@ -360,6 +360,36 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   if (pot.balanceCents + pot.overdraftCents < sponsorShare) {
     log.info("pot cannot fund this booking", { session: ref(sessionId) });
     await releaseProvisional();
+
+    /*
+     * 🔴 AND SOMEBODY IS TOLD, WHICH NOTHING USED TO DO.
+     *
+     * `reason: "insufficient"` was computed here and **every caller discarded
+     * the return value**: `lib/data/sessions.ts`, `lib/data/scheduling.ts` and
+     * the join action all call `await payFromPot(id)` and look at nothing. So a
+     * company's pot ran dry and the only trace was this log line. The employee
+     * was quietly asked to pay for a benefit they had been promised, and the HR
+     * manager who could have topped it up in a minute found out when somebody
+     * complained.
+     *
+     * The alert goes to the sponsor's admins, not to the patient's therapist
+     * and not naming the patient: C243 holds, and an employer never learns who
+     * attended. "Your pot is empty" is a fact about their money.
+     *
+     * Best effort on purpose. A notification that fails must never stop a
+     * booking, and the booking has already fallen back to the paid route by the
+     * time this runs.
+     */
+    try {
+      const { alertSponsorPotEmpty } = await import("./pot-alerts");
+      await alertSponsorPotEmpty(benefit.sponsorId);
+    } catch (error) {
+      log.error("could not alert a sponsor that their pot is empty", {
+        sponsor: ref(benefit.sponsorId),
+        reason: safeErrorMessage(error),
+      });
+    }
+
     return { paid: false, reason: "insufficient" };
   }
 

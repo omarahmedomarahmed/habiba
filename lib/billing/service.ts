@@ -953,11 +953,16 @@ export async function settleOldestObligationByTransfer(input: {
   organizationId: string;
   ref: string;
   paidAt?: Date;
+  /** What the transfer settles, in USD cents. Below the month owed, nothing is granted. */
+  settlesCents?: number;
 }): Promise<{ settled: boolean }> {
   const { renewalObligations } = await import("@/lib/db/schema");
 
   const [oldest] = await db
-    .select({ periodStart: renewalObligations.periodStart })
+    .select({
+      periodStart: renewalObligations.periodStart,
+      amountCents: renewalObligations.amountCents,
+    })
     .from(renewalObligations)
     .where(
       and(
@@ -969,6 +974,39 @@ export async function settleOldestObligationByTransfer(input: {
     .limit(1);
 
   if (!oldest) return { settled: false };
+
+  /*
+   * 🔴 THE MONEY HAS TO COVER THE MONTH, AND NOTHING USED TO CHECK.
+   *
+   * This marked the oldest due obligation `paid` on the strength of a
+   * confirmation existing, never comparing what arrived against what was owed.
+   * `settleObligation` takes no amount either, so there was no second line of
+   * defence.
+   *
+   * What that bought, combined with a live payment row whose amount was frozen:
+   *
+   *   1. A metered therapist finishes a session. A $4 invoice is raised.
+   *   2. They press "I have paid". A row opens at $4.
+   *   3. Before an operator gets to it, they press Subscribe. An $80
+   *      obligation and an $80 invoice are raised.
+   *   4. They declare again; the stale $4 row came back.
+   *   5. An operator confirms about 200 EGP, the $4 invoice settles, and this
+   *      function marked the **$80 obligation paid**.
+   *   6. `entitledTier` put them on the Practice tier. Every session fee zero
+   *      for a month.
+   *
+   * $80 a month, repeatable. The amount check is the whole fix, and it belongs
+   * here rather than in the caller because every caller would otherwise have to
+   * remember it.
+   */
+  if (input.settlesCents !== undefined && input.settlesCents < oldest.amountCents) {
+    log.warn("transfer did not cover the month it was meant to settle", {
+      organizationId: ref(input.organizationId),
+      sentCents: input.settlesCents,
+      owedCents: oldest.amountCents,
+    });
+    return { settled: false };
+  }
 
   const { settleObligation } = await import("./obligations");
   return settleObligation({

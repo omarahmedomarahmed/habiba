@@ -146,7 +146,21 @@ export type Message = {
      * and never a patient, a session or a clinician. The same rule
      * `sponsor.domain_confirm` follows one principal over.
      */
-    | "partner.limit_approaching";
+    | "partner.limit_approaching"
+    /**
+     * 🔴 75.6 — their fund has run out and their people are being asked to pay.
+     *
+     * Goes to a finance or HR contact with no clinical standing, so it carries a
+     * company name and a verb and NOTHING else. C243: an employer never learns
+     * which of their staff attended, and "your pot ran out while somebody was
+     * booking" would leak exactly that if it named a person, a time or a
+     * therapist.
+     *
+     * It exists because `payFromPot` computed `reason: "insufficient"` for
+     * several sprints and all three of its callers threw the return away, so the
+     * one person who could fix it in a minute found out when somebody complained.
+     */
+    | "sponsor.pot_empty";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

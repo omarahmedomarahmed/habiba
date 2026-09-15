@@ -102,6 +102,14 @@ export async function openTheirPot(
     refundPolicy: String(formData.get("refundPolicy") ?? ""),
     expiresAt: expires,
     overdraftCents: Math.round(Number(String(formData.get("overdraft") ?? "0")) * 100),
+    /*
+     * 🔴 The welcome credit, typed by the operator on the call. Left at zero it
+     * changes nothing, which is the right default: a credit is an offer
+     * somebody decided to make, not a thing that happens to every account.
+     */
+    welcomeCreditCents: Math.round(
+      Number(String(formData.get("welcomeCredit") ?? "0")) * 100,
+    ),
   });
 
   if (result.error) return { error: result.error };

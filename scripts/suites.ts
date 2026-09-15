@@ -36,10 +36,13 @@
  * run and a gate people avoid.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 /** Drives a browser against a running server. `npm run smoke` owns that. */
 const NOT_HERE = new Set(["test:e2e"]);
+
+/** Reached through `tests/run-e2e.sh`, which `test:e2e` runs. Not an orphan. */
+const REACHED_ANOTHER_WAY = new Set(["e2e.test.ts"]);
 
 type Result = { name: string; ok: boolean; pass: number; fail: number; detail: string[] };
 
@@ -79,9 +82,40 @@ function run(name: string): Result {
   return { name, ok, pass, fail, detail };
 }
 
+/**
+ * 🔴 AND THE ORPHANS, WHICH IS THE SAME DEFECT ONE LEVEL DOWN.
+ *
+ * The runner above discovers suites from `package.json`, which is right,
+ * because the npm script carries the node conditions each suite needs. But a
+ * test file that was never GIVEN a script is invisible to it, and two were:
+ * `tests/checkins.test.ts` and `tests/patient-import.test.ts`, thirty passing
+ * assertions nobody had run in months.
+ *
+ * So the filesystem is the second source, and disagreeing with `package.json`
+ * is a failure rather than a shrug. Writing a test and not wiring it is the
+ * cheapest possible way to believe you are covered.
+ */
+function orphans(names: string[]): string[] {
+  const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { scripts: Record<string, string> };
+  const wired = names.map((n) => pkg.scripts[n] ?? "").join(" ");
+
+  return readdirSync("tests")
+    .filter((f) => f.endsWith(".test.ts") || f.endsWith(".test.tsx"))
+    .filter((f) => !REACHED_ANOTHER_WAY.has(f))
+    .filter((f) => !wired.includes(`tests/${f}`));
+}
+
 function main() {
   const names = suiteNames();
   console.log(`\n🔴 Every unit suite, in one pass. ${names.length} of them.\n`);
+
+  const unwired = orphans(names);
+  if (unwired.length > 0) {
+    console.log(`  FAIL  ${unwired.length} test file(s) on disk that no npm script runs:`);
+    for (const f of unwired) console.log(`          tests/${f}`);
+    console.log("\n🔴 A suite nobody runs is a suite nobody reads. Wire it or delete it.\n");
+    process.exit(1);
+  }
 
   const results = names.map(run);
   let pass = 0;

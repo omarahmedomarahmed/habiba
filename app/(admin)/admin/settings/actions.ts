@@ -459,3 +459,48 @@ export async function saveTransferFields(
   revalidatePath("/admin/settings");
   return { ok: "Saved. This is what a payer sees now." };
 }
+
+/**
+ * 🔴 75.5 — MINT A BACK OFFICE ACCOUNT, because nothing in the product could.
+ *
+ * Five admin pages are behind `requireStaff()` and `/admin/tv` is behind
+ * `requireManager()`, and the only account any database had was the owner's.
+ * The plan pays two support staff from month one to work a payments queue they
+ * had no way to reach, and the only way to work it was to share the owner's
+ * login, which ends the audit trail: every confirmation and every rejection is
+ * then attributed to somebody who did not make it.
+ *
+ * `super_admin` is deliberately not on the menu. Elevating somebody to the role
+ * that can create roles should cost a database session, not a form.
+ */
+export async function addBackOfficeUser(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const actor = await requireRole("super_admin");
+
+  const wanted = String(formData.get("role") ?? "staff");
+  const role = wanted === "manager" ? "manager" : "staff";
+
+  const { createBackOfficeUser } = await import("@/lib/data/admin-team");
+  const result = await createBackOfficeUser({
+    email: String(formData.get("email") ?? ""),
+    firstName: String(formData.get("firstName") ?? ""),
+    lastName: String(formData.get("lastName") ?? ""),
+    password: String(formData.get("password") ?? ""),
+    role,
+  });
+
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "team.member_added",
+    resourceType: "user",
+    resourceId: String(formData.get("email") ?? ""),
+  });
+
+  revalidatePath("/admin/settings");
+  return { ok: `Added. They sign in at /staff/sign-in as ${role}.` };
+}

@@ -25,6 +25,7 @@ import {
 import { writesTo } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
+import { REQUIRED_IN_PRODUCTION } from "../lib/env";
 
 /*
  * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
@@ -478,6 +479,19 @@ async function main() {
              */
             DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://verify16.invalid/none",
             OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-verify16",
+            /*
+             * 🔴 AND THE REST, DERIVED RATHER THAN RETYPED.
+             *
+             * The hand-written list above went stale the moment `lib/env` grew
+             * two more required vars, and this check reported C37 as BROKEN
+             * because a child could not boot. `REQUIRED_IN_PRODUCTION` is now
+             * exported and read here, so a var added next sprint is supplied by
+             * a file nobody edited. Exactly the rule `scripts/age.ts` follows
+             * about columns, for the same reason.
+             */
+            ...Object.fromEntries(
+              REQUIRED_IN_PRODUCTION.map((key) => [key, process.env[key] ?? `verify16-${key}`]),
+            ),
           },
           encoding: "utf8",
         },

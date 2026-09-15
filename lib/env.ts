@@ -19,12 +19,60 @@ const KNOWN_WEAK_SECRETS = new Set([
   "jwt-secret",
 ]);
 
-/** Vars without which the app must refuse to start in production. */
-const REQUIRED_IN_PRODUCTION = [
+/**
+ * Vars without which the app must refuse to start in production.
+ *
+ * 🔴 EXPORTED, because `verify:sprint16` spawns a production child to prove C37
+ * and has to supply every one of them. It used to carry a hand-copied list,
+ * which went stale the moment this one grew and reported a money-safety
+ * property as BROKEN because a key was missing. A list in two places is a list
+ * that disagrees with itself.
+ */
+export const REQUIRED_IN_PRODUCTION = [
   "DATABASE_URL",
   "OPENAI_API_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "APP_URL",
+  /*
+   * 🔴 MOVED UP FROM RECOMMENDED, because "recommended" meant one console.warn
+   * and then every scheduled job returning 401 forever.
+   *
+   * The scheduled-job route is fail-closed on this, which is right. What
+   * was wrong is the pairing: a production deploy that forgot the variable
+   * booted cleanly, warned once into a log nobody reads, and then silently
+   * stopped running:
+   *
+   *   - `sweepUndeliveredAlerts`, which that file itself calls the single most
+   *     safety-relevant scheduled job in the system. A crisis alert whose
+   *     notification insert failed stays pending FOREVER and never reaches a
+   *     clinician
+   *   - `sweepOverrunSessions`, so sessions stay in_progress and their
+   *     clinician stays marked unavailable on the public radar
+   *   - `releaseAllHeldEarnings`, which is other people's money
+   *   - `lapseOverdue`, dunning, and every appointment reminder
+   *
+   * Nothing anywhere surfaces "the crons have not run". A missing secret that
+   * silently disables the crisis sweeper is not a degraded feature.
+   */
+  "CRON_SECRET",
+  /*
+   * 🔴 AND THIS ONE BLOCKS ONBOARDING ENTIRELY, which nothing said either.
+   *
+   * Without it `uploadsConfigured()` is false and every upload returns "File
+   * uploads are not configured on this deployment". That is:
+   *
+   *   - therapist verification: identity document, licence, headshot. So
+   *     `isCleared` never returns true, `requireVerified` bounces every
+   *     clinician back to /onboarding forever, and NOBODY can go on the radar
+   *     or start a session
+   *   - the Egyptian transfer receipt, so a patient who attaches the screenshot
+   *     their bank app produced is hard-blocked from declaring payment
+   *
+   * It was in neither list and not in `.env.example`, which made it the
+   * clearest "works in dev, fails only in production" hazard in the product:
+   * locally you set ALLOW_LOCAL_UPLOADS=1 and never find out.
+   */
+  "BLOB_READ_WRITE_TOKEN",
 ] as const;
 
 /** Vars whose absence degrades a feature but must not stop the boot. */
@@ -33,7 +81,6 @@ const RECOMMENDED = [
   "STRIPE_SECRET_KEY",
   "RESEND_API_KEY",
   "EMAIL_FROM",
-  "CRON_SECRET",
 ] as const;
 
 export type EnvProblem = { level: "error" | "warn"; message: string };

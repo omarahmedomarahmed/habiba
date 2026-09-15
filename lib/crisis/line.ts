@@ -123,15 +123,71 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
  * the query is in flight. So the caller passes what it already loaded, and
  * `configured` wins when it is there.
  */
+/**
+ * 🔴 WHICH COUNTRY'S LINE TO PRINT FOR SOMEBODY WE HAVE NO NUMBER FOR.
+ *
+ * A guest has no account and therefore no phone, and until this sprint that
+ * meant the SOS orb printed no number at all on the join page, the payment
+ * screen, the public profile and the radar. Egypt's 105 was in the table the
+ * whole time; nothing asked for it.
+ *
+ * Two signals, in this order, and no default:
+ *
+ *   1. The practice's own REGION, which is a fact somebody typed on
+ *      `/admin/clinics` with paperwork in hand.
+ *   2. The language they are reading, which is weaker but is not nothing:
+ *      Arabic is served in exactly one market.
+ *
+ * Returning null is still a real answer, and the orb renders "call your local
+ * emergency number" for it. The wrong country's number is worse than none: it
+ * looks like help and reaches nothing.
+ */
+export function crisisCountryFor(input: {
+  region?: string | null;
+  locale?: string | null;
+}): string | null {
+  const region = input.region?.trim().toLowerCase();
+  if (region === "eg") return "EG";
+  if (region === "us") return "US";
+
+  const locale = input.locale?.trim().toLowerCase();
+  if (locale?.startsWith("ar")) return "EG";
+
+  return null;
+}
+
 export function crisisLine(
   country?: string | null,
   configured?: { label: string | null; tel: string | null } | null,
 ): CrisisLine | null {
+  const built = country ? (CRISIS_LINES[country.trim().toUpperCase()] ?? null) : null;
+
   if (configured?.label && configured.tel) {
-    return { label: configured.label, tel: configured.tel };
+    /*
+     * 🔴 AND THE MENU STEPS SURVIVE, WHICH THEY DID NOT.
+     *
+     * This returned `{ label, tel }` and dropped `steps`, so the moment an
+     * operator typed Egypt's line into `country_settings` the product stopped
+     * telling an Egyptian caller to **press 1 for Arabic, then 1 for mental
+     * health**.
+     *
+     * 105 answers with a menu in a language the caller may not read. A number
+     * with no menu instruction beside it is not a working crisis line, it is a
+     * slower failure, and the failure arrives at the worst moment there is.
+     *
+     * The steps are carried only when the configured number IS the one we have
+     * verified steps for. An operator who configures a different line has a
+     * menu we know nothing about, and inventing one would be worse than silence.
+     */
+    const sameNumber = built?.tel === configured.tel;
+    return {
+      label: configured.label,
+      tel: configured.tel,
+      ...(sameNumber && built?.steps ? { steps: built.steps } : {}),
+    };
   }
-  if (!country) return null;
-  return CRISIS_LINES[country.trim().toUpperCase()] ?? null;
+
+  return built;
 }
 
 /**

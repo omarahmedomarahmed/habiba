@@ -235,10 +235,43 @@ export async function openPot(input: {
   refundPolicy: string;
   expiresAt: Date;
   overdraftCents: number;
+  /**
+   * 🔴 THE WELCOME CREDIT, AND WITHOUT IT THE OFFER COULD NOT BE GIVEN AT ALL.
+   *
+   * The plan says a company or university gets $100 of pot credit, and until
+   * this sprint **no screen in the product could put it there.** Both ways money
+   * reaches a pot, the card path and the transfer path, enforce
+   * `sponsor.minTopUpCents`, which is $5,000, and the `sponsor` settings group
+   * is not writable from `/admin/settings`. So the one commercial offer the
+   * whole go-to-market rests on was unreachable.
+   *
+   * A minimum is the right rule for a top-up and the wrong rule for a grant.
+   * They are different acts: a top-up is a customer BUYING credit, and the floor
+   * stops us doing five-dollar bank reconciliations forever. A welcome credit is
+   * us GIVING it, and there is nobody to under-pay.
+   *
+   * So it is granted here, by an operator opening the pot, and it is capped at
+   * the floor: anything at or above `minTopUpCents` is a purchase and must go
+   * through the rail where somebody actually sends money.
+   */
+  welcomeCreditCents?: number;
 }): Promise<{ ok?: true; error?: string }> {
   const policy = input.refundPolicy.trim();
   if (!policy) return { error: "The refund terms have to be written down first." };
   if (Number.isNaN(input.expiresAt.getTime())) return { error: "Set an expiry date." };
+
+  const credit = Math.max(0, Math.round(input.welcomeCreditCents ?? 0));
+
+  if (credit > 0) {
+    const { getSettings } = await import("@/lib/settings");
+    const settings = await getSettings();
+    if (credit >= settings.sponsor.minTopUpCents) {
+      return {
+        error:
+          "That is a top-up, not a welcome credit. Anything that size is money somebody sends us through the payments queue.",
+      };
+    }
+  }
 
   try {
     await controlDb.insert(sponsorPots).values({
@@ -251,9 +284,22 @@ export async function openPot(input: {
        * database refuses a balance below it.
        */
       overdraftCents: Math.max(0, Math.round(input.overdraftCents)),
+      /*
+       * Posted as a balance and no ledger leg, which is how a confirmed top-up
+       * behaves too: a pot is a LIABILITY and the cash leg lands when a session
+       * spends it (`pot.ts` posts `sponsor_pot` positive and `cash` negative at
+       * that moment). For a welcome credit that is exactly right, and it is why
+       * the plan counts the credit as real cash leaving rather than as a
+       * discount: we pay out money for sessions nobody ever sent us money for.
+       */
+      balanceCents: credit,
     });
   } catch {
     return { error: "This account already has a pot." };
+  }
+
+  if (credit > 0) {
+    log.info("welcome credit granted", { sponsor: ref(input.sponsorId), amountCents: credit });
   }
 
   return { ok: true };

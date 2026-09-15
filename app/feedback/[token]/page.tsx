@@ -7,6 +7,7 @@ import { feedbackContext } from "@/lib/data/feedback";
 import { BRAND } from "@/lib/brand";
 import { getI18n } from "@/lib/i18n/server";
 import { optionalPatient } from "@/lib/patient-auth/guard";
+import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrb } from "@/components/patient/sos-orb";
 
 export const metadata: Metadata = { title: "Your session", robots: { index: false } };
@@ -24,7 +25,9 @@ export default async function FeedbackPage({
 }: {
   params: Promise<{ token: string }>;
 }) {
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
+  /* 🔴 75.4 — a guest has no phone, so the language they chose is the signal. */
+  const sosCountry = crisisCountryFor({ locale });
   const { token } = await params;
   const [context, signedIn] = await Promise.all([
     feedbackContext(token),
@@ -33,7 +36,7 @@ export default async function FeedbackPage({
 
   if (!context) {
     return (
-      <Shell>
+      <Shell country={sosCountry}>
         <Card className="p-6 text-center">
           <p className="text-base font-semibold text-slate-900">{t("feedback.expired")}</p>
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
@@ -48,7 +51,7 @@ export default async function FeedbackPage({
   }
 
   return (
-    <Shell>
+    <Shell country={sosCountry}>
       {/*
         The heading lives inside the form, not above it.
         -----------------------------------------------
@@ -107,7 +110,7 @@ export default async function FeedbackPage({
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, country }: { children: React.ReactNode; country: string | null }) {
   return (
     <div className="min-h-dvh bg-slate-50">
       <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">{children}</div>
@@ -119,7 +122,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         the person who should still have the orb, and putting it on the happy
         path only is how "every patient screen" quietly becomes "most".
       */}
-      <SosOrb />
+      <SosOrb country={country} />
     </div>
   );
 }

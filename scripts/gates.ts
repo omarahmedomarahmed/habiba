@@ -174,6 +174,27 @@ const GATES = [
     script: "suites",
     why: "and all thirty unit suites still agree with what we charge",
   },
+  /*
+   * 🔴 AND THE SEVENTY-NINE VERIFIERS THIS PASS WAS NOT RUNNING.
+   *
+   * `package.json` wires eighty-one `verify:*` scripts. This pass ran twelve.
+   * So seventy-nine were reachable only by somebody typing their exact name,
+   * and `verify:sprint1` had been RED among them since the reprice, asserting
+   * the tier prices as the literal `"9900,17900"`.
+   *
+   * That is the third time in one day the same lesson arrived: the seats suite,
+   * the safety suite, and now a whole shelf of sprint verifiers. **An unrun
+   * gate is a gate nobody reads**, and the fix is never "remember to run it".
+   * `scripts/verifiers.ts` discovers them from `package.json` and skips exactly
+   * two things by name: the twelve already here, and `verify:synthetic`, which
+   * is a property of a database rather than of the code and is correctly red on
+   * a branch full of fixtures.
+   */
+  {
+    name: "verifiers",
+    script: "verifiers",
+    why: "and the seventy-nine sprint verifiers nobody was running",
+  },
 ] as const;
 
 function main() {

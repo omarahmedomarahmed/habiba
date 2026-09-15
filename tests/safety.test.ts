@@ -160,12 +160,26 @@ test("production env guard rejects missing and weak secrets", () => {
 });
 
 test("production env guard rejects a short secret and accepts a strong one", () => {
+  /*
+   * 🔴 EVERY REQUIRED VARIABLE, and this fixture went red when two were added.
+   *
+   * That is the test working. `CRON_SECRET` and `BLOB_READ_WRITE_TOKEN` moved
+   * from "recommended" to required, because "recommended" meant one console
+   * warning and then, respectively, every scheduled job returning 401 forever
+   * (including the crisis alert sweeper) and every upload refused (which blocks
+   * therapist verification, so nobody can go on the radar at all).
+   *
+   * A fixture that lists them is a fixture that has to be edited deliberately
+   * when the list changes, which is the point.
+   */
   const base = {
     NODE_ENV: "production",
     DATABASE_URL: "postgres://x",
     OPENAI_API_KEY: "sk-x",
     STRIPE_WEBHOOK_SECRET: "whsec_x",
     APP_URL: "https://x",
+    CRON_SECRET: "cron-x",
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_x",
   };
 
   assert.ok(

@@ -52,8 +52,22 @@ export const QUOTE_TTL_MS = 60 * 60 * 1000;
  */
 const STATIC_RATES: Record<string, number> = {
   usd: 1_000_000,
-  // ~48 EGP to the dollar. Indicative, and stamped as such on every quote.
-  egp: 48_000_000,
+  /*
+   * 🔴 50 EGP to the dollar, which is the SAME NUMBER the rest of the product
+   * uses, and it was 48 here while everything else said 50.
+   *
+   * `payouts.egpRateMicro` defaults to 50_000_000, `lib/finance/plans.ts` sets
+   * `EGP_PER_USD = 50`, and both models and every document quote 1,000 EGP as
+   * $20. This table said 48, so a quote that fell through to it priced the same
+   * session about 4% cheaper than the transfer screen asked for. Two rates for
+   * one pair is a reconciliation somebody does by hand at month end.
+   *
+   * It is still INDICATIVE and still stamped as such on every quote, and `C37`
+   * still refuses it in production: a static rate is a placeholder for a feed,
+   * not a price. The point of moving it is that the placeholder should not
+   * disagree with the operator setting it stands in for.
+   */
+  egp: 50_000_000,
 };
 
 export type Quote = {

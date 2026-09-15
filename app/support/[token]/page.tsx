@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { TicketReader } from "@/components/support/ticket-reader";
+import { getI18n } from "@/lib/i18n/server";
+import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrb } from "@/components/patient/sos-orb";
 
 export const metadata: Metadata = { title: "Your message", robots: { index: false } };
@@ -45,7 +47,7 @@ export default async function SupportTicketPage({
         and this page is reached from an email at the moment they decided to
         tell us something. The orb is two taps and a `tel:` link away.
       */}
-      <SosOrb />
+      <SosOrb country={crisisCountryFor({ locale: (await getI18n()).locale })} />
     </main>
   );
 }

@@ -510,6 +510,12 @@ export const en = {
   "crisis.anywhereElse":
     "Anywhere else, call your local emergency number. It is free from any phone, and works with no credit and no SIM.",
 
+  /* ----------------------------------------- 🔴 when a page fails, in their language */
+  "error.title": "Something went wrong at our end",
+  "error.body":
+    "Nothing you did caused this and nothing you sent has been lost. Try again, and if it keeps happening the SOS button below still works.",
+  "error.retry": "Try again",
+
   /* ------------------------------------------------ 🔴 consent, the patient's */
   "consent.pageTitle": "Who can read your history",
   /*
@@ -1345,7 +1351,7 @@ export const en = {
    */
   "aclinic.nav": "Clinics",
   "aclinic.title": "Clinics and hospitals",
-  "aclinic.body": "A clinic IS an organisation row, so its clinicians sit inside its tenancy and a sponsor never could. Activating one opens a practice that will hold clinical records.",
+  "aclinic.body": "A clinic IS an organisation row, so its clinicians sit in its tenancy and a sponsor never could. Activating one opens a practice that holds records.",
   "aclinic.none": "No practice enquiries yet.",
   "aclinic.contact": "Contact",
   "aclinic.clinicians": "{count} clinicians",
@@ -1360,7 +1366,7 @@ export const en = {
   /* 55.2 — the operator's side of a partner. Held until somebody has had the call. */
   "apartner.nav": "Partners",
   "apartner.title": "Partners and integrators",
-  "apartner.body": "A partner is outside clinical tenancy entirely and owns no organisation. Activating one lets them hold a key, so nothing here happens before the call.",
+  "apartner.body": "A partner is outside clinical tenancy and owns no organisation. Activating one lets them hold a key, so nothing happens before the call.",
   "apartner.none": "No integrator enquiries yet.",
   "apartner.contact": "Contact",
   "apartner.intent": "What they say they want to build",
@@ -1373,10 +1379,10 @@ export const en = {
   "apartner.developer": "Developer, reads only",
   "apartner.create": "Create",
   /* 🔴 C265 — the reason this console never mints a key, said on the console. */
-  "apartner.neverMints": "Keys are minted by the partner, in their own portal, and scoped there. Nothing here creates one: a key we minted is a credential nobody on their side chose the scope of.",
+  "apartner.neverMints": "The partner mints and scopes their own keys. A key we minted is a credential nobody on their side chose the scope of.",
   "asponsor.nav": "Sponsors",
   "asponsor.title": "Sponsors",
-  "asponsor.body": "Corporate and university accounts: one type with two faces, the same controls and different words on their own screens.",
+  "asponsor.body": "Corporate and university accounts: one type, two faces, different words on their own screens.",
   "asponsor.none": "No corporate enquiries yet.",
   "asponsor.contact": "Contact",
   "asponsor.email": "Email",
@@ -1396,13 +1402,26 @@ export const en = {
   "asponsor.terms": "Refund and expiry terms",
   "asponsor.expires": "Unspent money expires",
   "asponsor.overdraft": "Overdraft allowed, in whole units",
+  "ateam.title": "The back office team",
+  "ateam.body":
+    "Staff work the queues; a manager also sees the board. They sign in at /staff/sign-in.",
+  "ateam.first": "First name",
+  "ateam.last": "Last name",
+  "ateam.email": "Email",
+  "ateam.password": "First password",
+  "ateam.role": "What they can reach",
+  "ateam.roleStaff": "Staff, the queues",
+  "ateam.roleManager": "Manager, the queues and the board",
+  "ateam.add": "Add them",
+  "asponsor.welcomeCredit": "Welcome credit, in whole units",
+  "asponsor.welcomeCreditHint": "What we give them to start. Zero if they are buying.",
   "asponsor.openPotButton": "Open the pot",
   "asponsor.addUser": "Add a portal user",
   "asponsor.name": "Name",
   "asponsor.password": "Password, at least twelve characters",
   "asponsor.create": "Create",
   /* 🔴 53.16 / C232 — the line an operator reads before taking any more money. */
-  "asponsor.drift": "A pot balance disagrees with the ledger. Take no top up until this is explained.",
+  "asponsor.drift": "A pot balance disagrees with the ledger. Take no top up until explained.",
   "asponsor.driftRow": "{id}: the table says {table}, the ledger says {ledger}, out by {delta}",
   /* 🔴 53.15 / 53.28 — a sponsor-facing DOCUMENT, so every word of it is a key. */
   "sponsor.inv.title": "Invoice",
@@ -1899,9 +1918,9 @@ export const en = {
   /* The admin's measurement. C97: "measure the mute rate" — and act on it the same afternoon. */
   "acheckin.nav": "Check-ins",
   "acheckin.title": "Check-ins",
-  "acheckin.body": "A short message asking how somebody is, on a schedule. Every number here is yours to change, and the mute rate is the one to watch.",
+  "acheckin.body": "A scheduled message asking how somebody is. Every number is yours to change; watch the mute rate.",
   "acheckin.rate": "The mute rate",
-  "acheckin.rateBody": "{muted} of {reachable} people who could be messaged have turned these off. Above {halt} the channel stops sending to everybody, because continuing is choosing to be wrong at everyone.",
+  "acheckin.rateBody": "{muted} of {reachable} reachable people have turned these off. Above {halt} the channel stops for everybody: continuing is choosing to be wrong at everyone.",
   "acheckin.halted": "The channel is halted. Enough people have muted that it stopped on its own.",
   "acheckin.sent": "{count} sent",
   "acheckin.delivered": "{count} delivered",
@@ -1909,7 +1928,7 @@ export const en = {
   "acheckin.crisisRouted": "{count} went to the crisis path",
   "acheckin.mutedCount": "{count} turned them off",
   "acheckin.unmutedCount": "{count} turned them back on",
-  "acheckin.noBodies": "What people replied is on no screen at all. A worrying reply goes to their own therapist through the crisis path; everything else is kept and read by nobody.",
+  "acheckin.noBodies": "No reply is on any screen. A worrying one reaches their own therapist through the crisis path; the rest is kept and read by nobody.",
   "checkin.1": "{name}, how are you doing today?",
   "checkin.2": "Thinking of you, {name}. How is today going?",
   "checkin.3": "Hello {name}. How are things right now?",
@@ -2306,7 +2325,7 @@ export const en = {
   "tpay.owedNow": "You currently owe {amount}.",
   "tpay.saveSettings": "Save payment settings",
   "tver.underReview": "With us for review",
-  "tver.underReviewBody": "A person is checking your documents, usually within a working day. Sessions unlock the moment you are approved.",
+  "tver.underReviewBody": "Somebody is checking your documents, usually within a working day. Sessions unlock when you are approved.",
   "tver.rejected": "We could not verify you yet",
   "tver.rejectedBody": "Fix what is described above and submit again. It returns to the front of the queue.",
   "tver.noUploads":
@@ -2330,7 +2349,7 @@ export const en = {
   "tver.chooseCountryFirst":
     "Choose your country above and these change to the documents it actually issues.",
   "tver.nearlyThere": "Nearly there",
-  "tver.savedListNote": "What we have saved. Press {save} first if you have just filled something in above.",
+  "tver.savedListNote": "What we have saved. Press {save} first if you just filled something in above.",
   "tver.everythingHere": "Everything is here.",
   "tver.submitting": "Submitting…",
   "tver.submit": "Submit for verification",
@@ -3754,6 +3773,11 @@ export const ar: Record<MessageKey, string> = {
   "crisis.anywhereElse":
     "في أي مكان آخر، اتصل برقم الطوارئ في بلدك. الاتصال مجاني من أي هاتف، ويعمل بلا رصيد وبلا شريحة.",
 
+  "error.title": "حدث خطأ من جانبنا",
+  "error.body":
+    "لم يتسبب أي شيء فعلته في هذا، ولم يُفقد أي شيء أرسلته. حاول مرة أخرى، وإذا استمر الأمر فزر الاستغاثة أدناه ما زال يعمل.",
+  "error.retry": "حاول مرة أخرى",
+
   /* --------------------------------------------------- 🔴 الإذن، من جهة المريض */
   "consent.pageTitle": "من يمكنه قراءة تاريخك",
   "consent.whoTherapist": "معالج سمحت له",
@@ -4453,6 +4477,20 @@ export const ar: Record<MessageKey, string> = {
   "asponsor.terms": "شروط الاسترداد وانتهاء الصلاحية",
   "asponsor.expires": "ينتهي المبلغ غير المنفق",
   "asponsor.overdraft": "السحب على المكشوف المسموح، بالوحدات الكاملة",
+  "ateam.title": "فريق المكتب الخلفي",
+  "ateam.body":
+    "يعمل الموظفون على قوائم التحقق والتحويلات والمدفوعات والأرقام والدعم. أما المدير فيرى اللوحة أيضًا. يسجلون الدخول على /staff/sign-in بكلمة مرور تحددها معهم.",
+  "ateam.first": "الاسم الأول",
+  "ateam.last": "اسم العائلة",
+  "ateam.email": "البريد الإلكتروني",
+  "ateam.password": "كلمة المرور الأولى",
+  "ateam.role": "ما يمكنهم الوصول إليه",
+  "ateam.roleStaff": "موظف، القوائم",
+  "ateam.roleManager": "مدير، القوائم واللوحة",
+  "ateam.add": "أضفهم",
+  "asponsor.welcomeCredit": "رصيد الترحيب، بالوحدات الكاملة",
+  "asponsor.welcomeCreditHint":
+    "ما نمنحه لهم للبدء. اتركه صفرًا لحساب يشتري رصيدًا بدلًا من أن يُعرض عليه.",
   "asponsor.openPotButton": "افتح المحفظة",
   "asponsor.addUser": "أضف مستخدمًا للبوابة",
   "asponsor.name": "الاسم",

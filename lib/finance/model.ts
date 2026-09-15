@@ -139,27 +139,56 @@ export function forecast(a: Assumptions): Projection {
 
     /*
      * 🔴 The free first session is a real acquisition cost, not a rounding
-     * error: every new therapist gets one, and at a $1 fee plus 15% of a $40
-     * session that is $7 of revenue we chose not to take. Modelled as sessions
-     * that happen and earn nothing rather than as a discount, because that is
-     * what it is.
+     * error: every new therapist gets one, and at 15% of a $20 session that is
+     * $3 of revenue we chose not to take. Modelled as sessions that happen and
+     * earn nothing rather than as a discount, because that is what it is.
      */
     const freeSessions = newThisMonth * v(a.market.freeSessionsPerNewTherapist);
     const payingSessions = Math.max(0, sessions - freeSessions);
 
     /* ------------------------------------------------------- the revenue -- */
 
+    /*
+     * 🔴 WHO PAYS WHAT, AND THE FIRST VERSION GOT ALL THREE WRONG AT ONCE.
+     *
+     * There are two separate charges and they land on different populations:
+     *
+     *   - the 15% CUT is on what the patient PAID, so paid sessions only, and
+     *     it applies whether the therapist is on a plan or metered
+     *   - the $1 room fee and the $3 note fee are METERED charges. They are on
+     *     the session existing at all, so a free session, a radar session and
+     *     an in-person session all bill the $1. **A subscriber pays neither.**
+     *
+     * ⚠️ What was here before folded the cut and the room fee into one
+     * `feePerSession` and charged the sum on `payingSessions`, which was wrong
+     * in three directions: it billed the room fee to subscribers, it billed the
+     * room fee on no free sessions when it should bill on all of them, and it
+     * charged the take rate to people who had not paid. `lib/finance/beta.ts`
+     * was corrected at :409 and says so; this engine never got the fix, and
+     * `verify:finance` did not catch it because it compared the two engines'
+     * CONSTANTS rather than what they do with them.
+     */
+    const subscriberShare = v(a.pricing.payingShare);
     const subscriptionUsd =
-      therapists * v(a.pricing.payingShare) * v(a.pricing.blendedSubscriptionUsd);
+      therapists * subscriberShare * v(a.pricing.blendedSubscriptionUsd);
 
-    const feePerSession =
-      v(a.unit.platformFeeCents) / 100 +
-      (v(a.unit.sessionPriceUsd) * v(a.unit.platformFeeBps)) / 10_000;
-    const sessionFeeUsd = payingSessions * feePerSession;
+    /** Our cut, on what a patient actually paid, from subscriber and metered alike. */
+    const takeUsd =
+      payingSessions * ((v(a.unit.sessionPriceUsd) * v(a.unit.platformFeeBps)) / 10_000);
 
-    /* C209: the AI fee only where the patient said yes. */
-    const aiFeeUsd = recorded * v(a.unit.aiFeeUsdPerSession);
+    /** Every session a METERED account runs bills the room, paid or not. */
+    const meteredSessions = sessions * (1 - subscriberShare);
+    const roomFeeUsd = meteredSessions * (v(a.unit.platformFeeCents) / 100);
 
+    /*
+     * C209: the note fee only where the patient said yes, and only from a
+     * metered account. `recorded` is every consented session; the subscriber
+     * half of it is already paid for by the subscription.
+     */
+    const aiFeeUsd =
+      recorded * (1 - subscriberShare) * v(a.unit.aiFeeUsdPerSession);
+
+    const sessionFeeUsd = takeUsd + roomFeeUsd;
     const revenueUsd = subscriptionUsd + sessionFeeUsd + aiFeeUsd;
 
     /* --------------------------------------------------------- the costs -- */

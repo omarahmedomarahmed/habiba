@@ -226,6 +226,13 @@ const SCOPE: Record<string, Scope> = {
   "enrolment-verify": { who: ["sponsor", "admin", "patient"] },
   "instrument-seeds": { who: ["admin"] },
 
+  /*
+   * 🔴 75.5 — minting a staff or manager account. The narrowest scope there is,
+   * because it is the module that decides who else gets to be an operator, and
+   * `super_admin` is deliberately not one of the roles it can create.
+   */
+  "admin-team": { who: ["admin"] },
+
   sponsors: { who: ["admin"] },
   "sponsor-admin": { who: ["admin"] },
   support: { who: ["admin", "patient", "clinician"] },

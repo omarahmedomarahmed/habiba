@@ -374,6 +374,13 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
     organizationId: payment.refId,
     ref: payment.id,
     paidAt: payment.decidedAt ?? new Date(),
+    /*
+     * 🔴 WHAT ACTUALLY ARRIVED, so a month cannot be granted by a transfer that
+     * did not cover it. Passing this was the missing half of the fix: the
+     * function now refuses when the money is short, and it can only do that if
+     * somebody tells it how much there was.
+     */
+    settlesCents: payment.settlesCents,
   });
 }
 

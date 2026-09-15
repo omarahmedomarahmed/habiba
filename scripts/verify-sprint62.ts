@@ -122,11 +122,27 @@ async function main() {
    * seat.** The mechanism is guarded below against a planted banded ladder, so
    * the capability survives even though the shipped ladder does not use it.
    */
+  /*
+   * ⚠️ THIS WAS `x === x` AND IT REPORTED `ok` FOR TWO SPRINTS.
+   *
+   * Repointing it for the reprice was done by making both sides of the equality
+   * the same expression, which cannot fail for any ladder, including an empty
+   * one. **A tautology is worse than a deleted check**, because a deleted check
+   * is absent and this one printed a green line every time anybody looked.
+   *
+   * The property is that the step at the first band boundary is the difference
+   * between two WHOLE monthly figures, so it can be smaller than one seat: on
+   * the shipped ladder the first seat reprices from $80 to $72 the moment there
+   * are two of them, which makes the step $64 rather than $72.
+   */
+  const boundary = bands[1]?.from ?? 2;
+  const step = seatMonthlyCents(boundary, bands) - seatMonthlyCents(boundary - 1, bands);
+  const oneSeat = bands[1]?.perSeatCents ?? 0;
+
   check(
-    "🔴 62.2 the step from two seats to three is the difference between two monthly figures",
-    seatMonthlyCents(3, bands) - seatMonthlyCents(2, bands) ===
-      seatMonthlyCents(3, bands) - seatMonthlyCents(2, bands),
-    `$${((seatMonthlyCents(3, bands) - seatMonthlyCents(2, bands)) / 100).toFixed(0)} on the shipped flat ladder, which is one seat`,
+    "🔴 62.2 the step at the first band boundary is the difference between two monthly figures",
+    step > 0 && step < oneSeat && step === boundary * oneSeat - seatMonthlyCents(boundary - 1, bands),
+    `$${(step / 100).toFixed(0)} at seat ${boundary}, which is LESS than the $${(oneSeat / 100).toFixed(0)} seat it adds, because reaching the band reprices the ones below it`,
   );
 
   check(
@@ -461,7 +477,10 @@ async function main() {
   check(
     "🔴 62.10 every published figure comes from `platform_settings`, none is typed",
     /settings\.pricing\.seatBands/.test(pricing) &&
-      !/17_?900|27_?000|\$179|\$270|\$400/.test(pricing),
+      /* 🔴 ANY price literal, not a denylist of the ones we used to charge. */
+      !/\$\s?\d{2,}|\b\d{4,5}_?\d{0,3}\b/.test(
+        pricing.replace(/settings\.pricing\.seatBands/g, "").replace(/\d{4}-\d{2}-\d{2}/g, ""),
+      ),
     "a number typed into a marketing page is a number nobody rereads after a reprice",
   );
 
