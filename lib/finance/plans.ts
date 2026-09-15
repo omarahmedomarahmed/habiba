@@ -168,10 +168,17 @@ const UNIT = {
 const COMPANY = {
   key: "company" as const,
   label: "Company or university",
-  /** 🔴 DECIDED. Two in month one, one in month two, none in month three. */
-  arrivals: [2, 1, 0],
-  /** 🔴 GUESS. One a month once there is a case study to sell with. */
-  steadyPerMonth: 1,
+  /**
+   * 🔴 DECIDED, AND RAISED WHEN A FOUNDER JOINED THE SELLING.
+   *
+   * Three in month one, two in month two, two in month three. It was 2/1/0,
+   * which described two sellers with one of them splitting their time between
+   * companies and everything else. A third full-time seller is 50% more calls,
+   * and a company sale in this market is a call, a demo and a procurement form.
+   */
+  arrivals: [3, 2, 2],
+  /** 🔴 GUESS. Two a month once there is a case study to sell with. */
+  steadyPerMonth: 2,
   /** DECIDED. They fund a pot; there is no seat fee in the beta. */
   monthlyUsd: 0,
   cliniciansEach: 1,
@@ -201,10 +208,10 @@ const COMPANY = {
 const CLINIC = {
   key: "clinic" as const,
   label: "Clinic",
-  /** 🔴 DECIDED. Six clinics in three months, weighted late as the pitch improves. */
-  arrivals: [1, 2, 3],
-  /** 🔴 GUESS. Two a month once referenceable. */
-  steadyPerMonth: 2,
+  /** 🔴 DECIDED. Nine clinics in three months, weighted late as the pitch improves. */
+  arrivals: [2, 3, 4],
+  /** 🔴 GUESS. Three a month once referenceable. */
+  steadyPerMonth: 3,
   /**
    * 🔴 DECIDED: **$72 a seat, minimum two, so a four-clinician clinic pays
    * $288.** Ten per cent off the solo price, which is a rule rather than a
@@ -258,10 +265,10 @@ const CLINIC = {
 const THERAPIST = {
   key: "therapist" as const,
   label: "Solo therapist",
-  /** 🔴 DECIDED. Nine over the quarter, inside the 8 to 10 target. */
-  arrivals: [2, 3, 4],
-  /** 🔴 GUESS. Four a month, from referrals and the influencer posts. */
-  steadyPerMonth: 4,
+  /** 🔴 DECIDED. Fourteen over the quarter, with three people selling. */
+  arrivals: [3, 5, 6],
+  /** 🔴 GUESS. Six a month, from referrals and the influencer posts. */
+  steadyPerMonth: 6,
   /**
    * 🔴 DECIDED: **$80 a month**, and the number was chosen by arithmetic rather
    * than by rounding.
@@ -320,25 +327,6 @@ const THERAPIST = {
   welcomeCreditUsd: 0,
 };
 
-/**
- * 🔴 AFTER THE ROUND, THE SAME THREE SEGMENTS ARRIVE FASTER.
- *
- * A round buys reach, so arrivals rise in every scenario that has one. They rise
- * by the SAME amount in both post-round scenarios, which is the only way the
- * comparison between them means anything.
- *
- * The first draft of this file gave the half-price scenario both better arrivals
- * AND better churn, and then reported that half price won. That is not a finding,
- * it is the assumption restated: any option handed two advantages beats one
- * handed none. The two scenarios below now differ in exactly one thing, the
- * price a customer pays after the beta, and the churn that follows from it.
- */
-const POST_ROUND = [
-  { ...COMPANY, steadyPerMonth: 1.5 },
-  { ...CLINIC, steadyPerMonth: 3 },
-  { ...THERAPIST, steadyPerMonth: 6 },
-];
-
 /* ============================================================ the offers == */
 
 /**
@@ -364,6 +352,25 @@ const SALES = [
   /** 🔴 DECIDED. One hunting companies, one hunting clinics and therapists. */
   { role: "Sales, companies and universities", startMonth: 1, monthlyUsd: 500 },
   { role: "Sales, clinics and therapists", startMonth: 1, monthlyUsd: 500 },
+  /**
+   * 🔴 DECIDED, AND IT IS THE DECISION THIS WHOLE PLAN TURNS ON.
+   *
+   * **One of the two founders sells full time.** Not "helps out with sales":
+   * carries a list, makes the calls, and is counted here as a third seller.
+   *
+   * It costs nothing, because they are already on the payroll at $500 and that
+   * line is in `FOUNDERS` above. What it buys is 50% more selling capacity from
+   * month one, and the arrivals on every segment are raised to match. Without
+   * it the six months end at roughly break-even with about a thousand dollars
+   * left; with it the company is profitable before month 6 and has a buffer.
+   *
+   * 🔴 IT IS ALSO THE THING MOST LIKELY TO BE WRONG. A founder selling is a
+   * founder not building, and this model has no line for what stops being built.
+   * That cost is real and it is not here, because nothing in a cash forecast can
+   * see it. Read the arrival numbers as "what three sellers can do" rather than
+   * as free growth.
+   */
+  { role: "Founder, selling full time", startMonth: 1, monthlyUsd: 0 },
   /**
    * 🔴 DECIDED. A marketing person from month one, same rate as sales.
    *
@@ -508,87 +515,6 @@ export const RUNWAY: Plan = {
   ...BETA,
   name: "Can the $20k alone do it? Eighteen months, no round",
   months: 18,
-};
-
-/**
- * 🔴 SCENARIO D — RAISE, AND GRANDFATHER THE EARLY ADOPTERS.
- *
- * Thirty-six months. A round lands in month 6. Everybody who joined in the beta
- * keeps half price for ever; everybody after pays full price with a free first
- * month and no discount after it.
- *
- * This is the kinder of your two options for the early adopters and the more
- * expensive one for you: the first cohort is your loudest reference and never
- * pays list.
- */
-export const GRANDFATHERED: Plan = {
-  ...BETA,
-  name: "Raise at month 6, early adopters keep half price for ever",
-  months: 36,
-  segments: POST_ROUND,
-  raiseUsd: 150_000,
-  raiseMonth: 6,
-  promo: {
-    schedule: [0, 0.5, 0.5],
-    /** 🔴 The grandfather clause: beta cohorts stay at half price. */
-    after: 0.5,
-    lastMonth: 3,
-    /** Everybody after the beta: one free month, then full price. */
-    afterBeta: { schedule: [0], after: 1 },
-  },
-  people: [
-    /*
-     * 🔴 The founders stay on $500 until the round LANDS, then go to $1,500.
-     *
-     * The first draft of this scenario paid them $1,500 from month one, against
-     * money that arrives in month six, and the cash went below zero in month
-     * five as a direct result. Paying yourself out of a cheque you have not
-     * received is the commonest way a plan lies, and the model caught it.
-     */
-    ...FOUNDERS,
-    ...FOUNDERS.map((p) => ({ ...p, monthlyUsd: 1000, startMonth: 7 })),
-    ...SALES,
-    ...SUPPORT,
-    { role: "Sales, third", startMonth: 7, monthlyUsd: 700 },
-    { role: "Support and onboarding", startMonth: 7, monthlyUsd: 500 },
-    { role: "Engineer", startMonth: 9, monthlyUsd: 1800 },
-  ],
-  spend: [
-    ...MARKETING,
-    { label: "Ad spend, after the round", monthlyUsd: egp(60_000), startMonth: 7, everyMonth: true },
-    ...OVERHEAD,
-    { label: "Office, Cairo", monthlyUsd: egp(25_000), startMonth: 9, everyMonth: true },
-  ],
-};
-
-/**
- * 🔴 SCENARIO E — RAISE, KEEP HALF PRICE FOR EVERYBODY, DROP THE FREE MONTH.
- *
- * Your other option. Half price is the list price from month 4 on, for
- * everyone, and nobody gets a free first month any more. Cheaper per customer,
- * far more customers, and the question it answers is whether volume at half
- * price beats margin at full price. The model says which, and it says so on an
- * assumed churn number, so read it as a direction and not as a decision.
- */
-export const HALF_PRICE_FOR_ALL: Plan = {
-  ...GRANDFATHERED,
-  name: "Raise at month 6, half price for everybody, no free month",
-  promo: {
-    schedule: [0, 0.5, 0.5],
-    after: 0.5,
-    lastMonth: 3,
-    afterBeta: { schedule: [], after: 0.5 },
-  },
-  /*
-   * 🔴 IDENTICAL ARRIVALS TO THE SCENARIO ABOVE. The ONLY difference is that
-   * nobody ever faces a price rise, so there is no cliff to fall off.
-   *
-   * That single change is the whole comparison. If half price still wins after
-   * this, it wins on retention, which is a thing the beta can measure. The
-   * assumption doing the work is that a customer who never sees a rise churns at
-   * the steady rate instead of the cliff rate, and that is a GUESS.
-   */
-  segments: POST_ROUND.map((seg) => ({ ...seg, churnAtFullPrice: seg.churnSteady })),
 };
 
 /* ========================================================= the provenance = */
@@ -736,5 +662,5 @@ export function withCase(plan: Plan, churn: Case, growth: Case): Plan {
   };
 }
 
-export const PLANS = [BETA, BETA_THEN_CLIFF, RUNWAY, GRANDFATHERED, HALF_PRICE_FOR_ALL];
-export const PLAN_SLUGS = ["beta", "beta-cliff", "runway", "grandfathered", "half-price"] as const;
+export const PLANS = [BETA, BETA_THEN_CLIFF, RUNWAY];
+export const PLAN_SLUGS = ["beta", "beta-cliff", "runway"] as const;

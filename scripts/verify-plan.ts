@@ -22,8 +22,9 @@ const { check, finish } = reporter();
 
 async function main() {
   const { runPlan } = await import("../lib/finance/beta");
-  const { BETA, RUNWAY, GRANDFATHERED, HALF_PRICE_FOR_ALL, PLANS, PLAN_SLUGS, EGP_PER_USD } =
-    await import("../lib/finance/plans");
+  const { BETA, BETA_THEN_CLIFF, RUNWAY, PLANS, PLAN_SLUGS, EGP_PER_USD } = await import(
+    "../lib/finance/plans"
+  );
 
   /* ================================================================== */
   /*  It is the plan that was described                                  */
@@ -31,26 +32,71 @@ async function main() {
 
   check(
     "the plans ship, and the slugs line up with them",
-    PLANS.length === PLAN_SLUGS.length && PLANS.length >= 5,
+    PLANS.length === PLAN_SLUGS.length && PLANS.length === 3,
     PLAN_SLUGS.join(", "),
   );
 
+  /*
+   * 🔴 AND THERE IS NO SCENARIO FOR WHAT HAPPENS AFTER THE OFFER, because
+   * nothing happens after the offer.
+   *
+   * Two scenarios used to model a choice at the end of the promotion: keep the
+   * beta cohort on a permanent discount, or move everybody to half price. Both
+   * are gone. The offer is three months long, it ends, and everybody pays list
+   * price from then on. A plan that still carried the comparison would be
+   * offering a decision nobody is going to make, and the first person to read it
+   * would assume the decision was still open.
+   */
   check(
-    "🔴 the beta is three months, on twenty thousand dollars, with seven people on the payroll at $500",
-    BETA.months === 3 &&
-      BETA.openingCashUsd === 20_000 &&
-      BETA.people.length === 7 &&
-      BETA.people.every((p) => p.monthlyUsd === 500),
-    `${BETA.people.length} people at $${BETA.people[0]?.monthlyUsd} a month, $${BETA.openingCashUsd} in the bank`,
+    "🔴 nothing is modelled after the offer ends, because nothing happens after it ends",
+    PLAN_SLUGS.every((slug) => !/grandfather|half.?price/i.test(slug)) &&
+      BETA.promo.after === 1 &&
+      BETA_THEN_CLIFF.promo.after === 1 &&
+      RUNWAY.promo.after === 1,
+    "three months of offer, then the list price, in every plan that ships",
   );
 
+  /*
+   * 🔴 EVERYBODY DRAWS THE SAME $500, AND EXACTLY ONE PERSON DRAWS NOTHING.
+   *
+   * ⚠️ This asserted seven people all at $500 and went red when the selling
+   * founder was added. The property is not the headcount, which will move: it is
+   * that there is one pay rate in this company, and that the only $0 line belongs
+   * to somebody whose salary is already on the payroll under another name. A
+   * second $0 role would be an unpaid worker the plan is quietly relying on.
+   */
+  const unpaid = BETA.people.filter((p) => p.monthlyUsd === 0);
+  check(
+    "🔴 the beta is three months on twenty thousand dollars, and everybody paid is paid the same",
+    BETA.months === 3 &&
+      BETA.openingCashUsd === 20_000 &&
+      BETA.people.filter((p) => p.monthlyUsd > 0).every((p) => p.monthlyUsd === 500) &&
+      unpaid.length === 1 &&
+      /founder/i.test(unpaid[0]!.role),
+    `${BETA.people.length} people, ${BETA.people.length - unpaid.length} at $500 a month, $${BETA.openingCashUsd} in the bank`,
+  );
+
+  /*
+   * 🔴 THE ACQUISITION TARGETS ARE WHAT THREE SELLERS CAN CARRY.
+   *
+   * ⚠️ This asserted the literal 3 / 6 / 9 and went red the moment the third
+   * seller raised them. Restating the new literals would only move the same
+   * defect forward a sprint. The property that makes any set of targets
+   * defensible is the load per seller: a target nobody can physically hit is a
+   * forecast, not a plan, and it is the first number to inflate when a model is
+   * being made to close.
+   */
   const targets = Object.fromEntries(
     BETA.segments.map((s) => [s.key, s.arrivals.slice(0, 3).reduce((a, b) => a + b, 0)]),
   );
+  const sellers = BETA.people.filter((p) => /sales|selling/i.test(p.role)).length;
+  const perSellerPerMonth =
+    Object.values(targets).reduce((a, b) => a + b, 0) / sellers / BETA.months;
+
   check(
-    "🔴 the acquisition targets are the ones that were set: 3 companies, 6 clinics, 9 therapists",
-    targets.company === 3 && targets.clinic === 6 && targets.therapist === 9,
-    `${targets.company} companies · ${targets.clinic} clinics · ${targets.therapist} therapists in three months`,
+    "🔴 the acquisition targets are a load three sellers can actually carry",
+    sellers === 3 && perSellerPerMonth <= 4,
+    `${targets.company} companies · ${targets.clinic} clinics · ${targets.therapist} therapists in three months, which is ${perSellerPerMonth.toFixed(1)} accounts a month each across ${sellers} sellers`,
   );
 
   check(
@@ -497,21 +543,60 @@ async function main() {
     `break even month ${runway.breakEvenMonth}, low point ${Math.min(...runway.months.map((m) => m.cashUsd)).toFixed(0)} dollars`,
   );
 
+  /* ================================================================== */
+  /*  The target the whole six months is aimed at                        */
+  /* ================================================================== */
+
   /*
-   * 🔴 THE COMPARISON THAT DECIDES THE PRICING POLICY MUST BE FAIR.
+   * 🔴 BREAK EVEN BEFORE MONTH 6, AND IT IS A TARGET RATHER THAN AN OUTPUT.
    *
-   * The first draft gave the half-price scenario better arrivals AND better
-   * churn, then reported that half price won. That is the assumption restated,
-   * not a finding. The two must differ in the pricing policy alone.
+   * The six-month scenario exists to answer one question: does the company pay
+   * for itself before the money runs out. `BETA_THEN_CLIFF` runs the beta offer
+   * out to month 6 and is the scenario the simulation walks, so the target lives
+   * on it.
+   *
+   * What makes it reachable is the third seller: one founder sells full time
+   * from month one, which costs nothing on the payroll and raises arrivals on
+   * every segment by half. Take that seller out and this check goes red, which
+   * is the property worth holding — it is the assumption doing the work, and
+   * nothing else in the file would say so out loud.
    */
-  const g = JSON.stringify(GRANDFATHERED.segments.map((s) => [s.key, s.arrivals, s.steadyPerMonth]));
-  const h = JSON.stringify(HALF_PRICE_FOR_ALL.segments.map((s) => [s.key, s.arrivals, s.steadyPerMonth]));
+  const six = runPlan(BETA_THEN_CLIFF);
   check(
-    "🔴 the two pricing options are compared on identical arrivals and identical spend",
-    g === h &&
-      JSON.stringify(GRANDFATHERED.people) === JSON.stringify(HALF_PRICE_FOR_ALL.people) &&
-      JSON.stringify(GRANDFATHERED.spend) === JSON.stringify(HALF_PRICE_FOR_ALL.spend),
-    "they differ in what a customer pays after the beta, and in nothing else",
+    "🔴 the six months break even before month 6, which is what the third seller buys",
+    six.breakEvenMonth !== null && six.breakEvenMonth < 6,
+    `first profitable month ${six.breakEvenMonth}, ending with $${six.months.at(-1)!.cashUsd.toFixed(0)} in the bank`,
+  );
+
+  /*
+   * 🔴 CONTROL, and it is the honest one: take the founder off the sales bench
+   * and the target is missed. If this did not move, the third seller would be
+   * decoration and the break-even above would be coming from somewhere else.
+   */
+  const twoSellers = runPlan({
+    ...BETA_THEN_CLIFF,
+    segments: BETA_THEN_CLIFF.segments.map((s) => ({
+      ...s,
+      arrivals: s.arrivals.map((n) => n / 1.5),
+      steadyPerMonth: s.steadyPerMonth / 1.5,
+    })),
+  });
+  check(
+    "🔴 CONTROL …and with two sellers instead of three it is missed",
+    twoSellers.breakEvenMonth === null || twoSellers.breakEvenMonth >= 6,
+    `two sellers reach break even in month ${twoSellers.breakEvenMonth ?? "never, inside six"}`,
+  );
+
+  /*
+   * 🔴 AND THE FOUNDER WHO SELLS IS ON THE PAYROLL ONCE, NOT TWICE. They draw
+   * their $500 as a founder; the sales line beside their name is $0. A model
+   * that paid them again would be quietly buying the growth it reports.
+   */
+  const sellingFounder = BETA_THEN_CLIFF.people.find((p) => /founder.*sell/i.test(p.role));
+  check(
+    "🔴 the selling founder costs nothing extra, because they are already paid",
+    sellingFounder !== undefined && sellingFounder.monthlyUsd === 0,
+    "one salary, two jobs, and the second job is the reason the plan closes",
   );
 
   check(
