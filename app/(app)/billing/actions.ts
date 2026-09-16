@@ -413,3 +413,55 @@ function cleanIds(ids: unknown): string[] {
   if (!Array.isArray(ids)) return [];
   return ids.filter((id): id is string => typeof id === "string" && id.length <= 64).slice(0, 200);
 }
+
+/**
+ * 🔴 76.34 — CONFIRM, THEN PAY, IN ONE ACT.
+ *
+ * ## What it replaces
+ *
+ * Choosing a plan raised the bill and stopped. The money side then required the
+ * clinician to notice a card further down the page, decide it was related, and
+ * press a second button. So the commonest sequence was: press Subscribe, see a
+ * line item appear, and leave, believing it was done.
+ *
+ * On the Egyptian rail, where nothing charges anybody automatically, that is a
+ * plan somebody thinks they bought and has not paid for.
+ *
+ * ## The order, which is the whole point
+ *
+ * The bill is raised FIRST and the cart is opened from what is then due, so the
+ * amount in the sheet is read back out of the invoices rather than passed from
+ * a browser. `openBillPayment` runs `billLines`, whose WHERE pins the
+ * organisation and the due state: a tier key somebody edited buys the plan the
+ * server priced, and the sheet asks for what the server billed.
+ *
+ * ## 🔴 THE STRIPE RAIL IS UNCHANGED AND MUST BE
+ *
+ * `subscribeTo` redirects to a checkout there, which throws a Next redirect
+ * rather than returning. Nothing below it runs, and nothing below it should:
+ * the payment happens at Stripe and a cart would be a second claim on money
+ * already in flight.
+ */
+export async function upgradeAndPay(tierKey: string): Promise<BillingActionState> {
+  const raised = await subscribeTo(tierKey);
+  if (raised.error) return raised;
+
+  /* Only reached on the transfer rail. Stripe redirected out of the call above. */
+  await openBillPayment([]);
+  revalidatePath("/billing");
+  return {};
+}
+
+/**
+ * 🔴 76.34 — THE PAYER CHANGED THEIR MIND ABOUT AN OPEN PAYMENT.
+ *
+ * Scoped to the signed-in clinician, never to an id from the browser, and the
+ * server refuses anything past `awaiting_proof` in its own WHERE clause: once
+ * proof is in, the payment is a claim about money and belongs to an operator.
+ */
+export async function cancelBillPayment(): Promise<void> {
+  const actor = await requireUser();
+  const { cancelCart } = await import("@/lib/billing/cart");
+  await cancelCart({ kind: "user", userId: actor.userId, organizationId: actor.organizationId });
+  revalidatePath("/billing");
+}

@@ -159,6 +159,7 @@
     "verify:edges": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-edges.ts",
     "capture:payments": "node --env-file-if-exists=.env.local --import ./scripts/_render-preload.mjs --import tsx scripts/capture-payments.tsx",
     "capture:coverage": "node --env-file-if-exists=.env.local --import tsx scripts/capture-coverage.ts",
+    "capture:therapist": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/capture-therapist-money.ts",
     "verify:entitlement": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-entitlement.ts",
     "verify:board": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-board.ts",
     "forecast": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/forecast.ts",

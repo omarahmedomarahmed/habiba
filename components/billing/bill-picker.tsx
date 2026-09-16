@@ -52,6 +52,8 @@ export function BillPicker({
   action,
   quote,
   onOpen,
+  /** 🔴 76.34 — passed straight through. See `PaymentPopup`. */
+  onCancel,
   storageKey,
 }: {
   invoices: { id: string; description: string; cents: number; issuedAt: string }[];
@@ -66,6 +68,7 @@ export function BillPicker({
     ids: string[],
   ) => Promise<{ amountLabel: string; lines: PaymentLineView[]; totalCents: number }>;
   onOpen: (ids: string[]) => Promise<void>;
+  onCancel?: () => Promise<void>;
   storageKey: string;
 }) {
   const t = useT();
@@ -190,6 +193,7 @@ export function BillPicker({
       <PaymentPopup
         storageKey={storageKey}
         onOpen={() => onOpen(picked)}
+        onCancel={onCancel}
         subject={subject}
         details={details}
         amountLabel={showing?.amountLabel ?? amountLabel}

@@ -67,6 +67,14 @@ export default async function EarningsPage() {
     .reduce((total, r) => total + r.amountCents, 0);
   const availableCents = Math.max(0, held - requestedCents - sentCents);
 
+  /*
+   * 🔴 76.34 — does this practice bill on the manual rail. The same question
+   * the billing page and the settings card ask, from the same function, so the
+   * three cannot disagree about which country this account is in.
+   */
+  const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  const needsTransfer = await organizationNeedsTransfer(actor.organizationId);
+
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title={t("portal.earnings.title")} subtitle={t("portal.earnings.subtitle")} />
@@ -121,8 +129,17 @@ export default async function EarningsPage() {
           The manual rail (§3c). Shown to anybody we are holding money for, or
           who has asked for a payout before — which is exactly the set of
           clinicians Stripe cannot pay, and the reason this rail exists.
+
+          🔴 76.34 — AND TO ANYBODY WHO BILLS ON THIS RAIL, held or not.
+
+          This is where a clinician tells us where to send their money, and the
+          two conditions above are both about money that has ALREADY arrived. So
+          an Egyptian clinician could not answer the question until the first
+          time they wanted the answer, which is the worst moment to be asked for
+          an account number: they are owed money and the product is telling them
+          to go and set something up first.
         */}
-        {held > 0 || requests.length > 0 ? (
+        {held > 0 || requests.length > 0 || needsTransfer ? (
           <Withdraw
             heldCents={held}
             requestedCents={requestedCents}

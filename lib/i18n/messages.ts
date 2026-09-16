@@ -1643,6 +1643,18 @@ export const en = {
   "pop.track": "Track your payment",
   "pop.close": "Close",
   "pop.minimise": "Minimise",
+  /*
+   * 🔴 76.34 — the way out of a payment that is not paying it.
+   *
+   * Opening the sheet writes a row and puts a red bar across their portal. A
+   * payer who decides not to send the money had no way to clear that bar, so
+   * the only two exits were paying or learning to ignore a warning bar.
+   */
+  "pop.cancel": "Cancel this payment",
+  "pop.cancelSure": "Cancel this payment?",
+  "pop.cancelSureBody": "It comes out of your cart and the reminder goes. Nothing is charged, and you can start it again.",
+  "pop.cancelYes": "Yes, cancel it",
+  "pop.cancelNo": "Keep it",
   "pop.proofSent": "You sent this receipt",
   "bar.openHint": "Sent it? Tap to finish.",
   "bar.eta": "Usually within a few hours",
@@ -2384,6 +2396,17 @@ export const en = {
   "tpay.currency": "Currency",
   "tpay.youKeep": "You keep",
   "tpay.fee": "24Therapy fee ({percent}%)",
+  /* 🔴 76.34 — the Egyptian rail's own version of this screen. */
+  "tpay.regionUnsaved": "The screen already matches. Press Save to keep it.",
+  "tpay.egRail": "We collect by bank transfer here and pay you by hand. No card setup to do.",
+  "tpay.egHolding": "We are holding {amount} for you, and we send it by hand.",
+  "tpay.egMethod": "How you would like to be paid",
+  "tpay.egMethodNone": "Nothing set yet. Tell us where to send your earnings.",
+  "tpay.egMethodSet": "Set it up",
+  "tpay.egMethodChange": "Change it",
+  "tpay.method.instapay": "InstaPay",
+  "tpay.method.wallet": "Mobile wallet",
+  "tpay.method.stripe": "Stripe",
   "tpay.whereYouPractise": "Where you practise",
   "tpay.whereYouPractiseBody": "In Egypt we invoice you and you pay by InstaPay or bank transfer.",
   "tpay.regionUs": "Outside Egypt",
@@ -2883,22 +2906,6 @@ export const en = {
   "tph.notCompleted": "Not completed",
   "tph.refunded": "Refunded",
   "tph.failed": "Failed",
-  "tplan.perSession": "{amount} per completed session.",
-  "tplan.creditsOne": "One credit left",
-  "tplan.creditsMany": "{count} credits left",
-  "tplan.sessionsThisMonth": "Sessions this month",
-  "tplan.paidThisMonth": "Paid this month",
-  "tplan.creditsExpire":
-    "Your credits are used before anything is billed. The next batch expires {date}.",
-  "tplan.buyAhead": "Buy sessions in advance",
-  "tplan.buyAheadBody": "The more you buy at once, the less each costs. A year to use them.",
-  "tplan.sessionOne": "One session",
-  "tplan.sessionMany": "{count} sessions",
-  "tplan.tierRate": "{tier} rate",
-  "tplan.each": "{amount} each",
-  "tplan.totalToday": "Total today",
-  "tplan.buyOne": "Buy one for {amount}",
-  "tplan.buyMany": "Buy {count} for {amount}",
   "risk.detected": "Risk language detected · {level}",
   "risk.assess":
     "Pause and assess directly. If there is imminent risk, follow your local emergency protocol.",
@@ -3246,32 +3253,44 @@ export const en = {
    * that to be discovered would make a rate lock look like a bundle discount
    * that quietly lapsed.
    */
-  "tplan.platformEvery": "{amount} per session, always",
-  "tplan.platformWhat": "The record, the booking, the reminders, your place on the radar, and the copilot.",
   "tplan.aiRate": "{amount} more when your patient turns the AI on",
   "tplan.aiNever": "Nothing when they do not.",
   "tplan.creditBalance": "Credit left",
   "tplan.spentPlatform": "Session fees this month",
   "tplan.spentAi": "AI fees this month",
   "tplan.heldEarnings": "Your earnings we hold",
-  "tplan.topUp": "Add credit",
   /*
    * 🔴 Sprint 57 — credit no longer buys a rate, so this no longer says it
    * does. Every threshold is zero now; a sentence promising that spending more
    * lowers the AI rate would be a control that does nothing, described
    * accurately.
    */
-  "tplan.topUpBody": "Credit is money against your session and AI fees, spent before your card.",
-  "tplan.unlocks": "Unlocks {amount} per AI session",
-  "tplan.rateKept": "The rate is yours to keep. It does not expire when the credit does.",
 
   /* ------------------------------------------- 🔴 57.4 — the monthly plan -- */
   "tplan.monthlyEvery": "{amount} a month, unlimited",
   "tplan.unlimitedNoMeter": "Sessions and AI cost nothing on top. No per-session fee riding on the recording question.",
   "tplan.plansTitle": "Stop counting sessions",
-  "tplan.plansBody": "One price a month: unlimited sessions and AI, nothing per session. Cancel any time.",
-  "tplan.subscribe": "Subscribe",
-  "tplan.switchTo": "Switch to {name}, {amount} a month",
+  /*
+   * 🔴 76.34 — the pricing cards, and the details somebody reads BEFORE paying.
+   *
+   * A tap used to subscribe on the spot, on a recurring charge, with nothing
+   * said about what it does to the per-session fee or how the money is taken.
+   * These are the four sentences that answer it, and they are read before any
+   * money moves rather than discovered afterwards.
+   */
+  "tplan.yours": "Yours",
+  "tplan.paygPrice": "{amount} a session",
+  "tplan.confirmTitle": "Move to {name}?",
+  "tplan.confirmDownTitle": "Move to pay as you go?",
+  "tplan.confirmCost": "{amount} a month, from today.",
+  "tplan.confirmDownCost": "{amount} a session, nothing monthly.",
+  "tplan.confirmMeter": "No per-session fee, and no amount riding on whether a patient agrees to be recorded.",
+  "tplan.confirmDownMeter": "The AI fee comes back, charged only when a patient agrees to be recorded.",
+  "tplan.confirmCancel": "Cancel any time. The month you paid for runs to its end.",
+  "tplan.confirmTransfer": "We add it to your bill and open the transfer details. It starts when the money lands.",
+  "tplan.confirmCard": "You will be taken to the card page to finish.",
+  "tplan.confirmAndPay": "Confirm and pay",
+  "tplan.confirmNotNow": "Not now",
   "tplan.renewsOn": "Renews {date}, {amount}",
   "tplan.renewsMonthly": "Renews monthly, {amount}",
   "tplan.cancelKeepsMonth": "Cancelling stops the next charge. The plan runs to the date above.",
@@ -3279,12 +3298,7 @@ export const en = {
   "tplan.endsOn": "Your plan ends {date}",
   "tplan.endsBody": "Nothing changes until then. Afterwards, {amount} a session plus the AI fee when your patient turns it on.",
   "tplan.resume": "Keep my plan",
-  "tplan.addAmount": "Add {amount}",
   "tplan.creditExpiresOn": "Credit expires {date}",
-  "tplan.settleFirst": "Pay a bill from",
-  "tplan.settleCredit": "My credit first",
-  "tplan.settleEarnings": "My held earnings first",
-  "tplan.settleBody": "Whichever you pick, we try the other one next, and only then your card.",
 
   /*
    * 🔴 46.9 — the pricing page, after the split.
@@ -4727,6 +4741,11 @@ export const ar: Record<MessageKey, string> = {
   "pop.track": "تابع عملية الدفع",
   "pop.close": "إغلاق",
   "pop.minimise": "تصغير",
+  "pop.cancel": "إلغاء هذه الدفعة",
+  "pop.cancelSure": "تلغي الدفعة دي؟",
+  "pop.cancelSureBody": "هتتشال من السلة والتنبيه هيختفي. مفيش أي مبلغ هيتخصم، وتقدر تبدأها تاني في أي وقت.",
+  "pop.cancelYes": "أيوه، ألغيها",
+  "pop.cancelNo": "سيبها",
   "pop.proofSent": "لقد أرسلت هذا الإيصال",
   "bar.openHint": "حوّلته؟ اضغط للإتمام.",
   "bar.eta": "عادة خلال ساعات قليلة",
@@ -5357,6 +5376,16 @@ export const ar: Record<MessageKey, string> = {
   "tpay.currency": "العملة",
   "tpay.youKeep": "تحصل على",
   "tpay.fee": "رسوم 24Therapy ({percent}%)",
+  "tpay.regionUnsaved": "الشاشة اتغيّرت على طول. اضغط حفظ علشان تثبّت الاختيار.",
+  "tpay.egRail": "بنحصّل هنا بالتحويل البنكي وبنحوّللك يدويًا. مفيش إعداد كارت تعمله.",
+  "tpay.egHolding": "محتفظين لك بـ {amount}، وبنبعتها يدويًا.",
+  "tpay.egMethod": "تحب نحوّللك إزاي",
+  "tpay.egMethodNone": "لسه مفيش حاجة متسجلة. قول لنا نبعت أرباحك فين قبل ما تطلبها.",
+  "tpay.egMethodSet": "اضبطها",
+  "tpay.egMethodChange": "غيّرها",
+  "tpay.method.instapay": "إنستاباي",
+  "tpay.method.wallet": "محفظة موبايل",
+  "tpay.method.stripe": "سترايب",
   "tpay.whereYouPractise": "أين تمارس عملك",
   "tpay.whereYouPractiseBody": "في مصر نرسل لك فاتورة وتدفع عبر إنستاباي أو تحويل بنكي.",
   "tpay.regionUs": "خارج مصر",
@@ -5848,22 +5877,6 @@ export const ar: Record<MessageKey, string> = {
   "tph.notCompleted": "لم تكتمل",
   "tph.refunded": "مُستردّة",
   "tph.failed": "فشلت",
-  "tplan.perSession": "{amount} لكل جلسة مكتملة.",
-  "tplan.creditsOne": "بقي رصيد واحد",
-  "tplan.creditsMany": "بقي {count} أرصدة",
-  "tplan.sessionsThisMonth": "جلسات هذا الشهر",
-  "tplan.paidThisMonth": "المدفوع هذا الشهر",
-  "tplan.creditsExpire":
-    "تُستخدم أرصدتك قبل أن يُحتسب أي مبلغ. وتنتهي صلاحية الدفعة التالية في {date}.",
-  "tplan.buyAhead": "اشترِ جلسات مقدّمًا",
-  "tplan.buyAheadBody": "كلما اشتريت أكثر دفعة واحدة قلّت التكلفة. ولديك سنة لاستخدامها.",
-  "tplan.sessionOne": "جلسة واحدة",
-  "tplan.sessionMany": "{count} جلسات",
-  "tplan.tierRate": "سعر {tier}",
-  "tplan.each": "{amount} للجلسة",
-  "tplan.totalToday": "الإجمالي اليوم",
-  "tplan.buyOne": "اشترِ واحدة بـ {amount}",
-  "tplan.buyMany": "اشترِ {count} بـ {amount}",
   "risk.detected": "رُصدت لغة خطورة · {level}",
   "risk.assess":
     "توقّف وقيّم الحالة مباشرة. وإن كان الخطر وشيكًا فاتّبع بروتوكول الطوارئ في بلدك.",
@@ -6154,26 +6167,30 @@ export const ar: Record<MessageKey, string> = {
   "trad.countryClosedTitle": "الحجوزات متوقفة مؤقتًا في بلد ممارستك",
 
   /* 🔴 46.7 — the plan page, after the fee split. */
-  "tplan.platformEvery": "{amount} لكل جلسة، دائمًا",
-  "tplan.platformWhat": "السجل والحجز والتذكيرات ومكانك على الرادار والمساعد.",
   "tplan.aiRate": "{amount} إضافية عندما يُشغّل مريضك الذكاء الاصطناعي",
   "tplan.aiNever": "ولا شيء عندما لا يفعل.",
   "tplan.creditBalance": "الرصيد المتبقي",
   "tplan.spentPlatform": "رسوم الجلسات هذا الشهر",
   "tplan.spentAi": "رسوم الذكاء الاصطناعي هذا الشهر",
   "tplan.heldEarnings": "أرباحك المحتفظ بها لدينا",
-  "tplan.topUp": "أضف رصيدًا",
-  "tplan.topUpBody": "الرصيد مال مقابل رسوم الجلسات والذكاء، ويُنفَق قبل بطاقتك.",
-  "tplan.unlocks": "يفتح سعر {amount} لكل جلسة بالذكاء الاصطناعي",
-  "tplan.rateKept": "السعر يبقى لك. لا ينتهي بانتهاء الرصيد.",
 
   /* ------------------------------------------- 🔴 57.4 — الاشتراك الشهري -- */
   "tplan.monthlyEvery": "{amount} شهريًا، بلا حدود",
   "tplan.unlimitedNoMeter": "لا تكلفة إضافية للجلسات ولا للذكاء. ولا رسوم لكل جلسة معلّقة على سؤال التسجيل.",
   "tplan.plansTitle": "توقّف عن عدّ الجلسات",
-  "tplan.plansBody": "سعر واحد شهريًا: جلسات ومساعد بلا حد، ولا رسوم لكل جلسة. وألغِ متى شئت.",
-  "tplan.subscribe": "اشترك",
-  "tplan.switchTo": "انتقل إلى {name}، {amount} شهريًا",
+  "tplan.yours": "خطتك",
+  "tplan.paygPrice": "{amount} للجلسة",
+  "tplan.confirmTitle": "تنتقل إلى {name}؟",
+  "tplan.confirmDownTitle": "تنتقل إلى الدفع لكل جلسة؟",
+  "tplan.confirmCost": "{amount} كل شهر من النهاردة، طول ما إنت عليها.",
+  "tplan.confirmDownCost": "{amount} عن كل جلسة تعملها، ومفيش اشتراك شهري.",
+  "tplan.confirmMeter": "مفيش رسوم لكل جلسة ولا رسوم للمساعد. ومفيش مبلغ معلّق على موافقة المريض على التسجيل.",
+  "tplan.confirmDownMeter": "رسوم المساعد بترجع، وبتتحسب بس لما المريض يوافق على التسجيل.",
+  "tplan.confirmCancel": "تقدر تلغي في أي وقت. الشهر اللي دفعته بيكمل لآخره.",
+  "tplan.confirmTransfer": "بنضيفها على فاتورتك ونفتحلك بيانات التحويل. وتبدأ أول ما نشوف المبلغ.",
+  "tplan.confirmCard": "هننقلك لصفحة الدفع بالكارت علشان تكمّل.",
+  "tplan.confirmAndPay": "أكّد وادفع",
+  "tplan.confirmNotNow": "مش دلوقتي",
   "tplan.renewsOn": "يتجدّد في {date} بمبلغ {amount}",
   "tplan.renewsMonthly": "يتجدّد شهريًا بمبلغ {amount}",
   "tplan.cancelKeepsMonth": "الإلغاء يوقف الخصم القادم. ويستمر الاشتراك حتى التاريخ أعلاه.",
@@ -6181,12 +6198,7 @@ export const ar: Record<MessageKey, string> = {
   "tplan.endsOn": "تنتهي خطتك في {date}",
   "tplan.endsBody": "لا شيء يتغير قبل ذلك. وبعدها {amount} للجلسة زائد رسوم الذكاء حين يفعّلها مريضك.",
   "tplan.resume": "أبقِ خطتي",
-  "tplan.addAmount": "أضف {amount}",
   "tplan.creditExpiresOn": "ينتهي الرصيد في {date}",
-  "tplan.settleFirst": "سدّد الفاتورة من",
-  "tplan.settleCredit": "رصيدي أولًا",
-  "tplan.settleEarnings": "أرباحي المحتفظ بها أولًا",
-  "tplan.settleBody": "أيًّا كان اختيارك، نجرّب الآخر بعده، ثم بطاقتك في النهاية.",
 
   /* 🔴 46.9 — the pricing page, after the split. */
   "pricing.headline":

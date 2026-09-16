@@ -91,10 +91,18 @@ export function BillingLedger({
   invoices,
   payments,
   billingEnabled,
+  /**
+   * 🔴 76.34 — whether a CHECKOUT can take this account's money.
+   *
+   * False on the Egyptian rail, where the transfer sheet above this list is the
+   * way to pay and a Stripe button is a control that cannot work.
+   */
+  payable = true,
 }: {
   invoices: LedgerInvoice[];
   payments: LedgerPayment[];
   billingEnabled: boolean;
+  payable?: boolean;
 }) {
   const t = useT();
   const [pending, startTransition] = useTransition();
@@ -144,7 +152,22 @@ export function BillingLedger({
 
   return (
     <div className="space-y-4">
-      {due.length > 0 ? (
+      {/*
+        🔴 76.34 — ONE PAY BUTTON PER RAIL, AND THIS ONE IS STRIPE'S.
+        --------------------------------------------------------------
+        This card is a second invoice picker with a second pay button, and it
+        opens a Stripe checkout. On the Egyptian rail `BillPicker` above already
+        asks the same question and answers it with the transfer sheet, so a
+        clinician in Cairo met the same list twice and one of the two buttons
+        led to a processor that does not collect in their country: pressing it
+        either failed or billed into the wrong entity.
+
+        The two are not merged, because they are genuinely different acts. A
+        checkout takes the money; a transfer sheet hands out an account number
+        and waits for a person to check a bank statement. Each rail renders the
+        one that belongs to it, and neither renders both.
+      */}
+      {payable && due.length > 0 ? (
         <Card>
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold text-slate-900">

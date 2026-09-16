@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 
-import { buyCredits, cancelPlan, resumePlan, subscribeTo } from "@/app/(app)/billing/actions";
+import { cancelPlan, resumePlan, upgradeAndPay } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
@@ -79,6 +79,8 @@ export function PlanCard({
   heldEarningsCents,
   renewsOn,
   endsOn,
+  needsTransfer,
+  paymentStorageKey,
 }: {
   tiers: TierRow[];
   currentTierKey: string;
@@ -101,6 +103,19 @@ export function PlanCard({
    */
   renewsOn: string | null;
   endsOn: string | null;
+  /**
+   * 🔴 76.34 — WHICH RAIL, because the confirmation has to say what happens next.
+   *
+   * On the transfer rail "Confirm and pay" raises the bill and opens the sheet
+   * in place. On Stripe it leaves for a checkout. Telling somebody the wrong
+   * one is how a person ends up watching for a page that is not coming.
+   */
+  needsTransfer: boolean;
+  /**
+   * The key `PaymentPopup` remembers its open state under, so confirming here
+   * can open the sheet down the page. The organisation, never a person.
+   */
+  paymentStorageKey: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -113,13 +128,16 @@ export function PlanCard({
   const unlimited = current.monthlyCents > 0;
 
   /*
-   * The top-up slider is in DOLLARS and moves in whole ones, because a credit
-   * top-up is not a place anybody needs cents. It starts at a round twenty
-   * rather than at a tier threshold: thresholds are all zero now, so the old
-   * "start at the amount that unlocks the best rate" no longer means anything.
+   * 🔴 76.34 — WHICH TIER THEY ARE LOOKING AT, which is not which tier they
+   * have bought.
+   *
+   * Tapping a card used to subscribe on the spot. A plan is a recurring charge
+   * and the one thing every clinician asked about it was what happens to the
+   * per-session fee, which the button could not answer because it had already
+   * fired. So a tap SELECTS, the panel under the cards answers the question,
+   * and a second, differently worded control is what spends money.
    */
-  const [dollars, setDollars] = useState(20);
-  const amountCents = dollars * 100;
+  const [considering, setConsidering] = useState<string | null>(null);
 
   const run = (fn: () => Promise<{ error?: string } | void>) =>
     startTransition(async () => {
@@ -134,32 +152,31 @@ export function PlanCard({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900">{current.name}</p>
 
+          {/*
+            🔴 76.34 — THE PRICES MOVED TO THE CARDS AND ARE NOT SAID TWICE.
+
+            This block used to repeat, in two sentences, exactly what the tier
+            cards further down now say on the card that is marked as yours. The
+            new cards made the header a duplicate, and a duplicate on a money
+            screen is not neutral: two statements of one price is two things to
+            keep in step, and the prose ratchet counted every word of it.
+
+            🔴 WHAT STAYS IS C209, which the cards cannot carry.
+
+            "The AI fee is never charged when a patient declines" is a
+            protection rather than a price. It exists so that no amount rides on
+            the most vulnerable person in the room agreeing to be recorded, and
+            it belongs where somebody reads their OWN arrangement rather than in
+            a grid they are comparing. An unlimited plan reaches the same
+            protection from the other side and says so.
+          */}
           {unlimited ? (
             <>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {t("tplan.monthlyEvery", { amount: formatUsd(current.monthlyCents) })}
-              </p>
-              {/*
-                🔴 The sentence that makes the plan worth buying, and the one
-                that makes it safe. No per-session fee means no amount riding on
-                a patient's answer about recording.
-              */}
               <p className="mt-0.5 text-sm text-slate-500">{t("tplan.unlimitedNoMeter")}</p>
             </>
           ) : (
             <>
-              {/*
-                🔴 Two sentences, in this order, and the order is C209.
-                Unconditional first, conditional second, and the second says out
-                loud what happens when a patient says no.
-              */}
-              <p className="mt-0.5 text-sm text-slate-500">
-                {t("tplan.platformEvery", { amount: formatUsd(platformFeeCents) })}
-              </p>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {t("tplan.aiRate", { amount: formatUsd(current.aiRateCents) })}{" "}
-                {t("tplan.aiNever")}
-              </p>
+              <p className="mt-0.5 text-sm text-slate-500">{t("tplan.aiNever")}</p>
             </>
           )}
         </div>
@@ -247,22 +264,7 @@ export function PlanCard({
               <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
                 {t("tplan.cancelKeepsMonth")}
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {plans
-                  .filter((tier) => tier.key !== current.key)
-                  .map((tier) => (
-                    <Button
-                      key={tier.key}
-                      variant="secondary"
-                      disabled={pending || !billingEnabled}
-                      onClick={() => run(() => subscribeTo(tier.key))}
-                    >
-                      {t("tplan.switchTo", {
-                        name: tier.name,
-                        amount: formatUsd(tier.monthlyCents),
-                      })}
-                    </Button>
-                  ))}
+              <div className="mt-4">
                 <Button variant="secondary" disabled={pending} onClick={() => run(() => cancelPlan())}>
                   {t("tplan.cancel")}
                 </Button>
@@ -270,80 +272,165 @@ export function PlanCard({
             </>
           )}
         </div>
-      ) : plans.length > 0 ? (
-        <div className="mt-5 rounded-2xl border border-slate-200 p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("tplan.plansTitle")}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{t("tplan.plansBody")}</p>
-
-          <div className="mt-3 space-y-2">
-            {plans.map((tier) => (
-              <div
-                key={tier.key}
-                className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3.5 py-3"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-slate-900">{tier.name}</span>
-                  <span className="block text-xs text-slate-500">
-                    {t("tplan.monthlyEvery", { amount: formatUsd(tier.monthlyCents) })}
-                  </span>
-                </span>
-                <Button
-                  variant="secondary"
-                  disabled={pending || !billingEnabled}
-                  onClick={() => run(() => subscribeTo(tier.key))}
-                >
-                  {t("tplan.subscribe")}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
       ) : null}
 
       {/*
-        Credit is still real and still useful on pay as you go: it is money held
-        against the session and AI fees, spent before anything new is billed.
+        🔴 76.34 — THE PLANS AS CARDS, WITH THE ONE THEY ARE ON MARKED.
+        ---------------------------------------------------------------
+        Two problems with the list this replaces, and both are about what a
+        clinician can actually decide from it.
 
-        🔴 It is hidden on an unlimited plan rather than disabled, because there
-        is nothing for credit to be spent on — every line is zero — and a
-        working control that buys something unusable is worse than no control.
+        It showed only the plans they were NOT on, so the thing they are paying
+        for today was absent from the comparison and there was nothing to weigh
+        an upgrade against. And every row ended in a button that subscribed on
+        the tap, on a recurring charge, with no statement of what changes.
+
+        So: every tier is a card, pay as you go included, the current one is
+        outlined and carries a tick, and a tap SELECTS rather than buys. The
+        panel underneath is where the money is spent, and it is worded
+        differently on purpose.
       */}
-      {!unlimited ? (
-        <div className="mt-4 rounded-2xl border border-slate-200 p-4">
-          <label htmlFor="credit-amount" className="text-sm font-semibold text-slate-900">
-            {t("tplan.topUp")}
-          </label>
-          <p className="mt-0.5 text-xs text-slate-500">{t("tplan.topUpBody")}</p>
+      {plans.length > 0 ? (
+        <div className="mt-5">
+          {/*
+            🔴 76.34 — THE BLURB UNDER THIS HEADING IS GONE, and the cards are
+            why. It read "one price a month: unlimited sessions and AI, nothing
+            per session", which is exactly what each card now says about itself,
+            on the card, beside its own price.
+          */}
+          <p className="text-sm font-semibold text-slate-900">{t("tplan.plansTitle")}</p>
 
-          <div className="mt-3 flex items-center gap-3">
-            <input
-              id="credit-amount"
-              type="range"
-              min={1}
-              max={200}
-              step={1}
-              value={dollars}
-              onChange={(event) => setDollars(Number(event.target.value))}
-              className="h-2 flex-1 cursor-pointer accent-brand-500"
-            />
-            <span className="w-20 shrink-0 text-end text-sm font-semibold tabular-nums text-slate-900">
-              <Money cents={amountCents} />
-            </span>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {[payg, ...plans].map((tier) => {
+              const isCurrent = tier.key === current.key;
+              const chosen = considering === tier.key;
+              return (
+                <button
+                  key={tier.key}
+                  type="button"
+                  aria-pressed={chosen}
+                  disabled={pending || isCurrent || !billingEnabled}
+                  onClick={() => setConsidering(chosen ? null : tier.key)}
+                  className={
+                    isCurrent
+                      ? "rounded-2xl border-2 border-brand-500 bg-brand-50 p-3.5 text-start"
+                      : chosen
+                        ? "rounded-2xl border-2 border-slate-900 bg-white p-3.5 text-start"
+                        : "rounded-2xl border border-slate-200 bg-white p-3.5 text-start"
+                  }
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-slate-900">{tier.name}</span>
+                    {isCurrent ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <Check className="h-2.5 w-2.5" aria-hidden />
+                        {t("tplan.yours")}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-1 block text-lg font-bold tracking-tight text-slate-900">
+                    {tier.monthlyCents > 0
+                      ? t("tplan.monthlyEvery", { amount: formatUsd(tier.monthlyCents) })
+                      : t("tplan.paygPrice", { amount: formatUsd(platformFeeCents) })}
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+                    {tier.monthlyCents > 0
+                      ? t("tplan.unlimitedNoMeter")
+                      : t("tplan.aiRate", { amount: formatUsd(tier.aiRateCents) })}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <Button
-            full
-            className="mt-4"
-            disabled={pending || !billingEnabled || dollars < 1}
-            onClick={() => run(() => buyCredits(amountCents))}
-          >
-            <Sparkles className="h-4 w-4" aria-hidden />
-            {pending
-              ? t("tled.openingCheckout")
-              : t("tplan.addAmount", { amount: formatUsd(amountCents) })}
-          </Button>
+          {/*
+            🔴 THE DETAILS BEFORE THE MONEY, WHICH IS THE WHOLE CHANGE.
+
+            A recurring charge deserves a sentence about what it does to the
+            per-session fee, when it starts, and what paying for it looks like
+            on this account's rail. None of that fitted on a button, so none of
+            it was said.
+
+            🔴 AND IT SAYS WHICH RAIL. On the transfer rail the sheet opens on
+            this page and an operator confirms the money; on Stripe the browser
+            leaves for a checkout. Somebody told the wrong one waits for a page
+            that is not coming.
+          */}
+          {considering && considering !== current.key ? (
+            <div className="mt-3 rounded-2xl border-2 border-slate-900 bg-white p-4">
+              {(() => {
+                const tier = tiers.find((row) => row.key === considering);
+                if (!tier) return null;
+                const up = tier.monthlyCents > 0;
+                return (
+                  <>
+                    <p className="text-sm font-bold text-slate-900">
+                      {up
+                        ? t("tplan.confirmTitle", { name: tier.name })
+                        : t("tplan.confirmDownTitle")}
+                    </p>
+                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-slate-600">
+                      <li>
+                        {up
+                          ? t("tplan.confirmCost", { amount: formatUsd(tier.monthlyCents) })
+                          : t("tplan.confirmDownCost", { amount: formatUsd(platformFeeCents) })}
+                      </li>
+                      <li>{up ? t("tplan.confirmMeter") : t("tplan.confirmDownMeter")}</li>
+                      <li>{t("tplan.confirmCancel")}</li>
+                      <li>
+                        {needsTransfer ? t("tplan.confirmTransfer") : t("tplan.confirmCard")}
+                      </li>
+                    </ul>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        full
+                        disabled={pending || !billingEnabled}
+                        onClick={() =>
+                          run(async () => {
+                            const result = await upgradeAndPay(tier.key);
+                            if (result?.error) return result;
+                            /*
+                             * 🔴 OPEN THE SHEET THEY JUST AGREED TO PAY.
+                             *
+                             * The same key `PaymentPopup` reads on mount, so
+                             * "confirm and pay" ends on the account number
+                             * rather than on a line item appearing somewhere
+                             * further down a page. Wrapped, because blocked
+                             * site data must cost the convenience and never
+                             * the payment: the bill is raised either way and
+                             * the sheet is one tap from the bar at the top.
+                             */
+                            try {
+                              window.localStorage.setItem(`pay:${paymentStorageKey}`, "open");
+                            } catch {
+                              /* The bar in the portal is still the way back. */
+                            }
+                            window.location.reload();
+                            return {};
+                          })
+                        }
+                      >
+                        {pending ? t("tled.openingCheckout") : t("tplan.confirmAndPay")}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={pending}
+                        onClick={() => setConsidering(null)}
+                        /* Two words on one line. It wrapped at 430 pixels. */
+                        className="whitespace-nowrap"
+                      >
+                        {t("tplan.confirmNotNow")}
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          ) : null}
         </div>
       ) : null}
+
+
     </Card>
   );
 }

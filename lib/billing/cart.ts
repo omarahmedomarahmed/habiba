@@ -120,3 +120,78 @@ export async function openCart(input: {
  * to teach about a new state, and `verify:reachable` caught it as a dead export
  * before it had a second caller to disagree with.
  */
+
+/**
+ * 🔴 76.34 — THE PAYER CHANGED THEIR MIND, AND SAID SO.
+ *
+ * ## Why this has to exist
+ *
+ * `openCart` above retires an earlier open payment by opening a NEW one, which
+ * covers "I meant a different bill" and covers nothing else. The case it does
+ * not cover is the one a person actually has: they opened the sheet, read the
+ * account number, decided not to send it, and now a red bar across the top of
+ * their portal tells them they owe us something they have chosen not to pay.
+ *
+ * With no way out of that bar the only two exits are paying or ignoring it, and
+ * ignoring a warning bar is a habit that carries over to the one that matters.
+ *
+ * ## 🔴 IT CAN ONLY EVER DELETE AN `awaiting_proof` ROW
+ *
+ * The moment proof arrives the payment is a CLAIM ABOUT MONEY. It belongs to
+ * the operator, the payer may have genuinely sent it, and letting a browser
+ * remove it from the queue would be a way to make a transfer disappear from the
+ * only record this rail has. The `state` condition is in the WHERE clause
+ * rather than checked first, so there is no window between the read and the
+ * delete.
+ *
+ * A delete rather than a `cancelled` state, for the reason `openCart` gives
+ * about its own sweep: an `awaiting_proof` row carries no money, no proof and
+ * no decision, and a row recording somebody changing their mind is a row an
+ * operator has to read past.
+ *
+ * ## 🔴 AND IT IS SCOPED TO THE PAYER, not to a payment id from a browser
+ *
+ * The caller passes who they are, which every surface knows from the signed-in
+ * actor. Taking an id would mean trusting one, and an id that arrived from a
+ * form is an id somebody can change: the first draft of this took `paymentId`
+ * and would have let anybody delete anybody's open payment.
+ */
+export async function cancelCart(
+  /*
+   * 🔴 THE `session` KIND CARRIES A SESSION ID HERE AND NOT AN ORGANISATION.
+   *
+   * `Payer`'s own `session` variant holds `organizationId`, because `openCart`
+   * is given the session separately as `refId`. There is no second argument
+   * here, and matching a guest's open payment by their practice would cancel
+   * every guest's payment at that practice. So this one variant is narrowed,
+   * and the compiler is what stops the wrong id being passed.
+   */
+  who: Exclude<Payer, { kind: "session" }> | { kind: "session"; sessionId: string },
+): Promise<{ cancelled: number }> {
+  const mine =
+    who.kind === "sponsor"
+      ? eq(manualPayments.sponsorId, who.sponsorId)
+      : who.kind === "user"
+        ? eq(manualPayments.userId, who.userId)
+        : who.kind === "patient"
+          ? eq(manualPayments.patientAccountId, who.patientAccountId)
+          : /*
+             * 🔴 A GUEST IS IDENTIFIED BY THE SESSION THEY HOLD A LINK TO.
+             *
+             * They have no account at all, which is the whole point of the
+             * `session` payer kind, so the session is the credential and
+             * `ref_id` is where it lives.
+             */
+            eq(manualPayments.refId, who.sessionId);
+
+  const gone = await db
+    .delete(manualPayments)
+    .where(and(mine, eq(manualPayments.state, "awaiting_proof")))
+    .returning({ id: manualPayments.id });
+
+  if (gone.length > 0) {
+    log.info("a payer cancelled their open payment", { cancelled: gone.length });
+  }
+
+  return { cancelled: gone.length };
+}

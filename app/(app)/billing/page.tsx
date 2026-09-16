@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Wallet } from "lucide-react";
 
-import { declareBillTransfer, openBillPayment, quoteInvoices } from "./actions";
+import { cancelBillPayment, declareBillTransfer, openBillPayment, quoteInvoices } from "./actions";
 import { BillPicker } from "@/components/billing/bill-picker";
 import { BillingLedger } from "@/components/billing/ledger";
 import { PlanCard } from "@/components/billing/plan-card";
@@ -188,6 +188,15 @@ export default async function BillingPage({
               ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
               : null
           }
+          /*
+           * 🔴 76.34 — WHICH RAIL, so the confirmation can say what happens next.
+           * Asked once above, for the transfer sheet, and read here for the
+           * sentence about it. Two answers to this question is how a screen
+           * promises a checkout on an account that will never see one.
+           */
+          needsTransfer={needsTransfer}
+          /* The same key the sheet below remembers itself under. */
+          paymentStorageKey={actor.organizationId}
         />
 
         {/*
@@ -251,6 +260,16 @@ export default async function BillingPage({
               lines={rail.lines}
               live={rail.live}
               action={declareBillTransfer}
+              /*
+               * 🔴 76.34 — AND THE WAY OUT THAT IS NOT PAYING.
+               *
+               * Opening the sheet writes an `awaiting_proof` row and the bar at
+               * the top of the portal turns red. A clinician who read the
+               * account number and decided not to send it had no way to clear
+               * that bar, so their only exits were paying or learning to ignore
+               * a warning bar.
+               */
+              onCancel={cancelBillPayment}
             />
           </>
         ) : null}
@@ -311,6 +330,15 @@ export default async function BillingPage({
         */}
         <BillingLedger
           billingEnabled={features.billing}
+          /*
+           * 🔴 76.34 — the ledger's own invoice picker is the STRIPE one, and
+           * it is absent on the transfer rail where `BillPicker` above owns the
+           * same question. Two pickers and two pay buttons on one page, with
+           * one of them opening a processor that does not collect in this
+           * country, is how a clinician in Cairo met a control that could not
+           * work.
+           */
+          payable={!needsTransfer}
           invoices={invoices.map((invoice) => ({
             id: invoice.id,
             kind: invoice.kind,

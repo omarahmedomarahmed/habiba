@@ -128,6 +128,23 @@ export function PaymentPopup({
    * was on.
    */
   onOpen,
+  /**
+   * 🔴 76.34 — THE WAY OUT THAT IS NOT PAYING, and it was missing entirely.
+   *
+   * Opening the sheet writes an `awaiting_proof` row, which is right: it is the
+   * record of somebody who went to their banking app, and the red bar it puts
+   * across their portal is how they get back here. But a payer who reads the
+   * account number and decides not to send it had no way to clear that bar, so
+   * their only two exits were paying or learning to ignore a warning bar. A
+   * person who learns to ignore this one ignores the next one too.
+   *
+   * 🔴 IT IS ABSENT ONCE PROOF IS IN. From that moment the payment is a claim
+   * about money that belongs to an operator, and a control that removed it from
+   * the queue would be a way to make a transfer vanish from the only record
+   * this rail has. The server refuses it as well: `cancelCart` has the state in
+   * its WHERE clause.
+   */
+  onCancel,
   onChoose,
   /** Stable key for remembering open state. The payment's ref, never a person. */
   storageKey,
@@ -147,6 +164,7 @@ export function PaymentPopup({
   onwardHref?: string;
   onwardLabel?: string;
   onOpen?: () => Promise<void>;
+  onCancel?: () => Promise<void>;
   onChoose?: (creditCents: number) => Promise<void>;
   minimised?: "button" | "orb";
   openInitially?: boolean;
@@ -154,6 +172,9 @@ export function PaymentPopup({
 }) {
   const t = useT();
   const [open, setOpen] = useState(openInitially);
+  /* Two taps to cancel, because the first one is easy to hit by accident. */
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   /*
    * 🔴 READ IN AN EFFECT, NEVER DURING RENDER.
@@ -346,6 +367,63 @@ export function PaymentPopup({
           lines={lines}
           onChoose={onChoose}
         />
+
+        {/*
+          🔴 76.34 — CANCEL THIS PAYMENT, SAID PLAINLY, AND ONLY WHILE IT IS
+          STILL THEIRS TO CANCEL.
+
+          Under the form rather than beside the minimise button: minimising and
+          cancelling are opposite intentions and a pair of small controls in the
+          corner would get them confused by somebody holding a phone in one
+          hand. This one is a line of text, it says what it removes, and it
+          takes two taps.
+        */}
+        {onCancel && (live.state === "none" || live.state === "awaiting_proof") ? (
+          <div className="mt-3 text-center">
+            {confirmingCancel ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
+                <p className="text-sm font-semibold text-rose-900">{t("pop.cancelSure")}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-rose-700">
+                  {t("pop.cancelSureBody")}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={cancelling}
+                    onClick={() => {
+                      setCancelling(true);
+                      void onCancel()
+                        .then(() => remember(false))
+                        .finally(() => {
+                          setCancelling(false);
+                          setConfirmingCancel(false);
+                        });
+                    }}
+                    className="h-10 flex-1 rounded-xl bg-rose-600 text-sm font-semibold text-white disabled:opacity-40"
+                  >
+                    {cancelling ? t("common.saving") : t("pop.cancelYes")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cancelling}
+                    onClick={() => setConfirmingCancel(false)}
+                    className="h-10 flex-1 rounded-xl bg-white text-sm font-semibold text-slate-700"
+                  >
+                    {t("pop.cancelNo")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingCancel(true)}
+                className="text-sm font-semibold text-rose-600 underline decoration-rose-200 underline-offset-4"
+              >
+                {t("pop.cancel")}
+              </button>
+            )}
+          </div>
+        ) : null}
 
         {/*
           🔴 THE WAY ONWARD, ONLY ONCE THERE IS SOMEWHERE TO GO.

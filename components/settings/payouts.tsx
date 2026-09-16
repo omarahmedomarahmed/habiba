@@ -38,6 +38,33 @@ export type PayoutState = {
   feeBps: number;
   /** Taken on their behalf before Stripe verified them, and not yet released. */
   heldCents: number;
+  /**
+   * 🔴 76.34 — WHO THIS IS, AT THE TOP, BESIDE THE COUNTRY.
+   *
+   * The country decides which of our companies bills them, which currency they
+   * are asked for, and whether they will ever see a Stripe screen. It was the
+   * fourth field of a form halfway down the page, under the session price, so
+   * the one answer that changes everything else on the screen was read after
+   * everything it changes.
+   *
+   * The name and the licence are here because they are what makes it read as
+   * "this is you, and this is where you practise" rather than as another
+   * setting. They are not editable here: that is the profile form above.
+   */
+  name: string;
+  license: string | null;
+  /**
+   * 🔴 76.34 — HOW THEY WOULD LIKE TO BE PAID, on the rail where we pay them by
+   * hand.
+   *
+   * It lived only on `/earnings`, inside a component rendered when there is
+   * money held or a past request. So an Egyptian clinician who had not yet
+   * earned anything could not tell us where to send it, and the first time they
+   * were asked was the moment they wanted it.
+   *
+   * Null means nothing is set, which is a thing to say rather than a blank.
+   */
+  payoutMethod: { method: string; identifier: string; accountName: string } | null;
 };
 
 function Saving({ label }: { label: string }) {
@@ -67,6 +94,27 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
     state.sessionRateCents > 0 ? String(state.sessionRateCents / 100) : "",
   );
   const [currency, setCurrency] = useState(state.rateCurrency);
+  /*
+   * 🔴 76.34 — HELD IN STATE, so the whole screen changes as they choose.
+   *
+   * Picking Egypt and then reading three Stripe steps that will never apply to
+   * them is worse than not asking: it teaches somebody that the setting did not
+   * work. The view follows the select immediately and the form says the choice
+   * is not saved until they press the button, which is the honest version of
+   * the same thing.
+   */
+  const [region, setRegion] = useState(state.practiceRegion ?? "us");
+  /*
+   * 🔴 EGYPT IS THE MANUAL RAIL, and that is a fact about the country rather
+   * than about this account's Stripe status. `collectionRailFor` says the same
+   * thing on the server; this is the screen agreeing with it.
+   *
+   * A clinician on a clinic's roster has `practiceRegion === null` and does not
+   * choose: the jurisdiction belongs to the clinic. They keep whatever view
+   * their practice's region gives them, which is why this reads the state
+   * rather than the select in that case.
+   */
+  const manualRail = region === "eg";
 
   const sessionRateCents = Math.round((Number(rate) || 0) * 100);
   const cut = Math.floor((sessionRateCents * state.feeBps) / 10_000);
@@ -81,6 +129,64 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
 
   return (
     <Card className="p-4">
+      {/*
+        🔴 76.34 — WHO YOU ARE AND WHERE YOU PRACTISE, FIRST.
+        ------------------------------------------------------
+        The country was the fourth field of a form halfway down this card, under
+        the session price. It decides which of our companies bills this person,
+        which currency they are asked for, and whether they will ever see a
+        Stripe screen at all, so every other control here is downstream of it and
+        every one of them was above it.
+
+        It sits with the name and the licence because that is what makes it read
+        as an identity rather than as a preference. Neither of those is editable
+        here; the profile form on the same page owns them.
+      */}
+      <div className="-m-4 mb-4 rounded-t-2xl border-b border-slate-200 bg-slate-50 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="text-base font-bold tracking-tight text-slate-900">{state.name}</p>
+          {state.license ? (
+            <p className="text-xs text-slate-500">{state.license}</p>
+          ) : null}
+        </div>
+
+        {state.practiceRegion !== null ? (
+          <div className="mt-3">
+            <label
+              htmlFor="practice-region"
+              className="text-xs font-semibold text-slate-700"
+            >
+              {t("tpay.whereYouPractise")}
+            </label>
+            <select
+              id="practice-region"
+              name="practiceRegion"
+              form="payment-settings"
+              value={region}
+              onChange={(event) => setRegion(event.target.value)}
+              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            >
+              <option value="us">{t("tpay.regionUs")}</option>
+              <option value="eg">{t("tpay.regionEg")}</option>
+            </select>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              {t("tpay.whereYouPractiseBody")}
+            </p>
+            {/*
+              🔴 THE VIEW HAS ALREADY CHANGED AND THE SETTING HAS NOT.
+              Saying so is the honest version of a screen that updates live: a
+              clinician who sees the Stripe box disappear and assumes it is
+              saved has not saved it.
+            */}
+            {region !== state.practiceRegion ? (
+              <p className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                {t("tpay.regionUnsaved")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
           <Wallet className="h-4 w-4" aria-hidden />
@@ -94,11 +200,21 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             worst kind to leave on a screen about money.
           */}
           <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
-            {state.heldCents > 0
-              ? t("tpay.holding", { amount: formatUsd(state.heldCents) })
-              : state.payoutsEnabled
-                ? t("tpay.enabled")
-                : t("tpay.notEnabled")}
+            {/*
+              🔴 76.34 — ON THE MANUAL RAIL NONE OF THE THREE STRIPE SENTENCES
+              IS TRUE, and "payouts are not switched on" is the worst of them:
+              it reads as something the clinician has failed to do, about a
+              thing they cannot do and do not need.
+            */}
+            {manualRail
+              ? state.heldCents > 0
+                ? t("tpay.egHolding", { amount: formatUsd(state.heldCents) })
+                : t("tpay.egRail")
+              : state.heldCents > 0
+                ? t("tpay.holding", { amount: formatUsd(state.heldCents) })
+                : state.payoutsEnabled
+                  ? t("tpay.enabled")
+                  : t("tpay.notEnabled")}
           </p>
         </div>
       </div>
@@ -119,6 +235,24 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         🔴 65.22 — AND IT IS NUMBERED BECAUSE IT IS A SEQUENCE. Step three cannot happen
         before step two, which is the whole reason a held balance is not a problem.
       */}
+      {/*
+        🔴 76.34 — THE WHOLE STRIPE BOX IS ABSENT IN EGYPT, not disabled.
+        -----------------------------------------------------------------
+        Three numbered steps, a "Set up payouts" button, two status chips, an
+        available balance, a "Pay out now" and a link to a Stripe dashboard.
+        Every one of them is about a rail that does not run in this country, and
+        a clinician in Cairo was shown all of it and told their payouts were not
+        switched on.
+
+        Absent rather than disabled, which is the same ruling 74.6 made about
+        the country select for a clinic's clinician: a disabled control invites
+        somebody to ask why and then to ask support. An absent one is answered
+        by the two lines that replace it.
+
+        What is left is exactly what the founder asked for and what is true
+        here: what a session costs, and how they would like to be paid.
+      */}
+      {!manualRail ? (
       <div className="mt-4">
         <FlowStrip
           steps={[
@@ -129,6 +263,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           done={state.payoutsEnabled ? 2 : state.connected ? 0 : -1}
         />
       </div>
+      ) : null}
 
       {error ? (
         <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
@@ -136,7 +271,49 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         </p>
       ) : null}
 
-      {!state.connected ? (
+      {/*
+        🔴 76.34 — WHAT REPLACES THE STRIPE BOX IN EGYPT.
+
+        Two facts, and they are the two the founder named: what a session costs,
+        which is the form below, and how this person would like to be paid,
+        which had no home on this screen at all. It lived on `/earnings` inside
+        a component that renders only once there is money held, so the first
+        time anybody was asked where to send their earnings was the moment they
+        wanted them.
+      */}
+      {manualRail ? (
+        <div className="mt-4 rounded-2xl border border-slate-200 p-4">
+          <p className="text-sm font-semibold text-slate-900">{t("tpay.egMethod")}</p>
+          {state.payoutMethod ? (
+            <>
+              <p className="mt-1 text-sm text-slate-700">
+                {t(`tpay.method.${state.payoutMethod.method}` as "tpay.method.instapay")}
+                {" · "}
+                <span className="font-mono text-xs select-all">
+                  {state.payoutMethod.identifier}
+                </span>
+              </p>
+              {/*
+                🔴 §3c — THE NAME EXACTLY AS THE RECEIVING ACCOUNT HAS IT.
+                A transfer to "M. Ali" against an account registered to "Mohamed
+                Ali Hassan" bounces after a person has already done the work, so
+                the name is shown back rather than assumed correct.
+              */}
+              <p className="mt-0.5 text-xs text-slate-500">{state.payoutMethod.accountName}</p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm leading-relaxed text-slate-500">{t("tpay.egMethodNone")}</p>
+          )}
+          <a
+            href="/earnings"
+            className="mt-3 inline-flex text-sm font-semibold text-brand-600"
+          >
+            {state.payoutMethod ? t("tpay.egMethodChange") : t("tpay.egMethodSet")}
+          </a>
+        </div>
+      ) : null}
+
+      {manualRail ? null : !state.connected ? (
         <div className="mt-4">
           <Button full size="lg" disabled={pending} onClick={() => run(connectPayouts)}>
             <Banknote className="h-4 w-4" aria-hidden />
@@ -209,7 +386,17 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         </>
       )}
 
-      <form action={formAction} className="mt-5 space-y-4 border-t border-slate-100 pt-4">
+      {/*
+        🔴 `id`, because the country select lives in the header at the top of
+        this card and posts here through `form="payment-settings"`. One form,
+        one save button, and the field that changes everything is where somebody
+        reads it first.
+      */}
+      <form
+        id="payment-settings"
+        action={formAction}
+        className="mt-5 space-y-4 border-t border-slate-100 pt-4"
+      >
         {formState.ok ? <p className="text-sm text-emerald-700">{t("common.saved")}</p> : null}
         {formState.error ? <p className="text-sm text-red-600">{formState.error}</p> : null}
 
@@ -256,34 +443,15 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         </Field>
 
         {/*
-          🔴 74.6 — WHERE THEY PRACTISE, WHICH IS NOT THE SAME QUESTION AS WHAT
-          THEY PRICE IN.
+          🔴 76.34 — THE COUNTRY USED TO BE HERE, and it is at the top of the
+          card now, beside the name and the licence.
 
-          It decides which of our companies bills them and therefore how they pay
-          us: a practice in Egypt is invoiced and pays by InstaPay or bank
-          transfer, because there is no card rail there yet. Somebody in Cairo
-          may still price in dollars, so the two selects are two answers.
-
-          Rendered only for a practice of one. A clinic's jurisdiction belongs to
-          the clinic, and one clinician must not be able to move which company
-          bills their colleagues.
+          It decides which of our companies bills them, which currency they are
+          asked for, and whether a Stripe screen exists for them at all. Every
+          other control on this card is downstream of that answer and every one
+          of them was above it. It posts into this form through `form=`, so
+          there is still one save button and one action.
         */}
-        {state.practiceRegion !== null ? (
-          <Field label={t("tpay.whereYouPractise")} htmlFor="practice-region">
-            <select
-              id="practice-region"
-              name="practiceRegion"
-              defaultValue={state.practiceRegion}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-            >
-              <option value="us">{t("tpay.regionUs")}</option>
-              <option value="eg">{t("tpay.regionEg")}</option>
-            </select>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              {t("tpay.whereYouPractiseBody")}
-            </p>
-          </Field>
-        ) : null}
 
         {/*
           🔴 65.10 — THE SAME SPLIT BAR THE SESSION FORM DRAWS.

@@ -96,6 +96,15 @@ export default async function SettingsPage({
 
   const held = await heldForTherapist(actor.userId);
 
+  /*
+   * 🔴 76.34 — how they would like to be paid, for the manual rail's half of
+   * this card. It lived only on `/earnings`, inside a component that renders
+   * once there is money held, so nobody could answer the question before the
+   * moment they wanted the money.
+   */
+  const { defaultMethodFor } = await import("@/lib/billing/payouts");
+  const payoutMethod = await defaultMethodFor(actor.userId);
+
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title={t("portal.settings.title")} subtitle={actor.email} />
@@ -211,6 +220,23 @@ export default async function SettingsPage({
               outstandingCents: outstanding?.cents ?? 0,
               feeBps: settings.session.platformFeeBps,
               heldCents: held,
+              /*
+               * 🔴 76.34 — who this is, beside the country that decides
+               * everything else on the card. Read-only here; the profile form
+               * above owns both.
+               */
+              name: [user?.firstName, user?.lastName].filter(Boolean).join(" ") || actor.email,
+              license:
+                [user?.profile?.licenseType, user?.profile?.licenseNumber]
+                  .filter(Boolean)
+                  .join(" ") || null,
+              payoutMethod: payoutMethod
+                ? {
+                    method: payoutMethod.method,
+                    identifier: payoutMethod.identifier,
+                    accountName: payoutMethod.accountName,
+                  }
+                : null,
             }}
           />
         </SettingsSection>
