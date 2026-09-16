@@ -12,8 +12,7 @@ import {
   requestPayout,
   startOnboarding,
 } from "@/lib/billing/connect";
-import { quoteFor } from "@/lib/billing/fx";
-import { convert } from "@/lib/billing/money";
+import { egpRateMicro } from "@/lib/billing/manual";
 import { dbFor} from "@/lib/db";
 import { isRegion, pinnedToDefaultRegion } from "@/lib/db/region";
 import { writeTimezone } from "@/lib/data/timezone";
@@ -221,11 +220,34 @@ export async function updatePaymentSettings(
   const currency = String(formData.get("rateCurrency") ?? "usd").trim().toLowerCase();
   if (currency !== "usd" && currency !== "egp") return { error: "Choose a currency." };
 
+  /*
+   * 🔴 76.46 — THE OPERATOR'S RATE, AND THIS USED TO BE A HARD BLOCK.
+   *
+   * It called `quoteFor(currency, "usd")` and refused when that returned
+   * nothing. C37 makes `quoteFor` refuse a static rate in production and there
+   * is no rate provider configured, so **in production an Egyptian therapist
+   * could not set their price in pounds at all** and was told "try again
+   * shortly", which was never going to become true.
+   *
+   * The rate is used here for the FLOOR AND CAP CHECK ONLY. The comment above
+   * is the reason that matters: the number stored stays the number they typed,
+   * in the currency they typed it in, so nothing settles on this conversion and
+   * a rate that moves tomorrow does not rewrite their price. A bounds check is
+   * exactly the case `egpRateMicro()` exists for, and it is the same rate every
+   * payment screen in the product already shows them.
+   *
+   * 🔴 DIVIDE, BECAUSE THE RATE POINTS THE OTHER WAY. `egpRateMicro` is pounds
+   * per dollar; `quoteFor(egp, usd)` was dollars per pound. Multiplying by the
+   * wrong direction here would make a 1,500 EGP price read as $75,000 and pass
+   * the cap by being absurd rather than by being right.
+   */
   let usdEquivalent = cents;
   if (currency !== "usd" && cents > 0) {
-    const quote = await quoteFor(currency, "usd");
-    if (!quote) return { error: "We cannot price that currency right now. Try again shortly." };
-    usdEquivalent = convert(cents, quote.rateMicro);
+    const rateMicro = await egpRateMicro();
+    if (!rateMicro || rateMicro <= 0) {
+      return { error: "No exchange rate is set yet, so a price in pounds cannot be checked." };
+    }
+    usdEquivalent = Math.round((cents * 1_000_000) / rateMicro);
   }
 
   const problem = priceProblem(usdEquivalent, (await getSettings()).session);

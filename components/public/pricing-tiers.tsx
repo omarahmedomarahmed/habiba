@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { PriceTag } from "@/components/money/price-tag";
 import { SeatLadder, type SeatBandRow } from "@/components/public/seat-ladder";
 import { Button } from "@/components/ui";
-import { quoteFor } from "@/lib/billing/fx";
+import { egpRateMicro } from "@/lib/billing/manual";
 /*
  * 🔴 19.4 — `formatMoney` with the reader's tag, never `formatUsd`.
  *
@@ -38,10 +38,35 @@ import { seatMonthlyCents } from "@/lib/settings/defs";
  *
  * ## The EGP toggle (17.8, 16.4)
  *
- * The rate is quoted once here, on the server, and handed to every `PriceTag`
- * as a number. A price the marketing page converts differently from the
- * checkout is worse than a price shown only in dollars — and C37 refuses a
- * pair it cannot price, in which case the toggle simply does not appear.
+ * The rate is read once here, on the server, and handed to every `PriceTag` as
+ * a number. A price the marketing page converts differently from the checkout
+ * is worse than a price shown only in dollars.
+ *
+ * ## 🔴 76.46 — AND IT IS THE OPERATOR'S RATE, NOT `quoteFor`
+ *
+ * This called `quoteFor("usd", "egp")` for nine days. C37 refuses a static rate
+ * in production, there is no rate provider configured, so in production it
+ * returned null on every render: `egpRate` was null, `PriceTag` renders no
+ * toggle when it has no rate, and **nobody in Cairo could see a single price in
+ * pounds on the pricing page.** It also logged an `error` every time, 198 of
+ * them across 17 people, on the busiest route in the product.
+ *
+ * `lib/billing/manual.ts` had already written down why, one file over, for the
+ * payment rail:
+ *
+ * > it is deliberately NOT `quoteFor`: `quoteFor` refuses a `static` rate in
+ * > production (C37), so in production it returns nothing and this rail would
+ * > have no number to show at all.
+ *
+ * The rail learned it and this page did not. `egpRateMicro()` is the rate an
+ * operator sets on `/admin/settings` and the one every payment screen already
+ * shows, so the marketing page and the checkout now quote the same number by
+ * construction, which is what the paragraph above was asking for in the first
+ * place.
+ *
+ * 🔴 `quoteFor` remains right where it is used: settling money. A rate nobody
+ * checked must not price a charge, and refusing IS the correct answer there.
+ * Showing somebody what a price is worth in their own currency is not settling.
  */
 export async function PricingTiers({
   compact = false,
@@ -56,8 +81,7 @@ export async function PricingTiers({
   locale?: string;
 }) {
   const settings = await getSettings();
-  const quote = await quoteFor("usd", "egp");
-  const egpRate = quote?.rateMicro ?? null;
+  const egpRate = await egpRateMicro();
 
   /*
    * 19.4 — the reader's language, resolved once on the server and handed to

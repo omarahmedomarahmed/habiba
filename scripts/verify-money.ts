@@ -187,6 +187,98 @@ function main() {
     PAYS_IN_POUNDS.join(" · "),
   );
 
+  /* ================================================================== */
+  /*  🔴 76.46 · SETTLING IS NOT THE SAME AS SHOWING                     */
+  /* ================================================================== */
+
+  /*
+   * ## The defect this is named after
+   *
+   * `components/public/pricing-tiers.tsx` priced the pounds on the PUBLIC
+   * PRICING PAGE with `quoteFor("usd", "egp")`. C37 makes `quoteFor` refuse a
+   * static rate in production, and there is no rate provider configured, so in
+   * production it returned null on every render. `PriceTag` renders no toggle
+   * without a rate, so **nobody in the launch market could see a single price
+   * in pounds**, and it logged an `error` each time: 198 of them across 17
+   * people over nine days, on the busiest route in the product.
+   *
+   * The same call refused an Egyptian therapist setting their session price in
+   * pounds on `/settings`, and told them to "try again shortly".
+   *
+   * ## 🔴 THE PROPERTY, AND IT IS A DISTINCTION RATHER THAN A BAN
+   *
+   * `quoteFor` is correct where money SETTLES. A rate nobody checked must not
+   * price a charge, and refusing is the right answer: the refusal is a bug
+   * report and the wrong rate is a receipt.
+   *
+   * Showing somebody what a price is worth in their own currency settles
+   * nothing, and neither does checking one against a floor and a cap. Those use
+   * `egpRateMicro()`, the rate an operator sets on `/admin/settings`, which is
+   * the number every payment screen already shows them, so the marketing page
+   * and the checkout agree by construction.
+   *
+   * `lib/billing/manual.ts` wrote this down for the payment rail before the
+   * pricing page existed. The rail learned it and the page did not, which is
+   * why it is a check now rather than a paragraph.
+   */
+  const SETTLES = [
+    "lib/billing/payouts.ts",
+    "lib/billing/connect.ts",
+    "app/pay/[token]/actions.ts",
+  ];
+
+  const everyTsFile = (dir: string): string[] => {
+    const out: string[] = [];
+    const walk = (at: string) => {
+      for (const entry of readdirSync(at, { withFileTypes: true })) {
+        const full = join(at, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name === "node_modules" || entry.name === ".next") continue;
+          walk(full);
+        } else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
+      }
+    };
+    walk(dir);
+    return out;
+  };
+
+  const callers = [...everyTsFile("app"), ...everyTsFile("components"), ...everyTsFile("lib")]
+    .filter((f) => f !== "lib/billing/fx.ts")
+    .filter((f) => /\bquoteFor\s*\(/.test(readSource(f)));
+
+  const strays = callers.filter((f) => !SETTLES.includes(f));
+
+  check(
+    "🔴 76.46 only the surfaces that SETTLE money reach `quoteFor`",
+    strays.length === 0,
+    strays.length === 0
+      ? `${callers.length} callers, all of them settling: ${SETTLES.join(" · ")}`
+      : `showing a price is not settling one: ${strays.join(" · ")}`,
+  );
+
+  check(
+    "🔴 76.46 CONTROL the scan FINDS the settling callers, so zero strays cannot mean zero found",
+    callers.length >= SETTLES.length && SETTLES.every((f) => callers.includes(f)),
+    `${callers.length} found`,
+  );
+
+  /*
+   * 🔴 AND THE TWO SURFACES THE DEFECT WAS ON NOW READ THE OPERATOR'S RATE.
+   *
+   * Named, because "no stray callers" is satisfied just as well by a page that
+   * shows no pounds at all, which is the state this is fixing.
+   */
+  for (const [file, what] of [
+    ["components/public/pricing-tiers.tsx", "the public pricing page"],
+    ["app/(app)/settings/actions.ts", "a therapist pricing in pounds"],
+  ] as const) {
+    check(
+      `🔴 76.46 ${what} prices off the operator's rate`,
+      /egpRateMicro\s*\(/.test(readSource(file)),
+      file,
+    );
+  }
+
   finish("sprint 76 money");
 }
 

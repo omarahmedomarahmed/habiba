@@ -1,7 +1,7 @@
 import { PublicProfile } from "@/components/radar/public-profile";
 import { BookingCalendar } from "@/components/scheduling/booking-calendar";
 import { PriceTag } from "@/components/money/price-tag";
-import { quoteFor } from "@/lib/billing/fx";
+import { egpRateMicro } from "@/lib/billing/manual";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { formatUsd } from "@/lib/billing/plans";
@@ -27,12 +27,23 @@ export async function TherapistPageBody({ id }: { id: string }) {
   const profile = await publicProfile(id);
   if (!profile) return null;
 
-  const [slots, reliability, quote] = await Promise.all([
+  /*
+   * 🔴 76.46 — THE OPERATOR'S RATE, not `quoteFor`.
+   *
+   * This is a patient in Cairo looking at what a session costs before they book
+   * it. `quoteFor` refuses a static rate in production (C37) and no rate
+   * provider is configured, so it returned null here on every render and the
+   * pounds toggle never appeared for the people this market is for.
+   *
+   * Showing a price settles nothing. The rate is the one an operator sets on
+   * `/admin/settings` and the one the payment screen will show them at the end
+   * of this same journey, so the two agree by construction.
+   */
+  const [slots, reliability, egpRate] = await Promise.all([
     openHours(id),
     reliabilityFor(id),
-    quoteFor("usd", "egp"),
+    egpRateMicro(),
   ]);
-  const egpRate = quote?.rateMicro ?? null;
   const { locale, t } = await getI18n();
   const tag = localeTag(locale);
 
