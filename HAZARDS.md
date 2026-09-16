@@ -86,3 +86,31 @@ The static analysis in this repository is `npm run typecheck` and `npm run gates
 
 Every verifier that touches the database refuses the production endpoint by name.
 Do not weaken that guard. Point `DATABASE_URL` at a Neon branch instead.
+
+## The three databases, and the one question `DATABASE_URL` cannot answer
+
+| Environment | Variable | Neon branch | Endpoint |
+| --- | --- | --- | --- |
+| production | `DATABASE_URL_PRODUCTION` | `main` | `ep-wild-lake-a6tgm2r6` |
+| dev | `DATABASE_URL_DEV` | `sprint-1-settings` | `ep-aged-dust-a6huadss` |
+| simulation | `DATABASE_URL_SIMULATION` | `simulation-q1` | `ep-empty-queen-a62vlkkp` |
+
+`DATABASE_URL` is the database *this process* talks to. These three are the databases
+this product *has*, and they exist because "are all three configured the same way" cannot
+be asked by a process that can only see one of them.
+
+    npm run settings:compare
+
+reads all three and fails on any difference. It writes nowhere, so it can be pointed at
+production, and it must be: production is the database that most needs asking and the one
+a write guard has always refused to let anybody ask. Each variable is checked against the
+endpoint above before anything is read, because a variable named for production holding
+the dev branch would report dev agreeing with itself.
+
+The first run found four real drifts, including one nothing that reads source could ever
+have seen: production's ID-upload labels still carried an em dash, because `settings:seed`
+only ever inserts and the corrected default never reached a row that already existed.
+`settings:check` now fails on an em dash in any stored string for that reason.
+
+Set these locally only. Nothing the deployed product does needs to reach a database other
+than its own.

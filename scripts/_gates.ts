@@ -118,6 +118,38 @@ export const GATES = [
     why: "and the rail it runs on has a bank account to point at",
   },
   /*
+   * 🔴 76.42 — AND ALL THREE DATABASES ARE CONFIGURED THE SAME WAY.
+   *
+   * `settings:check` above asks ONE database whether it matches the code. Three
+   * green runs of it do not mean three identical databases: every value an
+   * operator changed on purpose reads as "differs from default" on all three
+   * and says nothing about whether they differ from each other, and the values
+   * with no code default at all — the bank account, which is the whole Egyptian
+   * rail — it can only ask whether they exist.
+   *
+   * The first run of this found four real drifts. Production alone held the
+   * stored FX rate; dev and the simulation carried the pre-audience shape of
+   * the transfer fields, so the field a patient sees and the field a clinic
+   * sees were the same field on two of three environments; the simulation
+   * throttled the copilot to 4 messages a session where the product allows 10;
+   * and production's ID-upload labels still carried the em dash this product
+   * does not use, because `settings:seed` only ever inserts and the corrected
+   * default never reached a row that already existed.
+   *
+   * 🔴 IT MATTERS MOST FOR THE SIMULATION. A six month run is evidence about
+   * the product only if the product it ran on is the product. A simulation
+   * priced off a stale table produces a P&L about a business nobody is
+   * launching, and every number in it is internally consistent.
+   *
+   * 🔴 IT READS ON EVERY CONNECTION AND WRITES NOWHERE, which is why it can be
+   * pointed at production and why it must be.
+   */
+  {
+    name: "environments",
+    script: "settings:compare",
+    why: "and production, dev and the simulation are configured identically",
+  },
+  /*
    * 🔴 76.22 — AND A WHOLE CYCLE OF MONEY ACTUALLY MOVES, on real rows.
    *
    * `verify:rail` above ends by admitting what it cannot do: it reads source,

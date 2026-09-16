@@ -302,12 +302,46 @@ async function check(db: Db): Promise<number> {
     }
   }
 
+  /*
+   * 🔴 76.42 — THE HOUSE RULE, APPLIED TO DATA.
+   *
+   * `verify:sprint24` fails the build on a single em dash in source, and it
+   * reads source, which is every place this product's copy lives except one.
+   * The settings tables hold strings that render to a clinician: the country
+   * label on the verification upload, the hint beside a bank field, the label
+   * on an InstaPay handle.
+   *
+   * Production held "National ID (البطاقة) — front" for as long as the country
+   * rows have existed. The defaults were corrected in code and `settings:seed`
+   * is `onConflictDoNothing`, so the fix never reached a database that already
+   * had the row: exactly the shape of stale data a source gate cannot see.
+   *
+   * It exits non-zero, unlike a stale price. A price somebody set is somebody
+   * doing their job; there is no version of this that is a decision.
+   */
+  const dashes: string[] = [];
+  const sweep = (value: unknown, path: string) => {
+    if (typeof value === "string") {
+      if (value.includes("\u2014")) dashes.push(`${path}: ${value.slice(0, 80)}`);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((entry, i) => sweep(entry, `${path}[${i}]`));
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) sweep(v, `${path}.${k}`);
+    }
+  };
+  for (const [key, value] of stored) sweep(value, key);
+
   /* 🔴 THE ONE THAT STOPS THE PRODUCT WORKING, checked by name. */
   const payouts = stored.get("payouts") as { transferFields?: unknown[] } | undefined;
   const fields = payouts?.transferFields ?? [];
   const noBankAccount = !Array.isArray(fields) || fields.length === 0;
 
   const countries = await db.select().from(countrySettings);
+  for (const row of countries) sweep(row, `country ${row.code}`);
   const missingCountries = COUNTRY_SEED.filter(
     (c) => !countries.some((row) => row.code === c.code),
   ).map((c) => c.code);
@@ -345,12 +379,182 @@ async function check(db: Db): Promise<number> {
     console.log(`\n  bank details present: ${(fields as { key: string }[]).map((f) => f.key).join(", ")}`);
   }
 
+  if (dashes.length > 0) {
+    console.log(`\n🔴 ${dashes.length} stored string(s) contain an em dash, which this product does not use.`);
+    console.log("   These render to a clinician. Fix them in /admin/settings or with an UPDATE.");
+    for (const entry of dashes) console.log(`    · ${entry}`);
+  }
+
   /*
-   * 🔴 ONLY THE TWO THAT STOP THE PRODUCT EXIT NON-ZERO. A stale price might be
-   * deliberate and a missing group is harmless; failing on either would make
-   * this a gate people switch off, which is H20 exactly.
+   * 🔴 ONLY THE THREE THAT ARE NEVER A DECISION EXIT NON-ZERO. A stale price
+   * might be deliberate and a missing group is harmless; failing on either
+   * would make this a gate people switch off, which is H20 exactly. An em dash
+   * in copy is not a decision anybody made.
    */
-  return noBankAccount || missingCountries.length > 0 ? 1 : 0;
+  return noBankAccount || missingCountries.length > 0 || dashes.length > 0 ? 1 : 0;
+}
+
+/**
+ * 🔴 76.42 — DO THE THREE ENVIRONMENTS HOLD THE SAME SETTINGS?
+ *
+ *   npm run settings:compare
+ *
+ * ## Why this is not `check` run three times
+ *
+ * `check` asks one database whether it matches the CODE. Three green `check`
+ * runs do not mean three identical databases: every value an operator
+ * deliberately changed shows as "differs from default" on all three and tells
+ * you nothing about whether they differ from EACH OTHER. The FX rate is the
+ * obvious one, and the transfer fields are the one that matters — there is no
+ * code default for a bank account, so `check` can only ask whether one exists.
+ *
+ * ## 🔴 WHAT IT MEANS FOR THE SIMULATION
+ *
+ * A six month run is evidence about the product only if the product it runs on
+ * is the product. A simulation priced off a stale tier table produces a P&L
+ * about a business nobody is launching, and the failure is invisible: every
+ * number is internally consistent and all of them are about the wrong company.
+ *
+ * ## It READS, on every connection, and writes nothing anywhere
+ *
+ * Which is why it can be pointed at production, and why it must be: production
+ * is the database that most needs asking and the one a write guard has always
+ * refused to let anybody ask.
+ */
+async function compare(): Promise<number> {
+  const { ENVIRONMENTS, urlFor } = await import("./_environments");
+
+  type Loaded = {
+    name: string;
+    settings: Map<string, unknown>;
+    countries: Map<string, unknown>;
+  };
+
+  const loaded: Loaded[] = [];
+  const absent: string[] = [];
+  const mislabelled: string[] = [];
+
+  for (const env of ENVIRONMENTS) {
+    const url = urlFor(env);
+    if (!url) {
+      absent.push(`${env.name} (set ${env.variable})`);
+      continue;
+    }
+
+    /*
+     * 🔴 THE LABEL IS CHECKED AGAINST THE HOST BEFORE ANYTHING IS READ.
+     *
+     * `DATABASE_URL_PRODUCTION` holding the dev branch is a variable that lies,
+     * and every comparison downstream of it would be a comparison of dev with
+     * dev, reported as agreement. That is the §6 family — a check that passes
+     * by measuring the wrong thing — and it is cheap to refuse.
+     */
+    if (!url.includes(env.endpoint)) {
+      mislabelled.push(`${env.variable} does not point at ${env.endpoint} (${env.branch})`);
+      continue;
+    }
+
+    const { pool, db } = connect(url);
+    try {
+      const rows = await db.select().from(platformSettings);
+      const countryRows = await db.select().from(countrySettings);
+      loaded.push({
+        name: env.name,
+        settings: new Map(rows.map((r) => [r.key, r.value])),
+        countries: new Map(
+          countryRows.map((r) => [r.code, { ...r, updatedAt: null, createdAt: null }]),
+        ),
+      });
+    } finally {
+      await pool.end();
+    }
+  }
+
+  console.log("\n🔴 The same settings, on every environment?\n");
+
+  for (const line of mislabelled) console.log(`  🔴 ${line}`);
+  if (absent.length > 0) console.log(`  --  not configured: ${absent.join(", ")}`);
+  console.log(`  --  compared: ${loaded.map((l) => l.name).join(", ") || "nothing"}\n`);
+
+  if (loaded.length < 2) {
+    console.log(
+      "🔴 Fewer than two environments to compare, so this answered nothing.\n" +
+        "   Each environment needs its own connection string. See .env.example.",
+    );
+    return 1;
+  }
+
+  const [first, ...rest] = loaded as [Loaded, ...Loaded[]];
+  const differences: string[] = [];
+
+  /*
+   * 🔴 THE DIFFERENCE IS REPORTED PER LEAF KEY, not per group.
+   *
+   * The first version printed both whole serialisations truncated to 160
+   * characters, so a one-key drift inside `payouts` — which has fourteen keys
+   * and an array of transfer fields — printed two identical-looking prefixes
+   * and told the reader nothing. A diff nobody can read is a diff nobody acts
+   * on, which is H20 pointed at output rather than at a schedule.
+   */
+  const leaves = (value: unknown, prefix: string): Map<string, string> => {
+    const out = new Map<string, string>();
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+          for (const [ik, iv] of leaves(v, `${prefix}.${k}`)) out.set(ik, iv);
+        } else {
+          out.set(`${prefix}.${k}`, stable(v));
+        }
+      }
+      return out;
+    }
+    out.set(prefix, stable(value));
+    return out;
+  };
+
+  const compareLeaves = (label: string, mine: unknown, theirs: unknown, other: string) => {
+    const a = leaves(mine, label);
+    const b = leaves(theirs, label);
+    for (const key of [...new Set([...a.keys(), ...b.keys()])].sort()) {
+      const left = a.get(key) ?? "(absent)";
+      const right = b.get(key) ?? "(absent)";
+      if (left === right) continue;
+      differences.push(
+        `${key}\n      ${first.name}:  ${left.slice(0, 200)}\n      ${other}:  ${right.slice(0, 200)}`,
+      );
+    }
+  };
+
+  const keys = [...new Set(loaded.flatMap((l) => [...l.settings.keys()]))].sort();
+  for (const key of keys) {
+    for (const other of rest) {
+      compareLeaves(key, first.settings.get(key), other.settings.get(key), other.name);
+    }
+  }
+
+  const codes = [...new Set(loaded.flatMap((l) => [...l.countries.keys()]))].sort();
+  for (const code of codes) {
+    for (const other of rest) {
+      compareLeaves(`country ${code}`, first.countries.get(code), other.countries.get(code), other.name);
+    }
+  }
+
+  if (differences.length === 0) {
+    console.log(`  every setting group and every country agrees across ${loaded.length} environments`);
+  } else {
+    console.log(`  🔴 ${differences.length} difference(s):\n`);
+    for (const line of differences) console.log(`    · ${line}\n`);
+  }
+
+  /*
+   * 🔴 A DIFFERENCE FAILS, and this is the one place in this file where that is
+   * right. `check` prints a stale price and exits zero because an operator
+   * changing a price is somebody doing their job. There is no equivalent story
+   * here: nobody sets a price on dev ON PURPOSE that production must not have.
+   * Three environments that differ is either drift or a deploy that did not
+   * finish, and both are things to fix rather than to read.
+   */
+  return differences.length > 0 || mislabelled.length > 0 ? 1 : 0;
 }
 
 /*
@@ -395,6 +599,17 @@ async function main() {
   if (verb === "reprice" || verb === "rails") writesTo();
   else if (verb === "seed") console.log(`seeding ${hostOf()}\n`);
 
+  /*
+   * 🔴 `compare` OPENS ITS OWN CONNECTIONS, three of them, so it runs before
+   * the single shared one below and never touches `DATABASE_URL`. A comparison
+   * of three databases that refused to start because a fourth variable was
+   * unset would be the most annoying possible way to fail.
+   */
+  if (verb === "compare") {
+    process.exitCode = await compare();
+    return;
+  }
+
   const { pool, db } = connect();
   try {
     if (verb === "seed") await seed(db);
@@ -403,7 +618,7 @@ async function main() {
     else if (verb === "rails") await rails(db);
     else if (verb === "check") process.exitCode = await check(db);
     else {
-      console.error(`unknown verb "${verb}". Use seed, reprice, rails, check or show.`);
+      console.error(`unknown verb "${verb}". Use seed, reprice, rails, check, compare or show.`);
       process.exitCode = 1;
     }
   } catch (error) {

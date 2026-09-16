@@ -55,6 +55,7 @@
     "settings:rails": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts rails",
     "settings:reprice": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts reprice",
     "settings:check": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts check",
+    "settings:compare": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts compare",
     "grant:admin": "node --env-file-if-exists=.env.local --import tsx scripts/grant-admin.ts",
     "seed:coverage": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/seed-coverage.ts",
     "evals": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server evals/run.ts",
