@@ -1,5 +1,7 @@
 import type { Speaker } from "./metrics";
 
+import { FULL_LENGTH_SESSION } from "./cases/long-session";
+
 /**
  * The cases. PLAN.md 32.1.
  *
@@ -833,6 +835,17 @@ export const SESSIONS: SessionCase[] = [
     requiredSections: CORE_SECTIONS,
   },
 
+  /*
+   * 🔴 76.45 — THE LONG ONE, and it lives in its own file because it is longer
+   * than everything above it put together.
+   *
+   * 289 turns against a set whose next longest is 13. Every case above carries
+   * `Duration: 50 minutes` in its context and is a dozen lines, so until this
+   * existed the note suite measured what the model does with a SUMMARY of a
+   * session. It is also the only bilingual case, which is how therapy is
+   * actually spoken in the launch market.
+   */
+  FULL_LENGTH_SESSION,
 ];
 
 /* ------------------------------------------------------------------ risk -- */

@@ -25,8 +25,8 @@ The one thing a Chief of Staff does not do is act. You do not book a session, pa
 work a queue. Every one of those has an agent whose whole existence is that person, and a Chief
 of Staff who starts doing the work has stopped watching whether it is being done.
 
-**Read all eleven of these before you do anything.** They are one design split across eleven
-files because eleven different people read them.
+**Read all twelve of these before you do anything.** They are one design split across twelve
+files because twelve different people read them.
 
 | File | What it is | Who reads it |
 |---|---|---|
@@ -41,6 +41,7 @@ files because eleven different people read them.
 | `08-THE-NUMBERS.md` | What the run hands the financial model, and the four things it can never measure | You, at the end |
 | `09-THE-EDGES.md` | **Forty eight ways money goes wrong, each attached to somebody already in the cast** | You and the money agent |
 | `10-THE-STORY.md` | **What each person is actually going through, week by week, and which facts are planted where** | You, the orchestrator, and every cast agent |
+| `11-THE-RECORD.md` | **Eleven walks through who is allowed to read a patient's record, and one fifty minute session** | You, the orchestrator, and every clinician agent |
 
 ---
 
@@ -167,7 +168,7 @@ deep record from a thin one. Ninety would make a prettier chart and answer nothi
 
 ```
   YOU  ·  the CHIEF OF STAFF
-   │   reads the eleven documents, checks the branch, opens the rail, ages each wave,
+   │   reads the twelve documents, checks the branch, opens the rail, ages each wave,
    │   runs the exam, writes the report, and reports upward to the founder
    ▼
   THE ORCHESTRATOR  ·  one agent, the most capable one available
@@ -273,6 +274,7 @@ was handed the answer to is a gate nobody tested.
 | 12 | The numbers | `npm run physics`, `npm run plan`, Measure and freeze | `08-THE-NUMBERS.md` |
 | 13 | Accuracy, only if there is budget | `npm run evals -- --record` | |
 | 14 | **The edge ledger** | | `09-THE-EDGES.md`, all forty eight, each marked `held` or `broke` |
+| 15 | **The record ledger** | | `11-THE-RECORD.md`, all eleven walks, each marked `held` or `broke`. `R7` needs the same question asked twice, with both answers |
 | 15 | The report | | `docs/simulation-run/REPORT.md`, and it is honest |
 
 **Step 8 is a numbered step and not an assumption.** The run starts with the rail shut, on

@@ -77,7 +77,7 @@ The one thing a Chief of Staff does not do is act. You do not book a session, pa
 a queue: each of those has an agent whose whole existence is that person, and a Chief of Staff
 who starts doing the work has stopped watching whether it is being done.
 
-**Read these eleven files from the repository first, in this order, before doing anything:**
+**Read these twelve files from the repository first, in this order, before doing anything:**
 
 ```
 docs/simulation/00-START-HERE.md   the shape, the five rules, the order of work, the $10 budget
@@ -91,9 +91,10 @@ docs/simulation/07-THE-EXAM.md     what the copilot knows, and whether it learne
 docs/simulation/08-THE-NUMBERS.md  what the run hands the plan, and what it can never measure
 docs/simulation/09-THE-EDGES.md    48 ways money goes wrong, each attached to somebody in the cast
 docs/simulation/10-THE-STORY.md    what each person is going through, and which facts are planted where
+docs/simulation/11-THE-RECORD.md   who may read a record, what revocation takes away, and one 50 minute session
 ```
 
-They are one design in eleven documents. **Do not start until you have read all eleven.**
+They are one design in twelve documents. **Do not start until you have read all twelve.**
 
 🔴 **`09-THE-EDGES.md` is new and it is the reason this run is worth doing twice.** Four of the
 cases in it were real defects found by hand in one afternoon of sprint 76, in the money path
@@ -109,6 +110,24 @@ what their clinician concluded in month 4. **None of those is scoreable unless s
 in advance what the answer is.** Twenty agents improvising sixty two sessions produce a record
 nobody can mark. Every patient in that file has an arc with planted facts in named sessions, and
 the agent playing that person says those things.
+
+🔴 **`11-THE-RECORD.md` is new, and it is the only file here about the promise rather than the
+product.** Every other document is money, load or model quality. If the money is wrong somebody
+is out of pocket and we fix it; if this is wrong, somebody in therapy was read by a clinician
+they had told to stop. Eleven walks, each attached to somebody already in the cast: a patient
+claiming the record their therapist wrote down, a second clinician granted sight of the first
+one's notes, a copilot citing a session from before that clinician existed, and the revocation
+that narrows it back to their own work.
+
+**Two of the eleven have a negative to report, and a negative is the hardest thing to
+evidence.** `R7` and `R8` are not "the copilot gave a shorter answer". They are the same
+question asked before and after a revocation, with both answers captured, one of which is a
+named refusal.
+
+🔴 **And one of the sixty two sessions runs the full fifty minutes.** `L1`. Every figure this
+product has ever reported for cost per session came from short ones, and
+`/admin/usage/sessions` now reports the spread rather than the mean, so the run has to produce
+a dearest for that spread to mean anything.
 
 **And read `docs/FINANCIAL-PLAN.md` once before you begin.** It is not part of the run; it is the
 business this run is a rehearsal of. Everything the simulation captures is evidence for or
@@ -340,7 +359,7 @@ anybody.** Six agents awake at most.
 
 ```
   YOU  ·  the CHIEF OF STAFF
-   │   reads the eleven documents, checks the branch, opens the rail, ages each wave,
+   │   reads the twelve documents, checks the branch, opens the rail, ages each wave,
    │   runs the exam, writes the report, and reports upward to the founder
    ▼
   THE ORCHESTRATOR  ·  one agent, the most capable one available
