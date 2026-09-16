@@ -35,6 +35,7 @@ import {
   submitProof,
   transferDetails,
   type Audience,
+  type PaymentLine,
   type Payer,
 } from "./manual";
 import { formatMoney } from "./plans";
@@ -91,6 +92,24 @@ export type ManualEntry = {
    * for one currency and told to send another with no sum in between.
    */
   rateLabel: string;
+  /**
+   * 🔴 76.16 — WHAT THE TOTAL IS MADE OF, printed under it.
+   *
+   * One figure is enough when a payment has one subject. A pay-as-you-go
+   * clinician paying for four of their eleven unpaid sessions gets a single
+   * number that matches nothing they can see, and the only way to check it is
+   * to add up a list on another screen and hope.
+   *
+   * 🔴 AND THE STORED LINES WIN OVER THE CALLER'S. Once a payment is open, what
+   * the payer committed to is a fact and the page's current idea of it is not:
+   * an invoice settled by another route between opening and returning would
+   * otherwise silently redraw a list that a bank transfer is already in flight
+   * against. Frozen at the same moment as the amount, for the same reason.
+   *
+   * Empty where a payment has one obvious subject, which is most of them, and
+   * the heading has already said what it is.
+   */
+  lines: { label: string; amountLabel: string }[];
 };
 
 /* -------------------------------------------------------- who needs this -- */
@@ -214,6 +233,14 @@ export async function manualEntry(input: {
    * is how a payer is shown one amount and charged another.
    */
   vatCents?: number;
+  /**
+   * 🔴 76.16 — what the caller is ABOUT to quote, in USD cents.
+   *
+   * Only used when nothing is open yet. The moment there is a live row its own
+   * stored lines are the answer, because those are the ones the payer read
+   * before they went to their bank.
+   */
+  lines?: PaymentLine[];
   /** 🔴 19.4 — the reader's language, so the figure is in their numerals. */
   locale: string;
 }): Promise<ManualEntry> {
@@ -225,6 +252,7 @@ export async function manualEntry(input: {
       amountLabel: "",
       taxNote: "",
       rateLabel: "",
+      lines: [],
     };
   }
 
@@ -254,13 +282,38 @@ export async function manualEntry(input: {
    */
   const live = input.refId ? await livePaymentFor(input.purpose, input.refId) : null;
 
+  /*
+   * 🔴 76.16 — FORMATTED HERE, on the server, for the same reason `amountLabel`
+   * is: C84 bans `Intl` inside a client component, and these are figures a payer
+   * checks their total against.
+   */
+  const asLines = (items: PaymentLine[] | null | undefined) =>
+    (items ?? []).map((item) => ({
+      label: item.label,
+      amountLabel: formatMoney(egpMinorFor(item.cents, rateMicro), "EGP", input.locale),
+    }));
+
   if (live) {
     return {
       needed: true,
       details,
-      amountLabel,
+      /*
+       * 🔴 76.16 — THE OPEN ROW'S OWN TOTAL, not the page's fresher sum.
+       *
+       * These used to be the same number and stopped being the same number the
+       * moment a clinician could pay for four of eleven sessions. They also
+       * drift on their own: a bill grows while somebody is at their bank.
+       *
+       * The row wins, both times. A payer who committed to a figure and went to
+       * transfer it must come back to that figure, and an operator matching a
+       * bank line needs the screen to agree with the claim rather than with
+       * whatever the account owes this minute.
+       */
+      amountLabel: formatMoney(egpMinorFor(live.settlesCents, rateMicro), "EGP", input.locale),
       taxNote,
       rateLabel,
+      /* The payer's own committed list, never the page's newer idea of it. */
+      lines: asLines(live.lineItems),
       live:
         live.state === "submitted"
           ? {
@@ -284,6 +337,7 @@ export async function manualEntry(input: {
     amountLabel,
     taxNote,
     rateLabel,
+    lines: asLines(input.lines),
     live: lastRejection
       ? { state: "rejected", reason: lastRejection.rejectReason ?? "" }
       : { state: "none" },
@@ -312,6 +366,8 @@ export async function declarePaid(input: {
   payer: Payer;
   reference: string;
   proofUrl: string | null;
+  /** 🔴 76.16 — what it covers, when the caller knows and it is not obvious. */
+  lineItems?: PaymentLine[] | null;
 }): Promise<{ error?: string; ok?: true }> {
   const rateMicro = await egpRateMicro();
 
@@ -327,6 +383,7 @@ export async function declarePaid(input: {
     settlesCents: input.settlesCents,
     currency: "EGP",
     payer: input.payer,
+    lineItems: input.lineItems ?? null,
   });
   if (opened.error || !opened.id) return { error: opened.error ?? "That could not be started." };
 

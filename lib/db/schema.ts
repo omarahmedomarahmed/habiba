@@ -8411,6 +8411,25 @@ export const manualPayments = pgTable(
       onDelete: "set null",
     }),
 
+    /**
+     * 🔴 76.16 — WHAT THIS TRANSFER SAID IT COVERED, frozen when the sheet opened.
+     *
+     * `refId` points at the one thing to unlock. This says what was BOUGHT, which
+     * stopped being the same question the moment a pay-as-you-go clinician could
+     * choose four of their eleven unpaid sessions instead of all or nothing.
+     *
+     * A snapshot rather than a join, on the same argument `settlesCents` is a
+     * number rather than a lookup (0106): an invoice in the set can be settled
+     * another way, repriced, or deleted while a bank transfer is in flight, and
+     * the composition an operator reads beside a bank line has to be the one the
+     * payer was shown. A frozen total beside a live composition is worse than
+     * either, because the two disagree on the screen a decision is made from.
+     *
+     * Null is a real state and never an error: a payment with one obvious
+     * subject, or one opened before 0107. Readers print the heading alone.
+     */
+    lineItems: jsonb("line_items").$type<{ label: string; cents: number }[]>(),
+
     state: text("state").$type<ManualPaymentState>().notNull().default("awaiting_proof"),
 
     /** What they typed off their banking app, and what they uploaded. */

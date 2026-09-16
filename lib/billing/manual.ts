@@ -44,6 +44,23 @@ import {
 import { log } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 
+/* ------------------------------------------------------------ line items -- */
+
+/**
+ * 🔴 76.16 — ONE THING THIS TRANSFER COVERS, in the payer's own words.
+ *
+ * `cents` is USD, like every other figure this product stores. The label is
+ * whatever the payer was shown — "Session, 12 March", "Platform fee, February"
+ * — and it is a STRING rather than a reference on purpose: the lines outlive
+ * the rows they were built from, which is the whole argument in 0107.
+ *
+ * 🔴 AND THE LINES ARE NOT THE TOTAL. `settlesCents` is the total and stays the
+ * one number anything acts on. Lines can legitimately fall short of it, because
+ * tax is added on top and is never a line here; nothing reads these to decide
+ * what to credit, and `verify:rail` holds that.
+ */
+export type PaymentLine = { label: string; cents: number };
+
 /* ------------------------------------------------------------- the payer -- */
 
 /**
@@ -185,6 +202,8 @@ export async function openManualPayment(input: {
   settlesCents: number;
   currency?: string;
   payer: Payer;
+  /** 🔴 76.16 — what it covers, in the payer's words. See the column in 0107. */
+  lineItems?: PaymentLine[] | null;
 }): Promise<{ id?: string; error?: string }> {
   if (input.amountCents <= 0) return { error: "There is nothing to pay." };
   if (input.settlesCents <= 0) return { error: "There is nothing to pay." };
@@ -223,6 +242,15 @@ export async function openManualPayment(input: {
         amountCents: input.amountCents,
         settlesCents: input.settlesCents,
         currency: input.currency ?? "EGP",
+        /*
+         * 🔴 76.16 — RE-STATED WITH THE TOTAL, never left behind it. The whole
+         * reason the amount is re-stated here is that a payer who changes their
+         * mind must not leave an operator holding the first answer; a
+         * composition that stayed frozen while the total moved would reintroduce
+         * exactly that, one field down. `?? null` rather than a skip, so
+         * dropping back to a single-subject payment clears the old lines.
+         */
+        lineItems: input.lineItems ?? null,
       })
       .where(
         and(
@@ -255,6 +283,7 @@ export async function openManualPayment(input: {
       amountCents: input.amountCents,
       settlesCents: input.settlesCents,
       currency: input.currency ?? "EGP",
+      lineItems: input.lineItems ?? null,
       ...payerColumns(input.payer),
     })
     .onConflictDoNothing()

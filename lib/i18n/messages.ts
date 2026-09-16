@@ -1622,6 +1622,12 @@ export const en = {
   "bar.reopen": "Open",
   "bar.dismiss": "Dismiss",
 
+  /* --------------------------- 🔴 76.16 a clinician picks which bills to pay */
+  "bill.pick": "What this transfer covers",
+  "bill.all": "Select all",
+  "bill.none": "Clear",
+  "bill.pickOne": "Pick at least one.",
+
 
   /* ------------------------------- 🔴 76.1 the company chooses how much */
   "topup.choose": "How much to add",
@@ -4681,6 +4687,12 @@ export const ar: Record<MessageKey, string> = {
   "bar.done": "{what} · تم الدفع",
   "bar.reopen": "فتح",
   "bar.dismiss": "إخفاء",
+
+  /* --------------------------- 🔴 76.16 a clinician picks which bills to pay */
+  "bill.pick": "ما الذي يغطيه هذا التحويل",
+  "bill.all": "تحديد الكل",
+  "bill.none": "إلغاء التحديد",
+  "bill.pickOne": "اختر فاتورة واحدة على الأقل.",
 
 
   /* ------------------------------- 🔴 76.1 the company chooses how much */

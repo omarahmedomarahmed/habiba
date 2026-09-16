@@ -175,6 +175,8 @@ export default async function TransfersPage() {
           payer: nameFor(r),
           payerType: typeFor(r),
           profileHref: profileFor(r),
+          /* 🔴 76.16 — what the payer said it covers. Absent on older rows. */
+          lines: r.lineItems ?? [],
         }))}
       />
 

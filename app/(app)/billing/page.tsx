@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Wallet } from "lucide-react";
 
-import { declareBillTransfer, openBillPayment } from "./actions";
+import { declareBillTransfer, openBillPayment, quoteInvoices } from "./actions";
+import { BillPicker } from "@/components/billing/bill-picker";
 import { BillingLedger } from "@/components/billing/ledger";
-import { PaymentPopup } from "@/components/billing/payment-popup";
 import { PlanCard } from "@/components/billing/plan-card";
 import { SeatManager } from "@/components/billing/seat-manager";
 import { PageHeader } from "@/components/ui";
@@ -13,7 +13,8 @@ import { earningsSummary, recentPayments } from "@/lib/billing/connect";
 import { formatUsd } from "@/lib/billing/plans";
 import { currentSeatBill } from "@/lib/billing/seats";
 import { manualEntry, organizationNeedsTransfer } from "@/lib/billing/manual-entry";
-import { billingSummary, listInvoices, usageBySession } from "@/lib/billing/service";
+import { billLines } from "@/lib/billing/bill-lines";
+import { billingSummary, getDueInvoices, listInvoices, usageBySession } from "@/lib/billing/service";
 import { confirmCheckout } from "@/lib/billing/stripe";
 import { features } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
@@ -89,6 +90,13 @@ export default async function BillingPage({
    * above renders from, so the two can never disagree about what this account is.
    */
   const needsTransfer = await organizationNeedsTransfer(actor.organizationId);
+  /*
+   * 🔴 76.16 — the unpaid invoices, so a clinician can choose among them, and
+   * the LINES this transfer would carry if they chose nothing, which is all of
+   * them. Both come off one query so the list and the total cannot disagree.
+   */
+  const bill = await billLines(actor.organizationId, []);
+  const dueInvoices = await getDueInvoices(actor.organizationId);
   const rail = await manualEntry({
     audience: seatBill.seats > 0 ? "clinic" : "therapist",
     purpose: "subscription",
@@ -101,6 +109,7 @@ export default async function BillingPage({
     },
     needed: needsTransfer && summary.outstandingCents > 0,
     settlesCents: summary.outstandingCents,
+    lines: bill.lines,
     locale: localeTag(locale),
   });
 
@@ -208,9 +217,23 @@ export default async function BillingPage({
               when they return, instead of an upload form that says nothing
               about whether the first one landed.
             */}
-            <PaymentPopup
+            {/*
+              🔴 76.16 — AND THEY CHOOSE WHICH OF THEM THIS TRANSFER COVERS.
+
+              A pay-as-you-go clinician has one invoice per session, and the
+              only control used to say pay all of it. The picker is above the
+              sheet because the order is decide, then read an account number.
+            */}
+            <BillPicker
               storageKey={actor.organizationId}
               onOpen={openBillPayment}
+              quote={quoteInvoices}
+              invoices={dueInvoices.map((invoice) => ({
+                id: invoice.id,
+                description: invoice.description,
+                cents: invoice.amountCents - invoice.discountCents,
+                issuedAt: formatDate(invoice.issuedAt, actor.timezone, locale),
+              }))}
               subject={{
                 viewerName,
                 orgName: practiceName,
@@ -225,6 +248,7 @@ export default async function BillingPage({
               }}
               details={rail.details}
               amountLabel={rail.amountLabel}
+              lines={rail.lines}
               live={rail.live}
               action={declareBillTransfer}
             />

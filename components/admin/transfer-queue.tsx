@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { confirm, reject } from "@/app/(admin)/admin/transfers/actions";
 import { Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 
 /**
  * The queue an operator works, by the minute.
@@ -47,6 +48,18 @@ type Row = {
   payerType: "patient" | "therapist" | "clinic" | "company";
   /** Their page on the admin side. Null where the payer has no account at all. */
   profileHref: string | null;
+  /**
+   * 🔴 76.16 — WHAT THE PAYER SAID THIS COVERS, in their own list.
+   *
+   * An operator holding a bank line for one figure and a claim for the same
+   * figure still has a question when the claim is a part payment: a clinician
+   * who owes $44 and transferred $32 looks like an underpayment until you can
+   * see which four sessions they chose. This is that list, frozen when they
+   * opened the sheet, so it describes the transfer rather than the account.
+   *
+   * Empty for a payment with one subject, which is most of them.
+   */
+  lines: { label: string; cents: number }[];
 };
 
 const PAYER_LABEL: Record<Row["payerType"], string> = {
@@ -251,6 +264,30 @@ function TransferRow({
             )}
           </dd>
         </div>
+
+        {/*
+          🔴 76.16 — WHAT THEY SAID IT COVERS, beside the reference rather than
+          under it. A part payment is the case this answers: without the list, a
+          clinician who owes more than they sent reads as an underpayment.
+        */}
+        {row.lines.length > 0 ? (
+          <div className="rounded-xl bg-slate-50 p-3 sm:col-span-2">
+            <dt className="text-xs text-slate-500">What they said it covers</dt>
+            <dd className="mt-1 space-y-0.5">
+              {row.lines.map((line, i) => (
+                <p
+                  key={`${line.label}-${i}`}
+                  className="flex items-baseline justify-between gap-3 text-xs"
+                >
+                  <span className="min-w-0 truncate text-slate-600">{line.label}</span>
+                  <span className="shrink-0 text-slate-900 tabular-nums">
+                    <Money cents={line.cents} />
+                  </span>
+                </p>
+              ))}
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       {rejecting ? (

@@ -55,6 +55,15 @@ export async function openCart(input: {
   settlesCents: number;
   currency?: string;
   payer: Payer;
+  /**
+   * 🔴 76.16 — WHAT IS IN THE CART, frozen here with the total.
+   *
+   * This is the half that makes the replace rule above readable to a human. A
+   * clinician who opened four sessions and came back for eight has one row
+   * either way; without the lines an operator sees a number change and cannot
+   * tell whether the payer picked differently or a price moved.
+   */
+  lineItems?: Parameters<typeof openManualPayment>[0]["lineItems"];
 }): Promise<{ id?: string; error?: string }> {
   const opened = await openManualPayment(input);
   if (!opened.id) return opened;

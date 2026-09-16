@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import { PayByTransfer } from "@/components/billing/pay-by-transfer";
 import { useT } from "@/lib/i18n/client";
 import type { PotStep } from "@/lib/billing/manual-entry";
-import type { TransferFormState, TransferView, LiveState } from "@/components/billing/pay-by-transfer";
+import type {
+  TransferFormState,
+  TransferView,
+  LiveState,
+  PaymentLineView,
+} from "@/components/billing/pay-by-transfer";
 
 /**
  * 🔴 76.4 — ONE PAYMENT SCREEN, FOR EVERY PAYER THIS PRODUCT HAS.
@@ -88,6 +93,7 @@ export function PaymentPopup({
   minimumLabel,
   rateLabel,
   steps,
+  lines,
   /** Rendered in the success state: "Join the session" / "Back to your account". */
   onwardHref,
   onwardLabel,
@@ -136,6 +142,8 @@ export function PaymentPopup({
   minimumLabel?: string;
   rateLabel?: string;
   steps?: PotStep[];
+  /** 🔴 76.16 — what the total covers. Server-formatted, empty where obvious. */
+  lines?: PaymentLineView[];
   onwardHref?: string;
   onwardLabel?: string;
   onOpen?: () => Promise<void>;
@@ -335,6 +343,7 @@ export function PaymentPopup({
           minimumLabel={minimumLabel}
           rateLabel={rateLabel}
           steps={steps}
+          lines={lines}
           onChoose={onChoose}
         />
 

@@ -282,6 +282,18 @@ export async function openPotPayment(creditCents: number): Promise<void> {
     refId: actor.sponsorId,
     amountCents: egpMinorFor(money.settlesCents, await egpRateMicro()),
     settlesCents: money.settlesCents,
+    /*
+     * 🔴 76.16 — THE CREDIT AND THE TAX, SPLIT, because a company is the one
+     * payer whose total is not the thing they are buying. They chose $1,500 of
+     * pot and send $1,710, and an operator holding the larger figure has no way
+     * to see the smaller one without recomputing a VAT rate by hand. Named in
+     * English here because the reader is an operator; the finance team's own
+     * screen renders the same two figures from the stepper in their language.
+     */
+    lineItems: [
+      { label: "Pot credit", cents: money.creditCents },
+      ...(money.vatCents > 0 ? [{ label: "VAT", cents: money.vatCents }] : []),
+    ],
     payer: { kind: "sponsor", sponsorId: actor.sponsorId },
   });
 }

@@ -184,6 +184,22 @@ export async function declareBillTransfer(
   const summary = await billingSummary(actor.organizationId);
   if (summary.outstandingCents <= 0) return { error: "You have nothing outstanding." };
 
+  /*
+   * 🔴 76.16 — THE OPEN CART'S FIGURE, and the whole bill only if there is none.
+   *
+   * This used to declare `outstandingCents` unconditionally, which was right
+   * while the sheet always meant everything. Once a clinician can choose four of
+   * eleven sessions, declaring the total would take a transfer they made for one
+   * figure and claim it was for another: the sheet said one number, the row said
+   * a second, and an operator matching a bank statement would be reading a third.
+   *
+   * The row is the one the payer read, so the row wins. `openCart` has already
+   * pinned it to this payer and this purpose.
+   */
+  const { livePaymentFor } = await import("@/lib/billing/manual");
+  const open = await livePaymentFor("subscription", actor.organizationId);
+  const settlesCents = open?.settlesCents ?? summary.outstandingCents;
+
   const reference = String(formData.get("reference") ?? "").trim();
   const proof = formData.get("proof");
 
@@ -203,7 +219,9 @@ export async function declareBillTransfer(
   const result = await declarePaid({
     purpose: "subscription",
     refId: actor.organizationId,
-    settlesCents: summary.outstandingCents,
+    settlesCents,
+    /* The lines the payer read, kept on the row they are about to submit. */
+    lineItems: open?.lineItems ?? null,
     payer: {
       kind: "user",
       userId: actor.userId,
@@ -221,7 +239,7 @@ export async function declareBillTransfer(
     action: "bill.transfer.declared",
     resourceType: "organization",
     resourceId: actor.organizationId,
-    reason: `Declared a bank transfer for ${formatUsd(summary.outstandingCents)}, reference ${reference || "none"}`,
+    reason: `Declared a bank transfer for ${formatUsd(settlesCents)}, reference ${reference || "none"}`,
   });
 
   revalidatePath("/billing");
@@ -298,21 +316,78 @@ export async function saveSeats(fromSeats: number, toSeats: number): Promise<Sea
 }
 
 
+/* ------------------------------------------- 🔴 76.16 · choosing what to pay -- */
+
 /**
- * 🔴 76.13 — a clinician opened their bill, so the payment exists from now on.
+ * 🔴 76.16 — WHAT A CHOSEN SET OF INVOICES COSTS, PRICED AND WORDED BY THE SERVER.
+ *
+ * ## Why a round trip for a number the browser could add up
+ *
+ * It could add it up and it must not, twice over.
+ *
+ * The figure is in POUNDS, at a rate only the server holds, and C84 forbids a
+ * client component formatting money at all: `Intl` in the browser renders
+ * different digits from the server pass, and these are the characters somebody
+ * copies into a banking app. The stepper solved the same problem the same way
+ * one sprint ago, by holding an index into strings the server wrote.
+ *
+ * And a total assembled in the browser is a total the browser decided. Every
+ * money path in this product reads amounts from stored rows for exactly that
+ * reason — `sumPayable` says so in its own comment, and the endpoint it replaced
+ * took `price_cents` from a request body.
+ *
+ * ## 🔴 IT WRITES NOTHING
+ *
+ * Ticking a box is not a decision to pay. The cart opens when the SHEET opens,
+ * which is the moment somebody is going to read an account number, and a quote
+ * that opened a row would put every idle tick in front of an operator.
+ */
+export async function quoteInvoices(invoiceIds: string[]): Promise<{
+  amountLabel: string;
+  lines: { label: string; amountLabel: string }[];
+  totalCents: number;
+}> {
+  const actor = await requireUser();
+  const ids = cleanIds(invoiceIds);
+
+  const { billLines } = await import("@/lib/billing/bill-lines");
+  const chosen = await billLines(actor.organizationId, ids);
+
+  const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
+  const { formatMoney } = await import("@/lib/billing/plans");
+  const { localeTag } = await import("@/lib/i18n/config");
+  const { getI18n } = await import("@/lib/i18n/server");
+
+  const [rateMicro, { locale }] = await Promise.all([egpRateMicro(), getI18n()]);
+  const tag = localeTag(locale);
+  const egp = (cents: number) => formatMoney(egpMinorFor(cents, rateMicro), "EGP", tag);
+
+  return {
+    amountLabel: egp(chosen.totalCents),
+    lines: chosen.lines.map((line) => ({ label: line.label, amountLabel: egp(line.cents) })),
+    totalCents: chosen.totalCents,
+  };
+}
+
+/**
+ * 🔴 76.13 / 76.16 — a clinician opened their bill, so the payment exists from now on.
  *
  * Same reasoning as the patient's: the row used to appear only on Submit, which
  * is one step after the moment somebody actually goes to their banking app.
+ *
+ * 🔴 AND IT NOW CARRIES WHICH INVOICES. An empty list means the whole bill,
+ * which is both the old behaviour and the honest reading of "they opened the
+ * sheet without touching the picker".
  */
-export async function openBillPayment(): Promise<void> {
+export async function openBillPayment(invoiceIds: string[] = []): Promise<void> {
   const actor = await requireUser();
 
   const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
   if (!(await organizationNeedsTransfer(actor.organizationId))) return;
 
-  const { billingSummary } = await import("@/lib/billing/service");
-  const summary = await billingSummary(actor.organizationId);
-  if (summary.outstandingCents <= 0) return;
+  const { billLines } = await import("@/lib/billing/bill-lines");
+  const chosen = await billLines(actor.organizationId, cleanIds(invoiceIds));
+  if (chosen.totalCents <= 0) return;
 
   const { openCart } = await import("@/lib/billing/cart");
   const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
@@ -320,8 +395,21 @@ export async function openBillPayment(): Promise<void> {
   await openCart({
     purpose: "subscription",
     refId: actor.organizationId,
-    amountCents: egpMinorFor(summary.outstandingCents, await egpRateMicro()),
-    settlesCents: summary.outstandingCents,
+    amountCents: egpMinorFor(chosen.totalCents, await egpRateMicro()),
+    settlesCents: chosen.totalCents,
+    lineItems: chosen.lines,
     payer: { kind: "user", userId: actor.userId, organizationId: actor.organizationId },
   });
+}
+
+/**
+ * 🔴 A SERVER ACTION'S ARGUMENT IS UNTRUSTED INPUT, and this one is an array.
+ *
+ * `billLines` runs it through a WHERE that pins the organisation and the due
+ * state, so a foreign id buys nothing. This is the other half: a list long
+ * enough to be a denial of service never reaches the query.
+ */
+function cleanIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) return [];
+  return ids.filter((id): id is string => typeof id === "string" && id.length <= 64).slice(0, 200);
 }

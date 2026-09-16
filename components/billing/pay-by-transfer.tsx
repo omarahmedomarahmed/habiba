@@ -60,6 +60,43 @@ export type LiveState =
 
 export type TransferFormState = { error?: string; ok?: boolean };
 
+/** One thing the total covers, already converted and formatted by the server. */
+export type PaymentLineView = { label: string; amountLabel: string };
+
+/**
+ * 🔴 76.16 — WHAT THE TOTAL IS MADE OF, and it renders in TWO states.
+ *
+ * A single figure is enough when a payment has one subject. It is not enough for
+ * a pay-as-you-go clinician who chose four of eleven unpaid sessions: the number
+ * they are asked for matches nothing they can see, and the only way to check it
+ * is to add up a list on another screen.
+ *
+ * 🔴 IT RENDERS AGAIN AFTER SUBMITTING, which is the half that is easy to miss.
+ * The waiting state is a screen somebody comes back to hours later, and "waiting
+ * to be checked" with no list is an answer to a question they are no longer
+ * asking. What they want then is which four sessions this was.
+ *
+ * Nothing here adds up: the sum is `amountLabel`, computed on the server from
+ * stored rows, and a total assembled in the browser from strings would be a
+ * second opinion about what somebody owes.
+ */
+function Lines({ lines }: { lines?: PaymentLineView[] }) {
+  if (!lines || lines.length === 0) return null;
+
+  return (
+    <ul className="mt-3 space-y-1 rounded-xl bg-white/70 p-3">
+      {lines.map((line, i) => (
+        <li key={`${line.label}-${i}`} className="flex items-baseline justify-between gap-3 text-xs">
+          <span className="min-w-0 truncate text-slate-600">{line.label}</span>
+          <span className="shrink-0 font-medium text-slate-900 tabular-nums">
+            {line.amountLabel}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** How often a waiting payer's page re-asks the server. */
 const POLL_MS = 15_000;
 
@@ -74,6 +111,7 @@ export function PayByTransfer({
   minimumLabel,
   rateLabel,
   steps,
+  lines,
   hideCardsSoon = false,
   onChoose,
 }: {
@@ -111,6 +149,14 @@ export function PayByTransfer({
    * most: these are the figures somebody types into a banking app.
    */
   steps?: PotStep[];
+  /**
+   * 🔴 76.16 — what this total covers, formatted on the server.
+   *
+   * Empty for a payment with one obvious subject, which is most of them: the
+   * heading already said "Session with Dr Mona" and repeating it as a list of
+   * one is noise on the screen where somebody is copying an account number.
+   */
+  lines?: PaymentLineView[];
   /** 🔴 76.5 — the popup renders the notice in its card slot instead. */
   hideCardsSoon?: boolean;
   /** 🔴 76.13 — saves the company's chosen figure as their open payment. */
@@ -155,6 +201,8 @@ export function PayByTransfer({
         <p className="mt-3 rounded-xl bg-white/70 p-3 text-sm text-amber-900">
           {t("transfer.closePage")}
         </p>
+
+        <Lines lines={lines} />
 
         {/*
           🔴 76.4 — THEIR OWN RECEIPT, HANDED BACK.
@@ -248,6 +296,14 @@ export function PayByTransfer({
       {taxNote ? (
         <p className="mt-1 text-xs text-slate-500">{t("transfer.taxNote", { tax: taxNote })}</p>
       ) : null}
+
+      {/*
+        🔴 76.16 — ABOVE THE ACCOUNT DETAILS, not below the form.
+        The order on this screen is decide, then copy, then declare. A list of
+        what they are paying for belongs in the deciding half: somebody who has
+        already reached the IBAN has stopped reading and is in their banking app.
+      */}
+      <Lines lines={lines} />
 
       <dl className="mt-4 space-y-2">
         {details.fields.map((f) => (

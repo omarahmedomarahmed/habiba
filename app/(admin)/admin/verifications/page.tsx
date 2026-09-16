@@ -66,7 +66,7 @@ export default async function VerificationsPage({
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Verifications</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Nobody sees a patient through 24Therapy until someone here has looked at their licence.
+          Nobody meets a patient until someone here has read their licence.
         </p>
       </div>
 

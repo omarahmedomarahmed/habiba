@@ -682,21 +682,48 @@ async function main() {
    * `outstandingCents` off the invoices. The pot is the exception and is meant
    * to be: the company is choosing how much to put in.
    */
+  /*
+   * ⚠️ 76.16 — THIS USED TO NAME THE EXPRESSION, AND THE EXPRESSION CHANGED.
+   *
+   * It asserted `settlesCents: summary.outstandingCents` literally. That was
+   * true while the bill always meant everything, and the moment a clinician
+   * could choose four of eleven sessions the figure legitimately became
+   * `open?.settlesCents ?? summary.outstandingCents` and a correct change
+   * failed a gate. A check that fails on a correct change gets edited to match
+   * whatever was written, which is a gate that only ever confirms the diff.
+   *
+   * So it is a PROPERTY now: every settles figure on these two rails is read
+   * from the server, and nothing on the request may reach one.
+   */
+  const SETTLES = /(?:settlesCents\s*[:=]\s*)([^,;\n]+)/g;
+  const FROM_THE_REQUEST = /formData|form\.get|request|\bNumber\s*\(|parseInt|parseFloat|input\.amount/;
+
+  const settlesFrom = (source: string) =>
+    [...source.matchAll(SETTLES)].map((m) => m[1]!.trim());
+
+  const tainted = [
+    ...settlesFrom(payActions).map((rhs) => `session: ${rhs}`),
+    ...settlesFrom(billActions).map((rhs) => `bill: ${rhs}`),
+  ].filter((entry) => FROM_THE_REQUEST.test(entry));
+
   check(
     "🔴 the session and the bill price themselves from stored rows, never from the post",
-    /priceCents: session\.priceCents/.test(payActions) &&
-      /settlesCents: summary\.outstandingCents/.test(billActions) &&
-      !/settlesCents: (?:Number|String|parse|amount|input\.amount)/.test(payActions) &&
-      !/settlesCents: (?:Number|String|parse|amount|input\.amount)/.test(billActions),
-    "a payer who can type what they owe is a payer who owes less",
+    tainted.length === 0 &&
+      /priceCents: session\.priceCents/.test(payActions) &&
+      /livePaymentFor\(/.test(billActions) &&
+      /billingSummary\(/.test(billActions),
+    tainted.join(", ") ||
+      "the session reads its own row; the bill reads the open claim, or the invoices",
   );
 
   check(
     "🔴 CONTROL the same scan catches a settles taken off the form",
-    /settlesCents: (?:Number|String|parse|amount|input\.amount)/.test(
-      'settlesCents: Number(formData.get("amount"))',
+    settlesFrom('const settlesCents = Number(formData.get("amount"));').some((rhs) =>
+      FROM_THE_REQUEST.test(rhs),
+    ) && settlesFrom("settlesCents: open?.settlesCents ?? summary.outstandingCents").every(
+      (rhs) => !FROM_THE_REQUEST.test(rhs),
     ),
-    "an absence assertion is worth nothing until it is watched finding something",
+    "an absence assertion is worth nothing until it is watched finding something, and clearing something",
   );
 
   /*
@@ -1182,7 +1209,35 @@ async function main() {
    * The check is on the CALL SITES rather than the component, because the
    * component cannot know which payer it is serving.
    */
-  const popupCallers = popupRenderers.filter((f) => f.startsWith("app/"));
+  /*
+   * ⚠️ 76.16 — AND IT FOLLOWS ONE HOP, because a correct change broke it once.
+   *
+   * This filtered `popupRenderers` to files under `app/`, which meant "a page
+   * that types the word PaymentPopup". Sprint 76 gave the clinician's bill a
+   * picker: `app/(app)/billing/page.tsx` now renders `BillPicker`, which
+   * renders the popup, and the page stopped containing the word. Nothing about
+   * the property changed — the page still builds the subject and still names
+   * its payer — but the check said the bill no longer reaches the sheet.
+   *
+   * That is the §6 family: a check passing or failing on how something is
+   * spelled rather than on what is true. A wrapper under `components/billing/`
+   * counts as the sheet, because that directory is already the one `POPUP_ALLOWED`
+   * trusts, and the subject it renders is built by the page above it.
+   */
+  const popupWrappers = popupRenderers
+    .filter((f) => f.startsWith("components/billing/"))
+    .map((f) => f.split("/").pop()!.replace(/\.tsx?$/, ""))
+    /* "bill-picker" is exported as `BillPicker`: match the component name. */
+    .map((base) => base.replace(/(^|-)([a-z])/g, (_, __, c: string) => c.toUpperCase()));
+
+  const reachesTheSheet = (file: string) => {
+    const source = readSource(file);
+    return (
+      /PaymentPopup/.test(source) || popupWrappers.some((name) => new RegExp(`<${name}\\b`).test(source))
+    );
+  };
+
+  const popupCallers = sourceFiles.filter((f) => f.startsWith("app/") && reachesTheSheet(f));
   const untyped = popupCallers.filter((f) => !/payerType:/.test(readSource(f)));
 
   check(
@@ -1227,6 +1282,115 @@ async function main() {
     /viewerName/.test(readSource("components/billing/payment-popup.tsx")) &&
       !/payerName|payerEmail/.test(readSource("components/billing/payment-popup.tsx")),
     "a prop called payerName invites an operator's queue to pass the payer on the row",
+  );
+
+  /* ================================================================== */
+  /*  🔴 76.16 — WHAT A TRANSFER SAYS IT COVERS                          */
+  /* ================================================================== */
+
+  /*
+   * A pay-as-you-go clinician can now pay four of eleven sessions, and three
+   * things have to agree about which four: the total, the list on the sheet,
+   * and the row an operator reads. These hold the ways they could drift apart.
+   */
+  const billLinesSource = readSource("lib/billing/bill-lines.ts");
+  const entrySource = readSource("lib/billing/manual-entry.ts");
+  const picker = readSource("components/billing/bill-picker.tsx");
+
+  check(
+    "🔴 a chosen invoice is priced by the query, not by the caller",
+    /eq\(invoices\.organizationId, organizationId\)/.test(billLinesSource) &&
+      /eq\(invoices\.status, "due"\)/.test(billLinesSource) &&
+      /payableCents\(row\)/.test(billLinesSource) &&
+      !/amountCents: *[a-z]+\.amountCents *\+/.test(billLinesSource),
+    "the ids arrive from a browser: a foreign one has to buy nothing, silently",
+  );
+
+  check(
+    "🔴 …and the total is summed from what was FOUND, never from what was asked for",
+    /lines\.reduce\(/.test(billLinesSource) && !/invoiceIds\.reduce|invoiceIds\.length \*/.test(billLinesSource),
+    "a total computed from the request is a total the request decided",
+  );
+
+  /*
+   * 🔴 THE OPEN ROW WINS OVER THE PAGE, for the amount AND for the lines.
+   *
+   * A payer who committed to a figure and went to their bank must come back to
+   * that figure. A bill that grew in between, or an invoice settled by another
+   * route, must not redraw a claim that is already in flight.
+   */
+  check(
+    "🔴 an open claim's own total and lines beat the page's fresher sum",
+    /amountLabel: formatMoney\(egpMinorFor\(live\.settlesCents/.test(entrySource) &&
+      /lines: asLines\(live\.lineItems\)/.test(entrySource),
+    "the sheet has to agree with the claim, not with what the account owes this minute",
+  );
+
+  check(
+    "🔴 CONTROL and with nothing open it falls back to the page's own lines",
+    /lines: asLines\(input\.lines\)/.test(entrySource),
+    "a freeze with no thaw would leave a paid-off account quoting a stale list for ever",
+  );
+
+  /*
+   * 🔴 C84 AGAIN, ON THE ONE SCREEN WHERE IT COSTS MONEY.
+   *
+   * The picker holds a set of ids and nothing else. Every figure it shows was
+   * written by the server, because `Intl` in a browser renders different digits
+   * from the server pass and these are the characters somebody copies into a
+   * banking app. It is the same ruling the stepper follows one sprint earlier.
+   */
+  check(
+    "🔴 the browser picks which invoices, and prices none of them",
+    !/toLocaleString|Intl\./.test(picker) && /quote\(picked\)/.test(picker),
+    "a total assembled in the browser is a total the browser decided",
+  );
+
+  /*
+   * ⚠️ AND THE FIRST DRAFT OF THIS CHECK GREPPED FOR A COMMENT, which C205
+   * strips before any of these ever see the file. It passed nothing and failed
+   * honestly, which is the one thing a comment-shaped assertion can be relied
+   * on to do. The property is about the code: `quoteInvoices` opens no row.
+   */
+  const quoteBody = billActions
+    .split("export async function quoteInvoices")[1]
+    ?.split("export async function")[0] ?? "";
+
+  check(
+    "🔴 …and ticking a box opens no payment, only reading an account number does",
+    quoteBody.length > 0 &&
+      !/openCart|openManualPayment|db\.insert|db\.update/.test(quoteBody) &&
+      /openCart/.test(billActions),
+    "a row per tick would put everybody who was still deciding in front of an operator",
+  );
+
+  /*
+   * 🔴 AND THE DECLARATION CARRIES THE SAME LINES THE SHEET SHOWED.
+   *
+   * `declareBillTransfer` reads the open row rather than the account, so the
+   * amount a payer submits is the amount they were shown. Without this the
+   * sheet says $7, the row says $11 and an operator matching a bank statement
+   * reads a third number.
+   */
+  check(
+    "🔴 what a clinician submits is what their sheet said, down to the lines",
+    /const open = await livePaymentFor\("subscription"/.test(billActions) &&
+      /settlesCents,/.test(billActions) &&
+      /lineItems: open\?\.lineItems/.test(billActions),
+    "a part payment declared as the whole bill is a claim about money nobody made",
+  );
+
+  /*
+   * 🔴 THE LINES ARE NOT THE TOTAL, and nothing may treat them as one.
+   *
+   * `settlesCents` is the figure every grant acts on. Tax is added on top and
+   * is never a line, so the lines legitimately fall short of the total — a
+   * grant that summed them would credit a company its VAT back.
+   */
+  check(
+    "🔴 no grant reads the line items, and settlesCents stays the only figure money moves on",
+    !/lineItems/.test(readSource("lib/billing/manual-grants.ts")),
+    "the lines describe a payment for a person to read; they are not an amount",
   );
 
   /*
