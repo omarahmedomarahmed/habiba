@@ -44,6 +44,7 @@
     "demo:seed": "node --env-file-if-exists=.env.local --import tsx scripts/demo.ts seed",
     "demo:purge": "node --env-file-if-exists=.env.local --import tsx scripts/demo.ts purge",
     "test:ledger": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/ledger.test.ts",
+    "test:transfer-rail": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/transfer-rail.test.ts",
     "test:physics": "node --env-file-if-exists=.env.local --import tsx --test tests/physics.test.ts",
     "test:clock": "node --env-file-if-exists=.env.local --import tsx --test tests/clock.test.ts",
     "test:toasts": "node --env-file-if-exists=.env.local --import tsx --test tests/toasts.test.ts",

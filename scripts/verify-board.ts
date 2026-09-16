@@ -26,7 +26,7 @@
  *      number somebody screenshots into a document, and then there are two
  *      places that disagree.
  */
-import { reporter, readSource } from "./_verify";
+import { reporter, readSource, sawRows } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -238,6 +238,29 @@ async function main() {
     "🔴 the board says how many clinicians are on a plan and how many are metered",
     /onPlan/.test(board) && /metered/.test(board) && /Pay as you go/.test(ui),
     "the one count that says whether the plan is working",
+  );
+
+  /*
+   * 🔴 76.18 — AND SAY WHAT IT WAS COUNTING, because sixteen passes over an
+   * empty database is a green light that proved the board runs and nothing at
+   * all about whether it counts. Read off the sections themselves rather than
+   * off a fresh query, so the figures printed are the ones the checks used.
+   */
+  const [money, sessionsSection, payments, people] = await Promise.all([
+    moneyBoard(),
+    sessionsBoard(),
+    paymentsBoard(),
+    patientsBoard(),
+  ]);
+
+  console.log(
+    `\n  ${sawRows({
+      "cents collected": money.inTotalCents ?? 0,
+      sessions: sessionsSection.total ?? 0,
+      "transfers decided or waiting":
+        (payments.waiting ?? 0) + (payments.confirmedWeek ?? 0) + (payments.rejectedWeek ?? 0),
+      people: people.total ?? 0,
+    })}`,
   );
 
   finish("sprint 76 board");

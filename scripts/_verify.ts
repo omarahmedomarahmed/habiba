@@ -82,6 +82,54 @@ export function reporter(): Reporter {
   return { check, skipUnless, finish, counts: () => ({ checks, failures, skips }) };
 }
 
+/**
+ * 🔴 76.18 — A GATE THAT READS ROWS MUST SAY HOW MANY IT SAW.
+ *
+ * ## The sweep that found this
+ *
+ * Every gate was run against a branch of production, which holds one
+ * organisation, one user and nothing else: no patients, no sessions, no
+ * invoices, no payments, no pots, no ledger. **Thirteen of the fourteen said
+ * ok.** The board gate reported sixteen passes under the headline *"the board a
+ * founder trusts is counting the right things"*, having counted nothing.
+ *
+ * Read one at a time those checks are honest — "all nine sections run against a
+ * real database" is true of an empty one, and proving the board does not throw
+ * is worth having. What is not honest is a green pass standing in for evidence
+ * that arithmetic over rows is right. That is the §6 family exactly: a check
+ * that passes by measuring the wrong thing.
+ *
+ * ## What this does, and what it deliberately does not
+ *
+ * It does not fail. A gate that refused to run on an empty database would be
+ * one nobody could run on a fresh branch, and H20's lesson is that a gate
+ * people cannot pass is a gate people switch off.
+ *
+ * It makes the emptiness IMPOSSIBLE TO MISS, in the summary line, next to the
+ * pass. Somebody reading "PASS (16 checks) · saw no rows: sessions, invoices"
+ * knows what they have been told and what they have not, which is the whole
+ * difference between this sweep and the one before it.
+ *
+ * @param counts what the gate looked at, by name. Zero is the interesting value.
+ */
+export function sawRows(counts: Record<string, number>): string {
+  const empty = Object.entries(counts)
+    .filter(([, n]) => !n)
+    .map(([name]) => name);
+  const seen = Object.entries(counts)
+    .filter(([, n]) => n > 0)
+    .map(([name, n]) => `${n} ${name}`);
+
+  if (empty.length === 0) return `over ${seen.join(", ")}`;
+
+  return [
+    seen.length > 0 ? `over ${seen.join(", ")}` : "",
+    `🔴 SAW NO ROWS: ${empty.join(", ")}. These checks proved the code runs, not that it counts`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /* ------------------------------------------------------- the operator's half */
 
 /**
