@@ -165,6 +165,40 @@ export function writesTo(): string {
   console.log(`writing to ${host}\n`);
 
   if (host.includes(PRODUCTION_ENDPOINT)) {
+    /*
+     * 🔴 76.19 — THE ONE DOOR, AND IT IS DELIBERATELY AWKWARD.
+     *
+     * ## Why a door exists at all
+     *
+     * Production was never seeded past its first day. Sprint 76's sweep found
+     * it holding the pre-sprint-26 prices, no `sponsor` group, no seat bands,
+     * no AI rates, no check-in settings, and — the one that stops the product
+     * working at all — **no transfer fields**, which is the Egyptian bank
+     * account. The payment sheet on production renders "not set up yet", so
+     * nobody in this market could pay us.
+     *
+     * `settings:seed` is documented as *"idempotent; safe on every deploy"* and
+     * nothing has ever run it on a deploy, which is H16's defect wearing a
+     * different hat: a step that is safe to automate and is not automated is a
+     * step somebody eventually has to do by hand at the worst moment.
+     *
+     * ## Why it is an environment variable and not a flag
+     *
+     * A flag is something a person types while tired. This asks for the
+     * endpoint's own name, so the override cannot be copied between databases
+     * and cannot be tripped by a script that happens to inherit an argument.
+     * Setting it is a sentence about one database, typed once.
+     *
+     * 🔴 IT PRINTS. A bypass nobody can see in the output is a bypass that
+     * becomes the way things are done.
+     */
+    if (process.env.I_MEAN_PRODUCTION === PRODUCTION_ENDPOINT) {
+      console.log(
+        `🔴 WRITING TO PRODUCTION, on purpose, because I_MEAN_PRODUCTION names ${PRODUCTION_ENDPOINT}.\n`,
+      );
+      return host;
+    }
+
     console.error("Refusing to run: that is the production endpoint. Point at your branch.");
     process.exit(1);
   }
