@@ -45,6 +45,16 @@ export type Recipient = {
    * instead of parsing it back out of a sentence.
    */
   timezone?: string | null;
+  /**
+   * 🔴 76.50 — WHOSE PRACTICE THIS BELONGS TO, when the caller knows.
+   *
+   * Optional because several kinds go to somebody with no row anywhere yet: a
+   * sponsor contact proving a domain, a person being invited to claim a record
+   * they have not claimed. A delivery attempt with no organisation is still
+   * worth recording; one that refused to be recorded without one would be a
+   * table with a hole exactly where the interesting cases are.
+   */
+  organizationId?: string | null;
 };
 
 export type Message = {
@@ -268,6 +278,7 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
   }
 
   if (sent.length > 0) {
+    await record(to, message, sent, null);
     return { sent: true, channel: sent[0]!, channels: sent };
   }
 
@@ -281,7 +292,60 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
    */
   const reason = !to.email && !to.phone ? "no contact details on file" : "no channel available";
   log.info("notification not sent", { kind: message.kind, reason });
+  await record(to, message, [], reason);
   return { sent: false, channel: null, channels: [], reason };
+}
+
+/**
+ * 🔴 76.50 — EVERY ATTEMPT, SENT OR NOT, WRITTEN DOWN.
+ *
+ * ## Why the failures matter more than the successes here
+ *
+ * A message that arrived announces itself: the person replies, turns up, pays.
+ * A message that never left is silent in every direction, and the operator
+ * meets it as "they did not come to their appointment" weeks later with no way
+ * to tell whether the product told them.
+ *
+ * ## 🔴 IT NEVER THROWS, and that is the whole contract
+ *
+ * This is bookkeeping attached to the end of a send. A booking whose
+ * confirmation could not be recorded is still a booking, and a `notify()` that
+ * could fail because its audit row failed would be a worse function than the
+ * one with no audit row at all. Anything that goes wrong here is logged and
+ * swallowed.
+ */
+async function record(
+  to: Recipient,
+  message: Message,
+  channels: Channel[],
+  reason: string | null,
+): Promise<void> {
+  try {
+    const { dbFor } = await import("@/lib/db");
+    const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+    const { deliveryAttempts } = await import("@/lib/db/schema");
+
+    const db = dbFor(
+      pinnedToDefaultRegion(
+        "lib/notify/index.ts",
+        "not routed yet: a recipient is a phone and an address, and neither names a region",
+      ),
+    );
+
+    await db.insert(deliveryAttempts).values({
+      kind: message.kind,
+      hadPhone: Boolean(to.phone),
+      hadEmail: Boolean(to.email),
+      channels,
+      reason,
+      organizationId: to.organizationId ?? null,
+    });
+  } catch (error) {
+    log.warn("could not record a delivery attempt", {
+      kind: message.kind,
+      reason: safeErrorMessage(error),
+    });
+  }
 }
 
 function order(to: Recipient): Channel[] {

@@ -42,6 +42,30 @@ import { connect } from "./db";
 
 const FILE = "evals/production-baseline.json";
 
+/**
+ * 🔴 76.50b — TABLES THAT MOVE ON THEIR OWN, and naming them is the point.
+ *
+ * Production is publicly reachable, so ordinary traffic writes rows nobody
+ * asked for: a crawler, a health check or a person opening the pricing page
+ * bumps `rate_limits`, and any runtime error appends to `error_events`. Between
+ * taking a snapshot and checking a restore against it, both move without
+ * anything from the simulation having happened.
+ *
+ * That is exactly how a check becomes a check nobody reads. It goes red for a
+ * reason somebody explains away once, and the next time it is red for a real
+ * reason it gets the same shrug, which is H20.
+ *
+ * So these two are REPORTED and do not fail. Everything else fails. The list is
+ * deliberately two entries long: a table is on it because traffic alone writes
+ * to it, not because it was inconvenient. A simulation row hiding in
+ * `rate_limits` is a row nobody would learn anything from; one hiding in
+ * `sessions` is the whole reason this file exists.
+ */
+const MOVES_ON_ITS_OWN: Record<string, string> = {
+  rate_limits: "any request to a rate-limited route, including a crawler",
+  error_events: "any runtime error, from anybody",
+};
+
 type Baseline = {
   comment: string;
   host: string;
@@ -146,14 +170,32 @@ async function main() {
       }))
       .filter((row) => row.was !== row.now);
 
-    if (drift.length === 0) {
-      console.log(`  every one of ${every.length} tables holds exactly what it held before`);
-      console.log(`  ${total} rows, unchanged\n`);
+    const incidental = drift.filter((row) => row.table in MOVES_ON_ITS_OWN);
+    const real = drift.filter((row) => !(row.table in MOVES_ON_ITS_OWN));
+
+    if (incidental.length > 0) {
+      console.log("  moved on their own, which is not the simulation:\n");
+      for (const row of incidental) {
+        const sign = row.now > row.was ? "+" : "";
+        console.log(
+          `    ${row.table.padEnd(24)} ${String(row.was).padStart(5)} -> ${String(row.now).padStart(5)}  (${sign}${row.now - row.was})  ${MOVES_ON_ITS_OWN[row.table]}`,
+        );
+      }
+      console.log("");
+    }
+
+    if (real.length === 0) {
+      console.log(`  every one of ${every.length} tables holds what it held before`);
+      console.log(
+        incidental.length > 0
+          ? `  ${total} rows, and the only movement is the ${incidental.length} above\n`
+          : `  ${total} rows, unchanged\n`,
+      );
       return;
     }
 
-    console.log(`  🔴 ${drift.length} table(s) differ:\n`);
-    for (const row of drift) {
+    console.log(`  🔴 ${real.length} table(s) differ:\n`);
+    for (const row of real) {
       const sign = row.now > row.was ? "+" : "";
       console.log(
         `    ${row.table.padEnd(32)} ${String(row.was).padStart(6)} -> ${String(row.now).padStart(6)}  (${sign}${row.now - row.was})`,

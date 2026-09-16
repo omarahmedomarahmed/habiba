@@ -143,8 +143,11 @@ Five things about it you cannot work out from the screens:
   * **🔴 CAPTURE EVERYTHING BEFORE THE RESTORE.** The restore destroys the evidence along
     with the mess. Frames, the board, the money reconciliation, the copilot exam, the edge
     ledger and the record ledger all have to exist outside the database first.
-  * **Afterwards `npm run baseline -- check` has to say 115 tables and 194 rows,
-    unchanged.** A restore nobody checked is a belief.
+  * **Afterwards `npm run baseline -- check` has to say 116 tables and 195 rows,
+    unchanged.** A restore nobody checked is a belief. Two tables, `rate_limits` and
+    `error_events`, move on their own from ordinary public traffic and are reported
+    separately rather than failing, because a check that goes red for a reason somebody
+    explains away is a check nobody reads the next time.
 
 🔴 **AND ONE CORRECTION TO CARRY, because it is the shape of the mistakes this product
 keeps finding.** The decision to run here rested partly on "production is not publicly
@@ -332,15 +335,30 @@ fixed points**, each short enough to read on a phone.
 # Scripts do NOT read that file themselves, so export it once per shell from the same value:
 export DATABASE_URL=$(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)
 
+# 🔴 2. THE PRODUCTION DOOR. Every write script refuses the production endpoint by
+# name, and this is the one way past it. Export it ONCE, in the same shell, and
+# every npm run below inherits it. It has to NAME the endpoint, which is the
+# point: typing it is a sentence rather than a flag.
+export I_MEAN_PRODUCTION=ep-wild-lake-a6tgm2r6
+
 npm run verify:migrations      # journal and ledger agree, every CHECK validated
-npm run simulate:seed          # MUST REFUSE: "already has an operator". That refusal is the proof
 npm run verify:age             # 8 checks. The ageing script obeys its own rule
-npm run verify:synthetic       # 5 checks. Every person here is invented
 npm run physics                # says there is nothing to fit yet. After the run it says otherwise
 npm run spend -- --budget 10   # $0.0000, 0.0% used
+npm run baseline -- check      # 116 tables, 195 rows. This is what the restore goes back to
 ```
 
-**If `simulate:seed` does not refuse, you are pointed at the wrong database. Stop.**
+🔴 **`verify:synthetic` is NOT in that list and must not be run here.** It plants a
+real-looking person as a control before deleting it, and planting one on production is the
+thing this whole arrangement refuses. It stays available on the simulation branch.
+
+🔴 **Every write script prints `WRITING TO PRODUCTION, on purpose` before it does
+anything.** If you do not see that line, the export did not take and you are about to be
+refused. If you see it when you did not expect to, stop.
+
+**The first run of `npm run baseline -- check` is the one that matters.** It has to say 116
+tables and 195 rows before anything is seeded. If it does not, the snapshot and the
+database have already diverged and the restore at the end will not be clean.
 
 ### Step 2 · Check the product, before twenty agents tell you it is broken
 

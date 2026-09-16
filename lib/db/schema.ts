@@ -2749,6 +2749,52 @@ export const notifications = pgTable(
   (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
 );
 
+/**
+ * 🔴 76.50 — WE TRIED TO TELL SOMEBODY, AND WHETHER IT LEFT THE BUILDING.
+ *
+ * `notify()` used to send on every channel that could carry a message, log one
+ * line when none could, and write nothing either way. So the product could not
+ * answer the question an operator actually asks about somebody who did not turn
+ * up: **were they ever told?**
+ *
+ * An application log is not that answer. It expires, it cannot be read beside
+ * the session it belongs to, and on a deployment where email is deliberately
+ * off it is a line in a runtime log nobody opens in six months.
+ *
+ * 🔴 THE BODY IS NOT STORED, on purpose. Every `kind` in `lib/notify/index.ts`
+ * is constrained to carry no clinical content, and this is not the place to
+ * start hoarding message text. What is needed is that an attempt happened, on
+ * which channels, and what came of it. The words follow from the kind.
+ *
+ * The recipient is a pair of booleans rather than an address, for the reason
+ * `audit_log` names patients by reference: a table of who we emailed is a
+ * mailing list with a clinical implication attached to it.
+ */
+export const deliveryAttempts = pgTable(
+  "delivery_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /**
+     * The `Message["kind"]`. Deliberately `text` and not an enum: the union
+     * grows most sprints, and a second copy of it here is H24's shape, a
+     * lookup that goes stale while the function that walks it stays correct.
+     */
+    kind: text("kind").notNull(),
+    /** Whether a handle EXISTED, never what it was. */
+    hadPhone: boolean("had_phone").notNull().default(false),
+    hadEmail: boolean("had_email").notNull().default(false),
+    /** Channels that accepted it. An empty array is a message that went nowhere. */
+    channels: jsonb("channels").$type<string[]>().notNull().default([]),
+    /** `notify()`'s own reason, verbatim, when nothing sent. Null when something did. */
+    reason: text("reason"),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("delivery_attempts_when_idx").on(t.createdAt)],
+);
+
 /** Icons an admin may choose. An allowlist, not a free string. */
 export const CONTENT_ICONS = [
   "sparkles", "mic", "fileText", "shield", "heart", "clock", "users", "video",

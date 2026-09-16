@@ -9,8 +9,8 @@ is undone afterwards by restoring a snapshot taken before it started.
 | Deployment | `habiba`, production target, `main` |
 | Domain | `https://24t.vercel.app`, public, 200 to anybody |
 | Neon branch | `main` (`br-curly-dream-a6b0shlz`), endpoint `ep-wild-lake-a6tgm2r6` |
-| Snapshot to restore to | `snap-polished-moon-a61n6nbr`, taken 2026-09-16 |
-| Baseline | `evals/production-baseline.json`, 115 tables, 194 rows |
+| Snapshot to restore to | `snap-broad-shape-a649n5le`, taken 2026-09-16 after migration 0109 |
+| Baseline | `evals/production-baseline.json`, 116 tables, 195 rows |
 
 ## Why production, and the correction that matters
 
@@ -23,7 +23,7 @@ Two facts were offered as making this safe. **One of them was wrong**, and the e
 worth keeping written down because it is the shape of the mistakes this repository keeps
 finding.
 
-- ✅ **Production is empty.** 194 rows across 115 tables: one organisation, two users, no
+- ✅ **Production is empty.** 195 rows across 116 tables: one organisation, two users, no
   patients, no payments. Measured.
 - ❌ **"Production is not publicly reachable."** This was read off Vercel's SSO setting,
   which protects everything `all_except_custom_domains`, and inferred rather than tested.
@@ -51,18 +51,21 @@ indexing has to be shut off while it happens.
 
 ### 1 · Snapshot
 
-`snap-polished-moon-a61n6nbr`. Done. A second run needs its own.
+`snap-broad-shape-a649n5le`. Done, and it is the SECOND one: the first was taken before
+migration 0109 added `delivery_attempts`, so restoring it would have rolled the schema back
+under code that expects the table. A snapshot is only a restore point for the schema it was
+taken on.
 
-This is what turns "delete everything afterwards" from a hand-written sweep across 115
+This is what turns "delete everything afterwards" from a hand-written sweep across 116
 tables, in dependency order, past an append-only audit log, into one restore. The sweep is
 the version that leaves a row behind, and a row left behind sits on the founder's board
 forever.
 
 ### 2 · Baseline
 
-    npm run baseline -- record snap-polished-moon-a61n6nbr
+    npm run baseline -- record snap-broad-shape-a649n5le
 
-Done: 115 tables, 194 rows. Every table read out of `pg_tables` at run time rather than
+Done: 116 tables, 195 rows. Every table read out of `pg_tables` at run time rather than
 from a list somebody maintains, because the row that survives a bad cleanup is always the
 one nobody was thinking about.
 
@@ -77,7 +80,22 @@ the run and the restore.
 
 Unset it afterwards. Leaving it on is loud rather than silent, on purpose.
 
-### 4 · `RESEND_API_KEY` off
+### 4 · `RESEND_API_KEY` off, and what still gets recorded
+
+🔴 **Nothing blocks.** `notify()` logs one line and returns `{ sent: false, reason }`, and
+every caller shows the link on screen regardless: an invitation, a claim link and a join
+link are all returned to the clinician whether or not a message went out. No flow waits on
+delivery, no flow fails on it.
+
+🔴 **And every attempt is now written down**, which it was not until migration 0109. Each
+call appends to `delivery_attempts`: the kind, whether a phone and an address existed, which
+channels accepted it, and the reason nothing did. Not the body, because every kind is
+already constrained to carry no clinical content and this is not the place to start hoarding
+message text.
+
+That table is what makes the run's evidence about messaging worth anything. Without it,
+"the patient was never told" and "we never tried" look identical afterwards, and with email
+deliberately off that is sixty patients' worth of the product going unmeasured.
 
 Already done. `notify()` degrades cleanly without it and logs `no channel available`, so
 every flow still runs and the code path is still exercised. With it set, sixty invented
@@ -115,15 +133,20 @@ production is the thing none of this is willing to do.
 
 ### 7 · Restore
 
-Restore `snap-polished-moon-a61n6nbr` onto `main`.
+Restore `snap-broad-shape-a649n5le` onto `main`.
 
 ### 8 · Prove it went back
 
     npm run baseline -- check
 
-115 tables, 194 rows, every one exactly where it started, or it names the tables that
+116 tables, 195 rows, every one exactly where it started, or it names the tables that
 differ and exits non-zero. A restore nobody checked is a belief: Neon reports a restore as
 done when the branch is ready, which says nothing about the rows in it.
+
+`rate_limits` and `error_events` are reported separately and do not fail it. Production is
+publicly reachable, so a crawler bumps the first and any runtime error appends to the
+second, both without the simulation having done anything. A check that goes red for a
+reason somebody explains away once gets the same shrug the next time, when it is real.
 
 ### 9 · Unset the switch, rotate, then the bank details
 

@@ -1,8 +1,8 @@
 {
-  "comment": "🔴 76.48 — what production held before the simulation ran on it. `npm run baseline -- check` compares the database against this and fails on any difference. It is the proof that the restore put things back, rather than the belief that it did. Recorded against a Neon snapshot; restoring that snapshot is what makes this file true again.",
+  "comment": "🔴 76.48. What production held before the simulation ran on it. `npm run baseline -- check` compares the database against this and fails on any difference. It is the proof that the restore put things back, rather than the belief that it did. Recorded against a Neon snapshot; restoring that snapshot is what makes this file true again.",
   "host": "ep-wild-lake-a6tgm2r6-pooler.us-west-2.aws.neon.tech",
-  "recordedAt": "2026-09-16T22:44:55.749Z",
-  "snapshot": "snap-polished-moon-a61n6nbr",
+  "recordedAt": "2026-09-16T23:23:05.741Z",
+  "snapshot": "snap-broad-shape-a649n5le",
   "counts": {
     "ai_request_logs": 46,
     "assessment_assignments": 0,
@@ -32,6 +32,7 @@
     "country_settings": 2,
     "cross_border_consents": 0,
     "data_exports": 0,
+    "delivery_attempts": 0,
     "document_chunks": 0,
     "earnings_transfers": 0,
     "ehr_connections": 0,
@@ -89,7 +90,7 @@
     "person_profiles": 0,
     "phone_change_requests": 0,
     "platform_settings": 9,
-    "rate_limits": 5,
+    "rate_limits": 6,
     "renewal_obligations": 1,
     "risk_assessments": 1,
     "session_credits": 1,
