@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts seed || echo 'settings seed skipped, see above'",
     "build": "NODE_OPTIONS=--max-old-space-size=3072 next build",
     "start": "next start",
     "lint": "next lint",
@@ -53,6 +54,7 @@
     "settings:show": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts show",
     "settings:rails": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts rails",
     "settings:reprice": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts reprice",
+    "settings:check": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts check",
     "evals": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server evals/run.ts",
     "copilot:exam": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/copilot-exam.ts",
     "test:evals": "node --env-file-if-exists=.env.local --import tsx --test tests/evals.test.ts",

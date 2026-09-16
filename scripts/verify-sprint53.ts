@@ -44,6 +44,14 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * 🔴 76.21 — the operator's real invoicing details, held across the one check
+ * that has to overwrite them. Null means there were none, and the cleanup
+ * deletes rather than restores in that case. Declared out here because the
+ * `finally` that puts it back is a scope above the `try` that reads it.
+ */
+let restoreInvoice: unknown = null;
+
 async function main() {
   writesTo();
 
@@ -994,6 +1002,26 @@ async function main() {
      * restored in the `finally`, so the check does not depend on what an operator
      * has configured (C284).
      */
+    /*
+     * 🔴 76.21 — WHAT WAS THERE BEFORE, KEPT, because the `finally` used to
+     * delete rather than restore.
+     *
+     * The comment above has always said "restored in the `finally`". The code
+     * said `DELETE FROM platform_settings WHERE key = 'invoice'`, which removes
+     * the row whether or not this run created it. So every `npm run gates`
+     * silently destroyed a real invoicing configuration: the legal name, the
+     * address, the tax id and the number prefix that go on a company's invoice.
+     * It was found because a settings parity check kept reporting one group
+     * missing from the dev branch minutes after it had been seeded.
+     *
+     * A comment and the code disagreeing is not a documentation problem. The
+     * code is what runs, and this one ran on every gate pass for sprints.
+     */
+    const { rows: priorInvoice } = await db.execute<{ value: unknown }>(
+      sql`SELECT value FROM platform_settings WHERE key = 'invoice'`,
+    );
+    restoreInvoice = priorInvoice[0]?.value ?? null;
+
     await db.execute(sql`
       INSERT INTO platform_settings (key, value)
       VALUES ('invoice', ${JSON.stringify({
@@ -1906,10 +1934,26 @@ async function main() {
       (SELECT id FROM enrolments WHERE sponsor_id IN
         (SELECT id FROM sponsors WHERE name LIKE 'verify53%'))`);
     /*
-     * 🔴 The settings override this run wrote, removed. A verifier that leaves a
-     * fake legal name in `platform_settings` would put it on a real invoice.
+     * 🔴 76.21 — THE SETTINGS OVERRIDE THIS RUN WROTE, PUT BACK.
+     *
+     * A verifier that leaves a fake legal name in `platform_settings` would put
+     * it on a real invoice, which is why this exists. It used to DELETE, which
+     * fixed that and broke something worse: the operator's own invoicing
+     * details went with it, on every gate pass, silently.
+     *
+     * Restored when there was something to restore, deleted only when this run
+     * created the row from nothing. Both halves matter: a delete that runs
+     * unconditionally is destructive, and a restore that runs unconditionally
+     * would leave the fixture behind on a database that had no row.
      */
-    await db.execute(sql`DELETE FROM platform_settings WHERE key = 'invoice'`);
+    if (restoreInvoice !== null) {
+      await db.execute(sql`
+        INSERT INTO platform_settings (key, value)
+        VALUES ('invoice', ${JSON.stringify(restoreInvoice)}::jsonb)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`);
+    } else {
+      await db.execute(sql`DELETE FROM platform_settings WHERE key = 'invoice'`);
+    }
     await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id IN
       (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
     await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id IN

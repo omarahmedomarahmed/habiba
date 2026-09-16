@@ -23,7 +23,7 @@ import {
   settingsProblem,
 } from "../lib/settings/defs";
 import { connect, schema } from "./db";
-import { writesTo } from "./_verify";
+import { hostOf, writesTo } from "./_verify";
 
 const { platformSettings, countrySettings, subscriptions } = schema;
 
@@ -207,6 +207,152 @@ async function rails(db: ReturnType<typeof connect>["db"]) {
   console.log(`\n${filled} countries configured. Empty fields only; nothing was overwritten.`);
 }
 
+/**
+ * 🔴 76.20 — WHAT THIS DATABASE IS ACTUALLY CONFIGURED WITH, AND WHAT IT IS NOT.
+ *
+ *   npm run settings:check
+ *
+ * ## The gap this closes, and it cost the launch a near miss
+ *
+ * Production ran for weeks holding the pre-sprint-26 prices. Every gate was
+ * green the whole time, because settings are DATA and the gates read CODE. The
+ * only reason it was found is that somebody pointed a gate at a fresh branch of
+ * production for an unrelated reason.
+ *
+ * ## 🔴 THE TWO FAILURES ARE NOT THE SAME FAILURE, and only one is dangerous
+ *
+ * **A missing GROUP is safe.** `parseGroup` fills anything absent from the code
+ * defaults, so a database with no `sponsor` row behaves exactly as the defaults
+ * say. Worth reporting, because an absent row cannot be edited by an operator
+ * and silently moves the day somebody changes a default, but nothing is broken.
+ *
+ * **A STALE STORED VALUE is the dangerous one, and it is the one defaults
+ * cannot rescue.** `pricing.tiers` existed on production and said $99. Nothing
+ * fell back, nothing warned, and the product charged the old price. This is the
+ * shape that has to be loud.
+ *
+ * **An EMPTY value that has no meaningful default is the third.**
+ * `payouts.transferFields` defaults to `[]` because there is no bank account a
+ * program could invent, and an empty list renders "not set up yet" on the one
+ * screen this market pays through. A database can be fully seeded, fully
+ * repriced, and still unable to take a single payment.
+ *
+ * ## It reads and never writes
+ *
+ * So it may be pointed at production, which is the database that most needs
+ * asking. It is in `npm run gates` for that reason.
+ */
+/**
+ * 🔴 76.20 — COMPARED BY CONTENT, AND THE FIRST DRAFT WAS NOT.
+ *
+ * It used `JSON.stringify` on both sides, which made it a test of KEY ORDER.
+ * Postgres returns `jsonb` with its own key ordering, so `{a,b}` stored came
+ * back `{b,a}` and three groups were reported stale with identical values.
+ * That is the §6 family landing on the instrument written to catch §6: a check
+ * that fails by measuring the wrong thing is as useless as one that passes that
+ * way, and noisier, so it is the version somebody switches off.
+ *
+ * Object keys are sorted; ARRAY ORDER IS KEPT, because it is meaningful
+ * everywhere it appears here. The tiers sort payg first, the seat bands are
+ * read in order, and the transfer fields are the order a payer reads them in.
+ */
+function stable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${JSON.stringify(k)}:${stable(v)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+async function check(db: Db): Promise<number> {
+  const rows = await db.select().from(platformSettings);
+  const stored = new Map(rows.map((r) => [r.key, r.value as Record<string, unknown>]));
+
+  const missingGroups = SETTINGS_GROUPS.filter((g) => !stored.has(g));
+  const stale: string[] = [];
+  const defaulted: string[] = [];
+
+  for (const group of SETTINGS_GROUPS) {
+    const live = stored.get(group);
+    if (!live) continue;
+    const defaults = SETTINGS_DEFAULTS[group] as Record<string, unknown>;
+
+    for (const [key, want] of Object.entries(defaults)) {
+      if (!(key in live)) {
+        defaulted.push(`${group}.${key}`);
+        continue;
+      }
+      /*
+       * 🔴 COMPARED BY VALUE, and a difference is REPORTED rather than judged.
+       *
+       * An operator is meant to change prices: a tier that differs from the
+       * default is usually somebody doing their job. What this cannot tell
+       * apart is that and a value nobody has touched since the default moved
+       * underneath it, so it prints both sides and lets a person decide. A
+       * check that guessed would be one people learn to ignore.
+       */
+      if (stable(live[key]) !== stable(want)) {
+        stale.push(
+          `${group}.${key}\n      stored:  ${stable(live[key]).slice(0, 150)}\n      default: ${stable(want).slice(0, 150)}`,
+        );
+      }
+    }
+  }
+
+  /* 🔴 THE ONE THAT STOPS THE PRODUCT WORKING, checked by name. */
+  const payouts = stored.get("payouts") as { transferFields?: unknown[] } | undefined;
+  const fields = payouts?.transferFields ?? [];
+  const noBankAccount = !Array.isArray(fields) || fields.length === 0;
+
+  const countries = await db.select().from(countrySettings);
+  const missingCountries = COUNTRY_SEED.filter(
+    (c) => !countries.some((row) => row.code === c.code),
+  ).map((c) => c.code);
+
+  console.log("\n🔴 What this database is configured with.\n");
+
+  console.log(`  ${SETTINGS_GROUPS.length - missingGroups.length}/${SETTINGS_GROUPS.length} setting groups stored`);
+  if (missingGroups.length > 0) {
+    console.log(`  --  absent, so the code defaults apply: ${missingGroups.join(", ")}`);
+    console.log("      Safe, but an operator cannot edit what is not there. `settings:seed` writes them.");
+  }
+  if (defaulted.length > 0) {
+    console.log(`  --  keys absent from a stored group, filled from defaults: ${defaulted.join(", ")}`);
+  }
+
+  if (stale.length > 0) {
+    console.log(`\n  ⚠️  ${stale.length} stored value(s) differ from the code defaults.`);
+    console.log("      Either somebody set them on purpose, or a default moved and this did not.");
+    for (const entry of stale) console.log(`    · ${entry}`);
+  } else {
+    console.log("\n  every stored value equals its default");
+  }
+
+  console.log(
+    `\n  ${missingCountries.length === 0 ? "every seeded country is present" : `🔴 countries missing: ${missingCountries.join(", ")}`}`,
+  );
+
+  if (noBankAccount) {
+    console.log(
+      "\n🔴 NO TRANSFER FIELDS. There is no bank account on this database, so the payment\n" +
+        "   sheet renders 'not set up yet' and nobody on the Egyptian rail can pay.\n" +
+        "   There is no default for this and there cannot be one: set it in /admin/settings.",
+    );
+  } else {
+    console.log(`\n  bank details present: ${(fields as { key: string }[]).map((f) => f.key).join(", ")}`);
+  }
+
+  /*
+   * 🔴 ONLY THE TWO THAT STOP THE PRODUCT EXIT NON-ZERO. A stale price might be
+   * deliberate and a missing group is harmless; failing on either would make
+   * this a gate people switch off, which is H20 exactly.
+   */
+  return noBankAccount || missingCountries.length > 0 ? 1 : 0;
+}
+
 /*
  * 🔴 Sprint 57 — this script WRITES, so it refuses production by name.
  *
@@ -219,16 +365,45 @@ async function rails(db: ReturnType<typeof connect>["db"]) {
  * The safety was missing, not the reasoning. It is the same function, imported.
  */
 async function main() {
-  writesTo();
   const verb = process.argv[2] ?? "seed";
+
+  /*
+   * 🔴 76.20 — WHICH VERBS THE PRODUCTION GUARD IS FOR, AND WHICH IT IS NOT.
+   *
+   * `writesTo()` exists because `scripts/demo.ts` puts fabricated clinicians on
+   * the public radar: it refuses production to stop TEST DATA landing on a live
+   * site. Two of the four verbs here are not that, and holding them to the rule
+   * cost the launch a near miss.
+   *
+   * **`check` reads.** The database that most needs asking "what are you
+   * actually configured with" is production, and a read-only question refused
+   * by a write guard is a question nobody asks. That is why production held the
+   * pre-sprint-26 prices for weeks with every gate green.
+   *
+   * **`seed` only ever INSERTS.** Both statements are `onConflictDoNothing`, so
+   * it cannot change a value anybody set, and the rows it adds are the code's
+   * own defaults, which is exactly what the absent rows were behaving as
+   * already. Its own header calls it "safe on every deploy" and nothing has
+   * ever run it on a deploy, which is H16's defect wearing a different hat: a
+   * step safe to automate and not automated is one somebody does by hand at the
+   * worst possible moment. It is `prebuild` now, and it has to be allowed to do
+   * its job where the job is.
+   *
+   * **`reprice` OVERWRITES**, so it keeps the guard and the deliberate door.
+   * **`rails` writes fixtures**, so it keeps it too.
+   */
+  if (verb === "reprice" || verb === "rails") writesTo();
+  else if (verb === "seed") console.log(`seeding ${hostOf()}\n`);
+
   const { pool, db } = connect();
   try {
     if (verb === "seed") await seed(db);
     else if (verb === "reprice") await reprice(db);
     else if (verb === "show") await show(db);
     else if (verb === "rails") await rails(db);
+    else if (verb === "check") process.exitCode = await check(db);
     else {
-      console.error(`unknown verb "${verb}". Use seed, reprice, rails or show.`);
+      console.error(`unknown verb "${verb}". Use seed, reprice, rails, check or show.`);
       process.exitCode = 1;
     }
   } catch (error) {

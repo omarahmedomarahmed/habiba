@@ -120,6 +120,28 @@ const GATES = [
     why: "and nothing is granted before a person confirms it",
   },
   /*
+   * 🔴 76.20 — AND THE RAIL HAS A BANK ACCOUNT TO POINT AT, which is DATA.
+   *
+   * Every other gate in this pass reads code, and settings are not code.
+   * Production ran for weeks holding the pre-sprint-26 prices with all fourteen
+   * of these green, because nothing in the pass had ever asked a database what
+   * it was actually configured with. It was found by accident.
+   *
+   * The failing condition is deliberately narrow: no transfer fields, or a
+   * missing country. Those are the two that stop the product working. A stale
+   * price prints loudly and does not fail, because an operator changing a price
+   * is somebody doing their job and a gate that cannot tell the two apart is
+   * one people switch off.
+   *
+   * 🔴 IT READS AND NEVER WRITES, so it can be pointed at production, which is
+   * the database that most needed asking.
+   */
+  {
+    name: "settings",
+    script: "settings:check",
+    why: "and the rail it runs on has a bank account to point at",
+  },
+  /*
    * 🔴 THE ONE GATE IN THIS PASS THAT WRITES.
    *
    * Every other line above reads files. All three defects sprint 74 found in

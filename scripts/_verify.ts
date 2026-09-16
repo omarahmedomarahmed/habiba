@@ -148,6 +148,24 @@ export function sawRows(counts: Record<string, number>): string {
 const PRODUCTION_ENDPOINT = "ep-wild-lake-a6tgm2r6";
 
 /**
+ * 🔴 76.20 — WHICH DATABASE, WITHOUT DECIDING ANYTHING ABOUT IT.
+ *
+ * `writesTo` both names the host and refuses production, which is right for a
+ * script that seeds fixtures and wrong for one that only inserts missing
+ * defaults or only reads. Those still have to SAY where they are pointed,
+ * because the commonest operator mistake is the right command at the wrong
+ * database. This is that half on its own.
+ */
+export function hostOf(): string {
+  const url = process.env.DATABASE_URL ?? "";
+  if (!url) {
+    console.error("DATABASE_URL is not set.");
+    process.exit(1);
+  }
+  return url.match(/@([^/:?]+)/)?.[1] ?? "(none)";
+}
+
+/**
  * Every verifier that WRITES starts here. PLAN.md C147.
  *
  * It prints the host either way, so a wrong database shows up in the output
