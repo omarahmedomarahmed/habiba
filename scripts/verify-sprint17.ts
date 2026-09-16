@@ -20,6 +20,7 @@ import { and, eq } from "drizzle-orm";
 import { contentPages, type ContentBlock } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
 import { writesTo, reporter } from "./_verify";
+import { stubModules } from "./_render";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 import { DICTIONARIES } from "../lib/i18n/messages";
@@ -121,50 +122,26 @@ function moneyIn(blocks: ContentBlock[]): string[] {
   return found;
 }
 
-/**
- * `next/link` reaches for React context at import time, which does not exist
- * outside a React renderer. The component under test is not being tested for
- * its links, so the module is replaced with a plain anchor before it loads.
- *
- * Deliberately narrow: exactly one module id, resolved to one stub. A broad
- * mock would let a real failure inside the component be swallowed by a stub
- * that answers for everything.
- */
-async function stubNextLink() {
-  const { createRequire } = await import("node:module");
-  const Module = (await import("node:module")).default as unknown as {
-    _resolveFilename: (request: string, ...rest: unknown[]) => string;
-  };
-  const require = createRequire(import.meta.url);
-  const stub = require.resolve("./_stub-link.tsx");
-  /*
-   * 🔴 76.7 — and the i18n client, for the same reason and by the same rule.
-   *
-   * `<Money>` reads the reader's locale from the provider rather than from the
-   * machine (C84), so it pulls `lib/i18n/client` into any tree that renders a
-   * price — and that module calls `createContext` at import time, which React's
-   * server build does not have.
-   */
-  const i18nStub = require.resolve("./_stub-i18n-client.tsx");
-  const original = Module._resolveFilename;
-  Module._resolveFilename = function (request: string, ...rest: unknown[]) {
-    if (request === "next/link") return stub;
-    if (request === "@/lib/i18n/client" || request.endsWith("/lib/i18n/client")) return i18nStub;
-    return original.call(this, request, ...rest);
-  };
-}
-
 async function main() {
   // 🔴 Sprint 57 — this verifier WRITES. It refuses production like its siblings.
   writesTo();
   /*
-   * The components are compiled with the classic JSX runtime under tsx, which
-   * expects `React` to be in scope at the call site. Putting it on the global
-   * is the least invasive way to run a real component outside Next's compiler
-   * — nothing about the component changes.
+   * 🔴 76.8 — THE SHARED HARNESS, not a private copy of it.
+   *
+   * This file used to carry its own `stubNextLink()`, a near-duplicate of
+   * `_render.ts`'s `stubModules()`. Two harnesses meant two places to teach
+   * about a module that cannot load outside a renderer, and only one of them
+   * ever got taught: when sprint 76 put `<Money>` into the pricing tree, the
+   * component reached for the i18n provider, `createContext` did not exist
+   * under `--conditions=react-server`, and this verifier died on an import.
+   *
+   * The first fix was a third stub. That is the wrong shape — it answers this
+   * component and waits for the next one. `stubModules()` also replaces
+   * `server-only`, which is the whole reason the react-server condition was on
+   * this script, so the condition came off and the full React build is used
+   * here exactly as `render-check` and `verify:sprint21r` already use it.
    */
-  (globalThis as { React?: unknown }).React = React;
-  await stubNextLink();
+  await stubModules();
   console.log(
     `checking ${process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? "?"}\n`,
   );

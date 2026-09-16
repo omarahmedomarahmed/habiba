@@ -158,6 +158,12 @@ export default async function PayPage({
           */}
           <PaymentPopup
             openInitially
+            /*
+              🔴 76.9 — an orb, not a bar. A patient who minimises is going back
+              to the app, and a bar across the top would follow them into a
+              session. It sits below the SOS orb's layer on purpose.
+            */
+            minimised="orb"
             storageKey={session.id}
             subject={{
               viewerName: session.guestName || t("pay.title"),
@@ -169,6 +175,7 @@ export default async function PayPage({
                 which is also the name that will be on their bank statement.
               */
               orgName: practiceName,
+              payerType: "patient",
               what: therapistName
                 ? t("transfer.forSessionWith", { name: therapistName })
                 : t("transfer.forSession"),

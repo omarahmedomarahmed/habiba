@@ -4,7 +4,7 @@ import { ChevronRight, Wallet } from "lucide-react";
 
 import { declareBillTransfer } from "./actions";
 import { BillingLedger } from "@/components/billing/ledger";
-import { PayByTransfer } from "@/components/billing/pay-by-transfer";
+import { PaymentPopup } from "@/components/billing/payment-popup";
 import { PlanCard } from "@/components/billing/plan-card";
 import { SeatManager } from "@/components/billing/seat-manager";
 import { PageHeader } from "@/components/ui";
@@ -19,6 +19,9 @@ import { features } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
+import { eq } from "drizzle-orm";
+import { controlDb } from "@/lib/db";
+import { organizations, users } from "@/lib/db/schema";
 
 export const metadata: Metadata = { title: "Billing", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -38,6 +41,35 @@ export default async function BillingPage({
   if (checkout && checkout !== "cancelled") {
     await confirmCheckout(checkout);
   }
+
+  /*
+   * 🔴 76.10 — who is reading this screen, and which practice they bill under.
+   * The popup names both: a clinic manager needs to see that this is the
+   * practice's bill and not somebody's session.
+   */
+  const [[me], [practice]] = await Promise.all([
+    controlDb
+      .select({ first: users.firstName, last: users.lastName })
+      .from(users)
+      .where(eq(users.id, actor.userId))
+      .limit(1),
+    controlDb
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, actor.organizationId))
+      .limit(1),
+  ]);
+  /*
+   * 🔴 76.10 — `viewerName`, not `payerName`, and the rename is the rule again.
+   *
+   * C243 bans a PAYER's name from a therapist-facing money surface, because a
+   * screen showing who paid reveals which employer covers which patient. This
+   * is the reader's own name on their own bill, which is the one safe case —
+   * and a variable called `payerName` on a clinician's page is exactly what the
+   * rule is watching for, whatever it happens to hold today.
+   */
+  const viewerName = [me?.first, me?.last].filter(Boolean).join(" ") || actor.email;
+  const practiceName = practice?.name ?? null;
 
   const [summary, invoices, earnings, payments, seatBill] = await Promise.all([
     billingSummary(actor.organizationId),
@@ -165,10 +197,33 @@ export default async function BillingPage({
                     count: String(summary.outstandingCount),
                   })}
             </p>
-            <PayByTransfer
+            {/*
+              🔴 76.10 — THE SAME SHEET A PATIENT AND A COMPANY SEE.
+
+              It used to be a bare `PayByTransfer` in the page flow. The popup
+              adds the three things a clinician needs and this page could not
+              give them: which payer they are, so a clinic manager can tell this
+              is the practice's bill rather than a patient's session; a
+              minimised state they can come back to; and the receipt handed back
+              when they return, instead of an upload form that says nothing
+              about whether the first one landed.
+            */}
+            <PaymentPopup
+              storageKey={actor.organizationId}
+              subject={{
+                viewerName,
+                orgName: practiceName,
+                what: t("transfer.forBill"),
+                /* A practice of one is a therapist; more than one is a clinic. */
+                /*
+                 * The same question `manualEntry`'s audience asks, four lines
+                 * up, and answered from the same column. A clinic pays for
+                 * seats and a solo therapist does not.
+                 */
+                payerType: seatBill.seats > 0 ? "clinic" : "therapist",
+              }}
               details={rail.details}
               amountLabel={rail.amountLabel}
-              what={t("transfer.forBill")}
               live={rail.live}
               action={declareBillTransfer}
             />

@@ -349,6 +349,84 @@ function main() {
     "onChange inside a client component is the point of client components",
   );
 
+  /* ================================================================== */
+  /*  A verifier that RENDERS runs on the real React, and stubs early     */
+  /* ================================================================== */
+
+  /*
+   * 🔴 76.8 — THE BUG CLASS `verify:sprint17` COST AN AFTERNOON TO, TWICE.
+   *
+   * A script that renders real components has to replace two modules that
+   * cannot load outside a renderer, and the replacement has to be installed
+   * BEFORE the script's own static imports resolve. A helper called from
+   * `main()` is already too late: `lib/db/index.ts` begins with `import
+   * "server-only"` and throws while the import graph is still loading.
+   *
+   * The workaround for that was `--conditions=react-server`, which silences
+   * `server-only` and silently swaps React for its server build. That build
+   * has no `createContext`, so the day a rendered component reached for the
+   * i18n provider the verifier died on an import — and the tempting fix was a
+   * stub for that one provider, which answers one component and waits for the
+   * next.
+   *
+   * Two properties close it for good, and this checks both:
+   *
+   *   - a rendering script PRELOADS the substitutions with `--import`
+   *   - and none of them carries `--conditions=react-server`, because a
+   *     renderer needs the React that can render
+   */
+  const pkg = JSON.parse(readSource("package.json")) as {
+    scripts: Record<string, string>;
+  };
+
+  /* A script is a renderer when it pulls in the shared harness or react-dom. */
+  const renderers = Object.entries(pkg.scripts).filter(([, cmd]) => {
+    const file = cmd.split(/\s+/).find((a) => a.startsWith("scripts/"));
+    if (!file) return false;
+    let src = "";
+    try {
+      src = readSource(file);
+    } catch {
+      return false;
+    }
+    return /from "\.\/_render"|react-dom\/server/.test(src);
+  });
+
+  const unpreloaded = renderers
+    .filter(([, cmd]) => !cmd.includes("_render-preload.mjs"))
+    /*
+     * `verify:sprint45` spawns a CHILD to do its rendering and only scans
+     * source in its own process, so the parent needs nothing. It is named
+     * rather than pattern-matched, so the day it renders in-process this goes
+     * red instead of quietly excusing it.
+     */
+    .filter(([name]) => name !== "verify:sprint45")
+    .map(([name]) => name);
+
+  check(
+    "🔴 every script that renders components installs its module stubs BEFORE its imports",
+    unpreloaded.length === 0,
+    unpreloaded.join(", ") || `${renderers.length} renderers, all preloaded or delegating`,
+  );
+
+  const serverConditioned = renderers
+    .filter(([name, cmd]) => cmd.includes("--conditions=react-server") && name !== "verify:sprint45")
+    .map(([name]) => name);
+
+  check(
+    "🔴 …and none of them runs on the React build that cannot render",
+    serverConditioned.length === 0,
+    serverConditioned.join(", ") ||
+      "react-server has no createContext, so any client component in the tree is an import error",
+  );
+
+  check(
+    "🔴 CONTROL the preload replaces both modules a renderer trips over",
+    /next\/link/.test(readSource("scripts/_render-preload.mjs")) &&
+      /server-only/.test(readSource("scripts/_render-preload.mjs")),
+    "a preload that stubbed only one would move the failure rather than remove it",
+  );
+
   finish("boundary");
 }
 

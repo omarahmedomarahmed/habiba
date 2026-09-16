@@ -1114,6 +1114,58 @@ async function main() {
     "watched refusing the two surfaces C243 was written about",
   );
 
+  /*
+   * 🔴 76.10 — EVERY PAYER GETS THE SAME SHEET, AND THE SHEET SAYS WHICH THEY ARE.
+   *
+   * Four payers, one component, identical bank details underneath. That is the
+   * right implementation and it was briefly the wrong experience: a clinic
+   * manager and a company's finance officer both met a white sheet with an IBAN
+   * on it and no way to tell at a glance whether it was the practice's bill or
+   * the employer's pot.
+   *
+   * The check is on the CALL SITES rather than the component, because the
+   * component cannot know which payer it is serving.
+   */
+  const popupCallers = popupRenderers.filter((f) => f.startsWith("app/"));
+  const untyped = popupCallers.filter((f) => !/payerType:/.test(readSource(f)));
+
+  check(
+    "🔴 every payment sheet says which payer it is for",
+    untyped.length === 0 && popupCallers.length >= 3,
+    untyped.join(", ") || `${popupCallers.length} payer screens, each naming its own kind`,
+  );
+
+  check(
+    "🔴 …and the three rails a person can pay on all reach the same sheet",
+    popupCallers.some((f) => f.startsWith("app/pay/")) &&
+      popupCallers.some((f) => f.includes("(app)/billing")) &&
+      popupCallers.some((f) => f.includes("(sponsor)/sponsor/pot")),
+    "a session, a practice bill and a company pot: one component, one set of details",
+  );
+
+  /*
+   * 🔴 AND THE PATIENT'S MINIMISED STATE IS AN ORB RATHER THAN A BAR.
+   *
+   * A patient who minimises is going back to the app, and a bar across the top
+   * of a patient's screen follows them into a session. The orb sits BELOW the
+   * SOS orb's layer, which is C235 expressed as a z-index: the crisis path
+   * never depends on money, so a payment reminder must never cover it.
+   */
+  const popup = readSource("components/billing/payment-popup.tsx");
+  check(
+    "🔴 the patient minimises to an orb, and it sits under the crisis one",
+    /minimised="orb"/.test(readSource("app/pay/[token]/page.tsx")) &&
+      /z-\[60\]/.test(popup) &&
+      /z-\[70\]/.test(readSource("components/patient/sos-orb.tsx")),
+    "a payment reminder covering the SOS button is C235 broken by a stacking context",
+  );
+
+  check(
+    "🔴 …and the open sheet clears the bottom nav rather than covering it",
+    /pb-20/.test(popup),
+    "a modal over the tab bar makes the way out the one control that is hidden",
+  );
+
   check(
     "🔴 …and the name it shows is the READER's, never a payer read off a row",
     /viewerName/.test(readSource("components/billing/payment-popup.tsx")) &&

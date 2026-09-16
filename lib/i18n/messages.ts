@@ -1603,6 +1603,10 @@ export const en = {
   "transfer.taxNote": "Includes {tax} of VAT.",
 
   /* -------------------------------- 🔴 76.4 one payment screen, every payer */
+  "pop.for.patient": "Patient payment",
+  "pop.for.therapist": "Therapist payment",
+  "pop.for.clinic": "Clinic payment",
+  "pop.for.company": "Company payment",
   "pop.open": "Pay now",
   "pop.track": "Track your payment",
   "pop.close": "Close",
@@ -4655,6 +4659,10 @@ export const ar: Record<MessageKey, string> = {
   "transfer.taxNote": "يشمل {tax} ضريبة القيمة المضافة.",
 
   /* -------------------------------- 🔴 76.4 one payment screen, every payer */
+  "pop.for.patient": "دفعة مريض",
+  "pop.for.therapist": "دفعة معالج",
+  "pop.for.clinic": "دفعة عيادة",
+  "pop.for.company": "دفعة شركة",
   "pop.open": "ادفع الآن",
   "pop.track": "تابع عملية الدفع",
   "pop.close": "إغلاق",

@@ -61,6 +61,20 @@ export type PaymentSubject = {
   orgName: string | null;
   /** "Session with Dr Mona, Tuesday 9pm" — what the money is for, in their words. */
   what: string;
+  /**
+   * 🔴 76.10 — WHO IS PAYING, SAID ON THE SCREEN.
+   *
+   * The same component serves four payers and the bank details underneath are
+   * identical for all of them. That is the right implementation and the wrong
+   * experience: a clinic manager and a company's finance officer both arrive at
+   * a white sheet with an IBAN on it, and neither can tell at a glance that it
+   * is the RIGHT sheet — whether they are paying the practice's bill or their
+   * employer's pot.
+   *
+   * So the sheet names itself. It is also what a payments operator needs when
+   * somebody sends a screenshot of this screen asking why the amount is wrong.
+   */
+  payerType: "patient" | "therapist" | "clinic" | "company";
 };
 
 export function PaymentPopup({
@@ -77,6 +91,20 @@ export function PaymentPopup({
   /** Rendered in the success state: "Join the session" / "Back to your account". */
   onwardHref,
   onwardLabel,
+  /**
+   * 🔴 76.9 — HOW THE MINIMISED STATE LOOKS, and it is not a style choice.
+   *
+   * `"button"` is a full-width control in the page's flow, which is right on a
+   * screen somebody opened in order to pay: the bill IS the page.
+   *
+   * `"orb"` is a small floating circle, and it is right for a patient. A
+   * patient minimising a payment is going back to the app to do something
+   * else, and a bar across the top of their screen would follow them into a
+   * session. It sits where the SOS orb sits, a size down and in the platform's
+   * own colour rather than red, because red on a patient's screen already
+   * means one thing and it is not money.
+   */
+  minimised = "button",
   /** Starts open when they arrived here to pay, rather than to read a page. */
   openInitially = false,
   /** Stable key for remembering open state. The payment's ref, never a person. */
@@ -94,6 +122,7 @@ export function PaymentPopup({
   steps?: PotStep[];
   onwardHref?: string;
   onwardLabel?: string;
+  minimised?: "button" | "orb";
   openInitially?: boolean;
   storageKey: string;
 }) {
@@ -127,19 +156,53 @@ export function PaymentPopup({
   };
 
   if (!open) {
+    const label = live.state === "submitted" ? t("pop.track") : t("pop.open");
+
+    if (minimised === "orb") {
+      return (
+        <button
+          type="button"
+          onClick={() => remember(true)}
+          aria-label={label}
+          /*
+           * 🔴 BELOW the SOS orb's z-index, deliberately and permanently.
+           *
+           * They can both be on screen, and if they ever overlap the crisis
+           * button is the one that must be on top. C235's rule is that the
+           * patient's crisis path never depends on money; a payment reminder
+           * covering it would be that rule broken by a stacking context.
+           */
+          className="fixed end-3 bottom-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg"
+        >
+          {/* A banknote, drawn rather than typed, so no font decides its size. */}
+          <span aria-hidden className="block h-4 w-6 rounded-[3px] border-2 border-current" />
+          {live.state === "submitted" ? (
+            <span className="absolute -end-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-amber-400" />
+          ) : null}
+        </button>
+      );
+    }
+
     return (
       <button
         type="button"
         onClick={() => remember(true)}
         className="h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white"
       >
-        {live.state === "submitted" ? t("pop.track") : t("pop.open")}
+        {label}
       </button>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    /*
+      🔴 76.9 — THE SHEET STOPS ABOVE THE BOTTOM NAV, it does not cover it.
+      A payer who has minimised in their head but not on the screen still needs
+      to leave, and a modal over the tab bar makes the way out the one control
+      that is hidden. `pb-20` on mobile clears it; from `sm` up the nav is a
+      sidebar and the sheet centres normally.
+    */
+    <div className="fixed inset-0 z-50 flex items-end justify-center pb-20 sm:items-center sm:pb-0">
       {/*
         🔴 CLICKING ANYWHERE OUTSIDE CLOSES IT, which is only safe because
         nothing is lost by closing. A half-typed reference is not a payment;
@@ -161,6 +224,9 @@ export function PaymentPopup({
         {/* ------------------------------------------------ who and what -- */}
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
+            <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
+              {t(`pop.for.${subject.payerType}` as "pop.for.patient")}
+            </p>
             <p className="truncate text-base font-bold tracking-tight text-slate-900">
               {subject.what}
             </p>

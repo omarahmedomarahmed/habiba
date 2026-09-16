@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { CoverageForm } from "@/components/sponsor/coverage-form";
 import { declarePotTransfer } from "./actions";
-import { PayByTransfer } from "@/components/billing/pay-by-transfer";
+import { PaymentPopup } from "@/components/billing/payment-popup";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { localeTag } from "@/lib/i18n/config";
@@ -168,12 +168,24 @@ export default async function SponsorPotPage() {
         `topUpPot` refuses on. An Egyptian company cannot be charged a card, so
         it is shown a bank account instead of a form that would refuse them.
       */}
+      {/*
+        🔴 76.10 — the same sheet every other payer sees, naming this one as a
+        COMPANY payment. A finance officer filing this needs to tell at a glance
+        that it is their employer's pot and not somebody's session, because the
+        bank details underneath are identical for all four payers.
+      */}
       {terms?.refundPolicy && terms.expiresAt && actor.role === "admin" && rail.needed ? (
-        <PayByTransfer
+        <PaymentPopup
+          storageKey={actor.sponsorId}
+          subject={{
+            viewerName: actor.email,
+            orgName: actor.sponsorName,
+            what: t("transfer.forPot"),
+            payerType: "company",
+          }}
           details={rail.details}
           /* 🔴 Empty, and `askAmount` is why: they have not chosen one yet. */
           amountLabel=""
-          what={t("transfer.forPot")}
           live={rail.live}
           action={declarePotTransfer}
           askAmount
