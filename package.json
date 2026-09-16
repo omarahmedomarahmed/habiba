@@ -152,6 +152,7 @@
     "verify:finance": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-finance.ts",
     "verify:plan": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-plan.ts",
     "verify:rail": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rail.ts",
+    "verify:cycle": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-cycle.ts",
     "verify:entitlement": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-entitlement.ts",
     "verify:board": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-board.ts",
     "forecast": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/forecast.ts",

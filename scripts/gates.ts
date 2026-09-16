@@ -142,6 +142,27 @@ const GATES = [
     why: "and the rail it runs on has a bank account to point at",
   },
   /*
+   * 🔴 76.22 — AND A WHOLE CYCLE OF MONEY ACTUALLY MOVES, on real rows.
+   *
+   * `verify:rail` above ends by admitting what it cannot do: it reads source,
+   * it catches a posting being deleted, and it cannot catch one posting the
+   * wrong number. Sprint 74 found three defects in the entitlement loop that
+   * were all true of the source and false of the database.
+   *
+   * The sweep that added `sawRows` proved how far that reached: the board
+   * reported zero collected and zero transfers on every branch we own, seeded
+   * ones included, so the money half of this product had never been exercised
+   * against rows anywhere. A cycle run once by hand proves the day it ran.
+   *
+   * Four payers, a rejection, and a trial balance, with everything deleted in a
+   * `finally`.
+   */
+  {
+    name: "cycle",
+    script: "verify:cycle",
+    why: "and a company, a patient and a clinician can all actually pay us",
+  },
+  /*
    * 🔴 THE ONE GATE IN THIS PASS THAT WRITES.
    *
    * Every other line above reads files. All three defects sprint 74 found in
