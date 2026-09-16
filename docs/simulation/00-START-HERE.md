@@ -1,7 +1,32 @@
 # The six month simulation: start here
 
-**You are the main session. Read all nine of these before you do anything.** They are one
-design split across nine files because nine different people read them.
+## You are the Chief of Staff
+
+Not a narrator, not a supervisor of one agent, and not a participant. **You are the Chief of
+Staff for this simulation: for every agent in it and for everything it produces.** Nothing in
+the run belongs to nobody.
+
+That means four things, and they are the whole job:
+
+1. **Every agent reports to you, through the orchestrator.** The orchestrator owns the wave
+   clock and verifies claims; you own the orchestrator. An agent that goes quiet, gets stuck or
+   reports something it cannot evidence is yours to re-task, not something to note and move on
+   from.
+2. **Every artefact is yours.** The screenshots, the report, the defect log, the fitted cost
+   model, the exam marks. If a frame is missing at the end, the answer is never "an agent did
+   not take it": it is that you did not ask for it.
+3. **You decide what the run does when reality disagrees with this plan**, which it will. A
+   wave that cannot be finished as written gets a decision from you, written down, with what
+   was traded away. Silence is the one response that is not available.
+4. **You report upward to the founder**, at the seven fixed points below, in the founder's
+   words rather than in agent output. Nobody else in this run talks to them.
+
+The one thing a Chief of Staff does not do is act. You do not book a session, pay a bill or
+work a queue. Every one of those has an agent whose whole existence is that person, and a Chief
+of Staff who starts doing the work has stopped watching whether it is being done.
+
+**Read all ten of these before you do anything.** They are one design split across ten files
+because ten different people read them.
 
 | File | What it is | Who reads it |
 |---|---|---|
@@ -14,6 +39,7 @@ design split across nine files because nine different people read them.
 | `06-AGEING.md` | How six months happens in one afternoon, and the rule that keeps it honest | You, before wave one |
 | `07-THE-EXAM.md` | What the copilot actually knows, and whether it learned | You, during and after |
 | `08-THE-NUMBERS.md` | What the run hands the financial model, and the four things it can never measure | You, at the end |
+| `09-THE-EDGES.md` | **Forty eight ways money goes wrong, each attached to somebody already in the cast** | You and the money agent |
 
 ---
 
@@ -139,8 +165,8 @@ deep record from a thin one. Ninety would make a prettier chart and answer nothi
 ## The shape
 
 ```
-  YOU  ·  the main session
-   │   reads the nine documents, checks the branch, opens the rail, ages each wave,
+  YOU  ·  the CHIEF OF STAFF
+   │   reads the ten documents, checks the branch, opens the rail, ages each wave,
    │   runs the exam, writes the report, and reports upward to the founder
    ▼
   THE ORCHESTRATOR  ·  one agent, the most capable one available
@@ -153,8 +179,8 @@ deep record from a thin one. Ninety would make a prettier chart and answer nothi
                   (one per person)                   of the eight
 ```
 
-**Cheap agents do the acting. One expensive agent keeps them honest. You supervise the one
-that keeps them honest.**
+**Cheap agents do the acting. One expensive agent keeps them honest. You are accountable for
+both, and for everything either of them produces.**
 
 ---
 
@@ -245,7 +271,8 @@ was handed the answer to is a gate nobody tested.
 | 11 | The exam | `npm run copilot:exam` | `07-THE-EXAM.md` |
 | 12 | The numbers | `npm run physics`, `npm run plan`, Measure and freeze | `08-THE-NUMBERS.md` |
 | 13 | Accuracy, only if there is budget | `npm run evals -- --record` | |
-| 14 | The report | | `docs/simulation-run/REPORT.md`, and it is honest |
+| 14 | **The edge ledger** | | `09-THE-EDGES.md`, all forty eight, each marked `held` or `broke` |
+| 15 | The report | | `docs/simulation-run/REPORT.md`, and it is honest |
 
 **Step 8 is a numbered step and not an assumption.** The run starts with the rail shut, on
 purpose, because that is the state a real Tuesday starts from.
@@ -265,6 +292,7 @@ seven fixed points**, each short enough to read on a phone.
 | After wave 4 | **The full price invoice.** Whether it rendered with no discount line, and what the therapists did |
 | After the exam | The mark per patient, and whether a thicker record really made a better copilot |
 | After the CFO's second pass | The money end to end, with the month 3 pass beside it |
+| After wave 5 | **The edge ledger so far.** How many of the forty eight in `09-THE-EDGES.md` have been walked, and which of them broke |
 | At the end | The report, the dev log, and what the plan still cannot know |
 
 ### Three things to say immediately, without waiting for a checkpoint
@@ -274,6 +302,10 @@ seven fixed points**, each short enough to read on a phone.
 2. **An agent is blocked and cannot resume.** One block, the screen, and what it needs.
 3. **A defect that would lose somebody money or expose a record.** Everything else goes in the
    log and waits. These two do not.
+4. **`CV10`, `CV11` or `RR4` from `09-THE-EDGES.md` breaks.** An employer learning which of their
+   staff is in therapy, or a patient in crisis blocked by anything to do with money. Both are
+   the disclosure the whole constraint set exists to prevent, and neither waits for a
+   checkpoint.
 
 ---
 
@@ -292,7 +324,12 @@ seven fixed points**, each short enough to read on a phone.
 6. **The fitted cost model**: the two terms, the fit quality, and what a fifty minute session
    costs. The only number in this run that outlives it.
 7. **The AI accuracy**, or plainly "not re recorded, no budget".
-8. **What could not be simulated**, and why.
+8. **The edge ledger.** One row per case in `09-THE-EDGES.md`: the case, who hit it, what the
+   screen said, the row id, and `held` or `broke`. **Including the ones that held**, because a
+   table of only the breakages leaves a reader unable to tell "we checked and it was fine" from
+   "nobody looked".
+9. **What could not be simulated**, and why.
 
-**A clean report means you did not look.** The last two walkthroughs each found defects that
+**A clean report means you did not look.** Forty eight of the rows in it are money going wrong
+on purpose, and four of those were real defects found by hand in one afternoon of sprint 76. The last two walkthroughs each found defects that
 sixty verifiers had missed, and this run exercises far more of the product than either.
