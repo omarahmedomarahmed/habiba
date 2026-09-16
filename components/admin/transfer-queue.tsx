@@ -34,7 +34,36 @@ type Row = {
   proofUrl: string | null;
   submittedAt: string | null;
   payer: string;
+  /**
+   * 🔴 76.11 — WHICH KIND OF PAYER, so one queue can be worked four ways.
+   *
+   * An operator clearing a morning's transfers is not doing one job. A
+   * patient's session is unblocking somebody sitting on a waiting screen; a
+   * company's pot is a finance department that will chase by email; a
+   * practice's bill decides whether a clinician is metered tomorrow. The
+   * urgency and the checks differ, and a single undifferentiated list made an
+   * operator re-derive the kind from the amount and the wording.
+   */
+  payerType: "patient" | "therapist" | "clinic" | "company";
+  /** Their page on the admin side. Null where the payer has no account at all. */
+  profileHref: string | null;
 };
+
+const PAYER_LABEL: Record<Row["payerType"], string> = {
+  patient: "Patient",
+  therapist: "Therapist",
+  clinic: "Clinic",
+  company: "Company",
+};
+
+const PAYER_TONE: Record<Row["payerType"], string> = {
+  patient: "bg-teal-100 text-teal-800",
+  therapist: "bg-indigo-100 text-indigo-800",
+  clinic: "bg-violet-100 text-violet-800",
+  company: "bg-amber-100 text-amber-900",
+};
+
+const TABS = ["all", "patient", "therapist", "clinic", "company"] as const;
 
 const WHAT: Record<string, string> = {
   session: "A session",
@@ -45,6 +74,7 @@ const WHAT: Record<string, string> = {
 
 export function TransferQueue({ rows }: { rows: Row[] }) {
   const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
+  const [tab, setTab] = useState<(typeof TABS)[number]>("all");
 
   if (rows.length === 0) {
     return (
@@ -57,16 +87,46 @@ export function TransferQueue({ rows }: { rows: Row[] }) {
     );
   }
 
+  const shown = tab === "all" ? rows : rows.filter((r) => r.payerType === tab);
+
   return (
     <div className="space-y-3">
       {msg.error ? <p className="text-sm text-rose-600">{msg.error}</p> : null}
       {msg.ok ? <p className="text-sm text-teal-700">{msg.ok}</p> : null}
 
+      {/*
+        🔴 76.11 — ONE PAGE, FOUR VIEWS, AND "ALL" IS THE DEFAULT.
+
+        Separate pages per payer would mean an operator has to remember to
+        check four of them, and the one they forget is the one with somebody
+        waiting on it. So the whole queue is here and the tabs narrow it, with
+        the count on each tab because a tab showing zero is worth not clicking.
+      */}
+      <div className="flex flex-wrap gap-1.5">
+        {TABS.map((name) => {
+          const count = name === "all" ? rows.length : rows.filter((r) => r.payerType === name).length;
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setTab(name)}
+              className={
+                tab === name
+                  ? "rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                  : "rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
+              }
+            >
+              {name === "all" ? "All" : PAYER_LABEL[name]} {count}
+            </button>
+          );
+        })}
+      </div>
+
       <p className="text-xs text-slate-500">
-        {rows.length} waiting, oldest first. Somebody is on a spinner for each.
+        {shown.length} waiting, oldest first. Somebody is on a spinner for each.
       </p>
 
-      {rows.map((row) => (
+      {shown.map((row) => (
         <TransferRow key={row.id} row={row} onDone={setMsg} />
       ))}
     </div>
@@ -92,9 +152,33 @@ function TransferRow({
     <Card className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">
-            {row.payer} · {WHAT[row.purpose] ?? row.purpose}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${PAYER_TONE[row.payerType]}`}
+            >
+              {PAYER_LABEL[row.payerType]}
+            </span>
+            <p className="text-sm font-semibold text-slate-900">
+              {/*
+                🔴 76.11 — THE NAME IS THE WAY IN TO THE REST OF THE STORY.
+
+                An operator looking at a transfer that does not match usually
+                needs the payer's history, not this row: has this company
+                topped up before, is this clinician on a plan, did this patient
+                already pay for the session. That was a search box away and is
+                now a click. Plain text where there is no page to go to, which
+                is a guest paying for a session with no account at all.
+              */}
+              {row.profileHref ? (
+                <a href={row.profileHref} className="underline decoration-slate-300 underline-offset-4">
+                  {row.payer}
+                </a>
+              ) : (
+                row.payer
+              )}{" "}
+              · {WHAT[row.purpose] ?? row.purpose}
+            </p>
+          </div>
           {/*
             🔴 THE NUMBER THEY SENT FIRST, BECAUSE THAT IS WHAT THE STATEMENT SAYS.
             The operator is matching a line in a banking app, and that line is in
