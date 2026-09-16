@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 
+import { SimulationBanner } from "@/components/simulation-banner";
 import { env } from "@/lib/env";
 import "./globals.css";
 
@@ -77,6 +78,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} dir={dirFor(locale)}>
       <body>
         <I18nProvider locale={locale} overrides={overrides}>
+          {/*
+            🔴 76.47 — null everywhere except the simulation deployment, where
+            it is the one thing on the page saying that every person in the
+            record below was invented. See the component.
+          */}
+          <SimulationBanner />
           {children}
         </I18nProvider>
       </body>
