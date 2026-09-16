@@ -45,6 +45,30 @@ files because twelve different people read them.
 
 ---
 
+## 🔴 Where this runs, and it is not a sandbox
+
+**Production.** The production deployment at `https://24t.vercel.app`, the production Neon
+branch, and the real keys. It is public and answers 200 to anybody, so a patient in this
+run opens a join link exactly the way a patient in October will.
+
+`DEPLOY.md` has the full order. The five things that decide whether this goes well:
+
+| | |
+| --- | --- |
+| Before | Snapshot taken, baseline recorded, `SIMULATION_RUNNING=1` set, `RESEND_API_KEY` off |
+| During | Real OpenAI, Daily and blob keys, so the cost and the rooms and the uploads are real |
+| Email | Nothing reaches anybody. Links are passed on screen, which is what a clinician does anyway |
+| 🔴 Before the restore | Capture everything. The restore destroys the evidence with the mess |
+| After | `npm run baseline -- check` says 115 tables, 194 rows, unchanged |
+
+🔴 **One correction to carry.** Running here was argued partly on "production is not
+publicly reachable", read off a Vercel setting and never tested. It was wrong: the domain
+was public the whole time, and the radar is deliberately indexable, which is why
+`SIMULATION_RUNNING` exists. **A setting is not a test.** When something in this run looks
+safe because of how it is configured, open it and look.
+
+---
+
 ## What this is
 
 Not a walkthrough. **Six months of operating this product, run by a swarm of agents in one

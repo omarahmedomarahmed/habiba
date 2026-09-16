@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { env } from "@/lib/env";
+import { SIMULATION_RUNNING, env } from "@/lib/env";
 
 /**
  * Two jobs, and the second one matters more than the first.
@@ -15,6 +15,24 @@ import { env } from "@/lib/env";
  * spending the crawl budget on routes that will only redirect them to /login.
  */
 export default function robots(): MetadataRoute.Robots {
+  /*
+   * 🔴 76.49 — A SIMULATION IS RUNNING, SO NOTHING HERE IS TRUE.
+   *
+   * The radar is deliberately indexable, because somebody searching "talk to a
+   * therapist now" is exactly who it is for. During a run the people on it are
+   * invented and carry `DEMO-` licence numbers, and an index entry outlives
+   * both the run and the restore that undoes it.
+   *
+   * Disallowing everything is the only honest setting: the marketing pages
+   * describe prices the simulation may have changed, and the radar describes
+   * clinicians who do not exist.
+   */
+  if (SIMULATION_RUNNING) {
+    return {
+      rules: [{ userAgent: "*", disallow: "/" }],
+    };
+  }
+
   return {
     rules: [
       {

@@ -1,4 +1,4 @@
-import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, env } from "@/lib/env";
+import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, SIMULATION_RUNNING, env } from "@/lib/env";
 
 /**
  * 🔴 76.47 — THE SIMULATION SAYS SO, ON EVERY PAGE.
@@ -28,15 +28,34 @@ import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, env } from "@/lib/env";
  * `scripts/`. The password is the secret and it lives in an environment
  * variable that never reaches a page.
  *
- * ## It renders nowhere else
+ * ## Where it renders, and the second case is deliberate
  *
- * `VERCEL_GIT_COMMIT_REF` is set by Vercel and absent on a laptop, so this is
- * null in development, null in production and null on every other branch. A
- * banner that could appear on the real product would be a banner somebody has
- * to write a rule about.
+ * On the simulation BRANCH, detected from `VERCEL_GIT_COMMIT_REF`, which Vercel
+ * sets and a laptop does not. And on any deployment that declares
+ * `SIMULATION_RUNNING`, which is how a run on PRODUCTION says so: that
+ * arrangement has no branch to detect, because it is the real deployment on the
+ * real database, put back afterwards by restoring a snapshot.
+ *
+ * 🔴 That second case is the one worth being loud about. A flag that changes
+ * how production behaves is a flag somebody leaves on, and the mitigation is
+ * not discipline: it is that every page grows a violet bar naming the database,
+ * so a deployment left in this state announces itself.
  */
 export function SimulationBanner() {
-  if (process.env.VERCEL_GIT_COMMIT_REF !== SIMULATION_BRANCH) return null;
+  /*
+   * 🔴 TWO WAYS TO BE A SIMULATION, and they are different arrangements.
+   *
+   * The BRANCH is the standing one: a separate deployment on a separate
+   * database, which anybody can open afterwards.
+   *
+   * `SIMULATION_RUNNING` is the temporary one: a run happening on PRODUCTION,
+   * on the real deployment and the real database, undone afterwards by
+   * restoring a snapshot. That arrangement has no branch to detect, so it is
+   * declared, and while it is declared this strip is the thing that stops a
+   * founder reading invented money as real money.
+   */
+  const onBranch = process.env.VERCEL_GIT_COMMIT_REF === SIMULATION_BRANCH;
+  if (!onBranch && !SIMULATION_RUNNING) return null;
 
   /*
    * 🔴 THE ENDPOINT IS READ BACK OUT OF THE URL, not assumed from the branch.
@@ -46,7 +65,9 @@ export function SimulationBanner() {
    * constant, because a line that prints what it was told is a line that would
    * keep saying the right thing after the guard was weakened.
    */
-  const on = env.databaseUrl.includes(SIMULATION_ENDPOINT) ? SIMULATION_ENDPOINT : "an unknown database";
+  const on = env.databaseUrl.includes(SIMULATION_ENDPOINT)
+    ? SIMULATION_ENDPOINT
+    : env.databaseUrl.match(/@(ep-[a-z0-9-]+)/)?.[1] ?? "an unknown database";
 
   return (
     <div

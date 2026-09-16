@@ -114,6 +114,47 @@ const RECOMMENDED = [
  * 🔴 THE ENDPOINT, NOT THE VARIABLE NAME. A variable is a label somebody typed;
  * the endpoint is where the bytes go.
  */
+/**
+ * 🔴 76.49 — THE SWITCH THAT SAYS A SIMULATION IS RUNNING ON THIS DEPLOYMENT.
+ *
+ * ## The hole this closes, and it was found by testing rather than reasoning
+ *
+ * The decision to run the six month simulation on production rested partly on
+ * "production is not publicly reachable", read off Vercel's SSO setting, which
+ * protects everything `all_except_custom_domains`. That was inferred and it was
+ * WRONG: `24t.vercel.app` is attached to the project and answers 200 to anybody,
+ * with no sign-in. `robots.txt` allows `/radar`, and the radar page carries
+ * `index, follow` on purpose, because somebody searching "talk to a therapist
+ * now" is exactly who it is for.
+ *
+ * So during a run, nine invented clinicians carrying `DEMO-` licence numbers
+ * would be on a public page, bookable by a stranger and crawlable by Google.
+ * That is the disclosure `scripts/demo.ts` warns about in its own header and the
+ * reason every write script refuses production by name.
+ *
+ * ## What this does
+ *
+ * Set on the deployment for the duration of the run. While it is set:
+ *
+ *   - `robots.txt` disallows everything rather than allowing the marketing
+ *     pages and the radar
+ *   - the violet strip renders on every page, so a deployment left in this
+ *     state announces itself rather than hiding
+ *
+ * ## 🔴 WHY A LOUD SWITCH RATHER THAN A QUIET ONE
+ *
+ * A flag that changes how production behaves is a flag somebody leaves on. The
+ * mitigation is not discipline, it is that leaving it on is impossible to miss:
+ * every page in the product grows a violet bar naming the database. A silent
+ * `noindex` would be the version nobody notices for a month.
+ *
+ * It does NOT stop a person who has the URL. Nothing here can, short of taking
+ * the site down, and the run needs the site up because the point is to test the
+ * journeys a real patient walks. What it stops is the permanent half: an index
+ * entry outlives the run and the restore both.
+ */
+export const SIMULATION_RUNNING = process.env.SIMULATION_RUNNING === "1";
+
 export const SIMULATION_BRANCH = "simulation";
 export const SIMULATION_ENDPOINT = "ep-empty-queen-a62vlkkp";
 
