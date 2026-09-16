@@ -155,7 +155,18 @@ const PORTALS: Record<string, readonly string[]> = {
    */
   sponsor: ["sponsor", "sint", "topup"],
   partner: ["dev", "devs"],
-  public: ["pricing", "contact", "public", "marketing", "blocks"],
+  /*
+   * 🔴 76.32 — `hdemo` IS THE PUBLIC SITE'S, checked by grep like the rest.
+   *
+   *   grep -rn 't("hdemo\.' app components lib
+   *
+   * Every one of them renders in `components/public/blocks.tsx`, inside the
+   * marketing hero: they are the chrome around the demo session on the
+   * homepage. The letter rule had nothing for `h`, so they arrived as an
+   * `unattributed` bucket with no ratchet at all, which is a hole in the map
+   * rather than a cost and is exactly what `home` did from the other side.
+   */
+  public: ["pricing", "contact", "public", "marketing", "blocks", "hdemo"],
   admin: ["admin", "aclinic", "apartner", "asponsor", "acheckin"],
   /*
    * 🔴 SHARED IS A REAL CATEGORY, NOT A BIN.

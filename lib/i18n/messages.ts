@@ -860,6 +860,15 @@ export const en = {
   "room.audioOnly": "This is an audio session. You will hear each other.",
   "room.keepOpen": "This page updates by itself the moment they join. Keep it open.",
   "room.trouble": "Check your browser has permission for your camera and microphone, then reload.",
+  /*
+   * 🔴 76.35 — the session shrunk to an orb.
+   *
+   * "Still on" rather than "minimised": the word that matters to somebody who
+   * has just switched to another app is that the session did not end.
+   */
+  "room.minimise": "Minimise",
+  "room.reopen": "Back to your session",
+  "room.stillOn": "Still on",
   "room.endedTitle": "This session has ended",
   "room.endedAgain": "To carry on, your therapist can send a link to a new session.",
   "room.verifiedBody": "We checked their licence and their ID before they could take a session.",
@@ -4141,6 +4150,9 @@ export const ar: Record<MessageKey, string> = {
   "room.audioOnly": "هذه جلسة صوتية. سيسمع كل منكما الآخر.",
   "room.keepOpen": "تتحدث هذه الصفحة تلقائيًا لحظة انضمامه. اتركها مفتوحة.",
   "room.trouble": "تأكد من إذن المتصفح للكاميرا والميكروفون، ثم أعد التحميل.",
+  "room.minimise": "تصغير",
+  "room.reopen": "ارجع للجلسة",
+  "room.stillOn": "الجلسة شغالة",
   "room.endedTitle": "انتهت هذه الجلسة",
   "room.endedAgain": "للاستمرار، يستطيع معالجك إرسال رابط لجلسة جديدة.",
   "room.verifiedBody": "فحصنا ترخيصه وهويته قبل أن يتمكن من إجراء جلسة.",

@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   AlertTriangle,
   Clock,
   Headphones,
   Lock,
   Mail,
+  Maximize2,
   MessageSquareHeart,
+  Minimize2,
   Phone,
   Star,
 } from "lucide-react";
 
-import { rateOnArrival, stopRecording } from "@/app/join/[token]/actions";
+import { rateOnArrival, setSessionMinimised, stopRecording } from "@/app/join/[token]/actions";
 import { ConsentControls } from "@/components/join/consent-controls";
 import { reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
@@ -66,6 +68,69 @@ export function PatientRoom({
   clock: { stage: ClockStage; remainingSeconds: number } | null;
 }) {
   const t = useT();
+
+  /*
+   * 🔴 76.35 — THE ROOM SHRINKS TO AN ORB, AND THE CALL DOES NOT STOP.
+   *
+   * ## The rule the whole thing is built around
+   *
+   * **The iframe is never unmounted and never `display: none`.** Both of those
+   * are how a browser decides a media element is not being used, and both would
+   * end the call the moment somebody minimised it, which is the exact opposite
+   * of what this control is for. The element below keeps the same position in
+   * the tree in both states so React reuses it rather than remounting it, and
+   * the minimised state is a smaller BOX around the same iframe rather than a
+   * different branch that renders one.
+   *
+   * That is also what makes the audio survive a tab switch and a phone app
+   * switch. A backgrounded tab keeps a live WebRTC connection running; it does
+   * not keep a connection that a re-render tore down while the tab was hidden.
+   *
+   * ## Why a patient wants this at all
+   *
+   * They are on a phone, in the middle of a session they may have waited a week
+   * for, and something arrives: a message to read, a number to look up, a call
+   * to decline. Without this the only two options are to stare at it or to
+   * leave the call, and leaving the call in the middle of a therapy session is
+   * a thing people do not come back from.
+   */
+  const [minimised, setMinimised] = useState(false);
+
+  /*
+   * 🔴 THE TIMER IS OURS AND STARTS WHEN THE SESSION DOES.
+   *
+   * Not when they minimised: a patient looking at an orb wants to know how far
+   * into their hour they are, which is the same question the panel answers when
+   * the room is open. `startedAt` is the server's, so a browser clock that is
+   * wrong is wrong about the offset rather than about the start.
+   */
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!minimised || !startedAt) return;
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [minimised, startedAt]);
+
+  const elapsed = startedAt
+    ? Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000))
+    : 0;
+
+  /*
+   * 🔴 TELL THE CLINICIAN, AND NEVER WAIT FOR THE ANSWER.
+   *
+   * A patient tapping minimise is already reaching for another app. A spinner
+   * on the way out is the worst possible moment for one, and if the write is
+   * lost the clinician sees a patient who appears present, which is what they
+   * saw before this existed.
+   */
+  const told = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!live) return;
+    if (told.current === minimised) return;
+    told.current = minimised;
+    void setSessionMinimised(token, minimised).catch(() => undefined);
+  }, [minimised, live, token]);
+
   /*
    * Escapes the join page's centred column.
    *
@@ -75,6 +140,85 @@ export function PatientRoom({
    * scrolls internally, so the room owns the screen without the page around it
    * having to know that a session is in progress.
    */
+  /*
+   * 🔴 76.35 — ONE IFRAME, DECLARED ONCE, IN BOTH STATES.
+   *
+   * This is the whole trick and it is worth being explicit about. React reuses
+   * a DOM node when the element keeps its type and position; it tears one down
+   * and builds another when the shape of the tree around it changes. An iframe
+   * that is torn down is a call that ends.
+   *
+   * So the iframe is ONE variable, rendered into whichever shell is on screen,
+   * and both shells are always in the tree. The minimised one is a 96 pixel
+   * circle with the call playing inside it at its own size; the open one is the
+   * room. Nothing is `display: none` and nothing is conditionally mounted,
+   * which is what lets a patient switch apps, take a call and come back to a
+   * session that never stopped.
+   */
+  const call = videoUrl ? (
+    <iframe
+      src={videoUrl}
+      title={t("room.yourSession")}
+      allow="camera; microphone; fullscreen; display-capture; autoplay"
+      className="h-full w-full border-0"
+    />
+  ) : (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center">
+      <Headphones className="h-6 w-6 text-white/30" aria-hidden />
+      <p className="text-sm font-semibold text-white">
+        {live ? t("room.started") : t("room.waiting")}
+      </p>
+      <p className="max-w-xs text-xs leading-relaxed text-white/50">
+        {live ? t("room.audioOnly") : t("room.keepOpen")}
+      </p>
+    </div>
+  );
+
+  if (minimised) {
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    return (
+      /*
+       * 🔴 THE ORB, AND WHERE IT SITS IS A RULE RATHER THAN A STYLE.
+       *
+       * `z-[65]`, which is above the payment orb at 60 and BELOW the SOS orb.
+       * C235: the patient's crisis path never depends on money and never
+       * depends on anything else either, so nothing this product draws may
+       * cover that button. A session orb over it would be C235 broken by a
+       * stacking context, which is exactly how the payment orb's own placement
+       * was decided.
+       */
+      <div className="fixed end-3 bottom-40 z-[65] flex flex-col items-end gap-1.5">
+        <button
+          type="button"
+          onClick={() => setMinimised(false)}
+          aria-label={t("room.reopen")}
+          className="relative h-24 w-24 overflow-hidden rounded-full border-2 border-white/70 bg-black shadow-2xl"
+        >
+          {/*
+            The call itself, playing, at 96 pixels. Not a placeholder and not a
+            paused frame: a patient who can SEE their therapist still there is
+            the difference between a minimised session and one they believe has
+            dropped.
+          */}
+          <span className="pointer-events-none absolute inset-0 block">{call}</span>
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/70 py-0.5 text-[11px] font-bold text-white tabular-nums">
+            {mins}:{String(secs).padStart(2, "0")}
+          </span>
+          {recording ? (
+            <span className="live-dot pointer-events-none absolute end-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500" />
+          ) : null}
+          <span className="pointer-events-none absolute start-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-white/85 text-slate-900">
+            <Maximize2 className="h-3 w-3" aria-hidden />
+          </span>
+        </button>
+        <span className="rounded-full bg-slate-900/85 px-2 py-0.5 text-[11px] font-semibold text-white">
+          {t("room.stillOn")}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950">
       <div className="mx-auto grid max-w-6xl items-start gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:p-4">
@@ -83,31 +227,27 @@ export function PatientRoom({
           <div className="overflow-hidden rounded-2xl bg-black">
             <RecordingStrip live={live} recording={recording} token={token} />
 
-            {videoUrl ? (
-              <iframe
-                src={videoUrl}
-                title={t("room.yourSession")}
-                allow="camera; microphone; fullscreen; display-capture; autoplay"
-                className="aspect-[3/4] w-full border-0 sm:aspect-video lg:aspect-[4/3]"
-              />
-            ) : (
-              <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 px-6 text-center">
-                <Headphones className="h-6 w-6 text-white/30" aria-hidden />
-                <p className="text-sm font-semibold text-white">
-                  {live ? t("room.started") : t("room.waiting")}
-                </p>
-                <p className="max-w-xs text-xs leading-relaxed text-white/50">
-                  {live
-                    ? t("room.audioOnly")
-                    : t("room.keepOpen")}
-                </p>
-              </div>
-            )}
+            <div className="aspect-[3/4] w-full sm:aspect-video lg:aspect-[4/3]">{call}</div>
           </div>
 
-          <p className="mt-2 px-1 text-center text-[11px] text-white/40 lg:text-start">
-            {t("room.trouble")}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
+            <p className="text-[11px] text-white/40">{t("room.trouble")}</p>
+            {/*
+              🔴 76.35 — MINIMISE, AND ONLY WHILE THERE IS SOMETHING TO MINIMISE.
+              A control that shrinks a room nobody is in yet would be a way to
+              miss the start of your own session.
+            */}
+            {live ? (
+              <button
+                type="button"
+                onClick={() => setMinimised(true)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white"
+              >
+                <Minimize2 className="h-3 w-3" aria-hidden />
+                {t("room.minimise")}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {/* ------------------------------------------------------- the panel */}

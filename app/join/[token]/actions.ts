@@ -768,3 +768,65 @@ export async function stopRecording(token: string): Promise<{ ok?: boolean; erro
   log.info("recording stopped by the patient");
   return { ok: true };
 }
+
+/**
+ * 🔴 76.35 — THE PATIENT SHRANK THE ROOM, OR OPENED IT BACK UP.
+ *
+ * ## What the clinician cannot otherwise know
+ *
+ * Minimising does not leave the call. The iframe stays mounted, the audio never
+ * stops, and that is the whole feature: a patient can take a phone call, look
+ * something up or read a message without dropping out of a session they may
+ * have waited a week for.
+ *
+ * Which means every signal the clinician has says the patient is present,
+ * because they are. From the clinician's side that is indistinguishable from
+ * somebody looking straight at them and saying nothing, and those are very
+ * different things in a therapy session: one is a silence to sit with, the
+ * other is a person who has stepped away from the screen. Reading the wrong one
+ * is a clinical error, not a UI annoyance.
+ *
+ * The patient's browser is the only thing that knows. This is it saying so.
+ *
+ * ## 🔴 THE TOKEN IS THE CREDENTIAL, AND IT WRITES ONE NULLABLE COLUMN
+ *
+ * The same credential the whole join flow runs on. A person holding the link
+ * can say they minimised their own session, which is the entire privilege this
+ * grants, and the column carries no clinical fact at all.
+ *
+ * ## 🔴 FAILURE IS SILENT, AND THAT IS THE RIGHT TRADE
+ *
+ * The caller fires this and does not wait. A patient tapping minimise must see
+ * the orb instantly: they are reaching for another app, and a spinner on the
+ * way out is the worst possible moment for one. If the write is lost the
+ * clinician sees a patient who appears present, which is exactly what they saw
+ * before this existed.
+ */
+export async function setSessionMinimised(
+  token: string,
+  minimised: boolean,
+): Promise<{ ok?: boolean; error?: string }> {
+  const session = await resolveJoinToken(token);
+  if (!session) return { error: "This link is no longer valid." };
+
+  /*
+   * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
+   */
+  const { dbFor } = await import("@/lib/db");
+  const { pinnedToDefaultRegion } = await import("@/lib/db/region");
+  const db = dbFor(pinnedToDefaultRegion("app/join/[token]/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+  const { sessions } = await import("@/lib/db/schema");
+  const { and, eq } = await import("drizzle-orm");
+
+  /*
+   * 🔴 ONLY WHILE THE SESSION IS RUNNING. A minimise arriving after the room
+   * closed would leave a finished session marked as having somebody away in it,
+   * which is a state the clinician's own screen would then have to explain.
+   */
+  await db
+    .update(sessions)
+    .set({ patientMinimisedAt: minimised ? new Date() : null })
+    .where(and(eq(sessions.id, session.id), eq(sessions.status, "in_progress")));
+
+  return { ok: true };
+}

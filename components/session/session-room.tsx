@@ -104,6 +104,21 @@ export function SessionRoom(props: RoomProps) {
   const [copied, setCopied] = useState(false);
   /** 11.6 — the appointment after this one, when it is close enough to matter. */
   const [nextBooking, setNextBooking] = useState<{ minutes: number } | null>(null);
+  /**
+   * 🔴 76.35 — HOW LONG THE PATIENT HAS BEEN AWAY FROM THE SCREEN, or null when
+   * they are looking at it.
+   *
+   * Minimising does not leave the call. The audio never stops, so every other
+   * signal in this room says the patient is present, because they are. From
+   * here that is indistinguishable from somebody looking straight at you and
+   * saying nothing, and those are very different things: one is a silence to
+   * sit with, the other is a person who has stepped away. Reading the wrong one
+   * is a clinical error rather than a UI annoyance.
+   *
+   * Seconds, computed on the SERVER, because a tab that has been asleep is
+   * wrong about the time by however long it slept.
+   */
+  const [patientAway, setPatientAway] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ending, setEnding] = useState(false);
 
@@ -328,11 +343,14 @@ export function SessionRoom(props: RoomProps) {
         if (!response.ok) return;
         const data = (await response.json()) as {
           patientJoined?: boolean;
+          patientAwaySeconds?: number | null;
           status?: string;
           clock?: { endReason?: string | null };
           nextBooking?: { minutes: number; startsAt: string } | null;
         };
         if (data.patientJoined) setPatientJoined(true);
+        /* 🔴 76.35 — `?? null` and never `|| null`: zero seconds is away. */
+        setPatientAway(data.patientAwaySeconds ?? null);
         // 11.6 — somebody is booked soon. On this poll rather than its own, so
         // it can never disagree with the countdown six pixels away.
         setNextBooking(data.nextBooking ?? null);
@@ -465,6 +483,33 @@ export function SessionRoom(props: RoomProps) {
             <p className="mx-auto w-full px-3 pt-1 text-center text-xs text-amber-700 lg:max-w-3xl">
               Your next appointment starts in {nextBooking.minutes} minute
               {nextBooking.minutes === 1 ? "" : "s"}.
+            </p>
+          ) : null}
+
+          {/*
+            🔴 76.35 — THE PATIENT MINIMISED THE SESSION.
+            ---------------------------------------------
+            Stated as a fact and nothing else, in the same register as the
+            booking line above it. What to do about a patient who has stepped
+            away is a clinical judgement, and a product that told a therapist to
+            "check in with them" would be making it for them.
+
+            🔴 IT SAYS THE AUDIO IS STILL LIVE, because the first thing anybody
+            assumes on reading "minimised" is that the other person cannot hear
+            them. They can, and a clinician who believes otherwise may say
+            something they would not say into a live room.
+
+            🔴 AND IT IS AMBER RATHER THAN RED. Nothing has gone wrong: this is
+            a control the patient was given on purpose, for exactly the moments
+            that would otherwise end a session.
+          */}
+          {patientAway !== null ? (
+            <p className="mx-auto w-full px-3 pt-1 text-center text-xs text-amber-700 lg:max-w-3xl">
+              {patientAway < 60
+                ? "Your patient minimised the session. They can still hear you."
+                : `Your patient minimised the session ${Math.floor(patientAway / 60)} minute${
+                    Math.floor(patientAway / 60) === 1 ? "" : "s"
+                  } ago. They can still hear you.`}
             </p>
           ) : null}
         </>

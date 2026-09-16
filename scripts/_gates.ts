@@ -245,6 +245,26 @@ export const GATES = [
    *
    * H20's quiet half a third time: an unrun check is not a passing check.
    */
+  /*
+   * 🔴 76.35 — AND A MINIMISED SESSION IS STILL A SESSION.
+   *
+   * There are exactly two ways to break the orb, both of which look completely
+   * reasonable in a diff: render the iframe in one branch and something else in
+   * the other, which makes React tear the element down and end the call, or
+   * hide it with `display: none`, which is how a browser decides a media
+   * element is not in use. Neither produces a compile error, a runtime error or
+   * a failing render. The orb appears, looks right, and the audio is gone.
+   *
+   * It is a source gate and says so: proving audio survived an app switch needs
+   * a real room, two devices and a way to switch apps. What a gate can hold is
+   * the property that decides it, with the obvious wrong version planted as a
+   * control.
+   */
+  {
+    name: "orb",
+    script: "verify:orb",
+    why: "and a session minimised into an orb is still connected",
+  },
   {
     name: "served",
     script: "verify:served",

@@ -40,6 +40,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .select({
         status: sessions.status,
         patientJoinedAt: sessions.patientJoinedAt,
+        /*
+         * 🔴 76.35 — and whether they have stepped away from the screen without
+         * leaving the call. See the column's own note: every other signal here
+         * says present, because they are.
+         */
+        patientMinimisedAt: sessions.patientMinimisedAt,
         guestName: sessions.guestName,
         noteStatus: sessions.noteStatus,
       })
@@ -96,6 +102,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({
       status: clock.shouldEnd ? "completed" : row.status,
       patientJoined: Boolean(row.patientJoinedAt),
+      /*
+       * 🔴 76.35 — SECONDS, NOT A BOOLEAN, and the clinician's screen reads it
+       * as a duration.
+       *
+       * "Stepped away four seconds ago" and "stepped away eleven minutes ago"
+       * are different facts, and only the second is worth interrupting a
+       * clinician about. Derived here rather than sent as a timestamp for the
+       * same reason every other figure crosses this boundary formatted: the
+       * browser's own clock can be wrong, and a tab that has been asleep is
+       * wrong by however long it slept.
+       */
+      patientAwaySeconds: row.patientMinimisedAt
+        ? Math.max(0, Math.floor((Date.now() - row.patientMinimisedAt.getTime()) / 1000))
+        : null,
       patientName: row.guestName,
       noteStatus: row.noteStatus,
       nextBooking: nextBooking

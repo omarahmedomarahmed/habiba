@@ -697,6 +697,26 @@ export const sessions = pgTable(
 
     patientJoinedAt: timestamp("patient_joined_at", { withTimezone: true }),
 
+    /**
+     * 🔴 76.35 — WHEN THE PATIENT SHRANK THE ROOM TO AN ORB, and null when they
+     * are looking at it.
+     *
+     * Minimising does not leave the call, which is the point of it: the audio
+     * carries on while they take a phone call or look something up. So every
+     * other signal the clinician has says the patient is still present, because
+     * they are, and from the clinician's side that is indistinguishable from
+     * somebody looking straight at them and saying nothing.
+     *
+     * Those are very different things in a therapy session. One is a silence to
+     * sit with; the other is a person who has stepped away from the screen, and
+     * reading the wrong one is a clinical error rather than a UI annoyance.
+     *
+     * A TIMESTAMP rather than a boolean: "away for four seconds" and "away for
+     * eleven minutes" are different facts and only the second is worth saying
+     * out loud. Cleared when they come back.
+     */
+    patientMinimisedAt: timestamp("patient_minimised_at", { withTimezone: true }),
+
     /* ------------------------------------------- sprint 14: the let-down -- */
 
     /**

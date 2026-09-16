@@ -1,0 +1,28 @@
+-- 🔴 76.35 — THE PATIENT MINIMISED THE SESSION, AND THE CLINICIAN CAN SEE IT.
+--
+-- ## Why this is a column and not a Daily event
+--
+-- Minimising does NOT leave the call. That is the entire point of it: the
+-- patient shrinks the room to an orb, takes a phone call, reads a message,
+-- looks something up, and the audio never stops. So every signal the clinician
+-- already has says the patient is still there, because they are.
+--
+-- From the clinician's side that is indistinguishable from a patient who is
+-- looking straight at them and not speaking, which is a very different thing in
+-- a therapy session. One of those is a silence to sit with; the other is a
+-- person who has stepped away from the screen. A clinician who cannot tell them
+-- apart will read the wrong one, and reading a silence wrong is a clinical
+-- error rather than a UI annoyance.
+--
+-- The patient's browser is the only thing that knows, so the patient's browser
+-- says so, and this is where it lands. It rides the poll the clinician's room
+-- already makes every five seconds; no new channel, no socket.
+--
+-- ## 🔴 NULLABLE, AND CLEARED WHEN THEY COME BACK
+--
+-- A timestamp rather than a boolean, because "minimised four seconds ago" and
+-- "minimised for eleven minutes" are different facts and only one of them is
+-- worth interrupting a clinician about. Set on minimise, nulled on restore.
+--
+-- H16: additive, and applied to every branch before this ships.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS patient_minimised_at timestamptz;
