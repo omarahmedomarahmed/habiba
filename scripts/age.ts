@@ -92,7 +92,13 @@ async function tablesWithCreatedAt(db: ReturnType<typeof connect>["db"]): Promis
 
 async function main() {
   const opts = args();
-  writesTo();
+  /*
+   * Let through to production, because the six month run happens there and
+   * moving the clock is how a wave ends. Its UPDATE is scoped to rows created
+   * since the marker opened, so it cannot age anything that was already here.
+   * 76.52.
+   */
+  writesTo({ productionIsAllowed: true });
 
   if (!opts.marker) {
     console.error("\n  --marker is required. It names the wave.\n");

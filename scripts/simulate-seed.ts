@@ -36,11 +36,16 @@
  * same "held" default the public form does. A seed that writes rows directly is a
  * seed that can create a state the product cannot.
  *
- * ## It refuses production, and it refuses to run twice
+ * ## It refuses production unless told, and it refuses a second cast
  *
- * `writesTo()` refuses the production endpoint by name. And it counts what it is
- * about to create first: a second run would produce two Nile Practices and an
- * operator who cannot tell which one the agents are using.
+ * `writesTo()` refuses the production endpoint by name, and takes
+ * `I_MEAN_PRODUCTION=<the endpoint>` as the one way past it, because the run
+ * this was written for happens there.
+ *
+ * Separately it counts what it is about to create: a second run would produce two
+ * Nile Practices and an operator who cannot tell which one the agents are using.
+ * It counts clinics and employers only. A super admin already existing is not a
+ * second cast, and counting one used to stop this script dead on production.
  */
 import { sql } from "drizzle-orm";
 
@@ -128,20 +133,42 @@ export const SPONSOR_APPLICATIONS = [
 ] as const;
 
 async function main() {
-  writesTo();
+  /*
+   * Let through to production. This is the script the door was opened for:
+   * the run it seeds is the run on the real deployment. 76.52.
+   */
+  writesTo({ productionIsAllowed: true });
 
   const { pool, db } = connect();
 
   try {
     /* ------------------------------------------------- refuse a second run -- */
 
+    /*
+     * 🔴 WHAT A SECOND RUN ACTUALLY LOOKS LIKE, AND WHAT IT DOES NOT.
+     *
+     * The thing worth refusing is a second CAST: a second Nile Practice, a second
+     * Cairo Foundry, with the agents unable to tell which one they are meant to
+     * be in. That is a clinic row and a sponsor row, so those are what get
+     * counted.
+     *
+     * An earlier version also counted `super_admin`, and it was wrong in a way
+     * that only showed up on the database this run is for. Production has two
+     * super admins, because production is a product somebody already signed into.
+     * Counting them turned "there is already an operator" into "refuse", and the
+     * run could not start at all on the only database it was ever meant for.
+     *
+     * A pre-existing operator is not a second cast. It is the ordinary state of
+     * any database that is not brand new, and the operator below is found before
+     * it is created for exactly the reason the organisation twenty lines down
+     * already is. Same lesson, learned twice, in one file.
+     */
     const already = await db.execute<{ n: string }>(sql`
       SELECT (SELECT COUNT(*) FROM organizations WHERE kind = 'clinic')
-           + (SELECT COUNT(*) FROM sponsors)
-           + (SELECT COUNT(*) FROM users WHERE role = 'super_admin') AS n`);
+           + (SELECT COUNT(*) FROM sponsors) AS n`);
 
     if (Number(already.rows[0]?.n ?? 0) > 0) {
-      console.error("\n  🔴 This database already has an operator, a practice or an employer.");
+      console.error("\n  🔴 This database already has a practice or an employer in it.");
       console.error("     Running again would create a second Nile Practice and nobody could");
       console.error("     tell the agents which one to use. Refusing.\n");
       console.error("     For a fresh start, make a new branch. It takes a minute.\n");
@@ -162,6 +189,41 @@ async function main() {
      * Nothing failed. So the slug is the canonical one, the row is found before
      * it is created, and the documented order puts this script last.
      */
+    /*
+     * 🔴 WHAT WAS HERE BEFORE, BECAUSE THE CHECKS AT THE BOTTOM ASK WHAT THIS
+     * SCRIPT DID AND USED TO MEASURE WHAT THE DATABASE HELD.
+     *
+     * Three of them counted rows and asserted zero: no therapist, no patient, no
+     * session, no bank account. On an empty branch those are the same sentence.
+     * On production they are not, and both failed the moment this was rehearsed
+     * against a copy of it: production carries one session, created by the
+     * founder clicking around his own product on a Wednesday evening, and a set
+     * of transfer fields somebody typed into `/admin/settings`.
+     *
+     * Neither is a defect. Both made a green check go red for a reason that has
+     * nothing to do with what the check is for, which is §6 wearing the other
+     * mask: not a check that passes by measuring the wrong thing, but one that
+     * FAILS by measuring the wrong thing. The second is rarer and does more
+     * damage, because the honest response to it is to weaken the assertion.
+     *
+     * So the assertion is not weakened. It is pointed at the delta, which is
+     * what it always meant: this script creates no people, and writes no bank
+     * account, whatever was here when it started.
+     */
+    const before = await db.execute<{
+      therapists: string;
+      patients: string;
+      sessions: string;
+      fields: string;
+    }>(sql`
+      SELECT (SELECT COUNT(*) FROM users WHERE role = 'therapist')::text AS therapists,
+             (SELECT COUNT(*) FROM patients)::text AS patients,
+             (SELECT COUNT(*) FROM sessions)::text AS sessions,
+             (SELECT COALESCE(jsonb_array_length(value->'transferFields'), 0)
+                FROM platform_settings WHERE key = 'payouts')::text AS fields`);
+
+    const was = before.rows[0]!;
+
     const { hashPassword } = await import("../lib/auth/password");
     const passwordHash = await hashPassword(SIMULATION_PASSWORD);
 
@@ -191,15 +253,39 @@ async function main() {
       VALUES (${orgId}, 'payg', 'active')
       ON CONFLICT (organization_id) DO NOTHING`);
 
-    await db.execute(sql`
-      INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role)
-      VALUES (${orgId}, ${OPERATOR.email}, ${passwordHash}, ${OPERATOR.firstName},
-              ${OPERATOR.lastName}, 'super_admin')`);
+    /*
+     * 🔴 FOUND BEFORE CREATED, FOR THE ORGANISATION'S REASON.
+     *
+     * The unique index on users is partial (`WHERE deleted_at IS NULL`), so a
+     * plain `ON CONFLICT (organization_id, email)` would have to repeat that
+     * predicate to match it, and a predicate written twice is a predicate that
+     * goes stale. Selecting first says the same thing in the same shape the
+     * organisation above already uses.
+     *
+     * The password is rewritten on the way through on purpose. The login printed
+     * at the end of this script has to be the login that works, and an operator
+     * row left over from an earlier run carries an earlier hash.
+     */
+    const operator = await db.execute<{ id: string }>(sql`
+      SELECT id FROM users
+       WHERE organization_id = ${orgId} AND email = ${OPERATOR.email} AND deleted_at IS NULL
+       LIMIT 1`);
+
+    if (operator.rows[0]) {
+      await db.execute(sql`
+        UPDATE users SET password_hash = ${passwordHash}, role = 'super_admin'
+         WHERE id = ${operator.rows[0].id}`);
+    } else {
+      await db.execute(sql`
+        INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role)
+        VALUES (${orgId}, ${OPERATOR.email}, ${passwordHash}, ${OPERATOR.firstName},
+                ${OPERATOR.lastName}, 'super_admin')`);
+    }
 
     check(
       "the operator exists, and the console has somebody to open it",
       true,
-      `${OPERATOR.email} / ${SIMULATION_PASSWORD}`,
+      `${OPERATOR.email} / ${SIMULATION_PASSWORD}${operator.rows[0] ? " (already there, password reset to it)" : ""}`,
     );
 
     /* ------------------------------------------------------- the spend cap -- */
@@ -272,10 +358,17 @@ async function main() {
              (SELECT COUNT(*) FROM sessions)::text AS sessions`);
 
     const row = people.rows[0]!;
+    const made = {
+      therapists: Number(row.therapists) - Number(was.therapists),
+      patients: Number(row.patients) - Number(was.patients),
+      sessions: Number(row.sessions) - Number(was.sessions),
+    };
+
     check(
       "🔴 …and it created NO therapist, NO patient and NO session",
-      Number(row.therapists) === 0 && Number(row.patients) === 0 && Number(row.sessions) === 0,
-      `${row.therapists} therapists, ${row.patients} patients, ${row.sessions} sessions. People sign themselves up`,
+      made.therapists === 0 && made.patients === 0 && made.sessions === 0,
+      `${made.therapists} therapists, ${made.patients} patients, ${made.sessions} sessions created here. ` +
+        `People sign themselves up (the database already held ${was.therapists}/${was.patients}/${was.sessions})`,
     );
 
     const held = await db.execute<{ n: string }>(sql`
@@ -302,15 +395,27 @@ async function main() {
      *
      * A seed that wrote plausible-looking details would skip the one screen this
      * whole rail depends on, and would put a bank account in git.
+     *
+     * 🔴 AND ON PRODUCTION SOMEBODY HAS ALREADY TYPED THEM, which is the state
+     * this has to survive without lying in either direction. So the assertion is
+     * that THIS SCRIPT wrote none, and the note says which of the two starting
+     * points the run is actually on, because they need different things of the
+     * operator: an empty rail is typed in on camera, a filled one is read back
+     * against the real bank letter on camera. Both are a walk of the screen.
+     * Neither is a seed writing an account number into git.
      */
     const fields = await db.execute<{ n: string }>(sql`
       SELECT COALESCE(jsonb_array_length(value->'transferFields'), 0)::text AS n
         FROM platform_settings WHERE key = 'payouts'`);
 
+    const now = Number(fields.rows[0]?.n ?? 0);
+
     check(
-      "🔴 the transfer details are EMPTY, so an operator types them in on camera",
-      Number(fields.rows[0]?.n ?? 0) === 0,
-      "a seeded bank account is a bank account in git, and a screen nobody walks",
+      "🔴 the seed wrote NO bank account, so the rail is an operator's screen",
+      now === Number(was.fields),
+      now === 0
+        ? "empty, and an operator types the real ones in on camera in wave 1"
+        : `${now} fields were already here, so wave 1 CHECKS them on camera instead of typing them`,
     );
 
     /*

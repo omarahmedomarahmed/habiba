@@ -170,8 +170,26 @@ export function hostOf(): string {
  *
  * It prints the host either way, so a wrong database shows up in the output
  * rather than in the data, and it refuses production by name.
+ *
+ * 🔴 76.52 — THE DOOR IS SHUT UNLESS THE CALLER ASKS FOR IT, AND ALMOST NONE DO.
+ *
+ * `I_MEAN_PRODUCTION` was added for the three scripts that lay down settings and
+ * seed the cast. It was read here, for all sixty-one callers at once, which
+ * quietly handed the same key to every `verify-sprint*` in this directory.
+ *
+ * Most of those plant a fixture, assert something about it, and delete it in a
+ * `finally`. On a branch that is exactly right. On production it is a fabricated
+ * organisation written to the database somebody is keeping, and a `finally` that
+ * does not reach its DELETE, because the process was killed or the assertion
+ * threw first, leaves it there. The run this was written for **does not restore
+ * afterwards**: the data stays until a person deletes it. So a fixture that
+ * survives its own cleanup survives forever, on the founder's board.
+ *
+ * Every one of those sixty-one headers already says "refuses production by
+ * name". This makes that true again. The three that need the door pass
+ * `productionIsAllowed`, in the open, in their own source.
  */
-export function writesTo(): string {
+export function writesTo({ productionIsAllowed = false } = {}): string {
   const url = process.env.DATABASE_URL ?? "";
   const host = url.match(/@([^/:?]+)/)?.[1] ?? "(none)";
 
@@ -181,6 +199,12 @@ export function writesTo(): string {
   }
 
   console.log(`writing to ${host}\n`);
+
+  if (host.includes(PRODUCTION_ENDPOINT) && !productionIsAllowed) {
+    console.error("Refusing to run: that is the production endpoint. Point at your branch.");
+    console.error("This script is not one of the three that may be let through to it.");
+    process.exit(1);
+  }
 
   if (host.includes(PRODUCTION_ENDPOINT)) {
     /*

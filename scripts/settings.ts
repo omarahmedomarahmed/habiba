@@ -596,7 +596,12 @@ async function main() {
    * **`reprice` OVERWRITES**, so it keeps the guard and the deliberate door.
    * **`rails` writes fixtures**, so it keeps it too.
    */
-  if (verb === "reprice" || verb === "rails") writesTo();
+  /*
+   * Both may be let through to production, because both are the thing the door
+   * was built for: a price this product charges, and a blank on a country row.
+   * Neither invents a person. 76.52.
+   */
+  if (verb === "reprice" || verb === "rails") writesTo({ productionIsAllowed: true });
   else if (verb === "seed") console.log(`seeding ${hostOf()}\n`);
 
   /*
