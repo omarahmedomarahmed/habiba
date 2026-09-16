@@ -10,7 +10,6 @@ import { formatUsd } from "@/lib/billing/plans";
 import type { SeatQuote } from "@/components/billing/seat-manager";
 import {
   cancelSubscription,
-  createCreditCheckout,
   createInvoiceCheckout,
   createSubscriptionCheckout,
   resumeSubscription,
@@ -18,34 +17,19 @@ import {
 
 export type BillingActionState = { error?: string };
 
-/**
- * Buy sessions in advance.
+/*
+ * 🔴 76.34 — `buyCredits` IS GONE, AND SO IS THE SLIDER THAT CALLED IT.
  *
- * The quantity is validated server-side against the tiers in
- * `platform_settings` — `quoteCredits` prices it from the stored rate, never
- * from anything the form sent. The old endpoint this replaces took no quantity
- * at all because there was one product; this one must not take a price.
+ * It opened a Stripe checkout for a dollar amount chosen on a range input, to
+ * buy a balance held against the session and AI fees. Two repricings later the
+ * offer is pay as you go, metered by the session, or a plan that meters
+ * nothing, and a control that buys credit against fees a plan removes was a
+ * third thing to explain on a screen about two.
+ *
+ * Deleted rather than left exported: `verify:reachable` reports an action no
+ * screen calls, and it reported this one the moment the slider came out, which
+ * is the gate doing exactly what it is for.
  */
-export async function buyCredits(amountCents: number): Promise<BillingActionState> {
-  const actor = await requireUser();
-  /*
-   * 46.4 — an amount of credit, in cents. The server still prices it from
-   * `platform_settings` through `quoteCredits` and never from what the form
-   * sent; what the client chooses is how much to add, not what it costs.
-   */
-  if (!Number.isSafeInteger(amountCents) || amountCents < 100) {
-    return { error: "Choose how much credit to add." };
-  }
-
-  const result = await createCreditCheckout({
-    organizationId: actor.organizationId,
-    email: actor.email,
-    amountCents,
-  });
-  if (result.error || !result.url) return { error: result.error ?? "Could not start checkout." };
-  redirect(result.url);
-}
-
 /**
  * 🔴 Sprint 57 — subscribe to a monthly plan.
  *
@@ -53,9 +37,23 @@ export async function buyCredits(amountCents: number): Promise<BillingActionStat
  * duration, not a Stripe price id: `createSubscriptionCheckout` looks the key up
  * in `platform_settings` and refuses anything that is not a live tier with a
  * monthly price. What the client chooses is which plan, never what it costs —
- * the same rule `buyCredits` follows above, and for the same reason.
+ * the same rule every other amount in this file follows: a price that arrived
+ * from a browser is a price somebody can edit.
  */
-export async function subscribeTo(tierKey: string): Promise<BillingActionState> {
+/*
+ * 🔴 76.34 — NOT AN ACTION ANY MORE, because no screen calls it.
+ *
+ * It was `subscribeTo`, exported, and the plan card called it on the tap of a
+ * Subscribe button. That button is gone: choosing a tier now SELECTS, and the
+ * confirmation panel's "Confirm and pay" calls `upgradeAndPay`, which raises
+ * the bill and opens the sheet in one act.
+ *
+ * `verify:reachable` reported it as an exported server action no rendered page
+ * reaches, which is exactly right and exactly what that gate is for. An action
+ * left exported is an endpoint: it is POSTable by anybody with the action id,
+ * whether or not a button exists. So it stops being one.
+ */
+async function startSubscription(tierKey: string): Promise<BillingActionState> {
   const actor = await requireUser();
   if (typeof tierKey !== "string" || tierKey.length === 0 || tierKey.length > 64) {
     return { error: "Choose a plan." };
@@ -437,13 +435,13 @@ function cleanIds(ids: unknown): string[] {
  *
  * ## 🔴 THE STRIPE RAIL IS UNCHANGED AND MUST BE
  *
- * `subscribeTo` redirects to a checkout there, which throws a Next redirect
+ * `startSubscription` redirects to a checkout there, which throws a Next redirect
  * rather than returning. Nothing below it runs, and nothing below it should:
  * the payment happens at Stripe and a cart would be a second claim on money
  * already in flight.
  */
 export async function upgradeAndPay(tierKey: string): Promise<BillingActionState> {
-  const raised = await subscribeTo(tierKey);
+  const raised = await startSubscription(tierKey);
   if (raised.error) return raised;
 
   /* Only reached on the transfer rail. Stripe redirected out of the call above. */

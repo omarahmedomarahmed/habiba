@@ -304,11 +304,29 @@ function main() {
    * only proves the rule fires would pass against a rule that fires on
    * everything, which is a gate somebody switches off within a week.
    */
-  const known = actions.find((a) => a.name === "subscribeTo");
+  /*
+   * 🔴 76.34 — NAMED AS A CONSTANT, and it used to be `subscribeTo`.
+   *
+   * That action stopped being exported the sprint the plan card learned to
+   * confirm before paying, and this control went red on a product that had just
+   * been made more correct. A control whose example is one function's name is a
+   * control that fails whenever that function is refactored, which teaches
+   * whoever is running it that a red line here means nothing.
+   *
+   * `cancelPlan` is the replacement because it is the most load-bearing kind of
+   * example this control can have: a plain action, called directly from a
+   * button in `components/billing/plan-card.tsx`, on a screen a clinician
+   * reaches from the nav. If it ever stops being wired, that is a real finding
+   * rather than a rename.
+   */
+  const WIRED_EXAMPLE = "cancelPlan";
+  const known = actions.find((a) => a.name === WIRED_EXAMPLE);
   check(
     "🔴 58.5 CONTROL a REAL wired action is not reported",
-    known !== undefined && !unwired.some((a) => a.name === "subscribeTo"),
-    known ? `${known.file}#subscribeTo is called from a screen` : "subscribeTo not found at all",
+    known !== undefined && !unwired.some((a) => a.name === WIRED_EXAMPLE),
+    known
+      ? `${known.file}#${WIRED_EXAMPLE} is called from a screen`
+      : `${WIRED_EXAMPLE} not found at all`,
   );
 
   /*

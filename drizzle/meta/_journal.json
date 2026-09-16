@@ -757,6 +757,13 @@
       "when": 1789750000000,
       "tag": "0107_what_this_transfer_is_for",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1789760000000,
+      "tag": "0108_the_patient_stepped_away",
+      "breakpoints": true
     }
   ]
 }

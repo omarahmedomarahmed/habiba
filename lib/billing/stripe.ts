@@ -71,6 +71,21 @@ async function ensureCustomer(organizationId: string, email: string): Promise<st
  * rate comes from `platform_settings` and an admin changing it must not require
  * a new product in Stripe.
  *
+ * ⚠️ 76.34 — NOTHING CALLS THIS ANY MORE, and the note is the point.
+ *
+ * `buyCredits` was its only caller and came out with the credits slider: the
+ * offer is pay as you go, metered by the session, or a plan that meters
+ * nothing, and a control that buys a balance against fees a plan removes was a
+ * third thing to explain. Credit itself is still real — a welcome credit and an
+ * operator's grant both land in the same balance, and `/billing` still shows it
+ * — so `lib/billing/credits.ts` stays. This is the BUY path and there is
+ * nowhere left to buy from.
+ *
+ * Left standing rather than deleted because `confirmCheckout` below still
+ * handles a `credit_purchase` that arrives, and a half-removed purchase path is
+ * worse than a whole one nobody calls. Anybody wiring it back up should know
+ * they are re-opening an offer that was withdrawn on purpose.
+ *
  * `success_url` carries the checkout session id so the app can confirm on
  * redirect. That is not redundant with the webhook: Stripe cannot reach a
  * preview or local deployment at all, and without the redirect confirmation a

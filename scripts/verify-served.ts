@@ -84,6 +84,33 @@ async function main() {
       child.kill("SIGTERM");
       process.exit(1);
     }
+
+    /*
+     * 🔴 WARM THE ROUTES BEFORE ASKING ABOUT THEM, and this is not politeness.
+     *
+     * `next dev` compiles a route the first time it is requested, which takes
+     * tens of seconds for a page like `/pricing`. The root answering means the
+     * server is up; it says nothing about `/pricing` being compiled. So the
+     * first full pass reported `/pricing status 500`, a canonical tag of
+     * `none`, and zero characters of either language on three pages — eleven
+     * red lines about a product that is completely fine, produced by a gate
+     * asking a compiler questions.
+     *
+     * That is worse than the gate not existing. Red lines about correct
+     * behaviour teach whoever runs the pass to stop reading it, which is H20
+     * arriving from the other direction, and it would have taught it on the
+     * very first run.
+     *
+     * Each path is fetched once with a long timeout and the result is thrown
+     * away. The verifier then asks its real questions of a warm server.
+     */
+    const WARM = ["/pricing", "/ar/pricing", "/patient/journal", "/sitemap.xml"];
+    console.log(`warming ${WARM.length} routes…`);
+    for (const path of WARM) {
+      await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(120_000) }).catch(
+        () => undefined,
+      );
+    }
   }
 
   const url = existing ?? BASE;
