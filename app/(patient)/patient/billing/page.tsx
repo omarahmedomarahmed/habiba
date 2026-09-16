@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { BeforeAfter } from "@/components/visual/primitives";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -119,7 +120,7 @@ export default async function PatientBillingPage() {
       {creditCents > 0 ? (
         <Card className="border-teal-200 bg-teal-50 p-4">
           <p className="text-sm font-semibold text-teal-900">
-            {formatMoney(creditCents, "USD", tag)} in credit
+            <Money cents={creditCents} /> {t("pbill.inCredit")}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-teal-800">
             {credits[0]?.reason} It comes off your next session automatically, and it lasts until{" "}
@@ -178,13 +179,13 @@ export default async function PatientBillingPage() {
                 ) : (
                 <dl className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs">
                   <Row label={t("pbill.therapistFee")}>
-                    {formatMoney(row.gross ?? 0, row.currency ?? "usd", tag)}
+                    <Money cents={row.gross ?? 0} currency={row.currency ?? "usd"} />
                   </Row>
                   <Row label={t("pbill.vat")}>
-                    {formatMoney(row.vat ?? 0, row.currency ?? "usd", tag)}
+                    <Money cents={row.vat ?? 0} currency={row.currency ?? "usd"} />
                   </Row>
                   <Row label={t("pbill.platformShare")}>
-                    {formatMoney(row.fee ?? 0, row.currency ?? "usd", tag)}
+                    <Money cents={row.fee ?? 0} currency={row.currency ?? "usd"} />
                   </Row>
                 </dl>
                 )}

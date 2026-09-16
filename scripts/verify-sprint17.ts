@@ -137,9 +137,19 @@ async function stubNextLink() {
   };
   const require = createRequire(import.meta.url);
   const stub = require.resolve("./_stub-link.tsx");
+  /*
+   * 🔴 76.7 — and the i18n client, for the same reason and by the same rule.
+   *
+   * `<Money>` reads the reader's locale from the provider rather than from the
+   * machine (C84), so it pulls `lib/i18n/client` into any tree that renders a
+   * price — and that module calls `createContext` at import time, which React's
+   * server build does not have.
+   */
+  const i18nStub = require.resolve("./_stub-i18n-client.tsx");
   const original = Module._resolveFilename;
   Module._resolveFilename = function (request: string, ...rest: unknown[]) {
     if (request === "next/link") return stub;
+    if (request === "@/lib/i18n/client" || request.endsWith("/lib/i18n/client")) return i18nStub;
     return original.call(this, request, ...rest);
   };
 }

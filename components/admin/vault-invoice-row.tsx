@@ -5,6 +5,7 @@ import { Percent } from "lucide-react";
 
 import { applyInvoiceDiscount, applyUpcomingDiscount } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 
 /**
@@ -59,11 +60,11 @@ export function VaultInvoiceRow(props: {
 
         <span className="shrink-0 text-end">
           <span className="block text-sm font-semibold tabular-nums text-slate-900">
-            {formatUsd(payable)}
+            <Money cents={payable} />
           </span>
           {applied > 0 ? (
             <span className="block text-xs text-slate-400 line-through tabular-nums">
-              {formatUsd(props.amountCents)}
+              <Money cents={props.amountCents} />
             </span>
           ) : null}
         </span>

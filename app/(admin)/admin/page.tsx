@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { requireRole } from "@/lib/auth/guard";
 import { formatUsd } from "@/lib/billing/plans";
 import { aiUsageByDay, platformStats } from "@/lib/data/admin";
@@ -36,7 +37,7 @@ export default async function AdminOverviewPage() {
             <div>
               <dt className="text-xs text-slate-500">Cost</dt>
               <dd className="text-xl font-bold text-slate-900">
-                {formatUsd(stats.aiCostCents30d)}
+                <Money cents={stats.aiCostCents30d} />
               </dd>
             </div>
             <div>
@@ -73,13 +74,13 @@ export default async function AdminOverviewPage() {
             <div>
               <dt className="text-xs text-slate-500">Collected</dt>
               <dd className="text-xl font-bold text-slate-900">
-                {formatUsd(stats.collectedCents30d)}
+                <Money cents={stats.collectedCents30d} />
               </dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Outstanding</dt>
               <dd className="text-xl font-bold text-slate-900">
-                {formatUsd(stats.pendingCents30d)}
+                <Money cents={stats.pendingCents30d} />
               </dd>
             </div>
           </dl>

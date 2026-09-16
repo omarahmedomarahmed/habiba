@@ -13,6 +13,7 @@ import {
   type JoinState,
 } from "@/app/join/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
 import { formatUsd } from "@/lib/billing/plans";
 import type { ClockStage } from "@/lib/session-clock";
@@ -225,7 +226,7 @@ export function JoinFlow({
       {owes ? (
         <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3.5 text-white">
           <span className="text-sm text-white/70">{t("join.thisSession")}</span>
-          <span className="text-2xl font-bold tracking-tight">{formatUsd(priceCents)}</span>
+          <span className="text-2xl font-bold tracking-tight"><Money cents={priceCents} /></span>
         </div>
       ) : null}
 

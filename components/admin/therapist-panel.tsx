@@ -24,6 +24,7 @@ import {
   type AdminActionState,
 } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
@@ -350,7 +351,7 @@ function Sessions({ rows }: { rows: SessionRow[] }) {
                   <Td>
                     {row.priceCents > 0 ? (
                       <span className="flex items-center gap-1.5">
-                        <span className="tabular-nums">{formatUsd(row.priceCents)}</span>
+                        <span className="tabular-nums"><Money cents={row.priceCents} /></span>
                         <Badge tone={row.paymentStatus === "paid" ? "green" : "amber"}>
                           {row.paymentStatus}
                         </Badge>
@@ -401,7 +402,7 @@ function Copilot({
                   </span>
                 ) : null}
                 <span className="w-20 text-end text-sm font-semibold tabular-nums text-slate-900">
-                  {formatUsd(row.costCents)}
+                  <Money cents={row.costCents} />
                 </span>
               </li>
             ))}
@@ -534,10 +535,10 @@ function Billing({
                 </span>
                 <span className="shrink-0 text-end">
                   <span className="block text-sm font-semibold tabular-nums text-slate-900">
-                    {formatUsd(payment.therapistNetCents)}
+                    <Money cents={payment.therapistNetCents} />
                   </span>
                   <span className="block text-xs tabular-nums text-slate-400">
-                    of {formatUsd(payment.grossCents)}
+                    of <Money cents={payment.grossCents} />
                   </span>
                 </span>
                 <Badge tone={payment.status === "paid" ? "green" : "amber"}>{payment.status}</Badge>
@@ -597,7 +598,7 @@ function AdminInvoiceRow({
           </span>
         </span>
         <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
-          {formatUsd(payable)}
+          <Money cents={payable} />
         </span>
         <Badge
           tone={

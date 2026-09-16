@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Badge, Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { requireRole } from "@/lib/auth/guard";
 import {
   consentRate,
@@ -113,7 +114,7 @@ export default async function AdminUsagePage() {
       {totalFees > 0 ? (
         <Card className="p-4">
           <p className="text-sm text-slate-600">
-            We took <strong>{formatUsd(totalFees)}</strong> and spent{" "}
+            We took <strong><Money cents={totalFees} /></strong> and spent{" "}
             <strong>{formatMicrocents(totalMicrocents)}</strong> on models, a gross margin of{" "}
             <strong>{Math.round((1 - totalMicrocents / 100_000 / (totalFees / 100)) * 100)}%</strong>{" "}
             before payment processing and infrastructure.
@@ -199,9 +200,9 @@ export default async function AdminUsagePage() {
                     <Td align="end" className={underwater ? "font-semibold text-red-600" : ""}>
                       {formatMicrocents(row.costMicrocents)}
                     </Td>
-                    <Td align="end">{formatUsd(row.patientCents)}</Td>
+                    <Td align="end"><Money cents={row.patientCents} /></Td>
                     <Td align="end" className="font-medium text-teal-700">
-                      {formatUsd(row.feeCents)}
+                      <Money cents={row.feeCents} />
                     </Td>
                   </tr>
                 );

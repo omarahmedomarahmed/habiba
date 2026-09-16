@@ -190,6 +190,19 @@ const GATES = [
    * is a property of a database rather than of the code and is correctly red on
    * a branch full of fixtures.
    */
+  /*
+   * 🔴 76.7 — every price a person reads can say what it is in pounds.
+   *
+   * It belongs in the product's own pass rather than a sprint's, because the
+   * property is about every screen at once and every sprint adds screens. One
+   * table shipped with a bare figure is a price with no answer, met by the one
+   * person who had the question.
+   */
+  {
+    name: "money",
+    script: "verify:money",
+    why: "and every dollar figure can say what it is in pounds",
+  },
   {
     name: "verifiers",
     script: "verifiers",

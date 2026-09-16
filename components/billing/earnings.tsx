@@ -6,6 +6,7 @@ import { ArrowUpRight, Banknote, Clock, Wallet } from "lucide-react";
 
 import { openPayoutDashboard, payOutNow, type SettingsState } from "@/app/(app)/settings/actions";
 import { Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { useT } from "@/lib/i18n/client";
 
@@ -134,7 +135,7 @@ export function EarningsCard(props: EarningsProps) {
           <dl className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-white/10 px-4 py-3">
               <dt className="text-xs text-white/60">{t("tearn.thisMonth")}</dt>
-              <dd className="mt-0.5 text-2xl font-bold">{formatUsd(props.thisMonthNetCents)}</dd>
+              <dd className="mt-0.5 text-2xl font-bold"><Money cents={props.thisMonthNetCents} /></dd>
             </div>
             <div className="rounded-2xl bg-white/10 px-4 py-3">
               <dt className="text-xs text-white/60">{t("tearn.paidSessions")}</dt>

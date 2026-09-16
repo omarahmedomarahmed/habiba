@@ -20,6 +20,7 @@ import {
 } from "@/app/(admin)/admin/actions";
 import type { RadarEntry } from "@/components/radar/types";
 import { Button, Card, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import type { CommandRow, CommandView } from "@/lib/data/radar-admin";
@@ -592,8 +593,8 @@ function Detail({
           <Row label="Rate">{row.sessionRateCents > 0 ? formatUsd(row.sessionRateCents) : "Free"}</Row>
           <Row label="Payouts">{row.chargesEnabled ? "Connected" : "Not connected"}</Row>
           <Row label="Sessions 30d">{row.sessions30d}</Row>
-          <Row label="Gross 30d">{formatUsd(row.grossCents30d)}</Row>
-          <Row label="Our cut 30d">{formatUsd(row.feeCents30d)}</Row>
+          <Row label="Gross 30d"><Money cents={row.grossCents30d} /></Row>
+          <Row label="Our cut 30d"><Money cents={row.feeCents30d} /></Row>
           <Row label="Walk-ins">{row.acceptsWalkIns ? "Yes" : "No"}</Row>
           <Row label="Last seen">
             {row.lastSeenAt ? formatDateTime(row.lastSeenAt, zone, "en") : "never"}

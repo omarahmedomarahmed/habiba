@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { PayoutQueue } from "@/components/admin/payout-queue";
 import { Card, PageHeader } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { requireStaff } from "@/lib/auth/guard";
 import { reconcile } from "@/lib/billing/ledger";
 import { manualQueue } from "@/lib/billing/payouts";
@@ -69,15 +70,15 @@ export default async function PayoutsPage() {
           <dl className="mt-2 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-xs text-slate-500">Cash</dt>
-              <dd className="font-medium">{formatUsd(books.cashCents)}</dd>
+              <dd className="font-medium"><Money cents={books.cashCents} /></dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Held for clinicians</dt>
-              <dd className="font-medium">{formatUsd(books.heldForTherapistsCents)}</dd>
+              <dd className="font-medium"><Money cents={books.heldForTherapistsCents} /></dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Out of balance</dt>
-              <dd className="font-medium">{formatUsd(books.outOfBalanceCents)}</dd>
+              <dd className="font-medium"><Money cents={books.outOfBalanceCents} /></dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Unbalanced entries</dt>

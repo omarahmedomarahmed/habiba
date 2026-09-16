@@ -5,6 +5,7 @@ import { useState } from "react";
 import { formatMoney } from "@/lib/billing/plans";
 import { convert } from "@/lib/billing/money";
 import { cn } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
 
 /**
  * A price in USD, with a small EGP toggle beside it. PLAN.md 16.4.
@@ -121,7 +122,7 @@ export function EgpDisclosure({
         You pay {formatMoney(payMinor, "EGP", locale)}
       </p>
       <p className="mt-1 leading-relaxed">
-        That settles {formatMoney(settlesCents, "USD", locale)} at{" "}
+        That settles <Money cents={settlesCents} /> at{" "}
         {(rateMicro / 1_000_000).toFixed(2)} EGP to the dollar, quoted {quotedAtLabel}.
         {spreadBps > 0
           ? ` Includes a ${(spreadBps / 100).toFixed(2)}% conversion charge.`

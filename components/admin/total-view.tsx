@@ -17,6 +17,7 @@ import {
 
 import { close, mailClinicianHistory, mailRecordToPerson } from "@/app/(admin)/admin/tv/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import type { NoteContent } from "@/lib/db/schema";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";

@@ -20,6 +20,7 @@ import { heldBalances, trialBalance, unbalancedTransactions } from "@/lib/billin
 import { reconcileRenewals } from "@/lib/billing/obligations";
 import { allOrganizations } from "@/lib/data/admin";
 import { formatDate } from "@/lib/utils";
+import { Money as UsdMoney } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Vault", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -118,7 +119,7 @@ export default async function VaultPage() {
             Held for clinicians
           </p>
           <p className="mt-1 text-xl font-bold text-slate-900">
-            {formatUsd(books.heldForTherapistsCents)}
+            <UsdMoney cents={books.heldForTherapistsCents} />
           </p>
           <p className="mt-1 text-xs text-slate-500">Earned, not yet paid out.</p>
         </Card>
@@ -127,7 +128,7 @@ export default async function VaultPage() {
             Unspent sponsor pots
           </p>
           <p className="mt-1 text-xl font-bold text-slate-900">
-            {formatUsd(books.potsHeldCents)}
+            <UsdMoney cents={books.potsHeldCents} />
           </p>
           <p className="mt-1 text-xs text-slate-500">
             Prepaid by employers, refundable on their terms.
@@ -138,7 +139,7 @@ export default async function VaultPage() {
             VAT collected, not remitted
           </p>
           <p className="mt-1 text-xl font-bold text-slate-900">
-            {formatUsd(books.vatOwedCents)}
+            <UsdMoney cents={books.vatOwedCents} />
           </p>
           {/*
             🔴 Only what WE collected. A destination charge puts the tax in the
@@ -202,7 +203,7 @@ export default async function VaultPage() {
           <ul className="mt-2 space-y-1 font-mono text-xs text-red-700">
             {unbalanced.map((row) => (
               <li key={row.txnId}>
-                {row.kind} · {row.txnId.slice(0, 8)}… · off by {formatUsd(row.deltaCents)}
+                {row.kind} · {row.txnId.slice(0, 8)}… · off by <UsdMoney cents={row.deltaCents} />
               </li>
             ))}
           </ul>
@@ -252,7 +253,7 @@ export default async function VaultPage() {
         </div>
 
         <p className="text-xs text-slate-500">
-          {ledger.paidInvoiceCount} invoices paid · {formatUsd(ledger.discountedCents)} discounted ·{" "}
+          {ledger.paidInvoiceCount} invoices paid · <UsdMoney cents={ledger.discountedCents} /> discounted ·{" "}
           {ledger.waivedCount} sessions waived. Collected includes Connect fees but not GMV, that
           money belongs to the therapist. Model spend is estimated from published rates at the time
           of each call, reconcile against the provider invoice monthly.
@@ -337,16 +338,16 @@ export default async function VaultPage() {
                   <tr key={month.month} className="border-b border-slate-50 last:border-0">
                     <td className="py-2 text-slate-600">{month.month}</td>
                     <td className="py-2 text-end tabular-nums text-slate-600">
-                      {formatUsd(month.invoiceCents)}
+                      <UsdMoney cents={month.invoiceCents} />
                     </td>
                     <td className="py-2 text-end tabular-nums text-slate-600">
-                      {formatUsd(month.sessionFeeCents)}
+                      <UsdMoney cents={month.sessionFeeCents} />
                     </td>
                     <td className="py-2 text-end font-semibold tabular-nums text-slate-900">
-                      {formatUsd(month.collected)}
+                      <UsdMoney cents={month.collected} />
                     </td>
                     <td className="py-2 text-end tabular-nums text-slate-600">
-                      {formatUsd(month.spent)}
+                      <UsdMoney cents={month.spent} />
                     </td>
                     <td
                       className={
@@ -355,7 +356,7 @@ export default async function VaultPage() {
                           : "py-2 text-end font-semibold tabular-nums text-teal-700"
                       }
                     >
-                      {formatUsd(month.collected - month.spent)}
+                      <UsdMoney cents={month.collected - month.spent} />
                     </td>
                   </tr>
                 ))}
@@ -423,7 +424,7 @@ export default async function VaultPage() {
               <span className="text-xs text-slate-500">{kind.calls} calls</span>
               {kind.errors > 0 ? <Badge tone="amber">{kind.errors} errors</Badge> : null}
               <span className="w-20 text-end text-sm font-semibold text-slate-900">
-                {formatUsd(kind.costCents)}
+                <UsdMoney cents={kind.costCents} />
               </span>
             </li>
           ))}
@@ -470,10 +471,10 @@ export default async function VaultPage() {
                     <td className="px-3 py-2.5 text-end tabular-nums">{t.sessionCount}</td>
                     <td className="px-3 py-2.5 text-end tabular-nums">{t.aiCalls}</td>
                     <td className="px-3 py-2.5 text-end tabular-nums text-slate-600">
-                      {formatUsd(t.aiCostCents)}
+                      <UsdMoney cents={t.aiCostCents} />
                     </td>
                     <td className="px-3 py-2.5 text-end tabular-nums text-slate-900">
-                      {formatUsd(t.revenueCents)}
+                      <UsdMoney cents={t.revenueCents} />
                     </td>
                     <td
                       className={
@@ -482,7 +483,7 @@ export default async function VaultPage() {
                           : "px-4 py-2.5 text-end font-semibold tabular-nums text-red-600"
                       }
                     >
-                      {formatUsd(margin)}
+                      <UsdMoney cents={margin} />
                     </td>
                   </tr>
                 );
@@ -583,7 +584,9 @@ function Money({
               : "mt-0.5 text-2xl font-bold tracking-tight text-slate-900"
         }
       >
-        {formatUsd(cents)}
+        {/* 🔴 76.7 — the tile keeps its name; the FIGURE inside it is the thing
+            that reveals its pounds, like every other price in the product. */}
+        <UsdMoney cents={cents} />
       </p>
       {sub ? <p className="text-xs text-slate-400">{sub}</p> : null}
     </Card>

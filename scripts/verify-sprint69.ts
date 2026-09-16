@@ -142,10 +142,40 @@ async function main() {
   );
 
   const vaultPage = readSource("app/(admin)/admin/vault/page.tsx");
+  /*
+   * ⚠️ 76.7 — THIS CHECK HELD THE FORMATTER'S NAME AND WENT RED WHEN IT CHANGED.
+   *
+   * It asserted the literal `formatUsd(month.collected)`. C349 is not about a
+   * function, it is about a reader: the figure is PRINTED under the bar rather
+   * than hidden behind a hover, because a `title=` attribute shows nothing on a
+   * touchscreen.
+   *
+   * Sprint 76 wrapped every dollar figure in `<Money>`, which prints exactly the
+   * same text and adds the pounds on demand ON TOP of it. The property held and
+   * the check failed, which is the §6 family landing on a sprint verifier: it
+   * was written against the implementation instead of against the rule.
+   *
+   * Restated as the rule. The month's figures are rendered as TEXT, by either
+   * spelling, and the two ways of actually hiding them are banned by name.
+   */
+  const printsMonth = (field: string) =>
+    new RegExp(`(formatUsd\\(month\\.${field}\\)|<UsdMoney cents=\\{month\\.${field}\\}|<Money cents=\\{month\\.${field}\\})`).test(
+      vaultPage,
+    );
+
   check(
     "🔴 C349 the figures are printed under the bars, not hidden in a hover",
-    /formatUsd\(month\.collected\)/.test(vaultPage) && /formatUsd\(month\.spent\)/.test(vaultPage),
+    printsMonth("collected") &&
+      printsMonth("spent") &&
+      /* The two ways to hide one: an attribute, or a tooltip with nothing behind it. */
+      !/title=\{[^}]*month\.(collected|spent)/.test(vaultPage),
     "a title= attribute shows nothing on a touchscreen and is an afterthought to a reader",
+  );
+
+  check(
+    "🔴 C349 CONTROL the ban on an attribute-only figure catches the shape it names",
+    /title=\{[^}]*month\.(collected|spent)/.test('<div title={formatUsd(month.collected)} />'),
+    "watched catching the exact shape C349 was written about",
   );
 
   check(

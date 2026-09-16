@@ -444,8 +444,8 @@ export function PayoutsEditor({
             className="mt-1"
           />
           <span>
-            Take the session fee out of held earnings when we hold enough. Off, the pricing page
-            stops saying so: a sentence describing a mechanic we do not have is forbidden.
+            Take the session fee out of held earnings when we hold enough. Off, the pricing
+            page stops saying so.
           </span>
         </label>
 

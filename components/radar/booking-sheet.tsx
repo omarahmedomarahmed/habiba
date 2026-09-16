@@ -25,6 +25,7 @@ import {
 import { Avatar, StatusPill } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
 import { Field, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { countryName } from "@/lib/geo";
 import { cn, fullName } from "@/lib/utils";

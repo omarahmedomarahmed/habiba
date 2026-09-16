@@ -5,6 +5,7 @@ import { AlertTriangle, Send, ShieldCheck } from "lucide-react";
 
 import { releaseTherapistEarnings } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { fullName } from "@/lib/utils";
 
@@ -58,9 +59,8 @@ export function HeldBalances({
           <div>
             <p className="text-sm font-semibold text-red-800">The ledger does not balance</p>
             <p className="mt-0.5 text-sm text-red-700">
-              Out by {formatUsd(Math.abs(outOfBalanceCents))}. Every transaction is posted through
-              one function that rejects an unbalanced set of legs, so this means something else
-              wrote to the table. Do not adjust it away, find the writer.
+              Out by <Money cents={Math.abs(outOfBalanceCents)} />. `journal` rejects unbalanced
+              legs, so something else wrote here. Find the writer.
             </p>
           </div>
         </div>
@@ -74,7 +74,7 @@ export function HeldBalances({
               : `${rows.length} clinician${rows.length === 1 ? "" : "s"}`}
           </p>
           <p className="text-lg font-bold text-slate-900 tabular-nums">
-            {formatUsd(totalHeldCents)}
+            <Money cents={totalHeldCents} />
           </p>
         </div>
 
@@ -111,7 +111,7 @@ function HeldRowItem({ row }: { row: HeldRow }) {
           <p className="truncate text-xs text-slate-500">{row.email}</p>
         </div>
         <p className="shrink-0 text-sm font-bold text-slate-900 tabular-nums">
-          {formatUsd(row.heldCents)}
+          <Money cents={row.heldCents} />
         </p>
       </div>
 

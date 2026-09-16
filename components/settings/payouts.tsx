@@ -12,6 +12,7 @@ import {
   type SettingsState,
 } from "@/app/(app)/settings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { FlowStrip, SplitBar } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
@@ -173,7 +174,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <dt className="text-xs text-slate-500">{t("tpay.available")}</dt>
                 <dd className="mt-0.5 text-2xl font-bold text-slate-900">
-                  {formatUsd(state.availableCents)}
+                  <Money cents={state.availableCents} />
                 </dd>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
@@ -182,7 +183,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
                   {t("tpay.clearing")}
                 </dt>
                 <dd className="mt-0.5 text-2xl font-bold text-slate-900">
-                  {formatUsd(state.pendingCents ?? 0)}
+                  <Money cents={state.pendingCents ?? 0} />
                 </dd>
               </div>
             </dl>

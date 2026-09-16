@@ -11,6 +11,7 @@ import {
 
 import { payInvoices } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -199,7 +200,7 @@ export function BillingLedger({
                       </span>
                     </span>
                     <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
-                      {formatUsd(payable)}
+                      <Money cents={payable} />
                     </span>
                   </label>
                 </li>
@@ -295,9 +296,7 @@ export function BillingLedger({
                           ? `+${formatUsd(entry.payment.therapistNetCents)}`
                           : entry.invoice.amountCents === 0
                             ? t("tled.free")
-                            : `−${formatUsd(
-                                Math.max(0, entry.invoice.amountCents - entry.invoice.discountCents),
-                              )}`}
+                            : `−${formatUsd(Math.max(0, entry.invoice.amountCents - entry.invoice.discountCents))}`}
                       </span>
                     </span>
 
@@ -365,7 +364,7 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
           label={t("tled.credit")}
           value={
             <span className="text-teal-700">
-              −{formatUsd(invoice.discountCents)}
+              −<Money cents={invoice.discountCents} />
               {invoice.discountReason ? ` · ${invoice.discountReason}` : ""}
             </span>
           }
@@ -446,19 +445,19 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
       <Line label={t("tled.patientPaid")} value={formatUsd(payment.grossCents)} />
       <Line
         label={t("tled.fee")}
-        value={<span className="text-slate-500">−{formatUsd(ourFee)}</span>}
+        value={<span className="text-slate-500">−<Money cents={ourFee} /></span>}
       />
       {payment.settledInvoiceCents > 0 ? (
         <Line
           label={t("tled.billSettled")}
-          value={<span className="text-slate-500">−{formatUsd(payment.settledInvoiceCents)}</span>}
+          value={<span className="text-slate-500">−<Money cents={payment.settledInvoiceCents} /></span>}
         />
       ) : null}
       <Line
         label={payment.capture === "destination" ? t("tled.intoStripe") : t("tled.heldForYou")}
         value={
           <span className="font-semibold text-teal-700">
-            {formatUsd(payment.therapistNetCents)}
+            <Money cents={payment.therapistNetCents} />
           </span>
         }
       />

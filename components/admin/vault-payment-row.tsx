@@ -5,6 +5,7 @@ import { Undo2 } from "lucide-react";
 
 import { refundPatient } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 
 /**
@@ -57,7 +58,7 @@ export function VaultPaymentRow(props: {
             {props.therapistName ?? "Clinician"}
           </span>
           <span className="block truncate text-xs text-slate-500">
-            {props.organizationName ?? "-"} · {props.when} · we kept {formatUsd(ourCut)}
+            {props.organizationName ?? "-"} · {props.when} · we kept <Money cents={ourCut} />
             {props.settledInvoiceCents > 0
               ? ` · ${formatUsd(props.settledInvoiceCents)} of their bill settled`
               : ""}
@@ -66,10 +67,10 @@ export function VaultPaymentRow(props: {
 
         <span className="shrink-0 text-end">
           <span className="block text-sm font-semibold tabular-nums text-slate-900">
-            {formatUsd(props.grossCents)}
+            <Money cents={props.grossCents} />
           </span>
           <span className="block text-xs tabular-nums text-slate-400">
-            {formatUsd(props.therapistNetCents)} to them
+            <Money cents={props.therapistNetCents} /> to them
           </span>
         </span>
 
@@ -108,9 +109,9 @@ export function VaultPaymentRow(props: {
           ) : null}
 
           <p className="text-xs leading-relaxed text-slate-500">
-            Refunds {formatUsd(props.grossCents)} to the patient, pulls{" "}
-            {formatUsd(props.therapistNetCents)} back out of the clinician&apos;s Stripe balance and
-            returns our {formatUsd(ourCut)} fee.
+            Refunds <Money cents={props.grossCents} /> to the patient, pulls{" "}
+            <Money cents={props.therapistNetCents} /> back out of the clinician&apos;s Stripe balance and
+            returns our <Money cents={ourCut} /> fee.
             {props.settledInvoiceCents > 0
               ? " Any 24Therapy invoice settled from this payment goes back to due."
               : ""}

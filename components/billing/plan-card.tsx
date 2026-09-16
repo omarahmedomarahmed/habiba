@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 
 import { buyCredits, cancelPlan, resumePlan, subscribeTo } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { useT } from "@/lib/i18n/client";
 
@@ -163,7 +164,7 @@ export function PlanCard({
           )}
         </div>
         {creditRemainingCents > 0 ? (
-          <Badge tone="teal">{formatUsd(creditRemainingCents)}</Badge>
+          <Badge tone="teal"><Money cents={creditRemainingCents} /></Badge>
         ) : null}
       </div>
 
@@ -181,23 +182,23 @@ export function PlanCard({
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
           <dt className="text-xs text-slate-500">{t("tplan.spentPlatform")}</dt>
           <dd className="mt-0.5 text-2xl font-bold text-slate-900">
-            {formatUsd(spentPlatformCents)}
+            <Money cents={spentPlatformCents} />
           </dd>
         </div>
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
           <dt className="text-xs text-slate-500">{t("tplan.spentAi")}</dt>
-          <dd className="mt-0.5 text-2xl font-bold text-slate-900">{formatUsd(spentAiCents)}</dd>
+          <dd className="mt-0.5 text-2xl font-bold text-slate-900"><Money cents={spentAiCents} /></dd>
         </div>
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
           <dt className="text-xs text-slate-500">{t("tplan.creditBalance")}</dt>
           <dd className="mt-0.5 text-2xl font-bold text-slate-900">
-            {formatUsd(creditRemainingCents)}
+            <Money cents={creditRemainingCents} />
           </dd>
         </div>
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
           <dt className="text-xs text-slate-500">{t("tplan.heldEarnings")}</dt>
           <dd className="mt-0.5 text-2xl font-bold text-slate-900">
-            {formatUsd(heldEarningsCents)}
+            <Money cents={heldEarningsCents} />
           </dd>
         </div>
       </dl>
@@ -326,7 +327,7 @@ export function PlanCard({
               className="h-2 flex-1 cursor-pointer accent-brand-500"
             />
             <span className="w-20 shrink-0 text-end text-sm font-semibold tabular-nums text-slate-900">
-              {formatUsd(amountCents)}
+              <Money cents={amountCents} />
             </span>
           </div>
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ExternalLink, MessageSquare } from "lucide-react";
 
 import { Badge, Card, EmptyState } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import type { RadarSessionRow } from "@/lib/data/radar";
 import { formatDate } from "@/lib/utils";
@@ -149,7 +150,7 @@ export async function SessionHistory({
                   <Badge tone="slate">{t("thist.free")}</Badge>
                 ) : row.paid ? (
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
-                    {formatUsd(row.paid.netCents)}
+                    <Money cents={row.paid.netCents} />
                   </p>
                 ) : (
                   <Badge tone="amber">{t("thist.unpaid", { amount: formatUsd(row.priceCents) })}</Badge>
@@ -167,7 +168,7 @@ export async function SessionHistory({
                 <div className="flex gap-1.5">
                   <dt>{t("thist.price")}</dt>
                   <dd className="tabular-nums text-slate-700">
-                    {formatUsd(row.paid.grossCents)}
+                    <Money cents={row.paid.grossCents} />
                   </dd>
                 </div>
                 {row.paid.vatCents > 0 ? (
@@ -187,7 +188,7 @@ export async function SessionHistory({
                       })}
                     </dt>
                     <dd className="tabular-nums text-slate-700">
-                      {formatUsd(row.paid.vatCents)}
+                      <Money cents={row.paid.vatCents} />
                     </dd>
                   </div>
                 ) : null}
@@ -197,11 +198,11 @@ export async function SessionHistory({
                       ? t("thist.tookPercent", { percent: (row.paid.feeBps / 100).toFixed(0) })
                       : t("thist.took")}
                   </dt>
-                  <dd className="tabular-nums text-slate-700">{formatUsd(row.paid.feeCents)}</dd>
+                  <dd className="tabular-nums text-slate-700"><Money cents={row.paid.feeCents} /></dd>
                 </div>
                 <div className="flex gap-1.5">
                   <dt>{t("thist.received")}</dt>
-                  <dd className="tabular-nums text-slate-700">{formatUsd(row.paid.netCents)}</dd>
+                  <dd className="tabular-nums text-slate-700"><Money cents={row.paid.netCents} /></dd>
                 </div>
                 {row.paid.presentedCurrency && row.paid.presentedCurrency !== row.paid.currency ? (
                   <div className="basis-full text-slate-400">

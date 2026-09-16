@@ -756,6 +756,7 @@ export const en = {
   "pban.example":
     "I am preparing for our session on Thursday and would like to see your history.",
 
+  "pbill.inCredit": "in credit",
   "pbill.therapistFee": "Your therapist's fee",
   "pbill.vat": "VAT, paid to the government",
   "pbill.platformShare": "24Therapy's share of the fee",
@@ -1351,7 +1352,7 @@ export const en = {
    */
   "aclinic.nav": "Clinics",
   "aclinic.title": "Clinics and hospitals",
-  "aclinic.body": "A clinic IS an organisation row, so its clinicians sit in its tenancy and a sponsor never could. Activating one opens a practice that holds records.",
+  "aclinic.body": "A clinic IS an organisation row, so its clinicians sit in its tenancy. Activating one opens a practice that holds records.",
   "aclinic.none": "No practice enquiries yet.",
   "aclinic.contact": "Contact",
   "aclinic.clinicians": "{count} clinicians",
@@ -1953,7 +1954,7 @@ export const en = {
   "acheckin.crisisRouted": "{count} went to the crisis path",
   "acheckin.mutedCount": "{count} turned them off",
   "acheckin.unmutedCount": "{count} turned them back on",
-  "acheckin.noBodies": "No reply is on any screen. A worrying one reaches their own therapist through the crisis path; the rest is kept and read by nobody.",
+  "acheckin.noBodies": "No reply is on any screen. A worrying one reaches their therapist through the crisis path; the rest is read by nobody.",
   "checkin.1": "{name}, how are you doing today?",
   "checkin.2": "Thinking of you, {name}. How is today going?",
   "checkin.3": "Hello {name}. How are things right now?",
@@ -3998,6 +3999,7 @@ export const ar: Record<MessageKey, string> = {
   "pban.whyLabel": "لماذا تطلب؟ هو من سيقرأ هذا.",
   "pban.example": "أستعد لجلستنا يوم الخميس وأود الاطلاع على تاريخك.",
 
+  "pbill.inCredit": "رصيد لك",
   "pbill.therapistFee": "أتعاب معالجك",
   "pbill.vat": "ضريبة القيمة المضافة، تُدفع للدولة",
   "pbill.platformShare": "حصة 24Therapy من الأتعاب",
@@ -4456,7 +4458,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.invoices": "فواتيرك",
   "aclinic.nav": "العيادات",
   "aclinic.title": "العيادات والمستشفيات",
-  "aclinic.body": "العيادة هي صف في جدول المنظمات، ولهذا يقع معالجوها داخل نطاقها بينما لا يمكن للجهة الراعية ذلك أبدًا. تفعيل واحدة يفتح عيادة ستحمل سجلات سريرية.",
+  "aclinic.body": "العيادة هي صف في جدول المنظمات، ولهذا يقع معالجوها داخل نطاقها. تفعيل واحدة يفتح عيادة ستحمل سجلات سريرية.",
   "aclinic.none": "لا طلبات عيادات بعد.",
   "aclinic.contact": "جهة الاتصال",
   "aclinic.clinicians": "{count} معالجين",

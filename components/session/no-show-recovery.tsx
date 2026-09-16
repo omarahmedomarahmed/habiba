@@ -10,6 +10,7 @@ import {
   type RecoveryView,
 } from "@/app/(patient)/sessions/[id]/recovery-actions";
 import { Button, Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatMoney } from "@/lib/billing/plans";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { localeTag } from "@/lib/i18n/config";
@@ -167,7 +168,7 @@ export function NoShowRecovery({
                 ) : null}
               </span>
               <span className="shrink-0 text-xs font-medium text-slate-500">
-                {formatMoney(person.sessionRateCents, "USD", locale)}
+                <Money cents={person.sessionRateCents} />
               </span>
             </button>
           </li>

@@ -3,6 +3,7 @@
 import { ArrowUpRight, Clock, CreditCard, Receipt, Undo2 } from "lucide-react";
 
 import { Card, EmptyState } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -100,10 +101,10 @@ export function PaymentHistory({
                   </div>
                   <div className="shrink-0 text-end">
                     <p className="text-[15px] font-bold text-slate-900 tabular-nums">
-                      {formatUsd(payment.therapistNetCents)}
+                      <Money cents={payment.therapistNetCents} />
                     </p>
                     <p className="text-xs text-slate-400 tabular-nums">
-                      of {formatUsd(payment.grossCents)}
+                      of <Money cents={payment.grossCents} />
                     </p>
                   </div>
                 </div>
@@ -160,7 +161,7 @@ export function PaymentHistory({
                   ) : null}
                 </div>
                 <p className="shrink-0 text-sm font-bold text-slate-900 tabular-nums">
-                  {formatUsd(transfer.amountCents)}
+                  <Money cents={transfer.amountCents} />
                 </p>
               </li>
             ))}

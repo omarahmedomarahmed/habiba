@@ -5,6 +5,7 @@ import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 import { TherapistAdminPanel } from "@/components/admin/therapist-panel";
 import { Badge, Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";
