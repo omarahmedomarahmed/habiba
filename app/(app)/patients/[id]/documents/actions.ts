@@ -83,6 +83,14 @@ export async function addNote(
   });
 
   revalidatePath(`/patients/${patientId}/documents`);
+  /*
+   * 🔴 76.40 — AND THE PROFILE, which now carries the same control.
+   *
+   * A clinician adding a history file from the profile page watched
+   * nothing happen, because this revalidated the page the control used to
+   * live on and no other. Two surfaces, one write, both refreshed.
+   */
+  revalidatePath(`/patients/${patientId}`);
   return { ok: true };
 }
 
@@ -127,6 +135,7 @@ export async function uploadDocumentFile(
   });
 
   revalidatePath(`/patients/${patientId}/documents`);
+  revalidatePath(`/patients/${patientId}`);
   return { ok: true };
 }
 
@@ -155,6 +164,7 @@ export async function flagContent(
   if (!result.ok) return { error: result.error };
 
   revalidatePath(`/patients/${patientId}/documents`);
+  revalidatePath(`/patients/${patientId}`);
   return { ok: true };
 }
 
@@ -178,6 +188,7 @@ export async function proposeFromDocuments(patientId: string): Promise<DocumentA
   });
 
   revalidatePath(`/patients/${patientId}/documents`);
+  revalidatePath(`/patients/${patientId}`);
   return { ok: true };
 }
 
@@ -201,5 +212,6 @@ export async function decideDiagnosis(
   if (!ok) return { error: "That has already been decided." };
 
   revalidatePath(`/patients/${patientId}/documents`);
+  revalidatePath(`/patients/${patientId}`);
   return { ok: true };
 }

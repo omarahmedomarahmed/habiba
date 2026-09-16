@@ -158,6 +158,7 @@
     "verify:served": "node --env-file-if-exists=.env.local --import tsx scripts/verify-served.ts",
     "verify:caseload": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-caseload.ts",
     "verify:orb": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-session-orb.ts",
+    "verify:profile": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-profile.ts",
     "verify:edges": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-edges.ts",
     "capture:payments": "node --env-file-if-exists=.env.local --import ./scripts/_render-preload.mjs --import tsx scripts/capture-payments.tsx",
     "capture:coverage": "node --env-file-if-exists=.env.local --import tsx scripts/capture-coverage.ts",

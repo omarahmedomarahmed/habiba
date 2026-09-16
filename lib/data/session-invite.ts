@@ -1,0 +1,118 @@
+import "server-only";
+
+import { audit } from "@/lib/audit";
+import type { Actor } from "@/lib/auth/session";
+import { getConnectAccount } from "@/lib/billing/connect";
+import { getPatient } from "@/lib/data/patients";
+import { createSession } from "@/lib/data/sessions";
+import { env } from "@/lib/env";
+import { notify } from "@/lib/notify";
+import { fullName } from "@/lib/utils";
+
+export type SessionInvite =
+  | { url: string; priceCents: number; sent: boolean; channel: "email" | "whatsapp" | null }
+  | { error: string };
+
+/**
+ * 🔴 76.40 — INVITE THIS PATIENT TO A PAID SESSION, FROM THEIR OWN PROFILE.
+ *
+ * ## The gap
+ *
+ * A clinician looking at somebody's record and deciding to see them again had
+ * to leave, open the new-session form, find them in a select, re-answer four
+ * questions, and then copy a link out of the result. The one screen with the
+ * patient, their number and their history on it could not book them.
+ *
+ * So: one control, on the profile. It creates the session at this clinician's
+ * own rate and sends the join link to the number or the address already on the
+ * chart.
+ *
+ * ## 🔴 WHY THIS IS A DATA MODULE AND NOT THE SERVER ACTION
+ *
+ * The action above it is four lines: read the signed-in clinician, call this,
+ * revalidate. Everything worth getting wrong is here, and here it takes an
+ * `actor` argument, which is the difference between a function a gate can run
+ * against real rows and one that can only be reached through a browser with a
+ * cookie.
+ *
+ * "Make sure it actually works" is not a property of source. `verify:profile`
+ * calls this, then reads the `sessions` row it made and checks the price, the
+ * patient, the modality and the token.
+ *
+ * ## 🔴 THE PRICE IS THE CLINICIAN'S OWN RATE, READ ON THE SERVER
+ *
+ * Never a figure from the browser, and never an argument. `sessionRateCents` is
+ * what they set in settings and what every other surface charges, so a link
+ * issued here asks the same amount as a link issued anywhere else. C311: a
+ * price somebody was shown is a price they are owed, and the way to keep that
+ * true is one source for the number.
+ *
+ * ## 🔴 AND IT REFUSES WITHOUT A WAY TO REACH THEM
+ *
+ * A walk-in chart (76.36) has a name and nothing else, which is correct: they
+ * were in the room. An invitation needs somewhere to go, so this refuses with a
+ * sentence naming the fix rather than creating a session, billing for it, and
+ * telling the clinician it was sent. The editor that adds a number is on the
+ * same screen.
+ */
+export async function inviteToSession(actor: Actor, patientId: string): Promise<SessionInvite> {
+  const patient = await getPatient(actor, patientId);
+  if (!patient) return { error: "That patient is not in your practice." };
+
+  if (!patient.phone && !patient.email) {
+    return {
+      error: "Add a mobile number or an email first, then the invitation has somewhere to go.",
+    };
+  }
+
+  const connect = await getConnectAccount(actor.userId);
+  const priceCents = Math.max(0, Math.round(connect.sessionRateCents ?? 0));
+
+  if (priceCents <= 0) {
+    return {
+      error: "Set what a session costs in your settings first, then this can invite them to one.",
+    };
+  }
+
+  const session = await createSession(actor, {
+    modality: "video",
+    patientId,
+    priceCents,
+  });
+
+  if (!session?.joinToken) {
+    return { error: "Could not create the session. Try again." };
+  }
+
+  const url = `${env.appUrl}/join/${session.joinToken}`;
+  const who = fullName(actor.firstName, actor.lastName);
+
+  /*
+   * 🔴 NO CLINICAL CONTENT AND NO REASON. A name, a price and a door. The same
+   * rule the claim invitation follows, and for the same reason: a message sits
+   * in somebody's notifications where other people can read it, and "come and
+   * talk about your panic attacks" is a disclosure to whoever is holding the
+   * phone.
+   */
+  const delivery = await notify(
+    { email: patient.email, phone: patient.phone, timezone: patient.timezone },
+    {
+      kind: "session.invite",
+      subject: `${who} has invited you to a session`,
+      body: `${who} would like to see you on 24Therapy.\n\nOpen the link below to join. You will be asked to pay for the session first, and you do not need an account.`,
+      link: { label: "Open my session", url },
+      variables: [who],
+    },
+  );
+
+  await audit({
+    actor,
+    category: "clinical",
+    action: "session.invite.send",
+    resourceType: "patient",
+    resourceId: patientId,
+    reason: `invited to a paid session at ${priceCents} cents`,
+  });
+
+  return { url, priceCents, sent: delivery.sent, channel: delivery.channel };
+}

@@ -84,6 +84,18 @@ const SCOPE: Record<string, Scope> = {
   "session-sources": { who: ["clinician", "admin"], clinical: true },
   "session-voices": { who: ["clinician", "admin"], clinical: true },
   copilot: { who: ["clinician"], clinical: true },
+  /*
+   * 🔴 76.39 — the same thread as `copilot`, assembled for the two surfaces
+   * that render it, so the clinician-only rule is the same one.
+   */
+  "copilot-view": { who: ["clinician"], clinical: true },
+  /*
+   * 🔴 76.40 — inviting a patient to a paid session. Clinical because it reads
+   * their chart to find a phone and an email before it sends anything, and a
+   * clinician's only because the thing it creates is their session at their
+   * rate.
+   */
+  "session-invite": { who: ["clinician"], clinical: true },
   journals: { who: ["clinician", "patient"], clinical: true },
   facts: { who: ["clinician"], clinical: true },
   memory: { who: ["clinician"], clinical: true },

@@ -14,6 +14,7 @@ import {
   updatePatient,
 } from "@/lib/data/patients";
 import { ensurePersonForPatient } from "@/lib/data/people";
+import { inviteToSession, type SessionInvite } from "@/lib/data/session-invite";
 import { env } from "@/lib/env";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { notify } from "@/lib/notify";
@@ -335,4 +336,21 @@ export async function askForAccess(
   revalidatePath(`/copilot/${patientId}`);
   revalidatePath(`/patients/${patientId}`);
   return { ok: true };
+}
+
+/**
+ * 🔴 76.40 — the profile's invite button, four lines of it.
+ *
+ * Read the signed-in clinician, hand the work to `inviteToSession`, refresh the
+ * page. Everything worth getting wrong is in `lib/data/session-invite.ts`,
+ * where it takes an `actor` argument and `verify:profile` can run it against
+ * real rows and then read the session it made.
+ */
+export async function inviteToPaidSession(patientId: string): Promise<SessionInvite> {
+  const actor = await requireUser();
+
+  const result = await inviteToSession(actor, patientId);
+  if (!("error" in result)) revalidatePath(`/patients/${patientId}`);
+
+  return result;
 }

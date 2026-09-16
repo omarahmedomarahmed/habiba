@@ -82,6 +82,19 @@ const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: numb
    */
   "claim.invite": { name: "claim_invite", variables: 1 },
   /*
+   * 🔴 76.40 — "{{1}} has invited you to a session on 24Therapy."
+   *
+   * ⚠️ NOT YET APPROVED, which is survivable: an unmapped or unapproved kind
+   * falls back to email and the invitation still lands. Utility, not
+   * authentication: it carries a link and no code.
+   *
+   * The PRICE is not a variable. Meta approves a fixed body with numbered
+   * slots, and a money amount that changes per message reads as marketing to a
+   * reviewer. The email carries the price, WhatsApp carries the invitation,
+   * and `notify` sends both when both handles exist.
+   */
+  "session.invite": { name: "session_invite", variables: 1 },
+  /*
    * 🔴 21R.4 — "{{1}} is your code to set a new password."
    *
    * ⚠️ **Incomplete until Meta approves it.** Authentication category, like

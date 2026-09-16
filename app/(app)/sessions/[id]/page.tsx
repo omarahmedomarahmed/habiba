@@ -110,8 +110,27 @@ export default async function SessionDetailPage({
 
       <div className="flex items-start justify-between gap-3 px-4 pt-3 pb-4 sm:px-6">
         <div className="min-w-0">
+          {/*
+            🔴 76.40 — THE NAME IS THE DOOR TO THE PROFILE.
+
+            A clinician reading a note about somebody and wanting the rest of
+            the picture had no way out of this page except the back arrow and
+            the patients list. The name is the obvious thing to tap and it did
+            nothing. A walk-in with no chart still has no profile to open, so
+            it stays plain text in that one case rather than becoming a link
+            that 404s.
+          */}
           <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">
-            {patientLabel}
+            {row.session.patientId ? (
+              <Link
+                href={`/patients/${row.session.patientId}`}
+                className="underline decoration-slate-200 decoration-2 underline-offset-4 hover:decoration-slate-400"
+              >
+                {patientLabel}
+              </Link>
+            ) : (
+              patientLabel
+            )}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone, locale)}

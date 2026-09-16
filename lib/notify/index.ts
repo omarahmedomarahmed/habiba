@@ -63,6 +63,20 @@ export type Message = {
      * past nine is an apology rather than an alert.
      */
     | "session.started"
+    /**
+     * 🔴 76.40 — THE CLINICIAN ASKS SOMEBODY TO A SESSION, and it is paid.
+     *
+     * Distinct from `claim.invite`, which offers somebody their RECORD. This
+     * one offers an APPOINTMENT, so it carries a price and a join link rather
+     * than a claim token, and the link works without an account: most of the
+     * people it goes to have never signed in and should not have to in order
+     * to be seen.
+     *
+     * 🔴 No clinical content, and no reason. "Come and talk about your panic
+     * attacks" is a disclosure to whoever else reads that phone. A name, a
+     * price and a door.
+     */
+    | "session.invite"
     | "session.summary_ready"
     | "claim.code"
     /** 13.3 — the therapist hands their patient the link to their own record. */

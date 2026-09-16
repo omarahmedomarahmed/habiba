@@ -285,6 +285,26 @@ export const GATES = [
     script: "verify:orb",
     why: "and a session minimised into an orb is still connected",
   },
+  /*
+   * 🔴 76.40 — AND THE ONE BUTTON ON THE PROFILE THAT SPENDS SOMEBODY'S MONEY.
+   *
+   * A profile page is mostly presentation, and presentation is what a gate list
+   * skips. The invitation on it is not: it creates a session, prices it and
+   * bills for it. Every way that goes wrong compiles and renders — a session
+   * with no join token, a price of nothing, a link sent to a walk-in who has no
+   * phone — so it is answered by making one and reading the row back, with the
+   * unreachable patient and the unpriced clinician planted as controls.
+   *
+   * It also holds the two properties that keep the rest of the page honest: the
+   * headshot goes through the authenticated route rather than a storage URL
+   * (C115), and both surfaces that render this patient's copilot load the one
+   * thread rather than each making their own.
+   */
+  {
+    name: "profile",
+    script: "verify:profile",
+    why: "and a clinician can invite their patient to a session that actually exists",
+  },
   {
     name: "served",
     script: "verify:served",

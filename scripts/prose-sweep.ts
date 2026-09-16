@@ -123,6 +123,21 @@ const PORTALS: Record<string, readonly string[]> = {
     "spec",
     "pted",
     "pracc",
+    /*
+     * 🔴 76.40 — `pprof` AND `pinv` JOIN THEM, for the same reason and on the
+     * same page. Checked the way this map insists on:
+     *
+     *   grep -rn 't("pprof\.' app components lib
+     *   grep -rn 't("pinv\.' app components lib
+     *
+     * comes back as `app/(app)/patients/[id]/page.tsx` and
+     * `components/patient/invite-to-session.tsx`, which that page renders. Both
+     * are words a CLINICIAN reads about a patient. The letter rule would have
+     * put 145 words of therapist copy in the patient app's column, which is the
+     * exact misattribution the note above was written about.
+     */
+    "pprof",
+    "pinv",
     /* `cassess` renders in `components/assessments/clinician-assessments.tsx`. */
     "cassess",
     /*
