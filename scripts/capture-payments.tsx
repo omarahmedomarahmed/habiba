@@ -416,6 +416,141 @@ async function main() {
     wrap(React.createElement(SessionStarted, { href: "/join/demo", therapistName: "Dr Mona Demo" })),
   );
 
+  /* ---- the operator, who works all four in one queue ------------------ */
+
+  /*
+   * 🔴 76.23 — THE OPERATOR'S SIDE, at desk width rather than phone width.
+   *
+   * These are the screens two support staff work a morning of transfers from,
+   * and they are not read on a phone. Photographing them at 390 pixels would
+   * make every one of them look broken and none of them would be.
+   */
+  const { TransferQueue } = await import("../components/admin/transfer-queue");
+  const { OpenCarts } = await import("../components/admin/open-carts");
+  const { PayoutQueue } = await import("../components/admin/payout-queue");
+
+  const queueRows = [
+    {
+      id: "q1",
+      purpose: "session",
+      amountCents: 114_000,
+      currency: "EGP",
+      settlesCents: 2_280,
+      reference: "INSTA-99231",
+      proofUrl: "https://example.com/receipt.png",
+      submittedAt: new Date(Date.now() - 6 * 60_000).toISOString(),
+      payer: "Nour Demo",
+      payerType: "patient" as const,
+      profileHref: "/admin/patients/demo",
+      lines: [],
+    },
+    {
+      id: "q2",
+      purpose: "pot_topup",
+      amountCents: 5_700_000,
+      currency: "EGP",
+      settlesCents: 114_000,
+      reference: "MISR-4471",
+      proofUrl: null,
+      submittedAt: new Date(Date.now() - 22 * 60_000).toISOString(),
+      payer: "Cairo Foundry",
+      payerType: "company" as const,
+      profileHref: "/admin/sponsors/demo",
+      lines: [
+        { label: "Pot credit", cents: 100_000 },
+        { label: "VAT", cents: 14_000 },
+      ],
+    },
+    {
+      id: "q3",
+      purpose: "subscription",
+      amountCents: 40_000,
+      currency: "EGP",
+      settlesCents: 800,
+      reference: "INSTA-77120",
+      proofUrl: "https://example.com/receipt2.png",
+      submittedAt: new Date(Date.now() - 3 * 60_000).toISOString(),
+      payer: "Mona Demo",
+      payerType: "therapist" as const,
+      profileHref: "/admin/therapists/demo",
+      lines: [
+        { label: "Session, 1 March", cents: 400 },
+        { label: "Session, 15 March", cents: 400 },
+      ],
+    },
+  ];
+
+  add(
+    "admin-1-transfer-queue",
+    "One queue, four payers, a tab each. Every name links to that payer's own page on the admin side.",
+    wrap(React.createElement(TransferQueue, { rows: queueRows })),
+  );
+
+  add(
+    "admin-2-open-carts",
+    "Money that arrived with no claim. Collapsed by default, and the only act on a row demands a written reason first.",
+    wrap(
+      React.createElement(OpenCarts, {
+        rows: [
+          {
+            id: "c1",
+            payer: "Cairo Foundry",
+            payerType: "company" as const,
+            what: "pot_topup",
+            settlesCents: 114_000,
+            openedAt: new Date(Date.now() - 36 * 60 * 60_000).toISOString(),
+          },
+          {
+            id: "c2",
+            payer: "Nour Demo",
+            payerType: "patient" as const,
+            what: "session",
+            settlesCents: 2_280,
+            openedAt: new Date(Date.now() - 4 * 60 * 60_000).toISOString(),
+          },
+        ],
+      }),
+    ),
+  );
+
+  add(
+    "admin-3-payouts",
+    "What we owe clinicians. Manual requests to work, and the automated records beside them.",
+    wrap(
+      React.createElement(PayoutQueue, {
+        manual: [
+          {
+            id: "p1",
+            therapistName: "Mona Demo",
+            amountCents: 17_000,
+            payoutAmountMinor: 850_000,
+            payoutCurrency: "EGP",
+            method: "instapay",
+            identifier: "mona@instapay",
+            accountName: "Mona Demo",
+            status: "requested" as never,
+            entity: "eg",
+            ageHours: 14,
+            overdue: true,
+            needsTwoPeople: false,
+            owned: false,
+            requestedAtLabel: "yesterday, 18:40",
+            proofUrl: null,
+          },
+        ],
+        automated: [
+          {
+            id: "a1",
+            therapistName: "Karim Demo",
+            amountCents: 42_000,
+            status: "paid",
+            createdAtLabel: "3 March",
+          },
+        ],
+      }),
+    ),
+  );
+
   /* ---------------------------------------------------------- render -- */
 
   mkdirSync(OUT, { recursive: true });
@@ -442,6 +577,9 @@ async function main() {
   const page = await browser.newPage({ viewport: PHONE, deviceScaleFactor: 2 });
 
   for (const frame of rendered) {
+    /* 🔴 Operator screens are worked at a desk, so they are framed at one. */
+    const desk = frame.name.startsWith("admin-");
+    await page.setViewportSize(desk ? { width: 1100, height: 1400 } : PHONE);
     /*
      * 🔴 THE SHEET IS A FIXED OVERLAY, so the page behind it has to have a
      * height for it to overlay. A frame rendered into a zero-height body
