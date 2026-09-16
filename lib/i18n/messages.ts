@@ -102,7 +102,7 @@ export const en = {
   "room.beforeYouGo": "Before you go",
   "room.doNotClose": "Do not close this tab.",
   "room.youGetToRate": "You rate {therapist} here, the moment this ends.",
-  "room.closingCost": "Closing the tab cannot be undone. Your rating and summary are on the other side of it.",
+  "room.closingCost": "Closing the tab cannot be undone. Your rating and summary are on the other side.",
   "room.anonymous": "Anonymous. {therapist} sees the stars and the words, never who wrote them.",
   "room.recording": "Recording",
   "room.notRecording": "Not being recorded",
@@ -121,7 +121,7 @@ export const en = {
   "room.endedBody": "One minute of feedback, and your summary arrives by email.",
   "room.rateAndGet": "Rate the session and get my summary",
   "room.linkDead": "This link is no longer active",
-  "room.linkDeadBody": "Links last 12 hours and die when the session ends. Ask your therapist for a new one.",
+  "room.linkDeadBody": "Links last 12 hours and die when the session ends. Ask your therapist for another.",
 
   /* ---------------------------------------------------------- feedback -- */
   "feedback.thanks": "Thank you",
@@ -340,7 +340,7 @@ export const en = {
   "home.nobodyListed": "No therapist is listed yet",
   "home.claimedTitle": "That record is yours now",
   "home.claimedKept": "They can still see your profile. Change it under who can read your history.",
-  "home.claimedDropped": "They keep the notes they wrote, and no longer see your live profile. Reversible any time.",
+  "home.claimedDropped": "They keep their notes and no longer see your live profile. Reversible any time.",
   "home.askedTitle": "Somebody asked to read your history",
   "home.askedOne": "A therapist has asked. You decide, and you can change your mind later.",
   "home.askedMany": "{count} therapists have asked. You decide, and you can change your mind later.",
@@ -399,6 +399,12 @@ export const en = {
   "psessions.radarGroupBody": "Sessions you found on the radar, without booking.",
   "psessions.free": "Free",
   "psessions.join": "Join",
+
+  /* ------------------------------- 🔴 76.17 the door is open, right now */
+  "plive.started": "Your session has started",
+  "plive.waiting": "{name} is in the room",
+  "plive.waitingAnon": "Your therapist is in the room",
+  "plive.goIn": "Go in",
 
   /* --------------------------------------------------------------- journal */
   "journal.title": "Your journal",
@@ -513,7 +519,7 @@ export const en = {
   /* ----------------------------------------- 🔴 when a page fails, in their language */
   "error.title": "Something went wrong at our end",
   "error.body":
-    "Nothing you did caused this, and nothing you sent is lost. Try again. The SOS button below still works.",
+    "Nothing you did caused this, and nothing you sent is lost. Try again. The SOS button still works.",
   "error.retry": "Try again",
 
   /* ------------------------------------------------ 🔴 consent, the patient's */
@@ -623,7 +629,7 @@ export const en = {
   "pclaim.skip": "Skip for now",
   "pclaim.doneTitle": "That record is yours now",
   "pclaim.doneKept": "Your therapist can still see your profile. You can change that at any time.",
-  "pclaim.doneDropped": "They keep the notes they wrote, and no longer see your live profile. Reversible any time.",
+  "pclaim.doneDropped": "They keep their notes and no longer see your live profile. Reversible any time.",
   "pclaim.goToSessions": "Go to my sessions",
   "pclaim.checkWhatsapp": "Check WhatsApp",
   "pclaim.checkEmail": "Check your email",
@@ -799,7 +805,7 @@ export const en = {
   "pexport.notCert": "A certificate",
   "pexport.notRight": "A statement that a diagnosis is right",
   "pexport.notForCourt": "A document written for a court",
-  "pexport.coverCode": "The cover page carries code {code}. Anybody you hand it to can check it with us.",
+  "pexport.coverCode": "The cover page carries code {code}. Anybody can check it with us.",
   "pidentity.photoPrivateRecord": "Not public. You, and a therapist who already has a record for you.",
   "pcode.expires": "It expires in fifteen minutes.",
   "consent.whichTherapist": "Which therapist",
@@ -912,7 +918,7 @@ export const en = {
   "jconsent.on": "On",
   "jconsent.turnOn": "Turn on",
   "jconsent.changeAnyTime": "You can change these at any time during the session.",
-  "jconsent.cannotUndo": "Recording cannot be stopped part-way. Ask your therapist to end the session, and answer no next time.",
+  "jconsent.cannotUndo": "Recording cannot stop part-way. Ask your therapist to end the session, and answer no next time.",
   "radar.globeLabel": "A globe showing where therapists are online right now",
   "radar.spinningUp": "Spinning up…",
   "radar.clearFilters": "Clear all filters",
@@ -1569,7 +1575,7 @@ export const en = {
   "nf.body": "The link may be out of date, or the page may have moved.",
   "nf.back": "Back to home",
   "feedback.seeTitle": "Do you want to see this yourself?",
-  "feedback.seeBody": "Your therapist keeps this record either way. An account changes who can read it, and lets it travel with you.",
+  "feedback.seeBody": "Your therapist keeps this record either way. An account changes who can read it, and it travels with you.",
   "feedback.makeMine": "Make it mine",
   /* ---------------------------------------------------- the Egyptian rail -- */
   /*
@@ -1670,7 +1676,7 @@ export const en = {
   "prating.rateTherapist": "Rate your therapist",
   "prating.rateSession": "Rate the session",
   "prating.rateService": "Rate the service",
-  "prating.blurb": "Rate the session and tell us where to send the summary. It keeps the good therapists visible.",
+  "prating.blurb": "Rate the session and say where to send the summary. It keeps good therapists visible.",
   "pcode.youAreJoining": "You are joining",
   "pcode.createAccount": "Create your account",
   "pcode.signIn": "Sign in",
@@ -2317,7 +2323,7 @@ export const en = {
   "tset.changePassword": "Change password",
   "tset.signOutBody": "This signs you out here. Changing your password signs you out everywhere.",
   "tset.zone": "Your time zone",
-  "tset.zoneBody": "Your hours are read in this zone, and no reminder goes out in the middle of the night here.",
+  "tset.zoneBody": "Your hours are read in this zone, and no reminder goes out in the night here.",
   "tset.zoneLabel": "Time zone",
   "tset.zoneNow": "It is {time} in {place} right now.",
   "tset.zoneNotSaved": "We have not saved one yet. Your browser says {zone}.",
@@ -2440,7 +2446,7 @@ export const en = {
   "tnew.vatOnTop": "Your patient also pays VAT on top, set by their country.",
   "tnew.patientPays": "Your patient is asked for {total}, which includes {vat} of VAT.",
   "tnew.weHold": "We hold your share until payouts open, then pay it out.",
-  "tnew.linkNote": "A private link, no account, no download. It expires in 12 hours and dies when the session ends.",
+  "tnew.linkNote": "A private link, no account, no download. It lasts 12 hours and dies when the session ends.",
   "tnew.consent": "Confirm your patient has consented to being recorded before you start.",
   "trad.saveProfile": "Save radar profile",
   "trad.you": "You",
@@ -2549,7 +2555,7 @@ export const en = {
   "tpres.armTitle": "Turn on your alarm",
   "tpres.blockedBody": "Sound is off for this site. Open the padlock, set {sound} to {allow}, and reload.",
   "tpres.allowWord": "Allow",
-  "tpres.armBody": "Browsers stay silent until you say otherwise. One tap and we can ring you anywhere in the portal.",
+  "tpres.armBody": "Browsers stay silent until you say otherwise. One tap and we can ring you anywhere here.",
   "tpres.forced": "Someone is booking you right now and you cannot hear it.",
   "tpres.willFix": "I will fix it in my browser",
   "tpres.notNow": "Not now",
@@ -2574,7 +2580,7 @@ export const en = {
   "tprac.confirmed": "Confirmed location",
   "tprac.openInMaps": "Open this pin in maps and check it",
   "tprac.walkIns": "Accept walk-in visits",
-  "tprac.walkInsOn": "Your address becomes public and patients can get directions. Only for a place a stranger may arrive at.",
+  "tprac.walkInsOn": "Your address becomes public and patients can get directions. Only for a place a stranger may visit.",
   "tprac.walkInsOff": "Confirm an address first.",
   "tprac.save": "Save practice",
   "tprac.remove": "Remove",
@@ -2700,7 +2706,7 @@ export const en = {
   "tnote.releasedTitle": "Their summary is released",
   "tnote.sentBody": "{email} gets exactly what is above, never the clinical note, once they rate the session.",
   "tnote.releasedBody": "Your patient receives what is above, never the clinical note.",
-  "tnote.nothingSent": "Nothing has been sent. Approving is what releases it, and the clinical note is never part of it.",
+  "tnote.nothingSent": "Nothing has been sent. Approving releases it, and the clinical note is never part of it.",
   "tnote.beforeNext": "Before we next meet",
   "tnote.stepLabel": "Step {number}",
   "tnote.removeStep": "Remove step {number}",
@@ -2751,7 +2757,7 @@ export const en = {
   "tled.payMany": "Pay {amount} · {count} invoices",
   "tled.title": "Everything, in order",
   "tled.blurb":
-    "Money you paid us and money patients paid you, in one list. Tap any row for the detail.",
+    "Money you paid us and money patients paid you, in one list. Tap a row for detail.",
   "tled.nothing": "Nothing has settled yet.",
   "tled.paidYou": "{name} paid you",
   "tled.patient": "Patient",
@@ -2894,7 +2900,7 @@ export const en = {
   "tcon.gaveCodeBody": "Enter it and they are asked. You see the answer on their record.",
   "tcon.notClearedYet": "Your licence is still being checked, so access will not start until we approve you.",
   "tcon.asking": "People asking you for their own history",
-  "tcon.askingBody": "They want what you hold added to the record they own. Say no if you must, but say something.",
+  "tcon.askingBody": "They want what you hold added to the record they own. Say no if you must, but answer.",
   "tcon.added": "I have added it",
   "tcon.decline": "Decline, with that reason",
   "tcon.declinePlaceholder": "If you are declining, why? They read this.",
@@ -3705,6 +3711,12 @@ export const ar: Record<MessageKey, string> = {
   "psessions.radarGroupBody": "جلسات وجدتها بين المتاحين الآن، بلا حجز مسبق.",
   "psessions.free": "مجانية",
   "psessions.join": "ادخل",
+
+  /* ------------------------------- 🔴 76.17 the door is open, right now */
+  "plive.started": "جلستك بدأت",
+  "plive.waiting": "{name} في الغرفة",
+  "plive.waitingAnon": "معالجك في الغرفة",
+  "plive.goIn": "ادخل",
 
   /* ------------------------------------------------------------- المذكرات */
   "journal.title": "مذكراتك",

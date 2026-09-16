@@ -368,10 +368,40 @@ export async function startSession(actor: Actor, sessionId: string) {
     throw new TransitionError("This session can no longer be started");
   }
 
-  await db
+  /*
+   * 🔴 76.17 — THE STATUS IS IN THE WHERE, and that is the whole guarantee.
+   *
+   * The SELECT above and this UPDATE are two statements, so two taps, two
+   * tabs, or a clinician and their colleague can both pass the check. It did
+   * not matter while starting was idempotent by accident — the second write
+   * simply set the same status and moved `startedAt` a few milliseconds.
+   *
+   * It matters now that a message leaves the building on this transition. A
+   * patient's phone buzzing twice about one session is how somebody learns to
+   * ignore the buzz, and this is the one alert on this product worth
+   * interrupting them for.
+   *
+   * So the database decides who won, and `returning` says so. Losing is the
+   * same as re-entry: nothing changed, nobody is told, no error.
+   */
+  const started = await db
     .update(sessions)
     .set({ status: "in_progress", startedAt: new Date(), updatedAt: new Date() })
-    .where(and(scope(actor), eq(sessions.id, sessionId)));
+    .where(and(scope(actor), eq(sessions.id, sessionId), eq(sessions.status, "scheduled")))
+    .returning({ id: sessions.id });
+
+  if (started.length === 0) return;
+
+  /*
+   * 🔴 AWAITED, THOUGH A CLINICIAN IS WAITING ON IT.
+   *
+   * Not fire and forget: a server action's un-awaited work is cut off with the
+   * response, and the one message that has to arrive is the one saying a room
+   * is open right now. It is wrapped, so the cost of a slow provider is a
+   * slower Start and never a failed one.
+   */
+  const { noticeSessionStarted } = await import("@/lib/sessions/started-notice");
+  await noticeSessionStarted(sessionId);
 }
 
 /* ---------------------------------------------------------- the clock -- */

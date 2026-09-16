@@ -152,6 +152,68 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
 }
 
 /**
+ * 🔴 76.17 — THE SESSION THAT IS HAPPENING RIGHT NOW, if one is.
+ *
+ * ## Why it is a second query rather than a wider first one
+ *
+ * `sessionsForPatient` above is §6's enforcement and its select list is the
+ * guarantee: a `PatientSession` has no field that could hold a clinical
+ * sentence, so no screen can leak one. Widening it to carry a join token would
+ * put a door key on the type every patient screen already renders, and would
+ * move a verifier that watches its shape.
+ *
+ * This returns three things and touches `session_notes` not at all. There is
+ * no note on a session that started ninety seconds ago anyway.
+ *
+ * ## What "right now" means, and it is not the booked time
+ *
+ * `in_progress` with a `startedAt` and no `endedAt`. A clinician six minutes
+ * late has not opened a door, so a banner keyed on the clock would send
+ * somebody into an empty room; `no-show-recovery.tsx` exists because that
+ * happens on the other rail. The instant somebody pressed Start is the instant
+ * there is somewhere to go.
+ */
+export async function liveSessionForPatient(
+  personId: string,
+): Promise<{ sessionId: string; href: string; therapistName: string } | null> {
+  const db = dbFor(await regionOfPerson(personId));
+
+  const [row] = await db
+    .select({
+      id: sessions.id,
+      joinToken: sessions.joinToken,
+      therapistFirst: users.firstName,
+      therapistLast: users.lastName,
+    })
+    .from(sessions)
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .leftJoin(users, eq(users.id, sessions.therapistId))
+    .where(
+      and(
+        eq(patients.personId, personId),
+        isNull(patients.deletedAt),
+        eq(sessions.status, "in_progress"),
+        isNull(sessions.endedAt),
+      ),
+    )
+    .orderBy(desc(sessions.startedAt))
+    .limit(1);
+
+  /*
+   * No token is no door. It is a real state rather than an error: an in-person
+   * session has nothing to join, and a banner offering a link that goes nowhere
+   * is worse than no banner.
+   */
+  if (!row?.joinToken) return null;
+
+  return {
+    sessionId: row.id,
+    href: `/join/${row.joinToken}`,
+    therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
+  };
+}
+
+/**
  * Which of 15.3's four lists a session belongs in.
  *
  * Pure and exported so the boundaries are testable. "Today" is the reader's

@@ -52,6 +52,15 @@ const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: numb
   "booking.reminder": { name: "session_reminder", variables: 2 },
   // "Your session with {{1}} on {{2}} has been cancelled."
   "booking.cancelled": { name: "session_cancelled", variables: 2 },
+  /*
+   * 🔴 76.17 — "{{1}} is in the room and waiting for you."
+   *
+   * ⚠️ NOT YET APPROVED, and that is survivable by design. An unmapped or
+   * unapproved kind falls back to email rather than going out malformed, so
+   * the alert lands either way and this line is what upgrades it the day Meta
+   * says yes. One variable, matching what `noticeSessionStarted` passes.
+   */
+  "session.started": { name: "session_started", variables: 1 },
   // "Your summary from {{1}} is ready. Open it here: {{2}}"
   "session.summary_ready": { name: "summary_ready", variables: 2 },
   /*

@@ -30,16 +30,41 @@
  * what a layout wrapping both signed-in and signed-out pages needs.
  */
 import { PatientChrome } from "@/components/patient/chrome";
+import { SessionStarted } from "@/components/patient/session-started";
+import { liveSessionForPatient } from "@/lib/data/patient-view";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { LanguageCorner } from "@/components/i18n/language-corner";
 
+/*
+ * 🔴 76.17 — asked on every patient page, which is the point.
+ *
+ * A clinician presses Start and the patient may be anywhere in this app: on
+ * their homework, on the radar, on their bill. The alert that leaves the
+ * building reaches a phone that may be face down; this is the half that is
+ * already in front of them, so it lives in the shell rather than on the
+ * sessions page they happen not to be looking at.
+ *
+ * The cost is one indexed read per patient page render, and it is paid rather
+ * than cached: a banner that is thirty seconds stale is a banner that invites
+ * somebody into a room that has closed.
+ */
+export const dynamic = "force-dynamic";
+
 export default async function PatientLayout({ children }: { children: React.ReactNode }) {
   const actor = await optionalPatient();
+
+  /*
+   * Only for somebody signed in, and only because there is nothing to ask
+   * otherwise: a live session belongs to a person, and a visitor is not one
+   * yet. A guest with a join link already arrives holding the door.
+   */
+  const live = actor?.personId ? await liveSessionForPatient(actor.personId) : null;
 
   return (
     <PatientChrome nav={actor !== null} phone={actor?.phone ?? null}>
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       <LanguageCorner />
+      {live ? <SessionStarted href={live.href} therapistName={live.therapistName} /> : null}
       {children}
     </PatientChrome>
   );

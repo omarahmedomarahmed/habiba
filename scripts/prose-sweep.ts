@@ -125,6 +125,21 @@ const PORTALS: Record<string, readonly string[]> = {
     "pracc",
     /* `cassess` renders in `components/assessments/clinician-assessments.tsx`. */
     "cassess",
+    /*
+     * 🔴 76.16 — `bill` is the CLINICIAN's, and the letter rule would have made
+     * it nobody's: `b` is not a portal. It landed in `other`, which has no
+     * ratchet, and the sweep printing its unattributed prefixes is the only
+     * reason it was caught in the same day it was written.
+     *
+     * Checked the way this map insists on:
+     *
+     *   grep -rn 't("bill\.' app components lib
+     *
+     * comes back as `components/billing/bill-picker.tsx`, rendered by
+     * `app/(app)/billing/page.tsx` and nowhere else. It is the invoice picker a
+     * therapist chooses their unpaid sessions from.
+     */
+    "bill",
   ],
   clinic: ["clinic", "records"],
   /*

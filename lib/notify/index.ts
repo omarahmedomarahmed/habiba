@@ -53,6 +53,16 @@ export type Message = {
     | "booking.confirmed"
     | "booking.reminder"
     | "booking.cancelled"
+    /**
+     * 🔴 76.17 — THE DOOR IS OPEN, sent the instant a clinician presses Start.
+     *
+     * The one kind here that is about RIGHT NOW. Every other message can be read
+     * an hour later and still be true; this one is worth nothing an hour later,
+     * which is why it hangs off the transition rather than off a schedule: the
+     * reminders cron runs hourly, and a nine o'clock session announced at twenty
+     * past nine is an apology rather than an alert.
+     */
+    | "session.started"
     | "session.summary_ready"
     | "claim.code"
     /** 13.3 — the therapist hands their patient the link to their own record. */

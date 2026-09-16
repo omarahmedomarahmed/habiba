@@ -145,6 +145,7 @@
     "verify:age": "node --env-file-if-exists=.env.local --import tsx scripts/verify-age.ts",
     "verify:boundary": "node --env-file-if-exists=.env.local --import tsx scripts/verify-boundary.ts",
     "verify:sprint69": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint69.ts",
+    "verify:sprint76": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint76.ts",
     "verify:finance": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-finance.ts",
     "verify:plan": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-plan.ts",
     "verify:rail": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rail.ts",
