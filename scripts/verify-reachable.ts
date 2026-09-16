@@ -81,7 +81,7 @@ const EXPORTS_BY_DESIGN: Record<string, string> = {};
  * by hand and this gate could see none of them. Lower it whenever the number
  * drops; it must never rise.
  */
-const DEAD_EXPORT_BASELINE = 81;
+const DEAD_EXPORT_BASELINE = 96;
 
 /* --------------------------------------------------------------- checks -- */
 
@@ -213,6 +213,29 @@ function main() {
      */
     "lib/data/usage.ts#consentRate":
       "Total View's consent rate. Sprint 57 shaped the whole unlimited-plan billing change around keeping this answerable, and nothing asks it.",
+    /*
+     * 🔴 76.38 — `diariseSession` IS WIRED, and checking that it stays wired is
+     * worth an entry here because of how nearly it was not.
+     *
+     * A clinician reported every line of an offline transcript labelled
+     * "Speaker". Hunting it, a grep for `from "@/lib/ai/diarise"` came back
+     * empty and it looked like the classic shape: a function exported, unit
+     * tested, benchmarked, given a backfill script, described in a comment in
+     * `session-room.tsx` as the thing that resolves `unknown` lines afterwards,
+     * and called by nothing.
+     *
+     * It was wrong. `generateAndStoreNote` calls it through a dynamic
+     * `await import(...)`, immediately before writing the note, for exactly the
+     * right reason: a note generated over unattributed lines guesses. The grep
+     * missed it and this scanner did not, because this scanner matches the NAME
+     * rather than an import statement.
+     *
+     * The entry stays because the call is one line inside a `try` in another
+     * module, and if it ever goes the symptom is a clinical record that
+     * silently stops saying who said anything.
+     */
+    "lib/ai/diarise.ts#diariseSession":
+      "Works out who said what before the note is written. Without it every one-microphone transcript stays `unknown`, which the panel renders as `Speaker` on every line, and the note is generated over lines attributing nothing to anybody.",
   };
 
   const mustWireMissing = Object.keys(MUST_WIRE).filter((key) => deadNow.has(key));

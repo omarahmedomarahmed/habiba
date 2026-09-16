@@ -7,6 +7,7 @@ import { NoteReview } from "@/components/session/note-review";
 import { RiskAssessment } from "@/components/clinical/risk-assessment";
 import { CancelSession } from "@/components/session/cancel-session";
 import { SessionApproval } from "@/components/session/session-approval";
+import { AttributeTranscript } from "@/components/clinical/attribute-transcript";
 import { SourcePanel } from "@/components/session/source-panel";
 import { VoicesPanel } from "@/components/session/voices-panel";
 import { Badge, Button, Card } from "@/components/ui";
@@ -282,12 +283,36 @@ export default async function SessionDetailPage({
                 {transcript.length} segments
               </span>
             </summary>
-            <div className="space-y-2.5 border-t border-slate-100 px-4 py-4">
-              {transcript.map((segment) => (
-                <p key={segment.id} className="text-sm leading-relaxed text-slate-600">
-                  {segment.text}
-                </p>
-              ))}
+            {/*
+              🔴 76.38 — WHO SAID IT, AND A WAY TO SAY OTHERWISE.
+
+              This was a list of paragraphs: `segment.text` and nothing else. No
+              speaker, no attribution, no control. A clinician who ran an
+              offline session with two people on one microphone got "Speaker" on
+              every line in the live panel and then a wall of unattributed text
+              here, with nowhere to correct any of it.
+
+              `diariseSession` now runs when the session finishes, which was
+              wired to nothing at all, so most lines arrive attributed. This is
+              the half a model cannot do: a clinician who was in the room saying
+              which of them it got wrong.
+            */}
+            <div className="border-t border-slate-100 px-4 py-4">
+              <AttributeTranscript
+                sessionId={id}
+                lines={transcript.map((segment) => ({
+                  id: segment.id,
+                  speaker: segment.speaker,
+                  inferred: segment.speakerInferred,
+                  /*
+                   * A separated voice owns its lines and migration 0065's
+                   * trigger enforces it. Those render their label and point at
+                   * the panel above rather than offering a control that throws.
+                   */
+                  voiceBound: Boolean(segment.voiceId),
+                  text: segment.text,
+                }))}
+              />
             </div>
           </details>
         ) : row.session.status === "completed" ? (

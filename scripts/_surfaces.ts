@@ -299,6 +299,33 @@ export const SAFETY_MODULES = [
   "lib/console/",
   "lib/access/",
   "lib/ehr/",
+  /*
+   * 🔴 76.38 — `lib/ai/` ADDED, AFTER A CLINICIAN FOUND WHAT WAS HIDING IN IT.
+   *
+   * `diariseSession` works out who said what on a one-microphone session. It
+   * was exported, unit-tested, benchmarked, given a backfill script, described
+   * in a comment in `session-room.tsx` as the thing that resolves `unknown`
+   * lines afterwards, and **called by nothing in the product**. Every offline
+   * transcript read `unknown` for ever, which the panel renders as "Speaker" on
+   * every line, and the note was generated over lines attributing nothing to
+   * anybody.
+   *
+   * This scanner could not see it, because `lib/ai/` was not on this list.
+   *
+   * The omission had a reason and the reason was wrong. The list was written as
+   * "safety-critical modules", and the four findings that produced it were all
+   * about disclosure and money. But the argument two paragraphs up is not about
+   * safety, it is about a KIND of function: one written to satisfy a ruling,
+   * which passes a source-reading verifier, and which nothing fails without.
+   * `lib/ai/` is full of exactly that kind. It holds the diariser, the note
+   * writer, the risk classifier and the profile builder, and a clinical record
+   * that silently stops attributing speech is the same defect shape as a
+   * sponsor screen that silently stops suppressing a balance.
+   *
+   * 🔴 IT COST 12 MORE DEAD EXPORTS on the ratchet, and every one of them is
+   * debt that was always there and was not being counted.
+   */
+  "lib/ai/",
 ];
 
 export function libraryExports(s: Surfaces): ActionRef[] {
