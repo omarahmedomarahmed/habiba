@@ -1,83 +1,109 @@
-# The simulation, deployed
+# Running the simulation on production, and putting it back
 
-The six month run happens on its own git branch, deployed on its own URL, against its
-own database. After it ends you sign into that URL as any member of the cast and read
-six months of their record.
+The six month run happens on the **production deployment** and the **production Neon
+branch**, and is undone afterwards by restoring a snapshot taken before it started.
 
 | | |
 | --- | --- |
-| Git branch | `simulation` |
-| Neon branch | `simulation-q1` (`br-fragrant-bonus-a6ngfs07`) |
-| Endpoint | `ep-empty-queen-a62vlkkp` |
-| Vercel project | `habiba`, as a branch preview |
+| Deployment | `habiba`, production target, `main` |
+| Neon branch | `main` (`br-curly-dream-a6b0shlz`), endpoint `ep-wild-lake-a6tgm2r6` |
+| Snapshot to restore to | `snap-polished-moon-a61n6nbr`, taken 2026-09-16 |
+| Baseline | `evals/production-baseline.json`, 115 tables, 194 rows |
 
-## Why a branch and not a second project
+## Why production, and why that is defensible here
 
-The simulation is only evidence if it runs on the product. A second Vercel project is a
-second place for environment variables to drift, and the first thing to drift is the one
-that matters: a simulation running last month's prices produces a P&L about a business
-nobody is launching, and every figure in it is internally consistent.
+A simulation on a preview deployment with a forked database is evidence about a
+configuration nobody will ever run. The whole point of six months of invented trading is
+to find out whether **the thing we are launching** works, and the thing we are launching
+is the production deployment talking to the production database.
 
-A branch of the same project shares everything except the database, which is the one
-thing that must differ.
+Two facts make this reasonable rather than reckless, and both were checked rather than
+assumed:
 
-## The one thing that has to be typed by hand
+- **Production is empty.** One organisation, two users, no patients, no payments, 194
+  rows in total across 115 tables. There is no business in there to disturb.
+- **It is not publicly reachable.** Vercel Authentication is on for every deployment
+  except custom domains, and no custom domain is attached. The seeded clinicians that
+  `scripts/demo.ts` warns about being publicly bookable have nobody to be visible to.
 
-A connection string cannot be committed, so one value is set in the Vercel dashboard and
-everything else follows from it.
+Neither fact is permanent. **Re-check both before doing this again**, because the day a
+real clinician signs up is the day this stops being a reasonable thing to do.
 
-**Vercel → habiba → Settings → Environment Variables → Add**
+## The order, and it matters
 
-| Field | Value |
-| --- | --- |
-| Key | `DATABASE_URL` |
-| Environments | Preview only |
-| Branch | `simulation` |
-| Value | the `simulation-q1` pooled connection string |
+### 1 · Snapshot first
 
-Add `APP_URL` the same way once the preview URL exists, so join links in messages point
-at the simulation rather than at production.
+Already done: `snap-polished-moon-a61n6nbr`. A second run needs its own.
 
-### 🔴 This is an OVERRIDE, not an addition
+Taking the snapshot is what turns "delete everything afterwards" from a hand-written
+sweep across 115 tables, in dependency order, past an append-only audit log, into one
+restore. The sweep is the version that leaves a row behind, and a row left behind sits on
+the founder's board forever.
 
-The Neon integration creates a database branch per preview and injects its own
-`DATABASE_URL`. Every preview in this project already runs against a fork of `main` taken
-on the day that preview branch was first built, which is why they drift: nothing applies
-migrations on deploy (H16), so a fork from three weeks ago is a schema from three weeks
-ago. The `prebuild` settings seed on one of them was failing with
+### 2 · Record the baseline
 
-    column "crisis_line_label" of relation "country_settings" does not exist
+Already done: `evals/production-baseline.json`.
 
-and the build carried on, because that step is allowed to fail.
+    npm run baseline -- record snap-polished-moon-a61n6nbr
 
-The simulation must not run on a fork of `main`. It has its own Neon branch with its own
-six months of history in it, and a fork would be empty on the first day and thrown away on
-the last. A branch-scoped variable is what wins over the integration's.
+Every table, read out of `pg_tables` at run time rather than from a list somebody
+maintains, because the row that survives a bad cleanup is always the one nobody was
+thinking about: an audit entry, a rate limit counter, a claim attempt.
 
-## 🔴 What happens if that is forgotten
+### 3 · 🔴 Silence outward messages
 
-Nothing quiet. `lib/env.ts` refuses to start when the branch and the database disagree,
-in both directions:
+Unset `RESEND_API_KEY` on production for the duration of the run.
 
-- the `simulation` branch on any other database refuses, because a run that invents
-  hundreds of clinics, patients, sessions and payments would put all of it on a real
-  board, and the deploy would be green while it happened
-- any other branch on the simulation database refuses, because serving invented people
-  as customers makes every figure a founder reads a figure about a company that does
-  not exist
+`notify()` degrades cleanly without it and logs `no channel available`, so every flow
+still runs and the code path is still exercised. With it set, sixty invented patients get
+real email sent to `example.com`, which is reserved and always bounces, and a few dozen
+bounces in an afternoon is a deliverability signal against the domain you launch on.
 
-The check is on the **endpoint**, not on the variable's name. A variable is a label
-somebody typed; the endpoint is where the bytes go. `tests/safety.test.ts` holds both
-directions and the case that matters most in practice: a laptop, with no branch name at
-all, is unaffected.
+Put it back afterwards.
 
-## Running it
+### 4 · Run it
 
-1. `git checkout simulation && git merge main` so the branch is the product as it stands.
-2. Push. Vercel builds a preview.
-3. Point the simulation's own scripts at `DATABASE_URL_SIMULATION` and run it.
-4. When it ends, open the preview URL and sign in as anybody in `docs/simulation/10-THE-STORY.md`.
+The write scripts refuse the production endpoint by name. The documented door is the one
+the founder authorised, and it is deliberately awkward:
 
-The seeded passwords are in the story file. Every person in it is invented, with a
-surname of Demo or Example and an address at `example.com`, which is the rule the whole
-simulation is written under.
+    I_MEAN_PRODUCTION=ep-wild-lake-a6tgm2r6
+
+It has to name the endpoint, so typing it is a sentence rather than a flag.
+
+### 5 · 🔴 Capture EVERYTHING before restoring
+
+**The restore destroys the evidence along with the mess.** Every screenshot, every figure
+off `/admin/usage/sessions`, the board, the money reconciliation, the copilot exam result,
+the edge ledger and the record ledger have to exist outside the database before step 6.
+`05-CAPTURE.md` says what and when; this is the one run where finishing capture late
+costs the whole thing.
+
+Note that `npm run verify:synthetic` cannot be pointed at production and that is correct,
+not a gap: it plants a real-looking person as a control before deleting it, and planting
+one on production is the thing none of this is willing to do.
+
+### 6 · Restore
+
+Restore `snap-polished-moon-a61n6nbr` onto `main`.
+
+### 7 · Prove it went back
+
+    npm run baseline -- check
+
+115 tables, 194 rows, every one exactly where it started, or it names the tables that
+differ and exits non-zero. A restore that nobody checked is a belief: Neon reports a
+restore as done when the branch is ready, which says nothing about the rows in it.
+
+### 8 · Rotate, then enter the bank details
+
+In that order. The bank details on `/admin/settings` are written by hand and are **not**
+in the snapshot, so anything entered before step 6 is wiped by the restore.
+
+## What the `simulation` branch is now for
+
+It stays. `lib/env.ts` still refuses to boot when that branch and the simulation database
+disagree, in both directions, and the violet strip still names the endpoint it is on.
+
+It is the place to re-run without touching production: the second pass, the adjusted one
+after the first set of results, and anything somebody wants to leave standing for a while.
+Production is for the run that has to be about the real thing.

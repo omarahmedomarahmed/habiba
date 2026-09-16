@@ -111,6 +111,22 @@ in advance what the answer is.** Twenty agents improvising sixty two sessions pr
 nobody can mark. Every patient in that file has an arc with planted facts in named sessions, and
 the agent playing that person says those things.
 
+🔴 **THIS RUN IS ON PRODUCTION.** The deployment is the production one and the database is
+the production Neon branch, because a simulation on a preview with a forked database is
+evidence about a configuration nobody will ever run. It is undone afterwards by restoring
+a snapshot taken before it started, and `docs/simulation/DEPLOY.md` has the order, which
+matters. Two of its steps are easy to get wrong and expensive:
+
+  * **Silence outward messages first.** `RESEND_API_KEY` comes off production for the
+    duration, or sixty invented patients send real email to a reserved domain that always
+    bounces.
+  * **Capture everything BEFORE the restore.** The restore destroys the evidence along
+    with the mess. Every frame, every figure, the board, the exam, the edge ledger and the
+    record ledger have to exist outside the database first.
+
+Afterwards `npm run baseline -- check` has to say 115 tables and 194 rows, unchanged. A
+restore nobody checked is a belief.
+
 🔴 **`11-THE-RECORD.md` is new, and it is the only file here about the promise rather than the
 product.** Every other document is money, load or model quality. If the money is wrong somebody
 is out of pocket and we fix it; if this is wrong, somebody in therapy was read by a clinician
