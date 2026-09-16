@@ -59,25 +59,50 @@ npm run verify:sprintNN                   # per-sprint gates; most refuse produc
 
 ## The production build is memory-bound, and the cap is the binding constraint
 
-`npm run build` runs with `NODE_OPTIONS=--max-old-space-size=6144`. It was 3072, and on
-2026-09-16 four production deploys in a row died with
+`npm run build` runs with `NODE_OPTIONS=--max-old-space-size=4096` and compiles in ONE
+process. It got there the long way round, and the middle of the story is the useful part.
+
+On 2026-09-16 four production deploys died with
 
 ```
 FATAL ERROR: Ineffective mark-compacts near heap limit
 Next.js build worker exited with code: null and signal: SIGABRT
 ```
 
-at **3016 MB of a 3108 MB heap**, which is the cap doing exactly what a cap does. The same
-commit built fine locally on a machine with 16 GB, because the cap only bites when the build
-actually needs the memory and a warm local build needs less.
+at **3016 MB of a 3108 MB heap**. The obvious reading is "the cap is too small", so it was
+raised to 6144, and deploys got worse: the clean V8 abort with a stack in it became
 
-Vercel's Pro build container has 8 GB, so 6144 leaves roughly 2 GB for the workers and the OS.
-**Do not raise it past 7168.** Past the container's real memory the kernel kills the process
-instead of V8, and a kernel kill has no JS stack trace in it: the build just stops, and the
-next person spends an afternoon looking for a code path that is not there.
+```
+Next.js build worker exited with code: null and signal: SIGKILL
+```
 
-If it OOMs again, the answer is not another thousand megabytes. It is that the build has grown
-and something in it should be smaller.
+which is the kernel, not V8, and carries no stack at all.
+
+**Do not raise it.** The cap is per PROCESS, and `NODE_OPTIONS` is inherited by children,
+so a build that compiles in a worker gets two heaps allowed the same ceiling. On an 8 GB
+container, 6144 means parent and worker may between them ask for 12 GB, and the failure is
+intermittent because it depends on who asks first: identical commits built green at 19:20
+and were killed at 20:18.
+
+`next.config.ts` sets `experimental.webpackBuildWorker: false` so there is exactly one
+compile process. Measured peak RSS across every node process the build starts:
+
+| configuration | peak RSS | result |
+| --- | --- | --- |
+| worker on, cap 6144 | 2.8 GB locally | SIGKILLed on Vercel anyway |
+| worker off, cap 4096 | 4.4 GB | green ← shipped |
+| worker off, cap 3072 | 4.0 GB | green, 43s to compile |
+
+**4096 is the one that ships, and 3072 is not**, even though 3072 built green here. The
+original V8 abort is evidence that the compile genuinely wants more than a 3 GB heap on a
+cold Vercel container; a local build with a warm module graph wanting less does not
+overturn it. 4096 is above the number that failed and half of the number that got killed.
+
+The first row is the lesson: a local peak well under the container's memory did not predict
+the failure, because the failure was two heaps racing rather than one heap being too small.
+
+If it OOMs again, the answer is still not another thousand megabytes. It is that the build
+has grown and something in it should be smaller.
 
 `npm run lint` used to drop into Next's interactive ESLint setup and hang there
 forever, which is the worst possible failure for a script an agent or a CI job

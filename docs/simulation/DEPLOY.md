@@ -23,8 +23,8 @@ thing that must differ.
 
 ## The one thing that has to be typed by hand
 
-A connection string cannot be committed, so exactly one value is set in the Vercel
-dashboard, and everything else follows from it.
+A connection string cannot be committed, so one value is set in the Vercel dashboard and
+everything else follows from it.
 
 **Vercel → habiba → Settings → Environment Variables → Add**
 
@@ -37,6 +37,22 @@ dashboard, and everything else follows from it.
 
 Add `APP_URL` the same way once the preview URL exists, so join links in messages point
 at the simulation rather than at production.
+
+### 🔴 This is an OVERRIDE, not an addition
+
+The Neon integration creates a database branch per preview and injects its own
+`DATABASE_URL`. Every preview in this project already runs against a fork of `main` taken
+on the day that preview branch was first built, which is why they drift: nothing applies
+migrations on deploy (H16), so a fork from three weeks ago is a schema from three weeks
+ago. The `prebuild` settings seed on one of them was failing with
+
+    column "crisis_line_label" of relation "country_settings" does not exist
+
+and the build carried on, because that step is allowed to fail.
+
+The simulation must not run on a fork of `main`. It has its own Neon branch with its own
+six months of history in it, and a fork would be empty on the first day and thrown away on
+the last. A branch-scoped variable is what wins over the integration's.
 
 ## 🔴 What happens if that is forgotten
 
