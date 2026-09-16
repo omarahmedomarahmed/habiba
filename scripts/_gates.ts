@@ -152,7 +152,7 @@ export const GATES = [
    *     already taken the one row per session the unique index allows
    *   - so the VAT they paid was recorded as zero, on tax we genuinely owe
    *
-   * Twelve scenarios, each one a sentence somebody could say about a real
+   * Sixteen scenarios, each one a sentence somebody could say about a real
    * person, each against rows through the product's own functions, with the
    * old wrong read planted as a control so the check cannot pass by measuring
    * the wrong thing.

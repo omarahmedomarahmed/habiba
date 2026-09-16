@@ -444,7 +444,7 @@ export function PayoutsEditor({
             className="mt-1"
           />
           <span>
-            Take the session fee out of held earnings when we hold enough. Off, the pricing
+            Take the session fee from held earnings when we hold enough. Off, the pricing
             page stops saying so.
           </span>
         </label>
@@ -607,7 +607,7 @@ export function CountryEditor({
         <Field
           label="Regulators"
           htmlFor={`reg-${country.code}`}
-          hint="One per line. A list missing somebody's regulator reads as 'you are not welcome here', so it never constrains."
+          hint="One per line. A missing regulator reads as 'you are not welcome here', so it never constrains."
         >
           <Textarea
             id={`reg-${country.code}`}

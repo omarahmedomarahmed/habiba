@@ -26,9 +26,9 @@ export default async function AdminContentPage() {
       {pages.length === 0 ? (
         <Card className="px-4 py-8 text-center">
           <p className="text-sm text-slate-600">
-            No pages in the database yet. The public site is currently rendering the built-in
+            No pages yet. The site renders the built-in
             defaults, run <code className="rounded bg-slate-100 px-1">npm run db:seed</code> to
-            import them so they become editable.
+            make them editable.
           </p>
         </Card>
       ) : (

@@ -603,7 +603,7 @@ async function main() {
     const drift = await unbalancedTransactions();
 
     check(
-      "🔴 every transaction these fifteen scenarios wrote balances to zero",
+      "🔴 every transaction these sixteen scenarios wrote balances to zero",
       drift.length === 0,
       drift.length === 0 ? "no drift anywhere in the ledger" : `${drift.length} unbalanced`,
     );
@@ -620,6 +620,106 @@ async function main() {
       withOffender.length > drift.length,
       `${withOffender.length} unbalanced with one planted, ${drift.length} without`,
     );
+
+    /* ================================================================ */
+    /*  16 · WHAT ONE SESSION COST US, WITHOUT COUNTING THE MONEY TWICE  */
+    /* ================================================================ */
+
+    /*
+     * 🔴 76.41 — THE DEFECT SHAPE `sessionCosts` IS ONE JOIN AWAY FROM.
+     *
+     * `usageByTherapist` carries a note explaining why it runs three
+     * aggregates instead of one join: a session with twelve transcription
+     * chunks and one payment counts that payment twelve times, and the revenue
+     * comes out wrong in the direction that flatters us.
+     *
+     * Per session that trap is worse, because the wrong figure lands on an
+     * individual row where it still looks plausible. There is no way to see it
+     * by reading the query — both versions compile, both return rows, and only
+     * one of them is right. So the session below is given THREE model calls and
+     * ONE payment, and the check is that the payment is counted once.
+     */
+    const costed = await cast("Layla");
+
+    await db.execute(sql`
+      UPDATE sessions SET status = 'completed', duration_minutes = 50,
+                          ended_at = now()
+      WHERE id = ${costed.sessionId}`);
+
+    for (const [kind, micro, audio] of [
+      ["transcribe", 210_000, 3000],
+      ["note", 84_000, 0],
+      ["risk", 6_000, 0],
+    ] as const) {
+      await db.execute(sql`
+        INSERT INTO ai_request_logs (organization_id, user_id, session_id, kind, model,
+                                     audio_seconds, cost_microcents, status)
+        VALUES (${org.id}, ${therapist.id}, ${costed.sessionId}, ${kind}, ${`demo-${kind}`},
+                ${audio}, ${micro}, 'success')`);
+    }
+
+    await db.execute(sql`
+      INSERT INTO session_payments (organization_id, therapist_id, session_id, gross_cents,
+                                    platform_fee_cents, therapist_net_cents)
+      VALUES (${org.id}, ${therapist.id}, ${costed.sessionId}, 5000, 400, 4600)`);
+
+    const { sessionCosts } = await import("../lib/data/usage");
+    const costs = await sessionCosts(1, { therapistId: therapist.id });
+    const row = costs.find((entry) => entry.sessionId === costed.sessionId);
+
+    check(
+      "🔴 76.41 a session's model spend is the SUM of its calls",
+      row?.costMicrocents === 300_000 && row?.aiCalls === 3,
+      `${row?.costMicrocents} microcents over ${row?.aiCalls} calls, expected 300000 over 3`,
+    );
+
+    /*
+     * 🔴 THE ONE THAT A JOIN WOULD GET WRONG. One payment of $50, three model
+     * calls. A joined query reports $150 and a 26% margin on a session that
+     * made 8%.
+     */
+    check(
+      "🔴 76.41 …and the one payment on it is counted ONCE, not once per model call",
+      row?.grossCents === 5000 && row?.feeCents === 400,
+      `${row?.grossCents} gross, ${row?.feeCents} fee, expected 5000 and 400`,
+    );
+
+    const joined = await one<{ gross: number }>(sql`
+      SELECT COALESCE(sum(sp.gross_cents), 0)::int AS gross
+      FROM sessions s
+      LEFT JOIN ai_request_logs l ON l.session_id = s.id
+      LEFT JOIN session_payments sp ON sp.session_id = s.id
+      WHERE s.id = ${costed.sessionId}`);
+
+    check(
+      "🔴 CONTROL the single-join version really does multiply, so this is not a hypothetical",
+      joined.gross === 15000,
+      `one join reports ${joined.gross} for a ${5000} payment, which is 3x`,
+    );
+
+    check(
+      "🔴 76.41 …and the fifty-minute session is on the list with its duration",
+      row?.durationMinutes === 50 && row?.audioMinutes === 50,
+      `${row?.durationMinutes} minutes on the clock, ${row?.audioMinutes} minutes of audio paid for`,
+    );
+
+    /*
+     * 🔴 A SESSION THAT COST NOTHING IS STILL A ROW.
+     *
+     * An in-person session where the patient declined recording generates no
+     * model calls at all (C209). Dropping it from this list would make the
+     * screen answer "every session" with "every session we spent money on",
+     * and the decline rate is exactly what somebody reading a cost screen
+     * needs to see beside the costs.
+     */
+    const silent = await cast("Farida");
+    const all = await sessionCosts(1, { therapistId: therapist.id });
+
+    check(
+      "🔴 76.41 a session with no model calls is still listed, at zero",
+      all.some((entry) => entry.sessionId === silent.sessionId && entry.costMicrocents === 0),
+      "a cost screen that hides free sessions hides the decline rate",
+    );
   } finally {
     /*
      * 🔴 EVERYTHING, IN DEPENDENCY ORDER. A verifier that leaves a demo company
@@ -635,6 +735,8 @@ async function main() {
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM manual_payments WHERE ref_id IN
       (SELECT id FROM sessions WHERE join_token LIKE ${`join-%-${fixture}`})`);
+    await db.execute(sql`DELETE FROM ai_request_logs WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM session_payments WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM sessions WHERE join_token LIKE ${`join-%-${fixture}`}`);

@@ -3,7 +3,7 @@
  */
 import "server-only";
 
-import { and, count, desc, eq, gte, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, sql, sum } from "drizzle-orm";
 
 import { controlDb as db} from "@/lib/db";
 import { aiRequestLogs, sessionPayments, sessions, users } from "@/lib/db/schema";
@@ -414,4 +414,139 @@ export async function revenueBySource(sinceDays = 30) {
     /** 🔴 NOT ours. What patients paid their clinicians. Never summed with the rest. */
     therapistGrossCents: Number(gross[0]?.cents ?? 0),
   };
+}
+
+export type SessionCost = {
+  sessionId: string;
+  createdAt: Date;
+  endedAt: Date | null;
+  status: string;
+  modality: string;
+  /** What the clock said, which is not the same as what we paid to transcribe. */
+  durationMinutes: number | null;
+  therapistId: string | null;
+  therapistName: string;
+  /** Model spend for this session. Microcents, because 91% of calls round to zero cents. */
+  costMicrocents: number;
+  aiCalls: number;
+  /** Audio we actually paid to transcribe, which is the cost driver. */
+  audioMinutes: number;
+  /** What the patient paid, in the settlement currency. NOT ours. */
+  grossCents: number;
+  /** Ours. */
+  feeCents: number;
+};
+
+/**
+ * 🔴 76.41 — EVERY SESSION, WHAT IT COST US, AND WHO RAN IT.
+ *
+ * ## The gap this fills
+ *
+ * `/admin/usage` answers two questions: what a session costs ON AVERAGE, and
+ * what each clinician costs in total. Both are means, and a mean is the one
+ * statistic that cannot show you the session that went wrong.
+ *
+ * The number that decides this business is cost per session, and the thing an
+ * average hides is its spread. One fifty-minute session transcribed end to end
+ * costs several times a twenty-minute one; a session where the note was
+ * regenerated four times costs more again; a session that crashed and retried
+ * costs money and produced nothing. Every one of those is invisible in
+ * `costPerSession(30)` and obvious in a list sorted by cost.
+ *
+ * ## 🔴 THREE AGGREGATES, NOT A JOIN, and the reason is written down upstairs
+ *
+ * `usageByTherapist` carries the note: joining sessions, usage and payments in
+ * one query multiplies rows, so a session with twelve transcription chunks and
+ * one payment counts that payment twelve times, and the revenue figure comes
+ * out wrong in the direction that flatters us. The same trap is here with more
+ * force, because this is per session rather than per clinician, so the
+ * multiplication would be visible on individual rows and would still look
+ * plausible.
+ *
+ * ## No clinical content, and no patient
+ *
+ * A session id, a clinician, a duration, a number of model calls and money.
+ * Nothing on this page says who was in the room or what was said. The question
+ * it answers is what the product costs to run, and naming the patient would add
+ * nothing to that while turning a finance screen into a route into a record.
+ */
+export async function sessionCosts(
+  sinceDays = 30,
+  options: { therapistId?: string; limit?: number } = {},
+): Promise<SessionCost[]> {
+  const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000);
+  const limit = options.limit ?? 500;
+
+  const scope = options.therapistId
+    ? and(gte(sessions.createdAt, since), eq(sessions.therapistId, options.therapistId))
+    : gte(sessions.createdAt, since);
+
+  const rows = await db
+    .select({
+      sessionId: sessions.id,
+      createdAt: sessions.createdAt,
+      endedAt: sessions.endedAt,
+      status: sessions.status,
+      modality: sessions.modality,
+      durationMinutes: sessions.durationMinutes,
+      therapistId: sessions.therapistId,
+      firstName: users.firstName,
+      lastName: users.lastName,
+    })
+    .from(sessions)
+    .leftJoin(users, eq(users.id, sessions.therapistId))
+    .where(scope)
+    .orderBy(desc(sessions.createdAt))
+    .limit(limit);
+
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((row) => row.sessionId);
+
+  const [spend, money] = await Promise.all([
+    db
+      .select({
+        sessionId: aiRequestLogs.sessionId,
+        calls: count(),
+        audioSeconds: sum(aiRequestLogs.audioSeconds),
+        microcents: sum(aiRequestLogs.costMicrocents),
+      })
+      .from(aiRequestLogs)
+      .where(inArray(aiRequestLogs.sessionId, ids))
+      .groupBy(aiRequestLogs.sessionId),
+
+    db
+      .select({
+        sessionId: sessionPayments.sessionId,
+        grossCents: sum(sessionPayments.grossCents),
+        feeCents: sum(sessionPayments.platformFeeCents),
+      })
+      .from(sessionPayments)
+      .where(inArray(sessionPayments.sessionId, ids))
+      .groupBy(sessionPayments.sessionId),
+  ]);
+
+  const spendBy = new Map(spend.map((row) => [row.sessionId, row]));
+  const moneyBy = new Map(money.map((row) => [row.sessionId, row]));
+
+  return rows.map((row) => {
+    const usage = spendBy.get(row.sessionId);
+    const paid = moneyBy.get(row.sessionId);
+    return {
+      sessionId: row.sessionId,
+      createdAt: row.createdAt,
+      endedAt: row.endedAt,
+      status: row.status,
+      modality: row.modality,
+      durationMinutes: row.durationMinutes,
+      therapistId: row.therapistId,
+      therapistName:
+        [row.firstName, row.lastName].filter(Boolean).join(" ").trim() || "Deleted clinician",
+      costMicrocents: Number(usage?.microcents ?? 0),
+      aiCalls: Number(usage?.calls ?? 0),
+      audioMinutes: Math.round(Number(usage?.audioSeconds ?? 0) / 60),
+      grossCents: Number(paid?.grossCents ?? 0),
+      feeCents: Number(paid?.feeCents ?? 0),
+    };
+  });
 }

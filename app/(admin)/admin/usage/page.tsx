@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Badge, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { requireRole } from "@/lib/auth/guard";
 import {
+  PLATFORM_BUCKET,
   consentRate,
   costPerSession,
   formatMicrocents,
@@ -166,10 +168,25 @@ export default async function AdminUsagePage() {
       </Card>
 
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">Per clinician</p>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Sorted by spend. The top one decides whether unlimited works.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Per clinician</p>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Sorted by spend. The top one decides whether unlimited works.
+            </p>
+          </div>
+          {/*
+            🔴 76.41 — THE ROW BEHIND EVERY ROW.
+            Every figure in this table is a sum, and a sum cannot show the
+            session that went wrong. One link to the list it is made of.
+          */}
+          <Link
+            href="/admin/usage/sessions"
+            className="tap-target shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Every session
+          </Link>
+        </div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[40rem] text-sm">
             <thead>
@@ -189,9 +206,22 @@ export default async function AdminUsagePage() {
                 return (
                   <tr key={row.userId} className="border-b border-slate-50">
                     <Td>
-                      <span className="font-medium text-slate-900">
-                        {fullName(row.firstName, row.lastName, "")}
-                      </span>
+                      {/*
+                        🔴 76.41 — EVERY NAME IS A DOOR INTO THE SESSIONS
+                        BEHIND ITS ROW. The PLATFORM bucket is the exception:
+                        it is spend belonging to no clinician, so there is no
+                        caseload to filter to.
+                      */}
+                      {row.userId === PLATFORM_BUCKET ? (
+                        <span className="font-medium text-slate-900">{row.firstName}</span>
+                      ) : (
+                        <Link
+                          href={`/admin/usage/sessions?therapist=${row.userId}`}
+                          className="font-medium text-slate-900 underline decoration-slate-200 underline-offset-4 hover:decoration-slate-400"
+                        >
+                          {fullName(row.firstName, row.lastName, "")}
+                        </Link>
+                      )}
                       <span className="block truncate text-xs text-slate-400">{row.email}</span>
                     </Td>
                     <Td align="end">{row.sessions}</Td>
