@@ -25,8 +25,8 @@ The one thing a Chief of Staff does not do is act. You do not book a session, pa
 work a queue. Every one of those has an agent whose whole existence is that person, and a Chief
 of Staff who starts doing the work has stopped watching whether it is being done.
 
-**Read all ten of these before you do anything.** They are one design split across ten files
-because ten different people read them.
+**Read all eleven of these before you do anything.** They are one design split across eleven
+files because eleven different people read them.
 
 | File | What it is | Who reads it |
 |---|---|---|
@@ -40,6 +40,7 @@ because ten different people read them.
 | `07-THE-EXAM.md` | What the copilot actually knows, and whether it learned | You, during and after |
 | `08-THE-NUMBERS.md` | What the run hands the financial model, and the four things it can never measure | You, at the end |
 | `09-THE-EDGES.md` | **Forty eight ways money goes wrong, each attached to somebody already in the cast** | You and the money agent |
+| `10-THE-STORY.md` | **What each person is actually going through, week by week, and which facts are planted where** | You, the orchestrator, and every cast agent |
 
 ---
 
@@ -166,7 +167,7 @@ deep record from a thin one. Ninety would make a prettier chart and answer nothi
 
 ```
   YOU  ·  the CHIEF OF STAFF
-   │   reads the ten documents, checks the branch, opens the rail, ages each wave,
+   │   reads the eleven documents, checks the branch, opens the rail, ages each wave,
    │   runs the exam, writes the report, and reports upward to the founder
    ▼
   THE ORCHESTRATOR  ·  one agent, the most capable one available

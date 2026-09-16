@@ -57,6 +57,28 @@ npm run test:e2e                          # e2e, THROUGH its harness
 npm run verify:sprintNN                   # per-sprint gates; most refuse production by name
 ```
 
+## The production build is memory-bound, and the cap is the binding constraint
+
+`npm run build` runs with `NODE_OPTIONS=--max-old-space-size=6144`. It was 3072, and on
+2026-09-16 four production deploys in a row died with
+
+```
+FATAL ERROR: Ineffective mark-compacts near heap limit
+Next.js build worker exited with code: null and signal: SIGABRT
+```
+
+at **3016 MB of a 3108 MB heap**, which is the cap doing exactly what a cap does. The same
+commit built fine locally on a machine with 16 GB, because the cap only bites when the build
+actually needs the memory and a warm local build needs less.
+
+Vercel's Pro build container has 8 GB, so 6144 leaves roughly 2 GB for the workers and the OS.
+**Do not raise it past 7168.** Past the container's real memory the kernel kills the process
+instead of V8, and a kernel kill has no JS stack trace in it: the build just stops, and the
+next person spends an afternoon looking for a code path that is not there.
+
+If it OOMs again, the answer is not another thousand megabytes. It is that the build has grown
+and something in it should be smaller.
+
 `npm run lint` used to drop into Next's interactive ESLint setup and hang there
 forever, which is the worst possible failure for a script an agent or a CI job
 might type. No linter is installed, so it now says so in one line and exits 1.

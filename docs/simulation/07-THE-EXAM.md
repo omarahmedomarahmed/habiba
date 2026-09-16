@@ -1,5 +1,11 @@
 # What the copilot knows, and whether it learned
 
+> 🔴 **Read `10-THE-STORY.md` first.** Every question below has a right answer, and the right
+> answers are planted there: what each patient said in their first session, wrote in their
+> journal in month 3, and what their clinician concluded in month 4. Without it this exam
+> reports a number that means nothing, because nobody decided in advance what the copilot was
+> supposed to have learned.
+
 **Two tests, not one.** The first runs **during** the waves and asks whether the copilot
 learned. The second runs at the end and asks how much it knows. Only the first can answer the
 claim, and only the second can rank the cast, so the run does both.

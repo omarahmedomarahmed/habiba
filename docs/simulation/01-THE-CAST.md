@@ -227,10 +227,10 @@ So the cadence is **designed**, and it is the first thing the orchestrator drive
 | `P5` Nadia | every two weeks | **5** | 3 | 3 | 0 | 2 | Covered at 10%, pays the rest, changes employer half way |
 | `P2` Salma | every month | **3** | 3 | 2 | 1 | 2 | Self pay by transfer. An ordinary appointment, kept ordinarily |
 | `P4` Hoda | every month | **3** | 3 | 1 | 0 | 2 | Enrolled after one refusal. Her second therapist is `T4`, once approved |
-| `P6` Ziad | every month | **3** | 3 | **0** | **0** | 1 | **The thin end.** No account, so no journal and no documents. His copilot has transcripts and nothing else |
+| `P6` Ziad | monthly, from month 3 | **1** | 3 | **0** | **0** | 1 | **The thin end.** No account, so no journal and no documents. His copilot has transcripts and nothing else. He ARRIVES in wave 3, so only one of his three sessions falls inside months 0 to 3: see `10-THE-STORY.md` |
 | Radar strangers | once each | 2 | 3 | 0 | 0 | 1 | `T3`'s crisis arrivals. Nobody comes back |
 | `D1` via the API | n/a | 2 | 3 | 0 | 0 | 1 | A partner opens sessions and gets notes back |
-| | | **35** | **160 min** | **28** | **4** | | |
+| | | **33** | **154 min** | **28** | **4** | | |
 
 ### Months 4 to 6
 
@@ -242,16 +242,23 @@ So the cadence is **designed**, and it is the first thing the orchestrator drive
 | `P7` Yousra | every month | **3** | 3 | 1 | The metered therapist's patient |
 | `P2` Salma | every month | **2** | 3 | 1 | Ordinary, and paying by transfer |
 | `P4` Hoda | every month | **2** | 3 | 1 | |
+| `P6` Ziad | monthly | **2** | 3 | 0 | The other two of his three, in months 4 and 5. No account either time |
 | Radar strangers | once each | **2** | 3 | 0 | `T3`'s crisis arrivals keep arriving after he drops to metered |
-| | | **27** | **126 min** | **18** | |
+| | | **29** | **132 min** | **18** | |
 
 ### The totals the budget was built on
 
 | | Sessions | Minutes | Journals |
 |---|---|---|---|
-| Months 0 to 3 | 35 | 160 | 28 |
-| Months 4 to 6 | 27 | 126 | 18 |
+| Months 0 to 3 | 33 | 154 | 28 |
+| Months 4 to 6 | 29 | 132 | 18 |
 | **Six months** | **62** | **286** | **46** |
+
+⚠️ **The split moved by two sessions and the totals did not.** `P6` Ziad arrives in wave 3, so
+he cannot have had three monthly sessions inside months 0 to 3; two of his three fall after the
+free month ends. The old table said 35 and 27, which added to 62 by having him come before he
+existed. Sixty two sessions, 286 minutes and the $1.98 model bill are all unchanged, and
+`10-THE-STORY.md` is where his three sessions are now dated.
 
 **20 of the 62 run 8 minutes and 42 run 3.** At the measured rate that is
 `62 x $0.01317 + 286 x $0.00407 = $1.98`.

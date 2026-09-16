@@ -77,7 +77,7 @@ The one thing a Chief of Staff does not do is act. You do not book a session, pa
 a queue: each of those has an agent whose whole existence is that person, and a Chief of Staff
 who starts doing the work has stopped watching whether it is being done.
 
-**Read these ten files from the repository first, in this order, before doing anything:**
+**Read these eleven files from the repository first, in this order, before doing anything:**
 
 ```
 docs/simulation/00-START-HERE.md   the shape, the five rules, the order of work, the $10 budget
@@ -90,9 +90,10 @@ docs/simulation/06-AGEING.md       how six months happens in one afternoon
 docs/simulation/07-THE-EXAM.md     what the copilot knows, and whether it learned
 docs/simulation/08-THE-NUMBERS.md  what the run hands the plan, and what it can never measure
 docs/simulation/09-THE-EDGES.md    48 ways money goes wrong, each attached to somebody in the cast
+docs/simulation/10-THE-STORY.md    what each person is going through, and which facts are planted where
 ```
 
-They are one design in ten documents. **Do not start until you have read all ten.**
+They are one design in eleven documents. **Do not start until you have read all eleven.**
 
 🔴 **`09-THE-EDGES.md` is new and it is the reason this run is worth doing twice.** Four of the
 cases in it were real defects found by hand in one afternoon of sprint 76, in the money path
@@ -101,6 +102,13 @@ section heading describing a test which did not exist. Twelve of the forty eight
 `npm run verify:edges` on every gate pass. **The other thirty six are what only a person walking
 the screens can answer**, and every one of the forty eight is reported on, including the ones
 that hold.
+
+🔴 **`10-THE-STORY.md` is new too, and `07-THE-EXAM.md` does not work without it.** The exam asks
+the copilot what somebody said in their first session, wrote in their journal in month 3 and
+what their clinician concluded in month 4. **None of those is scoreable unless somebody decided
+in advance what the answer is.** Twenty agents improvising sixty two sessions produce a record
+nobody can mark. Every patient in that file has an arc with planted facts in named sessions, and
+the agent playing that person says those things.
 
 **And read `docs/FINANCIAL-PLAN.md` once before you begin.** It is not part of the run; it is the
 business this run is a rehearsal of. Everything the simulation captures is evidence for or
@@ -332,7 +340,7 @@ anybody.** Six agents awake at most.
 
 ```
   YOU  ·  the CHIEF OF STAFF
-   │   reads the ten documents, checks the branch, opens the rail, ages each wave,
+   │   reads the eleven documents, checks the branch, opens the rail, ages each wave,
    │   runs the exam, writes the report, and reports upward to the founder
    ▼
   THE ORCHESTRATOR  ·  one agent, the most capable one available
