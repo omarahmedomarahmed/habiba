@@ -122,15 +122,53 @@ async function main() {
 
   /* ------------------------------------- the baseline knows what it measured */
 
+  /*
+   * 🔴 76.45 — THESE TWO WERE STALE, AND THEY WERE STALE IN THE WAY THIS FILE
+   * IS ABOUT.
+   *
+   * The first read `caseSetChanged(baseline, now).length > 0` and the second
+   * compared against the literal `{ sessions: 5, riskCases: 30 }`. Both passed
+   * for one reason: the baseline had genuinely drifted from the case set, and
+   * had been drifted since sprint 35R, when the OpenAI account ran out of
+   * credits and the model suites were never re-recorded.
+   *
+   * So a control written to prove "the runner refuses a changed shape" was
+   * actually asserting "the shape is currently changed", and the moment
+   * somebody re-recorded the baseline, which is the fix, both went red. A check
+   * that fails when the thing it guards is put right is measuring the wrong
+   * thing, which is the §6 family landing in the instrument for the third time
+   * in this repository.
+   *
+   * Restated as properties. The offender is CONSTRUCTED from the baseline's own
+   * recorded shape rather than read off the day's drift, so these hold whether
+   * the baseline is current or stale, and a third check says plainly which of
+   * those it is.
+   */
+  const recorded = baseline?.cases ?? { sessions: 0, riskCases: 0, speechCases: 0 };
+  const planted = { ...recorded, sessions: (recorded.sessions ?? 0) + 1 };
+
   check(
-    "🔴 35R a run over a changed case set is REFUSED rather than compared",
-    caseSetChanged(baseline, now).length > 0,
-    caseSetChanged(baseline, now).join(", ") || "the baseline claims the same shape",
+    "🔴 35R CONTROL a run over a changed case set is REFUSED rather than compared",
+    caseSetChanged(baseline, planted).length > 0,
+    caseSetChanged(baseline, planted).join(", ") || "a planted extra session was not noticed",
   );
 
   check(
-    "35R …and an unchanged shape compares normally",
-    caseSetChanged(baseline, { sessions: 5, riskCases: 30, speechCases: 3 }).length === 0,
+    "🔴 35R CONTROL …and a shape identical to the baseline's compares normally",
+    caseSetChanged(baseline, recorded).length === 0,
+    "otherwise every run would be refused and the gate would be a lid",
+  );
+
+  /*
+   * 🔴 AND THE ONE THE OTHER TWO WERE STANDING IN FOR: is the baseline
+   * CURRENT? This is the product property, it is reported separately from the
+   * mechanism, and it is the one that was silently false for forty sprints.
+   */
+  check(
+    "🔴 35R the baseline was recorded on the case set that exists today",
+    caseSetChanged(baseline, now).length === 0,
+    caseSetChanged(baseline, now).join(", ") ||
+      `${now.sessions} sessions, ${now.riskCases} risk cases, ${now.speechCases} speech cases`,
   );
 
   /* ------------------------------------------------------------- C173, twice */
