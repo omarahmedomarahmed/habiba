@@ -100,30 +100,47 @@ export function PendingBar({
       }
     >
       <Link href={href} className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">
-          {/*
-            🔴 76.13 — THREE SENTENCES, BECAUSE THREE THINGS ARE TRUE.
+        {/*
+          🔴 76.23 — THE AMOUNT IS NEVER THE PART THAT GETS CUT OFF.
 
-            An OPEN payment is waiting on the payer and is the one that matters
-            most: they have very likely sent the money and closed the browser,
-            and this is the only route back to the screen that can tell us. A
-            SUBMITTED one is waiting on us. A CONFIRMED one is finished.
-          */}
-          {stage === "confirmed"
-            ? t("bar.done", { what })
-            : stage === "open"
-              ? t("bar.open", { what, amount })
-              : t("bar.pending", { what, amount })}
+          This was one sentence in one `truncate` paragraph: "{what} · {amount}
+          unfinished". At 390 pixels, which is the width this is read at, a
+          session named after a clinician fills the line and the browser
+          truncates from the end, so the frame read
+
+              Session with Dr Mona Demo · EGP 1,1…
+
+          and the amount, the one fact a payer needs in order to act, was the
+          half that disappeared. Nothing about the props or the copy was wrong.
+          It was only wrong on screen, which is why it took a photograph.
+
+          So they are two elements now: the subject may truncate, because a
+          clinician's name can be recovered by tapping, and the figure is
+          `shrink-0` and cannot.
+        */}
+        <p className="flex items-baseline gap-2 text-sm font-semibold">
+          <span className="min-w-0 truncate">{what}</span>
+          <span className="shrink-0 tabular-nums">{amount}</span>
         </p>
         {/*
-          🔴 HOW LONG, because "waiting" with no horizon is indistinguishable
-          from broken, and a payer who decides it is broken transfers again.
+          🔴 AND THE STATE MOVES TO THE SECOND LINE, where it has room.
+
+          Three things are true and the colour already says which: red is
+          unfinished business waiting on the payer, amber is waiting on us,
+          green is done. The words underneath say what to DO about it, which is
+          the part a colour cannot carry.
+
+          "How long" matters most of all: waiting with no horizon is
+          indistinguishable from broken, and a payer who decides it is broken
+          transfers again.
         */}
-        {stage === "submitted" ? (
-          <p className="truncate text-xs opacity-80">{t("bar.eta")}</p>
-        ) : stage === "open" ? (
-          <p className="truncate text-xs opacity-80">{t("bar.openHint")}</p>
-        ) : null}
+        <p className="truncate text-xs opacity-80">
+          {stage === "confirmed"
+            ? t("bar.stateDone")
+            : stage === "open"
+              ? t("bar.openHint")
+              : t("bar.eta")}
+        </p>
       </Link>
 
       {done ? (
