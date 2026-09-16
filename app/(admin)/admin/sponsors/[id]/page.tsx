@@ -5,6 +5,8 @@ import { desc, eq } from "drizzle-orm";
 
 import { Card, PageHeader } from "@/components/ui";
 import { Money } from "@/components/ui/money";
+import { formatMoney } from "@/lib/billing/plans";
+import { potSpendAgrees, potTrace } from "@/lib/console/pot-trace";
 import { requireStaff } from "@/lib/auth/guard";
 import { ledgerPotBalance } from "@/lib/billing/pot";
 import { controlDb as db } from "@/lib/db";
@@ -59,7 +61,7 @@ export default async function SponsorProfilePage({
 
   if (!row) notFound();
 
-  const [[pot], terms, ledgerCents, payments] = await Promise.all([
+  const [[pot], terms, ledgerCents, payments, trace, agreement] = await Promise.all([
     db
       .select({ balanceCents: sponsorPots.balanceCents, coverageBps: sponsorPots.coverageBps })
       .from(sponsorPots)
@@ -88,6 +90,9 @@ export default async function SponsorProfilePage({
       .where(eq(manualPayments.sponsorId, id))
       .orderBy(desc(manualPayments.createdAt))
       .limit(50),
+    /* 🔴 76.29 — where every cent of it went, session by session. */
+    potTrace(id),
+    potSpendAgrees(id),
   ]);
 
   /*
@@ -186,7 +191,12 @@ export default async function SponsorProfilePage({
                   <p className="text-sm font-medium text-slate-900">
                     <Money cents={p.settlesCents} />{" "}
                     <span className="text-xs text-slate-400">
-                      sent {p.amountCents} {p.currency.toUpperCase()}
+                      {/*
+                        🔴 76.28 — WRITTEN OUT, because it printed "5700000 EGP"
+                        and an operator matches this against a bank statement.
+                        A server component, so `formatMoney` is allowed here.
+                      */}
+                      sent {formatMoney(p.amountCents, p.currency.toUpperCase(), "en-US")}
                     </span>
                   </p>
                   <p className="truncate text-xs text-slate-500">
@@ -202,6 +212,63 @@ export default async function SponsorProfilePage({
             ))}
           </Card>
         )}
+      </section>
+
+      {/* ------------------------------------- 🔴 76.29 · where it all went -- */}
+      <section className="space-y-2">
+        <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+          Where the pot went
+        </h2>
+
+        {/*
+          🔴 THE PATIENT IS A REFERENCE AND NOT A NAME, and that is a decision.
+
+          C227, C243 and this product's own audit log all refuse to put a
+          patient's identity beside the employer paying for them: a list reading
+          "Cairo Foundry paid for <name>'s session with Dr Mona" is a register of
+          who is in therapy, indexed by employer. The clinician is named because
+          we pay them and already know; the session reference is what an operator
+          needs to reconcile, and it is enough.
+        */}
+        {trace.rows.length === 0 ? (
+          <Card className="p-5 text-sm text-slate-500">Nothing funded yet.</Card>
+        ) : (
+          <Card className="divide-y divide-slate-100">
+            {trace.rows.map((row) => (
+              <div key={row.sessionId} className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-sm text-slate-900">{row.patientRef}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {row.at.toISOString().slice(0, 10)} · {row.therapistName} ·{" "}
+                    {row.coverageBps / 100}% of <Money cents={row.grossCents} />
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-slate-900">
+                  <Money cents={row.sponsorShareCents} />
+                </p>
+              </div>
+            ))}
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-900">
+                {trace.rows.length} funded
+              </p>
+              <p className="text-sm font-bold text-slate-900">
+                <Money cents={trace.spentCents} />
+              </p>
+            </div>
+          </Card>
+        )}
+
+        {/*
+          🔴 AND WHETHER THE SESSIONS ACCOUNT FOR THE MONEY. A gap is a spend
+          with no session behind it, which is a defect nobody finds until a
+          company asks where their balance went.
+        */}
+        <p className={agreement.agrees ? "px-1 text-xs text-teal-700" : "px-1 text-xs text-rose-600"}>
+          {agreement.agrees
+            ? "Agrees with the ledger."
+            : `🔴 Sessions say ${agreement.fromSessions}, the ledger says ${agreement.fromLedger}.`}
+        </p>
       </section>
 
       <Link href="/admin/transfers" className="text-sm text-slate-500 underline">

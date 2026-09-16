@@ -109,7 +109,7 @@ export type ManualEntry = {
    * Empty where a payment has one obvious subject, which is most of them, and
    * the heading has already said what it is.
    */
-  lines: { label: string; amountLabel: string }[];
+  lines: { label: string; amountLabel: string; credit?: boolean }[];
 };
 
 /* -------------------------------------------------------- who needs this -- */
@@ -291,6 +291,15 @@ export async function manualEntry(input: {
     (items ?? []).map((item) => ({
       label: item.label,
       amountLabel: formatMoney(egpMinorFor(item.cents, rateMicro), "EGP", input.locale),
+      /*
+       * 🔴 76.27 — THE SIGN IS DECIDED HERE, on the server, and travels as a
+       * flag. A negative line is a credit: a benefit's share coming off the
+       * total rather than another charge going on to it. The browser cannot
+       * work this out for itself, because by the time the figure reaches it the
+       * amount is a formatted string and a minus sign is a glyph whose position
+       * moves between the two scripts this product renders.
+       */
+      credit: item.cents < 0,
     }));
 
   if (live) {

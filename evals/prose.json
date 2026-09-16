@@ -12,12 +12,12 @@
     "legal": 1377
   },
   "baseline": {
-    "shared": 1318,
-    "patient": 3875,
+    "shared": 1305,
+    "patient": 3878,
     "public": 2836,
     "clinician": 6304,
     "sponsor": 1031,
-    "admin": 2559,
+    "admin": 2554,
     "clinic": 1049,
     "partner": 1410,
     "legal": 1377

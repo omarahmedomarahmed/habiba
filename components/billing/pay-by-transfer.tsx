@@ -60,8 +60,16 @@ export type LiveState =
 
 export type TransferFormState = { error?: string; ok?: boolean };
 
-/** One thing the total covers, already converted and formatted by the server. */
-export type PaymentLineView = { label: string; amountLabel: string };
+/**
+ * One thing the total covers, already converted and formatted by the server.
+ *
+ * 🔴 76.27 — `credit` marks a line that comes OFF the total rather than adding
+ * to it, which is how a benefit's share is shown. The server decides, because
+ * the server is the only side that knows the sign: `amountLabel` is a string by
+ * the time it arrives here and parsing a minus sign back out of a formatted
+ * figure would break the moment somebody reads it in Arabic.
+ */
+export type PaymentLineView = { label: string; amountLabel: string; credit?: boolean };
 
 /**
  * 🔴 76.16 — WHAT THE TOTAL IS MADE OF, and it renders in TWO states.
@@ -87,8 +95,21 @@ function Lines({ lines }: { lines?: PaymentLineView[] }) {
     <ul className="mt-3 space-y-1 rounded-xl bg-white/70 p-3">
       {lines.map((line, i) => (
         <li key={`${line.label}-${i}`} className="flex items-baseline justify-between gap-3 text-xs">
-          <span className="min-w-0 truncate text-slate-600">{line.label}</span>
-          <span className="shrink-0 font-medium text-slate-900 tabular-nums">
+          {/*
+            🔴 76.27 — A CREDIT READS AS ONE. A benefit's share comes off the
+            total, and a line that looks identical to the charges above it makes
+            a patient add when they should subtract.
+          */}
+          <span className={line.credit ? "min-w-0 truncate text-teal-700" : "min-w-0 truncate text-slate-600"}>
+            {line.label}
+          </span>
+          <span
+            className={
+              line.credit
+                ? "shrink-0 font-semibold text-teal-700 tabular-nums"
+                : "shrink-0 font-medium text-slate-900 tabular-nums"
+            }
+          >
             {line.amountLabel}
           </span>
         </li>

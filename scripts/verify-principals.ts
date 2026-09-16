@@ -174,6 +174,8 @@ const SCOPE: Record<string, Scope> = {
    * what the gate checks that claim against.
    */
   "console/board": { who: ["admin"] },
+  /* 🔴 76.29 — where a sponsor pot went. Operators only, and it names no patient. */
+  "console/pot-trace": { who: ["admin"] },
   "console/gate": { who: ["admin"] },
   "console/history": { who: ["admin"], clinical: true },
 

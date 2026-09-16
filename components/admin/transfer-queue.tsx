@@ -29,6 +29,10 @@ type Row = {
   /** What they sent, in minor units of `currency`. */
   amountCents: number;
   currency: string;
+  /** 🔴 76.28 — the same figure, written out by the server. C84. */
+  amountLabel: string;
+  /** What it settles, in dollars, written out by the server. */
+  settlesLabel: string;
   /** What it settles, in USD cents. 0106. */
   settlesCents: number;
   reference: string | null;
@@ -199,9 +203,22 @@ function TransferRow({
             credit, and it is the one number the payer never saw.
           */}
           <p className="mt-0.5 text-sm text-slate-600">
-            {(row.amountCents / 100).toFixed(2)} {row.currency}
+            {/*
+              🔴 76.28 — FORMATTED BY THE SERVER, because an operator matches
+              this against a bank statement.
+
+              It was `(amountCents / 100).toFixed(2)`, which printed a company's
+              top-up as "5700000.00 EGP". Nobody reads a seven-digit run of
+              characters correctly at a glance, and the whole job on this screen
+              is deciding whether a figure equals a line in a banking app.
+
+              It cannot be fixed here: C84 bans `Intl` in a client component,
+              and this is one. So the page formats it and passes the string,
+              which is the same rule every other figure on this rail follows.
+            */}
+            {row.amountLabel}
             <span className="ms-2 text-slate-400">
-              settles ${(row.settlesCents / 100).toFixed(2)}
+              settles {row.settlesLabel}
             </span>
             {waited !== null ? (
               <span className={waited > 15 ? "ms-2 font-semibold text-rose-600" : "ms-2 text-slate-500"}>

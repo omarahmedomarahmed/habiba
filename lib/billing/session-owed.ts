@@ -1,0 +1,126 @@
+import "server-only";
+
+import { eq } from "drizzle-orm";
+
+import { controlDb as db } from "@/lib/db";
+import { sessionPayments, sessions } from "@/lib/db/schema";
+
+import type { PaymentLine } from "./manual";
+
+/**
+ * 🔴 76.27 — WHAT A PATIENT STILL OWES, AFTER THEIR BENEFIT HAS PAID ITS HALF.
+ *
+ * ## The defect this exists to close, and it was live
+ *
+ * `payFromPot` runs at BOOKING. For a company covering 50% of a $20 session it
+ * debits the pot $10, writes a `session_payments` row carrying the frozen split
+ * — `sponsorShareCents` and `patientShareCents`, with a comment saying *"written
+ * here and read for ever after"* — and deliberately leaves the session
+ * `pending`, because *"a partly covered session is not a paid session: the
+ * patient owes their share."*
+ *
+ * Both screens that then ask the patient for money read `sessions.price_cents`.
+ *
+ * So the employer's ten dollars were spent, and the employee was asked for
+ * twenty. On a rail with no processor that is money taken twice with nothing to
+ * reverse it, on the one commercial offer the Egyptian go-to-market rests on.
+ * The row built to answer this question was being ignored by the only two
+ * callers that needed the answer.
+ *
+ * ## 🔴 THE FROZEN SHARE, NEVER A PERCENTAGE RECOMPUTED NOW
+ *
+ * `coverageNow` is read once, at booking, because *"an employer lowering their
+ * percentage on a Tuesday must not change what a patient owes for a session
+ * they agreed to on Monday."* Recomputing here would undo that on the screen
+ * where it matters most. This reads the stored share and nothing else.
+ *
+ * ## And it names no employer
+ *
+ * C227 and C243: a covered session is named without naming who covered it, the
+ * rule `pbilling.covered` already follows. The patient knows who their employer
+ * is; the product does not need to put them on a money surface to prove it.
+ */
+export type SessionOwed = {
+  /** What the patient owes before tax. The whole price when nothing covered it. */
+  grossCents: number;
+  /** What a benefit already paid. Zero when there is no benefit. */
+  coveredCents: number;
+  /** The full price, for the line that says what the session cost. */
+  priceCents: number;
+};
+
+export async function patientOwesFor(sessionId: string): Promise<SessionOwed> {
+  const [row] = await db
+    .select({ priceCents: sessions.priceCents })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+  const priceCents = Math.max(0, row?.priceCents ?? 0);
+
+  /*
+   * 🔴 THE NEWEST ONE, and there is normally exactly one. A refund writes its
+   * own row rather than editing this, so ordering by creation and taking the
+   * first is reading the current split rather than a historical one.
+   */
+  const [split] = await db
+    .select({
+      sponsorShareCents: sessionPayments.sponsorShareCents,
+      patientShareCents: sessionPayments.patientShareCents,
+    })
+    .from(sessionPayments)
+    .where(eq(sessionPayments.sessionId, sessionId))
+    .limit(1);
+
+  if (!split || split.patientShareCents === null) {
+    return { grossCents: priceCents, coveredCents: 0, priceCents };
+  }
+
+  /*
+   * Clamped, because a share is money and a negative one is a refund rather
+   * than a charge. `Math.min` guards the other direction: a stored share above
+   * the price would ask a patient for more than the session costs.
+   */
+  const owed = Math.min(priceCents, Math.max(0, split.patientShareCents));
+
+  return {
+    grossCents: owed,
+    coveredCents: Math.max(0, split.sponsorShareCents ?? priceCents - owed),
+    priceCents,
+  };
+}
+
+/**
+ * 🔴 76.27 — THE THREE LINES A PARTLY COVERED PATIENT NEEDS TO SEE.
+ *
+ *   Session with Dr Mona          1,000 EGP
+ *   Your benefit paid              -500 EGP
+ *   VAT                              70 EGP
+ *
+ * They add up to what is being asked for, which is the point: a patient looking
+ * at 570 EGP for a session priced at 1,000 has a question, and an unanswered
+ * question about money is a payment that does not happen.
+ *
+ * 🔴 EMPTY WHEN NOTHING COVERED IT. One line saying "session" above a total
+ * that already says "session" is noise on the screen where somebody is copying
+ * an account number, which is the rule every other caller of `lines` follows.
+ */
+export function sessionLines(input: {
+  owed: SessionOwed;
+  vatCents: number;
+  /** "Session with Dr Mona Demo", from the caller's own translated copy. */
+  sessionLabel: string;
+  /** "Your benefit paid", translated. Never the employer's name (C227). */
+  benefitLabel: string;
+  /** "VAT", translated. */
+  vatLabel: string;
+}): PaymentLine[] {
+  if (input.owed.coveredCents <= 0) return [];
+
+  return [
+    { label: input.sessionLabel, cents: input.owed.priceCents },
+    /* Negative, so the three lines sum to the figure above them. */
+    { label: input.benefitLabel, cents: -input.owed.coveredCents },
+    ...(input.vatCents > 0 ? [{ label: input.vatLabel, cents: input.vatCents }] : []),
+  ];
+}

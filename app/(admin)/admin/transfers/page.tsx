@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { formatMoney } from "@/lib/billing/plans";
 import { OpenCarts } from "@/components/admin/open-carts";
 import { TransferQueue } from "@/components/admin/transfer-queue";
 import { PageHeader } from "@/components/ui";
@@ -168,6 +169,14 @@ export default async function TransfersPage() {
           purpose: r.purpose,
           amountCents: r.amountCents,
           currency: r.currency,
+          /*
+           * 🔴 76.28 — WRITTEN OUT HERE, because the queue is a client
+           * component and C84 bans `Intl` in one. It printed a company's
+           * top-up as "5700000.00 EGP", which is unreadable at the one moment
+           * it matters: an operator comparing it with a line in a banking app.
+           */
+          amountLabel: formatMoney(r.amountCents, r.currency.toUpperCase(), "en-US"),
+          settlesLabel: formatMoney(r.settlesCents, "USD", "en-US"),
           settlesCents: r.settlesCents,
           reference: r.reference,
           proofUrl: r.proofUrl,

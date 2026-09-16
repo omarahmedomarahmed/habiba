@@ -706,14 +706,49 @@ async function main() {
     ...settlesFrom(billActions).map((rhs) => `bill: ${rhs}`),
   ].filter((entry) => FROM_THE_REQUEST.test(entry));
 
+  /*
+   * ⚠️ 76.27 — AND THIS ONCE ASSERTED THE DEFECT.
+   *
+   * It required `priceCents: session.priceCents` on the session rail, which was
+   * true and was WRONG: `payFromPot` debits an employer's share at booking, so
+   * the price of the session stopped being what the patient owes the moment a
+   * company covered part of one. All three places that priced a session read
+   * that column, agreed with each other, and asked an employee for the half
+   * their employer had already paid.
+   *
+   * A check can pin a defect in place. This one did, for as long as the defect
+   * and the check said the same thing. The property is the one that was meant:
+   * every settles figure is read from the server, and the session's starting
+   * point is WHAT THE PATIENT OWES rather than what the session cost.
+   */
+  const sessionPricesFromOwed =
+    /patientOwesFor\(/.test(payActions) &&
+    /priceCents: owed\.grossCents/.test(payActions) &&
+    !/priceCents: session\.priceCents/.test(payActions);
+
   check(
     "🔴 the session and the bill price themselves from stored rows, never from the post",
     tainted.length === 0 &&
-      /priceCents: session\.priceCents/.test(payActions) &&
+      sessionPricesFromOwed &&
       /livePaymentFor\(/.test(billActions) &&
       /billingSummary\(/.test(billActions),
     tainted.join(", ") ||
-      "the session reads its own row; the bill reads the open claim, or the invoices",
+      "the session reads what is still owed after a benefit paid; the bill reads the open claim",
+  );
+
+  check(
+    "🔴 …and a covered session never charges the employer's share to the employee",
+    /patientShareCents/.test(readSource("lib/billing/session-owed.ts")) &&
+      /patientOwesFor\(/.test(readSource("app/pay/[token]/page.tsx")) &&
+      !/priceCents: session\.priceCents/.test(readSource("app/pay/[token]/page.tsx")),
+    "the split is frozen onto session_payments at booking, and that is the figure to ask for",
+  );
+
+  check(
+    "🔴 CONTROL the same scan catches the version that read the session's own price",
+    /priceCents: session\.priceCents/.test("  priceCents: session.priceCents,") &&
+      !/priceCents: session\.priceCents/.test("  priceCents: owed.grossCents,"),
+    "an absence assertion is worth nothing until it is watched finding the thing it forbids",
   );
 
   check(

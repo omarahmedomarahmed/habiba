@@ -9,6 +9,7 @@ import {
   organizationNeedsTransfer,
   sessionTransferMoney,
 } from "@/lib/billing/manual-entry";
+import { patientOwesFor, sessionLines } from "@/lib/billing/session-owed";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
@@ -109,9 +110,24 @@ export default async function PayPage({
    * declare, because two places computing one number is how a payer is shown
    * one amount and charged another.
    */
+  /*
+   * 🔴 76.27 — WHAT THEY STILL OWE, not what the session cost.
+   *
+   * This read `session.priceCents`, and `payFromPot` had already debited the
+   * employer's half at booking. So a company covering 50% of a $20 session paid
+   * $10 and their employee was asked for $20: the benefit was spent and the
+   * patient was billed as though it had not been. There is no processor on this
+   * rail, so that is money taken twice with nothing to reverse it.
+   *
+   * `patientOwesFor` reads the share `payFromPot` froze onto `session_payments`
+   * at booking, which is the row built to answer exactly this and was read by
+   * nobody.
+   */
+  const owed = await patientOwesFor(session.id);
+
   const money = await sessionTransferMoney({
     organizationId: session.organizationId,
-    priceCents: session.priceCents,
+    priceCents: owed.grossCents,
   });
 
   const therapistName = [therapist?.firstName, therapist?.lastName].filter(Boolean).join(" ");
@@ -132,6 +148,20 @@ export default async function PayPage({
     needed: needsTransfer,
     settlesCents: money.settlesCents,
     vatCents: money.vatCents,
+    /*
+     * 🔴 AND THE SPLIT IS PRINTED, because a patient looking at 570 EGP for a
+     * session priced at 1,000 has a question, and an unanswered question about
+     * money is a payment that does not happen. Empty when nothing covered it.
+     */
+    lines: sessionLines({
+      owed,
+      vatCents: money.vatCents,
+      sessionLabel: therapistName
+        ? t("transfer.forSessionWith", { name: therapistName })
+        : t("transfer.forSession"),
+      benefitLabel: t("pay.benefitPaid"),
+      vatLabel: t("topup.vat"),
+    }),
     locale: tag,
   });
 
@@ -184,6 +214,8 @@ export default async function PayPage({
             details={rail.details}
             amountLabel={rail.amountLabel}
             taxNote={rail.taxNote}
+            /* 🔴 76.27 — the session, the benefit's share, and the tax. */
+            lines={rail.lines}
             live={rail.live}
             action={declareSessionTransfer.bind(null, token)}
             /*

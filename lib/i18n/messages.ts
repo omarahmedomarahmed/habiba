@@ -401,6 +401,9 @@ export const en = {
   "psessions.join": "Join",
 
   /* ------------------------------- 🔴 76.17 the door is open, right now */
+  /* 🔴 76.27 — a covered session, named without naming an employer (C227, C243). */
+  "pay.benefitPaid": "Your benefit paid",
+
   "plive.started": "Your session has started",
   "plive.waiting": "{name} is in the room",
   "plive.waitingAnon": "Your therapist is in the room",
@@ -1358,7 +1361,7 @@ export const en = {
    */
   "aclinic.nav": "Clinics",
   "aclinic.title": "Clinics and hospitals",
-  "aclinic.body": "A clinic IS an organisation row, so its clinicians sit in its tenancy. Activating one opens a practice that holds records.",
+  "aclinic.body": "A clinic IS an organisation row, so its clinicians sit in its tenancy. Activating one opens a practice holding records.",
   "aclinic.none": "No practice enquiries yet.",
   "aclinic.contact": "Contact",
   "aclinic.clinicians": "{count} clinicians",
@@ -1373,7 +1376,7 @@ export const en = {
   /* 55.2 — the operator's side of a partner. Held until somebody has had the call. */
   "apartner.nav": "Partners",
   "apartner.title": "Partners and integrators",
-  "apartner.body": "A partner is outside clinical tenancy and owns no organisation. Activating one lets them hold a key, so nothing happens before the call.",
+  "apartner.body": "A partner sits outside clinical tenancy and owns no organisation. Activating one lets them hold a key: nothing happens before the call.",
   "apartner.none": "No integrator enquiries yet.",
   "apartner.contact": "Contact",
   "apartner.intent": "What they say they want to build",
@@ -1386,7 +1389,7 @@ export const en = {
   "apartner.developer": "Developer, reads only",
   "apartner.create": "Create",
   /* 🔴 C265 — the reason this console never mints a key, said on the console. */
-  "apartner.neverMints": "The partner mints and scopes their own keys. A key we minted is a credential nobody on their side chose the scope of.",
+  "apartner.neverMints": "The partner mints and scopes their own keys. A key we minted is one nobody on their side scoped.",
   "asponsor.nav": "Sponsors",
   "asponsor.title": "Sponsors",
   "asponsor.body": "Corporate and university accounts: one type, two faces, different words on their own screens.",
@@ -1964,7 +1967,7 @@ export const en = {
   "acheckin.title": "Check-ins",
   "acheckin.body": "A scheduled message asking how somebody is. Every number is yours to change; watch the mute rate.",
   "acheckin.rate": "The mute rate",
-  "acheckin.rateBody": "{muted} of {reachable} reachable people have turned these off. Above {halt} the channel stops for everybody: continuing is choosing to be wrong at everyone.",
+  "acheckin.rateBody": "{muted} of {reachable} reachable people muted these. Above {halt} the channel stops for everybody: continuing is choosing to be wrong.",
   "acheckin.halted": "The channel is halted. Enough people have muted that it stopped on its own.",
   "acheckin.sent": "{count} sent",
   "acheckin.delivered": "{count} delivered",
@@ -1972,7 +1975,7 @@ export const en = {
   "acheckin.crisisRouted": "{count} went to the crisis path",
   "acheckin.mutedCount": "{count} turned them off",
   "acheckin.unmutedCount": "{count} turned them back on",
-  "acheckin.noBodies": "No reply is on any screen. A worrying one reaches their therapist through the crisis path; the rest is read by nobody.",
+  "acheckin.noBodies": "No reply is on any screen. A worrying one reaches their therapist through the crisis path; the rest nobody reads.",
   "checkin.1": "{name}, how are you doing today?",
   "checkin.2": "Thinking of you, {name}. How is today going?",
   "checkin.3": "Hello {name}. How are things right now?",
@@ -3711,6 +3714,9 @@ export const ar: Record<MessageKey, string> = {
   "psessions.join": "ادخل",
 
   /* ------------------------------- 🔴 76.17 the door is open, right now */
+  /* 🔴 76.27 — a covered session, named without naming an employer (C227, C243). */
+  "pay.benefitPaid": "دفعت مزاياك",
+
   "plive.started": "جلستك بدأت",
   "plive.waiting": "{name} في الغرفة",
   "plive.waitingAnon": "معالجك في الغرفة",

@@ -196,10 +196,19 @@ export async function declareSessionTransfer(
    * helper. Recomputed here rather than posted from the form for the reason
    * every amount on this rail is: a number a payer can edit is a number a payer
    * can lower.
+   *
+   * 🔴 76.27 — AND FROM THE SAME STARTING POINT, which is the half that was
+   * wrong. All THREE places that priced this session read `price_cents` and
+   * ignored the employer's share that `payFromPot` had already debited, so the
+   * screen, the cart and the declaration agreed with each other and all three
+   * were agreed on the wrong number.
    */
+  const { patientOwesFor } = await import("@/lib/billing/session-owed");
+  const owed = await patientOwesFor(session.id);
+
   const money = await sessionTransferMoney({
     organizationId: session.organizationId,
-    priceCents: session.priceCents,
+    priceCents: owed.grossCents,
   });
 
   const result = await declarePaid({
@@ -242,19 +251,71 @@ export async function openSessionPayment(token: string): Promise<void> {
   );
   if (!(await organizationNeedsTransfer(session.organizationId))) return;
 
+  /*
+   * 🔴 76.27 — THE SAME CORRECTION AS THE PAGE, and it has to be here too.
+   *
+   * These two compute the figure separately, which is the shape that lets a
+   * payer be shown one amount and charged another. Both read what the patient
+   * still owes after their benefit paid, rather than what the session cost.
+   */
+  const { patientOwesFor } = await import("@/lib/billing/session-owed");
+  const owed = await patientOwesFor(session.id);
+
   const money = await sessionTransferMoney({
     organizationId: session.organizationId,
-    priceCents: session.priceCents,
+    priceCents: owed.grossCents,
   });
 
   const { openCart } = await import("@/lib/billing/cart");
   const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
+
+  /*
+   * 🔴 76.27 — AND THE LINES ARE STORED WITH IT, which is not optional.
+   *
+   * `openCart` re-states an open row from what it is given, so a call that
+   * omitted the lines CLEARED them. That is exactly what happened: the page
+   * computed the split, printed nothing, and the reason was that opening the
+   * sheet had just wiped the lines the page was about to read back.
+   *
+   * The labels are translated here because this is where the row is written,
+   * and the row outlives the page: an operator reading a claim next week needs
+   * the words the payer saw rather than a key.
+   */
+  const { sessionLines } = await import("@/lib/billing/session-owed");
+  const { getI18n } = await import("@/lib/i18n/server");
+  const { t } = await getI18n();
+
+  /*
+   * The clinician's name, read here rather than carried on the token's row:
+   * `resolveJoinToken` returns the therapist's ID and deliberately little else,
+   * which is the right shape for a guard and the wrong one for a label.
+   */
+  const { controlDb } = await import("@/lib/db");
+  const { users } = await import("@/lib/db/schema");
+  const { eq } = await import("drizzle-orm");
+  const [clinician] = await controlDb
+    .select({ first: users.firstName, last: users.lastName })
+    .from(users)
+    .where(eq(users.id, session.therapistId))
+    .limit(1);
+  const therapistName = [clinician?.first, clinician?.last].filter(Boolean).join(" ");
+
+  const lineItems = sessionLines({
+    owed,
+    vatCents: money.vatCents,
+    sessionLabel: therapistName
+      ? t("transfer.forSessionWith", { name: therapistName })
+      : t("transfer.forSession"),
+    benefitLabel: t("pay.benefitPaid"),
+    vatLabel: t("topup.vat"),
+  });
 
   await openCart({
     purpose: "session",
     refId: session.id,
     amountCents: egpMinorFor(money.settlesCents, await egpRateMicro()),
     settlesCents: money.settlesCents,
+    lineItems,
     payer: { kind: "session", organizationId: session.organizationId },
   });
 }
