@@ -1,0 +1,161 @@
+import "server-only";
+
+import { and, desc, eq, inArray } from "drizzle-orm";
+
+import { controlDb as db } from "@/lib/db";
+import { manualPayments, sessions, users } from "@/lib/db/schema";
+
+import type { Translate } from "@/lib/i18n/server";
+
+import { egpMinorFor, egpRateMicro } from "./manual";
+import { formatMoney } from "./plans";
+
+/**
+ * 🔴 76.4 — IS THERE MONEY IN FLIGHT FOR THIS PERSON, FOR THE BAR AT THE TOP.
+ *
+ * ## Why every layout asks
+ *
+ * The Egyptian rail's middle state lasts hours and used to be visible on
+ * exactly one screen. A payer who minimised the popup and went to look at their
+ * calendar had no way back and no way to tell whether anything was happening.
+ * A patient in that position books again, a company emails, a clinician assumes
+ * their subscription failed, and all three send a second transfer that nobody
+ * can reverse.
+ *
+ * ## Why it reads the row and not a cache
+ *
+ * `manual_payments` IS the record on this rail. There is no webhook and no
+ * processor, so the only true answer to "has this been checked yet" is the
+ * state column, and any copy of it is a second opinion that can be stale in the
+ * one direction that matters.
+ *
+ * ## Confirmed payments are included, briefly and on purpose
+ *
+ * A payer who never sees the outcome learns nothing from having waited. So a
+ * recently confirmed payment comes back too, marked `done`, and the browser is
+ * what remembers whether this person has dismissed it: "has read a banner" is
+ * not a fact worth a column.
+ */
+export type PendingPayment = {
+  paymentId: string;
+  /** What the money is for, already in the reader's language. */
+  what: string;
+  /** "1,140 EGP", formatted here because a client component may not (C84). */
+  amount: string;
+  /** Where the popup for it lives. */
+  href: string;
+  /** Confirmed rather than waiting. Dismissible; a pending one is not. */
+  done: boolean;
+};
+
+/** How long a confirmed payment keeps saying so, before it is simply history. */
+const CELEBRATE_FOR_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * 🔴 ONE QUERY SHAPE FOR THREE PAYERS, and the payer kind decides the columns.
+ *
+ * A patient's live payment is found by the SESSION, because a patient may have
+ * no account at all: the guest paying at eleven at night is the person this
+ * rail was built for. A clinician's is found by their organisation and a
+ * company's by its sponsor id.
+ */
+export async function pendingPaymentFor(
+  who:
+    | { kind: "organization"; organizationId: string }
+    | { kind: "sponsor"; sponsorId: string }
+    | { kind: "session"; sessionId: string },
+  t: Translate,
+  locale: string,
+): Promise<PendingPayment | null> {
+  const where =
+    who.kind === "organization"
+      ? eq(manualPayments.organizationId, who.organizationId)
+      : who.kind === "sponsor"
+        ? eq(manualPayments.sponsorId, who.sponsorId)
+        : eq(manualPayments.refId, who.sessionId);
+
+  const [row] = await db
+    .select({
+      id: manualPayments.id,
+      purpose: manualPayments.purpose,
+      refId: manualPayments.refId,
+      state: manualPayments.state,
+      settlesCents: manualPayments.settlesCents,
+      decidedAt: manualPayments.decidedAt,
+    })
+    .from(manualPayments)
+    .where(
+      and(
+        where,
+        /*
+         * 🔴 `awaiting_proof` IS EXCLUDED, deliberately.
+         *
+         * That row opens the moment somebody presses the button, before they
+         * have sent anything. A bar saying "waiting to be checked" over a
+         * payment nobody has made yet would train every payer to ignore it,
+         * and this bar only works while it is always true.
+         */
+        inArray(manualPayments.state, ["submitted", "confirmed"]),
+      ),
+    )
+    .orderBy(desc(manualPayments.createdAt))
+    .limit(1);
+
+  if (!row) return null;
+
+  const done = row.state === "confirmed";
+  if (done) {
+    const at = row.decidedAt?.getTime() ?? 0;
+    if (!at || Date.now() - at > CELEBRATE_FOR_MS) return null;
+  }
+
+  /*
+   * 🔴 The figure in POUNDS, because that is what left their bank, and
+   * formatted here because a client component may not format money (C84).
+   */
+  const amount = formatMoney(egpMinorFor(row.settlesCents, await egpRateMicro()), "EGP", locale);
+
+  return {
+    paymentId: row.id,
+    what: await describe(row.purpose, row.refId, t),
+    amount,
+    href: hrefFor(row.purpose, row.refId),
+    done,
+  };
+}
+
+/**
+ * 🔴 WHAT IT IS FOR, IN WORDS THE PAYER RECOGNISES.
+ *
+ * "pot_topup" is our word. "Your pot top-up" is theirs, and a session is named
+ * by the clinician they are seeing rather than by an identifier, because a
+ * person with two sessions in flight has to be able to tell which one this is.
+ */
+async function describe(
+  purpose: string,
+  refId: string | null,
+  t: Translate,
+): Promise<string> {
+  if (purpose === "pot_topup") return t("transfer.forPot");
+  if (purpose === "subscription") return t("transfer.forBill");
+
+  if (purpose === "session" && refId) {
+    const [row] = await db
+      .select({ first: users.firstName, last: users.lastName })
+      .from(sessions)
+      .leftJoin(users, eq(users.id, sessions.therapistId))
+      .where(eq(sessions.id, refId))
+      .limit(1);
+
+    const name = [row?.first, row?.last].filter(Boolean).join(" ");
+    if (name) return t("transfer.forSessionWith", { name });
+  }
+
+  return t("transfer.forSession");
+}
+
+function hrefFor(purpose: string, refId: string | null): string {
+  if (purpose === "pot_topup") return "/sponsor/pot";
+  if (purpose === "subscription") return "/billing";
+  return refId ? `/sessions/${refId}` : "/";
+}

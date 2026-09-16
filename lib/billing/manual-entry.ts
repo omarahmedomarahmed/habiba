@@ -48,7 +48,19 @@ export type ManualEntry = {
   live:
     | { state: "none" }
     | { state: "awaiting_proof"; paymentId: string }
-    | { state: "submitted"; paymentId: string; submittedAt: string | null }
+    | {
+        state: "submitted";
+        paymentId: string;
+        submittedAt: string | null;
+        /**
+         * 🔴 76.4 — WHAT THEY UPLOADED, SO REOPENING SHOWS IT BACK TO THEM.
+         *
+         * A payer who sends a receipt, closes the page and comes back has one
+         * question: did that go through. Re-rendering the upload form is the
+         * answer "no idea", and somebody who cannot tell transfers again.
+         */
+        proofUrl: string | null;
+      }
     | { state: "rejected"; reason: string };
   /**
    * 🔴 THE NUMBER TO SEND, IN POUNDS, FORMATTED ON THE SERVER.
@@ -255,6 +267,7 @@ export async function manualEntry(input: {
               state: "submitted",
               paymentId: live.id,
               submittedAt: live.submittedAt?.toISOString() ?? null,
+              proofUrl: live.proofUrl ?? null,
             }
           : { state: "awaiting_proof", paymentId: live.id },
     };

@@ -1052,6 +1052,75 @@ async function main() {
     "a rate an operator changed between the quote and the confirmation must not move a posted figure",
   );
 
+  /* ================================================================== */
+  /*  One payment screen, and the wall that keeps it payer-facing        */
+  /* ================================================================== */
+
+  /*
+   * 🔴 76.6 — THE POPUP MAY ONLY BE RENDERED WHERE THE READER IS THE PAYER.
+   *
+   * It shows a name, and C243 bans a payer's name from a money surface: a
+   * therapist's earnings screen showing who PAID reveals which employer covers
+   * which patient, and an operator's queue showing it reveals the same thing to
+   * the back office. The popup is safe from that only because of WHO IS LOOKING
+   * AT IT — the reader is the payer, so the name is their own.
+   *
+   * That is a property of the call sites, not of the component, so the
+   * component cannot hold it. This does. `verify:sprint53` catches the name
+   * itself; this catches the surface it could be rendered on.
+   */
+  const POPUP_ALLOWED = [
+    "app/pay/",
+    "app/(sponsor)/",
+    "app/(app)/billing/",
+    "app/(patient)/",
+    "app/join/",
+    "components/billing/",
+  ];
+
+  const { readdirSync } = await import("node:fs");
+  const { join } = await import("node:path");
+
+  const sourceFiles: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(path);
+      } else if (path.endsWith(".tsx") || path.endsWith(".ts")) {
+        sourceFiles.push(path);
+      }
+    }
+  };
+  walk("app");
+  walk("components");
+
+  const popupRenderers = sourceFiles.filter((file) => /PaymentPopup/.test(readSource(file)));
+
+  const strayPopups = popupRenderers.filter(
+    (file) => !POPUP_ALLOWED.some((prefix) => file.startsWith(prefix)),
+  );
+
+  check(
+    "🔴 the payment popup is rendered only where the reader IS the payer",
+    strayPopups.length === 0,
+    strayPopups.join(", ") || `${popupRenderers.length} call sites, all payer-facing`,
+  );
+
+  check(
+    "🔴 CONTROL the same scan would catch it on a therapist or admin surface",
+    !POPUP_ALLOWED.some((prefix) => "app/(admin)/admin/transfers/page.tsx".startsWith(prefix)) &&
+      !POPUP_ALLOWED.some((prefix) => "app/(app)/earnings/page.tsx".startsWith(prefix)),
+    "watched refusing the two surfaces C243 was written about",
+  );
+
+  check(
+    "🔴 …and the name it shows is the READER's, never a payer read off a row",
+    /viewerName/.test(readSource("components/billing/payment-popup.tsx")) &&
+      !/payerName|payerEmail/.test(readSource("components/billing/payment-popup.tsx")),
+    "a prop called payerName invites an operator's queue to pass the payer on the row",
+  );
+
   /*
    * ⚠️ THESE THREE READ SOURCE, AND SOURCE IS THE WEAKER KIND OF EVIDENCE HERE.
    *

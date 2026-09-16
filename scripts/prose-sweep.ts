@@ -160,7 +160,33 @@ const PORTALS: Record<string, readonly string[]> = {
    * exact misattribution the note above this list was written about: a payment screen
    * counted against the wrong portal is a wall of text nobody is asked to cut.
    */
-  shared: ["common", "nav", "lang", "tab", "when", "urgent", "crisis", "radar", "nf", "transfer"],
+  /*
+   * 🔴 `pop` and `bar` are SHARED for the same reason `transfer` is, checked the
+   * same way:
+   *
+   *   grep -rn 't("pop\.' app components lib
+   *   grep -rn 't("bar\.' app components lib
+   *
+   * come back as `components/billing/payment-popup.tsx` and
+   * `components/billing/pending-bar.tsx`, both of which render for a patient, a
+   * clinician, a clinic manager and a company finance team. Attributing them to
+   * one portal would move that portal's ratchet when a different portal's
+   * payment screen changed.
+   */
+  shared: [
+    "common",
+    "nav",
+    "lang",
+    "tab",
+    "when",
+    "urgent",
+    "crisis",
+    "radar",
+    "nf",
+    "transfer",
+    "pop",
+    "bar",
+  ],
 };
 
 const PREFIX_TO_PORTAL = new Map<string, string>();

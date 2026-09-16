@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { declareSessionTransfer } from "./actions";
-import { PayByTransfer } from "@/components/billing/pay-by-transfer";
+import { PaymentPopup } from "@/components/billing/payment-popup";
 import { PayFlow } from "@/components/pay/pay-flow";
 import {
   manualEntry,
@@ -16,7 +16,7 @@ import { getCountries } from "@/lib/settings";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { users } from "@/lib/db/schema";
+import { organizations, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { LanguageCorner } from "@/components/i18n/language-corner";
 import { SosOrb } from "@/components/patient/sos-orb";
@@ -114,6 +114,16 @@ export default async function PayPage({
     priceCents: session.priceCents,
   });
 
+  const therapistName = [therapist?.firstName, therapist?.lastName].filter(Boolean).join(" ");
+
+  /* The practice the money is going to, which is also the name on their statement. */
+  const [practice] = await db
+    .select({ name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.id, session.organizationId))
+    .limit(1);
+  const practiceName = practice?.name ?? null;
+
   const rail = await manualEntry({
     audience: "patient",
     purpose: "session",
@@ -141,13 +151,41 @@ export default async function PayPage({
               </p>
             ) : null}
           </div>
-          <PayByTransfer
+          {/*
+            🔴 76.4 — THE POPUP, OPEN ON ARRIVAL, because this person followed
+            a link whose entire purpose was to pay. Everywhere else it opens on
+            a button; here the screen IS the payment.
+          */}
+          <PaymentPopup
+            openInitially
+            storageKey={session.id}
+            subject={{
+              viewerName: session.guestName || t("pay.title"),
+              /*
+                🔴 The PRACTICE, not the clinician. The clinician is already
+                named in the heading above, and repeating them there reads as a
+                rendering bug rather than as context. What a payer needs
+                underneath is who the money is going to as an organisation,
+                which is also the name that will be on their bank statement.
+              */
+              orgName: practiceName,
+              what: therapistName
+                ? t("transfer.forSessionWith", { name: therapistName })
+                : t("transfer.forSession"),
+            }}
             details={rail.details}
             amountLabel={rail.amountLabel}
             taxNote={rail.taxNote}
-            what={t("transfer.forSession")}
             live={rail.live}
             action={declareSessionTransfer.bind(null, token)}
+            /*
+              🔴 No onward link here, and that is not an omission. This page
+              REDIRECTS to the join link the moment the session reads paid
+              (see the guard at the top), so a button offering the same thing
+              could only ever render in a state this route does not have. The
+              success state with its way onward belongs to the bar, which is
+              what a payer sees when they are somewhere else in the product.
+            */
           />
         </main>
       </>
@@ -168,7 +206,7 @@ export default async function PayPage({
     <PayFlow
       locale={tag}
       token={token}
-      therapistName={[therapist?.firstName, therapist?.lastName].filter(Boolean).join(" ")}
+      therapistName={therapistName}
       knownName={session.guestName ?? ""}
       /*
         Only countries an admin has actually configured.

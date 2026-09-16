@@ -6,8 +6,9 @@ import { NewSessionForm } from "@/components/session/new-session-form";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { getConnectAccount } from "@/lib/billing/connect";
+import { organizationNeedsTransfer } from "@/lib/billing/manual-entry";
 import { listPatients } from "@/lib/data/patients";
-import { getSettings } from "@/lib/settings";
+import { getCountrySettings, getSettings } from "@/lib/settings";
 import { fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -21,13 +22,46 @@ export default async function NewSessionPage({
 }) {
   const { t } = await getI18n();
   const actor = await requireUser();
-  const [{ welcome }, patients, connect, settings, connections] = await Promise.all([
-    searchParams,
-    listPatients(actor),
-    getConnectAccount(actor.userId),
-    getSettings(),
-    listConnections(actor),
-  ]);
+  const [{ welcome }, patients, connect, settings, connections, onTransferRail] =
+    await Promise.all([
+      searchParams,
+      listPatients(actor),
+      getConnectAccount(actor.userId),
+      getSettings(),
+      listConnections(actor),
+      organizationNeedsTransfer(actor.organizationId),
+    ]);
+
+  /*
+   * 🔴 76.3 — AN EGYPTIAN CLINICIAN COULD NOT PUT A PRICE ON A BOOKED SESSION.
+   *
+   * The charge control was offered only when Stripe would accept the money.
+   * No Egyptian practice has Stripe: `topUpPot` refuses the entity,
+   * `collectionProblem` refuses the gateway, and the whole reason the transfer
+   * rail exists is that there is no card rail in this market at all. So the
+   * launch market's clinicians opened this form and were shown no price field,
+   * and every session they booked was free.
+   *
+   * 🔴 THE RADAR ALREADY SETTLED THIS ARGUMENT, in its own words, and this file
+   * did not get the message: *"The payment now goes through either way; if
+   * their account is not ready to receive it, the platform holds their share
+   * and releases it on verification. What is left is a disclosure, not a
+   * block."* A clinician on the radar with no Stripe charges their standing
+   * rate and we hold it. The same clinician booking the same patient an hour
+   * later could not name a figure.
+   *
+   * Two ways to be payable now, and the manual one is not a lesser case: it is
+   * the only one this market has.
+   */
+  const payable = connect.chargesEnabled || onTransferRail;
+
+  /*
+   * Read from `country_settings` rather than a constant, because that row is
+   * what every other part of this product charges from. A rate hardcoded here
+   * would be a second opinion about the tax, and two opinions about a tax is
+   * how a clinician is shown one patient total and the patient is asked another.
+   */
+  const egyptVatBps = onTransferRail ? ((await getCountrySettings("eg"))?.vatBps ?? 0) : 0;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -48,16 +82,30 @@ export default async function NewSessionPage({
             provider: connection.provider,
             name: PROVIDERS[connection.provider].name,
           }))}
-          // Charging is offered only once Stripe will actually accept the money.
-          // Showing the control before then produces a link that takes a
-          // patient to a checkout that cannot complete.
+          // 🔴 76.3 — offered when the money can REACH us, by either rail.
+          // It used to require Stripe, which no Egyptian practice has, so the
+          // launch market could not price a booked session at all.
           payments={
-            connect.chargesEnabled
+            payable
               ? {
                   defaultRateCents: connect.sessionRateCents,
                   feeBps: settings.session.platformFeeBps,
                   minPriceCents: settings.session.minPriceCents,
                   maxPriceCents: settings.session.maxPriceCents,
+                  /*
+                   * 🔴 76.3 — WHAT THE PATIENT WILL ACTUALLY BE ASKED FOR.
+                   *
+                   * The note here used to say only that the patient "also pays
+                   * VAT, set by their country", because on the card rail nobody
+                   * knows the country until the patient picks one on the pay
+                   * page. On the transfer rail that is not true: the rail exists
+                   * BECAUSE the practice is Egyptian, so the country is known
+                   * before the price is typed, and the exact figure can be shown
+                   * while the clinician is still deciding it.
+                   */
+                  vatBps: egyptVatBps,
+                  /* Held rather than paid out, exactly as the radar discloses. */
+                  held: !connect.chargesEnabled,
                 }
               : undefined
           }

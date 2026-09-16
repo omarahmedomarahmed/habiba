@@ -1,6 +1,10 @@
 import { SponsorChrome } from "@/components/sponsor/chrome";
 import { getSponsorActor } from "@/lib/sponsor-auth/session";
 import { LanguageCorner } from "@/components/i18n/language-corner";
+import { PendingBar } from "@/components/billing/pending-bar";
+import { pendingPaymentFor } from "@/lib/billing/pending";
+import { getI18n } from "@/lib/i18n/server";
+import { localeTag } from "@/lib/i18n/config";
 
 /**
  * The sponsor shell. PLAN.md 53.4, C230, C259, C264.
@@ -26,6 +30,17 @@ import { LanguageCorner } from "@/components/i18n/language-corner";
  */
 export default async function SponsorLayout({ children }: { children: React.ReactNode }) {
   const actor = await getSponsorActor();
+  const { t, locale } = await getI18n();
+
+  /*
+   * 🔴 76.4 — a company's transfer sits in the queue for hours, and a finance
+   * team that cannot see it emails to ask. Only for a signed-in sponsor: this
+   * layout also wraps the sign-in and enquiry doors, where there is nobody to
+   * have a payment.
+   */
+  const pending = actor
+    ? await pendingPaymentFor({ kind: "sponsor", sponsorId: actor.sponsorId }, t, localeTag(locale))
+    : null;
 
   return (
     <SponsorChrome
@@ -33,6 +48,15 @@ export default async function SponsorLayout({ children }: { children: React.Reac
       sponsorName={actor?.sponsorName ?? null}
       role={actor?.role ?? null}
     >
+      {pending ? (
+        <PendingBar
+          what={pending.what}
+          amount={pending.amount}
+          href={pending.href}
+          done={pending.done}
+          paymentId={pending.paymentId}
+        />
+      ) : null}
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       <LanguageCorner />
       {children}

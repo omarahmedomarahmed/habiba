@@ -55,7 +55,7 @@ export type TransferView = {
 export type LiveState =
   | { state: "none" }
   | { state: "awaiting_proof"; paymentId: string }
-  | { state: "submitted"; paymentId: string; submittedAt: string | null }
+  | { state: "submitted"; paymentId: string; submittedAt: string | null; proofUrl?: string | null }
   | { state: "rejected"; reason: string };
 
 export type TransferFormState = { error?: string; ok?: boolean };
@@ -74,6 +74,7 @@ export function PayByTransfer({
   minimumLabel,
   rateLabel,
   steps,
+  hideCardsSoon = false,
 }: {
   details: TransferView;
   /** "1,000 EGP", already formatted by the server in the payer's language. */
@@ -109,6 +110,8 @@ export function PayByTransfer({
    * most: these are the figures somebody types into a banking app.
    */
   steps?: PotStep[];
+  /** 🔴 76.5 — the popup renders the notice in its card slot instead. */
+  hideCardsSoon?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -149,6 +152,31 @@ export function PayByTransfer({
         <p className="mt-3 rounded-xl bg-white/70 p-3 text-sm text-amber-900">
           {t("transfer.closePage")}
         </p>
+
+        {/*
+          🔴 76.4 — THEIR OWN RECEIPT, HANDED BACK.
+
+          A payer who sent money, closed the page and came back has exactly one
+          question: did that register. Showing the upload form again answers "no
+          idea", and somebody who cannot tell whether a transfer landed sends a
+          second one. There is no processor here to reverse it.
+        */}
+        {live.proofUrl ? (
+          <a
+            href={live.proofUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 flex items-center gap-3 rounded-xl bg-white/70 p-3 text-sm font-medium text-amber-900"
+          >
+            <span
+              aria-hidden
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-200 text-xs font-bold"
+            >
+              ✓
+            </span>
+            {t("pop.proofSent")}
+          </a>
+        ) : null}
       </Card>
     );
   }
@@ -231,7 +259,16 @@ export function PayByTransfer({
         ))}
       </dl>
 
-      {details.cardsComingSoon ? (
+      {/*
+        🔴 76.5 — SAID ONCE, and the popup is where it is said.
+
+        This line and the card slot in `PaymentPopup` were both rendering, so a
+        payer read "card payments coming soon" twice on one screen. The slot is
+        the better place: it occupies the space a card form will take, which is
+        what makes it an answer to "where would a gateway go" rather than a
+        footnote. `hideCardsSoon` is passed by the popup and by nothing else.
+      */}
+      {details.cardsComingSoon && !hideCardsSoon ? (
         <p className="mt-3 text-xs text-slate-500">{t("transfer.cardsSoon")}</p>
       ) : null}
 

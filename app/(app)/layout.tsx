@@ -30,6 +30,9 @@ import { clinicManagers, users } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { initials } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { localeTag } from "@/lib/i18n/config";
+import { pendingPaymentFor } from "@/lib/billing/pending";
+import { PendingBar } from "@/components/billing/pending-bar";
 import { LanguageCorner } from "@/components/i18n/language-corner";
 
 /*
@@ -65,8 +68,14 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   const actor = await requireUser();
+  const pending = await pendingPaymentFor(
+    { kind: "organization", organizationId: actor.organizationId },
+    t,
+    localeTag(locale),
+  );
+
   const [radar, [me], state] = await Promise.all([
     getRadarProfile(actor.userId),
     db
@@ -258,6 +267,24 @@ export default async function AppLayout({
       </aside>
 
       <div className="lg:ps-60">
+        {/*
+          🔴 76.4 — MONEY IN FLIGHT FOLLOWS THEM AROUND THE PORTAL.
+
+          The Egyptian rail's middle state lasts hours and used to be visible on
+          the one screen they paid on. A clinician who minimised the popup and
+          went to look at their calendar had no way back to it and no way to
+          tell whether anything was happening, so they assumed the subscription
+          had failed and sent a second transfer nobody can reverse.
+        */}
+        {pending ? (
+          <PendingBar
+            what={pending.what}
+            amount={pending.amount}
+            href={pending.href}
+            done={pending.done}
+            paymentId={pending.paymentId}
+          />
+        ) : null}
         {/* Content gets bottom padding on mobile so the nav never covers a control. */}
         <div className="pb-24 lg:pb-8">{children}</div>
       </div>

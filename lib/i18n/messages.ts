@@ -1601,6 +1601,19 @@ export const en = {
   "transfer.rateNote": "We convert at {rate} to the dollar.",
   "transfer.taxNote": "Includes {tax} of VAT.",
 
+  /* -------------------------------- 🔴 76.4 one payment screen, every payer */
+  "pop.open": "Pay now",
+  "pop.track": "Track your payment",
+  "pop.close": "Close",
+  "pop.minimise": "Minimise",
+  "pop.proofSent": "You sent this receipt",
+  "bar.pending": "{what} · {amount} waiting to be checked",
+  "bar.eta": "Usually within a few hours",
+  "bar.done": "{what} · paid",
+  "bar.reopen": "Open",
+  "bar.dismiss": "Dismiss",
+
+
   /* ------------------------------- 🔴 76.1 the company chooses how much */
   "topup.choose": "How much to add",
   "topup.less": "Less",
@@ -1611,6 +1624,7 @@ export const en = {
   "topup.send": "Transfer this",
   "topup.unavailable": "Top-ups are not set up yet. Talk to us and we will arrange it.",
   "transfer.forSession": "for this session",
+  "transfer.forSessionWith": "Session with {name}",
   "transfer.forBill": "for your bill",
   "transfer.forPot": "for your pot",
   "transfer.billDue": "You owe {amount} across {count} invoices.",
@@ -2409,6 +2423,8 @@ export const en = {
   "tnew.youKeep": "You keep {amount}",
   "tnew.ourFee": "24Therapy takes {amount} ({percent}%)",
   "tnew.vatOnTop": "Your patient also pays VAT on top, set by their country.",
+  "tnew.patientPays": "Your patient is asked for {total}, which includes {vat} of VAT.",
+  "tnew.weHold": "We hold your share until payouts open, then pay it out.",
   "tnew.linkNote": "A private link, no account, no download. It expires in 12 hours and dies when the session ends.",
   "tnew.consent": "Confirm your patient has consented to being recorded before you start.",
   "trad.saveProfile": "Save radar profile",
@@ -4636,6 +4652,19 @@ export const ar: Record<MessageKey, string> = {
   "transfer.amountLabel": "المبلغ الذي تضيفه إلى رصيدك",
   "transfer.taxNote": "يشمل {tax} ضريبة القيمة المضافة.",
 
+  /* -------------------------------- 🔴 76.4 one payment screen, every payer */
+  "pop.open": "ادفع الآن",
+  "pop.track": "تابع عملية الدفع",
+  "pop.close": "إغلاق",
+  "pop.minimise": "تصغير",
+  "pop.proofSent": "لقد أرسلت هذا الإيصال",
+  "bar.pending": "{what} · {amount} في انتظار المراجعة",
+  "bar.eta": "عادة خلال ساعات قليلة",
+  "bar.done": "{what} · تم الدفع",
+  "bar.reopen": "فتح",
+  "bar.dismiss": "إخفاء",
+
+
   /* ------------------------------- 🔴 76.1 the company chooses how much */
   "topup.choose": "كم تريد أن تضيف",
   "topup.less": "أقل",
@@ -4649,6 +4678,7 @@ export const ar: Record<MessageKey, string> = {
   "transfer.sendAtLeast": "أرسل {amount} على الأقل",
   "transfer.rateNote": "نحوّل بسعر {rate} للدولار.",
   "transfer.forSession": "مقابل هذه الجلسة",
+  "transfer.forSessionWith": "جلسة مع {name}",
   "transfer.forBill": "مقابل فاتورتك",
   "transfer.forPot": "مقابل رصيدك",
   "transfer.billDue": "عليك {amount} على {count} فواتير.",
@@ -5330,6 +5360,8 @@ export const ar: Record<MessageKey, string> = {
   "tnew.youKeep": "تحتفظ بـ {amount}",
   "tnew.ourFee": "تأخذ 24Therapy مبلغ {amount} ({percent}%)",
   "tnew.vatOnTop": "ويدفع مريضك ضريبة القيمة المضافة فوق ذلك، بحسب بلده.",
+  "tnew.patientPays": "يُطلب من مريضك {total}، وتشمل {vat} ضريبة القيمة المضافة.",
+  "tnew.weHold": "نحتفظ بحصتك حتى تُفتح التحويلات، ثم نحوّلها إليك.",
   "tnew.linkNote": "رابط خاص، بلا حساب ولا تنزيل. ينتهي بعد 12 ساعة ويتوقف بانتهاء الجلسة.",
   "tnew.consent": "تأكّد من موافقة مريضك على التسجيل قبل أن تبدأ.",
   "trad.saveProfile": "حفظ ملف الرادار",

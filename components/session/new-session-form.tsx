@@ -66,6 +66,17 @@ export function NewSessionForm({
     feeBps: number;
     minPriceCents: number;
     maxPriceCents: number;
+    /**
+     * 🔴 76.3 — the tax the PATIENT will be asked for on top, when it is knowable.
+     *
+     * Zero on the card rail and that is honest there: nobody knows the patient's
+     * country until they open the pay page and pick one. Non-zero on the
+     * transfer rail, where the rail exists because the practice is Egyptian, so
+     * the country is settled before the price is typed.
+     */
+    vatBps: number;
+    /** True when we will hold their share rather than pay it out. */
+    held: boolean;
   };
 }) {
   const [state, action] = useActionState(startNewSession, INITIAL);
@@ -85,6 +96,16 @@ export function NewSessionForm({
 
   const priceCents = Math.round((Number(price) || 0) * 100);
   const cut = payments ? Math.floor((priceCents * payments.feeBps) / 10_000) : 0;
+  /*
+   * 🔴 76.3 — plain arithmetic, deliberately, and NOT `Intl` (C84). The rate
+   * arrived from the server; rounding it here is the same half-up rounding
+   * `vatOn` does, and `formatUsd` is the repository's own formatter rather than
+   * the runtime's locale.
+   */
+  const vatCents =
+    payments && payments.vatBps > 0
+      ? Math.round((priceCents * payments.vatBps) / 10_000)
+      : 0;
   const chargeable = modality === "video" && charge && Boolean(payments);
 
   return (
@@ -370,8 +391,40 @@ export function NewSessionForm({
                       kind: "fee",
                     },
                   ]}
-                  note={t("tnew.vatOnTop")}
+                  /*
+                   * 🔴 76.3 — THE PATIENT'S TOTAL, NAMED, WHERE IT IS KNOWABLE.
+                   *
+                   * On the card rail this stays the old sentence, and that is
+                   * the truthful one there: the patient's country is not known
+                   * until they open the pay page. On the transfer rail the
+                   * country is the reason the rail is showing at all, so the
+                   * clinician can be told the real figure while they are still
+                   * choosing the price rather than after a patient queries it.
+                   *
+                   * All three numbers, because the clinician's question is not
+                   * "what is the tax" but "what will my patient see, and why is
+                   * it bigger than the number I typed".
+                   */
+                  note={
+                    vatCents > 0
+                      ? t("tnew.patientPays", {
+                          total: formatUsd(priceCents + vatCents),
+                          vat: formatUsd(vatCents),
+                        })
+                      : t("tnew.vatOnTop")
+                  }
                 />
+              ) : null}
+
+              {/*
+                🔴 76.3 — AND THAT THEIR SHARE IS HELD, which is what the radar
+                already discloses in the same situation and in the same words.
+                An Egyptian clinician has no Stripe account and never will until
+                a gateway exists, so this is the ordinary state here rather than
+                a warning about something going wrong.
+              */}
+              {priceCents > 0 && payments.held ? (
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">{t("tnew.weHold")}</p>
               ) : null}
             </div>
           ) : null}
