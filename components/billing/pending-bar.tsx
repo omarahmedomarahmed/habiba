@@ -46,12 +46,29 @@ export function PendingBar({
   stage,
   /** Stable per payment, so dismissing one does not hide the next. */
   paymentId,
+  /**
+   * 🔴 76.37 — WHAT THE SHEET REMEMBERS ITSELF UNDER, so this bar can OPEN it.
+   *
+   * The bar was a link to the page the sheet lives on. For a clinician that is
+   * the billing screen, which carries a ledger, a plan card and an invoice
+   * list, so somebody who tapped a bar about money they owe landed on a page
+   * and had to go and find the thing again. A bar that follows you around the
+   * product exists to be one tap from the thing, not one tap from its
+   * neighbourhood.
+   *
+   * `PaymentPopup` opens itself when `pay:<storageKey>` is set and reads that on
+   * mount. So this writes the key and then navigates, and the sheet is already
+   * open when the page paints. One mechanism, already there, used from one more
+   * place.
+   */
+  storageKey,
 }: {
   what: string;
   amount: string;
   href: string;
   stage: "open" | "submitted" | "confirmed";
   paymentId: string;
+  storageKey: string;
 }) {
   const done = stage === "confirmed";
   const t = useT();
@@ -74,6 +91,19 @@ export function PendingBar({
 
   if (hidden) return null;
 
+  /*
+   * 🔴 FIRE AND FORGET, and a failure costs the convenience rather than the
+   * payment. Blocked site data means they land on the page with the sheet
+   * closed, which is exactly where this bar used to leave everybody.
+   */
+  const openSheet = () => {
+    try {
+      window.localStorage.setItem(`pay:${storageKey}`, "open");
+    } catch {
+      /* They arrive at the page and tap once more. */
+    }
+  };
+
   const dismiss = () => {
     setHidden(true);
     try {
@@ -88,18 +118,27 @@ export function PendingBar({
       role="status"
       className={
         /*
-         * 🔴 RED for the one that needs them, amber for the one that needs us.
-         * An open payment is unfinished business and reads as an instruction;
-         * a submitted one is a receipt.
+         * 🔴 76.37 — AMBER FOR BOTH UNFINISHED STATES, AND RED FOR NOTHING.
+         *
+         * The open stage used to be red. Red in this product means one thing
+         * and it is not money: it is the crisis surface, the SOS orb, the risk
+         * banner, the sentence a patient reads when somebody is in danger.
+         * Spending it on "you have a payment you have not finished" is spending
+         * the loudest colour available on a bill, and a person who learns that
+         * red means a bill has learned to glance past red.
+         *
+         * So both unfinished states are warning-coloured and the darker one is
+         * the one waiting on the payer. Green still means done, because that is
+         * a receipt and nothing else in the product claims it.
          */
         stage === "confirmed"
           ? "flex items-center gap-3 bg-emerald-600 px-4 py-2 text-white"
           : stage === "open"
-            ? "flex items-center gap-3 bg-red-600 px-4 py-2 text-white"
-            : "flex items-center gap-3 bg-amber-500 px-4 py-2 text-amber-950"
+            ? "flex items-center gap-3 bg-amber-500 px-4 py-2 text-amber-950"
+            : "flex items-center gap-3 bg-amber-300 px-4 py-2 text-amber-950"
       }
     >
-      <Link href={href} className="min-w-0 flex-1">
+      <Link href={href} onClick={openSheet} className="min-w-0 flex-1">
         {/*
           🔴 76.23 — THE AMOUNT IS NEVER THE PART THAT GETS CUT OFF.
 
@@ -154,6 +193,7 @@ export function PendingBar({
       ) : (
         <Link
           href={href}
+          onClick={openSheet}
           className="shrink-0 rounded-lg bg-white/25 px-2 py-1 text-xs font-semibold"
         >
           {t("bar.reopen")}

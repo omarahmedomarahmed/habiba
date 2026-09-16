@@ -507,14 +507,103 @@ async function main() {
     );
 
     /* ================================================================ */
-    /*  12 · AND THE BOOKS STILL BALANCE                                 */
+    /*  12 · "I opened it and then decided not to pay"                   */
+    /* ================================================================ */
+
+    /*
+     * 🔴 76.37 — THE CONTROL THAT CLEARS THE CART, PROVEN RATHER THAN SHIPPED.
+     *
+     * `cancelCart` is new and nothing had exercised it. It is the only way out
+     * of a payment somebody opened and thought better of, and without it the
+     * warning bar across their portal has two exits: pay, or learn to ignore a
+     * warning bar. A person who learns to ignore this one ignores the next.
+     */
+    const { cancelCart } = await import("../lib/billing/cart");
+
+    const abandoned = await cast("Rana");
+    const abandonedMoney = await sessionTransferMoney({
+      organizationId: org.id,
+      priceCents: PRICE,
+    });
+    const opened = await openCart({
+      purpose: "session",
+      refId: abandoned.sessionId,
+      amountCents: egpMinorFor(abandonedMoney.settlesCents, rate),
+      settlesCents: abandonedMoney.settlesCents,
+      payer: { kind: "session", organizationId: org.id },
+    });
+
+    const beforeCancel = await one<{ n: number }>(sql`
+      SELECT COUNT(*)::int AS n FROM manual_payments
+      WHERE ref_id = ${abandoned.sessionId} AND state = 'awaiting_proof'`);
+
+    const cancelled = await cancelCart({ kind: "session", sessionId: abandoned.sessionId });
+
+    const afterCancel = await one<{ n: number }>(sql`
+      SELECT COUNT(*)::int AS n FROM manual_payments WHERE ref_id = ${abandoned.sessionId}`);
+
+    check(
+      "🔴 cancelling an open payment removes it, so the warning bar has a way out that is not paying",
+      Boolean(opened.id) &&
+        beforeCancel.n === 1 &&
+        cancelled.cancelled === 1 &&
+        afterCancel.n === 0,
+      `${beforeCancel.n} open → cancelled ${cancelled.cancelled} → ${afterCancel.n} rows left`,
+    );
+
+    const stillOwed = await one<{ payment_status: string }>(sql`
+      SELECT payment_status FROM sessions WHERE id = ${abandoned.sessionId}`);
+
+    check(
+      "🔴 …and it charges nothing and forgives nothing: the session is still unpaid",
+      stillOwed.payment_status === "pending",
+      `payment_status ${stillOwed.payment_status}`,
+    );
+
+    /*
+     * 🔴 THE CONTROL, and it is the one that matters on a rail with no
+     * processor. The moment proof arrives the payment is a CLAIM ABOUT MONEY
+     * and it belongs to the operator. A cancel that could reach it would be a
+     * way for a payer to make a transfer disappear from the only record anybody
+     * checked anything against.
+     */
+    const claimed = await cast("Hoda");
+    const claimedMoney = await sessionTransferMoney({
+      organizationId: org.id,
+      priceCents: PRICE,
+    });
+    const claimedCart = await openCart({
+      purpose: "session",
+      refId: claimed.sessionId,
+      amountCents: egpMinorFor(claimedMoney.settlesCents, rate),
+      settlesCents: claimedMoney.settlesCents,
+      payer: { kind: "session", organizationId: org.id },
+    });
+    await submitProof({
+      paymentId: claimedCart.id!,
+      reference: `EDGE-CLAIM-${fixture}`,
+      proofUrl: null,
+    });
+
+    const refused = await cancelCart({ kind: "session", sessionId: claimed.sessionId });
+    const survives = await one<{ state: string }>(sql`
+      SELECT state FROM manual_payments WHERE id = ${claimedCart.id!}`);
+
+    check(
+      "🔴 CONTROL a payment with proof on it cannot be cancelled by the payer",
+      refused.cancelled === 0 && survives.state === "submitted",
+      `cancelled ${refused.cancelled}, the claim is still ${survives.state}`,
+    );
+
+    /* ================================================================ */
+    /*  13 · AND THE BOOKS STILL BALANCE                                 */
     /* ================================================================ */
 
     const { unbalancedTransactions } = await import("../lib/billing/ledger");
     const drift = await unbalancedTransactions();
 
     check(
-      "🔴 every transaction these twelve scenarios wrote balances to zero",
+      "🔴 every transaction these fifteen scenarios wrote balances to zero",
       drift.length === 0,
       drift.length === 0 ? "no drift anywhere in the ledger" : `${drift.length} unbalanced`,
     );

@@ -55,6 +55,7 @@ export default async function SponsorLayout({ children }: { children: React.Reac
           href={pending.href}
           stage={pending.stage}
           paymentId={pending.paymentId}
+          storageKey={pending.storageKey}
         />
       ) : null}
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}

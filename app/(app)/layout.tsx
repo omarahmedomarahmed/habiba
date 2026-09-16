@@ -283,6 +283,7 @@ export default async function AppLayout({
             href={pending.href}
             stage={pending.stage}
             paymentId={pending.paymentId}
+            storageKey={pending.storageKey}
           />
         ) : null}
         {/* Content gets bottom padding on mobile so the nav never covers a control. */}

@@ -161,22 +161,34 @@ export async function createSession(
    *
    * Found by sprint 52's walkthrough, which is what 52.3 is for.
    *
-   * ## 🔴 WHY NO CHART RATHER THAN A RELAXED CONSTRAINT
+   * ## ⚠️ 76.36 — AND SPRINT 52'S ANSWER WAS "NO CHART", WHICH WAS HALF RIGHT
    *
-   * The constraint is right and its comment says why: a patient a therapist WROTE DOWN must be
-   * reachable, or the chart is one nobody can act on. What it did not anticipate is somebody who is
-   * already in the room, where reachability is not the point.
+   * 52's ruling was: the constraint is about REACHABILITY, a patient a therapist wrote down must be
+   * reachable, and inventing an unreachable record is worse than having none. So a guest with no
+   * contact details got a SESSION and not a chart, and everything downstream was built to cope:
+   * `sessions.guest_name` carries who it was, `session_notes.patient_id` is nullable, and
+   * `lib/ai/notes.ts` left-joins the patient.
    *
-   * So a guest with no contact details gets a SESSION, not a chart. `sessions.guest_name` carries
-   * who it was, the room works, the transcript works, and the note works because
-   * `session_notes.patient_id` is nullable and `lib/ai/notes.ts` left-joins the patient. The chart
-   * is created the moment there is a phone or an email to attach to it, which is the clinician
-   * adding them properly rather than the product inventing an unreachable record on their behalf.
+   * It all works, and it is still wrong, because of the person it forgot. A clinician ran an
+   * offline session, approved the note, and their Patients tab said **0**. They had seen somebody
+   * an hour earlier. There was nowhere to put the next session with that person, nothing for a
+   * profile or a copilot to accumulate against, and no chart to add a number to once they had one.
+   *
+   * The constraint guards a record nobody can REACH. A walk-in is a record of somebody who was in
+   * the room, which is a different claim, so it gets a different `source` and the constraint has no
+   * opinion about it. `patients_phone_present` conditions on `source = 'therapist'` and nothing in
+   * the database enumerates that column's values, so this needed no migration at all.
+   *
+   *   phone         → `therapist`, the ordinary written-down patient
+   *   email only    → `join_link`, reachable, and the shape 52 already allowed
+   *   neither       → `walk_in`, somebody in the room
+   *
+   * The clinician adds a number later from the patient's own profile, and it becomes `therapist`.
    */
   const guestPhone = normalisePhone(input.guestPhone);
   const guestEmail = input.guestEmail?.trim() || null;
 
-  if (!patientId && input.guestName?.trim() && (guestPhone || guestEmail)) {
+  if (!patientId && input.guestName?.trim()) {
     const [created] = await db
       .insert(patients)
       .values({
@@ -194,7 +206,15 @@ export async function createSession(
          * `therapist` for a row with no phone would be recording something the schema forbids.
          */
         phone: guestPhone,
-        source: guestPhone ? "therapist" : "join_link",
+        /*
+         * 🔴 76.36 — THE SOURCE FOLLOWS WHAT WE HAVE, and now covers having nothing.
+         *
+         * `therapist` is the only value `patients_phone_present` has an opinion about, and it is
+         * the right one exactly when there is a phone. An email alone is `join_link`, which is
+         * what 52 already did. Neither is `walk_in`, which is the case that used to produce no
+         * chart at all and a caseload of zero.
+         */
+        source: guestPhone ? "therapist" : guestEmail ? "join_link" : "walk_in",
       })
       .returning({ id: patients.id });
     patientId = created?.id ?? null;

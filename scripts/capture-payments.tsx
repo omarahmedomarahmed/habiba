@@ -370,7 +370,7 @@ async function main() {
 
   add(
     "bar-1-open",
-    "Opened and never submitted. Red, and it cannot be dismissed: this person may already have sent the money.",
+    "Opened and never submitted. Amber, and it cannot be dismissed: this person may already have sent the money. 76.37 took red off this bar, because red in this product means the crisis surface and nothing else.",
     wrap(
       React.createElement(PendingBar, {
         stage: "open",
@@ -378,6 +378,7 @@ async function main() {
         amount: egp(session.settles),
         href: "/pay/demo",
         paymentId: "demo-a",
+        storageKey: "demo-a",
       }),
     ),
   );
@@ -392,6 +393,7 @@ async function main() {
         amount: egp(topUp.settlesCents),
         href: "/sponsor/pot",
         paymentId: "demo-b",
+        storageKey: "demo-b",
       }),
     ),
   );
@@ -406,6 +408,7 @@ async function main() {
         amount: egp(session.settles),
         href: "/join/demo",
         paymentId: "demo-c",
+        storageKey: "demo-c",
       }),
     ),
   );

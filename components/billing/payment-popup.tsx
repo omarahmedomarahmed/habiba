@@ -219,6 +219,72 @@ export function PaymentPopup({
     }
   };
 
+  /*
+   * 🔴 76.37 — ONE CONTROL, DECLARED ONCE, RENDERED ON THE ENTRY.
+   *
+   * It is absent the moment proof is in. From then the payment is a claim about
+   * money that belongs to an operator, and a button that removed it from the
+   * queue would be a way to make a transfer vanish from the only record this
+   * rail has. The server refuses it too: `cancelCart` has the state in its
+   * WHERE clause, so this is the second lock rather than the only one.
+   */
+  const cancelControl =
+    onCancel && (live.state === "none" || live.state === "awaiting_proof") ? (
+      confirmingCancel ? (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-900">{t("pop.cancelSure")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-800">{t("pop.cancelSureBody")}</p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              disabled={cancelling}
+              onClick={() => {
+                setCancelling(true);
+                void onCancel()
+                  .then(() => {
+                    /*
+                     * 🔴 FORGET THE SHEET TOO. The row is gone on the server;
+                     * a browser still holding `pay:<key>` would re-open an
+                     * empty sheet on the next page load and look like the
+                     * cancel had not worked.
+                     */
+                    try {
+                      window.localStorage.removeItem(`pay:${storageKey}`);
+                    } catch {
+                      /* Nothing remembered, nothing to forget. */
+                    }
+                    setOpen(false);
+                  })
+                  .finally(() => {
+                    setCancelling(false);
+                    setConfirmingCancel(false);
+                  });
+              }}
+              className="h-10 flex-1 rounded-xl bg-amber-600 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              {cancelling ? t("common.saving") : t("pop.cancelYes")}
+            </button>
+            <button
+              type="button"
+              disabled={cancelling}
+              onClick={() => setConfirmingCancel(false)}
+              className="h-10 flex-1 rounded-xl bg-white text-sm font-semibold text-slate-700"
+            >
+              {t("pop.cancelNo")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmingCancel(true)}
+          className="h-10 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-600"
+        >
+          {t("pop.cancel")}
+        </button>
+      )
+    ) : null;
+
   if (!open) {
     const label = live.state === "submitted" ? t("pop.track") : t("pop.open");
 
@@ -247,14 +313,30 @@ export function PaymentPopup({
       );
     }
 
+    /*
+      🔴 76.37 — AND THE WAY OUT SITS BESIDE THE WAY IN, not inside the sheet.
+      ---------------------------------------------------------------------
+      It was under the form in the open sheet. That is the one place somebody
+      who has decided NOT to pay will never look: they closed it. So the bar at
+      the top of their portal kept saying they owed us something, the only
+      control that could clear it was behind a sheet they had shut, and their
+      two exits were paying or learning to ignore a warning bar.
+
+      It is on the entry now. The pay button and the cancel sit together,
+      because "I am going to do this" and "I am not going to do this" are the
+      two answers to the same question and they belong in the same place.
+    */
     return (
-      <button
-        type="button"
-        onClick={() => remember(true)}
-        className="h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white"
-      >
-        {label}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => remember(true)}
+          className="h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white"
+        >
+          {label}
+        </button>
+        {cancelControl}
+      </div>
     );
   }
 
@@ -367,63 +449,6 @@ export function PaymentPopup({
           lines={lines}
           onChoose={onChoose}
         />
-
-        {/*
-          🔴 76.34 — CANCEL THIS PAYMENT, SAID PLAINLY, AND ONLY WHILE IT IS
-          STILL THEIRS TO CANCEL.
-
-          Under the form rather than beside the minimise button: minimising and
-          cancelling are opposite intentions and a pair of small controls in the
-          corner would get them confused by somebody holding a phone in one
-          hand. This one is a line of text, it says what it removes, and it
-          takes two taps.
-        */}
-        {onCancel && (live.state === "none" || live.state === "awaiting_proof") ? (
-          <div className="mt-3 text-center">
-            {confirmingCancel ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
-                <p className="text-sm font-semibold text-rose-900">{t("pop.cancelSure")}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-rose-700">
-                  {t("pop.cancelSureBody")}
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={cancelling}
-                    onClick={() => {
-                      setCancelling(true);
-                      void onCancel()
-                        .then(() => remember(false))
-                        .finally(() => {
-                          setCancelling(false);
-                          setConfirmingCancel(false);
-                        });
-                    }}
-                    className="h-10 flex-1 rounded-xl bg-rose-600 text-sm font-semibold text-white disabled:opacity-40"
-                  >
-                    {cancelling ? t("common.saving") : t("pop.cancelYes")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={cancelling}
-                    onClick={() => setConfirmingCancel(false)}
-                    className="h-10 flex-1 rounded-xl bg-white text-sm font-semibold text-slate-700"
-                  >
-                    {t("pop.cancelNo")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmingCancel(true)}
-                className="text-sm font-semibold text-rose-600 underline decoration-rose-200 underline-offset-4"
-              >
-                {t("pop.cancel")}
-              </button>
-            )}
-          </div>
-        ) : null}
 
         {/*
           🔴 THE WAY ONWARD, ONLY ONCE THERE IS SOMEWHERE TO GO.

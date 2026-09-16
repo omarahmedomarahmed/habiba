@@ -260,6 +260,26 @@ export const GATES = [
    * the property that decides it, with the obvious wrong version planted as a
    * control.
    */
+  /*
+   * 🔴 76.36 — AND A CLINICIAN WHO SAW SOMEBODY HAS A PATIENT.
+   *
+   * A therapist ran an offline session, typed a first name, recorded it,
+   * generated the note and signed it. Their Patients tab said 0. Every line
+   * involved was correct: `createSession` made a chart only when there was a
+   * phone or an email, deliberately, under a long comment explaining a ruling
+   * from sprint 52 made for good reasons.
+   *
+   * Nothing that reads source could have found it, because there was nothing
+   * wrong with the source. Only asking a database how many patients a clinician
+   * has after they have seen one can answer it, which is what this does, with
+   * the constraint that caused the original ruling planted as a control so the
+   * fix cannot quietly become a weakened rule.
+   */
+  {
+    name: "caseload",
+    script: "verify:caseload",
+    why: "and a clinician who has seen somebody has a patient",
+  },
   {
     name: "orb",
     script: "verify:orb",

@@ -585,7 +585,31 @@ export const patients = pgTable(
     clinical: jsonb("clinical").$type<PatientClinical>().default({}).notNull(),
 
     /** How the record came into being — `join_link` patients typed their own name. */
-    source: text("source").$type<"therapist" | "join_link">().notNull().default("therapist"),
+    /**
+     * How this chart came to exist, which decides whether a phone is required.
+     *
+     *   therapist  somebody a clinician WROTE DOWN to see later. `patients_phone_present`
+     *              demands a phone, because a chart nobody can reach is a chart nobody can act on
+     *   join_link  they arrived on a link and we have an email. No phone, by design
+     *   walk_in    🔴 76.36 — somebody who was IN THE ROOM, with no contact details at all
+     *
+     * `walk_in` needs no migration: nothing in the database enumerates this column's values, and
+     * the only CHECK on it conditions on `source = 'therapist'`, which this is not.
+     *
+     * 🔴 WHY IT EXISTS, and it is a reversal of a sprint 52 ruling made for good reasons.
+     *
+     * 52 found that a walk-in with only a name hit `patients_phone_present` and killed the whole
+     * session, and fixed it by creating NO CHART: the session carries `guest_name`, the note
+     * left-joins a null patient, and everything works. The reasoning was that reachability is the
+     * point of the constraint and inventing an unreachable record is worse.
+     *
+     * What that missed is the clinician. They saw a person, approved a note about them, and their
+     * caseload says zero patients, because the product decided the person did not exist. There is
+     * nowhere to put the next session, nothing for a profile to accumulate against, and no chart to
+     * add a number to later. The constraint is about a record nobody can REACH; this is a record of
+     * somebody who was in the room, which is a different claim and gets a different source.
+     */
+    source: text("source").$type<"therapist" | "join_link" | "walk_in">().notNull().default("therapist"),
 
     /**
      * 🔴 63.12 / C327 / C354 — WHEN WE TOLD THEM WHAT THE CLINIC CAN SEE.

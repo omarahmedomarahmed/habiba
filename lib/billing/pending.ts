@@ -58,6 +58,21 @@ export type PendingPayment = {
    * is waiting on THEM.
    */
   stage: "open" | "submitted" | "confirmed";
+  /**
+   * 🔴 76.37 — WHAT THE SHEET REMEMBERS ITSELF UNDER, so the bar can OPEN it.
+   *
+   * The bar used to be a link to the page the sheet lives on, which is a page
+   * with a ledger, a plan card and an invoice list on it. Somebody who tapped a
+   * red bar saying they owe us money landed on their billing screen and had to
+   * find the thing again, which is the opposite of what a bar that follows you
+   * around the product is for.
+   *
+   * `PaymentPopup` opens itself when `pay:<storageKey>` is set, and it reads
+   * that on mount. So the bar writes the key and then navigates, and the sheet
+   * is already open when the page paints. One mechanism, already there, used
+   * from one more place.
+   */
+  storageKey: string;
 };
 
 /** How long a confirmed payment keeps saying so, before it is simply history. */
@@ -144,12 +159,25 @@ export async function pendingPaymentFor(
    */
   const amount = formatMoney(egpMinorFor(row.settlesCents, await egpRateMicro()), "EGP", locale);
 
+  /*
+   * 🔴 The key each surface already uses, and they differ because the payers do.
+   * A clinician's sheet is keyed on their PRACTICE, a company's on its sponsor,
+   * and a patient's on the session, which is the only identity a guest has.
+   */
+  const storageKey =
+    who.kind === "organization"
+      ? who.organizationId
+      : who.kind === "sponsor"
+        ? who.sponsorId
+        : who.sessionId;
+
   return {
     paymentId: row.id,
     what: await describe(row.purpose, row.refId, t),
     amount,
     href: hrefFor(row.purpose, row.refId),
     stage,
+    storageKey,
   };
 }
 
