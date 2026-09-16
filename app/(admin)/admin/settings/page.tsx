@@ -96,8 +96,8 @@ export default async function SettingsPage() {
           />
         </dl>
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          Cost is what the models charged, from microcents, divided once (C17). The percentage is
-          absent rather than zero when nothing was collected.
+          Cost is what the models charged, from microcents, divided once (C17). Absent, not zero,
+          when nothing was collected.
         </p>
       </Card>
 

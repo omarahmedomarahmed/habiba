@@ -31,7 +31,7 @@ export function AnnouncementComposer({ recipientCount }: { recipientCount: numbe
           Sending to {recipientCount} clinician{recipientCount === 1 ? "" : "s"}
         </p>
         <p className="mt-1.5 text-sm text-slate-600">
-          One at a time, so the provider does not rate-limit us and drop half the list. Audited.
+          One at a time, or the provider rate-limits us and drops half the list. Audited.
         </p>
         <Button
           className="mt-4"

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 
+import { OpenCarts } from "@/components/admin/open-carts";
 import { TransferQueue } from "@/components/admin/transfer-queue";
 import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/guard";
 import { and, eq, inArray } from "drizzle-orm";
 
-import { queue } from "@/lib/billing/manual";
+import { openCarts, queue } from "@/lib/billing/manual";
 import { controlDb as db } from "@/lib/db";
 import { patientAccounts, sponsors, users } from "@/lib/db/schema";
 
@@ -32,7 +33,7 @@ export const dynamic = "force-dynamic";
 export default async function TransfersPage() {
   await requireStaff();
 
-  const rows = await queue();
+  const [rows, carts] = await Promise.all([queue(), openCarts()]);
 
   /*
    * 🔴 The payer's NAME, resolved here, because a queue of uuids is a queue
@@ -40,9 +41,19 @@ export default async function TransfersPage() {
    * at 200 and the alternative is a query with three LEFT JOINs whose result a
    * reader cannot check by eye.
    */
-  const userIds = rows.map((r) => r.userId).filter((x): x is string => Boolean(x));
-  const patientIds = rows.map((r) => r.patientAccountId).filter((x): x is string => Boolean(x));
-  const sponsorIds = rows.map((r) => r.sponsorId).filter((x): x is string => Boolean(x));
+  /*
+   * 🔴 76.15 — BOTH LISTS RESOLVE THEIR NAMES FROM ONE LOOKUP.
+   *
+   * The open carts and the submitted queue are different questions with the
+   * same payers behind them, and two sets of three queries would be six round
+   * trips to answer one screen.
+   */
+  const everyRow = [...rows, ...carts];
+  const userIds = everyRow.map((r) => r.userId).filter((x): x is string => Boolean(x));
+  const patientIds = everyRow
+    .map((r) => r.patientAccountId)
+    .filter((x): x is string => Boolean(x));
+  const sponsorIds = everyRow.map((r) => r.sponsorId).filter((x): x is string => Boolean(x));
 
   /*
    * ⚠️ 76.11 — THESE THREE HAD NO `WHERE` AND READ THE WHOLE TABLE.
@@ -146,6 +157,11 @@ export default async function TransfersPage() {
         title="Transfers"
         subtitle="Sent by bank transfer, waiting to be checked."
       />
+      {/*
+        🔴 76.15 — under the queue, collapsed, and never above it. The queue is
+        people waiting on us; this is a reference an operator opens when a bank
+        line will not match anything in it.
+      */}
       <TransferQueue
         rows={rows.map((r) => ({
           id: r.id,
@@ -159,6 +175,17 @@ export default async function TransfersPage() {
           payer: nameFor(r),
           payerType: typeFor(r),
           profileHref: profileFor(r),
+        }))}
+      />
+
+      <OpenCarts
+        rows={carts.map((c) => ({
+          id: c.id,
+          payer: nameFor(c),
+          payerType: typeFor(c),
+          what: c.purpose,
+          settlesCents: c.settlesCents,
+          openedAt: c.createdAt?.toISOString() ?? null,
         }))}
       />
     </div>

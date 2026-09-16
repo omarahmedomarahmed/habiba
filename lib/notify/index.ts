@@ -160,7 +160,24 @@ export type Message = {
      * several sprints and all three of its callers threw the return away, so the
      * one person who could fix it in a minute found out when somebody complained.
      */
-    | "sponsor.pot_empty";
+    | "sponsor.pot_empty"
+    /**
+     * 🔴 76.14 — THE TWO MOMENTS A PAYER ON THE EGYPTIAN RAIL HEARS FROM US.
+     *
+     * There is no processor, so the middle state lasts hours and is invisible
+     * from anywhere except the product. A payer who sent money into a bank
+     * account and heard nothing cannot tell "being checked" from "lost", and
+     * the way that goes wrong is not silence: it is a second transfer, which
+     * nobody can reverse.
+     *
+     * Nothing is sent when a payment is merely OPENED. That row exists the
+     * moment somebody reads the account number, which is often not even an
+     * intention, and a sender whose messages arrive before they are true is a
+     * sender people stop reading.
+     */
+    | "payment.submitted"
+    /** 🔴 And the patient's carries the join link, because that is what they bought. */
+    | "payment.confirmed";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

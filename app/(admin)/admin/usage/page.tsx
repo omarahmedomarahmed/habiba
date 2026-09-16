@@ -168,7 +168,7 @@ export default async function AdminUsagePage() {
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">Per clinician</p>
         <p className="mt-0.5 text-sm text-slate-500">
-          Sorted by spend. The one at the top is the one who decides whether unlimited works.
+          Sorted by spend. The top one decides whether unlimited works.
         </p>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[40rem] text-sm">

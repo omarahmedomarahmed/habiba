@@ -77,8 +77,7 @@ export default async function TaxonomyPage() {
       />
 
       <p className="text-xs leading-relaxed text-slate-400">
-        A country needs a point on the globe, so new ones are a code change. Ask. Languages and
-        specialties go here.
+        A country needs a point on the globe, so new ones are a code change. Ask.
       </p>
     </div>
   );

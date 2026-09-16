@@ -329,10 +329,66 @@ async function main() {
 
   const actions = readSource("app/(admin)/admin/transfers/actions.ts");
   const exported = [...actions.matchAll(/export async function (\w+)/g)].map((m) => m[1]!);
+  /*
+   * 🔴 76.15 — THE THIRD ACTION, AND WHY THE LIST IS NAMED RATHER THAN COUNTED.
+   *
+   * This asserted `length === 2`, and it went red the moment
+   * `confirmUnclaimed` was added. That is the check doing its job: a third way
+   * for an operator to move money is exactly the kind of widening that must not
+   * happen quietly, and "there is no third button" was a real ruling.
+   *
+   * It is now a named ALLOWLIST rather than a count, because the ruling was
+   * never about arithmetic. Adding a fourth still goes red; adding the third
+   * required writing down what it is and holding the three properties below
+   * that make it safe.
+   *
+   * 🔴 WHY THE THIRD ONE EARNS ITS PLACE. The rail's design is that nothing
+   * moves until a person confirms a CLAIM, and it has one gap it cannot close:
+   * a payer who sends the money and never presses Submit. They have paid us and
+   * the bank line is real. Refusing to credit them is the product punishing
+   * somebody for its own middle state.
+   *
+   * What it still cannot do is edit an amount or reopen a decision, which is
+   * what the original ruling was actually protecting.
+   */
+  const ALLOWED_ACTIONS = ["confirm", "reject", "confirmUnclaimed"];
+  const extra = exported.filter((name) => !ALLOWED_ACTIONS.includes(name));
+
   check(
-    "🔴 an operator can confirm or reject, and nothing else",
-    exported.length === 2 && exported.includes("confirm") && exported.includes("reject"),
-    `${exported.join(", ")}. Editing an amount or reopening a decision would let the record stop matching what happened`,
+    "🔴 an operator can confirm, reject, or credit an unclaimed transfer, and nothing else",
+    extra.length === 0 && ALLOWED_ACTIONS.every((name) => exported.includes(name)),
+    extra.length > 0
+      ? `${extra.join(", ")} is a fourth way to move money and has to be argued for`
+      : `${exported.join(", ")}. Editing an amount or reopening a decision is still impossible`,
+  );
+
+  /*
+   * 🔴 AND THE THREE PROPERTIES THAT MAKE THE THIRD ONE SAFE.
+   *
+   * Without all three it is a button for inventing payments.
+   */
+  const manualLib = readSource("lib/billing/manual.ts");
+  check(
+    "🔴 crediting without proof demands a written reason, and keeps it ON the payment",
+    /reason\.length < 10/.test(manualLib) &&
+      /rejectReason: `Received without proof\./.test(manualLib),
+    "a log entry is not enough: the fact must follow this money to every screen that shows it",
+  );
+
+  check(
+    "🔴 …and it routes through the ordinary confirmation, so there is one way money moves",
+    /return confirmPayment\(\{/.test(
+      manualLib.slice(manualLib.indexOf("export async function confirmWithoutProof")),
+    ),
+    "a second path that wrote its own rows is how two systems start disagreeing about a payment",
+  );
+
+  check(
+    "🔴 …and it can only act on a payment somebody actually opened",
+    /eq\(manualPayments\.state, "awaiting_proof"\)/.test(
+      manualLib.slice(manualLib.indexOf("export async function confirmWithoutProof")),
+    ),
+    "an operator who wants to credit an account with no such row has to make one the way a payer would",
   );
 
   check(

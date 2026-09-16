@@ -39,6 +39,7 @@ import {
   manualPayments,
   type ManualPayment,
   type ManualPaymentPurpose,
+  users,
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
@@ -318,6 +319,21 @@ export async function submitProof(input: {
   if (updated.length === 0) {
     return { error: "That payment has already been decided. Ask us if that looks wrong." };
   }
+
+  /*
+   * 🔴 76.14 — THEY ARE TOLD THEIR CLAIM ARRIVED, and it is deliberately here
+   * rather than in each of the three server actions that reach this function.
+   *
+   * A message wired at the call sites is a message the fourth call site forgets,
+   * and "the payer heard nothing" is indistinguishable to them from "the payment
+   * was lost" — which on this rail is how a second transfer gets sent.
+   *
+   * Awaited but never allowed to fail the submit: the claim is already written,
+   * and `noticePaymentSubmitted` swallows its own errors for that reason.
+   */
+  const { noticePaymentSubmitted } = await import("./payment-notices");
+  await noticePaymentSubmitted(updated[0]!.id);
+
   return { ok: true };
 }
 
@@ -330,6 +346,38 @@ export async function queue(): Promise<ManualPayment[]> {
     .from(manualPayments)
     .where(eq(manualPayments.state, "submitted"))
     .orderBy(manualPayments.submittedAt)
+    .limit(200);
+}
+
+/**
+ * 🔴 76.15 — PAYMENTS SOMEBODY OPENED AND NEVER SUBMITTED.
+ *
+ * ## The case this exists for, which is not hypothetical
+ *
+ * Money arrives in our bank as a line with a name on it. Most of the time a
+ * claim is waiting in the queue and the two match. Sometimes there is no claim
+ * at all, because the payer opened the sheet, read the account number, sent the
+ * money from their banking app and never came back to press Submit.
+ *
+ * Before the cart existed there was nothing to look at: an operator had an
+ * unmatched line and a database with no record that anybody had even opened a
+ * payment. Now there is one, and it usually carries the amount and the payer.
+ * This is the list an operator searches when a line will not match.
+ *
+ * ## 🔴 IT IS NOT THE QUEUE AND MUST NEVER BE WORKED LIKE ONE
+ *
+ * Nobody here has claimed anything. Most of these people did not pay, and a
+ * screen that invited an operator to confirm them one by one would be a screen
+ * for inventing payments. It answers "did anybody open one for this amount",
+ * and the only act it offers is the override, which asks for a reason.
+ */
+export async function openCarts(): Promise<ManualPayment[]> {
+  return db
+    .select()
+    .from(manualPayments)
+    .where(eq(manualPayments.state, "awaiting_proof"))
+    /* Newest first: an unmatched bank line is almost always about today. */
+    .orderBy(desc(manualPayments.createdAt))
     .limit(200);
 }
 
@@ -438,7 +486,118 @@ export async function confirmPayment(input: {
     }
   }
 
+  /*
+   * 🔴 76.14 — AND AFTER THE GRANT, NEVER BEFORE IT.
+   *
+   * The message tells a patient their session is ready and carries the link. If
+   * it were sent before `onConfirmed` ran, a grant that failed would leave
+   * somebody holding a link to a session the join gate still refuses, which is
+   * a worse outcome than silence and much harder to explain.
+   */
+  const { noticePaymentConfirmed } = await import("./payment-notices");
+  await noticePaymentConfirmed(payment.id);
+
   return { ok: true };
+}
+
+/**
+ * 🔴 76.15 — THE MONEY ARRIVED AND NOBODY EVER CLAIMED IT.
+ *
+ * ## Why an override has to exist
+ *
+ * The rail's whole design is that nothing moves until a person confirms a
+ * CLAIM. That is right, and it has one gap it cannot close by itself: a payer
+ * who sends the money and never presses Submit. They have paid us. The bank
+ * line is real. Refusing to credit them because the product did not get a form
+ * would be the product punishing somebody for its own middle state.
+ *
+ * ## What makes this safe to have
+ *
+ * Three things, and none of them is optional:
+ *
+ *   - **A reason is required**, by this function and by the operator's screen.
+ *     An override with no reason is indistinguishable from a mistake.
+ *   - **It is flagged on the row forever.** `rejectReason` is reused to carry
+ *     the note precisely because it is the column an operator already reads on
+ *     every screen that shows this payment: the fact that no proof was ever
+ *     given must follow the payment everywhere it appears, not sit in a log.
+ *   - **It goes through `confirmPayment`.** The grant, the ledger posting and
+ *     the notification are all the same code path as an ordinary confirmation,
+ *     so there is no second way for money to reach an account. A separate
+ *     "mark as paid" that wrote its own rows is how two systems start
+ *     disagreeing about what somebody paid.
+ *
+ * ## 🔴 IT CANNOT INVENT A PAYMENT FROM NOTHING
+ *
+ * It operates on a row that already exists, which means somebody opened the
+ * sheet for this exact thing at this exact amount. An operator who wants to
+ * credit an account with no such row has to go and make one the way a payer
+ * would, which is deliberately more work than pressing a button.
+ */
+export async function confirmWithoutProof(input: {
+  paymentId: string;
+  byUserId: string;
+  /** What the operator saw in the bank. Required, and stored on the row. */
+  reason: string;
+  onConfirmed?: (payment: ManualPayment) => Promise<void>;
+}): Promise<Decision> {
+  const reason = input.reason.trim();
+  if (reason.length < 10) {
+    return { error: "Say what you saw in the bank. This stays on the payment." };
+  }
+
+  /*
+   * 🔴 The row is moved to `submitted` first, then confirmed by the ordinary
+   * path. Not because the state machine demands the hop, but because it means
+   * `confirmPayment` is the only function in this file that can turn a payment
+   * into money, and every guard it carries applies here unchanged.
+   */
+  const [moved] = await db
+    .update(manualPayments)
+    .set({
+      state: "submitted",
+      submittedAt: new Date(),
+      rejectReason: `Received without proof. ${reason}`,
+    })
+    .where(
+      and(
+        eq(manualPayments.id, input.paymentId),
+        eq(manualPayments.state, "awaiting_proof"),
+      ),
+    )
+    .returning({ id: manualPayments.id });
+
+  if (!moved) {
+    return { error: "That payment is not an open one. Refresh and look again." };
+  }
+
+  /*
+   * 🔴 AUDITED AS A BILLING ACT BY A NAMED PERSON, because that is exactly what
+   * it is: somebody decided, on their own judgement, that money arrived without
+   * the product having any record of a claim. It is the one act on this rail
+   * with no payer-side evidence behind it, so the evidence has to be the
+   * operator.
+   */
+  const [operator] = await db
+    .select({ organizationId: users.organizationId })
+    .from(users)
+    .where(eq(users.id, input.byUserId))
+    .limit(1);
+
+  await audit({
+    actor: { userId: input.byUserId, organizationId: operator?.organizationId ?? "" },
+    category: "billing",
+    action: "payment.confirmed_without_proof",
+    resourceType: "manual_payment",
+    resourceId: input.paymentId,
+    reason,
+  });
+
+  return confirmPayment({
+    paymentId: input.paymentId,
+    byUserId: input.byUserId,
+    onConfirmed: input.onConfirmed,
+  });
 }
 
 /**

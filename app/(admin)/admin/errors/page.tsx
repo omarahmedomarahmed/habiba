@@ -51,8 +51,7 @@ export default async function AdminErrorsPage() {
         <Card className="p-8 text-center">
           <p className="text-sm font-medium text-slate-900">Nothing has thrown</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-            Either the product is behaving or nothing is using it. Before this page there was no
-            way to tell.
+            Either the product is behaving or nothing is using it.
           </p>
         </Card>
       ) : null}
@@ -78,8 +77,8 @@ export default async function AdminErrorsPage() {
 
             {latest.digest ? (
               <p className="mt-1 text-xs text-slate-400">
-                Digest <code className="font-mono">{latest.digest}</code>. This is the code a
-                clinician sees on the error page, so a support message quoting it lands here.
+                Digest <code className="font-mono">{latest.digest}</code>. The code a clinician
+                sees, so a support message quoting it lands here.
               </p>
             ) : null}
 

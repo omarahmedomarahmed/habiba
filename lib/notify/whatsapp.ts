@@ -82,6 +82,25 @@ const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: numb
    * never going to buzz.
    */
   "password.reset_code": { name: "password_reset_code", variables: 1 },
+  /*
+   * 🔴 76.14 — the Egyptian rail's two moments. Both UTILITY templates: they
+   * report a transaction the person themselves started, carry no code and no
+   * marketing language.
+   *
+   * "We have your transfer of {{1}}. Somebody is checking it now."
+   */
+  "payment.submitted": { name: "payment_submitted", variables: 1 },
+  /*
+   * "Your payment of {{1}} is confirmed."
+   *
+   * 🔴 THE JOIN LINK IS NOT A VARIABLE HERE, and that is deliberate. Meta
+   * approves a template with a fixed body and numbered variables; a URL that
+   * changes per message belongs in a button component rather than a text
+   * variable, and a session link in WhatsApp is forwardable in one tap. The
+   * EMAIL carries the link, WhatsApp carries the fact, and `notify` sends both
+   * whenever both handles exist.
+   */
+  "payment.confirmed": { name: "payment_confirmed", variables: 1 },
 };
 
 /** The language a template was approved in. Egypt's WhatsApp is largely Arabic. */

@@ -71,3 +71,39 @@ export async function reject(paymentId: string, reason: string): Promise<Transfe
   revalidatePath("/admin/transfers");
   return { ok: "Rejected, and they have been told why." };
 }
+
+/**
+ * 🔴 76.15 — MONEY ARRIVED AND NOBODY EVER CLAIMED IT.
+ *
+ * The rail's design is that nothing moves until a person confirms a CLAIM, and
+ * it has one gap it cannot close by itself: a payer who sends the money and
+ * never presses Submit. They have paid us, the bank line is real, and refusing
+ * to credit them would be the product punishing somebody for its own middle
+ * state.
+ *
+ * The reason is required and it stays ON the payment rather than in a log,
+ * because the fact that no proof was ever given has to follow this payment to
+ * every screen it appears on. `confirmWithoutProof` routes through the ordinary
+ * confirmation, so the grant, the ledger posting and the message to the payer
+ * are the same code path as every other confirmation: there is no second way
+ * for money to reach an account.
+ */
+export async function confirmUnclaimed(
+  paymentId: string,
+  reason: string,
+): Promise<TransferState> {
+  const actor = await requireStaff();
+
+  const { confirmWithoutProof } = await import("@/lib/billing/manual");
+  const result = await confirmWithoutProof({
+    paymentId,
+    byUserId: actor.userId,
+    reason,
+    onConfirmed: grantFor,
+  });
+
+  if (result.error) return { error: result.error };
+
+  revalidatePath("/admin/transfers");
+  return { ok: "Credited, and the payer has been told." };
+}

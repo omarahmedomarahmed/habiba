@@ -108,9 +108,8 @@ function Row({ row }: { row: ChangeRow }) {
 
         <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
           <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" aria-hidden />
-          Call or message the <strong>new</strong> number and satisfy yourself it is them before
-          approving. Approving does not move the account. The code does, and only they can enter
-          it.
+          Call the <strong>new</strong> number and be sure it is them. Approving moves nothing.
+          The code does, and only they can enter it.
         </p>
 
         {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
