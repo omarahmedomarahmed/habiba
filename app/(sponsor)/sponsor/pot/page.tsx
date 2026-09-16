@@ -5,7 +5,7 @@ import { CoverageForm } from "@/components/sponsor/coverage-form";
 import { declarePotTransfer } from "./actions";
 import { PayByTransfer } from "@/components/billing/pay-by-transfer";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
-import { manualEntry, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
+import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { localeTag } from "@/lib/i18n/config";
 import { Card } from "@/components/ui";
 import { Meter } from "@/components/visual/primitives";
@@ -72,6 +72,26 @@ export default async function SponsorPotPage() {
 
   /* 65.12 — the meter's denominator, and it is the figure the sponsor last authorised. */
   const lastTopUpCents = history[0]?.amountCents ?? 0;
+
+  /*
+   * 🔴 76.1 — THE RUNGS OF THE STEPPER, BUILT HERE BECAUSE THE BROWSER MAY NOT.
+   *
+   * Every label comes back already written in the reader's language. C84 bans
+   * `Intl` in a client component, and this is the screen where that rule earns
+   * its keep: these are the figures a finance team copies into a banking app,
+   * and a number that renders one way on the server and another in the browser
+   * is a transfer for the wrong amount.
+   *
+   * Built only on the transfer rail. The card path takes a typed amount through
+   * `TopUpForm` and is unchanged.
+   */
+  const ladder = needsTransfer
+    ? await potTopUpLadder({
+        entity: "eg",
+        coverageBps: coverage?.coverageBps ?? 0,
+        locale: localeTag(locale),
+      })
+    : null;
 
   const fmt = (cents: number) =>
     new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
@@ -159,6 +179,7 @@ export default async function SponsorPotPage() {
           askAmount
           minimumLabel={fmt(settings.sponsor.minTopUpCents)}
           rateLabel={rail.rateLabel}
+          steps={ladder?.steps}
         />
       ) : null}
 

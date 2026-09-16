@@ -127,7 +127,18 @@ const PORTALS: Record<string, readonly string[]> = {
     "cassess",
   ],
   clinic: ["clinic", "records"],
-  sponsor: ["sponsor", "sint"],
+  /*
+   * 🔴 `topup` is the SPONSOR's, and the letter rule had it under the clinician
+   * on the `t` — the same misattribution the note below this list was written
+   * about. Checked the same way as the rest:
+   *
+   *   grep -rn 't("topup\.' app components lib
+   *
+   * comes back as one component, `components/billing/top-up-stepper.tsx`, which
+   * renders on `/sponsor/pot` and nowhere else. A company's own screen counted
+   * against a therapist's ratchet is prose nobody is asked to cut.
+   */
+  sponsor: ["sponsor", "sint", "topup"],
   partner: ["dev", "devs"],
   public: ["pricing", "contact", "public", "marketing", "blocks"],
   admin: ["admin", "aclinic", "apartner", "asponsor", "acheckin"],

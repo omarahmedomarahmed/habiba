@@ -326,3 +326,92 @@ export async function declarePaid(input: {
 
   return { ok: true };
 }
+
+/* --------------------------------------------------- the company's ladder -- */
+
+/** One stop on the top-up stepper, with every figure already in the reader's language. */
+export type PotStep = {
+  /** What the pot receives, in USD cents. The value posted with the form. */
+  creditCents: number;
+  /** Credit plus tax, in USD cents. What they actually send. */
+  settlesCents: number;
+  /** "$100" */
+  usdLabel: string;
+  /** "5,000 EGP" — the credit, converted. */
+  egpLabel: string;
+  /** "700 EGP" — the tax on top. Empty where there is none. */
+  vatEgpLabel: string;
+  /** "5,700 EGP" — what lands in our account. */
+  totalEgpLabel: string;
+  /** How many sessions this covers at their coverage rate. */
+  sessions: number;
+};
+
+/**
+ * 🔴 76.1 — EVERY LABEL ON THE STEPPER IS BUILT HERE, AND THAT IS THE POINT.
+ *
+ * ## Why a ladder and not a formatter
+ *
+ * The obvious build is a number in React state and a `toLocaleString` beside
+ * it. C84 bans exactly that: `Intl` inside a client component renders one
+ * string on the server pass and another in the browser, and these are the
+ * figures a finance team types into a banking app. It is also the difference
+ * between Arabic-Indic and Western digits for the language half this market
+ * reads in.
+ *
+ * So the client never formats anything. It holds an INDEX into this array and
+ * renders the strings it was handed. Pressing Plus moves the index. There is no
+ * arithmetic in the browser at all, which means there is no number the browser
+ * could disagree with the server about.
+ *
+ * ## Why a stepper and not a text box
+ *
+ * A pot is the one place in this product where the payer chooses the figure,
+ * and a free text box in dollars is how somebody sends us $5 or $50,000 by
+ * slipping on a zero. There is no processor to reverse either one. The stepper
+ * removes the keyboard from the decision, so the set of amounts we accept is
+ * exactly the set of amounts we can render.
+ */
+export async function potTopUpLadder(input: {
+  entity: string;
+  /** Their coverage share, in basis points. Decides the sessions figure. */
+  coverageBps: number;
+  locale: string;
+}): Promise<{ steps: PotStep[]; rateLabel: string }> {
+  const { getSettings } = await import("@/lib/settings");
+  const { entityVatBps, potTopUpMoney } = await import("./pot");
+
+  const [settings, vatBps, rateMicro] = await Promise.all([
+    getSettings(),
+    entityVatBps(input.entity),
+    egpRateMicro(),
+  ]);
+
+  const { minTopUpCents, topUpStepCents, maxTopUpCents, averageSessionCents } = settings.sponsor;
+  const egp = (cents: number) => formatMoney(egpMinorFor(cents, rateMicro), "EGP", input.locale);
+
+  /*
+   * 🔴 What ONE session costs THEM, which is the only sum that makes the
+   * sessions figure mean anything. At 10% coverage of a $20 session they pay
+   * $2, so $100 is 50 sessions. Guarded against zero because a coverage of 0
+   * would divide by it, and a sponsor who covers nothing covers no sessions
+   * rather than infinitely many.
+   */
+  const perSessionCents = Math.round((averageSessionCents * input.coverageBps) / 10_000);
+
+  const steps: PotStep[] = [];
+  for (let credit = minTopUpCents; credit <= maxTopUpCents; credit += topUpStepCents) {
+    const money = potTopUpMoney({ creditCents: credit, vatBps });
+    steps.push({
+      creditCents: money.creditCents,
+      settlesCents: money.settlesCents,
+      usdLabel: formatMoney(credit, "USD", input.locale),
+      egpLabel: egp(credit),
+      vatEgpLabel: money.vatCents > 0 ? egp(money.vatCents) : "",
+      totalEgpLabel: egp(money.settlesCents),
+      sessions: perSessionCents > 0 ? Math.floor(credit / perSessionCents) : 0,
+    });
+  }
+
+  return { steps, rateLabel: egp(100) };
+}

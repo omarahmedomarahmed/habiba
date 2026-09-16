@@ -197,8 +197,57 @@ const GATES = [
   },
 ] as const;
 
+/**
+ * 🔴 76.2 — SAY WHICH DATABASE THIS IS BEFORE RUNNING A SINGLE GATE.
+ *
+ * ## The hour this cost
+ *
+ * Six of the thirteen gates need a database. Run without one they reported
+ * `FAIL`, and the output underneath was a stack trace ending in `ECONNREFUSED
+ * 127.0.0.1:443` — which reads exactly like a product defect and is nothing of
+ * the kind. The gates were fine. The shell had no `DATABASE_URL`, because
+ * nothing loaded `.env.local` for a plain node script, and six red lines are
+ * indistinguishable from six broken things.
+ *
+ * Every script now loads `.env.local` through `--env-file-if-exists`, so the
+ * common case simply works. This is the other half: when it still cannot work,
+ * say so in one line at the top instead of thirteen lines of red at the bottom.
+ *
+ * 🔴 IT PRINTS THE HOST AND NEVER THE CREDENTIALS. Which database a gate ran
+ * against is the first thing anybody asks when a result surprises them, and it
+ * is the one fact this output never carried.
+ */
+function database(): { label: string; warn: string | null } {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    return {
+      label: "none",
+      warn:
+        "No DATABASE_URL. Six gates need one and will report FAIL for that reason alone.\n" +
+        "     Put it in .env.local, which every script in this repository now reads by itself.",
+    };
+  }
+
+  const host = url.replace(/^.*@/, "").split("/")[0] ?? "unreadable";
+  if (host.includes("ep-wild-lake")) {
+    return {
+      label: host,
+      warn:
+        "That is the PRODUCTION endpoint. The gates that write will refuse it by name,\n" +
+        "     which is correct and is not a defect. Point .env.local at your own branch.",
+    };
+  }
+
+  return { label: host, warn: null };
+}
+
 function main() {
   console.log("\n🔴 The gates that span the whole product, in one pass.\n");
+
+  const db = database();
+  console.log(`  database: ${db.label}`);
+  if (db.warn) console.log(`\n  ⚠️  ${db.warn}`);
+  console.log("");
 
   const failed: string[] = [];
 

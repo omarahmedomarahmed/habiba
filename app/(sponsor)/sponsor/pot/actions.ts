@@ -153,18 +153,46 @@ export async function declarePotTransfer(
   const units = Number(String(formData.get("amount") ?? "").replace(/[, $]/g, ""));
   if (!Number.isFinite(units) || units <= 0) return { error: "Enter the amount you sent." };
 
-  const settlesCents = Math.round(units * 100);
+  /*
+   * 🔴 76.1 — WHAT THE FORM POSTS IS THE CREDIT, AND THE TAX IS ADDED HERE.
+   *
+   * The stepper's hidden field carries the rung they chose, which is what their
+   * pot will receive. It does NOT carry the total, deliberately: a browser that
+   * posted the figure to be collected would be a browser that could post a
+   * smaller one, and there is no processor on this rail to notice. So the
+   * server adds the tax itself, from the same helper the card rail uses.
+   */
+  const creditCents = Math.round(units * 100);
 
   /*
    * 🔴 The same floor `topUpPot` enforces on the card rail, asked of the same
-   * setting. A minimum that held on one rail and not the other would be a
-   * minimum, and the way around it would be to be Egyptian.
+   * setting, and asked of the CREDIT on both. A minimum that counted the tax on
+   * one rail and not the other would be two different minimums.
    */
   const settings = await getSettings();
-  if (settlesCents < settings.sponsor.minTopUpCents) {
+  if (creditCents < settings.sponsor.minTopUpCents) {
     const { formatUsd } = await import("@/lib/billing/plans");
     return { error: `The smallest top-up is ${formatUsd(settings.sponsor.minTopUpCents)}.` };
   }
+
+  /*
+   * 🔴 AND A CEILING, because the stepper has one and a post is not a stepper.
+   * The rungs stop at `maxTopUpCents`; without this, the one payer who can
+   * choose their own figure could choose one no screen would ever show.
+   */
+  if (creditCents > settings.sponsor.maxTopUpCents) {
+    const { formatUsd } = await import("@/lib/billing/plans");
+    return {
+      error: `The largest top-up we can take on this screen is ${formatUsd(settings.sponsor.maxTopUpCents)}. Talk to us for more.`,
+    };
+  }
+
+  const { entityVatBps, potTopUpMoney } = await import("@/lib/billing/pot");
+  const money = potTopUpMoney({
+    creditCents,
+    vatBps: await entityVatBps("eg"),
+  });
+  const settlesCents = money.settlesCents;
 
   const reference = String(formData.get("reference") ?? "").trim();
 

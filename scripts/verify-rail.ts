@@ -176,9 +176,62 @@ async function main() {
     ["what to do after a rejection", "transfer.rejectedBody"],
     ["where the reference goes", "transfer.refLabel"],
     ["where the receipt goes", "transfer.proofLabel"],
-    ["what a pot top-up asks for", "transfer.amountLabel"],
     ["the rate a pot top-up converts at", "transfer.rateNote"],
   ] as const;
+
+  /*
+   * 🔴 76.1 — `transfer.amountLabel` LEFT THIS LIST BECAUSE THE FIELD LEFT THE
+   * SCREEN, and the stepper's own strings took its place.
+   *
+   * The old row asserted the label on a free text box in dollars. That box is
+   * gone: a payer typing an amount on a rail with no processor is how somebody
+   * sends $5 or $50,000 by slipping on a zero. Deleting the row without
+   * replacing it would have quietly dropped a whole screen out of the one check
+   * that proves this flow is translated at all, which is the §6 shape — a check
+   * that keeps passing while the thing it guarded walks away.
+   */
+  const stepper = readSource("components/billing/top-up-stepper.tsx");
+  const STEPPER_STRINGS = [
+    ["the heading over the stepper", "topup.choose"],
+    ["the two buttons", "topup.more"],
+    ["how many sessions it covers", "topup.covers"],
+    ["what reaches the pot", "topup.credit"],
+    ["the tax on top", "topup.vat"],
+    ["what to transfer", "topup.send"],
+  ] as const;
+
+  const unstepped = STEPPER_STRINGS.filter(([, key]) => !stepper.includes(`t("${key}"`));
+  check(
+    "🔴 …and the stepper that replaced the amount box is translated too",
+    unstepped.length === 0,
+    unstepped.map(([why]) => why).join(", ") ||
+      STEPPER_STRINGS.map(([why]) => why).join(" · "),
+  );
+
+  check(
+    "🔴 CONTROL every one of those keys exists in BOTH dictionaries",
+    STEPPER_STRINGS.every(([, key]) => Boolean(en[key]) && Boolean(ar[key])),
+    "a key rendered and never translated is an English screen for an Arabic payer",
+  );
+
+  /*
+   * 🔴 AND THE BROWSER DOES NOT FORMAT ANY OF THE MONEY ON IT (C84).
+   *
+   * Every figure on the stepper arrives from the server already written in the
+   * reader's language. `Intl` here would render one string on the server pass
+   * and another in the browser, and these are the digits somebody copies into a
+   * banking app. It is also Arabic-Indic against Western numerals for half this
+   * market. `verify:sprint12` bans the construct repository-wide; this says the
+   * screen it matters most on holds no arithmetic at all.
+   */
+  check(
+    "🔴 …and the stepper holds an INDEX, never an amount it formats itself",
+    /useState\(0\)/.test(stepper) &&
+      !/Intl\./.test(stepper) &&
+      !/toLocaleString/.test(stepper) &&
+      !/toFixed/.test(stepper),
+    "a number the browser computes is a number the browser can disagree with the server about",
+  );
 
   /*
    * 🔴 `t("key"` rather than `t("key")`, because some of these take a value.

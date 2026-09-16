@@ -250,9 +250,20 @@ export async function openPot(input: {
    * stops us doing five-dollar bank reconciliations forever. A welcome credit is
    * us GIVING it, and there is nobody to under-pay.
    *
-   * So it is granted here, by an operator opening the pot, and it is capped at
-   * the floor: anything at or above `minTopUpCents` is a purchase and must go
-   * through the rail where somebody actually sends money.
+   * So it is granted here, by an operator opening the pot, and it is capped by
+   * `sponsor.maxWelcomeCreditCents`.
+   *
+   * 🔴 76.1 — THAT CAP USED TO BE THE TOP-UP FLOOR, AND THE COINCIDENCE BROKE.
+   *
+   * The rule was "anything at or above `minTopUpCents` is a purchase", which
+   * read sensibly while the floor was $5,000 and the credit was $100. Dropping
+   * the floor to $100 turned it into a guard that refused the exact offer the
+   * plan promises every company, on the boundary, with a message about the
+   * payments queue that would have made no sense to the operator reading it.
+   *
+   * Two numbers now, because they answer two questions: the floor is the
+   * smallest thing somebody may BUY, and the cap is the largest thing we will
+   * GIVE away. Nothing says they have to move together.
    */
   welcomeCreditCents?: number;
 }): Promise<{ ok?: true; error?: string }> {
@@ -264,11 +275,11 @@ export async function openPot(input: {
 
   if (credit > 0) {
     const { getSettings } = await import("@/lib/settings");
+    const { formatUsd } = await import("@/lib/billing/plans");
     const settings = await getSettings();
-    if (credit >= settings.sponsor.minTopUpCents) {
+    if (credit > settings.sponsor.maxWelcomeCreditCents) {
       return {
-        error:
-          "That is a top-up, not a welcome credit. Anything that size is money somebody sends us through the payments queue.",
+        error: `The most that can be given away is ${formatUsd(settings.sponsor.maxWelcomeCreditCents)}. Anything larger is a top-up, and a top-up is money somebody sends us through the payments queue.`,
       };
     }
   }

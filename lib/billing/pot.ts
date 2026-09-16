@@ -16,7 +16,7 @@ import {
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings, sessionMoney } from "@/lib/settings";
-import { coverageNow, coverageSplit } from "@/lib/settings/defs";
+import { coverageNow, coverageSplit, vatOn } from "@/lib/settings/defs";
 
 import { journal } from "./ledger";
 import { crossingFor, payoutRailFor } from "./money";
@@ -91,6 +91,54 @@ import { crossingFor, payoutRailFor } from "./money";
  * is backwards. Zero is a real answer, not a missing one, and both read the same
  * row so they cannot disagree about a jurisdiction.
  */
+/**
+ * 🔴 76.1 — WHAT A COMPANY CHOOSES IS THE CREDIT, AND THE TAX GOES ON TOP.
+ *
+ * ## The question the stepper forced
+ *
+ * A pot top-up used to work the tax BACKWARDS out of whatever number arrived:
+ * $5,000 in a 14% jurisdiction credited $4,386. That was never a decision, it
+ * was a guess made while `topUpPot` refused every VAT jurisdiction there was,
+ * and the note beside it said so: *"ZERO TODAY, and shipped anyway."*
+ *
+ * The manual rail changed that. An Egyptian company can now reach a pot, so
+ * "is the number they picked the credit or the total?" has a consequence, and
+ * it has to be answered once for both rails rather than differently in each.
+ *
+ * ## Why the credit, and not the total
+ *
+ * Three reasons, and they agree:
+ *
+ *   - **The session rail already adds tax on top.** A patient picks a 1,000
+ *     pound session and is asked for 1,140. A company picking $100 and being
+ *     charged $100 would mean the same product taxes two payers in opposite
+ *     directions.
+ *   - **The arithmetic on the screen has to be true.** The whole point of the
+ *     coverage slider is *"your $100 covers 50 sessions"*. Divide the tax out
+ *     and $100 covers 43, and the one sum a finance team does on paper before
+ *     agreeing to anything is the sum we got wrong.
+ *   - **The plan promises $100 of credit**, not $100 minus whatever tax applies
+ *     in the jurisdiction they happen to be in.
+ *
+ * ## What did NOT change
+ *
+ * `invoiceFor` still works the tax backwards out of the cash that arrived, and
+ * it still lands on the same two numbers: $114 arrives, $100 is net, $14 is
+ * tax. The two directions agree because they are now describing the same
+ * event from the two ends.
+ *
+ * And the US rail is unchanged in behaviour: its rate is 0, so credit and
+ * total are the same number and always were.
+ */
+export function potTopUpMoney(input: {
+  creditCents: number;
+  vatBps: number;
+}): { creditCents: number; vatCents: number; settlesCents: number } {
+  const credit = Math.max(0, Math.round(input.creditCents));
+  const vat = vatOn(credit, input.vatBps);
+  return { creditCents: credit, vatCents: vat, settlesCents: credit + vat };
+}
+
 export async function entityVatBps(entity: string): Promise<number> {
   const rows = await controlDb.execute(sql`
     SELECT vat_bps FROM country_settings WHERE entity = ${entity} AND enabled = true LIMIT 1`);
@@ -830,34 +878,35 @@ export async function topUpPot(input: {
   }
 
   /*
-   * 🔴 THE VAT COMES OUT OF THE TOP-UP BEFORE IT REACHES THE POT.
+   * 🔴 76.1 — `amountCents` IS THE CREDIT, AND THE TAX IS CHARGED ON TOP OF IT.
    *
-   * `invoiceFor` already works the tax backwards out of the amount that
-   * cleared, because *"the sponsor paid a number and that number is what
-   * cleared"*. So a $5,000 top-up in a 14% jurisdiction is invoiced as $4,386 of
-   * therapy plus $614 of tax. The pot was credited the whole $5,000, which let
-   * the sponsor spend the tax on sessions and left us owing a tax authority out
-   * of money we had already promised to somebody else.
+   * This block used to divide the tax back out of the figure, so a $5,000
+   * top-up credited $4,386. `potTopUpMoney` says at length why that direction
+   * was wrong and why it is the same direction on both rails now.
    *
-   * 🔴 ZERO TODAY, and shipped anyway. `topUpPot` accepts only the `us` entity
-   * (C241 gates the Egyptian one behind e-invoicing), and the US rate is 0, so
-   * `net` and `amountCents` are the same number and no balance moves. Getting it
-   * right now is the difference between a migration and a reconciliation the day
-   * Egypt opens.
+   * 🔴 NOTHING MOVES TODAY. `topUpPot` accepts only the `us` entity (C241 gates
+   * the Egyptian one behind e-invoicing) and the US rate is 0, so the credit and
+   * the charge are the same number here and always have been. The change is that
+   * the day Egypt opens, this rail and the manual one will already agree about
+   * what a company was asked for.
    */
   const vatBps = await entityVatBps(sponsor.entity);
-  const net =
-    vatBps > 0
-      ? Math.round((input.amountCents * 10_000) / (10_000 + vatBps))
-      : input.amountCents;
-  const vat = input.amountCents - net;
+  const { creditCents: net, vatCents: vat, settlesCents: charged } = potTopUpMoney({
+    creditCents: input.amountCents,
+    vatBps,
+  });
 
   await journal({
     kind: "pot_topup",
     refType: "sponsor",
     refId: input.sponsorId,
     legs: [
-      { account: "cash", amountCents: input.amountCents, memo: "A sponsor topped up their pot" },
+      {
+        account: "cash",
+        /* 🔴 What we CHARGED, which is the credit plus the tax on it. */
+        amountCents: charged,
+        memo: "A sponsor topped up their pot",
+      },
       {
         account: "vat_payable",
         /* Negative, the same liability convention. Zero legs are dropped. */

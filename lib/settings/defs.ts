@@ -353,6 +353,40 @@ export type PlatformSettings = {
     /** 53.11 — the smallest top-up we will take, in cents of the entity's currency. */
     minTopUpCents: number;
     /**
+     * 🔴 76.1 — WHAT THE PLUS AND MINUS BUTTONS MOVE BY, on the pot screen.
+     *
+     * A company choosing a number is the one place in this product where the
+     * payer types the amount, and a free text box in dollars is how somebody
+     * sends us $5 or $50,000 by slipping on a zero. The stepper removes the
+     * keyboard from the decision, so the step size IS the set of amounts we
+     * accept, which makes it a commercial number rather than a style choice.
+     */
+    topUpStepCents: number;
+    /**
+     * 🔴 76.1 — THE TOP OF THE STEPPER, because a ladder has to end somewhere.
+     *
+     * The client renders labels it was handed rather than formatting numbers
+     * itself (C84), so the set of amounts we can show is finite and this is its
+     * ceiling. A company that wants more than this is a conversation with a
+     * person, not a button, and at that size they were always going to want one.
+     */
+    maxTopUpCents: number;
+    /**
+     * 🔴 76.1 — THE CEILING ON A FREE CREDIT, WHICH USED TO BE THE TOP-UP FLOOR.
+     *
+     * `openPot` refused any welcome credit at or above `minTopUpCents`, on the
+     * reasoning that anything that size is a purchase and belongs in the queue
+     * where somebody actually sends money. That worked only while the floor was
+     * $5,000 and the credit was $100, and it was a coincidence rather than a
+     * relationship: dropping the floor to $100 would have made the $100 credit
+     * the plan promises every company refuse itself.
+     *
+     * So the two numbers are separated. This one answers "how much may an
+     * operator give away without anybody paying", and it is the one that should
+     * be argued about in a pricing meeting.
+     */
+    maxWelcomeCreditCents: number;
+    /**
      * 🔴 73.10 — WHAT A SESSION COSTS ON AVERAGE, for the sponsor's own arithmetic.
      *
      * "10% coverage" is abstract. "Your $100 covers 50 sessions" is a decision a
@@ -608,7 +642,19 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     ],
   },
   sponsor: {
-    minTopUpCents: 500_000,
+    /*
+     * 🔴 76.1 — $100, down from $5,000.
+     *
+     * $5,000 was a floor written for a company signing an annual deal. It is the
+     * wrong number for a launch market where the first customers are a foundry
+     * and a textile mill trying us with one department, and at 10% coverage of a
+     * $20 session it priced the smallest possible experiment at 2,500 sessions.
+     * $100 is 50 sessions, which is a department for a month.
+     */
+    minTopUpCents: 10_000,
+    topUpStepCents: 5_000,
+    maxTopUpCents: 500_000,
+    maxWelcomeCreditCents: 10_000,
     averageSessionCents: 2_000,
     activityFloor: 5,
     verifyCycleMonths: 6,
@@ -1122,6 +1168,39 @@ export function parseGroup<G extends SettingsGroup>(
          */
         minTopUpCents: int(v.minTopUpCents, d.sponsor.minTopUpCents, {
           min: 1_000,
+          max: 1_000_000_000,
+        }),
+        /*
+         * 🔴 The step has a floor of $1 and a ceiling of the smallest top-up.
+         *
+         * A step larger than the minimum would mean the first press of Plus
+         * jumps past the floor, so the cheapest thing a company could buy would
+         * not be the cheapest thing we advertise. A step of zero would make the
+         * buttons do nothing, which is worse than not rendering them.
+         */
+        topUpStepCents: int(v.topUpStepCents, d.sponsor.topUpStepCents, {
+          min: 100,
+          max: 1_000_000_000,
+        }),
+        /*
+         * 🔴 The ceiling of the ladder. Not bounded against the floor here,
+         * because `potTopUpLadder` starts at the floor and stops at or before
+         * this: a ceiling below the floor yields one rung rather than an error,
+         * and one rung is a screen that offers the minimum and nothing else,
+         * which is a coherent thing for an operator to have configured.
+         */
+        maxTopUpCents: int(v.maxTopUpCents, d.sponsor.maxTopUpCents, {
+          min: 1_000,
+          max: 1_000_000_000,
+        }),
+        /*
+         * 🔴 Zero is a real answer and it means "we do not give credit away".
+         * There is no upper bound tied to the top-up floor any more, on purpose:
+         * see the note on the field. What stops an operator granting a fortune
+         * is this number, and it is theirs to set.
+         */
+        maxWelcomeCreditCents: int(v.maxWelcomeCreditCents, d.sponsor.maxWelcomeCreditCents, {
+          min: 0,
           max: 1_000_000_000,
         }),
         /*

@@ -5,7 +5,9 @@ import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/ui";
+import { TopUpStepper } from "@/components/billing/top-up-stepper";
 import { useT } from "@/lib/i18n/client";
+import type { PotStep } from "@/lib/billing/manual-entry";
 
 /**
  * How anybody in Egypt pays us, until there is a gateway.
@@ -71,6 +73,7 @@ export function PayByTransfer({
   askAmount = false,
   minimumLabel,
   rateLabel,
+  steps,
 }: {
   details: TransferView;
   /** "1,000 EGP", already formatted by the server in the payer's language. */
@@ -97,6 +100,15 @@ export function PayByTransfer({
    * have not agreed to.
    */
   rateLabel?: string;
+  /**
+   * 🔴 76.1 — the rungs of the top-up stepper, built on the server.
+   *
+   * Required by `askAmount` and meaningless without it. Every label inside is
+   * already formatted in the reader's language, because the browser is not
+   * allowed to format money (C84) and this is the screen where that matters
+   * most: these are the figures somebody types into a banking app.
+   */
+  steps?: PotStep[];
 }) {
   const t = useT();
   const router = useRouter();
@@ -233,25 +245,28 @@ export function PayByTransfer({
         encType="multipart/form-data"
         className="mt-5 space-y-3 border-t border-slate-100 pt-4"
       >
-        {askAmount ? (
-          <label className="block text-sm font-medium text-slate-800">
-            {t("transfer.amountLabel")}
-            <input
-              name="amount"
-              inputMode="decimal"
-              placeholder={t("transfer.amountPlaceholder")}
-              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900"
-            />
-            {/*
-              🔴 THE SUM BETWEEN THE TWO CURRENCIES, SAID OUT LOUD.
-              The field is in dollars because that is what a pot holds; the
-              transfer is in pounds because that is what a bank moves. A finance
-              team that has to guess the rate guesses a different one.
-            */}
-            <p className="mt-1 text-[11px] font-normal text-slate-500">
-              {t("transfer.rateNote", { rate: rateLabel ?? "" })}
-            </p>
-          </label>
+        {/*
+          🔴 76.1 — THE STEPPER REPLACED A TEXT BOX IN DOLLARS.
+
+          It used to be `<input name="amount" inputMode="decimal">` with the
+          rate underneath. On a rail with no processor that is how somebody
+          sends $5 or $50,000 by slipping on a zero, and neither is reversible.
+          The field that posts is hidden and carries the CREDIT; the server
+          recomputes the tax from it rather than trusting a total the browser
+          worked out.
+        */}
+        {askAmount && steps ? (
+          <TopUpStepper
+            steps={steps}
+            onConfirm={(step) => (
+              <>
+                <input type="hidden" name="amount" value={String(step.creditCents / 100)} />
+                <p className="text-[11px] text-slate-500">
+                  {t("transfer.rateNote", { rate: rateLabel ?? "" })}
+                </p>
+              </>
+            )}
+          />
         ) : null}
 
         <label className="block text-sm font-medium text-slate-800" htmlFor="transfer-ref">

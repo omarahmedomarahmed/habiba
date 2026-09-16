@@ -1600,6 +1600,16 @@ export const en = {
   "transfer.sendAtLeast": "Send at least {amount}",
   "transfer.rateNote": "We convert at {rate} to the dollar.",
   "transfer.taxNote": "Includes {tax} of VAT.",
+
+  /* ------------------------------- 🔴 76.1 the company chooses how much */
+  "topup.choose": "How much to add",
+  "topup.less": "Less",
+  "topup.more": "More",
+  "topup.covers": "Covers about {count} sessions at your coverage rate",
+  "topup.credit": "Added to your pot",
+  "topup.vat": "VAT",
+  "topup.send": "Transfer this",
+  "topup.unavailable": "Top-ups are not set up yet. Talk to us and we will arrange it.",
   "transfer.forSession": "for this session",
   "transfer.forBill": "for your bill",
   "transfer.forPot": "for your pot",
@@ -4625,6 +4635,16 @@ export const ar: Record<MessageKey, string> = {
   "transfer.proofLabel": "أو أرفق الإيصال",
   "transfer.amountLabel": "المبلغ الذي تضيفه إلى رصيدك",
   "transfer.taxNote": "يشمل {tax} ضريبة القيمة المضافة.",
+
+  /* ------------------------------- 🔴 76.1 the company chooses how much */
+  "topup.choose": "كم تريد أن تضيف",
+  "topup.less": "أقل",
+  "topup.more": "أكثر",
+  "topup.covers": "يغطي نحو {count} جلسة بنسبة التغطية لديك",
+  "topup.credit": "يضاف إلى رصيدكم",
+  "topup.vat": "ضريبة القيمة المضافة",
+  "topup.send": "حوّل هذا المبلغ",
+  "topup.unavailable": "الشحن غير متاح بعد. تواصل معنا وسنرتب ذلك.",
   "transfer.amountPlaceholder": "بالدولار الأمريكي",
   "transfer.sendAtLeast": "أرسل {amount} على الأقل",
   "transfer.rateNote": "نحوّل بسعر {rate} للدولار.",

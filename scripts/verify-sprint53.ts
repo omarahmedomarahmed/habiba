@@ -1325,13 +1325,69 @@ async function main() {
     /*
      * 🔴 53.11 — the minimum top-up is a SETTING, and 53.19b's cycle defaults to six
      * months rather than the three 0072's column said.
+     *
+     * ⚠️ 76.1 — THIS CHECK HELD THE PRICE ITSELF AND WENT RED WHEN THE PRICE MOVED.
+     *
+     * It asserted `minTopUpCents === 500_000`. That is not what 53.11 says. 53.11
+     * says the minimum is a SETTING rather than a constant, precisely so that a
+     * first customer arguing about it does not need a deploy — and then the gate
+     * guarding it pinned the number, so the one change the sprint existed to
+     * make possible turned a sprint verifier red.
+     *
+     * A check that fails when the product does the thing it was built to do is
+     * not guarding the property, it is guarding a snapshot. Restated as the
+     * property: the floor is a live setting, it is a real amount of money, and
+     * the stepper can actually reach it.
      */
     const sponsorDefaults = parseGroup("sponsor", {});
 
     check(
-      "🔴 53.11 / 53.19b the minimum is $5,000 and the cycle is six months, both settings",
-      sponsorDefaults.minTopUpCents === 500_000 && sponsorDefaults.verifyCycleMonths === 6,
-      `$${sponsorDefaults.minTopUpCents / 100}, ${sponsorDefaults.verifyCycleMonths} months`,
+      "🔴 53.11 the minimum top-up is a setting with a real value, whatever that value is",
+      typeof sponsorDefaults.minTopUpCents === "number" &&
+        sponsorDefaults.minTopUpCents > 0 &&
+        /* 🔴 An operator writing nonsense is clamped rather than obeyed. */
+        parseGroup("sponsor", { minTopUpCents: 0 }).minTopUpCents > 0 &&
+        parseGroup("sponsor", { minTopUpCents: -50 }).minTopUpCents > 0,
+      `$${sponsorDefaults.minTopUpCents / 100}, clamped up from zero and from negative`,
+    );
+
+    check(
+      "🔴 53.19b …and the re-verification cycle is six months rather than 0072's three",
+      sponsorDefaults.verifyCycleMonths === 6,
+      `${sponsorDefaults.verifyCycleMonths} months`,
+    );
+
+    /*
+     * 🔴 76.1 — AND THE STEPPER CAN REACH THE FLOOR IT ADVERTISES.
+     *
+     * The ladder runs from the floor to the ceiling in steps. A ceiling below
+     * the floor, or a step wider than the range, yields a screen that offers one
+     * amount — which is exactly what shipped for an hour when the floor moved in
+     * source and the stored settings row kept the old number.
+     */
+    check(
+      "🔴 76.1 the top-up ladder has room to step: floor < ceiling, and the step fits between them",
+      sponsorDefaults.minTopUpCents < sponsorDefaults.maxTopUpCents &&
+        sponsorDefaults.topUpStepCents > 0 &&
+        sponsorDefaults.topUpStepCents <=
+          sponsorDefaults.maxTopUpCents - sponsorDefaults.minTopUpCents,
+      `$${sponsorDefaults.minTopUpCents / 100} to $${sponsorDefaults.maxTopUpCents / 100} in $${sponsorDefaults.topUpStepCents / 100} steps`,
+    );
+
+    /*
+     * 🔴 76.1 — AND A WELCOME CREDIT IS NOT CAPPED BY THE TOP-UP FLOOR ANY MORE.
+     *
+     * `openPot` refused any credit at or above `minTopUpCents`. That read fine
+     * while the floor was $5,000 and the credit $100, and it was a coincidence:
+     * dropping the floor to $100 made the offer the plan promises every company
+     * refuse itself, on the boundary. The two numbers answer different
+     * questions and this says they are allowed to differ.
+     */
+    check(
+      "🔴 76.1 the most we GIVE away is its own setting, not the least somebody may BUY",
+      typeof sponsorDefaults.maxWelcomeCreditCents === "number" &&
+        sponsorDefaults.maxWelcomeCreditCents >= sponsorDefaults.minTopUpCents,
+      `give up to $${sponsorDefaults.maxWelcomeCreditCents / 100}, sell from $${sponsorDefaults.minTopUpCents / 100}`,
     );
 
     /*

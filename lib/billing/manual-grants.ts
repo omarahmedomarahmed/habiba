@@ -460,10 +460,16 @@ async function grantPotTopUp(payment: ManualPayment): Promise<void> {
     .limit(1);
 
   /*
-   * 🔴 WORKED BACKWARDS OUT OF WHAT ARRIVED, the same direction `invoiceFor`
-   * and `topUpPot` both take: the payer sent a number and that number is what
-   * cleared, so computing the tax forwards from it would credit a pot with
-   * money nobody paid.
+   * 🔴 76.1 — WORKED BACKWARDS OUT OF WHAT ARRIVED, WHICH IS THE ONLY SAFE
+   * DIRECTION AT THIS END.
+   *
+   * The company chose a CREDIT on the stepper and `declarePotTransfer` stored
+   * the credit plus the tax as `settles_cents`, so forwards and backwards give
+   * the same pair of numbers. This end still derives it backwards anyway, for
+   * the same reason the session grant does: the rate is an operator's setting
+   * and they can change it between the quote and the confirmation. Deriving
+   * from the money that actually arrived means a rate change cannot move a
+   * figure that has already been posted.
    */
   const vatBps = await entityVatBps(sponsor?.entity ?? "us");
   const net =

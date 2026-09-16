@@ -69,7 +69,27 @@ async function reprice(db: Db) {
     process.exit(1);
   }
 
-  for (const group of ["pricing", "session"] as const) {
+  /*
+   * 🔴 76.1 — `sponsor` JOINED THE LIST, AND IT HAD TO.
+   *
+   * Changing a default in `defs.ts` changes nothing in a database that already
+   * holds a row for that group: `parseGroup` fills MISSING keys from the
+   * defaults and keeps every key that is present. So dropping the top-up floor
+   * from $5,000 to $100 moved the source and left every live database on the
+   * old number, while the three NEW keys beside it picked their defaults up
+   * immediately.
+   *
+   * That mixture is the dangerous part rather than the staleness. The stepper's
+   * ceiling defaulted to $500,000 cents and the stored floor stayed at the same
+   * figure, so the ladder built exactly one rung: a company was offered $5,000
+   * or nothing, on a screen written to offer $100. It looked like a rendering
+   * bug and it was a settings one.
+   *
+   * 🔴 SAFE FOR THE OTHER KEYS, CHECKED RATHER THAN ASSUMED. Every remaining
+   * field in the stored `sponsor` row already equals its default, so this
+   * overwrite moves the floor and adds the new keys and touches nothing else.
+   */
+  for (const group of ["pricing", "session", "sponsor"] as const) {
     await db
       .insert(platformSettings)
       .values({ key: group, value: SETTINGS_DEFAULTS[group] as never })
