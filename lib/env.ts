@@ -83,6 +83,40 @@ const RECOMMENDED = [
   "EMAIL_FROM",
 ] as const;
 
+/**
+ * 🔴 76.43 — THE SIMULATION BRANCH, AND THE DATABASE IT IS ALLOWED TO TOUCH.
+ *
+ * ## The failure this refuses
+ *
+ * The six month simulation runs as its own deployment off its own git branch,
+ * and the one thing it must never do is write into the live product. It creates
+ * clinics, patients, sessions, payments and ledger entries by the hundred; a
+ * deployment pointed at the wrong database would put all of it on the real
+ * board, and nothing about the running product would look wrong while it
+ * happened.
+ *
+ * Vercel scopes environment variables per branch, which is the right mechanism
+ * and is also a checkbox in a dashboard. A checkbox nobody ticked is the most
+ * likely way this goes wrong, and it fails silently: the deploy is green, the
+ * pages render, and the damage is in a database.
+ *
+ * So the branch name and the database endpoint are checked against each other
+ * on boot, in both directions:
+ *
+ *   - the simulation branch may ONLY reach the simulation database
+ *   - and no other deployment may reach it, because a production build serving
+ *     the simulation's cast as if they were customers is the same mistake
+ *     mirrored
+ *
+ * `VERCEL_GIT_COMMIT_REF` is set by Vercel at build and at runtime. Absent
+ * locally, which is why every check here is skipped when it is.
+ *
+ * 🔴 THE ENDPOINT, NOT THE VARIABLE NAME. A variable is a label somebody typed;
+ * the endpoint is where the bytes go.
+ */
+export const SIMULATION_BRANCH = "simulation";
+export const SIMULATION_ENDPOINT = "ep-empty-queen-a62vlkkp";
+
 export type EnvProblem = { level: "error" | "warn"; message: string };
 
 export function inspectEnv(
@@ -104,6 +138,40 @@ export function inspectEnv(
           message: `${key} is not set, the feature it powers will degrade`,
         });
       }
+    }
+  }
+
+  /*
+   * 🔴 76.43 — the branch and the database have to agree. See above.
+   *
+   * Checked in every environment rather than only in production, because a
+   * preview deployment is exactly what the simulation is, and `NODE_ENV` on a
+   * Vercel preview is `production` anyway.
+   */
+  const branch = env.VERCEL_GIT_COMMIT_REF;
+  const url = env.DATABASE_URL ?? "";
+  if (branch) {
+    const onSimulationBranch = branch === SIMULATION_BRANCH;
+    const onSimulationDatabase = url.includes(SIMULATION_ENDPOINT);
+
+    if (onSimulationBranch && !onSimulationDatabase) {
+      problems.push({
+        level: "error",
+        message:
+          `this deployment is the ${SIMULATION_BRANCH} branch but DATABASE_URL does not point at ` +
+          `${SIMULATION_ENDPOINT}. Scope DATABASE_URL to this branch in the Vercel project's ` +
+          "environment variables. A simulation writing into another database puts hundreds of " +
+          "invented sessions on a real board.",
+      });
+    }
+
+    if (!onSimulationBranch && onSimulationDatabase) {
+      problems.push({
+        level: "error",
+        message:
+          `DATABASE_URL points at the simulation database (${SIMULATION_ENDPOINT}) on branch ` +
+          `"${branch}". Only the ${SIMULATION_BRANCH} branch may read it: everybody in it is invented.`,
+      });
     }
   }
 

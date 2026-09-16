@@ -26,7 +26,7 @@ import {
   settingsProblem,
   vatOn,
 } from "../lib/settings/defs";
-import { inspectEnv } from "../lib/env";
+import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, inspectEnv } from "../lib/env";
 import { log, ref } from "../lib/logger";
 
 /* ------------------------------------------------------------ crisis safety */
@@ -197,6 +197,81 @@ test("production env guard rejects a short secret and accepts a strong one", () 
 
 test("development is not gated by the production requirements", () => {
   assert.equal(inspectEnv({ NODE_ENV: "development" } as NodeJS.ProcessEnv).length, 0);
+});
+
+/* ------------------------------------------- the simulation and its database */
+
+/*
+ * 🔴 76.43 — the branch and the database have to agree, in both directions.
+ *
+ * The simulation invents hundreds of clinics, patients, sessions and payments.
+ * A deployment of that branch pointed anywhere else puts all of it on a real
+ * board, and the deploy is green while it happens: the pages render, the
+ * queries work, and the damage is in a database.
+ *
+ * The mirror matters as much. A production build reading the simulation's
+ * database serves invented people as customers, and every figure a founder
+ * reads is about a company that does not exist.
+ */
+test("the simulation branch refuses any database but the simulation's", () => {
+  const base = {
+    NODE_ENV: "production",
+    OPENAI_API_KEY: "sk-x",
+    STRIPE_WEBHOOK_SECRET: "whsec_x",
+    APP_URL: "https://x",
+    CRON_SECRET: "cron-x",
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_x",
+    AUTH_SECRET: "a".repeat(48),
+  };
+
+  const wrongDatabase = inspectEnv({
+    ...base,
+    VERCEL_GIT_COMMIT_REF: SIMULATION_BRANCH,
+    DATABASE_URL: "postgres://user:pass@ep-wild-lake-a6tgm2r6-pooler.neon.tech/neondb",
+  } as NodeJS.ProcessEnv);
+
+  assert.ok(
+    wrongDatabase.some((p) => p.level === "error" && p.message.includes(SIMULATION_ENDPOINT)),
+    "the simulation branch on another database must refuse to start",
+  );
+
+  const rightDatabase = inspectEnv({
+    ...base,
+    VERCEL_GIT_COMMIT_REF: SIMULATION_BRANCH,
+    DATABASE_URL: `postgres://user:pass@${SIMULATION_ENDPOINT}-pooler.neon.tech/neondb`,
+  } as NodeJS.ProcessEnv);
+
+  assert.equal(
+    rightDatabase.filter((p) => p.level === "error").length,
+    0,
+    "and the pairing it is for must boot",
+  );
+});
+
+test("no other branch may reach the simulation's database", () => {
+  const problems = inspectEnv({
+    NODE_ENV: "production",
+    OPENAI_API_KEY: "sk-x",
+    STRIPE_WEBHOOK_SECRET: "whsec_x",
+    APP_URL: "https://x",
+    CRON_SECRET: "cron-x",
+    BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_x",
+    AUTH_SECRET: "a".repeat(48),
+    VERCEL_GIT_COMMIT_REF: "main",
+    DATABASE_URL: `postgres://user:pass@${SIMULATION_ENDPOINT}-pooler.neon.tech/neondb`,
+  } as NodeJS.ProcessEnv);
+
+  assert.ok(problems.some((p) => p.level === "error" && /invented/.test(p.message)));
+});
+
+test("a machine with no branch name is unaffected, which is every laptop", () => {
+  assert.equal(
+    inspectEnv({
+      NODE_ENV: "development",
+      DATABASE_URL: `postgres://user:pass@${SIMULATION_ENDPOINT}-pooler.neon.tech/neondb`,
+    } as NodeJS.ProcessEnv).length,
+    0,
+  );
 });
 
 /* ------------------------------------------------------------------ billing */
