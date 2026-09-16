@@ -139,6 +139,30 @@ export const GATES = [
     why: "and a company, a patient and a clinician can all actually pay us",
   },
   /*
+   * 🔴 76.33 — AND THE COVERED EMPLOYEE, WHOSE MONEY HAD THREE WAYS TO GO WRONG.
+   *
+   * `verify:cycle` above has a step headed "part covered by that pot" that
+   * never called `payFromPot`. So the money path with the most moving parts in
+   * this product — an employer pays half at booking, the patient pays the rest
+   * on a rail with no processor behind it, and one row has to hold both — was
+   * exercised by nothing, and three defects lived in it:
+   *
+   *   - the card rail QUOTED the full price while charging the share
+   *   - the patient's transfer posted to no account at all, because the pot had
+   *     already taken the one row per session the unique index allows
+   *   - so the VAT they paid was recorded as zero, on tax we genuinely owe
+   *
+   * Twelve scenarios, each one a sentence somebody could say about a real
+   * person, each against rows through the product's own functions, with the
+   * old wrong read planted as a control so the check cannot pass by measuring
+   * the wrong thing.
+   */
+  {
+    name: "edges",
+    script: "verify:edges",
+    why: "and a covered employee is charged once, for their half, with the tax recorded",
+  },
+  /*
    * 🔴 THE ONE GATE IN THIS PASS THAT WRITES.
    *
    * Every other line above reads files. All three defects sprint 74 found in

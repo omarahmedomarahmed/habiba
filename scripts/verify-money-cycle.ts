@@ -23,11 +23,26 @@
  * ## What it does, in the order the money actually moves
  *
  *   1. A company sends a pot top-up by transfer, and an operator confirms it.
- *   2. A patient's session is partly covered from that pot.
- *   3. The patient pays the rest by transfer, and an operator confirms it.
- *   4. A clinician pays their bill by transfer, and an operator confirms it.
- *   5. A fourth payer is REJECTED, because a queue that can only say yes is
+ *   2. A patient pays for a session by transfer, and an operator confirms it.
+ *   3. A clinician pays their bill by transfer, and an operator confirms it.
+ *   4. A fourth payer is REJECTED, because a queue that can only say yes is
  *      half a queue and the rejection path is the half nobody exercises.
+ *
+ * ## ⚠️ 76.33 — STEP 2 USED TO SAY "PART COVERED FROM THAT POT" AND WAS NOT
+ *
+ * The heading said the session was partly covered by the pot funded one step
+ * above it. Nothing in the body called `payFromPot`: it funded a pot, then had
+ * a guest pay the FULL price of an unrelated session, and the two halves never
+ * met. So the one gate that claimed to exercise employer coverage exercised
+ * none of it, which is why three separate defects in that exact path survived
+ * every pass.
+ *
+ * A heading describing a check that does not exist is §6 landing on the
+ * instrument rather than the product, and it is the worse place for it: a
+ * reader scanning the pass sees coverage covered.
+ *
+ * The heading now says what the step does. The coverage path has its own file,
+ * `verify:edges`, with twelve scenarios and a control on each.
  *
  * ## 🔴 AND IT ASSERTS THE LEDGER, NOT THE HAPPY PATH
  *
@@ -191,7 +206,7 @@ async function main() {
     );
 
     /* ================================================================ */
-    /*  2 · A PATIENT'S SESSION, PART COVERED BY THAT POT                */
+    /*  2 · A PATIENT PAYS FOR A SESSION BY TRANSFER                     */
     /* ================================================================ */
 
     const session = await one<{ id: string }>(sql`

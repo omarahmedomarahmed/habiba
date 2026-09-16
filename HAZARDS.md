@@ -57,8 +57,10 @@ npm run test:e2e                          # e2e, THROUGH its harness
 npm run verify:sprintNN                   # per-sprint gates; most refuse production by name
 ```
 
-`npm run lint` drops into Next's interactive ESLint setup and hangs. Use `tsc` and
-`build` instead until that is configured.
+`npm run lint` used to drop into Next's interactive ESLint setup and hang there
+forever, which is the worst possible failure for a script an agent or a CI job
+might type. No linter is installed, so it now says so in one line and exits 1.
+The static analysis in this repository is `npm run typecheck` and `npm run gates`.
 
 Every verifier that touches the database refuses the production endpoint by name.
 Do not weaken that guard. Point `DATABASE_URL` at a Neon branch instead.

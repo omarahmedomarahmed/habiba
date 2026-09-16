@@ -9,6 +9,7 @@ import {
   organizationNeedsTransfer,
   sessionTransferMoney,
 } from "@/lib/billing/manual-entry";
+import { patientOwesFor } from "@/lib/billing/session-owed";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
 import { uploadDocument } from "@/lib/uploads";
@@ -63,9 +64,36 @@ export async function priceFor(token: string, countryCode: string): Promise<Brea
     };
   }
 
+  /*
+   * 🔴 76.33 — WHAT THEY STILL OWE, not what the session cost. C312.
+   *
+   * This quoted `session.priceCents`, and `createSessionPaymentCheckout`
+   * charges `patientShareCents` — so a patient whose employer covers half was
+   * SHOWN $22.80 on this screen and then taken to a Stripe page asking for
+   * $11.40. Two numbers for one payment, on the screen whose entire job is
+   * telling somebody what they are about to be charged.
+   *
+   * The card rail got the charge right and the quote wrong; the transfer rail
+   * had the same bug in the charge itself and was fixed in 76.27. This is the
+   * half of that defect nobody looked at, because on the card rail the patient
+   * is undercharged rather than overcharged and money arriving short does not
+   * generate a complaint.
+   *
+   * 🔴 THE SAME FROZEN FIGURE both of them read, out of the row `payFromPot`
+   * wrote at booking. Recomputing the split here would let an employer's
+   * Tuesday change move a price somebody agreed to on Monday (C311).
+   */
+  const owed = await patientOwesFor(session.id);
+
   const settings = await getSettings();
+  /*
+   * 🔴 VAT ON THE PATIENT'S SHARE ONLY, which is the rule `connect.ts` states
+   * at C312: the employer's half was taxed when the pot was funded, in the
+   * jurisdiction of the entity holding it, and taxing it again here would
+   * charge the same money twice in a country with no claim on it.
+   */
   const money = sessionMoney({
-    grossCents: session.priceCents,
+    grossCents: owed.grossCents,
     feeBps: settings.session.platformFeeBps,
     vatBps: country.vatBps,
   });

@@ -160,6 +160,50 @@ async function grantSession(payment: ManualPayment): Promise<void> {
 
   const { getSettings, sessionMoney } = await import("@/lib/settings");
   const settings = await getSettings();
+  const { sessionPayments } = await import("@/lib/db/schema");
+
+  /*
+   * 🔴 76.33 — WHETHER AN EMPLOYER ALREADY PAID FOR PART OF THIS SESSION.
+   *
+   * `session_payments` has a UNIQUE index on `session_id`, so on a partly
+   * covered session `payFromPot` wrote the only row this session will ever
+   * have, at booking, and everything below was about to try to write a second.
+   * `onConflictDoNothing` swallowed it, the function logged a warning and
+   * returned, and the patient's transfer was posted to no account at all.
+   *
+   * What that cost on the launch market's only rail, for every covered
+   * employee:
+   *
+   *   - the VAT they actually paid was never recorded as owed to anybody, so
+   *     we hold a tax liability the books say is zero
+   *   - the money arriving was invisible to `/admin/vault` and the board, so a
+   *     bank line for a covered session reconciles against nothing
+   *   - an operator saw `Confirm` succeed and a warning in a log they do not read
+   *
+   * Read first, then branch. The two cases are genuinely different postings
+   * and pretending otherwise is what produced the silent one.
+   */
+  const [priorPayment] = await db
+    .select({
+      id: sessionPayments.id,
+      patientShareCents: sessionPayments.patientShareCents,
+      sponsorShareCents: sessionPayments.sponsorShareCents,
+      vatCents: sessionPayments.vatCents,
+    })
+    .from(sessionPayments)
+    .where(eq(sessionPayments.sessionId, payment.refId))
+    .limit(1);
+
+  /*
+   * 🔴 WHAT THIS PAYER WAS ASKED FOR, which is the patient's share and not the
+   * price. `declareSessionTransfer` quotes `patientOwesFor(...)` plus VAT on
+   * it, so the tax has to be derived against the same base or the subtraction
+   * below goes negative and clamps to zero.
+   *
+   * With no prior row the two are the same number, which is why the uncovered
+   * case is unchanged by this.
+   */
+  const patientShareCents = priorPayment?.patientShareCents ?? row.priceCents;
 
   /*
    * 🔴 75.7 — THE VAT THAT ACTUALLY ARRIVED, DERIVED FROM THE MONEY ITSELF.
@@ -180,7 +224,65 @@ async function grantSession(payment: ManualPayment): Promise<void> {
    * Posting a liability for money we had not collected would have invented a
    * debt. Now it is collected, so it is recorded.
    */
-  const vatCents = Math.max(0, payment.settlesCents - row.priceCents);
+  const vatCents = Math.max(0, payment.settlesCents - patientShareCents);
+
+  /*
+   * 🔴 76.33 — THE COVERED CASE, WHICH USED TO BE A WARNING AND A RETURN.
+   *
+   * Everything about the SESSION was posted at booking: our fee and the
+   * clinician's net were computed on the full price there, correctly, because
+   * a partly covered session is not a cheaper session (C313). None of that is
+   * redone here and redoing it would double the revenue.
+   *
+   * What was never posted is the TAX, because at booking there was none: a pot
+   * spend carries `vat_cents = 0` by C241, the employer's half having been
+   * taxed when the pot was funded. The patient's half is taxed when the
+   * patient pays, which is now.
+   *
+   * So: one journal, two legs, for the money that genuinely just arrived.
+   */
+  if (priorPayment) {
+    if (vatCents > 0) {
+      await db
+        .update(sessionPayments)
+        .set({
+          vatCents: priorPayment.vatCents + vatCents,
+          vatBps: Math.round((vatCents * 10_000) / Math.max(1, patientShareCents)),
+        })
+        .where(eq(sessionPayments.id, priorPayment.id));
+
+      const { journal } = await import("./ledger");
+      await journal({
+        kind: "session_payment",
+        refType: "session_payment",
+        refId: priorPayment.id,
+        legs: [
+          {
+            account: "cash",
+            amountCents: vatCents,
+            organizationId: row.organizationId,
+            memo: "VAT on the patient's share of a sponsored session",
+          },
+          {
+            /* Negative because a liability rises with a negative amount. */
+            account: "vat_payable",
+            amountCents: -vatCents,
+            organizationId: row.organizationId,
+            memo: "VAT collected from the patient, owed to the tax authority",
+          },
+        ],
+      });
+    }
+
+    log.info("manual session payment settled a sponsored session's patient share", {
+      paymentId: payment.id,
+      sessionId: payment.refId,
+      patientShareCents,
+      sponsorShareCents: priorPayment.sponsorShareCents,
+      vatCents,
+    });
+    return;
+  }
 
   const money = sessionMoney({
     grossCents: row.priceCents,
@@ -194,7 +296,6 @@ async function grantSession(payment: ManualPayment): Promise<void> {
   });
 
   const { crossingFor, payoutRailFor } = await import("./money");
-  const { sessionPayments } = await import("@/lib/db/schema");
 
   const [created] = await db
     .insert(sessionPayments)

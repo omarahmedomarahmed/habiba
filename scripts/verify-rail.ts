@@ -1163,11 +1163,49 @@ async function main() {
     "1,140 pounds for a 1,000 pound session reads as a markup unless a line says otherwise",
   );
 
+  /*
+   * 🔴 76.33 — RESTATED AS A PROPERTY, because it was greping for one line.
+   *
+   * It matched `payment.settlesCents - row.priceCents` as a literal. That was
+   * the right expression for an uncovered session and the WRONG one for a
+   * covered employee: `settles` is VAT on the patient's SHARE, `price_cents` is
+   * the whole session, the subtraction goes negative, and the clamp turns tax
+   * we genuinely owe into zero. Correcting the base to the share broke this
+   * check on a product that had just been fixed.
+   *
+   * §6 in the instrument: a check that greps for the shape of an answer fails
+   * when the shape moves and passes when the shape survives a gutting. The
+   * property is what matters — the tax is DERIVED FROM THE MONEY by
+   * subtraction, never recomputed from a rate that an operator may have edited
+   * between the quote and the confirmation.
+   *
+   * 🔴 AND THE NUMBER ITSELF IS PROVEN AGAINST ROWS by `verify:edges`, which
+   * puts 140 of VAT on a half-covered session and reads `vat_payable` back out
+   * of the ledger. Source can say the subtraction is there; only a run can say
+   * it subtracts the right two things.
+   */
   check(
     "🔴 …and the ledger posts the VAT that ARRIVED, derived from the money rather than a rate",
-    /const vatCents = Math\.max\(0, payment\.settlesCents - row\.priceCents\)/.test(grants) &&
+    /const vatCents = Math\.max\(0, payment\.settlesCents - \w+\)/.test(grants) &&
+      !/vatBps:\s*country\.vatBps/.test(grants) &&
       /vatCents,/.test(grants),
     "a rate an operator changed between the quote and the confirmation must not move a posted figure",
+  );
+
+  /*
+   * 🔴 76.33 — AND THE BASE IS WHAT THE PAYER WAS ASKED FOR, not the price.
+   *
+   * The half this file could not see. `declareSessionTransfer` quotes
+   * `patientOwesFor(...)` plus VAT on that, so subtracting the full price from
+   * what arrived is subtracting two different things and calling the remainder
+   * tax. For every covered employee it produced a negative number, clamped to
+   * zero, and the tax disappeared.
+   */
+  check(
+    "🔴 …and the base it subtracts is the payer's SHARE, never the session's price",
+    /patientShareCents = priorPayment\?\.patientShareCents \?\? row\.priceCents/.test(grants) &&
+      /payment\.settlesCents - patientShareCents/.test(grants),
+    "subtracting the whole price from a part payment makes the tax negative, and a clamp makes it vanish",
   );
 
   /* ================================================================== */
