@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { declareSessionTransfer } from "./actions";
+import { declareSessionTransfer, openSessionPayment } from "./actions";
 import { PaymentPopup } from "@/components/billing/payment-popup";
 import { PayFlow } from "@/components/pay/pay-flow";
 import {
@@ -165,6 +165,7 @@ export default async function PayPage({
             */
             minimised="orb"
             storageKey={session.id}
+            onOpen={openSessionPayment.bind(null, token)}
             subject={{
               viewerName: session.guestName || t("pay.title"),
               /*

@@ -224,3 +224,37 @@ export async function declareSessionTransfer(
   revalidatePath(`/pay/${token}`);
   return { ok: true };
 }
+
+
+/**
+ * 🔴 76.13 — THE SHEET WAS OPENED, so the payment exists from now on.
+ *
+ * No proof, no claim, nothing for an operator to do. What it buys is the bar in
+ * their portal and the fact that a payer who transferred the money and closed
+ * the browser has a route back to the one screen that can tell us.
+ */
+export async function openSessionPayment(token: string): Promise<void> {
+  const session = await resolveJoinToken(token);
+  if (!session || session.priceCents <= 0 || session.paymentStatus === "paid") return;
+
+  const { organizationNeedsTransfer, sessionTransferMoney } = await import(
+    "@/lib/billing/manual-entry"
+  );
+  if (!(await organizationNeedsTransfer(session.organizationId))) return;
+
+  const money = await sessionTransferMoney({
+    organizationId: session.organizationId,
+    priceCents: session.priceCents,
+  });
+
+  const { openCart } = await import("@/lib/billing/cart");
+  const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
+
+  await openCart({
+    purpose: "session",
+    refId: session.id,
+    amountCents: egpMinorFor(money.settlesCents, await egpRateMicro()),
+    settlesCents: money.settlesCents,
+    payer: { kind: "session", organizationId: session.organizationId },
+  });
+}

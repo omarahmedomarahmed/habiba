@@ -75,6 +75,7 @@ export function PayByTransfer({
   rateLabel,
   steps,
   hideCardsSoon = false,
+  onChoose,
 }: {
   details: TransferView;
   /** "1,000 EGP", already formatted by the server in the payer's language. */
@@ -112,6 +113,8 @@ export function PayByTransfer({
   steps?: PotStep[];
   /** 🔴 76.5 — the popup renders the notice in its card slot instead. */
   hideCardsSoon?: boolean;
+  /** 🔴 76.13 — saves the company's chosen figure as their open payment. */
+  onChoose?: (creditCents: number) => Promise<void>;
 }) {
   const t = useT();
   const router = useRouter();
@@ -277,10 +280,33 @@ export function PayByTransfer({
         from a phone on Egyptian mobile data, and a multipart post is the one
         upload path that survives a browser deciding to retry it.
       */}
+      {/*
+        🔴 76.12 — THE ONE SENTENCE THAT DECIDES WHETHER MONEY CAN BE ALLOCATED.
+
+        There is no processor on this rail. A transfer arrives in our bank as a
+        line with somebody's name on it and nothing linking it to an account, so
+        a payer who sends the money and closes the page has paid us and cannot
+        be credited: the operator has a bank line they cannot match and the
+        payer has a session that never unlocks.
+
+        Pressing Submit is what makes the two halves findable. It is the single
+        most important instruction on this screen and it used to be implied by a
+        button label, so it is stated, in red, above the field it is about.
+
+        🔴 IT IS NOT A WARNING ABOUT DANGER, it is an instruction about
+        sequence, which is why it names the order: send first, then submit.
+      */}
+      <p
+        role="alert"
+        className="mt-4 rounded-xl border-2 border-red-300 bg-red-50 p-3 text-sm leading-relaxed font-bold text-red-700"
+      >
+        {t("pop.submitAlert")}
+      </p>
+
       <form
         action={submit}
         encType="multipart/form-data"
-        className="mt-5 space-y-3 border-t border-slate-100 pt-4"
+        className="mt-3 space-y-3 border-t border-slate-100 pt-4"
       >
         {/*
           🔴 76.1 — THE STEPPER REPLACED A TEXT BOX IN DOLLARS.
@@ -295,6 +321,7 @@ export function PayByTransfer({
         {askAmount && steps ? (
           <TopUpStepper
             steps={steps}
+            onChoose={onChoose}
             onConfirm={(step) => (
               <>
                 <input type="hidden" name="amount" value={String(step.creditCents / 100)} />
@@ -349,7 +376,14 @@ function Declare() {
       disabled={pending}
       className="h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white disabled:opacity-40"
     >
-      {pending ? t("transfer.sending") : t("transfer.paid")}
+      {/*
+        🔴 76.12 — "Submit", because that is the act. The old label was "I have
+        paid", which describes something they did in a banking app and not the
+        thing this button does. Somebody who has paid and reads a button saying
+        "I have paid" can reasonably close the page, and on this rail that
+        leaves us a bank line nobody can match.
+      */}
+      {pending ? t("transfer.sending") : t("pop.submitCta")}
     </button>
   );
 }

@@ -1603,6 +1603,8 @@ export const en = {
   "transfer.taxNote": "Includes {tax} of VAT.",
 
   /* -------------------------------- 🔴 76.4 one payment screen, every payer */
+  "pop.submitAlert": "Send the money, then add your reference, the number or InstaPay you sent from, or a screenshot, and press Submit so we can match it to your account.",
+  "pop.submitCta": "Submit",
   "pop.for.patient": "Patient payment",
   "pop.for.therapist": "Therapist payment",
   "pop.for.clinic": "Clinic payment",
@@ -1612,6 +1614,8 @@ export const en = {
   "pop.close": "Close",
   "pop.minimise": "Minimise",
   "pop.proofSent": "You sent this receipt",
+  "bar.open": "{what} · {amount} unfinished",
+  "bar.openHint": "Sent it? Tap to finish.",
   "bar.pending": "{what} · {amount} waiting to be checked",
   "bar.eta": "Usually within a few hours",
   "bar.done": "{what} · paid",
@@ -4659,6 +4663,8 @@ export const ar: Record<MessageKey, string> = {
   "transfer.taxNote": "يشمل {tax} ضريبة القيمة المضافة.",
 
   /* -------------------------------- 🔴 76.4 one payment screen, every payer */
+  "pop.submitAlert": "حوّل المبلغ أولًا. ثم اكتب هنا رقم العملية أو الرقم أو حساب إنستاباي الذي حوّلت منه، أو أرفق صورة، واضغط إرسال حتى نتمكن من مطابقة تحويلك بحسابك.",
+  "pop.submitCta": "إرسال",
   "pop.for.patient": "دفعة مريض",
   "pop.for.therapist": "دفعة معالج",
   "pop.for.clinic": "دفعة عيادة",
@@ -4668,6 +4674,8 @@ export const ar: Record<MessageKey, string> = {
   "pop.close": "إغلاق",
   "pop.minimise": "تصغير",
   "pop.proofSent": "لقد أرسلت هذا الإيصال",
+  "bar.open": "{what} · {amount} غير مكتمل",
+  "bar.openHint": "حوّلته؟ اضغط للإتمام.",
   "bar.pending": "{what} · {amount} في انتظار المراجعة",
   "bar.eta": "عادة خلال ساعات قليلة",
   "bar.done": "{what} · تم الدفع",

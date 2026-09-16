@@ -281,7 +281,7 @@ export default async function AppLayout({
             what={pending.what}
             amount={pending.amount}
             href={pending.href}
-            done={pending.done}
+            stage={pending.stage}
             paymentId={pending.paymentId}
           />
         ) : null}

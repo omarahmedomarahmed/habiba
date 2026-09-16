@@ -53,7 +53,7 @@ export default async function SponsorLayout({ children }: { children: React.Reac
           what={pending.what}
           amount={pending.amount}
           href={pending.href}
-          done={pending.done}
+          stage={pending.stage}
           paymentId={pending.paymentId}
         />
       ) : null}

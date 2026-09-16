@@ -44,8 +44,20 @@ export type PendingPayment = {
   amount: string;
   /** Where the popup for it lives. */
   href: string;
-  /** Confirmed rather than waiting. Dismissible; a pending one is not. */
-  done: boolean;
+  /**
+   * 🔴 76.13 — WHICH OF THE THREE STAGES, because they ask for different things.
+   *
+   *   open      they have opened a payment and sent us no proof. The bar is a
+   *             way back to the sheet, and the most useful thing in the product
+   *             for somebody who transferred the money and closed the browser.
+   *   submitted the claim is with an operator. Nothing to do but wait.
+   *   confirmed the money landed. For a patient that means a session to join.
+   *
+   * `done` was a boolean and could not tell the first two apart, which is the
+   * distinction that matters most: one of them is waiting on US and the other
+   * is waiting on THEM.
+   */
+  stage: "open" | "submitted" | "confirmed";
 };
 
 /** How long a confirmed payment keeps saying so, before it is simply history. */
@@ -95,7 +107,21 @@ export async function pendingPaymentFor(
          * payment nobody has made yet would train every payer to ignore it,
          * and this bar only works while it is always true.
          */
-        inArray(manualPayments.state, ["submitted", "confirmed"]),
+        /*
+         * 🔴 76.13 — `awaiting_proof` IS INCLUDED NOW, and excluding it was the
+         * defect rather than the caution.
+         *
+         * The note that stood here said a bar over a payment nobody has made
+         * yet would train every payer to ignore it. That was written when the
+         * row opened on the BUTTON PRESS, where it really did mean nothing. It
+         * opens when the sheet opens now, which makes it the record of somebody
+         * who went to their banking app, and the person likeliest to have paid
+         * us with no claim attached.
+         *
+         * The bar says something different for it, because it is asking them to
+         * finish rather than telling them to wait.
+         */
+        inArray(manualPayments.state, ["awaiting_proof", "submitted", "confirmed"]),
       ),
     )
     .orderBy(desc(manualPayments.createdAt))
@@ -103,7 +129,10 @@ export async function pendingPaymentFor(
 
   if (!row) return null;
 
-  const done = row.state === "confirmed";
+  const stage =
+    row.state === "awaiting_proof" ? "open" : row.state === "submitted" ? "submitted" : "confirmed";
+
+  const done = stage === "confirmed";
   if (done) {
     const at = row.decidedAt?.getTime() ?? 0;
     if (!at || Date.now() - at > CELEBRATE_FOR_MS) return null;
@@ -120,7 +149,7 @@ export async function pendingPaymentFor(
     what: await describe(row.purpose, row.refId, t),
     amount,
     href: hrefFor(row.purpose, row.refId),
-    done,
+    stage,
   };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useT } from "@/lib/i18n/client";
 import type { PotStep } from "@/lib/billing/manual-entry";
@@ -33,13 +33,38 @@ import type { PotStep } from "@/lib/billing/manual-entry";
 export function TopUpStepper({
   steps,
   onConfirm,
+  onChoose,
 }: {
   steps: PotStep[];
   /** Rendered under the summary. Receives the chosen credit, in USD cents. */
   onConfirm: (step: PotStep) => React.ReactNode;
+  /**
+   * 🔴 76.13 — THE FIGURE THEY SETTLED ON, SAVED ON THE SERVER.
+   *
+   * A company is the one payer who chooses their own amount, so their open
+   * payment cannot be derived from a row somewhere: it is whatever is on this
+   * stepper. Without this, a finance officer who picked $1,500, went to their
+   * banking app and came back tomorrow would find the sheet reset to the floor.
+   *
+   * Debounced, because it fires on a settled choice rather than on a press.
+   * Somebody stepping from $100 to $1,500 presses Plus twenty-eight times and
+   * means it once.
+   */
+  onChoose?: (creditCents: number) => Promise<void>;
 }) {
   const t = useT();
   const [i, setI] = useState(0);
+
+  /*
+   * Fire and forget on a settled choice. A failure costs them the bar, never
+   * the payment: the sheet in front of them still works.
+   */
+  const chosen = steps[Math.min(i, Math.max(0, steps.length - 1))];
+  useEffect(() => {
+    if (!onChoose || !chosen) return;
+    const timer = setTimeout(() => void onChoose(chosen.creditCents).catch(() => undefined), 700);
+    return () => clearTimeout(timer);
+  }, [chosen, onChoose]);
 
   /*
    * An empty ladder means an operator has configured a ceiling below the floor.

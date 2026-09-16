@@ -296,3 +296,32 @@ export async function saveSeats(fromSeats: number, toSeats: number): Promise<Sea
   revalidatePath("/billing");
   return { ok: true };
 }
+
+
+/**
+ * 🔴 76.13 — a clinician opened their bill, so the payment exists from now on.
+ *
+ * Same reasoning as the patient's: the row used to appear only on Submit, which
+ * is one step after the moment somebody actually goes to their banking app.
+ */
+export async function openBillPayment(): Promise<void> {
+  const actor = await requireUser();
+
+  const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  if (!(await organizationNeedsTransfer(actor.organizationId))) return;
+
+  const { billingSummary } = await import("@/lib/billing/service");
+  const summary = await billingSummary(actor.organizationId);
+  if (summary.outstandingCents <= 0) return;
+
+  const { openCart } = await import("@/lib/billing/cart");
+  const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
+
+  await openCart({
+    purpose: "subscription",
+    refId: actor.organizationId,
+    amountCents: egpMinorFor(summary.outstandingCents, await egpRateMicro()),
+    settlesCents: summary.outstandingCents,
+    payer: { kind: "user", userId: actor.userId, organizationId: actor.organizationId },
+  });
+}

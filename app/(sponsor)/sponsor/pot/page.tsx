@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CoverageForm } from "@/components/sponsor/coverage-form";
-import { declarePotTransfer } from "./actions";
+import { declarePotTransfer, openPotPayment } from "./actions";
 import { PaymentPopup } from "@/components/billing/payment-popup";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
@@ -192,6 +192,7 @@ export default async function SponsorPotPage() {
           minimumLabel={fmt(settings.sponsor.minTopUpCents)}
           rateLabel={rail.rateLabel}
           steps={ladder?.steps}
+          onChoose={openPotPayment}
         />
       ) : null}
 

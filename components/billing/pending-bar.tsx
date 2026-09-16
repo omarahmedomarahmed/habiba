@@ -42,17 +42,18 @@ export function PendingBar({
   amount,
   /** Where the popup lives. */
   href,
-  /** Confirmed payments say so and can be dismissed; pending ones cannot. */
-  done,
+  /** 🔴 76.13 — which of the three stages this payment is in. */
+  stage,
   /** Stable per payment, so dismissing one does not hide the next. */
   paymentId,
 }: {
   what: string;
   amount: string;
   href: string;
-  done: boolean;
+  stage: "open" | "submitted" | "confirmed";
   paymentId: string;
 }) {
+  const done = stage === "confirmed";
   const t = useT();
   const [hidden, setHidden] = useState(false);
 
@@ -86,20 +87,43 @@ export function PendingBar({
     <div
       role="status"
       className={
-        done
+        /*
+         * 🔴 RED for the one that needs them, amber for the one that needs us.
+         * An open payment is unfinished business and reads as an instruction;
+         * a submitted one is a receipt.
+         */
+        stage === "confirmed"
           ? "flex items-center gap-3 bg-emerald-600 px-4 py-2 text-white"
-          : "flex items-center gap-3 bg-amber-500 px-4 py-2 text-amber-950"
+          : stage === "open"
+            ? "flex items-center gap-3 bg-red-600 px-4 py-2 text-white"
+            : "flex items-center gap-3 bg-amber-500 px-4 py-2 text-amber-950"
       }
     >
       <Link href={href} className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">
-          {done ? t("bar.done", { what }) : t("bar.pending", { what, amount })}
+          {/*
+            🔴 76.13 — THREE SENTENCES, BECAUSE THREE THINGS ARE TRUE.
+
+            An OPEN payment is waiting on the payer and is the one that matters
+            most: they have very likely sent the money and closed the browser,
+            and this is the only route back to the screen that can tell us. A
+            SUBMITTED one is waiting on us. A CONFIRMED one is finished.
+          */}
+          {stage === "confirmed"
+            ? t("bar.done", { what })
+            : stage === "open"
+              ? t("bar.open", { what, amount })
+              : t("bar.pending", { what, amount })}
         </p>
         {/*
           🔴 HOW LONG, because "waiting" with no horizon is indistinguishable
           from broken, and a payer who decides it is broken transfers again.
         */}
-        {done ? null : <p className="truncate text-xs opacity-80">{t("bar.eta")}</p>}
+        {stage === "submitted" ? (
+          <p className="truncate text-xs opacity-80">{t("bar.eta")}</p>
+        ) : stage === "open" ? (
+          <p className="truncate text-xs opacity-80">{t("bar.openHint")}</p>
+        ) : null}
       </Link>
 
       {done ? (

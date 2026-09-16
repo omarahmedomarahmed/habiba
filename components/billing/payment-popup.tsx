@@ -107,6 +107,22 @@ export function PaymentPopup({
   minimised = "button",
   /** Starts open when they arrived here to pay, rather than to read a page. */
   openInitially = false,
+  /**
+   * 🔴 76.13 — CALLED WHEN THE SHEET OPENS, and it writes a row on the server.
+   *
+   * The whole rail rests on the middle state being durable, and it used to
+   * become durable one step too late: the row existed from the moment somebody
+   * pressed Submit, so the commonest real sequence left no record at all. A
+   * payer opens the sheet, reads the account number, switches to their banking
+   * app, sends the money, and closes the browser. They have paid us and there
+   * is no claim.
+   *
+   * Opening is the signal. The bar in their portal is then a route back to this
+   * screen, and finishing it is one tap rather than a memory of which page it
+   * was on.
+   */
+  onOpen,
+  onChoose,
   /** Stable key for remembering open state. The payment's ref, never a person. */
   storageKey,
 }: {
@@ -122,6 +138,8 @@ export function PaymentPopup({
   steps?: PotStep[];
   onwardHref?: string;
   onwardLabel?: string;
+  onOpen?: () => Promise<void>;
+  onChoose?: (creditCents: number) => Promise<void>;
   minimised?: "button" | "orb";
   openInitially?: boolean;
   storageKey: string;
@@ -145,8 +163,25 @@ export function PaymentPopup({
     }
   }, [storageKey]);
 
+  /*
+   * 🔴 AND WHEN IT RENDERS ALREADY OPEN, which is how a patient always meets
+   * it: they followed a link whose whole purpose was to pay, so there is no
+   * tap to hang the write off. Runs once per mount.
+   */
+  useEffect(() => {
+    if (openInitially) void onOpen?.().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const remember = (next: boolean) => {
     setOpen(next);
+    /*
+     * Fire and forget, deliberately. The sheet must appear the instant it is
+     * tapped: somebody holding a banking app should never wait on a round trip
+     * to read an account number, and a failure here costs the bar rather than
+     * the payment, which they can still complete from this very screen.
+     */
+    if (next) void onOpen?.().catch(() => undefined);
     try {
       if (next) window.localStorage.setItem(`pay:${storageKey}`, "open");
       else window.localStorage.removeItem(`pay:${storageKey}`);
@@ -300,6 +335,7 @@ export function PaymentPopup({
           minimumLabel={minimumLabel}
           rateLabel={rateLabel}
           steps={steps}
+          onChoose={onChoose}
         />
 
         {/*

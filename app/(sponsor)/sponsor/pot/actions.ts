@@ -250,3 +250,38 @@ export async function declarePotTransfer(
   revalidatePath("/sponsor/pot");
   return { ok: true };
 }
+
+
+/**
+ * 🔴 76.13 — a company chose an amount on the stepper and opened the sheet.
+ *
+ * The one payer who picks their own figure, so the amount travels in rather
+ * than being read off a row. `openCart` retires whatever they had open before,
+ * which is what makes changing your mind on the stepper behave the way a
+ * finance officer expects: one intention at a time.
+ */
+export async function openPotPayment(creditCents: number): Promise<void> {
+  const actor = await requireSponsorAdmin();
+
+  const { sponsorNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  if (!(await sponsorNeedsTransfer(actor.sponsorId))) return;
+
+  const settings = await getSettings();
+  const credit = Math.round(creditCents);
+  if (credit < settings.sponsor.minTopUpCents) return;
+  if (credit > settings.sponsor.maxTopUpCents) return;
+
+  const { entityVatBps, potTopUpMoney } = await import("@/lib/billing/pot");
+  const money = potTopUpMoney({ creditCents: credit, vatBps: await entityVatBps("eg") });
+
+  const { openCart } = await import("@/lib/billing/cart");
+  const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
+
+  await openCart({
+    purpose: "pot_topup",
+    refId: actor.sponsorId,
+    amountCents: egpMinorFor(money.settlesCents, await egpRateMicro()),
+    settlesCents: money.settlesCents,
+    payer: { kind: "sponsor", sponsorId: actor.sponsorId },
+  });
+}

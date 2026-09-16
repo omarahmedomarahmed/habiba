@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Wallet } from "lucide-react";
 
-import { declareBillTransfer } from "./actions";
+import { declareBillTransfer, openBillPayment } from "./actions";
 import { BillingLedger } from "@/components/billing/ledger";
 import { PaymentPopup } from "@/components/billing/payment-popup";
 import { PlanCard } from "@/components/billing/plan-card";
@@ -210,6 +210,7 @@ export default async function BillingPage({
             */}
             <PaymentPopup
               storageKey={actor.organizationId}
+              onOpen={openBillPayment}
               subject={{
                 viewerName,
                 orgName: practiceName,
