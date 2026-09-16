@@ -5,12 +5,65 @@ import { Pause, Play, Sparkles } from "lucide-react";
 
 import { NoteCard } from "@/components/clinical/note-card";
 import { TranscriptPanel } from "@/components/clinical/transcript-panel";
+import type { DemoContent } from "@/lib/content/demo";
 import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
 import { cn } from "@/lib/utils";
 
 /** How many lines are rendered on the server and before hydration. */
 const STATIC_LINES = 4;
 const TICK_MS = 2200;
+
+/**
+ * 🔴 76.32 — THE HERO'S OWN WORDS, PASSED IN RATHER THAN TYPED HERE.
+ *
+ * This is a client component, so it cannot read the dictionary: `getI18n` is
+ * server-only and C84's reasoning applies to the same boundary. Sprint 28 gave
+ * the demo's CONTENT an Arabic floor and could not reach the chrome around it
+ * from `lib/content/demo.ts`, so "Session in progress" and "Your SOAP note
+ * appears here the moment the session ends" rendered in English on the Arabic
+ * homepage for fifty-four sprints under a `deferred` line.
+ *
+ * Plain strings, resolved by the server component that renders this. Not a
+ * `t` function: `verify:boundary` forbids handing a function across the client
+ * boundary, and it is right to, because that is how `/pricing` served 500 to
+ * every visitor for seven sprints.
+ */
+export type SessionDemoLabels = {
+  /** The status line in the panel's header. */
+  inProgress: string;
+  /** The modality and the elapsed time beside it. */
+  meta: string;
+  play: string;
+  pause: string;
+  replay: string;
+  /** What fills the note slot before the session finishes. */
+  waiting: string;
+  /** How long the note took, shown where a real note shows its date. */
+  generated: string;
+  /** The line under the whole thing, which is a disclosure rather than copy. */
+  disclaimer: string;
+  /** Where a real note names the patient. C225: never a name, real or invented. */
+  patientLabel: string;
+};
+
+/**
+ * The English floor, for a caller with no dictionary in hand.
+ *
+ * It is the same arrangement `DEMO_FALLBACK` has and for the same reason: the
+ * marketing site must not go blank because something upstream failed, and a
+ * hero with no words in it is a blank page with a border.
+ */
+export const SESSION_DEMO_LABELS: SessionDemoLabels = {
+  inProgress: "Session in progress",
+  meta: "In person · 24:10",
+  play: "Play",
+  pause: "Pause",
+  replay: "Replay",
+  waiting: "Your SOAP note appears here the moment the session ends.",
+  generated: "Generated in 18 seconds",
+  disclaimer: "Simulated session with invented data, not a real patient.",
+  patientLabel: "demo",
+};
 
 /**
  * The live hero: the real `TranscriptPanel` and the real `NoteCard` from the
@@ -32,7 +85,22 @@ const TICK_MS = 2200;
  *    anything that reaches a database — importing those at module scope is what
  *    would drag the authenticated app onto a marketing page.
  */
-function SessionDemoInner({ className }: { className?: string }) {
+function SessionDemoInner({
+  className,
+  content,
+  labels,
+}: {
+  className?: string;
+  content?: DemoContent;
+  labels: SessionDemoLabels;
+}) {
+  /*
+   * 🔴 76.32 — the transcript and the note come from `content` when there is
+   * one. The fixtures stay as the floor, unchanged, so a caller that has no
+   * content renders exactly what it rendered before.
+   */
+  const transcript = content?.transcript ?? DEMO_TRANSCRIPT;
+  const note = content?.note ?? DEMO_NOTE;
   const [visible, setVisible] = useState(STATIC_LINES);
   const [playing, setPlaying] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -42,7 +110,7 @@ function SessionDemoInner({ className }: { className?: string }) {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (query.matches) {
       setReducedMotion(true);
-      setVisible(DEMO_TRANSCRIPT.length);
+      setVisible(transcript.length);
       return;
     }
     // Restart from the beginning so the animation reads as a session unfolding.
@@ -54,7 +122,7 @@ function SessionDemoInner({ className }: { className?: string }) {
     if (!playing || reducedMotion) return;
     timer.current = setInterval(() => {
       setVisible((n) => {
-        if (n >= DEMO_TRANSCRIPT.length) {
+        if (n >= transcript.length) {
           setPlaying(false);
           return n;
         }
@@ -64,10 +132,10 @@ function SessionDemoInner({ className }: { className?: string }) {
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
-  }, [playing, reducedMotion]);
+  }, [playing, reducedMotion, transcript.length]);
 
-  const complete = visible >= DEMO_TRANSCRIPT.length;
-  const lines = DEMO_TRANSCRIPT.slice(0, visible);
+  const complete = visible >= transcript.length;
+  const lines = transcript.slice(0, visible);
 
   return (
     <div className={cn("w-full", className)}>
@@ -78,8 +146,8 @@ function SessionDemoInner({ className }: { className?: string }) {
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
             </span>
             <div>
-              <p className="text-sm font-semibold text-white">Session in progress</p>
-              <p className="text-[11px] text-slate-400">In person · 24:10</p>
+              <p className="text-sm font-semibold text-white">{labels.inProgress}</p>
+              <p className="text-[11px] text-slate-400">{labels.meta}</p>
             </div>
           </div>
 
@@ -87,7 +155,7 @@ function SessionDemoInner({ className }: { className?: string }) {
             <button
               type="button"
               onClick={() => (complete ? (setVisible(1), setPlaying(true)) : setPlaying((p) => !p))}
-              aria-label={complete ? "Replay demo" : playing ? "Pause demo" : "Play demo"}
+              aria-label={complete ? labels.replay : playing ? labels.pause : labels.play}
               className="tap-target flex items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-slate-300 hover:bg-white/5"
             >
               {playing ? (
@@ -95,7 +163,7 @@ function SessionDemoInner({ className }: { className?: string }) {
               ) : (
                 <Play className="h-3.5 w-3.5" aria-hidden />
               )}
-              {complete ? "Replay" : playing ? "Pause" : "Play"}
+              {complete ? labels.replay : playing ? labels.pause : labels.play}
             </button>
           ) : null}
         </div>
@@ -120,10 +188,10 @@ function SessionDemoInner({ className }: { className?: string }) {
         {complete ? (
           <div className="no-scrollbar h-full animate-fade-rise overflow-y-auto rounded-2xl shadow-xl shadow-navy-900/10">
             <NoteCard
-              note={DEMO_NOTE}
+              note={note}
               status="draft"
-              patientLabel="demo"
-              dateLabel="Generated in 18 seconds"
+              patientLabel={labels.patientLabel}
+              dateLabel={labels.generated}
               compact
             />
           </div>
@@ -131,32 +199,39 @@ function SessionDemoInner({ className }: { className?: string }) {
           <div className="flex h-full items-center rounded-2xl border border-slate-200 bg-white px-4 shadow-xl shadow-navy-900/10">
             <p className="flex items-center gap-2 text-sm font-medium text-slate-500">
               <Sparkles className="h-4 w-4 shrink-0 text-brand-500" aria-hidden />
-              Your SOAP note appears here the moment the session ends.
+              {labels.waiting}
             </p>
           </div>
         )}
       </div>
 
-      <p className="mt-4 text-center text-[11px] text-slate-400">
-        Simulated session with invented data, not a real patient.
-      </p>
+      <p className="mt-4 text-center text-[11px] text-slate-400">{labels.disclaimer}</p>
     </div>
   );
 }
 
 /** Static fallback, used if the live demo throws for any reason. */
-function StaticFallback({ className }: { className?: string }) {
+function StaticFallback({
+  className,
+  content,
+  labels,
+}: {
+  className?: string;
+  content?: DemoContent;
+  labels: SessionDemoLabels;
+}) {
   return (
     <div className={cn("w-full", className)}>
       <div className="overflow-hidden rounded-3xl border border-slate-800/60 bg-navy-500 shadow-2xl">
-        <TranscriptPanel lines={DEMO_TRANSCRIPT.slice(0, STATIC_LINES)} className="h-56 sm:h-64" />
+        <TranscriptPanel
+          lines={(content?.transcript ?? DEMO_TRANSCRIPT).slice(0, STATIC_LINES)}
+          className="h-56 sm:h-64"
+        />
       </div>
       <div className="no-scrollbar relative -mt-4 h-52 overflow-y-auto px-3 sm:h-56 sm:px-6">
-        <NoteCard note={DEMO_NOTE} status="draft" compact />
+        <NoteCard note={content?.note ?? DEMO_NOTE} status="draft" compact />
       </div>
-      <p className="mt-4 text-center text-[11px] text-slate-400">
-        Simulated session with invented data, not a real patient.
-      </p>
+      <p className="mt-4 text-center text-[11px] text-slate-400">{labels.disclaimer}</p>
     </div>
   );
 }
@@ -176,10 +251,20 @@ class DemoBoundary extends Component<
   }
 }
 
-export function SessionDemo({ className }: { className?: string }) {
+export function SessionDemo({
+  className,
+  content,
+  labels = SESSION_DEMO_LABELS,
+}: {
+  className?: string;
+  content?: DemoContent;
+  labels?: SessionDemoLabels;
+}) {
   return (
-    <DemoBoundary fallback={<StaticFallback className={className} />}>
-      <SessionDemoInner className={className} />
+    <DemoBoundary
+      fallback={<StaticFallback className={className} content={content} labels={labels} />}
+    >
+      <SessionDemoInner className={className} content={content} labels={labels} />
     </DemoBoundary>
   );
 }

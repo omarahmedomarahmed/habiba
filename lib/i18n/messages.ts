@@ -244,6 +244,27 @@ export const en = {
   "contact.attachmentFailed":
     "Your message is safe, but the attachment did not go through: {reason}",
 
+  /* ------------------ 🔴 76.32 the hero's demo, in the reader's language -- */
+  /*
+   * The words AROUND the demonstration, as opposed to the demonstration
+   * itself, which lives in `lib/content/demo.ts` because it is content an
+   * admin can edit. These are chrome, so they belong here.
+   *
+   * They were typed into `components/demo/session-demo.tsx` and rendered in
+   * English on the Arabic homepage for fifty-four sprints, under a
+   * `render:check` line that said `deferred`.
+   */
+  "hdemo.inProgress": "Session in progress",
+  "hdemo.meta": "In person · 24:10",
+  "hdemo.play": "Play",
+  "hdemo.pause": "Pause",
+  "hdemo.replay": "Replay",
+  "hdemo.waiting": "Your SOAP note appears here the moment the session ends.",
+  "hdemo.generated": "Generated in 18 seconds",
+  "hdemo.disclaimer": "Simulated session with invented data, not a real patient.",
+  /* C225 — where a real note names somebody. Never a name here, invented or not. */
+  "hdemo.patientLabel": "demo",
+
   /* ---------------------------------------------------------- blocks -- */
   "blocks.address": "Address",
   "blocks.email": "Email",
@@ -3598,6 +3619,17 @@ export const ar: Record<MessageKey, string> = {
   "contact.received": "وصلتنا رسالتك.",
   "contact.reference": "مرجعك هو {reference}. ويرد عليك شخص باسمه خلال {hours} ساعة. وإن كان الأمر عاجلًا فاستخدم الرادار.",
   "contact.attachmentFailed": "رسالتك محفوظة، لكن المرفق لم يصل: {reason}",
+
+  /* ------------------ 🔴 76.32 العرض التوضيحي في الصفحة الرئيسية -- */
+  "hdemo.inProgress": "جلسة جارية",
+  "hdemo.meta": "حضوري · ٢٤:١٠",
+  "hdemo.play": "تشغيل",
+  "hdemo.pause": "إيقاف مؤقت",
+  "hdemo.replay": "إعادة",
+  "hdemo.waiting": "ملاحظة الجلسة بتظهر هنا أول ما الجلسة تخلص.",
+  "hdemo.generated": "اتكتبت في ١٨ ثانية",
+  "hdemo.disclaimer": "جلسة محاكاة ببيانات متخيلة، مش مريض حقيقي.",
+  "hdemo.patientLabel": "عرض",
 
   "blocks.address": "العنوان",
   "blocks.email": "البريد",

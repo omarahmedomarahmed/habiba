@@ -24,6 +24,7 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 
+import { GATES } from "./_gates";
 import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
@@ -252,10 +253,24 @@ async function main() {
   /*  65.24 · one pass                                                  */
   /* ================================================================== */
 
+  /*
+   * 🔴 76.31 — ASKED OF THE LIST, NOT OF THE FILE THAT USED TO HOLD IT.
+   *
+   * This read `scripts/gates.ts` as text and looked for four quoted strings.
+   * The list moved into `_gates.ts` so that `verifiers.ts` could read it too,
+   * and all four checks went red on a pass that had not changed at all: the
+   * gates still ran, the grep just had the wrong file.
+   *
+   * That is §6 from the other side. A check that greps for the SHAPE of an
+   * answer breaks when the shape moves and passes when the shape survives a
+   * gutting. Reading the exported list asks the actual question: is `prose` in
+   * the pass. It is the same ruling as C200 about copy.
+   */
+  const inGates = new Set<string>(GATES.map((gate) => gate.script));
   for (const gate of ["prose", "verify:claims", "verify:principals", "verify:sprint37l"]) {
     check(
       `🔴 65.24 \`npm run gates\` runs ${gate}`,
-      gates.includes(`"${gate}"`),
+      inGates.has(gate),
       "so a page cannot be prettier and less truthful at the same time",
     );
   }

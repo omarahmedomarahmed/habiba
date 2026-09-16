@@ -116,7 +116,7 @@ function Block({
 }) {
   switch (block.type) {
     case "hero":
-      return <Hero block={block} first={first} t={t} />;
+      return <Hero block={block} first={first} t={t} demo={demo} />;
     case "features":
       return <Features block={block} />;
     case "showcase":
@@ -176,10 +176,13 @@ function Hero({
   block,
   first,
   t,
+  demo,
 }: {
   block: Extract<ContentBlock, { type: "hero" }>;
   first: boolean;
   t: Translate;
+  /** 🔴 76.32 — the demonstration inside the fold, in the reader's language. */
+  demo: DemoContent;
 }) {
   /*
    * The radar hero is not a panel beside some copy — the live map is the
@@ -325,7 +328,33 @@ function Hero({
           patient. Every one of them is the component the portal renders, fed synthetic
           fixtures (65.19), so a hero cannot outlive the feature it is about.
         */}
-        {block.demo === "session-room" ? <SessionDemo /> : null}
+        {/*
+          🔴 76.32 — AND THE DEMO INSIDE IT SPEAKS THE PAGE'S LANGUAGE.
+
+          It rendered `components/demo/fixtures.ts` directly, so an Arabic
+          reader got an Arabic hero wrapped around an English conversation
+          producing an English SOAP note. Both halves come from here now: the
+          content from `lib/content/demo.ts`, the chrome from the dictionary.
+
+          Strings, not `t` itself. `SessionDemo` is a client component and
+          `verify:boundary` refuses a function crossing that line.
+        */}
+        {block.demo === "session-room" ? (
+          <SessionDemo
+            content={demo}
+            labels={{
+              inProgress: t("hdemo.inProgress"),
+              meta: t("hdemo.meta"),
+              play: t("hdemo.play"),
+              pause: t("hdemo.pause"),
+              replay: t("hdemo.replay"),
+              waiting: t("hdemo.waiting"),
+              generated: t("hdemo.generated"),
+              disclaimer: t("hdemo.disclaimer"),
+              patientLabel: t("hdemo.patientLabel"),
+            }}
+          />
+        ) : null}
         {block.demo === "company" ? <CompanyDemo /> : null}
         {block.demo === "clinic" ? <ClinicDemo /> : null}
         {block.demo === "fee-split" ? <TherapistSplitDemo /> : null}

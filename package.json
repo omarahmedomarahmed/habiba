@@ -155,6 +155,7 @@
     "verify:plan": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-plan.ts",
     "verify:rail": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rail.ts",
     "verify:cycle": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-cycle.ts",
+    "verify:served": "node --env-file-if-exists=.env.local --import tsx scripts/verify-served.ts",
     "capture:payments": "node --env-file-if-exists=.env.local --import ./scripts/_render-preload.mjs --import tsx scripts/capture-payments.tsx",
     "capture:coverage": "node --env-file-if-exists=.env.local --import tsx scripts/capture-coverage.ts",
     "verify:entitlement": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-entitlement.ts",

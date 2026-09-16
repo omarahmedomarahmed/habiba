@@ -30,17 +30,29 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
         </div>
       );
 
+    /*
+     * 🔴 76.32 — THE NOTE COMES FROM `content` NOW, like everything else here.
+     *
+     * It read the English constant directly, so the Arabic homepage rendered
+     * an Arabic conversation and then produced an English note out of it. The
+     * fixture stays as the floor for a caller that has no content, which is
+     * the same two-job arrangement every other case on this switch has.
+     */
     case "note":
       return (
         <div className="no-scrollbar h-56 overflow-y-auto rounded-2xl shadow-lg">
-          <NoteCard note={DEMO_NOTE} status="draft" compact patientLabel="demo" />
+          <NoteCard note={content?.note ?? DEMO_NOTE} status="draft" compact patientLabel="demo" />
         </div>
       );
 
     case "risk":
       return (
         <div className="flex h-56 items-center">
-          <RiskBanner level="high" indicators={["want to die"]} className="w-full shadow-lg" />
+          <RiskBanner
+            level="high"
+            indicators={[content?.riskIndicator ?? "want to die"]}
+            className="w-full shadow-lg"
+          />
         </div>
       );
 
@@ -51,18 +63,14 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
             <div className="flex items-start gap-2.5">
               <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" aria-hidden />
               <ul className="space-y-2">
-                <li className="text-sm leading-snug text-slate-100">
-                  <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
-                    explore
-                  </span>
-                  Two of seven nights went better, worth naming that back.
-                </li>
-                <li className="text-sm leading-snug text-slate-100">
-                  <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
-                    observation
-                  </span>
-                  Fatigue and worry described as a loop, not two problems.
-                </li>
+                {(content?.copilot ?? []).map((prompt) => (
+                  <li key={prompt.text} className="text-sm leading-snug text-slate-100">
+                    <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
+                      {prompt.kind}
+                    </span>
+                    {prompt.text}
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

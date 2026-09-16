@@ -12,7 +12,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { DEMO_NOTE, DEMO_TRANSCRIPT } from "@/components/demo/fixtures";
 import { controlDb as db } from "@/lib/db";
-import { contentPages } from "@/lib/db/schema";
+import { contentPages, type NoteContent } from "@/lib/db/schema";
 import { getLocale } from "@/lib/i18n/server";
 
 /**
@@ -51,6 +51,20 @@ export type DemoContent = {
   summaryVersions: { version: number; author: string; on: string; body: string }[];
   /** 28.6 — what the person wrote themselves, between sessions. */
   journalEntries: { on: string; text: string }[];
+  /**
+   * 🔴 76.32 — THE NOTE ITSELF, which is the thing the demo is ABOUT.
+   *
+   * Every other field here has been translatable since sprint 28 and the note
+   * was not, so the Arabic homepage rendered an Arabic conversation and then
+   * produced an English SOAP note from it. That is a worse demonstration than
+   * no demonstration: the one claim the hero makes is that the product writes
+   * the note, and the picture said it writes it in the wrong language.
+   */
+  note: NoteContent;
+  /** The two copilot prompts shown beside the transcript. */
+  copilot: { kind: string; text: string }[];
+  /** The phrase the risk banner is demonstrating having caught. */
+  riskIndicator: string;
 };
 
 /** The shipped default. Every word invented; see the file it comes from. */
@@ -103,10 +117,16 @@ export const DEMO_FALLBACK: DemoContent = {
     { on: "2 June", text: "Slept through for the first time in about three weeks. Nothing special happened, which is the annoying part." },
     { on: "29 May", text: "Bad one. Kept rehearsing the review in my head until about two. Did the breathing, it helped a bit, not much." },
   ],
+  note: DEMO_NOTE,
+  copilot: [
+    { kind: "explore", text: "Two of seven nights went better, worth naming that back." },
+    { kind: "observation", text: "Fatigue and worry described as a loop, not two problems." },
+  ],
+  riskIndicator: "want to die",
 };
 
 /**
- * 🔴 The Arabic fallback. PLAN.md 28.1, closing most of 22R.10.
+ * 🔴 The Arabic fallback. PLAN.md 28.1, and 76.32 closes the rest of 22R.10.
  *
  * There is no `demo` row in `content_pages` and there never has been, so every
  * demonstration on the Arabic pages was falling through to the English
@@ -114,6 +134,16 @@ export const DEMO_FALLBACK: DemoContent = {
  * conversation inside it. 21R recorded that as 42 English passages remaining
  * and left it, correctly, because writing an Arabic transcript is writing
  * rather than translating.
+ *
+ * 🔴 SPRINT 28 CLOSED 5 OF THEM AND LEFT 37, DEFERRED TO "22R.10". Fifty-four
+ * sprints later that sprint had not happened and `render:check` still printed
+ * `PASS (18 checks, 1 deferred)`, which a reader takes as a pass. The 37 were
+ * the two surfaces sprint 28 could not reach from here: the NOTE itself, and
+ * the hero's own chrome, both of which read their English straight out of
+ * `components/demo/fixtures.ts` without passing through this file at all.
+ *
+ * They pass through it now. `note`, `copilot` and `riskIndicator` below are
+ * the rest of that writing, and the deferral is deleted rather than renamed.
  *
  * This is that writing. The people, the session and the week are invented, as
  * they are in the English one, and the conversation is written as Arabic
@@ -174,6 +204,62 @@ export const DEMO_FALLBACK_AR: DemoContent = {
     { on: "٢ يونيو", text: "نمت الليلة كلها لأول مرة من حوالي تلات أسابيع. مفيش حاجة مخصوص حصلت، وده الجزء المضايق." },
     { on: "٢٩ مايو", text: "ليلة وحشة. فضلت أعيد التقييم في دماغي لحد تقريبًا اتنين. عملت التنفس، نفع شوية، مش كتير." },
   ],
+  /*
+   * 🔴 76.32 — AND THE NOTE IS WRITTEN IN ARABIC, not translated into it.
+   *
+   * The note is the one artefact on this page a clinician will read closely,
+   * and clinical Arabic is its own register: Modern Standard for the record,
+   * even where the transcript above it is Egyptian as a patient would speak.
+   * A SOAP note phrased in colloquial Egyptian would demonstrate a product
+   * that does not know the difference, which is the doubt a clinician arrives
+   * with.
+   *
+   * Same session as the transcript above, deliberately. A hero that shows one
+   * conversation and a note about a different one is the failure sprint 21R
+   * named in the other language.
+   */
+  note: {
+    soap: {
+      subjective:
+        "يفيد المريض بعودة أرق منتصف الليل خلال الأسبوع الماضي، مع الاستيقاظ قرابة الثالثة فجرًا وأفكار متكررة تدور حول تقييم أداء وشيك في العمل. يصف حلقة متبادلة بين إرهاق النهار وقلق الترقّب. التزام جزئي بروتين ما قبل النوم المتفق عليه، ليلتان من سبع، مع عودة أسرع للنوم في الليلتين.",
+      objective:
+        "متيقظ وموجَّه ومتفاعل طوال الجلسة. الوجدان مقيَّد قليلًا ومتوافق مع المزاج المذكور. الكلام طبيعي في معدله وحجمه. البصيرة سليمة، وقد راجع المريض تقييمه العام الأولي عند عرض بياناته عليه.",
+      assessment:
+        "انتكاسة اضطراب نوم مدفوع بالقلق في سياق ضاغط محدد ومحدود زمنيًا. متسقة مع الصياغة القائمة ولا تمثل عملية جديدة. الالتزام، لا الاستراتيجية، هو العامل المحدد. لم تُستخلص أو تُلاحَظ أي مؤشرات خطورة.",
+      plan: "رفع هدف روتين ما قبل النوم إلى أربع ليالٍ قبل الجلسة القادمة، مع تسجيل مكتوب لليالي المنفَّذة. مواصلة العمل المعرفي على التقييم الكارثي لمراجعة الأداء. إعادة تقييم نمط النوم في الجلسة القادمة.",
+    },
+    summary:
+      "جلسة متابعة تتناول انتكاسة أرق منتصف الليل لمدة أسبوع مرتبطة بقلق ترقّب متعلق بالعمل. الالتزام الجزئي بالتدخل الخاص بالنوم أنتج تحسنًا قابلًا للقياس لم ينتبه إليه المريض.",
+    talkingPoints: [
+      "عودة أرق منتصف الليل، الاستيقاظ قرابة الثالثة مع اجترار",
+      "تقييم الأداء الوشيك بوصفه الضاغط المحدد",
+      "الإرهاق والقلق يعملان كحلقة متبادلة",
+      "روتين ما قبل النوم استُخدم ليلتين من سبع، وكانت الليلتان أفضل",
+    ],
+    observations:
+      "متفاعل ومتعاون. استجاب جيدًا حين عُرضت عليه الفجوة بين النتيجة التي يرويها وبين بياناته الفعلية.",
+    impressions:
+      "متسق مع الصياغة القائمة لاضطراب نوم يديمه القلق. مبدئي، لمراجعة المعالج.",
+    recommendations: [
+      "رفع هدف روتين ما قبل النوم إلى أربع ليالٍ أسبوعيًا مع تسجيل مكتوب بسيط",
+      "مواصلة إعادة البناء المعرفي حول تهويل مراجعة الأداء",
+    ],
+    followUp: "أسبوع واحد",
+    patientBrief:
+      "قعدنا النهاردة نتكلم عن الليالي اللي بتعدي عليك صعبة، وعن قد إيه اليوم بيروح وإنت مستعد للّي جاي. وصّفت ده بوضوح فعلًا.\n\nالحاجة اللي تستاهل تمسك فيها: الليلتين اللي عملت فيهم الروتين قبل النوم، نمت أحسن. إنت كنت حاسبهم صدفة لحد ما حطينهم جنب بعض.",
+    patientSteps: [
+      "الموبايل بعيد ساعة قبل النوم، أربع ليالي الأسبوع ده، واختار الليالي دلوقتي مش كل ليلة لوحدها.",
+      "اصحى في نفس الميعاد حتى بعد ليلة وحشة. دي اللي بتعمل أكتر شغل وهي أكتر حاجة حاسس إنها ملهاش لازمة.",
+      "اكتب تقريبًا نمت امتى وصحيت امتى. مش مفكرة، ميعادين بس.",
+    ],
+    patientNext:
+      "نفس الميعاد الأسبوع الجاي، وهات معاك المواعيد اللي كتبتها. لو التقييم اتقدّم عن المتوقع والليالي تقلت، ابعتلي نقرّب الجلسة.",
+  },
+  copilot: [
+    { kind: "اسأل", text: "ليلتين من سبع كانوا أحسن، تستاهل تتقال له." },
+    { kind: "ملاحظة", text: "الإرهاق والقلق موصوفين كحلقة واحدة، مش مشكلتين." },
+  ],
+  riskIndicator: "نفسي أموت",
 };
 
 /**
@@ -269,6 +355,19 @@ function fromBlocks(blocks: unknown, floor: DemoContent = DEMO_FALLBACK): DemoCo
       homework?.items?.map((item) => ({ title: item.title ?? "", detail: item.body ?? "" })) ??
       floor.homework,
     patientSessions: floor.patientSessions,
+    /*
+     * 🔴 76.32 — NOT CMS-EDITABLE, and that is the ruling rather than a gap.
+     *
+     * A SOAP note has a shape a clinician recognises and an admin typing into
+     * a textarea can produce something that is not one. The three fields here
+     * are the demonstration's clinical content, they are written in this file
+     * with a reviewer's eye, and the CMS has no block type that could hold
+     * them without inventing one. `patientSessions` has been read this way
+     * since sprint 28 for the same reason.
+     */
+    note: floor.note,
+    copilot: floor.copilot,
+    riskIndicator: floor.riskIndicator,
     /*
      * 28.6 — editable like every other demo, and field-by-field like every
      * other demo: an admin rewriting one version must not blank the panel.

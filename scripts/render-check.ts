@@ -101,8 +101,33 @@ async function main() {
           locale: row.locale.replace("-x-staging", ""),
         }),
       );
+      /*
+       * 🔴 76.32 — AND IT IS RENDERED INSIDE THE PROVIDER THE REAL PAGE HAS.
+       *
+       * `resolve()` runs the server components and leaves the client ones for
+       * React. Those read the dictionary through `useT()`, which falls back to
+       * ENGLISH when there is no `I18nProvider` above it — and there was none
+       * here, because the provider lives in `app/layout.tsx` and this harness
+       * renders a page without its layout.
+       *
+       * So every client component on an Arabic page reported English, the
+       * check below counted them, and the count was deferred to a sprint that
+       * never came. Five of the thirty-seven passages that deferral was
+       * carrying were this: strings that HAVE Arabic in the dictionary, on
+       * pages that serve Arabic correctly, measured by a harness missing the
+       * one wrapper the product always has.
+       *
+       * That is §6 exactly — a check failing because it measured the wrong
+       * thing — and it is the more dangerous half, because the number it
+       * produced looked like real work outstanding.
+       */
+      const { I18nProvider } = await import("../lib/i18n/client");
       html[`${row.slug}.${row.locale}`] = renderToStaticMarkup(
-        tree as React.ReactElement,
+        React.createElement(
+          I18nProvider as never,
+          { locale: row.locale.replace("-x-staging", "") },
+          tree as React.ReactElement,
+        ),
       );
     } catch (error) {
       failed.push(

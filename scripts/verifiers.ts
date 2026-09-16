@@ -28,10 +28,11 @@
  *
  * ## WHAT IT SKIPS, AND WHY EACH ONE
  *
- * Only two kinds, both named rather than pattern-matched:
+ * Only two kinds:
  *
- *   - the twelve already in `npm run gates`, so the pass does not run them
- *     twice and a failure is reported once, in the place people look
+ *   - everything already in `npm run gates`, read from the list that pass runs
+ *     rather than re-typed, so the two cannot disagree. A failure is reported
+ *     once, in the place people look
  *   - `verify:synthetic`, because it is a property of a DATABASE rather than of
  *     the code. It is RIGHT to fail on the dev branch, which is full of
  *     fixtures called Mansour and Ellis, and it is run for real against the
@@ -48,21 +49,24 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-/** Already in `npm run gates`. Reported there, not twice. */
-const IN_GATES = new Set([
-  "prose",
-  "verify:claims",
-  "verify:principals",
-  "verify:sprint37l",
-  "verify:boundary",
-  "smoke",
-  "verify:finance",
-  "verify:plan",
-  "verify:rail",
-  "verify:entitlement",
-  "verify:board",
-  "suites",
-]);
+import { GATES } from "./_gates";
+
+/**
+ * Already in `npm run gates`. Reported there, not twice.
+ *
+ * 🔴 76.31 — READ FROM THE GATE LIST, NOT RE-TYPED FROM IT.
+ *
+ * This was a hand-written copy of the twelve gates, and by the time anybody
+ * looked it was two entries stale: `verify:cycle` and `verify:money` had joined
+ * the gates and this list had not heard, so a full pass ran both of them twice.
+ * That direction is only slow. The same drift the other way is a verifier this
+ * pass skips as "already covered" by a pass that stopped covering it, which is
+ * H20 again with nothing printing it.
+ *
+ * So the list lives in `_gates.ts` and both files read it. The two passes
+ * cannot disagree about what the other one runs.
+ */
+const IN_GATES = new Set<string>(GATES.map((gate) => gate.script));
 
 /**
  * 🔴 A property of the DATABASE, not of the code. See the header: it is correct
