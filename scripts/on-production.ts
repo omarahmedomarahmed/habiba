@@ -81,6 +81,13 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
     writes: true,
     why: "rewrites content_pages from the shipped defaults, and nothing else",
   },
+  /*
+   * It opens a copilot thread against real patients from the run and asks the
+   * model about them, which is a write, and the thread it leaves behind is part
+   * of the record rather than a fixture. It belongs on the database the run is
+   * on, and nowhere else.
+   */
+  "copilot:exam": { writes: true, why: "examines the copilot on the run's own patients" },
 
   /* ---------------------------------------------------------------- reading */
   baseline: { writes: false, why: "counts every row in every table, and writes none of them" },
@@ -91,7 +98,6 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   "verify:migrations": { writes: false, why: "journal and ledger agree, every CHECK validated" },
   "verify:board": { writes: false, why: "the founders' board, and none of its nine queries writes" },
   "verify:cast": { writes: false, why: "every seeded login exists and can sign in" },
-  "verify:actuals": { writes: false, why: "the month by month actuals against the rows beneath them" },
 };
 
 /**
@@ -112,6 +118,18 @@ const REFUSED: Record<string, string> = {
     "several gates write fixtures. Gates prove the CODE, so they belong on dev, which is\n" +
     "     where .env.local already points. Just `npm run gates`.",
   verifiers: "same as gates: they write fixtures, and dev is where they belong.",
+  /*
+   * 🔴 LISTED AS A READ WHEN THIS FILE WAS FIRST WRITTEN, AND IT IS NOT ONE.
+   *
+   * `verify:actuals` plants an organisation, seven ledger legs, four model calls
+   * and three employees, then deletes them in a `finally`. It was put on the
+   * allow-list as a read because its NAME sounds like a read, which is the whole
+   * argument for an allow-list whose entries have to say what they do. It only
+   * failed safe because 76.52 shut the door in `writesTo()` as well.
+   */
+  "verify:actuals":
+    "it plants an organisation, ledger legs, model calls and three employees before\n" +
+    "     deleting them. Run it against dev.",
   "db:reset": "no.",
 };
 

@@ -380,12 +380,53 @@ async function main() {
     "scripts/settings.ts",
     "scripts/shoot-room.ts",
   ];
+
+  /*
+   * 🔴 76.52 — THIS MATCHED THE STRING `writesTo()` AND WENT RED ON A CHANGE THAT
+   * MADE THE GUARD STRICTER, which is the §6 family from the other side.
+   *
+   * `writesTo` took no arguments when this was written, so the empty parentheses
+   * were a fair proxy for "this file calls the guard". Then the production door
+   * moved OUT of `writesTo` and INTO its caller, so the three scripts that may be
+   * let through say so themselves: `writesTo({ productionIsAllowed: true })`. The
+   * other fifty-eight went back to refusing unconditionally, which is what every
+   * one of their headers already claimed.
+   *
+   * `scripts/settings.ts` is one of the three, so the check failed on a file that
+   * had become MORE explicit about what it does. A check that goes red when the
+   * thing it guards improves is a check somebody edits out.
+   *
+   * So it matches the call rather than its punctuation, and `verify:sprint76`
+   * holds the other half: that only three files anywhere pass the flag.
+   */
   for (const file of WRITERS) {
     check(
-      `🔴 57.7 ${file} refuses the production endpoint`,
-      /writesTo\(\)/.test(readSource(file)),
+      `🔴 57.7 ${file} calls the write guard`,
+      /writesTo\(/.test(readSource(file)),
     );
   }
+
+  /*
+   * 🔴 AND THE COUNT, because "calls the guard" no longer implies "refuses".
+   *
+   * The door is one argument wide now. Three files may pass it: the settings
+   * writer, the simulation seed and the ageing script, all three of which exist
+   * to be run against the database the six month run happens on. A fourth would
+   * mean somebody opened production to a script that plants fixtures, and the
+   * run does not restore afterwards, so anything it leaves is permanent.
+   */
+  const opened = WRITERS.concat(["scripts/simulate-seed.ts", "scripts/age.ts"]).filter((file) =>
+    /productionIsAllowed:\s*true/.test(readSource(file)),
+  );
+
+  check(
+    "🔴 76.52 exactly THREE scripts may be let through to production, and these are they",
+    opened.length === 3 &&
+      opened.includes("scripts/settings.ts") &&
+      opened.includes("scripts/simulate-seed.ts") &&
+      opened.includes("scripts/age.ts"),
+    opened.join(", ") || "none, which means the seed cannot run where it is meant to",
+  );
 
   /*
    * 🔴 The two exceptions, and why a blanket guard was the wrong fix.

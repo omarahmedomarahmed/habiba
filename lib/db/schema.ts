@@ -5,6 +5,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   bigint,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -2794,6 +2795,79 @@ export const deliveryAttempts = pgTable(
   },
   (t) => [index("delivery_attempts_when_idx").on(t.createdAt)],
 );
+
+/**
+ * 🔴 76.53 — THE PAYROLL. Who is on it, and what each month of them cost.
+ *
+ * The forecast in `lib/finance/` has carried a headcount and a wage bill since
+ * sprint 18. Nothing in this database held either, so the largest and most
+ * certain line in the company's monthly spend was the one line `/admin/actuals`
+ * could not read back out of rows. During the run, four of these people work the
+ * manual payment and verification queues, which is most of what the six months
+ * cost.
+ *
+ * Deliberately small: a name, a job, the queue they work, and when they started
+ * and stopped. No bank details, no national ID, no address. A table about
+ * employees grows those by accretion unless somebody writes down that it must
+ * not.
+ */
+export const employees = pgTable(
+  "employees",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    /** In the words the founders use. Free text: a title enum here is a meeting. */
+    title: text("title").notNull(),
+    /**
+     * Which manual queue this person works, or null for a founder. The run's
+     * staffing question is how many people the rails need, and a wage bill that
+     * cannot be split by queue cannot answer it.
+     */
+    queue: text("queue"),
+    /** Month granularity. A day here invites a pro-rata nobody asked for. */
+    startedOn: date("started_on").notNull(),
+    /** Null while they are still here. The month they leave is their last paid one. */
+    endedOn: date("ended_on"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("employees_active_idx").on(t.startedOn, t.endedOn)],
+);
+
+export type Employee = typeof employees.$inferSelect;
+
+/**
+ * 🔴 ONE ROW PER SALARY SOMEBODY HAS BEEN ON, not a column on the person.
+ *
+ * A single `monthly_salary_cents` is one edit away from lying about the past:
+ * a raise in month 4 would quietly raise months 1 to 3 as well, and the table
+ * that exists to say what six months cost would report what they would have
+ * cost if the raise had always been there. Same shape as C311, different
+ * currency. The month reads the row in force that month.
+ */
+export const employeeSalaries = pgTable(
+  "employee_salaries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    /** Cents of USD, like every other money column here. EGP is a screen concern. */
+    monthlyCents: integer("monthly_cents").notNull(),
+    /** The first month this salary applies to. */
+    effectiveFrom: date("effective_from").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("employee_salaries_person_idx").on(t.employeeId, t.effectiveFrom),
+    /* Two salaries starting the same month would double that month's wage bill. */
+    uniqueIndex("employee_salaries_one_per_month").on(t.employeeId, t.effectiveFrom),
+  ],
+);
+
+export type EmployeeSalary = typeof employeeSalaries.$inferSelect;
 
 /** Icons an admin may choose. An allowlist, not a free string. */
 export const CONTENT_ICONS = [

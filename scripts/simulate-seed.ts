@@ -49,13 +49,14 @@
  */
 import { sql } from "drizzle-orm";
 
+import { SIMULATION_PASSWORD } from "./_cast";
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
 
 const { check, finish } = reporter();
 
-/** One password for every account in the run. Never used outside a branch. */
-export const SIMULATION_PASSWORD = "Simulation2026!";
+/* Re-exported because three scripts and two documents import it from here. */
+export { SIMULATION_PASSWORD };
 
 /**
  * The operator. The only person in this file, because the console has to work
@@ -131,6 +132,81 @@ export const SPONSOR_APPLICATIONS = [
     contactBestTime: "Any time",
   },
 ] as const;
+
+/**
+ * 🔴 76.53 — THE PAYROLL, WHICH IS MOST OF WHAT SIX MONTHS COST.
+ *
+ * `lib/finance/plans.ts` decided this list and the figure: seven people at $500
+ * a month, which is $3,500 a month and $21,000 over the run. Against a forecast
+ * of a few thousand dollars of revenue, the wage bill IS the plan, and until
+ * this sprint no row in the database held it, so `/admin/actuals` could only
+ * ever have reported a profitable company by leaving out its largest cost.
+ *
+ * The names, titles and salaries are copied from the plan on purpose rather than
+ * invented, so that reading `/admin/actuals` beside `/admin/financial-model` is
+ * comparing two accounts of the same company rather than two companies.
+ *
+ * 🔴 THE TWO WITH `login: "staff"` ARE WHY THIS IS IN THE SEED AT ALL.
+ *
+ * The Egyptian rail is a bank transfer and a person who checks it, and somebody
+ * is on a spinner waiting to join a therapy session while they do. The plan calls
+ * that staffing decision "not optional". A run where the operator works every
+ * queue alone would be a run of a product nobody could staff, and it would also
+ * never find the thing two people sharing a queue find: the same transfer picked
+ * up twice.
+ */
+const STARTING_SALARY_CENTS = 50_000;
+
+const STAFF = [
+  {
+    name: "Nour Example",
+    title: "Founder, clinical and operations",
+    queue: "verifications and payments",
+    /** She already has a login: she is `OPERATOR` above, the console's super admin. */
+    login: null,
+  },
+  {
+    name: "Sherif Example",
+    title: "Founder, product and engineering",
+    queue: null,
+    login: null,
+  },
+  { name: "Amal Example", title: "Sales, companies and universities", queue: null, login: null },
+  { name: "Hossam Example", title: "Sales, clinics and therapists", queue: null, login: null },
+  { name: "Farida Example", title: "Marketing", queue: null, login: null },
+  {
+    name: "Heba Example",
+    title: "Support, the transfer queue",
+    queue: "transfers",
+    login: { email: "heba.example@example.com", firstName: "Heba", lastName: "Example" },
+  },
+  {
+    name: "Sara Example",
+    title: "Support, the transfer queue and onboarding",
+    queue: "transfers",
+    login: { email: "sara.example@example.com", firstName: "Sara", lastName: "Example" },
+  },
+] as const;
+
+/**
+ * 🔴 THEY STARTED SIX MONTHS AGO, AND THE ALTERNATIVE IS A SILENT ZERO.
+ *
+ * Everything else in this run is created today and then moved backwards by
+ * `npm run age` at the end of each wave. The payroll cannot be: this script runs
+ * BEFORE the first marker opens, so `age` correctly leaves it alone, and a start
+ * date of today would put every employee outside every month the run reports.
+ *
+ * `/admin/actuals` would then show six months of sessions and revenue against a
+ * wage bill of nothing, which is not a small error: it is the difference between
+ * a company that broke even and one that lost twenty-one thousand dollars.
+ *
+ * So the date is written where it belongs rather than left to be moved.
+ */
+function sixMonthsAgo(): string {
+  const now = new Date();
+  const then = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
+  return then.toISOString().slice(0, 10);
+}
 
 async function main() {
   /*
@@ -286,6 +362,98 @@ async function main() {
       "the operator exists, and the console has somebody to open it",
       true,
       `${OPERATOR.email} / ${SIMULATION_PASSWORD}${operator.rows[0] ? " (already there, password reset to it)" : ""}`,
+    );
+
+    /* ----------------------------------------------------------- the payroll */
+
+    const startedOn = sixMonthsAgo();
+
+    /*
+     * 🔴 WRITTEN HERE RATHER THAN THROUGH `addEmployee`, and the reason is worth
+     * the four lines.
+     *
+     * Every other person in this file is created by calling the function the
+     * product calls, because a seed that writes rows directly can create a state
+     * the product cannot. `addEmployee` is not that function: it takes an `Actor`
+     * and refuses anybody who is not a super admin, which is right for a form and
+     * meaningless for a script with no session. And it deliberately does NOT
+     * find-or-create by name, because two colleagues can share one, and a form
+     * that silently joined them to one payroll row would be worse than a
+     * duplicate.
+     *
+     * So the seed does what it does for the organisation and the operator: finds
+     * by name first, then writes. The idempotency is the seed's problem here, not
+     * the product's.
+     */
+    for (const person of STAFF) {
+      const found = await db.execute<{ id: string }>(sql`
+        SELECT id FROM employees WHERE name = ${person.name} LIMIT 1`);
+
+      if (!found.rows[0]) {
+        const made = await db.execute<{ id: string }>(sql`
+          INSERT INTO employees (name, title, queue, started_on)
+          VALUES (${person.name}, ${person.title}, ${person.queue}, ${startedOn})
+          RETURNING id`);
+
+        await db.execute(sql`
+          INSERT INTO employee_salaries (employee_id, monthly_cents, effective_from, note)
+          VALUES (${made.rows[0]!.id}, ${STARTING_SALARY_CENTS}, ${startedOn}, 'starting salary')`);
+      }
+
+      /*
+       * The two who work a queue need somewhere to sign in. Found before created,
+       * same as the operator and for the same reason.
+       */
+      if (!person.login) continue;
+
+      const already = await db.execute<{ id: string }>(sql`
+        SELECT id FROM users
+         WHERE organization_id = ${orgId} AND email = ${person.login.email} AND deleted_at IS NULL
+         LIMIT 1`);
+
+      if (already.rows[0]) {
+        await db.execute(sql`
+          UPDATE users SET password_hash = ${passwordHash}, role = 'staff'
+           WHERE id = ${already.rows[0].id}`);
+      } else {
+        await db.execute(sql`
+          INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role)
+          VALUES (${orgId}, ${person.login.email}, ${passwordHash}, ${person.login.firstName},
+                  ${person.login.lastName}, 'staff')`);
+      }
+    }
+
+    const payroll = await db.execute<{ people: string; bill: string }>(sql`
+      SELECT COUNT(*)::text AS people,
+             COALESCE(SUM(s.monthly_cents), 0)::text AS bill
+        FROM employees e
+        JOIN employee_salaries s ON s.employee_id = e.id
+       WHERE e.ended_on IS NULL`);
+
+    check(
+      "🔴 the payroll is on the books, so /admin/actuals can see what six months cost",
+      Number(payroll.rows[0]?.people ?? 0) === STAFF.length,
+      `${payroll.rows[0]?.people ?? 0} people from ${startedOn}, ` +
+        `$${(Number(payroll.rows[0]?.bill ?? 0) / 100).toFixed(0)} a month`,
+    );
+
+    /*
+     * 🔴 CONTROL: the two queue workers can actually sign in.
+     *
+     * A payroll row is a number in a table. A `staff` login is the thing that
+     * makes the transfer queue a queue two people share, which is where the same
+     * transfer gets picked up twice. Asserting the rows exist is asserting the
+     * part that was easy.
+     */
+    const staffLogins = await db.execute<{ n: string }>(sql`
+      SELECT COUNT(*)::text AS n FROM users
+       WHERE organization_id = ${orgId} AND role = 'staff' AND deleted_at IS NULL
+         AND email IN ('heba.example@example.com', 'sara.example@example.com')`);
+
+    check(
+      "🔴 …and the two who work the transfer queue have logins, so it is shared",
+      Number(staffLogins.rows[0]?.n ?? 0) === 2,
+      `heba.example@example.com and sara.example@example.com / ${SIMULATION_PASSWORD}`,
     );
 
     /* ------------------------------------------------------- the spend cap -- */

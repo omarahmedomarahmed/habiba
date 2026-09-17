@@ -24,6 +24,7 @@ import {
   Gauge,
   TriangleAlert,
   LineChart,
+  Wallet,
 } from "lucide-react";
 
 import { requireStaff } from "@/lib/auth/guard";
@@ -216,8 +217,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             URL is the defect `verify:reachable` exists to catch, and this one
             is the reason the simulation measures what it measures.
           */}
-          {isManager ? (
+          {/*
+            🔴 76.53 — `isOwner`, NOT `isManager`, and the line above used to
+            be the second kind.
+
+            Both pages call `requireRole("super_admin")`, which REDIRECTS. So a
+            manager was shown a link that bounced them to the dashboard with no
+            explanation, which reads as the product being broken rather than as
+            a door that is not theirs. `verify:reachable` catches a page nothing
+            links to; nothing catches a link nobody who can see it may follow.
+
+            The company's own result and the company's own payroll are a board
+            pack. The 24/7 team works queues.
+          */}
+          {isOwner ? (
             <AdminLink href="/admin/financial-model" icon={LineChart}>Financial model</AdminLink>
+          ) : null}
+          {isOwner ? (
+            <AdminLink href="/admin/actuals" icon={Wallet}>Actuals</AdminLink>
           ) : null}
         </nav>
       </header>

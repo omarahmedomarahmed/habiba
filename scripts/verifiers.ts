@@ -73,7 +73,23 @@ const IN_GATES = new Set<string>(GATES.map((gate) => gate.script));
  * for this to be red on a branch full of fixtures, and it is run for real
  * against the simulation branch before a single operator frame is committed.
  */
-const DATABASE_SHAPED = new Set(["verify:synthetic"]);
+const DATABASE_SHAPED = new Set([
+  "verify:synthetic",
+  /*
+   * 🔴 76.54 — `verify:cast` IS THE SAME KIND OF THING, and it went into a full
+   * pass red on its first run for exactly the reason above.
+   *
+   * It asks whether eighteen named people can sign in with the run's password.
+   * On the dev branch the answer is no, and correctly no: the cast lives on the
+   * database the run happens on, and dev is not that database. A red line here
+   * would be a red line on every pass for ever, which is how people learn to
+   * read past one.
+   *
+   * It is run where it means something: `npm run on:production -- verify:cast`,
+   * at the end of each wave and again with `--complete` when the run is over.
+   */
+  "verify:cast",
+]);
 
 function verifierNames(): string[] {
   const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { scripts: Record<string, string> };

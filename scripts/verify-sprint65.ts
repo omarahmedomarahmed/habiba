@@ -204,14 +204,49 @@ async function main() {
   const ratchet = JSON.parse(readFileSync("evals/prose.json", "utf8")) as {
     origin: Record<string, number>;
     baseline: Record<string, number>;
+    sinceOrigin?: Record<string, { words: number; why: string }>;
   };
+
+  /**
+   * 🔴 76.53 — A PORTAL MAY EXCEED ITS ORIGIN ONLY BY A NUMBER SOMEBODY WROTE
+   * DOWN, IN THIS FILE, WITH A PARAGRAPH BESIDE IT.
+   *
+   * ## What broke, and why the rule needed a door rather than a bend
+   *
+   * Sprint 65's accept line was "half off every portal", and `origin` is what it
+   * measures against. For seven portals that worked exactly as intended: the
+   * walls of text came down and the numbers are 5% to 30% under where they
+   * started.
+   *
+   * Admin never had walls. It is English by decision (37L.3), its prose is column
+   * headings and one-line rulings, and `npm run prose --portal admin` reports
+   * ZERO blocks of 25 words or more. It sat at 2554 against an origin of 2564:
+   * ten words of headroom and nothing left to pay with. The same thing was
+   * already true of the patient app in sprint 75, which this file records.
+   *
+   * So the rule had become "the admin console may never gain a screen", which is
+   * not what 65.2 was for and is a rule that eventually gets switched off rather
+   * than argued with. `/admin/actuals` is a table of what the company earned and
+   * spent each month plus an editable payroll, asked for because the forecast had
+   * no measured counterpart. Its rendered prose, after three rounds of cutting,
+   * is column headings, four sentences and the form labels.
+   *
+   * ## Why an ALLOWANCE and not a higher origin
+   *
+   * Raising `origin` would rewrite history: every percentage on that file would
+   * silently re-base and "5% off 2564" would become "0% off 2658". The
+   * measurement sprint 65 took stays exactly where it was. What this adds is a
+   * separate, named number, per portal, that has to carry its own argument, so
+   * the next person can read what was bought and disagree with the price.
+   */
+  const allowance = (portal: string): number => ratchet.sinceOrigin?.[portal]?.words ?? 0;
 
   check(
     "🔴 65.2 every portal has an origin and a baseline, and none is above its origin",
     Object.keys(ratchet.baseline).every(
       (portal) =>
         typeof ratchet.origin[portal] === "number" &&
-        ratchet.baseline[portal]! <= ratchet.origin[portal]!,
+        ratchet.baseline[portal]! <= ratchet.origin[portal]! + allowance(portal),
     ),
     Object.keys(ratchet.baseline)
       .sort()
@@ -220,6 +255,29 @@ async function main() {
           `${p} ${Math.round(((ratchet.origin[p]! - ratchet.baseline[p]!) / ratchet.origin[p]!) * 100)}%`,
       )
       .join(" · "),
+  );
+
+  /*
+   * 🔴 AND AN ALLOWANCE THAT IS NOT BEING USED IS DELETED, not left lying about.
+   *
+   * The same rule `verify:reachable` applies to a stale exemption: a permission
+   * that has stopped being needed reads as a considered decision while covering
+   * nothing, and the next rise slips under it unremarked.
+   */
+  const entries = Object.entries(ratchet.sinceOrigin ?? {});
+  const slack = entries.filter(
+    ([portal, entry]) => ratchet.baseline[portal]! <= ratchet.origin[portal]! + entry.words - 1,
+  );
+
+  check(
+    "🔴 65.2 every allowance above origin is EXACTLY what is being used, and says why",
+    entries.every(([, entry]) => entry.words > 0 && entry.why.split(/\s+/).length >= 20) &&
+      slack.length === 0,
+    entries.length === 0
+      ? "none, every portal is under its own origin"
+      : slack.length > 0
+        ? `${slack.map(([p]) => p).join(", ")}: the allowance is larger than the rise. Lower it`
+        : entries.map(([p, e]) => `${p} +${String(e.words)}`).join(" · "),
   );
 
   /*

@@ -19,28 +19,47 @@ OPENAI_API_KEY=sk-paste-yours-here
 DAILY_API_KEY=paste-yours-here
 STRIPE_SECRET_KEY=sk_test_paste-yours-here
 BLOB_READ_WRITE_TOKEN=paste-yours-here
+AUTH_SECRET=paste-32-bytes-of-hex-here
 CRON_SECRET=simulation-cron-secret
-DATABASE_URL=postgresql://neondb_owner:npg_nBpWM0F5DVLc@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+APP_URL=https://24t.vercel.app
+DATABASE_URL=postgresql://neondb_owner:PASSWORD@ep-aged-dust-a6huadss-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+DATABASE_URL_PRODUCTION=postgresql://neondb_owner:PASSWORD@ep-wild-lake-a6tgm2r6-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 ```
 
-**Your first action, before reading anything else: write those six lines into `.env.local` in
-the repository root, and add nothing else to that file.** The last two are already correct and
-are in the block so the database and the cron secret survive a new shell: an `export` does not,
-and a script that silently falls back to another database is the worst possible way to discover
-that.
+**Your first action, before reading anything else: write those nine lines into `.env.local` in
+the repository root, and add nothing else to that file.**
 
-🔴 **`CRON_SECRET` is not optional and it is new to this prompt.** The scheduled jobs are behind
-it, and two of them are scenes the run has to produce: `lapseOverdue` is how `T3` drops back to
-metered in wave 4, and `sweepUndeliveredAlerts` is the crisis retry. Trigger a job by POSTing to
-`/api/cron/<job>` with `Authorization: Bearer $CRON_SECRET`. The jobs are `billing`, `crisis`,
-`reminders` and `sessions`. **That is not reaching around the product**, it is standing in for
-Vercel's scheduler, which is the only caller in production either.
+🔴 **THE TWO DATABASE LINES ARE NOT A DUPLICATE AND THE ORDER OF THEM IS NOT AN ACCIDENT.**
+
+`DATABASE_URL` is **dev**. It is what `npm run gates`, `npm run verifiers` and every unit suite
+use, and they expect a branch they may plant a fixture on and delete it again. Sixty-one scripts
+in `scripts/` do exactly that.
+
+`DATABASE_URL_PRODUCTION` is the run. **Nothing reads it except `npm run on:production`**, which
+carries an allow-list, sets the production override for one child process, and prints what it is
+about to do.
+
+Point `DATABASE_URL` at production instead and `npm run gates` will write fabricated companies
+onto the founders' own board, and a `finally` that does not run will leave one there. **This run
+does not restore afterwards.** Anything left behind is permanent.
+
+🔴 **There is nothing to `export` and no terminal to do it in.** An earlier version of this
+document asked the person who pastes it to export a variable in a shell. They do not have one,
+and a variable exported into a session would have reached every gate in it, which is the defect
+above. Every command in this document is run by the agent, with the Bash tool.
+
+🔴 **`CRON_SECRET` is not optional.** The scheduled jobs are behind it, and two of them are
+scenes the run has to produce: `lapseOverdue` is how `T3` drops back to metered in wave 4, and
+`sweepUndeliveredAlerts` is the crisis retry. Trigger a job by POSTing to `/api/cron/<job>` with
+`Authorization: Bearer $CRON_SECRET`. The jobs are `billing`, `crisis`, `reminders` and
+`sessions`. **That is not reaching around the product**, it is standing in for Vercel's
+scheduler, which is the only caller in production either.
 
 If any of the first four still says "paste-yours-here", **stop and say so.** A run that starts
 without a funded key produces six months of empty notes and spends an afternoon doing it.
 
-`STRIPE_SECRET_KEY` must begin `sk_test_`. **If it begins `sk_live_`, stop**: this run moves money
-through every path it can find, and a live key would move real money.
+`STRIPE_SECRET_KEY` must begin `sk_test_`. **If it begins `sk_live_`, stop**: this run moves
+money through every path it can find, and a live key would move real money.
 
 `BLOB_READ_WRITE_TOKEN` is **not optional**. Without it a payer who attaches a receipt to a bank
 transfer gets a hard failure and **loses the whole payment claim**, which is a defect the run
@@ -119,32 +138,45 @@ key is the real one, so the model spend on `/admin/usage/sessions` is real money
 key is real, so the rooms are real rooms. The blob token is real, so an uploaded identity
 document is really stored.
 
-**That is the point.** Everything you do lands where a real user's actions would land, and
-is undone afterwards by restoring a snapshot taken before you started. Read
+**That is the point.** Everything you do lands where a real user's actions would land.
+
+🔴 **AND NOTHING IS UNDONE AFTERWARDS.** The six months of records stay on the production
+database until a person decides to delete them. Every invented patient's file, every note,
+every payment and every audit row is still there the next morning and the month after, to be
+signed into and read. `docs/simulation/12-THE-LOGINS.md` is how. Read
 `docs/simulation/DEPLOY.md` before your first write; the order in it is the part that goes
 wrong.
 
+That changes what carelessness costs. There is no restore to clean up after you: a fixture
+planted and not deleted sits on the founders' own board for ever, looking exactly like a
+real row. It is why `writesTo()` shut the production door in sprint 76.52 and why there is
+now exactly one command that opens it.
+
 Five things about it you cannot work out from the screens:
 
-  * **`SIMULATION_RUNNING=1` is set on production for the duration.** Every page carries a
+  * **`SIMULATION_RUNNING=1` is set on production, and STAYS set.** Every page carries a
     violet strip naming the database, and `robots.txt` disallows everything. That is not
     decoration: the radar is deliberately indexable, and without it nine invented
-    clinicians carrying `DEMO-` licence numbers would be crawlable. An index entry outlives
-    both the run and the restore.
+    clinicians carrying `DEMO-` licence numbers would be crawlable. It comes off the day the
+    invented people are deleted and not before, because until then the strip is the only
+    thing on the screen telling whoever opens it that everybody here was made up.
   * **`RESEND_API_KEY` is off, so nothing reaches anybody by email.** Every flow still runs
     and still logs, and `notify()` reports `no channel available` rather than failing. It
     means every link a patient needs is passed to them ON SCREEN, which the product
     supports. WhatsApp templates are mostly unapproved, so the same applies there. Do not
     record "the email did not arrive" as a defect; record that you passed the link by hand,
     which is what an Egyptian clinician does anyway.
-  * **The write scripts refuse production by name.** The door is
-    `I_MEAN_PRODUCTION=ep-wild-lake-a6tgm2r6`, which has to name the endpoint, so typing it
-    is a sentence rather than a flag.
-  * **🔴 CAPTURE EVERYTHING BEFORE THE RESTORE.** The restore destroys the evidence along
-    with the mess. Frames, the board, the money reconciliation, the copilot exam, the edge
-    ledger and the record ledger all have to exist outside the database first.
-  * **Afterwards `npm run baseline -- check` has to say 116 tables and 195 rows,
-    unchanged.** A restore nobody checked is a belief. Two tables, `rate_limits` and
+  * **The write scripts refuse production by name, and ONE command opens the door.**
+    `npm run on:production -- <command>`, with an allow-list that says what each entry does
+    and whether it writes. Nothing else reaches production, and `DATABASE_URL` stays on the
+    dev branch so every gate and verifier keeps working normally.
+  * **🔴 CAPTURE AS YOU GO, not at the end.** No restore is coming, so the reason has
+    changed: a frame of a screen at month 2 cannot be taken at month 6, because the screen
+    has moved on. Frames, the board, the money reconciliation, the copilot exam, the edge
+    ledger and the record ledger all have to be taken while they are true.
+  * **`evals/production-baseline.json` says what was here BEFORE the run.** 116 tables, 195
+    rows. It is not a restore point any more; it is the answer to *"which of these rows did
+    we invent"*, asked in month 7 when a number looks odd. Two tables, `rate_limits` and
     `error_events`, move on their own from ordinary public traffic and are reported
     separately rather than failing, because a check that goes red for a reason somebody
     explains away is a check nobody reads the next time.
@@ -270,7 +302,7 @@ session to reach a long one **overstates it by 95%**. Two unknowns need two meas
 wrong number.
 
 ```
-npm run spend -- --budget 10
+npm run on:production -- spend -- --budget 10
 ```
 
 **After every wave, without exception.** It sums what the product actually spent, warns at 70% and
@@ -327,59 +359,102 @@ fixed points**, each short enough to read on a phone.
 
 ## Step by step, from a cold start
 
-### Step 1 · Write the keys, point at the branch, check it
+### Step 1 · Write `.env.local`, then check the database you are about to use
 
-```bash
-# 1. Write .env.local from the KEYS block above. Nothing else in it.
+🔴 **THE PERSON WHO PASTED THIS DOES NOT HAVE A TERMINAL.** They pasted keys into a chat
+window and that is all they are going to do. Every command in this document is run by YOU,
+in this session, with the Bash tool. Nothing below asks them for anything.
 
-# Scripts do NOT read that file themselves, so export it once per shell from the same value:
-export DATABASE_URL=$(grep '^DATABASE_URL=' .env.local | cut -d= -f2-)
+Write `.env.local` from the KEYS block above, exactly as given, and add one line:
 
-# 🔴 2. THE PRODUCTION DOOR. Every write script refuses the production endpoint by
-# name, and this is the one way past it. Export it ONCE, in the same shell, and
-# every npm run below inherits it. It has to NAME the endpoint, which is the
-# point: typing it is a sentence rather than a flag.
-export I_MEAN_PRODUCTION=ep-wild-lake-a6tgm2r6
-
-npm run verify:migrations      # journal and ledger agree, every CHECK validated
-npm run verify:age             # 8 checks. The ageing script obeys its own rule
-npm run physics                # says there is nothing to fit yet. After the run it says otherwise
-npm run spend -- --budget 10   # $0.0000, 0.0% used
-npm run baseline -- check      # 116 tables, 195 rows. This is what the restore goes back to
+```
+DATABASE_URL_PRODUCTION=<the same production connection string>
 ```
 
-🔴 **`verify:synthetic` is NOT in that list and must not be run here.** It plants a
-real-looking person as a control before deleting it, and planting one on production is the
-thing this whole arrangement refuses. It stays available on the simulation branch.
+🔴 **`DATABASE_URL` stays pointed at the DEV branch, and that is not a typo.**
 
-🔴 **Every write script prints `WRITING TO PRODUCTION, on purpose` before it does
-anything.** If you do not see that line, the export did not take and you are about to be
-refused. If you see it when you did not expect to, stop.
+Every gate, verifier and unit suite in this repository expects `DATABASE_URL` to be a branch
+it may write fixtures to. Sixty-one scripts plant an organisation, assert something about it
+and delete it in a `finally`. Point `DATABASE_URL` at production and `npm run gates` writes
+fabricated companies onto the founders' own board, and a `finally` that does not run leaves
+one there. **The run does not restore afterwards**, so anything left behind is permanent.
 
-**The first run of `npm run baseline -- check` is the one that matters.** It has to say 116
-tables and 195 rows before anything is seeded. If it does not, the snapshot and the
-database have already diverged and the restore at the end will not be clean.
+So production is reached through one command and no other:
 
-### Step 2 · Check the product, before twenty agents tell you it is broken
+```bash
+npm run on:production -- <command>
+```
+
+It carries an allow-list. A command not on it does not run, and the refusal names the reason.
+It sets `I_MEAN_PRODUCTION` only for the entries that write, for one child process, and
+prints the endpoint and whether that command writes before it does anything.
+
+```bash
+npm run on:production                             # prints the allow-list. Start here
+npm run on:production -- verify:migrations        # journal and ledger agree, every CHECK validated
+npm run on:production -- settings:show            # what production actually holds
+npm run on:production -- spend -- --budget 10     # $0.0000, 0.0% used
+npm run on:production -- baseline -- check        # 116 tables, 195 rows
+```
+
+🔴 **There is nothing to `export`.** An earlier version of this document told the person to
+export `I_MEAN_PRODUCTION` in a shell. They do not have a shell, and a variable exported into
+one would have leaked into every gate in the same session, which is the defect above.
+
+🔴 **`verify:synthetic` must not be run here** and `on:production` refuses it by name: it
+plants a real-looking person as a control before deleting it, and planting one on production
+is the thing this whole arrangement refuses. It stays available on the simulation branch.
+
+**The first `baseline -- check` is the one that matters.** It has to say 116 tables and 195
+rows before anything is seeded. If it does not, something has already written to production
+that this document does not know about, and that is worth a message before a single agent
+acts.
+
+### Step 2 · Check the product, on DEV, before twenty agents tell you it is broken
 
 ```bash
 npm run build
 npm run gates
 ```
 
-Eleven gates: prose, claims, principals, i18n, boundary, renders, finance, plan, rail,
-entitlement, board.
+Twenty-four gates, and they run against whatever `DATABASE_URL` points at, which is dev.
+That is correct: **gates prove the code, not the run.** Several of them write fixtures, and
+dev is where fixtures belong.
 
 `renders` starts the built app and fetches every public page. It exists because `/pricing`
-answered 500 in production for seven sprints and nothing asked. **`entitlement` is the only one
-that writes**: it makes a throwaway practice, subscribes it by transfer, checks it is NOT on the
-plan until a confirmation, checks it IS after, and deletes the lot in a `finally`. Three defects
-it found were true of the source and false of the database, which is why it exists.
+answered 500 in production for seven sprints and nothing asked. `entitlement` and `actuals`
+are the two that write: one subscribes a throwaway practice by transfer and checks it is NOT
+on the plan until a confirmation, the other plants ledger legs in both directions and three
+employees on the three month boundaries the payroll arithmetic gets wrong. Both delete
+everything in a `finally`, and both refuse production by name.
+
+### Step 2b · Seed production, once
+
+```bash
+npm run on:production -- simulate:seed
+```
+
+Thirteen checks. It creates the operator, two support staff who share the transfer queue,
+seven people on the payroll at $500 a month each, four applications waiting for approval, and
+sets the in-session copilot quota to 4 because the run has $10 of model credit.
+
+It creates **no therapist, no patient and no session.** Those are people and people sign
+themselves up.
+
+🔴 **It will refuse a second time**, because a second run would make a second Nile Practice
+and nobody could tell the agents which one to use. That refusal is the cheapest proof
+available that you are pointed at the right database.
+
+🔴 **Two of its checks report the state production was already in**, and neither is a
+problem: production carries one session the founder made clicking around his own product,
+and a set of transfer fields somebody typed into `/admin/settings`. The checks measure what
+the seed DID, so both read green and the bank line says wave 1 checks the details on camera
+rather than typing them.
 
 ### Step 3 · Mark the start of wave one
 
 ```bash
-npm run age -- --marker wave1 --start
+npm run on:production -- age -- --marker wave1 --start
 ```
 
 Everything created from this moment is wave one's and ages together. **Do this before any agent
@@ -475,10 +550,10 @@ built; an agent that works around the product destroys the only thing this exerc
 ```bash
 # 1. the wave acts, agents report DID / SAW / ROW, the orchestrator verifies every ROW
 # 2. the capture agent runs                           (05-CAPTURE.md)
-npm run spend -- --budget 10                        # 3. the number, before anything moves
-npm run age -- --marker wave1 --days 180            # 4. only now, and only after the capture
-npm run verify:migrations                           # 5. did the shift break an ordering constraint
-npm run age -- --marker wave2 --start               # 6. open the next wave
+npm run on:production -- spend -- --budget 10       # 3. the number, before anything moves
+npm run on:production -- age -- --marker wave1 --days 180   # 4. only after the capture
+npm run on:production -- verify:migrations          # 5. did the shift break an ordering constraint
+npm run on:production -- age -- --marker wave2 --start      # 6. open the next wave
 ```
 
 | Wave | Ages by | Lands at |
@@ -514,10 +589,10 @@ Then at month 6, four recall questions whose answers each live in a different mo
 ### Step 6 · The exam, and the cost model
 
 ```bash
-npm run copilot:exam -- --dry                                      # who is about to be examined
-npm run copilot:exam -- --json docs/simulation-run/COPILOT.json    # ≈ $0.36
+npm run on:production -- copilot:exam -- --dry                     # who is about to be examined
+npm run on:production -- copilot:exam -- --json docs/simulation-run/COPILOT.json   # ≈ $0.36
 
-npm run physics -- --at 50 --json docs/simulation-run/PHYSICS.json # free, reads rows
+npm run on:production -- physics -- --at 50 --json docs/simulation-run/PHYSICS.json # free, reads rows
 ```
 
 **`physics` must fit every kind with no refusals.** A refusal means the durations came out flat
@@ -532,7 +607,7 @@ comes out.**
 ### Step 7 · The accuracy figures, only if there is money left
 
 ```bash
-npm run spend -- --budget 10
+npm run on:production -- spend -- --budget 10
 npm run evals -- --record      # ≈ $2.00. Only if the line above leaves room
 ```
 
@@ -556,7 +631,7 @@ capture shows a console nobody on the rota actually sees.
 ### Step 8b · The numbers
 
 ```bash
-npm run physics -- --at 50       # the two terms, from this run's own rows
+npm run on:production -- physics -- --at 50   # the two terms, from this run's own rows
 npm run plan                     # the operating plan: three scenarios
 npm run plan -- beta-cliff       # the six months, month by month
 npm run forecast                 # the abstract 36 month growth model

@@ -55,11 +55,22 @@ run opens a join link exactly the way a patient in October will.
 
 | | |
 | --- | --- |
-| Before | Snapshot taken, baseline recorded, `SIMULATION_RUNNING=1` set, `RESEND_API_KEY` off |
+| Before | Baseline recorded, `SIMULATION_RUNNING=1` set, `RESEND_API_KEY` off |
 | During | Real OpenAI, Daily and blob keys, so the cost and the rooms and the uploads are real |
 | Email | Nothing reaches anybody. Links are passed on screen, which is what a clinician does anyway |
-| 🔴 Before the restore | Capture everything. The restore destroys the evidence with the mess |
-| After | `npm run baseline -- check` says 115 tables, 194 rows, unchanged |
+| Reaching the database | `npm run on:production -- <command>` and nothing else. `DATABASE_URL` stays on dev |
+| 🔴 Capture | As you go. A frame of month 2 cannot be taken at month 6 |
+| 🔴 After | **Nothing is deleted.** The six months stay on production until a person decides otherwise |
+
+🔴 **THE DATA STAYS, AND THAT IS THE BIGGEST CHANGE TO THIS PLAN.** An earlier version
+ended with a snapshot restore. It does not: every invented patient's file, every note, every
+payment and every audit row is still there the next morning and the month after, to be signed
+into and read. `12-THE-LOGINS.md` says how, for all eighteen of them.
+
+The consequence is that carelessness is permanent. There is no sweep afterwards, so a fixture
+planted by a verifier somebody pointed at the wrong database sits on the founders' own board
+for ever, looking exactly like a real row. That is what `npm run on:production` and its
+allow-list exist for, and why `writesTo()` refuses production unless the caller asks by name.
 
 🔴 **One correction to carry.** Running here was argued partly on "production is not
 publicly reachable", read off a Vercel setting and never tested. It was wrong: the domain

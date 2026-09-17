@@ -173,6 +173,21 @@ const SCOPE: Record<string, Scope> = {
   usage: { who: ["admin"] },
 
   /*
+   * 🔴 76.53 — THE COMPANY'S OWN RESULT AND THE COMPANY'S OWN PAYROLL.
+   *
+   * Neither is clinical: `actuals` reads the ledger, `ai_request_logs` and
+   * counts of sessions, never a note, a transcript, a risk level or a patient's
+   * name. `payroll` reads two tables that contain nobody who uses this product.
+   *
+   * `admin` here means super_admin, which the pages enforce with
+   * `requireRole("super_admin")` and `lib/data/payroll.ts` asserts again for
+   * any caller that is not a page. The 24/7 team works queues; what a colleague
+   * is paid is not a queue.
+   */
+  actuals: { who: ["admin"] },
+  payroll: { who: ["admin"] },
+
+  /*
    * 🔴 C379 — Total View. It reads live transcripts, note content and risk
    * levels straight from the database, and until now no gate could see it.
    * super_admin only, which `elevated()` enforces on top of the page's guard.

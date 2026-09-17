@@ -226,6 +226,27 @@ export const GATES = [
     why: "and the board a founder trusts is counting the right things",
   },
   /*
+   * 🔴 76.53 — THE SECOND GATE IN THIS PASS THAT WRITES, and for the board's own
+   * reason one line up.
+   *
+   * `/admin/actuals` is the only screen in this product that reports what the
+   * COMPANY earned and spent, and every figure on it is a SQL aggregate with a
+   * sign convention in it: a `-SUM` where `SUM` belonged turns a profitable
+   * month into a loss of the same size, and both render beautifully. Nothing
+   * that reads source could see that, and no unit test over a fake row could
+   * either, because the query is the whole of the risk.
+   *
+   * It plants ledger legs in both directions, four model calls that each round
+   * to zero in whole cents, and three employees sitting on the three month
+   * boundaries the payroll arithmetic gets wrong. Everything is deleted in a
+   * `finally`, and `writesTo()` refuses production by name.
+   */
+  {
+    name: "actuals",
+    script: "verify:actuals",
+    why: "and the month the company lost money says so, with the wages in it",
+  },
+  /*
    * 🔴 THE THIRTY UNIT SUITES, AND THE REASON THEY ARE HERE IS EMBARRASSING.
    *
    * Sprint 75 repriced the product. `tests/seats.test.ts` went 7 red of 12 and
