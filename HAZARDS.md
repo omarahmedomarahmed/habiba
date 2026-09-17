@@ -139,3 +139,48 @@ only ever inserts and the corrected default never reached a row that already exi
 
 Set these locally only. Nothing the deployed product does needs to reach a database other
 than its own.
+
+## Never run two builds at once, and `.next` corruption reads as a product defect
+
+    Error occurred prerendering page "/features"
+    TypeError: Cannot read properties of undefined (reading 'call')
+        at Object.c [as require] (.next/server/webpack-runtime.js:1:128)
+
+That is not a defect in `/features`. It is two processes writing `.next` at the same
+time: `npm run build` in one shell while `npm run gates` runs `renders` or `served` in
+another, both of which build and start the app. The chunk one process wrote is the chunk
+the other process replaced, and the page that fails is whichever one loads first.
+
+`rm -rf .next && npm run build` on its own is clean. Sprint 76 lost twenty minutes to this
+believing the new admin page had broken the marketing site.
+
+## `next start` refuses to boot without a blob token, including locally
+
+`BLOB_READ_WRITE_TOKEN` is in `REQUIRED`, not `RECOMMENDED`, and `ALLOW_LOCAL_UPLOADS=1`
+does not satisfy it: that flag governs the upload path, not the boot guard. So a local
+`next start`, which runs in production mode, exits with
+
+    Refusing to start, invalid environment:
+      - BLOB_READ_WRITE_TOKEN is required in production
+
+Pass any non-empty value to boot for a screenshot. The guard is correct and should not be
+loosened: without a real token, therapist verification cannot accept a licence, so nobody
+gets on the radar and nobody can start a session, and an Egyptian payer cannot attach the
+receipt their bank app produced.
+
+## One command reaches production, and `DATABASE_URL` is not it
+
+    npm run on:production -- <command>
+
+Sixty-one scripts call `writesTo()`, and most of them plant a fixture and delete it in a
+`finally`. `writesTo()` refuses the production endpoint unless the CALLER asks to be let
+through, which three do: `settings`, `simulate-seed` and `age`. `verify:sprint57` asserts
+that it is exactly those three.
+
+The six month run leaves its data on production and **nothing restores it away**, so a
+fixture that escapes a `finally` is permanent and sits on the founders' board looking like
+a real row. That is why the override moved out of `writesTo()` and into an allow-list with
+a reason beside every entry.
+
+Keep `DATABASE_URL` pointed at dev. Every gate, verifier and unit suite expects a branch
+they may write to.
