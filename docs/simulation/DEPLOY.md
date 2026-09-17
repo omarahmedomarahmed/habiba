@@ -13,8 +13,8 @@ signed into and read. That is the point of running it here.
 | Deployment | `habiba`, production target, `main` |
 | Domain | `https://24t.vercel.app`, public, 200 to anybody |
 | Neon branch | `main` (`br-curly-dream-a6b0shlz`), endpoint `ep-wild-lake-a6tgm2r6` |
-| Baseline | `evals/production-baseline.json`, 116 tables, 195 rows |
-| Snapshot, if it is ever wanted back | `snap-broad-shape-a649n5le`, taken 2026-09-16 after migration 0109 |
+| Baseline | `evals/production-baseline.json`, 118 tables, 195 rows |
+| Snapshot, if it is ever wanted back | `snap-old-sea-a60wgj3s`, taken 2026-09-17 after migration 0110 |
 
 ## Why production, and the correction that matters
 
@@ -27,7 +27,7 @@ Two facts were offered as making this safe. **One of them was wrong**, and the e
 worth keeping written down because it is the shape of the mistakes this repository keeps
 finding.
 
-- ✅ **Production is empty.** 195 rows across 116 tables: one organisation, two users, no
+- ✅ **Production is empty.** 195 rows across 118 tables: one organisation, two users, no
   patients, no payments. Measured.
 - ❌ **"Production is not publicly reachable."** This was read off Vercel's SSO setting,
   which protects everything `all_except_custom_domains`, and inferred rather than tested.
@@ -55,7 +55,7 @@ Three things follow, and all three are why the triple check in sprint 76.52 exis
    one there for ever. The door is shut now unless the caller asks for it, and three ask.
 2. **There is exactly one way to point a command at production.** `npm run on:production`,
    with an allow-list. Anything not on it does not run, and the refusal says why.
-3. **The snapshot is an escape hatch, not a step.** `snap-broad-shape-a649n5le` is still
+3. **The snapshot is an escape hatch, not a step.** `snap-old-sea-a60wgj3s` is still
    there. It exists for the case where the user decides afterwards that they want the
    database back, and for nothing else.
 
@@ -75,9 +75,9 @@ indexing has to be shut off while it happens.
 
 ### 1 · Baseline
 
-    npm run on:production -- baseline -- record snap-broad-shape-a649n5le
+    npm run on:production -- baseline -- record snap-old-sea-a60wgj3s
 
-Done: 116 tables, 195 rows. Every table read out of `pg_tables` at run time rather than
+Done: 118 tables, 195 rows. Every table read out of `pg_tables` at run time rather than
 from a list somebody maintains.
 
 It is not a restore point any more. It is the answer to *"what was here before the run"*,
@@ -184,8 +184,19 @@ Read them side by side. Do not add them up.
 The keys were pasted into a chat and are shared. They get rotated the day the run ends,
 which is a different act from deleting the data and does not touch it.
 
-The bank details typed into `/admin/settings` stay, because nothing is being restored over
-them any more.
+🔴 **THE BANK DETAILS STAY AS PLACEHOLDERS, AND THAT WAS THE RIGHT CALL ALL ALONG.**
+
+An earlier version of this document listed "type the real bank details in" as a step the
+founder had to do before the run. That was wrong, and the founder said so: this is a
+simulation. Nobody in it sends money anywhere. Sixty invented people declaring transfers
+against an invented account produces exactly the same evidence about the rail as sixty
+invented people declaring transfers against the real one, and the real one carries a risk
+the invented one does not — a stranger who wanders onto a public site during the run and
+actually sends money.
+
+What the screen needs is to be FILLED, so the payment sheet renders an account instead of
+"not set up yet" and the operator agent can walk it. It is. The real account goes in the
+week before launch, which is a different day and a different decision.
 
 ## When the invented people are eventually deleted
 
@@ -193,12 +204,12 @@ That is a decision, taken on a day, by a person. When it comes:
 
     npm run on:production -- baseline -- check
 
-116 tables, 195 rows, or it names the tables that differ. `rate_limits` and `error_events`
+118 tables, 195 rows, or it names the tables that differ. `rate_limits` and `error_events`
 are reported separately and do not fail it: production is publicly reachable, so a crawler
 bumps the first and any runtime error appends to the second, both without the simulation
 having done anything.
 
-The snapshot is the other way to do it, and the faster one. Either way, `SIMULATION_RUNNING`
+Restoring `snap-old-sea-a60wgj3s` is the other way to do it, and the faster one. Either way, `SIMULATION_RUNNING`
 comes off only once the invented people are gone.
 
 ## Do we need our own domain?

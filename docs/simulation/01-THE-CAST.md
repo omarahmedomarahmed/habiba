@@ -54,7 +54,7 @@ starts in and the one nobody ever photographs.
 
 | # | Who | Signs up as | Exists to prove |
 |---|---|---|---|
-| `OP` | Nour Example, operator | seeded | The console works before there is anything in it. Opens Egypt, **types the bank details in by hand**, moves each customer onto the Egyptian entity, publishes content, and works the verification and payments queues from here on |
+| `OP` | Nour Example, operator | seeded | The console works before there is anything in it. Opens Egypt, **reads the transfer details back on camera** (they are placeholders, filled in, and stay that way for the run), moves each customer onto the Egyptian entity, publishes content, and works the verification and payments queues from here on |
 | `T1` | Dr Amira Demo, Cairo, Arabic and English | therapist, metered | **The Egyptian therapist.** No card rail. Everything she earns is held by us and paid out by hand. Joins a practice in wave 2 and takes her payout in wave 3 |
 | `T2` | Dr Yassin Demo, Cairo | therapist, metered | **The one who upgrades, and pays by transfer.** In wave 4 he subscribes: there is no checkout, we raise the bill, he transfers, and an operator confirms before he is on the plan |
 | `T3` | Dr Karim Demo, Alexandria | therapist, metered | **The radar therapist.** Lives on call. Most of his work arrives from strangers in crisis, none of it booked. In wave 4 he lets his bill lapse |

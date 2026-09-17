@@ -1,18 +1,59 @@
-# The six month simulation: the prompt for a fresh session
+# The six month simulation
 
-Paste everything below the line into a new session. Nothing above it is part of the prompt.
+🔴 **THIS IS THE ONLY FILE. There is nothing else to open and nothing else to paste.**
 
-**Before you paste it, two things:**
+## What you do, in full
 
-1. **Top up OpenAI with $10.**
-2. **Paste your keys into the block at the top of the prompt**, replacing the placeholders. You
-   do not need to touch any file: the new session writes `.env.local` itself as its first act.
+1. **Top up OpenAI with $10.** That is the whole budget. The plan comes to about $4.80.
 
-**Rotate every key when the run is done.** They will have been in a chat transcript.
+2. **Fill in the five placeholders in the KEYS block below.** Everything else in that block is
+   already correct.
+
+   | | Where it comes from | Looks like |
+   | --- | --- | --- |
+   | `OPENAI_API_KEY` | platform.openai.com | `sk-...` |
+   | `DAILY_API_KEY` | dashboard.daily.co | a long string |
+   | `STRIPE_SECRET_KEY` | dashboard.stripe.com, **test mode** | `sk_test_...` |
+   | `BLOB_READ_WRITE_TOKEN` | Vercel, the project's Storage tab | `vercel_blob_rw_...` |
+   | `AUTH_SECRET` | any 64 hex characters you make up | `a1b2c3...` |
+
+3. **Open a new Claude Code session and paste everything from the `KEYS` heading below to the
+   end of this file.** That is the prompt. Nothing above the KEYS heading is part of it.
+
+4. **Then wait.** The session writes `.env.local` itself and runs every command. You never
+   touch a file, never open a terminal, never type a command.
+
+## What it will do without asking
+
+Check production is in the state this document claims, build the product and run all
+twenty-four gates against the **dev** branch, seed production once, run six months of invented
+trading on `https://24t.vercel.app` with real keys, move the clock at the end of each wave, and
+report back at seven fixed points, each short enough to read on a phone.
+
+## The three things it will interrupt you for
+
+1. The spend passes 70% of $10.
+2. An agent is blocked and cannot get past a screen.
+3. A defect that would lose somebody money or expose a record.
+
+Everything else goes in the log and waits.
+
+## When it finishes
+
+**Nothing is deleted.** The six months stay on the production database until you decide
+otherwise. Sign in as any of the eighteen people and read their record:
+`docs/simulation/12-THE-LOGINS.md`, one password for all of them.
+
+Two screens at `https://24t.vercel.app/admin`: **`/admin/actuals`** is the six months in one
+table, earned against spent, month by month, with the payroll under it. **`/admin/financial-model`**
+is the forecast in the same columns. Read them side by side; do not add them up.
+
+**Rotate every key.** They will have been in a chat transcript. Rotating a key does not touch
+the data: the records stay and the logins keep working.
 
 ---
 
-## KEYS. Replace the first four lines, then send the whole message.
+## KEYS
 
 ```
 OPENAI_API_KEY=sk-paste-yours-here
@@ -174,7 +215,7 @@ Five things about it you cannot work out from the screens:
     changed: a frame of a screen at month 2 cannot be taken at month 6, because the screen
     has moved on. Frames, the board, the money reconciliation, the copilot exam, the edge
     ledger and the record ledger all have to be taken while they are true.
-  * **`evals/production-baseline.json` says what was here BEFORE the run.** 116 tables, 195
+  * **`evals/production-baseline.json` says what was here BEFORE the run.** 118 tables, 195
     rows. It is not a restore point any more; it is the answer to *"which of these rows did
     we invent"*, asked in month 7 when a number looks odd. Two tables, `rate_limits` and
     `error_events`, move on their own from ordinary public traffic and are reported
@@ -287,7 +328,7 @@ come out. **A check that compares against the gross number will report a defect 
 | Total audio | **286 minutes** |
 | Planned model spend | **≈ $4.80** |
 | Left over | **≈ $5.20**, which is headroom, not a licence to add sessions |
-| In session copilot | capped at **4** messages. Already set on the branch |
+| In session copilot | capped at **4** messages, which `simulate:seed` sets in step 2b. Production still holds the shipped 10 until then |
 
 **Doubling the months did not double the bill, and that is not luck.** Model spend tracks the
 session count, not the calendar. Three more months of trading is twenty seven more sessions, about
@@ -312,23 +353,41 @@ ladder and the whole long cluster the cost model is fitted from.
 
 ---
 
-## The database branch, made, migrated, seeded and ready
+## What is on the production database RIGHT NOW, before you do anything
 
-On it already:
+🔴 **THIS TABLE USED TO BE WRONG, AND IT IS THE MOST DANGEROUS KIND OF WRONG.**
+
+It described the old simulation branch, which had already been seeded, and it said so under a
+heading reading "made, migrated, seeded and ready". An agent reading it on production would
+have believed the operator existed and the four applications were waiting, skipped the seed,
+and spent an hour looking for a console nobody could sign into. It is production's real state
+now, measured rather than remembered.
 
 | | |
 |---|---|
-| Schema | Migrated to 0106, journal and ledger agreeing, every CHECK validated |
-| Settings | The rate table, the countries, the prices |
+| Schema | Migrated to **0110**, 118 tables, journal and ledger agreeing |
+| Settings | Seeded. Rate table, countries, prices, seat bands, check-ins, the Egyptian rail |
 | Public site | Published, and every page and locale pair renders |
-| Operator | `nour.example@example.com` / `Simulation2026!`, super admin |
-| Waiting in his queue | Nile Practice, Cairo Foundry, Alexandria Textiles, Delta Logistics. **All four held, none approved, all four on the `us` entity** |
-| People | **Zero** therapists, zero patients, zero sessions. They sign themselves up |
-| The transfer details | **Empty.** An operator types the bank account in on camera, in wave 1. A seeded one would be a bank account in this repository and a screen nobody walks |
+| Users | **Two**, both super admins, both the founder's own. **Nour does not exist yet** |
+| The cast | **Nobody.** No therapist, no patient, no clinic, no employer, no payroll |
+| Sessions | **One**, which the founder made clicking around his own product. Not the run's |
+| Ledger | Four entries and 46 model calls, same origin. `/admin/actuals` shows them |
+| The transfer details | **Already filled in, with placeholders.** See the note below |
+| `SIMULATION_RUNNING` | **1.** robots.txt disallows everything, every page carries the violet strip |
+| `RESEND_API_KEY` | **Unset.** Nothing reaches anybody by email, and nothing blocks |
 | Spent | **$0.00** |
 
-**Confirm that yourself before you trust this paragraph.** A prompt that says a database is ready
-is exactly the kind of claim rule 1 exists to distrust. Step 1 is how.
+🔴 **So `npm run on:production -- simulate:seed` HAS NOT RUN and step 2b is not optional.**
+
+🔴 **THE TRANSFER DETAILS ARE PLACEHOLDERS AND STAY THAT WAY.** Banque Misr, an invented IBAN,
+an InstaPay handle. Nobody in this run sends real money anywhere, so sixty invented people
+declaring transfers against an invented account is exactly the same evidence about the rail as
+against the real one, and the invented one cannot be paid into by a stranger who wanders onto a
+public site mid-run. The operator agent READS THEM BACK on camera in wave 1 instead of typing
+them, which walks the same screen. The real account goes in the week before launch.
+
+**Confirm all of it yourself before you trust this table.** A prompt that says a database is in
+a certain state is exactly the kind of claim rule 1 exists to distrust. Step 1 is how.
 
 ---
 
@@ -394,7 +453,7 @@ npm run on:production                             # prints the allow-list. Start
 npm run on:production -- verify:migrations        # journal and ledger agree, every CHECK validated
 npm run on:production -- settings:show            # what production actually holds
 npm run on:production -- spend -- --budget 10     # $0.0000, 0.0% used
-npm run on:production -- baseline -- check        # 116 tables, 195 rows
+npm run on:production -- baseline -- check        # 118 tables, 195 rows
 ```
 
 🔴 **There is nothing to `export`.** An earlier version of this document told the person to
@@ -405,7 +464,7 @@ one would have leaked into every gate in the same session, which is the defect a
 plants a real-looking person as a control before deleting it, and planting one on production
 is the thing this whole arrangement refuses. It stays available on the simulation branch.
 
-**The first `baseline -- check` is the one that matters.** It has to say 116 tables and 195
+**The first `baseline -- check` is the one that matters.** It has to say 118 tables and 195
 rows before anything is seeded. If it does not, something has already written to production
 that this document does not know about, and that is worth a message before a single agent
 acts.
@@ -477,7 +536,7 @@ Signed in as the operator, through the browser, not a script:
 
 | Where | What |
 |---|---|
-| `/admin/settings` | Type the Egyptian bank details in. Until you do, every payer sees "not on the system yet" |
+| `/admin/settings` | The Egyptian transfer details. Already filled in with placeholders so every payer screen renders; the operator agent reads them back on camera. **Do not replace them with the real account during the run** |
 | `/admin/sponsors` | Move all three companies from `us` to `eg` |
 | `/admin/clinics`, and each solo therapist's own `/settings` | Move each practice to Egypt |
 
@@ -493,7 +552,7 @@ anybody.** Six agents awake at most.
 
 ```
   YOU  ·  the CHIEF OF STAFF
-   │   reads the twelve documents, checks the branch, opens the rail, ages each wave,
+   │   reads the twelve documents, checks production, opens the rail, ages each wave,
    │   runs the exam, writes the report, and reports upward to the founder
    ▼
   THE ORCHESTRATOR  ·  one agent, the most capable one available
@@ -701,7 +760,7 @@ makes up for it.
 
 | | |
 |---|---|
-| `npm run simulate:seed` | The operator, the four applications, the copilot quota. Already run |
+| `npm run on:production -- simulate:seed` | The operator, two support staff, the payroll, the four applications, the copilot quota. 🔴 **Not run yet.** Step 2b |
 | `npm run age` | Wave ageing, with `verify:age` proving the past moves and the future does not |
 | `npm run spend` | The budget guard, over real rows |
 | `npm run copilot:exam` | The memory test |
