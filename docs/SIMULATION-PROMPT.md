@@ -725,8 +725,20 @@ makes up for it.
 2. **Act through the product, never around it.** No agent writes to the database.
 3. **Every person is unmistakably synthetic.** Surname Demo or Example, address at `example.com`.
    These frames are committed and go in a video.
-4. **Never production.** The write scripts refuse it by name. If one refuses, read why.
-5. **Do not fix defects during the run.** Write them down and carry on.
+4. 🔴 **EVERY AGENT SIGNS UP WITH THE ADDRESS `docs/simulation/12-THE-LOGINS.md` GIVES THEM,
+   and the one password.** `<first name>.<surname>@example.com`, lower case: Dr Amira Demo is
+   `amira.demo@example.com`. This is not tidiness. The run's data stays on production
+   afterwards and its whole value is that the founders can sign in as each of these people and
+   read their record months later; an agent who invents an address, or a password of their own,
+   leaves six months of somebody's care behind a credential nobody wrote down.
+   `npm run on:production -- verify:cast` reads every one back and checks the password
+   actually opens it. **`P6` Ziad Example is the exception and never signs up at all**: three
+   sessions through join links, no account, and the verifier fails if one appears.
+5. **The run is ON production and nothing is undone afterwards.** The write scripts refuse it
+   by name; `npm run on:production -- <command>` is the one door and it carries an allow-list.
+   If something refuses, read why rather than working around it: there is no restore, so a
+   fixture left behind is permanent.
+6. **Do not fix defects during the run.** Write them down and carry on.
 
 ---
 
