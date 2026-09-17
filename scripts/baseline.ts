@@ -64,6 +64,30 @@ const FILE = "evals/production-baseline.json";
 const MOVES_ON_ITS_OWN: Record<string, string> = {
   rate_limits: "any request to a rate-limited route, including a crawler",
   error_events: "any runtime error, from anybody",
+  /*
+   * 🔴 76.55 — THE THREE AUTH TABLES, ADDED AFTER THIS CHECK FAILED ON STEP ONE
+   * OF THE RUN FOR A REASON THAT WAS NOBODY'S FAULT.
+   *
+   * `auth_sessions` went 1 -> 0 between recording the baseline and reading it
+   * back. Nothing wrote to the database in between: a sign-in from the day
+   * before had simply expired. The founder signing in to look at a screen moves
+   * it the other way.
+   *
+   * That matters more than one row, because of where the check sits. The prompt
+   * puts `baseline -- check` in step 1 and tells the agent to STOP and report if
+   * it does not come back clean, before a single agent acts. So a table that
+   * drifts on its own, in a check designed to be believed, produces a false
+   * alarm on the first command of a six month run, and the second time it
+   * happens somebody waves it through, which is the habit H20 exists to prevent.
+   *
+   * The test for this list is "could this row have changed with nobody running
+   * the simulation", and for a session or a one-time token the answer is yes,
+   * twice over: it appears when a person signs in and disappears on its own when
+   * the clock passes it.
+   */
+  auth_sessions: "a sign-in creates one and expiry removes one, with nobody running anything",
+  patient_auth_sessions: "the same, on the patient's side",
+  auth_tokens: "a sign-in link or a reset, which expires by itself",
 };
 
 type Baseline = {

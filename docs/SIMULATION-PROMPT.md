@@ -69,11 +69,21 @@ AUTH_SECRET=paste-32-random-characters-NOT-the-production-one
 CRON_SECRET=paste-the-value-from-vercel
 APP_URL=https://24t.vercel.app
 DATABASE_URL=postgresql://neondb_owner:<neon password>@ep-aged-dust-a6huadss-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+DATABASE_URL_DEV=postgresql://neondb_owner:<neon password>@ep-aged-dust-a6huadss-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+DATABASE_URL_SIMULATION=postgresql://neondb_owner:<neon password>@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 DATABASE_URL_PRODUCTION=postgresql://neondb_owner:<neon password>@ep-wild-lake-a6tgm2r6-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 ```
 
-**Your first action, before reading anything else: write those ten lines into `.env.local` in
-the repository root, and add nothing else to that file.**
+**Your first action, before reading anything else: write those twelve lines into `.env.local`
+in the repository root, and add nothing else to that file.**
+
+🔴 **`DATABASE_URL` AND `DATABASE_URL_DEV` ARE THE SAME STRING AND BOTH ARE NEEDED.** They
+answer different questions and the tooling reads them separately. `DATABASE_URL` is *the
+database this process talks to*; the three `DATABASE_URL_*` lines are *the three databases this
+product has*, which is what `npm run settings:compare` walks to ask whether all three are
+configured identically. Leave `DATABASE_URL_DEV` and `DATABASE_URL_SIMULATION` out and the
+`environments` gate fails on step 2 with "fewer than two environments to compare, so this
+answered nothing" — found by running it rather than by reading it.
 
 ### Where each one comes from, because four of them are not obvious
 
