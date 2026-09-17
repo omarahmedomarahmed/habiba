@@ -55,20 +55,38 @@ the data: the records stay and the logins keep working.
 
 ## KEYS
 
+🔴 **THIS REPOSITORY IS PUBLIC.** Every value below is a placeholder and stays one. Do not
+commit a real key into this file or any other. The filled-in block belongs in the chat message
+you paste, and nowhere else.
+
 ```
 OPENAI_API_KEY=sk-paste-yours-here
 DAILY_API_KEY=paste-yours-here
 STRIPE_SECRET_KEY=sk_test_paste-yours-here
-BLOB_READ_WRITE_TOKEN=paste-yours-here
-AUTH_SECRET=paste-32-bytes-of-hex-here
-CRON_SECRET=simulation-cron-secret
+STRIPE_WEBHOOK_SECRET=whsec_anything-nonempty
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_paste-yours-here
+AUTH_SECRET=paste-32-random-characters-NOT-the-production-one
+CRON_SECRET=paste-the-value-from-vercel
 APP_URL=https://24t.vercel.app
-DATABASE_URL=postgresql://neondb_owner:PASSWORD@ep-aged-dust-a6huadss-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
-DATABASE_URL_PRODUCTION=postgresql://neondb_owner:PASSWORD@ep-wild-lake-a6tgm2r6-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+DATABASE_URL=postgresql://neondb_owner:<neon password>@ep-aged-dust-a6huadss-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+DATABASE_URL_PRODUCTION=postgresql://neondb_owner:<neon password>@ep-wild-lake-a6tgm2r6-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 ```
 
-**Your first action, before reading anything else: write those nine lines into `.env.local` in
+**Your first action, before reading anything else: write those ten lines into `.env.local` in
 the repository root, and add nothing else to that file.**
+
+### Where each one comes from, because four of them are not obvious
+
+| | |
+|---|---|
+| `OPENAI_API_KEY` | platform.openai.com. **Top it up with $10 first** |
+| `DAILY_API_KEY` | dashboard.daily.co |
+| `STRIPE_SECRET_KEY` | dashboard.stripe.com, **test mode**. Must begin `sk_test_` |
+| `STRIPE_WEBHOOK_SECRET` | 🔴 **Any non-empty value.** Nothing local verifies a Stripe webhook; the boot check requires the variable to EXIST and `npm run build` refuses without it. The real one lives on Vercel and is not needed here |
+| `BLOB_READ_WRITE_TOKEN` | Vercel, the project's Storage tab |
+| `AUTH_SECRET` | 🔴 **Any 32+ random characters. NOT production's.** Password hashing is scrypt with a per-password salt stored in the hash itself, so a seed written locally verifies on production whatever this is. Nothing local signs a token production reads. Pasting the real one puts the live session-signing secret in a chat transcript for no gain |
+| `CRON_SECRET` | 🔴 **Must MATCH production**, because the cron calls go to the deployed site. Vercel → the `habiba` project → Settings → Environment Variables → `CRON_SECRET` → reveal. A guessed value 401s |
+| `<neon password>` | Neon → project `gentle-waterfall-66476219` → Connect. **Both endpoints use the same role and password**, so the same string goes in both lines |
 
 🔴 **THE TWO DATABASE LINES ARE NOT A DUPLICATE AND THE ORDER OF THEM IS NOT AN ACCIDENT.**
 
@@ -89,15 +107,23 @@ document asked the person who pastes it to export a variable in a shell. They do
 and a variable exported into a session would have reached every gate in it, which is the defect
 above. Every command in this document is run by the agent, with the Bash tool.
 
-🔴 **`CRON_SECRET` is not optional.** The scheduled jobs are behind it, and two of them are
-scenes the run has to produce: `lapseOverdue` is how `T3` drops back to metered in wave 4, and
-`sweepUndeliveredAlerts` is the crisis retry. Trigger a job by POSTing to `/api/cron/<job>` with
-`Authorization: Bearer $CRON_SECRET`. The jobs are `billing`, `crisis`, `reminders` and
-`sessions`. **That is not reaching around the product**, it is standing in for Vercel's
-scheduler, which is the only caller in production either.
+🔴 **`CRON_SECRET` is not optional, and it is checked in step 1 rather than discovered in wave
+4.** The scheduled jobs are behind it and two of them are scenes the run has to produce:
+`lapseOverdue` is how `T3` drops back to metered in wave 4, and `sweepUndeliveredAlerts` is the
+crisis retry. The jobs are `billing`, `crisis`, `reminders` and `sessions`.
 
-If any of the first four still says "paste-yours-here", **stop and say so.** A run that starts
-without a funded key produces six months of empty notes and spends an afternoon doing it.
+🔴 **IT IS A `GET`, NOT A `POST`, and this document said POST until somebody tried it.** A POST
+returns 405 whatever the secret is, which reads as a broken route rather than a wrong method:
+
+```bash
+curl -s -i -H "Authorization: Bearer $CRON_SECRET" https://24t.vercel.app/api/cron/billing
+```
+
+**That is not reaching around the product**, it is standing in for Vercel's scheduler, which is
+the only caller in production either.
+
+If any value still says "paste-yours-here", **stop and say so.** A run that starts without a
+funded key produces six months of empty notes and spends an afternoon doing it.
 
 `STRIPE_SECRET_KEY` must begin `sk_test_`. **If it begins `sk_live_`, stop**: this run moves
 money through every path it can find, and a live key would move real money.
@@ -454,7 +480,20 @@ npm run on:production -- verify:migrations        # journal and ledger agree, ev
 npm run on:production -- settings:show            # what production actually holds
 npm run on:production -- spend -- --budget 10     # $0.0000, 0.0% used
 npm run on:production -- baseline -- check        # 118 tables, 195 rows
+
+# 🔴 AND THE ONE CHECK THAT USED TO FAIL IN WAVE 4 INSTEAD OF MINUTE ONE.
+# The cron secret has to match the deployed site's, because that is who answers.
+# 200 means it matches. 401 means .env.local and Vercel disagree and `T3` will
+# never lapse. 405 means somebody sent a POST: it is a GET.
+curl -s -o /dev/null -w "cron: %{http_code}\n" \
+  -H "Authorization: Bearer $(grep '^CRON_SECRET=' .env.local | cut -d= -f2-)" \
+  https://24t.vercel.app/api/cron/reminders
 ```
+
+🔴 **If that prints 401, STOP and say so before anything else.** It is a one-line fix by the
+person who pasted this (Vercel → the project → Settings → Environment Variables → `CRON_SECRET`
+→ reveal, then correct the line in `.env.local`), and it is worthless to discover it in wave 4
+after the scene it breaks has already been captured wrong.
 
 🔴 **There is nothing to `export`.** An earlier version of this document told the person to
 export `I_MEAN_PRODUCTION` in a shell. They do not have a shell, and a variable exported into
@@ -827,7 +866,7 @@ code this week. **None of them is a bug to chase; each is a sentence for the rep
 | **The offer is applied by hand** | `discount_cents` and `discount_reason` exist; the schedule does not. An operator types each discount on `/admin/therapists`. **Record how long it takes**: it is the first thing to build after the beta |
 | **Nothing renews by itself** | `subscribeByTransfer` raises ONE period at full price. There is no monthly cron that opens the next one, so the free-then-half-then-full sequence is walked by the operator, month by month |
 | **A pot that empties tells the SPONSOR, not the patient** | The admins get an email naming nobody. The patient falls through to the ordinary paid route and is asked to pay. There is no "account on hold" screen |
-| **A therapist lapses only when the billing cron runs** | `lapseOverdue` has one caller. POST `/api/cron/billing` with the bearer token to make wave 4's `M2` happen |
+| **A therapist lapses only when the billing cron runs** | `lapseOverdue` has one caller. **GET** `/api/cron/billing` with the bearer token to make wave 4's `M2` happen. A POST returns 405 |
 | **`/admin/usage` is a 30 day window** | After ageing, only wave 6 falls inside it. The figures photographed at month 6 describe one wave, not the run. Use `npm run physics` for the run's own cost |
 | **`/admin/vault`'s card is all time and its table is six calendar months** | They are not required to be equal, and a month with no activity is simply absent. Do not stop the run over the difference |
 | **The transfer details lock almost permanently** | `detailsLockedBy` counts every `awaiting_proof` row, and one opens the moment any payer presses the button. Expect the refusal in `R7` to be the ordinary state |
