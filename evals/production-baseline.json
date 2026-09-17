@@ -1,8 +1,8 @@
 {
   "comment": "🔴 76.48. What production held before the simulation ran on it. `npm run baseline -- check` compares the database against this and fails on any difference. It is the proof that the restore put things back, rather than the belief that it did. Recorded against a Neon snapshot; restoring that snapshot is what makes this file true again.",
   "host": "ep-wild-lake-a6tgm2r6-pooler.us-west-2.aws.neon.tech",
-  "recordedAt": "2026-09-16T23:23:05.741Z",
-  "snapshot": "snap-broad-shape-a649n5le",
+  "recordedAt": "2026-09-17T00:38:25.806Z",
+  "snapshot": "snap-old-sea-a60wgj3s",
   "counts": {
     "ai_request_logs": 46,
     "assessment_assignments": 0,
@@ -38,6 +38,8 @@
     "ehr_connections": 0,
     "ehr_launches": 0,
     "ehr_writebacks": 0,
+    "employee_salaries": 0,
+    "employees": 0,
     "enrolment_attestations": 0,
     "enrolment_verifications": 0,
     "enrolments": 0,

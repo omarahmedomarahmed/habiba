@@ -137,8 +137,20 @@ export function ActualsTable({
                 </td>
                 <td className="py-2 text-end tabular-nums text-slate-600">
                   <Money cents={row.payrollCents} />
+                  {/*
+                    🔴 THE MULTIPLICATION SIGN IS LOAD-BEARING, and the first draft
+                    did not have it.
+
+                    The headcount sat beside the wage bill as a bare number, so a
+                    month costing $3,500 with seven people on the payroll rendered
+                    as "$3,500 7" and read, in a right-aligned column of figures, as
+                    $35,007. A margin is not a separator when both sides are digits.
+                    Caught by screenshotting the page and reading it rather than by
+                    asserting that it rendered, which is this repository's whole
+                    argument about §6 in one cell.
+                  */}
                   {row.headcount > 0 && (
-                    <span className="ms-1 text-xs text-slate-400">{String(row.headcount)}</span>
+                    <span className="ms-1.5 text-xs text-slate-400">×{String(row.headcount)}</span>
                   )}
                 </td>
                 <td className="py-2 text-end tabular-nums text-slate-600">
