@@ -271,6 +271,24 @@ export const GATES = [
     why: "money out refuses the four things that are somebody else's money",
   },
   /*
+   * 🔴 76.58 — THE LIMITER, AND THE THING THAT WOULD HAVE STOPPED THE RUN.
+   *
+   * Sign-in is twenty attempts per fifteen minutes bucketed by /24, which is
+   * right for the public internet and impossible for twenty-eight agents
+   * behind one egress address. The run would have stalled in wave 1 with every
+   * agent reporting "too many attempts" as a product failure.
+   *
+   * It is widened by a multiplier while `SIMULATION_RUNNING=1`, and this gate
+   * asserts BOTH halves — that the production default is untouched to the
+   * attempt, and that the platform-wide `global:` ceiling is not widened even
+   * then, because that is the one number that would notice a real attack.
+   */
+  {
+    name: "limits",
+    script: "verify:limits",
+    why: "and a swarm behind one address is not mistaken for an attack on it",
+  },
+  /*
    * 🔴 THE THIRTY UNIT SUITES, AND THE REASON THEY ARE HERE IS EMBARRASSING.
    *
    * Sprint 75 repriced the product. `tests/seats.test.ts` went 7 red of 12 and

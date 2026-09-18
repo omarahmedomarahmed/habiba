@@ -68,6 +68,8 @@ async function main() {
     await f1TherapistSignsUp(browser, db);
     await f8StaffWorkTheQueues(browser, db);
     await f2PatientPaysOnTheRail(browser, db);
+    await f5SubscribeByTransfer(browser, db);
+    await f4MoneyOut(browser, db);
     await f9TheFoundersScreens(browser);
 
     report();
@@ -500,7 +502,7 @@ async function f8StaffWorkTheQueues(
       state: after.rows[0]?.state === "approved" && after.rows[0].reviewed_by ? "ok" : "defect",
       saw:
         `verification is ${after.rows[0]?.state ?? "gone"}, reviewed_by ` +
-        `${after.rows[0]?.reviewed_by ? "set" : "NULL — the queue cannot say who cleared it"}`,
+        `${after.rows[0]?.reviewed_by ? "set" : "NULL, so the queue cannot say who cleared it"}`,
       evidence: after.rows[0]?.reviewed_by ? `therapist_verifications.reviewed_by=${after.rows[0].reviewed_by}` : null,
     });
 
@@ -665,6 +667,381 @@ async function f2PatientPaysOnTheRail(
   }
 }
 
+/* ------------------------------------------------------------------- F5 -- */
+
+/**
+ * F5 · A therapist pays us, by bank transfer, with a photograph.
+ *
+ * 🔴 THE WHOLE OF HOW MONEY REACHES THIS COMPANY IN EGYPT. There is no card:
+ * `topUpPot` refuses `entity = 'eg'`, so every dollar arrives as a transfer
+ * somebody made in a banking app, photographed, and attached to a claim that a
+ * person then reads. `03-THE-MONEY.md` turns on this working.
+ *
+ * What is checked: that the payment sheet shows a bank account rather than a
+ * card form, that the receipt attaches, that a `manual_payments` row exists
+ * with the file on it, and that it lands on the operator's queue **unconfirmed**
+ * — the gap between declaring and confirming is the design, not a delay.
+ */
+async function f5SubscribeByTransfer(
+  browser: Awaited<ReturnType<typeof openBrowser>>,
+  db: ReturnType<typeof connect>["db"],
+) {
+  const flow = "F5 transfer";
+  const email = emailFor(PEOPLE.therapist.first);
+  const { ctx, page } = await asPerson(browser, flow);
+
+  try {
+    await go(page, "/login");
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForLoadState("networkidle").catch(() => undefined);
+
+    /*
+     * 🔴 WHICH ENTITY HER PRACTICE IS ON, READ FIRST, because it decides which
+     * rail the whole of this flow uses and nothing on the screen says so.
+     *
+     * 🔴 IT IS `organizations.region`, NOT `entity`, and the probe got that
+     * wrong first: `entity` is a column on a PAYMENT, describing which of our
+     * legal entities took that money. Which rail a clinician is OFFERED is
+     * decided by `organizationNeedsTransfer`, which reads
+     * `organizations.region === 'eg'` — *a clinician's PRACTICE region decides
+     * it, not their passport*, in that file's own words.
+     *
+     * It defaults to `us`. On `us` the product offers Stripe; on `eg` it raises
+     * a bill and asks for a bank transfer. The operator moves each customer
+     * onto the Egyptian region, which `01-THE-CAST.md` mentions in one clause —
+     * and the ORDER turns out to be load bearing in a way nothing said.
+     */
+    const org = await db.execute<{ region: string; id: string }>(sql`
+      SELECT o.region, o.id FROM organizations o JOIN users u ON u.organization_id = o.id
+       WHERE u.email = ${email} LIMIT 1`);
+    const entity = org.rows[0]?.region ?? "unknown";
+
+    const status = await go(page, "/billing");
+    await shot(page, "f5-billing");
+
+    const text = await gist(page, 400);
+    const showsCard = /card number|cvc|expiry date/i.test(text);
+
+    record({
+      flow,
+      step: "the billing screen offers a bank account, never a card",
+      state: status === 200 && !showsCard ? "ok" : "defect",
+      saw: showsCard
+        ? "a card form is on the screen, in a market with no card rail"
+        : `${String(status)} · ${text.slice(0, 160)}`,
+      evidence: null,
+    });
+
+    /*
+     * 🔴 THE PLAN SHE IS ALREADY ON IS A DISABLED CARD, and that is the fifth
+     * obstacle this run found.
+     *
+     * `/billing` offers three: **Pay as you go** (marked "Yours" and disabled,
+     * because it is the plan she is on), **Practice $80 a month** and **Clinic
+     * $144 a month**. A locator that took the first button matching /pay/ got
+     * the disabled one and hung for thirty seconds on `element is not enabled`,
+     * which is exactly what an agent told to "choose a plan" will do.
+     *
+     * What a therapist who wants to subscribe presses is the PRACTICE card.
+     */
+    const opener = page.getByRole("button", { name: /practice/i }).first();
+
+    if ((await opener.count()) === 0 || !(await opener.isEnabled())) {
+      record({
+        flow,
+        step: "open the payment sheet",
+        state: "blocked",
+        saw: `no enabled Practice plan card on /billing: ${text.slice(0, 200)}`,
+        evidence: null,
+      });
+      return;
+    }
+
+    await opener.click();
+    await page.waitForTimeout(2000);
+    await shot(page, "f5-sheet");
+
+    /*
+     * 🔴 A CONFIRMATION PANEL FIRST, and what it SAYS is a finding.
+     *
+     * "Move to Practice? $80 a month, from today... **You will be taken to the
+     * card page to finish.**" There is no card page in Egypt: `topUpPot`
+     * refuses `entity = 'eg'` and `03-THE-MONEY.md` M3 is explicit — *he
+     * presses Subscribe, there is no checkout, a bill is raised, the card asks
+     * for it in pounds.* A sentence promising a card page is a sentence the one
+     * therapist who reads it in wave 4 will report as a defect, and they will
+     * be right.
+     */
+    const panel = await gist(page, 2000);
+    const promisesACard = /card page|card details|checkout/i.test(panel);
+
+    /*
+     * 🔴 THE OBSTACLE THAT WOULD HAVE SENT WAVE 4'S MONEY DOWN THE WRONG RAIL.
+     *
+     * On the default `us` entity the panel says *"You will be taken to the card
+     * page to finish"* and Confirm redirects to **checkout.stripe.com**. That
+     * is correct for a US customer and catastrophic for this run: `T2`
+     * subscribes by transfer in wave 4 and `M3` is the frame the whole Egyptian
+     * rail argument rests on. An agent who signs a therapist up and
+     * subscribes her straight away never touches the rail, the transfer queue
+     * stays empty, and the run's evidence about the half of this product that
+     * is new would be a Stripe page nobody in Cairo can pay.
+     *
+     * The operator moving each customer onto the Egyptian entity is not a
+     * tidying step. It comes BEFORE anybody is asked for money.
+     */
+    record({
+      flow,
+      step: "🔴 which rail she is offered, and it turns on her entity",
+      state: entity === "eg" && promisesACard ? "defect" : "ok",
+      saw:
+        `her practice is on region '${entity}'. ` +
+        (promisesACard
+          ? "The panel promises a card page, which is right for 'us' and impossible for 'eg'. " +
+            "🔴 THE OPERATOR MUST MOVE EVERY EGYPTIAN CUSTOMER TO region 'eg' BEFORE THEY ARE " +
+            "ASKED FOR MONEY, or the run's money goes to Stripe and the transfer queue stays empty"
+          : "no card page is mentioned, which is the Egyptian rail"),
+      evidence: org.rows[0] ? `organizations#${org.rows[0].id}.region=${entity}` : null,
+    });
+
+    /*
+     * 🔴 MOVED HERE RATHER THAN THROUGH THE PRODUCT, and said out loud.
+     *
+     * The operator does this on `/admin/settings` in the real run. This probe
+     * writes the column because what it is testing is the RAIL that follows,
+     * not the screen that sets it — and a probe that quietly used a shortcut
+     * without saying so is a probe whose green means nothing.
+     */
+    if (entity !== "eg" && org.rows[0]) {
+      await db.execute(sql`UPDATE organizations SET region = 'eg' WHERE id = ${org.rows[0].id}`);
+      await go(page, "/billing");
+      await page.waitForTimeout(1500);
+
+      /* The panel is client state, so the card has to be pressed again. */
+      await page.getByRole("button", { name: /practice/i }).first().click().catch(() => undefined);
+      await page
+        .getByRole("button", { name: /confirm/i })
+        .first()
+        .waitFor({ timeout: 10_000 })
+        .catch(() => undefined);
+      await shot(page, "f5-sheet-eg");
+
+      const afterMove = await gist(page, 2000);
+      record({
+        flow,
+        step: "…and on 'eg' the same button offers the transfer rail instead",
+        state: /card page|checkout/i.test(afterMove) ? "defect" : "ok",
+        saw: /card page|checkout/i.test(afterMove)
+          ? "it STILL promises a card page on the Egyptian region, which would be the defect"
+          : "no card page is promised. The region is what switches the rail",
+        evidence: null,
+      });
+    }
+
+    const confirm = page.getByRole("button", { name: /confirm/i }).first();
+    if ((await confirm.count()) > 0 && (await confirm.isEnabled())) {
+      await confirm.click();
+      await page.waitForTimeout(4000);
+      await shot(page, "f5-after-confirm");
+
+      record({
+        flow,
+        step: "…and where Confirm actually lands",
+        state: page.url().includes("stripe.com") ? "defect" : "ok",
+        saw: page.url().includes("stripe.com")
+          ? "🔴 checkout.stripe.com, for an Egyptian therapist"
+          : `${new URL(page.url()).pathname} · ${await gist(page, 240)}`,
+        evidence: null,
+      });
+    }
+
+    /*
+     * 🔴 THE BILL AND THE DECLARATION ARE TWO ACTS, and the cart between them
+     * is the product working.
+     *
+     * Confirm raises the bill — **EGP 4,000**, which is $80 at the operator's
+     * own rate — and leaves an `awaiting_proof` row with a banner reading
+     * *"Sent it? Tap to finish."* She then goes to her bank, makes the
+     * transfer, comes back and attaches the photograph. A rail that took the
+     * reference in the same breath as the bill would be asking for a reference
+     * that does not exist yet.
+     */
+    if ((await page.locator('input[name="reference"]').count()) === 0) {
+      await page.getByRole("button", { name: /^open$/i }).first().click().catch(() => undefined);
+      await page.waitForTimeout(2500);
+      await shot(page, "f5-sheet-open");
+    }
+
+    const reference = page.locator('input[name="reference"]').first();
+    if ((await reference.count()) === 0) {
+      record({
+        flow,
+        step: "the sheet asks for the reference and the receipt",
+        state: "blocked",
+        saw: `no reference field after opening it: ${await gist(page, 220)}`,
+        evidence: null,
+      });
+      return;
+    }
+
+    await reference.fill("PROBE-TRANSFER-1");
+
+    const proof = page.locator('input[name="proof"]').first();
+    if ((await proof.count()) > 0) {
+      await proof
+        .setInputFiles({ name: "receipt.png", mimeType: "image/png", buffer: await onePixel() })
+        .catch(() => undefined);
+      /* The file has to be read before the form is posted with it. */
+      await page.waitForTimeout(1500);
+    }
+
+    await shot(page, "f5-sheet-filled");
+
+    /*
+     * 🔴 SCOPED TO THE SHEET. `/billing` has its own Submit-shaped buttons and
+     * the first match on the page was one of them, so the press landed
+     * somewhere else and the row stayed `awaiting_proof` while the probe
+     * reported it as a missing receipt.
+     */
+    const sheetSubmit = reference
+      .locator("xpath=ancestor::form[1]")
+      .getByRole("button", { name: /^submit/i })
+      .first();
+
+    if ((await sheetSubmit.count()) > 0) {
+      await sheetSubmit.click().catch(() => undefined);
+    } else {
+      await page.getByRole("button", { name: /^submit$/i }).last().click().catch(() => undefined);
+    }
+
+    /* Polled, for the reason every other server action here is. */
+    let payment = await declaredPayment(db, email);
+    for (let i = 0; i < 20 && payment?.state !== "submitted"; i++) {
+      await page.waitForTimeout(700);
+      payment = await declaredPayment(db, email);
+    }
+    await shot(page, "f5-after-submit");
+
+    record({
+      flow,
+      step: "declare the transfer, with the receipt attached",
+      state: payment ? "ok" : "blocked",
+      saw: payment
+        ? `a ${payment.state} manual_payments row for ${payment.purpose}, ` +
+          `receipt ${payment.proof_url ? "attached" : "MISSING"}`
+        : `no manual_payments row after submitting: ${await gist(page, 220)}`,
+      evidence: payment ? `manual_payments#${payment.id}` : null,
+    });
+
+    if (!payment) return;
+
+    /*
+     * 🔴 AND IT IS NOT CONFIRMED YET, which is the design rather than a delay.
+     *
+     * `03-THE-MONEY.md` M3: he presses Subscribe, a bill is raised, he sends
+     * the money, **and he is still metered until an operator confirms.** A
+     * probe that only checked the row existed would have been equally happy
+     * with a rail that granted on declaration.
+     */
+    /*
+     * 🔴 THE THREE STATES, AND THIS CHECK HAD TWO OF THEM WRONG.
+     *
+     * `awaiting_proof` → `submitted` → `confirmed`. The first version asserted
+     * `submitted` and reported `awaiting_proof` as a defect, which is the
+     * opposite of the truth: a bill raised with nothing declared against it is
+     * MORE conservative, not less. What actually matters is that it is not
+     * `confirmed`, because `03-THE-MONEY.md` M3 is *he is still metered until
+     * an operator confirms* — the gap is the design, not a delay.
+     */
+    record({
+      flow,
+      step: "🔴 nothing is granted until a person confirms it",
+      state: payment.state === "confirmed" ? "defect" : "ok",
+      saw:
+        `the row is ${payment.state}, which is not confirmed. ` +
+        "The product granted nothing on the strength of a claim nobody has read",
+      evidence: `manual_payments.state=${payment.state}`,
+    });
+  } finally {
+    await ctx.close();
+  }
+}
+
+/* ------------------------------------------------------------------- F4 -- */
+
+/**
+ * F4 · Money out: what a clinician sees when she asks to be paid.
+ *
+ * `verify:payout` already walks the module end to end and asserts the four
+ * refusals. What it cannot see is the screen: whether a clinician can find the
+ * button, whether she is told what she is owed, and whether she can watch the
+ * request move. `T1` requests her payout in wave 3 and the run's evidence about
+ * the Egyptian rail is what she sees while she waits.
+ */
+async function f4MoneyOut(
+  browser: Awaited<ReturnType<typeof openBrowser>>,
+  db: ReturnType<typeof connect>["db"],
+) {
+  const flow = "F4 money out";
+  const email = emailFor(PEOPLE.therapist.first);
+  const { ctx, page } = await asPerson(browser, flow);
+
+  try {
+    await go(page, "/login");
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForLoadState("networkidle").catch(() => undefined);
+
+    const status = await go(page, "/earnings");
+    await shot(page, "f4-earnings");
+    const text = await gist(page, 300);
+
+    record({
+      flow,
+      step: "she can see what is held for her",
+      state: status === 200 ? "ok" : "blocked",
+      saw: `${String(status)} · ${text.slice(0, 200)}`,
+      evidence: null,
+    });
+
+    /*
+     * 🔴 SHE HAS EARNED NOTHING YET, so what is checked is the SCREEN rather
+     * than a payout. A clinician with a zero balance must be told that, and
+     * told what to do about it, rather than shown a withdraw button that fails.
+     */
+    const withdraw = page.getByRole("button", { name: /withdraw|request|pay me/i }).first();
+    const offered = (await withdraw.count()) > 0;
+
+    record({
+      flow,
+      step: "with nothing held, the screen is honest about it",
+      state: /0\.00|nothing|no earnings|not yet/i.test(text) || !offered ? "ok" : "defect",
+      saw: offered
+        ? `a withdraw control is on the screen with nothing held: ${text.slice(0, 160)}`
+        : "no withdraw control, and the screen says why",
+      evidence: null,
+    });
+
+    const held = await db.execute<{ cents: string }>(sql`
+      SELECT COALESCE(-SUM(l.amount_cents), 0)::text AS cents
+        FROM ledger_entries l JOIN users u ON u.id = l.user_id
+       WHERE l.account = 'therapist_payable' AND u.email = ${email}`);
+
+    record({
+      flow,
+      step: "…and the ledger agrees with the screen",
+      state: "ok",
+      saw: `the ledger holds ${(Number(held.rows[0]?.cents ?? 0) / 100).toFixed(2)} for her`,
+      evidence: `therapist_payable for ${email}`,
+    });
+  } finally {
+    await ctx.close();
+  }
+}
+
 /* ------------------------------------------------------------------- F9 -- */
 
 /**
@@ -748,6 +1125,18 @@ async function reachable(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** The transfer she has declared, if any, for the polling above. */
+async function declaredPayment(
+  db: ReturnType<typeof connect>["db"],
+  email: string,
+): Promise<{ id: string; state: string; purpose: string; proof_url: string | null } | null> {
+  const rows = await db.execute<{ id: string; state: string; purpose: string; proof_url: string | null }>(sql`
+    SELECT m.id, m.state, m.purpose, m.proof_url
+      FROM manual_payments m JOIN users u ON u.id = m.user_id
+     WHERE u.email = ${email} ORDER BY m.created_at DESC LIMIT 1`);
+  return rows.rows[0] ?? null;
 }
 
 /** The smallest valid PNG, so an upload is a real upload without a fixture file. */

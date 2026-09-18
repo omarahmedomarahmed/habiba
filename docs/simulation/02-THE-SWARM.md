@@ -79,6 +79,34 @@ whether to run a catch up pass before ageing.
 
 ---
 
+## 🔴 SIGNING IN, AND THE LIMIT THAT WOULD HAVE STOPPED WAVE 1
+
+Sign-in is **twenty attempts per fifteen minutes**, and the limiter buckets by the caller's
+/24 rather than by the account. That is the right shape for the public internet, where a
+large NAT sharing a bucket is a documented and accepted cost.
+
+**This swarm is twenty-eight agents behind one egress address.** Each signs in as their
+person at the start of every wave, and again whenever `age` moves the clock past a session's
+idle timeout. Twenty-eight against twenty is not close: the run would have stalled in wave 1,
+every agent would have reported *"too many attempts"* as a defect in the product, and nobody
+would have found the cause for hours.
+
+It was found by the mini simulation, which exhausted the bucket in four runs of a three-flow
+probe.
+
+**The fix is in the product and it is narrow.** While `SIMULATION_RUNNING=1` — the same flag
+that turns off indexing and paints the violet strip — every per-network limit is multiplied
+by twenty-five. The platform-wide `global:` ceiling is **not**, because that is the one
+number that would notice an actual attack. `npm run verify:limits` asserts both directions,
+and the production default is unchanged the moment the flag comes off.
+
+Two things follow for an agent:
+
+- **A "too many attempts" message is still real.** It now means a loop, not a swarm. Stop and
+  say so rather than waiting it out.
+- **Do not sign in more than you need to.** A context that holds its cookie is a context that
+  is not spending the budget, and the budget is now generous rather than infinite.
+
 ## The eight standing agents
 
 These never sleep. They are awake for the whole run because their real world counterparts are.

@@ -60,6 +60,7 @@
     "on:production": "node --env-file-if-exists=.env.local --import tsx scripts/on-production.ts",
     "verify:actuals": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-actuals.ts",
     "verify:cast": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-cast.ts",
+    "verify:limits": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-limits.ts",
     "verify:payout": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-payout.ts",
     "logins": "node --import tsx scripts/logins.ts",
     "probe": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/probe.ts",

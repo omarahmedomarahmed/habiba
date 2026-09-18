@@ -141,6 +141,9 @@ const REFUSED: Record<string, string> = {
   "verify:payout":
     "it plants a clinic, two people, held earnings and a payout, then pays it out.\n" +
     "     Run it against dev.",
+  "verify:limits":
+    "it writes rate_limits rows and flips SIMULATION_RUNNING in its own process.\n" +
+    "     Run it against dev.",
   "db:reset": "no.",
 };
 

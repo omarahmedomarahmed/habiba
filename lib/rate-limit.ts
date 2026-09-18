@@ -8,6 +8,7 @@ import { eq, lt, sql } from "drizzle-orm";
 
 import { controlDb as db} from "@/lib/db";
 import { rateLimits } from "@/lib/db/schema";
+import { SIMULATION_RUNNING } from "@/lib/env";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 import { clientIp } from "@/lib/request";
@@ -56,11 +57,58 @@ export function subjectKey(scope: string, subject: string): string {
  * happen inside the same UPDATE, so two concurrent requests cannot both read
  * "count = limit - 1" and both proceed.
  */
+/**
+ * 🔴 76.58 — THE SIMULATION SHARES ONE NETWORK, AND THE LIMITER COUNTS NETWORKS.
+ *
+ * ## What the mini simulation walked into
+ *
+ * Sign-in is twenty attempts per fifteen minutes, and `callerKey` buckets by
+ * the caller's /24. That is the right shape for the public internet, where a
+ * large NAT sharing a bucket is a documented and accepted cost.
+ *
+ * The six month run is **twenty cast agents and eight standing agents behind
+ * one egress address**, each signing in as their person at the start of every
+ * wave and again whenever `age` moves the clock past a session's idle timeout.
+ * Twenty-eight agents against a bucket of twenty is not close: the run would
+ * have stalled in wave 1, every agent would have reported "too many attempts"
+ * as a product failure, and the finding would have arrived hours in.
+ *
+ * Four runs of a THREE-flow probe exhausted it, which is how this was found.
+ *
+ * ## 🔴 Why widening it here is defensible, and what keeps it narrow
+ *
+ * `SIMULATION_RUNNING=1` is not a debug flag. While it is set, `robots.txt`
+ * disallows everything and every page carries a violet strip naming the
+ * database, because the product is knowingly not serving the public. Widening
+ * a per-network limit during exactly that window is the same decision as the
+ * banner, taken for the same reason.
+ *
+ * What keeps it honest:
+ *
+ *   - it is a MULTIPLIER on the limit, not a bypass, so a runaway loop still
+ *     stops and still says so;
+ *   - it never touches `globalCeiling`, which is the platform-wide circuit
+ *     breaker and the thing that would notice an actual attack;
+ *   - the production default is unchanged, and `SIMULATION_RUNNING` is unset
+ *     the day the invented people are deleted;
+ *   - it is applied in ONE place, here, so no caller can forget it and none
+ *     can widen anything the flag does not cover.
+ */
+const SIMULATION_LIMIT_MULTIPLIER = 25;
+
 export async function consume(
   key: string,
   limit: number,
   windowSeconds: number,
 ): Promise<Verdict> {
+  /*
+   * 🔴 `global:` IS EXEMPT ON PURPOSE. It is the ceiling on what the whole
+   * platform will accept per minute, which is the one number that should not
+   * move because a simulation is running: if it trips during a run, something
+   * is wrong with the run.
+   */
+  const effectiveLimit =
+    SIMULATION_RUNNING && !key.startsWith("global:") ? limit * SIMULATION_LIMIT_MULTIPLIER : limit;
   const windowInterval = sql.raw(`interval '${Math.max(1, Math.floor(windowSeconds))} seconds'`);
 
   const [row] = await db
@@ -92,10 +140,11 @@ export async function consume(
   const elapsed = (Date.now() - windowStart.getTime()) / 1000;
 
   return {
-    allowed: used <= limit,
-    retryAfter: used <= limit ? 0 : Math.max(1, Math.ceil(windowSeconds - elapsed)),
+    allowed: used <= effectiveLimit,
+    retryAfter: used <= effectiveLimit ? 0 : Math.max(1, Math.ceil(windowSeconds - elapsed)),
     used,
-    limit,
+    /* What was actually enforced, so a caller reporting it is not lying. */
+    limit: effectiveLimit,
   };
 }
 
