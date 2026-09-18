@@ -58,6 +58,18 @@ that you are pointed at the right database.
 Surname **Demo** or **Example**. Address at `example.com`. Phone in the block
 `+20 100 900 00NN`. One shared password: `Simulation2026!`
 
+🔴 **A PATIENT HAS NO ADDRESS, AND THAT IS THE PRODUCT RATHER THAN AN OVERSIGHT.**
+`/patient/signup` asks for a first name, a phone, a time zone and an optional password, and
+**it never asks for an email**. Nothing anywhere else lets her add one: `/patient/account`
+shows the address as "not added" beside a notice calling it *"another way to sign in, and
+the only way to receive your record"*, and offers no control to add it.
+
+So every patient's handle is her number, `P1` to `P7` hold `+20 100 900 0041` to `0047`, and
+the way in is a one-time code. The mini simulation found this by filling the form the way a
+clinician's is filled and being refused; before that, `12-THE-LOGINS.md` promised seven
+addresses that cannot exist and `verify:cast --complete` would have reported seven people
+missing at the end of six months — which reads as an agent who never finished a wave.
+
 **Everybody is Egyptian.** An earlier cast had a therapist in Leeds and a company in London,
 which gave the money half of the run a card rail to fall back on. There is no card rail in
 Egypt: `topUpPot` refuses `entity = 'eg'` and the transfer queue is the whole of how money

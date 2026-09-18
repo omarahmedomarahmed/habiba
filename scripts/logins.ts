@@ -47,8 +47,9 @@ function main(): void {
     "",
     "    " + SIMULATION_PASSWORD,
     "",
-    "The address is always the person's own name: `<first name>.<surname>@example.com`, lower",
-    "case. `npm run on:production -- verify:cast` reads every one of them back out of the",
+    "A clinician's, a manager's, an employer's and a developer's address is always their own",
+    "name: `<first name>.<surname>@example.com`, lower case. **A patient's is a phone number.**",
+    "`npm run on:production -- verify:cast` reads every one of them back out of the",
     "database and checks the password actually opens it, which is a different fact from the",
     "row existing and the one that goes wrong.",
     "",
@@ -63,6 +64,18 @@ function main(): void {
     "| Employers | `/sponsor/sign-in` | `/sponsor` |",
     "| The partner's developer | `/partner/sign-in` | `/partner` |",
     "",
+    "🔴 **A PATIENT SIGNS IN WITH HER PHONE NUMBER, NOT AN ADDRESS.** `/patient/signup` asks for",
+    "a first name, a phone, a time zone and an optional password, and **it never asks for an",
+    "email**. Nothing anywhere else lets her add one either: `/patient/account` shows the address",
+    "as \"not added\" beside a notice calling it *\"another way to sign in, and the only way to",
+    "receive your record\"*, and offers no control to add it.",
+    "",
+    "So `patient_accounts.email` is null for every patient in this run, the handle is the number",
+    "in the block `01-THE-CAST.md` reserved, and the way in is a one-time code rather than the",
+    "shared password. The mini simulation found this by being refused at the form; before that,",
+    "this document promised seven addresses and `verify:cast --complete` would have reported",
+    "seven people missing at the end of six months.",
+    "",
     "🔴 **Six doors, because there are six principals.** A therapist's cookie cannot become a",
     "patient's, a clinic manager's, a sponsor admin's or a partner's: different tables, different",
     "cookies, different guards. Signing in at the wrong one of these does not fail with a",
@@ -75,9 +88,17 @@ function main(): void {
     lines.push(`## Wave ${String(wave)}`, "", "| Key | Who | Sign in as | Arrives | What their record holds |", "| --- | --- | --- | --- | --- |");
 
     for (const person of CAST.filter((p) => p.wave === wave)) {
-      const email = person.email ?? "**no account, ever**";
+      /*
+       * 🔴 A PATIENT'S HANDLE IS HER PHONE, and this column used to promise
+       * seven addresses that cannot exist. `/patient/signup` never asks for an
+       * email and no screen lets her add one, so what goes here for a patient
+       * is the number she actually signed up with.
+       */
+      const handle = person.phone
+        ? `\`${person.phone}\` **and a code**`
+        : (person.email ?? "**no account, ever**");
       lines.push(
-        `| \`${person.key}\` | ${person.name} | ${email} | ${person.arrives} | ${person.record} |`,
+        `| \`${person.key}\` | ${person.name} | ${handle} | ${person.arrives} | ${person.record} |`,
       );
     }
     lines.push("");

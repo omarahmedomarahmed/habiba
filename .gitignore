@@ -82,3 +82,8 @@ docs/walkthrough-2/
 # docs/walkthrough-3/**/op-*/
 # docs/walkthrough-3/**/*admin*
 
+
+# 🔴 The mini simulation's screenshots. The dev branch carries gate residue with
+# real-looking surnames, so nothing photographed there is committable:
+# `scripts/demo.ts` says what publishing an operator frame would disclose.
+.probe-shots/

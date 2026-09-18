@@ -60,6 +60,26 @@ export type CastMember = {
   name: string;
   /** Null for the one person who deliberately never has an account. */
   email: string | null;
+  /**
+   * 🔴 76.58 — A PATIENT'S HANDLE IS HER PHONE, AND THE MINI SIMULATION FOUND
+   * OUT BY BEING REFUSED.
+   *
+   * `/patient/signup` asks for a first name, a phone, a time zone and an
+   * optional password. **It never asks for an email**, and nothing anywhere
+   * else lets a patient add one: `/patient/account` shows the address as "not
+   * added" beside a notice calling it *"another way to sign in, and the only
+   * way to receive your record"*, and offers no control to add it.
+   *
+   * So `patient_accounts.email` is null for every patient who signs herself up,
+   * and this file used to promise seven patient addresses that cannot exist.
+   * `verify:cast --complete` would have reported seven people missing at the
+   * end of six months, which reads as an agent who never finished a wave and is
+   * the product working as designed.
+   *
+   * The number is the handle, in the block `01-THE-CAST.md` already reserved,
+   * and she signs in with a one-time code rather than a password.
+   */
+  phone?: string;
   as:
     | "operator"
     | "staff"
@@ -258,6 +278,7 @@ export const CAST: CastMember[] = [
     key: "P1",
     name: "Layla Demo",
     email: "layla.demo@example.com",
+    phone: "+20 100 900 0041",
     as: "patient",
     wave: 1,
     arrives: "signs up",
@@ -268,6 +289,7 @@ export const CAST: CastMember[] = [
     key: "P2",
     name: "Salma Example",
     email: "salma.example@example.com",
+    phone: "+20 100 900 0042",
     as: "patient",
     wave: 1,
     arrives: "signs up",
@@ -318,6 +340,7 @@ export const CAST: CastMember[] = [
     key: "P3",
     name: "Mostafa Demo",
     email: "mostafa.demo@example.com",
+    phone: "+20 100 900 0043",
     as: "patient",
     wave: 2,
     arrives: "signs up",
@@ -328,6 +351,7 @@ export const CAST: CastMember[] = [
     key: "P4",
     name: "Hoda Demo",
     email: "hoda.demo@example.com",
+    phone: "+20 100 900 0044",
     as: "patient",
     wave: 2,
     arrives: "signs up",
@@ -359,6 +383,7 @@ export const CAST: CastMember[] = [
     key: "P5",
     name: "Nadia Example",
     email: "nadia.example@example.com",
+    phone: "+20 100 900 0045",
     as: "patient",
     wave: 3,
     arrives: "signs up",
@@ -413,6 +438,7 @@ export const CAST: CastMember[] = [
     key: "P7",
     name: "Yousra Demo",
     email: "yousra.demo@example.com",
+    phone: "+20 100 900 0047",
     as: "patient",
     wave: 5,
     arrives: "signs up",

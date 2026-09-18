@@ -40,6 +40,11 @@ import { connect } from "./db";
 
 const { check, finish } = reporter();
 
+/** Digits only, so `+20 100 900 0041` and `+201009000041` are one number. */
+function digitsOf(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
 /** The file that tells a human how many people there are. */
 const CAST_DOC = "docs/simulation/01-THE-CAST.md";
 
@@ -98,8 +103,12 @@ async function main() {
      * 40 split them on purpose. One list of people, two tables, and the check has
      * to know that.
      */
-    const accounts = await db.execute<{ email: string | null; password_hash: string | null }>(sql`
-      SELECT email, password_hash FROM patient_accounts WHERE deleted_at IS NULL`);
+    const accounts = await db.execute<{
+      email: string | null;
+      phone: string | null;
+      password_hash: string | null;
+    }>(sql`
+      SELECT email, phone, password_hash FROM patient_accounts WHERE deleted_at IS NULL`);
 
     /*
      * 🔴 AND A THIRD TABLE, because `D1`'s developer is a sixth principal.
@@ -120,8 +129,26 @@ async function main() {
       byEmail.set(row.email.toLowerCase(), { hash: row.password_hash, what: row.role });
     }
     for (const row of accounts.rows) {
-      if (!row.email) continue;
-      byEmail.set(row.email.toLowerCase(), { hash: row.password_hash, what: "patient account" });
+      if (row.email) {
+        byEmail.set(row.email.toLowerCase(), { hash: row.password_hash, what: "patient account" });
+      }
+      /*
+       * 🔴 76.58 — AND BY PHONE, WHICH IS THE HANDLE A PATIENT ACTUALLY HAS.
+       *
+       * `/patient/signup` never asks for an email and no screen lets her add
+       * one, so `patient_accounts.email` is null for every patient who signs
+       * herself up. A version of this check that looked only at the address
+       * would have reported all seven patients as missing at the end of six
+       * months, which reads as an agent who never finished a wave and is the
+       * product working exactly as designed. Found by the mini simulation being
+       * refused at the form.
+       *
+       * Stored E.164, written in the cast with spaces, so both are stripped to
+       * digits before they are compared.
+       */
+      if (row.phone) {
+        byEmail.set(digitsOf(row.phone), { hash: row.password_hash, what: "patient account, by phone" });
+      }
     }
     for (const row of partners.rows) {
       byEmail.set(row.email.toLowerCase(), { hash: row.password_hash, what: "partner developer" });
@@ -133,7 +160,13 @@ async function main() {
     const found: string[] = [];
 
     for (const person of WITH_LOGINS) {
-      const row = byEmail.get(person.email!.toLowerCase());
+      /*
+       * A patient is looked up by her number first and her address second,
+       * because the number is the one she was actually able to give us.
+       */
+      const row =
+        (person.phone ? byEmail.get(digitsOf(person.phone)) : undefined) ??
+        byEmail.get(person.email!.toLowerCase());
       if (!row) {
         missing.push(`${person.key} ${person.name} (wave ${person.wave})`);
         continue;

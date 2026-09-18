@@ -10,8 +10,9 @@ One password for all of them:
 
     Simulation2026!
 
-The address is always the person's own name: `<first name>.<surname>@example.com`, lower
-case. `npm run on:production -- verify:cast` reads every one of them back out of the
+A clinician's, a manager's, an employer's and a developer's address is always their own
+name: `<first name>.<surname>@example.com`, lower case. **A patient's is a phone number.**
+`npm run on:production -- verify:cast` reads every one of them back out of the
 database and checks the password actually opens it, which is a different fact from the
 row existing and the one that goes wrong.
 
@@ -25,6 +26,18 @@ row existing and the one that goes wrong.
 | Practice manager and practice staff | `/clinic/sign-in` | `/clinic` |
 | Employers | `/sponsor/sign-in` | `/sponsor` |
 | The partner's developer | `/partner/sign-in` | `/partner` |
+
+🔴 **A PATIENT SIGNS IN WITH HER PHONE NUMBER, NOT AN ADDRESS.** `/patient/signup` asks for
+a first name, a phone, a time zone and an optional password, and **it never asks for an
+email**. Nothing anywhere else lets her add one either: `/patient/account` shows the address
+as "not added" beside a notice calling it *"another way to sign in, and the only way to
+receive your record"*, and offers no control to add it.
+
+So `patient_accounts.email` is null for every patient in this run, the handle is the number
+in the block `01-THE-CAST.md` reserved, and the way in is a one-time code rather than the
+shared password. The mini simulation found this by being refused at the form; before that,
+this document promised seven addresses and `verify:cast --complete` would have reported
+seven people missing at the end of six months.
 
 🔴 **Six doors, because there are six principals.** A therapist's cookie cannot become a
 patient's, a clinic manager's, a sponsor admin's or a partner's: different tables, different
@@ -47,8 +60,8 @@ working rather than a typo.
 | `T2` | Dr Yassin Demo | yassin.demo@example.com | signs up | metered until wave 4, then a subscription paid by bank transfer, then the cancellation in wave 5 |
 | `T3` | Dr Karim Demo | karim.demo@example.com | signs up | the radar work, mostly strangers in crisis, and the bill he let lapse in wave 4 |
 | `T4` | Dr Omar Demo | omar.demo@example.com | signs up | two rejections with the reasons in the operator's own words, documents cleared, and a practice seat that still did not let him see a patient |
-| `P1` | Layla Demo | layla.demo@example.com | signs up | the whole product in Arabic: sessions found on the radar with no account, the record she claimed afterwards, and the access she revoked in wave 3 |
-| `P2` | Salma Example | salma.example@example.com | signs up | appointments booked on a calendar and paid by bank transfer, each one waiting for an operator to clear it |
+| `P1` | Layla Demo | `+20 100 900 0041` **and a code** | signs up | the whole product in Arabic: sessions found on the radar with no account, the record she claimed afterwards, and the access she revoked in wave 3 |
+| `P2` | Salma Example | `+20 100 900 0042` **and a code** | signs up | appointments booked on a calendar and paid by bank transfer, each one waiting for an operator to clear it |
 
 ## Wave 2
 
@@ -58,8 +71,8 @@ working rather than a typo.
 | `C1-S` | Fatma Example | fatma.example@example.com | signs up | what she was delegated and what she was refused, both of them captured |
 | `C1-A` | Dr Tarek Demo | tarek.demo@example.com | signs up | invited, verified his own licence, joined the practice, and left again in wave 4 |
 | `E1-HR` | Dalia Example | dalia.example@example.com | signs up | Cairo Foundry's pot at 100% coverage, funded once and spent to nothing in wave 4, and a roster she can count but never name |
-| `P3` | Mostafa Demo | mostafa.demo@example.com | signs up | 🔴 THE DEEP RECORD. Covered at 100%, weekly, two therapists, the most journal entries on the platform, and the copilot exam is mostly about him |
-| `P4` | Hoda Demo | hoda.demo@example.com | signs up | an enrolment that was refused on a staff number the employer did not recognise, and a second that worked off her work email |
+| `P3` | Mostafa Demo | `+20 100 900 0043` **and a code** | signs up | 🔴 THE DEEP RECORD. Covered at 100%, weekly, two therapists, the most journal entries on the platform, and the copilot exam is mostly about him |
+| `P4` | Hoda Demo | `+20 100 900 0044` **and a code** | signs up | an enrolment that was refused on a staff number the employer did not recognise, and a second that worked off her work email |
 
 ## Wave 3
 
@@ -67,7 +80,7 @@ working rather than a typo.
 | --- | --- | --- | --- | --- |
 | `E2-HR` | Mariam Example | mariam.example@example.com | signs up | Alexandria Textiles at 10% coverage, the slider she had to press Edit to move, and the notice period she could not shorten |
 | `E3-HR` | Rania Example | rania.example@example.com | signs up | Delta Logistics, a pot funded by transfer in wave 5, and the employee they hired away |
-| `P5` | Nadia Example | nadia.example@example.com | signs up | 🔴 READ THIS ONE FIRST. She changed employer mid-treatment. One continuous course of care, two payers, and neither employer learns the other exists |
+| `P5` | Nadia Example | `+20 100 900 0045` **and a code** | signs up | 🔴 READ THIS ONE FIRST. She changed employer mid-treatment. One continuous course of care, two payers, and neither employer learns the other exists |
 | `P6` | Ziad Example | **no account, ever** | never signs up | three sessions through join links and no account at all. Reachable from his clinician's side only, which is the product working rather than a gap |
 | `D1` | Tamer Example | tamer.example@example.com | signs up | Helio Health's developer account: the keys he minted, the scopes they carry, the rate limit he hit, and the sessions his platform opened. Not one patient he did not bring |
 
@@ -82,7 +95,7 @@ working rather than a typo.
 | Key | Who | Sign in as | Arrives | What their record holds |
 | --- | --- | --- | --- | --- |
 | `T6` | Dr Sameh Demo | sameh.demo@example.com | signs up | one free month, then a first real bill he overpaid, paid twice, and declined the plan against with the confirmation panel open. He never subscribes, and at three sessions a month he is right not to |
-| `P7` | Yousra Demo | yousra.demo@example.com | signs up | three self paid sessions with the metered therapist, charged her session price both before and after his free month ended. The trial is his fee and was never her price |
+| `P7` | Yousra Demo | `+20 100 900 0047` **and a code** | signs up | three self paid sessions with the metered therapist, charged her session price both before and after his free month ended. The trial is his fee and was never her price |
 
 ## The one with no login
 
