@@ -144,11 +144,26 @@ would actually have stopped the run — the rate limiter — is fixed in the pro
 holding both directions, and the one that would have quietly ruined the money evidence — the
 region — is now stated as an ordering rule rather than a clause.
 
-All 26 gates pass. Production, dev and the simulation agree on every setting group and every
-country. The migrations ledger and the journal agree at 112 on production.
+All 26 gates pass. The migrations ledger and the journal agree at 112 on production.
+
+Production, dev and the simulation agree on every setting group and every country **except
+one, which is a decision rather than drift**: the in-session copilot is capped at 4 on
+production to protect the run's $10 of model credit, and stays at the shipped 10 on the other
+two. `settings:compare` prints that difference with its reason beside it instead of failing on
+it, and fails on anything else, including the same key at a third value. The gate caught it;
+what changed is that a caught decision no longer reads as a broken product.
 
 The two things to do first, in the run, in this order:
 
 1. **Move every Egyptian customer to region `eg`** before anybody is asked for money.
 2. **Check `SIMULATION_RUNNING=1` is live on production** before the swarm signs in. Without
-   it the limiter is at its production setting and wave 1 stalls.
+   it the limiter is at its production setting and wave 1 stalls. `curl
+   https://24t.vercel.app/robots.txt` is the instrument: `Disallow: /` means the flag is on in
+   the deployed runtime, because the same variable drives both.
+
+And one thing NOT to do, because the document used to tell you to:
+
+3. 🔴 **Do not run `simulate:seed`.** It has already run on production and refuses a second
+   time. Its refusal advises making a fresh branch, which is written for an empty database and
+   would throw the seeded run away. `npm run on:production -- verify:cast` is the check that
+   answers the same question: 7 of 26 sign in, 5 of 5 green.
