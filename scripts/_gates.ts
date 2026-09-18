@@ -147,7 +147,7 @@ export const GATES = [
   {
     name: "environments",
     script: "settings:compare",
-    why: "and production, dev and the simulation are configured identically",
+    why: "and the three environments differ only where a named allowance says why",
   },
   /*
    * 🔴 76.22 — AND A WHOLE CYCLE OF MONEY ACTUALLY MOVES, on real rows.

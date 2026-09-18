@@ -98,8 +98,8 @@ in the repository root, and add nothing else to that file.**
 🔴 **`DATABASE_URL` AND `DATABASE_URL_DEV` ARE THE SAME STRING AND BOTH ARE NEEDED.** They
 answer different questions and the tooling reads them separately. `DATABASE_URL` is *the
 database this process talks to*; the three `DATABASE_URL_*` lines are *the three databases this
-product has*, which is what `npm run settings:compare` walks to ask whether all three are
-configured identically. Leave `DATABASE_URL_DEV` and `DATABASE_URL_SIMULATION` out and the
+product has*, which is what `npm run settings:compare` walks to ask whether all three hold the
+same settings. Leave `DATABASE_URL_DEV` and `DATABASE_URL_SIMULATION` out and the
 `environments` gate fails on step 2 with "fewer than two environments to compare, so this
 answered nothing" — found by running it rather than by reading it.
 
@@ -398,7 +398,7 @@ come out. **A check that compares against the gross number will report a defect 
 | Total audio | **286 minutes** |
 | Planned model spend | **≈ $4.80** |
 | Left over | **≈ $5.20**, which is headroom, not a licence to add sessions |
-| In session copilot | capped at **4** messages, which `simulate:seed` sets in step 2b. Production still holds the shipped 10 until then |
+| In session copilot | capped at **4** messages. Already set on production by the seed. Dev and the simulation branch keep the shipped **10**, and `settings:compare` prints that difference with its reason rather than failing on it |
 | 🔴 **Synthesising the audio** | **NOT in the figures above and NOT visible to `npm run spend`.** Roughly $4 to $5 more on the same key. `13-THE-AUDIO.md` says to measure it on session one and report it beside the spend at every checkpoint |
 
 **Doubling the months did not double the bill, and that is not luck.** Model spend tracks the
@@ -436,11 +436,13 @@ now, measured rather than remembered.
 
 | | |
 |---|---|
-| Schema | Migrated to **0110**, 118 tables, journal and ledger agreeing |
+| Schema | Migrated to **0111**, 122 tables, journal and ledger agreeing at 112 |
 | Settings | Seeded. Rate table, countries, prices, seat bands, check-ins, the Egyptian rail |
 | Public site | Published, and every page and locale pair renders |
-| Users | **Two**, both super admins, both the founder's own. **Nour does not exist yet** |
-| The cast | **Nobody.** No therapist, no patient, no clinic, no employer, no payroll |
+| Users | **Nine.** Two are the founder's own; the other seven are the payroll, seeded |
+| Our payroll | **Seven**, from 2026-04-01, **$500 each and $3,500 a month in total**. All seven can sign in |
+| The cast | **Nobody yet.** No therapist, no patient, no practice, no employer. They sign themselves up |
+| Applications | **Four, all held.** Nile Practice, Cairo Foundry, Alexandria Textiles, Delta Logistics |
 | Sessions | **One**, which the founder made clicking around his own product. Not the run's |
 | Ledger | Four entries and 46 model calls, same origin. `/admin/actuals` shows them |
 | The transfer details | **Already filled in, with placeholders.** See the note below |
@@ -448,7 +450,35 @@ now, measured rather than remembered.
 | `RESEND_API_KEY` | **Unset.** Nothing reaches anybody by email, and nothing blocks |
 | Spent | **$0.00** |
 
-🔴 **So `npm run on:production -- simulate:seed` HAS NOT RUN and step 2b is not optional.**
+🔴 **`simulate:seed` HAS ALREADY RUN ON PRODUCTION, AND IT WILL REFUSE TO RUN AGAIN.**
+
+It ran during the rehearsal, deliberately, because it is the one command whose failure on
+production would stop everything and the only way to know it survives there is to point it at
+it. **It found a real bug in itself doing so**: `= ANY(<array>)` is expanded into a parameter
+list by this driver, which Postgres reads as a tuple, so the seed wrote seven people onto the
+payroll and then crashed before creating a single login. Fixed, re-run, thirteen checks green.
+
+So **step 2b is already done** and typing it again gets you this, exit 1, before it writes
+anything:
+
+    🔴 This database already has a practice or an employer in it.
+       Running again would create a second Nile Practice and nobody could
+       tell the agents which one to use. Refusing.
+
+That refusal is not a problem to work around and **making a fresh branch to get past it would
+throw the seeded run away.** Read it as the confirmation it is: you are pointed at the right
+database, and the cast it needs is already in it.
+
+🔴 **The consequence for step 1: `baseline -- check` WILL NOT be 195 rows.** It is the
+before-the-run mark and the seed has happened since. Expect, and confirm, exactly this:
+
+    employee_salaries   0 -> 7      the payroll
+    employees           0 -> 7
+    users               2 -> 9      the founder's two, plus our seven
+    organizations       1 -> 2      Nile Practice, held
+    sponsors            0 -> 3      the three companies, all held
+
+Anything else in that list is a row nobody accounted for and is worth stopping over.
 
 🔴 **THE TRANSFER DETAILS ARE PLACEHOLDERS AND STAY THAT WAY.** Banque Misr, an invented IBAN,
 an InstaPay handle. Nobody in this run sends real money anywhere, so sixty invented people
@@ -524,7 +554,7 @@ npm run on:production                             # prints the allow-list. Start
 npm run on:production -- verify:migrations        # journal and ledger agree, every CHECK validated
 npm run on:production -- settings:show            # what production actually holds
 npm run on:production -- spend -- --budget 10     # $0.0000, 0.0% used
-npm run on:production -- baseline -- check        # 118 tables, 195 rows
+npm run on:production -- baseline -- check        # 🔴 exits 1. Expect the 5 seed deltas below, and no sixth
 
 # 🔴 AND THE ONE CHECK THAT USED TO FAIL IN WAVE 4 INSTEAD OF MINUTE ONE.
 # The cron secret has to match the deployed site's, because that is who answers.
@@ -548,10 +578,20 @@ one would have leaked into every gate in the same session, which is the defect a
 plants a real-looking person as a control before deleting it, and planting one on production
 is the thing this whole arrangement refuses. It stays available on the simulation branch.
 
-**The first `baseline -- check` is the one that matters.** It has to say 118 tables and 195
-rows before anything is seeded. If it does not, something has already written to production
-that this document does not know about, and that is worth a message before a single agent
-acts.
+**The first `baseline -- check` is the one that matters**, and it will NOT be clean. The
+baseline is the mark taken before the run and `simulate:seed` has happened since, so it must
+report exactly five deltas and no sixth:
+
+    employee_salaries   0 -> 7      users            2 -> 9
+    employees           0 -> 7      organizations    1 -> 2
+                                    sponsors         0 -> 3
+
+`rate_limits`, `error_events`, `auth_sessions`, `patient_auth_sessions` and `auth_tokens` are
+reported separately and do not count: production is publicly reachable, so a crawler moves the
+first two without the run having done anything.
+
+**A sixth table in that list is something that wrote to production which this document does
+not know about**, and that is worth a message before a single agent acts.
 
 ### Step 2 · Check the product, on DEV, before twenty agents tell you it is broken
 
@@ -571,28 +611,27 @@ on the plan until a confirmation, the other plants ledger legs in both direction
 employees on the three month boundaries the payroll arithmetic gets wrong. Both delete
 everything in a `finally`, and both refuse production by name.
 
-### Step 2b · Seed production, once
+### Step 2b · 🔴 ALREADY DONE. Confirm it, do not repeat it
 
 ```bash
-npm run on:production -- simulate:seed
+npm run on:production -- verify:cast
 ```
 
-Thirteen checks. It creates the operator, two support staff who share the transfer queue,
-seven people on the payroll at $500 a month each, four applications waiting for approval, and
-sets the in-session copilot quota to 4 because the run has $10 of model credit.
+`simulate:seed` ran on production during the rehearsal. It created the operator, six more
+people on the payroll, seven salaries from 2026-04-01, four applications waiting for approval,
+and set the in-session copilot quota to 4 because the run has $10 of model credit.
 
-It creates **no therapist, no patient and no session.** Those are people and people sign
+It created **no therapist, no patient and no session.** Those are people and people sign
 themselves up.
 
-🔴 **It will refuse a second time**, because a second run would make a second Nile Practice
-and nobody could tell the agents which one to use. That refusal is the cheapest proof
-available that you are pointed at the right database.
+🔴 **Do not type `simulate:seed` again. It will refuse**, exit 1, before writing anything,
+because a second run would make a second Nile Practice and nobody could tell the agents which
+one to use. Its advice, *"for a fresh start, make a new branch"*, is written for an empty
+database and **taking it here would throw the seeded run away.**
 
-🔴 **Two of its checks report the state production was already in**, and neither is a
-problem: production carries one session the founder made clicking around his own product,
-and a set of transfer fields somebody typed into `/admin/settings`. The checks measure what
-the seed DID, so both read green and the bank line says wave 1 checks the details on camera
-rather than typing them.
+`verify:cast` is the command that answers the question step 2b was really asking. Expect **7
+of 26 signing in and 5 of 5 checks green**: seven is our own payroll, and the other nineteen
+are the cast, who do not exist yet because they have not signed themselves up.
 
 ### Step 3 · Mark the start of wave one
 
@@ -603,16 +642,19 @@ npm run on:production -- age -- --marker wave1 --start
 Everything created from this moment is wave one's and ages together. **Do this before any agent
 acts.**
 
-### Step 3a · Give the 24/7 team an account
+### Step 3a · The 24/7 team already has accounts. Sign in AS THEM
 
-Signed in as the operator, on `/admin/settings`, the **back office team** card. Make two `staff`
-accounts and one `manager`. The payments operator and the Total View watcher sign in as those,
-at `/staff/sign-in`, **not as the owner.**
+The seed made all seven, and `verify:cast` above proved every one of them opens. Five are
+`staff` and two are `super_admin`, one queue each, listed in `12-THE-LOGINS.md`.
 
-🔴 **This is new and the run is the first thing that has ever used it.** Until this sprint no
+**They sign in at `/staff/sign-in`, each as themselves, never as the owner.** A confirmation
+worked by Heba has to say Heba on it, and the whole point of seven logins instead of one shared
+one is that the audit rows in the evidence name the person who acted.
+
+🔴 **This is new and the run is the first thing that has ever used it.** Until sprint 76 no
 screen in the product could create a `staff` or `manager` account at all, so the only way to work
-a queue was to share the owner's login, which attributes every confirmation to somebody who did
-not make it. Five admin pages and the board are behind those two roles.
+a queue was to share the owner's login. The **back office team** card on `/admin/settings` is
+where an eighth would be made, and wave 1 should photograph it whether or not it makes one.
 
 ### Step 3b · Open the rail, before any money moves
 
@@ -844,7 +886,8 @@ makes up for it.
 
 | | |
 |---|---|
-| `npm run on:production -- simulate:seed` | The operator, two support staff, the payroll, the four applications, the copilot quota. 🔴 **Not run yet.** Step 2b |
+| `npm run on:production -- simulate:seed` | The operator, the payroll, the four applications, the copilot quota. 🔴 **Already run on production. It refuses a second time.** Step 2b |
+| `npm run on:production -- verify:cast` | Who exists, who can sign in, and who has not signed up yet. Safe to run at any point |
 | `npm run age` | Wave ageing, with `verify:age` proving the past moves and the future does not |
 | `npm run spend` | The budget guard, over real rows |
 | `npm run copilot:exam` | The memory test |

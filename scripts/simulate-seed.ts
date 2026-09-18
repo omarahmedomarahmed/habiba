@@ -429,11 +429,29 @@ async function main() {
      * the part that was easy, and the version of this check that counted two was
      * green for the whole of the sprint in which five people could not sign in.
      */
-    const wanted = STAFF.map((person) => person.email!);
+    /*
+     * 🔴 `LIKE '%.example@example.com'`, NOT `= ANY(array)`, AND THIS FAILED ON
+     * PRODUCTION.
+     *
+     * The neon driver expands a JS array into a parameter LIST, which Postgres
+     * reads as a tuple, so `= ANY($1)` answers *"op ANY/ALL (array) requires
+     * array on right side"*. `verify-actuals.ts` already carries a comment
+     * saying exactly this, two sprints earlier, about the same driver.
+     *
+     * 🔴 AND IT CRASHED BETWEEN THE PAYROLL AND THE LOGINS, which is the worse
+     * half: seven employees were on the books and none of the seven could sign
+     * in, and the run's own first command would have left production in that
+     * state. Caught by running the seed against production rather than
+     * assuming a script that had only ever seen dev would survive it.
+     *
+     * Every one of these addresses is `<first>.example@example.com`, so one
+     * pattern reads them all and the rows are matched in TypeScript below,
+     * where the comparison is exact.
+     */
     const staffLogins = await db.execute<{ email: string; role: string }>(sql`
       SELECT email, role FROM users
        WHERE organization_id = ${orgId} AND deleted_at IS NULL
-         AND email = ANY(${wanted})`);
+         AND email LIKE '%.example@example.com'`);
 
     const signedIn = new Map(staffLogins.rows.map((row) => [row.email, row.role]));
     const wrongRole = STAFF.filter((person) => signedIn.get(person.email!) !== person.payroll.role);

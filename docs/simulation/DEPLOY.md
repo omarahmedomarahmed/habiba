@@ -13,8 +13,18 @@ signed into and read. That is the point of running it here.
 | Deployment | `habiba`, production target, `main` |
 | Domain | `https://24t.vercel.app`, public, 200 to anybody |
 | Neon branch | `main` (`br-curly-dream-a6b0shlz`), endpoint `ep-wild-lake-a6tgm2r6` |
-| Baseline | `evals/production-baseline.json`, 118 tables, 195 rows |
+| Baseline | `evals/production-baseline.json`, 118 tables, 195 rows, recorded 2026-09-17 |
 | Snapshot, if it is ever wanted back | `snap-old-sea-a60wgj3s`, taken 2026-09-17 after migration 0110 |
+
+🔴 **Both of those describe 2026-09-17 and production has moved since, twice on purpose.**
+Migration 0111 added `capital_contributions` and `other_costs`, and `simulate:seed` added the
+payroll and the four applications. So `baseline -- check` now exits 1 with exactly five
+deltas, which is the expected state and is written out in `SIMULATION-PROMPT.md`.
+
+🔴 **And restoring that snapshot would undo 0111 as well as the seed**, because a Neon
+restore takes the schema back with the rows. Anybody who restores it has to run
+`npm run on:production -- db:migrate` afterwards and then check `information_schema` for the
+two tables, because `db:migrate` prints success whatever happens (H1).
 
 ## Why production, and the correction that matters
 
@@ -27,8 +37,8 @@ Two facts were offered as making this safe. **One of them was wrong**, and the e
 worth keeping written down because it is the shape of the mistakes this repository keeps
 finding.
 
-- ✅ **Production is empty.** 195 rows across 118 tables: one organisation, two users, no
-  patients, no payments. Measured.
+- ✅ **Production was empty.** 195 rows across 118 tables: one organisation, two users, no
+  patients, no payments. Measured on 2026-09-17, before the seed and before 0111.
 - ❌ **"Production is not publicly reachable."** This was read off Vercel's SSO setting,
   which protects everything `all_except_custom_domains`, and inferred rather than tested.
   `24t.vercel.app` is attached to the project and answers **200 to anybody**, no sign-in.
@@ -119,16 +129,29 @@ The consequence for the run: **no message reaches anybody by email.** Every link
 needs is passed on screen, which the product supports and which `11-THE-RECORD.md` walk `R9`
 depends on. WhatsApp templates are mostly unapproved, so the same applies there.
 
-### 4 · Seed, once
+### 4 · Seed, once. 🔴 IT HAS ALREADY RUN
 
     npm run on:production -- simulate:seed
 
-The operator, two support staff who share the transfer queue, seven people on the payroll,
-four applications waiting for approval, and the copilot quota set to 4 because the run has
-$10 of model credit.
+Two founders and five support staff, all seven on the payroll from 2026-04-01 at $3,500 a
+month and all seven able to sign in; four applications waiting for approval; and the copilot
+quota set to 4 because the run has $10 of model credit.
 
 It creates no therapist, no patient and no session. Those are people and people sign
 themselves up, which is where two of the last three walkthroughs found their worst defects.
+
+🔴 **It was run during the rehearsal, on purpose, and it found a bug in itself.** This is the
+one command whose failure on production stops everything, and the only way to know it survives
+there is to point it at it. `= ANY(<array>)` is expanded into a parameter list by this driver,
+which Postgres reads as a tuple: the seed wrote seven people onto the payroll and then crashed
+before creating a single login, leaving production with a wage bill and nobody who could work
+a queue. Fixed, re-run, thirteen checks green, and `verify:cast` confirms all seven sign in.
+
+🔴 **So do not run it again. It refuses**, exit 1, before it writes anything, because a second
+run would make a second Nile Practice and nobody could tell the agents which one to use. Its
+own advice, *"for a fresh start, make a new branch"*, is written for an empty database and
+following it here would throw the seeded run away. `npm run on:production -- verify:cast` is
+the command that answers what step 4 was asking: 7 of 26 sign in, 5 of 5 checks green.
 
 ### 5 · Run it, with real keys
 
@@ -208,6 +231,12 @@ That is a decision, taken on a day, by a person. When it comes:
 are reported separately and do not fail it: production is publicly reachable, so a crawler
 bumps the first and any runtime error appends to the second, both without the simulation
 having done anything.
+
+🔴 **It compares ROWS, not tables**, and a table the baseline never heard of counts as zero on
+the old side. So `capital_contributions` and `other_costs`, which migration 0111 added after
+the baseline was recorded, pass silently while they are empty and are named the moment
+somebody enters a capital contribution or a typed cost. That is the right behaviour and it is
+worth knowing before it surprises somebody: this check cannot tell you the schema moved.
 
 Restoring `snap-old-sea-a60wgj3s` is the other way to do it, and the faster one. Either way, `SIMULATION_RUNNING`
 comes off only once the invented people are gone.

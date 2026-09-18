@@ -23,6 +23,7 @@ import {
   settingsProblem,
 } from "../lib/settings/defs";
 import { connect, schema } from "./db";
+import type { EnvironmentName } from "./_environments";
 import { hostOf, writesTo } from "./_verify";
 
 const { platformSettings, countrySettings, subscriptions } = schema;
@@ -421,6 +422,63 @@ async function check(db: Db): Promise<number> {
  * is the database that most needs asking and the one a write guard has always
  * refused to let anybody ask.
  */
+/**
+ * 🔴 76.59 — THE SETTINGS THAT ARE ALLOWED TO DIFFER, NAMED, ONE LINE OF REASON EACH.
+ *
+ * ## Why this list exists at all, and why it is this short
+ *
+ * The verdict below used to be "any difference fails", and its comment said the
+ * quiet part: *nobody sets a value on one environment ON PURPOSE that another
+ * must not have*. That was true when it was written and it stopped being true
+ * the day `simulate:seed` narrowed the copilot quota on production to protect
+ * the run's ten dollars of model credit. The gate then went red about a decision
+ * somebody had made deliberately and written down, which is the first step of
+ * H20: a gate that fails for a reason everybody knows is a gate everybody stops
+ * reading, and the drift it exists to catch walks in behind the known failure.
+ *
+ * ## 🔴 AN ALLOWANCE IS NOT A MUTE
+ *
+ * Three things keep this from becoming a hole:
+ *
+ *   - **Every allowed difference is still PRINTED**, under its own heading, with
+ *     its reason beside it. Nobody reads "environments agree" and believes it.
+ *   - **Both values are pinned.** `copilot.messagesPerPatientPerSession` is
+ *     allowed to be 4 on production while it is 10 everywhere else. Production
+ *     at 3, or dev at 4, or the same key drifting anywhere else, still fails.
+ *     The allowance is for one value on one environment, not for one key.
+ *   - **An allowance that matched nothing is printed too**, as not in effect, so
+ *     a rule that outlived its reason is visible rather than dormant.
+ *
+ * Anything not on this list still fails, and adding to it is a code change with
+ * a reason attached, which is the point.
+ */
+type Allowance = {
+  /** The leaf key, spelled exactly as the diff below prints it. */
+  leaf: string;
+  /** The one environment allowed to hold something else. */
+  on: EnvironmentName;
+  /** What it is allowed to hold there, serialised. Nothing else passes. */
+  is: string;
+  /** What every other environment must still hold. */
+  elsewhere: string;
+  /** Why, in one line, for whoever reads the output. */
+  because: string;
+};
+
+const ALLOWED: Allowance[] = [
+  {
+    leaf: "copilot.messagesPerPatientPerSession",
+    on: "production",
+    is: "4",
+    elsewhere: "10",
+    because:
+      "simulate:seed narrows the in-session copilot on the run's own database to 4, because the " +
+      "six month run has $10 of model credit and 62 sessions at the shipped 10 would spend most " +
+      "of it on suggestions nobody reads. Dev and the simulation branch keep the shipped 10, so " +
+      "the default the product ships is still under test. It goes back to 10 when the run ends.",
+  },
+];
+
 async function compare(): Promise<number> {
   const { ENVIRONMENTS, urlFor } = await import("./_environments");
 
@@ -485,7 +543,9 @@ async function compare(): Promise<number> {
   }
 
   const [first, ...rest] = loaded as [Loaded, ...Loaded[]];
-  const differences: string[] = [];
+
+  type Difference = { key: string; left: string; right: string; other: string };
+  const differences: Difference[] = [];
 
   /*
    * 🔴 THE DIFFERENCE IS REPORTED PER LEAF KEY, not per group.
@@ -519,9 +579,7 @@ async function compare(): Promise<number> {
       const left = a.get(key) ?? "(absent)";
       const right = b.get(key) ?? "(absent)";
       if (left === right) continue;
-      differences.push(
-        `${key}\n      ${first.name}:  ${left.slice(0, 200)}\n      ${other}:  ${right.slice(0, 200)}`,
-      );
+      differences.push({ key, left: left.slice(0, 200), right: right.slice(0, 200), other });
     }
   };
 
@@ -539,22 +597,77 @@ async function compare(): Promise<number> {
     }
   }
 
-  if (differences.length === 0) {
-    console.log(`  every setting group and every country agrees across ${loaded.length} environments`);
+  /*
+   * 🔴 THE ALLOWANCE IS MATCHED ON BOTH VALUES AND ON WHICH SIDE HOLDS WHICH.
+   *
+   * `first` is production, so a difference reads `left` on production and
+   * `right` on the other environment. An allowance says one environment may
+   * hold one value while the rest hold another, and both halves have to line up
+   * before it applies. Widening it to "this key may differ" would let the same
+   * key drift to a third value and report it as expected, which is the §6
+   * family wearing a permission slip.
+   */
+  const allowanceFor = (d: Difference): Allowance | null =>
+    ALLOWED.find((a) => {
+      if (a.leaf !== d.key) return false;
+      if (a.on === first.name) return d.left === a.is && d.right === a.elsewhere;
+      if (a.on === d.other) return d.right === a.is && d.left === a.elsewhere;
+      return false;
+    }) ?? null;
+
+  const excused = differences.filter((d) => allowanceFor(d) !== null);
+  const failing = differences.filter((d) => allowanceFor(d) === null);
+
+  const show = (d: Difference) =>
+    `${d.key}\n      ${first.name}:  ${d.left}\n      ${d.other}:  ${d.right}`;
+
+  if (failing.length === 0) {
+    console.log(
+      `  every setting group and every country agrees across ${loaded.length} environments` +
+        (excused.length > 0 ? ", apart from the deliberate differences below" : ""),
+    );
   } else {
-    console.log(`  🔴 ${differences.length} difference(s):\n`);
-    for (const line of differences) console.log(`    · ${line}\n`);
+    console.log(`  🔴 ${failing.length} difference(s):\n`);
+    for (const d of failing) console.log(`    · ${show(d)}\n`);
   }
 
   /*
-   * 🔴 A DIFFERENCE FAILS, and this is the one place in this file where that is
-   * right. `check` prints a stale price and exits zero because an operator
-   * changing a price is somebody doing their job. There is no equivalent story
-   * here: nobody sets a price on dev ON PURPOSE that production must not have.
-   * Three environments that differ is either drift or a deploy that did not
-   * finish, and both are things to fix rather than to read.
+   * 🔴 PRINTED, NOT SWALLOWED. An allowance that hid its difference would turn
+   * this into a gate that reports agreement between databases that do not
+   * agree, and the next person to read it would be reading a lie with a clean
+   * exit code on top.
    */
-  return differences.length > 0 || mislabelled.length > 0 ? 1 : 0;
+  if (excused.length > 0) {
+    console.log(`\n  --  ${excused.length} deliberate difference(s), each with its reason:\n`);
+    for (const d of excused) {
+      console.log(`    · ${show(d)}`);
+      console.log(`      why:  ${allowanceFor(d)?.because ?? ""}\n`);
+    }
+  }
+
+  /*
+   * 🔴 AND AN ALLOWANCE THAT MATCHED NOTHING IS SAID OUT LOUD.
+   *
+   * The copilot quota goes back to ten when the run ends, and on that day this
+   * entry stops describing anything. A permission nobody can see is a permission
+   * nobody removes, so an unused one is printed as unused rather than left to
+   * sit in the file waiting to excuse a future accident.
+   */
+  const unused = ALLOWED.filter((a) => !excused.some((d) => allowanceFor(d) === a));
+  for (const a of unused) {
+    console.log(`  --  allowance not in effect: ${a.leaf} is not ${a.is} on ${a.on}. Delete it if it is done`);
+  }
+
+  /*
+   * 🔴 AN UNEXPLAINED DIFFERENCE FAILS, and this is the one place in this file
+   * where that is right. `check` prints a stale price and exits zero because an
+   * operator changing a price is somebody doing their job. There is no
+   * equivalent story here: an unexplained difference between three environments
+   * is either drift or a deploy that did not finish, and both are things to fix
+   * rather than to read. The explained ones are above, in full, with the reason
+   * that makes each of them a decision instead.
+   */
+  return failing.length > 0 || mislabelled.length > 0 ? 1 : 0;
 }
 
 /*
