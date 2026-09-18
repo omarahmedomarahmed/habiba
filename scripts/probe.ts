@@ -70,6 +70,9 @@ async function main() {
     await f2PatientPaysOnTheRail(browser, db);
     await f5SubscribeByTransfer(browser, db);
     await f4MoneyOut(browser, db);
+    await f6ThePractice(browser, db);
+    await f7TheEmployer(browser, db);
+    await f3ASession(browser, db);
     await f9TheFoundersScreens(browser);
 
     report();
@@ -1042,6 +1045,249 @@ async function f4MoneyOut(
   }
 }
 
+/* ------------------------------------------------------------------- F6 -- */
+
+/**
+ * F6 · A practice applies, and somebody approves it.
+ *
+ * 🔴 A PRACTICE IS NOT A THERAPIST WITH EXTRA SEATS. It is its own principal
+ * with its own table, its own cookie and its own sign-in, and `C259` spends a
+ * page on why. `C1` Nile Practice is wave 2's whole first half, and the thing
+ * its manager must FAIL at — reaching a clinical note — is the evidence wave 2
+ * exists to produce.
+ */
+async function f6ThePractice(
+  browser: Awaited<ReturnType<typeof openBrowser>>,
+  db: ReturnType<typeof connect>["db"],
+) {
+  const flow = "F6 practice";
+  const who = PEOPLE.clinicManager;
+  const email = emailFor(who.first);
+  const { ctx, page } = await asPerson(browser, flow);
+
+  try {
+    const status = await go(page, "/clinic/apply");
+    if (status !== 200) {
+      record({ flow, step: "reach the application", state: "blocked", saw: `answered ${String(status)}`, evidence: null });
+      return;
+    }
+
+    await page.fill('input[name="name"]', `${SURNAME} Practice`);
+    await page.fill('input[name="contactName"]', who.name);
+    await page.fill('input[name="contactEmail"]', email);
+    await page.fill('input[name="contactPhone"]', "+20 100 900 0091");
+    await page.locator('input[name="registrationNumber"]').fill("PROBE-REG-1").catch(() => undefined);
+    /*
+     * 🔴 THE BUTTON SAYS "Ask us to call", NOT "Apply" OR "Submit".
+     *
+     * Both enquiry forms end in that sentence, because 54.3's whole point is
+     * that nothing is set up until a person has spoken to them. A probe
+     * matching /apply|send|submit/ found nothing, clicked nothing, and reported
+     * the application as having failed — which is what an agent told to "submit
+     * the application" will do. The last button in the form is the one.
+     */
+    await page.locator("form button[type=submit]").last().click().catch(() => undefined);
+
+    let applied = await applicationFor(db, email, "clinic");
+    for (let i = 0; i < 15 && !applied; i++) {
+      await page.waitForTimeout(700);
+      applied = await applicationFor(db, email, "clinic");
+    }
+
+    await shot(page, "f6-applied");
+
+    record({
+      flow,
+      step: "a practice can apply, and the operator gets a row",
+      state: applied ? "ok" : "blocked",
+      saw: applied
+        ? `a held organizations row in state ${applied.state}`
+        : `no organizations row for her: ${await gist(page, 200)}`,
+      evidence: applied ? `organizations#${applied.id}` : null,
+    });
+
+    /*
+     * 🔴 AND IT IS NOT APPROVED YET. `01-THE-CAST.md` has the practice
+     * "applied then approved", in that order, by a person. An application that
+     * granted itself a console would be the same defect as a payment that
+     * granted itself a plan.
+     */
+    if (applied) {
+      record({
+        flow,
+        step: "🔴 applying does not grant a console",
+        state: applied.state === "approved" ? "defect" : "ok",
+        saw: `the application is ${applied.state}, so nothing was granted by asking`,
+        evidence: `organizations.clinic_state=${applied.state}`,
+      });
+    }
+  } finally {
+    await ctx.close();
+  }
+}
+
+/* ------------------------------------------------------------------- F7 -- */
+
+/**
+ * F7 · An employer applies to cover its people.
+ *
+ * 🔴 THE PRINCIPAL THAT MUST NEVER LEARN WHO ATTENDED. C227 and C243 are the
+ * two rulings this product is least able to get wrong quietly: a sponsor sees
+ * money and a count, never a name and never a session. `E1` Cairo Foundry
+ * funds a pot at 100% coverage and `E1-HR` Dalia watches it drain without ever
+ * finding out whose therapy drained it.
+ */
+async function f7TheEmployer(
+  browser: Awaited<ReturnType<typeof openBrowser>>,
+  db: ReturnType<typeof connect>["db"],
+) {
+  const flow = "F7 employer";
+  const who = PEOPLE.employer;
+  const email = emailFor(who.first);
+  const { ctx, page } = await asPerson(browser, flow);
+
+  try {
+    const status = await go(page, "/sponsor/apply");
+    if (status !== 200) {
+      record({ flow, step: "reach the application", state: "blocked", saw: `answered ${String(status)}`, evidence: null });
+      return;
+    }
+
+    await page.fill('input[name="name"]', `${SURNAME} Foundry`);
+    await page.fill('input[name="contactName"]', who.name);
+    await page.fill('input[name="contactEmail"]', email);
+    await page.fill('input[name="contactPhone"]', "+20 100 900 0092");
+    /*
+     * 🔴 THE BUTTON SAYS "Ask us to call", NOT "Apply" OR "Submit".
+     *
+     * Both enquiry forms end in that sentence, because 54.3's whole point is
+     * that nothing is set up until a person has spoken to them. A probe
+     * matching /apply|send|submit/ found nothing, clicked nothing, and reported
+     * the application as having failed — which is what an agent told to "submit
+     * the application" will do. The last button in the form is the one.
+     */
+    await page.locator("form button[type=submit]").last().click().catch(() => undefined);
+
+    let applied = await applicationFor(db, email, "sponsor");
+    for (let i = 0; i < 15 && !applied; i++) {
+      await page.waitForTimeout(700);
+      applied = await applicationFor(db, email, "sponsor");
+    }
+
+    await shot(page, "f7-applied");
+
+    record({
+      flow,
+      step: "an employer can apply, and the operator gets a row",
+      state: applied ? "ok" : "blocked",
+      saw: applied
+        ? `a sponsors row in state ${applied.state}`
+        : `no sponsors row for her: ${await gist(page, 200)}`,
+      evidence: applied ? `sponsors#${applied.id}` : null,
+    });
+  } finally {
+    await ctx.close();
+  }
+}
+
+/* ------------------------------------------------------------------- F3 -- */
+
+/**
+ * F3 · A session, and what it takes to make one produce a note.
+ *
+ * 🔴 THE MOST EXPENSIVE FLOW IN THE RUN AND THE ONE THIS PROBE DELIBERATELY
+ * DOES NOT COMPLETE.
+ *
+ * Sixty-two sessions, 286 minutes of audio, a real transcription and a real
+ * note on every recorded one. `13-THE-AUDIO.md` costs it: about $4.80 of
+ * product-side model spend and another $4 to $5 of synthesis that
+ * `npm run spend` cannot see. Spending that here, on a rehearsal, would be
+ * spending most of the run's budget to learn something the run itself is going
+ * to measure.
+ *
+ * So what this checks is everything UP TO the money: that a clinician who has
+ * been approved can reach the screen that starts one, and that the room, the
+ * transcription door and the note are where the run will expect them.
+ */
+async function f3ASession(
+  browser: Awaited<ReturnType<typeof openBrowser>>,
+  db: ReturnType<typeof connect>["db"],
+) {
+  const flow = "F3 session";
+  const email = emailFor(PEOPLE.therapist.first);
+  const { ctx, page } = await asPerson(browser, flow);
+
+  try {
+    await go(page, "/login");
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForLoadState("networkidle").catch(() => undefined);
+
+    const approved = await db.execute<{ state: string }>(sql`
+      SELECT v.state FROM therapist_verifications v JOIN users u ON u.id = v.user_id
+       WHERE u.email = ${email} LIMIT 1`);
+
+    const status = await go(page, "/dashboard");
+    const text = await gist(page, 240);
+    await shot(page, "f3-dashboard");
+
+    record({
+      flow,
+      step: "an approved clinician reaches her own dashboard",
+      state: status === 200 && !page.url().includes("onboarding") ? "ok" : "blocked",
+      saw:
+        `verification is ${approved.rows[0]?.state ?? "missing"}, ` +
+        `landed on ${new URL(page.url()).pathname}: ${text.slice(0, 140)}`,
+      evidence: null,
+    });
+
+    /*
+     * 🔴 THE DOOR THE RUN FEEDS AUDIO THROUGH, checked for existence rather
+     * than walked. `13-THE-AUDIO.md` chose the session-scoped bearer token over
+     * a clinician's cookie because it is narrower, audited through
+     * `recordIngestUse` and a real product surface. If that route had moved,
+     * the run would find out in wave 1 with a synthesised script in hand.
+     */
+    const ingest = await fetch(`${BASE}/api/sessions/00000000-0000-0000-0000-000000000000/transcribe`, {
+      method: "POST",
+      cache: "no-store",
+    });
+
+    record({
+      flow,
+      step: "🔴 the transcription door the audio goes through still exists",
+      state: ingest.status === 404 ? "defect" : "ok",
+      saw:
+        `POST /api/sessions/<id>/transcribe answered ${String(ingest.status)}. ` +
+        (ingest.status === 404
+          ? "The route is gone, and 13-THE-AUDIO.md tells the run to feed every session through it"
+          : "Refused, which is right for a request with no token and a session that does not exist"),
+      evidence: null,
+    });
+
+    /*
+     * 🔴 AND WHAT THIS RUN IS NOT DOING, said out loud rather than skipped.
+     *
+     * A probe that quietly omitted the expensive half and reported nine green
+     * flows would be claiming the run's biggest cost had been rehearsed.
+     */
+    record({
+      flow,
+      step: "🔴 NOT WALKED HERE: audio, transcription, the note and the copilot",
+      state: "ok",
+      saw:
+        "62 sessions and 286 minutes of audio cost about $4.80 of product-side model spend " +
+        "and another $4 to $5 of synthesis that `npm run spend` cannot see. Rehearsing it " +
+        "would spend most of the run's budget to learn what the run measures. " +
+        "13-THE-AUDIO.md is the document; the first session of the real run is the measurement",
+      evidence: null,
+    });
+  } finally {
+    await ctx.close();
+  }
+}
+
 /* ------------------------------------------------------------------- F9 -- */
 
 /**
@@ -1127,6 +1373,32 @@ async function reachable(): Promise<boolean> {
   }
 }
 
+/**
+ * An application of either kind, by the address that made it.
+ *
+ * 🔴 THERE IS NO `applications` TABLE, and the probe assumed one.
+ *
+ * A practice's enquiry creates a **held `organizations` row** and nothing else:
+ * no manager, no password, no clinician, no portal, which is why the action can
+ * be rate limited without being gated. An employer's creates a `sponsors` row
+ * the same way. The state lives on the row itself — `clinic_state` on one,
+ * `state` on the other — so an operator approving it is a state change rather
+ * than a promotion from a queue table.
+ */
+async function applicationFor(
+  db: ReturnType<typeof connect>["db"],
+  email: string,
+  kind: "clinic" | "sponsor",
+): Promise<{ id: string; state: string } | null> {
+  const rows = await db.execute<{ id: string; state: string }>(
+    kind === "clinic"
+      ? sql`SELECT id, clinic_state AS state FROM organizations
+             WHERE contact_email = ${email} LIMIT 1`
+      : sql`SELECT id, state FROM sponsors WHERE contact_email = ${email} LIMIT 1`,
+  );
+  return rows.rows[0] ?? null;
+}
+
 /** The transfer she has declared, if any, for the polling above. */
 async function declaredPayment(
   db: ReturnType<typeof connect>["db"],
@@ -1170,7 +1442,8 @@ async function sweep(db: ReturnType<typeof connect>["db"]): Promise<void> {
     DELETE FROM audit_log WHERE actor_user_id IN (SELECT id FROM users WHERE email LIKE ${like})`);
   await db.execute(sql`DELETE FROM patient_accounts WHERE email LIKE ${like}`);
   await db.execute(sql`DELETE FROM users WHERE email LIKE ${like}`);
-  await db.execute(sql`DELETE FROM organizations WHERE name LIKE ${`%${SURNAME}%`}`);
+  await db.execute(sql`DELETE FROM sponsors WHERE contact_email LIKE ${like} OR name LIKE ${`%${SURNAME}%`}`);
+  await db.execute(sql`DELETE FROM organizations WHERE name LIKE ${`%${SURNAME}%`} OR contact_email LIKE ${like}`);
 }
 
 main();
