@@ -188,9 +188,19 @@ docs/simulation/08-THE-NUMBERS.md  what the run hands the plan, and what it can 
 docs/simulation/09-THE-EDGES.md    48 ways money goes wrong, each attached to somebody in the cast
 docs/simulation/10-THE-STORY.md    what each person is going through, and which facts are planted where
 docs/simulation/11-THE-RECORD.md   who may read a record, what revocation takes away, and one 50 minute session
+docs/simulation/13-THE-AUDIO.md    where 286 minutes of audio comes from, and the budget line it hides
 ```
 
-They are one design in twelve documents. **Do not start until you have read all twelve.**
+They are one design in thirteen documents. **Do not start until you have read all thirteen.**
+
+🔴 **`13-THE-AUDIO.md` IS THE NEWEST AND IT CLOSES A HOLE THE OTHER TWELVE LEFT.** None of them
+said how a session gets audio, and an agent cannot speak. The mechanism has existed since sprint
+32 and is in use: scripts are synthesised with `gpt-4o-mini-tts` and cached, then fed to the
+session through the bearer-token door on `/api/sessions/[id]/transcribe` that sprint 36 built for
+partner platforms. **Read it before wave 1**, because it also carries a cost this run had not
+counted: synthesis is invisible to `npm run spend`, it is roughly the size of the whole rest of
+the budget, and the first instruction in it is to measure that on session one rather than trust
+the estimate.
 
 🔴 **`09-THE-EDGES.md` is new and it is the reason this run is worth doing twice.** Four of the
 cases in it were real defects found by hand in one afternoon of sprint 76, in the money path
@@ -365,6 +375,7 @@ come out. **A check that compares against the gross number will report a defect 
 | Planned model spend | **≈ $4.80** |
 | Left over | **≈ $5.20**, which is headroom, not a licence to add sessions |
 | In session copilot | capped at **4** messages, which `simulate:seed` sets in step 2b. Production still holds the shipped 10 until then |
+| 🔴 **Synthesising the audio** | **NOT in the figures above and NOT visible to `npm run spend`.** Roughly $4 to $5 more on the same key. `13-THE-AUDIO.md` says to measure it on session one and report it beside the spend at every checkpoint |
 
 **Doubling the months did not double the bill, and that is not luck.** Model spend tracks the
 session count, not the calendar. Three more months of trading is twenty seven more sessions, about
@@ -434,7 +445,7 @@ fixed points**, each short enough to read on a phone.
 
 | When | What, in at most eight lines |
 |---|---|
-| After step 2 | The branch and the product are what this prompt claimed, or they are not. **Say plainly if anything is red before a single agent has acted** |
+| After step 2 | The branch and the product are what this prompt claimed, or they are not. **Say plainly if anything is red before a single agent has acted.** 🔴 And the measured cost of synthesising one 3 minute script, multiplied by 286 minutes, beside `npm run spend`. Two numbers, because one of them is blind |
 | After step 3b | The rail is open: the bank details are in, three companies and the practices moved to `eg`. The first thing that has ever done it |
 | End of each wave, six times | One table: sessions so far, the depth ladder (`P3` against `P6`), `npm run spend` against $10, defects this wave, and **anything an agent is blocked on** |
 | After wave 4 | **The full price invoice.** Whether it rendered with no discount line, and what the therapists did. The single most important moment in the run |
