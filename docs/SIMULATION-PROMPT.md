@@ -26,9 +26,26 @@
 ## What it will do without asking
 
 Check production is in the state this document claims, build the product and run all
-twenty-four gates against the **dev** branch, seed production once, run six months of invented
+twenty-six gates against the **dev** branch, seed production once, run six months of invented
 trading on `https://24t.vercel.app` with real keys, move the clock at the end of each wave, and
 report back at seven fixed points, each short enough to read on a phone.
+
+## 🔴 FIVE THINGS THE MINI SIMULATION FOUND, WHICH THE RUN NOW KNOWS
+
+A rehearsal walked all nine main flows on the dev branch before this was written. Five
+obstacles came out of it, and each one would have cost the run hours. They are fixed or
+written down; they are listed here because the first thing a new session should know is what
+has already been paid for.
+
+| | |
+|---|---|
+| 🔴 Sign-in is rate limited **by network**, and this swarm is one network | Twenty attempts per fifteen minutes against twenty-eight agents. The run would have stalled in wave 1. Widened 25× while `SIMULATION_RUNNING=1`; the platform-wide ceiling is not. `verify:limits` holds both halves |
+| 🔴 A patient **cannot have an email address** | `/patient/signup` never asks for one and no screen lets her add one. Her handle is her phone and a one-time code. `12-THE-LOGINS.md` carries the numbers |
+| 🔴 An Egyptian customer on the default region is offered **Stripe** | Confirm goes to checkout.stripe.com. **The operator moves every customer to region `eg` BEFORE anybody is asked for money**, or the run's money leaves by the card rail and the transfer queue stays empty |
+| The onboarding chips are `sr-only` checkboxes **in the same form as the licence fields** | Selecting them after Save details saves nothing and the screen does not say so. The submit button then sits disabled with every visible field filled in |
+| Both enquiry forms end in **"Ask us to call"** | Not Apply, not Submit. A practice's enquiry creates a held `organizations` row and an employer's a `sponsors` row; there is no applications table |
+
+`npm run probe` re-runs the whole rehearsal against dev in about three minutes.
 
 ## The three things it will interrupt you for
 
@@ -45,8 +62,9 @@ otherwise. Sign in as any of the twenty six accounts and read their record:
 `docs/simulation/12-THE-LOGINS.md`, one password for all of them.
 
 Two screens at `https://24t.vercel.app/admin`: **`/admin/actuals`** is the six months in one
-table, earned against spent, month by month, with the payroll under it. **`/admin/financial-model`**
-is the forecast in the same columns. Read them side by side; do not add them up.
+table, earned against spent, month by month, with the payroll under it and **Where we stand**
+on top of it — ours to spend, in the bank, burning, runway. **`/admin/financial-model`** is the
+forecast in the same columns. Read them side by side; do not add them up.
 
 **Rotate every key.** They will have been in a chat transcript. Rotating a key does not touch
 the data: the records stay and the logins keep working.
@@ -177,7 +195,7 @@ who starts doing the work has stopped watching whether it is being done.
 
 ```
 docs/simulation/00-START-HERE.md   the shape, the five rules, the order of work, the $10 budget
-docs/simulation/01-THE-CAST.md     21 people, 4 organisations, 6 waves, and how often each patient comes
+docs/simulation/01-THE-CAST.md     27 people, 4 organisations, 6 waves, and how often each patient comes
 docs/simulation/02-THE-SWARM.md    who launches what, how a claim is verified, what to do at a wall
 docs/simulation/03-THE-MONEY.md    what we charge, what it costs, and the cycle month by month
 docs/simulation/04-THE-RAIL.md     how money reaches us in Egypt: a transfer and a person checking it
@@ -188,12 +206,18 @@ docs/simulation/08-THE-NUMBERS.md  what the run hands the plan, and what it can 
 docs/simulation/09-THE-EDGES.md    48 ways money goes wrong, each attached to somebody in the cast
 docs/simulation/10-THE-STORY.md    what each person is going through, and which facts are planted where
 docs/simulation/11-THE-RECORD.md   who may read a record, what revocation takes away, and one 50 minute session
+docs/simulation/12-THE-LOGINS.md   how to sign in as each of the 26 accounts, generated from the code
 docs/simulation/13-THE-AUDIO.md    where 286 minutes of audio comes from, and the budget line it hides
+docs/simulation/14-THE-REHEARSAL.md  the nine flows walked before you, and the five obstacles they hit
 ```
 
-They are one design in thirteen documents. **Do not start until you have read all thirteen.**
+They are one design in fifteen documents. **Do not start until you have read all fifteen.**
 
-🔴 **`13-THE-AUDIO.md` IS THE NEWEST AND IT CLOSES A HOLE THE OTHER TWELVE LEFT.** None of them
+🔴 **`14-THE-REHEARSAL.md` IS THE ONE TO READ FIRST.** Nine main flows were walked through the
+browser on the dev branch before this prompt was written, and the five obstacles they hit are
+five hours you do not have to spend. Two of them decide what you do in your first ten minutes.
+
+🔴 **`13-THE-AUDIO.md` CLOSES A HOLE THE OTHER TWELVE LEFT.** None of them
 said how a session gets audio, and an agent cannot speak. The mechanism has existed since sprint
 32 and is in use: scripts are synthesised with `gpt-4o-mini-tts` and cached, then fed to the
 session through the bearer-token door on `/api/sessions/[id]/transcribe` that sprint 36 built for
@@ -536,7 +560,7 @@ npm run build
 npm run gates
 ```
 
-Twenty-four gates, and they run against whatever `DATABASE_URL` points at, which is dev.
+Twenty-six gates, and they run against whatever `DATABASE_URL` points at, which is dev.
 That is correct: **gates prove the code, not the run.** Several of them write fixtures, and
 dev is where fixtures belong.
 
