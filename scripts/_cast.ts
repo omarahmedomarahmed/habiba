@@ -67,12 +67,41 @@ export type CastMember = {
     | "patient"
     | "practice manager"
     | "practice staff"
-    | "employer";
+    | "employer"
+    | "partner";
   wave: number;
   arrives: "seeded" | "signs up" | "never signs up";
   /** What their record should hold by month 6, so a reader knows what to look for. */
   record: string;
+  /**
+   * 🔴 Set for everybody on OUR OWN payroll, and it is the list `simulate:seed`
+   * writes into `employees`.
+   *
+   * It lives here rather than in the seed because it was in the seed, in a second
+   * array of seven, and the two lists disagreed: the payroll held seven people and
+   * the cast held two of them, so five colleagues drew a salary in
+   * `/admin/actuals` and could not sign in to do the job the salary was for. One
+   * list, two readers, and they cannot drift apart again.
+   *
+   * `queue` is the screens they work. `null` would mean nobody works them, which
+   * is not a thing a seven-person company can afford, so every one of them has
+   * one.
+   */
+  payroll?: {
+    title: string;
+    queue: string;
+    role: "super_admin" | "staff";
+    monthlyCents: number;
+  };
 };
+
+/**
+ * 🔴 $500 a month each, which is `lib/finance/plans.ts`'s figure and not a new one.
+ *
+ * Seven people at this is $3,500 a month and $21,000 over the run, against a
+ * forecast of a few thousand dollars of revenue. The wage bill IS the plan.
+ */
+export const STARTING_SALARY_CENTS = 50_000;
 
 export const CAST: CastMember[] = [
   /* ------------------------------------------------------------ wave 1 -- */
@@ -85,6 +114,28 @@ export const CAST: CastMember[] = [
     arrives: "seeded",
     record:
       "the whole console. Every approval, every rejection, every transfer she cleared, and the audit log with her name on it",
+    payroll: {
+      title: "Founder, clinical and operations",
+      queue: "verifications, payments and the settings",
+      role: "super_admin",
+      monthlyCents: STARTING_SALARY_CENTS,
+    },
+  },
+  {
+    key: "OP2",
+    name: "Sherif Example",
+    email: "sherif.example@example.com",
+    as: "operator",
+    wave: 1,
+    arrives: "seeded",
+    record:
+      "the founder-only half of the console: the board, the radar, the benefits screen, the error log and the actuals. The screens Heba is refused, so the refusal means something",
+    payroll: {
+      title: "Founder, product and engineering",
+      queue: "the board, the radar, benefits, errors and the actuals",
+      role: "super_admin",
+      monthlyCents: STARTING_SALARY_CENTS,
+    },
   },
   {
     key: "SU1",
@@ -94,6 +145,12 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "seeded",
     record: "the transfer queue she worked, and the payments she confirmed or rejected with a reason",
+    payroll: {
+      title: "Support, the transfer queue",
+      queue: "transfers",
+      role: "staff",
+      monthlyCents: STARTING_SALARY_CENTS,
+    },
   },
   {
     key: "SU2",
@@ -103,6 +160,60 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "seeded",
     record: "the same queue, shared with Heba, which is where one transfer gets picked up twice",
+    payroll: {
+      title: "Support, the transfer queue and onboarding",
+      queue: "transfers",
+      role: "staff",
+      monthlyCents: STARTING_SALARY_CENTS,
+    },
+  },
+  {
+    key: "SU3",
+    name: "Amal Example",
+    email: "amal.example@example.com",
+    as: "staff",
+    wave: 1,
+    arrives: "seeded",
+    record:
+      "the companies she sold to and the pot top-ups she cleared for them, each one with her name on the row rather than the operator's",
+    payroll: {
+      title: "Sales, companies and universities",
+      queue: "sponsors and their pot top-ups",
+      role: "staff",
+      monthlyCents: STARTING_SALARY_CENTS,
+    },
+  },
+  {
+    key: "SU4",
+    name: "Hossam Example",
+    email: "hossam.example@example.com",
+    as: "staff",
+    wave: 1,
+    arrives: "seeded",
+    record:
+      "the licences he checked and the payouts he stamped. Both rejections of Dr Omar carry a name, and it can be his rather than everybody's",
+    payroll: {
+      title: "Sales, clinics and therapists",
+      queue: "verifications and payouts",
+      role: "staff",
+      monthlyCents: STARTING_SALARY_CENTS,
+    },
+  },
+  {
+    key: "SU5",
+    name: "Farida Example",
+    email: "farida.example@example.com",
+    as: "staff",
+    wave: 1,
+    arrives: "seeded",
+    record:
+      "the support inbox and the crisis numbers directory. In a company of seven the marketer answers the inbox, which is not a compromise in the fiction, it is what seven people means",
+    payroll: {
+      title: "Marketing",
+      queue: "support and the crisis numbers directory",
+      role: "staff",
+      monthlyCents: STARTING_SALARY_CENTS,
+    },
   },
   {
     key: "T1",
@@ -264,6 +375,50 @@ export const CAST: CastMember[] = [
     record:
       "three sessions through join links and no account at all. Reachable from his clinician's side only, which is the product working rather than a gap",
   },
+  {
+    key: "D1",
+    name: "Tamer Example",
+    email: "tamer.example@example.com",
+    as: "partner",
+    wave: 3,
+    arrives: "signs up",
+    record:
+      "Helio Health's developer account: the keys he minted, the scopes they carry, the rate limit he hit, and the sessions his platform opened. Not one patient he did not bring",
+  },
+
+  /* ------------------------------------------------------------ wave 4 -- */
+  {
+    key: "T5",
+    name: "Dr Hala Demo",
+    email: "hala.demo@example.com",
+    as: "therapist",
+    wave: 4,
+    arrives: "signs up",
+    record:
+      "the country she set wrong and corrected before saving, one free month then the full $80, and the mid month upgrade from one seat to three quoted for the days remaining before she agreed",
+  },
+
+  /* ------------------------------------------------------------ wave 5 -- */
+  {
+    key: "T6",
+    name: "Dr Sameh Demo",
+    email: "sameh.demo@example.com",
+    as: "therapist",
+    wave: 5,
+    arrives: "signs up",
+    record:
+      "one free month, then a first real bill he overpaid, paid twice, and declined the plan against with the confirmation panel open. He never subscribes, and at three sessions a month he is right not to",
+  },
+  {
+    key: "P7",
+    name: "Yousra Demo",
+    email: "yousra.demo@example.com",
+    as: "patient",
+    wave: 5,
+    arrives: "signs up",
+    record:
+      "three self paid sessions with the metered therapist, charged her session price both before and after his free month ended. The trial is his fee and was never her price",
+  },
 ];
 
 /** Everybody `simulate:seed` creates, so nothing else has to know which those are. */
@@ -271,3 +426,22 @@ export const SEEDED = CAST.filter((person) => person.arrives === "seeded");
 
 /** Everybody who should be able to sign in by the end. */
 export const WITH_LOGINS = CAST.filter((person) => person.email !== null);
+
+/**
+ * 🔴 Our own staff, which is a different list from the cast and the reason
+ * `/admin/actuals` can report what six months cost.
+ */
+export const PAYROLL = CAST.filter(
+  (person): person is CastMember & { payroll: NonNullable<CastMember["payroll"]> } =>
+    person.payroll !== undefined,
+);
+
+/** The first name the sign-up forms want, split off the one name we hold. */
+export function firstNameOf(person: CastMember): string {
+  return person.name.replace(/^Dr /, "").split(" ")[0]!;
+}
+
+/** The surname, which is always `Demo` or `Example` and is checked by `verify:synthetic`. */
+export function lastNameOf(person: CastMember): string {
+  return person.name.split(" ").at(-1)!;
+}

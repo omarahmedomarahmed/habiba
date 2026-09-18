@@ -209,7 +209,7 @@ The product is **English first with an Arabic switch on every page of every port
 decision about the market: most Egyptians expect an app in English and want the choice, not a
 forced Arabic page.
 
-So the Arabic pass is **not a full second run.** A full Arabic pass of twenty one people at four
+So the Arabic pass is **not a full second run.** A full Arabic pass of twenty customers at four
 checkpoints is twice the frames for a tenth of the new information.
 
 Arabic captures:

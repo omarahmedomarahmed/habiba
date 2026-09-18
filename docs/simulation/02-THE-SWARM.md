@@ -89,6 +89,32 @@ buttons, exactly like rule 2. An agent that reached around the product cannot fi
 it was launched to find, and five of the eight exist to be the first person ever to use a
 screen.
 
+### 🔴 AND EVERY QUEUE ACTION IS SIGNED IN AS THE PERSON WHOSE QUEUE IT IS
+
+A standing agent is a job, not a person. **Seven real people hold those jobs**, they each have
+an account, and the agent working a queue signs in as the one whose queue it is:
+
+| The queue | Sign in as | Role |
+|---|---|---|
+| Transfers | `heba.example@example.com`, and `sara.example@example.com` for the one they collide on | `staff` |
+| Verifications, and payouts | `hossam.example@example.com` | `staff` |
+| Sponsors and their pot top-ups | `amal.example@example.com` | `staff` |
+| Support, and the crisis numbers directory | `farida.example@example.com` | `staff` |
+| Countries, taxonomy, content, prices, the settings | `nour.example@example.com` | `super_admin` |
+| The board, the radar, benefits, errors, `/admin/actuals` | `sherif.example@example.com` | `super_admin` |
+
+One password, `Simulation2026!`, and `12-THE-LOGINS.md` is generated from the same list.
+
+**The reason is the audit log.** Six months of manual approvals all carrying one name is
+evidence about one person, not about a company of seven, and the founder's question in month 7
+is *who cleared this*. The product already writes the actor on every row; the run either gives
+it seven names to write or throws that away.
+
+🔴 **And it is how a permission gets tested.** `/admin/benefits`, `/admin/radar`,
+`/admin/actuals`, the board and the error log are `super_admin` only. Heba opening one and
+being redirected is a screenshot this run must produce, because a permission nobody was ever
+refused by is a permission nobody has tested. Do it once, early, and capture it.
+
 ### 1 · Growth and operations
 
 Plays the platform: the operator console, and the outbound motion that brings people in.

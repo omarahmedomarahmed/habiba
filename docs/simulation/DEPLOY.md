@@ -163,7 +163,7 @@ production is the thing none of this is willing to do.
 
     npm run on:production -- verify:cast -- --complete
 
-Eighteen named people, each one read back out of the database, each one's password
+Twenty six accounts, each one read back out of the database, each one's password
 actually verified rather than assumed to work. This is the check that makes the run
 readable in month 7, and it is the one that could not have been written by reading the
 schema: an agent who signed somebody up with a password of their own invention leaves six

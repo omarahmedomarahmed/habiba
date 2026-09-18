@@ -325,7 +325,7 @@ These replace guesses. Count them, do not estimate them.
 
 ## What the run must not claim
 
-**It cannot measure churn, and it will look like it can.** Twenty one synthetic people who never
+**It cannot measure churn, and it will look like it can.** Twenty synthetic customers who never
 leave is not a 0% churn rate, it is an absence of evidence about churn. The report says **"not
 measurable in a simulation"** rather than reporting a number, and `verify:plan` asserts that the
 churn inputs are never labelled measured.

@@ -24,14 +24,25 @@ row existing and the one that goes wrong.
 | Patients | `/patient/login` | `/patient` |
 | Practice manager and practice staff | `/clinic/sign-in` | `/clinic` |
 | Employers | `/sponsor/sign-in` | `/sponsor` |
+| The partner's developer | `/partner/sign-in` | `/partner` |
+
+🔴 **Six doors, because there are six principals.** A therapist's cookie cannot become a
+patient's, a clinic manager's, a sponsor admin's or a partner's: different tables, different
+cookies, different guards. Signing in at the wrong one of these does not fail with a
+password error, it fails with an account that does not exist, and that is the boundary
+working rather than a typo.
 
 ## Wave 1
 
 | Key | Who | Sign in as | Arrives | What their record holds |
 | --- | --- | --- | --- | --- |
 | `OP` | Nour Example | nour.example@example.com | seeded | the whole console. Every approval, every rejection, every transfer she cleared, and the audit log with her name on it |
+| `OP2` | Sherif Example | sherif.example@example.com | seeded | the founder-only half of the console: the board, the radar, the benefits screen, the error log and the actuals. The screens Heba is refused, so the refusal means something |
 | `SU1` | Heba Example | heba.example@example.com | seeded | the transfer queue she worked, and the payments she confirmed or rejected with a reason |
 | `SU2` | Sara Example | sara.example@example.com | seeded | the same queue, shared with Heba, which is where one transfer gets picked up twice |
+| `SU3` | Amal Example | amal.example@example.com | seeded | the companies she sold to and the pot top-ups she cleared for them, each one with her name on the row rather than the operator's |
+| `SU4` | Hossam Example | hossam.example@example.com | seeded | the licences he checked and the payouts he stamped. Both rejections of Dr Omar carry a name, and it can be his rather than everybody's |
+| `SU5` | Farida Example | farida.example@example.com | seeded | the support inbox and the crisis numbers directory. In a company of seven the marketer answers the inbox, which is not a compromise in the fiction, it is what seven people means |
 | `T1` | Dr Amira Demo | amira.demo@example.com | signs up | six months of patients, a practice seat from wave 2, her held earnings and the payout she requested in wave 3 |
 | `T2` | Dr Yassin Demo | yassin.demo@example.com | signs up | metered until wave 4, then a subscription paid by bank transfer, then the cancellation in wave 5 |
 | `T3` | Dr Karim Demo | karim.demo@example.com | signs up | the radar work, mostly strangers in crisis, and the bill he let lapse in wave 4 |
@@ -58,6 +69,20 @@ row existing and the one that goes wrong.
 | `E3-HR` | Rania Example | rania.example@example.com | signs up | Delta Logistics, a pot funded by transfer in wave 5, and the employee they hired away |
 | `P5` | Nadia Example | nadia.example@example.com | signs up | 🔴 READ THIS ONE FIRST. She changed employer mid-treatment. One continuous course of care, two payers, and neither employer learns the other exists |
 | `P6` | Ziad Example | **no account, ever** | never signs up | three sessions through join links and no account at all. Reachable from his clinician's side only, which is the product working rather than a gap |
+| `D1` | Tamer Example | tamer.example@example.com | signs up | Helio Health's developer account: the keys he minted, the scopes they carry, the rate limit he hit, and the sessions his platform opened. Not one patient he did not bring |
+
+## Wave 4
+
+| Key | Who | Sign in as | Arrives | What their record holds |
+| --- | --- | --- | --- | --- |
+| `T5` | Dr Hala Demo | hala.demo@example.com | signs up | the country she set wrong and corrected before saving, one free month then the full $80, and the mid month upgrade from one seat to three quoted for the days remaining before she agreed |
+
+## Wave 5
+
+| Key | Who | Sign in as | Arrives | What their record holds |
+| --- | --- | --- | --- | --- |
+| `T6` | Dr Sameh Demo | sameh.demo@example.com | signs up | one free month, then a first real bill he overpaid, paid twice, and declined the plan against with the confirmation panel open. He never subscribes, and at three sessions a month he is right not to |
+| `P7` | Yousra Demo | yousra.demo@example.com | signs up | three self paid sessions with the metered therapist, charged her session price both before and after his free month ended. The trial is his fee and was never her price |
 
 ## The one with no login
 
@@ -66,8 +91,37 @@ links and stays a stranger to us. His record is reachable from his clinician's s
 from nowhere else, and that is the product working rather than a gap in this table.
 `verify:cast` fails if an account for him ever appears.
 
-## The payroll is not in here
+## Our own payroll, and which queue each of them works
 
-Seven people are on `/admin/actuals` as employees and only three of them have logins: the
-operator and the two who share the transfer queue. The other four are a salary line and
-nothing else, because nothing in the run needs them to press a button.
+🔴 **All seven can sign in, which they could not before 76.55.** The payroll held seven
+people and only two of them had an account, so five colleagues drew $500 a month for six
+months and every row they were meant to clear would have been cleared by the operator.
+An audit log in which one person did everything is not evidence about a company of seven.
+
+| Who | Sign in as | Role | The queue that is theirs |
+| --- | --- | --- | --- |
+| Nour Example | nour.example@example.com | `super_admin` | verifications, payments and the settings |
+| Sherif Example | sherif.example@example.com | `super_admin` | the board, the radar, benefits, errors and the actuals |
+| Heba Example | heba.example@example.com | `staff` | transfers |
+| Sara Example | sara.example@example.com | `staff` | transfers |
+| Amal Example | amal.example@example.com | `staff` | sponsors and their pot top-ups |
+| Hossam Example | hossam.example@example.com | `staff` | verifications and payouts |
+| Farida Example | farida.example@example.com | `staff` | support and the crisis numbers directory |
+
+The two founders are `super_admin` and the other five are `staff`, and the difference is
+load bearing: `/admin/benefits`, `/admin/radar`, `/admin/actuals`, the board and the error
+log are founder-only, and a support person opening one of them is redirected. **Capture that
+redirect.** A permission nobody was ever refused by is a permission nobody has tested.
+
+## How many people this is
+
+| The cast, one agent each | 20 |
+| --- | --- |
+| Our own payroll, worked by the standing agents | 7 |
+| **People in the run** | **27** |
+| **Accounts that must open with the password** | **26** |
+
+`01-THE-CAST.md` names the same total in its own table and `verify:cast` reads it out of
+that file and fails if the two disagree, because the version of this document that said
+eighteen while the code held four fewer people is how `T5`, `T6`, `P7` and `D1` went a
+sprint without an address anybody could sign in with.

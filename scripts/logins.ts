@@ -17,7 +17,7 @@
  *
  * ## 🔴 THE PASSWORD IS IN THE FILE, AND THAT IS FINE HERE AND NOWHERE ELSE
  *
- * `Simulation2026!` opens eighteen invented accounts belonging to nobody, on a
+ * `Simulation2026!` opens twenty six invented accounts belonging to nobody, on a
  * database whose keys are rotated the day the run ends. It is written down
  * because a founder who cannot get in cannot read the thing this was all for.
  *
@@ -27,7 +27,7 @@
  */
 import { writeFileSync } from "node:fs";
 
-import { CAST, SIMULATION_PASSWORD } from "./_cast";
+import { CAST, PAYROLL, SIMULATION_PASSWORD, WITH_LOGINS } from "./_cast";
 
 const PATH = "docs/simulation/12-THE-LOGINS.md";
 
@@ -61,6 +61,13 @@ function main(): void {
     "| Patients | `/patient/login` | `/patient` |",
     "| Practice manager and practice staff | `/clinic/sign-in` | `/clinic` |",
     "| Employers | `/sponsor/sign-in` | `/sponsor` |",
+    "| The partner's developer | `/partner/sign-in` | `/partner` |",
+    "",
+    "🔴 **Six doors, because there are six principals.** A therapist's cookie cannot become a",
+    "patient's, a clinic manager's, a sponsor admin's or a partner's: different tables, different",
+    "cookies, different guards. Signing in at the wrong one of these does not fail with a",
+    "password error, it fails with an account that does not exist, and that is the boundary",
+    "working rather than a typo.",
     "",
   ];
 
@@ -84,11 +91,42 @@ function main(): void {
     "from nowhere else, and that is the product working rather than a gap in this table.",
     "`verify:cast` fails if an account for him ever appears.",
     "",
-    "## The payroll is not in here",
+    "## Our own payroll, and which queue each of them works",
     "",
-    "Seven people are on `/admin/actuals` as employees and only three of them have logins: the",
-    "operator and the two who share the transfer queue. The other four are a salary line and",
-    "nothing else, because nothing in the run needs them to press a button.",
+    "🔴 **All seven can sign in, which they could not before 76.55.** The payroll held seven",
+    "people and only two of them had an account, so five colleagues drew $500 a month for six",
+    "months and every row they were meant to clear would have been cleared by the operator.",
+    "An audit log in which one person did everything is not evidence about a company of seven.",
+    "",
+    "| Who | Sign in as | Role | The queue that is theirs |",
+    "| --- | --- | --- | --- |",
+  );
+
+  for (const person of PAYROLL) {
+    lines.push(
+      `| ${person.name} | ${person.email!} | \`${person.payroll.role}\` | ${person.payroll.queue} |`,
+    );
+  }
+
+  lines.push(
+    "",
+    "The two founders are `super_admin` and the other five are `staff`, and the difference is",
+    "load bearing: `/admin/benefits`, `/admin/radar`, `/admin/actuals`, the board and the error",
+    "log are founder-only, and a support person opening one of them is redirected. **Capture that",
+    "redirect.** A permission nobody was ever refused by is a permission nobody has tested.",
+    "",
+    "## How many people this is",
+    "",
+    `| The cast, one agent each | ${String(CAST.length - PAYROLL.length)} |`,
+    "| --- | --- |",
+    `| Our own payroll, worked by the standing agents | ${String(PAYROLL.length)} |`,
+    `| **People in the run** | **${String(CAST.length)}** |`,
+    `| **Accounts that must open with the password** | **${String(WITH_LOGINS.length)}** |`,
+    "",
+    "`01-THE-CAST.md` names the same total in its own table and `verify:cast` reads it out of",
+    "that file and fails if the two disagree, because the version of this document that said",
+    "eighteen while the code held four fewer people is how `T5`, `T6`, `P7` and `D1` went a",
+    "sprint without an address anybody could sign in with.",
     "",
   );
 

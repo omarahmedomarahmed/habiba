@@ -49,7 +49,7 @@
  */
 import { sql } from "drizzle-orm";
 
-import { SIMULATION_PASSWORD } from "./_cast";
+import { PAYROLL, SIMULATION_PASSWORD, firstNameOf, lastNameOf } from "./_cast";
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
 
@@ -146,7 +146,7 @@ export const SPONSOR_APPLICATIONS = [
  * invented, so that reading `/admin/actuals` beside `/admin/financial-model` is
  * comparing two accounts of the same company rather than two companies.
  *
- * 🔴 THE TWO WITH `login: "staff"` ARE WHY THIS IS IN THE SEED AT ALL.
+ * 🔴 THE LOGINS ARE WHY THIS IS IN THE SEED AT ALL.
  *
  * The Egyptian rail is a bank transfer and a person who checks it, and somebody
  * is on a spinner waiting to join a therapy session while they do. The plan calls
@@ -154,39 +154,18 @@ export const SPONSOR_APPLICATIONS = [
  * queue alone would be a run of a product nobody could staff, and it would also
  * never find the thing two people sharing a queue find: the same transfer picked
  * up twice.
+ *
+ * 🔴 76.55 — AND THE LIST MOVED TO `_cast.ts`, BECAUSE THERE WERE TWO OF THEM.
+ *
+ * This file held seven payroll rows and `_cast.ts` held two of those seven as
+ * people who could sign in. Five colleagues therefore drew $500 a month in
+ * `/admin/actuals` for six months and had no way to open the screen the salary
+ * was for, so every row they were meant to clear would have been cleared by the
+ * operator and the audit log would have said so. The founder asked for each staff
+ * member to work their own queue under their own name; that is impossible with
+ * two accounts and it is a single list now.
  */
-const STARTING_SALARY_CENTS = 50_000;
-
-const STAFF = [
-  {
-    name: "Nour Example",
-    title: "Founder, clinical and operations",
-    queue: "verifications and payments",
-    /** She already has a login: she is `OPERATOR` above, the console's super admin. */
-    login: null,
-  },
-  {
-    name: "Sherif Example",
-    title: "Founder, product and engineering",
-    queue: null,
-    login: null,
-  },
-  { name: "Amal Example", title: "Sales, companies and universities", queue: null, login: null },
-  { name: "Hossam Example", title: "Sales, clinics and therapists", queue: null, login: null },
-  { name: "Farida Example", title: "Marketing", queue: null, login: null },
-  {
-    name: "Heba Example",
-    title: "Support, the transfer queue",
-    queue: "transfers",
-    login: { email: "heba.example@example.com", firstName: "Heba", lastName: "Example" },
-  },
-  {
-    name: "Sara Example",
-    title: "Support, the transfer queue and onboarding",
-    queue: "transfers",
-    login: { email: "sara.example@example.com", firstName: "Sara", lastName: "Example" },
-  },
-] as const;
+const STAFF = PAYROLL;
 
 /**
  * 🔴 THEY STARTED SIX MONTHS AGO, AND THE ALTERNATIVE IS A SILENT ZERO.
@@ -392,34 +371,37 @@ async function main() {
       if (!found.rows[0]) {
         const made = await db.execute<{ id: string }>(sql`
           INSERT INTO employees (name, title, queue, started_on)
-          VALUES (${person.name}, ${person.title}, ${person.queue}, ${startedOn})
+          VALUES (${person.name}, ${person.payroll.title}, ${person.payroll.queue}, ${startedOn})
           RETURNING id`);
 
         await db.execute(sql`
           INSERT INTO employee_salaries (employee_id, monthly_cents, effective_from, note)
-          VALUES (${made.rows[0]!.id}, ${STARTING_SALARY_CENTS}, ${startedOn}, 'starting salary')`);
+          VALUES (${made.rows[0]!.id}, ${person.payroll.monthlyCents}, ${startedOn}, 'starting salary')`);
       }
 
       /*
-       * The two who work a queue need somewhere to sign in. Found before created,
-       * same as the operator and for the same reason.
+       * 🔴 EVERY ONE OF THEM NEEDS SOMEWHERE TO SIGN IN, which is the change.
+       *
+       * Found before created, same as the operator and for the same reason. Nour
+       * is written twice on purpose: once as the operator above and once here,
+       * both find-or-create and both to `super_admin`, so the two blocks cannot
+       * leave her in disagreement with herself.
        */
-      if (!person.login) continue;
-
+      const email = person.email!;
       const already = await db.execute<{ id: string }>(sql`
         SELECT id FROM users
-         WHERE organization_id = ${orgId} AND email = ${person.login.email} AND deleted_at IS NULL
+         WHERE organization_id = ${orgId} AND email = ${email} AND deleted_at IS NULL
          LIMIT 1`);
 
       if (already.rows[0]) {
         await db.execute(sql`
-          UPDATE users SET password_hash = ${passwordHash}, role = 'staff'
+          UPDATE users SET password_hash = ${passwordHash}, role = ${person.payroll.role}
            WHERE id = ${already.rows[0].id}`);
       } else {
         await db.execute(sql`
           INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role)
-          VALUES (${orgId}, ${person.login.email}, ${passwordHash}, ${person.login.firstName},
-                  ${person.login.lastName}, 'staff')`);
+          VALUES (${orgId}, ${email}, ${passwordHash}, ${firstNameOf(person)},
+                  ${lastNameOf(person)}, ${person.payroll.role})`);
       }
     }
 
@@ -438,22 +420,32 @@ async function main() {
     );
 
     /*
-     * 🔴 CONTROL: the two queue workers can actually sign in.
+     * 🔴 CONTROL: every one of them can actually sign in, not just the two.
      *
-     * A payroll row is a number in a table. A `staff` login is the thing that
-     * makes the transfer queue a queue two people share, which is where the same
-     * transfer gets picked up twice. Asserting the rows exist is asserting the
-     * part that was easy.
+     * A payroll row is a number in a table. A login is the thing that makes the
+     * transfer queue a queue two people share, which is where the same transfer
+     * gets picked up twice, and it is also the thing that puts a name on the row
+     * rather than the operator's. Asserting the payroll rows exist is asserting
+     * the part that was easy, and the version of this check that counted two was
+     * green for the whole of the sprint in which five people could not sign in.
      */
-    const staffLogins = await db.execute<{ n: string }>(sql`
-      SELECT COUNT(*)::text AS n FROM users
-       WHERE organization_id = ${orgId} AND role = 'staff' AND deleted_at IS NULL
-         AND email IN ('heba.example@example.com', 'sara.example@example.com')`);
+    const wanted = STAFF.map((person) => person.email!);
+    const staffLogins = await db.execute<{ email: string; role: string }>(sql`
+      SELECT email, role FROM users
+       WHERE organization_id = ${orgId} AND deleted_at IS NULL
+         AND email = ANY(${wanted})`);
+
+    const signedIn = new Map(staffLogins.rows.map((row) => [row.email, row.role]));
+    const wrongRole = STAFF.filter((person) => signedIn.get(person.email!) !== person.payroll.role);
 
     check(
-      "🔴 …and the two who work the transfer queue have logins, so it is shared",
-      Number(staffLogins.rows[0]?.n ?? 0) === 2,
-      `heba.example@example.com and sara.example@example.com / ${SIMULATION_PASSWORD}`,
+      "🔴 …and every one of the seven has a login, at the role their queue needs",
+      wrongRole.length === 0,
+      wrongRole.length === 0
+        ? `${String(STAFF.length)} logins / ${SIMULATION_PASSWORD}, ` +
+            `${String(STAFF.filter((p) => p.payroll.role === "super_admin").length)} founders and ` +
+            `${String(STAFF.filter((p) => p.payroll.role === "staff").length)} staff`
+        : `missing or at the wrong role: ${wrongRole.map((p) => p.email).join(", ")}`,
     );
 
     /* ------------------------------------------------------- the spend cap -- */

@@ -13,7 +13,7 @@ And on screen, signed in as the operator: **`/admin/financial-model`**.
 
 ## Why this document exists
 
-The run is six months, twenty one synthetic people and 286 minutes of audio. **Nobody is going to
+The run is six months, twenty synthetic customers, our own seven, and 286 minutes of audio. **Nobody is going to
 raise money on that, and nobody should.** What it can do is establish a handful of numbers no
 amount of spreadsheet work can, and hand them to a plan that is honest about which half it
 measured.
@@ -63,7 +63,7 @@ missed. **It is also the assumption most likely to be wrong.** A founder selling
 building, and this model has no line for what stops being built. Read the arrival numbers as
 "what three sellers can do" rather than as free growth.
 
-**The run cannot confirm or refute break even.** Twenty one invented people do not test whether
+**The run cannot confirm or refute break even.** Twenty invented customers do not test whether
 an Egyptian therapist will pay 4,000 pounds a month. What the run tests is whether the product
 can bill them correctly when they try, which is the half that is our fault if it is wrong.
 

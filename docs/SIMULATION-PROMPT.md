@@ -41,7 +41,7 @@ Everything else goes in the log and waits.
 ## When it finishes
 
 **Nothing is deleted.** The six months stay on the production database until you decide
-otherwise. Sign in as any of the eighteen people and read their record:
+otherwise. Sign in as any of the twenty six accounts and read their record:
 `docs/simulation/12-THE-LOGINS.md`, one password for all of them.
 
 Two screens at `https://24t.vercel.app/admin`: **`/admin/actuals`** is the six months in one
@@ -300,7 +300,7 @@ against something in that document.
 
 ## In one paragraph
 
-Twenty one synthetic people sign themselves up and use the product: seven therapists, seven
+Twenty synthetic customers sign themselves up and use the product: seven therapists, seven
 patients, a practice manager and her staff, three company HR admins, an integrator and an
 operator, across one practice and three companies. **All of them are Egyptian**, which means none
 of them can pay by card. They arrive in six waves. Cheap agents act as them. One expensive

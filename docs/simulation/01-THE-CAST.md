@@ -1,23 +1,41 @@
 # The cast
 
-**Twenty one people and four organisations, across six waves.** Every one of them exists to
+**Twenty seven people and four organisations, across six waves.** Every one of them exists to
 prove something specific, named in its own row. A person with no scenario is a row in a
 database, and this simulation already has enough rows.
 
-| | Count |
+| Customers | Count |
 |---|---|
 | Therapists | 7 |
 | Patients | 7 |
 | Practice manager, practice staff | 2 |
 | Company HR admins | 3 |
 | Integrator | 1 |
-| Operator | 1 |
-| **People** | **21** |
+| **Cast agents, one each** | **20** |
+
+| Us | Count |
+|---|---|
+| Founders | 2 |
+| Sales | 2 |
+| Marketing | 1 |
+| Support, sharing the transfer queue | 2 |
+| **The payroll** | **7** |
+
+| | Count |
+|---|---|
+| **People** | **27** |
 | Organisations they belong to | 1 practice, 3 companies |
 
-One agent per person, except the operator, whose screens are worked by the standing agents in
-`02-THE-SWARM.md`. So **20 cast agents**, plus eight standing, plus capture, plus the
-orchestrator.
+🔴 **Those numbers are read by a machine.** `scripts/verify-cast.ts` parses the `People` row
+out of this file and fails if `scripts/_cast.ts` holds a different number. The version of this
+document that said twenty one while the code held nineteen is how `T5`, `T6`, `P7` and `D1`
+went a sprint with no address anybody could sign in with, and it is also how five people drew
+a salary for six months with no account to work their queue from. A count in prose is a claim;
+a count something checks is a fact.
+
+One agent per customer. **Our own seven are worked by the standing agents** in
+`02-THE-SWARM.md`, because their screens are queues rather than journeys. So **20 cast
+agents**, plus eight standing, plus capture, plus the orchestrator.
 
 ## What is already on the branch, and what is not
 
@@ -49,12 +67,30 @@ reaches us. A run with one non Egyptian customer would have proved that the easy
 
 ## Wave 1 · month 0 · the platform opens
 
-Seven people. This is the product with nobody on it, which is the state every real platform
-starts in and the one nobody ever photographs.
+Thirteen people: our whole company of seven, and the first six customers. This is the product
+with nobody on it, which is the state every real platform starts in and the one nobody ever
+photographs.
+
+### Us, all seven seeded, all seven able to sign in
+
+🔴 **This was two of seven until 76.55**, and the other five drew $500 a month with no account.
+Every row they clear now carries their own name, which is the only reason an audit log of a
+six month run is evidence about a company rather than about one person.
+
+| # | Who | Role | The queue that is theirs |
+|---|---|---|---|
+| `OP` | Nour Example, founder, clinical and operations | `super_admin` | Opens Egypt, **reads the transfer details back on camera** (they are placeholders, filled in, and stay that way for the run), moves each customer onto the Egyptian entity, publishes content, and holds the settings |
+| `OP2` | Sherif Example, founder, product and engineering | `super_admin` | The board, the radar, benefits, the error log and `/admin/actuals`. **The founder-only half**, so that Heba being refused it means something |
+| `SU1` | Heba Example, support | `staff` | Transfers. **Not a founder:** she is refused the benefits board and the radar, and that refusal is captured |
+| `SU2` | Sara Example, support and onboarding | `staff` | Transfers, **shared with Heba.** They both open one transfer, which is the collision a queue of one never produces |
+| `SU3` | Amal Example, sales, companies and universities | `staff` | Sponsors and their pot top-ups |
+| `SU4` | Hossam Example, sales, clinics and therapists | `staff` | Verifications and payouts. Both of Dr Omar's rejections are his |
+| `SU5` | Farida Example, marketing | `staff` | Support and the crisis numbers directory. In a company of seven the marketer answers the inbox |
+
+### And the first six customers
 
 | # | Who | Signs up as | Exists to prove |
 |---|---|---|---|
-| `OP` | Nour Example, operator | seeded | The console works before there is anything in it. Opens Egypt, **reads the transfer details back on camera** (they are placeholders, filled in, and stay that way for the run), moves each customer onto the Egyptian entity, publishes content, and works the verification and payments queues from here on |
 | `T1` | Dr Amira Demo, Cairo, Arabic and English | therapist, metered | **The Egyptian therapist.** No card rail. Everything she earns is held by us and paid out by hand. Joins a practice in wave 2 and takes her payout in wave 3 |
 | `T2` | Dr Yassin Demo, Cairo | therapist, metered | **The one who upgrades, and pays by transfer.** In wave 4 he subscribes: there is no checkout, we raise the bill, he transfers, and an operator confirms before he is on the plan |
 | `T3` | Dr Karim Demo, Alexandria | therapist, metered | **The radar therapist.** Lives on call. Most of his work arrives from strangers in crisis, none of it booked. In wave 4 he lets his bill lapse |
@@ -125,7 +161,7 @@ is a case this product claims to handle and has never been made to.
 | `E3` | Delta Logistics | Hires `P5` away from `E2` |
 | `E3-HR` | Rania Example | Funds a pot by transfer in wave 5, so the queue carries more than one kind of row |
 | `P6` | Ziad Example, Cairo | **Never creates an account.** Sees a therapist three times through join links and remains a stranger to us. Pays by transfer each time **as the session itself**, which is the payer kind the rail exists for. Proves the product works for somebody who refuses it, and is **the thin record** the exam measures `P3` against |
-| `D1` | Helio Health, integrator | Partner. Keys, scopes, a rate limit. Opens sessions through the API and gets notes back. Never sees a patient it did not bring |
+| `D1` | Tamer Example, developer at Helio Health | Partner. Keys, scopes, a rate limit. Opens sessions through the API and gets notes back. Never sees a patient it did not bring. **A sixth principal**: his own table, his own cookie, his own sign-in at `/partner/sign-in`, and no shape that any clinical query would accept |
 
 And the events:
 

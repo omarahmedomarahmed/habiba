@@ -30,13 +30,44 @@
  * a gate nobody reads. So absence is reported by wave and counted, and only
  * `--complete` turns it into a failure.
  */
+import { readFileSync } from "node:fs";
+
 import { sql } from "drizzle-orm";
 
-import { CAST, SIMULATION_PASSWORD, WITH_LOGINS } from "./_cast";
+import { CAST, PAYROLL, SIMULATION_PASSWORD, WITH_LOGINS } from "./_cast";
 import { hostOf, reporter } from "./_verify";
 import { connect } from "./db";
 
 const { check, finish } = reporter();
+
+/** The file that tells a human how many people there are. */
+const CAST_DOC = "docs/simulation/01-THE-CAST.md";
+
+/**
+ * 🔴 76.55 — THE COUNT THIS DOCUMENT CLAIMS, PARSED RATHER THAN REMEMBERED.
+ *
+ * `01-THE-CAST.md` has a row reading `| **People** | **27** |`. This pulls the
+ * number out of it. The check below then asserts it equals `CAST.length`, which
+ * is the thing that was NOT true when this was written: the document said twenty
+ * one and the array held nineteen, and the four people in the gap — `T5`, `T6`,
+ * `P7` and `D1` — had no address, so `verify:cast` could not have reported them
+ * missing, `logins.ts` could not have listed them, and the run would have found
+ * out in wave 4 with the report half written.
+ *
+ * Every other check in this file reads the database. This one reads the two
+ * places the expectation is written down and makes them argue, which is the only
+ * way an expectation nobody has met gets noticed.
+ */
+function peopleClaimedByTheDocument(): number | null {
+  let text: string;
+  try {
+    text = readFileSync(CAST_DOC, "utf8");
+  } catch {
+    return null;
+  }
+  const row = text.match(/\|\s*\*\*People\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|/);
+  return row ? Number(row[1]) : null;
+}
 
 async function main() {
   const complete = process.argv.includes("--complete");
@@ -70,6 +101,20 @@ async function main() {
     const accounts = await db.execute<{ email: string | null; password_hash: string | null }>(sql`
       SELECT email, password_hash FROM patient_accounts WHERE deleted_at IS NULL`);
 
+    /*
+     * 🔴 AND A THIRD TABLE, because `D1`'s developer is a sixth principal.
+     *
+     * `partner_users` has its own password, its own sessions table and its own
+     * sign-in page, for the reason `lib/partner-auth/session.ts` spends forty
+     * lines on: a `PartnerActor` carries no organisation id and no clinical role,
+     * so there is no call site anywhere that could hand one to a chart query. A
+     * version of this check that read two tables would have reported Tamer as
+     * never having signed up while he sat in the third, which is the same §6
+     * mistake that let patients look missing before sprint 40.
+     */
+    const partners = await db.execute<{ email: string; password_hash: string | null }>(sql`
+      SELECT email, password_hash FROM partner_users WHERE deleted_at IS NULL`);
+
     const byEmail = new Map<string, { hash: string | null; what: string }>();
     for (const row of rows.rows) {
       byEmail.set(row.email.toLowerCase(), { hash: row.password_hash, what: row.role });
@@ -77,6 +122,9 @@ async function main() {
     for (const row of accounts.rows) {
       if (!row.email) continue;
       byEmail.set(row.email.toLowerCase(), { hash: row.password_hash, what: "patient account" });
+    }
+    for (const row of partners.rows) {
+      byEmail.set(row.email.toLowerCase(), { hash: row.password_hash, what: "partner developer" });
     }
 
     const missing: string[] = [];
@@ -145,15 +193,17 @@ async function main() {
      * that passes by measuring nothing. So the three seeded people must be there,
      * always, because `simulate:seed` creates them before anybody acts.
      */
-    const seeded = ["nour.example@example.com", "heba.example@example.com", "sara.example@example.com"];
+    const seeded = PAYROLL.map((person) => person.email!.toLowerCase());
     const seededFound = seeded.filter((email) => byEmail.has(email));
 
     check(
-      "🔴 CONTROL the three seeded logins are present, so 'all fine' cannot mean 'nobody checked'",
+      "🔴 CONTROL every seeded login is present, so 'all fine' cannot mean 'nobody checked'",
       seededFound.length === seeded.length,
       seededFound.length === seeded.length
-        ? "the operator and the two who share the transfer queue"
-        : `only ${seededFound.length} of 3. Has simulate:seed run against this database?`,
+        ? `all ${String(seeded.length)} of us, each one able to work their own queue`
+        : `only ${seededFound.length} of ${String(seeded.length)}: missing ` +
+          `${seeded.filter((email) => !byEmail.has(email)).join(", ")}. ` +
+          "Has simulate:seed run against this database since 76.55?",
     );
 
     /*
@@ -174,6 +224,33 @@ async function main() {
       ziadSignedUp
         ? `somebody created an account for ${ziad.name}. He is the record with no account`
         : "no account, three join links, and the product still works for him",
+    );
+
+    /*
+     * 🔴 THE PLANTED-ABSENCE CONTROL, and it is the one that would have caught
+     * the defect this sprint was opened for.
+     *
+     * Everything above asks the database about people this array names. Nothing
+     * above can notice a person the array DOES NOT NAME, which is exactly the
+     * failure that happened: four documented cast members were absent from the
+     * code, so every check was green about a cast that was four people short.
+     *
+     * The §6 shape, in its quietest costume: a check that is correct about what
+     * it measures and silent about what it was never handed.
+     */
+    const claimed = peopleClaimedByTheDocument();
+
+    check(
+      `🔴 CONTROL ${CAST_DOC} and scripts/_cast.ts name the same number of people`,
+      claimed !== null && claimed === CAST.length,
+      claimed === null
+        ? `could not read a "| **People** | **NN** |" row out of ${CAST_DOC}. ` +
+          "Either the file moved or the row was reworded, and this control is now measuring nothing"
+        : claimed === CAST.length
+          ? `${String(claimed)}: ${String(CAST.length - PAYROLL.length)} customers with an ` +
+            `agent each and ${String(PAYROLL.length)} of us on the payroll`
+          : `the document says ${String(claimed)} and the code holds ${String(CAST.length)}. ` +
+            "Whichever is right, somebody in the run has no address and nothing else here can see it",
     );
   } finally {
     await pool.end();

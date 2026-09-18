@@ -31,7 +31,7 @@ files because twelve different people read them.
 | File | What it is | Who reads it |
 |---|---|---|
 | `00-START-HERE.md` | This. The shape, the rules, the budget, the order of work | You |
-| `01-THE-CAST.md` | Twenty one people, four organisations, six waves, one scenario each | You and the orchestrator |
+| `01-THE-CAST.md` | Twenty seven people, four organisations, six waves, one scenario each | You and the orchestrator |
 | `02-THE-SWARM.md` | Who launches what, how a claim is verified, what to do at a wall | The orchestrator |
 | `03-THE-MONEY.md` | What we charge, what it costs, and the full cycle month by month | The money agent |
 | `04-THE-RAIL.md` | How money actually reaches us in Egypt, which is a transfer and a person checking it | The payments operator |
@@ -65,7 +65,7 @@ run opens a join link exactly the way a patient in October will.
 🔴 **THE DATA STAYS, AND THAT IS THE BIGGEST CHANGE TO THIS PLAN.** An earlier version
 ended with a snapshot restore. It does not: every invented patient's file, every note, every
 payment and every audit row is still there the next morning and the month after, to be signed
-into and read. `12-THE-LOGINS.md` says how, for all eighteen of them.
+into and read. `12-THE-LOGINS.md` says how, for all twenty six of them.
 
 The consequence is that carelessness is permanent. There is no sweep afterwards, so a fixture
 planted by a verifier somebody pointed at the wrong database sits on the founders' own board
