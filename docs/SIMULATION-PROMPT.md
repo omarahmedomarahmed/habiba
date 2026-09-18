@@ -6,8 +6,8 @@
 
 1. **Top up OpenAI with $10.** That is the whole budget. The plan comes to about $4.80.
 
-2. **Fill in the five placeholders in the KEYS block below.** Everything else in that block is
-   already correct.
+2. **Fill in the seven placeholders in the KEYS block below.** `STRIPE_WEBHOOK_SECRET` and
+   `APP_URL` are already correct and are the only two that are.
 
    | | Where it comes from | Looks like |
    | --- | --- | --- |
@@ -16,6 +16,12 @@
    | `STRIPE_SECRET_KEY` | dashboard.stripe.com, **test mode** | `sk_test_...` |
    | `BLOB_READ_WRITE_TOKEN` | Vercel, the project's Storage tab | `vercel_blob_rw_...` |
    | `AUTH_SECRET` | any 64 hex characters you make up | `a1b2c3...` |
+   | `CRON_SECRET` | 🔴 Vercel, the `habiba` project, Settings, Environment Variables, reveal it. **It has to match**, because the cron calls go to the deployed site and a guess 401s | a long string |
+   | `<neon password>` | Neon, project `gentle-waterfall-66476219`, Connect. **The same password goes in all four database lines**, because all four use the same role | one word |
+
+   🔴 **Seven, not five.** An earlier version of this list said five and left `CRON_SECRET` and
+   the Neon password as placeholders, which fails in wave 4 and on the first command
+   respectively.
 
 3. **Open a new Claude Code session and paste everything from the `KEYS` heading below to the
    end of this file.** That is the prompt. Nothing above the KEYS heading is part of it.
@@ -26,9 +32,10 @@
 ## What it will do without asking
 
 Check production is in the state this document claims, build the product and run all
-twenty-six gates against the **dev** branch, seed production once, run six months of invented
-trading on `https://24t.vercel.app` with real keys, move the clock at the end of each wave, and
-report back at seven fixed points, each short enough to read on a phone.
+twenty-six gates against the **dev** branch, confirm the production seed with `verify:cast`,
+run six months of invented trading on `https://24t.vercel.app` with real keys, move the clock
+at the end of each wave, and report back at seven fixed points, each short enough to read on a
+phone.
 
 ## 🔴 FIVE THINGS THE MINI SIMULATION FOUND, WHICH THE RUN NOW KNOWS
 
