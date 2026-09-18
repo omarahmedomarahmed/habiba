@@ -62,7 +62,7 @@ export function PositionCard({ position, months }: { position: Position; months:
           label="Ours to spend"
           tone={oursCents < 0 ? "bad" : "good"}
           value={<Money cents={oursCents} />}
-          note="The balance, less everything somebody else can ask for"
+          note="Less what somebody else can ask for"
         />
         <Figure
           label="In the bank"
@@ -88,8 +88,8 @@ export function PositionCard({ position, months }: { position: Position; months:
           }
           note={
             monthlyBurnCents === null
-              ? `The last ${String(burnWindowMonths)} ${burnWindowMonths === 1 ? "month" : "months"} made money`
-              : `Average of the last ${String(burnWindowMonths)} ${burnWindowMonths === 1 ? "month" : "months"}, not the last one`
+              ? `The last ${String(burnWindowMonths)} made money`
+              : `Averaged over ${String(burnWindowMonths)} months, not one`
           }
         />
         <Figure
@@ -107,8 +107,8 @@ export function PositionCard({ position, months }: { position: Position; months:
           }
           note={
             runwayMonths === null
-              ? "A runway for a company that is not burning is not a number"
-              : "Ours, divided by the burn. Never the whole balance"
+              ? "Nothing to divide"
+              : "Ours over the burn, never the balance"
           }
         />
       </div>
@@ -121,11 +121,7 @@ export function PositionCard({ position, months }: { position: Position; months:
           </>
         ) : (
           <>This is the lowest we have been.</>
-        )}{" "}
-        <span className="text-slate-400">
-          The forecast next door produces these same four from assumptions. Read them side by
-          side; do not average them.
-        </span>
+        )}
       </p>
     </Card>
   );

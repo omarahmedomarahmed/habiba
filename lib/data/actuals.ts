@@ -393,8 +393,13 @@ function thisMonth(): string {
  * cannot disagree. A card that queries its own totals is a card that reads
  * differently from the table under it after somebody changes one of them, and
  * the reader has no way to tell which is right.
+ *
+ * 🔴 AND IT IS NOT EXPORTED. It was, and `verify:reachable` was right about it:
+ * nothing outside this file calls it, and an exported function with no caller
+ * is how `diariseSession` came to be unit-tested, benchmarked, documented and
+ * wired to nothing for four sprints. Every caller reads `actuals.position`.
  */
-export function positionFrom(rows: ActualMonth[]): Position {
+function positionFrom(rows: ActualMonth[]): Position {
   const last = rows.at(-1);
   if (!last) {
     return {

@@ -130,6 +130,17 @@ const REFUSED: Record<string, string> = {
   "verify:actuals":
     "it plants an organisation, ledger legs, model calls and three employees before\n" +
     "     deleting them. Run it against dev.",
+  /*
+   * 🔴 76.57 — SAME SHAPE, AND WRITTEN DOWN AT BIRTH THIS TIME.
+   *
+   * `verify:payout` plants a clinic, a clinician, a colleague to approve, $100
+   * of held earnings and a payout request, then takes the money out and deletes
+   * all of it. On production that is a fabricated payout on the founders' own
+   * ledger, and a `finally` that does not run leaves it there for ever.
+   */
+  "verify:payout":
+    "it plants a clinic, two people, held earnings and a payout, then pays it out.\n" +
+    "     Run it against dev.",
   "db:reset": "no.",
 };
 

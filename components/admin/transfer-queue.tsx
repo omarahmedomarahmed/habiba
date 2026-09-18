@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { confirm, reject } from "@/app/(admin)/admin/transfers/actions";
+import { ReceiptModal } from "@/components/admin/receipt-modal";
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 
@@ -17,11 +18,15 @@ import { Money } from "@/components/ui/money";
  * "rejected" with no explanation guarantees a support ticket and loses the trust
  * the whole rail runs on.
  *
- * ## 🔴 THE PROOF OPENS IN A NEW TAB, and the reference is selectable
+ * ## 🔴 76.57 — THE PROOF OPENS IN A MODAL, WITH THE DECISION IN IT
  *
- * An operator is checking this against a banking app on a second screen. The two
- * things they need are the reference to search for and the receipt to look at,
- * so both are one interaction away and neither is truncated.
+ * It used to open in a new tab, which put the photograph on one screen and the
+ * two buttons on another, and a decision taken about evidence in a different
+ * window is a decision taken from memory. `ReceiptModal` shows it full size with
+ * the reference, the amount and Confirm and Reject on the same surface.
+ *
+ * The reference stays selectable on the row as well, because an operator is
+ * searching for it in a banking app before they ever open the picture.
  */
 type Row = {
   id: string;
@@ -36,7 +41,18 @@ type Row = {
   /** What it settles, in USD cents. 0106. */
   settlesCents: number;
   reference: string | null;
-  proofUrl: string | null;
+  /**
+   * 🔴 76.57 — WHAT KIND OF FILE, NOT WHERE IT IS.
+   *
+   * This was `proofUrl`, the blob address, and it was serialised into the page
+   * for every row in the queue whether anybody opened one or not. Nothing
+   * rendered it, so it read as harmless; it is not, because the whole argument
+   * for `/admin/transfers/receipt/[id]` is that a read should pass through us
+   * and be recorded, and an address in the page source is a read that never
+   * needs to. The client needs two facts — is there one, and is it a PDF — and
+   * neither of them is a URL.
+   */
+  proofKind: "image" | "pdf" | null;
   submittedAt: string | null;
   payer: string;
   /**
@@ -159,6 +175,8 @@ function TransferRow({
 }) {
   const [reason, setReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  const [looking, setLooking] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const waited = row.submittedAt
@@ -261,51 +279,83 @@ function TransferRow({
         <div className="rounded-xl bg-slate-50 p-3">
           <dt className="text-xs text-slate-500">Proof</dt>
           <dd className="mt-0.5 text-sm">
-            {row.proofUrl ? (
+            {row.proofKind !== null ? (
               /*
-                🔴 75.2 — through our own route, which audits the read and then
-                redirects. A link straight to the blob is a read nobody can
-                account for afterwards, and this is a photograph of somebody's
-                banking app.
+                🔴 76.57 — A BUTTON, NOT A LINK, because the decision is in the
+                modal it opens. The bytes still come through our own route,
+                which checks the role, writes an audit row and streams them, so
+                the browser never learns where the file is stored.
               */
-              <a
-                href={`/admin/transfers/receipt/${row.id}`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => setLooking(true)}
                 className="font-medium text-brand-600 underline"
               >
-                Open the receipt
-              </a>
+                View the evidence
+              </button>
             ) : (
-              <span className="text-slate-500">none uploaded</span>
+              <span className="text-amber-700">🔴 none uploaded</span>
             )}
           </dd>
         </div>
 
         {/*
-          🔴 76.16 — WHAT THEY SAID IT COVERS, beside the reference rather than
-          under it. A part payment is the case this answers: without the list, a
-          clinician who owes more than they sent reads as an underpayment.
+          🔴 76.57 — WHAT THEY SAID IT COVERS MOVED INTO THE MODAL.
+
+          It was here AND there, which is the same five words twice in a console
+          with no room to spare, and the row is not where the question gets
+          asked. An operator holding a bank line for one figure and a claim for
+          the same figure only wonders which sessions it covers once they are
+          looking at the receipt, and by then they are in the modal.
         */}
-        {row.lines.length > 0 ? (
-          <div className="rounded-xl bg-slate-50 p-3 sm:col-span-2">
-            <dt className="text-xs text-slate-500">What they said it covers</dt>
-            <dd className="mt-1 space-y-0.5">
-              {row.lines.map((line, i) => (
-                <p
-                  key={`${line.label}-${i}`}
-                  className="flex items-baseline justify-between gap-3 text-xs"
-                >
-                  <span className="min-w-0 truncate text-slate-600">{line.label}</span>
-                  <span className="shrink-0 text-slate-900 tabular-nums">
-                    <Money cents={line.cents} />
-                  </span>
-                </p>
-              ))}
-            </dd>
-          </div>
-        ) : null}
       </dl>
+
+      {looking && (
+        <ReceiptModal
+          /*
+           * 🔴 THE WAITING FIGURE IS COMPUTED HERE AND HANDED DOWN, so the row
+           * and the modal cannot disagree about how long somebody has been on a
+           * spinner. It is the same `waited` the row prints two lines up.
+           */
+          row={{ ...row, waitedLabel: waited === null ? null : `waiting ${String(waited)} min` }}
+          pending={pending}
+          error={modalError}
+          onClose={() => {
+            setLooking(false);
+            setModalError(null);
+          }}
+          onConfirm={() =>
+            start(async () => {
+              const result = await confirm(row.id);
+              /*
+               * 🔴 THE MODAL STAYS OPEN ON A FAILURE, and closes on a success.
+               *
+               * A confirmation that failed while the operator was looking at
+               * the evidence is a thing they need to read with the evidence
+               * still in front of them. Closing on both would send them back to
+               * a queue where the row is still there and nothing says why.
+               */
+              if (result.error) setModalError(result.error);
+              else {
+                setLooking(false);
+                setModalError(null);
+              }
+              onDone(result);
+            })
+          }
+          onReject={(why) =>
+            start(async () => {
+              const result = await reject(row.id, why);
+              if (result.error) setModalError(result.error);
+              else {
+                setLooking(false);
+                setModalError(null);
+              }
+              onDone(result);
+            })
+          }
+        />
+      )}
 
       {rejecting ? (
         <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">

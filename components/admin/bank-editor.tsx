@@ -88,7 +88,7 @@ export function BankEditor({
             <h2 className="text-base font-semibold text-slate-900">Money in that is not revenue</h2>
             <p className="mt-0.5 text-sm text-slate-500">
               {capital.length === 0 ? (
-                "Nothing recorded, so the balance above is what trading alone did."
+                "Nothing recorded yet."
               ) : (
                 <>
                   <Money cents={totalIn} /> put in, across {String(capital.length)}{" "}
@@ -135,9 +135,8 @@ export function BankEditor({
           </div>
         )}
 
-        <p className="mt-3 text-xs leading-relaxed text-slate-500">
-          A founder&apos;s own savings, an angel cheque, a grant. It is in the bank and it is not
-          something we earned, so it belongs in the balance and never in the revenue column.
+        <p className="mt-3 text-xs text-slate-500">
+          Savings, an angel cheque, a grant. In the bank, never revenue.
         </p>
       </Card>
 
@@ -145,16 +144,22 @@ export function BankEditor({
         <h2 className="text-base font-semibold text-slate-900">
           Costs nothing in the product buys
         </h2>
+        {/*
+          🔴 ONE LINE, NOT ONE PER BLOCK. "Typing 0 against a month removes that
+          month's figure" was under each of the seven kinds, which is the same
+          sentence seven times and sixty-three words of a console that has no
+          room to spare. A rule that applies to every block belongs above them.
+        */}
         <p className="mt-0.5 text-sm text-slate-500">
-          Type each month&apos;s figure. A blank is nobody typed it, not nothing spent.
+          Type each month&apos;s figure; 0 removes one. A blank is nobody typed it, not nothing
+          spent.
         </p>
 
         {empty.length > 0 && (
           <div className="mt-3 rounded-lg bg-amber-50 p-3">
             <p className="text-xs leading-relaxed text-amber-900">
               <strong>No figure typed for {String(empty.length)} of them:</strong>{" "}
-              {empty.join(", ")}. Every one of those months reads on the table above as a month
-              with no video bill, no bank charges and no hosting.
+              {empty.join(", ")}. Those read above as months that cost nothing.
             </p>
           </div>
         )}
@@ -309,11 +314,6 @@ function KindBlock({
         </label>
         <SubmitButton label="Save" />
       </form>
-
-      {/* 🔴 Zero is how a line typed by mistake comes off, so the form says so. */}
-      <p className="mt-1 text-xs text-slate-400">
-        Typing 0 against a month removes that month&apos;s figure.
-      </p>
 
       {state.error && <p className="mt-1 text-sm text-rose-700">{state.error}</p>}
       {state.ok && <p className="mt-1 text-sm text-teal-700">{state.ok}</p>}

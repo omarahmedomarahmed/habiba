@@ -117,6 +117,19 @@ export default async function TransfersPage() {
    * a clinic, which is the same rule `manualEntry` applies when it chooses
    * which heading to show them.
    */
+  /**
+   * 🔴 76.57 — IS THERE A RECEIPT, AND IS IT A PDF. Nothing else crosses over.
+   *
+   * `lib/uploads.ts` puts the extension in the stored path, so this is a read
+   * of the name rather than a fetch. A file with no extension at all is treated
+   * as an image, which renders as a broken picture the modal reports out loud
+   * rather than as an absent one the operator would confirm around.
+   */
+  const proofKindOf = (url: string | null): "image" | "pdf" | null => {
+    if (!url) return null;
+    return url.split("?")[0]!.toLowerCase().endsWith(".pdf") ? "pdf" : "image";
+  };
+
   const typeFor = (row: (typeof rows)[number]): "patient" | "therapist" | "clinic" | "company" => {
     if (row.sponsorId) return "company";
     if (row.userId) {
@@ -179,7 +192,18 @@ export default async function TransfersPage() {
           settlesLabel: formatMoney(r.settlesCents, "USD", "en-US"),
           settlesCents: r.settlesCents,
           reference: r.reference,
-          proofUrl: r.proofUrl,
+          /*
+           * 🔴 76.57 — THE KIND, NOT THE ADDRESS.
+           *
+           * This passed `proofUrl` — the unguessable blob URL — into a client
+           * component for every row in the queue. Nothing rendered it, which is
+           * why it survived; it still put the storage address of a photograph
+           * of somebody's banking app into the page source, where a read could
+           * be taken that `/admin/transfers/receipt/[id]` never sees and the
+           * audit log never records. The screen needs to know whether there is
+           * one and whether it is a PDF, and neither of those is a URL.
+           */
+          proofKind: proofKindOf(r.proofUrl),
           submittedAt: r.submittedAt?.toISOString() ?? null,
           payer: nameFor(r),
           payerType: typeFor(r),

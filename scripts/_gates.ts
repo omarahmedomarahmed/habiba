@@ -247,6 +247,30 @@ export const GATES = [
     why: "and the month the company lost money says so, with the wages in it",
   },
   /*
+   * 🔴 76.57 — MONEY OUT, WHICH HAD NO GATE AT ALL.
+   *
+   * Every other rail had one. The one with the fewest safety nets in it did
+   * not: no card network, no processor, no chargeback, no reconciliation file.
+   * A clinician asks for their held earnings, a person approves it, a person
+   * makes a bank transfer by hand and photographs having done so, and if any
+   * step of that is wrong the only thing that notices is a clinician who has
+   * not been paid.
+   *
+   * It plants an offender for each of the four refusals that are somebody's
+   * money — over the balance, a second request in flight, approving one's own,
+   * and marked sent with no receipt — because a check that only ever sees a
+   * valid request proves nothing about the invalid one.
+   *
+   * It also carries the receipt-immutability rule, in both directions: a
+   * receipt is refused and an onboarding document is not, because a guard that
+   * refused every file would pass the first check while breaking the product.
+   */
+  {
+    name: "payout",
+    script: "verify:payout",
+    why: "money out refuses the four things that are somebody else's money",
+  },
+  /*
    * 🔴 THE THIRTY UNIT SUITES, AND THE REASON THEY ARE HERE IS EMBARRASSING.
    *
    * Sprint 75 repriced the product. `tests/seats.test.ts` went 7 red of 12 and

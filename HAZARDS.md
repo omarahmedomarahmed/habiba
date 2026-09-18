@@ -184,3 +184,44 @@ a reason beside every entry.
 
 Keep `DATABASE_URL` pointed at dev. Every gate, verifier and unit suite expects a branch
 they may write to.
+
+## A killed gate run leaves its server on 3199, and the next run reads empty pages
+
+`verify:served` boots the product on **3199** and photographs it. Interrupting `npm run
+gates` leaves that server alive, and the next run's own server cannot bind the port and
+exits — but the OLD one is still answering, from whatever build was on disk when it
+started. Three checks then fail with
+
+    0 Arabic characters against 0 Latin
+
+which reads as a product defect and is a stale process. `pkill -f "next start"` does not
+find it: the process is named `next-server`. Kill it by port or by that name:
+
+    kill -9 $(lsof -ti:3199)
+    ps -eo pid,args | grep next-server
+
+The same thing bites a local screenshot server on any other port, and it is worse there
+because the symptom is a **ChunkLoadError** — the stale process serves a build id whose
+static chunks were deleted by the next `npm run build`, so every page renders "Something
+went wrong" and the cause looks like the code.
+
+## Screenshot the page and read it, because three defects a sprint hide from every gate
+
+Three in sprint 76 alone, none of which any of twenty-five gates could see:
+
+- `$3,500 7` — a wage bill and a headcount adjacent in a right-aligned column of figures,
+  which reads as $35,007.
+- `$25,000the money we started with` — a right-aligned money column against left-aligned
+  text with no padding between them. The header rendered as `AmountNote`.
+- `1 month, from 2026-09` over a balance of $75,000 that had plainly not arrived in one
+  month, because capital was not one of the sources the month range was taken from.
+
+    npm run build && npm run screens:prep
+    node scripts/browser/shot.mjs <out-dir> /admin/actuals
+
+🔴 The rig runs `next dev`, NOT `next start`, and the reason is two entries above this
+one: `next start` demands a blob token, a fake one turns `LOCAL_UPLOADS` off, and
+`documentUrl` then refuses every `/api/uploads/...` path — so a receipt sitting on disk
+renders as "the store could not produce it". `next dev` also reads `.env.local`, whatever
+the shell unsets, so a real token there wins and fixtures should be stored through
+`uploadDocument` rather than written to `.uploads/` by hand.

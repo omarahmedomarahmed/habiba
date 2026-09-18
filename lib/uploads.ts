@@ -201,9 +201,74 @@ export async function uploadDocument(opts: {
   }
 }
 
+/**
+ * 🔴 76.57 — A RECEIPT CANNOT BE DELETED, AND THIS IS THE RULE THAT SAYS SO.
+ *
+ * `put()` files a transfer receipt under `receipt/<user id>/...`, so the path
+ * carries the kind. This refuses to delete one.
+ *
+ * ## Why a rule and not an absence
+ *
+ * Before this, nothing called `deleteDocument` on a `proofUrl`. That is a true
+ * sentence about the four call sites that exist today — an onboarding document
+ * being replaced, a patient's avatar, and a verification being cleared — and it
+ * is not a property of the system. The fifth call site is one refactor away and
+ * would be written by somebody who had no reason to know that the file they
+ * were tidying up is the only evidence that a payment was ever made.
+ *
+ * A manual payment is the whole of the Egyptian rail. There is no processor to
+ * reconcile against, no card network, no chargeback: the receipt somebody
+ * photographed and the operator's decision about it are the entire record. An
+ * absence that nobody wrote down is not a guarantee, it is a coincidence that
+ * has held so far.
+ *
+ * ## It throws rather than returning quietly
+ *
+ * Every other failure in this function is logged and swallowed, because a
+ * leaked blob is a rounding error and failing the user's actual request over
+ * cleanup is not. This one is the opposite: a caller trying to delete a receipt
+ * has a bug, and a bug that returns success is a bug that ships. The exception
+ * names the file kind and the reason.
+ *
+ * `scripts/verify-receipts.ts` plants the attempt and watches it refuse.
+ */
+const UNDELETABLE = ["receipt/"] as const;
+
+export function isUndeletable(url: string | null | undefined): boolean {
+  if (!url) return false;
+
+  /*
+   * The kind is the first path segment, in both the blob URL and the local one.
+   *
+   * 🔴 A STRING THAT IS NOT A URL COUNTS AS UNDELETABLE. `new URL` throws on
+   * one, and a `catch` that returned false would turn a malformed stored value
+   * into a deletion that went through. The safe side of that branch is refusal.
+   */
+  let path: string;
+  if (url.startsWith(LOCAL_PREFIX)) {
+    path = url.slice(LOCAL_PREFIX.length);
+  } else {
+    try {
+      path = new URL(url).pathname.replace(/^\//, "");
+    } catch {
+      return true;
+    }
+  }
+
+  return UNDELETABLE.some((kind) => path.startsWith(kind));
+}
+
 /** Remove a stored file. Used when a document is replaced. */
 export async function deleteDocument(url: string | null | undefined): Promise<void> {
   if (!url || !uploadsConfigured()) return;
+
+  if (isUndeletable(url)) {
+    throw new Error(
+      "uploads: a transfer receipt cannot be deleted. It is the only evidence that " +
+        "payment was ever made, and there is no processor to reconcile against.",
+    );
+  }
+
   if (url.startsWith(LOCAL_PREFIX)) {
     try {
       const { rm } = await import("node:fs/promises");
