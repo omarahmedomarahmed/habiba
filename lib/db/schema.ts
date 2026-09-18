@@ -2869,6 +2869,82 @@ export const employeeSalaries = pgTable(
 
 export type EmployeeSalary = typeof employeeSalaries.$inferSelect;
 
+/**
+ * 🔴 76.56 — MONEY IN THAT IS NOT REVENUE, so the bank balance is a real number.
+ *
+ * `/admin/actuals` accumulated the `cash` ledger account from zero, which is the
+ * right sum of the wrong set: it is what TRADING did to the balance, not what
+ * the balance is. A company that put in fifty thousand and had spent thirty
+ * reported minus thirty thousand, and nothing on the screen said which question
+ * it had answered.
+ *
+ * No ledger row exists for a founder's own savings arriving in a bank account,
+ * and none should. The ledger is a record of what the product did to somebody's
+ * money.
+ */
+export const capitalContributions = pgTable(
+  "capital_contributions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Cents of USD. The screen reveals the pound off the operator's own rate. */
+    amountCents: integer("amount_cents").notNull(),
+    /** The month it landed. Days are ignored by the reader, same as a salary. */
+    receivedOn: date("received_on").notNull(),
+    /** Whose money: "founders", "angel round", "grant". Free text on purpose. */
+    source: text("source").notNull(),
+    note: text("note"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("capital_contributions_when_idx").on(t.receivedOn)],
+);
+
+export type CapitalContribution = typeof capitalContributions.$inferSelect;
+
+/**
+ * The costs `NOT_MEASURED_HERE` names, typed in the way salaries are.
+ *
+ * Video, the bank's charge on a transfer, hosting, software, an accountant.
+ * Nothing in the product buys any of it, so nothing posts it, so a screen that
+ * reads only what the product posted reports a company with no overheads.
+ */
+export const OTHER_COST_KINDS = [
+  "video",
+  "bank_charges",
+  "hosting",
+  "software",
+  "professional",
+  "marketing",
+  "other",
+] as const;
+export type OtherCostKind = (typeof OTHER_COST_KINDS)[number];
+
+export const otherCosts = pgTable(
+  "other_costs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").$type<OtherCostKind>().notNull(),
+    /**
+     * 🔴 THE MONTH IT BELONGS TO, which is not always the month it was paid. A
+     * video bill for March arriving in April is March's cost, and filing it
+     * under April moves it away from the sessions that caused it.
+     */
+    month: date("month").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    note: text("note"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("other_costs_month_idx").on(t.month),
+    /* The same bill typed twice on two visits is a month that costs double. */
+    uniqueIndex("other_costs_one_per_kind_per_month").on(t.kind, t.month),
+  ],
+);
+
+export type OtherCost = typeof otherCosts.$inferSelect;
+
 /** Icons an admin may choose. An allowlist, not a free string. */
 export const CONTENT_ICONS = [
   "sparkles", "mic", "fileText", "shield", "heart", "clock", "users", "video",

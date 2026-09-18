@@ -57,6 +57,8 @@ async function main() {
   const orgName = "Verify Actuals Example";
   let orgId: string | null = null;
   const employeeIds: string[] = [];
+  /** What the video line was before this run touched it, so it can be put back. */
+  let videoWas: number | null = null;
 
   try {
     const { monthlyActuals } = await import("../lib/data/actuals");
@@ -79,6 +81,8 @@ async function main() {
      * database this verifier is about to change is not a baseline.
      */
     await db.execute(sql`DELETE FROM employees WHERE title = 'verify'`);
+    await db.execute(sql`DELETE FROM capital_contributions WHERE source = 'verify'`);
+    await db.execute(sql`DELETE FROM other_costs WHERE note = 'verify'`);
     await db.execute(sql`
       DELETE FROM ai_request_logs WHERE organization_id IN
         (SELECT id FROM organizations WHERE slug = 'verify-actuals-example')`);
@@ -176,6 +180,53 @@ async function main() {
       }
     }
 
+    /* ------------------------------------------- plant the bank and a bill -- */
+
+    /*
+     * 🔴 $500 OF CAPITAL IN MONTH 1, AND IT IS THE CHECK THIS FILE WAS MISSING.
+     *
+     * Before 76.56 the page accumulated the `cash` ledger account from zero and
+     * printed it under a heading that read as the bank balance. It was not: it
+     * was what trading had done to the balance. A company that put fifty
+     * thousand in and spent thirty reported minus thirty thousand, and thirteen
+     * green checks had nothing to say about it, because every one of them
+     * measured a delta inside the ledger and the missing row was never in the
+     * ledger at all.
+     *
+     * So: plant capital, assert the balance moves by it, and assert the trading
+     * column does NOT. Two assertions, because a reader that added capital into
+     * the trading column would pass the first one.
+     */
+    await db.execute(sql`
+      INSERT INTO capital_contributions (amount_cents, received_on, source, note)
+      VALUES (50000, ${`${m1}-01`}, 'verify', 'planted by verify:actuals')`);
+
+    /*
+     * 🔴 A VIDEO BILL NOTHING IN THE PRODUCT POSTS. The three typed-in kinds
+     * exist because `NOT_MEASURED_HERE` said the fix was "a monthly figure typed
+     * in" and nothing could type one. A cost that reaches the spend column only
+     * when somebody types it needs a check that it reaches it at all.
+     */
+    /*
+     * 🔴 ADDED TO WHATEVER IS ALREADY THERE, AND PUT BACK IN THE `finally`.
+     *
+     * The first version inserted a row and the unique index refused it, because
+     * `screens:prep` had already typed a video bill into the same month on this
+     * branch. Deleting the existing row instead would have made the delta
+     * negative and failed the check while the reader was right, which is the
+     * same trap this file's header is about: a verifier that assumes the branch
+     * is empty is a verifier that reports the branch rather than the code.
+     */
+    const priorVideo = await db.execute<{ amount_cents: number }>(sql`
+      SELECT amount_cents FROM other_costs WHERE kind = 'video' AND month = ${`${m1}-01`}`);
+    videoWas = priorVideo.rows[0]?.amount_cents ?? null;
+
+    await db.execute(sql`
+      INSERT INTO other_costs (kind, month, amount_cents, note)
+      VALUES ('video', ${`${m1}-01`}, ${(videoWas ?? 0) + 700}, 'verify')
+      ON CONFLICT (kind, month) DO UPDATE SET amount_cents = EXCLUDED.amount_cents`);
+
+
     /* ------------------------------------------------------ read it back -- */
 
     const after = await monthlyActuals();
@@ -227,12 +278,12 @@ async function main() {
      * are spend. A result that leaves the salaries out is precisely the
      * profitable-looking company this whole sprint exists to stop reporting.
      */
-    const expectedNet = 1000 + 8000 - 400 - 1 - 3000;
+    const expectedNet = 1000 + 8000 - 400 - 1 - 3000 - 700;
     check(
       "🔴 CONTROL the net is earned minus spent, and SALARIES are spent",
       delta(m1, (r) => r.netCents) === expectedNet,
       `net moved by ${delta(m1, (r) => r.netCents)}: 9000 earned, 400 spent, ` +
-        `1 cent of model, 3000 of wages. Expected ${expectedNet}`,
+        `1 cent of model, 3000 of wages, 700 of video. Expected ${expectedNet}`,
     );
 
     /* ----------------------------------------------- held money is not ours */
@@ -299,6 +350,134 @@ async function main() {
         "and Raised Example has two salary rows. A join here would have counted four",
     );
 
+    /* ----------------------------------------------------------- the bank */
+
+    check(
+      "🔴 capital put in reaches the BANK BALANCE, which trading alone never could",
+      delta(m1, (r) => r.bankBalanceCents) === 50000 + 1000 - 400,
+      `balance moved by ${delta(m1, (r) => r.bankBalanceCents)}: 50000 put in, ` +
+        "1000 in and 400 out of trading",
+    );
+
+    check(
+      "🔴 CONTROL …and it does NOT reach the trading column, which is a different question",
+      delta(m1, (r) => r.cashCents) === 1000 - 400,
+      `trading moved by ${delta(m1, (r) => r.cashCents)}, expected 600. ` +
+        "A reader that added capital here would have passed the check above and be wrong",
+    );
+
+    /*
+     * 🔴 THE ONE THAT MATTERS MOST, and the reason `ours` is a separate column.
+     *
+     * 140 of VAT and 800 owed to a clinician were planted as credits. Both are
+     * in the bank account and neither is ours. A screen that divides the whole
+     * balance by the burn to get a runway is counting a tax authority's money as
+     * months of salary, and it is the commonest way a company that is about to
+     * run out believes it is not.
+     */
+    check(
+      "🔴 held money is subtracted: VAT and a clinician's earnings are in the bank, not ours",
+      delta(m1, (r) => r.heldForOthersCents) === 140 + 800 &&
+        delta(m1, (r) => r.oursCents) === 50000 + 1000 - 400 - 940,
+      `held ${delta(m1, (r) => r.heldForOthersCents)}, ours ${delta(m1, (r) => r.oursCents)}`,
+    );
+
+    check(
+      "🔴 a typed-in cost nothing in the product buys still reaches what the month SPENT",
+      delta(m1, (r) => r.typedCostsCents) === 700 && delta(m1, (r) => r.spendCents) === 400 + 1 + 3000 + 700,
+      `typed ${delta(m1, (r) => r.typedCostsCents)}, spend ${delta(m1, (r) => r.spendCents)}`,
+    );
+
+    /*
+     * 🔴 THE BURN IS A THREE MONTH AVERAGE AND THE RUNWAY DIVIDES OURS BY IT.
+     *
+     * Asserted as a relationship rather than an absolute, for the reason at the
+     * top of this file: the branch is not empty. What is checked is that the two
+     * agree with each other and with the last row, which is where a screen that
+     * divided by the wrong figure would come apart.
+     */
+    const p = after.position;
+    const last = after.months.at(-1)!;
+
+    check(
+      "🔴 the position card and the last row of the table are the same numbers",
+      p.bankBalanceCents === last.bankBalanceCents &&
+        p.oursCents === last.oursCents &&
+        p.heldForOthersCents === last.heldForOthersCents,
+      `card ${p.oursCents}, table ${last.oursCents}. A card with its own query is a card that disagrees`,
+    );
+
+    /* ------------------------------------------------- the burn and runway */
+
+    /*
+     * 🔴 THE BURN CHECK HAS TO BE GIVEN A BURN, AND THE SIZE IS MEASURED RATHER
+     * THAN GUESSED.
+     *
+     * The first version planted a flat $200 into the most recent month and
+     * asserted that a burn appeared. It did not: this branch had enough revenue
+     * in the trailing window to absorb it, `monthlyBurnCents` came back null,
+     * and the runway assertion sailed down its "there is no burn, so there is no
+     * runway" path having exercised nothing at all. A check that only ever runs
+     * its empty branch is the §6 family in the costume of a passing test.
+     *
+     * So the window is read first and the loss is sized against it. Whatever is
+     * already on the branch, the trailing three months end up $100 down.
+     */
+    const windowNetBefore = after.months.slice(-3).reduce((total, row) => total + row.netCents, 0);
+    const pushInto = Math.max(0, windowNetBefore) + 10_000;
+    const burnTxn = crypto.randomUUID();
+    await db.execute(sql`
+      INSERT INTO ledger_entries (txn_id, txn_kind, account, organization_id, amount_cents,
+                                  ref_type, memo, created_at)
+      VALUES
+        (${burnTxn}, 'adjustment', 'platform_expense', ${orgId}, ${pushInto}, NULL, 'verify: a losing month', ${firstOf(m5)}),
+        (${burnTxn}, 'adjustment', 'cash',             ${orgId}, ${-pushInto}, NULL, 'verify: paid for it',    ${firstOf(m5)})`);
+
+    const burning = await monthlyActuals();
+    const b = burning.position;
+
+    check(
+      "🔴 a losing trailing window produces a BURN, so this cannot pass by measuring nothing",
+      b.monthlyBurnCents !== null && b.monthlyBurnCents > 0 && b.burnWindowMonths === 3,
+      b.monthlyBurnCents === null
+        ? `no burn, and ${String(pushInto)} cents of loss was planted to make sure there was one`
+        : `${String(b.monthlyBurnCents)} cents a month, averaged over ${String(b.burnWindowMonths)}`,
+    );
+
+    check(
+      "🔴 …and the runway is OURS over the burn, never the whole balance",
+      b.monthlyBurnCents !== null &&
+        Math.abs(
+          (b.runwayMonths ?? 0) - Math.round((Math.max(0, b.oursCents) / b.monthlyBurnCents) * 10) / 10,
+        ) < 0.05,
+      b.monthlyBurnCents === null
+        ? "no burn to divide by"
+        : `${String(b.runwayMonths)} months = ${String(b.oursCents)} ours over ` +
+          `${String(b.monthlyBurnCents)} a month`,
+    );
+
+    /*
+     * 🔴 THE CONTROL FOR THE ONE ABOVE, and it is the whole argument for having
+     * a separate `ours` column at all.
+     *
+     * $9.40 of somebody else's money was planted: VAT collected and a
+     * clinician's earnings. A screen that divided the BALANCE by the burn would
+     * report a strictly longer runway, and the difference is months of salary
+     * that a tax authority can ask for back. Asserting the number is not enough;
+     * this asserts it is the SMALLER of the two answers.
+     */
+    check(
+      "🔴 CONTROL dividing the balance instead would have given a longer runway",
+      b.monthlyBurnCents === null ||
+        b.heldForOthersCents <= 0 ||
+        (b.runwayMonths ?? 0) < Math.max(0, b.bankBalanceCents) / b.monthlyBurnCents,
+      b.monthlyBurnCents === null
+        ? "no burn"
+        : `${String(b.runwayMonths)} months on ours, ` +
+          `${(Math.max(0, b.bankBalanceCents) / b.monthlyBurnCents).toFixed(1)} on the balance. ` +
+          `${String(b.heldForOthersCents)} cents of the difference belongs to somebody else`,
+    );
+
     /* ------------------------------------------------------- the month range */
 
     check(
@@ -325,6 +504,15 @@ async function main() {
     }
     /* Belt and braces: anything a crashed earlier run left behind goes too. */
     await db.execute(sql`DELETE FROM employees WHERE title = 'verify'`);
+    await db.execute(sql`DELETE FROM capital_contributions WHERE source = 'verify'`);
+    /* Put the branch's own video line back at the figure it was typed at. */
+    if (videoWas === null) {
+      await db.execute(sql`DELETE FROM other_costs WHERE note = 'verify'`);
+    } else {
+      await db.execute(sql`
+        UPDATE other_costs SET amount_cents = ${videoWas}, note = 'screens'
+         WHERE note = 'verify'`);
+    }
     if (orgId) {
       await db.execute(sql`DELETE FROM ai_request_logs WHERE organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM ledger_entries WHERE organization_id = ${orgId}`);

@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 
+import { capitalByMonth, otherCostsByMonth } from "./capital";
 import { payrollByMonth, type PayrollMonth } from "./payroll";
 
 /**
@@ -55,9 +56,9 @@ import { payrollByMonth, type PayrollMonth } from "./payroll";
  */
 export const NOT_MEASURED_HERE = [
   {
-    what: "Video",
-    why: "Daily bills per participant minute against an account, not against this database. Nothing in a row here knows the price.",
-    fix: "a monthly figure typed in, the way salaries are",
+    what: "Video, bank charges, hosting, software, an accountant",
+    why: "nothing in the product buys any of them, so nothing posts them. They reach this page only for the months somebody typed them into Other costs below, and a month with no figure is a month nobody typed rather than a month with no costs.",
+    fix: "type each month's figure in, the way salaries are typed",
   },
   {
     what: "Card fees",
@@ -65,14 +66,14 @@ export const NOT_MEASURED_HERE = [
     fix: "nothing, until cards open",
   },
   {
-    what: "Bank charges on a transfer",
-    why: "an EGP transfer is confirmed by a person reading a receipt. What the bank took is on the bank's statement and never reaches a row here.",
-    fix: "a monthly figure typed in",
+    what: "What a founder's time is worth",
+    why: "two of the seven on the payroll are founders drawing the same $500 as everybody else. A wage bill that pays a founder a support salary understates what this company costs to run, and it flatters every month on this page by the difference.",
+    fix: "nothing here. A real limit of this table, written down rather than corrected",
   },
   {
-    what: "Anything bought with a card",
-    why: "hosting, domains, software, an accountant. None of it posts to the ledger, because nothing in the product buys any of it.",
-    fix: "a monthly figure typed in",
+    what: "Tax on a profit",
+    why: "there has not been one. VAT collected is held and shown separately because it was never ours; tax on a result has never been owed.",
+    fix: "nothing, until a year closes in profit",
   },
 ] as const;
 
@@ -115,14 +116,26 @@ export type ActualMonth = {
   otherSpendCents: number;
   /** `fx_difference`: what a frozen rate cost when the money actually moved. */
   fxCents: number;
+  /** Video, bank charges, hosting and the rest, typed in the way salaries are. */
+  typedCostsCents: number;
   spendCents: number;
 
   /* -------------------------------------------------------------- result -- */
   netCents: number;
   /** Cash that moved this month, from the `cash` account. */
   cashMovedCents: number;
-  /** Cash held at the end of this month, accumulated. */
+  /** What trading did to the balance, accumulated. **Not the bank balance.** */
   cashCents: number;
+
+  /* ------------------------------------------------------------ the bank -- */
+  /** Every contribution that had arrived by the end of this month. */
+  capitalInCents: number;
+  /** 🔴 Capital in, plus what trading did. What is actually in the account. */
+  bankBalanceCents: number;
+  /** VAT, clinicians' earnings and pot balances, accumulated. In the bank, not ours. */
+  heldForOthersCents: number;
+  /** 🔴 Bank balance minus held. The only figure that is safe to spend. */
+  oursCents: number;
 
   /* ----------------------------------------------- money that is not ours -- */
   /** VAT collected and not yet remitted. Ours to hold, never ours to spend. */
@@ -141,8 +154,10 @@ export type Actuals = {
     aiCostMicrocents: number;
     payrollCents: number;
     otherSpendCents: number;
+    typedCostsCents: number;
     spendCents: number;
     netCents: number;
+    capitalInCents: number;
   };
   /** The first month anything happened, or null when nothing has. */
   from: string | null;
@@ -150,6 +165,54 @@ export type Actuals = {
   lossMonths: number;
   /** The first month the net was positive, or null. */
   brokeEvenIn: string | null;
+  /** 🔴 The four figures a founder opens this page to read. */
+  position: Position;
+};
+
+/**
+ * 🔴 WHERE THE COMPANY STANDS, WHICH IS FOUR NUMBERS AND NOT ONE.
+ *
+ * `/admin/financial-model` produces `cashUsd`, `runwayMonths` and
+ * `deepestDeficitUsd` from assumptions. This produces the same shape from rows,
+ * so the two screens can be read side by side rather than argued about.
+ */
+export type Position = {
+  /** What is in the account: capital in, plus what trading did to it. */
+  bankBalanceCents: number;
+  /** Of that, what belongs to a tax authority, a clinician or an employer. */
+  heldForOthersCents: number;
+  /** Bank balance minus held. The only figure that is safe to spend. */
+  oursCents: number;
+  /** Everything put in, ever. */
+  capitalInCents: number;
+  /**
+   * 🔴 THE AVERAGE MONTHLY LOSS OVER THE LAST THREE MONTHS, not the last one.
+   *
+   * One month is noise: a quarterly invoice, a month somebody joined, a month
+   * with five Fridays. Three months is the shortest window in which a burn rate
+   * is a rate rather than an anecdote, and it is what an investor asking "what
+   * is your burn" means. Null when the trailing window made money, because a
+   * burn rate for a profitable company is not a small number, it is not a
+   * number, and printing zero would read as "we spend nothing".
+   */
+  monthlyBurnCents: number | null;
+  /** How many months the trailing window covered, so the screen can say so. */
+  burnWindowMonths: number;
+  /**
+   * 🔴 `oursCents / monthlyBurnCents`, and it is OURS rather than the balance.
+   *
+   * Dividing the whole bank balance by the burn is how a company with a large
+   * VAT liability and three employers' unspent pots convinces itself it has a
+   * year. Every one of those has somebody who can ask for it back.
+   *
+   * Null when there is no burn, and **negative ours reads as zero months**
+   * rather than as a negative runway, because the answer to "how long does the
+   * money last" when the money is already gone is none.
+   */
+  runwayMonths: number | null;
+  /** The month `oursCents` was at its lowest, and what it was. */
+  deepestCents: number;
+  deepestMonth: string | null;
 };
 
 /** 1 cent = 1000 microcents. */
@@ -168,6 +231,15 @@ export async function monthlyActuals(opts: { maxMonths?: number } = {}): Promise
 
   const months = await monthRange(maxMonths);
   if (months.length === 0) {
+    /*
+     * 🔴 CAPITAL IS READ EVEN WITH NO MONTHS, because money in the bank before
+     * the first session is the normal state of a company that has not opened
+     * yet, and reporting a balance of zero over it would be the same mistake
+     * this whole change exists to fix, in the one month it is most likely.
+     */
+    const capital = await capitalByMonth([thisMonth()]);
+    const capitalInCents = capital.get(thisMonth()) ?? 0;
+
     return {
       months: [],
       totals: {
@@ -176,23 +248,39 @@ export async function monthlyActuals(opts: { maxMonths?: number } = {}): Promise
         aiCostMicrocents: 0,
         payrollCents: 0,
         otherSpendCents: 0,
+        typedCostsCents: 0,
         spendCents: 0,
         netCents: 0,
+        capitalInCents,
       },
       from: null,
       lossMonths: 0,
       brokeEvenIn: null,
+      position: {
+        bankBalanceCents: capitalInCents,
+        heldForOthersCents: 0,
+        oursCents: capitalInCents,
+        capitalInCents,
+        monthlyBurnCents: null,
+        burnWindowMonths: 0,
+        runwayMonths: null,
+        deepestCents: capitalInCents,
+        deepestMonth: null,
+      },
     };
   }
 
-  const [activity, ledger, ai, payroll] = await Promise.all([
+  const [activity, ledger, ai, payroll, capital, typed] = await Promise.all([
     activityByMonth(),
     ledgerByMonth(),
     aiCostByMonth(),
     payrollByMonth(months),
+    capitalByMonth(months),
+    otherCostsByMonth(),
   ]);
 
   let runningCash = 0;
+  let runningHeld = 0;
   const rows: ActualMonth[] = months.map((month, i) => {
     const a = activity.get(month);
     const l = ledger.get(month);
@@ -219,10 +307,27 @@ export async function monthlyActuals(opts: { maxMonths?: number } = {}): Promise
      * call to a cent is what made the old usage table report nothing at all.
      */
     const aiCostCents = Math.round(aiCostMicrocents / CENTS_PER_MICRO);
-    const spendCents = aiCostCents + p.totalCents + otherSpendCents + fxCents;
+    const typedCostsCents = typed.get(month) ?? 0;
+    const spendCents = aiCostCents + p.totalCents + otherSpendCents + fxCents + typedCostsCents;
 
     const cashMovedCents = l?.cashCents ?? 0;
     runningCash += cashMovedCents;
+
+    /*
+     * 🔴 THE THREE POTS OF SOMEBODY ELSE'S MONEY, ACCUMULATED.
+     *
+     * The table's `showHeld` columns are each month's MOVEMENT, which is the
+     * right figure beside that month's trading. The balance question is
+     * different and needs the total standing at the end: VAT collected since we
+     * opened and not yet remitted, everything clinicians have earned and not
+     * been paid, and every employer's unspent pot. All three sit in one bank
+     * account, all three can be asked for, and none of them is runway.
+     */
+    runningHeld +=
+      (l?.vatCents ?? 0) + (l?.therapistPayableCents ?? 0) + (l?.potCents ?? 0);
+
+    const capitalInCents = capital.get(month) ?? 0;
+    const bankBalanceCents = capitalInCents + runningCash;
 
     return {
       month,
@@ -240,10 +345,15 @@ export async function monthlyActuals(opts: { maxMonths?: number } = {}): Promise
       headcount: p.headcount,
       otherSpendCents,
       fxCents,
+      typedCostsCents,
       spendCents,
       netCents: revenueCents - spendCents,
       cashMovedCents,
       cashCents: runningCash,
+      capitalInCents,
+      bankBalanceCents,
+      heldForOthersCents: runningHeld,
+      oursCents: bankBalanceCents - runningHeld,
       vatCollectedCents: l?.vatCents ?? 0,
       owedToCliniciansCents: l?.therapistPayableCents ?? 0,
       potMovementCents: l?.potCents ?? 0,
@@ -258,12 +368,76 @@ export async function monthlyActuals(opts: { maxMonths?: number } = {}): Promise
       aiCostMicrocents: sum(rows, (r) => r.aiCostMicrocents),
       payrollCents: sum(rows, (r) => r.payrollCents),
       otherSpendCents: sum(rows, (r) => r.otherSpendCents + r.fxCents),
+      typedCostsCents: sum(rows, (r) => r.typedCostsCents),
       spendCents: sum(rows, (r) => r.spendCents),
       netCents: sum(rows, (r) => r.netCents),
+      capitalInCents: rows.at(-1)!.capitalInCents,
     },
     from: rows[0]!.month,
     lossMonths: rows.filter((r) => r.netCents < 0).length,
     brokeEvenIn: rows.find((r) => r.netCents > 0)?.month ?? null,
+    position: positionFrom(rows),
+  };
+}
+
+/** `YYYY-MM` for right now, used only when the business has no months yet. */
+function thisMonth(): string {
+  const now = new Date();
+  return `${String(now.getUTCFullYear())}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * The four figures a founder opens this page for, off the rows above.
+ *
+ * 🔴 IT TAKES THE ROWS RATHER THAN QUERYING AGAIN, so the headline and the table
+ * cannot disagree. A card that queries its own totals is a card that reads
+ * differently from the table under it after somebody changes one of them, and
+ * the reader has no way to tell which is right.
+ */
+export function positionFrom(rows: ActualMonth[]): Position {
+  const last = rows.at(-1);
+  if (!last) {
+    return {
+      bankBalanceCents: 0,
+      heldForOthersCents: 0,
+      oursCents: 0,
+      capitalInCents: 0,
+      monthlyBurnCents: null,
+      burnWindowMonths: 0,
+      runwayMonths: null,
+      deepestCents: 0,
+      deepestMonth: null,
+    };
+  }
+
+  /*
+   * 🔴 THE TRAILING THREE MONTHS, OR FEWER IF THAT IS ALL THERE IS.
+   *
+   * A two-month-old company has a two-month window and the screen says so
+   * rather than quietly dividing by three and reporting a burn a third of the
+   * real one.
+   */
+  const window = rows.slice(-3);
+  const windowNet = window.reduce((total, row) => total + row.netCents, 0);
+  const monthlyBurnCents = windowNet < 0 ? Math.round(-windowNet / window.length) : null;
+
+  const runwayMonths =
+    monthlyBurnCents === null || monthlyBurnCents === 0
+      ? null
+      : Math.max(0, last.oursCents) / monthlyBurnCents;
+
+  const deepest = rows.reduce((worst, row) => (row.oursCents < worst.oursCents ? row : worst), rows[0]!);
+
+  return {
+    bankBalanceCents: last.bankBalanceCents,
+    heldForOthersCents: last.heldForOthersCents,
+    oursCents: last.oursCents,
+    capitalInCents: last.capitalInCents,
+    monthlyBurnCents,
+    burnWindowMonths: window.length,
+    runwayMonths: runwayMonths === null ? null : Math.round(runwayMonths * 10) / 10,
+    deepestCents: deepest.oursCents,
+    deepestMonth: deepest.month,
   };
 }
 
@@ -275,10 +449,21 @@ const sum = <T>(rows: T[], of: (row: T) => number): number =>
 /**
  * The months this business has had.
  *
- * 🔴 FOUR SOURCES, AND THE EARLIEST WINS. A month with staff and no trading is
+ * 🔴 SIX SOURCES, AND THE EARLIEST WINS. A month with staff and no trading is
  * still a month that cost their salary, and a month with sessions and no money
  * is the shape of the first month of anything. Taking the range from the ledger
  * alone would silently drop both.
+ *
+ * 🔴 AND THE FIFTH IS CAPITAL, WHICH WAS FOUND BY LOOKING AT THE SCREEN.
+ *
+ * The founders put money in three months before the first session, and the page
+ * said *"1 month, from 2026-09"* over a balance of $75,000 that had plainly not
+ * arrived in one month. The company existed from the day its bank account was
+ * funded, whatever the product was doing, and a range that starts at the first
+ * session reports a business that sprang into being fully capitalised.
+ *
+ * The sixth is a typed-in cost, for the same reason: an accountancy bill in a
+ * month with no sessions is a month this company had.
  */
 async function monthRange(maxMonths: number): Promise<string[]> {
   const found = await db.execute<{ first: string | null }>(sql`
@@ -286,7 +471,9 @@ async function monthRange(maxMonths: number): Promise<string[]> {
       (SELECT MIN(created_at) FROM ledger_entries),
       (SELECT MIN(COALESCE(started_at, created_at)) FROM sessions),
       (SELECT MIN(created_at) FROM ai_request_logs),
-      (SELECT MIN(started_on)::timestamptz FROM employees)
+      (SELECT MIN(started_on)::timestamptz FROM employees),
+      (SELECT MIN(received_on)::timestamptz FROM capital_contributions),
+      (SELECT MIN(month)::timestamptz FROM other_costs)
     ), 'YYYY-MM') AS first`);
 
   const first = found.rows[0]?.first ?? null;

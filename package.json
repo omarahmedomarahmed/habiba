@@ -61,6 +61,7 @@
     "verify:actuals": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-actuals.ts",
     "verify:cast": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-cast.ts",
     "logins": "node --import tsx scripts/logins.ts",
+    "screens:prep": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/screens-prep.ts",
     "grant:admin": "node --env-file-if-exists=.env.local --import tsx scripts/grant-admin.ts",
     "seed:coverage": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/seed-coverage.ts",
     "evals": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server evals/run.ts",

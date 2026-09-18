@@ -186,6 +186,17 @@ const SCOPE: Record<string, Scope> = {
    */
   actuals: { who: ["admin"] },
   payroll: { who: ["admin"] },
+  /*
+   * 🔴 76.56 — WHAT IS IN THE BANK, AND WHAT NOTHING IN THE PRODUCT BUYS.
+   *
+   * The third of the same family and the same ruling. `capital` holds two
+   * tables that contain no customer of this product at all: money the founders
+   * put in, and the video, hosting and accountancy bills nothing here pays. It
+   * is not clinical by construction, there is no patient column to scope, and
+   * `lib/data/capital.ts` asserts super_admin again for any caller that is not
+   * a page. How much money the company has left is not a queue.
+   */
+  capital: { who: ["admin"] },
 
   /*
    * 🔴 C379 — Total View. It reads live transcripts, note content and risk

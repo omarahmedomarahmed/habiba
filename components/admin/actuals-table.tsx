@@ -47,10 +47,15 @@ export type ActualRow = {
   headcount: number;
   otherSpendCents: number;
   fxCents: number;
+  typedCostsCents: number;
   spendCents: number;
   netCents: number;
   cashMovedCents: number;
   cashCents: number;
+  capitalInCents: number;
+  bankBalanceCents: number;
+  heldForOthersCents: number;
+  oursCents: number;
   vatCollectedCents: number;
   owedToCliniciansCents: number;
   potMovementCents: number;
@@ -68,8 +73,10 @@ export function ActualsTable({
     aiCostMicrocents: number;
     payrollCents: number;
     otherSpendCents: number;
+    typedCostsCents: number;
     spendCents: number;
     netCents: number;
+    capitalInCents: number;
   };
   notMeasured: readonly { what: string; why: string; fix: string }[];
 }) {
@@ -117,7 +124,17 @@ export function ActualsTable({
               <th className="py-2 text-end font-medium">Other</th>
               <th className="py-2 text-end font-medium">Spent</th>
               <th className="py-2 text-end font-medium">Net</th>
-              <th className="py-2 text-end font-medium">Cash</th>
+              {/*
+                🔴 "TRADING" AND NOT "CASH", and the rename is the fix.
+
+                This column is the `cash` ledger account accumulated from zero:
+                what six months of trading did to the balance. Headed "Cash" it
+                read as the bank balance, which it is not and never was — the
+                money the founders put in has never been in it. The balance now
+                has its own card above, and this column says what it is.
+              */}
+              <th className="py-2 text-end font-medium">Trading</th>
+              <th className="py-2 text-end font-medium">Ours</th>
               {showHeld && <th className="py-2 text-end font-medium">VAT held</th>}
               {showHeld && <th className="py-2 text-end font-medium">Owed out</th>}
               {showHeld && <th className="py-2 text-end font-medium">Pots</th>}
@@ -154,7 +171,19 @@ export function ActualsTable({
                   )}
                 </td>
                 <td className="py-2 text-end tabular-nums text-slate-600">
-                  <Money cents={row.otherSpendCents + row.fxCents} />
+                  <Money cents={row.otherSpendCents + row.fxCents + row.typedCostsCents} />
+                  {/*
+                    🔴 A MONTH WITH NOTHING TYPED IN IS NOT A MONTH WITH NO
+                    OVERHEADS, and a blank cell says the opposite. Video, the
+                    bank's charge and hosting reach this page only when somebody
+                    types them, so the months nobody has typed carry a mark and
+                    the editor at the bottom names them.
+                  */}
+                  {row.typedCostsCents === 0 && (
+                    <span className="ms-1 text-xs text-amber-600" title="nothing typed in">
+                      ?
+                    </span>
+                  )}
                 </td>
                 <td className="py-2 text-end tabular-nums text-slate-600">
                   <Money cents={row.spendCents} />
@@ -168,6 +197,13 @@ export function ActualsTable({
                 </td>
                 <td className="py-2 text-end tabular-nums text-slate-600">
                   <Money cents={row.cashCents} />
+                </td>
+                <td
+                  className={`py-2 text-end tabular-nums ${
+                    row.oursCents < 0 ? "text-rose-700" : "text-slate-900"
+                  }`}
+                >
+                  <Money cents={row.oursCents} />
                 </td>
                 {showHeld && (
                   <td className="py-2 text-end tabular-nums text-slate-500">
@@ -202,7 +238,7 @@ export function ActualsTable({
                 <Money cents={totals.payrollCents} />
               </td>
               <td className="py-2 text-end tabular-nums text-slate-600">
-                <Money cents={totals.otherSpendCents} />
+                <Money cents={totals.otherSpendCents + totals.typedCostsCents} />
               </td>
               <td className="py-2 text-end tabular-nums text-slate-600">
                 <Money cents={totals.spendCents} />
@@ -214,6 +250,7 @@ export function ActualsTable({
               >
                 <Money cents={totals.netCents} />
               </td>
+              <td className="py-2" />
               <td className="py-2" />
               {showHeld && <td className="py-2" />}
               {showHeld && <td className="py-2" />}

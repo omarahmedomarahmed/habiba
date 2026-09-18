@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ActualsTable } from "@/components/admin/actuals-table";
+import { BankEditor } from "@/components/admin/bank-editor";
 import { PayrollEditor } from "@/components/admin/payroll-editor";
+import { PositionCard } from "@/components/admin/position-card";
 import { Card, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
 import { NOT_MEASURED_HERE, monthlyActuals } from "@/lib/data/actuals";
+import { OTHER_COST_LABELS, listCapital, listOtherCosts } from "@/lib/data/capital";
 import { listEmployees, payrollByMonth } from "@/lib/data/payroll";
+import { OTHER_COST_KINDS } from "@/lib/db/schema";
 
 export const metadata: Metadata = { title: "Actuals", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -44,7 +48,12 @@ export const dynamic = "force-dynamic";
 export default async function ActualsPage() {
   const actor = await requireRole("super_admin");
 
-  const [actuals, people] = await Promise.all([monthlyActuals(), listEmployees(actor)]);
+  const [actuals, people, capital, costs] = await Promise.all([
+    monthlyActuals(),
+    listEmployees(actor),
+    listCapital(actor),
+    listOtherCosts(actor),
+  ]);
 
   /*
    * 🔴 THE DEFAULT DATE COMES FROM THE SERVER.
@@ -75,7 +84,7 @@ export default async function ActualsPage() {
             </p>
             <p className="mt-1 text-sm text-slate-700">
               {actuals.from
-                ? `${String(actuals.months.length)} months from ${actuals.from}.`
+                ? `${String(actuals.months.length)} ${actuals.months.length === 1 ? "month" : "months"} from ${actuals.from}.`
                 : "No trading yet."}{" "}
               {actuals.brokeEvenIn
                 ? `In the black from ${actuals.brokeEvenIn}.`
@@ -94,6 +103,18 @@ export default async function ActualsPage() {
         </p>
       </Card>
 
+      {/*
+        🔴 THE POSITION SITS ABOVE THE TABLE, AND THAT IS THE ARGUMENT.
+
+        A founder opening this page is asking two questions, and the second one
+        is the urgent one: what have we got, and how long does it last. The
+        month by month table answers neither — it says what each month did, and
+        the balance it carried was what TRADING did to the bank, from zero,
+        which is not the balance at all. Six months of correct rows summing to a
+        number that was wrong by the entire amount the founders had put in.
+      */}
+      <PositionCard position={actuals.position} months={actuals.months.length} />
+
       <ActualsTable
         months={actuals.months}
         totals={actuals.totals}
@@ -101,6 +122,23 @@ export default async function ActualsPage() {
       />
 
       <PayrollEditor people={people} thisMonth={thisMonth} monthlyTotalCents={monthlyTotalCents} />
+
+      <BankEditor
+        capital={capital}
+        costs={costs}
+        kinds={OTHER_COST_KINDS.map((value) => ({ value, ...OTHER_COST_LABELS[value] }))}
+        months={
+          /*
+           * 🔴 THE MONTHS COME FROM THE TABLE, not from a range the form invents.
+           * A dropdown offering a month the business did not have is a dropdown
+           * that accepts a cost filed outside every total on the page.
+           */
+          actuals.months.length > 0
+            ? actuals.months.map((row) => row.month)
+            : [thisMonth.slice(0, 7)]
+        }
+        thisMonth={thisMonth}
+      />
     </div>
   );
 }
