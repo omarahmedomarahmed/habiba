@@ -122,7 +122,10 @@ const RECOMMENDED = [
  * The decision to run the six month simulation on production rested partly on
  * "production is not publicly reachable", read off Vercel's SSO setting, which
  * protects everything `all_except_custom_domains`. That was inferred and it was
- * WRONG: `24t.vercel.app` is attached to the project and answers 200 to anybody,
+ * WRONG, and that setting is the reason rather than the exception: a custom
+ * domain is precisely what `all_except_custom_domains` does NOT cover. So
+ * `24therapy.app` answers 200 to anybody, and so does the `24t.vercel.app`
+ * subdomain still attached beside it, both
  * with no sign-in. `robots.txt` allows `/radar`, and the radar page carries
  * `index, follow` on purpose, because somebody searching "talk to a therapist
  * now" is exactly who it is for.
@@ -318,7 +321,7 @@ export const env = {
   egyptMerchantId: process.env.EGYPT_MERCHANT_ID || "",
 
   resendApiKey: process.env.RESEND_API_KEY || "",
-  emailFrom: process.env.EMAIL_FROM || "24Therapy <noreply@24therapy.ai>",
+  emailFrom: process.env.EMAIL_FROM || "24Therapy <noreply@24therapy.app>",
 
   cronSecret: process.env.CRON_SECRET || "",
 

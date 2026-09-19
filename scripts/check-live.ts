@@ -24,7 +24,7 @@
  */
 import { LOCALE_COOKIE } from "../lib/i18n/config";
 
-export const LIVE_URL = process.env.LIVE_URL ?? "https://24t.vercel.app";
+export const LIVE_URL = process.env.LIVE_URL ?? "https://24therapy.app";
 
 export type LivePageText = { path: string; locale: string; text: string };
 

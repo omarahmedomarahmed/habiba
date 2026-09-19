@@ -590,7 +590,7 @@ async function main() {
         page,
         "therapist",
         "/login",
-        "test@24therapy.ai",
+        "test@24therapy.app",
         "TestTherapist2026!",
       );
 
@@ -649,7 +649,7 @@ async function main() {
         page,
         "room",
         "/login",
-        "test@24therapy.ai",
+        "test@24therapy.app",
         "TestTherapist2026!",
       );
       if (!inside) {

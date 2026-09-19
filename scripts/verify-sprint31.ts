@@ -2,7 +2,7 @@
  * Sprint 31 acceptance: Arabic has an address. PLAN.md 31.1, C103.
  *
  *   npm run verify:sprint31                       # against a server on :3100
- *   VERIFY_URL=https://24t.vercel.app npm run verify:sprint31
+ *   VERIFY_URL=https://24therapy.app npm run verify:sprint31
  *
  * ## What was wrong, and why this verifier is made of HTTP
  *
@@ -32,6 +32,9 @@
  *
  * Neither can pass vacuously: both fail if the feature does nothing.
  */
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+
 import { DEFAULT_LOCALE, LOCALES, LOCALE_COOKIE } from "../lib/i18n/config";
 import { alternatesFor, isLocalisable, localisedPath, splitLocale } from "../lib/i18n/paths";
 import { reporter } from "./_verify";
@@ -336,6 +339,71 @@ async function main() {
         `${cookieCount.arabic} Arabic characters against ${cookieCount.latin} Latin`,
       );
     },
+  );
+
+  /* ------------------------------------ 76.63 · the domains we no longer use -- */
+
+  /*
+   * 🔴 THE PRODUCT MOVED TO `24therapy.app`, AND A HOSTNAME LEFT BEHIND IS C162
+   * WAITING TO HAPPEN AGAIN.
+   *
+   * Three hostnames have been retired: `24t.vercel.app`, `24therapy.ai` and
+   * `habiba-zeta.vercel.app`. A string that still names one is not a cosmetic
+   * problem. The sponsor integration snippet was a `POST` a customer copies, the
+   * cron examples carry a bearer token across a redirect that drops it, and a
+   * canonical tag naming a host nobody serves is the literal shape of C162.
+   *
+   * Counted over the source rather than over a list somebody maintains (H41),
+   * and the exceptions are named with their reason rather than left as silence.
+   */
+  const RETIRED = ["24t.vercel.app", "24therapy.ai", "habiba-zeta.vercel.app"];
+
+  /*
+   * Dated records of what a named host served on a named day. Rewriting these
+   * would falsify the history, and C162's whole lesson is a hostname mismatch.
+   * `lib/env.ts` is the one live file, and it says the retired subdomain is
+   * still attached and still public, which is true and is the point.
+   */
+  const ALLOWED = new Set([
+    "PLAN.md",
+    "docs/audit-archive/AUDIT-PROMPT.md",
+    "lib/env.ts",
+    "scripts/verify-sprint31.ts",
+    "docs/simulation/DEPLOY.md",
+  ]);
+
+  const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean);
+  const offenders: string[] = [];
+  for (const file of tracked) {
+    if (ALLOWED.has(file)) continue;
+    let body: string;
+    try {
+      body = readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    const hit = RETIRED.find((d) => body.includes(d));
+    if (hit) offenders.push(`${file} (${hit})`);
+  }
+
+  check(
+    "🔴 76.63 no tracked file names a retired hostname",
+    offenders.length === 0,
+    offenders.length === 0
+      ? `${String(tracked.length)} files read, ${String(ALLOWED.size)} named exceptions`
+      : offenders.slice(0, 8).join(", "),
+  );
+
+  /*
+   * 🔴 CONTROL, because "none found" and "nothing searched" print the same.
+   * The exception list must itself still contain what it claims to excuse: if
+   * `PLAN.md` stops carrying a retired hostname, the entry is stale and the
+   * scan above may be reading nothing at all.
+   */
+  check(
+    "🔴 CONTROL …and the scan can see one, so 'none found' is not 'nothing read'",
+    tracked.length > 100 && RETIRED.some((d) => readFileSync("PLAN.md", "utf8").includes(d)),
+    "PLAN.md still carries one on purpose, and the scan reads it",
   );
 
   finish("Sprint 31");

@@ -181,7 +181,7 @@ The two things to do first, in the run, in this order:
 1. **Move every Egyptian customer to region `eg`** before anybody is asked for money.
 2. **Check `SIMULATION_RUNNING=1` is live on production** before the swarm signs in. Without
    it the limiter is at its production setting and wave 1 stalls. `curl
-   https://24t.vercel.app/robots.txt` is the instrument: `Disallow: /` means the flag is on in
+   https://24therapy.app/robots.txt` is the instrument: `Disallow: /` means the flag is on in
    the deployed runtime, because the same variable drives both.
 
 And one thing NOT to do, because the document used to tell you to:

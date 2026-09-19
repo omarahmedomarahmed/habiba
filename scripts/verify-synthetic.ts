@@ -49,7 +49,7 @@ const SURNAMES = ["Demo", "Example"];
  * is the property that matters: an address that cannot receive mail cannot
  * belong to anybody.
  */
-const DOMAINS = ["example.com", "example.org", "example.net", "example.invalid", "24therapy.ai"];
+const DOMAINS = ["example.com", "example.org", "example.net", "example.invalid", "24therapy.app"];
 
 async function main() {
   writesTo();
@@ -147,7 +147,7 @@ async function main() {
       const mailHit = await db.execute<{ n: string }>(sql`
         SELECT COUNT(*)::text AS n FROM people
          WHERE email IS NOT NULL AND email NOT ILIKE '%@example.com'
-           AND email NOT ILIKE '%@example.invalid' AND email NOT ILIKE '%@24therapy.ai'`);
+           AND email NOT ILIKE '%@example.invalid' AND email NOT ILIKE '%@24therapy.app'`);
 
       caught = Number(nameHit.rows[0]?.n ?? 0) > 0 && Number(mailHit.rows[0]?.n ?? 0) > 0;
     } finally {

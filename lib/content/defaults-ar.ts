@@ -548,7 +548,7 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
             entity: "us",
             body: "الكيان الدولي. المدفوعات بالبطاقة، والتحويلات عبر Stripe، وكل ما هو خارج مصر.",
             address: "اضبط العنوان المسجل من لوحة الإدارة ← المحتوى ← تواصل.",
-            email: "support@24therapy.ai",
+            email: "support@24therapy.app",
             hours: "الأحد إلى الخميس، 09:00-18:00 بتوقيت غرينتش",
           },
           {
@@ -556,7 +556,7 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
             entity: "eg",
             body: "الكيان المصري. الدفع بالجنيه المصري، والتحويل عبر إنستاباي أو المحفظة.",
             address: "اضبط العنوان المسجل من لوحة الإدارة ← المحتوى ← تواصل.",
-            email: "egypt@24therapy.ai",
+            email: "egypt@24therapy.app",
             hours: "الأحد إلى الخميس، 10:00-19:00 بتوقيت القاهرة",
           },
         ],

@@ -297,7 +297,7 @@ function shot(s, file, { x, y, w, h }) {
   s.addText(
     [
       { text: "Pre-launch  ·  MVP live in production  ·  ", options: { color: ICE } },
-      { text: "habiba-zeta.vercel.app", options: { color: TEAL, bold: true } },
+      { text: "24therapy.app", options: { color: TEAL, bold: true } },
     ],
     {
       x: 0.8,
@@ -598,7 +598,7 @@ function shot(s, file, { x, y, w, h }) {
     body(s, d, { x: M + 0.3, y: y + 0.6, w: 3.3, h: 0.7, fontSize: 11.5, color: MUTED, lineSpacingMultiple: 1.12 });
   });
 
-  s.addNotes("Screenshot of the running product at habiba-zeta.vercel.app.");
+  s.addNotes("Screenshot of the running product at 24therapy.app.");
 }
 
 /* =============================================== 6 · booking and consent */
@@ -1185,7 +1185,7 @@ function shot(s, file, { x, y, w, h }) {
   );
   s.addText(
     [
-      { text: "habiba-zeta.vercel.app", options: { color: TEAL, bold: true, breakLine: true } },
+      { text: "24therapy.app", options: { color: TEAL, bold: true, breakLine: true } },
       { text: "aloomeenm3aya@gmail.com", options: { color: ICE } },
     ],
     {

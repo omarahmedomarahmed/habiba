@@ -140,7 +140,7 @@ that collapses if the answer is "it is just the name".
 | | Where it runs | The test |
 |---|---|---|
 | **`24`** | App icon, favicon, avatar, loading state. Square, designed at 512 | Legible at **16px**. Inside the central 80%, because iOS and Android both crop. Holds on `white`, on `slate-50` and on `navy-500` |
-| **`24T`** | Session room header, bottom navigation, the `24t.vercel.app` short form. Roughly 3:1 or tighter | Sits between two Lucide glyphs in a 44px bar without looking heavier. Legible down to 20px tall. The `T` reads as the start of *Therapy*, not as a unit |
+| **`24T`** | Session room header, bottom navigation, anywhere the full wordmark will not fit. Roughly 3:1 or tighter | Sits between two Lucide glyphs in a 44px bar without looking heavier. Legible down to 20px tall. The `T` reads as the start of *Therapy*, not as a unit |
 | **`24Therapy`** | Site header, footer, email, a patient's record extract, the verification page a third party opens to check a record is genuine | Works at 15px in a 56px header and large on a dark hero. Horizontal **and** stacked lockups. Survives being mirrored into RTL |
 
 ---

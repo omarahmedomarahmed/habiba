@@ -32,7 +32,7 @@
 
 Check production is in the state this document claims, build the product and run all
 twenty-eight gates against the **dev** branch, confirm the production seed with `verify:cast`,
-run six months of invented trading on `https://24t.vercel.app` with real keys, move the clock
+run six months of invented trading on `https://24therapy.app` with real keys, move the clock
 at the end of each wave, and report back at seven fixed points, each short enough to read on a
 phone.
 
@@ -67,7 +67,7 @@ Everything else goes in the log and waits.
 otherwise. Sign in as any of the twenty six accounts and read their record:
 `docs/simulation/12-THE-LOGINS.md`, one password for all of them.
 
-Two screens at `https://24t.vercel.app/admin`: **`/admin/actuals`** is the six months in one
+Two screens at `https://24therapy.app/admin`: **`/admin/actuals`** is the six months in one
 table, earned against spent, month by month, with the payroll under it and **Where we stand**
 on top of it — ours to spend, in the bank, burning, runway. **`/admin/financial-model`** is the
 forecast in the same columns. Read them side by side; do not add them up.
@@ -91,7 +91,7 @@ STRIPE_WEBHOOK_SECRET=whsec_anything-nonempty
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_paste-yours-here
 AUTH_SECRET=paste-32-random-characters-NOT-the-production-one
 CRON_SECRET=paste-the-value-from-vercel
-APP_URL=https://24t.vercel.app
+APP_URL=https://24therapy.app
 DATABASE_URL=postgresql://neondb_owner:<neon password>@ep-aged-dust-a6huadss-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 DATABASE_URL_DEV=postgresql://neondb_owner:<neon password>@ep-aged-dust-a6huadss-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
 DATABASE_URL_SIMULATION=postgresql://neondb_owner:<neon password>@ep-empty-queen-a62vlkkp-pooler.us-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
@@ -157,7 +157,7 @@ route's own `JOBS` map and fails if any document here invents one.
 broken route rather than as a wrong method:
 
 ```bash
-curl -s -i -H "Authorization: Bearer $CRON_SECRET" https://24t.vercel.app/api/cron/billing
+curl -s -i -H "Authorization: Bearer $CRON_SECRET" https://24therapy.app/api/cron/billing
 ```
 
 **That is not reaching around the product**, it is standing in for Vercel's scheduler, which is
@@ -276,7 +276,7 @@ nobody can mark. Every patient in that file has an arc with planted facts in nam
 the agent playing that person says those things.
 
 🔴 **THIS RUN IS ON PRODUCTION, WITH REAL KEYS, ON THE REAL DOMAIN.** Not a preview, not a
-fork, not a sandbox. `https://24t.vercel.app` is the production deployment, it is public,
+fork, not a sandbox. `https://24therapy.app` is the production deployment, it is public,
 and it answers 200 to anybody with no sign-in: a patient in this run opens a join link the
 same way a patient in October will. The database is the production Neon branch. The OpenAI
 key is the real one, so the model spend on `/admin/usage/sessions` is real money. The Daily
@@ -329,7 +329,7 @@ Five things about it you cannot work out from the screens:
 🔴 **AND ONE CORRECTION TO CARRY, because it is the shape of the mistakes this product
 keeps finding.** The decision to run here rested partly on "production is not publicly
 reachable", which was read off a Vercel setting and never tested. It was wrong.
-`24t.vercel.app` was public the whole time. **A setting is not a test.** When this run
+`24therapy.app` was public the whole time. **A setting is not a test.** When this run
 tells you something is safe, open it and look.
 
 🔴 **`11-THE-RECORD.md` is new, and it is the only file here about the promise rather than the
@@ -592,7 +592,7 @@ npm run on:production -- baseline -- check        # 🔴 exits 1. Expect the 5 s
 # never lapse. 405 means somebody sent a POST: it is a GET.
 curl -s -o /dev/null -w "cron: %{http_code}\n" \
   -H "Authorization: Bearer $(grep '^CRON_SECRET=' .env.local | cut -d= -f2-)" \
-  https://24t.vercel.app/api/cron/reminders
+  https://24therapy.app/api/cron/reminders
 ```
 
 🔴 **If that prints 401, STOP and say so before anything else.** It is a one-line fix by the

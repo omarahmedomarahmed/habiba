@@ -43,7 +43,7 @@ const ORG_SLUG = process.env.SEED_ORG_SLUG || "24therapy";
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
 
-const TEST_EMAIL = process.env.SEED_TEST_EMAIL || "test@24therapy.ai";
+const TEST_EMAIL = process.env.SEED_TEST_EMAIL || "test@24therapy.app";
 const TEST_PASSWORD = process.env.SEED_TEST_PASSWORD || "TestTherapist2026!";
 
 const DEMO_TRANSCRIPT: { speaker: "therapist" | "patient"; text: string }[] = [
@@ -319,7 +319,7 @@ async function main() {
     const existingPatient = await db
       .select()
       .from(patients)
-      .where(eq(patients.email, "patient@test.24therapy.ai"))
+      .where(eq(patients.email, "patient@test.24therapy.app"))
       .limit(1);
 
     const patient =
@@ -332,7 +332,7 @@ async function main() {
             therapistId: therapist.id,
             firstName: "Test",
             lastName: "Patient",
-            email: "patient@test.24therapy.ai",
+            email: "patient@test.24therapy.app",
             /*
              * 🔴 A PHONE, because `patients_phone_present` requires one and this seed has been
              * BROKEN SINCE 0042 WITHOUT ANYBODY NOTICING.

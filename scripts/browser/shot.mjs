@@ -16,7 +16,7 @@
  * ## 🔴 IT IS POINTED AT A LOCAL SERVER, AND NEVER AT PRODUCTION
  *
  * `BASE` is a loopback address with no override. A screenshot tool that could
- * be aimed at `24t.vercel.app` is a tool that signs into the real console with
+ * be aimed at `24therapy.app` is a tool that signs into the real console with
  * a password from a script, and `scripts/demo.ts` already says what publishing
  * an operator frame from a database with real-looking names would disclose.
  */

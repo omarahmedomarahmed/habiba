@@ -52,7 +52,7 @@ people read different parts of it.
 
 ## 🔴 Where this runs, and it is not a sandbox
 
-**Production.** The production deployment at `https://24t.vercel.app`, the production Neon
+**Production.** The production deployment at `https://24therapy.app`, the production Neon
 branch, and the real keys. It is public and answers 200 to anybody, so a patient in this
 run opens a join link exactly the way a patient in October will.
 

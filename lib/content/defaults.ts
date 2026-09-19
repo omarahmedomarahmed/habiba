@@ -711,7 +711,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             body: "The international entity. Card payments, Stripe payouts, and everything outside Egypt.",
             address: "",
             phone: "",
-            email: "support@24therapy.ai",
+            email: "support@24therapy.app",
             hours: "Sunday to Thursday, 09:00-18:00 UTC",
           },
           {
@@ -720,7 +720,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             body: "The Egyptian entity. Payments in Egyptian pounds, and payouts by InstaPay or wallet.",
             address: "",
             phone: "",
-            email: "egypt@24therapy.ai",
+            email: "egypt@24therapy.app",
             hours: "Sunday to Thursday, 10:00-19:00 Cairo",
           },
         ],
@@ -990,7 +990,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "Reporting a vulnerability",
-        body: "Email security@24therapy.ai. We will acknowledge within two business days.",
+        body: "Email security@24therapy.app. We will acknowledge within two business days.",
       },
     ],
   }

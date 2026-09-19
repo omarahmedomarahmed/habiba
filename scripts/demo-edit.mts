@@ -736,7 +736,7 @@ function sceneOutro(c,p,t){
 
   c.globalAlpha=seg(p,0.30,0.58);
   c.fillStyle=TEAL; c.font=f(700,34);
-  c.fillText('habiba-zeta.vercel.app',cx,642);
+  c.fillText('24therapy.app',cx,642);
 
   c.globalAlpha=seg(p,0.44,0.72);
   c.fillStyle=MUTED; c.font=f(400,23);

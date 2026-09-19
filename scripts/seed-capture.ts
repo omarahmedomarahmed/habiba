@@ -56,7 +56,7 @@ const PASSWORD = "CaptureRun2026!";
  */
 export const CAST = {
   /* The therapist `reset.ts --demo` already made, renamed here so the whole cast is consistent. */
-  therapist: { email: "test@24therapy.ai", password: "TestTherapist2026!", name: "Test Therapist" },
+  therapist: { email: "test@24therapy.app", password: "TestTherapist2026!", name: "Test Therapist" },
 
   /*
    * 🔴 The super admin `reset.ts --demo` made, whose password came from an env var nobody wrote

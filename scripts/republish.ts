@@ -198,7 +198,7 @@ async function main() {
    * A failure is reported and not thrown: the rows are already written, and
    * exiting non-zero would suggest they were not.
    */
-  const target = process.env.APP_URL ?? "https://habiba-zeta.vercel.app";
+  const target = process.env.APP_URL ?? "https://24therapy.app";
   const secret = process.env.CRON_SECRET;
 
   if (!secret) {

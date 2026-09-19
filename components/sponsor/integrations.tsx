@@ -218,7 +218,7 @@ export function SponsorIntegrations({
                     */}
                     {i === 1 ? (
                       <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-900 p-3 text-xs leading-relaxed text-slate-100">
-{`POST https://24t.vercel.app/api/hr/v1/employment
+{`POST https://24therapy.app/api/hr/v1/employment
 Authorization: Bearer <your key>
 Content-Type: application/json
 

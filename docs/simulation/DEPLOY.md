@@ -11,7 +11,7 @@ signed into and read. That is the point of running it here.
 | | |
 | --- | --- |
 | Deployment | `habiba`, production target, `main` |
-| Domain | `https://24t.vercel.app`, public, 200 to anybody |
+| Domain | `https://24therapy.app`, public, 200 to anybody |
 | Neon branch | `main` (`br-curly-dream-a6b0shlz`), endpoint `ep-wild-lake-a6tgm2r6` |
 | Baseline | `evals/production-baseline.json`, 118 tables, 195 rows, recorded 2026-09-17 |
 | Snapshot, if it is ever wanted back | `snap-old-sea-a60wgj3s`, taken 2026-09-17 after migration 0110 |
@@ -41,7 +41,7 @@ finding.
   patients, no payments. Measured on 2026-09-17, before the seed and before 0111.
 - ❌ **"Production is not publicly reachable."** This was read off Vercel's SSO setting,
   which protects everything `all_except_custom_domains`, and inferred rather than tested.
-  `24t.vercel.app` is attached to the project and answers **200 to anybody**, no sign-in.
+  `24therapy.app` is attached to the project and answers **200 to anybody**, no sign-in.
   `robots.txt` allows `/radar` and the radar page carries `index, follow` on purpose.
 
 So during a run, nine invented clinicians with `DEMO-` licence numbers sit on a public,
@@ -99,7 +99,7 @@ tell an invented row from a real one afterwards is to know what the day before l
 While it is set, `robots.txt` disallows everything and every page in the product carries a
 violet strip naming the database it is on.
 
-Both halves are live and tested: `curl https://24t.vercel.app/robots.txt` returns
+Both halves are live and tested: `curl https://24therapy.app/robots.txt` returns
 `Disallow: /`, and the home page carries *"Everybody here is invented"* beside
 `ep-wild-lake-a6tgm2r6-pooler`.
 
@@ -238,14 +238,55 @@ worth knowing before it surprises somebody: this check cannot tell you the schem
 Restoring `snap-old-sea-a60wgj3s` is the other way to do it, and the faster one. Either way, `SIMULATION_RUNNING`
 comes off only once the invented people are gone.
 
-## Do we need our own domain?
+## The domain
 
-Not for this. `24t.vercel.app` is public and serves every page a patient touches, so the
-run can test the real journeys today.
+**`24therapy.app`, bought and attached.** The apex serves the product and `www` sends a 308
+to it, so there is one canonical host and every link, canonical tag and hreflang names it.
+It is public and serves every page a patient touches, so the run tests the real journeys on
+the name people will actually type.
 
-It is worth having before launch, for reasons this run does not depend on: email
-deliverability needs a verified sending domain, and `24t.vercel.app` is not a name to put
-on a clinical product. Attaching one later changes `APP_URL` and nothing else.
+🔴 **That direction is load-bearing, and the opposite one breaks the run.** Vercel's default
+when a domain is added is the other way round: the apex 308s to `www`. Under that setting a
+cron call to the apex **arrives with no `Authorization` header at all**, because an HTTP
+client drops it when a redirect crosses to a different host. Measured with curl against this
+deployment: the first request carries `Authorization: Bearer ...`, the second, to `www`,
+does not, and the endpoint answers 401. The run types those curl lines in wave 4, so an apex
+that redirects turns into a cron that silently never runs.
+
+The same hop is why the sponsor's HR snippet must name the serving host: it is a `POST` with
+a bearer key, and a redirect is the one thing between a customer's integration working and a
+support ticket nobody can reproduce.
+
+`24t.vercel.app` stays attached to the project and keeps answering. It is not the canonical
+host and nothing in the product should name it.
+
+🔴 **One thing is still open, and it is not this run's blocker.** Outbound email needs a
+**verified sending domain** before launch: `EMAIL_FROM` is `noreply@24therapy.app` and the
+SPF, DKIM and DMARC records for it are not set up yet, so mail from this product is going to
+land in spam or bounce. The run does not depend on it, because nothing in the six months is
+measured by whether a mail arrived, and `12-THE-LOGINS.md` hands out passwords directly. But
+it is the reason to not read an undelivered email during the run as a product defect.
+
+### Everything else follows `APP_URL`, except three things registered elsewhere
+
+**Nothing in this repository hardcodes the host.** Every absolute URL the product builds
+comes from `env.appUrl`: the canonical and hreflang tags, the sitemap, `metadataBase`, the
+password-reset link, every Stripe `success_url` and `cancel_url`, the Connect onboarding
+return, the meeting-bot webhook, the join and record links in email. Set `APP_URL` on the
+deployment and all of them move together. That is also the C162 trap: they move together to
+whatever it says, right or wrong, and nothing in the repository can see a wrong hostname.
+`verify:sprint31` is the check, and it compares against the host that served the response.
+
+Three live in somebody else's dashboard and do not follow it:
+
+| | What breaks if it is not changed |
+|---|---|
+| **The Stripe webhook endpoint** | Stripe keeps POSTing to the old host. Checkout completes and the product never learns, so a paid subscription never turns on |
+| **The EHR / SMART `redirect_uri`** | `lib/ehr/smart.ts` sends the new one; the vendor compares it to what is registered and refuses the authorisation |
+| **Any OAuth redirect URI already registered** | Same shape: the provider rejects a callback it does not recognise |
+
+The Vercel cron jobs are **not** on that list. `vercel.json` gives relative paths, so they
+follow the deployment rather than `APP_URL`.
 
 ## What the `simulation` branch is now for
 
@@ -264,4 +305,4 @@ died the same way on 2026-09-16).
 
 So the project now carries an **Ignored Build Step** that builds `main` and nothing else.
 Pushing to `simulation` or to a working branch still updates git and still costs nothing.
-`https://24t.vercel.app` is the only deployment, and the run happens there.
+`https://24therapy.app` is the only deployment, and the run happens there.
