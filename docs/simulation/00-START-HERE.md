@@ -18,18 +18,19 @@ That means four things, and they are the whole job:
 3. **You decide what the run does when reality disagrees with this plan**, which it will. A
    wave that cannot be finished as written gets a decision from you, written down, with what
    was traded away. Silence is the one response that is not available.
-4. **You report upward to the founder**, at the seven fixed points below, in the founder's
+4. **You report upward to the founder**, at the eight fixed points below, in the founder's
    words rather than in agent output. Nobody else in this run talks to them.
 
 The one thing a Chief of Staff does not do is act. You do not book a session, pay a bill or
 work a queue. Every one of those has an agent whose whole existence is that person, and a Chief
 of Staff who starts doing the work has stopped watching whether it is being done.
 
-**Read all twelve of these before you do anything.** They are one design split across twelve
-files because twelve different people read them.
+**Read all of these before you do anything.** They are one design, split up because different
+people read different parts of it.
 
 | File | What it is | Who reads it |
 |---|---|---|
+| `00-LESSONS.md` | **What people hit before you, and what it cost.** Read it first and once | You |
 | `00-START-HERE.md` | This. The shape, the rules, the budget, the order of work | You |
 | `01-THE-CAST.md` | Twenty seven people, four organisations, six waves, one scenario each | You and the orchestrator |
 | `02-THE-SWARM.md` | Who launches what, how a claim is verified, what to do at a wall | The orchestrator |
@@ -41,7 +42,11 @@ files because twelve different people read them.
 | `08-THE-NUMBERS.md` | What the run hands the financial model, and the four things it can never measure | You, at the end |
 | `09-THE-EDGES.md` | **Forty eight ways money goes wrong, each attached to somebody already in the cast** | You and the money agent |
 | `10-THE-STORY.md` | **What each person is actually going through, week by week, and which facts are planted where** | You, the orchestrator, and every cast agent |
-| `11-THE-RECORD.md` | **Eleven walks through who is allowed to read a patient's record, and one fifty minute session** | You, the orchestrator, and every clinician agent |
+| `11-THE-RECORD.md` | **Twelve walks through who is allowed to read a patient's record, and one fifty minute session** | You, the orchestrator, and every clinician agent |
+| `12-THE-LOGINS.md` | How to sign in as each of the 26 accounts. Generated from the code | You and every agent |
+| `13-THE-AUDIO.md` | Where 286 minutes of audio comes from, and the budget line it hides | You, before wave one |
+| `14-THE-REHEARSAL.md` | The nine flows walked before you, and what they found | You |
+| `DEPLOY.md` | The order of operations on production, and what is already done | You, before your first write |
 
 ---
 
@@ -62,10 +67,10 @@ run opens a join link exactly the way a patient in October will.
 | 🔴 Capture | As you go. A frame of month 2 cannot be taken at month 6 |
 | 🔴 After | **Nothing is deleted.** The six months stay on production until a person decides otherwise |
 
-🔴 **THE DATA STAYS, AND THAT IS THE BIGGEST CHANGE TO THIS PLAN.** An earlier version
-ended with a snapshot restore. It does not: every invented patient's file, every note, every
-payment and every audit row is still there the next morning and the month after, to be signed
-into and read. `12-THE-LOGINS.md` says how, for all twenty six of them.
+🔴 **THE DATA STAYS, AND EVERYTHING ELSE FOLLOWS FROM IT.** There is no restore at the end:
+every invented patient's file, every note, every payment and every audit row is still there the
+next morning and the month after, to be signed into and read. `12-THE-LOGINS.md` says how, for
+all twenty six of them.
 
 The consequence is that carelessness is permanent. There is no sweep afterwards, so a fixture
 planted by a verifier somebody pointed at the wrong database sits on the founders' own board
@@ -166,8 +171,8 @@ a short session to reach a long one **overstates it by 95%**:
 > Multiply the 3 minute session by 50/3 and you get **$0.4230**.
 > The truth is **$0.2167**.
 
-Two unknowns need two measurements. The run produces two clusters and `npm run physics`
-solves for both from `ai_request_logs`. It **refuses** to fit a single cluster rather than
+Two unknowns need two measurements. The run produces two clusters and
+`npm run on:production -- physics` solves for both from `ai_request_logs`. It **refuses** to fit a single cluster rather than
 returning a slope drawn through noise that looks exactly as authoritative as a real fit.
 
 **Do not flatten the durations to tidy the run.** It is the one shortcut here that cannot be
@@ -176,7 +181,7 @@ undone afterwards.
 ### Check the spend after every wave, with the thing that counts it
 
 ```
-npm run spend -- --budget 10
+npm run on:production -- spend -- --budget 10
 ```
 
 It sums `ai_request_logs.cost_microcents`, which the product writes on every model call. It
@@ -262,10 +267,31 @@ reserves and which can never reach a real inbox. Every phone number is in the bl
 The frames from this run are **committed to the repository and go into a video**. A single
 real name in one frame is a disclosure that cannot be recalled.
 
-### 4. Nothing runs against production, ever
+`npm run verify:synthetic` is the proof, and it is the one check that must **not** be pointed at
+production: it plants a real-looking name to watch itself catch one, and planting that on
+production is what this whole arrangement refuses. Run it against the simulation branch before
+any operator frame is committed.
 
-The run has its own branch. `writesTo()` refuses production by name. Do not remove it, do not
-work around it, and if a script refuses, read why.
+### 4. Production is reached through one command, and never any other way
+
+**This run happens on production.** That is the point of it, and it is why the next sentence
+matters more than it would anywhere else.
+
+Every write script refuses the production endpoint unless the caller asks for it by name, and
+the one thing that asks is:
+
+```bash
+npm run on:production -- <command>
+```
+
+It carries an allow-list, sets the override for a single child process, prints the endpoint and
+whether that command writes, and refuses anything not on the list with the reason. `DATABASE_URL`
+stays pointed at **dev**, so every gate, verifier and unit suite keeps planting fixtures where
+fixtures belong.
+
+**If a script refuses, read why rather than working around it.** The refusal is the arrangement
+working. Nothing is restored after this run, so a fixture planted by a verifier somebody pointed
+at the wrong database sits on the founders' own board for ever, looking exactly like a real row.
 
 ### 5. A defect is not fixed during the run
 
@@ -295,24 +321,34 @@ was handed the answer to is a gate nobody tested.
 
 | # | Step | Command | What proves it |
 |---|---|---|---|
-| 1 | The branch is what this says it is | `npm run verify:migrations` | journal and ledger agree, every CHECK validated |
-| 2 | The platform is seeded and the applications are waiting | `npm run simulate:seed` | It **refuses**, saying an operator already exists. That refusal is the proof |
-| 3 | The ageing script obeys its own rule | `npm run verify:age` | 8 checks, one past and one future timestamp in the same row |
-| 4 | Almost nothing is spent yet | `npm run spend -- --budget 10` | **$0.0286**, the founder's own session. Not zero |
-| 5 | Every person is invented | `npm run verify:synthetic` | 5 checks, with a planted real looking name it has to catch |
-| 6 | The product itself is not already broken | `npm run build && npm run gates` | 11 gates |
-| 7 | Mark the start of wave one | `npm run age -- --marker wave1 --start` | writes `.simulation-wave1.json` |
-| 8 | **Open the rail** | `/admin/settings`, `/admin/sponsors`, `/admin/clinics` | `04-THE-RAIL.md`. Nothing Egyptian works until this is done |
-| 9 | Launch the orchestrator | hand it `02-THE-SWARM.md` | It reports its plan before it launches anybody |
-| 10 | Waves one to six | each wave: act, capture, spend, age | `02-THE-SWARM.md` and `06-AGEING.md` |
-| 11 | The exam | `npm run copilot:exam` | `07-THE-EXAM.md` |
-| 12 | The numbers | `npm run physics`, `npm run plan`, Measure and freeze | `08-THE-NUMBERS.md` |
-| 13 | Accuracy, only if there is budget | `npm run evals -- --record` | |
-| 14 | **The edge ledger** | | `09-THE-EDGES.md`, all forty eight, each marked `held` or `broke` |
-| 15 | **The record ledger** | | `11-THE-RECORD.md`, all eleven walks, each marked `held` or `broke`. `R7` needs the same question asked twice, with both answers |
-| 15 | The report | | `docs/simulation-run/REPORT.md`, and it is honest |
+| 1 | The database is the one you think | `npm run on:production -- verify:migrations` | journal and ledger agree at 112, every CHECK validated |
+| 2 | The cast that exists, exists | `npm run on:production -- verify:cast` | **7 of 26 sign in**, 5 of 5 checks green. Seven is our payroll; the other nineteen sign themselves up |
+| 3 | The mark before the run | `npm run on:production -- baseline -- check` | 🔴 **exits 1**, with exactly five seed deltas and no sixth |
+| 4 | Almost nothing is spent yet | `npm run on:production -- spend -- --budget 10` | **$0.0286**, the founder's own session. Not zero |
+| 5 | The cron secret matches the deployed site | `curl` with `CRON_SECRET`, in `SIMULATION-PROMPT.md` | **200.** A 401 means wave 4 breaks and you find out now |
+| 6 | The product itself is not already broken | `rm -rf .next && npm run build && npm run gates` | 28 gates, against **dev**, which is correct |
+| 7 | The ageing script obeys its own rule | `npm run verify:age` | 8 checks, one past and one future timestamp in the same row. Dev, because it plants a row |
+| 8 | Mark the start of wave one | `npm run on:production -- age -- --marker wave1 --start` | writes the marker. 🔴 **Bare, this ages dev and the six month clock never starts** |
+| 9 | **Open the rail** | `/admin/settings`, `/admin/sponsors`, `/admin/clinics` | `04-THE-RAIL.md`. Nothing Egyptian works until this is done |
+| 10 | Launch the orchestrator | hand it `02-THE-SWARM.md` | It reports its plan before it launches anybody |
+| 11 | Waves one to six | each wave: act, capture, spend, age | `02-THE-SWARM.md` and `06-AGEING.md` |
+| 12 | The exam | `npm run on:production -- copilot:exam` | `07-THE-EXAM.md` |
+| 13 | The numbers | `npm run on:production -- physics -- --at 50`, then `npm run plan`, then Measure and freeze | `08-THE-NUMBERS.md` |
+| 14 | Accuracy, only if there is budget | `npm run evals -- --record` | about $2.00, and last |
+| 15 | **The edge ledger** | | `09-THE-EDGES.md`, all forty eight, each marked `held` or `broke` |
+| 16 | **The record ledger** | | `11-THE-RECORD.md`, all twelve walks. `R7` needs the same question asked twice, with both answers |
+| 17 | The report | | `docs/simulation-run/REPORT.md`, and it is honest |
 
-**Step 8 is a numbered step and not an assumption.** The run starts with the rail shut, on
+🔴 **Every command that touches the run's data is prefixed `on:production --`, and that is the
+whole difference between a run and an afternoon.** Written bare they operate on dev: `spend`
+reports dev's zero against a $10 budget, `baseline` compares dev to production's mark, and step 8
+leaves the six month clock unstarted with nothing saying so. `npm run verify:runbook` fails if any
+document in this folder writes one of them bare.
+
+The three that are **correctly** bare are steps 6 and 7 and the evals: they prove the code and
+they plant fixtures, and dev is where fixtures belong.
+
+**Step 9 is a numbered step and not an assumption.** The run starts with the rail shut, on
 purpose, because that is the state a real Tuesday starts from.
 
 ---
@@ -320,13 +356,13 @@ purpose, because that is the state a real Tuesday starts from.
 ## What you report back, and when
 
 The person who pasted the prompt is not watching a terminal for four hours. **Report upward at
-seven fixed points**, each short enough to read on a phone.
+eight fixed points**, each short enough to read on a phone.
 
 | When | What, in at most eight lines |
 |---|---|
 | After step 6 | The branch and the product are what the prompt claimed, or they are not. **Say plainly if anything is red before a single agent has acted** |
-| After step 8 | The rail is open: details in, companies and practices moved to `eg` |
-| End of each wave, six times | Sessions so far, the depth ladder, `npm run spend` against $10, defects this wave, and anything an agent is blocked on |
+| After step 9 | The rail is open: companies and practices moved to `eg`, details read back on camera |
+| End of each wave, six times | Sessions so far, the depth ladder, `npm run on:production -- spend` against $10, defects this wave, and anything an agent is blocked on |
 | After wave 4 | **The full price invoice.** Whether it rendered with no discount line, and what the therapists did |
 | After the exam | The mark per patient, and whether a thicker record really made a better copilot |
 | After the CFO's second pass | The money end to end, with the month 3 pass beside it |
@@ -349,7 +385,7 @@ seven fixed points**, each short enough to read on a phone.
 
 ## What the final report contains
 
-`docs/simulation-run/REPORT.md`, eight headings:
+`docs/simulation-run/REPORT.md`, nine headings:
 
 1. **The money**, end to end, read off the operator's own screens rather than queried: income
    by source, model spend as the expense against it, what was left over per month, therapists

@@ -48,7 +48,7 @@ nothing: no model call, no `ai_request_logs` row, no cost.
 
 ## 🔴 THE BUDGET LINE NOBODY COSTED, AND IT IS NOT SMALL
 
-`npm run spend` sums `ai_request_logs`, which is **what the PRODUCT spent**. Synthesising the
+`npm run on:production -- spend` sums `ai_request_logs`, which is **what the PRODUCT spent**. Synthesising the
 audio is not a product call. It never lands in that table.
 
 So the run has a second OpenAI cost, on the same key, that the budget guard cannot see:
@@ -59,7 +59,7 @@ So the run has a second OpenAI cost, on the same key, that the budget guard cann
 | Notes and copilot, product-side, measured | the rest of the planned **≈ $4.80** |
 | 🔴 **Synthesis, agent-side, INVISIBLE to `spend`** | 286 minutes of `gpt-4o-mini-tts` ≈ **$4 to $5** |
 
-**That is most of a second budget.** `npm run spend` would report 30% of $10 used while the key
+**That is most of a second budget.** `npm run on:production -- spend` would report 30% of $10 used while the key
 itself sat near 90%, and the first thing anybody would know about it is a session failing to
 generate a note in wave 5 with the report half written.
 
@@ -71,7 +71,7 @@ measures and silent about what it does not.
 1. **Measure it on the first session, before the other sixty-one.** Synthesise one 3 minute
    script, read the cost off the OpenAI usage page, and multiply. An estimate in this document
    is worth less than one measurement, and the measurement costs about five cents.
-2. **Report that number to the founder at the step 2 checkpoint**, beside `npm run spend`.
+2. **Report that number to the founder at the step 2 checkpoint**, beside `npm run on:production -- spend`.
    Two numbers, always, because one of them is blind.
 3. **If the two together pass $7**, stop and say so rather than deciding alone. `01-THE-CAST.md`
    says what to cut first, and the one thing never to cut is `P3` Mostafa's weekly cadence.

@@ -297,10 +297,10 @@ A single reconciliation, which either balances or the discrepancy is the finding
 
 **Cost per real session.** `/admin/usage` computes it from actual rows for the sessions that
 happened. For the sessions that did **not** happen, which is to say real fifty minute ones, the
-answer comes from `npm run physics`, never from multiplication:
+answer comes from `npm run on:production -- physics`, never from multiplication:
 
 ```
-npm run physics -- --at 50
+npm run on:production -- physics -- --at 50
 ```
 
 Measured **$0.0254** at three minutes. Fitted **$0.2167** at fifty. Multiplied **$0.4230**, and

@@ -84,8 +84,8 @@ the only claim that is genuinely ours.
 ## Part two: the exam, after the last wave
 
 ```
-npm run copilot:exam -- --dry
-npm run copilot:exam -- --json docs/simulation-run/COPILOT.json
+npm run on:production -- copilot:exam -- --dry
+npm run on:production -- copilot:exam -- --json docs/simulation-run/COPILOT.json
 ```
 
 ### The claim being tested

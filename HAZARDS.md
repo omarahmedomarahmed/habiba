@@ -8,6 +8,23 @@ your first commit.
 > false-alarm log, and H20 below is the record of what standing false alarms do to
 > the people reading them. `verify:claims` asserts this column exists.
 
+## 🔴 When you find the next one, it goes here
+
+**Any session that touches this repository, including the six month run.** If you hit a
+trap in the code or the tooling that cost you more than a few minutes, add a row to the
+bottom of the table with the next H number, before you carry on. Two columns: what the trap
+is, and the rule that avoids it.
+
+The test for whether something belongs here is **whether it will catch the next person
+too.** A property of the code or the tooling belongs here. Something the product does
+wrong to a user is a defect, and during the run those go in `docs/simulation-run/DEV-LOG.md`
+instead, in the shape `docs/simulation/02-THE-SWARM.md` gives.
+
+Write it at the moment you hit it. The version written a week later is a summary, and the
+useful part is the detail: the symptom that misled you, and what the symptom was really
+naming. Most of the rows below exist because somebody did that instead of working around it
+quietly, and they are the reason the six month run knew about its obstacles before wave 1.
+
 | # | Status | Hazard | Rule |
 |---|---|---|---|
 | H1 | ⚠️ live | `db:migrate` prints **"Migrations applied."** whether or not it did anything. A `.sql` file missing from `drizzle/meta/_journal.json` is silently skipped | After every migration, query `information_schema.columns` for the column you added. Never trust the success line |
@@ -47,21 +64,36 @@ your first commit.
 | H35 | ⚠️ live | **A command that is run ONCE has a second state, and the documents describe the first.** `simulate:seed` is written to run once on production. It has, so the prompt telling the next session to run it now gets a refusal whose advice is *"for a fresh start, make a new branch"* — correct for an empty database, and it would throw the seeded run away. Six places across three documents still described the before state | When a one-shot command has been run, rewrite the step to the CONFIRMING read (`verify:cast`) and say the refusal is expected. Grep for every other mention of it before calling that done |
 | H36 | ⚠️ live | **A permanent state claim goes stale the moment it is written down.** `evals/production-baseline.json`, the snapshot and three tables in the docs all describe 2026-09-17. Migration 0111 and the seed have happened since, so `baseline -- check` now exits 1 by design, and restoring the snapshot would take the schema back to 0110 along with the rows | Date every state claim in the sentence that makes it, and say what has moved since. `baseline -- check` compares ROWS and not tables, so a schema change passes it silently while the new tables are empty |
 | H37 | ✅ fixed | **`next dev` and `next build` shared `.next`, so `npm run gates` could not be run twice.** `renders` needs build output; `served` starts `next dev` and recompiled over it. A build over dev output died prerendering `/for-patients` with `TypeError: ... reading 'call'`; dev over build output made `/ar/pricing` answer **500** and the Arabic checks report "0 Arabic characters against 0 Latin". Both read as broken public pages and neither was. The pass went green twice and red on the third run with nothing changed | Fixed in 76.61: `served` compiles into `.next/served` via `NEXT_DIST_DIR`, which `next.config.ts` reads. **Nest a new build directory inside `.next`, never beside it** — `.next-served` at the root was outside every scanner's skip list and `verify:reachable` immediately read the dev server's generated route types as callers (H31) |
+| H38 | ✅ fixed | **`db:migrate` was the one write with no guard on it.** Seventy-five scripts call `writesTo()`; the script that changes production's SHAPE did not, so `.env.local` pointed at production plus `npm run db:migrate` migrated it silently. It was also missing from the `on:production` allow-list, so H16's own instruction (migrate production before pushing `main`) had no sanctioned path and `DEPLOY.md` named a command that would have been refused for not existing | Fixed both ways in 76.61: `writesTo({ productionIsAllowed: true })` in the runner, and `db:migrate` on the allow-list. When a guard is added everywhere, list who legitimately needs past it (H26) |
 | H39 | ✅ fixed | **`verify:served` leaked its dev server, and the orphan kept compiling.** `npx next dev` forks `next-server` into **its own process group**, reparented to init, so signalling the group missed it — and it **releases the port while still running**, so waiting for the port to come free returned success with a compiler still live. It then rewrote the production build minutes after the gate reported PASS. `smoke-public.ts` carries the same lesson for `next start` (C365) and this file never got it | Snapshot `next-server` pids before spawning, kill the difference after. Never trust a port going quiet as proof a server has stopped, and never assume a fix applied to one spawn site covers the others |
-| H38 | ⚠️ live | **`db:migrate` was the one write with no guard on it.** Thirty-nine scripts call `writesTo()`; the script that changes production's SHAPE did not, so `.env.local` pointed at production plus `npm run db:migrate` migrated it silently. It was also missing from the `on:production` allow-list, so H16's own instruction (migrate production before pushing `main`) had no sanctioned path and `DEPLOY.md` named a command that would have been refused for not existing | Fixed both ways in 76.61: `writesTo({ productionIsAllowed: true })` in the runner, and `db:migrate` on the allow-list. When a guard is added everywhere, list who legitimately needs past it (H26) |
 | H40 | ✅ fixed | **Pushing one commit to three branches builds it three times, and two of those builds cannot succeed.** The build is memory-bound (see below); production survives on a warm cache in ~2 minutes while a preview does a full compile and dies. In 24 hours, 19 preview builds burned **4.84 hours** of build time for nothing: 16 `out_of_memory`, 4 of them hitting the 45-minute `BUILD_EXCEEDED_MAXIMUM_TIME` ceiling. Billed $0.52, $2.42 at list | An **Ignored Build Step** on the Vercel project builds `main` only. Push to working branches freely; they cost nothing. Before adding a branch to a push routine, ask what its deployment is FOR — nobody was ever going to open these |
+| H41 | ✅ fixed | **A count scoped to a hand-written list cannot count what is not on the list.** The gate asserting *"exactly THREE scripts may be let through to production"* filtered five file names typed into itself. H38 opened a fourth door in `scripts/migrate.ts`, which was not one of the five, so the check went on printing **three, and these are they** while four existed. The number in the message was real; the set it was drawn from was not | Fixed in 76.62: the count reads every `.ts` under `scripts/` and compares the set. **A count is only a count if it reads every file that could contribute to it** (H31, H25), and it needs a control proving the scan is wide — here, that it read 152 scripts and not the 4 it expected |
+| H42 | ✅ fixed | **A percentage against an empty measurement is a confident number for "nothing happened".** `physics` compared the run's fitted 50-minute cost against the API benchmark as `(fit - benchmark) / benchmark`. With no rows to fit, `fit` is 0, so it printed **-100%, outside 25%** — which reads as the cost model being catastrophically wrong, and produced three confident and completely wrong diagnoses before anybody checked the row count. The over-correction was worse: suppressing the whole comparison when any one request kind was short of samples hid a 0.7% agreement across the other 97%, because `profile` fires on ~2 sessions in 5 and reaches the sample floor last | Say **"nothing to compare"** when N is zero, and never divide by a measurement you have not asserted is non-empty. When part of a composite is missing, compare what you have and **label it a floor**; dropping the whole comparison loses more than it protects |
+| H43 | ✅ fixed | **A comparator with no way to express a decision reads a decision as drift.** `settings:compare` fails on any difference between the three databases. The in-session copilot is deliberately capped at 4 on production to protect the run's $10 of credit, so the gate went red on a choice somebody had made on purpose — and a gate that is red for a good reason is H20 waiting to happen | An allowance names the leaf, the environment, **both** values and the reason. Pinning both sides matters: an allowance that pins one lets the same key drift to a third value unnoticed. Proved with two planted offenders, one per direction |
+| H44 | ⚠️ live | **A bulk replace across prose edits the sentences that merely MENTION a command.** Prefixing 32 commands with `on:production --` also rewrote two passages that were describing what a command does, turning one of them self-contradictory. The diff looked uniform and correct, and the damage was in the two lines that were never instructions | Bulk-edit command lines only where they are commands: inside a fenced block, a table cell or a backticked run. Then **read every changed line in prose**, because the tool cannot tell an instruction from a sentence about one |
+| H45 | ⚠️ live | **`pkill -f "<pattern>"` matches the shell that is running it.** `pkill -f "next dev"` killed its own shell — the pattern appears in that shell's own command line — and the session died with exit 144, which names nothing | Kill by port (`kill -9 $(lsof -ti:PORT)`) or by exact process name, never by a `-f` pattern containing words you just typed |
+| H46 | ⚠️ live | **A symptom that survives `rm -rf` and a clean rebuild is a PROCESS, not a file.** Several rounds went into `.next` corruption that was being re-created after every clean by an orphaned `next dev` left behind by an **earlier command in the same session**. Every fix appeared to work and then stopped working, which is the shape that gets read as flakiness | `ps -eo pid,args \| grep next-server` is the first instrument, not the last. Before blaming a build, ask what is still running, and remember that a rig you started twenty minutes ago is still yours |
+| H47 | ✅ fixed | **A document is not checked by anything, so it rots under the product silently.** Eighteen files drive the six month run and nothing had ever read them. A full read found **41 commands pointing at the wrong database** because they were written without the `on:production` prefix — including the one that starts the wave clock, so six months of ageing would have landed on dev with nothing failing — a governing rule denying the run's own shape, and every count disagreeing with something | `verify:runbook` is a gate, and it derives every expectation from the code: the gate count from `GATES`, the production-only commands from the allow-list itself, the cron jobs from the route's map, the edge count by counting the rows in the file that defines them. **A checker holding its own copy of a number stops matching the day somebody tunes the real one** |
+| H48 | ⚠️ live | **Sourcing `.env.local` into a shell silently drops the four database URLs.** Each connection string ends `?channel_binding=require&sslmode=require`, and bash reads the unquoted `&` as "run this in the background", so `set -a; . ./.env.local; set +a` assigns them in a subshell that exits. Every other variable loads, so it reads as having worked, and the ones that vanish are the four that decide which database the next command writes to. **This file told people to do it** | Never source it. Every `npm run` script loads it with `node --env-file-if-exists=.env.local`, which parses the file properly. For a one-off, put the file under `scripts/` and run it the same way |
 
 ## Verification commands
 
 ```bash
-set -a; . ./.env.local; set +a           # anything touching the database needs this
-
 npx tsc --noEmit                          # types
 npm run build                             # the real check
 npm test                                  # safety suite
 npm run test:e2e                          # e2e, THROUGH its harness
-npm run verify:sprintNN                   # per-sprint gates; most refuse production by name
+npm run verify:sprintNN                   # per-sprint gates; all refuse production by name
 ```
+
+🔴 **Do not source `.env.local` into your shell, and do not add a step that says to.**
+Every `npm run` script here loads it with `node --env-file-if-exists=.env.local`, which
+parses the file. `set -a; . ./.env.local; set +a` does not: the four connection strings
+carry `?channel_binding=require&sslmode=require`, and the unquoted `&` makes bash run each
+of those lines as a **background job**, so the assignment happens in a subshell and never
+reaches you. Every other variable in the file loads correctly, so it looks like it worked,
+and the four that go missing are the four that decide which database you are about to
+write to. Measured: after sourcing, `OPENAI_API_KEY` is set and `DATABASE_URL` is empty.
 
 ## The production build is memory-bound, and the cap is the binding constraint
 
@@ -115,8 +147,10 @@ forever, which is the worst possible failure for a script an agent or a CI job
 might type. No linter is installed, so it now says so in one line and exits 1.
 The static analysis in this repository is `npm run typecheck` and `npm run gates`.
 
-Every verifier that touches the database refuses the production endpoint by name.
-Do not weaken that guard. Point `DATABASE_URL` at a Neon branch instead.
+Every verifier that touches the database refuses the production endpoint by name, unless
+the caller asks to be let through and is on the `on:production` allow-list. Do not weaken
+that guard, and do not add a door without adding its reason. Point `DATABASE_URL` at a Neon
+branch instead.
 
 ## The three databases, and the one question `DATABASE_URL` cannot answer
 
@@ -132,7 +166,8 @@ be asked by a process that can only see one of them.
 
     npm run settings:compare
 
-reads all three and fails on any difference. It writes nowhere, so it can be pointed at
+reads all three and fails on any difference it has not been told is a decision. It writes
+nowhere, so it can be pointed at
 production, and it must be: production is the database that most needs asking and the one
 a write guard has always refused to let anybody ask. Each variable is checked against the
 endpoint above before anything is read, because a variable named for production holding
@@ -142,6 +177,11 @@ The first run found four real drifts, including one nothing that reads source co
 have seen: production's ID-upload labels still carried an em dash, because `settings:seed`
 only ever inserts and the corrected default never reached a row that already existed.
 `settings:check` now fails on an em dash in any stored string for that reason.
+
+One difference is **allowed by name**: the in-session copilot is capped at 4 on production
+to protect the run's model credit, against the shipped 10 elsewhere. The allowance pins the
+leaf, the environment, both values and the reason, so the same key at a third value still
+fails. H43 is why it exists rather than being argued about on every run.
 
 Set these locally only. Nothing the deployed product does needs to reach a database other
 than its own.
@@ -159,6 +199,13 @@ the other process replaced, and the page that fails is whichever one loads first
 
 `rm -rf .next && npm run build` on its own is clean. Sprint 76 lost twenty minutes to this
 believing the new admin page had broken the marketing site.
+
+🔴 **And if a clean rebuild does not fix it, stop editing files.** The second process is
+often one you started yourself and forgot — a `next dev` from a screenshot rig twenty
+minutes earlier, still compiling into `.next` after every `rm -rf`. `ps -eo pid,args | grep
+next-server` answers in one line what a morning of reading source will not (H46). The gates
+no longer cause this themselves: `verify:served` compiles into `.next/served` and kills the
+`next-server` it forked (H37, H39).
 
 ## `next start` refuses to boot without a blob token, including locally
 
@@ -178,10 +225,12 @@ receipt their bank app produced.
 
     npm run on:production -- <command>
 
-Sixty-one scripts call `writesTo()`, and most of them plant a fixture and delete it in a
+Seventy-five scripts call `writesTo()`, and most of them plant a fixture and delete it in a
 `finally`. `writesTo()` refuses the production endpoint unless the CALLER asks to be let
-through, which three do: `settings`, `simulate-seed` and `age`. `verify:sprint57` asserts
-that it is exactly those three.
+through, which four do: `settings`, `simulate-seed`, `age` and `migrate`. `verify:sprint57`
+asserts it is exactly those four, and it now counts them by reading **every** file under
+`scripts/` rather than a list typed into the check — see H41 for what the list version
+missed.
 
 The six month run leaves its data on production and **nothing restores it away**, so a
 fixture that escapes a `finally` is permanent and sits on the founders' board looking like
@@ -213,7 +262,7 @@ went wrong" and the cause looks like the code.
 
 ## Screenshot the page and read it, because three defects a sprint hide from every gate
 
-Three in sprint 76 alone, none of which any of twenty-five gates could see:
+Three in sprint 76 alone, and no gate in this repository could see any of them:
 
 - `$3,500 7` — a wage bill and a headcount adjacent in a right-aligned column of figures,
   which reads as $35,007.

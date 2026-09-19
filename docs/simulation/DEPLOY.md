@@ -207,15 +207,12 @@ Read them side by side. Do not add them up.
 The keys were pasted into a chat and are shared. They get rotated the day the run ends,
 which is a different act from deleting the data and does not touch it.
 
-🔴 **THE BANK DETAILS STAY AS PLACEHOLDERS, AND THAT WAS THE RIGHT CALL ALL ALONG.**
+🔴 **THE BANK DETAILS STAY AS PLACEHOLDERS.**
 
-An earlier version of this document listed "type the real bank details in" as a step the
-founder had to do before the run. That was wrong, and the founder said so: this is a
-simulation. Nobody in it sends money anywhere. Sixty invented people declaring transfers
-against an invented account produces exactly the same evidence about the rail as sixty
-invented people declaring transfers against the real one, and the real one carries a risk
-the invented one does not — a stranger who wanders onto a public site during the run and
-actually sends money.
+Nobody in this run sends money anywhere. Sixty invented people declaring transfers against an
+invented account produces exactly the same evidence about the rail as sixty invented people
+declaring transfers against the real one, and the real account carries a risk the invented one
+does not: a stranger who wanders onto a public site mid-run and actually sends money.
 
 What the screen needs is to be FILLED, so the payment sheet renders an account instead of
 "not set up yet" and the operator agent can walk it. It is. The real account goes in the

@@ -348,7 +348,7 @@ like progress.**
 lot of room, and it is easy to spend it four times over on agents re reading documents.
 
 ```
-npm run spend -- --budget 10
+npm run on:production -- spend -- --budget 10
 ```
 
 **At the end of every wave, in the wave summary line.**
@@ -413,7 +413,7 @@ than ending.
 ### The one exception
 
 If the wall is **budget** rather than a defect, do not write a block. Stop, say so, and let
-`npm run spend` be the evidence. A block file full of "ran out of money" entries buries the real
+`npm run on:production -- spend` be the evidence. A block file full of "ran out of money" entries buries the real
 findings.
 
 ---

@@ -17,8 +17,8 @@ a production database nobody restores afterwards. The two most expensive ways fo
 wrong are both discoverable in an hour: **a main path that does not walk**, and **an obstacle
 that makes every agent invent the same workaround**.
 
-It is deliberately not about edge cases. `09-THE-EDGES.md` has thirty of those and they are
-the run's own job. This answers the narrower question that comes first: *can a therapist sign
+It is deliberately not about edge cases. `09-THE-EDGES.md` has forty eight of those and they
+are the run's own job. This answers the narrower question that comes first: *can a therapist sign
 up, can a patient pay, does money come out, can the operator clear a queue, does the founder's
 screen add up.*
 
@@ -121,7 +121,7 @@ itself, because 54.3's rule is that nothing is set up until somebody has spoken 
 ## What this rehearsal did NOT do, said out loud
 
 **It did not run a session end to end.** Sixty-two sessions and 286 minutes of audio cost
-about $4.80 of product-side model spend and another $4 to $5 of synthesis that `npm run spend`
+about $4.80 of product-side model spend and another $4 to $5 of synthesis that the spend guard
 cannot see. Rehearsing that would spend most of the run's budget to learn what the run itself
 is going to measure. `13-THE-AUDIO.md` is the document; the first session of the real run is
 the measurement.
@@ -130,11 +130,12 @@ What F3 does check is everything up to the money: that an approved clinician rea
 dashboard, and that the session-scoped transcription door the audio goes through is still
 there and still refuses a request with no token.
 
-**It did not walk the edge cases**, on purpose. Thirty of those are the run's job.
+**It did not walk the edge cases**, on purpose. All forty eight are the run's job.
 
-**It ran on dev, not production.** `writesTo()` refuses production by name, and the
-`Probe` surname exists so that a Probe row turning up in the run's evidence is immediately
-legible as a mistake rather than as a patient.
+**It ran on dev, not production.** `writesTo()` refuses production by name unless the caller
+asks through `on:production`, and the probe does not ask. The `Probe` surname exists so that a
+Probe row turning up in the run's evidence is immediately legible as a mistake rather than as a
+patient.
 
 ---
 
@@ -148,7 +149,7 @@ would actually have stopped the run — the rate limiter — is fixed in the pro
 holding both directions, and the one that would have quietly ruined the money evidence — the
 region — is now stated as an ordering rule rather than a clause.
 
-All 27 gates pass.
+All 28 gates pass.
 
 🔴 **Until 76.61 they could not be run twice from one build, and that is worth its own
 paragraph.** Two of them fought over `.next`: `renders` needs `next build` output and `served`
@@ -163,8 +164,8 @@ Measured after the fix: `served` leaves **zero** `next-server` processes behind 
 touches `.next/server/middleware.js`. And the whole thing end to end, one build, two passes,
 nothing touched between them:
 
-    PASS 1                                      all 27 pass.
-    PASS 2 (no rebuild, nothing touched)        all 27 pass.
+    PASS 1                                      all 28 pass.
+    PASS 2 (no rebuild, nothing touched)        all 28 pass.
 
 The migrations ledger and the journal agree at 112 on production.
 

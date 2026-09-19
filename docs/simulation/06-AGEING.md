@@ -91,9 +91,9 @@ confirm the first moved by exactly thirty and the second did not move at all.
 ### How it is used
 
 ```
-npm run age -- --marker wave1 --start       BEFORE the wave acts
+npm run on:production -- age -- --marker wave1 --start       BEFORE the wave acts
   … the wave acts, and is captured …
-npm run age -- --marker wave1 --days 180    AFTER its capture is taken
+npm run on:production -- age -- --marker wave1 --days 180    AFTER its capture is taken
 ```
 
 `--start` writes `.simulation-wave1.json` with the instant the wave began. Only rows created at
@@ -106,8 +106,9 @@ and `verify:age` proves the refusal happens first.
 
 ## What it does, in order
 
-1. **Refuse production by name**, and refuse anything that is not the simulation branch. Two
-   sided, like every other write script here.
+1. **Refuse production by name unless it is reached through `npm run on:production`**, which is
+   how the run ages its own database. Bare, it operates on whatever `DATABASE_URL` names, which
+   is dev, and the six month clock never starts.
 2. **Discover** every `timestamp with time zone` and `timestamp` column in `public`, from
    `information_schema.columns`. Never a hand written list.
 3. **Shift** each one by the interval, **only where the value is already in the past**, and only
@@ -119,7 +120,7 @@ and `verify:age` proves the refusal happens first.
 ## The four things to check after every shift
 
 ```
-npm run verify:migrations
+npm run on:production -- verify:migrations
 ```
 
 Every CHECK constraint in this schema is validated, and several are about ordering: `ended_at`

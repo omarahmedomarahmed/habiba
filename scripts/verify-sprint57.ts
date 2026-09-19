@@ -38,6 +38,8 @@
  * in the file AND have to be gone from `content_pages`, and only the second of
  * those is what the public reads. So the checks below query the rows.
  */
+import { readdirSync } from "node:fs";
+
 import { sql } from "drizzle-orm";
 
 import { readSource, reporter } from "./_verify";
@@ -387,17 +389,17 @@ async function main() {
    *
    * `writesTo` took no arguments when this was written, so the empty parentheses
    * were a fair proxy for "this file calls the guard". Then the production door
-   * moved OUT of `writesTo` and INTO its caller, so the three scripts that may be
-   * let through say so themselves: `writesTo({ productionIsAllowed: true })`. The
-   * other fifty-eight went back to refusing unconditionally, which is what every
-   * one of their headers already claimed.
+   * moved OUT of `writesTo` and INTO its caller, so the scripts that may be let
+   * through say so themselves: `writesTo({ productionIsAllowed: true })`. Every
+   * other caller went back to refusing unconditionally, which is what all of
+   * their headers already claimed.
    *
    * `scripts/settings.ts` is one of the three, so the check failed on a file that
    * had become MORE explicit about what it does. A check that goes red when the
    * thing it guards improves is a check somebody edits out.
    *
-   * So it matches the call rather than its punctuation, and `verify:sprint76`
-   * holds the other half: that only three files anywhere pass the flag.
+   * So it matches the call rather than its punctuation, and the count below
+   * holds the other half: how many files anywhere under `scripts/` pass the flag.
    */
   for (const file of WRITERS) {
     check(
@@ -409,23 +411,51 @@ async function main() {
   /*
    * 🔴 AND THE COUNT, because "calls the guard" no longer implies "refuses".
    *
-   * The door is one argument wide now. Three files may pass it: the settings
-   * writer, the simulation seed and the ageing script, all three of which exist
-   * to be run against the database the six month run happens on. A fourth would
-   * mean somebody opened production to a script that plants fixtures, and the
-   * run does not restore afterwards, so anything it leaves is permanent.
+   * The door is one argument wide now. Four files may pass it: the settings
+   * writer, the simulation seed, the ageing script and the migration runner, all
+   * four of which exist to be run against the database the six month run happens
+   * on. A fifth would mean somebody opened production to a script that plants
+   * fixtures, and the run does not restore afterwards, so anything it leaves is
+   * permanent.
+   *
+   * 🔴 76.62 — AND IT IS COUNTED OVER THE DIRECTORY, NOT OVER A LIST.
+   *
+   * This used to filter `WRITERS` plus two names typed here, so it could only
+   * ever see doors somebody had remembered to add to it. `scripts/migrate.ts`
+   * took the flag in 76.61 (H38) and this check went on printing "exactly THREE
+   * … and these are they" while four existed, because the fourth was not in the
+   * list it was searching. A count is only a count if it reads every file that
+   * could contribute to it (H31, H25).
    */
-  const opened = WRITERS.concat(["scripts/simulate-seed.ts", "scripts/age.ts"]).filter((file) =>
-    /productionIsAllowed:\s*true/.test(readSource(file)),
-  );
+  const opened = readdirSync("scripts")
+    .filter((f) => f.endsWith(".ts"))
+    .map((f) => `scripts/${f}`)
+    .filter((file) => /productionIsAllowed:\s*true/.test(readSource(file)))
+    .sort();
+
+  const DOORS = [
+    "scripts/age.ts",
+    "scripts/migrate.ts",
+    "scripts/settings.ts",
+    "scripts/simulate-seed.ts",
+  ];
 
   check(
-    "🔴 76.52 exactly THREE scripts may be let through to production, and these are they",
-    opened.length === 3 &&
-      opened.includes("scripts/settings.ts") &&
-      opened.includes("scripts/simulate-seed.ts") &&
-      opened.includes("scripts/age.ts"),
+    "🔴 76.62 exactly FOUR scripts anywhere under scripts/ may be let through to production",
+    opened.length === DOORS.length && DOORS.every((d) => opened.includes(d)),
     opened.join(", ") || "none, which means the seed cannot run where it is meant to",
+  );
+
+  /*
+   * 🔴 The control for the check above: it must be able to SEE a door that is
+   * not on the list. Without this, deleting the scan and returning `DOORS`
+   * would pass, which is the §6 family the count was just rescued from.
+   */
+  const scanned = readdirSync("scripts").filter((f) => f.endsWith(".ts")).length;
+  check(
+    "🔴 76.62 …and the scan behind it reads every script, not the four it expects",
+    scanned > DOORS.length * 10,
+    `${scanned} scripts read`,
   );
 
   /*

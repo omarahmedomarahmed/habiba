@@ -19,9 +19,8 @@
    | `CRON_SECRET` | 🔴 Vercel, the `habiba` project, Settings, Environment Variables, reveal it. **It has to match**, because the cron calls go to the deployed site and a guess 401s | a long string |
    | `<neon password>` | Neon, project `gentle-waterfall-66476219`, Connect. **The same password goes in all four database lines**, because all four use the same role | one word |
 
-   🔴 **Seven, not five.** An earlier version of this list said five and left `CRON_SECRET` and
-   the Neon password as placeholders, which fails in wave 4 and on the first command
-   respectively.
+   🔴 **All seven, or the run stops.** A missing `CRON_SECRET` fails in wave 4; a missing Neon
+   password fails on the first command.
 
 3. **Open a new Claude Code session and paste everything from the `KEYS` heading below to the
    end of this file.** That is the prompt. Nothing above the KEYS heading is part of it.
@@ -32,7 +31,7 @@
 ## What it will do without asking
 
 Check production is in the state this document claims, build the product and run all
-twenty-seven gates against the **dev** branch, confirm the production seed with `verify:cast`,
+twenty-eight gates against the **dev** branch, confirm the production seed with `verify:cast`,
 run six months of invented trading on `https://24t.vercel.app` with real keys, move the clock
 at the end of each wave, and report back at seven fixed points, each short enough to read on a
 phone.
@@ -137,24 +136,25 @@ Point `DATABASE_URL` at production instead and `npm run gates` will write fabric
 onto the founders' own board, and a `finally` that does not run will leave one there. **This run
 does not restore afterwards.** Anything left behind is permanent.
 
-🔴 **There is nothing to `export` and no terminal to do it in.** An earlier version of this
-document asked the person who pastes it to export a variable in a shell. They do not have one,
-and a variable exported into a session would have reached every gate in it, which is the defect
-above. Every command in this document is run by the agent, with the Bash tool.
+🔴 **There is nothing to `export` and no terminal to do it in.** The person who pasted this has
+a chat window and nothing else. Every command in this document is run by YOU, in this session,
+with the Bash tool. And a production override exported into a shell would reach every gate run
+in the same shell, which is the defect above: `on:production` sets it for one child process and
+nothing wider.
 
 🔴 **`CRON_SECRET` is not optional, and it is checked in step 1 rather than discovered in wave
 4.** The scheduled jobs are behind it and two of them are scenes the run has to produce:
 `lapseOverdue`, inside **`billing`**, is how `T3` drops back to metered in wave 4, and
 `sweepUndeliveredAlerts`, inside **`crisis`**, is the crisis retry.
 
-🔴 **The jobs are `crisis`, `billing`, `radar`, `retention`, `reminders` and `extract`, and
-there is NO `sessions` job.** This document named one until somebody listed the route's own
-`JOBS` map. An unknown name answers **404 `unknown_job`** after the secret has already been
-checked, so a wrong job name and a wrong secret look nothing alike (401 against 404) and
-neither is a broken route. The two the run needs are `billing` and `crisis`.
+🔴 **The jobs are `crisis`, `billing`, `radar`, `retention`, `reminders` and `extract`.** An
+unknown name answers **404 `unknown_job`**, and only after the secret has been checked, so a
+wrong job name and a wrong secret look nothing alike: 404 against 401, and neither is a broken
+route. The two the run needs are `billing` and `crisis`. `npm run verify:runbook` reads the
+route's own `JOBS` map and fails if any document here invents one.
 
-🔴 **IT IS A `GET`, NOT A `POST`, and this document said POST until somebody tried it.** A POST
-returns 405 whatever the secret is, which reads as a broken route rather than a wrong method:
+🔴 **IT IS A `GET`, NOT A `POST`.** A POST returns 405 whatever the secret is, which reads as a
+broken route rather than as a wrong method:
 
 ```bash
 curl -s -i -H "Authorization: Bearer $CRON_SECRET" https://24t.vercel.app/api/cron/billing
@@ -256,7 +256,7 @@ said how a session gets audio, and an agent cannot speak. The mechanism has exis
 32 and is in use: scripts are synthesised with `gpt-4o-mini-tts` and cached, then fed to the
 session through the bearer-token door on `/api/sessions/[id]/transcribe` that sprint 36 built for
 partner platforms. **Read it before wave 1**, because it also carries a cost this run had not
-counted: synthesis is invisible to `npm run spend`, it is roughly the size of the whole rest of
+counted: synthesis is invisible to `npm run on:production -- spend`, it is roughly the size of the whole rest of
 the budget, and the first instruction in it is to measure that on session one rather than trust
 the estimate.
 
@@ -433,7 +433,7 @@ come out. **A check that compares against the gross number will report a defect 
 | Planned model spend | **≈ $4.80** |
 | Left over | **≈ $5.20**, which is headroom, not a licence to add sessions |
 | In session copilot | capped at **4** messages. Already set on production by the seed. Dev and the simulation branch keep the shipped **10**, and `settings:compare` prints that difference with its reason rather than failing on it |
-| 🔴 **Synthesising the audio** | **NOT in the figures above and NOT visible to `npm run spend`.** Roughly $4 to $5 more on the same key. `13-THE-AUDIO.md` says to measure it on session one and report it beside the spend at every checkpoint |
+| 🔴 **Synthesising the audio** | **NOT in the figures above and NOT visible to `npm run on:production -- spend`.** Roughly $4 to $5 more on the same key. `13-THE-AUDIO.md` says to measure it on session one and report it beside the spend at every checkpoint |
 
 **Doubling the months did not double the bill, and that is not luck.** Model spend tracks the
 session count, not the calendar. Three more months of trading is twenty seven more sessions, about
@@ -460,13 +460,9 @@ ladder and the whole long cluster the cost model is fitted from.
 
 ## What is on the production database RIGHT NOW, before you do anything
 
-🔴 **THIS TABLE USED TO BE WRONG, AND IT IS THE MOST DANGEROUS KIND OF WRONG.**
-
-It described the old simulation branch, which had already been seeded, and it said so under a
-heading reading "made, migrated, seeded and ready". An agent reading it on production would
-have believed the operator existed and the four applications were waiting, skipped the seed,
-and spent an hour looking for a console nobody could sign into. It is production's real state
-now, measured rather than remembered.
+**Measured on 2026-09-19, not remembered.** Confirm every line of it yourself in step 1 before
+you trust it: a prompt asserting a database's state is exactly the kind of claim rule 1 exists
+to distrust.
 
 | | |
 |---|---|
@@ -533,9 +529,9 @@ fixed points**, each short enough to read on a phone.
 
 | When | What, in at most eight lines |
 |---|---|
-| After step 2 | The branch and the product are what this prompt claimed, or they are not. **Say plainly if anything is red before a single agent has acted.** 🔴 And the measured cost of synthesising one 3 minute script, multiplied by 286 minutes, beside `npm run spend`. Two numbers, because one of them is blind |
+| After step 2 | The branch and the product are what this prompt claimed, or they are not. **Say plainly if anything is red before a single agent has acted.** 🔴 And the measured cost of synthesising one 3 minute script, multiplied by 286 minutes, beside `npm run on:production -- spend`. Two numbers, because one of them is blind |
 | After step 3b | The rail is open: the bank details are in, three companies and the practices moved to `eg`. The first thing that has ever done it |
-| End of each wave, six times | One table: sessions so far, the depth ladder (`P3` against `P6`), `npm run spend` against $10, defects this wave, and **anything an agent is blocked on** |
+| End of each wave, six times | One table: sessions so far, the depth ladder (`P3` against `P6`), `npm run on:production -- spend` against $10, defects this wave, and **anything an agent is blocked on** |
 | After wave 4 | **The full price invoice.** Whether it rendered with no discount line, and what the therapists did. The single most important moment in the run |
 | After the exam | The mark per patient, and whether a thicker record really made a better copilot |
 | After the CFO's second pass | The money end to end, with the month 3 pass beside it |
@@ -543,7 +539,7 @@ fixed points**, each short enough to read on a phone.
 
 ### Three things to say immediately, without waiting for a checkpoint
 
-1. **The spend passes 70% of $10.** The moment `npm run spend` warns, with what is left to do. **Do
+1. **The spend passes 70% of $10.** The moment `npm run on:production -- spend` warns, with what is left to do. **Do
    not decide alone to cut the run.**
 2. **An agent is blocked and cannot resume.** One block, the screen, and what it needs.
 3. **A defect that would lose somebody money or expose a record.** Everything else goes in the log
@@ -604,9 +600,9 @@ person who pasted this (Vercel → the project → Settings → Environment Vari
 → reveal, then correct the line in `.env.local`), and it is worthless to discover it in wave 4
 after the scene it breaks has already been captured wrong.
 
-🔴 **There is nothing to `export`.** An earlier version of this document told the person to
-export `I_MEAN_PRODUCTION` in a shell. They do not have a shell, and a variable exported into
-one would have leaked into every gate in the same session, which is the defect above.
+🔴 **There is nothing to `export`.** `on:production` sets the override for one child process.
+Exporting it into a shell would leak it into every gate run in that shell, which is the defect
+above.
 
 🔴 **`verify:synthetic` must not be run here** and `on:production` refuses it by name: it
 plants a real-looking person as a control before deleting it, and planting one on production
@@ -645,7 +641,7 @@ cause this: `verify:served` compiles into `.next/served` and kills the server it
 H39, both fixed in 76.61). But the screenshot and probe rigs run `next dev` against `.next`
 directly, so clear it before every build and the question never comes up.
 
-Twenty-seven gates, and they run against whatever `DATABASE_URL` points at, which is dev.
+Twenty-eight gates, and they run against whatever `DATABASE_URL` points at, which is dev.
 That is correct: **gates prove the code, not the run.** Several of them write fixtures, and
 dev is where fixtures belong.
 
@@ -654,7 +650,8 @@ answered 500 in production for seven sprints and nothing asked. `entitlement` an
 are the two that write: one subscribes a throwaway practice by transfer and checks it is NOT
 on the plan until a confirmation, the other plants ledger legs in both directions and three
 employees on the three month boundaries the payroll arithmetic gets wrong. Both delete
-everything in a `finally`, and both refuse production by name.
+everything in a `finally`, and both refuse production by name, which is why they are not on the
+`on:production` allow-list at all.
 
 ### Step 2b · 🔴 ALREADY DONE. Confirm it, do not repeat it
 
@@ -948,10 +945,10 @@ makes up for it.
 |---|---|
 | `npm run on:production -- simulate:seed` | The operator, the payroll, the four applications, the copilot quota. 🔴 **Already run on production. It refuses a second time.** Step 2b |
 | `npm run on:production -- verify:cast` | Who exists, who can sign in, and who has not signed up yet. Safe to run at any point |
-| `npm run age` | Wave ageing, with `verify:age` proving the past moves and the future does not |
-| `npm run spend` | The budget guard, over real rows |
-| `npm run copilot:exam` | The memory test |
-| `npm run physics` | Fits the two term session cost model. Refuses one duration cluster |
+| `npm run on:production -- age` | Wave ageing, with `verify:age` proving the past moves and the future does not |
+| `npm run on:production -- spend` | The budget guard, over real rows |
+| `npm run on:production -- copilot:exam` | The memory test |
+| `npm run on:production -- physics` | Fits the two term session cost model. Refuses one duration cluster |
 | `npm run verify:synthetic` | Proves every person is invented, so the console can be committed |
 | `npm run smoke` | Every public page, every locale, 200 with words on it |
 | `npm run plan` | The operating plan: Egypt, the $20k, the offer, three scenarios |
@@ -960,7 +957,7 @@ makes up for it.
 | `npm run verify:finance` | 30 checks that the forecast is pure, reconciles, and cannot move a price |
 | `npm run verify:rail` | The Egyptian rail: nothing is granted before a person confirms, and every column that decides which rail somebody is on can be set through a screen |
 | `npm run verify:entitlement` | 13 checks **against a real database**: subscribing by transfer bills but grants nothing, confirming grants, lapsing takes it away, and a mid month seat change bills what it quoted |
-| `npm run verify:board` | 16 checks on `/admin/tv`: all nine sections run, none of them writes, and due money is never counted as collected |
+| `npm run on:production -- verify:board` | 16 checks on `/admin/tv`: all nine sections run, none of them writes, and due money is never counted as collected |
 
 ---
 
@@ -985,6 +982,13 @@ makes up for it.
    If something refuses, read why rather than working around it: there is no restore, so a
    fixture left behind is permanent.
 6. **Do not fix defects during the run.** Write them down and carry on.
+7. **Write down what catches you, at the moment it catches you.** A defect the product does
+   to a user goes in `docs/simulation-run/DEV-LOG.md`. A trap in the code or the tooling that
+   will catch the next person too goes in **`HAZARDS.md`**, one row at the bottom of the
+   table with the next H number: what the trap is, and the rule that avoids it. That file is
+   read by every session that touches this repository, and it is the reason most of this
+   run's obstacles were known before wave 1. The version written a week later is a summary;
+   the useful part is the symptom that misled you.
 
 ---
 
@@ -992,7 +996,7 @@ makes up for it.
 
 | What | Status |
 |---|---|
-| OpenAI | **Live, and capped at $10.** If notes do not generate, check `npm run spend` before filing a defect |
+| OpenAI | **Live, and capped at $10.** If notes do not generate, check `npm run on:production -- spend` before filing a defect |
 | Daily | Live |
 | Stripe | Test mode, deliberately |
 | Egypt card payments | **There is no gateway.** Not a limitation to work around: it is the product. Money arrives by transfer and an operator confirms it |
@@ -1015,7 +1019,7 @@ code this week. **None of them is a bug to chase; each is a sentence for the rep
 | **Nothing renews by itself** | `subscribeByTransfer` raises ONE period at full price. There is no monthly cron that opens the next one, so the free-then-half-then-full sequence is walked by the operator, month by month |
 | **A pot that empties tells the SPONSOR, not the patient** | The admins get an email naming nobody. The patient falls through to the ordinary paid route and is asked to pay. There is no "account on hold" screen |
 | **A therapist lapses only when the billing cron runs** | `lapseOverdue` has one caller. **GET** `/api/cron/billing` with the bearer token to make wave 4's `M2` happen. A POST returns 405 |
-| **`/admin/usage` is a 30 day window** | After ageing, only wave 6 falls inside it. The figures photographed at month 6 describe one wave, not the run. Use `npm run physics` for the run's own cost |
+| **`/admin/usage` is a 30 day window** | After ageing, only wave 6 falls inside it. The figures photographed at month 6 describe one wave, not the run. Use `npm run on:production -- physics` for the run's own cost |
 | **`/admin/vault`'s card is all time and its table is six calendar months** | They are not required to be equal, and a month with no activity is simply absent. Do not stop the run over the difference |
 | **The transfer details lock almost permanently** | `detailsLockedBy` counts every `awaiting_proof` row, and one opens the moment any payer presses the button. Expect the refusal in `R7` to be the ordinary state |
 | **A therapist sets their own price** | Nothing charges $20. `minPriceCents` is $5 and `maxPriceCents` is $500. Every arithmetic claim in these documents assumes the agents choose 1,000 EGP, so **have them choose it** |

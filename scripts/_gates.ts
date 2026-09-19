@@ -478,4 +478,32 @@ export const GATES = [
     script: "verifiers",
     why: "and the seventy-nine sprint verifiers nobody was running",
   },
+  /*
+   * 🔴 76.62 — AND THE DOCUMENTS, BECAUSE NOTHING HAD EVER READ THEM.
+   *
+   * Every gate above this one checks the product. The eighteen files the six
+   * month run is DRIVEN by were checked by nobody, and a full read of them
+   * found the runbook had rotted under the product: forty-one commands aged the
+   * wrong database because they were written without the `on:production`
+   * prefix, a governing rule said nothing runs against production eighty lines
+   * after the same file said the run is on production, and every count in them
+   * disagreed with something — eleven gates against twenty-seven, thirty edges
+   * against forty-eight, two steps both numbered 15.
+   *
+   * None of that is a documentation problem. A command pointed at the wrong
+   * database does not fail; it succeeds somewhere else, and the six month clock
+   * would never have started with nothing saying so.
+   *
+   * `verify:runbook` derives every expectation from the code: the gate count
+   * from this list, the production-only commands from the allow-list in
+   * `on-production.ts`, the cron jobs from the route's own map, the edge count
+   * by counting the rows in the file that defines them. A checker holding its
+   * own copy of a number stops matching the day somebody tunes the real one
+   * (H31, H25).
+   */
+  {
+    name: "runbook",
+    script: "verify:runbook",
+    why: "and the documents the run is driven by still match the product",
+  },
 ] as const;

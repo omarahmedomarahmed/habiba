@@ -185,9 +185,10 @@ export function hostOf(): string {
  * afterwards**: the data stays until a person deletes it. So a fixture that
  * survives its own cleanup survives forever, on the founder's board.
  *
- * Every one of those sixty-one headers already says "refuses production by
- * name". This makes that true again. The three that need the door pass
- * `productionIsAllowed`, in the open, in their own source.
+ * Every one of those headers already says "refuses production by name". This
+ * makes that true again. The four that need the door pass `productionIsAllowed`,
+ * in the open, in their own source, and `verify:sprint57` counts them by reading
+ * every file under `scripts/` rather than a list somebody maintains.
  */
 export function writesTo({ productionIsAllowed = false } = {}): string {
   const url = process.env.DATABASE_URL ?? "";
@@ -202,7 +203,7 @@ export function writesTo({ productionIsAllowed = false } = {}): string {
 
   if (host.includes(PRODUCTION_ENDPOINT) && !productionIsAllowed) {
     console.error("Refusing to run: that is the production endpoint. Point at your branch.");
-    console.error("This script is not one of the three that may be let through to it.");
+    console.error("This script is not one of the four that may be let through to it.");
     process.exit(1);
   }
 

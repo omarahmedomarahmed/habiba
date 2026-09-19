@@ -50,7 +50,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { GATES } from "./_gates";
-import { reporter } from "./_verify";
+import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -101,7 +101,7 @@ function main() {
    * `gates`, `build` and `probe` are deliberately NOT on that list, so they are
    * unaffected and stay bare, which is correct: they prove the code.
    */
-  const onProd = readFileSync("scripts/on-production.ts", "utf8");
+  const onProd = readSource("scripts/on-production.ts");
   const productionOnly = new Set(
     [...onProd.matchAll(/^\s*"?([a-z0-9:\-]+)"?:\s*\{\s*writes:/gm)].map((m) => m[1]!),
   );
@@ -153,7 +153,7 @@ function main() {
     wrongGates.length === 0,
     wrongGates.length === 0
       ? `all claims read ${String(gateCount)}`
-      : `found: ${wrongGates.join(", ")} — the real number is ${String(gateCount)}`,
+      : `found: ${wrongGates.join(", ")}, and the real number is ${String(gateCount)}`,
   );
 
   /*
@@ -183,7 +183,7 @@ function main() {
       ? "🔴 counted zero cases, so this check measured nothing"
       : wrongEdges.length === 0
         ? `${String(edgeIds.size)} cases, every claim agrees`
-        : `found: ${wrongEdges.join(", ")} — the file lists ${String(edgeIds.size)}`,
+        : `found: ${wrongEdges.join(", ")}, and the file lists ${String(edgeIds.size)}`,
   );
 
   /* ------------------------------------- C · every document reference resolves */
@@ -213,7 +213,7 @@ function main() {
    * been checked, so a wrong name and a wrong secret look nothing alike and
    * neither reads as a broken route. Read the route's own map.
    */
-  const route = readFileSync("app/api/cron/[job]/route.ts", "utf8");
+  const route = readSource("app/api/cron/[job]/route.ts");
   const jobs = new Set([...route.matchAll(/^\s{2}async ([a-z]+)\(\)/gm)].map((m) => m[1]!));
   const namedJobs = new Set<string>();
   for (const d of files) {

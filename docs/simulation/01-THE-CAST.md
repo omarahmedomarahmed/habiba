@@ -49,7 +49,7 @@ agents**, plus eight standing, plus capture, plus the orchestrator.
 themselves up. A cast seeded into existence never walks the sign up flow, and sign up is where
 two of the last three walkthroughs found their worst defects.
 
-**It has already been run.** Run `npm run simulate:seed` anyway as your first act: it will
+**It has already been run.** Run `npm run on:production -- simulate:seed` anyway as your first act: it will
 refuse, saying an operator already exists, and that refusal is the cheapest proof available
 that you are pointed at the right database.
 

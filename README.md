@@ -6,8 +6,12 @@ story that the patient owns and carries.
 
 **One Next.js application. One deployment. One database.**
 
-> **Status: development. Nothing has launched.** Production holds one administrator
-> and no patient data. Every account that has ever existed here was synthetic.
+> **Status: development. Nothing has launched, and nobody real has an account here.**
+> As of 2026-09-19 production holds 9 users (4 administrators, 5 staff), 7 people on the
+> payroll, 2 organisations, 3 sponsors, 1 patient and 1 completed session, all of them
+> planted by `simulate:seed` to give the six month run something to start from. **Every
+> account that has ever existed here was synthetic**, and that is the claim to keep true:
+> the counts move every time the run does.
 
 ---
 
@@ -501,7 +505,7 @@ top up, for about **$5**.
 
 ```
 docs/SIMULATION-PROMPT.md      paste into a fresh session. It writes .env.local itself
-docs/simulation/               the twelve documents it reads first
+docs/simulation/               the seventeen documents it reads first
 ```
 
 What you need: a Neon branch of your own, an OpenAI key with $10 on it, a Stripe
@@ -526,7 +530,7 @@ defects that sixty verifiers had missed.
 | `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
 | `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
 | `docs/SIMULATION-PROMPT.md` | **The prompt that starts the simulation.** Keys, the branch, the steps, and what to report back |
-| `docs/simulation/` | The twelve documents it reads first: the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, what the run hands the plan, the forty eight money edges, each person's week by week story, and who is allowed to read a record |
+| `docs/simulation/` | The seventeen documents it reads first: what was hit before it, the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, what the run hands the plan, the forty eight money edges, each person's week by week story, who is allowed to read a record, the logins, the audio, the rehearsal and the deploy. `verify:runbook` checks them against the code |
 | `docs/FINANCIAL-PLAN.md` | The operating plan the simulation rehearses. Egypt, the $20k, the offer, and every number labelled measured, decided or guessed |
 | `docs/simulation-run/` | What the simulation produced: frames per person at months 0, 1, 3 and 6, the board every week for six months, the database in words at each checkpoint, the money reconciliation, and the findings |
 | `docs/walkthrough-archive/` | The written record of the two earlier walkthroughs. **Their frames were deleted on 2026-09-14**, and both video scripts are marked stale: they were written for a product that had one therapist and one patient in it |

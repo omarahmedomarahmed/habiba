@@ -3,7 +3,7 @@
 **Run by the main session, after the last wave and before the report.**
 
 ```
-npm run physics -- --at 50 --json docs/simulation-run/PHYSICS.json
+npm run on:production -- physics -- --at 50 --json docs/simulation-run/PHYSICS.json
 npm run plan                        the operating plan, three scenarios
 npm run plan -- beta-cliff          the six months, month by month
 npm run forecast                    the abstract growth model, four scenarios
@@ -73,7 +73,7 @@ can bill them correctly when they try, which is the half that is our fault if it
 
 | | Where it comes from |
 |---|---|
-| The fixed and variable halves of a session's model cost | `npm run physics`, fitted over `ai_request_logs` |
+| The fixed and variable halves of a session's model cost | `npm run on:production -- physics`, fitted over `ai_request_logs` |
 | The recording consent rate | completed sessions with `recording_consent = 'granted'` |
 | Patients per therapist, sessions per patient per month | the rows, divided |
 | The prices, the fees and the tiers | `platform_settings`, **read, never invented** |
@@ -112,12 +112,10 @@ sharing one login, a runaway loop, or a bug.
 
 ### 🔴 The run's fit is CHECKED against those numbers, by the command, not by eye
 
-This paragraph used to read: *"the run's own fit should reproduce the two terms above; if
-`npm run physics` comes back materially different, that is a finding."* It asked a person to
-open two files, compose one of them by hand and judge "materially". **Nobody was ever going to
-do that**, and the figure it guards is the one every margin in the forecast rests on.
-
-`npm run physics` now does it:
+The fifty minute figure is the one every margin in the forecast rests on, and it is reached by
+extrapolating from three and eight minute sessions. `evals/physics.json` holds a session that
+was **measured** at fifty minutes against the live API, so there is something real to check the
+reach against, and the command does the checking:
 
 ```
   ─────────────────────────────────────────────────────────────
@@ -131,7 +129,7 @@ do that**, and the figure it guards is the one every margin in the forecast rest
 ```
 
 **It exits non-zero when they diverge by more than 25%**, and says in the output that this is a
-finding to record rather than a build to fix. `npm run verify:physics` is the gate that proves
+finding to record rather than a build to fix. `npm run on:production -- verify:physics` is the gate that proves
 the instrument works before the run needs it.
 
 Three things about that comparison are worth knowing:
@@ -188,7 +186,7 @@ Then capture the page. `05-CAPTURE.md` lists it.
 
 ## What goes in the report
 
-1. **The two terms**, from `npm run physics`, beside the API benchmark's, labelled.
+1. **The two terms**, from `npm run on:production -- physics`, beside the API benchmark's, labelled.
 2. **The fifty minute figure**, and the multiplied one beside it, so the difference is on the page
    rather than in an argument.
 3. **The consent rate.** The $3 note fee rides on it, so every margin in every scenario moves with
