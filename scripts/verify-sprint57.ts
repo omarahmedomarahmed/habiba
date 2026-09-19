@@ -438,10 +438,11 @@ async function main() {
     "scripts/migrate.ts",
     "scripts/settings.ts",
     "scripts/simulate-seed.ts",
+    "scripts/sync-blocks.ts",
   ];
 
   check(
-    "🔴 76.62 exactly FOUR scripts anywhere under scripts/ may be let through to production",
+    "🔴 76.62 exactly FIVE scripts anywhere under scripts/ may be let through to production",
     opened.length === DOORS.length && DOORS.every((d) => opened.includes(d)),
     opened.join(", ") || "none, which means the seed cannot run where it is meant to",
   );

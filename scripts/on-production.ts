@@ -82,6 +82,16 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
     why: "rewrites content_pages from the shipped defaults, and nothing else",
   },
   /*
+   * 🔴 The surgical half of the entry above, and the one to reach for first.
+   * `ship:content` replaces every block on every page, which has destroyed
+   * authored copy twice (H49). This replaces only the block types it is given
+   * and refuses to write if anything else moved.
+   */
+  "content:sync": {
+    writes: true,
+    why: "replaces the named block types on one page and proves nothing else changed",
+  },
+  /*
    * It opens a copilot thread against real patients from the run and asks the
    * model about them, which is a write, and the thread it leaves behind is part
    * of the record rather than a fixture. It belongs on the database the run is

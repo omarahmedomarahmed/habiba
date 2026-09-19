@@ -274,6 +274,18 @@ const PHONE: ReadonlySet<string> = new Set([
   "patient-sessions",
 ]);
 
+/**
+ * 🔴 SOME SCREENS DO NOT FIT IN 320 PIXELS AND SAYING SO IS NOT A COMPROMISE.
+ *
+ * The standard body height suits a note or a list. The copilot carries a
+ * header, a growing thread and a composer, and at 20rem the thread itself got
+ * about 130 pixels — one and a half messages, in a component whose whole point
+ * is that entries ACCUMULATE. A demo that clips the thing being demonstrated
+ * argues against the product. These get a taller body; the grid still lines up
+ * because a row is sized by its tallest tile either way.
+ */
+const TALL: ReadonlySet<string> = new Set(["copilot", "transcript"]);
+
 const PATHS: Readonly<Record<string, string>> = {
   transcript: "/sessions/live",
   note: "/sessions/note",
@@ -288,8 +300,12 @@ const PATHS: Readonly<Record<string, string>> = {
   "session-room": "/sessions/live",
 };
 
-export function frameFor(demo?: string): { as: Frame; path?: string } {
+export function frameFor(demo?: string): { as: Frame; path?: string; bodyClassName?: string } {
   if (!demo || demo === "none") return { as: "none" };
   if (PHONE.has(demo)) return { as: "phone" };
-  return { as: "browser", path: PATHS[demo] };
+  return {
+    as: "browser",
+    path: PATHS[demo],
+    bodyClassName: TALL.has(demo) ? "h-[30rem]" : undefined,
+  };
 }

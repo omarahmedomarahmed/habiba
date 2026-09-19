@@ -92,3 +92,94 @@ export const PATIENT_BRIEF =
  * that is safe: the public radar is already public, and `shapeBoard` is what decides
  * what a stranger may see of a clinician.
  */
+
+/* ─────────────────────────────────────────────────── the two admin portals ──
+ *
+ * 🔴 76.71 — A NUMBER IN A CARD IS NOT A PORTAL.
+ *
+ * The company and clinic demos were a meter, a chart and a two-column rules
+ * panel each. Both are true and neither answers the question a buyer arrives
+ * with, which is *what will I be looking at on a Tuesday*. So the demos below
+ * draw the portal: a sidebar, the screens on it, the buttons that are there and
+ * the ones that deliberately are not.
+ *
+ * Same rule as everything else in this file. Invented people, surnames Demo and
+ * Example, no import, no query, no path from a row to here.
+ */
+
+/** The practice's clinicians, with verification exactly as the portal shows it. */
+export const CLINIC_TEAM: {
+  name: string;
+  verify: "verified" | "pending" | "none";
+  sessions: number;
+  earnedCents: number;
+  payout: "none" | "requested" | "paid";
+}[] = [
+  { name: "Nour Demo", verify: "verified", sessions: 46, earnedCents: 214_000, payout: "requested" },
+  { name: "Karim Example", verify: "verified", sessions: 38, earnedCents: 176_000, payout: "paid" },
+  { name: "Salma Demo", verify: "verified", sessions: 31, earnedCents: 143_000, payout: "none" },
+  { name: "Youssef Example", verify: "pending", sessions: 12, earnedCents: 54_000, payout: "none" },
+  { name: "Hana Demo", verify: "none", sessions: 0, earnedCents: 0, payout: "none" },
+];
+
+/**
+ * This week's appointments.
+ *
+ * A clinician, a patient's name and a time, and nothing else: C260's own
+ * wording is *a name and a time, because you pay for the hour*. There is no
+ * column here for a reason, a note or a state of mind, and there is no such
+ * column on the real screen either.
+ */
+export const CLINIC_WEEK: {
+  day: string;
+  time: string;
+  clinician: string;
+  patient: string;
+  modality: "video" | "in person";
+}[] = [
+  { day: "Mon", time: "09:00", clinician: "Nour Demo", patient: "Mariam A.", modality: "video" },
+  { day: "Mon", time: "11:30", clinician: "Karim Example", patient: "Omar S.", modality: "in person" },
+  { day: "Tue", time: "10:00", clinician: "Nour Demo", patient: "Laila F.", modality: "video" },
+  { day: "Tue", time: "16:00", clinician: "Salma Demo", patient: "Tarek M.", modality: "video" },
+  { day: "Wed", time: "09:30", clinician: "Karim Example", patient: "Dina H.", modality: "in person" },
+  { day: "Thu", time: "14:00", clinician: "Salma Demo", patient: "Adam R.", modality: "video" },
+];
+
+/**
+ * 🔴 ONE TOTAL FOR THE PERIOD, NEVER A LINE PER SESSION.
+ *
+ * `clinic.apply.seesBills` promises exactly that, and a demo bill itemised by
+ * session would show the practice a count of each clinician's patients, which
+ * is the thing the promise is protecting.
+ */
+export const CLINIC_BILL = {
+  period: "1 to 31 March",
+  seats: 11,
+  seatCents: 7_200,
+  totalCents: 79_200,
+  status: "paid" as const,
+};
+
+/**
+ * What a sponsoring employer sees: therapists paid, and how much.
+ *
+ * 🔴 NOT ONE PATIENT NAME, and that is the entire product decision. The
+ * employer funds the pot and reads the invoice; who walked through the door is
+ * not theirs to know, and a demo that showed it would be demonstrating the
+ * opposite of what is sold.
+ */
+export const COMPANY_PAID: { therapist: string; sessions: number; cents: number }[] = [
+  { therapist: "Nour Demo", sessions: 14, cents: 84_000 },
+  { therapist: "Karim Example", sessions: 11, cents: 66_000 },
+  { therapist: "Salma Demo", sessions: 9, cents: 54_000 },
+  { therapist: "Hana Example", sessions: 6, cents: 36_000 },
+];
+
+/** The joining code and how far the roster has got. */
+export const COMPANY_CODE = {
+  code: "NILE-7742",
+  domain: "example.com",
+  employees: 240,
+  joined: 63,
+  usedThisMonth: 40,
+};

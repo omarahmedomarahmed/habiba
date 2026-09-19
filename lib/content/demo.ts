@@ -63,6 +63,26 @@ export type DemoContent = {
   note: NoteContent;
   /** The two copilot prompts shown beside the transcript. */
   copilot: { kind: string; text: string }[];
+  /**
+   * 🔴 76.70 — WHAT A CLINICIAN ASKS IT, AND WHAT COMES BACK.
+   *
+   * The copilot demo used to be a list of things the product says at you. Half
+   * of what it is for is the other direction: mid-session, a therapist asks
+   * about the person in front of them and gets an answer built out of the
+   * sessions they have already had. A demonstration with no question in it
+   * shows a notifier rather than an assistant.
+   *
+   * Every answer carries `cites`, and that is not decoration either. The
+   * product's rule is that an answer about a patient names the moment it came
+   * from, so a clinician can go and read it rather than trust a paraphrase.
+   * A demo answer with no citation would be advertising a behaviour the real
+   * screen refuses to have.
+   */
+  copilotAsks: {
+    q: string;
+    a: string;
+    cites: { on: string; at: string; who: "therapist" | "patient"; quote: string }[];
+  }[];
   /** The phrase the risk banner is demonstrating having caught. */
   riskIndicator: string;
 };
@@ -151,6 +171,56 @@ export const DEMO_FALLBACK: DemoContent = {
     { kind: "explore", text: "She called the routine pointless in February and is keeping it now." },
     { kind: "pattern", text: "Third mention of the performance review in four sessions." },
     { kind: "observation", text: "Says 'just how the job is' when the work comes up. Same phrase as 20 February." },
+  ],
+  copilotAsks: [
+    {
+      q: "Has she mentioned the review before?",
+      a: "Three times in the last four sessions. On 20 February she called it \"the thing in March\" and moved on; by 12 March she was naming it as the reason she was awake. The pattern is that it comes up late in the session rather than when you ask about work.",
+      cites: [
+        {
+          on: "20 February",
+          at: "31:04",
+          who: "patient",
+          quote: "There is the thing in March but that is ages away, it is fine.",
+        },
+        {
+          on: "12 March",
+          at: "08:20",
+          who: "patient",
+          quote: "I wake around three and then my head just starts going about the review.",
+        },
+      ],
+    },
+    {
+      q: "What have we tried for the sleep?",
+      a: "One thing: the wind-down routine agreed on 20 February. She called it pointless at the time. Adherence went from zero to two nights of seven, and both of those nights she reported getting back to sleep faster. Nothing else has been tried, so this is a first intervention rather than a failed one.",
+      cites: [
+        {
+          on: "20 February",
+          at: "44:12",
+          who: "patient",
+          quote: "I will try it but honestly it sounds a bit pointless.",
+        },
+        {
+          on: "12 March",
+          at: "14:55",
+          who: "patient",
+          quote: "I did it twice. Both times I got back down quicker, which I had not really clocked.",
+        },
+      ],
+    },
+    {
+      q: "Anything I should be careful about today?",
+      a: "Nothing on the risk side has been flagged in this session or the previous four. One thing to hold lightly: she tends to close down when the work is named directly, and opens up when it arrives sideways through sleep. That is an observation about two sessions, not a rule.",
+      cites: [
+        {
+          on: "26 February",
+          at: "19:41",
+          who: "therapist",
+          quote: "Can we stay with work for a minute?",
+        },
+      ],
+    },
   ],
   riskIndicator: "want to die",
 };
@@ -310,6 +380,56 @@ export const DEMO_FALLBACK_AR: DemoContent = {
     { kind: "نمط", text: "تالت مرة يتذكر فيها التقييم في أربع جلسات." },
     { kind: "ملاحظة", text: "بتقول «دي طبيعة الشغل» لما الشغل ييجي في السيرة. نفس الجملة بتاعة ٢٠ فبراير." },
   ],
+  copilotAsks: [
+    {
+      q: "هي جابت سيرة التقييم قبل كده؟",
+      a: "تلات مرات في آخر أربع جلسات. يوم ٢٠ فبراير سمّته «الحكاية اللي في مارس» وعدّت عليها، ويوم ١٢ مارس بقت بتقول إنه السبب اللي بيصحّيها. والنمط إنه بييجي في آخر الجلسة، مش لما تسألي عن الشغل.",
+      cites: [
+        {
+          on: "٢٠ فبراير",
+          at: "31:04",
+          who: "patient",
+          quote: "في الحكاية اللي في مارس بس دي لسه بدري أوي، عادي.",
+        },
+        {
+          on: "١٢ مارس",
+          at: "08:20",
+          who: "patient",
+          quote: "بصحى الساعة تلاتة ودماغي تبتدي تلف على التقييم.",
+        },
+      ],
+    },
+    {
+      q: "جرّبنا إيه للنوم؟",
+      a: "حاجة واحدة: روتين التهدئة اللي اتفقتوا عليه يوم ٢٠ فبراير. ساعتها قالت عليه إنه ملوش لازمة. الالتزام طلع من صفر لليلتين من سبع، وفي الليلتين دول قالت إنها رجعت نامت أسرع. مفيش حاجة تانية اتجرّبت، يعني دي أول محاولة مش محاولة فشلت.",
+      cites: [
+        {
+          on: "٢٠ فبراير",
+          at: "44:12",
+          who: "patient",
+          quote: "هجرّب بس بصراحة شكله ملوش لازمة.",
+        },
+        {
+          on: "١٢ مارس",
+          at: "14:55",
+          who: "patient",
+          quote: "عملته مرتين. المرتين رجعت نمت أسرع، وده أنا أصلًا ما كنتش واخدة بالي منه.",
+        },
+      ],
+    },
+    {
+      q: "في حاجة لازم أخد بالي منها النهارده؟",
+      a: "مفيش أي مؤشر خطر اتسجّل في الجلسة دي ولا في الأربعة اللي قبلها. حاجة واحدة خدي بالك منها من غير ما تبني عليها: بتقفل لما الشغل يتقال بشكل مباشر، وبتتفتح لما ييجي من ناحية النوم. دي ملاحظة على جلستين، مش قاعدة.",
+      cites: [
+        {
+          on: "٢٦ فبراير",
+          at: "19:41",
+          who: "therapist",
+          quote: "ممكن نقعد شوية على موضوع الشغل؟",
+        },
+      ],
+    },
+  ],
   riskIndicator: "نفسي أموت",
 };
 
@@ -418,6 +538,15 @@ function fromBlocks(blocks: unknown, floor: DemoContent = DEMO_FALLBACK): DemoCo
      */
     note: floor.note,
     copilot: floor.copilot,
+    /*
+     * 🔴 76.70 — NOT CMS-EDITABLE either, for the same reason as the note.
+     *
+     * Each ask carries citations that have to line up with the transcript they
+     * quote. An admin editing an answer through a textarea can make it say
+     * something the quoted line does not support, which demonstrates the
+     * product doing exactly what it is built to refuse to do.
+     */
+    copilotAsks: floor.copilotAsks,
     riskIndicator: floor.riskIndicator,
     /*
      * 28.6 — editable like every other demo, and field-by-field like every

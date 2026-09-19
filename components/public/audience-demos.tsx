@@ -1,6 +1,6 @@
-import { Meter, SeesWhat, SplitBar } from "@/components/visual/primitives";
-import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
-import { CLINIC, POT, SPEND_CURVE } from "@/lib/marketing/fixtures";
+import { DeviceFrame } from "@/components/demo/device-frame";
+import { ClinicConsole, CompanyConsole } from "@/components/demo/portal-demo";
+import { SplitBar } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -37,66 +37,37 @@ const money = (cents: number) =>
   }).format(cents / 100);
 
 /**
- * 🔴 A COMPANY: the pot as a meter, and the wall as two columns.
+ * 🔴 76.71 — A COMPANY, AS THE CONSOLE THEY WILL SIT IN FRONT OF.
  *
- * C227 and C244 are the pitch rather than the small print, which is 65.15's own wording:
- * *bring mental health to your people, and never learn who went.* So the `SeesWhat` is
- * the product demonstration and the meter is the thing beside it.
+ * This used to be a meter, the spend chart and a two-column "sees / never sees"
+ * panel, floating on the page with no chrome around them. All true, and it
+ * answered none of the question an HR lead arrives with. `CompanyConsole` draws
+ * the portal: the sidebar, the pot, where the money went, the joining code, and
+ * the settings row for "require staff to attend" shown as **not built**.
+ *
+ * The real `SpendHeatmap` and the real `Meter` are still inside it, so 65.17
+ * holds: this cannot outlive the feature it is about.
  */
-export async function CompanyDemo() {
-  const { t } = await getI18n();
-
+export function CompanyDemo() {
   return (
-    <div className="flex flex-col gap-5 rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-900/5">
-      <Meter
-        usedLabel={money(POT.remainingCents)}
-        ofLabel={t("sponsor.ofLastTopUp", { amount: money(POT.addedCents) })}
-        fraction={1 - POT.remainingCents / POT.addedCents}
-        note={t("sponsor.expiresOn", { date: POT.expiresLabel })}
-      />
-
-      <SpendHeatmap
-        weeks={SPEND_CURVE.map((point, index) => ({
-          weekStart: `W${index + 1}`,
-          /* 🔴 One suppressed week, because a chart without one hides the rule. */
-          spendCents: index === 2 ? null : point.cents,
-        }))}
-      />
-
-      <SeesWhat
-        who={t("sponsor.apply.seesWho")}
-        can={[t("sponsor.apply.seesCount"), t("sponsor.apply.seesWeekly")]}
-        cannot={[t("sponsor.neverIndividual"), t("sponsor.neverAttendance")]}
-      />
-    </div>
+    <DeviceFrame as="browser" path="/sponsor" bodyClassName="h-[26rem]">
+      <CompanyConsole />
+    </DeviceFrame>
   );
 }
 
 /**
- * 🔴 A CLINIC: seats, and the clinical wall that comes with them.
+ * 🔴 76.71 — A CLINIC, the same way.
  *
- * The seat figure is `lib/marketing/fixtures.ts`'s, not `seatMonthlyCents`'s, because a
- * marketing page that computes a live price is a page that quotes one, and `verify:claims`
- * rule 62.11 is about exactly which figures may appear beside the word "seat".
+ * The old one was the numeral 11 above the word "seats". This is the week's
+ * appointments, the clinicians and where each one's verification has got to,
+ * earnings with no withdraw button beside them, and one bill for the period.
  */
-export async function ClinicDemo() {
-  const { t } = await getI18n();
-
+export function ClinicDemo() {
   return (
-    <div className="flex flex-col gap-5 rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-900/5">
-      <div>
-        <p className="text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
-          {CLINIC.seats}
-        </p>
-        <p className="text-sm text-slate-500">{t("clinic.seatsWord")}</p>
-      </div>
-
-      <SeesWhat
-        who={t("clinic.apply.seesWho")}
-        can={[t("clinic.apply.seesSchedule"), t("clinic.apply.seesBills")]}
-        cannot={[t("clinic.neverNote"), t("clinic.neverRisk")]}
-      />
-    </div>
+    <DeviceFrame as="browser" path="/clinic" bodyClassName="h-[26rem]">
+      <ClinicConsole />
+    </DeviceFrame>
   );
 }
 

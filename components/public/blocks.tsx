@@ -7,6 +7,7 @@ import { FlowStrip, SeesWhat } from "@/components/visual/primitives";
 import { SessionDemo } from "@/components/demo/session-demo";
 import { ContentIconMark } from "@/components/public/icons";
 import { ContactForm } from "@/components/public/contact-form";
+import { Comparison, Vendors } from "@/components/public/comparison";
 import { getDemoContent, type DemoContent } from "@/lib/content/demo";
 import { getI18n, type Translate } from "@/lib/i18n/server";
 
@@ -123,6 +124,10 @@ function Block({
       return <Showcase block={block} demo={demo} />;
     case "faq":
       return <Faq block={block} />;
+    case "competitors":
+      return <Comparison block={block} />;
+    case "vendors":
+      return <Vendors block={block} />;
     /*
      * 🔴 65.20 — THE MARKETING SITE DRAWS THE SAME SHAPES THE PORTALS DO.
      *

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Lightbulb } from "lucide-react";
 
 import { NoteCard } from "@/components/clinical/note-card";
 import { RiskBanner } from "@/components/clinical/risk-banner";
@@ -24,6 +23,7 @@ import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
  */
 const H = "h-full";
 import { DeviceFrame, frameFor } from "./device-frame";
+import { SessionCopilot } from "./session-copilot";
 
 /**
  * Renders the real product component that demonstrates a given claim.
@@ -72,26 +72,17 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
         </div>
       );
 
+    /*
+     * 🔴 76.70 — THE REAL THING, not a list of the things it might say.
+     *
+     * This used to be a dark navy box holding all five suggestions at once at
+     * 13px, which demonstrated neither of the two facts that matter: that they
+     * arrive one at a time during the session, and that a clinician can ask it
+     * back. `SessionCopilot` does both, and it is white because it is the one
+     * surface in that room a person reads rather than glances at.
+     */
     case "copilot":
-      return (
-        <div className={`${H} space-y-2 bg-slate-50 p-3`}>
-          <div className="w-full rounded-xl bg-navy-500 px-4 py-4">
-            <div className="flex items-start gap-2.5">
-              <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" aria-hidden />
-              <ul className="space-y-2">
-                {(content?.copilot ?? []).map((prompt) => (
-                  <li key={prompt.text} className="text-sm leading-snug text-slate-100">
-                    <span className="me-1.5 text-[10px] font-bold tracking-wider text-brand-300 uppercase">
-                      {prompt.kind}
-                    </span>
-                    {prompt.text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      );
+      return <SessionCopilot content={content} />;
 
     /*
      * 18.9 — the patient's own app, which is the half of this product nobody
@@ -217,10 +208,10 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
  */
 export function ComponentShowcase({ demo, content }: { demo?: string; content?: DemoContent }) {
   const body = <DemoSurface demo={demo} content={content} />;
-  const { as, path } = frameFor(demo);
+  const { as, path, bodyClassName } = frameFor(demo);
   if (as === "none") return body;
   return (
-    <DeviceFrame as={as} path={path}>
+    <DeviceFrame as={as} path={path} bodyClassName={bodyClassName}>
       {body}
     </DeviceFrame>
   );

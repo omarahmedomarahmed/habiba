@@ -587,6 +587,223 @@ export const DEFAULT_PAGES: DefaultPage[] = [
        * no number of its own.
        */
       { type: "pricing" },
+      /*
+       * 🔴 76.68 — US AGAINST EACH OF THEM, AND EVERY ROW IS EDITABLE.
+       *
+       * Researched on 2026-09-19 from each product's own published pricing and
+       * feature pages. Two rules govern what may be written here and both are
+       * about not getting sued:
+       *
+       *   1. **`theirs` describes what they publish, never what we assume.**
+       *      "No Arabic in the product" is checkable; "worse at Arabic" is an
+       *      opinion dressed as a fact and is not allowed in this table.
+       *   2. **Prices carry their unit and their date.** A competitor who
+       *      repriced last week makes this stale rather than false, and an
+       *      operator fixes it in the console the hour somebody notices.
+       *
+       * The comparison is deliberately about the two things this product does
+       * that the category does not: it is built for Arabic and for the Egyptian
+       * payment rail, and the record belongs to the patient rather than to the
+       * practice. Where a rival is simply better at something, the row says so,
+       * because a table where we win every line is one nobody believes.
+       */
+      {
+        type: "competitors",
+        heading: "How we compare",
+        checkedOn: "2026-09-19",
+        items: [
+          {
+            name: "SimplePractice",
+            who: "The most widely used practice-management EHR for US therapists. Scheduling, billing, telehealth and a client portal in one product.",
+            price: "From $49 a month, plus about $35 per clinician for the AI note add-on",
+            rows: [
+              {
+                claim: "What the subscription buys",
+                ours: "Unlimited sessions and unlimited AI on a flat plan, or $1 + $3 a session with nothing monthly.",
+                theirs: "A tiered monthly plan. AI notes are a separate per-clinician add-on on top.",
+              },
+              {
+                claim: "Arabic",
+                ours: "Arabic and English throughout, right to left, including the note itself.",
+                theirs: "English product. No published Arabic interface.",
+              },
+              {
+                claim: "Paying in Egypt",
+                ours: "Bank transfer and local rails, priced in EGP with VAT shown.",
+                theirs: "Card payments through US processing.",
+              },
+              {
+                claim: "Who owns the record",
+                ours: "The patient. They claim it and carry it to their next therapist, whoever that is.",
+                theirs: "The practice holds the chart. A client leaving starts again elsewhere.",
+              },
+              {
+                claim: "On-demand sessions",
+                ours: "Crisis Radar: a patient books a therapist who is free right now.",
+                theirs: "Appointments are scheduled. No on-demand marketplace.",
+              },
+              {
+                claim: "Breadth of practice tooling",
+                ours: "Younger product. Fewer billing, claims and reporting features than a decade-old EHR.",
+                theirs: "Deeper: insurance claims, ERA, a public directory, a website builder.",
+                concede: true,
+              },
+            ],
+          },
+          {
+            name: "TherapyNotes",
+            who: "A long-established behavioural-health EHR, strong on documentation and US insurance billing.",
+            price: "About $69 a month for a solo clinician, with an AI note add-on of roughly $40 per clinician",
+            rows: [
+              {
+                claim: "What the subscription buys",
+                ours: "Unlimited AI included on a plan, or nothing monthly at all on pay as you go.",
+                theirs: "Documentation, billing and support in one price. AI notes cost extra per clinician.",
+              },
+              {
+                claim: "Arabic",
+                ours: "Written for Arabic first in the launch market, both directions.",
+                theirs: "English product.",
+              },
+              {
+                claim: "Risk language",
+                ours: "Every transcript is scanned in Arabic and English, and the scan says out loud that it can miss.",
+                theirs: "No published automatic risk scan of session content.",
+              },
+              {
+                claim: "Who owns the record",
+                ours: "The patient claims and carries it.",
+                theirs: "The practice's chart.",
+              },
+              {
+                claim: "Insurance billing",
+                ours: "None. This product does not bill US insurers and does not pretend to.",
+                theirs: "Mature US claims workflow, which is most of why people buy it.",
+                concede: true,
+              },
+              {
+                claim: "Sessions held anywhere",
+                ours: "In our room, in person on a phone, or on Zoom, Meet or Teams with a bot we send.",
+                theirs: "Built around its own telehealth.",
+              },
+            ],
+          },
+          {
+            name: "Upheal",
+            who: "An AI-native platform for therapists: notes, scheduling and billing with an assistant built in.",
+            price: "About $1 a session, capped near $69 a month",
+            rows: [
+              {
+                claim: "What the subscription buys",
+                ours: "The same shape: per session, or flat and unlimited. $1 room plus $3 AI, or $80 a month solo.",
+                theirs: "Per session with a monthly cap, which is the closest pricing in this table to ours.",
+              },
+              {
+                claim: "Arabic",
+                ours: "Arabic and English, including the generated note.",
+                theirs: "English product.",
+              },
+              {
+                claim: "Paying in Egypt",
+                ours: "The Egyptian rail is the product, not a workaround.",
+                theirs: "Card payments.",
+              },
+              {
+                claim: "Who owns the record",
+                ours: "The patient, with consent they can revoke.",
+                theirs: "The practice.",
+              },
+              {
+                claim: "On-demand sessions",
+                ours: "Crisis Radar, and an employer can fund it.",
+                theirs: "No on-demand marketplace.",
+              },
+              {
+                claim: "AI maturity",
+                ours: "Newer. Our note quality is measured against a published eval set rather than asserted.",
+                theirs: "Longer in market with an established assistant.",
+                concede: true,
+              },
+            ],
+          },
+          {
+            name: "Mentalyc",
+            who: "An AI documentation layer that sits beside whatever EHR a practice already uses.",
+            price: "From about $20 a month for a limited number of notes, to about $70 for the full note range",
+            rows: [
+              {
+                claim: "What it is",
+                ours: "The record layer and the session, including the room, the money and the patient's own app.",
+                theirs: "Notes only, deliberately. No scheduling, billing, telehealth or client portal.",
+              },
+              {
+                claim: "Note formats",
+                ours: "SOAP, with the sections labelled and a missing one said out loud rather than dropped.",
+                theirs: "A wide library: SOAP, DAP, BIRP, GIRP, EMDR, couples and family.",
+              },
+              {
+                claim: "Arabic",
+                ours: "Both languages, in the note and in the interface.",
+                theirs: "English product.",
+              },
+              {
+                claim: "Who owns the record",
+                ours: "The patient.",
+                theirs: "Whatever the EHR it sits beside decides.",
+              },
+              {
+                claim: "The patient's side",
+                ours: "The patient has an app: their sessions, their steps, their journal, their record.",
+                theirs: "No patient-facing product.",
+              },
+              {
+                claim: "Working with an existing EHR",
+                ours: "We connect over FHIR, and that is newer work than theirs.",
+                theirs: "Built to slot beside an EHR, which is the whole design.",
+                concede: true,
+              },
+            ],
+          },
+          {
+            name: "Lyra Health",
+            who: "An enterprise employee mental-health benefit, sold to large employers rather than to clinicians.",
+            price: "Enterprise contracts. Not publicly listed.",
+            rows: [
+              {
+                claim: "Who buys it",
+                ours: "A therapist, a clinic, or an employer funding a pot. All three, and the same product underneath.",
+                theirs: "The employer. Clinicians are supply, not customers.",
+              },
+              {
+                claim: "What the employer sees",
+                ours: "The pot, the therapists paid and the amounts. Never who went.",
+                theirs: "Aggregate utilisation reporting.",
+              },
+              {
+                claim: "Price transparency",
+                ours: "Every price is on the pricing page, in EGP and USD.",
+                theirs: "Quote only. Widely reported as out of reach for small and mid-size employers.",
+              },
+              {
+                claim: "The launch market",
+                ours: "Egypt, in Arabic, on local payment rails.",
+                theirs: "Primarily US and multinational enterprise.",
+              },
+              {
+                claim: "Who owns the record",
+                ours: "The patient keeps it when they leave the employer.",
+                theirs: "Care delivered through the benefit; the record follows the programme.",
+              },
+              {
+                claim: "Clinical network",
+                ours: "We are new and our network is small.",
+                theirs: "A large vetted provider network, which is most of the value they sell.",
+                concede: true,
+              },
+            ],
+          },
+        ],
+      },
       {
         // 17.5 — the FAQ moves below the cards and the statements.
         type: "faq",

@@ -3109,6 +3109,84 @@ export type ContentBlock =
     }
   | {
       /**
+       * 🔴 76.68 — US AGAINST EACH COMPETITOR, AND EVERY WORD OF IT IS A ROW.
+       *
+       * A comparison table is the one thing on a marketing site that can get a
+       * company sued, so not a syllable of it is compiled in. Each rival is a
+       * row an operator can edit, add or delete, and each line under it is a
+       * pair: what we do, what they do. When a competitor changes their pricing
+       * or ships the feature we said they lacked, the correction is an edit in
+       * the console rather than a deploy, which is the difference between
+       * fixing it the same hour and fixing it next sprint.
+       *
+       * 🔴 `theirs` is what makes it honest. A comparison that lists only our
+       * own features is an advert wearing a table's clothes; stating their
+       * position beside ours is what lets a reader check us, and what forces
+       * whoever writes the row to have looked.
+       *
+       * `logo` is a URL rather than a bundled asset for the same reason: a
+       * trademark somebody asks us to stop using has to be removable by the
+       * person who takes the call.
+       */
+      type: "competitors";
+      heading?: string;
+      /**
+       * The day somebody last read every rival's own site, as `2026-09-19`.
+       *
+       * 🔴 It lives on the block rather than in the component because it is the
+       * one fact on this page that rots on its own. An operator correcting a
+       * price in the console has to be able to move the date in the same edit;
+       * a date compiled into a component says "checked" about a day nobody
+       * checked anything.
+       */
+      checkedOn?: string;
+      items: {
+        /** The rival's name, exactly as they spell it. */
+        name: string;
+        /** Absolute https:// logo URL, or empty for a lettermark. */
+        logo?: string;
+        /** One line on who they are, in their own terms rather than ours. */
+        who?: string;
+        /** Their published price, with the unit. Never inferred. */
+        price?: string;
+        /**
+         * Each row of the tab: the claim, ours, theirs.
+         *
+         * 🔴 `concede` is the row where THEY win, and it exists because the
+         * first version drew a green tick beside the sentence "we are new and
+         * our network is small". A tick on a row we lose is worse than no
+         * conceding row at all: it tells a reader the ticks mean nothing, and
+         * the five honest ones above it stop counting for anything. When it is
+         * set the marks swap, so the page reads the way the sentence does.
+         */
+        rows: { claim: string; ours: string; theirs: string; concede?: boolean }[];
+      }[];
+    }
+  | {
+      /**
+       * 🔴 76.68 — THE SYSTEMS WE CONNECT TO, NAMED.
+       *
+       * "We integrate with your HR system" is a sentence a reader cannot check.
+       * A grid of the actual products, split by what they are for, is checkable
+       * in a glance and is the first question a buyer asks. Editable for the
+       * same reason as the comparison: the day a connector ships or breaks, the
+       * page has to be able to say so without waiting for a release.
+       */
+      type: "vendors";
+      heading?: string;
+      /** `hr` for eligibility and rosters, `ehr` for the clinical record. */
+      kind?: "hr" | "ehr";
+      items: {
+        name: string;
+        logo?: string;
+        /** How it connects: an API name, a standard, or how it is done. */
+        via?: string;
+        /** `live`, `beta` or `planned`. Never dressed up. */
+        status?: string;
+      }[];
+    }
+  | {
+      /**
        * 🔴 18.3 — getting help now, never behind a signup.
        *
        * A block rather than a page so it can sit at the bottom of *every*
