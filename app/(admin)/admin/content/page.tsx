@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink, LayoutGrid } from "lucide-react";
 
 import { Badge, Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
@@ -22,6 +22,37 @@ export default async function AdminContentPage() {
           Every public page is edited here. Publishing takes effect immediately.
         </p>
       </div>
+
+      {/*
+       * 🔴 76.79 — THE DOOR TO THE UI REFERENCE, and it is a link rather than
+       * an allowlist entry.
+       *
+       * `verify:reachable` 58.3 reported `/design` as a page no principal can
+       * get to, which was true: it is `noindex` and nothing pointed at it. The
+       * cheap answer was `PAGES_BY_DESIGN`, and that file's own note says why
+       * not — its allowlist was emptied because the one entry in it turned out
+       * to be a page a shipped code path did link to, and an exemption that has
+       * stopped being needed reads as coverage.
+       *
+       * The better answer is that an unlinked reference is one nobody opens.
+       * Somebody editing a block here is exactly the person who wants to see
+       * every component the blocks can render, drawn in its frame, by audience.
+       */}
+      <Link
+        href="/design"
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 hover:border-slate-300"
+      >
+        <LayoutGrid className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-slate-900">UI reference</span>
+          <span className="block text-xs text-slate-500">
+            Every component a block can render, by the person looking at it. Not indexed.
+          </span>
+        </span>
+        <ExternalLink className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+      </Link>
 
       {pages.length === 0 ? (
         <Card className="px-4 py-8 text-center">

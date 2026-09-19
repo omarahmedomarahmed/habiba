@@ -72,12 +72,25 @@ import { cn } from "@/lib/utils";
  * route, nothing that could reach a row. The tabs move local state.
  */
 
-const money = (cents: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+/**
+ * Whole dollars, grouped by hand.
+ *
+ * 🔴 C84, and `verify:sprint12` caught this file breaking it. `Intl` with an
+ * explicit `"en-US"` in a CLIENT file is banned, because in a diff it is
+ * indistinguishable from the `undefined` that means "ask whatever machine is
+ * running this" — and that machine is the server on the first pass and the
+ * browser on the second, so the two passes can format the same number two
+ * different ways and React reports a hydration mismatch. The same argument as
+ * `fmtUsd` in `components/sponsor/coverage-form.tsx`, which is where this
+ * shape comes from.
+ *
+ * No cents, because every figure on these two consoles is a whole-dollar total
+ * a finance team or a practice manager reads.
+ */
+function money(cents: number): string {
+  const whole = String(Math.round(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `$${whole}`;
+}
 
 /* ────────────────────────────────────────────────────────────── the shell ── */
 
