@@ -63,6 +63,7 @@
     "verify:limits": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-limits.ts",
     "verify:payout": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-payout.ts",
     "verify:physics": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-physics.ts",
+    "verify:runbook": "node --import tsx scripts/verify-runbook.ts",
     "logins": "node --import tsx scripts/logins.ts",
     "probe": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/probe.ts",
     "screens:prep": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/screens-prep.ts",
