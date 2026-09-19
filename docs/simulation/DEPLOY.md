@@ -255,3 +255,16 @@ on a clinical product. Attaching one later changes `APP_URL` and nothing else.
 It stays, with its boot guard and its violet strip. It is where the second pass and the
 adjusted re-run happen without touching production again. Production is for the run that
 has to be about the real thing.
+
+🔴 **It is a git branch and a Neon database. It is NOT a Vercel deployment, on purpose.**
+
+Every preview build of it failed. Nineteen preview builds across this branch and the working
+branch burned **4.84 hours** of build time in one day and produced nothing: `out_of_memory`
+during webpack, or `BUILD_EXCEEDED_MAXIMUM_TIME` at the 45 minute ceiling, four times. The
+build is memory-bound on an 8 GB machine and this file's own hazard log said so before any of
+it (see *"The production build is memory-bound"* in `HAZARDS.md`, where four PRODUCTION deploys
+died the same way on 2026-09-16).
+
+So the project now carries an **Ignored Build Step** that builds `main` and nothing else.
+Pushing to `simulation` or to a working branch still updates git and still costs nothing.
+`https://24t.vercel.app` is the only deployment, and the run happens there.
