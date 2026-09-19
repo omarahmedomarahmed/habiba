@@ -269,15 +269,53 @@ async function main() {
        * no CMS default, in either language, may contain a literal currency
        * amount. That is exactly the defect, and nothing else.
        */
+      /*
+       * 🔴 76.79 — A RIVAL'S PUBLISHED PRICE IS THE ONE FIGURE THIS MUST NOT
+       * CATCH, AND THE EXEMPTION IS TWO FIELDS RATHER THAN A FILE.
+       *
+       * The rule above is about OUR prices: a figure typed into a CMS body goes
+       * stale the day the fee changes, which is C60. That reason does not reach
+       * what SimplePractice charges. There is no `platform_settings` row holding
+       * a competitor's price list, there never will be, and a comparison table
+       * that cannot name their price is a table nobody can use.
+       *
+       * So `price:` and `theirs:` are skipped, and ONLY those two. `ours:` is
+       * still scanned, which is the half that matters: it is where this
+       * product's own prices would be typed, and the first draft of the
+       * comparison did exactly that — "or $1 + $3 a session with nothing
+       * monthly", in a row that would have gone on saying so through a reprice.
+       * `verify:sprint17` caught that one at the same time as this, from the
+       * published rows rather than the source, and both scans keep `ours`.
+       */
+      const RIVAL_FIGURE_FIELD = /^\s*(price|theirs):\s*"/;
+
       const cmsWithPrices = (["lib/content/defaults.ts", "lib/content/defaults-ar.ts"] as const)
         .flatMap((file) => {
           const body = readSource(file);
           return body
             .split("\n")
             .map((line, index) => ({ line, at: `${file}:${index + 1}` }))
-            .filter(({ line }) => LITERAL_PRICE.test(line))
+            .filter(({ line }) => LITERAL_PRICE.test(line) && !RIVAL_FIGURE_FIELD.test(line))
             .map(({ at }) => at);
         });
+
+      /*
+       * 🔴 THE CONTROL. The exemption above is a hole cut in a scan, and a hole
+       * cut slightly too wide is invisible: the check goes green and stays
+       * green. So the scan is run against a line in each shape and has to
+       * catch the one it must and skip the one it must not.
+       */
+      const catches = LITERAL_PRICE.test('      body: "It is $6 a session.",') &&
+        !RIVAL_FIGURE_FIELD.test('      body: "It is $6 a session.",');
+      const skips = RIVAL_FIGURE_FIELD.test('      price: "From $49 a month",');
+      const stillScansOurs = LITERAL_PRICE.test('        ours: "$1 a session.",') &&
+        !RIVAL_FIGURE_FIELD.test('        ours: "$1 a session.",');
+
+      check(
+        "🔴 76.79 CONTROL, the rival-price exemption skips `price` and `theirs` and NOTHING else",
+        catches && skips && stillScansOurs,
+        `body caught ${String(catches)} · price skipped ${String(skips)} · ours still scanned ${String(stillScansOurs)}`,
+      );
 
       check(
         "🔴 21R.6 no CMS default writes a price into prose, the cards carry the numbers",
