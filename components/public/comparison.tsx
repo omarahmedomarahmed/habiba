@@ -109,7 +109,9 @@ export function Comparison({ block }: { block: Block }) {
               carries its own labels instead. */}
           <div className="hidden grid-cols-[1fr_1fr_1fr] gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 sm:grid">
             <p className="text-[11px] font-bold tracking-wider text-slate-600 uppercase">&nbsp;</p>
-            <p className="text-[11px] font-bold tracking-wider text-brand-700 uppercase">24Therapy</p>
+            <p className="text-[11px] font-bold tracking-wider text-brand-700 uppercase">
+              {t("cmp.us")}
+            </p>
             <p className="text-[11px] font-bold tracking-wider text-slate-600 uppercase">
               {current.name}
             </p>
@@ -148,7 +150,7 @@ export function Comparison({ block }: { block: Block }) {
                         row.concede ? "text-slate-600" : "text-slate-800",
                       )}
                     >
-                      <span className="font-semibold text-brand-700 sm:hidden">24Therapy: </span>
+                      <span className="font-semibold text-brand-700 sm:hidden">{t("cmp.us")}: </span>
                       {row.ours}
                     </p>
                   </div>

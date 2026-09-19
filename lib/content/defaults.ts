@@ -40,12 +40,12 @@ const COMPETITORS: ContentBlock = {
   items: [
     {
       name: "SimplePractice",
-      who: "The most widely used practice-management EHR for US therapists. Scheduling, billing, telehealth and a client portal in one product.",
+      who: "The most used practice-management EHR for US therapists: scheduling, billing, telehealth, client portal.",
       price: "From $49 a month, plus about $35 per clinician for the AI note add-on",
       rows: [
         {
           claim: "What the subscription buys",
-          ours: "Unlimited sessions and unlimited AI on a flat plan, or a per-session rate with nothing monthly. Both are on our pricing page.",
+          ours: "A flat plan with no per-session fee, or a per-session rate with nothing monthly. Both prices are published.",
           theirs: "A tiered monthly plan. AI notes are a separate per-clinician add-on on top.",
         },
         {
@@ -60,17 +60,17 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "Who owns the record",
-          ours: "The patient. They claim it and carry it to their next therapist, whoever that is.",
+          ours: "The patient. They claim it and carry it to their next therapist.",
           theirs: "The practice holds the chart. A client leaving starts again elsewhere.",
         },
         {
           claim: "On-demand sessions",
-          ours: "Crisis Radar: a patient books a therapist who is free right now.",
+          ours: "Crisis Radar: a patient books whoever is free right now.",
           theirs: "Appointments are scheduled. No on-demand marketplace.",
         },
         {
           claim: "Breadth of practice tooling",
-          ours: "Younger product. Fewer billing, claims and reporting features than a decade-old EHR.",
+          ours: "Younger. Fewer billing and reporting features than a decade-old EHR.",
           theirs: "Deeper: insurance claims, ERA, a public directory, a website builder.",
           concede: true,
         },
@@ -83,7 +83,7 @@ const COMPETITORS: ContentBlock = {
       rows: [
         {
           claim: "What the subscription buys",
-          ours: "Unlimited AI included on a plan, or nothing monthly at all on pay as you go.",
+          ours: "Included on a plan. Nothing monthly on pay as you go.",
           theirs: "Documentation, billing and support in one price. AI notes cost extra per clinician.",
         },
         {
@@ -93,7 +93,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "Risk language",
-          ours: "Every transcript is scanned in Arabic and English, and the scan says out loud that it can miss.",
+          ours: "Scanned in Arabic and English, and the page says the scan can miss.",
           theirs: "No published automatic risk scan of session content.",
         },
         {
@@ -103,25 +103,25 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "Insurance billing",
-          ours: "None. This product does not bill US insurers and does not pretend to.",
+          ours: "None. We do not bill US insurers and do not pretend to.",
           theirs: "Mature US claims workflow, which is most of why people buy it.",
           concede: true,
         },
         {
           claim: "Sessions held anywhere",
-          ours: "In our room, in person on a phone, or on Zoom, Meet or Teams with a bot we send.",
+          ours: "Our room, in person on a phone, or Zoom, Meet and Teams.",
           theirs: "Built around its own telehealth.",
         },
       ],
     },
     {
       name: "Upheal",
-      who: "An AI-native platform for therapists: notes, scheduling and billing with an assistant built in.",
+      who: "An AI-native platform for therapists: notes, scheduling, billing.",
       price: "About $1 a session, capped near $69 a month",
       rows: [
         {
           claim: "What the subscription buys",
-          ours: "The same shape: per session, or flat and unlimited. Our figures are on our pricing page, read from the same rows the invoice reads.",
+          ours: "Per session, or flat and unlimited. Our figures are published and read from the rows the invoice reads.",
           theirs: "Per session with a monthly cap, which is the closest pricing in this table to ours.",
         },
         {
@@ -146,7 +146,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "AI maturity",
-          ours: "Newer. Our note quality is measured against a published eval set rather than asserted.",
+          ours: "Newer. Our note quality is measured against a published eval set.",
           theirs: "Longer in market with an established assistant.",
           concede: true,
         },
@@ -154,17 +154,17 @@ const COMPETITORS: ContentBlock = {
     },
     {
       name: "Mentalyc",
-      who: "An AI documentation layer that sits beside whatever EHR a practice already uses.",
+      who: "An AI documentation layer beside whatever EHR a practice runs.",
       price: "From about $20 a month for a limited number of notes, to about $70 for the full note range",
       rows: [
         {
           claim: "What it is",
-          ours: "The record layer and the session, including the room, the money and the patient's own app.",
+          ours: "The record and the session: the room, the money, the patient's app.",
           theirs: "Notes only, deliberately. No scheduling, billing, telehealth or client portal.",
         },
         {
           claim: "Note formats",
-          ours: "SOAP, with the sections labelled and a missing one said out loud rather than dropped.",
+          ours: "SOAP, sections labelled, and a missing one said rather than dropped.",
           theirs: "A wide library: SOAP, DAP, BIRP, GIRP, EMDR, couples and family.",
         },
         {
@@ -179,7 +179,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "The patient's side",
-          ours: "The patient has an app: their sessions, their steps, their journal, their record.",
+          ours: "The patient has an app: sessions, steps, journal, record.",
           theirs: "No patient-facing product.",
         },
         {
@@ -192,12 +192,12 @@ const COMPETITORS: ContentBlock = {
     },
     {
       name: "Lyra Health",
-      who: "An enterprise employee mental-health benefit, sold to large employers rather than to clinicians.",
+      who: "An enterprise mental-health benefit sold to large employers, not clinicians.",
       price: "Enterprise contracts. Not publicly listed.",
       rows: [
         {
           claim: "Who buys it",
-          ours: "A therapist, a clinic, or an employer funding a pot. All three, and the same product underneath.",
+          ours: "A therapist, a clinic, or an employer funding a pot. Same product underneath.",
           theirs: "The employer. Clinicians are supply, not customers.",
         },
         {

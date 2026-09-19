@@ -346,11 +346,45 @@ async function main() {
   const demos = readSource("components/public/audience-demos.tsx");
   const fixtures = readSource("lib/marketing/fixtures.ts");
 
+  /*
+   * 🔴 76.79 — IT FOLLOWS THE IMPORT NOW, and the reason is this check's own
+   * §6 lesson landing on this check.
+   *
+   * It grepped `audience-demos.tsx` for two import lines. Sprint 76 rebuilt the
+   * company and clinic demos as consoles in `components/demo/portal-demo.tsx`
+   * and `audience-demos.tsx` became four lines that wrap them in a device frame,
+   * so the two imports moved one file deeper and this went red against a site
+   * that had MORE of the portal's own components on it than before, not less.
+   *
+   * 65.17's rule is about the marketing site, not about one file, so the check
+   * reads the demo modules `audience-demos.tsx` pulls in and asks the question
+   * across that set. A grep for the shape of an answer breaks when the shape
+   * moves and passes when the shape survives a gutting; following the import is
+   * asking the actual question.
+   */
+  const demoModules = [
+    ...demos.matchAll(/from "@\/(components\/demo\/[\w-]+)"/g),
+  ].map((m) => `${m[1]!}.tsx`);
+  const demoSurface = [demos, ...demoModules.map((file) => readSource(file))].join("\n");
+
   check(
     "🔴 65.17 the audience demos import the PORTAL's own components",
-    /from "@\/components\/sponsor\/spend-heatmap"/.test(demos) &&
-      /from "@\/components\/visual\/primitives"/.test(demos),
-    "a screenshot survives the feature being deleted; this does not",
+    /from "@\/components\/sponsor\/spend-heatmap"/.test(demoSurface) &&
+      /from "@\/components\/visual\/primitives"/.test(demoSurface),
+    demoModules.length > 0
+      ? `a screenshot survives the feature being deleted; this does not (through ${demoModules.join(", ")})`
+      : "a screenshot survives the feature being deleted; this does not",
+  );
+
+  /*
+   * 🔴 THE CONTROL, because the check above now reads a set that a bug could
+   * make empty, and an empty set that still happened to match `demos` would
+   * pass. This asserts the follow actually followed something.
+   */
+  check(
+    "🔴 65.17 CONTROL, the check really read the demo modules it followed",
+    demoModules.length > 0 && demoSurface.length > demos.length,
+    demoModules.join(", ") || "FOLLOWED NOTHING",
   );
 
   check(

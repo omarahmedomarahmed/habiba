@@ -181,7 +181,35 @@ const PORTALS: Record<string, readonly string[]> = {
    * `unattributed` bucket with no ratchet at all, which is a hole in the map
    * rather than a cost and is exactly what `home` did from the other side.
    */
-  public: ["pricing", "contact", "public", "marketing", "blocks", "hdemo"],
+  /*
+   * 🔴 76.79 — THE FOUR NEW PREFIXES ARE PUBLIC, CHECKED BY GREP LIKE THE REST.
+   *
+   *   grep -rn 't("cmp\.' app components lib   -> components/public/comparison.tsx
+   *   grep -rn 't("dcp\.' app components lib   -> components/demo/session-copilot.tsx
+   *   grep -rn 't("dfl\.' app components lib   -> components/demo/flow-demo.tsx
+   *   grep -rn 't("dpo\.' app components lib   -> components/demo/portal-demo.tsx
+   *   grep -rn 't("pr2\.' app components lib   -> components/public/pricing-tiers.tsx
+   *
+   * Every one of them renders only on a marketing page. `dpo` is the demo of the
+   * clinic and sponsor consoles and NOT the consoles themselves, which is the
+   * misattribution this map's own header warns about: a demo of a portal is read
+   * by a visitor deciding whether to buy, not by the person who works in it, and
+   * counting it against the clinic's ratchet would hand the clinic portal a wall
+   * of text nobody there has to read.
+   */
+  public: [
+    "pricing",
+    "contact",
+    "public",
+    "marketing",
+    "blocks",
+    "hdemo",
+    "cmp",
+    "dcp",
+    "dfl",
+    "dpo",
+    "pr2",
+  ],
   admin: ["admin", "aclinic", "apartner", "asponsor", "acheckin"],
   /*
    * 🔴 SHARED IS A REAL CATEGORY, NOT A BIN.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
  * and a nav that disappears under 1024px is the usual way that gets lost.
  */
 export function DocsNav({ sections }: { sections: { id: string; label: string }[] }) {
+  const t = useT();
   const [active, setActive] = useState(sections[0]?.id ?? "");
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function DocsNav({ sections }: { sections: { id: string; label: string }[
 
   return (
     <nav
-      aria-label="On this page"
+      aria-label={t("cmp.onThisPage")}
       className="no-scrollbar sticky top-16 z-10 -mx-4 mb-6 overflow-x-auto border-b border-slate-200 bg-white/90 px-4 py-2 backdrop-blur lg:mx-0 lg:mb-0 lg:h-fit lg:overflow-visible lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none"
     >
       <ul className="flex gap-1 lg:block lg:space-y-0.5">
