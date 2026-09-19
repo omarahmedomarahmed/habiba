@@ -76,21 +76,59 @@ async function main() {
     check("11.1 the whole-hour CHECK constraint exists", check_?.n === 1);
 
     /*
-     * Deliberately not backfilled. Every existing session came off the radar
-     * or a join link and was unplanned by definition; writing a scheduled time
-     * onto them would invent appointments nobody made — and sprint 12 reads
-     * exactly the gap between `scheduled_at` and `started_at` to decide
-     * whether somebody turned up.
+     * Deliberately not backfilled. Every session that predates `0039_scheduling`
+     * came off the radar or a join link and was unplanned by definition; writing
+     * a scheduled time onto them would invent appointments nobody made — and
+     * sprint 12 reads exactly the gap between `scheduled_at` and `started_at` to
+     * decide whether somebody turned up.
+     *
+     * 🔴 76.64 — SCOPED TO THOSE SESSIONS, BECAUSE IT USED TO COUNT ALL OF THEM.
+     *
+     * This was `COUNT(scheduled_at) FROM sessions` with no window, so it asserted
+     * that NO session anywhere is ever scheduled. That was true the day sprint 11
+     * shipped and is false of the product it describes: scheduling an appointment
+     * is a feature now, and eight other verifiers plant a scheduled session and
+     * remove it in a `finally`.
+     *
+     * It went red in a full pass reporting "2 of 10" while the database held 8
+     * sessions and none scheduled by the time anybody looked — two fixtures, alive
+     * for the seconds the count ran. The message names a backfill that never
+     * happened, which is the wrong diagnosis rather than a flaky one, and H29's
+     * rule says it out loud: never a sum over whatever is there.
+     *
+     * The window is DERIVED from the ledger, not typed here, so it stays correct
+     * if the migration is ever renumbered (H41).
      */
-    const [existing] = await db
-      .execute<{ total: number; scheduled: number }>(
-        sql`SELECT COUNT(*)::int AS total, COUNT(scheduled_at)::int AS scheduled FROM sessions`,
+    const [applied] = await db
+      .execute<{ when: string }>(
+        sql`SELECT created_at::text AS when FROM drizzle.__drizzle_migrations
+             WHERE id = (SELECT MIN(id) FROM drizzle.__drizzle_migrations) + 39`,
       )
       .then((r) => r.rows);
+
+    const [existing] = await db
+      .execute<{ total: number; scheduled: number }>(
+        sql`SELECT COUNT(*)::int AS total, COUNT(scheduled_at)::int AS scheduled
+              FROM sessions
+             WHERE created_at < to_timestamp(${Number(applied?.when ?? 0)} / 1000.0)`,
+      )
+      .then((r) => r.rows);
+
     check(
-      "11.2 existing sessions were NOT backfilled with an invented appointment",
-      existing?.scheduled === 0,
-      `${existing?.scheduled} of ${existing?.total}`,
+      "11.2 no session that predates the scheduling migration carries an invented appointment",
+      applied !== undefined && existing?.scheduled === 0,
+      `${existing?.scheduled ?? "?"} of ${existing?.total ?? "?"} sessions older than ${
+        applied ? new Date(Number(applied.when)).toISOString().slice(0, 10) : "(ledger unreadable)"
+      }`,
+    );
+
+    /*
+     * 🔴 CONTROL, because a window that matches nothing also reports zero.
+     */
+    check(
+      "🔴 CONTROL …and that window actually contains sessions, so zero means something",
+      (existing?.total ?? 0) > 0,
+      `${existing?.total ?? 0} sessions predate the migration`,
     );
 
     /* --------------------------------------- 🔴 11.1 the constraint bites -- */
