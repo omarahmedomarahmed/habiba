@@ -29,11 +29,22 @@
  * splits the run into two duration clusters so this can answer; if it says it
  * cannot, the run did not produce them and the extrapolation must not be made.
  */
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { sql } from "drizzle-orm";
 
-import { costAt, fit, naiveCostAt, type Rates, type SessionSample } from "../lib/finance/physics";
+import {
+  BENCHMARK_TOLERANCE,
+  agreement,
+  benchmarkCostAt,
+  costAt,
+  fit,
+  naiveCostAt,
+  type Benchmark,
+  type Rates,
+  type SessionSample,
+} from "../lib/finance/physics";
 import { connect } from "./db";
 
 type Args = { at: number; json: string | null };
@@ -202,6 +213,124 @@ async function main() {
       console.log("  SESSION, not per minute.\n");
     }
 
+    /* ------------------------------------ and the control it is checked against */
+
+    /*
+     * 🔴 76.60 — THE RUN'S FIT, AGAINST A FIGURE THAT WAS MEASURED.
+     *
+     * Everything above is an extrapolation. The run's sessions are three and
+     * eight minutes and this evaluates the line at fifty, which is more than a
+     * six-fold reach beyond the data. `evals/physics.json` holds four durations
+     * measured against the live OpenAI API, INCLUDING fifty, so there is a real
+     * number to check the reach against.
+     *
+     * Until now the check was a sentence in `08-THE-NUMBERS.md` asking a person
+     * to do it by eye. It is arithmetic and it belongs here.
+     */
+    const bench = loadBenchmark();
+    let verdict: ReturnType<typeof agreement> | null = null;
+
+    if (!bench) {
+      console.log(`  🔴 ${BENCHMARK_PATH} is missing or unreadable, so this fit is unchecked.`);
+      console.log("     The extrapolation above stands on nothing but itself.\n");
+    } else if (totalAt === 0) {
+      /*
+       * 🔴 AN EMPTY FIT IS NOT A DISAGREEMENT, AND THE FIRST VERSION OF THIS
+       * SAID IT WAS.
+       *
+       * Run against a database with five short sessions on it, every kind
+       * refused, `totalAt` stayed at zero, and the comparison below reported
+       * *"-100%, outside 25%"* and then offered three confident explanations
+       * about copilot turns and transcript density. All of them were wrong: the
+       * cause was that nothing had been fitted at all, which the lines above
+       * had already said.
+       *
+       * That is the §6 family with a diagnosis attached, which is worse than a
+       * bare wrong answer because somebody would have gone looking for the
+       * cause it named. A comparison whose left-hand side does not exist has to
+       * say so and stop.
+       */
+      console.log("  ─────────────────────────────────────────────────────────────");
+      console.log(
+        `  The API benchmark, composed at the same rates  ${usd(benchmarkCostAt(bench, opts.at, rateFor))}`,
+      );
+      console.log("  This run's own fit                             🔴 none, see above\n");
+      console.log("  🔴 NOTHING TO COMPARE. Not one kind fitted, so the benchmark cannot");
+      console.log("     confirm or contradict anything. Do not read the missing comparison as");
+      console.log("     agreement, and do not quote a fifty minute figure from this run.\n");
+      process.exitCode = 1;
+    } else {
+      const composed = benchmarkCostAt(bench, opts.at, rateFor);
+      verdict = agreement(totalAt, composed, opts.at);
+
+      console.log("  ─────────────────────────────────────────────────────────────");
+      console.log(`  The API benchmark, composed at the same rates  ${usd(composed)}`);
+      console.log(
+        `  This run's own fit                             ${usd(totalAt)}   ` +
+          `${verdict.drift >= 0 ? "+" : ""}${(verdict.drift * 100).toFixed(0)}%`,
+      );
+
+      /*
+       * 🔴 A PARTIAL FIT IS STILL COMPARED, AND IS SAID TO BE PARTIAL.
+       *
+       * The first version suppressed the whole comparison the moment any one
+       * kind refused, and a planted run showed how wrong that is: `profile`
+       * fires on about two sessions in five, so it reaches `MIN_SAMPLES` last,
+       * and one rare kind worth 3% of the bill was hiding a comparison of the
+       * other 97% that came out 0.7% apart.
+       *
+       * Suppressing is not the safe choice it looks like. It throws away a good
+       * measurement to avoid a caveat, and the run then has no check at all.
+       * The right move is to compare and to label: the run's side is missing
+       * whatever refused, so its figure is a FLOOR, and a reader has to know
+       * which way the incompleteness pushes.
+       */
+      if (anyRefused) {
+        console.log(
+          "\n  ⚠️  The run's figure is INCOMPLETE: the kinds listed above as unfitted are\n" +
+            "     missing from it, so it is a floor rather than a total, and the drift\n" +
+            "     understates. A negative drift here may be the gap rather than the physics.",
+        );
+      }
+
+      /*
+       * 🔴 THE TWO ASSUMPTIONS MOST LIKELY TO EXPLAIN A GAP, MEASURED.
+       *
+       * The benchmark measured each prompt once and composed a session by
+       * multiplying the copilot by an assumed turn count and weighting the
+       * profile rebuild by an assumed share. The run's rows carry the real
+       * ones. A gap explained by these is a different finding from a gap that
+       * is not, and printing them here is what makes the difference legible
+       * rather than arguable.
+       */
+      const real = await perSessionCounts(db);
+      console.log(
+        `\n  copilot turns per session   benchmark assumed ${String(bench.copilotTurnsPerSession)} · ` +
+          `this run ${real.copilotTurns.toFixed(1)}`,
+      );
+      console.log(
+        `  profile rebuilds per session  benchmark assumed ${bench.profileShare.toFixed(2)} · ` +
+          `this run ${real.profileShare.toFixed(2)}`,
+      );
+
+      if (verdict.agrees) {
+        console.log(
+          `\n  ✅ Within ${(BENCHMARK_TOLERANCE * 100).toFixed(0)}%. The extrapolation is doing what a ` +
+            "session measured at\n     fifty minutes says it should.\n",
+        );
+      } else {
+        console.log(
+          `\n  🔴 OUTSIDE ${(BENCHMARK_TOLERANCE * 100).toFixed(0)}%. THIS IS A FINDING TO RECORD, NOT A BUILD TO FIX.`,
+        );
+        console.log("     Put BOTH numbers in the report with the two counts above beside them.");
+        console.log("     The likeliest honest causes, in order: the run used the copilot more or");
+        console.log("     less than four times a session; the profile rebuilt at a different rate;");
+        console.log("     real transcripts are denser than the benchmark's synthetic ones. The");
+        console.log("     likeliest dishonest one is that three and eight minutes cannot reach");
+        console.log("     fifty, in which case the benchmark is the number to quote.\n");
+      }
+    }
+
     if (opts.json) {
       writeFileSync(
         opts.json,
@@ -213,6 +342,14 @@ async function main() {
             extrapolatedTo: opts.at,
             twoTermMicrocents: totalAt,
             naiveMicrocents: naive,
+            benchmark: verdict
+              ? {
+                  microcents: verdict.benchmark,
+                  drift: verdict.drift,
+                  agrees: verdict.agrees,
+                  tolerance: BENCHMARK_TOLERANCE,
+                }
+              : null,
             perKind: report,
           },
           null,
@@ -221,9 +358,68 @@ async function main() {
       );
       console.log(`  Written to ${opts.json}\n`);
     }
+
+    /*
+     * 🔴 A DISAGREEMENT EXITS NON-ZERO, and the message above says it is a
+     * finding rather than a fault. The run's operator needs it to stop and be
+     * written down; making it a warning on stdout would put it in a scrollback
+     * nobody reads, which is how this check came to be prose in the first
+     * place.
+     */
+    if (verdict && !verdict.agrees) process.exitCode = 1;
+    if (!bench) process.exitCode = 1;
   } finally {
     await pool.end();
   }
 }
 
 main();
+
+const BENCHMARK_PATH = "evals/physics.json";
+
+/**
+ * The API benchmark, or null when it cannot be read.
+ *
+ * 🔴 Null rather than a throw. A missing benchmark must not stop the fit from
+ * printing: the fit is the run's own measurement and is worth having even
+ * unchecked. What it must do is say so and exit non-zero, which the caller
+ * does, so "unchecked" never passes for "checked".
+ */
+function loadBenchmark(): Benchmark | null {
+  try {
+    return JSON.parse(readFileSync(join(process.cwd(), BENCHMARK_PATH), "utf8")) as Benchmark;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the run actually did per session, for the two assumptions the benchmark
+ * had to guess at.
+ *
+ * 🔴 Per SESSION THAT HAS AI CALLS, not per session in the table. A session
+ * nobody recorded has no copilot turns and no rebuild, and including it would
+ * divide real usage by a denominator containing sessions that could not have
+ * contributed, which reads as the copilot being used less than it was.
+ */
+async function perSessionCounts(
+  db: ReturnType<typeof connect>["db"],
+): Promise<{ copilotTurns: number; profileShare: number }> {
+  const rows = await db.execute<{ sessions: string; copilot: string; profile: string }>(sql`
+    WITH scoped AS (
+      SELECT DISTINCT session_id FROM ai_request_logs WHERE session_id IS NOT NULL
+    )
+    SELECT (SELECT COUNT(*) FROM scoped)::text AS sessions,
+           (SELECT COUNT(*) FROM ai_request_logs
+             WHERE session_id IS NOT NULL AND kind = 'copilot')::text AS copilot,
+           (SELECT COUNT(*) FROM ai_request_logs
+             WHERE session_id IS NOT NULL AND kind = 'profile')::text AS profile`);
+
+  const r = rows.rows[0];
+  const sessions = Number(r?.sessions ?? 0);
+  if (sessions === 0) return { copilotTurns: 0, profileShare: 0 };
+  return {
+    copilotTurns: Number(r?.copilot ?? 0) / sessions,
+    profileShare: Number(r?.profile ?? 0) / sessions,
+  };
+}

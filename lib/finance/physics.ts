@@ -217,3 +217,143 @@ export function naiveCostAt(
   const base = costAt(fit, from, rates);
   return base === null ? null : Math.round(base * (minutes / from));
 }
+
+/* ========================================================================== *
+ * 🔴 76.60 — THE BENCHMARK, AND WHY THE RUN'S OWN FIT HAS TO BE CHECKED
+ *            AGAINST IT BY A MACHINE
+ * ========================================================================== */
+
+/**
+ * `08-THE-NUMBERS.md` said, in prose: *"The run's own fit should reproduce the
+ * two terms above. If `npm run physics` comes back materially different, that
+ * is a finding and belongs in the report."*
+ *
+ * That instruction asked a person to open two files, compose one of them by
+ * hand, and judge "materially". It is the single most important number the six
+ * month run produces, and the only thing standing behind it was somebody
+ * remembering to look. H20 is the rule that a check nobody runs is not a check,
+ * and a check nobody has WRITTEN is the same thing earlier.
+ *
+ * ## 🔴 THE TWO FIGURES ARE NOT BUILT THE SAME WAY, WHICH IS WHY EYEBALLING FAILS
+ *
+ * The run's fit sums one line per `(kind, model)` over rows already grouped by
+ * session, so **four copilot turns in a session are one aggregated sample** and
+ * a profile rebuild is present exactly when it happened.
+ *
+ * The benchmark measured each prompt ONCE, in isolation, against the live API.
+ * Turning that into a session costs multiplying the copilot by the turns a
+ * session has and weighting the profile rebuild by how often it fires. Those
+ * two constants are assumptions, they live in the benchmark file, and they are
+ * the likeliest honest cause of a gap.
+ *
+ * So the comparison composes the benchmark the same way `benchmark-ai.ts` did,
+ * at the rate table in force now rather than the one hard-coded when it ran,
+ * and the caller reports the run's ACTUAL turns and rebuild share beside the
+ * assumed ones. A gap that is explained by those two is a different finding
+ * from a gap that is not.
+ */
+export type BenchmarkLine = { fixed: number; perMinute: number; r2?: number };
+
+export type Benchmark = {
+  measuredOn: string;
+  durations: number[];
+  copilotTurnsPerSession: number;
+  profileShare: number;
+  transcribePerMinuteUsd: number;
+  fits: Record<string, { model: string; inputTokens: BenchmarkLine; outputTokens: BenchmarkLine }>;
+  sessionUsd: { three: number; eight: number; fifty: number; naiveFiftyFromThree: number };
+};
+
+/**
+ * The output tokens a profile rebuild writes, as `benchmark-ai.ts` composed it.
+ *
+ * 🔴 Named rather than inlined, because it is the one number in this
+ * composition that is neither measured nor stored: it is a stand-in for a
+ * rebuild's output length, and anybody auditing the benchmark should be able to
+ * find it by searching for what it is.
+ */
+export const PROFILE_REBUILD_OUTPUT_TOKENS = 400;
+
+/**
+ * What the API benchmark says a session of `minutes` costs, in microcents,
+ * composed exactly as `scripts/benchmark-ai.ts` composed it.
+ *
+ * `rateFor` supplies today's prices, so a reprice moves the benchmark and the
+ * run's fit together and the comparison stays about physics.
+ */
+export function benchmarkCostAt(
+  b: Benchmark,
+  minutes: number,
+  rateFor: (model: string) => Rates,
+): number {
+  const tokens = (model: string, inTok: number, outTok: number) => {
+    const r = rateFor(model);
+    return (inTok / 1_000_000) * r.inPerMTok + (outTok / 1_000_000) * r.outPerMTok;
+  };
+
+  /* Transcription is a published price per audio minute, never a fit. */
+  let cents = b.transcribePerMinuteUsd * 100 * minutes;
+
+  for (const [kind, f] of Object.entries(b.fits)) {
+    const times = kind === "copilot" ? b.copilotTurnsPerSession : 1;
+    const inTok = Math.max(0, f.inputTokens.fixed + f.inputTokens.perMinute * minutes);
+    const outTok = Math.max(0, f.outputTokens.fixed + f.outputTokens.perMinute * minutes);
+    cents += tokens(f.model, inTok, outTok) * times;
+  }
+
+  const note = b.fits.note;
+  if (note) {
+    cents +=
+      tokens(note.model, note.inputTokens.fixed, PROFILE_REBUILD_OUTPUT_TOKENS) * b.profileShare;
+  }
+
+  return Math.round(cents * 1000);
+}
+
+/**
+ * 🔴 HOW FAR APART THEY ARE ALLOWED TO BE, AND WHY IT IS THIS WIDE.
+ *
+ * The benchmark measured four prompts against synthetic transcripts of a fixed
+ * words-per-minute. The run measures the same prompts inside the product,
+ * against whatever twenty agents actually typed, in two languages, with real
+ * copilot use and real profile rebuilds. Those are not the same experiment and
+ * they should not be expected to agree to the cent.
+ *
+ * A quarter is wide enough that ordinary difference does not cry wolf, and
+ * narrow enough that the failure this exists to catch cannot hide in it: the
+ * run's fit built on three and eight minute sessions, extrapolated more than
+ * six times beyond its own data, coming out at half or double a figure that was
+ * MEASURED at fifty minutes.
+ */
+export const BENCHMARK_TOLERANCE = 0.25;
+
+export type Agreement = {
+  minutes: number;
+  /** Microcents, from this run's own rows. */
+  run: number;
+  /** Microcents, from the API benchmark, composed at the same rates. */
+  benchmark: number;
+  /** Signed, as a fraction of the benchmark. Positive means the run cost more. */
+  drift: number;
+  agrees: boolean;
+};
+
+export function agreement(
+  run: number,
+  benchmark: number,
+  minutes: number,
+  tolerance: number = BENCHMARK_TOLERANCE,
+): Agreement {
+  /*
+   * 🔴 A BENCHMARK OF ZERO DOES NOT AGREE WITH ANYTHING.
+   *
+   * Dividing by it would give Infinity or NaN, and NaN fails every comparison
+   * including `>`, so a naive `drift > tolerance` would read a broken benchmark
+   * file as agreement. That is the §6 family: passing by measuring nothing.
+   */
+  if (!Number.isFinite(benchmark) || benchmark <= 0) {
+    return { minutes, run, benchmark, drift: Number.NaN, agrees: false };
+  }
+  const drift = (run - benchmark) / benchmark;
+  return { minutes, run, benchmark, drift, agrees: Math.abs(drift) <= tolerance };
+}

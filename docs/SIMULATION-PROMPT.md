@@ -32,7 +32,7 @@
 ## What it will do without asking
 
 Check production is in the state this document claims, build the product and run all
-twenty-six gates against the **dev** branch, confirm the production seed with `verify:cast`,
+twenty-seven gates against the **dev** branch, confirm the production seed with `verify:cast`,
 run six months of invented trading on `https://24t.vercel.app` with real keys, move the clock
 at the end of each wave, and report back at seven fixed points, each short enough to read on a
 phone.
@@ -607,7 +607,7 @@ npm run build
 npm run gates
 ```
 
-Twenty-six gates, and they run against whatever `DATABASE_URL` points at, which is dev.
+Twenty-seven gates, and they run against whatever `DATABASE_URL` points at, which is dev.
 That is correct: **gates prove the code, not the run.** Several of them write fixtures, and
 dev is where fixtures belong.
 
@@ -785,12 +785,27 @@ npm run on:production -- copilot:exam -- --dry                     # who is abou
 npm run on:production -- copilot:exam -- --json docs/simulation-run/COPILOT.json   # ≈ $0.36
 
 npm run on:production -- physics -- --at 50 --json docs/simulation-run/PHYSICS.json # free, reads rows
+npm run on:production -- verify:physics                            # free, checks the benchmark
 ```
 
 **`physics` must fit every kind with no refusals.** A refusal means the durations came out flat
 and the cost model that follows this run cannot be built from it. It prints the measured short
 session, the two term figure for fifty minutes, and the number naive multiplication would have
 given, side by side.
+
+🔴 **AND IT EXITS NON-ZERO IF THE RUN'S FIT DISAGREES WITH THE MEASURED BENCHMARK.** The fifty
+minute figure is an extrapolation from three and eight minute sessions, a reach of more than
+six times beyond the data, and it is the number every margin in the forecast rests on.
+`evals/physics.json` holds a session that was actually MEASURED at fifty minutes against the
+live API, so there is something real to check the reach against. The command composes it at
+today's rate table and prints both.
+
+**A disagreement is a FINDING TO RECORD, not a build to fix.** Do not change anything to make
+it green. Put both numbers in the report with the two counts the command prints beside them
+(copilot turns per session, profile rebuilds per session), because those are the two
+assumptions most likely to explain an honest gap. If the gap cannot be explained that way,
+**quote the benchmark** rather than the fit, and say why: it measured fifty minutes and the run
+could only reach for it.
 
 Half the exam's questions are about things the record does **not** contain, and a copilot that
 answers those is failing worse than one that forgets. **Report the correlation whichever way it

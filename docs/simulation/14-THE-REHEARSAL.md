@@ -52,7 +52,7 @@ probe exhausted the bucket, which is how it was found.
 **Fixed.** While `SIMULATION_RUNNING=1` — the flag that already disallows indexing and paints
 the violet strip — every per-network limit is multiplied by twenty-five. The platform-wide
 `global:` ceiling is **not**, because that is the one number that would notice an actual
-attack. `npm run verify:limits` is the 26th gate and holds both halves.
+attack. `npm run verify:limits` is a gate of its own and holds both halves.
 
 ### 2 · 🔴 A patient cannot have an email address
 
@@ -144,7 +144,7 @@ would actually have stopped the run — the rate limiter — is fixed in the pro
 holding both directions, and the one that would have quietly ruined the money evidence — the
 region — is now stated as an ordering rule rather than a clause.
 
-All 26 gates pass. The migrations ledger and the journal agree at 112 on production.
+All 27 gates pass. The migrations ledger and the journal agree at 112 on production.
 
 Production, dev and the simulation agree on every setting group and every country **except
 one, which is a decision rather than drift**: the in-session copilot is capped at 4 on

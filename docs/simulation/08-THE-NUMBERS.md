@@ -110,10 +110,46 @@ That last row is why the $70 spend flag is a flag and not a cost control: it sit
 times above what somebody who cannot physically work harder can spend. It fires for a practice
 sharing one login, a runaway loop, or a bug.
 
-**The run's own fit should reproduce the two terms above.** If `npm run physics` comes back
-materially different, that is a finding and belongs in the report. The API benchmark measured the
-prompts in isolation; the run measures them inside the product, and a gap between the two is the
-product doing something the benchmark did not.
+### 🔴 The run's fit is CHECKED against those numbers, by the command, not by eye
+
+This paragraph used to read: *"the run's own fit should reproduce the two terms above; if
+`npm run physics` comes back materially different, that is a finding."* It asked a person to
+open two files, compose one of them by hand and judge "materially". **Nobody was ever going to
+do that**, and the figure it guards is the one every margin in the forecast rests on.
+
+`npm run physics` now does it:
+
+```
+  ─────────────────────────────────────────────────────────────
+  The API benchmark, composed at the same rates  $0.2167
+  This run's own fit                             $0.2152   -1%
+
+  copilot turns per session   benchmark assumed 4 · this run 3.0
+  profile rebuilds per session  benchmark assumed 0.40 · this run 0.33
+
+  ✅ Within 25%.
+```
+
+**It exits non-zero when they diverge by more than 25%**, and says in the output that this is a
+finding to record rather than a build to fix. `npm run verify:physics` is the gate that proves
+the instrument works before the run needs it.
+
+Three things about that comparison are worth knowing:
+
+- **The two figures are not built the same way.** The run's fit groups rows by session, so four
+  copilot turns are one aggregated sample. The benchmark measured each prompt once and has to
+  be composed into a session with an assumed turn count and rebuild share. Holding
+  `sessionUsd.fifty` next to the fit by eye compares a composed figure with an aggregated one.
+- **So the two assumptions are printed beside the verdict**, measured off this run's own rows.
+  A gap explained by the copilot being used twice as often is a different finding from a gap
+  that is not.
+- **The benchmark is composed at today's rate table**, not the one hard-coded when it ran, so a
+  reprice moves both sides together and the comparison stays about physics.
+
+If it diverges: the likeliest honest causes are copilot usage, rebuild frequency and real
+transcripts being denser than synthetic ones. The likeliest dishonest one is that three and
+eight minutes cannot reach fifty, in which case **quote the benchmark**, which measured a fifty
+minute session, and say so.
 
 ---
 

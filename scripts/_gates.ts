@@ -289,6 +289,34 @@ export const GATES = [
     why: "and a swarm behind one address is not mistaken for an attack on it",
   },
   /*
+   * 🔴 76.60 — THE ONE NUMBER THE RUN EXISTS TO PRODUCE, AND ITS CONTROL.
+   *
+   * The six month run cannot measure a fifty minute session: the budget is ten
+   * dollars and its own sessions are three and eight minutes. So it FITS the
+   * two-term model over its rows and evaluates at fifty, a reach of more than
+   * six times beyond its data, and that figure is what every margin in the
+   * forecast rests on.
+   *
+   * 🔴 IT HAD NO CHECK. `08-THE-NUMBERS.md` asked a PERSON to hold the result
+   * next to `evals/physics.json` and judge whether the difference was
+   * "material". That is H20 one step earlier than this repository usually
+   * finds it: not a check that fails and gets explained away, but a check that
+   * was only ever a sentence. Found by the founder asking how the real cost
+   * would be worked out, which is a question the tooling should have answered.
+   *
+   * This gate proves the instrument before the run needs it: that the
+   * benchmark recomposes to its own stored answer, that it measured a session
+   * as long as the one it certifies, that the detector flags a planted
+   * offender in both directions and reads a zero benchmark as disagreement
+   * rather than agreement. The comparison against a real run happens inside
+   * `npm run physics`, which now exits non-zero when they diverge.
+   */
+  {
+    name: "physics",
+    script: "verify:physics",
+    why: "and the fifty minute cost is checked against one that was actually measured",
+  },
+  /*
    * 🔴 THE THIRTY UNIT SUITES, AND THE REASON THEY ARE HERE IS EMBARRASSING.
    *
    * Sprint 75 repriced the product. `tests/seats.test.ts` went 7 red of 12 and

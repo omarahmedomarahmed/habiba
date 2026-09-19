@@ -93,6 +93,15 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   baseline: { writes: false, why: "counts every row in every table, and writes none of them" },
   spend: { writes: false, why: "what the run has spent against the budget" },
   physics: { writes: false, why: "fits the session cost model over the run's own rows" },
+  /*
+   * 🔴 Belongs on production because it reads the RATE TABLE, and production's
+   * is the one the run is billed at. Running it against dev would certify the
+   * benchmark against prices the run did not pay.
+   */
+  "verify:physics": {
+    writes: false,
+    why: "checks the benchmark the fifty minute figure is measured against, at these prices",
+  },
   "settings:show": { writes: false, why: "what production actually holds" },
   "settings:check": { writes: false, why: "whether it holds what it should" },
   "verify:migrations": { writes: false, why: "journal and ledger agree, every CHECK validated" },
