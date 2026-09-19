@@ -48,7 +48,7 @@ export default async function AdminContentPage() {
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-slate-900">UI reference</span>
           <span className="block text-xs text-slate-500">
-            Every component a block can render, by the person looking at it. Not indexed.
+            Every component a block can render, by audience. Not indexed.
           </span>
         </span>
         <ExternalLink className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />

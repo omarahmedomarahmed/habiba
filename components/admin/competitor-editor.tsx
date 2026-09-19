@@ -61,7 +61,7 @@ export function CompetitorEditor({
 
   return (
     <div className="space-y-4">
-      <Field label="Checked on" htmlFor="checked-on" hint="The day somebody last read every rival's own site. It is printed under the table, so move it whenever you correct a line.">
+      <Field label="Checked on" htmlFor="checked-on" hint="The day somebody last read every rival's site. Printed under the table, so move it whenever you correct a line.">
         <Input
           id="checked-on"
           value={block.checkedOn ?? ""}
@@ -94,7 +94,7 @@ export function CompetitorEditor({
                 onChange={(e) => { patchRival(i, { name: e.target.value }); }}
               />
             </Field>
-            <Field label="Logo URL" htmlFor={`logo-${String(i)}`} hint="Leave empty for a lettermark.">
+            <Field label="Logo URL" htmlFor={`logo-${String(i)}`} hint="Empty for a lettermark.">
               <Input
                 id={`logo-${String(i)}`}
                 value={rival.logo ?? ""}
@@ -104,7 +104,7 @@ export function CompetitorEditor({
             </Field>
           </div>
 
-          <Field label="Who they are" htmlFor={`who-${String(i)}`} hint="In their terms, not ours. One line.">
+          <Field label="Who they are" htmlFor={`who-${String(i)}`} hint="In their terms, one line.">
             <Textarea
               id={`who-${String(i)}`}
               rows={2}
@@ -116,7 +116,7 @@ export function CompetitorEditor({
           <Field
             label="Their published price"
             htmlFor={`price-${String(i)}`}
-            hint="With its unit, exactly as they publish it. Never a figure worked out from one."
+            hint="Exactly as they publish it, with its unit. Never a figure worked out."
           >
             <Input
               id={`price-${String(i)}`}
@@ -154,7 +154,7 @@ export function CompetitorEditor({
                 <Textarea
                   aria-label={`Row ${r + 1}, what they do`}
                   rows={2}
-                  placeholder="What they publish about themselves. Checkable, never an opinion."
+                  placeholder="What they publish. Checkable, never an opinion."
                   value={row.theirs}
                   onChange={(e) => { patchRow(i, r, { theirs: e.target.value }); }}
                 />
@@ -167,7 +167,7 @@ export function CompetitorEditor({
                   />
                   <span>
                     <b className="text-slate-900">They win this row.</b> Moves the tick to their
-                    column. Every rival should have at least one, or nobody believes the other five.
+                    column. Every rival needs one, or nobody believes the other five.
                   </span>
                 </label>
               </div>
