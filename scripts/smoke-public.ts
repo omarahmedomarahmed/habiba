@@ -34,8 +34,8 @@
  * points at, and `writesTo()` refuses the production endpoint by name. It writes
  * nothing either way: every request is a GET.
  */
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, statSync } from "node:fs";
 
 import { reporter, writesTo } from "./_verify";
 import { LIVE_PAGES, visibleText } from "./check-live";
@@ -124,6 +124,55 @@ async function main() {
     console.log("\n  --   SKIPPED, there is no build to smoke. `npm run build` first.\n");
     console.log("smoke: SKIPPED");
     return;
+  }
+
+  /*
+   * 🔴 76.61 — AND A BUILD_ID IS NOT ENOUGH, BECAUSE A DEV SERVER LEAVES ONE BEHIND.
+   *
+   * `npm run verify:served` starts `next dev`. Next 15 honours `distDir` for its
+   * trace and **still recompiles `.next/server/middleware.js` in place**, in the
+   * dev format, which `next start` cannot load. The symptom is not a missing
+   * build, it is a present one that will not boot:
+   *
+   *     EvalError: Code generation from strings disallowed for this context
+   *     FAIL  the built app starts, it never became ready
+   *
+   * `BUILD_ID` is still sitting there from the real build, so the check above
+   * waves it through, and the gate then reports twenty-four dead pages. It went
+   * green twice in one afternoon and red on the third run with nothing between
+   * but another gate, which is the shape that teaches people red means "run it
+   * again".
+   *
+   * 🔴 MTIME, NOT CONTENT. `next build` writes `BUILD_ID` at the END of a build,
+   * after every artefact, so in a clean build it is the newest file. A dev
+   * server rewrites middleware and touches nothing else, so middleware newer
+   * than `BUILD_ID` means exactly one thing: something compiled into this
+   * directory after the build finished.
+   *
+   * 🔴 THIS IS A NET, NOT THE FIX. Two real fixes went in beside it in 76.61:
+   * `verify:served` now compiles into its own `distDir`, and it now kills the
+   * `next-server` its dev server forks, which used to survive the gate and keep
+   * recompiling in the background with the port already released. With both of
+   * those, this should never fire. It is here because the failure it catches
+   * costs an hour and names the wrong thing, and a check that never fires is
+   * cheap while a morning spent on `/for-patients` is not.
+   *
+   * It REBUILDS rather than refusing, because refusing here is a gate that goes
+   * red for a reason nobody caused and H20 is the record of what that does.
+   */
+  const buildId = ".next/BUILD_ID";
+  const middleware = ".next/server/middleware.js";
+  if (existsSync(middleware) && statSync(middleware).mtimeMs > statSync(buildId).mtimeMs) {
+    console.log(
+      "\n  --   The build output has been recompiled by a dev server since it was built,\n" +
+        "       which `next start` cannot load. Rebuilding before smoking it.\n",
+    );
+    const rebuilt = spawnSync("npm", ["run", "build"], { stdio: "inherit" });
+    if (rebuilt.status !== 0) {
+      console.log("\n  --   SKIPPED, the rebuild failed. Run `rm -rf .next && npm run build`.\n");
+      console.log("smoke: SKIPPED");
+      return;
+    }
   }
 
   /*

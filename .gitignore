@@ -52,9 +52,11 @@ docs/walkthrough-2/
 
 # 🔴 THE SIMULATION'S FRAMES ARE COMMITTED, DELIBERATELY, and that is the exception rather
 # than a lapse. They are the proof that six months of this product was operated rather than
-# described, and they are the raw material for the films. docs/simulation/04-CAPTURE.md
+# described, and they are the raw material for the films. docs/simulation/05-CAPTURE.md
 # caps them at roughly 600 and says what to photograph; past that, the capture is
-# photographing states rather than people.
+# photographing states rather than people. They land in docs/simulation-run/, which nothing
+# below ignores, and that is on purpose: a frame this file quietly swallowed would be a
+# missing proof nobody notices until the run is over.
 #
 # 🔴 C358 — THE OPERATOR'S FRAMES ARE COMMITTED FOR THIS RUN, AND THE RULE DID NOT BEND.
 #

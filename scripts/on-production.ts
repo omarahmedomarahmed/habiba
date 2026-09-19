@@ -92,6 +92,20 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   /* ---------------------------------------------------------------- reading */
   baseline: { writes: false, why: "counts every row in every table, and writes none of them" },
   spend: { writes: false, why: "what the run has spent against the budget" },
+  /*
+   * 🔴 76.61 — H16'S OWN INSTRUCTION HAD NO DOOR TO COME THROUGH.
+   *
+   * "Apply the migration to production BEFORE pushing `main`" is the standing
+   * rule, this is the only command that does it, and it was not on this list.
+   * `DEPLOY.md` told a reader to type `npm run on:production -- db:migrate`,
+   * which would have been refused as an unknown command, and the only way left
+   * was to point `.env.local` at production by hand, which is the manoeuvre
+   * every other part of this file exists to make unnecessary.
+   */
+  "db:migrate": {
+    writes: true,
+    why: "applies pending migrations. H16: this happens BEFORE main is pushed, never after",
+  },
   physics: { writes: false, why: "fits the session cost model over the run's own rows" },
   /*
    * 🔴 Belongs on production because it reads the RATE TABLE, and production's

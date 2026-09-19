@@ -4,7 +4,11 @@
 Every claim carries the row id it produced, read back out of the database after the browser
 did the pressing.
 
-    npm run build && npm run screens:prep && npm run probe
+    rm -rf .next && npm run build && npm run screens:prep && npm run probe
+
+🔴 The `rm -rf .next` matters: `next dev` and `next build` share that directory, and the probe
+needs a dev server. A build over one dies while prerendering `/for-patients` and reads as a
+broken page (H37).
 
 ## Why this happened before the six months and not after
 
@@ -144,7 +148,22 @@ would actually have stopped the run — the rate limiter — is fixed in the pro
 holding both directions, and the one that would have quietly ruined the money evidence — the
 region — is now stated as an ordering rule rather than a clause.
 
-All 27 gates pass. The migrations ledger and the journal agree at 112 on production.
+All 27 gates pass.
+
+🔴 **Until 76.61 they could not be run twice from one build, and that is worth its own
+paragraph.** Two of them fought over `.next`: `renders` needs `next build` output and `served`
+recompiled over it with `next dev`. Worse, `served` leaked the `next-server` its dev server
+forked, which kept compiling in the background with the port already released, so the
+corruption arrived minutes AFTER the gate reported PASS. A later pass then failed on
+`/for-patients` or `/ar/pricing`, naming public pages that were perfectly fine. The pass went
+green twice and red on the third run with nothing changed between, which is the shape that
+teaches people that red means run it again. H37 and H39.
+
+Measured after the fix, each separately: `served` leaves **zero** `next-server` processes
+behind, it no longer touches `.next/server/middleware.js`, and `served` followed by `smoke`
+with no rebuild between them both pass.
+
+The migrations ledger and the journal agree at 112 on production.
 
 Production, dev and the simulation agree on every setting group and every country **except
 one, which is a decision rather than drift**: the in-session copilot is capped at 4 on

@@ -121,9 +121,9 @@ answered nothing" — found by running it rather than by reading it.
 | `BLOB_READ_WRITE_TOKEN` | Vercel, the project's Storage tab |
 | `AUTH_SECRET` | 🔴 **Any 32+ random characters. NOT production's.** Password hashing is scrypt with a per-password salt stored in the hash itself, so a seed written locally verifies on production whatever this is. Nothing local signs a token production reads. Pasting the real one puts the live session-signing secret in a chat transcript for no gain |
 | `CRON_SECRET` | 🔴 **Must MATCH production**, because the cron calls go to the deployed site. Vercel → the `habiba` project → Settings → Environment Variables → `CRON_SECRET` → reveal. A guessed value 401s |
-| `<neon password>` | Neon → project `gentle-waterfall-66476219` → Connect. **Both endpoints use the same role and password**, so the same string goes in both lines |
+| `<neon password>` | Neon → project `gentle-waterfall-66476219` → Connect. **All three endpoints use the same role and password**, so the same string goes in all FOUR database lines |
 
-🔴 **THE TWO DATABASE LINES ARE NOT A DUPLICATE AND THE ORDER OF THEM IS NOT AN ACCIDENT.**
+🔴 **`DATABASE_URL` AND `DATABASE_URL_PRODUCTION` ARE NOT A DUPLICATE, AND WHICH IS WHICH MATTERS MORE THAN ANYTHING ELSE IN THIS BLOCK.**
 
 `DATABASE_URL` is **dev**. It is what `npm run gates`, `npm run verifiers` and every unit suite
 use, and they expect a branch they may plant a fixture on and delete it again. Sixty-one scripts
@@ -144,8 +144,14 @@ above. Every command in this document is run by the agent, with the Bash tool.
 
 🔴 **`CRON_SECRET` is not optional, and it is checked in step 1 rather than discovered in wave
 4.** The scheduled jobs are behind it and two of them are scenes the run has to produce:
-`lapseOverdue` is how `T3` drops back to metered in wave 4, and `sweepUndeliveredAlerts` is the
-crisis retry. The jobs are `billing`, `crisis`, `reminders` and `sessions`.
+`lapseOverdue`, inside **`billing`**, is how `T3` drops back to metered in wave 4, and
+`sweepUndeliveredAlerts`, inside **`crisis`**, is the crisis retry.
+
+🔴 **The jobs are `crisis`, `billing`, `radar`, `retention`, `reminders` and `extract`, and
+there is NO `sessions` job.** This document named one until somebody listed the route's own
+`JOBS` map. An unknown name answers **404 `unknown_job`** after the secret has already been
+checked, so a wrong job name and a wrong secret look nothing alike (401 against 404) and
+neither is a broken route. The two the run needs are `billing` and `crisis`.
 
 🔴 **IT IS A `GET`, NOT A `POST`, and this document said POST until somebody tried it.** A POST
 returns 405 whatever the secret is, which reads as a broken route rather than a wrong method:
@@ -455,7 +461,7 @@ now, measured rather than remembered.
 | The transfer details | **Already filled in, with placeholders.** See the note below |
 | `SIMULATION_RUNNING` | **1.** robots.txt disallows everything, every page carries the violet strip |
 | `RESEND_API_KEY` | **Unset.** Nothing reaches anybody by email, and nothing blocks |
-| Spent | **$0.00** |
+| Spent | **$0.0286**, 46 model calls. The founder's own session, not the run's. The $10 budget starts from there, not from zero |
 
 🔴 **`simulate:seed` HAS ALREADY RUN ON PRODUCTION, AND IT WILL REFUSE TO RUN AGAIN.**
 
@@ -560,7 +566,7 @@ prints the endpoint and whether that command writes before it does anything.
 npm run on:production                             # prints the allow-list. Start here
 npm run on:production -- verify:migrations        # journal and ledger agree, every CHECK validated
 npm run on:production -- settings:show            # what production actually holds
-npm run on:production -- spend -- --budget 10     # $0.0000, 0.0% used
+npm run on:production -- spend -- --budget 10     # $0.0286, 0.3% used. NOT zero, see below
 npm run on:production -- baseline -- check        # 🔴 exits 1. Expect the 5 seed deltas below, and no sixth
 
 # 🔴 AND THE ONE CHECK THAT USED TO FAIL IN WAVE 4 INSTEAD OF MINUTE ONE.
@@ -603,9 +609,20 @@ not know about**, and that is worth a message before a single agent acts.
 ### Step 2 · Check the product, on DEV, before twenty agents tell you it is broken
 
 ```bash
-npm run build
+rm -rf .next && npm run build
 npm run gates
 ```
+
+🔴 **The `rm -rf .next` is cheap insurance and it costs eleven seconds.** `next dev` and
+`next build` write to that directory, and a build over a dev server's output dies with
+
+    TypeError: Cannot read properties of undefined (reading 'call')
+    Error occurred prerendering page "/for-patients"
+
+which reads as a broken marketing page and is a stale cache. The gates themselves no longer
+cause this: `verify:served` compiles into `.next/served` and kills the server it forks (H37,
+H39, both fixed in 76.61). But the screenshot and probe rigs run `next dev` against `.next`
+directly, so clear it before every build and the question never comes up.
 
 Twenty-seven gates, and they run against whatever `DATABASE_URL` points at, which is dev.
 That is correct: **gates prove the code, not the run.** Several of them write fixtures, and

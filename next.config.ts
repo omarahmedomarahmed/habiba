@@ -18,6 +18,33 @@ const baseHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /**
+   * 🔴 76.61 — TWO GATES NEED OPPOSITE THINGS IN `.next`, AND THEY WERE SHARING IT.
+   *
+   * `renders` (`npm run smoke`) starts the BUILT app and needs `next build`
+   * output. `served` (`npm run verify:served`) starts `next dev`, which compiles
+   * on demand and rewrites the same directory. Whichever ran last left it wrong
+   * for the other, so a second `npm run gates` in the same working copy failed
+   * on a page nobody had touched:
+   *
+   *   - dev output, then a build:  `TypeError: Cannot read properties of
+   *     undefined (reading 'call')` while prerendering `/for-patients`
+   *   - build output, then dev:    `/ar/pricing` answers **500**, and the
+   *     Arabic checks report "0 Arabic characters against 0 Latin"
+   *
+   * Both read as broken public pages. Neither is: the same source is clean from
+   * an empty `.next`. The pass had passed twice that afternoon and then failed,
+   * which is the worst shape a gate can have, because the third result is the
+   * one people believe.
+   *
+   * So the dev server a gate starts gets its own directory, NESTED INSIDE
+   * `.next` so that every scanner's skip list already covers it: a sibling
+   * directory at the root made `verify:reachable` read the dev server's
+   * generated route types as callers (H31). `NEXT_DIST_DIR` is set by
+   * `scripts/verify-served.ts` and by nothing else, and when it is unset this
+   * is exactly the default.
+   */
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   reactStrictMode: true,
   poweredByHeader: false,
   /**

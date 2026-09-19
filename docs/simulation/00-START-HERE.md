@@ -298,7 +298,7 @@ was handed the answer to is a gate nobody tested.
 | 1 | The branch is what this says it is | `npm run verify:migrations` | journal and ledger agree, every CHECK validated |
 | 2 | The platform is seeded and the applications are waiting | `npm run simulate:seed` | It **refuses**, saying an operator already exists. That refusal is the proof |
 | 3 | The ageing script obeys its own rule | `npm run verify:age` | 8 checks, one past and one future timestamp in the same row |
-| 4 | Nothing is spent yet | `npm run spend -- --budget 10` | $0.0000 |
+| 4 | Almost nothing is spent yet | `npm run spend -- --budget 10` | **$0.0286**, the founder's own session. Not zero |
 | 5 | Every person is invented | `npm run verify:synthetic` | 5 checks, with a planted real looking name it has to catch |
 | 6 | The product itself is not already broken | `npm run build && npm run gates` | 11 gates |
 | 7 | Mark the start of wave one | `npm run age -- --marker wave1 --start` | writes `.simulation-wave1.json` |

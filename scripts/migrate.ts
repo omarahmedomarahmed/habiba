@@ -27,11 +27,38 @@
 import { migrate } from "drizzle-orm/neon-serverless/migrator";
 
 import { connect } from "./db";
-import { migrationLedgerAudit } from "./_verify";
+import { migrationLedgerAudit, writesTo } from "./_verify";
 
 const LOCK_KEY = 24107;
 
 async function main() {
+  /*
+   * 🔴 76.61 — THE BIGGEST UNGUARDED WRITE IN THE REPOSITORY, FOUND BY AUDITING
+   *            THE RUN'S OWN COMMANDS AGAINST THE ALLOW-LIST.
+   *
+   * Thirty-nine scripts call `writesTo()`. This one did not, and it is the one
+   * that changes the SHAPE of production rather than its contents. Pointing
+   * `.env.local` at production and typing `npm run db:migrate` migrated it
+   * silently: no announcement, no override, no line in the output naming the
+   * database. `HAZARDS.md` already records `.env.local` sitting on production
+   * for part of an afternoon while write scripts were being run, which is
+   * exactly the afternoon this would have been irreversible.
+   *
+   * 🔴 AND THE SANCTIONED PATH DID NOT COVER IT EITHER. H16 says to apply a
+   * migration to production BEFORE pushing `main`, and `npm run on:production`
+   * is how a write to production is supposed to happen, and `db:migrate` was
+   * not on its allow-list. So the documented safe procedure could not be
+   * followed, which is H26: a guard that severs the path people legitimately
+   * need is a guard people route around. `DEPLOY.md` told a reader to type a
+   * command that would have been refused for not existing.
+   *
+   * `productionIsAllowed: true` because migrating production is a real and
+   * necessary act. What it now requires is `I_MEAN_PRODUCTION` naming the
+   * endpoint, which `on:production` sets and a tired person cannot type by
+   * accident. Dev is unaffected beyond one line saying where it is writing.
+   */
+  writesTo({ productionIsAllowed: true });
+
   const { pool, db } = connect();
 
   const locked = await pool.query<{ locked: boolean }>(
