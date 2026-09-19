@@ -89,8 +89,20 @@ const API = [
   "/api/uploads/nothing-here",
 ];
 
-/** The radar feed is deliberately public: it is how somebody in crisis finds a therapist. */
-const PUBLIC_API = new Set(["/api/radar"]);
+/**
+ * The two routes that answer an anonymous GET on purpose, each for a reason
+ * written in its own source rather than assumed here.
+ *
+ *   - `/api/radar` is the feed behind the public radar: it is how somebody in
+ *     crisis finds a therapist who is free right now, so a login in front of it
+ *     would defeat the page.
+ *   - `/api/revalidate` GET returns `{cacheVersion}` and nothing else. Its own
+ *     header calls it "unauthenticated and deliberately tiny", and it exists so
+ *     a check can tell *the live site is wrong* from *the live site has not been
+ *     redeployed yet*. It names no commit, no environment and no secret. Its
+ *     POST half, which does the work, is behind the cron secret.
+ */
+const PUBLIC_API = new Set(["/api/radar", "/api/revalidate"]);
 
 /** One page from each portal. Anonymous must never reach the page itself. */
 const PORTALS = [

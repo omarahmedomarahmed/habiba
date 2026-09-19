@@ -93,6 +93,22 @@ const PUBLIC_PREFIXES = [
   "/security",
   "/integrations",
   "/for-clinics",
+  /*
+   * 🔴 76.64 — `/for-companies` was missing from this list while `/for-clinics`
+   * was on it, and the asymmetry was an oversight rather than a decision.
+   *
+   * The consequence was worse than a missing page. `alternatesFor` builds the
+   * `hreflang` block from the locales the product HAS, not from this list, so
+   * `/for-companies` advertised `hrefLang="ar" href="/ar/for-companies"` while
+   * that URL 307d straight back to the English page. A crawler following the
+   * alternate lands on the document it came from, which is the broken-alternate
+   * shape C162's neighbours exist to prevent.
+   *
+   * The Arabic copy was already written and sitting unused: all seven keys the
+   * page reads are translated in `messages.ts`. Found by surveying the live
+   * site after the domain move, which is the only place it was visible.
+   */
+  "/for-companies",
   "/developers",
   "/verify",
   "/t",

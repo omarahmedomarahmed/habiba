@@ -370,6 +370,8 @@ async function main() {
     "lib/env.ts",
     "scripts/verify-sprint31.ts",
     "docs/simulation/DEPLOY.md",
+    /* The live survey searches responses for the same three, so it holds them too. */
+    "scripts/survey-live.ts",
   ]);
 
   const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean);
