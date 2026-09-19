@@ -8,6 +8,7 @@ import { TranscriptPanel } from "@/components/clinical/transcript-panel";
 import { PatientSessionList } from "@/components/patient/session-list";
 import type { DemoContent } from "@/lib/content/demo";
 import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
+import { DeviceFrame, frameFor } from "./device-frame";
 
 /**
  * Renders the real product component that demonstrates a given claim.
@@ -16,11 +17,11 @@ import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
  * synthetic fixtures. None of them fetch anything — that is what makes putting
  * them on an anonymous page safe rather than alarming.
  */
-export function ComponentShowcase({ demo, content }: { demo?: string; content?: DemoContent }) {
+function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }) {
   switch (demo) {
     case "transcript":
       return (
-        <div className="overflow-hidden rounded-2xl border border-slate-800/60 bg-navy-500 shadow-lg">
+        <div className="overflow-hidden bg-navy-500">
           <TranscriptPanel
             lines={content?.transcript ?? DEMO_TRANSCRIPT.slice(0, 5)}
             live
@@ -40,26 +41,26 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
      */
     case "note":
       return (
-        <div className="no-scrollbar h-56 overflow-y-auto rounded-2xl shadow-lg">
+        <div className="no-scrollbar h-56 overflow-y-auto">
           <NoteCard note={content?.note ?? DEMO_NOTE} status="draft" compact patientLabel="demo" />
         </div>
       );
 
     case "risk":
       return (
-        <div className="flex h-56 items-center">
+        <div className="bg-slate-50 p-3">
           <RiskBanner
             level="high"
             indicators={[content?.riskIndicator ?? "want to die"]}
-            className="w-full shadow-lg"
+            className="w-full"
           />
         </div>
       );
 
     case "copilot":
       return (
-        <div className="flex h-56 items-center">
-          <div className="w-full rounded-2xl bg-navy-500 px-4 py-4 shadow-lg">
+        <div className="bg-slate-50 p-3">
+          <div className="w-full rounded-xl bg-navy-500 px-4 py-4">
             <div className="flex items-start gap-2.5">
               <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" aria-hidden />
               <ul className="space-y-2">
@@ -85,7 +86,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
      */
     case "patient-sessions":
       return (
-        <div className="no-scrollbar h-56 overflow-y-auto rounded-2xl bg-slate-50 p-3 shadow-lg">
+        <div className="no-scrollbar h-56 overflow-y-auto bg-slate-50 p-3">
           <PatientSessionList
             zone="UTC"
             sessions={(content?.patientSessions ?? []).map((row, i) => ({
@@ -110,7 +111,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
 
     case "homework":
       return (
-        <div className="no-scrollbar h-56 space-y-2 overflow-y-auto rounded-2xl bg-white p-3 shadow-lg">
+        <div className="no-scrollbar h-56 space-y-2 overflow-y-auto bg-white p-3">
           {(content?.homework ?? []).map((item) => (
             <div key={item.title} className="rounded-xl border border-slate-200 p-3">
               <p className="text-sm font-semibold text-slate-900">{item.title}</p>
@@ -127,7 +128,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
      */
     case "profile":
       return (
-        <ul className="no-scrollbar h-56 space-y-2 overflow-y-auto rounded-2xl bg-white p-3 shadow-lg">
+        <ul className="no-scrollbar h-56 space-y-2 overflow-y-auto bg-white p-3">
             {(content?.observations ?? []).map((row) => (
               <li key={row.at} className="border-s-2 border-brand-200 ps-3">
                 <p className="text-[11px] font-semibold tracking-wide text-brand-600 uppercase">
@@ -149,7 +150,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
      */
     case "summary":
       return (
-        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto rounded-2xl bg-white p-3 shadow-lg">
+        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto bg-white p-3">
           {(content?.summaryVersions ?? []).map((version) => (
             <li key={version.version} className="rounded-xl border border-slate-200 p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -173,7 +174,7 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
      */
     case "journal":
       return (
-        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto rounded-2xl bg-slate-50 p-3 shadow-lg">
+        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto bg-slate-50 p-3">
           {(content?.journalEntries ?? []).map((entry) => (
             <li key={entry.on} className="rounded-xl bg-white p-3">
               <p className="text-[11px] text-slate-400">{entry.on}</p>
@@ -186,4 +187,26 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
     default:
       return null;
   }
+}
+
+/**
+ * 🔴 76.65 — EVERY DEMO IS FRAMED AS A SCREEN.
+ *
+ * `DemoSurface` above draws the product's own component. This wraps it in the
+ * browser or phone chrome that tells the reader what they are looking at, and it
+ * is the only export, so there is no way to put an unframed demo on a page: the
+ * frame is not a decoration a caller opts into, it is part of what a demo IS.
+ *
+ * `frameFor` decides which chrome from the demo's own name, so a page author
+ * choosing `radar` gets a phone without knowing that is the rule.
+ */
+export function ComponentShowcase({ demo, content }: { demo?: string; content?: DemoContent }) {
+  const body = <DemoSurface demo={demo} content={content} />;
+  const { as, path } = frameFor(demo);
+  if (as === "none") return body;
+  return (
+    <DeviceFrame as={as} path={path}>
+      {body}
+    </DeviceFrame>
+  );
 }
