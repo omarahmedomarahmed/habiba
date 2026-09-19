@@ -50,15 +50,49 @@ export function TranscriptPanel({
   const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  /*
+   * 🔴 76.67 — THE TRANSCRIPT WROTE ITSELF AND THE PANEL STAYED WHERE IT WAS.
+   *
+   * ## The defect
+   *
+   * This effect depended on `lines.length`, and live transcription does not
+   * mainly APPEND lines: it grows the text of the line being spoken. So through
+   * a whole sentence the count never changed, the effect never re-ran, and the
+   * words went on arriving below the fold. A therapist mid-session had to drag
+   * the panel down every few seconds to see what had just been said, which is
+   * the one thing they cannot spare attention for while a patient is talking.
+   *
+   * The dependency is now the content itself, so a line that lengthens is a
+   * change like any other.
+   *
+   * ## …but only when they are already at the bottom
+   *
+   * Yanking somebody to the end while they are deliberately reading back is a
+   * worse bug than the one being fixed, and it is the usual consequence of
+   * fixing this carelessly. `pinned` is false the moment they scroll up, and
+   * true again when they return to within a line of the end, so following the
+   * live edge is the default and reading history is never fought.
+   */
+  const pinnedRef = useRef(true);
+  const last = lines.at(-1);
+  const signature = `${String(lines.length)}:${last?.id ?? ""}:${last?.text.length ?? 0}`;
+
   useEffect(() => {
     if (!autoScroll) return;
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || !pinnedRef.current) return;
     // `instant` rather than smooth: a smooth scroll that restarts every few
     // seconds is exactly the kind of unrequested motion that makes people
     // reach for reduced-motion settings.
     el.scrollTo({ top: el.scrollHeight, behavior: "instant" as ScrollBehavior });
-  }, [lines.length, autoScroll]);
+  }, [signature, autoScroll]);
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    /* One line of slack, so a pixel of overscroll does not unpin the panel. */
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 28;
+  };
 
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
@@ -92,6 +126,7 @@ export function TranscriptPanel({
 
       <div
         ref={scrollRef}
+        onScroll={onScroll}
         // Announce new lines to assistive tech, politely — this updates often.
         aria-live="polite"
         aria-atomic="false"

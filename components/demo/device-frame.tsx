@@ -169,7 +169,7 @@ function PhoneFrame({
         >
           <span className="text-[11px] font-semibold text-slate-900">9:41</span>
           {/* The notch, floating over the bar as it does on the device. */}
-          <span className="absolute start-1/2 top-0 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-navy-800" />
+          <span className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-6 w-28 rounded-b-2xl bg-navy-800" />
           <span className="flex items-center gap-1 text-slate-900">
             <SignalIcon />
             <BatteryIcon />
