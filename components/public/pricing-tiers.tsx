@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 
 import { PriceTag } from "@/components/money/price-tag";
 import { SeatLadder, type SeatBandRow } from "@/components/public/seat-ladder";
+import { SeatSlider } from "@/components/public/seat-slider";
 import { Button } from "@/components/ui";
 import { egpRateMicro } from "@/lib/billing/manual";
 /*
@@ -150,10 +151,22 @@ export async function PricingTiers({
     const next = bands[i + 1];
     const upper = next ? next.from - 1 : null;
     return {
+      /*
+       * 🔴 A band one seat wide is a NUMBER, not a range.
+       *
+       * The shipped ladder starts at one seat and the second band opens at two,
+       * so this printed "1 to 1" at the top of the table. It is not wrong, it
+       * just is not how anybody writes it, and a pricing table that reads as
+       * generated is a pricing table a reader trusts slightly less.
+       */
       range:
         upper === null
           ? t("pricing.seatsRangeOpen", { from: band.from })
-          : t("pricing.seatsRange", { from: band.from, to: upper }),
+          : upper === band.from
+            ? band.from === 1
+              ? t("pricing.seatsCountOne")
+              : t("pricing.seatsCount", { count: band.from })
+            : t("pricing.seatsRange", { from: band.from, to: upper }),
       rate:
         band.perSeatCents > 0
           ? t("pricing.seatsEach", { amount: money(band.perSeatCents) })
@@ -181,274 +194,333 @@ export async function PricingTiers({
         }
       : null;
 
+  const cut = (settings.session.platformFeeBps / 100).toFixed(0);
+
+  /*
+   * 🔴 76.72 — THE THREE TIERS, SIDE BY SIDE, ABOVE EVERYTHING ELSE.
+   *
+   * What was here was a headline, three centred paragraphs, two "line" cards,
+   * two plan cards, a ladder and eight more sentences. Every fact was correct
+   * and a visitor could not answer "what does this cost me" without reading the
+   * whole page. The founder's instruction was blunt and right: the page opens
+   * and you see three tiers.
+   *
+   * The prose that was here is not deleted, it has moved into the grid below,
+   * where the same facts answer the question a reader is actually holding: what
+   * is in each, what is not, and what it costs if I subscribe.
+   */
+  const paygSession = money(platformFeeCents);
+  const paygAi = money(payg.aiRateCents);
+  const practice = plans.find((tier) => tier.key === "practice") ?? cheapestPlan;
+  const seatFrom = bands[bands.length - 1]?.perSeatCents ?? bands[0]?.perSeatCents ?? 0;
+
+  const cards: {
+    key: string;
+    name: string;
+    who: string;
+    price: React.ReactNode;
+    under: string;
+    bullets: string[];
+    cta: { label: string; href: string };
+    note?: string;
+    featured?: boolean;
+  }[] = [
+    {
+      key: "payg",
+      name: t("pricing.tier.payg"),
+      who: t("pr2.anySession"),
+      price: (
+        <PriceTag usdCents={platformFeeCents} rateMicro={egpRate} locale={tag} size="lg" />
+      ),
+      under: t("pr2.paygAi", { amount: paygAi }),
+      bullets: [
+        t("pr2.nothingMonthly"),
+        t("pricing.feature.note"),
+        t("pricing.feature.video"),
+        t("pricing.feature.alerts"),
+        t("pricing.feature.getPaid"),
+      ],
+      cta: { label: t("pr2.startFree"), href: "/signup" },
+      note: t("pr2.noCard"),
+    },
+  ];
+
+  if (practice) {
+    cards.push({
+      key: "practice",
+      name: t("pricing.tier.practice"),
+      who: t("pr2.forOne"),
+      price: (
+        <PriceTag usdCents={practice.monthlyCents} rateMicro={egpRate} locale={tag} size="lg" />
+      ),
+      under: t("pr2.unlimited"),
+      bullets: [
+        t("pricing.feature.transcription"),
+        t("pricing.feature.report"),
+        t("pricing.feature.baa"),
+        t("pr2.rowCopilot"),
+        t("pr2.rowRadar"),
+      ],
+      cta: { label: t("pr2.startFree"), href: "/signup" },
+      note: t("pr2.badgeNoMeter"),
+      featured: true,
+    });
+  }
+
+  cards.push({
+    key: "clinic",
+    name: t("pricing.tier.clinic"),
+    who: t("pr2.forTeam"),
+    price: (
+      <SeatSlider
+        monthlyByCount={monthlyByCount}
+        rateMicro={egpRate}
+        locale={tag}
+        label={t("pricing.seatsSlider")}
+        countLabels={Array.from({ length: SEAT_MAX }, (_, i) =>
+          i === 0 ? t("pricing.seatsCountOne") : t("pricing.seatsCount", { count: i + 1 }),
+        )}
+      />
+    ),
+    under: t("pr2.seatBody"),
+    bullets: [
+      t("pr2.seatFrom", { amount: money(seatFrom) }),
+      t("pr2.rowClinicBooks"),
+      t("pricing.feature.baa"),
+      t("pr2.rowCopilot"),
+      t("pr2.rowRadar"),
+    ],
+    cta: { label: t("pr2.talkToUs"), href: "/clinic/apply" },
+  });
+
+  /*
+   * 🔴 THE GRID, AND WHY EVERY CELL IS A FACT RATHER THAN A TICK.
+   *
+   * "What is included, what is not included, and the price if subscribed" was
+   * the instruction, and a table of ticks answers only the first third of it.
+   * So the money rows carry figures, the absence rows say "not included" in
+   * words, and the one row where all three are identical — our cut — is left in
+   * rather than dropped, because a reader looking for the catch looks there.
+   *
+   * Every figure is `settings`, like everything else on this page. Nothing here
+   * is typed.
+   */
+  const YES = "yes" as const;
+  const NO = "no" as const;
+  const grid: { label: string; cells: (string | typeof YES | typeof NO)[] }[] = [
+    {
+      label: t("pr2.rowMonthly"),
+      cells: [
+        t("pr2.none"),
+        practice ? money(practice.monthlyCents) : t("pr2.none"),
+        t("pr2.seatFrom", { amount: money(seatFrom) }),
+      ],
+    },
+    {
+      label: t("pr2.rowPerSession"),
+      cells: [paygSession, t("pr2.none"), t("pr2.none")],
+    },
+    {
+      label: t("pr2.rowAi"),
+      cells: [paygAi, t("pr2.includedWord"), t("pr2.includedWord")],
+    },
+    { label: t("pricing.feature.note"), cells: [YES, YES, YES] },
+    { label: t("pricing.feature.transcription"), cells: [YES, YES, YES] },
+    { label: t("pricing.feature.report"), cells: [YES, YES, YES] },
+    { label: t("pricing.feature.video"), cells: [YES, YES, YES] },
+    { label: t("pricing.feature.alerts"), cells: [YES, YES, YES] },
+    { label: t("pr2.rowCopilot"), cells: [YES, YES, YES] },
+    { label: t("pr2.rowRadar"), cells: [YES, YES, YES] },
+    { label: t("pricing.feature.getPaid"), cells: [YES, YES, YES] },
+    { label: t("pricing.feature.baa"), cells: [YES, YES, YES] },
+    { label: t("pr2.rowSeats"), cells: [NO, NO, YES] },
+    { label: t("pr2.rowClinicBooks"), cells: [NO, NO, YES] },
+    {
+      label: t("pr2.rowCut"),
+      cells: [
+        t("pr2.cutValue", { percent: cut }),
+        t("pr2.cutValue", { percent: cut }),
+        t("pr2.cutValue", { percent: cut }),
+      ],
+    },
+  ];
+
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
-      {compact ? (
-        <div className="mx-auto mb-8 max-w-2xl text-center">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {t("pricing.free")}
+      <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            {compact ? t("pricing.free") : t("pr2.title")}
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            {t("pricing.freeBody")}
+          <p className="mt-2.5 text-[15px] leading-relaxed text-slate-600">
+            {compact ? t("pricing.freeBody") : t("pr2.body")}
           </p>
         </div>
-      ) : null}
 
-      {/*
-        🔴 46.9 — two lines, in this order, and the order is the ethics.
-        The fee that is always charged comes first and says so. The fee that
-        depends on the patient comes second and says what happens when they
-        decline. A page that led with the conditional one would be selling the
-        AI and burying the thing that makes it safe to decline (C209).
-      */}
-      <div className="mx-auto max-w-4xl">
-        {/*
-          🔴 57.5 — two headlines, because the tier table is admin-editable and
-          a page must be correct under every configuration it can be given.
+        <div className="mt-9 grid items-stretch gap-5 lg:grid-cols-3">
+          {cards.map((card) => (
+            <div
+              key={card.key}
+              className={
+                card.featured
+                  ? "relative flex flex-col rounded-3xl border-2 border-brand-500 bg-white p-6 shadow-xl shadow-brand-500/10"
+                  : "relative flex flex-col rounded-3xl border border-slate-200 bg-white p-6"
+              }
+            >
+              <p className="text-sm font-bold text-slate-900">{card.name}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{card.who}</p>
 
-          The monthly headline names a price. With no monthly tier configured it
-          would name zero — "or $0 a month" on a live pricing page — which is
-          not a rendering bug but a PRICE, and the worst kind: one nobody set.
-          The same shape appears between a deploy and the settings write that
-          follows it, which is a window of minutes on every release.
-        */}
-        <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          {cheapestPlan
-            ? t("pricing.headline", {
-                amount: money(platformFeeCents + payg.aiRateCents),
-                monthly: money(cheapestPlan.monthlyCents),
-              })
-            : t("pricing.headlinePaygOnly", {
-                amount: money(platformFeeCents),
-                ai: money(payg.aiRateCents),
-              })}
-        </h2>
+              <div className="mt-4">{card.price}</div>
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">{card.under}</p>
 
-        <p className="mt-6 text-center text-sm font-semibold text-slate-900">
-          {t("pricing.paygTitle")}
-        </p>
-        <p className="mx-auto mt-1 max-w-xl text-center text-sm leading-relaxed text-slate-600">
-          {t("pricing.paygBody")}
-        </p>
-
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <div className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6">
-            <p className="text-sm font-semibold text-brand-600">
-              {t("pricing.platformLine", { amount: money(platformFeeCents) })}
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              {t("pricing.platformWhat")}
-            </p>
-            {!compact ? (
-              <ul className="mt-6 flex-1 space-y-2.5">
-                {[
-                  t("pricing.feature.note"),
-                  t("pricing.feature.video"),
-                  t("pricing.feature.alerts"),
-                  t("pricing.feature.getPaid"),
-                  t("pricing.feature.baa"),
-                ].map((feature) => (
-                  <li key={feature} className="flex gap-2.5 text-sm text-slate-700">
+              <ul className="mt-5 flex-1 space-y-2.5">
+                {card.bullets.map((bullet) => (
+                  <li key={bullet} className="flex gap-2.5 text-[13px] leading-snug text-slate-700">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" aria-hidden />
-                    {feature}
+                    {bullet}
                   </li>
                 ))}
               </ul>
-            ) : (
-              <div className="flex-1" />
-            )}
-          </div>
 
-          <div className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6">
-            <p className="text-sm font-semibold text-brand-600">
-              {t("pricing.aiLine", { amount: money(payg.aiRateCents) })}
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">{t("pricing.aiWhat")}</p>
-            {!compact ? (
-              <ul className="mt-6 flex-1 space-y-2.5">
-                {[t("pricing.feature.transcription"), t("pricing.feature.report")].map(
-                  (feature) => (
-                    <li key={feature} className="flex gap-2.5 text-sm text-slate-700">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" aria-hidden />
-                      {feature}
-                    </li>
-                  ),
-                )}
-              </ul>
-            ) : (
-              <div className="flex-1" />
-            )}
-          </div>
+              <Link href={card.cta.href} className="mt-6 block">
+                <Button full variant={card.featured ? "primary" : "secondary"}>
+                  {card.cta.label}
+                </Button>
+              </Link>
+              {card.note ? (
+                <p className="mt-2 text-center text-[11px] text-slate-500">{card.note}</p>
+              ) : null}
+            </div>
+          ))}
         </div>
 
-        {/*
-          🔴 46.10 — this sentence is here and its opposite number is not.
-          "Your patient never pays us anything" is true and is ours to say.
-          "Raise your price because you use AI" is also true and is NOT ours:
-          we do not tell a clinician what to charge somebody.
-        */}
-        <p className="mt-4 text-center text-sm text-slate-600">
-          {t("pricing.patientPaysNothing")}
-        </p>
+        <p className="mt-5 text-center text-sm text-slate-600">{t("pricing.patientPaysNothing")}</p>
 
-        {/*
-          🔴 57.5 — the monthly plans, which are now what the page sells.
-
-          What was here before was a pair of credit thresholds: "add $30 and AI
-          sessions cost $2". Those thresholds are all zero after this sprint, so
-          the map rendered nothing and the page had no offer on it at all. The
-          word "sessions" is still absent from the price, for the same reason it
-          was in 46.3: we do not sell a quantity of them.
-        */}
-        {plans.length > 0 ? (
+        {!compact ? (
           <>
-            <p className="mt-10 text-center text-sm font-semibold text-slate-900">
-              {t("pricing.plansTitle")}
-            </p>
-            <p className="mx-auto mt-1 max-w-xl text-center text-sm leading-relaxed text-slate-600">
-              {t("pricing.plansBody")}
-            </p>
+            {/* ─────────────────────────────────── what is in each ── */}
+            <div className="mt-16">
+              <div className="mx-auto max-w-2xl text-center">
+                <h3 className="text-xl font-bold tracking-tight text-slate-900">
+                  {t("pr2.compareTitle")}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {t("pr2.compareBody")}
+                </p>
+              </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              {plans.map((tier) => (
-                <div
-                  key={tier.key}
-                  className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-center"
-                >
-                  <p className="text-sm font-semibold text-brand-600">{tierName(tier)}</p>
-                  <p className="mt-2 text-lg font-bold text-slate-900">
-                    {t("pricing.monthlyPer", { amount: money(tier.monthlyCents) })}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-600">{t("pricing.monthlyGets")}</p>
-                </div>
-              ))}
+              {/* The table scrolls, never the page. Three money columns at 360px
+                  cannot be narrowed without lying about a number. */}
+              <div className="mt-7 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                <table className="w-full min-w-[34rem] text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/70 text-start">
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-start text-[11px] font-bold tracking-wider text-slate-600 uppercase"
+                      >
+                        {t("pr2.colFeature")}
+                      </th>
+                      {cards.map((card) => (
+                        <th
+                          key={card.key}
+                          scope="col"
+                          className="px-4 py-3 text-start text-[11px] font-bold tracking-wider text-slate-900 uppercase"
+                        >
+                          {card.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grid.map((row) => (
+                      <tr key={row.label} className="border-b border-slate-100 last:border-0">
+                        <th
+                          scope="row"
+                          className="px-4 py-2.5 text-start text-[13px] font-medium text-slate-900"
+                        >
+                          {row.label}
+                        </th>
+                        {row.cells.map((cell, i) => (
+                          <td key={i} className="px-4 py-2.5 text-[13px] text-slate-700">
+                            {cell === YES ? (
+                              <Check className="h-4 w-4 text-teal-500" aria-label={t("pr2.includedWord")} />
+                            ) : cell === NO ? (
+                              <span className="text-slate-400">{t("pr2.notIncluded")}</span>
+                            ) : (
+                              cell
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            {/*
-              🔴 The reason a monthly plan is a safety property and not only a
-              price. C209 made the AI fee conditional so a therapist had no
-              reason to lean on a patient about consent; removing the fee
-              entirely reaches the same place from the other side.
-            */}
-            <p className="mt-4 text-center text-sm leading-relaxed text-slate-600">
-              {t("pricing.plansNoMeter")}
-            </p>
-          </>
-        ) : null}
-
-        <p className="mt-4 text-center text-sm leading-relaxed text-slate-600">
-          {t("pricing.creditIsMoney")}
-        </p>
-
-        {/*
-          🔴 62.10 — the seat ladder, and not on the homepage.
-
-          `compact` is the homepage, where the job is one price and a button. A
-          three-row table and a slider there would be the third offer on a
-          section that exists to name the first.
-        */}
-        {!compact && seatRows.length > 0 ? (
-          <>
-            <p className="mt-10 text-center text-sm font-semibold text-slate-900">
-              {t("pricing.seatsTitle")}
-            </p>
-
-            <SeatLadder
-              rows={seatRows}
-              monthlyByCount={monthlyByCount}
-              rateMicro={egpRate}
-              locale={tag}
-              strings={{
-                headSeats: t("pricing.seatsHeadSeats"),
-                headRate: t("pricing.seatsHeadRate"),
-                headMonthly: t("pricing.seatsHeadMonthly"),
-                sliderLabel: t("pricing.seatsSlider"),
-                /*
-                 * 🔴 C353 — RESOLVED HERE, ONE PER SLIDER POSITION, NOT PASSED
-                 * AS A FUNCTION.
-                 *
-                 * This was an arrow function, with a comment saying the plural
-                 * belongs where the dictionary is. That is true and a function
-                 * cannot cross into a client component: React threw while
-                 * rendering and `/pricing` answered 500 in production for every
-                 * visitor from the day the ladder shipped.
-                 *
-                 * Same intent, in the shape `monthlyByCount` above already
-                 * uses. The array is parallel to it, index 0 is one seat, and
-                 * the slider's bounds come from the same length, so the two
-                 * cannot drift apart.
-                 */
-                seatsByCount: Array.from({ length: SEAT_MAX }, (_, i) =>
-                  i === 0
-                    ? t("pricing.seatsCountOne")
-                    : t("pricing.seatsCount", { count: i + 1 }),
-                ),
-              }}
-            />
-
-            {seatStep ? (
-              <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
-                {t("pricing.seatsStep", seatStep)}
-              </p>
+            {/* ────────────────────────────── the seat bands in full ── */}
+            {seatRows.length > 0 ? (
+              <div className="mt-16">
+                <div className="mx-auto max-w-2xl text-center">
+                  <h3 className="text-xl font-bold tracking-tight text-slate-900">
+                    {t("pricing.seatsTitle")}
+                  </h3>
+                </div>
+                <SeatLadder
+                  rows={seatRows}
+                  monthlyByCount={monthlyByCount}
+                  rateMicro={egpRate}
+                  locale={tag}
+                  strings={{
+                    headSeats: t("pricing.seatsHeadSeats"),
+                    headRate: t("pricing.seatsHeadRate"),
+                    headMonthly: t("pricing.seatsHeadMonthly"),
+                    sliderLabel: t("pricing.seatsSlider"),
+                    seatsByCount: Array.from({ length: SEAT_MAX }, (_, i) =>
+                      i === 0
+                        ? t("pricing.seatsCountOne")
+                        : t("pricing.seatsCount", { count: i + 1 }),
+                    ),
+                  }}
+                />
+                {seatStep ? (
+                  <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
+                    {t("pricing.seatsStep", seatStep)}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
+
+            {/* ─────────────────────────────── the standing promises ── */}
+            <div className="mx-auto mt-16 max-w-2xl space-y-3 text-center">
+              <p className="text-base font-semibold text-slate-900">{t("pricing.noFees")}</p>
+              <p className="text-sm leading-relaxed text-slate-600">
+                {t("pricing.credits", { months: settings.pricing.creditExpiryMonths })}
+              </p>
+              <p className="text-sm leading-relaxed text-slate-600">
+                {t("pricing.creditIsMoney")}
+              </p>
+              <p className="text-sm leading-relaxed text-slate-600">
+                <span className="font-semibold text-slate-900">{t("pricing.radarLead")}</span>{" "}
+                {t("pricing.radarBody", { percent: cut })}
+              </p>
+
+              {/*
+                🔴 C69 — published only when netting is switched on, and written
+                conditionally: it is true of clinicians whose earnings we hold and
+                not of one paid straight into their own Stripe account.
+              */}
+              {settings.payouts.netFeeFromHeldEarnings ? (
+                <p className="text-sm leading-relaxed text-slate-600">{t("pricing.netting")}</p>
+              ) : null}
+            </div>
           </>
-        ) : null}
-
-        <Link href="/signup" className="mx-auto mt-8 block max-w-xs">
-          <Button full>{t("pricing.signUp")}</Button>
-        </Link>
-      </div>
-
-      {/*
-        🔴 17.4's bundle slider is GONE, struck by 46.3 / C223.
-        
-        It let a visitor drag a number of sessions and watch a total. Every
-        part of that is the bundle this sprint removed: there is no quantity to
-        choose, the money buys credit rather than sessions, and what a
-        threshold buys is a rate that outlives the credit. A slider over
-        session counts would have been a working control computing a number
-        that means nothing, which is worse than no control at all.
-        
-        The two plan cards above say the same thing in the shape the offer
-        actually has: spend this, get that rate, keep it.
-      */}
-
-      {/*
-        17.3 — the free-to-use statement and the radar line, under the cards
-        and above everything else.
-      */}
-      <div className="mx-auto mt-10 max-w-2xl space-y-3 text-center">
-        <p className="text-base font-semibold text-slate-900">
-          {t("pricing.noFees")}
-        </p>
-        <p className="text-sm leading-relaxed text-slate-600">
-          {t("pricing.credits", {
-            months: settings.pricing.creditExpiryMonths,
-          })}
-        </p>
-        <p className="text-sm leading-relaxed text-slate-600">
-          <span className="font-semibold text-slate-900">
-            {t("pricing.radarLead")}
-          </span>{" "}
-          {t("pricing.radarBody", {
-            percent: (settings.session.platformFeeBps / 100).toFixed(0),
-          })}
-        </p>
-
-        {/*
-          🔴 C69, ruled in sprint 16: netting is real now, and this sentence is
-          only published when it is switched on. It is also written
-          conditionally, because it is true of clinicians whose earnings we
-          hold and not of a clinician paid straight into their own Stripe
-          account — which is most international ones. "Describes a mechanic
-          that does not exist" was the original complaint; describing it as
-          universal when it is not would be the same mistake in a smaller font.
-        */}
-        {settings.payouts.netFeeFromHeldEarnings ? (
-          <p className="text-sm leading-relaxed text-slate-600">
-            {t("pricing.netting")}
-          </p>
-        ) : null}
+        ) : (
+          <Link href="/signup" className="mx-auto mt-8 block max-w-xs">
+            <Button full>{t("pricing.signUp")}</Button>
+          </Link>
+        )}
       </div>
     </section>
   );

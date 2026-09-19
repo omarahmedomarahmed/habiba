@@ -368,6 +368,48 @@ function Hero({
   );
 }
 
+/**
+ * 🔴 76.74 — THE GRID IS SIZED BY ITS COUNT, and it carries no paragraph.
+ *
+ * ## The count
+ *
+ * Four tiles in a three-column grid is three and a lonely one; six in a
+ * two-column grid is a tall list nobody reaches the bottom of. The rule asked
+ * for is simple and it is the one a designer would use anyway: four go two by
+ * two, six go two by three. Anything else falls back to three across, which is
+ * the least-bad arrangement for a count nobody planned — and a section landing
+ * there is a section whose count is worth fixing in the CMS.
+ *
+ * ## The missing paragraph
+ *
+ * Icon, title, paragraph, thirty-seven times down a website is the shape that
+ * made this site read as a template. The title is the claim; the paragraph
+ * under it was restating the title at greater length, and the reader was
+ * skipping both.
+ *
+ * 🔴 `item.body` IS NOT DELETED. It is still in the row, still editable, still
+ * returned by the API, and a later decision to draw it again is one line here
+ * rather than a re-authoring of fourteen paragraphs in two languages. Not
+ * drawing content is reversible; deleting it is not, and this is the second
+ * time this sprint that the difference has mattered.
+ */
+/**
+ * 🔴 AND A TRAILING PARTIAL ROW IS CENTRED, which is why this is flex and not
+ * grid.
+ *
+ * Seven tiles in a three-column grid leaves one alone under the left-hand
+ * column with two tile-widths of white beside it, and that reads as a section
+ * that failed to load rather than as a section with seven things in it. Flex
+ * with a basis gives the identical geometry for the counts the rule is about
+ * and centres whatever is left over, so an unplanned count degrades into
+ * something deliberate-looking instead of something broken-looking.
+ */
+function tileBasis(count: number): string {
+  /* Four is two by two, so the second breakpoint is not taken. */
+  if (count === 4) return "sm:basis-[calc(50%-0.5rem)]";
+  return "sm:basis-[calc(50%-0.5rem)] lg:basis-[calc(33.333%-0.667rem)]";
+}
+
 function Features({
   block,
 }: {
@@ -381,18 +423,15 @@ function Features({
             {block.heading}
           </h2>
         ) : null}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
           {block.items.map((item, i) => (
             <div
               key={i}
-              className="rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-sm"
+              className={`flex grow basis-full items-start gap-3.5 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-sm ${tileBasis(block.items.length)}`}
             >
               <ContentIconMark name={item.icon} />
-              <p className="mt-3.5 text-base font-semibold text-slate-900">
+              <p className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-900">
                 {item.title}
-              </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-                {item.body}
               </p>
             </div>
           ))}
