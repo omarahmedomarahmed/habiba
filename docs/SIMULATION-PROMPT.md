@@ -54,6 +54,25 @@ has already been paid for.
 
 `npm run probe` re-runs the whole rehearsal against dev in about three minutes.
 
+## 🔴 Before you push anything: only `main` deploys, and that is on purpose
+
+The project carries an **Ignored Build Step** that builds `main` and nothing else. A push to
+any other branch creates a deployment that goes **CANCELED in about four seconds**, with an
+`errorLink` pointing at Vercel's ignored-build-step documentation.
+
+**That is the fix working. Do not treat it as a broken deployment and do not turn it off.**
+
+Why it is there: this build is memory-bound (`HAZARDS.md`, *"The production build is
+memory-bound"*, where four PRODUCTION deploys died of it on 2026-09-16). Production survives on
+a warm cache in about two minutes. A preview branch does a full compile on a 4-core, 8 GB
+machine and dies, either `out_of_memory` or at the 45-minute `BUILD_EXCEEDED_MAXIMUM_TIME`
+ceiling. In one day, nineteen preview builds burned **4.84 hours** of build time and produced
+nothing (H40).
+
+So: **push to `main` when production needs the code, push to your working branch freely, and do
+not push to `simulation` at all.** The simulation branch is a git branch and a Neon database.
+It is not a deployment and nothing in this run needs it to be one.
+
 ## The three things it will interrupt you for
 
 1. The spend passes 70% of $10.
