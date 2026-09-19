@@ -13,6 +13,7 @@ import { and, asc, eq, inArray, isNotNull, notLike } from "drizzle-orm";
 
 import { controlDb as db, isDatabaseUnavailable } from "@/lib/db";
 import { contentPages, type ContentBlock } from "@/lib/db/schema";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { log } from "@/lib/logger";
 import { DEFAULT_PAGES, findDefaultPage } from "./defaults";
 
@@ -319,10 +320,29 @@ export async function publishedSlugs(): Promise<
   { slug: string; updatedAt: Date }[]
 > {
   try {
+    /*
+     * 🔴 76.64 — ONE ROW PER SLUG, AND THE LOCALE FILTER IS WHAT MAKES IT SO.
+     *
+     * `content_pages` holds a row per (slug, locale), and there are four
+     * locales: `en`, `ar`, and the two `-x-staging` rows `render:check` reads
+     * against production. This query had no locale filter, so it returned all
+     * four, and `app/sitemap.ts` then emitted each one once per language.
+     *
+     * The live sitemap carried **52 entries of which 20 were unique**: every
+     * public URL listed four times, and the `lastModified` on each was whichever
+     * of the four rows the database happened to return first. No staging URL
+     * leaked, because the staging rows share their slug and `localisedPath`
+     * collapses them onto the public address, which is why nothing caught it.
+     *
+     * The English row is the one the sitemap is about: the file's own
+     * `LOCALES.map` builds the Arabic URL from it, and `alternatesFor` supplies
+     * the alternates. Taking the Arabic row too is asking the same question
+     * twice.
+     */
     const rows = await db
       .select({ slug: contentPages.slug, updatedAt: contentPages.updatedAt })
       .from(contentPages)
-      .where(eq(contentPages.status, "published"));
+      .where(and(eq(contentPages.status, "published"), eq(contentPages.locale, DEFAULT_LOCALE)));
     if (rows.length > 0) return rows;
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
