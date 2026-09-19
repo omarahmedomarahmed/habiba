@@ -159,9 +159,12 @@ corruption arrived minutes AFTER the gate reported PASS. A later pass then faile
 green twice and red on the third run with nothing changed between, which is the shape that
 teaches people that red means run it again. H37 and H39.
 
-Measured after the fix, each separately: `served` leaves **zero** `next-server` processes
-behind, it no longer touches `.next/server/middleware.js`, and `served` followed by `smoke`
-with no rebuild between them both pass.
+Measured after the fix: `served` leaves **zero** `next-server` processes behind and no longer
+touches `.next/server/middleware.js`. And the whole thing end to end, one build, two passes,
+nothing touched between them:
+
+    PASS 1                                      all 27 pass.
+    PASS 2 (no rebuild, nothing touched)        all 27 pass.
 
 The migrations ledger and the journal agree at 112 on production.
 
