@@ -230,6 +230,18 @@ const PORTALS: Record<string, readonly string[]> = {
    * counted against the wrong portal is a wall of text nobody is asked to cut.
    */
   /*
+   * 🔴 76.79 — `ctk` is SHARED, checked the same way:
+   *
+   *   grep -rn "CopilotToasts" app components
+   *
+   * comes back as `components/session/session-room.tsx`, the clinician's own
+   * room, AND `components/demo/session-demo.tsx`, the hero on the public
+   * homepage. The four words are the kind of a suggestion — Explore, Reflect,
+   * Pattern, Risk — and they were a hardcoded English map until this sprint, so
+   * an Arabic clinician read an Arabic suggestion under an English label.
+   * Attributing them to either portal alone would move that portal's ratchet
+   * when the other one changed.
+   *
    * 🔴 `pop` and `bar` are SHARED for the same reason `transfer` is, checked the
    * same way:
    *
@@ -255,6 +267,7 @@ const PORTALS: Record<string, readonly string[]> = {
     "transfer",
     "pop",
     "bar",
+    "ctk",
   ],
 };
 

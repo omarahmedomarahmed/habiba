@@ -107,8 +107,8 @@ export function SeatManager({
               </>
             ) : quote.proratedCents < 0 ? (
               <>
-                Removing seats does not refund the rest of this month. Your colleagues keep
-                everything until it ends, and the smaller bill starts at renewal.
+                Removing seats does not refund this month. Your colleagues keep everything
+                until it ends, and the smaller bill starts at renewal.
               </>
             ) : (
               <>Nothing to pay now. The new figure starts at renewal.</>

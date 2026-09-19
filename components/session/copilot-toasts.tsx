@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { AlertTriangle, Lightbulb, X } from "lucide-react";
 
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,11 +37,23 @@ export type Toast = CopilotSuggestion & { id: string; at: number };
 export const TOAST_MS = 15_000;
 const MAX_VISIBLE = 3;
 
-const LABELS: Record<CopilotSuggestion["kind"], string> = {
-  explore: "Explore",
-  reflect: "Reflect",
-  observation: "Pattern",
-  risk: "Risk",
+/*
+ * 🔴 76.79 — KEYED, because these four words were English on an Arabic screen.
+ *
+ * They were a hardcoded map, so an Arabic-speaking clinician mid-session read an
+ * Arabic suggestion under an English word saying what kind of suggestion it was.
+ * The i18n ratchet could not see it: `literalsIn` counts JSX text and six named
+ * props, and these were values in an object literal three lines above the JSX.
+ *
+ * Found by needing them on the public site, where the same map would have put
+ * "Explore" on the Arabic homepage, which is the one place this product does not
+ * get to have English.
+ */
+const LABELS: Record<CopilotSuggestion["kind"], MessageKey> = {
+  explore: "ctk.explore",
+  reflect: "ctk.reflect",
+  observation: "ctk.observation",
+  risk: "ctk.risk",
 };
 
 /** Arabic, Hebrew, Persian, Urdu — the suggestion is written to be read aloud. */
@@ -82,6 +96,7 @@ export function CopilotToasts({
 }
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
+  const t = useT();
   const risk = toast.kind === "risk";
 
   useEffect(() => {
@@ -117,7 +132,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
             risk ? "text-red-200" : "text-brand-300",
           )}
         >
-          {LABELS[toast.kind]}
+          {t(LABELS[toast.kind])}
         </p>
         <p
           dir={rtl ? "rtl" : "ltr"}

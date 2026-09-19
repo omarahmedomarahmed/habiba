@@ -170,7 +170,7 @@ export function CoverageForm({
         </p>
         <p>
           You cover the session price your people are quoted. Nothing else is charged, and we
-          never tell you who used it.
+          never say who used it.
         </p>
       </div>
 

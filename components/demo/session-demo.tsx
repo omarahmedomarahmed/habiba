@@ -5,6 +5,7 @@ import { Pause, Play, Sparkles } from "lucide-react";
 
 import { NoteCard } from "@/components/clinical/note-card";
 import { TranscriptPanel } from "@/components/clinical/transcript-panel";
+import { CopilotToasts, type Toast } from "@/components/session/copilot-toasts";
 import type { DemoContent } from "@/lib/content/demo";
 import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,43 @@ function SessionDemoInner({
   const complete = visible >= transcript.length;
   const lines = transcript.slice(0, visible);
 
+  /*
+   * 🔴 76.79 — THE COPILOT, IN THE SESSION, OVER THE TRANSCRIPT.
+   *
+   * `CopilotToasts` is the component the real session room renders: cards under
+   * the header, newest first, each with its own fifteen-second life, and a risk
+   * card that does not expire because a timer is not an acceptable reason for a
+   * clinician to have missed one. This hero rendered the transcript and the note
+   * and nothing between them, so the half of the product that speaks DURING the
+   * session was the half a visitor never saw.
+   *
+   * One suggestion per two transcript lines, held in a ref so a card that has
+   * already expired does not come back when the parent re-renders. The demo's
+   * own `kind` field is a display label rather than the enum, so the enum is
+   * assigned here: the fixtures say "explore" in English and "اسأل" in Arabic,
+   * and `LABELS` in the toast resolves the word from the dictionary either way.
+   */
+  const KINDS = ["explore", "observation", "explore", "reflect"] as const;
+  const suggestions = content?.copilot ?? [];
+  const due = Math.min(Math.floor((visible - 1) / 2), suggestions.length);
+  const dismissed = useRef<Set<string>>(new Set());
+  const [, forceRender] = useState(0);
+  const toasts: Toast[] = reducedMotion
+    ? []
+    : suggestions.slice(0, due).flatMap((prompt, i) => {
+        const id = `s${String(i)}`;
+        if (dismissed.current.has(id)) return [];
+        return [
+          {
+            id,
+            kind: KINDS[i % KINDS.length]!,
+            text: prompt.text,
+            /* Arrived when its line did, so `TOAST_MS` is measured from then. */
+            at: Date.now() - (due - 1 - i) * TICK_MS * 2,
+          },
+        ];
+      });
+
   return (
     <div className={cn("w-full", className)}>
       <div className="overflow-hidden rounded-3xl border border-slate-800/60 bg-navy-500 shadow-2xl shadow-navy-900/25">
@@ -168,12 +206,23 @@ function SessionDemoInner({
           ) : null}
         </div>
 
-        <TranscriptPanel
-          lines={lines}
-          live
-          autoScroll={!reducedMotion}
-          className="h-56 sm:h-64"
-        />
+        {/* `relative` so the toasts, which position themselves absolutely under
+            the panel header, land over the transcript rather than over the page. */}
+        <div className="relative">
+          <TranscriptPanel
+            lines={lines}
+            live
+            autoScroll={!reducedMotion}
+            className="h-56 sm:h-64"
+          />
+          <CopilotToasts
+            toasts={toasts}
+            onDismiss={(id) => {
+              dismissed.current.add(id);
+              forceRender((n) => n + 1);
+            }}
+          />
+        </div>
       </div>
 
       {/*
