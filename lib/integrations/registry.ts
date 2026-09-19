@@ -160,3 +160,74 @@ export const STATE_LABEL: Record<IntegrationState, string> = {
   partial: "Partly working",
   planned: "Not built yet",
 };
+
+/* ────────────────────────────────────────────── the systems, by name ── */
+
+/**
+ * 🔴 76.78 — THE PRODUCTS BY NAME, AND WHAT IS TRUE OF EACH.
+ *
+ * "We integrate with your HR system" is a sentence nobody can check, and the
+ * first question a buyer asks is the name of theirs. So both lists below are
+ * products, spelled as their owners spell them.
+ *
+ * ## Every status is the truth and most of them are `planned`
+ *
+ * This is the whole reason integration pages stop being believed: a grid where
+ * every logo looks equally connected, and a buyer who signs and then finds out.
+ * What is actually built is the MECHANISM — an outbound webhook the HR system
+ * calls, and SMART on FHIR for a records system — and those are `live` and
+ * `partial` respectively, on their own rows. A named product is `planned` until
+ * somebody has run it against that product's own tenant.
+ *
+ * `HR_SYSTEMS` in `lib/data/sponsor-integrations.ts` is the picker a sponsor
+ * actually uses, and it is a shorter list because it is the systems we have
+ * written STEPS for. This one is longer because a buyer's question is "is mine
+ * here", and the honest answer for a seventh system is that the mechanism is
+ * the same. The two lists are allowed to differ and each says what it is.
+ */
+export type VendorState = "live" | "partial" | "planned";
+
+export type Vendor = {
+  name: string;
+  /** How it connects, in the words an integrator would search for. */
+  via: string;
+  state: VendorState;
+};
+
+/** Human resources and payroll systems a sponsoring employer might run. */
+export const HR_VENDORS: Vendor[] = [
+  { name: "Workday", via: "Outbound webhook · steps written", state: "planned" },
+  { name: "SAP SuccessFactors", via: "Outbound webhook · steps written", state: "planned" },
+  { name: "BambooHR", via: "Outbound webhook · steps written", state: "planned" },
+  { name: "HiBob", via: "Outbound webhook · steps written", state: "planned" },
+  { name: "Personio", via: "Outbound webhook · steps written", state: "planned" },
+  { name: "Oracle HCM", via: "Outbound webhook · steps written", state: "planned" },
+  { name: "Darwinbox", via: "Generic webhook", state: "planned" },
+  { name: "Zoho People", via: "Generic webhook", state: "planned" },
+  { name: "Menaitech", via: "Generic webhook", state: "planned" },
+  { name: "Rippling", via: "Generic webhook", state: "planned" },
+  { name: "Gusto", via: "Generic webhook", state: "planned" },
+  { name: "Sage HR", via: "Generic webhook", state: "planned" },
+];
+
+/** Record and practice-management systems a clinic might already run. */
+export const EHR_VENDORS: Vendor[] = [
+  { name: "Epic", via: "SMART on FHIR R4", state: "partial" },
+  { name: "Oracle Health (Cerner)", via: "SMART on FHIR R4", state: "partial" },
+  { name: "athenahealth", via: "SMART on FHIR R4", state: "partial" },
+  { name: "Elation Health", via: "FHIR R4", state: "planned" },
+  { name: "Healthie", via: "FHIR R4", state: "planned" },
+  { name: "DrChrono", via: "FHIR R4", state: "planned" },
+  { name: "Tebra (Kareo)", via: "Partner API", state: "planned" },
+  { name: "SimplePractice", via: "Partner API", state: "planned" },
+  { name: "TherapyNotes", via: "Partner API", state: "planned" },
+  { name: "Valant", via: "Partner API", state: "planned" },
+  { name: "Jane", via: "Partner API", state: "planned" },
+  { name: "InSync", via: "Partner API", state: "planned" },
+];
+
+export const VENDOR_STATE_LABEL: Record<VendorState, string> = {
+  live: "Working today",
+  partial: "Built, no tenant yet",
+  planned: "Not built",
+};

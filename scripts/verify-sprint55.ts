@@ -1435,6 +1435,63 @@ async function main() {
     await db.execute(sql`DELETE FROM partners WHERE name LIKE 'verify55-%'`);
   }
 
+  /* ------------------------------------------------------------ 76.78 -- */
+
+  /*
+   * 🔴 76.78 — THE PUBLISHED METHODS TABLE MATCHES THE ROUTES THAT EXIST.
+   *
+   * `/integrations` now prints a table of calls an integrator makes. A
+   * documentation page that names an endpoint the product does not serve is the
+   * worst kind of marketing error: it is found by somebody who has already
+   * started building against it. And the failure is silent in both directions —
+   * a route renamed in a refactor leaves the page confidently wrong.
+   *
+   * So the table is read out of the page's own source and each row is checked
+   * against `app/api/partner/` on disk: the file has to exist and it has to
+   * export a handler for that verb.
+   */
+  const docsSource = readSource("app/(public)/integrations/page.tsx");
+  const documented = [
+    ...docsSource.matchAll(/\{ method: "(\w+)", path: "\/api\/partner\/([^"]+)"/g),
+  ].map((m) => ({ method: m[1]!, path: m[2]! }));
+
+  const brokenRows = documented.filter(({ method, path }) => {
+    /* `<ref>` in the docs is `[ref]` on disk, which is the only rewriting here. */
+    const file = join(
+      "app/api/partner",
+      path.replace(/<(\w+)>/g, "[$1]"),
+      "route.ts",
+    );
+    let source = "";
+    try {
+      source = readSource(file);
+    } catch {
+      return true;
+    }
+    return !new RegExp(`export async function ${method}\\b`).test(source);
+  });
+
+  check(
+    "🔴 76.78 every method the integrations page documents is a route that exists and serves that verb",
+    documented.length > 0 && brokenRows.length === 0,
+    brokenRows.length > 0
+      ? `documented but not served: ${brokenRows.map((r) => `${r.method} ${r.path}`).join(", ")}`
+      : `${String(documented.length)} documented calls, all served`,
+  );
+
+  /*
+   * 🔴 THE CONTROL. The check above passes trivially against a regex that
+   * matched nothing, which is the §6 family: an absence assertion measuring the
+   * wrong thing. A row the page really carries is asserted present.
+   */
+  check(
+    "🔴 76.78 CONTROL, the table was really read rather than matching nothing",
+    documented.length >= 6 &&
+      documented.some((r) => r.method === "POST" && r.path === "v1/consent") &&
+      documented.some((r) => r.method === "GET" && r.path.endsWith("/note")),
+    documented.map((r) => `${r.method} ${r.path}`).join(", ") || "THE SCAN IS BLIND",
+  );
+
   finish("sprint 55");
 }
 
