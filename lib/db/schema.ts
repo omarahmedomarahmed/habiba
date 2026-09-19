@@ -3109,6 +3109,22 @@ export type ContentBlock =
     }
   | {
       /**
+       * 🔴 76.75 — A FLOW THE READER CLICKS THROUGH, not a paragraph about one.
+       *
+       * Two of them, named rather than authored: claiming a record, and
+       * granting and revoking consent. The steps and the screens live in the
+       * component, because each step is an assertion about how the product
+       * behaves and a textarea that could reorder them is a textarea that could
+       * publish a sequence the product does not have.
+       *
+       * What the block carries is WHICH flow and WHERE on the page it sits,
+       * which is the part an editor should own.
+       */
+      type: "walkthrough";
+      which: "claim" | "consent";
+    }
+  | {
+      /**
        * 🔴 76.68 — US AGAINST EACH COMPETITOR, AND EVERY WORD OF IT IS A ROW.
        *
        * A comparison table is the one thing on a marketing site that can get a

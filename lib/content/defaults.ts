@@ -45,7 +45,7 @@ const COMPETITORS: ContentBlock = {
       rows: [
         {
           claim: "What the subscription buys",
-          ours: "Unlimited sessions and unlimited AI on a flat plan, or $1 + $3 a session with nothing monthly.",
+          ours: "Unlimited sessions and unlimited AI on a flat plan, or a per-session rate with nothing monthly. Both are on our pricing page.",
           theirs: "A tiered monthly plan. AI notes are a separate per-clinician add-on on top.",
         },
         {
@@ -121,7 +121,7 @@ const COMPETITORS: ContentBlock = {
       rows: [
         {
           claim: "What the subscription buys",
-          ours: "The same shape: per session, or flat and unlimited. $1 room plus $3 AI, or $80 a month solo.",
+          ours: "The same shape: per session, or flat and unlimited. Our figures are on our pricing page, read from the same rows the invoice reads.",
           theirs: "Per session with a monthly cap, which is the closest pricing in this table to ours.",
         },
         {
@@ -618,6 +618,17 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
         ],
       },
+      /*
+       * 🔴 76.75 — THE TWO FLOWS, WALKED RATHER THAN DESCRIBED.
+       *
+       * Both were paragraphs on this page, and a paragraph is exactly what a
+       * company writes when its product does something else. They sit above
+       * the FAQ because they answer the two questions the FAQ was answering
+       * in prose, and because a reader who has come this far down a page for
+       * patients is asking how, not whether.
+       */
+      { type: "walkthrough", which: "claim" },
+      { type: "walkthrough", which: "consent" },
       {
         type: "faq",
         heading: "What it costs you",

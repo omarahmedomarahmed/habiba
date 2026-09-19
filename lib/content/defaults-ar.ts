@@ -562,6 +562,17 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
           },
         ],
       },
+      /*
+       * 🔴 76.75 — THE TWO FLOWS, WALKED RATHER THAN DESCRIBED.
+       *
+       * Both were paragraphs on this page, and a paragraph is exactly what a
+       * company writes when its product does something else. They sit above
+       * the FAQ because they answer the two questions the FAQ was answering
+       * in prose, and because a reader who has come this far down a page for
+       * patients is asking how, not whether.
+       */
+      { type: "walkthrough", which: "claim" },
+      { type: "walkthrough", which: "consent" },
       {
         type: "faq",
         heading: "وماذا يكلفك؟",

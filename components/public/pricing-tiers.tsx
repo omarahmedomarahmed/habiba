@@ -240,7 +240,7 @@ export async function PricingTiers({
         t("pricing.feature.alerts"),
         t("pricing.feature.getPaid"),
       ],
-      cta: { label: t("pr2.startFree"), href: "/signup" },
+      cta: { label: t("pricing.signUp"), href: "/signup" },
       note: t("pr2.noCard"),
     },
   ];
@@ -261,7 +261,7 @@ export async function PricingTiers({
         t("pr2.rowCopilot"),
         t("pr2.rowRadar"),
       ],
-      cta: { label: t("pr2.startFree"), href: "/signup" },
+      cta: { label: t("pricing.signUp"), href: "/signup" },
       note: t("pr2.badgeNoMeter"),
       featured: true,
     });

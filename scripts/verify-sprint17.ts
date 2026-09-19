@@ -19,7 +19,7 @@ import { and, eq } from "drizzle-orm";
 
 import { contentPages, type ContentBlock } from "../lib/db/schema";
 import { withPublishedContent } from "./_content-ready";
-import { writesTo, reporter } from "./_verify";
+import { writesTo, reporter, readSource } from "./_verify";
 import { stubModules } from "./_render";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
@@ -108,17 +108,61 @@ function textOf(nodes: { props: Record<string, unknown> }[]): string {
 
 const MONEY = /(?:\$|USD\s?|EGP\s?|E£)\s?\d[\d,.]*|\b\d+\s?%/;
 
+/*
+ * 🔴 76.77 — A COMPETITOR'S PUBLISHED PRICE IS THE ONE FIGURE THIS RULE MUST NOT
+ * CATCH, AND THE EXEMPTION IS TWO FIELDS RATHER THAN A BLOCK.
+ *
+ * 17.10 says no published page may state a price of its own, and the reason is
+ * C60: a figure typed into content can disagree with `platform_settings`, and it
+ * did, for a fortnight, while a hero paragraph went on selling $6.
+ *
+ * That reason does not reach a rival's price list. There is no settings row
+ * holding what SimplePractice charges, there never will be, and a comparison
+ * table that cannot name their price is a comparison table nobody can use. So
+ * `price` and `theirs`, the two fields that hold THEIR figures, are skipped.
+ *
+ * 🔴 `ours` IS STILL SCANNED, and that is the half that matters. It is where
+ * this product's own prices would be typed, it is exactly C60's shape, and the
+ * first draft of the comparison did it: "or $1 + $3 a session with nothing
+ * monthly", in a row that would have gone on saying so through a reprice. This
+ * check caught it. Anything else on the block is scanned too, so a price
+ * smuggled into a heading or into `who` still fails.
+ */
+const RIVAL_FIGURE_FIELDS = new Set(["price", "theirs"]);
+
 function moneyIn(blocks: ContentBlock[]): string[] {
   const found: string[] = [];
-  const walk = (value: unknown) => {
+  const walk = (value: unknown, exempt = false) => {
     if (typeof value === "string") {
+      if (exempt) return;
       for (const hit of value.matchAll(new RegExp(MONEY, "g")))
         found.push(hit[0]);
-    } else if (Array.isArray(value)) value.forEach(walk);
-    else if (value && typeof value === "object")
-      Object.values(value).forEach(walk);
+    } else if (Array.isArray(value)) value.forEach((one) => { walk(one, exempt); });
+    else if (value && typeof value === "object") {
+      const rival = (value as { type?: unknown }).type === "competitors";
+      for (const [key, inner] of Object.entries(value)) {
+        walk(inner, exempt || (rival ? false : RIVAL_FIGURE_FIELDS.has(key)));
+      }
+    }
   };
-  walk(blocks);
+  /*
+   * The exemption is switched on per FIELD, walking down from a competitors
+   * block. A `price` key on any other block type is not exempt, which is why
+   * the flag is computed at each object rather than once at the top.
+   */
+  const walkBlock = (block: ContentBlock) => {
+    if (block.type !== "competitors") { walk(block); return; }
+    walk(block.heading);
+    for (const item of block.items) {
+      walk(item.name);
+      walk(item.who);
+      for (const row of item.rows) {
+        walk(row.claim);
+        walk(row.ours);
+      }
+    }
+  };
+  blocks.forEach(walkBlock);
   return found;
 }
 
@@ -341,6 +385,14 @@ async function main() {
     ...Array.from({ length: 500 }, (_, i) =>
       seatMonthlyCents(i + 1, settings.pricing.seatBands),
     ),
+    /*
+     * 🔴 AMENDED A FOURTH TIME BY 76.72. The clinic card and the comparison
+     * grid both print the per-seat RATE ("$72 a seat, a month"), which is
+     * `band.perSeatCents` and is not any band's monthly TOTAL, so it was in no
+     * derivation above. It is a settings field read at render time, which is
+     * the rule; a rate typed into a file would still fail.
+     */
+    ...settings.pricing.seatBands.map((band) => band.perSeatCents),
   ]);
 
   check(
@@ -475,6 +527,58 @@ async function main() {
         .where(eq(platformSettings.key, "payouts"));
     }
   }
+
+  /* ------------------------------------------------------------ 76.77 -- */
+
+  /*
+   * 🔴 76.77 — THE ADMIN CONSOLE COULD NOT SAVE THE HOMEPAGE.
+   *
+   * `sanitiseBlocks` in `app/(admin)/admin/actions.ts` returned `null` for any
+   * block type outside a hand-written list of six, and `savePage` turns that
+   * into "The content structure is not valid" and writes nothing. Nine block
+   * types have shipped since that list was typed. The homepage carries
+   * `pricing` and `crisis`; the patients page carries `flow` and `seesWhat`.
+   * An operator fixing a typo on either got a refusal that named the wrong
+   * cause.
+   *
+   * This is the check that stops it happening a tenth time, and it reads BOTH
+   * sides rather than restating either: the union out of the schema, the keys
+   * out of the sanitiser's own exported list. A new block type fails here the
+   * day it is added, which is the day somebody can still fix it in one edit.
+   */
+  const schemaSource = readSource("lib/db/schema.ts");
+  const unionStart = schemaSource.indexOf("export type ContentBlock =");
+  const unionEnd = schemaSource.indexOf("export const contentPages");
+  const declared = [
+    ...new Set(
+      [...schemaSource.slice(unionStart, unionEnd).matchAll(/\btype: "(\w+)";/g)].map((m) => m[1]!),
+    ),
+  ].sort();
+
+  const { SANITISER_BLOCK_TYPES } = await import("../app/(admin)/admin/actions");
+  const missing = declared.filter((t) => !SANITISER_BLOCK_TYPES.includes(t));
+  const extra = SANITISER_BLOCK_TYPES.filter((t) => !declared.includes(t));
+
+  check(
+    "🔴 76.77 every block type the schema declares can be SAVED by the admin console",
+    missing.length === 0 && extra.length === 0,
+    missing.length > 0
+      ? `the console refuses to save a page containing: ${missing.join(", ")}`
+      : extra.length > 0
+        ? `the sanitiser keeps types the schema does not have: ${extra.join(", ")}`
+        : `${String(declared.length)} types, both sides agree`,
+  );
+
+  /*
+   * 🔴 THE CONTROL. The check above is an equality between two lists, and it
+   * passes just as happily if the scan finds nothing at all on either side: two
+   * empty sets are equal. This proves the union was actually read.
+   */
+  check(
+    "🔴 76.77 CONTROL, the scan really read the union rather than matching nothing",
+    declared.length >= 10 && declared.includes("pricing") && declared.includes("crisis"),
+    `${String(declared.length)} declared: ${declared.join(", ")}`,
+  );
 
   finish("sprint 17");
 }

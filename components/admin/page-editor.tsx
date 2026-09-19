@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { savePage } from "@/app/(admin)/admin/actions";
+import { CompetitorEditor } from "@/components/admin/competitor-editor";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { ICON_NAMES } from "@/components/public/icons";
 import { CONTENT_DEMOS } from "@/lib/db/schema";
@@ -42,6 +43,21 @@ const BLOCK_GUIDE: { type: string; what: string }[] = [
     type: "crisis",
     what:
       "The help-now panel. You can change the words; the buttons always go to the radar and never behind a signup. Put it at the bottom of anything a patient reads.",
+  },
+  {
+    type: "competitors",
+    what:
+      "Us against one rival at a time, in tabs. Say what they publish about themselves, never what you assume, and tick 'they win this row' on the line where they are genuinely better. A table we win six times out of six is one nobody believes.",
+  },
+  {
+    type: "vendors",
+    what:
+      "The HR and records systems we connect to, each carrying whether it is live, in beta, or planned. Planned is written as planned: a grid where everything looks live is why buyers stop believing integration pages.",
+  },
+  {
+    type: "walkthrough",
+    what:
+      "One of two flows a reader clicks through: claiming a record, or granting and revoking consent. The steps are fixed in code, because each one is a claim about how the product behaves.",
   },
 ];
 
@@ -295,7 +311,24 @@ export function PageEditor({
             </div>
           ) : null}
 
-          {"items" in block
+          {/*
+            🔴 76.76 — competitors get their own editor, BEFORE the generic one.
+
+            A competitor item has a name, a logo, a line about who they are, a
+            price and a list of three-part rows. The generic editor below draws a
+            title, a body and an icon picker, so pointed at one it would have
+            bound an empty textarea to a `body` field that does not exist and
+            written that key onto the row at the first keystroke. Not a crash,
+            just a quietly malformed competitor.
+          */}
+          {block.type === "competitors" ? (
+            <CompetitorEditor
+              block={block}
+              onChange={(next) => { patchBlock(index, next); }}
+            />
+          ) : null}
+
+          {"items" in block && block.type !== "competitors"
             ? (block.items as Record<string, string>[]).map((item, itemIndex) => (
                 <div
                   key={itemIndex}

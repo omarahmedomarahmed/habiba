@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 
 import { ComponentShowcase } from "@/components/demo/component-showcase";
+import { ClaimFlowDemo, ConsentFlowDemo } from "@/components/demo/flow-demo";
 import { ClinicDemo, CompanyDemo, TherapistSplitDemo } from "@/components/public/audience-demos";
 import { FlowStrip, SeesWhat } from "@/components/visual/primitives";
 import { SessionDemo } from "@/components/demo/session-demo";
@@ -124,6 +125,8 @@ function Block({
       return <Showcase block={block} demo={demo} />;
     case "faq":
       return <Faq block={block} />;
+    case "walkthrough":
+      return block.which === "claim" ? <ClaimFlowDemo /> : <ConsentFlowDemo />;
     case "competitors":
       return <Comparison block={block} />;
     case "vendors":
