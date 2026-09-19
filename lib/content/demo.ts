@@ -76,15 +76,29 @@ export const DEMO_FALLBACK: DemoContent = {
   })),
   brief: DEMO_NOTE.patientBrief ?? "",
   steps: DEMO_NOTE.patientSteps ?? [],
+  /*
+   * 🔴 76.66 — SIX, NOT THREE, AND THE COUNT IS THE POINT.
+   *
+   * These fixtures feed both the marketing demos and the UI reference, and at
+   * two or three entries every screen rendered a third full and two thirds
+   * white. A product shown half empty looks like a product with nothing in it.
+   * Six observations is also closer to what a rolling profile actually holds
+   * after a few months, so the demo stops understating the thing it sells.
+   */
   observations: [
     { at: "12 March", text: "Sleep disruption returns before performance reviews, twice now." },
+    { at: "5 March", text: "Kept the wind-down on four nights. Named it as the first thing that has worked." },
     { at: "27 February", text: "Describes the wind-down routine as 'pointless' before trying it." },
+    { at: "20 February", text: "Work anxiety framed as 'just how the job is' rather than as a thing to treat." },
+    { at: "13 February", text: "Reports the 03:00 waking is the part she dreads, more than the tiredness." },
     { at: "6 February", text: "First session. Came for sleep; work anxiety surfaced by minute ten." },
   ],
   homework: [
     { title: "Screens down an hour before bed", detail: "Four nights. Pick them now." },
     { title: "Same wake time after a bad night", detail: "The one that does the most work." },
     { title: "Two times, written down", detail: "Roughly asleep, roughly awake. Not a diary." },
+    { title: "Out of bed after twenty minutes awake", detail: "Somewhere dim. Back when you are heavy." },
+    { title: "One line about the review, before bed", detail: "On paper, so it is not in your head at three." },
   ],
   patientSessions: [
     { therapist: "Dr Nadia Farouk", when: "Tomorrow, 18:00", brief: null },
@@ -92,6 +106,16 @@ export const DEMO_FALLBACK: DemoContent = {
       therapist: "Dr Nadia Farouk",
       when: "Last Tuesday",
       brief: "You said you would try going to bed earlier, and on the two nights you did it worked.",
+    },
+    {
+      therapist: "Dr Nadia Farouk",
+      when: "Two weeks ago",
+      brief: "We looked at what happens between eleven and three, and you noticed it is the review you are rehearsing.",
+    },
+    {
+      therapist: "Dr Nadia Farouk",
+      when: "Last month",
+      brief: "First session. You came about sleep and we ended up talking about work, which is worth following.",
     },
   ],
   /*
@@ -115,12 +139,18 @@ export const DEMO_FALLBACK: DemoContent = {
   ],
   journalEntries: [
     { on: "2 June", text: "Slept through for the first time in about three weeks. Nothing special happened, which is the annoying part." },
+    { on: "31 May", text: "Got out of bed at half one like she said instead of lying there. Felt stupid. Went back down quicker though." },
     { on: "29 May", text: "Bad one. Kept rehearsing the review in my head until about two. Did the breathing, it helped a bit, not much." },
+    { on: "26 May", text: "Wrote the review thing down before bed. Still thought about it, but it did not feel like it was growing." },
+    { on: "22 May", text: "Skipped the wind-down, stayed on my phone. Predictable. Not doing that again this week." },
   ],
   note: DEMO_NOTE,
   copilot: [
     { kind: "explore", text: "Two of seven nights went better, worth naming that back." },
     { kind: "observation", text: "Fatigue and worry described as a loop, not two problems." },
+    { kind: "explore", text: "She called the routine pointless in February and is keeping it now." },
+    { kind: "pattern", text: "Third mention of the performance review in four sessions." },
+    { kind: "observation", text: "Says 'just how the job is' when the work comes up. Same phrase as 20 February." },
   ],
   riskIndicator: "want to die",
 };
@@ -170,13 +200,18 @@ export const DEMO_FALLBACK_AR: DemoContent = {
   ],
   observations: [
     { at: "١٢ مارس", text: "النوم بيتقطع قبل التقييم في الشغل، للمرة التانية." },
+    { at: "٥ مارس", text: "مشيت على الروتين أربع ليالي. قالت إنها أول حاجة نفعت معاها." },
     { at: "٢٧ فبراير", text: "بيوصف روتين ما قبل النوم بأنه «ملوش لازمة» قبل ما يجربه." },
+    { at: "٢٠ فبراير", text: "بتتكلم عن ضغط الشغل كأنه «طبيعة الشغل» مش حاجة ليها علاج." },
+    { at: "١٣ فبراير", text: "بتقول إن الصحيان الساعة تلاتة هو الجزء اللي بتخاف منه، أكتر من التعب نفسه." },
     { at: "٦ فبراير", text: "أول جلسة. جه بسبب النوم، وقلق الشغل ظهر في أول عشر دقايق." },
   ],
   homework: [
     { title: "الموبايل بعيد ساعة قبل النوم", detail: "أربع ليالي. اختارهم دلوقتي." },
     { title: "نفس ميعاد الصحيان بعد الليلة الوحشة", detail: "دي اللي بتعمل الشغل كله." },
     { title: "ميعادين مكتوبين", detail: "نمت امتى تقريبًا، وصحيت امتى. مش مفكرة." },
+    { title: "اقومي من السرير بعد عشرين دقيقة صحيان", detail: "مكان إضاءته هادية. وارجعي لما تتقلي." },
+    { title: "سطر واحد عن التقييم قبل النوم", detail: "على ورق، عشان ما يفضلش في دماغك الساعة تلاتة." },
   ],
   patientSessions: [
     { therapist: "د. نادية فاروق", when: "بكرة، ٦ مساءً", brief: null },
@@ -184,6 +219,16 @@ export const DEMO_FALLBACK_AR: DemoContent = {
       therapist: "د. نادية فاروق",
       when: "الثلاثاء اللي فات",
       brief: "قلت إنك هتجرب تنام بدري، وفي الليلتين اللي عملت فيهم كده فعلًا نفع.",
+    },
+    {
+      therapist: "د. نادية فاروق",
+      when: "من أسبوعين",
+      brief: "بصينا على اللي بيحصل بين حداشر وتلاتة، ولاحظتي إن اللي بتعيديه في دماغك هو التقييم.",
+    },
+    {
+      therapist: "د. نادية فاروق",
+      when: "الشهر اللي فات",
+      brief: "أول جلسة. جيتي بسبب النوم وانتهينا بنتكلم عن الشغل، وده يستاهل نكمل فيه.",
     },
   ],
   summaryVersions: [
@@ -202,7 +247,10 @@ export const DEMO_FALLBACK_AR: DemoContent = {
   ],
   journalEntries: [
     { on: "٢ يونيو", text: "نمت الليلة كلها لأول مرة من حوالي تلات أسابيع. مفيش حاجة مخصوص حصلت، وده الجزء المضايق." },
+    { on: "٣١ مايو", text: "قمت من السرير الساعة واحدة ونص زي ما قالت، بدل ما أفضل نايمة صاحية. حسيت إني بعمل حاجة سخيفة. بس رجعت نمت أسرع." },
     { on: "٢٩ مايو", text: "ليلة وحشة. فضلت أعيد التقييم في دماغي لحد تقريبًا اتنين. عملت التنفس، نفع شوية، مش كتير." },
+    { on: "٢٦ مايو", text: "كتبت موضوع التقييم قبل ما أنام. فضلت أفكر فيه، بس ما حستش إنه بيكبر." },
+    { on: "٢٢ مايو", text: "ما عملتش الروتين وفضلت على الموبايل. متوقع. مش هكرر ده الأسبوع ده." },
   ],
   /*
    * 🔴 76.32 — AND THE NOTE IS WRITTEN IN ARABIC, not translated into it.
@@ -258,6 +306,9 @@ export const DEMO_FALLBACK_AR: DemoContent = {
   copilot: [
     { kind: "اسأل", text: "ليلتين من سبع كانوا أحسن، تستاهل تتقال له." },
     { kind: "ملاحظة", text: "الإرهاق والقلق موصوفين كحلقة واحدة، مش مشكلتين." },
+    { kind: "اسأل", text: "قالت على الروتين إنه «ملوش لازمة» في فبراير، ودلوقتي ماشية عليه." },
+    { kind: "نمط", text: "تالت مرة يتذكر فيها التقييم في أربع جلسات." },
+    { kind: "ملاحظة", text: "بتقول «دي طبيعة الشغل» لما الشغل ييجي في السيرة. نفس الجملة بتاعة ٢٠ فبراير." },
   ],
   riskIndicator: "نفسي أموت",
 };

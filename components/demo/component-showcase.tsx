@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Lightbulb } from "lucide-react";
 
 import { NoteCard } from "@/components/clinical/note-card";
@@ -8,6 +9,20 @@ import { TranscriptPanel } from "@/components/clinical/transcript-panel";
 import { PatientSessionList } from "@/components/patient/session-list";
 import type { DemoContent } from "@/lib/content/demo";
 import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
+
+/**
+ * 🔴 76.66 — ONE HEIGHT, BECAUSE A GRID ROW THAT STEPS READS AS BROKEN.
+ *
+ * Each case used to size itself: `h-56` on the scrolling ones, `items-center`
+ * on the short ones, nothing on the rest. In a two-column grid that produced
+ * three different heights down the page and up to 40% dead white inside a frame,
+ * which is the look of an empty screen rather than a busy one.
+ *
+ * Every desk demo is now this tall and its content fills it. Short content gets
+ * the room; long content scrolls and is faded at the cut by `Scroller` below, so
+ * the clip reads as "there is more" instead of "this is severed".
+ */
+const H = "h-full";
 import { DeviceFrame, frameFor } from "./device-frame";
 
 /**
@@ -26,7 +41,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
             lines={content?.transcript ?? DEMO_TRANSCRIPT.slice(0, 5)}
             live
             autoScroll={false}
-            className="h-56"
+            className="h-full"
           />
         </div>
       );
@@ -41,14 +56,14 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      */
     case "note":
       return (
-        <div className="no-scrollbar h-56 overflow-y-auto">
+        <Scroller className="bg-white">
           <NoteCard note={content?.note ?? DEMO_NOTE} status="draft" compact patientLabel="demo" />
-        </div>
+        </Scroller>
       );
 
     case "risk":
       return (
-        <div className="bg-slate-50 p-3">
+        <div className={`${H} bg-slate-50 p-3`}>
           <RiskBanner
             level="high"
             indicators={[content?.riskIndicator ?? "want to die"]}
@@ -59,7 +74,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
 
     case "copilot":
       return (
-        <div className="bg-slate-50 p-3">
+        <div className={`${H} space-y-2 bg-slate-50 p-3`}>
           <div className="w-full rounded-xl bg-navy-500 px-4 py-4">
             <div className="flex items-start gap-2.5">
               <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" aria-hidden />
@@ -86,7 +101,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      */
     case "patient-sessions":
       return (
-        <div className="no-scrollbar h-56 overflow-y-auto bg-slate-50 p-3">
+        <Scroller className="bg-slate-50 p-3">
           <PatientSessionList
             zone="UTC"
             sessions={(content?.patientSessions ?? []).map((row, i) => ({
@@ -106,19 +121,19 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
               briefPending: false,
             }))}
           />
-        </div>
+        </Scroller>
       );
 
     case "homework":
       return (
-        <div className="no-scrollbar h-56 space-y-2 overflow-y-auto bg-white p-3">
+        <Scroller className="space-y-2 bg-white p-3">
           {(content?.homework ?? []).map((item) => (
             <div key={item.title} className="rounded-xl border border-slate-200 p-3">
               <p className="text-sm font-semibold text-slate-900">{item.title}</p>
               <p className="mt-0.5 text-xs text-slate-500">{item.detail}</p>
             </div>
           ))}
-        </div>
+        </Scroller>
       );
 
     /*
@@ -128,7 +143,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      */
     case "profile":
       return (
-        <ul className="no-scrollbar h-56 space-y-2 overflow-y-auto bg-white p-3">
+        <Scroller as="ul" className="space-y-2 bg-white p-3">
             {(content?.observations ?? []).map((row) => (
               <li key={row.at} className="border-s-2 border-brand-200 ps-3">
                 <p className="text-[11px] font-semibold tracking-wide text-brand-600 uppercase">
@@ -137,7 +152,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
                 <p className="text-sm leading-snug text-slate-700">{row.text}</p>
               </li>
             ))}
-        </ul>
+        </Scroller>
       );
 
     /*
@@ -150,7 +165,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      */
     case "summary":
       return (
-        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto bg-white p-3">
+        <Scroller as="ul" className="space-y-2.5 bg-white p-3">
           {(content?.summaryVersions ?? []).map((version) => (
             <li key={version.version} className="rounded-xl border border-slate-200 p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -163,7 +178,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
               <p className="mt-1 text-xs leading-relaxed text-slate-600">{version.body}</p>
             </li>
           ))}
-        </ul>
+        </Scroller>
       );
 
     /*
@@ -174,14 +189,14 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      */
     case "journal":
       return (
-        <ul className="no-scrollbar h-56 space-y-2.5 overflow-y-auto bg-slate-50 p-3">
+        <Scroller as="ul" className="space-y-2.5 bg-slate-50 p-3">
           {(content?.journalEntries ?? []).map((entry) => (
             <li key={entry.on} className="rounded-xl bg-white p-3">
               <p className="text-[11px] text-slate-400">{entry.on}</p>
               <p className="mt-1 text-xs leading-relaxed text-slate-700">{entry.text}</p>
             </li>
           ))}
-        </ul>
+        </Scroller>
       );
 
     default:
@@ -208,5 +223,31 @@ export function ComponentShowcase({ demo, content }: { demo?: string; content?: 
     <DeviceFrame as={as} path={path}>
       {body}
     </DeviceFrame>
+  );
+}
+
+/**
+ * A demo's viewport: the canonical height, hidden scrollbars, and a fade at the
+ * bottom so a clipped list reads as "there is more below" rather than as text
+ * that has been cut in half. Without the fade a transcript ends mid-word and the
+ * frame looks broken, which was the first thing anybody noticed about it.
+ */
+function Scroller({
+  as: Tag = "div",
+  className,
+  children,
+}: {
+  as?: "div" | "ul";
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative h-full">
+      <Tag className={`no-scrollbar h-full overflow-y-auto ${className ?? ""}`}>{children}</Tag>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent"
+      />
+    </div>
   );
 }

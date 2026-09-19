@@ -1,4 +1,5 @@
 import * as React from "react";
+import { CalendarDays, CircleUser, Globe2, ListChecks, Receipt } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ type Frame = "browser" | "phone" | "none";
 export function DeviceFrame({
   as = "browser",
   path,
+  nav = true,
   children,
   className,
   bodyClassName,
@@ -45,6 +47,8 @@ export function DeviceFrame({
   as?: Frame;
   /** The route this screen lives at, without the host. */
   path?: string;
+  /** Phone only: draw the app's bottom navigation. Off for a screen that has none. */
+  nav?: boolean;
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
@@ -52,7 +56,7 @@ export function DeviceFrame({
   if (as === "none") return <>{children}</>;
   if (as === "phone") {
     return (
-      <PhoneFrame className={className} bodyClassName={bodyClassName}>
+      <PhoneFrame className={className} bodyClassName={bodyClassName} nav={nav}>
         {children}
       </PhoneFrame>
     );
@@ -107,60 +111,148 @@ function BrowserFrame({
         ) : null}
       </div>
 
-      <div className={cn("bg-white", bodyClassName)}>{children}</div>
+      <div className={cn("h-[20rem] bg-white", bodyClassName)}>{children}</div>
     </div>
   );
 }
+
+/**
+ * The patient app's own five tabs, drawn as the bar rather than described.
+ *
+ * 🔴 The globe is centred and lifted because it is centred and lifted in
+ * `components/patient/bottom-nav.tsx`: the radar is the one thing on this app
+ * somebody might need urgently, so it sits under the thumb. A frame that drew
+ * five even tabs would be drawing a different product.
+ */
+type Tab = { icon: typeof Globe2; label: string; lifted?: boolean };
+
+const TABS: readonly Tab[] = [
+  { icon: CalendarDays, label: "Sessions" },
+  { icon: ListChecks, label: "Steps" },
+  { icon: Globe2, label: "Talk now", lifted: true },
+  { icon: Receipt, label: "Billing" },
+  { icon: CircleUser, label: "You" },
+];
 
 function PhoneFrame({
   children,
   className,
   bodyClassName,
+  nav = true,
 }: {
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  nav?: boolean;
 }) {
   return (
     <div
       className={cn(
         /*
-         * A phone is narrow, and the point of drawing one is that the reader
-         * sees the constraint the product is designed for. Letting it stretch to
-         * the width of a desktop column would draw a phone the size of a
-         * television, which says the opposite.
+         * 🔴 A PHONE HAS TO BE PHONE-SHAPED, AND THE FIRST VERSION WAS NOT.
+         *
+         * It was a 300px box that grew to whatever the content needed, so a
+         * two-entry journal drew something roughly square and the founder's
+         * word for it was "a smartwatch". A phone is read as a phone because of
+         * its ASPECT, so the body is a fixed 9:19.5 and the content scrolls
+         * inside it, exactly as it does on the real device.
          */
-        "mx-auto w-full max-w-[300px] rounded-[2.25rem] border-[6px] border-navy-700 bg-navy-700 shadow-2xl shadow-navy-900/30",
+        "mx-auto w-[300px] max-w-full shrink-0 rounded-[2.75rem] border-[10px] border-navy-800 bg-navy-800 shadow-2xl shadow-navy-900/40",
         className,
       )}
     >
-      <div className="relative overflow-hidden rounded-[1.8rem] bg-white">
-        {/* The notch, and the status strip it sits in. */}
+      <div className="relative flex aspect-[9/19.5] flex-col overflow-hidden rounded-[2rem] bg-white">
+        {/* The status bar: the time and the indicators every phone carries. */}
         <div
           aria-hidden
-          className="relative flex h-7 select-none items-center justify-center bg-navy-600"
+          className="relative flex h-11 shrink-0 select-none items-end justify-between bg-white px-6 pb-1"
         >
-          <span className="h-4 w-20 rounded-b-xl bg-navy-700" />
+          <span className="text-[11px] font-semibold text-slate-900">9:41</span>
+          {/* The notch, floating over the bar as it does on the device. */}
+          <span className="absolute start-1/2 top-0 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-navy-800" />
+          <span className="flex items-center gap-1 text-slate-900">
+            <SignalIcon />
+            <BatteryIcon />
+          </span>
         </div>
 
-        <div className={cn("bg-white", bodyClassName)}>{children}</div>
+        <div className={cn("no-scrollbar min-h-0 flex-1 overflow-y-auto", bodyClassName)}>
+          {children}
+        </div>
+
+        {nav ? (
+          <div
+            aria-hidden
+            className="relative shrink-0 select-none border-t border-slate-200 bg-white/95 px-2 pt-2 pb-1"
+          >
+            <div className="flex items-end justify-around">
+              {TABS.map(({ icon: Icon, label, lifted }) => (
+                <span
+                  key={label}
+                  className={cn(
+                    "flex flex-col items-center gap-0.5",
+                    lifted ? "-mt-5" : undefined,
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid place-items-center",
+                      lifted
+                        ? "h-11 w-11 rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/30"
+                        : "h-5 w-5 text-slate-400",
+                    )}
+                  >
+                    <Icon className={lifted ? "h-5 w-5" : "h-5 w-5"} aria-hidden />
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[9px] leading-none",
+                      lifted ? "font-semibold text-brand-600" : "text-slate-400",
+                    )}
+                  >
+                    {label}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {/*
-         * 🔴 The home indicator, and it is not decoration.
-         *
-         * Without it the content runs into the rounded bottom corner and the
-         * phone reads as cut off rather than as a phone. It is also where the
-         * real product's `safe-bottom` padding goes, so drawing it is drawing
-         * something the app genuinely reserves.
+         * The home indicator. Without it the content runs into the rounded
+         * corner and the phone reads as cut off. It is also where the real
+         * product's `safe-bottom` padding goes, so this is a thing the app
+         * genuinely reserves rather than a drawn decoration.
          */}
         <div
           aria-hidden
-          className="flex select-none items-center justify-center bg-white pt-1.5 pb-2"
+          className="flex shrink-0 select-none items-center justify-center bg-white pt-1 pb-2"
         >
-          <span className="h-1 w-24 rounded-full bg-slate-300" />
+          <span className="h-1 w-28 rounded-full bg-slate-900/80" />
         </div>
       </div>
     </div>
+  );
+}
+
+function SignalIcon() {
+  return (
+    <svg viewBox="0 0 18 12" className="h-2.5 w-4 fill-current" aria-hidden>
+      <rect x="0" y="8" width="3" height="4" rx="1" />
+      <rect x="5" y="5.5" width="3" height="6.5" rx="1" />
+      <rect x="10" y="3" width="3" height="9" rx="1" />
+      <rect x="15" y="0" width="3" height="12" rx="1" />
+    </svg>
+  );
+}
+
+function BatteryIcon() {
+  return (
+    <svg viewBox="0 0 26 12" className="h-2.5 w-5" aria-hidden>
+      <rect x="0.5" y="0.5" width="21" height="11" rx="3" className="fill-none stroke-current" strokeOpacity="0.4" />
+      <rect x="2" y="2" width="16" height="8" rx="1.5" className="fill-current" />
+      <rect x="23" y="4" width="2" height="4" rx="1" className="fill-current" fillOpacity="0.4" />
+    </svg>
   );
 }
 

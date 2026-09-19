@@ -57,7 +57,7 @@ export function NoteCard({
 
       <div className="space-y-4 px-4 py-4">
         {note.summary ? (
-          <p className="text-[15px] leading-relaxed text-slate-700">{note.summary}</p>
+          <p className="text-[15px] leading-relaxed font-medium text-slate-900">{note.summary}</p>
         ) : null}
 
         {/*
@@ -70,16 +70,41 @@ export function NoteCard({
           this" is both true and the prompt to write it themselves — this is a
           draft with their name going on it.
         */}
-        <div className="space-y-3.5">
+        {/*
+          🔴 76.66 — THE FOUR SECTIONS ARE THE DOCUMENT, SO THEY ARE BUILT LIKE ONE.
+          
+          The labels were `text-slate-400` on white: **2.56:1**, which fails even
+          the 3:1 large-text floor and is being asked to carry 11px bold, where
+          the requirement is 4.5:1. A clinician skimming for the Assessment could
+          not find the word Assessment. Measured, not judged by eye.
+          
+          They are now `navy-500` on a tinted rail, which is 15.8:1, and each
+          section carries its SOAP letter. The letter is the reason this note
+          format exists: a clinician reads S-O-A-P as a shape and jumps to the
+          part they need. Rendering the four as identical grey paragraphs threw
+          away the one piece of structure the format has.
+        */}
+        <div className="space-y-3">
           {sections.map((section) => (
-            <div key={section.key}>
-              <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-                {section.label}
-              </p>
+            <div
+              key={section.key}
+              className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-navy-500 text-[11px] font-bold text-white"
+                >
+                  {section.key.toUpperCase()}
+                </span>
+                <p className="text-[11px] font-bold tracking-wider text-navy-500 uppercase">
+                  {section.label}
+                </p>
+              </div>
               {section.body ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-700">{section.body}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-slate-800">{section.body}</p>
               ) : (
-                <p className="mt-1 text-sm leading-relaxed text-amber-700">
+                <p className="mt-1.5 text-sm leading-relaxed text-amber-700">
                   {t("tnc.notWritten")}
                 </p>
               )}
@@ -89,7 +114,7 @@ export function NoteCard({
 
         {!compact && note.talkingPoints.length > 0 ? (
           <div>
-            <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+            <p className="text-[11px] font-bold tracking-wider text-slate-600 uppercase">
               {t("tnc.keyPoints")}
             </p>
             <ul className="mt-1.5 space-y-1">
@@ -114,7 +139,7 @@ export function NoteCard({
 
         {!compact && note.recommendations.length > 0 ? (
           <div>
-            <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+            <p className="text-[11px] font-bold tracking-wider text-slate-600 uppercase">
               {t("tnc.recommendations")}
             </p>
             <ul className="mt-1.5 space-y-1">
