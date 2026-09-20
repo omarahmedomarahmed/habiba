@@ -83,12 +83,12 @@ const PUBLIC_DIRS = [
  * oversight.
  */
 
-function walk(dir: string, out: string[] = []): string[] {
+function walk(dir: string, out: string[] = [], ext = ".tsx"): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (["node_modules", ".next"].includes(entry.name)) continue;
     const path = `${dir}/${entry.name}`;
-    if (entry.isDirectory()) walk(path, out);
-    else if (path.endsWith(".tsx")) out.push(path);
+    if (entry.isDirectory()) walk(path, out, ext);
+    else if (path.endsWith(ext)) out.push(path);
   }
   return out;
 }
@@ -313,6 +313,59 @@ function main() {
   );
 
   /* ================================================================== */
+  /*  77.13 · a "use server" file exports async functions and nothing else */
+  /* ================================================================== */
+
+  /*
+   * 🔴 THE DEFECT THIS IS FOR, AND IT SHIPPED.
+   *
+   * Sprint 76 put `export const SANITISER_BLOCK_TYPES = …` into
+   * `app/(admin)/admin/actions.ts`, which carries `"use server"`. Next
+   * validates a server module's exports when something pulls it into a page's
+   * graph, so it sat there for a sprint; the moment `/admin/settings` imported
+   * an action from that file the whole page answered 500 with *"A `use server`
+   * file can only export async functions, found object"*, naming a file the
+   * operator was not editing.
+   *
+   * It compiles. It typechecks. No gate read it. It was found by opening
+   * `/admin/errors` on production, which is exactly what that page is for and
+   * is not a method anybody should have to rely on twice.
+   */
+  const serverFiles: string[] = [];
+  for (const dir of ["app", "lib", "components"]) {
+    for (const file of walk(dir)) serverFiles.push(file);
+  }
+  for (const dir of ["app", "lib"]) {
+    for (const file of walk(dir, [], ".ts")) serverFiles.push(file);
+  }
+
+  const badExports: string[] = [];
+  for (const file of [...new Set(serverFiles)]) {
+    const source = readSource(file);
+    if (!/^\s*["']use server["']/.test(source)) continue;
+    for (const m of source.matchAll(/^export\s+(?!async function)(?!type\b)(?!interface\b)(\w+)/gm)) {
+      badExports.push(`${file}: export ${m[1]}`);
+    }
+  }
+
+  check(
+    "🔴 77.13 no \"use server\" file exports anything but an async function",
+    badExports.length === 0,
+    badExports.slice(0, 5).join("\n     ") || "every server module is actions only",
+  );
+
+  check(
+    "🔴 CONTROL that scan catches the export that shipped",
+    /^export\s+(?!async function)(?!type\b)(?!interface\b)(\w+)/m.test(
+      '"use server";\nexport const SANITISER_BLOCK_TYPES = [];\n',
+    ) &&
+      !/^export\s+(?!async function)(?!type\b)(?!interface\b)(\w+)/m.test(
+        '"use server";\nexport async function doIt() {}\nexport type State = { ok?: boolean };\n',
+      ),
+    "the real one was an array; a scan that also flagged the type alias would be turned off",
+  );
+
+  /* ================================================================== */
   /*  77.12 · every email, sendable from the one process with the key    */
   /* ================================================================== */
 
@@ -345,7 +398,7 @@ function main() {
   check(
     "🔴 …and the console can send them, owner only and written down",
     /export async function sendEveryTemplate/.test(adminActions) &&
-      /sendEveryTemplate[\s\S]{0,400}requireRole\("super_admin"\)/.test(adminActions) &&
+      /sendEveryTemplate[\s\S]{0,600}requireRole\("super_admin"\)/.test(adminActions) &&
       /action: "email\.previewAll"/.test(adminActions),
     "a button that sends fourteen emails is one somebody will ask about later",
   );
@@ -354,6 +407,23 @@ function main() {
     "🔴 …and it is reachable, on the screen behind the same door as the prices",
     /<MailCheck \/>/.test(settings),
     "58.3: a surface nothing links to is a surface nobody uses",
+  );
+
+  /*
+   * 🔴 AND THE FORM WORKS WITH JAVASCRIPT OFF, which is not a nicety here.
+   *
+   * A `<form action={…}>` whose action is an inline client function is not a
+   * server reference, so React renders no hidden action fields and the button
+   * does nothing at all without scripting. The action takes the
+   * `useActionState` shape and the component passes it straight through, which
+   * is the same arrangement the staff sign-in form already had.
+   */
+  const card = readSource("components/admin/mail-check.tsx");
+  check(
+    "🔴 …and its form is a direct server reference, so it submits without JavaScript",
+    /useActionState<AdminActionState, FormData>\(sendEveryTemplate, \{\}\)/.test(card) &&
+      /_previous: AdminActionState,\s*\n\s*form: FormData,/.test(adminActions),
+    "a wrapper makes the action a client function and the button dies with scripting off",
   );
 
   /*

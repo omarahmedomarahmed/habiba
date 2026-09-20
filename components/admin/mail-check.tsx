@@ -31,11 +31,15 @@ import { Button, Card, Field, Input } from "@/components/ui";
  * only, and the address is the one typed into this field.
  */
 export function MailCheck() {
-  const [state, run] = useActionState(
-    async (_prev: AdminActionState, form: FormData): Promise<AdminActionState> =>
-      sendEveryTemplate(String(form.get("to") ?? "")),
-    {},
-  );
+  /*
+   * 🔴 THE ACTION ITSELF, not a wrapper around it.
+   *
+   * An inline async function here would be a CLIENT function, so React could
+   * not render the hidden fields that let the form submit without JavaScript,
+   * and the button would be dead on a browser with scripting off. Passing the
+   * server action straight through is what makes the form real.
+   */
+  const [state, run] = useActionState<AdminActionState, FormData>(sendEveryTemplate, {});
 
   return (
     <Card className="p-5">

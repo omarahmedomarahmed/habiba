@@ -555,7 +555,14 @@ async function main() {
     ),
   ].sort();
 
-  const { SANITISER_BLOCK_TYPES } = await import("../app/(admin)/admin/actions");
+  /*
+   * 🔴 77.13 — it moved out of the `"use server"` file, and that is the point.
+   *
+   * Such a file may export async functions and nothing else. This constant was
+   * an exported array sitting in one, which compiled, typechecked, and answered
+   * 500 on the first page that imported an action beside it.
+   */
+  const { SANITISER_BLOCK_TYPES } = await import("../lib/content/sanitise");
   const missing = declared.filter((t) => !SANITISER_BLOCK_TYPES.includes(t));
   const extra = SANITISER_BLOCK_TYPES.filter((t) => !declared.includes(t));
 
