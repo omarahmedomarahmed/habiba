@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { CalendarDays, CircleUser, Globe2, ListChecks, Receipt } from "lucide-react";
 
@@ -35,10 +37,21 @@ import { cn } from "@/lib/utils";
 
 type Frame = "browser" | "phone" | "none";
 
+export type NavTab = {
+  key: string;
+  label: string;
+  icon: typeof Globe2;
+  /** The radar, which is centred and raised because it is on the real bar. */
+  lifted?: boolean;
+};
+
 export function DeviceFrame({
   as = "browser",
   path,
   nav = true,
+  tabs,
+  activeTab,
+  onTab,
   children,
   className,
   bodyClassName,
@@ -49,6 +62,18 @@ export function DeviceFrame({
   path?: string;
   /** Phone only: draw the app's bottom navigation. Off for a screen that has none. */
   nav?: boolean;
+  /**
+   * 🔴 76.81 — THE BAR IS A CONTROL WHEN A CALLER GIVES IT ONE TO BE.
+   *
+   * With `onTab` the five tabs are buttons and the active one is lit; without
+   * it they are the drawn bar this frame has always had. Both shapes stay
+   * because a single-screen demo has nowhere for a tab to go, and a dead button
+   * is worse than a picture of a button: it invites a press and answers it with
+   * nothing.
+   */
+  tabs?: NavTab[];
+  activeTab?: string;
+  onTab?: (key: string) => void;
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
@@ -56,7 +81,14 @@ export function DeviceFrame({
   if (as === "none") return <>{children}</>;
   if (as === "phone") {
     return (
-      <PhoneFrame className={className} bodyClassName={bodyClassName} nav={nav}>
+      <PhoneFrame
+        className={className}
+        bodyClassName={bodyClassName}
+        nav={nav}
+        tabs={tabs}
+        activeTab={activeTab}
+        onTab={onTab}
+      >
         {children}
       </PhoneFrame>
     );
@@ -104,7 +136,7 @@ function BrowserFrame({
 
         {path ? (
           <div className="ms-2 flex min-w-0 flex-1 items-center rounded-md bg-navy-800/70 px-2.5 py-1">
-            <span className="truncate font-mono text-[11px] leading-none text-slate-400">
+            <span className="truncate font-mono text-[11px] leading-none text-slate-300">
               24therapy.app{path}
             </span>
           </div>
@@ -126,6 +158,10 @@ function BrowserFrame({
  */
 type Tab = { icon: typeof Globe2; label: string; lifted?: boolean };
 
+/**
+ * The fallback bar, for a demo that shows one screen and has nowhere to go.
+ * A caller that passes `tabs` replaces these with the app's real, keyed ones.
+ */
 const TABS: readonly Tab[] = [
   { icon: CalendarDays, label: "Sessions" },
   { icon: ListChecks, label: "Steps" },
@@ -139,12 +175,19 @@ function PhoneFrame({
   className,
   bodyClassName,
   nav = true,
+  tabs,
+  activeTab,
+  onTab,
 }: {
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
   nav?: boolean;
+  tabs?: NavTab[];
+  activeTab?: string;
+  onTab?: (key: string) => void;
 }) {
+  const bar: NavTab[] = tabs ?? TABS.map((t) => ({ ...t, key: t.label }));
   return (
     <div
       className={cn(
@@ -182,38 +225,69 @@ function PhoneFrame({
 
         {nav ? (
           <div
-            aria-hidden
+            aria-hidden={onTab ? undefined : true}
             className="relative shrink-0 select-none border-t border-slate-200 bg-white/95 px-2 pt-2 pb-1"
           >
             <div className="flex items-end justify-around">
-              {TABS.map(({ icon: Icon, label, lifted }) => (
-                <span
-                  key={label}
-                  className={cn(
-                    "flex flex-col items-center gap-0.5",
-                    lifted ? "-mt-5" : undefined,
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "grid place-items-center",
-                      lifted
-                        ? "h-11 w-11 rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/30"
-                        : "h-5 w-5 text-slate-400",
+              {bar.map(({ key, icon: Icon, label, lifted }) => {
+                const on = activeTab === key;
+                /*
+                 * 🔴 The lifted globe is brand-filled ALWAYS, and the flat tabs
+                 * light only when they are the one you are on. That is what the
+                 * real bar does: the radar is the thing somebody might need
+                 * urgently, so it is loud whether or not you are looking at it.
+                 */
+                /*
+                 * 🔴 76.81 — THE LIFTED GLOBE CARRIES NO WRITTEN LABEL, and
+                 * that is not a space saving. `components/patient/bottom-nav.tsx`
+                 * gives it an `aria-label` and nothing visible, because the
+                 * string is "Find someone now" and four words do not fit under
+                 * a 56px circle in either language. The first draft of this
+                 * frame printed it anyway and the bar read "Find some…", which
+                 * is a fifth tab labelled with a truncation.
+                 */
+                const body = (
+                  <>
+                    <span
+                      className={cn(
+                        "grid place-items-center",
+                        lifted
+                          ? "h-11 w-11 rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/30"
+                          : cn("h-5 w-5", on ? "text-brand-600" : "text-slate-600"),
+                      )}
+                    >
+                      <Icon className="h-5 w-5" aria-hidden />
+                    </span>
+                    {lifted ? null : (
+                      <span
+                        className={cn(
+                          "max-w-[3.8rem] truncate text-[9px] leading-none",
+                          on ? "font-semibold text-brand-600" : "text-slate-600",
+                        )}
+                      >
+                        {label}
+                      </span>
                     )}
+                  </>
+                );
+                const shape = cn("flex flex-col items-center gap-0.5", lifted && "-mt-5");
+                return onTab ? (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-current={on ? "page" : undefined}
+                    aria-label={lifted ? label : undefined}
+                    onClick={() => { onTab(key); }}
+                    className={cn(shape, "tap-target")}
                   >
-                    <Icon className={lifted ? "h-5 w-5" : "h-5 w-5"} aria-hidden />
+                    {body}
+                  </button>
+                ) : (
+                  <span key={key} className={shape}>
+                    {body}
                   </span>
-                  <span
-                    className={cn(
-                      "text-[9px] leading-none",
-                      lifted ? "font-semibold text-brand-600" : "text-slate-400",
-                    )}
-                  >
-                    {label}
-                  </span>
-                </span>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : null}
@@ -266,12 +340,25 @@ function BatteryIcon() {
  * phone with a patient in the room. Drawing the radar in a browser window would
  * quietly misdescribe the product.
  */
-const PHONE: ReadonlySet<string> = new Set([
+const PHONE: ReadonlySet<string> = new Set(["session-room"]);
+
+/**
+ * 🔴 76.81 — THE DEMOS THAT BRING THEIR OWN FRAME.
+ *
+ * `PatientApp` draws the phone itself, because the bar at the bottom of that
+ * phone is its navigation rather than chrome around it — a component that took
+ * a frame from its caller could not light the tab you are standing on. So the
+ * showcase must NOT wrap these again: `frameFor` returning `phone` for `radar`
+ * put a phone inside a phone, which is the one arrangement that reads as a bug
+ * rather than as a screen.
+ */
+const SELF_FRAMED: ReadonlySet<string> = new Set([
   "radar",
-  "session-room",
-  "journal",
+  "patient-app",
   "homework",
   "patient-sessions",
+  "journal",
+  "summary",
 ]);
 
 /**
@@ -284,24 +371,20 @@ const PHONE: ReadonlySet<string> = new Set([
  * argues against the product. These get a taller body; the grid still lines up
  * because a row is sized by its tallest tile either way.
  */
-const TALL: ReadonlySet<string> = new Set(["copilot", "transcript"]);
+const TALL: ReadonlySet<string> = new Set(["copilot", "transcript", "note"]);
 
 const PATHS: Readonly<Record<string, string>> = {
   transcript: "/sessions/live",
   note: "/sessions/note",
   risk: "/radar",
   copilot: "/copilot",
-  summary: "/records/summary",
   profile: "/patients",
-  "patient-sessions": "/patient/sessions",
-  homework: "/patient/homework",
-  journal: "/patient/journal",
-  radar: "/radar",
   "session-room": "/sessions/live",
 };
 
 export function frameFor(demo?: string): { as: Frame; path?: string; bodyClassName?: string } {
   if (!demo || demo === "none") return { as: "none" };
+  if (SELF_FRAMED.has(demo)) return { as: "none" };
   if (PHONE.has(demo)) return { as: "phone" };
   return {
     as: "browser",

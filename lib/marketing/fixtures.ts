@@ -183,3 +183,43 @@ export const COMPANY_CODE = {
   joined: 63,
   usedThisMonth: 40,
 };
+
+/* ────────────────────────────────────────────── the patient's own app ── */
+
+/**
+ * 🔴 76.81 — CLINICIANS FOR THE PHONE MOCKUP, and yes, this file deleted some
+ * once. The note further up says why that was right and why this is different.
+ *
+ * Sprint 65 wrote three invented clinicians here so a marketing page could draw
+ * the radar's own card, then deleted them, because the homepage's fold IS the
+ * live radar with the real board on it: a fixture card beside a live map is a
+ * worse demonstration of the same component and a second thing to keep in step.
+ *
+ * That argument is about a card NEXT TO the live map. This is a phone, in a
+ * hero, that a visitor taps through until they have booked — and the one thing
+ * it must never do is book anything. A demo wired to the live radar would show
+ * an empty map at three in the morning and, worse, would need a code path from
+ * a marketing page to a real clinician's calendar. There is no such path, and
+ * these rows are how it stays that way.
+ *
+ * Invented people, surnames Demo and Example, and the licence numbers are the
+ * DEMO- prefix `scripts/demo.ts` uses for exactly this reason.
+ */
+export const RADAR_DEMO: {
+  name: string;
+  title: string;
+  languages: string;
+  priceCents: number;
+  minutes: number;
+  free: boolean;
+}[] = [
+  { name: "Nour Demo", title: "Psychotherapist", languages: "Arabic, English", priceCents: 6_000, minutes: 50, free: true },
+  { name: "Karim Example", title: "Clinical psychologist", languages: "Arabic", priceCents: 7_500, minutes: 50, free: true },
+  { name: "Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 5_000, minutes: 30, free: true },
+];
+
+/** What the patient's billing tab shows: one settled session and one waiting. */
+export const PATIENT_BILLS: { what: string; when: string; cents: number; paid: boolean }[] = [
+  { what: "Session with Nour Demo", when: "12 March", cents: 6_000, paid: false },
+  { what: "Session with Nour Demo", when: "5 March", cents: 6_000, paid: true },
+];

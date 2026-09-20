@@ -148,7 +148,7 @@ export default async function PublicLayout({ children }: { children: React.React
           <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-sm font-bold text-navy-500">24Therapy</p>
-              <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
+              <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-600">
                 Clinical documentation for therapists. Your notes, written while you work.
               </p>
             </div>
@@ -166,7 +166,7 @@ export default async function PublicLayout({ children }: { children: React.React
                 <Link
                   key={item.slug}
                   href={href(`/${item.slug}`)}
-                  className="text-xs text-slate-500 hover:text-slate-900"
+                  className="text-xs text-slate-600 hover:text-slate-900"
                 >
                   {item.label}
                 </Link>
@@ -182,7 +182,7 @@ export default async function PublicLayout({ children }: { children: React.React
                 <Link
                   key={item.href}
                   href={href(item.href)}
-                  className="text-xs text-slate-500 hover:text-slate-900"
+                  className="text-xs text-slate-600 hover:text-slate-900"
                 >
                   {item.label}
                 </Link>
@@ -190,7 +190,7 @@ export default async function PublicLayout({ children }: { children: React.React
             </nav>
           </div>
 
-          <p className="mt-8 text-xs text-slate-400">
+          <p className="mt-8 text-xs text-slate-600">
             © {new Date().getFullYear()} 24Therapy. Not a substitute for clinical judgement.
           </p>
         </div>

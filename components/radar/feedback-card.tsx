@@ -52,7 +52,7 @@ export async function FeedbackCard({
     return (
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">{t("radar.ratings")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-500">
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">
           After a radar session your patient rates you to unlock their summary, so almost all of
           them do. Nothing here yet, your score appears publicly once{" "}
           {RATINGS_VISIBLE_AFTER} people have rated you.
@@ -69,18 +69,18 @@ export async function FeedbackCard({
           <Star className="h-4 w-4 fill-current" aria-hidden />
           {therapistAverage.toFixed(1)}
         </span>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-slate-600">
           from {total} {total === 1 ? "session" : "sessions"}
         </span>
         {serviceAverage > 0 ? (
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-600">
             they rated 24Therapy {serviceAverage.toFixed(1)}
           </span>
         ) : null}
       </div>
 
       {total < RATINGS_VISIBLE_AFTER ? (
-        <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
           Not shown to patients yet. A score goes public at {RATINGS_VISIBLE_AFTER} ratings, one
           bad night should not follow you around at 1.0 stars, and one good one proves nothing.
         </p>
@@ -102,7 +102,7 @@ export async function FeedbackCard({
                   />
                 ))}
               </span>
-              <span className="text-[11px] text-slate-400">{relativeDay(entry.createdAt, zone, locale, t)}</span>
+              <span className="text-[11px] text-slate-600">{relativeDay(entry.createdAt, zone, locale, t)}</span>
             </div>
 
             {entry.tags.length > 0 ? (

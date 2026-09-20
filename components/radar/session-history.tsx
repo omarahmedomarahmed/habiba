@@ -88,7 +88,7 @@ export async function SessionHistory({
     <Card>
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="text-sm font-semibold text-slate-900">{t("thist.title")}</p>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <p className="mt-0.5 text-xs text-slate-600">
           {t("thist.blurb")}
         </p>
       </div>
@@ -110,13 +110,13 @@ export async function SessionHistory({
                       className="inline-flex items-center gap-1 hover:underline"
                     >
                       {row.patientLabel}
-                      <ExternalLink className="h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+                      <ExternalLink className="h-3 w-3 shrink-0 text-slate-600" aria-hidden />
                     </Link>
                   ) : (
                     row.patientLabel
                   )}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-slate-600">
                   {formatDate(row.endedAt ?? row.startedAt ?? new Date(), zone, locale)} ·{" "}
                   {row.modality === "video" ? t("thist.video") : t("thist.inPerson")}
                   {row.copilotAsked > 0
@@ -141,7 +141,7 @@ export async function SessionHistory({
                   the states where nothing is being withheld.
                 */}
                 {accessNote(row) ? (
-                  <p className="mt-1 text-xs text-slate-500">{t(accessNote(row)!)}</p>
+                  <p className="mt-1 text-xs text-slate-600">{t(accessNote(row)!)}</p>
                 ) : null}
               </div>
 
@@ -164,7 +164,7 @@ export async function SessionHistory({
               transaction.
             */}
             {row.paid ? (
-              <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
+              <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-600">
                 <div className="flex gap-1.5">
                   <dt>{t("thist.price")}</dt>
                   <dd className="tabular-nums text-slate-700">
@@ -205,7 +205,7 @@ export async function SessionHistory({
                   <dd className="tabular-nums text-slate-700"><Money cents={row.paid.netCents} /></dd>
                 </div>
                 {row.paid.presentedCurrency && row.paid.presentedCurrency !== row.paid.currency ? (
-                  <div className="basis-full text-slate-400">
+                  <div className="basis-full text-slate-600">
                     {row.paid.payerCountry
                       ? t("thist.paidInFrom", {
                           currency: row.paid.presentedCurrency.toUpperCase(),
@@ -225,7 +225,7 @@ export async function SessionHistory({
               them: the AI ran either way.
             */}
             {row.ownBill ? (
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-slate-600">
                 {t("thist.ownBill")}{" "}
                 <span className="tabular-nums text-slate-700">
                   {row.ownBill.amountCents === 0

@@ -470,7 +470,7 @@ export function RadarPresence({
                           ? t("tpres.joiningTitle")
                           : t("trad.pending")}
                     </p>
-                    <p className="mt-0.5 text-xs text-white/80">
+                    <p className="mt-0.5 text-xs text-white/85">
                       {attention.waiting
                         ? t("tpres.cardWaitingBody")
                         : attention.kind === "confirmed"
@@ -492,7 +492,7 @@ export function RadarPresence({
                     onClick={() => setMuted((m) => !m)}
                     aria-label={muted ? t("tpres.unmute") : t("tpres.silence")}
                     aria-pressed={muted}
-                    className="tap-target flex shrink-0 items-center justify-center rounded-lg text-white/60 hover:text-white"
+                    className="tap-target flex shrink-0 items-center justify-center rounded-lg text-white/85 hover:text-white"
                   >
                     {muted ? (
                       <Volume2 className="h-4 w-4" aria-hidden />
@@ -517,7 +517,7 @@ export function RadarPresence({
                 </Link>
 
                 {muted ? (
-                  <p className="mt-2 text-center text-[11px] text-white/60">
+                  <p className="mt-2 text-center text-[11px] text-white/85">
                     {t("tpres.mutedNote")}
                   </p>
                 ) : null}
@@ -669,12 +669,12 @@ function SoundPrompt({
         <button
           type="button"
           onClick={close}
-          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-500 hover:bg-slate-50"
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-600 hover:bg-slate-50"
         >
           {blocked ? t("tpres.willFix") : online ? t("tpres.notNow") : t("tpres.later")}
         </button>
 
-        <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-400">
+        <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-600">
           {t("tpres.shortRing")}
         </p>
       </div>
@@ -776,7 +776,7 @@ function StatusPill({
             {t("tpres.alertMe")}
           </button>
         ) : permission === "denied" ? (
-          <span className="ms-1 rounded-full bg-white/10 px-2 py-1 text-[11px] text-white/60">
+          <span className="ms-1 rounded-full bg-white/10 px-2 py-1 text-[11px] text-white/85">
             {t("tpres.notifBlocked")}
           </span>
         ) : null}

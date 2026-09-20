@@ -1,5 +1,7 @@
 node_modules/
 .next/
+# Any NEXT_DIST_DIR, so a second dev server beside a build is never committed.
+.next-*/
 out/
 build/
 dist/

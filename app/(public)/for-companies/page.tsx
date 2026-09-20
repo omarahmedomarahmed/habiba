@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CompanyDemo } from "@/components/public/audience-demos";
+import { AudienceHero } from "@/components/public/audience-hero";
 import { Button } from "@/components/ui";
 import { FlowStrip, SeesWhat } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
@@ -49,64 +50,65 @@ export default async function ForCompaniesPage() {
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-      <div className="grid gap-10 lg:grid-cols-2 lg:items-start lg:gap-14">
-        <div>
-          <h1 className="text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            {t("marketing.companies.title")}
-          </h1>
-          <p className="mt-3 text-lg leading-relaxed text-slate-600">
-            {t("marketing.companies.lede")}
-          </p>
+    <main>
+      {/*
+        🔴 76.84 — the band the homepage gives this audience, at the top of the
+        page that is about them. The console is the real `/sponsor` one, so the
+        hero cannot outlive the feature it is about (65.17).
+      */}
+      <AudienceHero
+        eyebrow={t("marketing.companies.eyebrow")}
+        heading={t("marketing.companies.title")}
+        body={t("marketing.companies.lede")}
+        cta={{ label: t("marketing.companies.cta"), href: "/sponsor/apply" }}
+        secondary={{ label: t("nav.contact"), href: "/contact" }}
+        demo={<CompanyDemo />}
+      />
 
-          <div className="mt-8">
-            <SeesWhat
-              who={t("sponsor.apply.seesWho")}
-              can={[
-                t("sponsor.apply.seesCount"),
-                t("sponsor.apply.seesSpend"),
-                t("sponsor.apply.seesWeekly"),
-              ]}
-              cannot={[
-                t("sponsor.neverIndividual"),
-                t("sponsor.neverAttendance"),
-                t("sponsor.neverClinical"),
-              ]}
-            />
-          </div>
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-start lg:gap-14">
+          <SeesWhat
+            who={t("sponsor.apply.seesWho")}
+            can={[
+              t("sponsor.apply.seesCount"),
+              t("sponsor.apply.seesSpend"),
+              t("sponsor.apply.seesWeekly"),
+            ]}
+            cannot={[
+              t("sponsor.neverIndividual"),
+              t("sponsor.neverAttendance"),
+              t("sponsor.neverClinical"),
+            ]}
+          />
 
-          <div className="mt-8">
-            <FlowStrip
-              steps={[
-                {
-                  title: t("marketing.companies.step1"),
-                  detail: t("marketing.companies.step1Body"),
-                },
-                {
-                  title: t("marketing.companies.step2"),
-                  detail: t("marketing.companies.step2Body"),
-                },
-                {
-                  title: t("marketing.companies.step3"),
-                  detail: t("marketing.companies.step3Body"),
-                },
-              ]}
-            />
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/sponsor/apply">
-              <Button size="lg">{t("marketing.companies.cta")}</Button>
-            </Link>
-            <Link href="/contact">
-              <Button size="lg" variant="secondary">
-                {t("nav.contact")}
-              </Button>
-            </Link>
-          </div>
+          <FlowStrip
+            steps={[
+              {
+                title: t("marketing.companies.step1"),
+                detail: t("marketing.companies.step1Body"),
+              },
+              {
+                title: t("marketing.companies.step2"),
+                detail: t("marketing.companies.step2Body"),
+              },
+              {
+                title: t("marketing.companies.step3"),
+                detail: t("marketing.companies.step3Body"),
+              },
+            ]}
+          />
         </div>
 
-        <CompanyDemo />
+        <div className="mt-10 flex flex-wrap gap-3">
+          <Link href="/sponsor/apply">
+            <Button size="lg">{t("marketing.companies.cta")}</Button>
+          </Link>
+          <Link href="/contact">
+            <Button size="lg" variant="secondary">
+              {t("nav.contact")}
+            </Button>
+          </Link>
+        </div>
       </div>
     </main>
   );

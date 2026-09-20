@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ClinicDemo } from "@/components/public/audience-demos";
+import { AudienceHero } from "@/components/public/audience-hero";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -40,38 +41,40 @@ export default async function ForClinicsPage() {
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-      <div className="grid gap-10 lg:grid-cols-2 lg:items-start lg:gap-14">
-        <div>
-          <h1 className="text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            {t("marketing.clinics.title")}
-          </h1>
-          <p className="mt-3 text-lg leading-relaxed text-slate-600">
-            {t("marketing.clinics.lede")}
+    <main>
+      {/*
+        🔴 76.84 — the same band the homepage gives a clinic, on the page that
+        is about clinics. `ClinicConsole` inside it is the real `/clinic` one.
+      */}
+      <AudienceHero
+        eyebrow={t("marketing.clinics.eyebrow")}
+        heading={t("marketing.clinics.title")}
+        body={t("marketing.clinics.lede")}
+        cta={{ label: t("nav.startFree"), href: "/signup" }}
+        secondary={{ label: t("nav.contact"), href: "/contact" }}
+        demo={<ClinicDemo />}
+      />
+
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        <Question q={t("marketing.clinics.q1")} a={t("marketing.clinics.a1")} />
+        <Question q={t("marketing.clinics.q2")} a={t("marketing.clinics.a2")} />
+        <Question q={t("marketing.clinics.q3")} a={t("marketing.clinics.a3")} />
+        <Question q={t("marketing.clinics.q4")} a={t("marketing.clinics.a4")} />
+
+        <Card className="mt-8 border-slate-200 bg-slate-50 p-5">
+          <p className="text-sm font-semibold text-slate-900">
+            {t("marketing.clinics.notYetTitle")}
           </p>
-
-          <Question q={t("marketing.clinics.q1")} a={t("marketing.clinics.a1")} />
-          <Question q={t("marketing.clinics.q2")} a={t("marketing.clinics.a2")} />
-          <Question q={t("marketing.clinics.q3")} a={t("marketing.clinics.a3")} />
-          <Question q={t("marketing.clinics.q4")} a={t("marketing.clinics.a4")} />
-
-          <Card className="mt-8 border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm font-semibold text-slate-900">
-              {t("marketing.clinics.notYetTitle")}
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-              {t("marketing.clinics.notYet")}
-            </p>
-            <Link
-              href="/integrations"
-              className="mt-2 inline-block text-sm font-semibold text-brand-600 underline"
-            >
-              {t("nav.integrations")}
-            </Link>
-          </Card>
-        </div>
-
-        <ClinicDemo />
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-700">
+            {t("marketing.clinics.notYet")}
+          </p>
+          <Link
+            href="/integrations"
+            className="mt-2 inline-block text-sm font-semibold text-brand-600 underline"
+          >
+            {t("nav.integrations")}
+          </Link>
+        </Card>
       </div>
     </main>
   );

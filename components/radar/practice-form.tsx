@@ -129,7 +129,7 @@ export function PracticeForm(props: {
         </span>
         <div>
           <p className="text-sm font-semibold text-slate-900">{t("tprac.title")}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
             {t("tprac.blurb")}
           </p>
         </div>
@@ -191,10 +191,10 @@ export function PracticeForm(props: {
               }}
               className="flex w-full items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-start hover:border-brand-400 hover:bg-brand-50/40"
             >
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
               <span className="min-w-0">
                 <span className="block text-sm text-slate-800">{hit.displayName}</span>
-                <span className="block text-[11px] text-slate-400">
+                <span className="block text-[11px] text-slate-600">
                   {hit.lat}, {hit.lon}
                 </span>
               </span>
@@ -245,7 +245,7 @@ export function PracticeForm(props: {
             <DoorOpen className="h-3.5 w-3.5" aria-hidden />
             {t("tprac.walkIns")}
           </span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+          <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">
             {chosen ? t("tprac.walkInsOn") : t("tprac.walkInsOff")}
           </span>
         </span>

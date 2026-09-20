@@ -105,7 +105,7 @@ function Tile({ children, tone }: { children: React.ReactNode; tone?: "brand" | 
 function NeverTile({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] leading-relaxed text-slate-600">
-      <X className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+      <X className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden />
       <span>{children}</span>
     </div>
   );
@@ -143,7 +143,7 @@ const CLAIM: Step[] = [
         <Tile>
           {t("dfl.recordFound")}
           <p className="mt-1.5 text-lg font-bold tracking-wide text-slate-900">{t("dfl.initials")}</p>
-          <p className="mt-1 text-[11px] text-slate-500">{t("pclaim.initialsOnly")}</p>
+          <p className="mt-1 text-[11px] text-slate-600">{t("pclaim.initialsOnly")}</p>
         </Tile>
         <FakeButton>{t("pclaim.yesSendCode")}</FakeButton>
         <FakeButton variant="secondary">{t("pclaim.notMe")}</FakeButton>
@@ -230,7 +230,7 @@ const CONSENT: Step[] = [
       <Screen title={t("consent.waiting")}>
         <Tile>
           <span className="flex items-start gap-2.5">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden />
             {t("dfl.askedBy", { name: t("dfl.demoTherapist") })}
           </span>
         </Tile>
@@ -281,7 +281,7 @@ const CONSENT: Step[] = [
       <Screen title={t("consent.whoHasAccess")}>
         <Tile>
           <span className="flex items-center gap-2">
-            <Eye className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+            <Eye className="h-4 w-4 shrink-0 text-slate-600" aria-hidden />
             {t("dfl.demoTherapist")}
           </span>
         </Tile>
@@ -301,7 +301,7 @@ const CONSENT: Step[] = [
         <Tile>
           <span className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
-              <EyeOff className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+              <EyeOff className="h-4 w-4 shrink-0 text-slate-600" aria-hidden />
               {t("dfl.demoTherapist")}
             </span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-slate-600 uppercase">
@@ -360,7 +360,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                             ? "bg-brand-600 text-white"
                             : done
                               ? "bg-teal-100 text-teal-700"
-                              : "bg-slate-100 text-slate-500",
+                              : "bg-slate-100 text-slate-600",
                         )}
                       >
                         {done ? <Check className="h-3.5 w-3.5" aria-hidden /> : i + 1}
@@ -415,7 +415,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                   <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
                 </button>
               )}
-              <span className="ms-auto text-[12px] tabular-nums text-slate-500">
+              <span className="ms-auto text-[12px] tabular-nums text-slate-600">
                 {t("dfl.stepOf", { n: at + 1, total: steps.length })}
               </span>
             </div>

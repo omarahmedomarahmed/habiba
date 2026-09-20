@@ -2978,6 +2978,16 @@ export const CONTENT_DEMOS = [
    */
   "summary",
   "journal",
+  /*
+   * 🔴 76.81 — THE WHOLE PATIENT APP, not one of its screens.
+   *
+   * `patient-sessions`, `homework` and `radar` above are single screens, and
+   * they now render this same component opened on their own tab. This name
+   * exists for a page that wants the app itself: five tabs, a live bottom bar,
+   * and the radar's booking flow, which is the one sequence this product
+   * claims to a patient and the one a still frame cannot make.
+   */
+  "patient-app",
   "none",
 ] as const;
 export type ContentDemo = (typeof CONTENT_DEMOS)[number];
@@ -2999,9 +3009,16 @@ export type ContentBlock =
        * company sees the spend chart and the wall, a clinic sees seats and the wall, a
        * patient sees the radar card.
        */
+      /*
+       * 🔴 76.81 — AND `patient-app` IS THE FIFTH, because "radar" here is the
+       * LIVE map with real clinicians on it and a patient arriving needs to see
+       * the app itself as well: five tabs, a live bottom bar, and the booking
+       * sequence run all the way through with no account asked for.
+       */
       demo?:
         | "session-room"
         | "radar"
+        | "patient-app"
         | "note"
         | "none"
         | "company"

@@ -210,7 +210,7 @@ export function Meter({
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-2xl font-bold tabular-nums text-slate-900">{usedLabel}</p>
-        <p className="text-sm text-slate-500">{ofLabel}</p>
+        <p className="text-sm text-slate-600">{ofLabel}</p>
       </div>
       <div
         className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100"
@@ -257,7 +257,7 @@ export function Checklist({
             <p
               className={cn(
                 "text-sm",
-                item.done ? "text-slate-500 line-through" : "font-medium text-slate-900",
+                item.done ? "text-slate-600 line-through" : "font-medium text-slate-900",
               )}
             >
               {item.label}
@@ -295,13 +295,13 @@ export function BeforeAfter({
   return (
     <div className="grid gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 sm:grid-cols-2">
       <div className="bg-white p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
           {beforeLabel}
         </p>
         <div className="mt-1.5 text-sm text-slate-700">{before}</div>
       </div>
       <div className="bg-white p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
           {afterLabel}
         </p>
         <div className="mt-1.5 text-sm text-slate-700">{after}</div>
@@ -338,7 +338,7 @@ export function BeforeAfter({
 export function NeverBar({ label, items }: { label: string; items: string[] }) {
   return (
     <div className="border-t border-slate-200 pt-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{label}</p>
       <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
         {items.map((item) => (
           <li key={item} className="flex items-start gap-1.5 text-xs text-slate-600">
@@ -414,7 +414,7 @@ export function SplitBar({ parts, note }: { parts: SplitPart[]; note?: string })
           </li>
         ))}
       </ul>
-      {note ? <p className="mt-2 text-xs leading-relaxed text-slate-500">{note}</p> : null}
+      {note ? <p className="mt-2 text-xs leading-relaxed text-slate-600">{note}</p> : null}
     </div>
   );
 }

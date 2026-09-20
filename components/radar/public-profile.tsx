@@ -84,7 +84,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
             <p className="mt-1.5 flex items-center gap-1 text-sm font-semibold text-amber-600">
               <Star className="h-3.5 w-3.5 fill-current" aria-hidden />
               {profile.rating.average.toFixed(1)}
-              <span className="font-normal text-slate-500">
+              <span className="font-normal text-slate-600">
                 from {profile.rating.count} rated {profile.rating.count === 1 ? "session" : "sessions"}
               </span>
             </p>
@@ -154,7 +154,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
       </button>
 
       {!bookable ? (
-        <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
+        <p className="mt-2 text-center text-xs leading-relaxed text-slate-600">
           This page updates by itself. Leave it open and the button turns on the moment{" "}
           {profile.firstName} is free.
         </p>
@@ -192,7 +192,7 @@ function AvailabilityLine({ status }: { status: ProfileEntry["status"] }) {
     online: { dot: "bg-teal-500 live-dot", text: "Available now", tone: "text-teal-700 bg-teal-50" },
     pending: { dot: "bg-amber-500", text: "Someone is booking them", tone: "text-amber-700 bg-amber-50" },
     in_session: { dot: "bg-slate-400", text: "In a session", tone: "text-slate-600 bg-slate-100" },
-    offline: { dot: "bg-slate-300", text: "Not on shift", tone: "text-slate-500 bg-slate-100" },
+    offline: { dot: "bg-slate-300", text: "Not on shift", tone: "text-slate-600 bg-slate-100" },
   }[status];
 
   return (
@@ -220,7 +220,7 @@ function Row({
   const t = useT();
   return (
     <div className="flex gap-3">
-      <dt className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-slate-500">
+      <dt className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-slate-600">
         <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {label}
       </dt>

@@ -50,24 +50,24 @@ export default async function IntegrationPage({
     <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <Link
         href="/integrations"
-        className="flex w-fit items-center gap-1 text-sm font-medium text-slate-500"
+        className="flex w-fit items-center gap-1 text-sm font-medium text-slate-600"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
         All integrations
       </Link>
 
-      <p className="mt-6 flex items-center gap-2 text-sm font-semibold text-slate-500">
+      <p className="mt-6 flex items-center gap-2 text-sm font-semibold text-slate-600">
         <StateDot state={entry.state} />
         {STATE_LABEL[entry.state]}
       </p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">{entry.name}</h1>
 
-      <h2 className="mt-8 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+      <h2 className="mt-8 text-sm font-semibold tracking-wide text-slate-600 uppercase">
         What it does today
       </h2>
       <p className="mt-2 leading-relaxed text-slate-700">{entry.today}</p>
 
-      <h2 className="mt-8 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+      <h2 className="mt-8 text-sm font-semibold tracking-wide text-slate-600 uppercase">
         What it does not do
       </h2>
       <p className="mt-2 leading-relaxed text-slate-700">{entry.limits}</p>

@@ -2,27 +2,11 @@
 
 import * as React from "react";
 
-import { NoteCard } from "@/components/clinical/note-card";
-import { RiskBanner } from "@/components/clinical/risk-banner";
-import { TranscriptPanel } from "@/components/clinical/transcript-panel";
-import { PatientSessionList } from "@/components/patient/session-list";
 import type { DemoContent } from "@/lib/content/demo";
-import { DEMO_NOTE, DEMO_TRANSCRIPT } from "./fixtures";
 
-/**
- * 🔴 76.66 — ONE HEIGHT, BECAUSE A GRID ROW THAT STEPS READS AS BROKEN.
- *
- * Each case used to size itself: `h-56` on the scrolling ones, `items-center`
- * on the short ones, nothing on the rest. In a two-column grid that produced
- * three different heights down the page and up to 40% dead white inside a frame,
- * which is the look of an empty screen rather than a busy one.
- *
- * Every desk demo is now this tall and its content fills it. Short content gets
- * the room; long content scrolls and is faded at the cut by `Scroller` below, so
- * the clip reads as "there is more" instead of "this is severed".
- */
-const H = "h-full";
+import { NoteDemo, RiskDemo, TranscriptDemo } from "./clinical-demo";
 import { DeviceFrame, frameFor } from "./device-frame";
+import { PatientApp } from "./patient-app";
 import { SessionCopilot } from "./session-copilot";
 
 /**
@@ -34,43 +18,23 @@ import { SessionCopilot } from "./session-copilot";
  */
 function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }) {
   switch (demo) {
-    case "transcript":
-      return (
-        <div className="overflow-hidden bg-navy-500">
-          <TranscriptPanel
-            lines={content?.transcript ?? DEMO_TRANSCRIPT.slice(0, 5)}
-            live
-            autoScroll={false}
-            className="h-full"
-          />
-        </div>
-      );
-
     /*
-     * 🔴 76.32 — THE NOTE COMES FROM `content` NOW, like everything else here.
+     * 🔴 76.85 — THE THREE CLINICAL DEMOS CARRY THEIR OWN CONTROLS.
      *
-     * It read the English constant directly, so the Arabic homepage rendered
-     * an Arabic conversation and then produced an English note out of it. The
-     * fixture stays as the floor for a caller that has no content, which is
-     * the same two-job arrangement every other case on this switch has.
+     * Each was a still frame of a component whose claim is about something
+     * HAPPENING: a transcript arriving and being stopped, a draft becoming a
+     * note, an alert that can be dismissed because it is a prompt rather than
+     * a safety net. See `clinical-demo.tsx` for why each control is the real
+     * one rather than a demo flourish.
      */
+    case "transcript":
+      return <TranscriptDemo content={content} />;
+
     case "note":
-      return (
-        <Scroller className="bg-white">
-          <NoteCard note={content?.note ?? DEMO_NOTE} status="draft" compact patientLabel="demo" />
-        </Scroller>
-      );
+      return <NoteDemo content={content} />;
 
     case "risk":
-      return (
-        <div className={`${H} bg-slate-50 p-3`}>
-          <RiskBanner
-            level="high"
-            indicators={[content?.riskIndicator ?? "want to die"]}
-            className="w-full"
-          />
-        </div>
-      );
+      return <RiskDemo content={content} />;
 
     /*
      * 🔴 76.70 — THE REAL THING, not a list of the things it might say.
@@ -90,42 +54,37 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      * demo rows: it has no field that *could* hold a clinical sentence, which
      * is the point being demonstrated as well as the safety property.
      */
+    /*
+     * 🔴 76.81 — THE PATIENT'S SCREENS ARE THE PATIENT'S APP NOW.
+     *
+     * Each of these used to be one screen under a drawn, dead bottom bar, so a
+     * reader could see the app HAD a Sessions tab and never find out what was
+     * on it. They render the same component opened on their own tab: five real
+     * tabs, the screen's name at the top where the app puts it, and the radar's
+     * booking flow live. A page asking for `homework` still gets the homework
+     * screen; it just gets it inside something a person can move around in.
+     */
     case "patient-sessions":
-      return (
-        <Scroller className="bg-slate-50 p-3">
-          <PatientSessionList
-            zone="UTC"
-            sessions={(content?.patientSessions ?? []).map((row, i) => ({
-              id: `demo-${i}`,
-              // 47.4 — the demo's invented rows say nothing was recorded,
-              // which is the honest default and the safest thing to show a
-              // stranger on a marketing page.
-              provenance: null,
-              group: i === 0 ? "today" : "past_scheduled",
-              at: new Date(Date.UTC(2026, 2, 12 + (i === 0 ? 1 : -6), 18, 0)),
-              therapistName: row.therapist,
-              modality: "video",
-              priceCents: 0,
-              priceCurrency: "egp",
-              paymentStatus: "not_required",
-              brief: row.brief,
-              briefPending: false,
-            }))}
-          />
-        </Scroller>
-      );
+      return <PatientApp content={content} initial="sessions" />;
 
     case "homework":
-      return (
-        <Scroller className="space-y-2 bg-white p-3">
-          {(content?.homework ?? []).map((item) => (
-            <div key={item.title} className="rounded-xl border border-slate-200 p-3">
-              <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{item.detail}</p>
-            </div>
-          ))}
-        </Scroller>
-      );
+      return <PatientApp content={content} initial="steps" />;
+
+    case "radar":
+    case "patient-app":
+      return <PatientApp content={content} initial="radar" />;
+
+    /*
+     * 🔴 76.81 — THE JOURNAL AND THE SUMMARY ARE SCREENS OF HER APP, not two
+     * cards that happen to be phone-shaped. They hang off the home screen in
+     * the real product and they hang off it here, so a reader who arrives at
+     * the journal can find out what else is on the device they are holding.
+     */
+    case "journal":
+      return <PatientApp content={content} initial="sessions" open="journal" />;
+
+    case "summary":
+      return <PatientApp content={content} initial="sessions" open="summary" />;
 
     /*
      * The rolling profile, shown as what it is: dated observations, each one
@@ -143,50 +102,6 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
                 <p className="text-sm leading-snug text-slate-700">{row.text}</p>
               </li>
             ))}
-        </Scroller>
-      );
-
-    /*
-     * 🔴 28.6 — the portability argument, shown rather than asserted.
-     *
-     * Two versions with two different clinicians' names on them. That is the
-     * whole claim of this product to a patient, and a paragraph saying "your
-     * record follows you" is worth less than the picture of it having done so.
-     * Invented people, a real layout.
-     */
-    case "summary":
-      return (
-        <Scroller as="ul" className="space-y-2.5 bg-white p-3">
-          {(content?.summaryVersions ?? []).map((version) => (
-            <li key={version.version} className="rounded-xl border border-slate-200 p-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                <p className="text-sm font-semibold text-slate-900">{version.author}</p>
-                <p className="text-[11px] text-slate-400">
-                  Version {version.version}
-                  {version.on ? ` · ${version.on}` : ""}
-                </p>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">{version.body}</p>
-            </li>
-          ))}
-        </Scroller>
-      );
-
-    /*
-     * The journal, and note what is NOT drawn beside it: no shield, no "your
-     * therapist is reading this", no reassurance. C123 governs the real screen
-     * and it governs the picture of the screen, because a demonstration that
-     * promises a watch is the same false promise in a smaller frame.
-     */
-    case "journal":
-      return (
-        <Scroller as="ul" className="space-y-2.5 bg-slate-50 p-3">
-          {(content?.journalEntries ?? []).map((entry) => (
-            <li key={entry.on} className="rounded-xl bg-white p-3">
-              <p className="text-[11px] text-slate-400">{entry.on}</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-700">{entry.text}</p>
-            </li>
-          ))}
         </Scroller>
       );
 

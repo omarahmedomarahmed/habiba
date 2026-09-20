@@ -116,7 +116,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
               ? `${onlineCount} ${onlineCount === 1 ? "therapist" : "therapists"} available now`
               : "No one on the radar this minute"}
           </p>
-          <p className="hidden items-center gap-1.5 text-xs text-white/50 sm:flex">
+          <p className="hidden items-center gap-1.5 text-xs text-white/85 sm:flex">
             {refreshing ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
             Drag to spin · tap a country
           </p>
@@ -126,7 +126,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
       {entries.length > 0 ? (
         <div className="space-y-2">
           <RadarFilters entries={entries} value={filter} onChange={setFilter} />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-600">
             Showing {visible.length} of {entries.length}
           </p>
         </div>

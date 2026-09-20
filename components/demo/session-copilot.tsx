@@ -191,7 +191,7 @@ export function SessionCopilot({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
-          <span className="text-[11px] font-medium text-slate-500">{t("dcp.inSession")}</span>
+          <span className="text-[11px] font-medium text-slate-600">{t("dcp.inSession")}</span>
         </span>
       </div>
 
@@ -207,7 +207,7 @@ export function SessionCopilot({
         className="no-scrollbar min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 py-3.5"
       >
         {entries.length === 0 ? (
-          <p className="pt-6 text-center text-sm text-slate-500">{t("dcp.quiet")}</p>
+          <p className="pt-6 text-center text-sm text-slate-600">{t("dcp.quiet")}</p>
         ) : null}
 
         {entries.map((entry) => (
@@ -264,7 +264,7 @@ export function SessionCopilot({
             placeholder={
               remaining.length > 0 ? t("dcp.askOwn") : t("dcp.askAnything")
             }
-            className="min-w-0 flex-1 bg-transparent text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-slate-900 placeholder:text-slate-500 focus:outline-none"
           />
           <Send className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
         </div>

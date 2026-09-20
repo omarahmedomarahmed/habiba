@@ -140,7 +140,7 @@ export function Comparison({ block }: { block: Block }) {
                     <OursIcon
                       className={cn(
                         "mt-0.5 h-4 w-4 shrink-0",
-                        row.concede ? "text-slate-400" : "text-brand-600",
+                        row.concede ? "text-slate-600" : "text-brand-600",
                       )}
                       aria-hidden
                     />
@@ -159,7 +159,7 @@ export function Comparison({ block }: { block: Block }) {
                     <TheirsIcon
                       className={cn(
                         "mt-0.5 h-4 w-4 shrink-0",
-                        row.concede ? "text-emerald-600" : "text-slate-400",
+                        row.concede ? "text-emerald-600" : "text-slate-600",
                       )}
                       aria-hidden
                     />

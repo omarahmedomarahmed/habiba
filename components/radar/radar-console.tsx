@@ -123,7 +123,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
     visible.length === 0 ? (
       <div className="rounded-2xl bg-white/5 p-4 text-center">
         <p className="text-sm font-semibold text-white">{t("radar.nobodyMatchingTitle")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-white/60">
+        <p className="mt-1 text-xs leading-relaxed text-white/85">
           {onlineCount === 1
             ? t("radar.othersAvailableOne")
             : t("radar.othersAvailableMany", { count: onlineCount })}
@@ -206,7 +206,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
           <span className="text-sm font-semibold text-white tabular-nums">
             {onlineCount > 0 ? onlineCount : t("radar.noOne")}
           </span>
-          <span className="text-sm text-white/60">
+          <span className="text-sm text-white/85">
             {onlineCount === 1
               ? t("radar.oneOnShift")
               : onlineCount > 0
@@ -220,7 +220,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
 
         <div className="flex items-center gap-2">
           {view === "map" ? (
-            <p className="pointer-events-none hidden rounded-full bg-[#04101f]/70 px-3 py-1.5 text-xs text-white/45 backdrop-blur lg:block">
+            <p className="pointer-events-none hidden rounded-full bg-[#04101f]/70 px-3 py-1.5 text-xs text-white/85 backdrop-blur lg:block">
               {t("radar.dragToSpin")}
             </p>
           ) : null}
@@ -241,7 +241,7 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
                 aria-pressed={view === option}
                 className={cn(
                   "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                  view === option ? "bg-white/15 text-white" : "text-white/50 hover:text-white/80",
+                  view === option ? "bg-white/15 text-white" : "text-white/85 hover:text-white/85",
                 )}
               >
                 {option === "map" ? t("radar.mapView") : t("radar.listView")}
@@ -308,13 +308,13 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
                 "flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
                 sheetOpen && mobileTab === tab
                   ? "bg-white/10 text-white"
-                  : "text-white/55 hover:text-white/80",
+                  : "text-white/85 hover:text-white/85",
               )}
             >
               {tab === "list" ? t("radar.countFree", { count: visible.length }) : filterSummary}
             </button>
           ))}
-          <span className="flex h-9 w-9 items-center justify-center text-white/40">
+          <span className="flex h-9 w-9 items-center justify-center text-white/85">
             <ChevronDown
               className={cn("h-4 w-4 transition-transform", sheetOpen && "rotate-180")}
               aria-hidden
@@ -375,9 +375,9 @@ function Panel({
           <span className="block text-[11px] font-bold tracking-wider text-teal-300 uppercase">
             {title}
           </span>
-          <span className="block truncate text-sm text-white/70">{summary}</span>
+          <span className="block truncate text-sm text-white/85">{summary}</span>
         </span>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/40">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/85">
           {open ? (
             <Icon className="hidden h-4 w-4 sm:block" aria-hidden />
           ) : (
@@ -402,7 +402,7 @@ export function RadarSafetyLine() {
   const t = useT();
 
   return (
-    <p className="flex items-center justify-center gap-2 bg-[#04101f] px-4 py-2.5 text-center text-xs text-white/45">
+    <p className="flex items-center justify-center gap-2 bg-[#04101f] px-4 py-2.5 text-center text-xs text-white/85">
       <Radio className="h-3 w-3 shrink-0" aria-hidden />
       {t("crisis.notEmergency")}
     </p>

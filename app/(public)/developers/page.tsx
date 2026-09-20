@@ -162,7 +162,7 @@ GET /api/partner/v1/notes/<sessionId>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900">{t(title)}</p>
               <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{t(body)}</p>
-              <p className="mt-1 overflow-x-auto whitespace-nowrap font-mono text-xs text-slate-500">
+              <p className="mt-1 overflow-x-auto whitespace-nowrap font-mono text-xs text-slate-600">
                 {route}
               </p>
             </div>
@@ -293,7 +293,7 @@ function UseCase({
     <section className="border-s-2 border-slate-200 ps-4">
       <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
       <p className="mt-1.5 leading-relaxed text-slate-600">{body}</p>
-      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
         {exampleLabel}
       </p>
       {/*

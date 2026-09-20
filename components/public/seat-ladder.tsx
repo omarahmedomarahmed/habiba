@@ -83,7 +83,7 @@ export function SeatLadder({
         <table className="w-full text-sm">
           <thead>
             {/* 🔴 19.3 — `text-start`, never `text-left`. Arabic is a layout. */}
-            <tr className="border-b border-slate-200 text-start text-xs uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-slate-200 text-start text-xs uppercase tracking-wide text-slate-600">
               <th scope="col" className="px-5 py-3 font-medium">
                 {strings.headSeats}
               </th>
@@ -112,7 +112,7 @@ export function SeatLadder({
       <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
         <label
           htmlFor="seat-ladder"
-          className="text-xs font-medium uppercase tracking-wide text-slate-500"
+          className="text-xs font-medium uppercase tracking-wide text-slate-600"
         >
           {strings.sliderLabel}
         </label>

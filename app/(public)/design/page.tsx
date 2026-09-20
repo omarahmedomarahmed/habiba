@@ -32,8 +32,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const THERAPIST = ["transcript", "note", "risk", "copilot", "profile", "summary"] as const;
-const PATIENT = ["patient-sessions", "homework", "journal"] as const;
+const THERAPIST = ["transcript", "note", "risk", "copilot", "profile"] as const;
+/*
+ * 🔴 76.81 — `summary` MOVED SIDES, and it was on the wrong one.
+ *
+ * The clinical summary is the patient's screen: it is what she hands to the
+ * next therapist, it lives at `/patient/summary`, and it renders inside her app
+ * with the bottom bar under it. It sat in the clinician's row because the
+ * portability argument is usually made TO a clinician, which is a fact about
+ * the pitch rather than about who opens the screen.
+ */
+const PATIENT = ["patient-app", "patient-sessions", "homework", "journal", "summary"] as const;
 
 /** Anything in the vocabulary not placed in an audience row above. */
 const PLACED = new Set<string>([...THERAPIST, ...PATIENT]);
@@ -65,14 +74,14 @@ export default async function UiReferencePage() {
           <div className="grid gap-8 lg:grid-cols-2">
             <Labelled label="browser · a screen used at a desk">
               <DeviceFrame as="browser" path="/admin/actuals">
-                <div className="grid h-64 place-items-center bg-white text-sm text-slate-400">
+                <div className="grid h-64 place-items-center bg-white text-sm text-slate-600">
                   any desk screen
                 </div>
               </DeviceFrame>
             </Labelled>
             <Labelled label="phone · a screen used in the room">
               <DeviceFrame as="phone">
-                <div className="grid h-full place-items-center bg-white text-sm text-slate-400">
+                <div className="grid h-full place-items-center bg-white text-sm text-slate-600">
                   any phone screen
                 </div>
               </DeviceFrame>
@@ -192,7 +201,7 @@ function Section({
   return (
     <section className="mt-16 border-t border-slate-200 pt-10">
       <div className="max-w-2xl">
-        <p className="font-mono text-xs font-semibold text-slate-400">{n}</p>
+        <p className="font-mono text-xs font-semibold text-slate-600">{n}</p>
         <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{title}</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">{note}</p>
       </div>
@@ -216,7 +225,7 @@ function Audience({
   return (
     <section className="mt-16 border-t border-slate-200 pt-10">
       <div className="max-w-2xl">
-        <p className="font-mono text-xs font-semibold text-slate-400">{n}</p>
+        <p className="font-mono text-xs font-semibold text-slate-600">{n}</p>
         <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{who}</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">{note}</p>
       </div>
@@ -228,7 +237,7 @@ function Audience({
 function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-3 font-mono text-[11px] tracking-wide text-slate-500">{label}</p>
+      <p className="mb-3 font-mono text-[11px] tracking-wide text-slate-600">{label}</p>
       {children}
     </div>
   );

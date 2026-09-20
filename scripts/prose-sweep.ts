@@ -196,6 +196,20 @@ const PORTALS: Record<string, readonly string[]> = {
    * by a visitor deciding whether to buy, not by the person who works in it, and
    * counting it against the clinic's ratchet would hand the clinic portal a wall
    * of text nobody there has to read.
+   *
+   * 🔴 77.9 — AND `pat` IS THE SAME ARGUMENT, WHICH IS WHY IT IS HERE AND NOT
+   * IN `patient`.
+   *
+   *   grep -rn 't("pat\.' app components lib     -> components/demo/patient-app.tsx
+   *   grep -rn 't("dclin\.' app components lib   -> components/demo/clinical-demo.tsx
+   *
+   * `pat` would fall to `patient` under the letter rule below, because it
+   * starts with a `p` and that rule is how sixty real patient prefixes are
+   * caught. It is not the patient app: it is the DEMO of the patient app, in a
+   * hero, read by somebody deciding whether to use this. Counting it against
+   * the patient portal's ratchet would charge a person in distress for the
+   * words a visitor reads, which is the exact misattribution this map's own
+   * header warns about, in the other direction.
    */
   public: [
     "pricing",
@@ -206,8 +220,10 @@ const PORTALS: Record<string, readonly string[]> = {
     "hdemo",
     "cmp",
     "dcp",
+    "dclin",
     "dfl",
     "dpo",
+    "pat",
     "pr2",
   ],
   admin: ["admin", "aclinic", "apartner", "asponsor", "acheckin"],

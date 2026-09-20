@@ -60,11 +60,29 @@ const ROOT = process.cwd();
  * control at the bottom of `verify:reachable` now asserts the count of files
  * under `components/public` for exactly this reason.
  */
-const SKIP_AT_ROOT = ["node_modules", ".next", ".git", "drizzle", "public", ".render", ".vercel"];
+const SKIP_AT_ROOT = ["node_modules", ".git", "drizzle", "public", ".render", ".vercel"];
+
+/**
+ * 🔴 77.7 — ANY NEXT BUILD DIRECTORY, not the one called `.next`.
+ *
+ * `.next` was named and `.next-dev` was not, and `NEXT_DIST_DIR=.next-dev` is
+ * how a second dev server runs beside a build. Next writes a typed route stub
+ * per route into `<dist>/types/app/**`, each one a real `.ts` file containing
+ * the route's own path — so the scan found `/api/cron` inside a generated file
+ * and concluded the route had an in-repo caller. 58.4 then failed the
+ * allowlist entry as stale, which is the gate reporting on a build artefact
+ * and calling it coverage.
+ *
+ * A prefix rather than a second name: the next person to set `NEXT_DIST_DIR`
+ * will not think to come here.
+ */
+function isBuildDir(entry: string): boolean {
+  return entry.startsWith(".next");
+}
 
 function walk(dir: string, out: string[] = [], depth = 0): string[] {
   for (const entry of readdirSync(dir)) {
-    if (depth === 0 && SKIP_AT_ROOT.includes(entry)) continue;
+    if (depth === 0 && (SKIP_AT_ROOT.includes(entry) || isBuildDir(entry))) continue;
     if (entry === "node_modules" || entry === ".git") continue;
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) walk(path, out, depth + 1);

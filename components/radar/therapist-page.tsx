@@ -62,7 +62,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
       */}
       {reliability.rate !== null ? (
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-600">
             Turned up to {Math.round(reliability.rate * 100)}% of {reliability.sessions} booked
             sessions.
           </p>
@@ -77,7 +77,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
       */}
       {profile.sessionRateCents > 0 ? (
         <div className="mx-auto max-w-2xl px-4 pt-2 sm:px-6">
-          <p className="flex items-center gap-2 text-sm text-slate-500">
+          <p className="flex items-center gap-2 text-sm text-slate-600">
             {t("radar.oneHour")}
             <PriceTag usdCents={profile.sessionRateCents} rateMicro={egpRate} locale={tag} />
           </p>

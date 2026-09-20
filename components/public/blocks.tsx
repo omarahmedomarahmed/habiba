@@ -277,7 +277,7 @@ function Hero({
               {block.icon ? (
                 <ContentIconMark name={block.icon} tone="light" />
               ) : null}
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/85">
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
                 {block.eyebrow}
               </span>
@@ -300,7 +300,7 @@ function Hero({
           </div>
 
           {block.body ? (
-            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-white/65">
+            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-white/85">
               {block.body}
             </p>
           ) : null}
@@ -352,16 +352,32 @@ function Hero({
             content={demo}
             labels={{
               inProgress: t("hdemo.inProgress"),
+              ended: t("hdemo.ended"),
               meta: t("hdemo.meta"),
               play: t("hdemo.play"),
               pause: t("hdemo.pause"),
               replay: t("hdemo.replay"),
+              recording: t("hdemo.recording"),
+              endSession: t("hdemo.endSession"),
               waiting: t("hdemo.waiting"),
               generated: t("hdemo.generated"),
               disclaimer: t("hdemo.disclaimer"),
               patientLabel: t("hdemo.patientLabel"),
             }}
           />
+        ) : null}
+        {/*
+          🔴 76.81 — THE PATIENT'S APP, IN A HERO, WORKING.
+
+          Every other demo on this page is a screen a reader looks at. This one
+          is a sequence a reader RUNS: open the radar, pick somebody, see the
+          price with the tax on it, go in — and the session then appears on the
+          Sessions tab, because the claim being made is that it takes three taps
+          and no account, and a claim about a sequence cannot be made by a still
+          frame. It books nothing; see the component.
+        */}
+        {block.demo === "patient-app" ? (
+          <ComponentShowcase demo="patient-app" content={demo} />
         ) : null}
         {block.demo === "company" ? <CompanyDemo /> : null}
         {block.demo === "clinic" ? <ClinicDemo /> : null}
@@ -543,7 +559,7 @@ function Cta({ block }: { block: Extract<ContentBlock, { type: "cta" }> }) {
             {block.heading}
           </h2>
           {block.body ? (
-            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/65">
+            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/85">
               {block.body}
             </p>
           ) : null}
@@ -673,7 +689,7 @@ function Companies({
               <dl className="mt-3 space-y-1.5 text-sm">
                 {company.address ? (
                   <div>
-                    <dt className="text-xs text-slate-400">
+                    <dt className="text-xs text-slate-600">
                       {t("blocks.address")}
                     </dt>
                     <dd className="whitespace-pre-line text-slate-700">
@@ -683,7 +699,7 @@ function Companies({
                 ) : null}
                 {company.phone ? (
                   <div>
-                    <dt className="text-xs text-slate-400">
+                    <dt className="text-xs text-slate-600">
                       {t("blocks.phone")}
                     </dt>
                     <dd>
@@ -698,7 +714,7 @@ function Companies({
                 ) : null}
                 {company.email ? (
                   <div>
-                    <dt className="text-xs text-slate-400">
+                    <dt className="text-xs text-slate-600">
                       {t("blocks.email")}
                     </dt>
                     <dd>
@@ -713,7 +729,7 @@ function Companies({
                 ) : null}
                 {company.hours ? (
                   <div>
-                    <dt className="text-xs text-slate-400">
+                    <dt className="text-xs text-slate-600">
                       {t("blocks.hours")}
                     </dt>
                     <dd className="text-slate-700">{company.hours}</dd>

@@ -43,7 +43,7 @@ export default async function ContentPage({ params }: { params: Promise<{ slug: 
       <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">{page.title}</h1>
         {page.description ? (
-          <p className="mt-2 text-[15px] text-slate-500">{page.description}</p>
+          <p className="mt-2 text-[15px] text-slate-600">{page.description}</p>
         ) : null}
         <div className="mt-6 -mx-4 sm:-mx-6">
           <BlockRenderer blocks={page.blocks} slug={slug} />

@@ -169,7 +169,7 @@ export function TherapistConsole(props: ConsoleProps) {
               "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
               online
                 ? "border-teal-400/40 bg-teal-400/15 text-teal-300"
-                : "border-white/15 bg-white/5 text-white/60",
+                : "border-white/15 bg-white/5 text-white/85",
             )}
           >
             <Radio className={cn("h-3 w-3", online && "live-dot")} aria-hidden />
@@ -185,19 +185,19 @@ export function TherapistConsole(props: ConsoleProps) {
           <p className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
             {online ? t("trad.headlineOn") : t("trad.headlineOff")}
           </p>
-          <p className="mt-2 max-w-md text-sm leading-relaxed text-white/60">
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-white/85">
             {online ? t("trad.bodyOn") : t("trad.bodyOff")}
           </p>
 
           <dl className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <dt className="text-xs text-white/50">{t("trad.rate")}</dt>
+              <dt className="text-xs text-white/85">{t("trad.rate")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-white">
                 {props.sessionRateCents > 0 ? formatUsd(props.sessionRateCents) : t("trad.free")}
               </dd>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-              <dt className="text-xs text-white/50">{t("trad.youKeep")}</dt>
+              <dt className="text-xs text-white/85">{t("trad.youKeep")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-teal-300">
                 {props.sessionRateCents > 0
                   ? formatUsd(props.sessionRateCents - Math.floor((props.sessionRateCents * 1000) / 10_000))
@@ -266,7 +266,7 @@ export function TherapistConsole(props: ConsoleProps) {
           ) : null}
 
           {!props.country ? (
-            <p className="mt-2 text-center text-xs text-white/40">
+            <p className="mt-2 text-center text-xs text-white/85">
               {t("trad.addCountry")}
             </p>
           ) : null}
@@ -298,7 +298,7 @@ export function TherapistConsole(props: ConsoleProps) {
       {/* --------------------------------------------------------- profile */}
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">{t("trad.profile")}</p>
-        <p className="mt-0.5 text-sm text-slate-500">
+        <p className="mt-0.5 text-sm text-slate-600">
           {t("trad.profileBody")}
         </p>
 
@@ -486,7 +486,7 @@ function GoOnlineSound({
         <button
           type="button"
           onClick={() => (failed ? onArmed(false) : onCancel())}
-          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-500 hover:bg-slate-50"
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-600 hover:bg-slate-50"
         >
           {failed ? t("trad.goWithoutSound") : t("common.cancel")}
         </button>
@@ -527,7 +527,7 @@ function AlertSettings({
           {t("trad.alertSounds")}
         </p>
         {pending ? (
-          <span className="text-xs text-slate-400">{t("common.saving")}</span>
+          <span className="text-xs text-slate-600">{t("common.saving")}</span>
         ) : saved ? (
           <span className="text-xs text-emerald-600">{t("common.saved")}</span>
         ) : null}
@@ -599,7 +599,7 @@ function AlertSettings({
         )}
       </div>
 
-      <p className="mt-2.5 text-xs leading-relaxed text-slate-500">
+      <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
         {t("trad.soundsNote")}
       </p>
     </Card>
@@ -632,7 +632,7 @@ function AlertToggle({
       />
       <span className="min-w-0">
         <span className="block text-sm font-medium text-slate-800">{title}</span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{body}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">{body}</span>
       </span>
     </label>
   );

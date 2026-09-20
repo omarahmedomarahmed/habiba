@@ -166,7 +166,7 @@ export function RadarOrb({
                 <span className={cn("h-2 w-2 shrink-0 rounded-full", DOT[tone])} />
                 {t(LABEL[tone]!)}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-600">
                 {tone === "off"
                   ? t("torb.offBody")
                   : tone === "live"
@@ -184,7 +184,7 @@ export function RadarOrb({
               type="button"
               onClick={() => setOpen(false)}
               aria-label={t("common.close")}
-              className="tap-target -me-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
+              className="tap-target -me-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -216,7 +216,7 @@ export function RadarOrb({
 
             <dl className="space-y-1.5 text-sm">
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-500">{t("torb.rate")}</dt>
+                <dt className="text-slate-600">{t("torb.rate")}</dt>
                 <dd className="font-medium tabular-nums text-slate-900">
                   {sessionRateCents > 0 ? formatUsd(sessionRateCents) : t("trad.free")}
                 </dd>
@@ -258,15 +258,15 @@ export function RadarOrb({
                   <span className="block text-sm font-medium text-slate-800">
                     {t("torb.walkIns")}
                   </span>
-                  <span className="mt-0.5 block text-xs text-slate-500">
+                  <span className="mt-0.5 block text-xs text-slate-600">
                     {practiceConfirmed ? t("torb.walkInsOn") : t("torb.walkInsOff")}
                   </span>
                 </span>
               </label>
 
               {practiceAddress ? (
-                <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
-                  <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+                <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-600">
+                  <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-slate-600" aria-hidden />
                   <span className="min-w-0 break-words">{practiceAddress}</span>
                 </p>
               ) : null}
@@ -286,7 +286,7 @@ export function RadarOrb({
 
             <Link
               href="/on-call"
-              className="block pt-1 text-center text-xs font-medium text-slate-500 hover:text-slate-800"
+              className="block pt-1 text-center text-xs font-medium text-slate-600 hover:text-slate-800"
             >
               {t("torb.fullSettings")}
             </Link>
@@ -318,7 +318,7 @@ export function RadarOrb({
           the same thing.
         */}
         <Radio
-          className={cn("h-5 w-5", tone === "off" ? "text-slate-500" : "text-white")}
+          className={cn("h-5 w-5", tone === "off" ? "text-slate-600" : "text-white")}
           aria-hidden
         />
         <span

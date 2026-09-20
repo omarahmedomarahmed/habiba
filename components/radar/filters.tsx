@@ -246,7 +246,7 @@ function Chip({
             ? "border-teal-400 bg-teal-400/20 text-teal-100"
             : "border-teal-500 bg-teal-50 text-teal-800"
           : dark
-            ? "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+            ? "border-white/10 bg-white/5 text-white/85 hover:bg-white/10"
             : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
       )}
     >
@@ -259,8 +259,8 @@ function Chip({
               ? "bg-teal-400/30 text-teal-50"
               : "bg-teal-200 text-teal-900"
             : dark
-              ? "bg-white/10 text-white/50"
-              : "bg-slate-100 text-slate-500",
+              ? "bg-white/10 text-white/85"
+              : "bg-slate-100 text-slate-600",
         )}
       >
         {count}

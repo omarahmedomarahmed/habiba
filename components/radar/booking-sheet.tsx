@@ -181,7 +181,7 @@ export function BookingSheet({
           type="button"
           onClick={onClose}
           aria-label={t("common.close")}
-          className="tap-target absolute top-3 end-3 flex items-center justify-center text-slate-400 hover:text-slate-700"
+          className="tap-target absolute top-3 end-3 flex items-center justify-center text-slate-600 hover:text-slate-700"
         >
           <X className="h-5 w-5" aria-hidden />
         </button>
@@ -193,7 +193,7 @@ export function BookingSheet({
               {fullName(entry.firstName, entry.lastName, "Clinician")}
             </p>
             {entry.credentials ? (
-              <p className="text-sm text-slate-500">{entry.credentials}</p>
+              <p className="text-sm text-slate-600">{entry.credentials}</p>
             ) : null}
             <div className="mt-1.5">
               <StatusPill status={entry.status} />
@@ -304,7 +304,7 @@ export function BookingSheet({
             ) : null}
 
             <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3 text-white">
-              <span className="text-sm text-white/70">{t("radar.thirtyMinutes")}</span>
+              <span className="text-sm text-white/85">{t("radar.thirtyMinutes")}</span>
               <span className="text-2xl font-bold tracking-tight">
                 {entry.sessionRateCents > 0 ? formatUsd(entry.sessionRateCents) : "Free"}
               </span>
@@ -343,11 +343,11 @@ export function BookingSheet({
               the fix when the fix happens. It renders `crisis.notEmergency`, the line
               `lib/crisis` already owns, and `pbook.noAccount` is about payment only.
             */}
-            <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
+            <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-600">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               {t("pbook.noAccount")}
             </p>
-            <p className="text-xs leading-relaxed text-slate-500">{t("crisis.notEmergency")}</p>
+            <p className="text-xs leading-relaxed text-slate-600">{t("crisis.notEmergency")}</p>
           </form>
         ) : (
           <p className="mt-5 rounded-xl bg-slate-100 px-3.5 py-3 text-sm text-slate-600">
@@ -372,7 +372,7 @@ function Row({
   const t = useT();
   return (
     <div className="flex gap-2">
-      <dt className="flex w-24 shrink-0 items-center gap-1.5 text-slate-400">
+      <dt className="flex w-24 shrink-0 items-center gap-1.5 text-slate-600">
         {icon}
         {label}
       </dt>

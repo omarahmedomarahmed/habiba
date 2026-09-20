@@ -368,7 +368,7 @@ export async function PricingTiers({
               }
             >
               <p className="text-sm font-bold text-slate-900">{card.name}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{card.who}</p>
+              <p className="mt-0.5 text-xs text-slate-600">{card.who}</p>
 
               <div className="mt-4">{card.price}</div>
               <p className="mt-2 text-[13px] leading-relaxed text-slate-600">{card.under}</p>
@@ -388,7 +388,7 @@ export async function PricingTiers({
                 </Button>
               </Link>
               {card.note ? (
-                <p className="mt-2 text-center text-[11px] text-slate-500">{card.note}</p>
+                <p className="mt-2 text-center text-[11px] text-slate-600">{card.note}</p>
               ) : null}
             </div>
           ))}
@@ -446,7 +446,7 @@ export async function PricingTiers({
                             {cell === YES ? (
                               <Check className="h-4 w-4 text-teal-500" aria-label={t("pr2.includedWord")} />
                             ) : cell === NO ? (
-                              <span className="text-slate-400">{t("pr2.notIncluded")}</span>
+                              <span className="text-slate-600">{t("pr2.notIncluded")}</span>
                             ) : (
                               cell
                             )}

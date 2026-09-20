@@ -85,7 +85,7 @@ export function RadarList({
                 </span>
                 <StatusPill status={entry.status} dark mine={entry.reservedByYou} />
               </span>
-              <span className="mt-0.5 block text-xs text-white/50">
+              <span className="mt-0.5 block text-xs text-white/85">
                 {[entry.credentials, entry.city, entry.country].filter(Boolean).join(" · ")}
               </span>
             </span>
@@ -103,7 +103,7 @@ export function RadarList({
                 entry.languages.map((language) => (
                   <span
                     key={language}
-                    className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/70"
+                    className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/85"
                   >
                     {language}
                   </span>
@@ -138,7 +138,7 @@ export function RadarList({
                 <span className="flex items-center gap-1 text-sm font-semibold text-amber-300">
                   <Star className="h-3.5 w-3.5 fill-current" aria-hidden />
                   {entry.rating.average.toFixed(1)}
-                  <span className="text-xs font-normal text-white/40">
+                  <span className="text-xs font-normal text-white/85">
                     ({entry.rating.count})
                   </span>
                 </span>
@@ -155,7 +155,7 @@ export function RadarList({
                   ? formatUsd(entry.sessionRateCents)
                   : t("radar.free")}
               </span>
-              <span className="block text-[10px] text-white/40">{t("radar.perHalfHour")}</span>
+              <span className="block text-[10px] text-white/85">{t("radar.perHalfHour")}</span>
             </span>
           </button>
         </li>

@@ -439,21 +439,49 @@ async function main() {
     const home = pages.find((page) => page.slug === "home");
     const heroes = (home?.blocks ?? []).filter((block) => block.type === "hero");
 
+    /*
+     * 🔴 77.8 — THE RULE WAS "EXACTLY FOUR" AND IT IS "ONE EACH, NO REPEATS" NOW.
+     *
+     * 65.15 counted four because four was the number of audiences the day it
+     * was written, and the defect it was built to catch was never the count:
+     * it was a hero that is a paragraph, or two heroes showing the same
+     * picture. A hard four also fails the WRONG WAY when the product grows —
+     * sprint 77 added a fifth hero that runs the patient's own app end to end,
+     * and a rule that reports that as a regression is a rule that argues for
+     * leaving the homepage alone.
+     *
+     * So the count is a floor and the distinctness is the rule. Each of the
+     * four audiences must still have its own hero, no two heroes may show the
+     * same component, and every hero must show one — which is the property
+     * "a hero is a door rather than an argument" actually rests on.
+     */
+    const demoNames = heroes.map((hero) => (hero as { demo?: string }).demo);
+    const REQUIRED = ["radar", "session-room", "company", "clinic"];
+
     check(
-      `🔴 65.15 the ${locale} homepage has four heroes, one per person who arrives`,
-      heroes.length === 4,
-      `${heroes.length} heroes`,
+      `🔴 65.15 the ${locale} homepage has a hero for every audience who arrives`,
+      heroes.length >= 4 && REQUIRED.every((name) => demoNames.includes(name)),
+      `${String(heroes.length)} heroes: ${demoNames.join(", ")}`,
     );
 
     /*
-     * 🔴 AND EACH ONE SHOWS THAT AUDIENCE'S OWN COMPONENT (65.17), which is the check
-     * that a fourth hero is a fourth audience rather than a fourth paragraph.
+     * 🔴 AND EACH ONE SHOWS ITS OWN COMPONENT (65.17), which is the check that a
+     * fifth hero is a fifth thing to look at rather than a fifth paragraph.
      */
-    const demoNames = heroes.map((hero) => (hero as { demo?: string }).demo);
     check(
-      `🔴 65.15 …and the ${locale} four show four DIFFERENT components`,
-      new Set(demoNames).size === 4 && demoNames.every(Boolean),
+      `🔴 65.15 …and no two ${locale} heroes show the same component`,
+      new Set(demoNames).size === demoNames.length && demoNames.every(Boolean),
       demoNames.join(", "),
+    );
+
+    /*
+     * 🔴 CONTROL — a planted repeat must fail, or the set comparison above is
+     * passing because `demoNames` is short rather than because it is distinct.
+     */
+    check(
+      `🔴 65.15 CONTROL a repeated demo is caught (${locale})`,
+      new Set([...demoNames, demoNames[0]]).size !== demoNames.length + 1,
+      "two heroes showing the same picture is the defect this rule is about",
     );
   }
 

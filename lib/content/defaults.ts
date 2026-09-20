@@ -276,6 +276,25 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         demo: "session-room",
         backgroundImage: "/backgrounds/mesh.svg",
       },
+      /*
+       * 🔴 76.81 — AND THE PATIENT GETS THE APP, not only the map.
+       *
+       * The fold above is the live radar, which is the right first thing: real
+       * clinicians, and an empty map when the map is empty. What it cannot show
+       * is the rest of the device — the sessions, the steps, the billing, the
+       * list of who can read you — or the booking sequence run end to end. This
+       * hero is that, and a reader can work it without an account because the
+       * product does not ask for one either.
+       */
+      {
+        type: "hero",
+        eyebrow: "For patients",
+        heading: "The whole app, and nothing to sign up for",
+        body: "Open the radar, pick somebody free, see the price with the tax on it, and go in. Then look around the rest of the app.",
+        ctaLabel: "How it works for patients",
+        ctaHref: "/for-patients",
+        demo: "patient-app",
+      },
       {
         type: "hero",
         eyebrow: "For companies",
@@ -433,10 +452,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "For patients",
         heading: "Your therapy record, and it is actually yours",
-        body: "Read it, hand it to the next therapist in one tap, and take that back just as fast.",
+        body: "Read it, hand it to the next therapist in one tap, and take that back just as fast. The phone beside this is the app, and nothing in it asks you for an account.",
         ctaLabel: "See who is online now",
         ctaHref: "/radar",
-        demo: "none",
+        /*
+         * 🔴 76.81 — THE APP, WORKING, INSTEAD OF NOTHING.
+         *
+         * This hero carried `demo: "none"`, so the page that exists to explain
+         * the patient's half of the product opened with a paragraph and an
+         * empty column. The claim it makes is a SEQUENCE — find somebody, see
+         * the price, go in, no account — and the only honest way to make a
+         * claim about a sequence is to let somebody run it.
+         */
+        demo: "patient-app",
         icon: "shield",
         backgroundImage: "/backgrounds/waves.svg",
       },

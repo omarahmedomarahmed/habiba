@@ -469,7 +469,7 @@ export function Globe({
 
       {!ready ? (
         <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-xs text-white/40">{t("radar.spinningUp")}</p>
+          <p className="text-xs text-white/85">{t("radar.spinningUp")}</p>
         </div>
       ) : null}
     </div>

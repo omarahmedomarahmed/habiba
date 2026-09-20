@@ -267,7 +267,7 @@ export function ContactForm({
 
         <Send label={s("contact.send")} sending={s("contact.sending")} />
 
-        <p className="text-xs leading-relaxed text-slate-500">
+        <p className="text-xs leading-relaxed text-slate-600">
           {s("contact.kept")}
         </p>
       </form>

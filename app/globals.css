@@ -183,6 +183,33 @@
     animation: fade-rise 0.28s ease-out both;
   }
 
+  /*
+   * The recording meter in the session room's demo.
+   *
+   * It is a picture of a level, not a reading of one: nothing on the public
+   * site touches a microphone, and a bar that moved with the visitor's own
+   * voice would be the single most alarming thing on a marketing page. Each
+   * bar carries its own delay from the component, so the strip reads as
+   * speech rather than as five bars breathing in time.
+   *
+   * The global reduced-motion rule above stops it, which leaves a static
+   * level strip — still legible as "this is recording".
+   */
+  @keyframes wave-bar {
+    0%,
+    100% {
+      transform: scaleY(0.28);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+
+  .wave-bar {
+    animation: wave-bar 1.1s ease-in-out infinite;
+    transform-origin: center;
+  }
+
   /* Crisis Radar. The global reduced-motion rule above already stops both. */
   @keyframes radar-rotate {
     from {

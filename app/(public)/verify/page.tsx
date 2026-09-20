@@ -71,13 +71,13 @@ export default async function VerifyPage({
               24Therapy produced a record extract with this code.
             </p>
             <dl className="mt-3 grid grid-cols-[10rem_1fr] gap-x-3 gap-y-1.5 text-sm">
-              <dt className="text-slate-500">Produced on</dt>
+              <dt className="text-slate-600">Produced on</dt>
               <dd className="text-slate-800">{result.issuedAt.toISOString().slice(0, 10)}</dd>
-              <dt className="text-slate-500">Sessions in it</dt>
+              <dt className="text-slate-600">Sessions in it</dt>
               <dd className="text-slate-800">{result.sessions}</dd>
-              <dt className="text-slate-500">Notes signed by a clinician</dt>
+              <dt className="text-slate-600">Notes signed by a clinician</dt>
               <dd className="text-slate-800">{result.signedNotes}</dd>
-              <dt className="text-slate-500">Summary versions</dt>
+              <dt className="text-slate-600">Summary versions</dt>
               <dd className="text-slate-800">{result.summaryVersions}</dd>
             </dl>
             <p className="mt-4 text-sm leading-relaxed text-slate-600">

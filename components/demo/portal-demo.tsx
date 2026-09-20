@@ -127,7 +127,7 @@ function Shell({
           </span>
           <span className="hidden min-w-0 sm:block">
             <span className="block truncate text-[13px] font-bold">{org}</span>
-            <span className="block text-[10px] font-medium tracking-wide text-slate-500 uppercase">
+            <span className="block text-[10px] font-medium tracking-wide text-slate-600 uppercase">
               {kind}
             </span>
           </span>
@@ -160,14 +160,14 @@ function Shell({
          * not built", and the picture should say the same thing.
          */}
         <div className="hidden border-t border-slate-100 px-3 py-3 sm:block">
-          <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-wide text-slate-500 uppercase">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-wide text-slate-600 uppercase">
             <Lock className="h-3 w-3" aria-hidden />
             {never.label}
           </p>
           <ul className="mt-1.5 space-y-1">
             {never.items.map((item) => (
-              <li key={item} className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-500">
-                <X className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+              <li key={item} className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-600">
+                <X className="mt-0.5 h-3 w-3 shrink-0 text-slate-600" aria-hidden />
                 {item}
               </li>
             ))}
@@ -210,9 +210,9 @@ function Ghost({ children, icon: Icon }: { children: React.ReactNode; icon?: typ
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className="text-[10px] font-bold tracking-wide text-slate-500 uppercase">{label}</p>
+      <p className="text-[10px] font-bold tracking-wide text-slate-600 uppercase">{label}</p>
       <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
-      {note ? <p className="mt-0.5 text-[11px] text-slate-500">{note}</p> : null}
+      {note ? <p className="mt-0.5 text-[11px] text-slate-600">{note}</p> : null}
     </div>
   );
 }
@@ -306,7 +306,7 @@ function ClinicWeek() {
                 className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2 px-3 py-2.5 text-[13px]"
               >
                 <span className="flex items-center gap-1.5 tabular-nums text-slate-600">
-                  <Clock className="h-3 w-3 text-slate-400" aria-hidden />
+                  <Clock className="h-3 w-3 text-slate-600" aria-hidden />
                   {row.day} {row.time}
                 </span>
                 <span className="font-medium break-words">{row.clinician}</span>
@@ -348,7 +348,7 @@ function ClinicPeople() {
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-semibold">{person.name}</span>
-                  <span className="block text-[11px] text-slate-500">
+                  <span className="block text-[11px] text-slate-600">
                     {t("dpo.sessionsThisMonth", { count: person.sessions })}
                   </span>
                 </span>
@@ -370,7 +370,7 @@ function ClinicPeople() {
          * finish it. The sentence is on the real screen, and it is here because
          * the commonest thing a practice asks us to do is exactly this.
          */}
-        <p className="text-[11px] leading-relaxed text-slate-500">{t("clinic.cannotVerify")}</p>
+        <p className="text-[11px] leading-relaxed text-slate-600">{t("clinic.cannotVerify")}</p>
       </div>
     </>
   );
@@ -394,7 +394,7 @@ function ClinicEarnings() {
       />
       <div className="space-y-3 p-4">
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[10px] font-bold tracking-wide text-slate-500 uppercase">
+          <p className="text-[10px] font-bold tracking-wide text-slate-600 uppercase">
             {t("clinic.earn.combined")}
           </p>
           {/* A sum of the rows below, never a second query that could disagree. */}
@@ -425,7 +425,7 @@ function ClinicEarnings() {
          * missing control, and a demo with a Withdraw button on it would be
          * advertising a capability that does not exist.
          */}
-        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
+        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-600">
           <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
           {t("clinic.earn.theirsOnly")}
         </p>
@@ -447,7 +447,7 @@ function ClinicBills() {
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p className="text-[13px] font-semibold">{CLINIC_BILL.period}</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">
+              <p className="mt-0.5 text-[11px] text-slate-600">
                 {t("dpo.seatsAt", {
                   count: CLINIC_BILL.seats,
                   price: money(CLINIC_BILL.seatCents),
@@ -463,7 +463,7 @@ function ClinicBills() {
         </div>
 
         {/* One total for the period, never a line per session. C260. */}
-        <p className="text-[11px] leading-relaxed text-slate-500">{t("dpo.oneTotal")}</p>
+        <p className="text-[11px] leading-relaxed text-slate-600">{t("dpo.oneTotal")}</p>
       </div>
     </>
   );
@@ -540,7 +540,7 @@ function CompanyOverview() {
          * sentence about the rule, and it stops working the day the chart does.
          */}
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="mb-2 text-[10px] font-bold tracking-wide text-slate-500 uppercase">
+          <p className="mb-2 text-[10px] font-bold tracking-wide text-slate-600 uppercase">
             {t("sponsor.spendTitle")}
           </p>
           <SpendHeatmap
@@ -579,7 +579,7 @@ function CompanyOverview() {
          * 🔴 C227 — THE SENTENCE THAT IS THE PRODUCT. Therapists and amounts,
          * because you are paying them. Not one name of anybody who went.
          */}
-        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
+        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-600">
           <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
           {t("dpo.neverWhoWent")}
         </p>
@@ -632,7 +632,7 @@ function CompanyPot() {
             <li key={row.what} className="flex items-center justify-between gap-3 px-3 py-2.5 text-[13px]">
               <span className="min-w-0">
                 <span className="block truncate font-medium">{row.what}</span>
-                <span className="block text-[11px] text-slate-500">{row.when}</span>
+                <span className="block text-[11px] text-slate-600">{row.when}</span>
               </span>
               <span
                 className={cn(
@@ -671,14 +671,14 @@ function CompanyCode() {
             <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
               {t("dpo.scanIt", { domain: COMPANY_CODE.domain })}
             </p>
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[11px] text-slate-600">
               {t("dpo.joinedOf", { joined: COMPANY_CODE.joined, total: COMPANY_CODE.employees })}
             </p>
           </div>
         </div>
 
         <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3">
-          <Hourglass className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+          <Hourglass className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden />
           <p className="text-[12px] leading-relaxed text-slate-600">{t("dpo.joiningTells")}</p>
         </div>
       </div>
@@ -713,11 +713,11 @@ function CompanySettings() {
          * clearly than any paragraph, and it is where a reader looks for it.
          */}
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-[13px] text-slate-500">
+          <span className="flex items-center gap-1.5 text-[13px] text-slate-600">
             <Lock className="h-3.5 w-3.5" aria-hidden />
             {t("dpo.requireAttend")}
           </span>
-          <span className="text-[11px] font-semibold text-slate-500">{t("dpo.notBuilt")}</span>
+          <span className="text-[11px] font-semibold text-slate-600">{t("dpo.notBuilt")}</span>
         </div>
       </div>
     </>

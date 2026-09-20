@@ -118,7 +118,7 @@ export default function IntegrationsPage() {
                           <Card className="p-4 transition hover:border-slate-300">
                             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                               <p className="font-semibold text-slate-900">{entry.name}</p>
-                              <p className="text-xs text-slate-500">{entry.category}</p>
+                              <p className="text-xs text-slate-600">{entry.category}</p>
                             </div>
                             <p className="mt-1 text-sm leading-relaxed text-slate-600">
                               {entry.summary}
