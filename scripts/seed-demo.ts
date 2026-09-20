@@ -657,6 +657,59 @@ async function main() {
       { speaker: "therapist", text: "That is worth noticing. Two out of seven, and both were better." },
     ];
 
+    /*
+     * 🔴 A DIFFERENT NOTE EACH SESSION, because a list of identical ones is a
+     * screen nobody can judge.
+     *
+     * Every session carried the same note in the first draft, and the patient's
+     * app draws each session's `patientBrief` in its list — so the main screen
+     * was the same paragraph three times over. It looked like a rendering bug
+     * rather than a seed, which is the worst thing to hand somebody who is
+     * about to redesign that page.
+     *
+     * These are the same episode of care moving forward: the same person, the
+     * same problem, six weeks of it, so a reader can follow the thread down the
+     * page rather than seeing one moment repeated.
+     */
+    const BRIEFS: { brief: string; steps: string[]; next: string }[] = [
+      {
+        brief:
+          "Two of seven nights went better, and that is worth naming. Keep the wind-down going and we will look at it again in two weeks.",
+        steps: ["Wind-down routine, four nights", "Note which nights you managed it"],
+        next: "Same time next week. Bring the nights you wrote down.",
+      },
+      {
+        brief:
+          "Four nights this week, and the waking is later than it was. Nothing about the review has changed, so what changed is what you are doing with the hour before bed.",
+        steps: ["Keep the four nights", "Write down roughly when you woke"],
+        next: "Same time next week.",
+      },
+      {
+        brief:
+          "You got out of bed at half one instead of lying there, and you were back down inside twenty minutes. That is the piece that has been missing.",
+        steps: ["Out of bed after twenty minutes awake", "Same wake time, whatever the night was like"],
+        next: "Same time next week. We will look at the reviews themselves.",
+      },
+      {
+        brief:
+          "The review is on Thursday and you have not rehearsed it in bed once this week. Worth saying out loud, because in March that was the whole problem.",
+        steps: ["Hold the wake time through the review week"],
+        next: "The week after the review.",
+      },
+      {
+        brief:
+          "The review went the way you expected and the sleep did not come apart, which is the first time that has been true.",
+        steps: ["Keep the wind-down on the nights it is easy", "Stop writing the times down"],
+        next: "Two weeks.",
+      },
+      {
+        brief:
+          "Two weeks with nothing to report is the point rather than a quiet session. We talked about what you would do if it came back.",
+        steps: ["Nothing set this week"],
+        next: "A month, and sooner if you want it.",
+      },
+    ];
+
     const NOTE = {
       soap: {
         subjective:
@@ -677,6 +730,12 @@ async function main() {
       impressions: "Consistent with the established formulation rather than a new process.",
       recommendations: ["Raise the adherence target", "Review if middle-insomnia outlasts the review date"],
       followUp: "One week.",
+    };
+
+    /** The brief this session carries, rotated so no two in a row are the same. */
+    const noteFor = (n: number) => {
+      const row = BRIEFS[(n - 1) % BRIEFS.length]!;
+      return { patientBrief: row.brief, patientSteps: row.steps, patientNext: row.next };
     };
 
     let token = 0;
@@ -751,7 +810,7 @@ async function main() {
                                      patient_approved_at, patient_approved_by, provenance,
                                      language, model)
           VALUES (${session.id}, ${opts.orgId}, ${opts.therapistId}, ${opts.patientId},
-                  ${JSON.stringify(NOTE)}::jsonb, 'approved', ${ended.toISOString()},
+                  ${JSON.stringify({ ...NOTE, ...noteFor(token) })}::jsonb, 'approved', ${ended.toISOString()},
                   ${opts.therapistId}, 'approved', ${ended.toISOString()},
                   ${opts.therapistId}, 'transcript', 'en', 'seed')`);
       }

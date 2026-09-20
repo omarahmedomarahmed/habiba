@@ -4,7 +4,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { eq, lt, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 
 import { controlDb as db} from "@/lib/db";
 import { rateLimits } from "@/lib/db/schema";
@@ -113,11 +113,31 @@ export async function consume(
 
   const [row] = await db
     .insert(rateLimits)
+    /*
+     * 🔴 78.6 — `now()`, NOT `new Date()`, AND THE LIMITER STOPPED LIMITING
+     * WITHOUT IT.
+     *
+     * Every branch below compares `window_start` against Postgres's `now()`.
+     * This INSERT wrote it with the Node process's clock, so the two sides of
+     * that comparison came from two machines with nothing keeping them in step.
+     *
+     * The consequence is not a rounding error, it is the limiter switching
+     * itself off. A row is born `skew` milliseconds old in Postgres's opinion,
+     * so ANY window shorter than the skew is already expired at birth: every
+     * request takes the `THEN 1` branch, the count never climbs, and nothing is
+     * ever refused. On the branch this was found the database ran 981ms ahead
+     * and a row written here measured **1.08 seconds old the instant it landed**,
+     * which is how `tests/radar.test.ts` started failing its one-second window
+     * every run rather than occasionally.
+     *
+     * The clock drifted into it. The defect was always here, and a limiter that
+     * fails open is the kind that is only noticed by whoever is abusing it.
+     */
     .values({
       key,
       count: 1,
-      windowStart: new Date(),
-      expiresAt: new Date(Date.now() + windowSeconds * 1000),
+      windowStart: sql`now()`,
+      expiresAt: sql`now() + ${windowInterval}`,
     })
     .onConflictDoUpdate({
       target: rateLimits.key,
@@ -136,6 +156,15 @@ export async function consume(
     .returning({ count: rateLimits.count, windowStart: rateLimits.windowStart });
 
   const used = row?.count ?? 1;
+  /*
+   * 🔴 The one place the two clocks still meet, and it is a HINT rather than a
+   * decision. `windowStart` comes from Postgres and `Date.now()` from here, so
+   * a skew makes `elapsed` wrong by that much and `retryAfter` short by the
+   * same. Nothing is admitted or refused on this number — the next call is
+   * judged by the statement above, entirely in the database — and the floor of
+   * one second keeps the advice sane. Left as it is because moving it into SQL
+   * would add a round trip to every rejected request to sharpen a courtesy.
+   */
   const windowStart = row?.windowStart ?? new Date();
   const elapsed = (Date.now() - windowStart.getTime()) / 1000;
 
@@ -183,14 +212,28 @@ export async function takeHold(
    * which is atomic — this is only about not making a patient wait ten minutes
    * to retry their own abandoned checkout.
    */
+  /*
+   * 🔴 78.6 — ONE TABLE, ONE CLOCK.
+   *
+   * `consume` above judges these rows with Postgres's `now()`. This function
+   * wrote them with Node's and then compared its own read against Node's again,
+   * which was internally consistent and still wrong: two functions sharing a
+   * table were dating it from two machines, so whether a hold had expired
+   * depended on which one asked. The skew that switched the limiter off is the
+   * same skew, and this half was waiting to be found the same way.
+   *
+   * Both the liveness test and the write are now the database's, so there is
+   * one answer to "has this expired" wherever it is asked from.
+   */
+  const ttl = sql.raw(`interval '${Math.max(1, Math.floor(ttlSeconds))} seconds'`);
+
   const [existing] = await db
-    .select({ note: rateLimits.note, expiresAt: rateLimits.expiresAt })
+    .select({ note: rateLimits.note })
     .from(rateLimits)
-    .where(eq(rateLimits.key, key))
+    .where(and(eq(rateLimits.key, key), sql`${rateLimits.expiresAt} > now()`))
     .limit(1);
 
-  const previous =
-    existing && existing.expiresAt > new Date() ? (existing.note ?? null) : null;
+  const previous = existing?.note ?? null;
 
   await db
     .insert(rateLimits)
@@ -198,15 +241,15 @@ export async function takeHold(
       key,
       count: 1,
       note: payload,
-      windowStart: new Date(),
-      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+      windowStart: sql`now()`,
+      expiresAt: sql`now() + ${ttl}`,
     })
     .onConflictDoUpdate({
       target: rateLimits.key,
       set: {
         note: payload,
-        windowStart: new Date(),
-        expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+        windowStart: sql`now()`,
+        expiresAt: sql`now() + ${ttl}`,
       },
     });
 

@@ -137,6 +137,51 @@ async function main() {
           `${String(shipped * multiplierFromWiden(wide.limit, 5))} sign-ins per fifteen minutes, ` +
           "against 28 agents over 6 waves",
     );
+    /* ---------------------------------- 78.6 · the two clocks, measured -- */
+
+    /*
+     * 🔴 A WINDOW MUST NOT BE BORN EXPIRED.
+     *
+     * `consume` compares `window_start` against Postgres's `now()` in every
+     * branch, and wrote it with the Node process's clock. Those are two
+     * machines, and nothing keeps them in step.
+     *
+     * A row is then born as old as the skew. Any window SHORTER than the skew
+     * is already outside itself the instant it lands, every request takes the
+     * reset branch, the count never climbs and the limiter refuses nothing. On
+     * the branch this was found the database ran 981ms ahead and a freshly
+     * written row measured 1.08 seconds old, which turned `tests/radar.test.ts`
+     * from occasionally flaky into failing every run. A limiter that fails open
+     * is noticed by whoever is abusing it and by nobody else.
+     *
+     * This measures the thing itself rather than reading the source: how old is
+     * a row the product just wrote, in the opinion of the database that judges
+     * it? A hundred milliseconds of round trip is expected. A second is the
+     * defect.
+     */
+    const probe = `verify-limits:clock:${String(Date.now())}`;
+    const { consume } = await import("../lib/rate-limit");
+    await consume(probe, 5, 60);
+    const [born] = (
+      await db.execute(sql`
+        SELECT EXTRACT(EPOCH FROM (now() - window_start))::float8 AS age
+          FROM rate_limits WHERE key = ${probe}`)
+    ).rows as { age: number }[];
+    await db.execute(sql`DELETE FROM rate_limits WHERE key = ${probe}`);
+
+    const age = Number(born?.age ?? 99);
+    check(
+      "🔴 78.6 a rate limit window is not already old when it is written",
+      age < 0.5,
+      `${age.toFixed(3)}s old the moment it landed; a window shorter than that never limits`,
+    );
+
+    check(
+      "🔴 …and it is the database that dates it, not this process",
+      /windowStart: sql`now\(\)`/.test(readSource("lib/rate-limit.ts")) &&
+        !/windowStart: new Date\(\)/.test(readSource("lib/rate-limit.ts")),
+      "two clocks on two machines, either side of one comparison",
+    );
   } finally {
     await sweep(db);
     await pool.end();
