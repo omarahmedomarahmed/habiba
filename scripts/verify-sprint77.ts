@@ -427,6 +427,26 @@ function main() {
   );
 
   /*
+   * 🔴 77.14 — AND THE SENDS ARE PACED, because the first version was not.
+   *
+   * Resend allows ten requests a second. Fourteen bare awaits cleared it and
+   * four came back "Too many requests" — the last four in the list, which is
+   * the worst failure a tool for looking at every template can have. A count
+   * that reports 10 of 14 honestly is still the wrong count.
+   */
+  check(
+    "🔴 77.14 the fourteen are paced and a rejection is retried once",
+    /await pause\(150\)/.test(adminActions) && /await pause\(1_000\)/.test(adminActions),
+    "ten a second is the provider's limit and a flat loop beats it",
+  );
+
+  check(
+    "🔴 …and the page allows the action time to finish",
+    /export const maxDuration = 60;/.test(settings),
+    "a default ceiling cuts the loop off and the count becomes a story about a timeout",
+  );
+
+  /*
    * 🔴 C127 — INVENTED PEOPLE ONLY, and this one is reachable from a console
    * rather than from a shell, which makes the rule matter more rather than
    * less. Every surname is Demo or Example and every address is at the domain

@@ -922,9 +922,35 @@ export async function sendEveryTemplate(
   const { previewMessages } = await import("@/lib/mail-previews");
   const messages = previewMessages();
 
+  /*
+   * 🔴 PACED, AND THE FIRST VERSION WAS NOT — it sent 10 of 14.
+   *
+   * Resend allows ten requests a second and a bare `for` loop over fourteen
+   * awaits clears that comfortably, so four came back "Too many requests" and
+   * the four that vanished were the last four in the list — which is the worst
+   * possible failure for a tool whose job is to show you every template.
+   *
+   * The warning is two functions up, on `announceToAllTherapists`, in a comment
+   * about this exact provider. Writing the warning is not the same as heeding
+   * it, and the reason it is worth saying twice is that the first version LOOKS
+   * correct: it awaits each send, it counts them, and it reports an honest
+   * number. It just reports the wrong one.
+   *
+   * 150ms between sends is under seven a second, and a rejection gets one
+   * retry a second later, because a limit is a transient and dropping a
+   * message on a transient is how a count becomes a lie.
+   */
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   let sent = 0;
-  for (const message of messages) {
-    if (await message.send(address)) sent += 1;
+  for (const [index, message] of messages.entries()) {
+    if (index > 0) await pause(150);
+    let ok = await message.send(address);
+    if (!ok) {
+      await pause(1_000);
+      ok = await message.send(address);
+    }
+    if (ok) sent += 1;
   }
 
   log.info("every template sent", { to: address, sent, of: messages.length });

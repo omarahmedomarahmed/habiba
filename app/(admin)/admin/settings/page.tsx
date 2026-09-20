@@ -22,6 +22,12 @@ import { countriesMissingACrisisLine } from "@/lib/crisis/line";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
 export const dynamic = "force-dynamic";
+/*
+ * 🔴 77.14 — the mail check paces fourteen sends at 150ms with a retry, so the
+ * action can run for ten seconds or so. The default ceiling would cut it off
+ * partway through and report a count that is a story about a timeout.
+ */
+export const maxDuration = 60;
 
 /**
  * Every number in the product, edited by a person. PLAN.md 20.1–20.7.
