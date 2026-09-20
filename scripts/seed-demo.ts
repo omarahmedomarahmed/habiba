@@ -727,12 +727,33 @@ async function main() {
       }
 
       if (opts.withNote !== false) {
+        /*
+         * 🔴 TWO APPROVALS AND A PROVENANCE, all three of which the first draft
+         * left on their defaults, and the patient's app said so.
+         *
+         *   - `status` is the CLINICAL record being signed. `patient_status` is
+         *     a separate decision to release it to the person it is about, and
+         *     `lib/data/patient-view.ts` reads only the second. With it left at
+         *     `draft`, every session in the patient's app read "Your therapist
+         *     is still writing your summary" while the note sat approved on the
+         *     clinician's side. That is the product being careful, and it made
+         *     the patient's main screen a list of apologies.
+         *
+         *   - `provenance` defaults to `clinician`, which draws "This session
+         *     was not recorded". These notes have a full transcript behind
+         *     them, so `transcript` is the true answer. The default is the
+         *     honest one for a note nobody can vouch for; claiming it here
+         *     would be a lie in the other direction.
+         */
         await db.execute(sql`
           INSERT INTO session_notes (session_id, organization_id, therapist_id, patient_id, content,
-                                     status, approved_at, approved_by, model)
+                                     status, approved_at, approved_by, patient_status,
+                                     patient_approved_at, patient_approved_by, provenance,
+                                     language, model)
           VALUES (${session.id}, ${opts.orgId}, ${opts.therapistId}, ${opts.patientId},
                   ${JSON.stringify(NOTE)}::jsonb, 'approved', ${ended.toISOString()},
-                  ${opts.therapistId}, 'seed')`);
+                  ${opts.therapistId}, 'approved', ${ended.toISOString()},
+                  ${opts.therapistId}, 'transcript', 'en', 'seed')`);
       }
 
       await db.execute(sql`
@@ -759,8 +780,23 @@ async function main() {
       });
     }
 
-    /* The clinic's week: Dr Sara with Mariam and Tarek, Dr Kareem with Mariam. */
-    for (const n of [4, 11, 18]) {
+    /*
+     * 🔴 SIX COVERED SESSIONS, NOT THREE, BECAUSE OF THE SMALL-NUMBERS FLOOR.
+     *
+     * A sponsor is shown `published_balance_cents`, and that figure is only
+     * republished once `sessions - published_sessions >= settings.sponsor
+     * .activityFloor`, which is five. The rule is right and it is one of the
+     * strongest things about the employer side: a balance that moves after
+     * every session is a balance an employer can difference to work out that
+     * somebody went this week.
+     *
+     * With three covered sessions the company's own headline read "Not enough
+     * activity to report yet". That is the privacy rule working and it is the
+     * wrong screen to hand a redesign, because it looks exactly like an empty
+     * one. Six crosses the floor, publishes a real balance, and still reads as
+     * a person seeing somebody weekly.
+     */
+    for (const n of [4, 11, 18, 25, 32, 39]) {
       const s = await held({
         orgId: clinic.id, therapistId: drSara.id, patientId: mariamChart.id,
         when: daysAgo(n), priceCents: 7_500, paymentStatus: "pending",
@@ -830,6 +866,40 @@ async function main() {
         INSERT INTO journals (person_id, account_id, source, body)
         VALUES (${personId}, ${accountId}, 'typed', ${body})`);
     }
+
+    /* ------------------------------------------- what the session cost -- */
+
+    /*
+     * 🔴 EVERY COMPLETED SESSION IS BILLED, through the product's own function.
+     *
+     * Without this the admin console reads "Collected $0 · Outstanding $0" on
+     * its overview and `/admin/actuals` has no revenue in it, which is a
+     * console about money with no money in it. `chargeForSession` raises the
+     * invoice, its platform and AI lines, and the ledger legs behind them; it
+     * reads the consent state off the session to decide the AI line, which is
+     * why the sessions above record `recording_consent = 'granted'`.
+     *
+     * Pot-funded sessions are skipped: `payFromPot` already did their books,
+     * and charging them again would bill the clinic for a session the company
+     * has paid for.
+     */
+    const toBill = (
+      await db.execute(sql`
+        SELECT s.id, s.organization_id AS org FROM sessions s
+         WHERE s.status = 'completed'
+           AND NOT EXISTS (SELECT 1 FROM session_payments p WHERE p.session_id = s.id)`)
+    ).rows as Row[];
+
+    const { chargeForSession } = await import("../lib/billing/service");
+    let billed = 0;
+    for (const row of toBill) {
+      const charged = await chargeForSession({
+        organizationId: String(row.org),
+        sessionId: String(row.id),
+      });
+      if (charged) billed += 1;
+    }
+    console.log(`  billed ${String(billed)} of ${String(toBill.length)} sessions`);
 
     /* ------------------------------------------------- the copilot -- */
 
