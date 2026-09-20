@@ -1032,3 +1032,79 @@ export async function resolveReport(
   revalidatePath("/admin/radar");
   return { ok: true };
 }
+
+/* ------------------------------------------------- every template, once -- */
+
+/**
+ * 🔴 77.12 — SEND ALL FOURTEEN AUTOMATED EMAILS TO ONE TYPED ADDRESS.
+ *
+ * ## Why this is a console action and not a script
+ *
+ * `npm run mail:preview -- --send` was written to do exactly this and cannot,
+ * because sending needs `RESEND_API_KEY` and on Vercel that variable is stored
+ * as **sensitive**, which is write-only: not the dashboard, not the API, not
+ * the person who typed it can read it back. The only process holding the key
+ * is the deployed product, so the only place that can send is a page.
+ *
+ * ## What it is for
+ *
+ * Transactional email rots because looking at it is expensive. A footer that
+ * says "sent by your therapist" on a message we sent ourselves, a link built
+ * from a stale `APP_URL`, a layout that broke in Outlook nine months ago —
+ * nobody finds those, because finding one means making the thing happen that
+ * sends it. This makes looking cost one click.
+ *
+ * ## 🔴 The properties that make it safe to put on a page
+ *
+ *   - **One address, typed here.** No list, no roster, no database read.
+ *     There is no code path in `lib/mail-previews.ts` that could reach a
+ *     patient's inbox.
+ *   - **Invented people only.** Surnames Demo and Example at the domain RFC
+ *     2606 reserves. C127 has no preview exemption.
+ *   - **Owner only, and written down.** `super_admin`, and an audit row naming
+ *     the actor and the address, because "who made us send fourteen emails"
+ *     is a question somebody will ask.
+ *   - **Sequential.** Fourteen simultaneous sends is how a provider rate-limits
+ *     you and half of them vanish, which is the same reasoning
+ *     `announceToAllTherapists` above is built on.
+ */
+export async function sendEveryTemplate(to: string): Promise<AdminActionState> {
+  const actor = await requireRole("super_admin");
+
+  const address = to.trim().toLowerCase();
+  /*
+   * Deliberately loose. A validator that refuses a legal address is worse than
+   * one that lets a typo through: the typo bounces and the person tries again,
+   * and there is nothing here worth protecting from a malformed string.
+   */
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+    return { error: "That does not look like an email address." };
+  }
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "email.previewAll",
+    resourceType: "user",
+    resourceId: actor.userId,
+    reason: address.slice(0, 200),
+  });
+
+  const { previewMessages } = await import("@/lib/mail-previews");
+  const messages = previewMessages();
+
+  let sent = 0;
+  for (const message of messages) {
+    if (await message.send(address)) sent += 1;
+  }
+
+  log.info("every template sent", { to: address, sent, of: messages.length });
+
+  if (sent === 0) {
+    return { error: "Nothing was delivered. Email is not configured here." };
+  }
+  if (sent < messages.length) {
+    return { error: `Only ${String(sent)} of ${String(messages.length)} were accepted.` };
+  }
+  return { ok: true };
+}

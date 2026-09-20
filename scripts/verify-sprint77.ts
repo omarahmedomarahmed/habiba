@@ -312,6 +312,71 @@ function main() {
     "a clinical-looking surface on an anonymous page is safe because it cannot reach a row",
   );
 
+  /* ================================================================== */
+  /*  77.12 · every email, sendable from the one process with the key    */
+  /* ================================================================== */
+
+  const previews = readSource("lib/mail-previews.ts");
+  const adminActions = readSource("app/(admin)/admin/actions.ts");
+  const script = readSource("scripts/mail-preview.ts");
+  const settings = readSource("app/(admin)/admin/settings/page.tsx");
+
+  /* All fourteen, counted, so a template that is dropped is visible. */
+  const sends = (previews.match(/\n    \{\s*\n?\s*name: "/g) ?? []).length ||
+    (previews.match(/name: "/g) ?? []).length;
+  check(
+    "🔴 77.12 all fourteen templates are in one list",
+    sends === 14,
+    `${String(sends)} found`,
+  );
+
+  /*
+   * 🔴 AND THE SCRIPT READS THAT LIST rather than carrying a second copy.
+   *
+   * Two copies of a subject line is C60's shape applied to a message: the day
+   * one changes, the other is the one somebody is reading.
+   */
+  check(
+    "🔴 …and the preview script renders the same list rather than its own",
+    /previewMessages\(\)/.test(script) && !/sendSessionReport\(/.test(script),
+    "the fourteen were typed into the script and the console needed them too",
+  );
+
+  check(
+    "🔴 …and the console can send them, owner only and written down",
+    /export async function sendEveryTemplate/.test(adminActions) &&
+      /sendEveryTemplate[\s\S]{0,400}requireRole\("super_admin"\)/.test(adminActions) &&
+      /action: "email\.previewAll"/.test(adminActions),
+    "a button that sends fourteen emails is one somebody will ask about later",
+  );
+
+  check(
+    "🔴 …and it is reachable, on the screen behind the same door as the prices",
+    /<MailCheck \/>/.test(settings),
+    "58.3: a surface nothing links to is a surface nobody uses",
+  );
+
+  /*
+   * 🔴 C127 — INVENTED PEOPLE ONLY, and this one is reachable from a console
+   * rather than from a shell, which makes the rule matter more rather than
+   * less. Every surname is Demo or Example and every address is at the domain
+   * RFC 2606 reserves.
+   */
+  const names = previews.match(/"[A-Z][a-z]+ (?:[A-Z][a-z]+)"/g) ?? [];
+  const strangers = names.filter((n) => !/(Demo|Example|Practice)"$/.test(n));
+  check(
+    "🔴 …and every person in the fourteen is invented",
+    strangers.length === 0 && !/@(?!example\.com)[\w-]+\.[a-z]{2,}/.test(previews),
+    strangers.join(", ") || `${String(names.length)} names, all Demo or Example`,
+  );
+
+  check(
+    "🔴 CONTROL that name scan catches a stranger",
+    ['"Mariam Demo"', '"Nour Demo"', '"Sarah Connor"']
+      .filter((n) => !/(Demo|Example|Practice)"$/.test(n)).length === 1,
+    "a surname rule that matched everything would clear a real patient's name",
+  );
+
   finish("sprint 77");
 }
 

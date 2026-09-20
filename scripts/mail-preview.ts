@@ -38,7 +38,6 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import type { NoteContent } from "../lib/db/schema";
 import { stubModules } from "./_render";
 
 const OUT = ".render/mail";
@@ -113,103 +112,22 @@ async function main() {
   await stubModules();
 
   const to = sendTo ?? "preview@example.com";
-  const mail = await import("../lib/mail");
 
   /*
-   * 🔴 Every figure and every name below is invented, and the surnames are Demo
-   * and Example at a domain RFC 2606 reserves. C127 has no preview exemption:
-   * a tool that rendered a real note would put clinical content in a file on
-   * somebody's laptop.
+   * 🔴 77.12 — THE FOURTEEN LIVE IN `lib/mail-previews.ts` NOW, NOT HERE.
+   *
+   * They were typed into this file, and then `/admin/settings` needed the same
+   * fourteen because this script cannot send: `RESEND_API_KEY` is a sensitive
+   * variable on Vercel, which is write-only, so the only process holding the
+   * key is the deployed product. Two copies of a subject line is C60's shape
+   * applied to a message — the day one changes, the other is the one somebody
+   * is reading. One list, two callers: this renders them, the console sends
+   * them.
    */
-  const when = new Date(Date.UTC(2026, 2, 12, 15, 0));
-  const note: NoteContent = {
-    soap: {
-      subjective:
-        "Reports a return of middle-insomnia over the past week, waking around 03:00 with ruminative thinking about an upcoming performance review.",
-      objective: "Arrived on time. Engaged throughout. No acute distress observed.",
-      assessment:
-        "Recurrence of anxiety-driven sleep disruption in the context of a time-limited work stressor. Adherence, not strategy, appears to be the limiting factor.",
-      plan: "Increase the wind-down routine target to four nights and record which nights were completed.",
-    },
-    summary:
-      "Follow-up session addressing a one-week recurrence of middle-insomnia linked to anticipatory work anxiety.",
-    patientBrief:
-      "Two of seven nights went better, and that is worth naming. Keep the wind-down going and we will look at it again in two weeks.",
-    patientSteps: ["Wind-down routine, four nights", "Note which nights you managed it"],
-    patientNext: "Same time next week. Bring the nights you wrote down.",
-    talkingPoints: ["The review, and what happens after it", "What made the two better nights different"],
-    observations: "Engaged, no acute distress, no risk indicators elicited or observed.",
-    impressions: "Consistent with the established formulation rather than a new process.",
-    recommendations: ["Raise the adherence target", "Review if middle-insomnia outlasts the review date"],
-    followUp: "One week.",
-  };
-
-  const app = process.env.APP_URL ?? "https://24therapy.app";
-
-  /* The ten templates in `lib/mail.ts`, each called for real. */
-  const templates: [string, () => Promise<boolean>][] = [
-    ["session report", () => mail.sendSessionReport({
-      to, patientName: "Mariam Demo", therapistName: "Nour Demo",
-      note, sessionDate: when, timezone: "Africa/Cairo", language: "en",
-    })],
-    ["session invite", () => mail.sendSessionInvite({
-      to, therapistName: "Nour Demo", joinUrl: `${app}/j/DEMO1234`, priceCents: 6000,
-    })],
-    ["rating reminder", () => mail.sendRatingReminder({
-      to, therapistName: "Nour Demo", therapistFirstName: "Nour",
-      url: `${app}/r/DEMO1234`, sessionDate: when, timezone: "Africa/Cairo",
-    })],
-    ["therapist message", () => mail.sendTherapistMessage({
-      to, firstName: "Mariam", subject: "About next week",
-      body: "I have moved us to Thursday at the same time. Tell me if that does not work.",
-    })],
-    ["password reset", () => mail.sendPasswordReset({ to, url: `${app}/reset/DEMO-TOKEN` })],
-    ["claim code", () => mail.sendClaimCode({ to, code: "419026" })],
-    ["record export", () => mail.sendRecordExport({
-      to, patientName: "Mariam Demo", clinicianName: "Nour Demo",
-      url: `${app}/export/DEMO-TOKEN`, expiresInHours: 24,
-    })],
-    ["walk-in directions", () => mail.sendWalkInDirections({
-      to, therapistName: "Nour Demo", practiceName: "Nile Practice",
-      address: "12 Road 9, Maadi, Cairo",
-      mapsUrl: "https://maps.google.com/?q=Maadi+Cairo",
-    })],
-    /*
-     * The notification shell, once per kind that reaches a PERSON. The copy is
-     * lifted from the call sites rather than invented, so the preview shows the
-     * sentence that actually goes out.
-     */
-    ["booking confirmed", () => mail.sendNotification({
-      to, subject: "A session with Nour Demo",
-      body: "Nour Demo has kept Thursday 12 March at 17:00 for you.\n\nIf that does not work, tell them as early as you can and the hour goes back on their calendar for somebody else.",
-      link: { label: "Open your session", url: `${app}/sessions/demo` },
-    })],
-    ["booking reminder", () => mail.sendNotification({
-      to, subject: "Your session with Nour Demo",
-      body: "A reminder that your session with Nour Demo is tomorrow at 17:00.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.",
-      link: { label: "Open your session", url: `${app}/sessions/demo` },
-    })],
-    ["session started", () => mail.sendNotification({
-      to, subject: "Nour Demo is ready for you",
-      body: "The door is open. Join when you are ready.",
-      link: { label: "Go in", url: `${app}/sessions/demo` },
-    })],
-    ["summary ready", () => mail.sendNotification({
-      to, subject: "Your session summary is ready",
-      body: "Nour Demo has approved the summary from your session. It is on your record.",
-      link: { label: "Read it", url: `${app}/patient/sessions` },
-    })],
-    ["payout sent", () => mail.sendNotification({
-      to, subject: "Your withdrawal is on its way",
-      body: "We have sent 1,840.00 EGP to Nour Demo. The transfer receipt is on your earnings page.",
-      link: { label: "Your earnings", url: `${app}/billing` },
-    })],
-    ["payment due", () => mail.sendNotification({
-      to, subject: "A session is waiting to be paid",
-      body: "Your session on 12 March has an unpaid balance of 60.00 EGP. Nothing about your record changes until it is settled.",
-      link: { label: "Pay for it", url: `${app}/patient/billing` },
-    })],
-  ];
+  const { previewMessages } = await import("../lib/mail-previews");
+  const templates = previewMessages().map(
+    (message) => [message.name, () => message.send(to)] as [string, () => Promise<boolean>],
+  );
 
   capture(sendTo !== null);
 
