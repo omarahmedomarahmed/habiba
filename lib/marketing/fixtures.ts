@@ -115,10 +115,10 @@ export const CLINIC_TEAM: {
   earnedCents: number;
   payout: "none" | "requested" | "paid";
 }[] = [
-  { name: "Nour Demo", verify: "verified", sessions: 46, earnedCents: 214_000, payout: "requested" },
-  { name: "Karim Example", verify: "verified", sessions: 38, earnedCents: 176_000, payout: "paid" },
-  { name: "Salma Demo", verify: "verified", sessions: 31, earnedCents: 143_000, payout: "none" },
-  { name: "Youssef Example", verify: "pending", sessions: 12, earnedCents: 54_000, payout: "none" },
+  { name: "Dr Nour Demo", verify: "verified", sessions: 46, earnedCents: 214_000, payout: "requested" },
+  { name: "Dr Karim Example", verify: "verified", sessions: 38, earnedCents: 176_000, payout: "paid" },
+  { name: "Dr Salma Demo", verify: "verified", sessions: 31, earnedCents: 143_000, payout: "none" },
+  { name: "Dr Youssef Example", verify: "pending", sessions: 12, earnedCents: 54_000, payout: "none" },
   { name: "Hana Demo", verify: "none", sessions: 0, earnedCents: 0, payout: "none" },
 ];
 
@@ -137,12 +137,12 @@ export const CLINIC_WEEK: {
   patient: string;
   modality: "video" | "in person";
 }[] = [
-  { day: "Mon", time: "09:00", clinician: "Nour Demo", patient: "Mariam A.", modality: "video" },
-  { day: "Mon", time: "11:30", clinician: "Karim Example", patient: "Omar S.", modality: "in person" },
-  { day: "Tue", time: "10:00", clinician: "Nour Demo", patient: "Laila F.", modality: "video" },
-  { day: "Tue", time: "16:00", clinician: "Salma Demo", patient: "Tarek M.", modality: "video" },
-  { day: "Wed", time: "09:30", clinician: "Karim Example", patient: "Dina H.", modality: "in person" },
-  { day: "Thu", time: "14:00", clinician: "Salma Demo", patient: "Adam R.", modality: "video" },
+  { day: "Mon", time: "09:00", clinician: "Dr Nour Demo", patient: "Mariam A.", modality: "video" },
+  { day: "Mon", time: "11:30", clinician: "Dr Karim Example", patient: "Omar S.", modality: "in person" },
+  { day: "Tue", time: "10:00", clinician: "Dr Nour Demo", patient: "Laila F.", modality: "video" },
+  { day: "Tue", time: "16:00", clinician: "Dr Salma Demo", patient: "Tarek M.", modality: "video" },
+  { day: "Wed", time: "09:30", clinician: "Dr Karim Example", patient: "Dina H.", modality: "in person" },
+  { day: "Thu", time: "14:00", clinician: "Dr Salma Demo", patient: "Adam R.", modality: "video" },
 ];
 
 /**
@@ -169,10 +169,10 @@ export const CLINIC_BILL = {
  * opposite of what is sold.
  */
 export const COMPANY_PAID: { therapist: string; sessions: number; cents: number }[] = [
-  { therapist: "Nour Demo", sessions: 14, cents: 84_000 },
-  { therapist: "Karim Example", sessions: 11, cents: 66_000 },
-  { therapist: "Salma Demo", sessions: 9, cents: 54_000 },
-  { therapist: "Hana Example", sessions: 6, cents: 36_000 },
+  { therapist: "Dr Nour Demo", sessions: 14, cents: 84_000 },
+  { therapist: "Dr Karim Example", sessions: 11, cents: 66_000 },
+  { therapist: "Dr Salma Demo", sessions: 9, cents: 54_000 },
+  { therapist: "Dr Hana Example", sessions: 6, cents: 36_000 },
 ];
 
 /** The joining code and how far the roster has got. */
@@ -213,13 +213,13 @@ export const RADAR_DEMO: {
   minutes: number;
   free: boolean;
 }[] = [
-  { name: "Nour Demo", title: "Psychotherapist", languages: "Arabic, English", priceCents: 6_000, minutes: 50, free: true },
-  { name: "Karim Example", title: "Clinical psychologist", languages: "Arabic", priceCents: 7_500, minutes: 50, free: true },
-  { name: "Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 5_000, minutes: 30, free: true },
+  { name: "Dr Nour Demo", title: "Psychotherapist", languages: "Arabic, English", priceCents: 6_000, minutes: 50, free: true },
+  { name: "Dr Karim Example", title: "Clinical psychologist", languages: "Arabic", priceCents: 7_500, minutes: 50, free: true },
+  { name: "Dr Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 5_000, minutes: 30, free: true },
 ];
 
 /** What the patient's billing tab shows: one settled session and one waiting. */
 export const PATIENT_BILLS: { what: string; when: string; cents: number; paid: boolean }[] = [
-  { what: "Session with Nour Demo", when: "12 March", cents: 6_000, paid: false },
-  { what: "Session with Nour Demo", when: "5 March", cents: 6_000, paid: true },
+  { what: "Session with Dr Nour Demo", when: "12 March", cents: 6_000, paid: false },
+  { what: "Session with Dr Nour Demo", when: "5 March", cents: 6_000, paid: true },
 ];

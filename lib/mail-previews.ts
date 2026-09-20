@@ -107,7 +107,7 @@ export function previewMessages(): PreviewMessage[] {
         sendSessionReport({
           to,
           patientName: "Mariam Demo",
-          therapistName: "Nour Demo",
+          therapistName: "Dr Nour Demo",
           note: NOTE,
           sessionDate: WHEN,
           timezone: "Africa/Cairo",
@@ -119,7 +119,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendSessionInvite({
           to,
-          therapistName: "Nour Demo",
+          therapistName: "Dr Nour Demo",
           joinUrl: `${app}/j/DEMO1234`,
           priceCents: 6_000,
         }),
@@ -129,7 +129,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendRatingReminder({
           to,
-          therapistName: "Nour Demo",
+          therapistName: "Dr Nour Demo",
           therapistFirstName: "Nour",
           url: `${app}/r/DEMO1234`,
           sessionDate: WHEN,
@@ -157,7 +157,7 @@ export function previewMessages(): PreviewMessage[] {
         sendRecordExport({
           to,
           patientName: "Mariam Demo",
-          clinicianName: "Nour Demo",
+          clinicianName: "Dr Nour Demo",
           url: `${app}/export/DEMO-TOKEN`,
           expiresInHours: 24,
         }),
@@ -167,7 +167,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendWalkInDirections({
           to,
-          therapistName: "Nour Demo",
+          therapistName: "Dr Nour Demo",
           practiceName: "Nile Practice",
           address: "12 Road 9, Maadi, Cairo",
           mapsUrl: "https://maps.google.com/?q=Maadi+Cairo",
@@ -178,8 +178,8 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "A session with Nour Demo",
-          body: "Nour Demo has kept Thursday 12 March at 17:00 for you.\n\nIf that does not work, tell them as early as you can and the hour goes back on their calendar for somebody else.",
+          subject: "A session with Dr Nour Demo",
+          body: "Dr Nour Demo has kept Thursday 12 March at 17:00 for you.\n\nIf that does not work, tell them as early as you can and the hour goes back on their calendar for somebody else.",
           link: { label: "Open your session", url: `${app}/sessions/demo` },
         }),
     },
@@ -188,8 +188,8 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Your session with Nour Demo",
-          body: "A reminder that your session with Nour Demo is tomorrow at 17:00.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.",
+          subject: "Your session with Dr Nour Demo",
+          body: "A reminder that your session with Dr Nour Demo is tomorrow at 17:00.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.",
           link: { label: "Open your session", url: `${app}/sessions/demo` },
         }),
     },
@@ -198,7 +198,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Nour Demo is ready for you",
+          subject: "Dr Nour Demo is ready for you",
           body: "The door is open. Join when you are ready.",
           link: { label: "Go in", url: `${app}/sessions/demo` },
         }),
@@ -209,7 +209,7 @@ export function previewMessages(): PreviewMessage[] {
         sendNotification({
           to,
           subject: "Your session summary is ready",
-          body: "Nour Demo has approved the summary from your session. It is on your record.",
+          body: "Dr Nour Demo has approved the summary from your session. It is on your record.",
           link: { label: "Read it", url: `${app}/patient/sessions` },
         }),
     },
@@ -219,7 +219,7 @@ export function previewMessages(): PreviewMessage[] {
         sendNotification({
           to,
           subject: "Your withdrawal is on its way",
-          body: "We have sent 1,840.00 EGP to Nour Demo. The transfer receipt is on your earnings page.",
+          body: "We have sent 1,840.00 EGP to Dr Nour Demo. The transfer receipt is on your earnings page.",
           link: { label: "Your earnings", url: `${app}/billing` },
         }),
     },
