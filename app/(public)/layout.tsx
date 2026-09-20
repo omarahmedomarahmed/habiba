@@ -6,7 +6,7 @@ import { Button } from "@/components/ui";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { getFooterLinks, getPublicNav } from "@/lib/content/service";
 import { env } from "@/lib/env";
-import { getLocale } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
 import { alternatesFor, localisedPath } from "@/lib/i18n/paths";
 import { publicLanguages } from "@/lib/i18n/strings";
 
@@ -16,11 +16,15 @@ import { publicLanguages } from "@/lib/i18n/strings";
  * They carry a claim about what exists, which is not an editorial decision,
  * so they cannot be unpublished from the content editor.
  */
+/*
+ * 🔴 77.10 — THE LABELS ARE KEYS NOW, because these four sat in the footer of
+ * every page in both languages and rendered in English on both.
+ */
 const CODE_PAGES = [
-  { href: "/integrations", label: "Integrations" },
-  { href: "/for-clinics", label: "For clinics" },
-  { href: "/developers", label: "Developers" },
-  { href: "/verify", label: "Check a record extract" },
+  { href: "/integrations", key: "nav.integrations" },
+  { href: "/for-clinics", key: "marketing.clinics.eyebrow" },
+  { href: "/developers", key: "nav.developers" },
+  { href: "/verify", key: "nav.verify" },
 ] as const;
 
 /**
@@ -43,13 +47,29 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const [nav, footer, offered, locale] = await Promise.all([
+  /*
+   * 🔴 77.10 — THE CHROME READS THE DICTIONARY, and until this it did not.
+   *
+   * Six strings were typed into this file: the two header buttons, "Talk now",
+   * "Sign in", the footer's one-line description and the rights sentence. They
+   * are on EVERY public page, so the Arabic site carried an English header and
+   * an English footer around correctly translated content — which reads as a
+   * product that does not really do Arabic, on every page, above the fold.
+   *
+   * `app/(public)/` is exempt from `verify:sprint37l` on the stated ground
+   * that "the rows are already published in both languages". That is true of
+   * `[slug]`, which renders the CMS, and false of this file, which renders
+   * itself. The same exemption hid the same defect on `/for-clinics` until
+   * sprint 65 went looking.
+   */
+  const [nav, footer, offered, i18n] = await Promise.all([
     getPublicNav(),
     getFooterLinks(),
     // 21.13 — only the languages whose public switch is on.
     publicLanguages(),
-    getLocale(),
+    getI18n(),
   ]);
+  const { locale, t } = i18n;
 
   /*
    * 🔴 Every link out of this chrome keeps the prefix.
@@ -94,7 +114,7 @@ export default async function PublicLayout({ children }: { children: React.React
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50"
             >
               <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" aria-hidden />
-              Talk now
+              {t("nav.talkNow")}
             </Link>
           </nav>
 
@@ -111,12 +131,12 @@ export default async function PublicLayout({ children }: { children: React.React
             />
             <Link href={href("/radar")} className="sm:hidden">
               <Button variant="ghost" size="sm" className="text-teal-700">
-                Talk now
+                {t("nav.talkNow")}
               </Button>
             </Link>
             <Link href="/login" className="hidden sm:block">
               <Button variant="ghost" size="sm">
-                Sign in
+                {t("nav.signIn")}
               </Button>
             </Link>
             {/*
@@ -131,11 +151,11 @@ export default async function PublicLayout({ children }: { children: React.React
             */}
             <Link href={href("/for-patients")} className="hidden sm:block">
               <Button variant="secondary" size="sm">
-                I need a therapist
+                {t("nav.needTherapist")}
               </Button>
             </Link>
             <Link href="/signup">
-              <Button size="sm">Start free, for therapists</Button>
+              <Button size="sm">{t("nav.startFreeTherapists")}</Button>
             </Link>
           </div>
         </div>
@@ -149,7 +169,7 @@ export default async function PublicLayout({ children }: { children: React.React
             <div>
               <p className="text-sm font-bold text-navy-500">24Therapy</p>
               <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-600">
-                Clinical documentation for therapists. Your notes, written while you work.
+                {t("nav.tagline")}
               </p>
             </div>
 
@@ -184,14 +204,14 @@ export default async function PublicLayout({ children }: { children: React.React
                   href={href(item.href)}
                   className="text-xs text-slate-600 hover:text-slate-900"
                 >
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               ))}
             </nav>
           </div>
 
           <p className="mt-8 text-xs text-slate-600">
-            © {new Date().getFullYear()} 24Therapy. Not a substitute for clinical judgement.
+            © {new Date().getFullYear()} 24Therapy. {t("nav.rights")}
           </p>
         </div>
       </footer>

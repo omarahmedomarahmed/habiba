@@ -316,6 +316,16 @@ export const en = {
   "nav.signIn": "Sign in",
   "nav.startFree": "Start free",
   "nav.talkNow": "Talk now",
+  /*
+   * 🔴 77.10 — the six that were typed into `app/(public)/layout.tsx` and so
+   * rendered in English on every Arabic page, header and footer alike.
+   */
+  "nav.needTherapist": "I need a therapist",
+  "nav.startFreeTherapists": "Start free, for therapists",
+  "nav.developers": "Developers",
+  "nav.verify": "Check a record extract",
+  "nav.tagline": "Clinical notes, written while you work.",
+  "nav.rights": "Not a substitute for clinical judgement.",
 
   /*
    * The crisis line is deliberately not one number.
@@ -3884,6 +3894,12 @@ export const ar: Record<MessageKey, string> = {
   "nav.security": "الأمان",
   "nav.signIn": "تسجيل الدخول",
   "nav.startFree": "ابدأ مجانًا",
+  "nav.needTherapist": "أحتاج معالجًا",
+  "nav.startFreeTherapists": "ابدأ مجانًا، للمعالجين",
+  "nav.developers": "المطورون",
+  "nav.verify": "تحقّق من مستخرج سجل",
+  "nav.tagline": "ملاحظات سريرية تُكتب وأنت تعمل.",
+  "nav.rights": "ليست بديلًا عن الحكم السريري.",
   "nav.talkNow": "تحدث الآن",
   "urgent.footer":
     "إذا كنت بحاجة إلى مساعدة عاجلة، اتصل برقم الطوارئ في بلدك في أي وقت.",
