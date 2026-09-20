@@ -188,18 +188,42 @@ async function main() {
 
   /* ------------------------------------------------- 30.1 · C154 · routing */
 
-  const [reference] = await controlDb
-    .select({ organizationId: users.organizationId })
-    .from(users)
-    .where(eq(users.role, "therapist"))
-    .limit(1);
-
-  const org = required(reference, "therapist whose organisation the fixtures can join");
-
+  /*
+   * 🔴 78.5 — THE AMERICAN PRACTICE IS PLANTED, NOT BORROWED.
+   *
+   * This took the FIRST therapist in the database and used their organisation,
+   * then asserted `practiceRegion === "us"`. That is not a check about the
+   * product: it is a check about whatever happens to be seeded, and it passed
+   * for as long as the database held an American practice by accident.
+   *
+   * `seed:demo` made every practice Egyptian, which is correct for a launch in
+   * Egypt, and this check went red without a single line of routing changing.
+   * A gate that goes red when unrelated data changes is a gate somebody turns
+   * off, and it would have been turned off for the wrong reason: the case it
+   * exists for, an Egyptian patient at an American practice, was never actually
+   * being constructed. It was being hoped for.
+   *
+   * So the practice is created here, in `us`, and deleted in the `finally`.
+   * The check now fails only when a chart routes on the practice rather than on
+   * the patient, which is the thing C154 is about.
+   */
+  let orgId: string | null = null;
   let personId: string | null = null;
   let patientId: string | null = null;
 
   try {
+    const [planted] = await controlDb
+      .insert(organizations)
+      .values({
+        name: `${TAG} American Practice`,
+        slug: `${TAG}-american-practice`,
+        region: "us",
+        kind: "solo",
+      })
+      .returning({ id: organizations.id });
+    orgId = required(planted, "the American practice this check plants").id;
+    const org = { organizationId: orgId };
+
     const [person] = await controlDb
       .insert(people)
       .values({ firstName: `${TAG}-Mona`, phone: "+201555000030", region: "eg" })
@@ -332,6 +356,8 @@ async function main() {
       await controlDb.delete(people).where(eq(people.id, personId));
     }
     await controlDb.execute(sql`DELETE FROM people WHERE first_name LIKE ${`${TAG}%`}`);
+    /* The practice goes last, because the chart above pointed at it. */
+    if (orgId) await controlDb.delete(organizations).where(eq(organizations.id, orgId));
   }
 
   /* ---------------------------------------------- 30.4 · one fact, not two */

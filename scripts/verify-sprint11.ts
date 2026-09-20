@@ -106,30 +106,93 @@ async function main() {
       )
       .then((r) => r.rows);
 
-    const [existing] = await db
-      .execute<{ total: number; scheduled: number }>(
-        sql`SELECT COUNT(*)::int AS total, COUNT(scheduled_at)::int AS scheduled
-              FROM sessions
-             WHERE created_at < to_timestamp(${Number(applied?.when ?? 0)} / 1000.0)`,
+    /*
+     * 🔴 78.5 — THE OLD SESSION IS PLANTED, BECAUSE THE DATABASE STOPPED
+     * HAVING ONE.
+     *
+     * The control below exists because a window matching nothing also reports
+     * zero. It was satisfied by whatever pre-migration sessions happened to be
+     * lying around, and `seed:demo` wiped them: every session on the branch is
+     * now newer than migration 40, the window matches nothing, the check above
+     * passes vacuously and the control says so.
+     *
+     * The control was right and the arrangement was wrong. A check that depends
+     * on the database happening to hold an old row is a check that goes quiet
+     * the first time anybody cleans up, and it goes quiet by PASSING. So the
+     * window is filled here: one session written with `created_at` a day before
+     * the migration and no `scheduled_at`, which is exactly what an unplanned
+     * radar session from before sprint 11 looks like.
+     */
+    const window = Number(applied?.when ?? 0);
+    const [host] = await db
+      .execute<{ id: string; org: string }>(
+        sql`SELECT id, organization_id AS org FROM users WHERE deleted_at IS NULL LIMIT 1`,
       )
       .then((r) => r.rows);
 
-    check(
-      "11.2 no session that predates the scheduling migration carries an invented appointment",
-      applied !== undefined && existing?.scheduled === 0,
-      `${existing?.scheduled ?? "?"} of ${existing?.total ?? "?"} sessions older than ${
-        applied ? new Date(Number(applied.when)).toISOString().slice(0, 10) : "(ledger unreadable)"
-      }`,
-    );
+    let plantedOld: string | null = null;
+    try {
+      if (host && window > 0) {
+        const [row] = await db
+          .execute<{ id: string }>(
+            sql`INSERT INTO sessions
+                  (organization_id, therapist_id, status, modality, join_token, feedback_token,
+                   created_at, scheduled_at)
+                VALUES (${host.org}, ${host.id}, 'completed', 'video',
+                        ${`v11-old-${String(Date.now())}`}, ${`v11-oldfb-${String(Date.now())}`},
+                        to_timestamp(${window} / 1000.0) - interval '1 day', NULL)
+                RETURNING id`,
+          )
+          .then((r) => r.rows);
+        plantedOld = row?.id ?? null;
+      }
 
-    /*
-     * 🔴 CONTROL, because a window that matches nothing also reports zero.
-     */
-    check(
-      "🔴 CONTROL …and that window actually contains sessions, so zero means something",
-      (existing?.total ?? 0) > 0,
-      `${existing?.total ?? 0} sessions predate the migration`,
-    );
+      const [existing] = await db
+        .execute<{ total: number; scheduled: number }>(
+          sql`SELECT COUNT(*)::int AS total, COUNT(scheduled_at)::int AS scheduled
+                FROM sessions
+               WHERE created_at < to_timestamp(${window} / 1000.0)`,
+        )
+        .then((r) => r.rows);
+
+      check(
+        "11.2 no session that predates the scheduling migration carries an invented appointment",
+        applied !== undefined && existing?.scheduled === 0,
+        `${existing?.scheduled ?? "?"} of ${existing?.total ?? "?"} sessions older than ${
+          applied ? new Date(window).toISOString().slice(0, 10) : "(ledger unreadable)"
+        }`,
+      );
+
+      check(
+        "🔴 CONTROL …and that window actually contains sessions, so zero means something",
+        (existing?.total ?? 0) > 0,
+        `${existing?.total ?? 0} sessions predate the migration`,
+      );
+
+      /*
+       * 🔴 AND THE OFFENDER, planted, because the two checks above both pass on
+       * a query that reads the wrong column. An old session WITH a scheduled
+       * time is the backfill 11.2 forbids, and the count must find it.
+       */
+      if (plantedOld) {
+        await db.execute(
+          sql`UPDATE sessions SET scheduled_at = date_trunc('hour', now()) WHERE id = ${plantedOld}`,
+        );
+        const [caught] = await db
+          .execute<{ scheduled: number }>(
+            sql`SELECT COUNT(scheduled_at)::int AS scheduled FROM sessions
+                 WHERE created_at < to_timestamp(${window} / 1000.0)`,
+          )
+          .then((r) => r.rows);
+        check(
+          "🔴 CONTROL …and a backfilled appointment on an old session IS counted",
+          (caught?.scheduled ?? 0) === 1,
+          `${caught?.scheduled ?? 0} found`,
+        );
+      }
+    } finally {
+      if (plantedOld) await db.execute(sql`DELETE FROM sessions WHERE id = ${plantedOld}`);
+    }
 
     /* --------------------------------------- 🔴 11.1 the constraint bites -- */
 

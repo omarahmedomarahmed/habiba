@@ -1476,6 +1476,48 @@ async function main() {
    * `verify:entitlement` is where that belongs and it does not cover this yet.
    */
 
+  /* ================================================================== */
+  /*  78.6 · the two clocks, and the transfer that went missing between  */
+  /* ================================================================== */
+
+  /*
+   * 🔴 `decided_at` MUST BE THE DATABASE'S CLOCK.
+   *
+   * `grantPotTopUp` refuses to credit a pot twice by comparing
+   * `p.decided_at < sponsor_pots.updated_at`. The right-hand side is written by
+   * Postgres with `now()`. The left-hand side was written by Node with
+   * `new Date()`, and on the branch this was found the database ran 800
+   * milliseconds ahead of the application.
+   *
+   * A pot opened and its first transfer confirmed inside that second produced a
+   * `decided_at` EARLIER than the `updated_at` stamped moments before it. The
+   * guard read a legitimate first confirmation as a replay and credited
+   * nothing. The payment still showed as confirmed, `confirmPayment` logged the
+   * failed grant and returned success, and the company's money was simply not
+   * there. It was caught by a seeded pot coming out at minus 3,500 cents.
+   *
+   * §6, and this one was reproduced rather than reasoned about: a fixture that
+   * creates a pot and evaluates the same comparison twice, once with each
+   * clock, answers `YES, the money is lost` for `new Date()` and `no, the pot
+   * is credited` for `now()`. The scan below is what keeps it that way.
+   */
+  check(
+    "🔴 78.6 a payment's decision is dated by the database, not by this process",
+    !/decidedAt:\s*new Date\(\)/.test(lib) && /decidedAt:\s*sql`now\(\)`/.test(lib),
+    "a JS timestamp compared against a Postgres one is two clocks gating money",
+  );
+
+  /*
+   * 🔴 CONTROL, because a scan for an absence passes on a file it failed to
+   * read. The guard it protects must still be the comparison described above,
+   * or this check is defending a line that moved.
+   */
+  check(
+    "🔴 CONTROL …and the guard it protects is still that comparison",
+    /p\.decided_at < sponsor_pots\.updated_at/.test(grants),
+    "the scan above is about this line and nothing else",
+  );
+
   finish("sprints 73 and 74");
 }
 

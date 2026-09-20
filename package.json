@@ -69,6 +69,8 @@
     "screens:prep": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/screens-prep.ts",
     "grant:admin": "node --env-file-if-exists=.env.local --import tsx scripts/grant-admin.ts",
     "seed:coverage": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/seed-coverage.ts",
+    "seed:demo": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/seed-demo.ts",
+    "verify:demo": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-demo.ts",
     "evals": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server evals/run.ts",
     "copilot:exam": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/copilot-exam.ts",
     "test:evals": "node --env-file-if-exists=.env.local --import tsx --test tests/evals.test.ts",

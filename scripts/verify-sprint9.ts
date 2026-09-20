@@ -78,19 +78,35 @@ async function main() {
      * drafted steps into existing notes; promoting them would hand every
      * patient with an account a backlog of tasks nobody set, dated to sessions
      * that ended months ago.
+     *
+     * 🔴 78.5 — AND THE TEST IS NO LONGER "ZERO HOMEWORK EXISTS".
+     *
+     * It asserted `COUNT(*) FROM homework_items === 0`, which was a true
+     * statement about the week the migration ran and is a false statement about
+     * a product where assigning homework is a feature clinicians use. It held
+     * only while no database it ran against had any, so the first seeded
+     * caseload with homework on it turned it red about nothing.
+     *
+     * The property that distinguishes the two is WHO put the row there. A
+     * clinician assigning a task names themselves in `assigned_by_user_id`; the
+     * promotion this forbade would have produced rows with no assigner, because
+     * a migration is not a person. So an unassigned homework row is the defect,
+     * and there may be as many assigned ones as clinicians care to write.
      */
     const [drafted] = await db
-      .execute<{ notes: number; live: number }>(
+      .execute<{ notes: number; live: number; unassigned: number }>(
         sql`SELECT
               (SELECT COUNT(*)::int FROM session_notes
                 WHERE jsonb_array_length(COALESCE(content->'patientSteps','[]'::jsonb)) > 0) AS notes,
-              (SELECT COUNT(*)::int FROM homework_items) AS live`,
+              (SELECT COUNT(*)::int FROM homework_items) AS live,
+              (SELECT COUNT(*)::int FROM homework_items
+                WHERE assigned_by_user_id IS NULL) AS unassigned`,
       )
       .then((r) => r.rows);
     check(
-      "9.5 drafted steps in existing notes were NOT auto-promoted to homework",
-      drafted?.live === 0,
-      `${drafted?.notes} notes carry drafted steps; ${drafted?.live} live homework rows`,
+      "🔴 9.5 no homework row arrived without a clinician putting it there",
+      drafted?.unassigned === 0,
+      `${drafted?.notes} notes carry drafted steps; ${drafted?.live} homework rows, ${drafted?.unassigned} with no assigner`,
     );
 
     /* --------------------------------------------- 9.5 the asymmetry rule -- */

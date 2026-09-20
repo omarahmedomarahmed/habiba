@@ -83,28 +83,42 @@ async function main() {
             .values({ name: `${TAG} clinic`, slug: `${TAG}-${Date.now()}` })
             .returning({ id: organizations.id });
 
-    const existing = await db.select({ id: users.id }).from(users).limit(3);
-    const wanted = 3 - existing.length;
+    /*
+     * 🔴 78.5 — ALL THREE ARE PLANTED, and none is borrowed.
+     *
+     * This took `SELECT id FROM users LIMIT 3` and only planted what was
+     * missing, so on any database with three users the payee, the approver and
+     * the sender were REAL PEOPLE. Everything below then ran the money path
+     * against one of them: a payout method saved on their account, a withdrawal
+     * requested in their name, held earnings moved.
+     *
+     * The failure that surfaced it is the mild version. A seeded clinician
+     * already had an open withdrawal, `requestPayout` correctly refused a
+     * second — "You already have a withdrawal in progress" — and the verifier
+     * read the refusal as a broken product, then threw on the empty id it got
+     * back. The severe version is the same line succeeding: a fabricated payout
+     * on a real clinician's ledger, tagged with nothing, in a `finally` that
+     * only deletes rows whose identifier starts with `verify16`.
+     *
+     * The teardown below already removes users whose email starts with the tag.
+     * It could never remove the ones this borrowed, because they were never
+     * this file's to remove.
+     */
+    const planted = await db
+      .insert(users)
+      .values(
+        Array.from({ length: 3 }, (_, index) => ({
+          organizationId: org!.id,
+          email: `${TAG}-${index}-${Date.now()}@example.test`,
+          passwordHash: "x".repeat(60),
+          firstName: `${TAG}`,
+          lastName: `${index}`,
+          role: "therapist" as const,
+        })),
+      )
+      .returning({ id: users.id });
 
-    const planted =
-      wanted > 0
-        ? await db
-            .insert(users)
-            .values(
-              Array.from({ length: wanted }, (_, index) => ({
-                organizationId: org!.id,
-                email: `${TAG}-${index}-${Date.now()}@example.test`,
-                passwordHash: "x".repeat(60),
-                firstName: `${TAG}`,
-                lastName: `${index}`,
-                role: "therapist" as const,
-              })),
-            )
-            .returning({ id: users.id })
-        : [];
-
-    const staff = [...existing, ...planted];
-    const [payee, alice, bob] = staff as [{ id: string }, { id: string }, { id: string }];
+    const [payee, alice, bob] = planted as [{ id: string }, { id: string }, { id: string }];
 
     /* ------------------------------------------------ 16.9 · the entity */
 

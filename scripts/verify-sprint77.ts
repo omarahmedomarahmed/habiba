@@ -374,13 +374,46 @@ function main() {
   const script = readSource("scripts/mail-preview.ts");
   const settings = readSource("app/(admin)/admin/settings/page.tsx");
 
-  /* All fourteen, counted, so a template that is dropped is visible. */
-  const sends = (previews.match(/\n    \{\s*\n?\s*name: "/g) ?? []).length ||
-    (previews.match(/name: "/g) ?? []).length;
+  /*
+   * 🔴 78.4 — EVERY AUDIENCE, NOT A NUMBER.
+   *
+   * This asserted `=== 14` and passed for a sprint while the list was twelve
+   * patient messages, one clinician's and one shared. The founder read all
+   * fourteen and had to ask whether a company or a clinic gets anything at all,
+   * which is a question a count cannot answer and a gate counting to fourteen
+   * would never have raised.
+   *
+   * So the property is coverage: every recipient type this product mails has at
+   * least one template here. The count is still reported, because a template
+   * silently dropped is worth seeing, but it is no longer what passes.
+   */
+  const audiences = ["patient", "clinician", "company", "partner", "our staff"] as const;
+  const missing = audiences.filter((who) => !previews.includes(`audience: "${who}"`));
+  const sends = (previews.match(/\n      audience: "/g) ?? []).length;
   check(
-    "🔴 77.12 all fourteen templates are in one list",
-    sends === 14,
-    `${String(sends)} found`,
+    "🔴 77.12 every audience this product mails is in the one list",
+    missing.length === 0 && sends >= audiences.length,
+    missing.length > 0 ? `nothing for: ${missing.join(", ")}` : `${String(sends)} templates`,
+  );
+
+  /*
+   * 🔴 CONTROL, because "does this string appear" passes for the wrong reason
+   * as easily as any other absence check. An audience nothing uses must be
+   * reported missing, or the check above is reading the type alias rather than
+   * the list.
+   */
+  check(
+    "🔴 CONTROL an audience with no template is reported missing",
+    !previews.includes('audience: "regulator"'),
+    "a scan that matched anything would clear an audience nobody wrote a message for",
+  );
+
+  /* Each one says WHEN it fires, which is the half a subject line cannot carry. */
+  const whens = (previews.match(/\n      when: "/g) ?? []).length;
+  check(
+    "🔴 …and each one says what makes it fire",
+    whens === sends,
+    `${String(whens)} of ${String(sends)}`,
   );
 
   /*
@@ -392,7 +425,7 @@ function main() {
   check(
     "🔴 …and the preview script renders the same list rather than its own",
     /previewMessages\(\)/.test(script) && !/sendSessionReport\(/.test(script),
-    "the fourteen were typed into the script and the console needed them too",
+    "the list was typed into the script and the console needed it too",
   );
 
   check(
@@ -400,12 +433,12 @@ function main() {
     /export async function sendEveryTemplate/.test(adminActions) &&
       /sendEveryTemplate[\s\S]{0,600}requireRole\("super_admin"\)/.test(adminActions) &&
       /action: "email\.previewAll"/.test(adminActions),
-    "a button that sends fourteen emails is one somebody will ask about later",
+    "a button that sends every template is one somebody will ask about later",
   );
 
   check(
     "🔴 …and it is reachable, on the screen behind the same door as the prices",
-    /<MailCheck \/>/.test(settings),
+    /<MailCheck roster=\{previewRoster\(previewMessages\(\)\)\} \/>/.test(settings),
     "58.3: a surface nothing links to is a surface nobody uses",
   );
 
@@ -419,6 +452,18 @@ function main() {
    * is the same arrangement the staff sign-in form already had.
    */
   const card = readSource("components/admin/mail-check.tsx");
+
+  /*
+   * 🔴 AND THE PAGE SHOWS WHO EACH ONE IS FOR, which is what the founder had to
+   * ask about after reading all fourteen in an inbox.
+   */
+  check(
+    "🔴 78.4 the console groups the list by recipient",
+    /const AUDIENCES = \["patient", "clinician", "company", "partner", "our staff"\]/.test(card) &&
+      /previewRoster\(previewMessages\(\)\)/.test(settings),
+    "a flat list of every message reads as a survey of the product and is a survey of one audience",
+  );
+
   check(
     "🔴 …and its form is a direct server reference, so it submits without JavaScript",
     /useActionState<AdminActionState, FormData>\(sendEveryTemplate, \{\}\)/.test(card) &&
@@ -432,10 +477,11 @@ function main() {
    * Resend allows ten requests a second. Fourteen bare awaits cleared it and
    * four came back "Too many requests" — the last four in the list, which is
    * the worst failure a tool for looking at every template can have. A count
-   * that reports 10 of 14 honestly is still the wrong count.
+   * that reports 10 of 14 honestly is still the wrong count. The list is longer
+   * now, so the pacing matters more rather than less.
    */
   check(
-    "🔴 77.14 the fourteen are paced and a rejection is retried once",
+    "🔴 77.14 the sends are paced and a rejection is retried once",
     /await pause\(150\)/.test(adminActions) && /await pause\(1_000\)/.test(adminActions),
     "ten a second is the provider's limit and a flat loop beats it",
   );
@@ -452,18 +498,35 @@ function main() {
    * less. Every surname is Demo or Example and every address is at the domain
    * RFC 2606 reserves.
    */
-  const names = previews.match(/"[A-Z][a-z]+ (?:[A-Z][a-z]+)"/g) ?? [];
-  const strangers = names.filter((n) => !/(Demo|Example|Practice)"$/.test(n));
+  /*
+   * 🔴 78.4 — THE SCAN READS THE PROSE TOO, because the names moved into it.
+   *
+   * It matched only a name that was the WHOLE of a quoted string, which was
+   * true of every template while each one passed `therapistName: "Dr Nour
+   * Demo"` as a field. Twelve of the new messages go through `sendNotification`
+   * and build their sentence themselves, so the names are now inside the body,
+   * as in "Dr Sara Demo can read your history from now on", where the old
+   * pattern could not see them and a real clinician's name would have sailed
+   * through.
+   *
+   * So both shapes are scanned: a quoted name on its own, and any `Dr First
+   * Last` anywhere in the file.
+   */
+  const quoted = previews.match(/"[A-Z][a-z]+ (?:[A-Z][a-z]+)"/g) ?? [];
+  const titled = previews.match(/Dr [A-Z][a-z]+ [A-Z][a-z]+/g) ?? [];
+  const named = [...quoted, ...titled];
+  const strangers = named.filter((n) => !/(Demo|Example|Practice)"?$/.test(n));
   check(
-    "🔴 …and every person in the fourteen is invented",
+    "🔴 …and every person in the list is invented, in a field or in a sentence",
     strangers.length === 0 && !/@(?!example\.com)[\w-]+\.[a-z]{2,}/.test(previews),
-    strangers.join(", ") || `${String(names.length)} names, all Demo or Example`,
+    strangers.join(", ") || `${String(named.length)} names, all Demo or Example`,
   );
 
   check(
-    "🔴 CONTROL that name scan catches a stranger",
-    ['"Mariam Demo"', '"Nour Demo"', '"Sarah Connor"']
-      .filter((n) => !/(Demo|Example|Practice)"$/.test(n)).length === 1,
+    "🔴 CONTROL that name scan catches a stranger, quoted or in prose",
+    ['"Mariam Demo"', '"Nour Demo"', '"Sarah Connor"', "Dr Sara Demo", "Dr Sarah Connor"].filter(
+      (n) => !/(Demo|Example|Practice)"?$/.test(n),
+    ).length === 2,
     "a surname rule that matched everything would clear a real patient's name",
   );
 

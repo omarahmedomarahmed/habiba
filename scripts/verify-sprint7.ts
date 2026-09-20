@@ -109,14 +109,36 @@ async function main() {
 
     /* ------------------------------------------- 7.3 one live request, enforced */
 
+    /*
+     * 🔴 78.5 — AN APPROVED CLINICIAN, because the database refuses any other.
+     *
+     * This was `SELECT id … FROM users LIMIT 1` with no ordering, so it billed
+     * the whole grant flow against whoever came back first. Every check below
+     * writes a `history_grants` row, and `history_grants_require_verified` is a
+     * trigger that raises unless that clinician has an **approved**
+     * verification: the grant is a clinician being handed somebody's history,
+     * and an unapproved one may not hold it.
+     *
+     * So the row this picked decided whether the verifier passed. A database
+     * whose first user is an operator, or a fixture another verifier planted,
+     * failed four checks about a product that was working.
+     */
     const [therapist] = await db
       .execute<{ id: string; org: string }>(
-        sql`SELECT id, organization_id AS org FROM users WHERE deleted_at IS NULL LIMIT 1`,
+        sql`SELECT u.id, u.organization_id AS org
+              FROM users u
+              JOIN therapist_verifications v ON v.user_id = u.id AND v.state = 'approved'
+             WHERE u.deleted_at IS NULL
+             ORDER BY u.created_at
+             LIMIT 1`,
       )
       .then((r) => r.rows);
 
     if (!therapist) {
-      skip("7.3 the request flow", "no clinician rows in this database");
+      skip(
+        "7.3 the request flow",
+        "no approved clinician in this database, and the grant trigger refuses any other",
+      );
     } else {
       const personId = await newPerson(db);
       const accountId = await newAccount(db, personId);

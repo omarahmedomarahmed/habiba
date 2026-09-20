@@ -436,13 +436,38 @@ async function main() {
   const DOORS = [
     "scripts/age.ts",
     "scripts/migrate.ts",
+    /*
+     * 🔴 78.1 — THE SIXTH DOOR, AND THE ONLY ONE THAT DELETES PEOPLE.
+     *
+     * `seed:demo` wipes the cast and seeds a demo one with history behind it,
+     * so every portal can be opened and redesigned against something rather
+     * than an empty screen. It was asked for in those words and it has nowhere
+     * else to run: the redesign is of the DEPLOYED product, the deployed
+     * product reads production, and a cast seeded on dev cannot be signed into
+     * from a phone.
+     *
+     * It is a door rather than an exception because three things hold, and all
+     * three are checked rather than promised:
+     *
+     *   1. A Neon snapshot is taken first. `br-nameless-dust-a6ae5e4r` is the
+     *      undo.
+     *   2. It never truncates. It DELETEs the person-shaped tables and counts
+     *      the fourteen configuration and payroll tables before and after,
+     *      throwing if any of them lost a row.
+     *   3. `verify:demo` runs afterwards and proves every login works and
+     *      nothing it opens onto is empty.
+     *
+     * This list is the place a sixth door has to be argued for, which is the
+     * whole point of counting them.
+     */
+    "scripts/seed-demo.ts",
     "scripts/settings.ts",
     "scripts/simulate-seed.ts",
     "scripts/sync-blocks.ts",
   ];
 
   check(
-    "🔴 76.62 exactly FIVE scripts anywhere under scripts/ may be let through to production",
+    "🔴 76.62 exactly SIX scripts anywhere under scripts/ may be let through to production",
     opened.length === DOORS.length && DOORS.every((d) => opened.includes(d)),
     opened.join(", ") || "none, which means the seed cannot run where it is meant to",
   );

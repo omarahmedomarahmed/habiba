@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { MailCheck } from "@/components/admin/mail-check";
+import { previewMessages, previewRoster } from "@/lib/mail-previews";
 import { TransferFieldsEditor } from "@/components/admin/transfer-fields-editor";
 import { detailsLockedBy } from "@/lib/billing/manual";
 import {
@@ -195,7 +196,7 @@ export default async function SettingsPage() {
         may touch. It sends fourteen emails, which is the kind of button that
         belongs behind the same door as the prices.
       */}
-      <MailCheck />
+      <MailCheck roster={previewRoster(previewMessages())} />
 
       <div>
         <h2 className="mb-2 text-sm font-bold tracking-wide text-slate-500 uppercase">

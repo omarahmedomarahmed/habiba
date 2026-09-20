@@ -129,10 +129,31 @@ async function main() {
         .select({ value: platformSettings.value })
         .from(platformSettings)
         .where(eq(platformSettings.key, "pricing"));
+      /*
+       * 🔴 78.5 — COMPARED AGAINST WHAT WAS CAPTURED, not against a number
+       * typed here.
+       *
+       * This asserted the restored payg rate was `400`. The reprice moved it to
+       * 300 cents of AI plus a 100 cent platform fee, which is the same all-in
+       * $4 and a different column, and this line kept the old number. It stayed
+       * green because the whole block is skipped when the database holds no
+       * priced session, and dev held none until a seed put one there.
+       *
+       * So it went red about a restore that worked perfectly, which is the
+       * worst kind of red line: it points at the wrong thing. H31 and H25 say
+       * it plainly, and the rest of this repository already follows it — a
+       * checker holding its own copy of a number stops matching the day
+       * somebody tunes the real one. The restore is correct when the value
+       * equals the value that was taken, whatever that value is.
+       */
+      const restoredRate = parseGroup("pricing", restored?.value).tiers.find(
+        (t) => t.key === "payg",
+      )?.aiRateCents;
+      const takenRate = pricing.tiers.find((t) => t.key === "payg")?.aiRateCents;
       check(
-        "settings restored",
-        parseGroup("pricing", restored?.value).tiers.find((t) => t.key === "payg")?.aiRateCents ===
-          400,
+        "settings restored to exactly what was taken",
+        restoredRate === takenRate,
+        `${String(takenRate)} → ${String(restoredRate)}`,
       );
     }
 

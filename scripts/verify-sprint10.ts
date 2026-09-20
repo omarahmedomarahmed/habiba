@@ -163,9 +163,43 @@ async function main() {
             ),
           ),
         );
+        /*
+         * 🔴 78.5 — AMENDED, BECAUSE SPRINT 11 BUILT SCHEDULING.
+         *
+         * This asserted `nextSessionAt` is ALWAYS null, with "until sprint 11
+         * builds scheduling" written into its own name. Sprint 11 built it, and
+         * this line survived roughly forty sprints past the sentence that
+         * dated it — green the whole time, because no database it ran against
+         * happened to hold a future session. A seed with one booked two days
+         * out turned it red, and the red line was about a feature working.
+         *
+         * The live rule is that the roster AGREES with the sessions table:
+         * every non-null date is a real scheduled session for that patient, and
+         * a patient with one has it rather than null. That is the property C57
+         * was reaching for, and it is the one that would catch a roster
+         * inventing an appointment.
+         */
+        const booked = await db
+          .execute<{ patient: string; next: Date | null }>(
+            sql`SELECT patient_id AS patient, MIN(scheduled_at) AS next
+                  FROM sessions
+                 WHERE therapist_id = ${therapist.id}
+                   AND status = 'scheduled' AND scheduled_at > now()
+                 GROUP BY 1`,
+          )
+          .then((r) => new Map(r.rows.map((row) => [row.patient, row.next])));
+
+        const wrong = roster.filter((row) => {
+          const expected = booked.get(row.patientId) ?? null;
+          const got = row.nextSessionAt ?? null;
+          if (expected === null) return got !== null;
+          return got === null || new Date(got).getTime() !== new Date(expected).getTime();
+        });
+
         check(
-          "C57 next appointment is null until sprint 11 builds scheduling",
-          roster.every((row) => row.nextSessionAt === null),
+          "🔴 C57 / 11.x the roster's next appointment is the one in the sessions table",
+          wrong.length === 0,
+          `${String(roster.length)} on the roster, ${String(booked.size)} with something booked, ${String(wrong.length)} disagree`,
         );
         console.log(`       (${roster.length} patients on this clinician's roster)`);
       }

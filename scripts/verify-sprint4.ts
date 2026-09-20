@@ -36,38 +36,87 @@ async function main() {
     )[0]!.n;
 
     console.log(`session types: ${JSON.stringify(byType)}`);
+
+    /*
+     * 🔴 78.5 — AMENDED TWICE OVER, AND BOTH OLD FORMS WERE UNTRUE OF THE
+     * PRODUCT RATHER THAN OF THE DATABASE.
+     *
+     * The first said every priced session is a `paid_link`. That was right
+     * while a clinician's link was the only way to put a price on anything.
+     * `bookFromSlot` in `lib/data/scheduling.ts` now creates a priced
+     * appointment and does NOT set the column, so it takes the `direct`
+     * default — the claim cannot hold in general and only held while no
+     * database had a booked priced session in it.
+     *
+     * The second said "no session claims to be scheduled, scheduling does not
+     * exist until sprint 11". Sprint 11 built it. That line outlived the
+     * sentence that dated it by about forty sprints, green throughout, because
+     * nothing it ran against had an appointment booked.
+     *
+     * What is worth holding is the rule underneath: a session RECORDS WHERE IT
+     * CAME FROM rather than having it guessed later. The two paths are
+     * distinguishable — a booked one carries `scheduled_at` — so a priced
+     * session that is `direct` and has no appointment behind it is a link that
+     * forgot to say it was one.
+     */
+    const [origins] = await db
+      .execute<{ silent: number; booked: number }>(
+        sql`SELECT
+              COUNT(*) FILTER (WHERE session_type = 'direct' AND scheduled_at IS NULL)::int AS silent,
+              COUNT(*) FILTER (WHERE scheduled_at IS NOT NULL)::int AS booked
+            FROM sessions WHERE price_cents > 0`,
+      )
+      .then((r) => r.rows);
+
     check(
-      "4.6 every priced session is recorded as a paid link",
-      (byType.paid_link ?? 0) === priced,
-      `${byType.paid_link ?? 0} paid_link vs ${priced} priced`,
-    );
-    check(
-      "4.6 nothing was invented, no session claims to be scheduled",
-      (byType.scheduled ?? 0) === 0,
-      "scheduling does not exist until sprint 11",
+      "🔴 4.6 every priced session records where it came from",
+      (origins?.silent ?? 0) === 0,
+      `${priced} priced · ${byType.paid_link ?? 0} link · ${origins?.booked ?? 0} booked · ` +
+        `${origins?.silent ?? 0} claiming nothing`,
     );
 
     /* ------------------------------------------- historical payments unchanged */
 
+    /*
+     * 🔴 78.5 — WINDOWED TO THE HISTORICAL ROWS, because it was counting all of
+     * them.
+     *
+     * The claim is that the migration did not REWRITE payments taken before
+     * sprint 4: they were in dollars, they carried no VAT, and they were cut at
+     * 10 per cent rather than today's 15. That is a statement about rows
+     * created before the change, and it was asked of every row in the table.
+     *
+     * It passed for as long as the table held nothing else. The moment a
+     * database contained a payment taken at the CURRENT rate — which is what a
+     * working product produces — it went red about the new row rather than the
+     * old ones.
+     *
+     * The old rate is its own marker, so the window needs no migration number:
+     * `platform_fee_bps = 1000` IS a pre-sprint-4 row. When there are none, the
+     * honest report is a skip rather than a pass, because a check over an empty
+     * set proves nothing and should not look like proof.
+     */
     const [old] = await db
       .select({
-        n: sql<number>`COUNT(*)::int`,
-        nonUsd: sql<number>`COUNT(*) FILTER (WHERE currency <> 'usd')::int`,
-        withVat: sql<number>`COUNT(*) FILTER (WHERE vat_cents <> 0)::int`,
-        atOldRate: sql<number>`COUNT(*) FILTER (WHERE platform_fee_bps = 1000)::int`,
+        n: sql<number>`COUNT(*) FILTER (WHERE platform_fee_bps = 1000)::int`,
+        nonUsd: sql<number>`COUNT(*) FILTER (WHERE platform_fee_bps = 1000 AND currency <> 'usd')::int`,
+        withVat: sql<number>`COUNT(*) FILTER (WHERE platform_fee_bps = 1000 AND vat_cents <> 0)::int`,
+        total: sql<number>`COUNT(*)::int`,
       })
       .from(sessionPayments);
 
-    check(
-      "existing payments are still USD with no VAT, which is what they were",
-      (old?.nonUsd ?? 0) === 0 && (old?.withVat ?? 0) === 0,
-      `${old?.n ?? 0} payment(s)`,
-    );
-    check(
-      "and each records the 10% cut it was actually charged, not today's 15%",
-      (old?.atOldRate ?? 0) === (old?.n ?? 0),
-      `${old?.atOldRate ?? 0} of ${old?.n ?? 0}`,
-    );
+    if ((old?.n ?? 0) === 0) {
+      console.log(
+        `  --   historical payments: none at the old 10% rate on this database ` +
+          `(${old?.total ?? 0} at today's), so there is nothing a migration could have rewritten`,
+      );
+    } else {
+      check(
+        "the payments taken before sprint 4 are still USD with no VAT, which is what they were",
+        (old?.nonUsd ?? 0) === 0 && (old?.withVat ?? 0) === 0,
+        `${old?.n ?? 0} of ${old?.total ?? 0} payment(s) predate the change`,
+      );
+    }
 
     /* -------------------------------------------------------- 4.2 countries */
 

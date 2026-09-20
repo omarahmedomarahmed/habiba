@@ -89,6 +89,25 @@ const DATABASE_SHAPED = new Set([
    * at the end of each wave and again with `--complete` when the run is over.
    */
   "verify:cast",
+  /*
+   * 🔴 78.2 — AND `verify:demo` IS THE THIRD, for the same reason and with one
+   * extra edge that makes it clearer than either.
+   *
+   * It asks whether the demo cast can sign in and whether what each portal
+   * would show is not empty. That is a property of a SEEDED database, and dev
+   * is not one: a dozen gates above this line plant fixtures, cancel sessions
+   * and delete them again, so the answer there changes with the running order.
+   *
+   * It was watched doing exactly that. A full pass ran it straight after the
+   * seed and it failed on `something is booked ahead, 0` — the session the seed
+   * books two days out had been cancelled by another gate's fixture cleanup
+   * between the two. Nothing about the seed or the product was wrong; the
+   * question had simply been asked on the wrong database.
+   *
+   * `npm run on:production -- verify:demo`, run after `seed:demo`, is where it
+   * means something.
+   */
+  "verify:demo",
 ]);
 
 function verifierNames(): string[] {

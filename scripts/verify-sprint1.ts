@@ -335,14 +335,38 @@ async function main() {
 
     /* ------------------------------------- 1.8 no platform-held money is new */
 
+    /*
+     * 🔴 78.5 — AMENDED, BECAUSE THE PRODUCT REVERSED THE CLAIM ON PURPOSE AND
+     * THIS CHECK HAD NOT HEARD.
+     *
+     * It asserted ZERO rows captured to the platform balance, which was C6's
+     * closing statement: "only `capture: 'destination'` is reachable; 0
+     * historical platform rows". `lib/billing/pot.ts` says in its own header
+     * that this is **no longer true as written** — a pot-funded session has no
+     * card charge at session time and no transfer for Stripe to make, so it is
+     * `capture: "platform"` by design, held on our balance and released later
+     * by `releaseHeldEarnings`.
+     *
+     * The check passed anyway for as long as no database it ran against had
+     * ever had a pot-funded session. Seeding one turned it red, and the red
+     * line was about a decision somebody had already written down.
+     *
+     * The live rule is narrower and is the one worth holding: every platform
+     * capture is a POT payment. A card charge landing on our balance is the
+     * money-transmission exposure 1.8 forbade, and that is still forbidden.
+     */
     const held = await db
-      .select({ id: schema.sessionPayments.id, status: schema.sessionPayments.status })
+      .select({
+        id: schema.sessionPayments.id,
+        funding: schema.sessionPayments.fundingSource,
+      })
       .from(schema.sessionPayments)
       .where(eq(schema.sessionPayments.capture, "platform"));
+    const notPot = held.filter((row) => row.funding !== "pot");
     check(
-      "1.8 no payment has ever been captured to the platform balance",
-      held.length === 0,
-      `${held.length} historical rows`,
+      "🔴 1.8 / C6 nothing but a pot payment is captured to the platform balance",
+      notPot.length === 0,
+      `${held.length} platform rows, ${notPot.length} of them not pot-funded`,
     );
 
     /* --------------------------------------------------- nothing else moved */

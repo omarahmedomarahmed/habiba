@@ -98,6 +98,40 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
    * on, and nowhere else.
    */
   "copilot:exam": { writes: true, why: "examines the copilot on the run's own patients" },
+  /*
+   * 🔴 78.1 — THE ONLY COMMAND ON THIS LIST THAT DELETES PEOPLE, and it was
+   * asked for in those words: wipe the database of users and seed a cast with
+   * history, so every portal can be opened and redesigned against something
+   * rather than against an empty screen.
+   *
+   * It is on the list because it has nowhere else to run. The redesign is of
+   * the DEPLOYED product, the deployed product reads production, and a cast
+   * seeded on dev cannot be signed into from a phone.
+   *
+   * Three things make that survivable, and all three are conditions of this
+   * entry rather than hopes about it:
+   *
+   *   1. A Neon snapshot is taken first. `br-nameless-dust-a6ae5e4r` holds the
+   *      six month simulation as it stood on 2026-09-20, and restoring it is
+   *      the undo.
+   *   2. The wipe is targeted deletes, never `TRUNCATE ... CASCADE`, and it
+   *      counts fourteen configuration and payroll tables before and after and
+   *      throws if any of them lost a row. Production's seven employees and
+   *      seven salary rows are what that census is for.
+   *   3. `verify:demo` is run afterwards and proves every login works and
+   *      nothing it opens onto is empty.
+   *
+   * 🔴 IT DESTROYS WHAT IS THERE, AND WHAT IS THERE WAS READ FIRST. Production
+   * held the starting position rather than a run: nine operator and staff
+   * accounts, two organisations, three sponsor applications at `held`, one test
+   * person with one completed session, four ledger legs. `verify:cast` reads
+   * red from the moment this runs, and that is correct rather than broken.
+   * `docs/simulation/12-THE-LOGINS.md` and `docs/DEMO-LOGINS.md` both say so.
+   */
+  "seed:demo": {
+    writes: true,
+    why: "wipes the cast and seeds the demo one. Snapshot first. It DELETES PEOPLE",
+  },
 
   /* ---------------------------------------------------------------- reading */
   baseline: { writes: false, why: "counts every row in every table, and writes none of them" },
@@ -131,6 +165,16 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   "verify:migrations": { writes: false, why: "journal and ledger agree, every CHECK validated" },
   "verify:board": { writes: false, why: "the founders' board, and none of its nine queries writes" },
   "verify:cast": { writes: false, why: "every seeded login exists and can sign in" },
+  /*
+   * The half of `seed:demo` that reads. It hashes a candidate password against
+   * each stored hash and runs SELECTs; there is no statement in it that writes.
+   * It is also the only thing that proves the wipe kept what it promised, so it
+   * belongs on the same database the wipe ran against.
+   */
+  "verify:demo": {
+    writes: false,
+    why: "every demo login works and no portal it opens is empty",
+  },
 };
 
 /**

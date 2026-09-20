@@ -486,9 +486,39 @@ export async function confirmPayment(input: {
   byUserId: string;
   onConfirmed?: (payment: ManualPayment) => Promise<void>;
 }): Promise<Decision> {
+  /*
+   * 🔴 78.6 — `decided_at` IS THE DATABASE'S CLOCK, NOT THIS PROCESS'S, AND A
+   * COMPANY'S TRANSFER WENT MISSING BECAUSE IT WAS NOT.
+   *
+   * `grantPotTopUp` will not credit a pot twice, and the way it refuses the
+   * second attempt is a comparison:
+   *
+   *     AND p.decided_at < sponsor_pots.updated_at
+   *
+   * `sponsor_pots.updated_at` is written by Postgres with `now()`. `decided_at`
+   * was written here with the Node process's `new Date()`. Those are two
+   * different clocks on two different machines, and nothing keeps them in step.
+   *
+   * On the branch this was found, the database ran **800 milliseconds ahead**.
+   * A pot opened and its first transfer confirmed within that second produced
+   * `decided_at` earlier than the `updated_at` stamped moments before it, the
+   * guard read a legitimate first confirmation as a replay, and the UPDATE
+   * matched no rows. What the operator saw was a payment marked confirmed. What
+   * the company got was nothing: the pot kept its welcome credit, the top-up
+   * was never credited, and `confirmPayment` logged the failure and returned
+   * success, so no screen anywhere said the money had not arrived.
+   *
+   * An operator confirming a transfer minutes after the pot opens is the
+   * ordinary case and hides it. An operator doing both in one sitting, which is
+   * exactly what a first sale looks like, does not.
+   *
+   * So both sides of that comparison are now the database's clock. This is an
+   * audit timestamp for money either way, and the machine that stores it is the
+   * one that should date it.
+   */
   const decided = await db
     .update(manualPayments)
-    .set({ state: "confirmed", decidedAt: new Date(), decidedBy: input.byUserId })
+    .set({ state: "confirmed", decidedAt: sql`now()`, decidedBy: input.byUserId })
     .where(
       and(eq(manualPayments.id, input.paymentId), eq(manualPayments.state, "submitted")),
     )
@@ -651,7 +681,8 @@ export async function rejectPayment(input: {
     .update(manualPayments)
     .set({
       state: "rejected",
-      decidedAt: new Date(),
+      /* The database's clock, for the same reason the confirmation uses it. */
+      decidedAt: sql`now()`,
       decidedBy: input.byUserId,
       rejectReason: reason,
     })

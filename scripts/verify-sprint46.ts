@@ -26,7 +26,7 @@
  * So every absence here is bracketed: the AI line is gone AND the platform
  * line is there, with the right amount, on the same invoice.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 
@@ -47,26 +47,58 @@ async function main() {
   const platformFeeCents = settings.session.platformFeeCents;
 
   /*
-   * An organisation that already has a session, rather than the first user in
-   * the table. The two are not the same in a shared verification database, and
-   * the probe below needs a real session to bill against.
+   * 🔴 78.5 — A PRACTICE OF ITS OWN, ON A KNOWN TIER.
+   *
+   * This took `SELECT … FROM sessions LIMIT 1` with no ordering and billed
+   * against whatever organisation came back. On a shared database that is
+   * whichever fixture a previous verifier happened to leave, and the checks
+   * below assert the `payg` split: two lines, platform and AI. Land on a
+   * practice or clinic organisation, where a monthly plan makes the AI free,
+   * and the same correct product produces `platform=0, ai=0` and the run reads
+   * red about nothing.
+   *
+   * It was watched doing exactly that. Run straight after a seed it passed;
+   * run inside the full sweep, after other verifiers had planted their own
+   * organisations, it failed three checks. The verifier was measuring the
+   * running order.
+   *
+   * So the practice, the clinician and the subscription are planted here, and
+   * removed in the `finally` at the end. Nothing below depends on what else is
+   * in the database.
    */
-  const seed = required(
-    (
-      await db
-        .select({ organizationId: sessions.organizationId, therapistId: sessions.therapistId })
-        .from(sessions)
-        .limit(1)
-    )[0],
-    "session to bill against",
-  );
-  const actor = {
-    id: seed.therapistId ?? required(
-      (await db.select({ id: users.id }).from(users).limit(1))[0],
-      "user to own a test session",
-    ).id,
-    organizationId: seed.organizationId,
-  };
+  const TAG46 = `v46-${String(Date.now())}`;
+  const [plantedOrg] = await db
+    .insert(schema.organizations)
+    .values({ name: `${TAG46} practice`, slug: TAG46, region: "eg", kind: "solo" })
+    .returning({ id: schema.organizations.id });
+  const [plantedUser] = await db
+    .insert(users)
+    .values({
+      organizationId: plantedOrg!.id,
+      email: `${TAG46}@example.com`,
+      passwordHash: "x",
+      firstName: "Billing",
+      lastName: "Example",
+      role: "therapist",
+    })
+    .returning({ id: users.id });
+  await db
+    .insert(subscriptions)
+    .values({ organizationId: plantedOrg!.id, plan: "payg", status: "active" });
+  const [plantedSession] = await db
+    .insert(sessions)
+    .values({
+      organizationId: plantedOrg!.id,
+      therapistId: plantedUser!.id,
+      status: "completed",
+      endedAt: new Date(),
+      feedbackToken: `${TAG46}-probe`,
+    })
+    .returning({ id: sessions.id });
+
+  const seed = { organizationId: plantedOrg!.id, therapistId: plantedUser!.id };
+  const actor = { id: plantedUser!.id, organizationId: plantedOrg!.id };
+  void plantedSession;
 
   /* ------------------------------------------------- the pure rule, first -- */
 
@@ -506,6 +538,27 @@ async function main() {
     /entitledTier\(/.test(creditsSource) && /subscriptions\.currentPeriodEnd/.test(creditsSource),
     "a plan outranks the ladder; an expired period falls back to it",
   );
+
+  /*
+   * 🔴 The planted practice comes out, children first, so a shared database is
+   * left exactly as it was found. `restrict` on the session's organisation is
+   * why the order matters.
+   */
+  await db.delete(invoiceLines).where(
+    sql`invoice_id IN (SELECT id FROM invoices WHERE organization_id = ${plantedOrg!.id})`,
+  );
+  await db.delete(invoices).where(eq(invoices.organizationId, plantedOrg!.id));
+  await db.execute(
+    sql`DELETE FROM session_payments WHERE session_id IN
+         (SELECT id FROM sessions WHERE organization_id = ${plantedOrg!.id})`,
+  );
+  await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id IN
+         (SELECT id FROM sessions WHERE organization_id = ${plantedOrg!.id})`);
+  await db.delete(sessionCredits).where(eq(sessionCredits.organizationId, plantedOrg!.id));
+  await db.delete(sessions).where(eq(sessions.organizationId, plantedOrg!.id));
+  await db.delete(subscriptions).where(eq(subscriptions.organizationId, plantedOrg!.id));
+  await db.delete(users).where(eq(users.id, plantedUser!.id));
+  await db.delete(schema.organizations).where(eq(schema.organizations.id, plantedOrg!.id));
 
   finish("sprint 46");
 }

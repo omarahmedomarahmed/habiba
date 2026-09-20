@@ -1,0 +1,442 @@
+/**
+ * 🔴 78.2 — EVERY DEMO LOGIN WORKS, AND NOTHING IT OPENS ONTO IS EMPTY.
+ *
+ *     npm run verify:demo
+ *     npm run on:production -- verify:demo
+ *
+ * ## Why this exists rather than a sentence in a document
+ *
+ * `seed:demo` was asked for in one line: seed data with history so each portal
+ * can be opened and redesigned, and **not** an empty one. A seed that writes
+ * rows is easy; a seed that writes rows the product will actually SHOW is the
+ * thing being asked for, and those are different. `patients.therapist_id` was
+ * null in the first draft, every row was written, every insert succeeded, and
+ * all three clinicians would have signed in to an empty caseload.
+ *
+ * So the property under test is not "rows exist". It is **"the query each
+ * portal runs returns something"**, asked the way the portal asks it.
+ *
+ * ## 🔴 EVERY COUNT HAS A CONTROL THAT MUST READ ZERO
+ *
+ * §6: a check that passes by measuring the wrong thing is worse than no check.
+ * `COUNT(*) FROM patients` is greater than zero on any database with a patient
+ * in it, including one where the caseload scoping is broken, which is the exact
+ * defect this was written after. So each scoped count is run twice: once for the
+ * person who should see rows, and once with the id swapped for somebody who
+ * must see none. A scoping bug makes both non-zero and the control fails.
+ *
+ * ## 🔴 AND THE WIPE IS CHECKED FROM THE OTHER SIDE
+ *
+ * `seed:demo` deletes a hundred tables and keeps fourteen. A bug in the keep
+ * list takes the published website, every price and the payroll with it, and
+ * nothing about the seed's own output would say so. The last block asserts the
+ * kept tables still hold rows.
+ *
+ * ## It reads, and writes nothing
+ *
+ * `verifyPassword` hashes a candidate and compares. Every other statement is a
+ * SELECT. That is why it may be pointed at production.
+ */
+import { sql } from "drizzle-orm";
+
+import { DEMO_LOGINS, DEMO_PASSWORD, OWNED_INBOXES, UNCLAIMED_EMAIL } from "./_demo-cast";
+import { hostOf, reporter } from "./_verify";
+import { connect } from "./db";
+
+const { check, finish } = reporter();
+
+async function main() {
+  const { db, pool } = connect();
+  console.log(`\nreading ${hostOf()}\n`);
+
+  try {
+    const { verifyPassword } = await import("../lib/auth/password");
+
+    const num = async (text: ReturnType<typeof sql>): Promise<number> => {
+      const { rows } = await db.execute(text);
+      return Number((rows[0] as Record<string, unknown>)?.n ?? 0);
+    };
+
+    /**
+     * A scoped count and its control, reported as one line each.
+     *
+     * `mine` is the query the portal runs for somebody who should see rows.
+     * `theirs` is the identical query for somebody who must see none. Both are
+     * required: the first proves there is something to look at, the second
+     * proves the query is looking at the right person's things.
+     */
+    const scoped = async (
+      label: string,
+      atLeast: number,
+      mine: ReturnType<typeof sql>,
+      theirs: ReturnType<typeof sql>,
+    ) => {
+      const got = await num(mine);
+      check(`${label}`, got >= atLeast, `${String(got)} rows, wanted ${String(atLeast)}+`);
+      const control = await num(theirs);
+      check(`${label}: control reads zero`, control === 0, `${String(control)} rows`);
+    };
+
+    /* ------------------------------------------------ can they sign in -- */
+
+    for (const login of DEMO_LOGINS) {
+      const { rows } = await db.execute(
+        sql.raw(
+          `SELECT password_hash AS h FROM ${login.table} WHERE lower(email) = lower('${login.email}')`,
+        ),
+      );
+      const hash = (rows[0] as { h?: string } | undefined)?.h;
+      if (!hash) {
+        check(`${login.who} ${login.email}`, false, "no row");
+        continue;
+      }
+      check(`${login.who} ${login.email}`, await verifyPassword(DEMO_PASSWORD, hash));
+    }
+
+    /*
+     * 🔴 THE ONE WHO MUST NOT HAVE A LOGIN, which is a state rather than an
+     * absence of work. Laila's record is on a clinician's list with her address
+     * on it and she has never claimed it; a seed that quietly gave her an
+     * account would delete the only unclaimed record in the cast and the claim
+     * flow would have nothing to be tested against.
+     */
+    const lailaAccounts = await num(sql`
+      SELECT count(*)::int AS n FROM patient_accounts WHERE email = ${UNCLAIMED_EMAIL}`);
+    check("the unclaimed record has no account", lailaAccounts === 0, `${String(lailaAccounts)} found`);
+
+    const lailaUnclaimed = await num(sql`
+      SELECT count(*)::int AS n FROM people
+       WHERE email = ${UNCLAIMED_EMAIL} AND claimed_at IS NULL`);
+    check("and its person is unclaimed", lailaUnclaimed === 1);
+
+    const lailaOnAList = await num(sql`
+      SELECT count(*)::int AS n FROM patients WHERE email = ${UNCLAIMED_EMAIL} AND therapist_id IS NOT NULL`);
+    check("and it is on a clinician's list", lailaOnAList >= 1, `${String(lailaOnAList)}`);
+
+    /* --------------------------------------------- the therapist portal -- */
+
+    const userId = (email: string) =>
+      sql.raw(`(SELECT id FROM users WHERE email = '${email}')`);
+
+    /*
+     * The caseload query is `scope()` from `lib/data/patients.ts`: organisation
+     * plus `therapist_id = me`. The control is the same clinician against the
+     * OTHER organisation, which is what a scoping bug would wrongly return.
+     */
+    await scoped(
+      "dr omar's caseload",
+      3,
+      sql`SELECT count(*)::int AS n FROM patients
+           WHERE therapist_id = ${userId("omarabdelgawad001@gmail.com")}
+             AND organization_id = (SELECT id FROM organizations WHERE slug = 'cairo-counselling')
+             AND deleted_at IS NULL`,
+      sql`SELECT count(*)::int AS n FROM patients
+           WHERE therapist_id = ${userId("omarabdelgawad001@gmail.com")}
+             AND organization_id = (SELECT id FROM organizations WHERE slug = 'nile-practice')
+             AND deleted_at IS NULL`,
+    );
+
+    await scoped(
+      "dr sara's caseload",
+      2,
+      sql`SELECT count(*)::int AS n FROM patients
+           WHERE therapist_id = ${userId("dr.sara.demo@example.com")} AND deleted_at IS NULL`,
+      sql`SELECT count(*)::int AS n FROM patients
+           WHERE therapist_id = ${userId("dr.yasmin.example@example.com")} AND deleted_at IS NULL`,
+    );
+
+    await scoped(
+      "dr kareem's caseload",
+      1,
+      sql`SELECT count(*)::int AS n FROM patients
+           WHERE therapist_id = ${userId("dr.kareem.example@example.com")} AND deleted_at IS NULL`,
+      sql`SELECT count(*)::int AS n FROM sessions
+           WHERE therapist_id = ${userId("dr.yasmin.example@example.com")}`,
+    );
+
+    for (const [who, email, atLeast] of [
+      ["dr omar", "omarabdelgawad001@gmail.com", 8],
+      ["dr sara", "dr.sara.demo@example.com", 4],
+      ["dr kareem", "dr.kareem.example@example.com", 4],
+    ] as const) {
+      const done = await num(sql`
+        SELECT count(*)::int AS n FROM sessions
+         WHERE therapist_id = ${userId(email)} AND status = 'completed'`);
+      check(`${who}'s completed sessions`, done >= atLeast, `${String(done)}`);
+
+      const notes = await num(sql`
+        SELECT count(*)::int AS n FROM session_notes
+         WHERE therapist_id = ${userId(email)} AND status = 'approved'`);
+      check(`${who}'s approved notes`, notes === done, `${String(notes)} of ${String(done)}`);
+    }
+
+    const ahead = await num(sql`
+      SELECT count(*)::int AS n FROM sessions WHERE status = 'scheduled' AND scheduled_at > now()`);
+    check("something is booked ahead", ahead >= 1, `${String(ahead)}`);
+
+    const lines = await num(sql`SELECT count(*)::int AS n FROM transcript_segments`);
+    check("transcripts have lines in them", lines >= 100, `${String(lines)}`);
+
+    /*
+     * 🔴 THE APPLICANT'S PORTAL IS THE ONE SCREEN THAT IS SUPPOSED TO BE EMPTY,
+     * and it is asserted empty rather than left unmentioned. Everything else
+     * here fails on zero; this one fails on anything else.
+     */
+    const yasmin = await num(sql`
+      SELECT count(*)::int AS n FROM patients
+       WHERE therapist_id = ${userId("dr.yasmin.example@example.com")}`);
+    check("the applicant has no caseload, deliberately", yasmin === 0, `${String(yasmin)}`);
+
+    const queue = await num(sql`
+      SELECT count(*)::int AS n FROM therapist_verifications WHERE state = 'submitted'`);
+    check("the admin's review queue has work", queue >= 1, `${String(queue)}`);
+
+    /*
+     * Approved in `therapist_verifications` and verified on the user row are two
+     * columns, and the second is derived by a trigger from the first. A seed
+     * that wrote one without the other produces a clinician who reads as
+     * verified on one screen and cannot start a session on another.
+     */
+    const agree = await num(sql`
+      SELECT count(*)::int AS n FROM users u JOIN therapist_verifications v ON v.user_id = u.id
+       WHERE (v.state = 'approved') <> (u.verification_status = 'verified')`);
+    check("verification state and user status agree", agree === 0, `${String(agree)} disagree`);
+
+    /* ------------------------------------------------- the clinic portal -- */
+
+    await scoped(
+      "the clinic's clinicians",
+      2,
+      sql`SELECT count(*)::int AS n FROM clinic_seats s
+           JOIN organizations o ON o.id = s.organization_id
+          WHERE o.slug = 'nile-practice' AND s.released_at IS NULL`,
+      sql`SELECT count(*)::int AS n FROM clinic_seats s
+           JOIN organizations o ON o.id = s.organization_id
+          WHERE o.slug = 'cairo-counselling' AND s.released_at IS NULL`,
+    );
+
+    await scoped(
+      "the clinic's sessions",
+      8,
+      sql`SELECT count(*)::int AS n FROM sessions s JOIN organizations o ON o.id = s.organization_id
+          WHERE o.slug = 'nile-practice'`,
+      sql`SELECT count(*)::int AS n FROM sessions s JOIN organizations o ON o.id = s.organization_id
+          WHERE o.slug = '24therapy'`,
+    );
+
+    /* ------------------------------------------------ the company portal -- */
+
+    const pot = await db.execute(sql`
+      SELECT p.balance_cents AS balance, p.coverage_bps AS coverage
+        FROM sponsor_pots p JOIN sponsors s ON s.id = p.sponsor_id
+       WHERE s.name = 'Habiba Holdings'`);
+    const potRow = pot.rows[0] as { balance?: number; coverage?: number } | undefined;
+    check("the company's pot holds money", Number(potRow?.balance ?? 0) > 0, `${String(potRow?.balance ?? 0)} cents`);
+    check("the company covers a share", Number(potRow?.coverage ?? 0) === 6000, `${String(potRow?.coverage ?? 0)} bps`);
+
+    /*
+     * 🔴 AND THE BALANCE IS THE LEDGER'S, not a number somebody typed.
+     *
+     * This is the property the seed's own header claims and the one an INSERT
+     * would have silently broken: a pot funded by writing `balance_cents` looks
+     * identical on every screen and reconciles to nothing.
+     */
+    const { ledgerPotBalance } = await import("../lib/billing/pot");
+    const sponsorId = (
+      await db.execute(sql`SELECT id FROM sponsors WHERE name = 'Habiba Holdings'`)
+    ).rows[0] as { id?: string } | undefined;
+    if (sponsorId?.id) {
+      const fromLedger = await ledgerPotBalance(sponsorId.id);
+      check(
+        "the pot balance is the ledger's",
+        fromLedger === Number(potRow?.balance ?? -1),
+        `ledger ${String(fromLedger)}, pot ${String(potRow?.balance ?? 0)}`,
+      );
+    } else {
+      check("the pot balance is the ledger's", false, "no sponsor");
+    }
+
+    /*
+     * 🔴 THE SPEND IS COUNTED THE WAY `potTotals` COUNTS IT.
+     *
+     * There is no `pot_spends` table, which the first draft of this file
+     * assumed: a deduction is a positive leg on the `sponsor_pot` account in
+     * `ledger_entries`, keyed to the sponsor. Asking a table that does not
+     * exist is a check that throws rather than one that passes wrongly, which
+     * is the only reason it was caught. The control is the same query on the
+     * opposite sign, which is the top-up, and must not be confused with a spend.
+     */
+    if (sponsorId?.id) {
+      const { potTotals } = await import("../lib/billing/pot");
+      const totals = await potTotals(sponsorId.id);
+      check(
+        "sessions the company paid towards",
+        totals.sessions >= 3,
+        `${String(totals.sessions)} sessions, ${String(totals.spentCents)} cents`,
+      );
+
+      /* 60% of $75, three times, is $135. A wrong coverage reads here first. */
+      check(
+        "and it paid its 60 per cent, not all of it",
+        totals.spentCents === Math.round(7_500 * 0.6) * totals.sessions,
+        `${String(totals.spentCents)} cents for ${String(totals.sessions)}`,
+      );
+    } else {
+      check("sessions the company paid towards", false, "no sponsor");
+    }
+
+    const enrolled = await num(sql`
+      SELECT count(*)::int AS n FROM enrolments WHERE state = 'active' AND removed_at IS NULL`);
+    check("somebody is enrolled at the company", enrolled >= 1, `${String(enrolled)}`);
+
+    /*
+     * The one the founder named: a patient who is NOT enrolled, so the
+     * enrolment flow has somebody to be walked through.
+     */
+    const unenrolled = await num(sql`
+      SELECT count(*)::int AS n FROM people p
+       WHERE p.email = 'mr.3omar.a7mad@gmail.com'
+         AND NOT EXISTS (SELECT 1 FROM enrolments e WHERE e.person_id = p.id)`);
+    check("one patient is not enrolled anywhere", unenrolled === 1);
+
+    /* ------------------------------------------------- the patient's app -- */
+
+    const personId = (email: string) => sql.raw(`(SELECT id FROM people WHERE email = '${email}')`);
+
+    for (const [who, email] of [
+      ["omar", "mr.3omar.a7mad@gmail.com"],
+      ["mariam", "mariam.demo@example.com"],
+      ["tarek", "tarek.demo@example.com"],
+      ["nadia", "nadia.demo@example.com"],
+    ] as const) {
+      const sessions = await num(sql`
+        SELECT count(*)::int AS n FROM sessions s JOIN patients p ON p.id = s.patient_id
+         WHERE p.person_id = ${personId(email)}`);
+      check(`${who}'s sessions`, sessions >= 3, `${String(sessions)}`);
+
+      const summaries = await num(sql`
+        SELECT count(*)::int AS n FROM clinical_summaries WHERE person_id = ${personId(email)}`);
+      check(`${who}'s record has a summary`, summaries >= 1, `${String(summaries)}`);
+
+      const homework = await num(sql`
+        SELECT count(*)::int AS n FROM homework_items WHERE person_id = ${personId(email)}`);
+      check(`${who}'s homework`, homework >= 3, `${String(homework)}`);
+
+      const journal = await num(sql`
+        SELECT count(*)::int AS n FROM journals WHERE person_id = ${personId(email)}`);
+      check(`${who}'s journal`, journal >= 1, `${String(journal)}`);
+    }
+
+    /*
+     * 🔴 TWO VERSIONS BY TWO CLINICIANS AT TWO PRACTICES, which is the
+     * portability claim the public site rests on and the one thing that cannot
+     * be shown on a database where everybody saw one person.
+     */
+    const versions = await db.execute(sql`
+      SELECT count(*)::int AS n, count(DISTINCT approved_by_user_id)::int AS clinicians,
+             count(DISTINCT organization_id)::int AS orgs
+        FROM clinical_summaries WHERE person_id = ${personId("tarek.demo@example.com")}`);
+    const v = versions.rows[0] as { n?: number; clinicians?: number; orgs?: number } | undefined;
+    check("tarek's record has two versions", Number(v?.n ?? 0) === 2, `${String(v?.n ?? 0)}`);
+    check("by two clinicians", Number(v?.clinicians ?? 0) === 2);
+    check("at two practices", Number(v?.orgs ?? 0) === 2);
+
+    const grant = await num(sql`
+      SELECT count(*)::int AS n FROM history_grants WHERE status = 'granted'`);
+    check("a record was handed over on a grant", grant >= 1, `${String(grant)}`);
+
+    /* ----------------------------------------------- the admin's queues -- */
+
+    for (const [label, text] of [
+      ["payments waiting or settled", sql`SELECT count(*)::int AS n FROM manual_payments`],
+      ["a payout to work", sql`SELECT count(*)::int AS n FROM payout_requests`],
+      ["a support ticket", sql`SELECT count(*)::int AS n FROM support_tickets`],
+      ["clinicians on the radar", sql`SELECT count(*)::int AS n FROM therapist_radar`],
+      ["ledger entries", sql`SELECT count(*)::int AS n FROM ledger_entries`],
+    ] as const) {
+      const got = await num(text);
+      check(`admin: ${label}`, got >= 1, `${String(got)}`);
+    }
+
+    /* ------------------------------------- what the wipe was not allowed -- */
+
+    /*
+     * 🔴 THE CHECK THE WIPE ITSELF CANNOT MAKE.
+     *
+     * `seed:demo` empties a hundred tables and keeps fourteen, and if the keep
+     * list were wrong it would report a clean run either way: it counts what it
+     * deleted, not what it should not have. Every one of these is configuration,
+     * published copy or the company's own books, and an empty one means the
+     * website or the payroll went with the cast.
+     */
+    for (const table of ["content_pages", "platform_settings", "country_settings"]) {
+      const got = await num(sql.raw(`SELECT count(*)::int AS n FROM ${table}`));
+      check(`kept: ${table}`, got >= 1, `${String(got)} rows`);
+    }
+
+    /*
+     * 🔴 `locales`, `ui_strings` AND `taxonomy_entries` ARE NOT ASSERTED HERE,
+     * and the reason is worth writing down rather than leaving as a gap.
+     *
+     * The first draft of this file demanded rows in all three and failed on
+     * every database it was pointed at, dev and production alike, because they
+     * are empty on both: the Arabic the product ships is in
+     * `lib/i18n/messages.ts`, not in a table. A check that reads red on a
+     * correct database is worse than no check, because the next person learns
+     * to scroll past this block.
+     *
+     * What the keep list actually promises is that the wipe changed NOTHING on
+     * these fourteen tables, and that is proved where it can be: `seed:demo`
+     * counts all fourteen before the wipe and again after, and throws naming
+     * any table that lost a row. Production holds seven employees and seven
+     * salary rows that only that census can protect, since asserting "more than
+     * zero" would pass on a dev branch that never had them.
+     */
+    const payroll = await num(sql`SELECT count(*)::int AS n FROM employees`);
+    console.log(`  --    employees: ${String(payroll)} rows, protected by the seed's own census`);
+
+    /*
+     * 🔴 AND THE RULE THE WIPE BREAKS IS BACK ON.
+     *
+     * `seed:demo` disables `clinical_summaries_no_rewrite` to empty the table
+     * and re-enables it in a `finally`. A crash between the two leaves a
+     * database where a clinical summary can be edited or deleted, which is
+     * exactly the state the trigger exists to make impossible, and nothing on
+     * any screen would say so.
+     */
+    const enabled = await num(sql`
+      SELECT count(*)::int AS n FROM pg_trigger
+       WHERE tgname = 'clinical_summaries_no_rewrite' AND tgenabled <> 'D'`);
+    check("the append-only rule is enabled", enabled === 1, `${String(enabled)}`);
+
+    /*
+     * 🔴 C127 — EVERY INVENTED PERSON LOOKS INVENTED.
+     *
+     * The four addresses the founder named are real inboxes they own, which is
+     * the point: they are testing what arrives. Everybody else in the cast must
+     * be at `example.com`, so a message that escapes the test reaches a domain
+     * RFC 2606 reserves and nobody's actual inbox.
+     */
+    const list = OWNED_INBOXES.map((e) => `'${e}'`).join(",");
+    const stray = await num(
+      sql.raw(`
+        SELECT count(*)::int AS n FROM (
+          SELECT email FROM users
+          UNION ALL SELECT email FROM patient_accounts
+          UNION ALL SELECT email FROM sponsor_users
+          UNION ALL SELECT email FROM clinic_managers
+          UNION ALL SELECT email FROM people
+        ) a
+        WHERE a.email IS NOT NULL
+          AND a.email NOT IN (${list})
+          AND a.email NOT LIKE '%@example.com'`),
+    );
+    check("every other address is at example.com", stray === 0, `${String(stray)} elsewhere`);
+
+    finish("verify:demo");
+  } finally {
+    await pool.end();
+  }
+}
+
+void main();
