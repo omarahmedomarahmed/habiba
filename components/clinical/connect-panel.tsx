@@ -111,7 +111,7 @@ export function HistoryAsks({
         {asks.map((ask) => (
           <li key={ask.id} className="rounded-xl border border-slate-200 p-3.5">
             <p className="text-sm font-medium text-slate-900">{ask.name}</p>
-            <p className="text-xs text-slate-400">{t("tcon.askedOn", { date: ask.on })}</p>
+            <p className="text-xs text-slate-600">{t("tcon.askedOn", { date: ask.on })}</p>
             {ask.note ? (
               <p className="mt-1.5 text-sm leading-relaxed text-slate-600">“{ask.note}”</p>
             ) : null}

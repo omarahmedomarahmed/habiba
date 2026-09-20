@@ -80,7 +80,7 @@ export function LanguageSwitch({
       role="group"
       aria-label={current === "ar" ? "اللغة" : "Language"}
     >
-      <Languages className="ms-2 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+      <Languages className="ms-2 h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
       {(offered?.map((row) => row.code as Locale) ?? LOCALES).map((locale) => (
         <button
           key={locale}
@@ -95,7 +95,7 @@ export function LanguageSwitch({
             "flex min-h-11 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50",
             locale === current
               ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-900",
+              : "text-slate-600 hover:text-slate-900",
           )}
         >
           {LOCALE_NAMES[locale]}

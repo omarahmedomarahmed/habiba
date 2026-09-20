@@ -109,7 +109,7 @@ export function AttributeTranscript({
           {t("tattr.oneMic")}
         </p>
       ) : null}
-      <p className="text-xs leading-relaxed text-slate-500">{t("tattr.blurb")}</p>
+      <p className="text-xs leading-relaxed text-slate-600">{t("tattr.blurb")}</p>
       {error ? (
         <p role="alert" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {error}
@@ -130,7 +130,7 @@ export function AttributeTranscript({
                  * the product is broken rather than that attribution lives one
                  * panel up.
                  */
-                <p className="mt-1.5 text-[11px] font-medium text-slate-400">
+                <p className="mt-1.5 text-[11px] font-medium text-slate-600">
                   {speaker === "patient"
                     ? t("tattr.them")
                     : speaker === "therapist"
@@ -166,7 +166,7 @@ export function AttributeTranscript({
                     one attribution here with a person behind it.
                   */}
                   {line.inferred && !local[line.id] ? (
-                    <span className="text-[11px] text-slate-400 italic">{t("tattr.guessed")}</span>
+                    <span className="text-[11px] text-slate-600 italic">{t("tattr.guessed")}</span>
                   ) : null}
                 </div>
               )}

@@ -49,7 +49,7 @@ export function NoteCard({
                 ? t("tnc.sessionNoteFor", { name: patientLabel })
                 : t("tnc.sessionNote")}
             </p>
-            {dateLabel ? <p className="text-xs text-slate-500">{dateLabel}</p> : null}
+            {dateLabel ? <p className="text-xs text-slate-600">{dateLabel}</p> : null}
           </div>
         </div>
         <StatusPill status={status} />

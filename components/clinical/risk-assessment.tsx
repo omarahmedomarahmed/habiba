@@ -107,7 +107,7 @@ export async function RiskAssessment({
             finding a plan across four turns are different evidence, and a
             clinician who cannot tell them apart learns to treat both as noise.
           */}
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             {source === "model"
               ? "Read from the whole session, then checked against the transcript."
               : "Matched against the crisis phrase list."}
@@ -121,7 +121,7 @@ export async function RiskAssessment({
             <li key={index} className="rounded-lg border border-slate-200 bg-white p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="red">{INDICATOR_LABEL[finding.indicator] ?? finding.indicator}</Badge>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-600">
                   confidence {finding.confidence.toFixed(2)}
                 </span>
               </div>
@@ -161,13 +161,13 @@ export async function RiskAssessment({
           </p>
           <ul className="mt-1 space-y-1">
             {prior.map((row, index) => (
-              <li key={index} className="text-xs text-slate-500">
+              <li key={index} className="text-xs text-slate-600">
                 {formatDate(row.createdAt, zone, locale)}{" "}
                 · {row.level} · {row.source}
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
             This history is for you. It was not shown to the system that read the session, so
             what it found is about today.
           </p>
@@ -175,7 +175,7 @@ export async function RiskAssessment({
       ) : null}
 
       {unquoted > 0 ? (
-        <p className="mt-3 text-[11px] text-slate-400">
+        <p className="mt-3 text-[11px] text-slate-600">
           {unquoted} finding{unquoted === 1 ? " was" : "s were"} discarded for quoting something
           the transcript does not contain.
         </p>

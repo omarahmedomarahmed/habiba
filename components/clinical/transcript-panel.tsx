@@ -109,7 +109,7 @@ export function TranscriptPanel({
                   paused ? "bg-amber-400" : "live-dot bg-red-500",
                 )}
               />
-              <span className="text-[11px] font-medium text-slate-400">
+              <span className="text-[11px] font-medium text-slate-300">
                 {paused ? t("ttr.paused") : t("ttr.recording")}
               </span>
             </span>
@@ -119,7 +119,7 @@ export function TranscriptPanel({
           paused ? (
             <MicOff className="h-4 w-4 text-amber-400" aria-hidden />
           ) : (
-            <Mic className="h-4 w-4 text-slate-400" aria-hidden />
+            <Mic className="h-4 w-4 text-slate-300" aria-hidden />
           )
         ) : null}
       </div>
@@ -136,7 +136,7 @@ export function TranscriptPanel({
         {lines.length === 0 ? (
           <div className="flex h-full min-h-32 flex-col items-center justify-center text-center">
             <p className="text-sm font-medium text-slate-300">{emptyTitle ?? t("ttr.listening")}</p>
-            <p className="mt-1 max-w-[22rem] text-xs text-slate-500">{emptyBody ?? t("ttr.willAppear")}</p>
+            <p className="mt-1 max-w-[22rem] text-xs text-slate-300">{emptyBody ?? t("ttr.willAppear")}</p>
           </div>
         ) : (
           lines.map((line) => (
@@ -156,7 +156,7 @@ export function TranscriptPanel({
                 </span>
                 {line.speakerInferred ? (
                   <span
-                    className="font-normal normal-case tracking-normal text-slate-400"
+                    className="font-normal normal-case tracking-normal text-slate-300"
                     title={t("ttr.oneMic")}
                   >
                     {t("ttr.inferred")}

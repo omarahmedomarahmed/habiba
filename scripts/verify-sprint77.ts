@@ -52,7 +52,36 @@ const PUBLIC_DIRS = [
   "components/demo",
   "components/visual",
   "components/radar",
+  /*
+   * 🔴 77.11 — THE THREE THE FIRST DRAFT MISSED, AND HOW THEY WERE FOUND.
+   *
+   * The first version of this list was the five directories whose NAMES say
+   * public, and the live homepage then shipped twelve grey classes anyway. A
+   * public page renders more than `components/public`: the hero draws the real
+   * `TranscriptPanel` and the real `NoteCard`, the header draws the language
+   * switch, and every card and button comes from `components/ui`. A rule
+   * scoped by directory name rather than by what actually renders is the §6
+   * defect in its purest form — it passed on every file it looked at and the
+   * page it was about was still wrong.
+   *
+   * Found by reading the deployed HTML, not the source, which is the only way
+   * that gap was ever going to show up.
+   */
+  "components/clinical",
+  "components/i18n",
+  "components/ui",
 ];
+
+/*
+ * 🔴 AND `components/session` IS DELIBERATELY NOT HERE.
+ *
+ * It is the clinician's room: thirty-odd greys, most on dark surfaces where
+ * the fix is lighter rather than darker, and no visitor ever sees one of them.
+ * Sweeping it belongs to the sprint that looks at the portal, and adding it to
+ * this list without doing the work would make this gate red on a rule nobody
+ * had agreed to. It is named here so the omission is a decision rather than an
+ * oversight.
+ */
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -81,6 +110,7 @@ function greyLines(source: string): string[] {
   return source
     .split("\n")
     .filter((line) => !line.includes("cursor-not-allowed"))
+    .filter((line) => !line.includes("disabled:text-slate"))
     .filter((line) => GREY.test(line));
 }
 
@@ -120,7 +150,8 @@ function main() {
     "🔴 CONTROL the scanner catches a planted grey, and skips the two exemptions",
     greyLines(`<p className="text-xs text-slate-400">a planted offender</p>`).length === 1 &&
       greyLines(`<input className="placeholder:text-slate-400" />`).length === 0 &&
-      greyLines(`<button className="cursor-not-allowed text-slate-400" />`).length === 0,
+      greyLines(`<button className="cursor-not-allowed text-slate-400" />`).length === 0 &&
+      greyLines(`<input className="disabled:text-slate-500" />`).length === 0,
     "an absence assertion with no planted offender measures the regex, not the tree",
   );
 

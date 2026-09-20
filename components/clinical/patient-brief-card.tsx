@@ -54,7 +54,7 @@ export function PatientBriefCard({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-600">
           Nothing written for the patient yet.
         </p>
       )}
