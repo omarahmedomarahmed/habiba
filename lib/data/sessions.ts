@@ -60,6 +60,16 @@ export type SessionListItem = {
   createdAt: Date;
   startedAt: Date | null;
   endedAt: Date | null;
+  /**
+   * 🔴 THE HOUR IT IS FOR, which this list did not even select.
+   *
+   * Every clinician surface rendered `endedAt ?? createdAt`, so a session
+   * booked for Thursday and created on Monday read "Today" on Monday. The
+   * clinician — the one person who has to be in the room on Thursday — was
+   * the only one told the wrong day. The patient's own view was right all
+   * along, because `patient-view.ts` reaches for `scheduledAt` first.
+   */
+  scheduledAt: Date | null;
   durationMinutes: number | null;
   patientId: string | null;
   patientFirstName: string | null;
@@ -80,6 +90,7 @@ export async function listSessions(
       createdAt: sessions.createdAt,
       startedAt: sessions.startedAt,
       endedAt: sessions.endedAt,
+      scheduledAt: sessions.scheduledAt,
       durationMinutes: sessions.durationMinutes,
       patientId: sessions.patientId,
       patientFirstName: patients.firstName,

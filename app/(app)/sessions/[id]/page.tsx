@@ -133,7 +133,7 @@ export default async function SessionDetailPage({
             )}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone, locale)}
+            {formatDateTime(row.session.endedAt ?? row.session.scheduledAt ?? row.session.createdAt, actor.timezone, locale)}
             {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
             {row.session.modality === "video" ? " · Video" : " · In person"}
           </p>
@@ -247,7 +247,7 @@ export default async function SessionDetailPage({
             noteStatus={row.session.noteStatus}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
-            dateLabel={formatDateTime(row.session.endedAt ?? row.session.createdAt, actor.timezone, locale)}
+            dateLabel={formatDateTime(row.session.endedAt ?? row.session.scheduledAt ?? row.session.createdAt, actor.timezone, locale)}
             reportSent={Boolean(row.session.reportSentAt)}
           />
           </>

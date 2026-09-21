@@ -214,7 +214,7 @@ export default async function DashboardPage() {
                           t("portal.unnamedPatient")}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
+                        {relativeDay(session.endedAt ?? session.scheduledAt ?? session.createdAt, actor.timezone, locale, t)}
                       </p>
                     </div>
                     {session.status === "in_progress" ? (

@@ -62,7 +62,7 @@ export default async function SessionsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold text-slate-900">{label}</p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
+                        {relativeDay(session.endedAt ?? session.scheduledAt ?? session.createdAt, actor.timezone, locale, t)}
                         {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
                         {session.modality === "video" ? " · Video" : ""}
                       </p>
