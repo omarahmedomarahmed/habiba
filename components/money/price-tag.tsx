@@ -152,11 +152,22 @@ export function PriceTag({
           pointer user reads this; a screen reader reads the label; neither
           gets it twice.
         */}
+        {/*
+          🔴 CENTRED WITHOUT NAMING A SIDE.
+          `left-1/2 -translate-x-1/2` is the usual idiom and it is direction
+          neutral, because `left: 50%` is the same physical point either way.
+          `verify:sprint19` cannot see that, and it is right not to try: a rule
+          that allows `left-` in one pairing is a rule with a hole in it, and
+          19.3 exists because a "localised" interface that renders identically
+          in Arabic is how nobody notices nobody localised it.
+          `inset-x-0` with an automatic inline margin centres the same way and
+          names no side at all, so there is nothing to exempt.
+        */}
         <span
           aria-hidden
           data-peek={peeking ? "on" : "off"}
           className={cn(
-            "pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2",
+            "pointer-events-none absolute inset-x-0 bottom-full z-10 mx-auto mb-1.5 w-fit",
             "whitespace-nowrap rounded-lg bg-navy-500 px-2 py-1 text-xs font-medium text-white shadow-sm",
             "transition-opacity duration-150",
             peeking ? "opacity-100" : "opacity-0",

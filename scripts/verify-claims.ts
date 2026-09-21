@@ -371,12 +371,56 @@ check("🔴 CONTROL the meta-claim rule would catch it", META.test("Every claim 
  * missed on purpose; sprint 35 reports 100% sensitivity on the shipped ladder.
  * Whatever the number, the page says the detector can miss.
  */
-const risk = [...EN, ...AR].filter((s) => /risk language|لغة الخطر/i.test(s.text));
+/*
+ * 🔴 THE CAVEAT IS NEVER IN THE SAME STRING AS THE CLAIM, AND THIS ASKED FOR IT
+ * TO BE.
+ *
+ * The harvester flattens every field into its own string, so a comparison row
+ * becomes `"Risk language"` and `"Scanned in Arabic and English, and the page
+ * says the scan can miss."` as two separate entries. The old shape filtered to
+ * strings containing "risk language" and then looked for the caveat INSIDE
+ * those, which meant it was asking a two word label to carry a disclosure. It
+ * passed only while some longer sentence happened to contain both phrases, and
+ * went red the moment the comparison table was rewritten, on copy that says
+ * "They can miss risk and can raise false alarms" in full.
+ *
+ * The property belongs to the PAGE, not to a string: if this language's site
+ * describes automatic risk scanning, this language's site says the scan can
+ * miss. Checking it per language is also stricter than before, because the old
+ * version pooled English and Arabic and would have accepted an uncaveated
+ * Arabic claim on the strength of the English disclosure.
+ */
+const SCANS = /risk language|risk scan|لغة الخطر|رصد الخطر/i;
+const CAVEAT = /miss|false alarm|judgement|تفوت|إنذارات كاذبة|حكمك/i;
+const unqualified = ([["en", EN], ["ar", AR]] as const)
+  .filter(([, strings]) => strings.some((s) => SCANS.test(s.text)))
+  .filter(([, strings]) => !strings.some((s) => CAVEAT.test(s.text)))
+  .map(([locale]) => locale);
+
+const describes = ([["en", EN], ["ar", AR]] as const)
+  .filter(([, strings]) => strings.some((s) => SCANS.test(s.text)))
+  .map(([locale]) => locale);
+
 check(
   "where the page describes risk scanning, it says the scan can miss",
-  risk.length > 0 &&
-    risk.some((s) => /miss|false alarm|judgement|تفوت|إنذارات كاذبة|حكمك/i.test(s.text)),
-  `${risk.length} risk strings`,
+  unqualified.length === 0,
+  unqualified.length > 0
+    ? `${unqualified.join(", ")} claims a scan with no caveat`
+    : describes.length > 0
+      ? `${describes.join(", ")} describes it, and qualifies it`
+      : "no locale claims a risk scan at all",
+);
+
+/*
+ * 🔴 CONTROL — the rule has to fire on a page that claims a scan and says
+ * nothing about it. Without this, "no locale claims a risk scan at all" is a
+ * pass, and a check that passes on an empty site is not a check.
+ */
+const bare = [{ path: "control", text: "Risk language is scanned in both languages." }];
+check(
+  "🔴 CONTROL an uncaveated scanning claim is caught",
+  bare.some((s) => SCANS.test(s.text)) && !bare.some((s) => CAVEAT.test(s.text)),
+  "a claim with no disclosure beside it fails, so a green run means there is one",
 );
 
 /* ------------------------------------- a claim the product outgrew, checked -- */

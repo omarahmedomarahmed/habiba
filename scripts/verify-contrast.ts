@@ -355,17 +355,53 @@ async function audit(exe: string) {
     DICTIONARIES.en["tplan.confirmNotNow"],
   ];
 
-  const sweep = async (page: any, path: string, label: string) => {
-    const res = await page
+  /*
+   * 🔴 THE FIRST HIT ON A ROUTE IS A COMPILE, AND THIS GATE CALLED THAT A 500.
+   *
+   * `verify-served` boots `next dev`, so every path in the list below is being
+   * built the first time the crawler asks for it. Under the load of a full gate
+   * pass that build sometimes throws, and sometimes takes longer than the
+   * `networkidle` timeout, which arrives here as `null`.
+   *
+   * One pass reported `/billing` and `/settings` broken for the therapist; the
+   * next pass, on the same commit, reported twelve different pages broken; a
+   * signed-in browser hitting all four by hand got 200 every time. Three
+   * readings that disagree are a measurement problem, and a gate that cries
+   * wolf about the billing page is a gate whose next red line gets explained
+   * away, which is exactly how `/pricing` stayed a 500 for seven sprints.
+   *
+   * So each path gets a second attempt, by which time it is compiled. A page
+   * that is genuinely broken fails both, and a page that needed the retry SAYS
+   * SO in its detail rather than passing quietly: if that ever appears against
+   * a built server it is a real finding, not a compile.
+   */
+  const open = async (page: any, path: string) => {
+    let res = await page
       .goto(`${BASE}${path}`, { waitUntil: "networkidle" })
       .catch(() => null);
+    if (res && res.status() < 400) return { res, retried: false };
+    res = await page
+      .goto(`${BASE}${path}`, { waitUntil: "networkidle" })
+      .catch(() => null);
+    return { res, retried: true };
+  };
+
+  const sweep = async (page: any, path: string, label: string) => {
+    const { res, retried } = await open(page, path);
     if (!res || res.status() >= 400) {
       check(
         `${label} ${path} answers`,
         false,
-        `HTTP ${res ? String(res.status()) : "no response"}`,
+        `HTTP ${res ? String(res.status()) : "no response"}, twice`,
       );
       return;
+    }
+    if (retried) {
+      check(
+        `${label} ${path} answers`,
+        true,
+        "only on the second attempt, which is a compile on `next dev` and a defect anywhere else",
+      );
     }
     for (const word of DISMISS) {
       const button = page

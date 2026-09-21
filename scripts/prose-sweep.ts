@@ -225,6 +225,26 @@ const PORTALS: Record<string, readonly string[]> = {
     "dpo",
     "pat",
     "pr2",
+    /*
+     * 🔴 405 WORDS WERE SITTING IN `other`, WHICH HAS NO RATCHET.
+     *
+     * Both arrived with the audience-page work and neither was mapped, so the
+     * sweep printed them as unattributed and went on measuring the public site
+     * without them. That is the hole the header above describes: a bucket with
+     * no baseline is prose nothing is watching, and these are the two largest
+     * walls of text on the marketing site.
+     *
+     * Attributed by the map's own method rather than by what the name sounds
+     * like:
+     *
+     *   grep -rn 't("ft\.'     -> app/(public)/for-therapists/page.tsx
+     *   grep -rn 't("footer\.' -> components/public/site-chrome.tsx
+     *
+     * The footer renders on the public chrome only, so it is public rather
+     * than shared.
+     */
+    "ft",
+    "footer",
   ],
   admin: ["admin", "aclinic", "apartner", "asponsor", "acheckin"],
   /*
@@ -278,6 +298,23 @@ const PORTALS: Record<string, readonly string[]> = {
     "when",
     "urgent",
     "crisis",
+    /*
+     * 🔴 `auth` WAS BEING COUNTED AGAINST THE ADMIN PORTAL, because it starts
+     * with an `a` and the letter rule below says `a…` is the back office.
+     *
+     * It is the front door of every portal, which is exactly the case the
+     * header warns about: a misattributed prefix is worse than an unattributed
+     * one, because `other` gets printed and this did not. Checked the map's own
+     * way:
+     *
+     *   grep -rn 't("auth\.' app components lib
+     *
+     * comes back as eight sign-in and sign-up pages across four route groups:
+     * `(auth)`, `(clinic)`, `(patient)` and `(sponsor)`. Attributing them to
+     * the admin portal moved the ADMIN ratchet every time a patient's sign-up
+     * copy changed, which is a ratchet reporting on the wrong screen.
+     */
+    "auth",
     "radar",
     "nf",
     "transfer",

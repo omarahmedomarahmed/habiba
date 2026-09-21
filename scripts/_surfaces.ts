@@ -94,6 +94,23 @@ function walk(dir: string, out: string[] = [], depth = 0): string[] {
 export type Surfaces = {
   files: string[];
   body: Map<string, string>;
+  /**
+   * 🔴 THE SAME FILES WITH THE COMMENTS TAKEN OUT, and every "is this thing
+   * mentioned anywhere" question has to use it.
+   *
+   * A sentence naming a route, a page or a function is not a caller of it. The
+   * export scanner below already learned this, in its own words, after the rule
+   * had been forgotten eight times. It had not been applied to routes or to
+   * pages, and that is the ninth: a doc comment in `lib/lifecycle/machines.ts`
+   * saying where the cron is proved made `/api/cron` look called.
+   *
+   * The false FAIL is the harmless half. The dangerous half is the false PASS:
+   * an orphaned API route with a public URL, masked for ever because somebody
+   * mentioned its path in a paragraph. Which is why this is a field on the
+   * shared object rather than a local map each scanner has to remember to
+   * build, and it keeps line numbers so nothing downstream shifts.
+   */
+  code: Map<string, string>;
   /** True when a chain of imports from this module ends at a page or a layout. */
   reachesPage: (mod: string) => boolean;
 };
@@ -145,7 +162,11 @@ export function loadSurfaces(): Surfaces {
     return result;
   }
 
-  return { files, body, reachesPage: (mod) => reachesPage(mod) };
+  const code = new Map(
+    files.map((f) => [f, stripCommentsKeepingLines(body.get(f)!)] as const),
+  );
+
+  return { files, body, code, reachesPage: (mod) => reachesPage(mod) };
 }
 
 /* ------------------------------------------------------- server actions -- */
@@ -235,7 +256,8 @@ export function uncalledRoutes(s: Surfaces, routes: string[]): string[] {
          */
         !f.startsWith("scripts/") &&
         !f.startsWith("tests/") &&
-        s.body.get(f)!.includes(path),
+        /* A comment naming the path is prose, not a caller. See `code` above. */
+        s.code.get(f)!.includes(path),
     );
   });
 }
@@ -273,7 +295,8 @@ export function unlinkedPages(s: Surfaces, all: string[]): string[] {
         f !== file &&
         !f.startsWith("scripts/") &&
         !f.startsWith("tests/") &&
-        anchored.test(s.body.get(f)!),
+        /* Same rule as routes: a sentence about a page is not a link to it. */
+        anchored.test(s.code.get(f)!),
     );
   });
 }
@@ -381,11 +404,12 @@ export function uncalledExports(s: Surfaces, fns: ActionRef[]): ActionRef[] {
    * `app/(partner)/partner/webhooks/actions.ts` mentions it IN A COMMENT
    * explaining why the payload is not configurable.
    *
-   * A rule forgotten eight times is not a rule, it is a hope. The stripper
-   * keeps line numbers, so nothing downstream shifts.
+   * A rule forgotten eight times is not a rule, it is a hope. So it stopped
+   * being a local map here, where only this scanner could remember it, and
+   * became `s.code`, which is built once and is what the route and page
+   * scanners now read too. The ninth time was this file's own neighbours.
    */
-  const code = new Map<string, string>();
-  for (const [file, src] of s.body) code.set(file, stripCommentsKeepingLines(src));
+  const code = s.code;
 
   return fns.filter((fn) => {
     const pattern = new RegExp(`\\b${fn.name}\\b`);

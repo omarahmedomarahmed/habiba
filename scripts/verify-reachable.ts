@@ -20,6 +20,7 @@
  * in the same breath as `verify:claims`, without anybody exporting a URL first.
  */
 import { loadSurfaces, serverActions, unwiredActions, apiRoutes, uncalledRoutes, routePath, pages, unlinkedPages, pagePath, libraryExports, uncalledExports } from "./_surfaces";
+import { stripCommentsKeepingLines } from "./_dashes";
 import { reporter } from "./_verify";
 
 const { check, finish } = reporter();
@@ -55,6 +56,22 @@ const ROUTES_BY_DESIGN: Record<string, string> = {
     "Called by Stripe, which is not in this repository. `handleWebhook` verifies the signature against `STRIPE_WEBHOOK_SECRET` and claims every delivery once through `stripe_events`, so a redelivery is a no-op rather than a second side effect.",
   "/api/cron":
     "Called by Vercel's scheduler, declared in `vercel.json` rather than in TypeScript, and authorised by `CRON_SECRET`. A caller inside this repository would mean we were triggering our own crons from a request, which is the thing the secret exists to prevent.",
+  /*
+   * 🔴 THE THIRD ENTRY, FOUND WHEN A COMMENT STOPPED COUNTING AS A CALLER.
+   *
+   * This route looked reached for as long as one sentence in
+   * `app/(public)/[slug]/page.tsx` happened to contain its path. When
+   * `_surfaces.ts` started stripping comments before asking who calls a route,
+   * the mask came off and 58.2 reported it immediately.
+   *
+   * The reason below is taken from the route's own header and confirmed
+   * against the code: `app/(admin)/admin/actions.ts` calls `revalidateTag`
+   * directly, so the editor never needs the endpoint. That is the whole point
+   * of this allowlist, and for an unknown number of sprints it was one word of
+   * prose away from being unnecessary.
+   */
+  "/api/revalidate":
+    "Called by `scripts/republish.ts`, a CLI that writes content to the database from outside the deployment, so the running instance has no other way to learn the cache is stale. The admin editor runs inside the app and calls `revalidateTag` directly, which is why no page reaches this. Authorised by the same `CRON_SECRET`.",
 };
 
 /*
@@ -301,12 +318,12 @@ function main() {
    * planted offender rather than merely asserted.
    */
   const PLANTED = "lib/_verify58-control.ts";
+  const PLANTED_SRC = `"use server";\nexport async function verify58OrphanAction() { return null; }\n`;
   const planted = {
     files: [...s.files, PLANTED],
-    body: new Map(s.body).set(
-      PLANTED,
-      `"use server";\nexport async function verify58OrphanAction() { return null; }\n`,
-    ),
+    body: new Map(s.body).set(PLANTED, PLANTED_SRC),
+    /* The plant has no comments, so its stripped form is itself. */
+    code: new Map(s.code).set(PLANTED, PLANTED_SRC),
     reachesPage: s.reachesPage,
   };
 
@@ -363,6 +380,50 @@ function main() {
       !s.reachesPage(PLANTED) &&
       !s.reachesPage("scripts/verify-reachable.ts"),
     "a page reaches; a script and an unimported file do not",
+  );
+
+  /*
+   * 🔴 58.6 CONTROL — A SENTENCE ABOUT A ROUTE IS NOT A CALLER OF IT.
+   *
+   * C205 says strip comments before any scan of source. `uncalledExports` says
+   * in its own header that the rule had been forgotten eight times when it was
+   * written. Routes and pages were the ninth: `/api/revalidate` looked reached
+   * for an unknown number of sprints because one sentence in a public page
+   * happened to contain its path, and the allowlist entry it needed did not
+   * exist. Nothing was asserting the rule, which is why it kept being lost.
+   *
+   * So it is asserted here, in both directions on the same planted route: the
+   * prose does not count, the real call does. A fix with no control is a fix
+   * that gets forgotten a tenth time.
+   */
+  const ROUTE = "app/api/_verify58-route/route.ts";
+  const PROSE = "lib/_verify58-prose.ts";
+  const fixture = (mention: string) => ({
+    files: [...s.files, ROUTE, PROSE],
+    body: new Map(s.body).set(ROUTE, "export async function GET() {}\n").set(PROSE, mention),
+    code: new Map(s.code)
+      .set(ROUTE, "export async function GET() {}\n")
+      .set(PROSE, stripCommentsKeepingLines(mention)),
+    reachesPage: s.reachesPage,
+  });
+
+  const onlyProse = uncalledRoutes(
+    fixture("/* We also refresh through /api/_verify58-route on publish. */\n"),
+    [ROUTE],
+  );
+  const realCall = uncalledRoutes(
+    fixture('await fetch("/api/_verify58-route", { method: "POST" });\n'),
+    [ROUTE],
+  );
+
+  check(
+    "🔴 58.6 CONTROL a route named only in a comment is still an orphan",
+    onlyProse.includes(ROUTE) && !realCall.includes(ROUTE),
+    onlyProse.includes(ROUTE)
+      ? realCall.includes(ROUTE)
+        ? "the stripper is eating real calls too, which is worse than the bug"
+        : "prose does not reach it, a fetch does"
+      : "a comment still counts as a caller, so an orphan route can hide behind one",
   );
 
   finish("sprint 58 reachability");

@@ -136,20 +136,34 @@ async function main() {
       const topics = stringsOf(
         patientPages.find((p) => p.locale === "en")?.blocks ?? [],
       ).join(" ");
+      /*
+       * 🔴 SIX OF THE SEVEN ARE PROSE. THE SEVENTH IS A COMPONENT.
+       *
+       * "Where do I get help right now" is answered by the `crisis` block, and
+       * that block's words come from the dictionary (`crisis.bodyDefault`),
+       * not from the page row. So `stringsOf(blocks)` could never contain
+       * them, and this check was looking for the token "help" in editable
+       * marketing copy that has no reason to carry it.
+       *
+       * It went red when the page was rewritten, on a page that still had the
+       * crisis block, which is the product's actual answer to that question.
+       * A word a copywriter can rephrase away is a weaker binding than a block
+       * that either exists or does not, so the seventh is now checked as the
+       * structure it is. The other six stay as prose, because prose is where
+       * they are answered.
+       */
+      const PROSE_TOPICS = ["Radar", "book", "session", "cannot see", "claim", "cost"];
+      const missing = PROSE_TOPICS.filter((t) => !new RegExp(t, "i").test(topics));
+      const crisis = patientPages
+        .find((p) => p.locale === "en")
+        ?.blocks.some((b) => b.type === "crisis") ?? false;
+
       check(
         "18.2 …and it answers the seven questions the ticket names",
-        [
-          "Radar",
-          "book",
-          "session",
-          "cannot see",
-          "claim",
-          "cost",
-          "help",
-        ].every((topic) => new RegExp(topic, "i").test(topics)),
-        ["Radar", "book", "session", "cannot see", "claim", "cost", "help"]
-          .filter((t) => !new RegExp(t, "i").test(topics))
-          .join(", ") || "all seven",
+        missing.length === 0 && crisis,
+        [...missing, crisis ? "" : "where to get help now, which is the crisis block"]
+          .filter(Boolean)
+          .join(", ") || "six in the copy, and the crisis block for the seventh",
       );
 
       check(

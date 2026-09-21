@@ -271,7 +271,31 @@ async function main() {
   /* --------------------------------------------------------- 28.6 */
 
   const showcase = stripComments(readSource("components/demo/component-showcase.tsx"));
-  const drawable = [...showcase.matchAll(/case "([a-z-]+)":/g)].map((match) => match[1]!);
+
+  /*
+   * 🔴 THE RENDERER IS TWO FILES, AND THIS ASKED ONE OF THEM.
+   *
+   * `DemoFor` in `components/public/blocks.tsx` draws the composite demos, the
+   * ones that are a whole console rather than a single screen, and hands
+   * everything else to `ComponentShowcase`. Reading only the showcase made six
+   * perfectly drawable names look undrawable: company, company-pot,
+   * company-wall, clinic, clinic-people and fee-split.
+   *
+   * The previous shape of this check did not notice, because it carried a hand
+   * typed exemption `["session-room", "radar"]`, which is the same drift
+   * written down as a decision. That is the pattern C80 is about: a list held
+   * beside the thing it describes goes stale, and the staler it gets the more
+   * it reads like somebody thought about it.
+   *
+   * So both halves of the renderer are read and the exemption is gone. Add a
+   * seventh composite demo and this still passes; offer a name nothing draws
+   * and it fails, which is the property that was wanted.
+   */
+  const composite = stripComments(readSource("components/public/blocks.tsx"));
+  const drawable = [
+    ...[...showcase.matchAll(/case "([a-z-]+)":/g)].map((match) => match[1]!),
+    ...[...composite.matchAll(/name === "([a-z-]+)"/g)].map((match) => match[1]!),
+  ];
 
   check(
     "28.6 the two screens sprint 26 gave the patient are drawable as live components",
@@ -281,10 +305,22 @@ async function main() {
 
   check(
     "28.6 …and every demo the content model offers is one the renderer can draw",
-    CONTENT_DEMOS.filter((demo) => demo !== "none").every(
-      (demo) => drawable.includes(demo) || ["session-room", "radar"].includes(demo),
+    CONTENT_DEMOS.filter((demo) => demo !== "none").every((demo) =>
+      drawable.includes(demo),
     ),
-    CONTENT_DEMOS.join(", "),
+    CONTENT_DEMOS.filter((demo) => demo !== "none" && !drawable.includes(demo))
+      .join(", ") ||
+      `${String(CONTENT_DEMOS.length - 1)} offered, all drawable`,
+  );
+
+  /*
+   * 🔴 CONTROL — a name nothing draws must fail this, or the check above only
+   * proves that reading two files finds more than reading one.
+   */
+  check(
+    "🔴 28.6 CONTROL a demo nothing renders is reported",
+    !drawable.includes("verify28-not-a-demo"),
+    "an invented name is not in either half of the renderer",
   );
 
   /*
