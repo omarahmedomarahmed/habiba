@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { SessionRoom } from "@/components/session/session-room";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
-import { getSession, getTranscript } from "@/lib/data/sessions";
+import { ensureRoom, getSession, getTranscript } from "@/lib/data/sessions";
 import { env, features } from "@/lib/env";
 import { capSeconds } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
@@ -37,9 +37,18 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
   const therapistName = fullName(actor.firstName, actor.lastName, "Therapist");
   let videoUrl: string | null = null;
   let videoToken: string | null = null;
-  if (row.session.modality === "video" && row.session.videoRoomUrl && row.session.videoRoomName) {
+  /*
+   * 🔴 79.1 — BUILD THE ROOM IF IT IS NOT THERE.
+   *
+   * This read `videoRoomUrl && videoRoomName` and silently rendered a black box
+   * when either was null, which is what every session created before 79.1 does,
+   * and what any session whose four-hour room has expired does. The clinician
+   * sat in front of "Setting up the room…" that was never going to finish.
+   */
+  const built = await ensureRoom(row.session);
+  if (built.ok) {
     videoToken = await createMeetingToken({
-      roomName: row.session.videoRoomName,
+      roomName: built.name,
       userName: therapistName,
       isOwner: true,
       /*
@@ -53,7 +62,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
        */
       minutes: capSeconds((await getSettings()).clock) / 60 + 15,
     });
-    videoUrl = row.session.videoRoomUrl;
+    videoUrl = built.url;
   }
 
   const patientLabel =

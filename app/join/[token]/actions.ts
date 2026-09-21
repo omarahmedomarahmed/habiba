@@ -1,6 +1,6 @@
 "use server";
 
-import { joinByToken, resolveJoinToken } from "@/lib/data/sessions";
+import { ensureRoom, joinByToken, resolveJoinToken } from "@/lib/data/sessions";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { capSeconds, type ClockStage } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
@@ -90,20 +90,38 @@ async function admit(token: string, name: string): Promise<JoinState> {
   const external = await externalMeetingFor(session.id);
   if (external) return { joined: true, videoUrl: external };
 
-  let videoUrl: string | null = null;
-  if (session.modality === "video" && session.videoRoomUrl && session.videoRoomName) {
-    // Non-owner token, short expiry, minted only after a valid join.
-    const meetingToken = await createMeetingToken({
-      roomName: session.videoRoomName,
-      userName: name,
-      isOwner: false,
-      // The patient's key expires with the session, not two hours after it.
-      minutes: capSeconds((await getSettings()).clock) / 60 + 15,
-    });
-    videoUrl = roomUrlWithToken(session.videoRoomUrl, meetingToken);
+  /*
+   * 🔴 79.1 — THE PATIENT'S SIDE OF THE SAME SILENCE.
+   *
+   * This was `if (videoRoomUrl && videoRoomName)`, and when either was null it
+   * returned `{ joined: true, videoUrl: null }`: the patient was told they had
+   * joined, and handed nothing. They had answered the consent question, paid if
+   * the session was paid, and arrived in a room that did not exist. On
+   * production that was every session, because the key was never set.
+   *
+   * `ensureRoom` builds one now if there is none, which covers every session
+   * made before this and every room that has expired since. If it still cannot,
+   * the patient is told rather than shown an empty screen, because a person who
+   * has just paid deserves a sentence.
+   */
+  const built = await ensureRoom(session);
+  if (!built.ok) {
+    return {
+      error:
+        "We could not open the room for this session. Your therapist has been told. Nothing you did was lost, and this link will work once it is fixed.",
+    };
   }
 
-  return { joined: true, videoUrl };
+  // Non-owner token, short expiry, minted only after a valid join.
+  const meetingToken = await createMeetingToken({
+    roomName: built.name,
+    userName: name,
+    isOwner: false,
+    // The patient's key expires with the session, not two hours after it.
+    minutes: capSeconds((await getSettings()).clock) / 60 + 15,
+  });
+
+  return { joined: true, videoUrl: roomUrlWithToken(built.url, meetingToken) };
 }
 
 /**

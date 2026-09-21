@@ -924,3 +924,78 @@ export async function liveSessionForPatient(
   // because the column's type does not know that and a cast would hide it.
   return row?.startedAt ? { id: row.id, startedAt: row.startedAt } : null;
 }
+
+/* --------------------------------------------------------------- the room -- */
+
+/**
+ * 🔴 79.1 — THE ROOM A SESSION SHOULD ALREADY HAVE, BUILT NOW IF IT DOES NOT.
+ *
+ * ## Why a repair exists at all
+ *
+ * Creation is where a room belongs, and since 79.1 a video session cannot be
+ * created without one. That leaves two cases this covers, and they are the two
+ * that put a person in front of a black box:
+ *
+ *   1. **Every session made before 79.1.** Production is full of them, because
+ *      `DAILY_API_KEY` was never set and the old code carried on regardless.
+ *      Their patients still hold join links.
+ *   2. **A room that was made and is gone.** Daily rooms carry a four-hour
+ *      `exp` and `eject_at_room_exp`, so a session booked in the morning for
+ *      the afternoon outlives its own room. Nothing noticed this before.
+ *
+ * ## Why it is safe to write during a render
+ *
+ * The UPDATE is conditional on the columns still being null, so two people
+ * arriving at once cannot make two rooms and overwrite each other: the second
+ * matches no row, re-reads, and uses the first one's. A room that is created
+ * and then loses that race is abandoned rather than deleted, which costs one
+ * unused room that expires in four hours and is the cheap side of the trade.
+ */
+export async function ensureRoom(session: {
+  id: string;
+  modality: string;
+  videoRoomUrl: string | null;
+  videoRoomName: string | null;
+}): Promise<{ ok: true; url: string; name: string } | { ok: false; reason: string }> {
+  if (session.modality !== "video") return { ok: false, reason: "not_video" };
+  if (session.videoRoomUrl && session.videoRoomName) {
+    return { ok: true, url: session.videoRoomUrl, name: session.videoRoomName };
+  }
+
+  const { createPrivateRoom } = await import("@/lib/video");
+  const made = await createPrivateRoom(session.id);
+  if (!made.ok) {
+    log.error("a session has no video room and one could not be made", {
+      session: ref(session.id),
+      reason: made.reason,
+    });
+    return { ok: false, reason: made.reason };
+  }
+
+  const [claimed] = await db
+    .update(sessions)
+    .set({ videoRoomUrl: made.room.url, videoRoomName: made.room.name })
+    .where(
+      and(
+        eq(sessions.id, session.id),
+        isNull(sessions.videoRoomUrl),
+      ),
+    )
+    .returning({ url: sessions.videoRoomUrl, name: sessions.videoRoomName });
+
+  if (claimed?.url && claimed.name) {
+    log.info("built a missing video room", { session: ref(session.id) });
+    return { ok: true, url: claimed.url, name: claimed.name };
+  }
+
+  /* Somebody beat us to it. Theirs is the real one. */
+  const [winner] = await db
+    .select({ url: sessions.videoRoomUrl, name: sessions.videoRoomName })
+    .from(sessions)
+    .where(eq(sessions.id, session.id))
+    .limit(1);
+
+  return winner?.url && winner.name
+    ? { ok: true, url: winner.url, name: winner.name }
+    : { ok: false, reason: "unreachable" };
+}

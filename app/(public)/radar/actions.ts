@@ -250,13 +250,43 @@ export async function bookFromRadar(
   }
 
   try {
-    const room = await createPrivateRoom(session.id);
-    if (room) {
+    /*
+     * 🔴 79.1 — NO ROOM, NO BOOKING, AND THE HOLD GOES BACK.
+     *
+     * This was `if (room) { save it }` with no else, so a failed room left the
+     * session standing, the clinician's alarm still rang, and the patient was
+     * handed a `joinUrl` to a door that had never been built. On production,
+     * where `DAILY_API_KEY` was never set, that was every booking.
+     *
+     * A patient on the radar is a stranger in distress who has just pressed a
+     * button that says somebody is available now. Sending them to an empty
+     * room is the worst thing this product can do to them, so the booking is
+     * abandoned instead: the claim is released so the clinician goes back on
+     * the radar for the next person, the session is cancelled so nothing
+     * dangles, and they are told in a sentence rather than shown a black box.
+     */
+    const made = await createPrivateRoom(session.id);
+    if (!made.ok) {
+      await releaseClaim(session.id);
       await db
         .update(sessions)
-        .set({ videoRoomUrl: room.url, videoRoomName: room.name })
-        .where(eq(sessions.id, session.id));
+        .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
+        .where(and(eq(sessions.id, session.id), eq(sessions.status, "scheduled")));
+      log.error("radar booking abandoned: no video room", {
+        session: ref(session.id),
+        reason: made.reason,
+      });
+      return {
+        error:
+          "We could not open a room for this session, so nothing has been booked and you have not been charged. Please try again in a moment.",
+      };
     }
+
+    const room = made.room;
+    await db
+      .update(sessions)
+      .set({ videoRoomUrl: room.url, videoRoomName: room.name })
+      .where(eq(sessions.id, session.id));
 
     // The alarm the clinician hears is driven by this row's existence, via the
     // console's poll.

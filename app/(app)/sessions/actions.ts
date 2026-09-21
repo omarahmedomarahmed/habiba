@@ -36,7 +36,7 @@ import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendSessionInvite } from "@/lib/mail";
 import { finishSession } from "@/lib/session-finish";
-import { createPrivateRoom } from "@/lib/video";
+import { createPrivateRoom, roomFailureText, type RoomInfo } from "@/lib/video";
 import { fullName } from "@/lib/utils";
 
 /*
@@ -125,6 +125,52 @@ export async function startNewSession(
    * say so, and release it the moment Stripe is done.
    */
 
+  /*
+   * 🔴 79.1 — THE ROOM IS BUILT BEFORE ANYTHING ELSE IS, AND A FAILURE STOPS
+   * HERE.
+   *
+   * ## What this replaces, and what it cost
+   *
+   * The room used to be created after the session, the chart and the meeting,
+   * like this:
+   *
+   *     const room = await createPrivateRoom(session.id);
+   *     if (room) { save the url }
+   *     if (guestEmail) { send the invite }
+   *
+   * There is no `else`. `createPrivateRoom` returned null on a missing API key
+   * and that branch simply did not run, so the session was created with a null
+   * `video_room_url`, **the invitation went out anyway**, and the patient was
+   * emailed a link to a room nobody had built. Both people clicked it, both
+   * landed in the same session record, and neither could hear the other. That
+   * is not a degraded session, it is the product telling somebody to attend an
+   * appointment it knows does not exist.
+   *
+   * It shipped that way on production, where `DAILY_API_KEY` was never set.
+   *
+   * ## Why it moved to the top rather than growing an `else`
+   *
+   * An `else` down there fires after the chart has been created, so a clinician
+   * who retries makes a second chart for the same person. Up here nothing has
+   * been written yet: the check costs one request, and a failure returns a
+   * sentence rather than a half-made session with somebody's name on it.
+   *
+   * The room is made without a session id because there is no session yet,
+   * which is the point.
+   */
+  let room: RoomInfo | null = null;
+  if (where === "24t_room" && modality === "video") {
+    const made = await createPrivateRoom("pre-session");
+    if (!made.ok) {
+      return {
+        error:
+          `${roomFailureText(made.reason)} ` +
+          "Nobody has been invited. Start this session in person, or try again once it is fixed.",
+      };
+    }
+    room = made.room;
+  }
+
   let sessionId: string;
   /** Set only when this call created the chart, so an existing patient is never re-invited. */
   let newPatientId: string | null = null;
@@ -209,7 +255,12 @@ export async function startNewSession(
     // is sent, rather than only once the clinician presses Start. Whoever
     // arrives first should never find an empty room.
     if (modality === "video" && !externalJoinUrl) {
-      const room = await createPrivateRoom(session.id);
+      /*
+       * 🔴 The room was built above, before anything existed, so there is
+       * nothing to check here and no branch that can skip it. If we got this
+       * far a room exists, which is the whole property: an invitation is only
+       * ever sent for a door that opens.
+       */
       if (room) {
         await db
           .update(sessions)

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { MailCheck } from "@/components/admin/mail-check";
+import { VideoCheck } from "@/components/admin/video-check";
 import { previewMessages, previewRoster } from "@/lib/mail-previews";
 import { TransferFieldsEditor } from "@/components/admin/transfer-fields-editor";
 import { detailsLockedBy } from "@/lib/billing/manual";
@@ -197,6 +198,13 @@ export default async function SettingsPage() {
         belongs behind the same door as the prices.
       */}
       <MailCheck roster={previewRoster(previewMessages())} />
+
+      {/*
+        🔴 79.1 — beside the email check, and for the same reason: the two
+        credentials this product cannot work without are both write-only on
+        Vercel, so the only honest way to know either one works is to use it.
+      */}
+      <VideoCheck />
 
       <div>
         <h2 className="mb-2 text-sm font-bold tracking-wide text-slate-500 uppercase">

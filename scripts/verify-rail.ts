@@ -1518,6 +1518,99 @@ async function main() {
     "the scan above is about this line and nothing else",
   );
 
+  /* ================================================================== */
+  /*  79.1 · nobody is invited to a room that was never built            */
+  /* ================================================================== */
+
+  /*
+   * 🔴 THE DEFECT, IN THE SHAPE IT ACTUALLY HAD.
+   *
+   * `createPrivateRoom` returned null when `DAILY_API_KEY` was unset, and both
+   * call sites were written as:
+   *
+   *     const room = await createPrivateRoom(session.id);
+   *     if (room) { save the url }
+   *     if (guestEmail) { send the invite }
+   *
+   * No `else`. The session was created with a null `video_room_url`, the
+   * invitation went out anyway, and two people clicked a link to a room nobody
+   * had built. It shipped on production, where the key had never been set, and
+   * it was found by a founder sitting in one of those sessions.
+   *
+   * A truthy check on a room is not the defect. A truthy check with nothing on
+   * the other side of it is, which is why this scans for the absence of a
+   * failure branch rather than for the presence of the call.
+   */
+  const sessionActions = readSource("app/(app)/sessions/actions.ts");
+  const radarActions = readSource("app/(public)/radar/actions.ts");
+
+  for (const [what, source] of [
+    ["the clinician's", sessionActions],
+    ["the radar's", radarActions],
+  ] as const) {
+    const calls = source.includes("createPrivateRoom(");
+    const handlesFailure = /if\s*\(!\s*made\.ok\)/.test(source);
+    check(
+      `🔴 79.1 ${what} booking refuses to continue without a room`,
+      !calls || handlesFailure,
+      "a room that failed to build must stop the booking, not be skipped over",
+    );
+  }
+
+  /*
+   * Compared by POSITION rather than by a pattern spanning both, because
+   * `readSource` strips comments and a regex anchored on one would be matching
+   * whatever survived rather than the order of the two calls.
+   */
+  const roomAt = sessionActions.indexOf('createPrivateRoom("pre-session")');
+  const sessionAt = sessionActions.indexOf("createSession(actor");
+  check(
+    "🔴 …and the room is built BEFORE the session and the chart are",
+    roomAt > 0 && sessionAt > 0 && roomAt < sessionAt,
+    roomAt < 0
+      ? "the pre-session room build is gone"
+      : `room at ${String(roomAt)}, session at ${String(sessionAt)}: ` +
+        "a failure after the chart exists makes a retry create a second one for the same person",
+  );
+
+  /*
+   * 🔴 AND THE TWO PLACES A PERSON ARRIVES, which is where every session made
+   * before this fix still lands. Both must try to build the room rather than
+   * rendering an empty frame at somebody who has just paid.
+   */
+  for (const [who, file] of [
+    ["clinician", "app/(room)/sessions/[id]/room/page.tsx"],
+    ["patient", "app/join/[token]/actions.ts"],
+  ] as const) {
+    check(
+      `🔴 79.1 the ${who}'s arrival builds a missing room rather than showing a blank`,
+      /ensureRoom\(/.test(readSource(file)),
+      "production is full of sessions with no room, and their patients hold join links",
+    );
+  }
+
+  /*
+   * 🔴 CONTROL, because every check above is satisfied by a file that does not
+   * mention rooms at all. The scan must be able to see the thing it is about.
+   */
+  check(
+    "🔴 CONTROL the scan is reading files that really do make rooms",
+    /createPrivateRoom\(/.test(sessionActions) && /createPrivateRoom\(/.test(radarActions),
+    "a path rename would quietly pass every check above",
+  );
+
+  /*
+   * 🔴 AND IT CAN BE ASKED, which is the half that was missing entirely.
+   * `features.video` reads whether a string is present; a revoked key is
+   * present. The console makes a real room and deletes it.
+   */
+  check(
+    "🔴 79.1 the console can answer whether video actually works",
+    /videoHealth\(\)/.test(readSource("components/admin/video-check.tsx")) &&
+      /<VideoCheck \/>/.test(readSource("app/(admin)/admin/settings/page.tsx")),
+    "DAILY_API_KEY is write-only on Vercel, so using it is the only way to know",
+  );
+
   finish("sprints 73 and 74");
 }
 
