@@ -1726,7 +1726,7 @@ async function main() {
     "🔴 79.1 a path that defers the room still mints a join token to come back with",
     tokenless.length === 0,
     tokenless.length > 0
-      ? `no joinToken in: ${tokenless.join(", ")} — the patient has no way to reach the heal`
+      ? `no joinToken in: ${tokenless.join(", ")}, so the patient has no way to reach the heal`
       : DEFERRED.join(", "),
   );
 

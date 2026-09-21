@@ -31,7 +31,7 @@
 ## What it will do without asking
 
 Check production is in the state this document claims, build the product and run all
-twenty-eight gates against the **dev** branch, confirm the production seed with `verify:cast`,
+twenty-nine gates against the **dev** branch, confirm the production seed with `verify:cast`,
 run six months of invented trading on `https://24therapy.app` with real keys, move the clock
 at the end of each wave, and report back at seven fixed points, each short enough to read on a
 phone.
@@ -641,7 +641,7 @@ cause this: `verify:served` compiles into `.next/served` and kills the server it
 H39, both fixed in 76.61). But the screenshot and probe rigs run `next dev` against `.next`
 directly, so clear it before every build and the question never comes up.
 
-Twenty-eight gates, and they run against whatever `DATABASE_URL` points at, which is dev.
+Twenty-nine gates, and they run against whatever `DATABASE_URL` points at, which is dev.
 That is correct: **gates prove the code, not the run.** Several of them write fixtures, and
 dev is where fixtures belong.
 
