@@ -545,15 +545,39 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
         ],
       },
+      /*
+       * 🔴 Task 155 — THE RADAR IS SHOWN, NOT DESCRIBED.
+       *
+       * "The Crisis Radar: a live map of clinicians who are online now" was a
+       * bordered box with an icon in it on the page that exists to explain the
+       * patient's half of the product. It is the signature screen and the one
+       * thing nothing else on the market has, and a reader could not see it.
+       *
+       * `demo: "radar"` is `PatientApp` opened on its radar tab: the real
+       * component, the real filters, and a booking a reader can actually run.
+       */
       {
-        type: "features",
+        type: "showcase",
         heading: "Finding somebody",
         items: [
           {
             title: "The Crisis Radar",
-            body: "A live map of clinicians who are online now. No bot, no queue, no callback.",
+            body: "A live map of clinicians who are online now. Filter by language or by what you need help with. No bot, no queue, no callback.",
             icon: "zap",
+            /*
+              `patient-app`, not `radar`: the CMS union does not carry a
+              `radar` name and `ComponentShowcase` maps both to the same thing,
+              `PatientApp` opened on its radar tab. The editable row uses the
+              name the schema allows.
+            */
+            demo: "patient-app",
           },
+        ],
+      },
+      {
+        type: "features",
+        heading: "Or book an hour",
+        items: [
           {
             title: "When to use it",
             body: "For when waiting until Tuesday is not the answer. Not an emergency service.",

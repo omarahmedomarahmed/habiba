@@ -107,19 +107,31 @@ export const PATIENT_BRIEF =
  * Example, no import, no query, no path from a row to here.
  */
 
-/** The practice's clinicians, with verification exactly as the portal shows it. */
+/**
+ * The practice's clinicians, with verification exactly as the portal shows it.
+ *
+ * 🔴 THERE IS NO `sessions` FIELD, and removing it was a fix rather than a
+ * tidy-up. The clinic console rendered "46 sessions this month" under each
+ * name; `components/clinic/people-list.tsx:32` is explicit that a real row
+ * shows no caseload size and no session count, because a practice that can see
+ * "Dr Salma: 46" beside "Dr Youssef: 12" has a performance-management surface
+ * built out of clinical volume. A fixture that carries the number is a fixture
+ * somebody renders, so the number is not here to render.
+ *
+ * `earnedCents` stays: a clinic pays its clinicians and the earnings screen is
+ * a real screen. What it must not do is divide that by a session count.
+ */
 export const CLINIC_TEAM: {
   name: string;
   verify: "verified" | "pending" | "none";
-  sessions: number;
   earnedCents: number;
   payout: "none" | "requested" | "paid";
 }[] = [
-  { name: "Dr Nour Demo", verify: "verified", sessions: 46, earnedCents: 214_000, payout: "requested" },
-  { name: "Dr Karim Example", verify: "verified", sessions: 38, earnedCents: 176_000, payout: "paid" },
-  { name: "Dr Salma Demo", verify: "verified", sessions: 31, earnedCents: 143_000, payout: "none" },
-  { name: "Dr Youssef Example", verify: "pending", sessions: 12, earnedCents: 54_000, payout: "none" },
-  { name: "Hana Demo", verify: "none", sessions: 0, earnedCents: 0, payout: "none" },
+  { name: "Dr Nour Demo", verify: "verified", earnedCents: 214_000, payout: "requested" },
+  { name: "Dr Karim Example", verify: "verified", earnedCents: 176_000, payout: "paid" },
+  { name: "Dr Salma Demo", verify: "verified", earnedCents: 143_000, payout: "none" },
+  { name: "Dr Youssef Example", verify: "pending", earnedCents: 54_000, payout: "none" },
+  { name: "Hana Demo", verify: "none", earnedCents: 0, payout: "none" },
 ];
 
 /**
@@ -168,11 +180,21 @@ export const CLINIC_BILL = {
  * not theirs to know, and a demo that showed it would be demonstrating the
  * opposite of what is sold.
  */
-export const COMPANY_PAID: { therapist: string; sessions: number; cents: number }[] = [
-  { therapist: "Dr Nour Demo", sessions: 14, cents: 84_000 },
-  { therapist: "Dr Karim Example", sessions: 11, cents: 66_000 },
-  { therapist: "Dr Salma Demo", sessions: 9, cents: 54_000 },
-  { therapist: "Dr Hana Example", sessions: 6, cents: 36_000 },
+/**
+ * 🔴 AMOUNTS, NOT COUNTS. The `sessions` field is gone for the same reason.
+ *
+ * `app/(sponsor)/sponsor/page.tsx:26` states the rule as SPEND, NEVER SESSION
+ * COUNTS, NEVER PEOPLE, and `lib/data/sponsors.ts:96` calls the sponsor select
+ * list "THE WALL", saying in as many words that it holds no therapist and no
+ * count, with `verify:sprint53` asserting against it by name. A company sees
+ * what it paid a clinician because it is paying them. It does not see how many
+ * of its employees sat in front of them.
+ */
+export const COMPANY_PAID: { therapist: string; cents: number }[] = [
+  { therapist: "Dr Nour Demo", cents: 84_000 },
+  { therapist: "Dr Karim Example", cents: 66_000 },
+  { therapist: "Dr Salma Demo", cents: 54_000 },
+  { therapist: "Dr Hana Example", cents: 36_000 },
 ];
 
 /** The joining code and how far the roster has got. */

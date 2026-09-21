@@ -109,6 +109,17 @@ const PUBLIC_PREFIXES = [
    * site after the domain move, which is the only place it was visible.
    */
   "/for-companies",
+  /*
+   * 🔴 Task 155 — and `/for-therapists` goes on the same list on the day it is
+   * created, rather than in the sprint somebody surveys the live site again.
+   *
+   * The note above is about `/for-companies` being left off while
+   * `/for-clinics` was on, and the consequence: `alternatesFor` builds the
+   * `hreflang` block from the locales the product HAS, not from this list, so
+   * the page advertised an Arabic alternate that 307d straight back to the
+   * English one. Four audience pages, four entries, no asymmetry left to find.
+   */
+  "/for-therapists",
   "/developers",
   "/verify",
   "/t",

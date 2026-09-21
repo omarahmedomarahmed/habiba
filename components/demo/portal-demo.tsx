@@ -189,6 +189,16 @@ function Head({ title, action }: { title: string; action?: React.ReactNode }) {
   );
 }
 
+/**
+ * What a clinic row says under a clinician's name, now that it is not a
+ * session count. The three states the real portal shows, and nothing else.
+ */
+const VERIFY_LINE = {
+  verified: "clinic.verified",
+  pending: "clinic.verifyPending",
+  none: "clinic.verifyNone",
+} as const;
+
 function Primary({ children, icon: Icon }: { children: React.ReactNode; icon?: typeof Plus }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-[13px] font-semibold text-white">
@@ -348,8 +358,26 @@ function ClinicPeople() {
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-semibold">{person.name}</span>
+                  {/*
+                    🔴 NOT a session count, and this line used to be one.
+
+                    The real row is `components/clinic/people-list.tsx`, whose
+                    doc comment at :32 is explicit about what a row does not
+                    show: "No caseload size, no session count, no patient, no
+                    rating, no earnings. A clinician's caseload is their own, and
+                    a practice that could see 'Dr Salma: 14 patients' beside
+                    'Dr Omar: 2' has a performance-management surface built out
+                    of clinical volume."
+
+                    This console renders under the heading "the real portal, so
+                    a marketing page cannot show a product we do not have". It
+                    was showing "46 sessions this month" beside a named
+                    clinician: not merely a feature we do not have, a feature
+                    the product exists to refuse. Advertising it is worse than
+                    advertising nothing, because somebody buys on it.
+                  */}
                   <span className="block text-[11px] text-slate-600">
-                    {t("dpo.sessionsThisMonth", { count: person.sessions })}
+                    {t(VERIFY_LINE[person.verify])}
                   </span>
                 </span>
               </span>
@@ -557,7 +585,7 @@ function CompanyOverview() {
               {t("dpo.whereMoneyWent")}
             </span>
             <span className="text-[10px] font-bold tracking-wide text-slate-600 uppercase">
-              {t("dpo.sessionsPaid")}
+              {t("dpo.paid")}
             </span>
           </div>
           <ul className="divide-y divide-slate-100">
@@ -567,8 +595,23 @@ function CompanyOverview() {
                 className="flex items-center justify-between gap-3 px-3 py-2.5 text-[13px]"
               >
                 <span className="truncate font-medium">{row.therapist}</span>
-                <span className="shrink-0 tabular-nums text-slate-600">
-                  {row.sessions} · <span className="font-bold text-slate-900">{money(row.cents)}</span>
+                {/*
+                  🔴 THE AMOUNT, NOT THE COUNT. This column was "14 · $840".
+                  
+                  `app/(sponsor)/sponsor/page.tsx:26` states the rule: SPEND,
+                  NEVER SESSION COUNTS, NEVER PEOPLE (C228), with one exception
+                  that is an all-time organisation-wide total identifying
+                  nobody. A count beside a named clinician is neither.
+                  
+                  And the real portal cannot produce this column at all:
+                  `lib/data/sponsors.ts:96` calls its select list "THE WALL" and
+                  says in as many words that there is no therapist and no count
+                  in it, with `verify:sprint53` asserting against that list by
+                  name. The amount stays, because C227 below is right that you
+                  are paying these clinicians and may see what you paid them.
+                */}
+                <span className="shrink-0 font-bold tabular-nums text-slate-900">
+                  {money(row.cents)}
                 </span>
               </li>
             ))}

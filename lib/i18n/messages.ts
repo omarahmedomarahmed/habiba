@@ -381,6 +381,72 @@ export const en = {
    * "Features" was sitting over a column containing Pricing and Contact.
    */
   "nav.mainNav": "Main",
+
+  /* ------------------------------------------------- /for-therapists -- */
+  /*
+   * 🔴 The audience that pays us had no page. Task 155.
+   *
+   * The therapist story lived on the homepage, mixed in with three other
+   * audiences, while companies and clinics each had a page of their own. The
+   * nav now links to four audience pages and this is the fourth.
+   *
+   * Every heading below is a claim with a working component under it on the
+   * page. That is the rule: a feature with nothing to render does not get a
+   * band, it gets a line in the list at the bottom.
+   */
+  "ft.eyebrow": "For therapists",
+  "ft.title": "Finish the note before you leave the room.",
+  "ft.lede":
+    "The session is transcribed as it happens and the note is drafted by the time you stand up. You read it, change what is wrong, and sign it.",
+  "ft.cta": "Start free",
+  "ft.secondary": "What it costs",
+
+  "ft.f1.label": "The transcript",
+  "ft.f1.heading": "It writes itself, and you can stop it.",
+  "ft.f1.body":
+    "Both sides of the conversation, live, in Arabic or English. Take it off the record for a minute and nothing in that minute is kept.",
+
+  "ft.f2.label": "The note",
+  "ft.f2.heading": "A draft with your name on it until you sign it.",
+  "ft.f2.body":
+    "Written from what was actually said, in the format you work in. It is a draft and it says so, on every screen, until a clinician has read it.",
+
+  "ft.f3.label": "Risk",
+  "ft.f3.heading": "Risk language is flagged while there is still time to ask.",
+  "ft.f3.body":
+    "In both languages, during the session rather than in a report afterwards. It is a prompt for you, not a safety net, and the product says that too.",
+
+  "ft.f4.label": "The copilot",
+  "ft.f4.heading": "A second opinion that has read the chart and nothing else.",
+  "ft.f4.body":
+    "It reaches your notes on this patient and no further. Ask it something mid-session and it answers from the record, or says it does not know.",
+
+  "ft.f5.label": "Your patient",
+  "ft.f5.heading": "They need no account to see you.",
+  "ft.f5.body":
+    "A link, a name, a consent question, and they are in the room. Afterwards they get their own sessions, their summaries and a list of who can read their record.",
+
+  "ft.f6.label": "The radar",
+  "ft.f6.heading": "Fill a free half hour from the radar.",
+  "ft.f6.body":
+    "Go online and you appear to people looking for somebody right now. This is what they see of you: your languages, what you work on, and your price with the tax on it.",
+
+  "ft.also": "Also included",
+  "ft.also1": "Your own prices, per session, set by you and shown with VAT",
+  "ft.also2": "Publish your hours and take future bookings",
+  "ft.also3": "In-person sessions, recorded on one device with consent taken first",
+  "ft.also4": "A record extract a patient can take with them, and anybody can verify",
+  "ft.also5": "Arabic and English throughout, including the notes",
+  "ft.also6": "Withdraw what you have earned, with every line itemised",
+
+  "ft.costLabel": "[ 07 ] What it costs",
+  "ft.costHeading": "Pay for the sessions you hold, or a flat month.",
+  "ft.costBody":
+    "No seat fee and no minimum. Your first session is free, and a patient never pays us anything for the software.",
+
+  "ft.closeHeading": "Your next session could write itself up.",
+  "ft.closeBody": "Four fields and you are in. The first one is free.",
+
   "footer.audiences": "Who it is for",
   "footer.product": "The product",
   "footer.legal": "Trust and legal",
@@ -3155,6 +3221,7 @@ export const en = {
   "dfl.next": "Next",
   "dfl.confirm": "Confirm and claim it",
   "dfl.claimKeepTitle": "One last thing",
+  "dfl.tapTheDigits": "Tap the digits to enter the code",
   "dfl.back": "Back",
   "dfl.restart": "Start again",
   "dfl.stepOf": "Step {n} of {total}",
@@ -3233,7 +3300,6 @@ export const en = {
   "dpo.where": "Where",
   "dpo.video": "Video",
   "dpo.inPerson": "In person",
-  "dpo.sessionsThisMonth": "{count} sessions this month",
   "dpo.payoutRequested": "Payout requested",
   "dpo.payoutPaid": "Paid out",
   "dpo.payoutNone": "Nothing requested",
@@ -3244,7 +3310,8 @@ export const en = {
   "dpo.usedIt": "Used it",
   "dpo.ofStaff": "of {count} staff",
   "dpo.whereMoneyWent": "Where the money went",
-  "dpo.sessionsPaid": "Sessions · Paid",
+  /* 🔴 The count is gone from this column. See portal-demo.tsx. */
+  "dpo.paid": "Paid",
   "dpo.neverWhoWent": "You see the therapists you paid and what you paid them. You never see who went, and there is no screen behind this one that does.",
   "dpo.topUpRow": "Top up",
   "dpo.sessionsWeekOf": "Sessions, week of {date}",
@@ -4013,6 +4080,60 @@ export const ar: Record<MessageKey, string> = {
   "nav.createOne": "أنشئ حسابًا",
   "nav.notYou": "لست من هؤلاء؟",
   "nav.mainNav": "الرئيسية",
+
+  "ft.eyebrow": "للمعالجين",
+  "ft.title": "اكتب الملاحظة قبل أن تغادر الغرفة.",
+  "ft.lede":
+    "الجلسة تُفرَّغ نصًّا وهي جارية، وتكون مسوّدة الملاحظة جاهزة قبل أن تقف. تقرأها، وتصحّح ما يحتاج تصحيحًا، وتوقّعها.",
+  "ft.cta": "ابدأ مجانًا",
+  "ft.secondary": "التكلفة",
+
+  "ft.f1.label": "النص",
+  "ft.f1.heading": "يكتب نفسه، ويمكنك إيقافه.",
+  "ft.f1.body":
+    "طرفا الحديث، مباشرةً، بالعربية أو الإنجليزية. أوقف التسجيل دقيقة ولن يُحفظ شيء من تلك الدقيقة.",
+
+  "ft.f2.label": "الملاحظة",
+  "ft.f2.heading": "مسوّدة باسمك حتى توقّعها.",
+  "ft.f2.body":
+    "مكتوبة مما قيل فعلًا، بالصيغة التي تعمل بها. تبقى مسوّدة، ومكتوب عليها ذلك في كل شاشة، حتى يقرأها معالج.",
+
+  "ft.f3.label": "الخطر",
+  "ft.f3.heading": "لغة الخطر تُرصد ووقت السؤال ما زال متاحًا.",
+  "ft.f3.body":
+    "باللغتين، أثناء الجلسة لا في تقرير بعدها. هي تنبيه لك لا شبكة أمان، والمنتج يقول ذلك أيضًا.",
+
+  "ft.f4.label": "المساعد",
+  "ft.f4.heading": "رأي ثانٍ قرأ الملف ولا شيء غيره.",
+  "ft.f4.body":
+    "يصل إلى ملاحظاتك عن هذا المريض ولا يتجاوزها. اسأله أثناء الجلسة فيجيب من السجل، أو يقول إنه لا يعرف.",
+
+  "ft.f5.label": "مريضك",
+  "ft.f5.heading": "لا يحتاج حسابًا ليراك.",
+  "ft.f5.body":
+    "رابط واسم وسؤال موافقة، ويصبح داخل الغرفة. وبعدها تصير له جلساته وملخصاته وقائمة بمن يحق له قراءة سجلّه.",
+
+  "ft.f6.label": "الرادار",
+  "ft.f6.heading": "املأ نصف ساعة فارغة من الرادار.",
+  "ft.f6.body":
+    "اظهر على الرادار فيراك من يبحث عن معالج الآن. وهذا ما يرونه عنك: لغاتك، وما تعمل عليه، وسعرك شاملًا الضريبة.",
+
+  "ft.also": "يشمل أيضًا",
+  "ft.also1": "أسعارك أنت، لكل جلسة، تحدّدها وتُعرض شاملة ضريبة القيمة المضافة",
+  "ft.also2": "انشر ساعاتك واستقبل حجوزات مستقبلية",
+  "ft.also3": "جلسات حضورية، تُسجَّل من جهاز واحد بعد أخذ الموافقة",
+  "ft.also4": "مستخرج سجل يأخذه المريض معه ويستطيع أي أحد التحقق منه",
+  "ft.also5": "العربية والإنجليزية في كل شيء، بما في ذلك الملاحظات",
+  "ft.also6": "اسحب ما كسبته، وكل بند مفصّل",
+
+  "ft.costLabel": "[ ٠٧ ] التكلفة",
+  "ft.costHeading": "ادفع مقابل الجلسات التي تعقدها، أو اشترك شهريًا.",
+  "ft.costBody":
+    "لا رسوم مقعد ولا حد أدنى. جلستك الأولى مجانية، والمريض لا يدفع لنا شيئًا مقابل البرنامج.",
+
+  "ft.closeHeading": "جلستك القادمة يمكن أن تكتب نفسها.",
+  "ft.closeBody": "أربعة حقول وتدخل. الأولى مجانية.",
+
   "footer.audiences": "لمن هذا",
   "footer.product": "المنتج",
   "footer.legal": "الثقة والشروط",
@@ -6369,6 +6490,7 @@ export const ar: Record<MessageKey, string> = {
   "dfl.next": "التالي",
   "dfl.confirm": "أكّد واستلمه",
   "dfl.claimKeepTitle": "حاجة أخيرة",
+  "dfl.tapTheDigits": "اضغط على الأرقام لإدخال الرمز",
   "dfl.back": "السابق",
   "dfl.restart": "ابدأ من جديد",
   "dfl.stepOf": "خطوة {n} من {total}",
@@ -6447,7 +6569,6 @@ export const ar: Record<MessageKey, string> = {
   "dpo.where": "أين",
   "dpo.video": "فيديو",
   "dpo.inPerson": "حضوريًا",
-  "dpo.sessionsThisMonth": "{count} جلسة هذا الشهر",
   "dpo.payoutRequested": "طلب تحويل",
   "dpo.payoutPaid": "حُوِّل",
   "dpo.payoutNone": "لا طلبات",
@@ -6458,7 +6579,7 @@ export const ar: Record<MessageKey, string> = {
   "dpo.usedIt": "استخدموها",
   "dpo.ofStaff": "من {count} موظفًا",
   "dpo.whereMoneyWent": "أين ذهب المال",
-  "dpo.sessionsPaid": "الجلسات · المدفوع",
+  "dpo.paid": "المدفوع",
   "dpo.neverWhoWent": "ترى المعالجين الذين دفعتَ لهم وكم دفعتَ. ولا ترى أبدًا من ذهب، ولا توجد خلف هذه الشاشة شاشة أخرى تعرضه.",
   "dpo.topUpRow": "إضافة رصيد",
   "dpo.sessionsWeekOf": "جلسات أسبوع {date}",

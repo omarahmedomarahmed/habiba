@@ -412,49 +412,29 @@ function Hero({
  * drawing content is reversible; deleting it is not, and this is the second
  * time this sprint that the difference has mattered.
  */
-/**
- * 🔴 AND A TRAILING PARTIAL ROW IS CENTRED, which is why this is flex and not
- * grid.
- *
- * Seven tiles in a three-column grid leaves one alone under the left-hand
- * column with two tile-widths of white beside it, and that reads as a section
- * that failed to load rather than as a section with seven things in it. Flex
- * with a basis gives the identical geometry for the counts the rule is about
- * and centres whatever is left over, so an unplanned count degrades into
- * something deliberate-looking instead of something broken-looking.
- */
-function tileBasis(count: number): string {
-  /* Four is two by two, so the second breakpoint is not taken. */
-  if (count === 4) return "sm:basis-[calc(50%-0.5rem)]";
-  return "sm:basis-[calc(50%-0.5rem)] lg:basis-[calc(33.333%-0.667rem)]";
-}
-
 function Features({
   block,
 }: {
   block: Extract<ContentBlock, { type: "features" }>;
 }) {
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-20">
+    <section className="bg-white px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
         {block.heading ? (
           <h2 className="max-w-2xl text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             {block.heading}
           </h2>
         ) : null}
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
+        <ul className="mt-8 grid gap-x-12 border-t border-slate-200 sm:grid-cols-2">
           {block.items.map((item, i) => (
-            <div
-              key={i}
-              className={`flex grow basis-full items-start gap-3.5 rounded-2xl border border-slate-200 bg-white/80 p-5 backdrop-blur-sm ${tileBasis(block.items.length)}`}
-            >
-              <ContentIconMark name={item.icon} />
-              <p className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-900">
-                {item.title}
-              </p>
-            </div>
+            <li key={i} className="border-b border-slate-200 py-4">
+              <p className="text-[15px] font-semibold leading-snug text-slate-900">{item.title}</p>
+              {item.body ? (
+                <p className="mt-1 text-sm leading-relaxed text-slate-700">{item.body}</p>
+              ) : null}
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );

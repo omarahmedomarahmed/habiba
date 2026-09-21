@@ -486,14 +486,27 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
         ],
       },
       {
-        type: "features",
+        type: "showcase",
         heading: "أن تجد شخصًا",
         items: [
           {
             title: "رادار الأزمات",
             body: "خريطة حية لمعالجين متاحين الآن. صفِّ حسب اللغة أو حسب ما تحتاج المساعدة فيه. لا أحد على هذه الخريطة روبوت أو قائمة انتظار أو وعد بمعاودة الاتصال، بل أشخاص بجلسة مفتوحة.",
             icon: "zap",
+            /*
+              `patient-app`, not `radar`: the CMS union does not carry a
+              `radar` name and `ComponentShowcase` maps both to the same thing,
+              `PatientApp` opened on its radar tab. The editable row uses the
+              name the schema allows.
+            */
+            demo: "patient-app",
           },
+        ],
+      },
+      {
+        type: "features",
+        heading: "أو احجز ساعة",
+        items: [
           {
             title: "متى تستخدمه",
             body: "حين لا يكون الانتظار إلى الثلاثاء جوابًا. ليست خدمة طوارئ ولا بديلًا عنها. إن كان أحد متفرغًا فيمكنك البدء الآن، وإن لم يكن فاحجز أول موعد يناسبك.",

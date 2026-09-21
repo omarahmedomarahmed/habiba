@@ -72,8 +72,28 @@ import { seatMonthlyCents } from "@/lib/settings/defs";
 export async function PricingTiers({
   compact = false,
   locale: given,
+  only,
+  heading,
+  body,
 }: {
   compact?: boolean;
+  /**
+   * 🔴 Task 155 — one tier, for a reader who already said who they are.
+   *
+   * The audience pages end in "what it costs YOU". Showing a clinic the
+   * patient column and the solo column on the page headed "for clinics" makes
+   * them do our work, and the three-way grid is what the `/pricing` page is
+   * for. Keys: `payg`, `practice`, `clinic`.
+   *
+   * It filters rather than rebuilding, so a tier an operator renames, reprices
+   * or retires changes here too. A second hand written price panel is a second
+   * price to keep true, which is the defect class this repository has already
+   * paid for twice.
+   */
+  only?: readonly string[];
+  /** The audience page supplies its own heading; the pricing page does not. */
+  heading?: string;
+  body?: string;
   /**
    * 21R.8 — the language, when the caller already resolved it. Unset in the
    * app, where the reader's cookie decides; set by the render check, which has
@@ -294,6 +314,14 @@ export async function PricingTiers({
   });
 
   /*
+   * 🔴 Task 155 — the tiers this page shows, which is all of them unless the
+   * caller named some. An unknown key yields nothing rather than everything,
+   * because a typo that silently shows the full grid on an audience page is a
+   * defect nobody sees.
+   */
+  const shown = only ? cards.filter((card) => only.includes(card.key)) : cards;
+
+  /*
    * 🔴 THE GRID, AND WHY EVERY CELL IS A FACT RATHER THAN A TICK.
    *
    * "What is included, what is not included, and the price if subscribed" was
@@ -348,17 +376,23 @@ export async function PricingTiers({
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
-        <div className="mx-auto max-w-2xl text-center">
+        <div className={only ? "max-w-2xl" : "mx-auto max-w-2xl text-center"}>
           <h2 className="text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {compact ? t("pricing.free") : t("pr2.title")}
+            {heading ?? (compact ? t("pricing.free") : t("pr2.title"))}
           </h2>
           <p className="mt-2.5 text-[15px] leading-relaxed text-slate-600">
-            {compact ? t("pricing.freeBody") : t("pr2.body")}
+            {body ?? (compact ? t("pricing.freeBody") : t("pr2.body"))}
           </p>
         </div>
 
-        <div className="mt-9 grid items-stretch gap-5 lg:grid-cols-3">
-          {cards.map((card) => (
+        <div
+          className={
+            only
+              ? "mt-9 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-2"
+              : "mt-9 grid items-stretch gap-5 lg:grid-cols-3"
+          }
+        >
+          {shown.map((card) => (
             <div
               key={card.key}
               className={
@@ -396,7 +430,15 @@ export async function PricingTiers({
 
         <p className="mt-5 text-center text-sm text-slate-600">{t("pricing.patientPaysNothing")}</p>
 
-        {!compact ? (
+        {/*
+          🔴 The comparison table is for `/pricing` and nowhere else.
+
+          A reader on `/for-clinics` has already told us who they are by being
+          there, and a three-column table asking them to find their own column
+          is the page making them do our work. `only` means an audience page,
+          and an audience page ends in a price and a button.
+        */}
+        {!compact && !only ? (
           <>
             {/* ─────────────────────────────────── what is in each ── */}
             <div className="mt-16">
@@ -516,11 +558,21 @@ export async function PricingTiers({
               ) : null}
             </div>
           </>
-        ) : (
+        ) : compact ? (
+          /*
+            🔴 `compact` only, and not `only`.
+
+            This was the `else` of `!compact`, so widening that test to
+            `!compact && !only` sent the audience pages down it and put a third
+            "Sign up free" under two cards that each already carry one. An
+            audience page closes with its own call to action in the navy band
+            below; the compact block, which appears mid-page elsewhere, still
+            needs this one because it has no band of its own.
+          */
           <Link href="/signup" className="mx-auto mt-8 block max-w-xs">
             <Button full>{t("pricing.signUp")}</Button>
           </Link>
-        )}
+        ) : null}
       </div>
     </section>
   );
