@@ -250,6 +250,15 @@ const AUDIT = String.raw`(() => {
   };
 
   const out = [];
+  /*
+   * 🔴 HOW MANY ELEMENTS WERE LOOKED AT, because this used to return failures
+   * only and a page that rendered NOTHING therefore reported zero failures.
+   * "No bad text" and "no text" are the same answer from a list of problems,
+   * and this gate has already been fooled twice by that shape: once by a modal
+   * covering the page it was measuring, once by nine pages it walked signed
+   * out. The caller refuses a suspiciously empty sweep.
+   */
+  let measured = 0;
   for (const el of document.querySelectorAll("*")) {
     const text = [...el.childNodes]
       .filter((n) => n.nodeType === 3)
@@ -264,6 +273,7 @@ const AUDIT = String.raw`(() => {
     const size = parseFloat(cs.fontSize);
     const weight = parseInt(cs.fontWeight, 10) || 400;
     const need = size >= 24 || (size >= 18.66 && weight >= 700) ? 3 : 4.5;
+    measured += 1;
     const got = ratio(toRgb(cs.color), groundOf(el));
     if (got < need) {
       const ink = toRgb(cs.color), ground = groundOf(el);
@@ -279,7 +289,7 @@ const AUDIT = String.raw`(() => {
       });
     }
   }
-  return out;
+  return { measured, bad: out };
 })()`;
 
 type Bad = {
@@ -375,14 +385,35 @@ async function audit(exe: string) {
    * SO in its detail rather than passing quietly: if that ever appears against
    * a built server it is a real finding, not a compile.
    */
+  /*
+   * 🔴 AND `networkidle` IS THE WRONG THING TO WAIT FOR ON THIS PRODUCT.
+   *
+   * It waits for the network to go QUIET, and several screens here never do:
+   * the radar polls, the copilot holds a stream, the pending bar refreshes.
+   * On those the navigation simply times out and arrives as "no response",
+   * which is how five Arabic pages failed twice while a browser opened all of
+   * them by hand. A retry cannot fix a wait for something that never happens.
+   *
+   * So the navigation waits for `load`, which is a real event that fires, and
+   * then gives the network a few seconds to settle WITHOUT making the sweep
+   * depend on it. What stops this from measuring a half-drawn page is not the
+   * wait at all: it is the element count the audit now returns.
+   */
   const open = async (page: any, path: string) => {
-    let res = await page
-      .goto(`${BASE}${path}`, { waitUntil: "networkidle" })
-      .catch(() => null);
-    if (res && res.status() < 400) return { res, retried: false };
-    res = await page
-      .goto(`${BASE}${path}`, { waitUntil: "networkidle" })
-      .catch(() => null);
+    const go = () =>
+      page
+        .goto(`${BASE}${path}`, { waitUntil: "load", timeout: 45000 })
+        .catch(() => null);
+    const settle = () =>
+      page.waitForLoadState("networkidle", { timeout: 4000 }).catch(() => {});
+
+    let res = await go();
+    if (res && res.status() < 400) {
+      await settle();
+      return { res, retried: false };
+    }
+    res = await go();
+    await settle();
     return { res, retried: true };
   };
 
@@ -412,20 +443,34 @@ async function audit(exe: string) {
         await page.waitForTimeout(250);
       }
     }
-    const bad = (await page.evaluate(AUDIT)) as Bad[];
+    const { measured, bad } = (await page.evaluate(AUDIT)) as {
+      measured: number;
+      bad: Bad[];
+    };
+    /*
+     * 🔴 A PAGE WITH ALMOST NOTHING ON IT IS NOT A PASS.
+     *
+     * Ten is well under what the emptiest real screen in this product renders
+     * once its chrome is up, and well over what a blank page, a redirect
+     * caught mid-flight or an unhydrated shell produces. The count goes in the
+     * detail of every green line too, so a page that quietly halves what it
+     * draws is visible in the output rather than only in a failure.
+     */
     check(
       `🔴 every word on ${label} ${path} clears WCAG 1.4.3`,
-      bad.length === 0,
-      bad.length === 0
-        ? "all text measured against its own ground"
-        : bad
+      bad.length === 0 && measured >= 10,
+      bad.length > 0
+        ? bad
             .slice(0, 4)
             .map(
               (b) =>
                 `${String(b.got)}:1 needs ${String(b.need)}, ${b.ink} on ${b.ground}, ` +
                 `${String(b.size)}px/${String(b.weight)} "${b.text}"`,
             )
-            .join(" · "),
+            .join(" · ")
+        : measured >= 10
+          ? `${String(measured)} elements, each against its own ground`
+          : `only ${String(measured)} elements on the page, so there was nothing to measure`,
     );
   };
 
