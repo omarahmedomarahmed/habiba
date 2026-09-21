@@ -1,0 +1,934 @@
+[
+  {
+    "id": "f2b9e1c3-7df7-4904-a017-ec752f537435",
+    "slug": "home",
+    "title": "24Therapy: ملاحظات جلساتك، تُكتب من أجلك",
+    "blocks": [
+      {
+        "body": "كل نقطة على الخريطة معالج موثّق قال إنه متفرغ. اختر اللغة أو ما تحتاج المساعدة فيه، اختر شخصًا، أخبره بما يناديك به، وتكون داخل الجلسة. بلا حساب، بلا قوائم انتظار، وبلا استمارات تأمين. لا أحد في نوبة عمل ولا أحد محجوز لك: إن كانت الخريطة فارغة فهي فارغة.",
+        "demo": "radar",
+        "type": "hero",
+        "eyebrow": "رادار الأزمات",
+        "heading": "ابحث عن معالج متاح الآن"
+      },
+      {
+        "body": "ابدأ الجلسة من هاتفك. يكتب 24Therapy النص مباشرة أثناء الحديث، ثم يعدّ الملاحظة السريرية والملخص والمتابعة بينما لا تزال تودّع مريضك. تراجعها، تعتمدها، وترسلها.",
+        "demo": "session-room",
+        "type": "hero",
+        "ctaHref": "/signup",
+        "eyebrow": "للمعالجين",
+        "heading": "أنهِ ملاحظاتك قبل أن تغادر الغرفة",
+        "ctaLabel": "ابدأ جلستك الأولى مجانًا",
+        "backgroundImage": "/backgrounds/mesh.svg"
+      },
+      {
+        "body": "افتح الرادار، اختر من هو متفرغ، شاهد السعر بالضريبة عليه، وادخل. ثم تجوّل في باقي التطبيق.",
+        "demo": "patient-app",
+        "type": "hero",
+        "ctaHref": "/for-patients",
+        "eyebrow": "للمرضى",
+        "heading": "التطبيق كله، وبلا أي تسجيل",
+        "ctaLabel": "كيف يعمل هذا للمرضى"
+      },
+      {
+        "body": "تموّل محفظة وترى إنفاقها. ولا يمكن اشتراط الحضور من خلالنا.",
+        "demo": "company",
+        "type": "hero",
+        "ctaHref": "/for-companies",
+        "eyebrow": "للشركات",
+        "heading": "غطِّ العلاج النفسي لموظفيك، ولا تعرف أبدًا من ذهب",
+        "ctaLabel": "كيف يعمل هذا للشركات"
+      },
+      {
+        "body": "ترى العيادة الجداول والفواتير. ولا ترى ملاحظة أبدًا.",
+        "demo": "clinic",
+        "type": "hero",
+        "ctaHref": "/for-clinics",
+        "eyebrow": "للعيادات",
+        "heading": "مقاعد وزملاء ودفاتر واحدة",
+        "ctaLabel": "كيف يعمل هذا للعيادات"
+      },
+      {
+        "type": "showcase",
+        "items": [
+          {
+            "body": "يُلتقط الصوت في مقاطع قصيرة ويُحوَّل إلى نص أثناء سير الجلسة. في مكالمات الفيديو يكون لكل شخص مساره الصوتي المستقل، فنعرف من قال ماذا بدل أن نخمّن.",
+            "demo": "transcript",
+            "icon": "mic",
+            "title": "النص يكتب نفسه"
+          },
+          {
+            "body": "إنهاء الجلسة يبدأ التوليد فورًا: ملاحظة سريرية كاملة مع ملخص ونقاط للحديث وملاحظات وانطباعات وخطة متابعة. كل ذلك مسودة باسمك حتى تعتمدها أنت.",
+            "demo": "note",
+            "icon": "fileText",
+            "title": "الملاحظة جاهزة حين تقف"
+          },
+          {
+            "body": "يُفحص كل مقطع فور وصوله. إذا ظهرت لغة تشير إلى خطر تصلك الإشارة داخل الغرفة، وتُكتب في قاعدة البيانات قبل إخطار أي أحد، لتبقى حتى لو فشل الإرسال. هي تنبيه لانتباهك لا شبكة أمان: تفوتها أشياء، وتطلق إنذارات كاذبة، ولا تحلّ أبدًا محلّ حكمك المهني.",
+            "demo": "risk",
+            "icon": "shield",
+            "title": "نفحص لغة الخطر، بالعربية والإنجليزية"
+          },
+          {
+            "body": "اقتراحان قصيران على الأكثر في كل مرة، وفقط حين يكون هناك ما يستحق قوله. يقترح ولا يأمر، والصمت هو الإجابة المتوقعة.",
+            "demo": "copilot",
+            "icon": "brain",
+            "title": "رأي ثانٍ هادئ"
+          }
+        ],
+        "heading": "ما يفعله المنتج فعلًا"
+      },
+      {
+        "type": "features",
+        "items": [
+          {
+            "body": "اضغط جلسة جديدة، اكتب اسمًا أول، اضغط ابدأ. حضوريًا أو بالفيديو، بلا جدولة ولا استمارات ولا معالج إعداد.",
+            "icon": "zap",
+            "title": "ابدأ"
+          },
+          {
+            "body": "يُبنى النص إلى جوارك. اضغط «خارج التسجيل» في أي لحظة لا ينبغي فيها التقاط الحديث.",
+            "icon": "mic",
+            "title": "تحدّث"
+          },
+          {
+            "body": "أنهِ الجلسة وستجد الملاحظة بانتظارك. اقرأها، عدّل ما تشاء، اعتمدها، وأرسل للمريض ملخصًا بلغة بسيطة.",
+            "icon": "mail",
+            "title": "أرسل"
+          },
+          {
+            "body": "أرسل رابطًا. يكتبون اسمهم الأول ويدخلون. بلا كلمة مرور، بلا تطبيق، وبلا بوابة تحتاج دعمًا فنيًا.",
+            "icon": "users",
+            "title": "المرضى لا يحتاجون حسابًا"
+          },
+          {
+            "body": "كل اطّلاع على ملف يُسجَّل في سجل تدقيق لا يُعدَّل. ولا يصل نص أي جلسة إلى سجلات التطبيق.",
+            "icon": "lock",
+            "title": "بيانات المرضى تبقى في مكانها"
+          },
+          {
+            "body": "المعالجون يعملون من هواتفهم، ولذلك صُمم هذا للهاتف أولًا. سطح المكتب إضافة، وليس العكس.",
+            "icon": "clock",
+            "title": "مصمم للهاتف"
+          },
+          {
+            "body": "نتحقق من ترخيصك لدى الجهة المختصة قبل أن ترى أي مريض. وبعد اجتيازك، تحصل على صفحة خاصة بك تحمل اسمك ولغاتك ومواعيدك، تصلح رابطًا في سيرتك على أي منصة أو في رسالة. كونك مُتحقَّقًا منك له قيمة خارج هذا المنتج أيضًا.",
+            "icon": "shield",
+            "title": "صفحة موثّقة تعرضها أينما شئت"
+          }
+        ],
+        "heading": "ثلاث نقرات من التحية إلى ملاحظة موقّعة"
+      },
+      {
+        "type": "pricing",
+        "compact": true
+      },
+      {
+        "type": "competitors",
+        "items": [
+          {
+            "who": "أوسع أنظمة إدارة العيادات انتشارًا بين المعالجين في أمريكا: مواعيد وفوترة وجلسات عن بُعد وبوابة للمريض في منتج واحد.",
+            "name": "SimplePractice",
+            "rows": [
+              {
+                "ours": "جلسات بلا حدود وذكاء اصطناعي بلا حدود بسعر ثابت، أو دولار للغرفة وثلاثة للذكاء الاصطناعي لكل جلسة وبلا شهري.",
+                "claim": "ماذا يشتري الاشتراك",
+                "theirs": "خطة شهرية بدرجات، والذكاء الاصطناعي إضافة منفصلة تُحسب على كل معالج فوقها."
+              },
+              {
+                "ours": "عربي وإنجليزي في كل شاشة، من اليمين إلى اليسار، وفي الملاحظة نفسها.",
+                "claim": "العربية",
+                "theirs": "منتج إنجليزي. لا واجهة عربية معلنة."
+              },
+              {
+                "ours": "تحويل بنكي ووسائل محلية، بالجنيه المصري ومع إظهار ضريبة القيمة المضافة.",
+                "claim": "الدفع في مصر",
+                "theirs": "بطاقات عبر معالجة أمريكية."
+              },
+              {
+                "ours": "للمريض. يستلمه ويحمله إلى معالجه التالي، أيًّا كان.",
+                "claim": "لمن السجل",
+                "theirs": "العيادة تحتفظ بالملف. من يغادر يبدأ من الصفر في مكان آخر."
+              },
+              {
+                "ours": "رادار الأزمة: المريض يحجز معالجًا متاحًا في هذه اللحظة.",
+                "claim": "جلسات فورية",
+                "theirs": "المواعيد مجدولة. لا سوق فوري."
+              },
+              {
+                "ours": "منتج أحدث. مزايا الفوترة والمطالبات والتقارير فيه أقل من نظام عمره عشر سنوات.",
+                "claim": "اتساع أدوات إدارة العيادة",
+                "theirs": "أعمق: مطالبات التأمين ودليل عام للمعالجين وأداة لبناء موقع.",
+                "concede": true
+              }
+            ],
+            "price": "من 49 دولارًا شهريًا، وزيادة نحو 35 دولارًا لكل معالج مقابل إضافة الملاحظات بالذكاء الاصطناعي"
+          },
+          {
+            "who": "نظام سجلات عيادي أمريكي عريق، يميل إلى التوثيق والمطالبات أكثر من ميله إلى التسويق.",
+            "name": "TherapyNotes",
+            "rows": [
+              {
+                "ours": "سعر واحد يشمل الذكاء الاصطناعي، أو دفع لكل جلسة بلا التزام شهري.",
+                "claim": "ماذا يشتري الاشتراك",
+                "theirs": "اشتراك شهري لكل معالج، وإضافات تُحسب على حدة."
+              },
+              {
+                "ours": "الواجهة والملاحظة والتقرير كلها بالعربية إن أردتها.",
+                "claim": "العربية",
+                "theirs": "إنجليزي فقط."
+              },
+              {
+                "ours": "تُرصد أثناء الجلسة نفسها وتُعرض على المعالج في حينها، بالكلمات التي قيلت.",
+                "claim": "لغة الأزمة",
+                "theirs": "التوثيق يدوي. لا رصد فوري معلن."
+              },
+              {
+                "ours": "للمريض، ويتبعه حين يغيّر معالجه.",
+                "claim": "لمن السجل",
+                "theirs": "العيادة هي صاحبة الملف."
+              },
+              {
+                "ours": "لا شيء. هذا المنتج لا يفوتر شركات التأمين الأمريكية ولا يدّعي ذلك.",
+                "claim": "فوترة التأمين",
+                "theirs": "مسار مطالبات أمريكي ناضج، وهو أكثر أسباب شرائه.",
+                "concede": true
+              },
+              {
+                "ours": "في الغرفة أو عن بُعد، والتسجيل والملاحظة واحدة في الحالتين.",
+                "claim": "أين تُعقد الجلسة",
+                "theirs": "جلسات عن بُعد مدمجة، والجلسة الحضورية تُوثَّق يدويًا."
+              }
+            ],
+            "price": "من 59 دولارًا شهريًا لأول معالج"
+          },
+          {
+            "who": "مساعد ملاحظات بالذكاء الاصطناعي للمعالجين، مبني حول التسجيل والتفريغ ومسودّة الملاحظة.",
+            "name": "Upheal",
+            "rows": [
+              {
+                "ours": "الملاحظة والغرفة والمريض والمال في منتج واحد.",
+                "claim": "ماذا يشتري الاشتراك",
+                "theirs": "الملاحظات. الحجز والفوترة والدفع في مكان آخر."
+              },
+              {
+                "ours": "عربي كامل، والملاحظة تُكتب بلغة الجلسة.",
+                "claim": "العربية",
+                "theirs": "لغات أوروبية. لا عربية معلنة."
+              },
+              {
+                "ours": "الجنيه المصري ووسائل محلية وضريبة معروضة.",
+                "claim": "الدفع في مصر",
+                "theirs": "بطاقات بالدولار أو اليورو."
+              },
+              {
+                "ours": "للمريض، ويحمله معه.",
+                "claim": "لمن السجل",
+                "theirs": "حساب المعالج هو المالك."
+              },
+              {
+                "ours": "رادار يصل مريضًا بمعالج متاح الآن.",
+                "claim": "جلسات فورية",
+                "theirs": "لا سوق ولا حجز فوري."
+              },
+              {
+                "ours": "أحدث. جودة ملاحظتنا مقيسة على مجموعة تقييم منشورة لا مؤكَّدة بالكلام.",
+                "claim": "نضج الذكاء الاصطناعي",
+                "theirs": "في السوق منذ وقت أطول ومساعده أرسخ.",
+                "concede": true
+              }
+            ],
+            "price": "خطة مجانية محدودة، والمدفوعة من نحو 79 دولارًا شهريًا"
+          },
+          {
+            "who": "مساعد توثيق يجلس بجوار نظام السجلات الذي تستعمله، لا بديلًا عنه.",
+            "name": "Mentalyc",
+            "rows": [
+              {
+                "ours": "منتج كامل: الغرفة والملاحظة والمريض والمال.",
+                "claim": "ما هو أصلًا",
+                "theirs": "طبقة توثيق فوق نظام آخر."
+              },
+              {
+                "ours": "SOAP وتقرير للمريض، ولغة الأزمة مرصودة.",
+                "claim": "صيغ الملاحظة",
+                "theirs": "صيغ متعددة، وهي أقوى ما فيه."
+              },
+              {
+                "ours": "عربي في كل شاشة وفي الملاحظة.",
+                "claim": "العربية",
+                "theirs": "إنجليزي."
+              },
+              {
+                "ours": "للمريض.",
+                "claim": "لمن السجل",
+                "theirs": "للعيادة أو لنظام السجلات الذي تربطه به."
+              },
+              {
+                "ours": "تطبيق للمريض: جلساته وتقاريره وموافقاته ومدفوعاته.",
+                "claim": "جانب المريض",
+                "theirs": "لا واجهة للمريض."
+              },
+              {
+                "ours": "نتصل عبر FHIR، وهذا عمل أحدث من عملهم.",
+                "claim": "العمل مع نظام سجلات قائم",
+                "theirs": "مبني ليجلس بجوار نظام السجلات، وهذا تصميمه كله.",
+                "concede": true
+              }
+            ],
+            "price": "من نحو 39 دولارًا شهريًا للمعالج الواحد"
+          },
+          {
+            "who": "ميزة صحة نفسية للموظفين تُباع لكبرى الشركات، لا للمعالجين.",
+            "name": "Lyra Health",
+            "rows": [
+              {
+                "ours": "معالج أو عيادة أو شركة تموّل محفظة. الثلاثة، والمنتج تحتهم واحد.",
+                "claim": "من المشتري",
+                "theirs": "الشركة. والمعالجون عرضٌ لا عملاء."
+              },
+              {
+                "ours": "المحفظة والمعالجين المدفوع لهم والمبالغ. ولا ترى قط من ذهب.",
+                "claim": "ماذا ترى الشركة",
+                "theirs": "تقارير استخدام مجمّعة."
+              },
+              {
+                "ours": "كل سعر منشور على صفحة الأسعار، بالجنيه والدولار.",
+                "claim": "وضوح السعر",
+                "theirs": "بعرض سعر فقط، ويُوصف كثيرًا بأنه بعيد عن متناول الشركات الصغيرة والمتوسطة."
+              },
+              {
+                "ours": "مصر، بالعربية، وعلى وسائل الدفع المحلية.",
+                "claim": "سوق الإطلاق",
+                "theirs": "أمريكا والشركات متعددة الجنسيات أساسًا."
+              },
+              {
+                "ours": "للمريض، ويبقى معه حين يترك الشركة.",
+                "claim": "لمن السجل",
+                "theirs": "الرعاية عبر البرنامج، والسجل يتبع البرنامج."
+              },
+              {
+                "ours": "نحن جدد وشبكتنا صغيرة.",
+                "claim": "شبكة المعالجين",
+                "theirs": "شبكة كبيرة ومدقّقة، وهي أكثر ما يبيعونه.",
+                "concede": true
+              }
+            ],
+            "price": "عقود مؤسسية. غير معلنة."
+          }
+        ],
+        "heading": "نحن في مواجهة غيرنا",
+        "checkedOn": "2026-09-19"
+      },
+      {
+        "body": "إن كنت في خطر مباشر فاتصل برقم الطوارئ في بلدك الآن. وإن كان بإمكانك الانتظار دقائق، فعلى الرادار معالجون متاحون في هذه اللحظة، بلا حساب وبلا استمارة.",
+        "type": "crisis",
+        "heading": "إن كنت تحتاج مساعدة الآن"
+      },
+      {
+        "body": "بلا بطاقة وبلا معالج إعداد. سجّل وابدأ جلسة في أقل من دقيقة.",
+        "type": "cta",
+        "ctaHref": "/signup",
+        "heading": "جلستك الأولى مجانية",
+        "ctaLabel": "أنشئ حسابك",
+        "backgroundImage": "/backgrounds/waves.svg"
+      }
+    ],
+    "layout": "marketing",
+    "locale": "ar",
+    "status": "published",
+    "nav_label": null,
+    "nav_order": null,
+    "created_at": "2026-09-07T05:54:30.21094+00:00",
+    "updated_at": "2026-09-20T07:10:22.047+00:00",
+    "updated_by": null,
+    "description": "سجّل جلسة علاجية من هاتفك واخرج منها بملاحظة سريرية كاملة، ورؤى إكلينيكية، وتقرير يمكنك إرساله لمريضك.",
+    "published_at": "2026-09-19T19:24:28.342+00:00"
+  },
+  {
+    "id": "45ed8513-d99a-4a86-86d3-593a5cdd5cbe",
+    "slug": "home",
+    "title": "24Therapy: ملاحظات جلساتك، تُكتب من أجلك",
+    "blocks": [
+      {
+        "body": "كل نقطة على الخريطة معالج موثّق قال إنه متفرغ. اختر اللغة أو ما تحتاج المساعدة فيه، اختر شخصًا، أخبره بما يناديك به، وتكون داخل الجلسة. بلا حساب، بلا قوائم انتظار، وبلا استمارات تأمين. لا أحد في نوبة عمل ولا أحد محجوز لك: إن كانت الخريطة فارغة فهي فارغة.",
+        "demo": "radar",
+        "type": "hero",
+        "eyebrow": "رادار الأزمات",
+        "heading": "ابحث عن معالج متاح الآن"
+      },
+      {
+        "body": "ابدأ الجلسة من هاتفك. يكتب 24Therapy النص مباشرة أثناء الحديث، ثم يعدّ الملاحظة السريرية والملخص والمتابعة بينما لا تزال تودّع مريضك. تراجعها، تعتمدها، وترسلها.",
+        "demo": "session-room",
+        "type": "hero",
+        "ctaHref": "/signup",
+        "eyebrow": "للمعالجين",
+        "heading": "أنهِ ملاحظاتك قبل أن تغادر الغرفة",
+        "ctaLabel": "ابدأ جلستك الأولى مجانًا",
+        "backgroundImage": "/backgrounds/mesh.svg"
+      },
+      {
+        "type": "showcase",
+        "items": [
+          {
+            "body": "يُلتقط الصوت في مقاطع قصيرة ويُحوَّل إلى نص أثناء سير الجلسة. في مكالمات الفيديو يكون لكل شخص مساره الصوتي المستقل، فنعرف من قال ماذا بدل أن نخمّن.",
+            "demo": "transcript",
+            "icon": "mic",
+            "title": "النص يكتب نفسه"
+          },
+          {
+            "body": "إنهاء الجلسة يبدأ التوليد فورًا: ملاحظة سريرية كاملة مع ملخص ونقاط للحديث وملاحظات وانطباعات وخطة متابعة. كل ذلك مسودة باسمك حتى تعتمدها أنت.",
+            "demo": "note",
+            "icon": "fileText",
+            "title": "الملاحظة جاهزة حين تقف"
+          },
+          {
+            "body": "يُفحص كل مقطع فور وصوله. إذا ظهرت لغة تشير إلى خطر تصلك الإشارة داخل الغرفة، وتُكتب في قاعدة البيانات قبل إخطار أي أحد، لتبقى حتى لو فشل الإرسال. هي تنبيه لانتباهك لا شبكة أمان: تفوتها أشياء، وتطلق إنذارات كاذبة، ولا تحلّ أبدًا محلّ حكمك المهني.",
+            "demo": "risk",
+            "icon": "shield",
+            "title": "نفحص لغة الخطر، بالعربية والإنجليزية"
+          },
+          {
+            "body": "اقتراحان قصيران على الأكثر في كل مرة، وفقط حين يكون هناك ما يستحق قوله. يقترح ولا يأمر، والصمت هو الإجابة المتوقعة.",
+            "demo": "copilot",
+            "icon": "brain",
+            "title": "رأي ثانٍ هادئ"
+          }
+        ],
+        "heading": "ما يفعله المنتج فعلًا"
+      },
+      {
+        "type": "features",
+        "items": [
+          {
+            "body": "اضغط جلسة جديدة، اكتب اسمًا أول، اضغط ابدأ. حضوريًا أو بالفيديو، بلا جدولة ولا استمارات ولا معالج إعداد.",
+            "icon": "zap",
+            "title": "ابدأ"
+          },
+          {
+            "body": "يُبنى النص إلى جوارك. اضغط «خارج التسجيل» في أي لحظة لا ينبغي فيها التقاط الحديث.",
+            "icon": "mic",
+            "title": "تحدّث"
+          },
+          {
+            "body": "أنهِ الجلسة وستجد الملاحظة بانتظارك. اقرأها، عدّل ما تشاء، اعتمدها، وأرسل للمريض ملخصًا بلغة بسيطة.",
+            "icon": "mail",
+            "title": "أرسل"
+          },
+          {
+            "body": "أرسل رابطًا. يكتبون اسمهم الأول ويدخلون. بلا كلمة مرور، بلا تطبيق، وبلا بوابة تحتاج دعمًا فنيًا.",
+            "icon": "users",
+            "title": "المرضى لا يحتاجون حسابًا"
+          },
+          {
+            "body": "كل اطّلاع على ملف يُسجَّل في سجل تدقيق لا يُعدَّل. ولا يصل نص أي جلسة إلى سجلات التطبيق.",
+            "icon": "lock",
+            "title": "بيانات المرضى تبقى في مكانها"
+          },
+          {
+            "body": "المعالجون يعملون من هواتفهم، ولذلك صُمم هذا للهاتف أولًا. سطح المكتب إضافة، وليس العكس.",
+            "icon": "clock",
+            "title": "مصمم للهاتف"
+          },
+          {
+            "body": "نتحقق من ترخيصك لدى الجهة المختصة قبل أن ترى أي مريض. وبعد اجتيازك، تحصل على صفحة خاصة بك تحمل اسمك ولغاتك ومواعيدك، تصلح رابطًا في سيرتك على أي منصة أو في رسالة. كونك مُتحقَّقًا منك له قيمة خارج هذا المنتج أيضًا.",
+            "icon": "shield",
+            "title": "صفحة موثّقة تعرضها أينما شئت"
+          }
+        ],
+        "heading": "ثلاث نقرات من التحية إلى ملاحظة موقّعة"
+      },
+      {
+        "type": "pricing",
+        "compact": true
+      },
+      {
+        "body": "إن كنت في خطر مباشر فاتصل برقم الطوارئ في بلدك الآن. وإن كان بإمكانك الانتظار دقائق، فعلى الرادار معالجون متاحون في هذه اللحظة، بلا حساب وبلا استمارة.",
+        "type": "crisis",
+        "heading": "إن كنت تحتاج مساعدة الآن"
+      },
+      {
+        "body": "بلا بطاقة وبلا معالج إعداد. سجّل وابدأ جلسة في أقل من دقيقة.",
+        "type": "cta",
+        "ctaHref": "/signup",
+        "heading": "جلستك الأولى مجانية",
+        "ctaLabel": "أنشئ حسابك",
+        "backgroundImage": "/backgrounds/waves.svg"
+      }
+    ],
+    "layout": "marketing",
+    "locale": "ar-x-staging",
+    "status": "published",
+    "nav_label": null,
+    "nav_order": null,
+    "created_at": "2026-09-13T22:16:24.826905+00:00",
+    "updated_at": "2026-09-19T19:46:54.409341+00:00",
+    "updated_by": null,
+    "description": "سجّل جلسة علاجية من هاتفك واخرج منها بملاحظة سريرية كاملة، ورؤى إكلينيكية، وتقرير يمكنك إرساله لمريضك.",
+    "published_at": null
+  },
+  {
+    "id": "d33c60d8-0c39-448b-b7fc-84e18b21bd60",
+    "slug": "home",
+    "title": "24Therapy: your session notes, written for you",
+    "blocks": [
+      {
+        "body": "Every dot is a verified clinician who has said they are free. Filter by language or by what you need help with, pick someone, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance. Nobody is on duty and nobody is promised to you: if the map is empty, it is empty.",
+        "demo": "radar",
+        "type": "hero",
+        "eyebrow": "Crisis Radar",
+        "heading": "Find a therapist who is available now"
+      },
+      {
+        "body": "Start a session on your phone. 24Therapy transcribes it live, then writes the SOAP note, the summary and the follow-up while you are still saying goodbye. You review, approve, and send.",
+        "demo": "session-room",
+        "type": "hero",
+        "ctaHref": "/signup",
+        "eyebrow": "For therapists",
+        "heading": "Finish your notes before you leave the room",
+        "ctaLabel": "Start your first session free",
+        "backgroundImage": "/backgrounds/mesh.svg"
+      },
+      {
+        "body": "Open the radar, pick somebody free, see the price with the tax on it, and go in. Then look around the rest of the app.",
+        "demo": "patient-app",
+        "type": "hero",
+        "ctaHref": "/for-patients",
+        "eyebrow": "For patients",
+        "heading": "The whole app, and nothing to sign up for",
+        "ctaLabel": "How it works for patients"
+      },
+      {
+        "body": "You fund a pot and watch it spend. Attendance cannot be required through us.",
+        "demo": "company",
+        "type": "hero",
+        "ctaHref": "/for-companies",
+        "eyebrow": "For companies",
+        "heading": "Cover therapy for your people, and never learn who went",
+        "ctaLabel": "How it works for companies"
+      },
+      {
+        "body": "A practice sees schedules and bills. It never sees a note.",
+        "demo": "clinic",
+        "type": "hero",
+        "ctaHref": "/for-clinics",
+        "eyebrow": "For clinics",
+        "heading": "Seats, colleagues and one set of books",
+        "ctaLabel": "How it works for clinics"
+      },
+      {
+        "type": "showcase",
+        "items": [
+          {
+            "body": "Audio is captured in short chunks and transcribed as the session runs. On a video call each person is on their own track, so who said what is known rather than guessed. This is the real panel from the session room.",
+            "demo": "transcript",
+            "icon": "mic",
+            "title": "The transcript writes itself"
+          },
+          {
+            "body": "Ending a session starts generation immediately: a full SOAP note plus summary, talking points, observations, impressions and a follow-up. Everything is a draft with your name on it until you approve it.",
+            "demo": "note",
+            "icon": "fileText",
+            "title": "The note is ready when you stand up"
+          },
+          {
+            "body": "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified, so it survives a failed delivery. It is a prompt for your attention, not a safety net: it misses things, it raises false alarms, and it never replaces your own judgement.",
+            "demo": "risk",
+            "icon": "shield",
+            "title": "Risk language is scanned for, in Arabic and English"
+          },
+          {
+            "body": "At most two short prompts at a time, and only when there is something worth saying. It suggests, never instructs, and staying silent is the expected answer.",
+            "demo": "copilot",
+            "icon": "brain",
+            "title": "A quiet second opinion"
+          }
+        ],
+        "heading": "What the product actually does"
+      },
+      {
+        "type": "features",
+        "items": [
+          {
+            "body": "Tap New session, type a first name, tap Start. In-person or video, no scheduling, no forms, no setup wizard.",
+            "icon": "zap",
+            "title": "Start"
+          },
+          {
+            "body": "The transcript builds itself beside you. Tap Off record whenever the conversation should not be captured.",
+            "icon": "mic",
+            "title": "Talk"
+          },
+          {
+            "body": "End the session and the note is waiting. Read it, edit anything, approve it, and email the patient a plain-language summary.",
+            "icon": "mail",
+            "title": "Send"
+          },
+          {
+            "body": "Send a link. They type their first name and join. No password, no app, no portal to support.",
+            "icon": "users",
+            "title": "Patients need no account"
+          },
+          {
+            "body": "Every read of a chart is written to an append-only audit log. No transcript text ever reaches application logs.",
+            "icon": "lock",
+            "title": "PHI stays where it belongs"
+          },
+          {
+            "body": "Therapists work from their phone, so this was designed for one. Desktop is the enhancement, not the other way round.",
+            "icon": "clock",
+            "title": "Built for a phone"
+          },
+          {
+            "body": "We check your licence against the register before you see a patient. Once you pass, you get a page of your own with your name, your languages and your hours on it, that works as a link in a bio or a message. Being checked is worth something outside this product too.",
+            "icon": "shield",
+            "title": "A verified page you can show anywhere"
+          }
+        ],
+        "heading": "Three taps from hello to a signed note"
+      },
+      {
+        "type": "pricing",
+        "compact": true
+      },
+      {
+        "type": "competitors",
+        "items": [
+          {
+            "who": "The most used practice-management EHR for US therapists: scheduling, billing, telehealth, client portal.",
+            "name": "SimplePractice",
+            "rows": [
+              {
+                "ours": "A flat plan with no per-session fee, or a per-session rate with nothing monthly. Both prices are published.",
+                "claim": "What the subscription buys",
+                "theirs": "A tiered monthly plan. AI notes are a separate per-clinician add-on on top."
+              },
+              {
+                "ours": "Arabic and English throughout, right to left, including the note itself.",
+                "claim": "Arabic",
+                "theirs": "English product. No published Arabic interface."
+              },
+              {
+                "ours": "Bank transfer and local rails, priced in EGP with VAT shown.",
+                "claim": "Paying in Egypt",
+                "theirs": "Card payments through US processing."
+              },
+              {
+                "ours": "The patient. They claim it and carry it to their next therapist.",
+                "claim": "Who owns the record",
+                "theirs": "The practice holds the chart. A client leaving starts again elsewhere."
+              },
+              {
+                "ours": "Crisis Radar: a patient books whoever is free right now.",
+                "claim": "On-demand sessions",
+                "theirs": "Appointments are scheduled. No on-demand marketplace."
+              },
+              {
+                "ours": "Younger. Fewer billing and reporting features than a decade-old EHR.",
+                "claim": "Breadth of practice tooling",
+                "theirs": "Deeper: insurance claims, ERA, a public directory, a website builder.",
+                "concede": true
+              }
+            ],
+            "price": "From $49 a month, plus about $35 per clinician for the AI note add-on"
+          },
+          {
+            "who": "A long-established behavioural-health EHR, strong on documentation and US insurance billing.",
+            "name": "TherapyNotes",
+            "rows": [
+              {
+                "ours": "Included on a plan. Nothing monthly on pay as you go.",
+                "claim": "What the subscription buys",
+                "theirs": "Documentation, billing and support in one price. AI notes cost extra per clinician."
+              },
+              {
+                "ours": "Written for Arabic first in the launch market, both directions.",
+                "claim": "Arabic",
+                "theirs": "English product."
+              },
+              {
+                "ours": "Scanned in Arabic and English, and the page says the scan can miss.",
+                "claim": "Risk language",
+                "theirs": "No published automatic risk scan of session content."
+              },
+              {
+                "ours": "The patient claims and carries it.",
+                "claim": "Who owns the record",
+                "theirs": "The practice's chart."
+              },
+              {
+                "ours": "None. We do not bill US insurers and do not pretend to.",
+                "claim": "Insurance billing",
+                "theirs": "Mature US claims workflow, which is most of why people buy it.",
+                "concede": true
+              },
+              {
+                "ours": "Our room, in person on a phone, or Zoom, Meet and Teams.",
+                "claim": "Sessions held anywhere",
+                "theirs": "Built around its own telehealth."
+              }
+            ],
+            "price": "About $69 a month for a solo clinician, with an AI note add-on of roughly $40 per clinician"
+          },
+          {
+            "who": "An AI-native platform for therapists: notes, scheduling, billing.",
+            "name": "Upheal",
+            "rows": [
+              {
+                "ours": "Per session, or flat and unlimited. Our figures are published and read from the rows the invoice reads.",
+                "claim": "What the subscription buys",
+                "theirs": "Per session with a monthly cap, which is the closest pricing in this table to ours."
+              },
+              {
+                "ours": "Arabic and English, including the generated note.",
+                "claim": "Arabic",
+                "theirs": "English product."
+              },
+              {
+                "ours": "The Egyptian rail is the product, not a workaround.",
+                "claim": "Paying in Egypt",
+                "theirs": "Card payments."
+              },
+              {
+                "ours": "The patient, with consent they can revoke.",
+                "claim": "Who owns the record",
+                "theirs": "The practice."
+              },
+              {
+                "ours": "Crisis Radar, and an employer can fund it.",
+                "claim": "On-demand sessions",
+                "theirs": "No on-demand marketplace."
+              },
+              {
+                "ours": "Newer. Our note quality is measured against a published eval set.",
+                "claim": "AI maturity",
+                "theirs": "Longer in market with an established assistant.",
+                "concede": true
+              }
+            ],
+            "price": "About $1 a session, capped near $69 a month"
+          },
+          {
+            "who": "An AI documentation layer beside whatever EHR a practice runs.",
+            "name": "Mentalyc",
+            "rows": [
+              {
+                "ours": "The record and the session: the room, the money, the patient's app.",
+                "claim": "What it is",
+                "theirs": "Notes only, deliberately. No scheduling, billing, telehealth or client portal."
+              },
+              {
+                "ours": "SOAP, sections labelled, and a missing one said rather than dropped.",
+                "claim": "Note formats",
+                "theirs": "A wide library: SOAP, DAP, BIRP, GIRP, EMDR, couples and family."
+              },
+              {
+                "ours": "Both languages, in the note and in the interface.",
+                "claim": "Arabic",
+                "theirs": "English product."
+              },
+              {
+                "ours": "The patient.",
+                "claim": "Who owns the record",
+                "theirs": "Whatever the EHR it sits beside decides."
+              },
+              {
+                "ours": "The patient has an app: sessions, steps, journal, record.",
+                "claim": "The patient's side",
+                "theirs": "No patient-facing product."
+              },
+              {
+                "ours": "We connect over FHIR, and that is newer work than theirs.",
+                "claim": "Working with an existing EHR",
+                "theirs": "Built to slot beside an EHR, which is the whole design.",
+                "concede": true
+              }
+            ],
+            "price": "From about $20 a month for a limited number of notes, to about $70 for the full note range"
+          },
+          {
+            "who": "An enterprise mental-health benefit sold to large employers, not clinicians.",
+            "name": "Lyra Health",
+            "rows": [
+              {
+                "ours": "A therapist, a clinic, or an employer funding a pot. Same product underneath.",
+                "claim": "Who buys it",
+                "theirs": "The employer. Clinicians are supply, not customers."
+              },
+              {
+                "ours": "The pot, the therapists paid and the amounts. Never who went.",
+                "claim": "What the employer sees",
+                "theirs": "Aggregate utilisation reporting."
+              },
+              {
+                "ours": "Every price is on the pricing page, in EGP and USD.",
+                "claim": "Price transparency",
+                "theirs": "Quote only. Widely reported as out of reach for small and mid-size employers."
+              },
+              {
+                "ours": "Egypt, in Arabic, on local payment rails.",
+                "claim": "The launch market",
+                "theirs": "Primarily US and multinational enterprise."
+              },
+              {
+                "ours": "The patient keeps it when they leave the employer.",
+                "claim": "Who owns the record",
+                "theirs": "Care delivered through the benefit; the record follows the programme."
+              },
+              {
+                "ours": "We are new and our network is small.",
+                "claim": "Clinical network",
+                "theirs": "A large vetted provider network, which is most of the value they sell.",
+                "concede": true
+              }
+            ],
+            "price": "Enterprise contracts. Not publicly listed."
+          }
+        ],
+        "heading": "How we compare",
+        "checkedOn": "2026-09-19"
+      },
+      {
+        "type": "crisis"
+      },
+      {
+        "body": "No card, no onboarding wizard. Sign up and start a session in under a minute.",
+        "type": "cta",
+        "ctaHref": "/signup",
+        "heading": "Your first session is free",
+        "ctaLabel": "Create your account",
+        "backgroundImage": "/backgrounds/waves.svg"
+      }
+    ],
+    "layout": "marketing",
+    "locale": "en",
+    "status": "published",
+    "nav_label": null,
+    "nav_order": null,
+    "created_at": "2026-09-07T05:54:29.738563+00:00",
+    "updated_at": "2026-09-20T07:10:21.934+00:00",
+    "updated_by": null,
+    "description": "Record a therapy session on your phone and walk away with a SOAP note, clinical insights and a report you can send to your patient.",
+    "published_at": "2026-09-19T19:24:27.891+00:00"
+  },
+  {
+    "id": "5e4860b6-6423-4b23-b681-4f1471f778ba",
+    "slug": "home",
+    "title": "24Therapy: your session notes, written for you",
+    "blocks": [
+      {
+        "body": "Every dot is a verified clinician who has said they are free. Filter by language or by what you need help with, pick someone, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance. Nobody is on duty and nobody is promised to you: if the map is empty, it is empty.",
+        "demo": "radar",
+        "type": "hero",
+        "eyebrow": "Crisis Radar",
+        "heading": "Find a therapist who is available now"
+      },
+      {
+        "body": "Start a session on your phone. 24Therapy transcribes it live, then writes the SOAP note, the summary and the follow-up while you are still saying goodbye. You review, approve, and send.",
+        "demo": "session-room",
+        "type": "hero",
+        "ctaHref": "/signup",
+        "eyebrow": "For therapists",
+        "heading": "Finish your notes before you leave the room",
+        "ctaLabel": "Start your first session free",
+        "backgroundImage": "/backgrounds/mesh.svg"
+      },
+      {
+        "type": "showcase",
+        "items": [
+          {
+            "body": "Audio is captured in short chunks and transcribed as the session runs. On a video call each person is on their own track, so who said what is known rather than guessed. This is the real panel from the session room.",
+            "demo": "transcript",
+            "icon": "mic",
+            "title": "The transcript writes itself"
+          },
+          {
+            "body": "Ending a session starts generation immediately: a full SOAP note plus summary, talking points, observations, impressions and a follow-up. Everything is a draft with your name on it until you approve it.",
+            "demo": "note",
+            "icon": "fileText",
+            "title": "The note is ready when you stand up"
+          },
+          {
+            "body": "Every segment is scanned as it arrives. If risk language appears you are alerted in the room, and the alert is written to the database before anyone is notified, so it survives a failed delivery. It is a prompt for your attention, not a safety net: it misses things, it raises false alarms, and it never replaces your own judgement.",
+            "demo": "risk",
+            "icon": "shield",
+            "title": "Risk language is scanned for, in Arabic and English"
+          },
+          {
+            "body": "At most two short prompts at a time, and only when there is something worth saying. It suggests, never instructs, and staying silent is the expected answer.",
+            "demo": "copilot",
+            "icon": "brain",
+            "title": "A quiet second opinion"
+          }
+        ],
+        "heading": "What the product actually does"
+      },
+      {
+        "type": "features",
+        "items": [
+          {
+            "body": "Tap New session, type a first name, tap Start. In-person or video, no scheduling, no forms, no setup wizard.",
+            "icon": "zap",
+            "title": "Start"
+          },
+          {
+            "body": "The transcript builds itself beside you. Tap Off record whenever the conversation should not be captured.",
+            "icon": "mic",
+            "title": "Talk"
+          },
+          {
+            "body": "End the session and the note is waiting. Read it, edit anything, approve it, and email the patient a plain-language summary.",
+            "icon": "mail",
+            "title": "Send"
+          },
+          {
+            "body": "Send a link. They type their first name and join. No password, no app, no portal to support.",
+            "icon": "users",
+            "title": "Patients need no account"
+          },
+          {
+            "body": "Every read of a chart is written to an append-only audit log. No transcript text ever reaches application logs.",
+            "icon": "lock",
+            "title": "PHI stays where it belongs"
+          },
+          {
+            "body": "Therapists work from their phone, so this was designed for one. Desktop is the enhancement, not the other way round.",
+            "icon": "clock",
+            "title": "Built for a phone"
+          },
+          {
+            "body": "We check your licence against the register before you see a patient. Once you pass, you get a page of your own with your name, your languages and your hours on it, that works as a link in a bio or a message. Being checked is worth something outside this product too.",
+            "icon": "shield",
+            "title": "A verified page you can show anywhere"
+          }
+        ],
+        "heading": "Three taps from hello to a signed note"
+      },
+      {
+        "type": "pricing",
+        "compact": true
+      },
+      {
+        "type": "crisis"
+      },
+      {
+        "body": "No card, no onboarding wizard. Sign up and start a session in under a minute.",
+        "type": "cta",
+        "ctaHref": "/signup",
+        "heading": "Your first session is free",
+        "ctaLabel": "Create your account",
+        "backgroundImage": "/backgrounds/waves.svg"
+      }
+    ],
+    "layout": "marketing",
+    "locale": "en-x-staging",
+    "status": "published",
+    "nav_label": null,
+    "nav_order": null,
+    "created_at": "2026-09-13T22:16:19.5851+00:00",
+    "updated_at": "2026-09-19T19:46:53.913802+00:00",
+    "updated_by": null,
+    "description": "Record a therapy session on your phone and walk away with a SOAP note, clinical insights and a report you can send to your patient.",
+    "published_at": null
+  }
+]

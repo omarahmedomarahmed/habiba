@@ -56,13 +56,47 @@ import { writesTo } from "./_verify";
 const { contentPages } = schema;
 
 const DRY = process.argv.includes("--dry");
+
+/**
+ * 🔴 `--drop=hero,showcase` — the block types to REMOVE. Task 137.
+ *
+ * ## Why this had to exist
+ *
+ * A named type the defaults no longer ship is reported as "ships no X block,
+ * not synced" and left alone. That is the right default: it catches a typo
+ * before it deletes a section. But it also means this tool cannot express
+ * "this page used to have five heroes and now has one `audiences` block",
+ * which is exactly what the homepage rewrite is.
+ *
+ * Without it the only tool for the job was `ship:content`, which replaces the
+ * whole `blocks` array of every page in every locale, and which destroyed
+ * 6,810 bytes of authored copy twice. Reaching for it because the surgical
+ * tool was one flag short is how that happens a third time.
+ *
+ * ## Why it is a separate flag rather than inferred
+ *
+ * Inferring removal from "the defaults no longer ship this type" would make a
+ * mistyped type name silently delete every block of the type somebody meant to
+ * type. Naming what to drop is one more thing to write and it appears in the
+ * shell history, in the log, and in this run's output, which is what a
+ * destructive edit should cost.
+ *
+ * The control below still applies: everything not named, of either kind, must
+ * come out byte-identical or nothing is written.
+ */
+const dropped = (process.argv.find((a) => a.startsWith("--drop=")) ?? "")
+  .slice("--drop=".length)
+  .split(",")
+  .map((one) => one.trim())
+  .filter(Boolean);
+
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const slug = args[0];
 const types = args.slice(1);
 
-/** Everything in `blocks` that is NOT one of the types being synced. */
-function untouched(blocks: ContentBlock[], syncing: string[]): ContentBlock[] {
-  return blocks.filter((b) => !syncing.includes(b.type));
+/** Everything in `blocks` that is NOT one of the types being changed. */
+function untouched(blocks: ContentBlock[], changing: string[]): ContentBlock[] {
+  return blocks.filter((b) => !changing.includes(b.type));
 }
 
 /**
@@ -86,12 +120,15 @@ function insertionIndex(row: ContentBlock[], shipped: ContentBlock[], type: stri
 }
 
 async function main() {
-  if (!slug || types.length === 0) {
+  if (!slug || (types.length === 0 && dropped.length === 0)) {
     console.error(
-      "Usage: npm run content:sync -- <slug> <blockType> [blockType...] [--dry]\n" +
+      "Usage: npm run content:sync -- <slug> <blockType> [blockType...] [--drop=a,b] [--dry]\n" +
         "\n" +
         "Replaces only the blocks of those types on every locale row of that page,\n" +
-        "from that locale's own defaults, leaving every other block untouched.",
+        "from that locale's own defaults, leaving every other block untouched.\n" +
+        "\n" +
+        "--drop names types to REMOVE, for a page whose shape changed. Everything\n" +
+        "not named, of either kind, must still come out byte-identical.",
     );
     process.exit(1);
   }
@@ -100,7 +137,10 @@ async function main() {
   const { pool, db } = connect();
 
   console.log(`page: ${slug}`);
-  console.log(`types: ${types.join(", ")}${DRY ? "   (dry run, nothing is written)" : ""}\n`);
+  console.log(`types: ${types.join(", ") || "(none)"}`);
+  if (dropped.length > 0) console.log(`DROPPING: ${dropped.join(", ")}`);
+  if (DRY) console.log("(dry run, nothing is written)");
+  console.log("");
 
   let written = 0;
   let skipped = 0;
@@ -132,13 +172,26 @@ async function main() {
     const have = types.filter((t) => shipped.blocks.some((b) => b.type === t));
     const missing = types.filter((t) => !have.includes(t));
     for (const t of missing) console.log(`${locale}: ships no "${t}" block, not synced`);
-    if (have.length === 0) {
+
+    /* What this row actually carries of the types named for removal. */
+    const toDrop = dropped.filter((t) => (row.blocks as ContentBlock[]).some((b) => b.type === t));
+    for (const t of dropped.filter((one) => !toDrop.includes(one))) {
+      console.log(`${locale}: carries no "${t}" block, nothing to drop`);
+    }
+
+    if (have.length === 0 && toDrop.length === 0) {
       skipped += 1;
       continue;
     }
 
     const before: ContentBlock[] = row.blocks;
-    let next = before.filter((b) => !have.includes(b.type));
+    /*
+     * The types this run is allowed to change: the ones being replaced and the
+     * ones being removed. The control at the bottom is computed against this
+     * list, so a block of any other type moving anywhere stops the write.
+     */
+    const changing = [...have, ...toDrop];
+    let next = before.filter((b) => !changing.includes(b.type));
 
     for (const type of have) {
       const incoming = shipped.blocks.filter((b) => b.type === type);
@@ -162,8 +215,8 @@ async function main() {
      * assertion H49 would have needed: the failure mode is not a wrong block,
      * it is a right block that took somebody's paragraph with it.
      */
-    const a = JSON.stringify(untouched(before, have));
-    const b = JSON.stringify(untouched(next, have));
+    const a = JSON.stringify(untouched(before, changing));
+    const b = JSON.stringify(untouched(next, changing));
     if (a !== b) {
       console.error(`\n${locale}: REFUSING. The blocks not being synced changed.`);
       console.error(`  before: ${String(a.length)} bytes\n  after:  ${String(b.length)} bytes`);
@@ -173,7 +226,8 @@ async function main() {
     const sizeBefore = JSON.stringify(before).length;
     const sizeAfter = JSON.stringify(next).length;
     console.log(
-      `${locale}: ${have.join(", ")} · ${String(before.length)} blocks (${String(sizeBefore)} bytes)` +
+      `${locale}: ${[...have.map((t) => `+${t}`), ...toDrop.map((t) => `-${t}`)].join(", ")}` +
+        ` · ${String(before.length)} blocks (${String(sizeBefore)} bytes)` +
         ` -> ${String(next.length)} blocks (${String(sizeAfter)} bytes)` +
         ` · untouched ${String(a.length)} bytes, unchanged`,
     );
