@@ -27,3 +27,24 @@ Each row carries its own `id`. Restoring one is:
 ```sql
 UPDATE content_pages SET blocks = '<blocks>'::jsonb WHERE id = '<id>';
 ```
+
+---
+
+# The for-patients rows, before the section cut
+
+`for-patients-production-2026-09-21.json` is every `content_pages` row for the
+`for-patients` slug on production, all four locales, taken immediately before
+the edit that took the page from eleven sections to nine.
+
+The live rows (`en`, `ar`) carried eleven blocks; the two `-x-staging` rows
+carried nine and were not touched, because `content:sync` writes only the
+locales `registry.ts` ships defaults for. That gap is worth knowing about: a
+staging locale drifts on its own and no gate compares the two.
+
+The dry run against production reported `untouched 2055 bytes, unchanged` for
+English and `1868 bytes` for Arabic, so the hero, the FAQ and the crisis block
+were provably not touched. This run also used `--order`, which the control
+cannot fully see: reordering moves no bytes, so a synced block can pass an
+untouched one without the remainders differing. That is the reason the flag has
+to be typed out, and the reason this file exists for an edit whose control was
+green.
