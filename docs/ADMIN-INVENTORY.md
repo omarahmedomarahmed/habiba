@@ -15,7 +15,7 @@ browser and a cast, which is a later pass.
 
 ## Every page
 
-### `/admin/actuals` — Actuals
+### `/admin/actuals`, Actuals
 
 - **file** `app/(admin)/admin/actuals/page.tsx`
 - **controls** 16 (16 wired, 0 not)
@@ -41,35 +41,35 @@ browser and a cast, which is a later pass.
   - endEmploymentAction → useActionState endEmploymentAction
   - addEmployeeAction → useActionState addEmployeeAction
 
-### `/admin/announce` — Announce
+### `/admin/announce`, Announce
 
 - **file** `app/(admin)/admin/announce/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`, `allTherapistRecipients`
 - **components** `components/admin/announcement`, `components/ui`
 
-### `/admin/audit` — Audit log
+### `/admin/audit`, Audit log
 
 - **file** `app/(admin)/admin/audit/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`, `listAuditLog`
 - **components** `components/ui`
 
-### `/admin/benefits` — Paused benefits
+### `/admin/benefits`, Paused benefits
 
 - **file** `app/(admin)/admin/benefits/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`, `pausedBenefits`
 - **components** `components/admin/paused-benefits`, `components/ui`
 
-### `/admin/checkins` — Check-ins
+### `/admin/checkins`, Check-ins
 
 - **file** `app/(admin)/admin/checkins/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`
 - **components** `components/ui`
 
-### `/admin/clinics` — Clinics
+### `/admin/clinics`, Clinics
 
 - **file** `app/(admin)/admin/clinics/page.tsx`
 - **controls** 5 (5 wired, 0 not)
@@ -82,7 +82,7 @@ browser and a cast, which is a later pass.
   - aclinic.contact → onClick inline
   - (unlabelled) → onClick inline
 
-### `/admin/content/[id]` — Edit page
+### `/admin/content/[id]`, Edit page
 
 - **file** `app/(admin)/admin/content/[id]/page.tsx`
 - **controls** 1 (1 wired, 0 not)
@@ -91,7 +91,7 @@ browser and a cast, which is a later pass.
 - **link** 1
   - Site content → /admin/content
 
-### `/admin/content` — Site content
+### `/admin/content`, Site content
 
 - **file** `app/(admin)/admin/content/page.tsx`
 - **controls** 3 (3 wired, 0 not)
@@ -102,14 +102,14 @@ browser and a cast, which is a later pass.
   - (unlabelled) → /admin/content/${page.id
   - Edit ${page.title} → /admin/content/${page.id
 
-### `/admin/errors` — Errors
+### `/admin/errors`, Errors
 
 - **file** `app/(admin)/admin/errors/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`, `recentErrors`
 - **components** `components/ui`
 
-### `/admin/financial-model` — Financial model
+### `/admin/financial-model`, Financial model
 
 - **file** `app/(admin)/admin/financial-model/page.tsx`
 - **controls** 8 (8 wired, 0 not)
@@ -122,7 +122,7 @@ browser and a cast, which is a later pass.
   - Add someone → onClick inline
   - Measure → onClick inline
 
-### `/admin/numbers` — Number changes
+### `/admin/numbers`, Number changes
 
 - **file** `app/(admin)/admin/numbers/page.tsx`
 - **controls** 6 (6 wired, 0 not)
@@ -136,14 +136,14 @@ browser and a cast, which is a later pass.
   - sendCode → useActionState sendCode
   - refuse → useActionState refuse
 
-### `/admin` — Admin
+### `/admin`, Admin
 
 - **file** `app/(admin)/admin/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`
 - **components** `components/ui`, `components/ui/money`
 
-### `/admin/partners` — Partners
+### `/admin/partners`, Partners
 
 - **file** `app/(admin)/admin/partners/page.tsx`
 - **controls** 5 (5 wired, 0 not)
@@ -156,7 +156,7 @@ browser and a cast, which is a later pass.
   - apartner.contact → onClick inline
   - (unlabelled) → onClick inline
 
-### `/admin/patients/[id]` — Patient account
+### `/admin/patients/[id]`, Patient account
 
 - **file** `app/(admin)/admin/patients/[id]/page.tsx`
 - **controls** 1 (1 wired, 0 not)
@@ -165,7 +165,7 @@ browser and a cast, which is a later pass.
 - **link** 1
   - Back → /admin/transfers
 
-### `/admin/payouts` — Payouts
+### `/admin/payouts`, Payouts
 
 - **file** `app/(admin)/admin/payouts/page.tsx`
 - **controls** 11 (11 wired, 0 not)
@@ -185,7 +185,7 @@ browser and a cast, which is a later pass.
 - **button** 1
   - (unlabelled) → onClick onClick
 
-### `/admin/radar/investigate/[id]` — Investigation
+### `/admin/radar/investigate/[id]`, Investigation
 
 - **file** `app/(admin)/admin/radar/investigate/[id]/page.tsx`
 - **controls** 1 (1 wired, 0 not)
@@ -194,7 +194,7 @@ browser and a cast, which is a later pass.
 - **link** 1
   - Radar control → /admin/radar
 
-### `/admin/radar` — Radar control
+### `/admin/radar`, Radar control
 
 - **file** `app/(admin)/admin/radar/page.tsx`
 - **controls** 9 (9 wired, 0 not)
@@ -210,14 +210,14 @@ browser and a cast, which is a later pass.
   - Cancel → onClick inline
   - Close → onClick onClose
 
-### `/admin/ratings` — Ratings
+### `/admin/ratings`, Ratings
 
 - **file** `app/(admin)/admin/ratings/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`, `allRatings`
 - **components** `components/ui`
 
-### `/admin/settings` — Settings
+### `/admin/settings`, Settings
 
 - **file** `app/(admin)/admin/settings/page.tsx`
 - **controls** 21 (21 wired, 0 not)
@@ -242,7 +242,7 @@ browser and a cast, which is a later pass.
   - Remove → onClick inline
   - Add a field → onClick inline
 
-### `/admin/sponsors/[id]` — Company
+### `/admin/sponsors/[id]`, Company
 
 - **file** `app/(admin)/admin/sponsors/[id]/page.tsx`
 - **controls** 1 (1 wired, 0 not)
@@ -251,7 +251,7 @@ browser and a cast, which is a later pass.
 - **link** 1
   - Back → /admin/transfers
 
-### `/admin/sponsors` — Sponsors
+### `/admin/sponsors`, Sponsors
 
 - **file** `app/(admin)/admin/sponsors/page.tsx`
 - **controls** 8 (8 wired, 0 not)
@@ -267,7 +267,7 @@ browser and a cast, which is a later pass.
   - (unlabelled) → onClick inline
   - asponsor.potOpen → onClick inline
 
-### `/admin/strings` — Strings
+### `/admin/strings`, Strings
 
 - **file** `app/(admin)/admin/strings/page.tsx`
 - **controls** 15 (15 wired, 0 not)
@@ -292,7 +292,7 @@ browser and a cast, which is a later pass.
   - (unlabelled) → onClick inline
   - (unlabelled) → submit
 
-### `/admin/support` — Support
+### `/admin/support`, Support
 
 - **file** `app/(admin)/admin/support/page.tsx`
 - **controls** 11 (11 wired, 0 not)
@@ -312,7 +312,7 @@ browser and a cast, which is a later pass.
 - **button** 1
   - (unlabelled) → onClick onClick
 
-### `/admin/taxonomy` — Radar lists
+### `/admin/taxonomy`, Radar lists
 
 - **file** `app/(admin)/admin/taxonomy/page.tsx`
 - **controls** 2 (2 wired, 0 not)
@@ -322,7 +322,7 @@ browser and a cast, which is a later pass.
   - (unlabelled) → onClick inline
   - Delete ${row.label} → onClick inline
 
-### `/admin/therapists/[id]` — Clinician
+### `/admin/therapists/[id]`, Clinician
 
 - **file** `app/(admin)/admin/therapists/[id]/page.tsx`
 - **controls** 4 (4 wired, 0 not)
@@ -334,7 +334,7 @@ browser and a cast, which is a later pass.
   - (unlabelled) → onClick inline
   - Send their record → onClick inline
 
-### `/admin/therapists` — Clinicians
+### `/admin/therapists`, Clinicians
 
 - **file** `app/(admin)/admin/therapists/page.tsx`
 - **controls** 1 (1 wired, 0 not)
@@ -343,7 +343,7 @@ browser and a cast, which is a later pass.
 - **link** 1
   - (unlabelled) → /admin/therapists/${props.id
 
-### `/admin/transfers` — Transfers
+### `/admin/transfers`, Transfers
 
 - **file** `app/(admin)/admin/transfers/page.tsx`
 - **controls** 9 (9 wired, 0 not)
@@ -358,7 +358,7 @@ browser and a cast, which is a later pass.
   - View the evidence → onClick inline
   - Reject and tell them → onClick inline
 
-### `/admin/tv` — Total View
+### `/admin/tv`, Total View
 
 - **file** `app/(admin)/admin/tv/page.tsx`
 - **controls** 10 (10 wired, 0 not)
@@ -369,7 +369,7 @@ browser and a cast, which is a later pass.
   - (unlabelled) → onClick all
   - Nothing in that window. → onClick inline
 
-### `/admin/usage` — Usage
+### `/admin/usage`, Usage
 
 - **file** `app/(admin)/admin/usage/page.tsx`
 - **controls** 2 (2 wired, 0 not)
@@ -379,14 +379,14 @@ browser and a cast, which is a later pass.
   - Every session → /admin/usage/sessions
   - (unlabelled) → /admin/usage/sessions?therapist=${row.userId
 
-### `/admin/usage/sessions` — Session costs
+### `/admin/usage/sessions`, Session costs
 
 - **file** `app/(admin)/admin/usage/sessions/page.tsx`
 - **controls** 0 (0 wired, 0 not)
 - **loads** `requireRole`, `sessionCosts`
 - **components** `components/ui`, `components/ui/money`
 
-### `/admin/vault` — Vault
+### `/admin/vault`, Vault
 
 - **file** `app/(admin)/admin/vault/page.tsx`
 - **controls** 2 (2 wired, 0 not)
@@ -396,7 +396,7 @@ browser and a cast, which is a later pass.
   - Discount this invoice → onClick inline
   - Refund this payment → onClick inline
 
-### `/admin/verifications` — Verifications
+### `/admin/verifications`, Verifications
 
 - **file** `app/(admin)/admin/verifications/page.tsx`
 - **controls** 1 (1 wired, 0 not)

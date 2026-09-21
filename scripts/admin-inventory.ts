@@ -321,7 +321,7 @@ function main() {
   lines.push("## Every page", "");
   for (const s of surfaces) {
     const wired = s.controls.filter((c) => c.ok).length;
-    lines.push(`### \`${s.route}\` — ${s.title}`);
+    lines.push(`### \`${s.route}\`, ${s.title}`);
     lines.push("");
     lines.push(`- **file** \`${s.file}\``);
     lines.push(
