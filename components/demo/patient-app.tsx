@@ -21,6 +21,7 @@ import {
 import type { DemoContent } from "@/lib/content/demo";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { WorldRadar } from "@/components/radar/world-radar";
 import { PATIENT_BILLS, RADAR_DEMO } from "@/lib/marketing/fixtures";
 import { cn } from "@/lib/utils";
 
@@ -476,7 +477,50 @@ function Radar({
 
   return (
     <div className="space-y-2.5">
-      <p className="text-[12px] leading-relaxed text-slate-700">{t("pat.freeNow")}</p>
+      {/*
+        🔴 THE MAP, BECAUSE THE APP OPENS ON ONE.
+
+        `RadarConsole` starts in `view: "map"`, so the first thing a patient
+        sees after tapping the globe in the bottom bar is a world with dots on
+        it. This mockup showed a white list, which made the walkthrough a
+        picture of a screen the product does not have, on the two pages where
+        somebody is deciding whether the product is real.
+
+        `WorldRadar` rather than `Globe`: the orthographic globe is 640px of
+        SVG re-projected every frame and it carries the 40 kB world outline.
+        Inside a phone frame it would be illegible AND expensive, which is the
+        wrong trade twice. This is the same component the therapist console
+        uses, at a fixed 1000x500 viewBox that scales anywhere.
+
+        Bled to the frame's edge, because a map with a white margin around it
+        reads as an illustration of a map.
+      */}
+      <div className="-mx-4 -mt-3 mb-3 bg-[#04101f] px-3 pt-3 pb-2.5">
+        <div className="overflow-hidden rounded-xl">
+          <WorldRadar
+            dots={RADAR_DEMO.map((who) => ({
+              id: who.name,
+              country: who.country,
+              status: "online" as const,
+              label: who.name,
+            }))}
+            selectedId={null}
+            /* Tapping a dot opens the same sheet as tapping a row, which is
+               what the real console does and the only thing that makes a map
+               worth putting in a walkthrough. */
+            onSelect={(id) => {
+              const index = RADAR_DEMO.findIndex((who) => who.name === id);
+              if (index >= 0) onPick(index);
+            }}
+            /* ~216px wide inside the frame, so a radius of 6.5 in a
+               1000-unit viewBox lands at 1.4 CSS pixels without this. */
+            scale={2.8}
+            className="aspect-[2/1] w-full"
+          />
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-white/85">{t("pat.freeNow")}</p>
+      </div>
+
       {RADAR_DEMO.map((who, i) => (
         <button
           key={who.name}

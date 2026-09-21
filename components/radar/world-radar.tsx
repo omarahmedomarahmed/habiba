@@ -35,11 +35,27 @@ export function WorldRadar({
   className,
   onSelect,
   selectedId,
+  scale = 1,
 }: {
   dots: RadarDot[];
   className?: string;
   onSelect?: (id: string) => void;
   selectedId?: string | null;
+  /**
+   * 🔴 Multiplies every RADIUS, and nothing else.
+   *
+   * The viewBox is fixed at 1000x500 so the whole radar scales to its box with
+   * no resize observer, which is the right trade everywhere except inside a
+   * phone mockup. At roughly 240px wide a clinician's dot lands at 1.6 CSS
+   * pixels: technically drawn, and invisible, which on this component means a
+   * map that looks like it has nobody on it. That is the exact impression the
+   * empty-globe bug left, arrived at a second way.
+   *
+   * A radius multiplier rather than a second viewBox, because changing the
+   * viewBox would move every dot relative to the coastline and the whole point
+   * of the thing is that the dots sit on the right countries.
+   */
+  scale?: number;
 }) {
   const land = useMemo(() => landDots(), []);
 
@@ -54,7 +70,8 @@ export function WorldRadar({
 
       const base = countryPoint(dot.country);
       const angle = index * 2.399; // golden angle: no two land on top of each other
-      const radius = index === 0 ? 0 : 8 + index * 2;
+      // Scaled with the dots, or a bigger dot swallows the ring it fans onto.
+      const radius = index === 0 ? 0 : (8 + index * 2) * scale;
 
       return {
         ...dot,
@@ -62,7 +79,7 @@ export function WorldRadar({
         cy: base.y * 500 + Math.sin(angle) * radius,
       };
     });
-  }, [dots]);
+  }, [dots, scale]);
 
   return (
     <svg
@@ -99,7 +116,7 @@ export function WorldRadar({
       {/* Land. */}
       <g fill="#2EC4B6" fillOpacity="0.22">
         {land.map((dot, i) => (
-          <circle key={i} cx={dot.x * 1000} cy={dot.y * 500} r="2.6" />
+          <circle key={i} cx={dot.x * 1000} cy={dot.y * 500} r={2.6 * Math.sqrt(scale)} />
         ))}
       </g>
 
@@ -119,13 +136,18 @@ export function WorldRadar({
           >
             <title>{dot.label}</title>
             {dot.status === "online" ? (
-              <circle r="14" fill={STATUS_FILL.online} fillOpacity="0.18" className="radar-ping" />
+              <circle
+                r={14 * scale}
+                fill={STATUS_FILL.online}
+                fillOpacity="0.18"
+                className="radar-ping"
+              />
             ) : null}
             <circle
-              r={selected ? 9 : 6.5}
+              r={(selected ? 9 : 6.5) * scale}
               fill={STATUS_FILL[dot.status]}
               stroke="#0A2342"
-              strokeWidth="2"
+              strokeWidth={2 * scale}
             />
           </g>
         );

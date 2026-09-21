@@ -80,7 +80,8 @@ export const PATIENT_BRIEF =
   "Two of seven nights went better, and that is worth naming. Keep the wind-down going and we will look at it again in two weeks.";
 
 /*
- * 🔴 THERE ARE NO RADAR FIXTURES, AND THAT IS THE RIGHT ANSWER RATHER THAN AN OMISSION.
+ * 🔴 THE RADAR'S OWN CARD HAS NO FIXTURE, AND THAT IS THE RIGHT ANSWER RATHER THAN AN
+ * OMISSION.
  *
  * Sprint 65 wrote three invented clinicians here so a marketing page could render the
  * radar's own card, and then deleted them: the homepage's fold IS the live radar, with
@@ -91,6 +92,18 @@ export const PATIENT_BRIEF =
  * site goes further and renders the real DATA, which is the only case in this file where
  * that is safe: the public radar is already public, and `shapeBoard` is what decides
  * what a stranger may see of a clinician.
+ *
+ * 🔴 `RADAR_DEMO` BELOW IS NOT THAT, and for 147 lines this comment claimed it did not
+ * exist. The distinction it was drawing is real and worth keeping:
+ *
+ *   the live board   a section of the page, wired to /api/radar, real clinicians
+ *   RADAR_DEMO       three invented ones INSIDE the phone mockup
+ *
+ * The mockup is a walkthrough. It has to be able to open a booking sheet, show a price
+ * with tax on it and land on a confirmation, on demand, from a click, in a device frame,
+ * at three in the morning when nobody is on shift. The live board cannot do any of that
+ * and should not learn how. So the fixture is for the FLOW, and the live data is for the
+ * claim, and neither one is standing in for the other.
  */
 
 /* ─────────────────────────────────────────────────── the two admin portals ──
@@ -234,10 +247,22 @@ export const RADAR_DEMO: {
   priceCents: number;
   minutes: number;
   free: boolean;
+  /**
+   * 🔴 ISO-3166 alpha-2, UPPERCASE, because the radar places a dot by looking
+   * this up in a table keyed that way. Migration 0114 exists because the demo
+   * seed wrote 'eg' into the real column and two clinicians were online in
+   * Cairo with no dot on the world for weeks. The fixture that feeds the
+   * marketing mockup is the same trap with no database to catch it.
+   *
+   * Egypt for all three: it is the launch market, and a mockup that scatters
+   * invented clinicians across four continents promises coverage we do not
+   * have.
+   */
+  country: string;
 }[] = [
-  { name: "Dr Nour Demo", title: "Psychotherapist", languages: "Arabic, English", priceCents: 6_000, minutes: 50, free: true },
-  { name: "Dr Karim Example", title: "Clinical psychologist", languages: "Arabic", priceCents: 7_500, minutes: 50, free: true },
-  { name: "Dr Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 5_000, minutes: 30, free: true },
+  { name: "Dr Nour Demo", title: "Psychotherapist", languages: "Arabic, English", priceCents: 6_000, minutes: 50, free: true, country: "EG" },
+  { name: "Dr Karim Example", title: "Clinical psychologist", languages: "Arabic", priceCents: 7_500, minutes: 50, free: true, country: "EG" },
+  { name: "Dr Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 5_000, minutes: 30, free: true, country: "EG" },
 ];
 
 /** What the patient's billing tab shows: one settled session and one waiting. */
