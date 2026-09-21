@@ -379,7 +379,7 @@ async function main() {
         INSERT INTO therapist_verifications
           (user_id, organization_id, state, country, license_body, license_number,
            license_expiry, specialties, languages, submitted_at, reviewed_at, reviewed_by)
-        VALUES (${user.id}, ${org.id}, ${state}, 'eg', 'Egyptian Psychological Association',
+        VALUES (${user.id}, ${org.id}, ${state}, 'EG', 'Egyptian Psychological Association',
                 ${licence}, '2029-06-30',
                 '["anxiety","sleep"]'::jsonb, '["ar","en"]'::jsonb, ${daysAgo(40).toISOString()},
                 ${state === "approved" ? daysAgo(38).toISOString() : null},
@@ -411,13 +411,29 @@ async function main() {
        * should show the therapists we have, including the demo ones" needs.
        *
        * 0112 adds a CHECK so no future seed can do this again.
+       *
+       * 🔴 AND THE COLUMN NEXT TO IT WAS WRONG IN THE SAME WAY, for two more
+       * migrations, because 0112 fixed the value it was looking at rather than
+       * the habit that produced it.
+       *
+       * `country` and `region` here both held 'eg'. There are two 'eg's in this
+       * codebase and they are not the same value:
+       *
+       *   organizations.region   a MARKET code, lowercase on purpose
+       *   therapist_radar.country  ISO-3166 alpha-2, uppercase by definition
+       *
+       * The market code was already in hand a few lines up, so it went into
+       * both, and `region` is meant to be a governorate in any case. Pricing
+       * and the country name were unaffected because those readers uppercase
+       * what they are given; the globe does not, so `WORLD['eg']` was undefined
+       * and neither clinician had a dot. 0114 repairs it and constrains it.
        */
       await db.execute(sql`
         INSERT INTO therapist_radar
           (user_id, organization_id, status, demo, headline, languages, specialties, country, region, city,
            last_seen_at, accepts_walk_ins)
         VALUES (${user.id}, ${org.id}, 'online', true, ${headline}, '["Arabic","English"]'::jsonb,
-                '["Anxiety","Sleep"]'::jsonb, 'eg', 'eg', 'Cairo', now(), true)`);
+                '["Anxiety","Sleep"]'::jsonb, 'EG', 'Cairo Governorate', 'Cairo', now(), true)`);
 
       /*
        * 🔴 HOURS TO BOOK, BECAUSE THERE WERE NONE ANYWHERE.

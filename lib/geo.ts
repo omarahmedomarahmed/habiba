@@ -186,8 +186,21 @@ export function countryOptions(locale: Locale): { code: string; name: string; fl
     .sort((a, b) => a.name.localeCompare(b.name, locale === "ar" ? "ar" : "en"));
 }
 
+/*
+ * 🔴 `.toUpperCase()`, because its sibling ten lines up has always had one.
+ *
+ * `COUNTRIES` is keyed by ISO alpha-2, which is uppercase. `countryName` and
+ * `getCountrySettings` both normalise what they are handed; this did not, and
+ * neither does the globe. So a row holding 'eg' was named "Egypt" on its card,
+ * charged Egyptian VAT correctly, and was placed at the fallback point in the
+ * Atlantic with no dot on the map. Two readers of one column disagreeing about
+ * its shape is how a value gets to be wrong in only the places nobody watches.
+ *
+ * Migration 0114 makes the stored value canonical and constrains it, so this is
+ * belt and braces for codes that arrive from anywhere else.
+ */
 export function countryPoint(code: string | null | undefined): { x: number; y: number } {
-  const country = code ? COUNTRIES[code] : undefined;
+  const country = code ? COUNTRIES[code.toUpperCase()] : undefined;
   if (!country) return project(-30, 20);
   return project(country.lon, country.lat);
 }
