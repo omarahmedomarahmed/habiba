@@ -146,14 +146,23 @@ export default async function JoinPage({
          * The query string was never what made resuming safe. The token is:
          * it is the credential, it names exactly one session, and
          * `resumeAfterPayment` re-reads the stored name from that session
-         * rather than trusting anything the browser sends. Somebody opening a
-         * bare link for the FIRST time still types their name, because there
-         * is no `guestName` on the row yet — which is the real condition, and
-         * is the one kept here.
+         * rather than trusting anything the browser sends.
+         *
+         * So the two existing entrances stay exactly as they were, and one
+         * more is added: `patientJoinedAt`, which is set only by
+         * `joinByToken` and therefore means this person has already been
+         * admitted to this session once. That is the narrowest possible
+         * statement of "this is a return, not an arrival", and it leaves a
+         * genuine first arrival — no `patientJoinedAt`, no query string —
+         * seeing the form it should see.
+         *
+         * The paywall is untouched: a priced session that has not settled
+         * still refuses to resume.
          */
         resumeAfterPayment={
           Boolean(session.guestName) &&
-          (session.priceCents === 0 || session.paymentStatus === "paid")
+          (session.priceCents === 0 || session.paymentStatus === "paid") &&
+          (Boolean(checkout) || booked === "1" || Boolean(session.patientJoinedAt))
         }
         cancelled={checkout === "cancelled"}
       />

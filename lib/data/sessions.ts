@@ -792,6 +792,16 @@ export async function resolveJoinToken(token: string) {
        */
       startedAt: sessions.startedAt,
       scheduledAt: sessions.scheduledAt,
+      /*
+       * 🔴 HAS THIS PERSON ALREADY BEEN IN?
+       *
+       * The join page needs to tell a first arrival from a return. Without it,
+       * a reload — which is all a dropped connection is — looked exactly like a
+       * stranger opening the link, and the patient was sent back to "tell us
+       * what to call you" after they had already given their name, answered the
+       * recording question, and been in the room.
+       */
+      patientJoinedAt: sessions.patientJoinedAt,
     })
     .from(sessions)
     .where(and(eq(sessions.joinToken, token), isNull(sessions.endedAt)))
