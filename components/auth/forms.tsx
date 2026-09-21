@@ -80,13 +80,6 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
 
   return (
     <form action={action} className="space-y-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          {t("tauth.welcomeBack")}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">{t("tauth.signInPractice")}</p>
-      </div>
-
       {notice ? (
         <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">{notice}</p>
       ) : null}
@@ -112,16 +105,6 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
 
       <Submit>{t("tauth.signIn")}</Submit>
 
-      <div className="flex items-center justify-between pt-1 text-sm">
-        <Link href="/forgot-password" className="text-slate-500 hover:text-slate-800">
-          {t("tauth.forgot")}
-        </Link>
-        <Link href="/signup" className="font-medium text-brand-600 hover:text-brand-700">
-          {t("tauth.createAccount")}
-        </Link>
-      </div>
-
-      <PatientDoor />
     </form>
   );
 }
@@ -209,15 +192,6 @@ export function SignUpForm() {
 
   return (
     <form action={action} className="space-y-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          {t("tauth.signUpTitle")}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {t("tauth.signUpBody")}
-        </p>
-      </div>
-
       <ErrorNote message={state.error} />
 
       <div className="grid grid-cols-2 gap-3">
@@ -247,15 +221,6 @@ export function SignUpForm() {
 
       <Submit>{t("tauth.createAccount")}</Submit>
 
-      <p className="pt-1 text-center text-sm text-slate-500">
-        {t("tauth.haveAccount")}{" "}
-        <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
-          {t("tauth.signIn")}
-        </Link>
-      </p>
-
-      <PatientDoor />
-
       <p className="text-center text-xs leading-relaxed text-slate-400">
         {withLinks(t("tauth.terms"), {
           terms: (
@@ -281,9 +246,9 @@ export function ForgotPasswordForm() {
   if (state.ok) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <p className="text-base font-bold tracking-tight text-navy-500">
           {t("tauth.checkInbox")}
-        </h1>
+        </p>
         <p className="text-sm leading-relaxed text-slate-600">
           {t("tauth.checkInboxBody")}
         </p>
@@ -298,13 +263,6 @@ export function ForgotPasswordForm() {
 
   return (
     <form action={action} className="space-y-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          {t("tauth.resetTitle")}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">{t("tauth.resetBody")}</p>
-      </div>
-
       <ErrorNote message={state.error} />
 
       <Field label={t("tauth.email")} htmlFor="email">
@@ -330,15 +288,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   return (
     <form action={action} className="space-y-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          {t("tauth.chooseNew")}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {t("tauth.chooseNewBody")}
-        </p>
-      </div>
-
       <ErrorNote message={state.error} />
 
       <input type="hidden" name="token" value={token} />

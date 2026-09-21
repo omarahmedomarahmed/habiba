@@ -1,6 +1,9 @@
 import { PartnerChrome } from "@/components/partner/chrome";
 import { getPartnerActor } from "@/lib/partner-auth/session";
+import { headers } from "next/headers";
+
 import { LanguageCorner } from "@/components/i18n/language-corner";
+import { PARTNER_SIGN_IN } from "@/lib/routing";
 
 /**
  * The partner developer shell. PLAN.md 55.2, 55.3, C264.
@@ -26,12 +29,24 @@ import { LanguageCorner } from "@/components/i18n/language-corner";
  * sign-in and the enquiry. A layout that redirected would redirect the door.
  */
 export default async function PartnerLayout({ children }: { children: React.ReactNode }) {
-  const actor = await getPartnerActor();
+  const [actor, head] = await Promise.all([getPartnerActor(), headers()]);
+
+  /*
+   * 🔴 The door brings the site's own header and footer now, so this shell
+   * steps aside for it. Task 154.
+   *
+   * `bare` drops only the `max-w-4xl` column: a full width site header dropped
+   * into an 896px column is a header floating in the middle of a grey page.
+   * The layout still WRAPS the door, which is the part that matters and is
+   * unchanged. `LanguageCorner` goes with it, because the site header already
+   * carries the switch and two of them in one corner is what 75.3 was fixing.
+   */
+  const door = (head.get("x-pathname") ?? "") === PARTNER_SIGN_IN;
 
   return (
-    <PartnerChrome nav={actor !== null} partnerName={actor?.partnerName ?? null}>
+    <PartnerChrome bare={door} nav={actor !== null} partnerName={actor?.partnerName ?? null}>
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
-      <LanguageCorner />
+      {door ? null : <LanguageCorner />}
       {children}
     </PartnerChrome>
   );

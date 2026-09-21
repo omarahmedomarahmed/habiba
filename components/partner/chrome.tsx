@@ -40,11 +40,27 @@ const TABS: { href: string; key: MessageKey }[] = [
 export function PartnerChrome({
   children,
   nav,
+  /**
+   * 🔴 A door page brings its own chrome, so this one steps out of the way.
+   * Task 154.
+   *
+   * The sign in page now renders the real site header and footer, the same two
+   * components the marketing pages use, because a centred card on an empty
+   * ground was the last thing a person saw before deciding to trust us. Those
+   * are full width. Dropped into this shell's `max-w-4xl px-4 py-8` column they
+   * would be a site header 896px wide floating in the middle of a grey page.
+   *
+   * The layout still WRAPS the door, which is deliberate and unchanged: it
+   * calls `get*Actor` rather than `require*`, because a layout that redirected
+   * would redirect the door. What changes here is only the container.
+   */
+  bare = false,
   partnerName,
 }: {
   children: React.ReactNode;
   /** Signed out gets the door and no tabs: every tab would bounce them. */
   nav: boolean;
+  bare?: boolean;
   partnerName: string | null;
 }) {
   const t = useT();
@@ -94,7 +110,11 @@ export function PartnerChrome({
         </header>
       ) : null}
 
-      <div className="mx-auto max-w-4xl px-4 py-8">{children}</div>
+      {bare ? (
+        children
+      ) : (
+        <div className="mx-auto max-w-4xl px-4 py-8">{children}</div>
+      )}
 
       {nav ? (
         <footer className="mx-auto max-w-4xl px-4 pb-10">

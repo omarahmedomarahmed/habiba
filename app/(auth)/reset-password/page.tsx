@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { ResetPasswordForm } from "@/components/auth/forms";
 import { Button } from "@/components/ui";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Reset password", robots: { index: false } };
 
@@ -11,21 +13,37 @@ export default async function ResetPasswordPage({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
-  const { token } = await searchParams;
+  const [{ token }, { t }] = await Promise.all([searchParams, getI18n()]);
+
+  const points = [t("auth.therapist.p1"), t("auth.therapist.p2"), t("auth.therapist.p3")];
 
   if (!token) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Link not valid</h1>
-        <p className="text-sm text-slate-600">
-          This reset link is missing its token. Request a fresh one.
-        </p>
+      <AuthShell
+        who="therapist"
+        kind="signin"
+        title="Link not valid"
+        subtitle="This reset link is missing its token. Request a fresh one."
+        promise={t("auth.therapist.promise")}
+        points={points}
+      >
         <Link href="/forgot-password">
           <Button full>Request a new link</Button>
         </Link>
-      </div>
+      </AuthShell>
     );
   }
 
-  return <ResetPasswordForm token={token} />;
+  return (
+    <AuthShell
+      who="therapist"
+      kind="signin"
+      title={t("tauth.chooseNew")}
+      subtitle={t("tauth.chooseNewBody")}
+      promise={t("auth.therapist.promise")}
+      points={points}
+    >
+      <ResetPasswordForm token={token} />
+    </AuthShell>
+  );
 }

@@ -5,6 +5,7 @@ import { ClinicDemo } from "@/components/public/audience-demos";
 import { AudienceHero } from "@/components/public/audience-hero";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
+import { CLINIC_APPLY } from "@/lib/routing";
 
 export const metadata: Metadata = {
   title: "For clinics",
@@ -45,12 +46,21 @@ export default async function ForClinicsPage() {
       {/*
         🔴 76.84 — the same band the homepage gives a clinic, on the page that
         is about clinics. `ClinicConsole` inside it is the real `/clinic` one.
+
+        🔴 The call to action used to point at `/signup`, which is
+        `app/(auth)/signup`: the INDIVIDUAL therapist signup. The main button on
+        the page headed "seats you buy" created a solo practice account, and the
+        page linked to `/clinic/apply` nowhere at all. The only public route to
+        the clinic enquiry was one line inside
+        `components/public/pricing-tiers.tsx:293`. `/for-companies` has always
+        had the equivalent right, which is how this went unnoticed: the two
+        pages were never read side by side.
       */}
       <AudienceHero
         eyebrow={t("marketing.clinics.eyebrow")}
         heading={t("marketing.clinics.title")}
         body={t("marketing.clinics.lede")}
-        cta={{ label: t("nav.startFree"), href: "/signup" }}
+        cta={{ label: t("marketing.companies.cta"), href: CLINIC_APPLY }}
         secondary={{ label: t("nav.contact"), href: "/contact" }}
         demo={<ClinicDemo />}
       />

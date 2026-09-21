@@ -10,9 +10,28 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   full?: boolean;
 };
 
+/**
+ * 🔴 The teal button carries NAVY ink, and gets LIGHTER on hover.
+ *
+ * `bg-teal-500` with `text-white` is **2.17:1**. It was the primary call to
+ * action on `/for-companies` and `/for-clinics`, so the single most important
+ * button on two of the four audience pages was below the floor for any text at
+ * any size. docs/BRAND.md states the cause in one line: teal reads 2.19:1 on
+ * white, which is the same number from the other side. White ink and a teal
+ * ground are the same failing pair whichever one is behind.
+ *
+ * Navy on teal is two of the three brand inks in their documented relationship,
+ * and it measures 7.7:1 at rest.
+ *
+ * Hover goes to `teal-400` rather than `teal-600`, which is backwards for a
+ * button and right for this one: darkening the ground under dark ink walks
+ * toward the floor, and `teal-700` with navy ink is 3.2:1, a second failure
+ * introduced by the fix for the first. Lighter on hover, darker on press, and
+ * all three states measure: 8.7, 7.7 and 5.2.
+ */
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary: "bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm",
-  teal: "bg-teal-500 text-white hover:bg-teal-600 active:bg-teal-700 shadow-sm",
+  teal: "bg-teal-500 text-navy-600 hover:bg-teal-400 active:bg-teal-600 shadow-sm",
   secondary:
     "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 active:bg-slate-100",
   ghost: "text-slate-600 hover:bg-slate-100 active:bg-slate-200",

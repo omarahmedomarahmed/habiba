@@ -1,6 +1,9 @@
 import { ClinicChrome } from "@/components/clinic/chrome";
 import { getClinicActor } from "@/lib/clinic-auth/session";
+import { headers } from "next/headers";
+
 import { LanguageCorner } from "@/components/i18n/language-corner";
+import { CLINIC_SIGN_IN } from "@/lib/routing";
 
 /**
  * The clinic shell. PLAN.md 54.12, §3f, C259.
@@ -28,17 +31,33 @@ import { LanguageCorner } from "@/components/i18n/language-corner";
  * redirected would redirect the door.
  */
 export default async function ClinicLayout({ children }: { children: React.ReactNode }) {
-  const actor = await getClinicActor();
+  const [actor, head] = await Promise.all([getClinicActor(), headers()]);
+
+  /*
+   * 🔴 The door brings the site's own header and footer now, so this shell
+   * steps aside for it. Task 154.
+   *
+   * `bare` drops only the `max-w-4xl` column: a full width site header dropped
+   * into an 896px column is a header floating in the middle of a grey page.
+   * The layout still WRAPS the door, which is the part that matters and is
+   * unchanged — it calls `getClinicActor` rather than `requireClinic` because
+   * a layout that redirected would redirect the door.
+   *
+   * `LanguageCorner` goes with it: the site header already carries the switch,
+   * and two of them in one corner is what 75.3 was fixing.
+   */
+  const door = (head.get("x-pathname") ?? "") === CLINIC_SIGN_IN;
 
   return (
     <ClinicChrome
+      bare={door}
       nav={actor !== null}
       clinicName={actor?.clinicName ?? null}
       capabilities={actor?.capabilities ?? []}
       linked={Boolean(actor?.linkedUserId)}
     >
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
-      <LanguageCorner />
+      {door ? null : <LanguageCorner />}
       {children}
     </ClinicChrome>
   );

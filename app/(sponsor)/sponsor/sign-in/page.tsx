@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { SponsorSignInForm } from "@/components/sponsor/sign-in-form";
 import { getI18n } from "@/lib/i18n/server";
-import { SPONSOR_APPLY } from "@/lib/routing";
 
 export const metadata: Metadata = { title: "Your organisation's account", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -11,29 +10,29 @@ export const dynamic = "force-dynamic";
 /**
  * The sponsor's own door. PLAN.md 53.4, C230, C264.
  *
- * 🔴 Not `/sign-in`, not `/staff/sign-in`, not the patient's. Five doors for five
- * principals, one cookie each, and `lib/routing.ts` is the one table that decides
- * which door a path belongs to. Sharing a door means sharing a cookie, and a
- * cookie that admits an employer to a clinical path is the leak that ends the
- * company.
+ * 🔴 Not `/sign-in`, not `/staff/sign-in`, not the patient's. Five doors for
+ * five principals, one cookie each, and `lib/routing.ts` is the one table that
+ * decides which door a path belongs to. Sharing a door means sharing a cookie,
+ * and a cookie that admits an employer to a clinical path is the leak that ends
+ * the company.
+ *
+ * 🔴 Task 154 — the link to the enquiry form is not a footnote any more. It is
+ * the "no account yet" line the shell renders under every form, pointing at
+ * `SPONSOR_APPLY`, because an organisation account is created from an enquiry
+ * and there is no self serve signup to point at instead.
  */
 export default async function SponsorSignInPage() {
   const { t } = await getI18n();
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4 py-8">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">
-        {t("sponsor.signInTitle")}
-      </h1>
-
+    <AuthShell
+      who="company"
+      kind="signin"
+      title={t("sponsor.signInTitle")}
+      promise={t("auth.company.promise")}
+      points={[t("auth.company.p1"), t("auth.company.p2"), t("auth.company.p3")]}
+    >
       <SponsorSignInForm />
-
-      {/* No account: the enquiry form, which is the only way one is created. */}
-      <p className="text-center text-xs text-slate-500">
-        <Link href={SPONSOR_APPLY} className="font-semibold text-teal-700 hover:underline">
-          {t("sponsor.apply.title")}
-        </Link>
-      </p>
-    </div>
+    </AuthShell>
   );
 }

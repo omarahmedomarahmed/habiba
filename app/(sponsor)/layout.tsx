@@ -1,6 +1,9 @@
 import { SponsorChrome } from "@/components/sponsor/chrome";
 import { getSponsorActor } from "@/lib/sponsor-auth/session";
+import { headers } from "next/headers";
+
 import { LanguageCorner } from "@/components/i18n/language-corner";
+import { SPONSOR_SIGN_IN } from "@/lib/routing";
 import { PendingBar } from "@/components/billing/pending-bar";
 import { pendingPaymentFor } from "@/lib/billing/pending";
 import { getI18n } from "@/lib/i18n/server";
@@ -29,8 +32,23 @@ import { localeTag } from "@/lib/i18n/config";
  * door.
  */
 export default async function SponsorLayout({ children }: { children: React.ReactNode }) {
-  const actor = await getSponsorActor();
-  const { t, locale } = await getI18n();
+  const [actor, { t, locale }, head] = await Promise.all([
+    getSponsorActor(),
+    getI18n(),
+    headers(),
+  ]);
+
+  /*
+   * 🔴 The door brings the site's own header and footer now, so this shell
+   * steps aside for it. Task 154.
+   *
+   * `bare` drops only the `max-w-4xl` column: a full width site header dropped
+   * into an 896px column is a header floating in the middle of a grey page.
+   * The layout still WRAPS the door, which is the part that matters and is
+   * unchanged. `LanguageCorner` goes with it, because the site header already
+   * carries the switch and two of them in one corner is what 75.3 was fixing.
+   */
+  const door = (head.get("x-pathname") ?? "") === SPONSOR_SIGN_IN;
 
   /*
    * 🔴 76.4 — a company's transfer sits in the queue for hours, and a finance
@@ -44,6 +62,7 @@ export default async function SponsorLayout({ children }: { children: React.Reac
 
   return (
     <SponsorChrome
+      bare={door}
       nav={actor !== null}
       sponsorName={actor?.sponsorName ?? null}
       role={actor?.role ?? null}
@@ -59,7 +78,7 @@ export default async function SponsorLayout({ children }: { children: React.Reac
         />
       ) : null}
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
-      <LanguageCorner />
+      {door ? null : <LanguageCorner />}
       {children}
     </SponsorChrome>
   );

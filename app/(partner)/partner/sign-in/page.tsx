@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { QuietAuthShell } from "@/components/auth/auth-shell";
 import { PartnerSignInForm } from "@/components/partner/sign-in-form";
 import { getI18n } from "@/lib/i18n/server";
 import { PARTNER_APPLY } from "@/lib/routing";
@@ -11,25 +12,27 @@ export const dynamic = "force-dynamic";
 /**
  * The partner's own door. PLAN.md 55.2, 55.3, C264.
  *
- * 🔴 Its own cookie and its own sign-in. 55.3 says a therapist never sees an API key, and
- * the cheapest way to keep that true is for keys to live behind a principal a therapist
- * cannot become: not a permission on a clinician account, a different table read through a
- * different cookie.
+ * 🔴 Its own cookie and its own sign-in. 55.3 says a therapist never sees an
+ * API key, and the cheapest way to keep that true is for keys to live behind a
+ * principal a therapist cannot become: not a permission on a clinician account,
+ * a different table read through a different cookie.
+ *
+ * `QuietAuthShell` and not `AuthShell`: it carries the site header and footer
+ * like every other door, but no switcher. Nobody self serves a partner account
+ * and a marketing header offering one reads as a product with a back door. Same
+ * reasoning as `/staff/sign-in`.
  */
 export default async function PartnerSignInPage() {
   const { t } = await getI18n();
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4 py-8">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("dev.signInTitle")}</h1>
-
+    <QuietAuthShell title={t("dev.signInTitle")}>
       <PartnerSignInForm />
-
-      <p className="text-center text-xs text-slate-500">
-        <Link href={PARTNER_APPLY} className="font-semibold text-teal-700 hover:underline">
+      <p className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-600">
+        <Link href={PARTNER_APPLY} className="font-semibold text-brand-600 hover:text-brand-700">
           {t("dev.apply.title")}
         </Link>
       </p>
-    </div>
+    </QuietAuthShell>
   );
 }

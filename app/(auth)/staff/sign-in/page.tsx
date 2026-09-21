@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { QuietAuthShell } from "@/components/auth/auth-shell";
 import { StaffSignInForm } from "@/components/auth/forms";
 
 /**
@@ -11,6 +12,12 @@ import { StaffSignInForm } from "@/components/auth/forms";
  * at /patient/login. A verifier asserts that (see `verify:sprint21r`), because
  * "not linked" is the kind of property that decays the first time somebody adds
  * a helpful shortcut.
+ *
+ * 🔴 Task 154 nearly was that shortcut. The new sign in menu lists four doors
+ * and a first draft put this one at the bottom of it, on every page of the
+ * site. It carries the site chrome now, like every other door, but it is
+ * reached by URL and by nothing else. `QuietAuthShell` has no switcher for the
+ * same reason.
  */
 export const metadata: Metadata = {
   title: "Staff sign in",
@@ -25,8 +32,10 @@ export default async function StaffSignInPage({
   const params = await searchParams;
 
   return (
-    <Suspense>
-      <StaffSignInForm next={params.next} />
-    </Suspense>
+    <QuietAuthShell title="" >
+      <Suspense>
+        <StaffSignInForm next={params.next} />
+      </Suspense>
+    </QuietAuthShell>
   );
 }

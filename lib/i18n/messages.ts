@@ -328,6 +328,92 @@ export const en = {
   "nav.rights": "Not a substitute for clinical judgement.",
 
   /*
+   * 🔴 The four audiences, one link each.
+   *
+   * The header used to carry four competing calls to action: "Talk now", "Sign
+   * in", "I need a therapist" and "Start free, for therapists". Two of those
+   * were the same button for different readers and there was no room left for
+   * the pages that say what the product does for each of the four kinds of
+   * customer. "Talk now" and "I need a therapist" are both gone; the radar
+   * keeps the live dot and becomes the single call to action, which is what
+   * both of them were pointing at anyway.
+   */
+  "nav.forTherapists": "For therapists",
+  "nav.forPatients": "For patients",
+  "nav.forCompanies": "For companies",
+  "nav.forClinics": "For clinics",
+  "nav.radar": "Radar",
+  "nav.openRadar": "Open the radar",
+  "nav.menu": "Menu",
+  "nav.close": "Close",
+
+  /*
+   * Sign in asks which of them you are, rather than guessing.
+   *
+   * There are six doors into this product and they live in five route groups.
+   * A single "Sign in" link had to pick one, and it picked the clinician's,
+   * which is why a covered employee arriving at their company's portal had no
+   * way in from the marketing site at all.
+   */
+  "nav.whichAreYou": "Which are you?",
+  "nav.signInAs.therapist": "I am a therapist",
+  "nav.signInAs.patient": "I am a patient",
+  "nav.signInAs.company": "I run a company",
+  "nav.signInAs.clinic": "I run a clinic",
+  "nav.signInAs.therapistWhy": "Your practice, your notes, your calendar",
+  "nav.signInAs.patientWhy": "Your sessions, your record, your therapists",
+  "nav.signInAs.companyWhy": "Cover your employees, and see what it costs",
+  "nav.signInAs.clinicWhy": "Your seats, your therapists, your billing",
+  /*
+   * A company and a clinic do not self serve: an organisation account is
+   * created from an enquiry. So the signup switcher offers them the enquiry,
+   * and says so, rather than a "Create account" that does not exist.
+   */
+  "nav.applyAs.company": "Tell us about your company and we set it up",
+  "nav.applyAs.clinic": "Tell us about your clinic and we set it up",
+  "nav.haveAccount": "Already have an account?",
+  "nav.noAccount": "No account yet?",
+  "nav.createOne": "Create one",
+  "nav.notYou": "Not what you are?",
+  /*
+   * Footer column headings. They are not the nav labels: "Which are you?" is a
+   * question a menu asks and a terrible heading over a list of four links, and
+   * "Features" was sitting over a column containing Pricing and Contact.
+   */
+  "nav.mainNav": "Main",
+  "footer.audiences": "Who it is for",
+  "footer.product": "The product",
+  "footer.legal": "Trust and legal",
+
+  /*
+   * 🔴 What is behind each door, in three concrete lines. Task 154.
+   *
+   * Not adjectives. Every one of these names a thing the account does, because
+   * the right hand column of an auth page is the last thing a person reads
+   * before deciding to trust us with a therapy record, and "powerful" and
+   * "seamless" are what a page says when it has nothing to say.
+   */
+  "auth.therapist.promise": "Your notes, written while you work.",
+  "auth.therapist.p1": "A clinical note in the room, before the session ends",
+  "auth.therapist.p2": "Your calendar, your prices and your own patients",
+  "auth.therapist.p3": "Go on the radar and take a session in the next minute",
+
+  "auth.patient.promise": "A therapist now, or an hour that suits you.",
+  "auth.patient.p1": "See who is online and be in a session in under a minute",
+  "auth.patient.p2": "Your sessions, your record, and who is allowed to read it",
+  "auth.patient.p3": "Book an hour with the same therapist next week",
+
+  "auth.company.promise": "Cover your people, and know what it costs.",
+  "auth.company.p1": "Add employees and set what a session costs the company",
+  "auth.company.p2": "Watch the pot, the spend and the take-up, month by month",
+  "auth.company.p3": "Nobody at the company ever sees a clinical note",
+
+  "auth.clinic.promise": "Your therapists, your seats, your billing.",
+  "auth.clinic.p1": "A seat per therapist, prorated the day they join or leave",
+  "auth.clinic.p2": "One bill for the clinic, not one per clinician",
+  "auth.clinic.p3": "See the rota and move a patient between your own clinicians",
+
+  /*
    * The crisis line is deliberately not one number.
    *
    * 988 is the US lifeline and means nothing in Abu Dhabi; printing it to a
@@ -3901,6 +3987,55 @@ export const ar: Record<MessageKey, string> = {
   "nav.tagline": "ملاحظات سريرية تُكتب وأنت تعمل.",
   "nav.rights": "ليست بديلًا عن الحكم السريري.",
   "nav.talkNow": "تحدث الآن",
+
+  "nav.forTherapists": "للمعالجين",
+  "nav.forPatients": "للمرضى",
+  "nav.forCompanies": "للشركات",
+  "nav.forClinics": "للعيادات",
+  "nav.radar": "الرادار",
+  "nav.openRadar": "افتح الرادار",
+  "nav.menu": "القائمة",
+  "nav.close": "إغلاق",
+
+  "nav.whichAreYou": "من أنت؟",
+  "nav.signInAs.therapist": "أنا معالج",
+  "nav.signInAs.patient": "أنا مريض",
+  "nav.signInAs.company": "أدير شركة",
+  "nav.signInAs.clinic": "أدير عيادة",
+  "nav.signInAs.therapistWhy": "عيادتك وملاحظاتك وجدولك",
+  "nav.signInAs.patientWhy": "جلساتك وسجلّك ومعالجوك",
+  "nav.signInAs.companyWhy": "غطِّ موظفيك واعرف التكلفة",
+  "nav.signInAs.clinicWhy": "مقاعدك ومعالجوك وفوترتك",
+  "nav.applyAs.company": "أخبرنا عن شركتك ونحن نجهّز الحساب",
+  "nav.applyAs.clinic": "أخبرنا عن عيادتك ونحن نجهّز الحساب",
+  "nav.haveAccount": "لديك حساب بالفعل؟",
+  "nav.noAccount": "ليس لديك حساب بعد؟",
+  "nav.createOne": "أنشئ حسابًا",
+  "nav.notYou": "لست من هؤلاء؟",
+  "nav.mainNav": "الرئيسية",
+  "footer.audiences": "لمن هذا",
+  "footer.product": "المنتج",
+  "footer.legal": "الثقة والشروط",
+
+  "auth.therapist.promise": "ملاحظاتك تُكتب وأنت تعمل.",
+  "auth.therapist.p1": "ملاحظة سريرية داخل الغرفة قبل أن تنتهي الجلسة",
+  "auth.therapist.p2": "جدولك وأسعارك ومرضاك أنت",
+  "auth.therapist.p3": "اظهر على الرادار وابدأ جلسة خلال الدقيقة القادمة",
+
+  "auth.patient.promise": "معالج الآن، أو موعد يناسبك.",
+  "auth.patient.p1": "شاهد من هو متاح الآن وابدأ جلسة في أقل من دقيقة",
+  "auth.patient.p2": "جلساتك وسجلّك ومن يحق له الاطلاع عليه",
+  "auth.patient.p3": "احجز موعدًا مع المعالج نفسه الأسبوع القادم",
+
+  "auth.company.promise": "غطِّ موظفيك واعرف التكلفة.",
+  "auth.company.p1": "أضف الموظفين وحدّد ما تتحمله الشركة عن كل جلسة",
+  "auth.company.p2": "تابع الرصيد والإنفاق ونسبة الاستخدام شهرًا بشهر",
+  "auth.company.p3": "لا أحد في الشركة يطّلع على أي ملاحظة سريرية",
+
+  "auth.clinic.promise": "معالجوك ومقاعدك وفوترتك.",
+  "auth.clinic.p1": "مقعد لكل معالج، محسوب بالتناسب يوم انضمامه أو مغادرته",
+  "auth.clinic.p2": "فاتورة واحدة للعيادة، لا فاتورة لكل معالج",
+  "auth.clinic.p3": "اطّلع على الجدول وانقل مريضًا بين معالجيك",
   "urgent.footer":
     "إذا كنت بحاجة إلى مساعدة عاجلة، اتصل برقم الطوارئ في بلدك في أي وقت.",
 

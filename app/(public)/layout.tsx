@@ -1,31 +1,9 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Link from "next/link";
 
-import { Button } from "@/components/ui";
-import { LanguageSwitch } from "@/components/i18n/language-switch";
-import { getFooterLinks, getPublicNav } from "@/lib/content/service";
+import { SiteFooter, SiteHeader } from "@/components/public/site-chrome";
 import { env } from "@/lib/env";
-import { getI18n } from "@/lib/i18n/server";
-import { alternatesFor, localisedPath } from "@/lib/i18n/paths";
-import { publicLanguages } from "@/lib/i18n/strings";
-
-/**
- * Pages that are routes rather than rows. PLAN.md 28.5, C149.
- *
- * They carry a claim about what exists, which is not an editorial decision,
- * so they cannot be unpublished from the content editor.
- */
-/*
- * 🔴 77.10 — THE LABELS ARE KEYS NOW, because these four sat in the footer of
- * every page in both languages and rendered in English on both.
- */
-const CODE_PAGES = [
-  { href: "/integrations", key: "nav.integrations" },
-  { href: "/for-clinics", key: "marketing.clinics.eyebrow" },
-  { href: "/developers", key: "nav.developers" },
-  { href: "/verify", key: "nav.verify" },
-] as const;
+import { alternatesFor } from "@/lib/i18n/paths";
 
 /**
  * 🔴 `hreflang` for every public page, declared once. PLAN.md 31.1.
@@ -46,175 +24,24 @@ export async function generateMetadata(): Promise<Metadata> {
   return { alternates: alternatesFor(pathname, env.appUrl) };
 }
 
-export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  /*
-   * 🔴 77.10 — THE CHROME READS THE DICTIONARY, and until this it did not.
-   *
-   * Six strings were typed into this file: the two header buttons, "Talk now",
-   * "Sign in", the footer's one-line description and the rights sentence. They
-   * are on EVERY public page, so the Arabic site carried an English header and
-   * an English footer around correctly translated content — which reads as a
-   * product that does not really do Arabic, on every page, above the fold.
-   *
-   * `app/(public)/` is exempt from `verify:sprint37l` on the stated ground
-   * that "the rows are already published in both languages". That is true of
-   * `[slug]`, which renders the CMS, and false of this file, which renders
-   * itself. The same exemption hid the same defect on `/for-clinics` until
-   * sprint 65 went looking.
-   */
-  const [nav, footer, offered, i18n] = await Promise.all([
-    getPublicNav(),
-    getFooterLinks(),
-    // 21.13 — only the languages whose public switch is on.
-    publicLanguages(),
-    getI18n(),
-  ]);
-  const { locale, t } = i18n;
-
-  /*
-   * 🔴 Every link out of this chrome keeps the prefix.
-   *
-   * Without it an Arabic reader is one nav click from `/features` — still in
-   * Arabic, because the cookie follows them, but at a URL that says English.
-   * They would then share the page they are reading and their friend would
-   * open it in a language they may not read. A prefix that does not survive
-   * navigation is a prefix that only works for the first page.
-   */
-  const href = (path: string) => localisedPath(path, locale);
-
-  /* The real path, prefix and all. See the note in `LanguageSwitch`. */
-  const pathname = (await headers()).get("x-pathname") ?? "/";
-
+/**
+ * 🔴 The chrome is a component now, not markup in this file. Task 153.
+ *
+ * It used to be ninety lines of header and footer typed here, which is why the
+ * sign in pages did not have it: they are in four other route groups and there
+ * was nothing to import. See the note at the top of
+ * `components/public/site-chrome.tsx`.
+ *
+ * 77.10 still applies and is now enforced in one place rather than this one:
+ * every string in that chrome reads from the dictionary, because six of them
+ * were typed inline and rendered in English on every Arabic page.
+ */
+export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href={href("/")} className="text-[15px] font-bold tracking-tight text-navy-500">
-            24Therapy
-          </Link>
-
-          <nav aria-label="Main" className="hidden items-center gap-1 sm:flex">
-            {nav.map((item) => (
-              <Link
-                key={item.slug}
-                href={href(`/${item.slug}`)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-              >
-                {item.label}
-              </Link>
-            ))}
-            {/*
-              Hard-coded rather than a CMS page, because it is a live route and
-              because it is the one link on this header a person in crisis might
-              be looking for. It should not be possible to unpublish it by
-              accident from the content editor.
-            */}
-            <Link
-              href={href("/radar")}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50"
-            >
-              <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" aria-hidden />
-              {t("nav.talkNow")}
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            {/*
-              Without this the Arabic site is unreachable for anyone whose
-              browser does not already ask for Arabic — which is most people
-              testing it, on a phone set to English.
-            */}
-            <LanguageSwitch
-              className="hidden sm:inline-flex"
-              offered={offered.map((row) => ({ code: row.code, nativeName: row.nativeName }))}
-              pathname={pathname}
-            />
-            <Link href={href("/radar")} className="sm:hidden">
-              <Button variant="ghost" size="sm" className="text-teal-700">
-                {t("nav.talkNow")}
-              </Button>
-            </Link>
-            <Link href="/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm">
-                {t("nav.signIn")}
-              </Button>
-            </Link>
-            {/*
-              🔴 18.4 — two audiences, two first buttons.
-
-              A person in distress and a clinician evaluating software want
-              opposite things from this header, and a single "Start free" made
-              the patient guess. "I need a therapist" goes to the patients
-              section, which has the radar one tap away on every page; "Start
-              free" is the clinician's signup and stays the primary action for
-              them. Neither is hidden behind the other.
-            */}
-            <Link href={href("/for-patients")} className="hidden sm:block">
-              <Button variant="secondary" size="sm">
-                {t("nav.needTherapist")}
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button size="sm">{t("nav.startFreeTherapists")}</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+      <SiteHeader />
       <main className="flex-1">{children}</main>
-
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-sm font-bold text-navy-500">24Therapy</p>
-              <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-600">
-                {t("nav.tagline")}
-              </p>
-            </div>
-
-            {/*
-              `min-w-0` on a flex item is not optional here.
-
-              A flex item's default `min-width: auto` refuses to shrink below
-              its content, so this nav sat 32px wider than the padded column it
-              lives in and pushed the last link two pixels past the viewport at
-              375px — the whole page scrolling sideways because of one word.
-            */}
-            <nav aria-label="Footer" className="flex min-w-0 flex-wrap gap-x-5 gap-y-2">
-              {nav.concat(footer).map((item) => (
-                <Link
-                  key={item.slug}
-                  href={href(`/${item.slug}`)}
-                  className="text-xs text-slate-600 hover:text-slate-900"
-                >
-                  {item.label}
-                </Link>
-              ))}
-              {/*
-                28.5 — four live routes rather than CMS pages, for the same
-                reason the radar link above is hard-coded: each of them states
-                what is and is not built, and that state is a fact about the
-                code. An editor who could unpublish the page saying "there is
-                no API yet" would leave us with no page saying it.
-              */}
-              {CODE_PAGES.map((item) => (
-                <Link
-                  key={item.href}
-                  href={href(item.href)}
-                  className="text-xs text-slate-600 hover:text-slate-900"
-                >
-                  {t(item.key)}
-                </Link>
-              ))}
-            </nav>
-          </div>
-
-          <p className="mt-8 text-xs text-slate-600">
-            © {new Date().getFullYear()} 24Therapy. {t("nav.rights")}
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
