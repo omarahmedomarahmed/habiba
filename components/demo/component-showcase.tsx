@@ -67,8 +67,14 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
     case "patient-sessions":
       return <PatientApp content={content} initial="sessions" />;
 
+    /*
+     * 🔴 `open`, not `initial`. Steps stopped being a tab when Option A put
+     * Therapists on the bar; it is a screen hanging off Home now, in the app
+     * and here. A page asking for `homework` still gets the homework screen,
+     * with a working bar under it that says where it actually lives.
+     */
     case "homework":
-      return <PatientApp content={content} initial="steps" />;
+      return <PatientApp content={content} open="steps" />;
 
     case "radar":
     case "patient-app":
@@ -81,10 +87,10 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      * the journal can find out what else is on the device they are holding.
      */
     case "journal":
-      return <PatientApp content={content} initial="sessions" open="journal" />;
+      return <PatientApp content={content} open="journal" />;
 
     case "summary":
-      return <PatientApp content={content} initial="sessions" open="summary" />;
+      return <PatientApp content={content} open="summary" />;
 
     /*
      * The rolling profile, shown as what it is: dated observations, each one

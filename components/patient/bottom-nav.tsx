@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, CircleUser, Globe2, ListChecks, Receipt, Video } from "lucide-react";
+import { CalendarDays, CircleUser, Globe2, Home, Users, Video } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -20,9 +20,29 @@ import { cn } from "@/lib/utils";
  *
  * ## Five, not more
  *
- * Sessions, homework, the globe, billing, account. Everything else lives
- * inside one of those. A patient app with a "more" tab is one where the thing
- * somebody needs is always in the drawer.
+ * Home, Sessions, the globe, Therapists, You. Everything else lives inside one
+ * of those. A patient app with a "more" tab is one where the thing somebody
+ * needs is always in the drawer.
+ *
+ * ## 🔴 THIS IS OPTION A, CHOSEN. /design/patient/sample
+ *
+ * Three shells were drawn and compared, and this is the one. What changed from
+ * what was here before, and why:
+ *
+ *   `/patient` was labelled "Sessions" and is a HOME screen. It carries a
+ *   greeting, a search, who is free now, an explore rail, categories, the
+ *   highest rated and the record card. The bar has said Sessions since it was
+ *   written, so the first tab named the wrong screen and the actual session
+ *   list at `/patient/sessions` had no tab at all.
+ *
+ *   Therapists takes Billing's place. Option A's whole bet is that finding
+ *   somebody is a PLACE you can browse when you are not in a hurry, not only
+ *   a red button for the worst hour of the week, and a place needs a tab.
+ *
+ *   Steps and Billing come off. Both keep a way in, which is the part that
+ *   cannot be skipped: Steps is a row on Home, and Billing is a row on You.
+ *   Taking a destination off the bar without giving it a home is exactly the
+ *   drawer this comment has always warned about.
  *
  * ## 🔴 25.4 / C129 — during a live session
  *
@@ -36,12 +56,12 @@ import { cn } from "@/lib/utils";
 /* 37L.1 — the label is a key, resolved at render, so the bar is in the
    reader's language rather than in the language it was written in. */
 const LEFT = [
-  { href: "/patient", key: "tab.sessions", icon: CalendarDays },
-  { href: "/patient/homework", key: "tab.steps", icon: ListChecks },
+  { href: "/patient", key: "tab.home", icon: Home },
+  { href: "/patient/sessions", key: "tab.sessions", icon: CalendarDays },
 ] as const;
 
 const RIGHT = [
-  { href: "/patient/billing", key: "tab.billing", icon: Receipt },
+  { href: "/patient/browse", key: "tab.therapists", icon: Users },
   { href: "/patient/account", key: "tab.you", icon: CircleUser },
 ] as const;
 

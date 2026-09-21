@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { Receipt, ShieldCheck } from "lucide-react";
 
 import { eq } from "drizzle-orm";
 
@@ -123,6 +123,24 @@ export default async function PatientAccountPage() {
             <span className="block text-xs text-slate-500">
               {t("paccount.whoCanSeeBody")}
             </span>
+          </span>
+        </Card>
+      </Link>
+
+      {/*
+        🔴 BILLING LIVES HERE NOW, because it came off the bar. Option A puts
+        Therapists in its place, and a destination removed from the navigation
+        without being given a home is the drawer the bar's own comment warns
+        about. Money is an account thing, so this is the account.
+      */}
+      <Link href="/patient/billing">
+        <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
+          <Receipt className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-slate-900">
+              {t("paccount.billing")}
+            </span>
+            <span className="block text-xs text-slate-500">{t("paccount.billingBody")}</span>
           </span>
         </Card>
       </Link>

@@ -11,10 +11,12 @@ import {
   Download,
   FileText,
   Globe2,
+  Home,
   ListChecks,
   NotebookPen,
   Receipt,
   ShieldCheck,
+  Users,
   Video,
 } from "lucide-react";
 
@@ -63,7 +65,7 @@ import { DeviceFrame } from "./device-frame";
  * that makes putting a working booking flow on an anonymous page safe.
  */
 
-type Tab = "sessions" | "steps" | "radar" | "billing" | "you";
+type Tab = "home" | "sessions" | "radar" | "therapists" | "you";
 
 /**
  * The screens that are not tabs.
@@ -71,15 +73,29 @@ type Tab = "sessions" | "steps" | "radar" | "billing" | "you";
  * In the real app these are rows on the home screen rather than destinations
  * in the bar, because the bar holds five things and a patient app with a
  * "more" tab is one where what somebody needs is always in the drawer. They
- * are reachable here the same way they are reachable there: from Sessions.
+ * are reachable here the same way they are reachable there: Steps and the
+ * record from Home, Billing from You, the journal and the summary from a
+ * session.
  */
-type Screen = "journal" | "summary" | "record";
+type Screen = "journal" | "summary" | "record" | "steps" | "billing";
 
+/*
+ * 🔴 OPTION A, THE SHIPPED BAR. components/patient/bottom-nav.tsx
+ *
+ * This used to be Sessions, Steps, the globe, Billing, You, which was the bar
+ * the app had when this file was written and is not the bar it has now. A
+ * mockup whose navigation is one release behind the product is the same defect
+ * as a mockup that shows a screen the product does not have, arrived at by
+ * waiting instead of by inventing.
+ *
+ * Steps and Billing are screens rather than tabs, exactly as they are in the
+ * app: Steps hangs off Home and Billing off You.
+ */
 const TABS: { key: Tab; label: MessageKey; icon: typeof Globe2; lifted?: boolean }[] = [
+  { key: "home", label: "tab.home", icon: Home },
   { key: "sessions", label: "tab.sessions", icon: CalendarDays },
-  { key: "steps", label: "tab.steps", icon: ListChecks },
   { key: "radar", label: "tab.radar", icon: Globe2, lifted: true },
-  { key: "billing", label: "tab.billing", icon: Receipt },
+  { key: "therapists", label: "tab.therapists", icon: Users },
   { key: "you", label: "tab.you", icon: CircleUser },
 ];
 
@@ -87,6 +103,8 @@ const SCREEN_TITLE: Record<Screen, MessageKey> = {
   journal: "home.journal",
   summary: "home.summary",
   record: "precord.title",
+  steps: "tab.steps",
+  billing: "tab.billing",
 };
 
 const money = (cents: number) =>
@@ -100,12 +118,12 @@ export function PatientApp({
 }: {
   content?: DemoContent;
   initial?: Tab;
-  /** Open on one of the screens that hangs off Sessions rather than on a tab. */
+  /** Open on one of the screens that hangs off Home rather than on a tab. */
   open?: Screen | null;
   className?: string;
 }) {
   const t = useT();
-  const [tab, setTab] = useState<Tab>(open ? "sessions" : initial);
+  const [tab, setTab] = useState<Tab>(open ? "home" : initial);
   const [screen, setScreen] = useState<Screen | null>(open);
   /* null = nobody picked, a name = the sheet is open, "booked" = it happened. */
   const [picked, setPicked] = useState<number | null>(null);
@@ -130,7 +148,7 @@ export function PatientApp({
         icon,
         lifted,
       }))}
-      activeTab={screen ? "sessions" : tab}
+      activeTab={screen ? "home" : tab}
       onTab={(key) => { go(key as Tab); }}
     >
       {/*
@@ -156,9 +174,20 @@ export function PatientApp({
         {screen === "journal" ? <Journal content={content} /> : null}
         {screen === "summary" ? <Summary content={content} /> : null}
         {screen === "record" ? <RecordCopy /> : null}
+        {screen === "steps" ? <Steps content={content} /> : null}
+        {screen === "billing" ? <Billing /> : null}
 
         {screen === null ? (
           <>
+            {tab === "home" ? (
+              <HomeTab
+                content={content}
+                booked={booked}
+                onScreen={setScreen}
+                onFindSomeone={() => { go("radar"); }}
+                onSeeSessions={() => { go("sessions"); }}
+              />
+            ) : null}
             {tab === "sessions" ? (
               <Sessions
                 content={content}
@@ -167,7 +196,6 @@ export function PatientApp({
                 onWhoCanRead={() => { go("you"); }}
               />
             ) : null}
-            {tab === "steps" ? <Steps content={content} /> : null}
             {tab === "radar" ? (
               <Radar
                 picked={picked}
@@ -177,8 +205,12 @@ export function PatientApp({
                 onSeeSessions={() => { go("sessions"); }}
               />
             ) : null}
-            {tab === "billing" ? <Billing /> : null}
-            {tab === "you" ? <You content={content} /> : null}
+            {tab === "therapists" ? (
+              <Therapists onFindSomeone={() => { go("radar"); }} />
+            ) : null}
+            {tab === "you" ? (
+              <You content={content} onScreen={setScreen} />
+            ) : null}
           </>
         ) : null}
       </div>
@@ -549,6 +581,141 @@ function Radar({
   );
 }
 
+/**
+ * 🔴 HOME, WHICH IS THE TAB OPTION A ADDED.
+ *
+ * The real `/patient` carries a greeting, who is free now, an explore rail and
+ * the record card, and it was labelled "Sessions" in the bar for so long that
+ * the mockup inherited the mislabel and never drew the screen at all. Steps and
+ * the record hang off here, which is where they hang in the app.
+ *
+ * Every string is a dictionary key. `components/` is counted by the i18n
+ * ratchet, so a word typed into this file is a word the Arabic page renders in
+ * English.
+ */
+function HomeTab({
+  content,
+  booked,
+  onScreen,
+  onFindSomeone,
+  onSeeSessions,
+}: {
+  content?: DemoContent;
+  booked: number | null;
+  onScreen: (screen: Screen) => void;
+  onFindSomeone: () => void;
+  onSeeSessions: () => void;
+}) {
+  const t = useT();
+  const next = content?.patientSessions[0];
+  const free = RADAR_DEMO.length;
+
+  return (
+    <div className="space-y-2.5">
+      {/* The next session, above anything that can be scrolled past. */}
+      {next ? (
+        <button
+          type="button"
+          onClick={onSeeSessions}
+          className="tap-target block w-full rounded-2xl bg-brand-500 p-3.5 text-start text-navy-600"
+        >
+          <span className="block text-[10px] font-bold tracking-[0.12em] uppercase opacity-70">
+            {t("psessions.upcoming")}
+          </span>
+          <span className="mt-1 block text-[15px] font-bold">{next.therapist}</span>
+          <span className="mt-0.5 block text-[12px] opacity-80">{next.when}</span>
+        </button>
+      ) : null}
+
+      {/*
+        The shelf. This is Option A's whole argument: finding somebody is a
+        place you can browse, not only a button for the worst hour of the week.
+      */}
+      <button
+        type="button"
+        onClick={onFindSomeone}
+        className="tap-target flex w-full items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-3.5 text-start"
+      >
+        <span className="live-dot h-2 w-2 shrink-0 rounded-full bg-teal-500" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-semibold text-slate-900">
+            {t("home.liveMany", { count: free })}
+          </span>
+          <span className="block text-[11px] text-slate-600">{t("home.findNow")}</span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 rtl:rotate-180" aria-hidden />
+      </button>
+
+      <Tile
+        icon={ListChecks}
+        label={t("home.beforeNext")}
+        onClick={() => { onScreen("steps"); }}
+      />
+      <Tile
+        icon={ShieldCheck}
+        label={t("home.yourRecord")}
+        onClick={() => { onScreen("record"); }}
+      />
+
+      {booked !== null ? (
+        <p className="px-1 text-[11px] leading-relaxed text-slate-600">{t("pat.bookedBody")}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 🔴 THERAPISTS, THE TAB THAT TOOK BILLING'S PLACE.
+ *
+ * The radar answers "who is free THIS MINUTE". This answers "who is there",
+ * which is the question most people are actually asking and the one the
+ * product had no place for. Same people, no urgency, and the way through to
+ * the radar is a row rather than the whole screen.
+ */
+function Therapists({ onFindSomeone }: { onFindSomeone: () => void }) {
+  const t = useT();
+  return (
+    <div className="space-y-2.5">
+      <p className="text-[12px] leading-relaxed text-slate-700">{t("home.exploreTitle")}</p>
+      {RADAR_DEMO.map((who) => (
+        <Row key={who.name}>
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
+              {who.name
+                .replace("Dr ", "")
+                .split(" ")
+                .map((part) => part[0])
+                .join("")}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[14px] font-semibold text-slate-900">
+                {who.name}
+              </span>
+              <span className="block truncate text-[11px] text-slate-600">{who.languages}</span>
+            </span>
+            <span className="shrink-0 text-end">
+              <span className="block text-[13px] font-semibold tabular-nums text-slate-900">
+                {money(who.priceCents)}
+              </span>
+              <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                <Clock className="h-2.5 w-2.5" aria-hidden />
+                {t("pat.minutes", { minutes: who.minutes })}
+              </span>
+            </span>
+          </div>
+        </Row>
+      ))}
+      <button
+        type="button"
+        onClick={onFindSomeone}
+        className="tap-target block w-full rounded-xl bg-brand-500 px-3 py-2.5 text-[13px] font-semibold text-navy-600"
+      >
+        {t("home.findNow")}
+      </button>
+    </div>
+  );
+}
+
 function Billing() {
   const t = useT();
   return (
@@ -590,7 +757,7 @@ function Billing() {
  * a patient owns in this product is the answer to "who can read my history",
  * and this is where they change it, so this is what the tab shows.
  */
-function You({ content }: { content?: DemoContent }) {
+function You({ content, onScreen }: { content?: DemoContent; onScreen: (screen: Screen) => void }) {
   const t = useT();
   /*
    * 🔴 THE NAME COMES FROM THE SESSIONS LIST, not from a literal here.
@@ -622,6 +789,17 @@ function You({ content }: { content?: DemoContent }) {
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" aria-hidden />
         {t("consent.neverWhy")}
       </p>
+      {/*
+        🔴 THE WAY TO BILLING, because Option A took it off the bar and put
+        Therapists there. `app/(patient)/patient/account/page.tsx` carries the
+        same row for the same reason: a destination removed from navigation
+        without a home is the drawer the bar exists to avoid.
+      */}
+      <Tile
+        icon={Receipt}
+        label={t("tab.billing")}
+        onClick={() => { onScreen("billing"); }}
+      />
     </div>
   );
 }

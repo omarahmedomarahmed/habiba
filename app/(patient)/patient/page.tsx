@@ -34,7 +34,14 @@ import { patients, people } from "@/lib/db/schema";
 const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = { title: "Your sessions", robots: { index: false } };
+/*
+ * 🔴 "Home", because that is what this screen is. It carried the title
+ * "Your sessions" while rendering a greeting, a search, who is free now,
+ * an explore rail, categories and the record card, and the actual session
+ * list lives at /patient/sessions. Option A gives that list its own tab,
+ * which only reads correctly once this one stops claiming to be it.
+ */
+export const metadata: Metadata = { title: "Home", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 /**

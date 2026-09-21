@@ -566,7 +566,9 @@ export const en = {
   "home.getCopy": "Get a copy of everything",
 
   /* ------------------------------------------------------------ navigation */
+  "tab.home": "Home",
   "tab.sessions": "Sessions",
+  "tab.therapists": "Therapists",
   "tab.steps": "Steps",
   "tab.billing": "Billing",
   "tab.you": "You",
@@ -797,6 +799,9 @@ export const en = {
   "paccount.addEmailBody": "Another way to sign in, and the only way to receive your record.",
   "paccount.whoCanSee": "Who can see your record",
   "paccount.whoCanSeeBody": "Give access, take it back, and see what you were asked.",
+  "paccount.billing": "What you have paid",
+  "paccount.billingBody":
+    "Every session you paid for, and anything still open. You pay your therapist, never us.",
   "paccount.ownDocuments": "Your own documents",
   "paccount.ownDocumentsBody": "Anything you have uploaded or written down about yourself.",
   "paccount.notAdded": "Not added",
@@ -4212,7 +4217,9 @@ export const ar: Record<MessageKey, string> = {
   "home.getCopy": "احصل على نسخة من كل شيء",
 
   /* ------------------------------------------------------------- التنقل */
+  "tab.home": "الرئيسية",
   "tab.sessions": "الجلسات",
+  "tab.therapists": "المعالجون",
   "tab.steps": "خطوات",
   "tab.billing": "الحساب",
   "tab.you": "أنت",
@@ -4430,6 +4437,9 @@ export const ar: Record<MessageKey, string> = {
   "paccount.addEmailBody": "طريقة أخرى للدخول، والوحيدة لاستلام سجلك.",
   "paccount.whoCanSee": "من يستطيع رؤية سجلك",
   "paccount.whoCanSeeBody": "امنح الإذن، أو اسحبه، وشاهد ما طُلب منك.",
+  "paccount.billing": "ما دفعته",
+  "paccount.billingBody":
+    "كل جلسة دفعت ثمنها، وأي مبلغ ما زال مفتوحًا. أنت تدفع لمعالجك، لا لنا.",
   "paccount.ownDocuments": "مستنداتك أنت",
   "paccount.ownDocumentsBody": "كل ما رفعته أو كتبته عن نفسك.",
   "paccount.notAdded": "غير مضاف",

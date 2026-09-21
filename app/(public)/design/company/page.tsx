@@ -61,6 +61,20 @@ export default function CompanyDesignPage() {
             See each option drawn properly
             <span aria-hidden>&rarr;</span>
           </a>
+          {/*
+            🔴 DECIDED. Leaving a comparison page up with no answer on it is
+            how two people build the same screen twice from different columns.
+          */}
+          <p className="mt-6 flex flex-wrap items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-navy-500">
+            <span className="rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-bold tracking-wide text-navy-600 uppercase">
+              Chosen
+            </span>
+            <span className="font-semibold">Option A &middot; The desk</span>
+            <span className="text-slate-600">
+              is what is being built. The other two stay here for the argument, not as
+              alternatives. It is wired in <code className="font-mono text-[12px]">components/sponsor/chrome.tsx</code>.
+            </span>
+          </p>
 
           <div className="mt-8 overflow-x-auto">
             <table className="w-full min-w-[40rem] border-collapse text-sm">
