@@ -62,9 +62,27 @@ export default async function PayPage({
   const session = await resolveJoinToken(token);
   if (!session) notFound();
 
-  // Nothing to pay: send them where they were actually going.
+  /*
+   * Nothing to pay: send them where they were actually going.
+   *
+   * 🔴 `booked=1`, WHICH THE STRIPE RAIL HAS AND THIS ONE DID NOT.
+   *
+   * Stripe comes back to `/join/<token>?checkout=<id>` and the join page
+   * treats that as "this person has been through the flow, do not start them
+   * at the beginning". The Egyptian transfer rail landed here instead and
+   * redirected to a bare `/join/<token>`, so a patient who had just paid, and
+   * whose name was already on the session row, was asked for their first name
+   * again as though they had never been seen.
+   *
+   * Measured on production: the admin confirms, and 5.9 seconds later this
+   * page moves by itself, which is the right behaviour and the thing that was
+   * asked for. It just moved them to a form instead of into the session.
+   *
+   * `booked=1` is the flag that already means exactly this, and paying IS
+   * having been through the flow.
+   */
   if (session.priceCents <= 0 || session.paymentStatus === "paid") {
-    redirect(`/join/${token}`);
+    redirect(`/join/${token}?booked=1`);
   }
 
   const [[therapist], countries] = await Promise.all([

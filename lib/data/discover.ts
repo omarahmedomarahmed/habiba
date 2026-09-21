@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 
+import { SIMULATION_RUNNING } from "@/lib/env";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { therapistRadar, therapistVerifications, users } from "@/lib/db/schema";
@@ -70,7 +71,36 @@ function listable(now: Date) {
     eq(users.status, "active"),
     eq(users.role, "therapist"),
     eq(therapistVerifications.state, "approved"),
-    eq(therapistRadar.demo, false),
+    /*
+     * 🔴 ONE BOOLEAN DOING TWO JOBS, AND THIS IS THE JOB IT DOES BADLY.
+     *
+     * `demo` means "nothing is beating for this row, do not let it go stale" in
+     * the three places that matter — `reachable()`, the staleness sweep, and
+     * the admin's stale-advertised count. This line borrowed it to mean
+     * something else entirely: "a fixture, keep it out of the patient's
+     * directory".
+     *
+     * Those two meanings disagreed the moment somebody needed both. I set
+     * `demo = true` on the seeded clinicians so they would stay on the Crisis
+     * Radar without a browser open somewhere heartbeating, which is what a
+     * demo deployment needs and what it now does. The same change silently
+     * emptied every directory surface in the patient app: the "Therapists
+     * here" rail on the home page, `/patient/browse`, the categories and the
+     * rated list. The radar said two clinicians; the patient's own home page
+     * said "No therapist is listed yet", in the same session, about the same
+     * two people. An agent walking a booking found it twenty minutes later.
+     *
+     * So: hide fixtures from a real deployment, and stop hiding them from a
+     * deployment that IS the fixtures. `SIMULATION_RUNNING` is exactly that
+     * distinction and is already what puts "Everybody here is invented" across
+     * the top of every page. When the cast is the product, the cast is listed.
+     *
+     * The real repair is to split the flag in two — `demo` for the heartbeat
+     * exemption, something like `fixture` for directory visibility — so no
+     * future change has to know that these two ideas share a column. That is a
+     * migration and it is not this commit.
+     */
+    SIMULATION_RUNNING ? undefined : eq(therapistRadar.demo, false),
     or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
   );
 }
