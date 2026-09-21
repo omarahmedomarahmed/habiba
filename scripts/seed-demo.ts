@@ -416,8 +416,8 @@ async function main() {
         INSERT INTO therapist_radar
           (user_id, organization_id, status, demo, headline, languages, specialties, country, region, city,
            last_seen_at, accepts_walk_ins)
-        VALUES (${user.id}, ${org.id}, 'online', true, ${headline}, '["ar","en"]'::jsonb,
-                '["anxiety","sleep"]'::jsonb, 'eg', 'eg', 'Cairo', now(), true)`);
+        VALUES (${user.id}, ${org.id}, 'online', true, ${headline}, '["Arabic","English"]'::jsonb,
+                '["Anxiety","Sleep"]'::jsonb, 'eg', 'eg', 'Cairo', now(), true)`);
 
       /*
        * 🔴 HOURS TO BOOK, BECAUSE THERE WERE NONE ANYWHERE.
