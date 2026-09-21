@@ -173,7 +173,16 @@ export function JoinFlow({
    * about recording. The question is put here instead, before the room.
    */
   if (current.needsConsent) {
-    return <ConsentGate token={token} onAnswered={setResumed} />;
+    return (
+      <ConsentGate
+        token={token}
+        onAnswered={(state, answer) => {
+          /* The room opens knowing what they just said, not five seconds later. */
+          setConsent((c) => ({ ...c, recording: answer }));
+          setResumed(state);
+        }}
+      />
+    );
   }
 
   if (ended) {
@@ -338,7 +347,19 @@ function ConsentGate({
   onAnswered,
 }: {
   token: string;
-  onAnswered: (state: JoinState) => void;
+  /*
+   * 🔴 THE ANSWER COMES BACK WITH THE STATE, and it has to.
+   *
+   * Seeding the room's consent panel from the page's props fixed a reload and
+   * did nothing here, because answering does not reload anything: the gate
+   * calls a server action and swaps itself for the room inside the same
+   * render tree. The props were captured before the question was asked, so
+   * they still said null, and the room still opened by telling somebody who
+   * had just said yes that recording was off.
+   *
+   * The component that took the answer is the one that knows it. It says so.
+   */
+  onAnswered: (state: JoinState, answer: "granted" | "declined") => void;
 }) {
   const t = useT();
   const [pending, startTransition] = useTransition();
@@ -362,12 +383,13 @@ function ConsentGate({
         action={(formData) =>
           startTransition(async () => {
             setError(null);
-            const result = await answerConsent(token, String(formData.get("consent") ?? ""));
+            const answer = String(formData.get("consent") ?? "");
+            const result = await answerConsent(token, answer);
             if (result.error) {
               setError(result.error);
               return;
             }
-            onAnswered(result);
+            onAnswered(result, answer === "granted" ? "granted" : "declined");
           })
         }
       >
