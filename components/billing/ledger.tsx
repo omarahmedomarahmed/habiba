@@ -287,7 +287,7 @@ export function BillingLedger({
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
                         entry.kind === "payment"
                           ? "bg-brand-50 text-brand-600"
-                          : "bg-slate-100 text-slate-500",
+                          : "bg-slate-100 text-slate-600",
                       )}
                     >
                       {entry.kind === "payment" ? (

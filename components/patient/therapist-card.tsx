@@ -26,7 +26,7 @@ export async function TherapistCard({ therapist }: { therapist: DiscoverTherapis
           className="h-12 w-12 shrink-0 rounded-full object-cover"
         />
       ) : (
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-500">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
           {therapist.name.slice(0, 1)}
         </span>
       )}

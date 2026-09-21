@@ -428,7 +428,7 @@ function Timeline({
               <span className="min-w-0 flex-1 space-y-1">
                 {rows.map((row, i) => (
                   <span key={i} className="block text-sm">
-                    <span className="me-1.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+                    <span className="me-1.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">
                       {row.kind}
                     </span>
                     <span className="font-medium text-slate-800">{row.who}</span>
@@ -744,7 +744,7 @@ function AuditList({ rows }: { rows: AuditRow[] }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm text-slate-800">
-                <span className="me-1.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+                <span className="me-1.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">
                   {row.action}
                 </span>{" "}
                 {row.who}

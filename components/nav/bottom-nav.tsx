@@ -196,7 +196,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
                 <span
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                    isActive(item.href) ? "bg-brand-500 text-navy-600" : "bg-slate-100 text-slate-500",
+                    isActive(item.href) ? "bg-brand-500 text-navy-600" : "bg-slate-100 text-slate-600",
                   )}
                 >
                   <item.icon className="h-4 w-4" aria-hidden />

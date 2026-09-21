@@ -45,7 +45,7 @@ export async function ExploreRail({ therapists }: { therapists: DiscoverTherapis
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-500">
+              <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
                 {therapist.name.slice(0, 1)}
               </span>
             )}

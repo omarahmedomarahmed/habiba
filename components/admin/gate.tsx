@@ -21,7 +21,7 @@ function Unlock() {
   return (
     <div className="mx-auto max-w-sm py-16">
       <Card className="p-6">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
           <Lock className="h-5 w-5" aria-hidden />
         </span>
         <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">Total View</p>

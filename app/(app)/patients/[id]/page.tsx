@@ -147,7 +147,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         ) : (
           <div
             aria-hidden
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-semibold text-slate-500"
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-semibold text-slate-600"
           >
             {initials}
           </div>

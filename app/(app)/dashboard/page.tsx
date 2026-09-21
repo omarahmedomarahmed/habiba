@@ -111,7 +111,7 @@ export default async function DashboardPage() {
               className={
                 radar?.status && radar.status !== "offline"
                   ? "flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-navy-600"
-                  : "flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500"
+                  : "flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600"
               }
             >
               <Radio

@@ -450,7 +450,7 @@ function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
             <Camera className="h-5 w-5" aria-hidden />
           </span>
         )}

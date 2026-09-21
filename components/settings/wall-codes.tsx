@@ -92,7 +92,7 @@ export function WallCodeList({ codes, zone }: { codes: WallCodeRow[]; zone: stri
                 dangerouslySetInnerHTML={{ __html: entry.svg }}
               />
             ) : (
-              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-center text-xs font-medium text-slate-500">
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-center text-xs font-medium text-slate-600">
                 {t("tset.codeRevoked")}
               </div>
             )}

@@ -143,7 +143,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
           "mt-3 flex h-13 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold transition-colors",
           bookable
             ? "bg-teal-500 text-navy-600 hover:bg-teal-400"
-            : "cursor-not-allowed bg-slate-100 text-slate-500",
+            : "cursor-not-allowed bg-slate-100 text-slate-600",
         )}
       >
         {bookable

@@ -204,7 +204,7 @@ export default async function ClinicOverviewPage({
                   {when(row.scheduledAt)}
                 </span>
                 {row.status === "cancelled" ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                     {row.status}
                   </span>
                 ) : null}

@@ -416,7 +416,7 @@ function State({ row, zone }: { row: CommandRow; zone: string | null }) {
         ? "bg-amber-100 text-amber-700"
         : row.status === "in_session"
           ? "bg-brand-100 text-brand-800"
-          : "bg-slate-100 text-slate-500";
+          : "bg-slate-100 text-slate-600";
 
   return (
     <span className="inline-flex flex-col">

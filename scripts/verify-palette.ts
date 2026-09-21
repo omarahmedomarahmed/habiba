@@ -281,6 +281,55 @@ function main() {
     "otherwise this check would be moving text from one failure to another",
   );
 
+  /* ================================================================== */
+  /*  A tint is not white, and the quiet ink knows the difference       */
+  /* ================================================================== */
+
+  /*
+   * 🔴 THE ONE THE BROWSER FOUND THAT ONLY PRODUCTION'S DATA COULD SHOW.
+   *
+   * `text-slate-500` is the quiet ink everywhere and it is correct on white,
+   * at 4.76:1. Drop it on `bg-slate-100` and it is 4.35:1, which is a miss by
+   * a fifteenth of a point and a miss all the same.
+   *
+   * `verify:contrast` caught two of these on localhost and reported the rest
+   * green, because the demo data had no therapist without a photo on that
+   * screen. Production did, and the same page came back with two more of the
+   * identical fallback in two other components. A browser can only measure
+   * what the data renders; a source check has no such excuse, so the pairing
+   * is banned here where the data cannot hide it.
+   *
+   * 🔴 `hover:bg-slate-100` IS NOT THIS. That element rests on white, where
+   * slate-500 passes, and a hover tint is a different question from a resting
+   * one. The lookbehind is what keeps this check to the case it can prove.
+   */
+  const SLATE_100 = "#f1f5f9";
+  const quietOnTint = contrast("#62748e", SLATE_100);
+  const darkerOnTint = contrast("#45556c", SLATE_100);
+
+  const onTint: string[] = [];
+  for (const file of files) {
+    readFileSync(file, "utf8")
+      .split("\n")
+      .forEach((line, index) => {
+        const resting = /(?<!hover:)(?<!focus:)\bbg-slate-100\b/.test(line);
+        if (resting && /\btext-slate-500\b/.test(line)) onTint.push(`${file}:${index + 1}`);
+      });
+  }
+
+  check(
+    "🔴 the quiet ink is not slate-500 when the ground is a slate tint",
+    onTint.length === 0,
+    onTint.slice(0, 6).join(" · ") ||
+      `slate-500 is ${quietOnTint.toFixed(2)}:1 on slate-100 and slate-600 is ${darkerOnTint.toFixed(2)}:1`,
+  );
+
+  check(
+    "🔴 CONTROL …and the arithmetic is why, not a preference",
+    quietOnTint < 4.5 && darkerOnTint >= 4.5,
+    "a tint eats the margin that white leaves",
+  );
+
   finish("palette");
 }
 
