@@ -38,7 +38,21 @@ const PORT = Number(process.env.SERVED_PORT ?? 3199);
 const BASE = `http://localhost:${PORT}`;
 
 /** Verifiers whose checks are deferred without one. */
-const NEEDS_A_SERVER = ["verify:sprint31"];
+const NEEDS_A_SERVER = ["verify:sprint31", "verify:contrast"];
+
+/*
+ * 🔴 THE CONTRAST GATE RUNS THE ENDS OF ITS GRID HERE, NOT ALL OF IT.
+ *
+ * It measures every word on every destination of all five portals, in two
+ * languages at two widths. That is the right thing to run before a release and
+ * the wrong thing to put in front of somebody who just wants to know whether
+ * their change broke anything, because against `next dev` it is many minutes.
+ *
+ * So this asks for desktop English and phone Arabic: direction and width both
+ * exercised, at a third of the cost. The gate PRINTS that it ran a partial
+ * grid, so a green line here cannot be mistaken for the full one.
+ */
+const PARTIAL: Record<string, string> = { "verify:contrast": "en1280,ar390" };
 
 async function answers(): Promise<boolean> {
   try {
@@ -161,12 +175,17 @@ async function main() {
      * Each path is fetched once with a long timeout and the result is thrown
      * away. The verifier then asks its real questions of a warm server.
      */
-    const WARM = ["/pricing", "/ar/pricing", "/patient/journal", "/sitemap.xml"];
+    const WARM = [
+      "/pricing",
+      "/ar/pricing",
+      "/patient/journal",
+      "/sitemap.xml",
+    ];
     console.log(`warming ${WARM.length} routes…`);
     for (const path of WARM) {
-      await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(120_000) }).catch(
-        () => undefined,
-      );
+      await fetch(`${BASE}${path}`, {
+        signal: AbortSignal.timeout(120_000),
+      }).catch(() => undefined);
     }
   }
 
@@ -178,7 +197,11 @@ async function main() {
     for (const name of NEEDS_A_SERVER) {
       const run = spawnSync("npm", ["run", "--silent", name], {
         encoding: "utf8",
-        env: { ...process.env, VERIFY_URL: url },
+        env: {
+          ...process.env,
+          VERIFY_URL: url,
+          ...(PARTIAL[name] ? { CONTRAST_RUNS: PARTIAL[name] } : {}),
+        },
         stdio: ["ignore", "pipe", "pipe"],
       });
       const out = `${run.stdout ?? ""}${run.stderr ?? ""}`;
@@ -224,7 +247,8 @@ function nextServers(): Set<number> {
     const pid = Number(entry);
     if (!Number.isInteger(pid)) continue;
     try {
-      if (readFileSync(`/proc/${entry}/comm`, "utf8").startsWith("next-server")) out.add(pid);
+      if (readFileSync(`/proc/${entry}/comm`, "utf8").startsWith("next-server"))
+        out.add(pid);
     } catch {
       /* the process exited between the listing and the read */
     }
@@ -254,7 +278,10 @@ function nextServers(): Set<number> {
  * So: signal the group for the wrapper, then kill by DIFFERENCE, which catches
  * the fork wherever it put itself.
  */
-function stop(child: ReturnType<typeof spawn> | null, before: Set<number>): void {
+function stop(
+  child: ReturnType<typeof spawn> | null,
+  before: Set<number>,
+): void {
   if (child?.pid) {
     try {
       process.kill(-child.pid, "SIGTERM");
