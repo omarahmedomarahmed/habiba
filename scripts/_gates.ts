@@ -536,6 +536,20 @@ export const GATES = [
     script: "verify:palette",
     why: "and every colour is on the ramp the palette assigns to its job",
   },
+  /*
+   * 🔴 A LIFECYCLE IS A CLAIM, AND A CLAIM CAN BE CHECKED.
+   *
+   * Every other gate here looks at code that exists. This one looks for code
+   * that does not: a state with no arrow out, a rejection that ends the story,
+   * a wait with no promise on it. Those are the three shapes of "stuck", and
+   * none of them is visible to a crawler, because a crawler can only walk paths
+   * the product already has.
+   */
+  {
+    name: "machines",
+    script: "verify:machines",
+    why: "and no lifecycle has a state a person enters and cannot leave",
+  },
   {
     name: "runbook",
     script: "verify:runbook",

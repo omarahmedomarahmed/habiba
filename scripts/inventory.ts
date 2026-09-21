@@ -73,6 +73,29 @@ type Surface = {
   reads: string[];
 };
 
+/**
+ * 🔴 EVERY ROUTE THE PRODUCT HAS, for anything that wants to claim one exists.
+ *
+ * `verify-machines.ts` imports this so that a state machine naming `/earnings`
+ * as the screen where a person sees their payout is making a checkable claim
+ * rather than a decorative one. The alternative is a second hand-typed route
+ * list, and this file's own header says what those are worth.
+ */
+export function routes(): string[] {
+  const out: string[] = [];
+  for (const portal of PORTALS) {
+    for (const file of walk(portal.root).filter((f) => f.endsWith("page.tsx"))) {
+      out.push(
+        `/${file
+          .replace(`${portal.root}/`, "")
+          .replace("/page.tsx", "")
+          .replace(/^page\.tsx$/, "")}`,
+      );
+    }
+  }
+  return out;
+}
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = `${dir}/${entry.name}`;
@@ -464,4 +487,9 @@ function main() {
     console.log(`  ⚠ ${d.route}  ${d.kind}  ${d.label}`);
 }
 
-main();
+/*
+ * Only walk the whole product when somebody asked for the inventory. Other
+ * scripts import `routes()` from here, and an import that prints 125 pages and
+ * sets an exit code is an import that breaks the thing importing it.
+ */
+if (process.argv[1]?.endsWith("inventory.ts")) main();

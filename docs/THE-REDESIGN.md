@@ -59,22 +59,61 @@ yesterday.
 An edge case is not found by walking. It is found by writing down a state
 machine and asking which arrows are missing.
 
-For every entity that has a lifecycle, write its states and legal transitions,
-then assert three properties:
+**Done.** `lib/lifecycle/machines.ts` holds eleven machines, 48 states and 51
+transitions, each anchored to its schema constant so the declaration cannot go
+stale without `verify:machines` saying so. `npm run lifecycles -- --write`
+renders them into `docs/LIFECYCLES.md`, which ends with the two tables the desk
+works from: every way a person is stopped, and every promise we have made. The
+gate asserts fifteen things; the five that matter:
 
 | Property | The defect it catches |
 | --- | --- |
-| Every state has a screen that names it | "Pending" with no explanation |
-| Every transition has a trigger, human or timed | A state nothing can leave |
-| Every terminal state that is not success has a way out | A rejection that dead ends |
+| The declared states ARE the schema's, both directions | A screen built for a status the database cannot hold |
+| A state's kind matches its arrows | A stuck state hiding behind the word "success" |
+| Every stopped person has a way out | A rejection that ends the story |
+| A path a state names is a real route | A machine that still points at a page the admin rewrite renamed |
+| A block only WE can lift says how long | A person waiting on a desk with no stated limit |
 
-The entities: session, invoice, payment, payout, verification, enrolment,
-subscription, clinic membership, sponsor pot, radar presence.
+#### What it found on the first run
 
-🔴 **That third property is the entire "never stuck" problem**, and the state
-machine is where the edge cases come from. This is task #163 generalised.
-Doing it per entity is the difference between guessing at edge cases and
-deriving them.
+Eleven states failed the kind check, and the finding was not eleven typos. The
+vocabulary had two words, `success` and `dead-end`, and they were answering two
+different questions at once: can the row still move, and is the person stopped.
+
+Those are independent, and the pair with no name was the one that matters.
+There are now five kinds, and `blocked` is the register: **the person is
+stopped and the row can still move**. Whether they are stuck or merely delayed
+is decided by who owns the arrow out.
+
+That distinction found the real defect. `sponsor:suspended` is the only state
+in the product where a person is stopped, the only way out is staff restoring
+them, and nothing said how long that takes. It had read as fine for as long as
+it sat next to `closed` under one word. It now carries a one working day
+promise, which is a commitment the desk has to meet rather than a description
+of what happens today.
+
+#### And the second finding, which is #166's brief
+
+Sixteen states carry a promise. Two of them are not promises:
+
+| Lifecycle | State | What it says |
+| --- | --- | --- |
+| grant | `pending` | until the employer answers |
+| sponsor | `held` | until we have called them |
+
+Neither names a span, so nothing can age past it and there is nothing for an
+alarm to fire on. A patient waiting on their employer's approval and a company
+waiting on our sales call are both in a state with no stated end, which is the
+precise shape of the message we do not want to receive. `docs/LIFECYCLES.md`
+marks them in its own promise table, computed rather than listed, so they stay
+visible while #166 is built rather than being discovered by the first person
+who waits a fortnight.
+
+🔴 **The way-out property is the entire "never stuck" problem**, and this is
+where the edge cases come from. Task #163 is now a list to fill, not a list to
+invent. Twelve declared ways to be stopped: seven where the row is over and the
+exit is a fresh one, five where the row can still move. Of those five, three
+the person can take themselves, one waits on a clock, and one waits only on us.
 
 ### So the order is
 
@@ -308,7 +347,8 @@ being named in the commit that drops it.
 | `verify:sprint54` (39 checks) | Renders `ClinicChrome` off route and sweeps for clinical words. A therapist portal with clinic tabs would need this sweep applied to `(app)` too | Widen the sweep before the merge, not after |
 | `verify:sprint65` 65.12 | Asserts the wall is in the chrome of both admin portals | A tabbed consolidation must keep the wall in the shell |
 | `verify:palette` | File level teal allow list, by path | Update the list when files move |
-| `admin:inventory` | Nothing, it derives | Re-run it after every move; the diff is the review |
+| `verify:machines` | Every `screen` naming a renamed route fails on the same run as the rename | That is the point; fix the machine in the commit that moves the page |
+| `npm run inventory` | Nothing, it derives | Re-run it after every move; the diff is the review |
 
 ### The three that are not test problems
 
@@ -331,9 +371,11 @@ when a patient disputes a version.
 
 ## 4. Order of execution
 
-**Phase 0, know what is there.** Extend `admin:inventory` to all five portals.
-Write the state machines for the ten entities. Nothing else starts first,
-because everything below takes its list of paths from Phase 0.
+**Phase 0, know what is there.** DONE. `npm run inventory` walks all seven
+portals: 125 pages, 570 controls, none dead. `verify:machines` holds eleven
+lifecycles, 48 states, 51 transitions, anchored to the schema and to the route
+list, rendered for reading by `npm run lifecycles`. Everything below takes its
+list of paths and its list of states from these two.
 
 **Phase 1, the never stuck spine.** #163 stuck register, #164 dead ends,
 #165 `/admin/stuck`, #166 the clock, #167 staff unblock. This is what makes
