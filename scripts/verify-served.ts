@@ -240,6 +240,8 @@ async function main() {
   console.log(`serving at ${url}\n`);
 
   let failures = 0;
+  /* Everything the child verifiers said, so a failure can be correlated below. */
+  let report = "";
   try {
     for (const name of NEEDS_A_SERVER) {
       const run = spawnSync("npm", ["run", "--silent", name], {
@@ -252,6 +254,7 @@ async function main() {
         stdio: ["ignore", "pipe", "pipe"],
       });
       const out = `${run.stdout ?? ""}${run.stderr ?? ""}`;
+      report += out;
       process.stdout.write(out);
 
       /*
@@ -275,9 +278,52 @@ async function main() {
      * nothing at all is itself the answer, because it means the request never
      * reached the product.
      */
+    /*
+     * 🔴 AND FOR EACH PATH THE BROWSER GOT NOTHING FROM, ASK THE SERVER.
+     *
+     * "no response, twice" is a symptom with two very different causes, and
+     * this repository has been bitten by mistaking each for the other. If the
+     * server never logged the request, the product never saw it and the
+     * failure is real. If the server logged a 200, the page is fine and the
+     * browser gave up waiting, which is the harness.
+     *
+     * 🔴 IT STILL FAILS EITHER WAY. Turning the second case green would be the
+     * red line explained away, which is how `/pricing` stayed a 500 for seven
+     * sprints. Turning it into "the billing page is broken" is how people
+     * learn to stop reading the pass. So the gate stays red and SAYS WHICH,
+     * with the server's own number beside it.
+     *
+     * What it said on the run that produced this: `GET /favicon.ico 200 in
+     * 11170ms` and `GET /patient/account 200 in 33349ms`. A static file taking
+     * eleven seconds is not a product defect, it is a machine with `next dev`
+     * and a browser on it, and which page crosses the navigation timeout is
+     * luck. That is worth printing rather than re-deducing every time.
+     */
     if (failures > 0 && child) {
-      const tail = readFileSync(SERVER_LOG, "utf8").trimEnd().split("\n").slice(-20);
-      console.error(`\n🔴 the last ${String(tail.length)} lines the server wrote, from ${SERVER_LOG}:`);
+      const log = readFileSync(SERVER_LOG, "utf8");
+      const stuck = [
+        ...new Set(
+          [...report.matchAll(/FAIL\s+\S+ \S+ \S+ (\/\S*) answers, HTTP no response/g)].map(
+            (m) => m[1]!,
+          ),
+        ),
+      ];
+
+      if (stuck.length > 0) {
+        console.error(`\n🔴 what the server did with the ${String(stuck.length)} path(s) the browser got nothing from:`);
+        for (const path of stuck) {
+          const seen = [...log.matchAll(new RegExp(`GET ${path.replace(/[/]/g, "\\/")} (\\d+) in (\\d+)ms`, "g"))];
+          const last = seen.at(-1);
+          console.error(
+            last
+              ? `   ${path}  the server answered ${last[1]!} in ${last[2]!}ms, ${String(seen.length)} time(s). The page is fine and the browser gave up: this is the harness.`
+              : `   ${path}  the server never logged the request, so the product never saw it. This one is real.`,
+          );
+        }
+      }
+
+      const tail = log.trimEnd().split("\n").slice(-12);
+      console.error(`\n🔴 the last ${String(tail.length)} lines of ${SERVER_LOG}:`);
       for (const line of tail) console.error(`   ${line}`);
     }
   } finally {
