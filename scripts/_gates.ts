@@ -51,6 +51,25 @@ export const GATES = [
     script: "verify:boundary",
     why: "and nothing hands a function across the client boundary",
   },
+  /*
+   * 🔴 THE ONE PLACE THE COMPILER GIVES NO COVER.
+   *
+   * `failedAttemptsFor` asked `enrolment_attestations` for `consumed_at`. The
+   * table has `answered_at` and never had the other. So `/sponsor/integrations`
+   * threw on every render and was a hard 500 for every company admin, from the
+   * day it shipped, on the second most important surface in the product.
+   *
+   * Twenty-eight gates passed over it, and so did `tsc`, because the name was
+   * inside a `sql` template literal and Drizzle cannot type the inside of a
+   * template string. Every other column reference in this codebase is checked
+   * by the compiler. These are the only ones that are not, which makes them
+   * the only ones worth a gate of their own.
+   */
+  {
+    name: "raw sql",
+    script: "verify:raw-sql",
+    why: "and every column named in raw SQL is really on the table",
+  },
   {
     name: "renders",
     script: "smoke",

@@ -172,6 +172,7 @@
     "verify:finance": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-finance.ts",
     "verify:plan": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-plan.ts",
     "verify:rail": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rail.ts",
+    "verify:raw-sql": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-raw-sql.ts",
     "verify:cycle": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-cycle.ts",
     "verify:served": "node --env-file-if-exists=.env.local --import tsx scripts/verify-served.ts",
     "verify:caseload": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-caseload.ts",

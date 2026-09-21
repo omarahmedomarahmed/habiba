@@ -308,12 +308,29 @@ export async function failedAttemptsFor(
   sponsorId: string,
   days = 7,
 ): Promise<number> {
+  /*
+   * 🔴 `answered_at`, NOT `consumed_at`. THIS PAGE RETURNED A 500 TO EVERY
+   * COMPANY ADMIN, ALWAYS.
+   *
+   * `enrolment_attestations` has `answered_at` — see the table, which calls it
+   * that and says "stamped on use". There has never been a `consumed_at` on
+   * it. So this query threw `column "consumed_at" does not exist` on every
+   * render, and `/sponsor/integrations` was a hard 500 for everybody, from the
+   * day it shipped. Confirmed by opening it as the company admin: "Something
+   * went wrong. The page could not be displayed."
+   *
+   * 🔴 WHY EVERY GATE MISSED IT. It is raw SQL inside a template literal.
+   * Drizzle cannot type-check the inside of one, so `tsc` is happy, the
+   * schema check is happy, and 28 gates pass over a page that cannot load.
+   * Column names in raw SQL are the one place in this repo where the compiler
+   * gives no cover at all, and this is what that costs.
+   */
   const rows = await controlDb.execute(sql`
     SELECT count(*)::int AS n
       FROM enrolment_attestations
      WHERE sponsor_id = ${sponsorId}
        AND created_at > now() - (${days} || ' days')::interval
-       AND consumed_at IS NULL`);
+       AND answered_at IS NULL`);
 
   return Number((rows.rows[0] as { n: number } | undefined)?.n ?? 0);
 }

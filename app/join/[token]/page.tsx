@@ -129,14 +129,31 @@ export default async function JoinPage({
         modality={session.modality}
         priceCents={session.priceCents}
         paymentStatus={session.paymentStatus}
-        // Skip the form only for someone who has already been through it —
-        // arriving back from Stripe, or straight off the radar. Anyone opening
-        // a bare link still types their name, and a priced session that has not
-        // settled still gets the paywall.
+        /*
+         * 🔴 A DROPPED CONNECTION IS NOT A NEW ARRIVAL.
+         *
+         * This used to also require `checkout` or `booked=1` in the query
+         * string, so it resumed only for somebody coming back from Stripe or
+         * straight off the radar. Every other way of arriving at this URL a
+         * second time — a reload, a dropped connection, a phone waking up, a
+         * tab restored — was treated as a stranger and sent back to "tell us
+         * what to call you", after they had already given their name, already
+         * answered the recording question, and already been in the room.
+         *
+         * Walked on production: a patient in the room, reloaded, and got the
+         * first form back. Every time.
+         *
+         * The query string was never what made resuming safe. The token is:
+         * it is the credential, it names exactly one session, and
+         * `resumeAfterPayment` re-reads the stored name from that session
+         * rather than trusting anything the browser sends. Somebody opening a
+         * bare link for the FIRST time still types their name, because there
+         * is no `guestName` on the row yet — which is the real condition, and
+         * is the one kept here.
+         */
         resumeAfterPayment={
           Boolean(session.guestName) &&
-          (session.priceCents === 0 || session.paymentStatus === "paid") &&
-          (Boolean(checkout) || booked === "1")
+          (session.priceCents === 0 || session.paymentStatus === "paid")
         }
         cancelled={checkout === "cancelled"}
       />
