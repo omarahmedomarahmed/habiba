@@ -30,12 +30,15 @@
  * production included, which is the database whose routing most needs asking.
  */
 import { spawn } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdirSync, openSync, readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 /** A port nothing else in this repository uses. */
 const PORT = Number(process.env.SERVED_PORT ?? 3199);
 const BASE = `http://localhost:${PORT}`;
+
+/** Where the server's own narration goes. `.render` is gitignored. */
+const SERVER_LOG = ".render/served.log";
 
 /** Verifiers whose checks are deferred without one. */
 const NEEDS_A_SERVER = ["verify:sprint31", "verify:contrast"];
@@ -76,8 +79,24 @@ async function main() {
 
   if (!existing) {
     console.log(`starting the product on ${PORT}…`);
+    /*
+     * 🔴 KEEP WHAT THE SERVER SAYS, because `stdio: "ignore"` threw away the
+     * only thing that could explain a failure.
+     *
+     * When the crawler reports a page as "no response", the question is always
+     * whether the page threw, the compile threw, or nothing happened at all,
+     * and the server's own output answers it in one line. Discarded, the only
+     * way to find out is to boot a second server by hand and try to reproduce,
+     * which is three rounds of guessing at something the process already knew.
+     *
+     * It goes to a file rather than to this pass's output, because a dev
+     * server narrates every compile and nobody wants that inline. The tail is
+     * printed only when something fails.
+     */
+    mkdirSync(".render", { recursive: true });
+    const log = openSync(SERVER_LOG, "w");
     child = spawn("npx", ["next", "dev", "-p", String(PORT)], {
-      stdio: "ignore",
+      stdio: ["ignore", log, log],
       /*
        * 🔴 76.61 / C365 AGAIN, IN THE FILE THAT DID NOT GET THE FIX.
        *
@@ -175,18 +194,46 @@ async function main() {
      * Each path is fetched once with a long timeout and the result is thrown
      * away. The verifier then asks its real questions of a warm server.
      */
+    /*
+     * 🔴 AND THE LIST WAS FOUR PATHS, WRITTEN BEFORE A GATE THAT WALKS 125.
+     *
+     * Everything above is right and was applied to `verify:sprint31`, which
+     * asks about four pages. `verify:contrast` then joined and walks every
+     * destination of all five portals, and not one of those was warmed. So the
+     * exact defect this comment describes came back in the new gate's shape:
+     * `/billing` reported as a 500 on one pass, twelve other pages on the
+     * next, and a signed-in browser getting 200 from all of them.
+     *
+     * A hand typed list of routes is wrong the week after it is written, which
+     * is the same sentence `scripts/inventory.ts` opens with. So the routes
+     * come from there. Adding a page warms it; deleting one stops warming it;
+     * nobody has to remember either.
+     *
+     * The four originals stay because two of them are not pages this walks: an
+     * `/ar/` prefixed route and a sitemap.
+     */
+    const { routes } = await import("./inventory");
     const WARM = [
-      "/pricing",
-      "/ar/pricing",
-      "/patient/journal",
-      "/sitemap.xml",
+      ...new Set([
+        "/pricing",
+        "/ar/pricing",
+        "/patient/journal",
+        "/sitemap.xml",
+        ...routes().filter((path) => !path.includes("[")),
+      ]),
     ];
-    console.log(`warming ${WARM.length} routes…`);
+    console.log(`warming ${String(WARM.length)} routes…`);
+    let warmed = 0;
     for (const path of WARM) {
       await fetch(`${BASE}${path}`, {
         signal: AbortSignal.timeout(120_000),
-      }).catch(() => undefined);
+      })
+        .then(() => {
+          warmed += 1;
+        })
+        .catch(() => undefined);
     }
+    console.log(`  ${String(warmed)} of ${String(WARM.length)} answered`);
   }
 
   const url = existing ?? BASE;
@@ -218,6 +265,20 @@ async function main() {
         console.error(`\n🔴 ${name} still deferred with a server at ${url}.`);
         failures += 1;
       }
+    }
+    /*
+     * 🔴 AND WHEN SOMETHING FAILED, SAY WHAT THE SERVER WAS DOING.
+     *
+     * A crawler line reading "no response, twice" is a symptom. The server's
+     * last words are the cause: a thrown render names its stack, a compile
+     * that never finished names the route it was on, and a server that said
+     * nothing at all is itself the answer, because it means the request never
+     * reached the product.
+     */
+    if (failures > 0 && child) {
+      const tail = readFileSync(SERVER_LOG, "utf8").trimEnd().split("\n").slice(-20);
+      console.error(`\n🔴 the last ${String(tail.length)} lines the server wrote, from ${SERVER_LOG}:`);
+      for (const line of tail) console.error(`   ${line}`);
     }
   } finally {
     stop(child, before);
