@@ -57,6 +57,9 @@ const { contentPages } = schema;
 
 const DRY = process.argv.includes("--dry");
 
+/** See the `--order` block below. Reordering is a visible edit, so it is asked for. */
+const ORDER = process.argv.includes("--order");
+
 /**
  * 🔴 `--drop=hero,showcase` — the block types to REMOVE. Task 137.
  *
@@ -122,13 +125,16 @@ function insertionIndex(row: ContentBlock[], shipped: ContentBlock[], type: stri
 async function main() {
   if (!slug || (types.length === 0 && dropped.length === 0)) {
     console.error(
-      "Usage: npm run content:sync -- <slug> <blockType> [blockType...] [--drop=a,b] [--dry]\n" +
+      "Usage: npm run content:sync -- <slug> <blockType> [blockType...] [--drop=a,b] [--order] [--dry]\n" +
         "\n" +
         "Replaces only the blocks of those types on every locale row of that page,\n" +
         "from that locale's own defaults, leaving every other block untouched.\n" +
         "\n" +
         "--drop names types to REMOVE, for a page whose shape changed. Everything\n" +
-        "not named, of either kind, must still come out byte-identical.",
+        "not named, of either kind, must still come out byte-identical.\n" +
+        "\n" +
+        "--order puts the row in the defaults' order, for a page whose sections\n" +
+        "have drifted out of it. Reordering moves no bytes, so say it out loud.",
     );
     process.exit(1);
   }
@@ -207,6 +213,66 @@ async function main() {
           ? insertionIndex(next, shipped.blocks, type)
           : Math.min(existingAt, next.length);
       next = [...next.slice(0, at), ...incoming, ...next.slice(at)];
+    }
+
+    /*
+     * 🔴 `--order` — PUT THE ROW IN THE DEFAULTS' ORDER. Task: for-patients.
+     *
+     * ## Why the tool needed this
+     *
+     * The placement above is incremental and local: each incoming block goes
+     * where the row already had one of its type, or after whichever block
+     * precedes it in the defaults and is also present. That is exactly right
+     * for adding a comparison table to a page somebody has been editing, and
+     * it cannot converge when the row's ORDER has drifted from the defaults,
+     * because every insertion is measured against neighbours that are
+     * themselves in the wrong place.
+     *
+     * Watched live on /for-patients. One run put the showcase between the two
+     * walkthroughs, splitting a pair of flows that answer the same question.
+     * Re-running with the walkthroughs named moved them back together and sent
+     * the showcase to the very end of the page, below "If you need help right
+     * now". Two runs, two wrong orders, neither reachable from the other.
+     *
+     * ## Positional, not alphabetical, and not by first occurrence
+     *
+     * The Nth block of a type in the row takes the position of the Nth block
+     * of that type in the defaults. Ranking by the type's FIRST index would
+     * group the two `features` blocks together and push the showcase after
+     * both, which is not the page anybody wrote. A type the defaults do not
+     * ship sorts to the end rather than to the front, so an authored block
+     * this tool does not know about is never promoted above the hero.
+     *
+     * Opt-in, because reordering a page is a visible edit that the control
+     * below only partly covers. `untouched()` filters and preserves order, so
+     * a reorder that changes the RELATIVE order of two blocks this run was not
+     * asked to touch is still refused, which is the case worth refusing. What
+     * it cannot see is a synced block moving past an untouched one: no bytes
+     * change, "untouched, unchanged" stays true, and the page reads top to
+     * bottom differently. So it is asked for by name and it says what it did.
+     */
+    if (ORDER) {
+      const slots = new Map<string, number[]>();
+      shipped.blocks.forEach((b, i) => {
+        slots.set(b.type, [...(slots.get(b.type) ?? []), i]);
+      });
+      const seen = new Map<string, number>();
+      const ranked = next.map((b, i) => {
+        const nth = seen.get(b.type) ?? 0;
+        seen.set(b.type, nth + 1);
+        const list = slots.get(b.type) ?? [];
+        return { b, rank: list[nth] ?? Number.MAX_SAFE_INTEGER, i };
+      });
+      // Tie-break on the original index so blocks the defaults do not ship
+      // keep their relative order instead of being shuffled by sort stability.
+      ranked.sort((x, y) => x.rank - y.rank || x.i - y.i);
+      const moved = ranked.some((r, i) => r.i !== i);
+      next = ranked.map((r) => r.b);
+      console.log(
+        moved
+          ? `${locale}: reordered to the defaults' order`
+          : `${locale}: already in the defaults' order`,
+      );
     }
 
     /*

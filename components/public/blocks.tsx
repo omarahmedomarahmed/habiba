@@ -597,14 +597,58 @@ function Showcase({
   demo: DemoContent;
   t: Translate;
 }) {
+  const head = (
+    <>
+      {block.heading ? (
+        <h2 className="max-w-2xl text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          {block.heading}
+        </h2>
+      ) : null}
+      {block.body ? (
+        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-600">{block.body}</p>
+      ) : null}
+    </>
+  );
+
+  /*
+   * 🔴 SCREENS BESIDE EACH OTHER, for the case where a reader is comparing two
+   * rather than being argued at about one.
+   *
+   * The band layout below gives every item a full-width row with its own
+   * paragraph opposite it, which is right for "here is the note, and here is
+   * why the note matters" and wrong for "here are two tabs of the same app".
+   * /for-patients had three bands of the SAME phone across two sections and
+   * 3,138px, on a page whose hero is that phone. Side by side, the caption
+   * goes under the screen it describes and the section is half as tall.
+   */
+  if (block.side) {
+    return (
+      <section className="px-4 py-14 sm:px-6 sm:py-20">
+        <div className="mx-auto max-w-6xl">
+          {head}
+          <div className="mt-10 grid gap-10 sm:grid-cols-2 sm:gap-8 lg:gap-12">
+            {block.items.map((item, i) => (
+              <figure key={i} className="m-0 min-w-0">
+                <DemoFor name={item.demo} demo={demo} t={t} />
+                <figcaption className="mt-5">
+                  <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "teal" : "brand"} />
+                  <h3 className="mt-3 text-lg font-bold tracking-tight text-slate-900">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{item.body}</p>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
-        {block.heading ? (
-          <h2 className="max-w-2xl text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {block.heading}
-          </h2>
-        ) : null}
+        {head}
 
         <div className="mt-10 space-y-14 sm:space-y-20">
           {block.items.map((item, i) => (

@@ -97,7 +97,8 @@ const RULES: Record<string, BlockRule> = {
   prose: { keys: ["heading", "body", "icon"] },
   features: { keys: ["heading"], items: { field: "items", keys: ["title", "body", "icon"] } },
   showcase: {
-    keys: ["heading"],
+    keys: ["heading", "body"],
+    flags: ["side"],
     items: { field: "items", keys: ["title", "body", "icon", "demo"] },
   },
   faq: { keys: ["heading"], items: { field: "items", keys: ["q", "a"] } },

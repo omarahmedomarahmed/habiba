@@ -470,15 +470,35 @@ export const DEFAULT_PAGES: DefaultPage[] = [
        * a sequence; this one is, so it is numbered, and the numbers are the information
        * the four paragraphs were spending words to establish.
        */
-      {
-        type: "flow",
-        heading: "How your record reaches a new therapist",
-        steps: [
-          { title: "You make a code", detail: "On its own it shows them nothing" },
-          { title: "They enter it", detail: "We ask you whether they may read your history" },
-          { title: "You decide", detail: "Nothing moves until you say yes, and one tap ends it" },
-        ],
-      },
+      /*
+       * 🔴 ELEVEN SECTIONS BECAME EIGHT, AND FOUR PHONES BECAME TWO.
+       *
+       * This page was 9,600px tall and showed the SAME patient app four
+       * separate times: once in the hero, once under "Finding somebody", and
+       * twice more as full-width bands in two sections called "The two screens
+       * that argument rests on" and "What it actually looks like". Those two
+       * sections alone were 3,138px, a third of the page, and a reader
+       * scrolling them met the same phone three screens apart with a different
+       * caption each time.
+       *
+       * The cause is that every screen of the app was getting its own section,
+       * which is what you do when a mockup is a picture. This one is not a
+       * picture: it has five tabs and they all work, so a reader who wants to
+       * see the journal can open the journal. So the page shows the app TWICE,
+       * side by side, says out loud that it is the real thing, and stops
+       * narrating it.
+       *
+       * What went, and where it went rather than being lost:
+       *
+       *   flow                  the consent walkthrough below walks the same
+       *                         three steps, and lets you press them
+       *   "The two screens"     both are tabs in the app beside this text
+       *   "Finding somebody"    a third copy of the hero's phone; its language
+       *                         and booking claims moved into the caption
+       *   "Or book an hour"     same
+       *   "The rest of it"      its four claims merged into "It moves with
+       *                         you", which is what they were all about
+       */
       {
         type: "features",
         heading: "It moves with you",
@@ -493,23 +513,58 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             body: "Every session, note and summary, emailed to you, never over WhatsApp.",
             icon: "fileText",
           },
+          {
+            title: "A psychiatrist and a therapist, on one record",
+            body: "Grant each separately, take either back on its own.",
+            icon: "users",
+          },
+          {
+            title: "You can be recorded, or not",
+            body: "Asked for, not assumed, and stoppable mid-session.",
+            icon: "mic",
+          },
+          {
+            title: "Claim it with your phone number",
+            body: "We ask two questions first: a number is not a person.",
+            icon: "shield",
+          },
+          {
+            title: "It is still there in three years",
+            body: "Nothing is deleted and nothing expires.",
+            icon: "clock",
+          },
         ],
       },
       {
         type: "showcase",
-        heading: "The two screens that argument rests on",
+        /*
+         * 🔴 `side`, which is the whole point of this section.
+         *
+         * Two screens beside each other, captions underneath. The band layout
+         * this used to have gave each screen a full-width row of its own, and
+         * is how one app became 3,138px of page.
+         */
+        side: true,
+        heading: "What it actually looks like",
+        body: "This is the app, not a picture of it. Every tab along the bottom works, so open the one you were going to ask about.",
         items: [
           {
-            title: "Your summary, with both therapists on it",
-            body: "The real screen. Version one is still there under its author's name, and nobody can delete a version, including us.",
-            icon: "fileText",
-            demo: "summary",
+            title: "Find somebody now",
+            body: "A live map of clinicians who are online this minute. Filter by language and talk in the one you think in rather than the one you translate into. Or book an hour instead: everyone has a calendar, and a reminder goes out before it.",
+            icon: "zap",
+            /*
+              `patient-app`, not `radar`: the CMS union does not carry a
+              `radar` name and `ComponentShowcase` maps both to the same thing,
+              `PatientApp` opened on its radar tab. The editable row uses the
+              name the schema allows.
+            */
+            demo: "patient-app",
           },
           {
-            title: "What you wrote, between sessions",
-            body: "A week is a long time to remember. Only a therapist you allowed can read it.",
-            icon: "heart",
-            demo: "journal",
+            title: "Your sessions, and the steps you agreed",
+            body: "The sessions you booked, the ones you found on the radar, and the note written to you after each. Plus what you agreed to try, written the way you agreed it. Nobody scores you.",
+            icon: "users",
+            demo: "patient-sessions",
           },
         ],
       },
@@ -539,90 +594,6 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
         ],
       },
-      /*
-       * 🔴 Task 155 — THE RADAR IS SHOWN, NOT DESCRIBED.
-       *
-       * "The Crisis Radar: a live map of clinicians who are online now" was a
-       * bordered box with an icon in it on the page that exists to explain the
-       * patient's half of the product. It is the signature screen and the one
-       * thing nothing else on the market has, and a reader could not see it.
-       *
-       * `demo: "radar"` is `PatientApp` opened on its radar tab: the real
-       * component, the real filters, and a booking a reader can actually run.
-       */
-      {
-        type: "showcase",
-        heading: "Finding somebody",
-        items: [
-          {
-            title: "The Crisis Radar",
-            body: "A live map of clinicians who are online now. Filter by language or by what you need help with. No bot, no queue, no callback.",
-            icon: "zap",
-            /*
-              `patient-app`, not `radar`: the CMS union does not carry a
-              `radar` name and `ComponentShowcase` maps both to the same thing,
-              `PatientApp` opened on its radar tab. The editable row uses the
-              name the schema allows.
-            */
-            demo: "patient-app",
-          },
-        ],
-      },
-      {
-        type: "features",
-        heading: "Or book an hour",
-        items: [
-          {
-            title: "When to use it",
-            body: "For when waiting until Tuesday is not the answer. Not an emergency service.",
-            icon: "clock",
-          },
-          {
-            title: "Booking an hour instead",
-            body: "Every clinician has a calendar, and a reminder goes out before the hour.",
-            icon: "clock",
-          },
-          /*
-           * 🔴 51.9 — the largest unsold group we have, and it needs no code.
-           *
-           * Somebody in Toronto or Dubai who would rather cry in Arabic than
-           * explain in English is not a feature request. The language filter
-           * has been on the radar since sprint 8 and no page has ever said who
-           * it is for. §7 calls this the biggest thing we built and never
-           * mention.
-           */
-          {
-            title: "A therapist who speaks your first language",
-            body: "Filter the radar by language, and talk in the one you think in rather than the one you translate into.",
-            icon: "users",
-          },
-        ],
-      },
-      {
-        type: "showcase",
-        heading: "What it actually looks like",
-        items: [
-          {
-            title: "Your sessions, in your own app",
-            body: "The sessions you booked, the ones you found on the radar, and the note written to you after each.",
-            icon: "users",
-            demo: "patient-sessions",
-          },
-          {
-            title: "The steps you agreed, not homework marked out of ten",
-            body: "What you agreed to try, written the way you agreed it. Nobody scores you.",
-            icon: "check",
-            demo: "homework",
-          },
-        ],
-      },
-      /*
-       * 🔴 65.20 / 65.11 — THE WALL, DRAWN THE WAY THE PRODUCT DRAWS IT.
-       *
-       * Six feature cards of prose, on the public site, describing the rule the patient
-       * app itself renders as two columns. A person who reads it here and then meets it
-       * inside the product had to learn it twice.
-       */
       {
         type: "seesWhat",
         heading: "What your therapist can and cannot see",
@@ -636,32 +607,6 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           "Another therapist's notes, unless you say so",
           "Anything at all before you say yes",
           "Your record after you end their access",
-        ],
-      },
-      {
-        type: "features",
-        heading: "The rest of it",
-        items: [
-          {
-            title: "You can be recorded, or not",
-            body: "Asked for, not assumed, and stoppable mid-session.",
-            icon: "mic",
-          },
-          {
-            title: "Claim it with your phone number",
-            body: "We ask two questions first: a number is not a person.",
-            icon: "shield",
-          },
-          {
-            title: "A psychiatrist and a therapist, on one record",
-            body: "Grant each separately, take either back on its own.",
-            icon: "users",
-          },
-          {
-            title: "It is still there in three years",
-            body: "Nothing is deleted and nothing expires.",
-            icon: "clock",
-          },
         ],
       },
       /*

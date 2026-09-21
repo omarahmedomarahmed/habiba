@@ -3151,6 +3151,21 @@ export type ContentBlock =
        */
       type: "showcase";
       heading?: string;
+      /** One line under the heading. Where "tap through it" belongs. */
+      body?: string;
+      /**
+       * 🔴 Two screens BESIDE each other rather than two full-width bands.
+       *
+       * The default lays each item out as its own alternating text-and-demo
+       * band, which is right for one screen that needs an argument next to it
+       * and wrong for two screens a reader is meant to COMPARE. On
+       * /for-patients it produced two 1,569px sections, each showing two
+       * phones a screen apart, on a page that already opens on the same phone.
+       *
+       * `side` puts the demos in one row with their captions underneath, so
+       * two screens read as two screens and the section is half as tall.
+       */
+      side?: boolean;
       items: { title: string; body: string; icon?: ContentIcon; demo?: ContentDemo }[];
     }
   | { type: "faq"; heading?: string; items: { q: string; a: string }[] }
