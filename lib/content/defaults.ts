@@ -241,156 +241,137 @@ export const DEFAULT_PAGES: DefaultPage[] = [
     navLabel: null,
     navOrder: null,
     blocks: [
-      {
-        // The fold IS the radar: a live world map, real clinicians on it, and a
-        // booking sheet that opens in place. Everything else on this page is
-        // below it.
-        type: "hero",
-        eyebrow: "Crisis Radar",
-        heading: "Find a therapist who is available now",
-        body: "Every dot is a verified clinician who has said they are free. Filter by language or by what you need help with, pick someone, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance. Nobody is on duty and nobody is promised to you: if the map is empty, it is empty.",
-        demo: "radar",
-      },
       /*
-       * 🔴 65.15 — FOUR HEROES, ONE PER PERSON WHO ARRIVES.
+       * 🔴 Task 137 — ONE HERO WITH A VARIABLE IN IT.
        *
-       * > *The homepage has two heroes and both are about the therapist. That is the
-       * > whole audience problem in one measurement.*
+       * ## What was here
        *
-       * A company, a patient and a clinic each arrive at this page with a different
-       * question, and until sprint 65 the page answered a therapist's twice. Each hero
-       * below is one line and the real component that audience would use, which is 65.14
-       * and 65.17 in the same block: the picture carries what the paragraph used to.
+       * Five `hero` blocks in a row, all navy: the radar, then one each for
+       * therapists, patients, companies and clinics. Two problems in the same
+       * shape. A reader had to scroll past three arguments that were not
+       * theirs to reach the one that was; and a page that spends its dark
+       * ground five times running has a dark ground that says nothing, so the
+       * two places it should carry weight, the fold and the closing call,
+       * carried none.
        *
-       * 🔴 AND EACH ONE LEADS TO ITS OWN PAGE (65.16), because a hero is a door rather
-       * than an argument, and an audience given a section instead of a page has been
-       * told they are a footnote to somebody else's product.
+       * ## The order of the four, which is not arbitrary
+       *
+       * Patients first, because the hardest job this page has is the person in
+       * distress, and the patient panel is the one that opens the radar.
+       * Therapists second, because they are who pays us. Then clinics and
+       * companies, who arrive having already decided to look.
+       *
+       * It is fixed rather than shuffled: a page that is different on every
+       * visit cannot be discussed by two people looking at it.
+       *
+       * ## The stem
+       *
+       * "24Therapy is the record layer" never changes. It is what tells the
+       * eye it is still inside the same sentence while the clause after it
+       * swaps, which is the whole difference between this and a carousel.
        */
       {
-        type: "hero",
-        eyebrow: "For therapists",
-        heading: "Finish your notes before you leave the room",
-        body: "Start a session on your phone. 24Therapy transcribes it live, then writes the SOAP note, the summary and the follow-up while you are still saying goodbye. You review, approve, and send.",
-        ctaLabel: "Start your first session free",
-        ctaHref: "/signup",
-        demo: "session-room",
-        backgroundImage: "/backgrounds/mesh.svg",
-      },
-      /*
-       * 🔴 76.81 — AND THE PATIENT GETS THE APP, not only the map.
-       *
-       * The fold above is the live radar, which is the right first thing: real
-       * clinicians, and an empty map when the map is empty. What it cannot show
-       * is the rest of the device — the sessions, the steps, the billing, the
-       * list of who can read you — or the booking sequence run end to end. This
-       * hero is that, and a reader can work it without an account because the
-       * product does not ask for one either.
-       */
-      {
-        type: "hero",
-        eyebrow: "For patients",
-        heading: "The whole app, and nothing to sign up for",
-        body: "Open the radar, pick somebody free, see the price with the tax on it, and go in. Then look around the rest of the app.",
-        ctaLabel: "How it works for patients",
-        ctaHref: "/for-patients",
-        demo: "patient-app",
-      },
-      {
-        type: "hero",
-        eyebrow: "For companies",
-        heading: "Cover therapy for your people, and never learn who went",
-        body: "You fund a pot and watch it spend. Attendance cannot be required through us.",
-        ctaLabel: "How it works for companies",
-        ctaHref: "/for-companies",
-        demo: "company",
-      },
-      {
-        type: "hero",
-        eyebrow: "For clinics",
-        heading: "Seats, colleagues and one set of books",
-        body: "A practice sees schedules and bills. It never sees a note.",
-        ctaLabel: "How it works for clinics",
-        ctaHref: "/for-clinics",
-        demo: "clinic",
-      },
-      {
-        type: "showcase",
-        heading: "What the product actually does",
-        items: [
+        type: "audiences",
+        stem: "24Therapy is the record layer",
+        ctaLabel: "Open the radar",
+        ctaHref: "/radar",
+        panels: [
           {
-            title: "The transcript writes itself",
-            body: "Captured in chunks as the session runs. On video each person has their own track, so who said what is known rather than guessed.",
-            icon: "mic",
-            demo: "transcript",
+            label: "Patients",
+            clause: "for the person who owns it",
+            body: "Every dot on the radar is a verified clinician who has said they are free right now. Pick one, say what to call you, and you are in a session. No account, no waiting list, no form about your insurance.",
+            href: "/for-patients",
+            hrefLabel: "How it works for patients",
+            demo: "patient-app",
           },
           {
-            title: "The note is ready when you stand up",
-            body: "A SOAP note, a summary and a follow-up, the moment a session ends. A draft with your name on it until you approve it.",
-            icon: "fileText",
-            demo: "note",
+            label: "Therapists",
+            clause: "that writes itself while you work",
+            body: "Start a session on your phone. It is transcribed live and the note is drafted by the time you stand up. You read it, change what is wrong, and sign it.",
+            href: "/for-therapists",
+            hrefLabel: "How it works for therapists",
+            demo: "session-room",
           },
           {
-            title: "Risk language is scanned for, in Arabic and English",
-            body: "Each segment is scanned for risk language as it arrives, and the alert is written down before anyone is notified. A prompt for your attention rather than a safety net: it misses things and raises false alarms.",
-            icon: "shield",
-            demo: "risk",
+            label: "Clinics",
+            clause: "your practice keeps its books on",
+            body: "A seat per clinician, prorated the day they join or leave, and one bill for the practice. A clinic sees schedules and money. It never sees a note.",
+            href: "/for-clinics",
+            hrefLabel: "How it works for clinics",
+            demo: "clinic",
           },
           {
-            title: "A quiet second opinion",
-            body: "Two short prompts at most, and only when there is something worth saying. Silence is the expected answer.",
-            icon: "brain",
-            demo: "copilot",
+            label: "Companies",
+            clause: "your people are covered by",
+            body: "Fund a pot and watch it spend. You see what you paid and what is left. You never learn who went, and attendance cannot be required through us.",
+            href: "/for-companies",
+            hrefLabel: "How it works for companies",
+            demo: "company",
           },
         ],
       },
+      /*
+       * 🔴 Task 137 — EIGHT SCREENS, TWO PER PERSON.
+       *
+       * The section that answers "what does this actually look like for
+       * somebody like me", four times, without making anybody read the other
+       * three. Every tile is a real component fed fixtures, which is the rule
+       * `components/public/audience-demos.tsx` has been keeping for two
+       * sprints: a marketing page that renders the product cannot show a
+       * product we do not have.
+       */
       {
-        type: "features",
-        heading: "Three taps from hello to a signed note",
+        type: "howItWorks",
+        heading: "How it works",
+        body: "Eight screens, two for each of the four people this is built for. Every one of them is the real thing, running on invented data. Press them.",
         items: [
           {
-            title: "Start",
-            body: "A first name and a tap. In person or video, no forms.",
-            icon: "zap",
+            audience: "Therapist",
+            title: "The room you work in",
+            body: "The transcript builds beside you as the session runs. Take it off the record for a minute and nothing in that minute is kept.",
+            demo: "transcript",
           },
           {
-            title: "Talk",
-            body: "The transcript builds beside you. Tap Off record whenever it should not.",
-            icon: "mic",
+            audience: "Therapist",
+            title: "The note, before you stand up",
+            body: "Written from what was actually said. A draft with your name on it, and it says draft on every screen until you sign it.",
+            demo: "note",
           },
           {
-            title: "Send",
-            body: "End the session and the note is waiting. Edit, approve, send.",
-            icon: "mail",
+            audience: "Patient",
+            title: "Somebody who is free now",
+            body: "The radar, filtered by language and by what you need help with. Three taps from opening it to being in a session.",
+            demo: "radar",
           },
           {
-            title: "Patients need no account",
-            body: "A link, a first name, and they are in. No password, no app.",
-            icon: "users",
+            audience: "Patient",
+            title: "Your sessions, your record",
+            body: "What was written to you after each session, and the list of exactly who is allowed to read your history.",
+            demo: "patient-sessions",
           },
           {
-            title: "PHI stays where it belongs",
-            body: "Every read of a chart is logged. No transcript text reaches application logs.",
-            icon: "lock",
+            audience: "Company",
+            title: "The pot, and what is left in it",
+            body: "What you funded, what has been spent, and how many people have used it. Never who they are and never when.",
+            demo: "company-pot",
           },
           {
-            title: "Built for a phone",
-            body: "Designed for a phone. Desktop is the enhancement.",
-            icon: "clock",
+            audience: "Company",
+            title: "What you will never see",
+            body: "A note, a session time, an attendance list. The portal has no screen that could show one, which is a fact about the queries rather than a promise.",
+            demo: "company-wall",
           },
-          /*
-           * 🔴 51.9 — the verified badge, which we check and never sell.
-           *
-           * Verification has been a real adapter-backed check since sprint 40:
-           * a licence number, confirmed against a register, by us. Every
-           * clinician who passes it gets a page at /t/:id they can put in an
-           * Instagram bio, and no page has ever told them that is worth
-           * something. It is the one thing here that helps a clinician
-           * off-platform, which is exactly why it earns trust on it.
-           */
           {
-            title: "A verified page you can show anywhere",
-            body: "We check your licence against the register. You get a page of your own that works as a link in a bio.",
-            icon: "shield",
+            audience: "Clinic",
+            title: "Seats and the people on them",
+            body: "Add a clinician and they are on the radar the same hour. Verification state on every row, and no caseload count on any of them.",
+            demo: "clinic-people",
+          },
+          {
+            audience: "Clinic",
+            title: "One set of books",
+            body: "One bill for the practice, not one per clinician, and earnings per clinician because you pay them.",
+            demo: "clinic",
           },
         ],
       },
@@ -401,6 +382,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
        * lists and keeps the prices, and the prices are still read from
        * `platform_settings` at request time. A homepage that quoted its own
        * figures is how C60 started.
+       */
+      /*
+       * 🔴 Task 137 — THE THERAPIST'S SHOWCASE AND FACT LIST MOVED OUT.
+       *
+       * A four-item showcase of the transcript, the note, the risk banner and
+       * the copilot, then seven facts about a clinician's day. Both were the
+       * therapist argument, made a second time, under a section that had just
+       * made it in two tiles. `/for-therapists` is where it belongs and where
+       * it now is, in six bands with more room than this page could give it.
+       *
+       * What is left on the homepage after "how it works" is what a reader of
+       * any of the four still needs: what it costs, who else there is, the
+       * crisis line, and the way in.
        */
       { type: "pricing", compact: true },
       /*

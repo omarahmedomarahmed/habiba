@@ -168,6 +168,47 @@
     animation: pulse-dot 1.6s ease-in-out infinite;
   }
 
+  /*
+   * 🔴 The hero's timer, made honest. Task 137.
+   *
+   * A carousel dot hides how long you have before the panel changes under you.
+   * A rule that fills over the dwell time shows it, so a reader can see they
+   * have four seconds left and decide whether to take control.
+   *
+   * `scaleX` rather than `width`, because width is laid out and scale is
+   * composited: a width animation on four rules repaints the whole label row
+   * sixty times a second for six seconds.
+   *
+   * The transform origin is set by the caller so the fill runs from the start
+   * edge in both directions, which in Arabic is the right.
+   */
+  @keyframes fill {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  .fill-rule {
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  [dir="rtl"] .fill-rule {
+    transform-origin: right;
+  }
+
+  .fill-rule[data-state="running"] {
+    animation: fill 6s linear forwards;
+  }
+
+  .fill-rule[data-state="done"] {
+    transform: scaleX(1);
+  }
+
   @keyframes fade-rise {
     from {
       opacity: 0;

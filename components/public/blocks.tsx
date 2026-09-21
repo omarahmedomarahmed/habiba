@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 
+import { AudienceRotator } from "@/components/public/audience-rotator";
 import { ComponentShowcase } from "@/components/demo/component-showcase";
+import { HowItWorks } from "@/components/public/how-it-works";
 import { ClaimFlowDemo, ConsentFlowDemo } from "@/components/demo/flow-demo";
 import { ClinicDemo, CompanyDemo, TherapistSplitDemo } from "@/components/public/audience-demos";
 import { FlowStrip, SeesWhat } from "@/components/visual/primitives";
@@ -25,7 +27,7 @@ import { PricingTiers } from "@/components/public/pricing-tiers";
 import { RadarHero } from "@/components/radar/radar-hero";
 import { Button } from "@/components/ui";
 import { safeImageUrl } from "@/lib/content/url";
-import type { ContentBlock } from "@/lib/db/schema";
+import type { ContentBlock, ContentDemo } from "@/lib/db/schema";
 
 /**
  * Renders CMS content.
@@ -119,10 +121,22 @@ function Block({
   switch (block.type) {
     case "hero":
       return <Hero block={block} first={first} t={t} demo={demo} />;
+    /*
+     * 🔴 Task 137 — the five stacked heroes, collapsed into one.
+     *
+     * The homepage carried a `hero` block for the radar and four more, one per
+     * audience, all on the navy ground. A reader scrolled past three arguments
+     * that were not theirs to reach the one that was, and the dark ground
+     * spent five times running had stopped meaning anything.
+     */
+    case "audiences":
+      return <Audiences block={block} demo={demo} t={t} />;
+    case "howItWorks":
+      return <HowItWorksBlock block={block} demo={demo} t={t} />;
     case "features":
       return <Features block={block} />;
     case "showcase":
-      return <Showcase block={block} demo={demo} />;
+      return <Showcase block={block} demo={demo} t={t} />;
     case "faq":
       return <Faq block={block} />;
     case "walkthrough":
@@ -178,6 +192,135 @@ function Block({
     default:
       return null;
   }
+}
+
+/**
+ * 🔴 THE FOUR PANELS ARE BUILT HERE, ON THE SERVER, and handed down as nodes.
+ *
+ * `AudienceRotator` is a client component and `verify:boundary` refuses a
+ * function crossing that line, so it cannot be given `t` and cannot pick its
+ * own demos. It is given four finished React trees and a string each. That
+ * also means the demos are the same `ComponentShowcase` every other page
+ * renders rather than a second way of choosing one.
+ */
+function Audiences({
+  block,
+  demo,
+  t,
+}: {
+  block: Extract<ContentBlock, { type: "audiences" }>;
+  demo: DemoContent;
+  t: Translate;
+}) {
+  return (
+    <AudienceRotator
+      eyebrow={t("nav.whichAreYou")}
+      stem={block.stem}
+      cta={
+        block.ctaLabel && block.ctaHref
+          ? { label: block.ctaLabel, href: block.ctaHref }
+          : undefined
+      }
+      panels={block.panels.map((panel) => ({
+        label: panel.label,
+        clause: panel.clause,
+        body: panel.body,
+        href: panel.href,
+        hrefLabel: panel.hrefLabel,
+        demo: <DemoFor name={panel.demo} demo={demo} t={t} />,
+      }))}
+    />
+  );
+}
+
+function HowItWorksBlock({
+  block,
+  demo,
+  t,
+}: {
+  block: Extract<ContentBlock, { type: "howItWorks" }>;
+  demo: DemoContent;
+  t: Translate;
+}) {
+  return (
+    <HowItWorks
+      heading={block.heading}
+      body={block.body}
+      items={block.items.map((item) => ({
+        audience: item.audience,
+        title: item.title,
+        body: item.body,
+        demo: <DemoFor name={item.demo} demo={demo} t={t} />,
+      }))}
+    />
+  );
+}
+
+/**
+ * 🔴 ONE PLACE THAT TURNS A DEMO NAME INTO A COMPONENT. Task 137.
+ *
+ * Before this the names were split across two renderers. `ComponentShowcase`
+ * knew the clinical and patient ones; `session-room`, `company`, `clinic` and
+ * `fee-split` were handled by hand inside `Hero` and existed nowhere else. So
+ * half the product was renderable on one block type and invisible to every
+ * other: a `showcase` could not show the session room, and a `howItWorks` tile
+ * could not show a clinic console.
+ *
+ * One function, every name, used by `hero`, `showcase`, `audiences` and
+ * `howItWorks` alike. Adding the next demo is one entry in `CONTENT_DEMOS` and
+ * one case here, rather than a decision about which blocks may see it.
+ *
+ * `radar` is deliberately NOT here: the live map is a whole fold with its own
+ * section and its own strings, not a panel that slots into a column. `Hero`
+ * still branches on it before reaching this, and `ComponentShowcase` maps the
+ * name to the patient app's radar tab for everywhere else.
+ */
+function DemoFor({
+  name,
+  demo,
+  t,
+}: {
+  name: ContentDemo | undefined;
+  demo: DemoContent;
+  t: Translate;
+}) {
+  if (!name || name === "none") return null;
+
+  if (name === "session-room") {
+    /*
+     * 🔴 76.32 — strings, not `t` itself. `SessionDemo` is a client component
+     * and `verify:boundary` refuses a function crossing that line. The content
+     * comes from `lib/content/demo.ts` and the chrome from the dictionary, so
+     * an Arabic reader does not get an Arabic frame around an English
+     * conversation producing an English note.
+     */
+    return (
+      <SessionDemo
+        content={demo}
+        labels={{
+          inProgress: t("hdemo.inProgress"),
+          ended: t("hdemo.ended"),
+          meta: t("hdemo.meta"),
+          play: t("hdemo.play"),
+          pause: t("hdemo.pause"),
+          replay: t("hdemo.replay"),
+          recording: t("hdemo.recording"),
+          endSession: t("hdemo.endSession"),
+          waiting: t("hdemo.waiting"),
+          generated: t("hdemo.generated"),
+          disclaimer: t("hdemo.disclaimer"),
+          patientLabel: t("hdemo.patientLabel"),
+        }}
+      />
+    );
+  }
+  if (name === "company") return <CompanyDemo />;
+  if (name === "company-pot") return <CompanyDemo initial="pot" />;
+  if (name === "company-wall") return <CompanyDemo initial="people" />;
+  if (name === "clinic") return <ClinicDemo />;
+  if (name === "clinic-people") return <ClinicDemo initial="people" />;
+  if (name === "fee-split") return <TherapistSplitDemo />;
+  return <ComponentShowcase demo={name} content={demo} />;
 }
 
 function Hero({
@@ -448,9 +591,11 @@ function Features({
 function Showcase({
   block,
   demo,
+  t,
 }: {
   block: Extract<ContentBlock, { type: "showcase" }>;
   demo: DemoContent;
+  t: Translate;
 }) {
   return (
     <section className="px-4 py-14 sm:px-6 sm:py-20">
@@ -481,7 +626,7 @@ function Showcase({
               </div>
 
               <div className={i % 2 === 1 ? "lg:order-1" : undefined}>
-                <ComponentShowcase demo={item.demo} content={demo} />
+                <DemoFor name={item.demo} demo={demo} t={t} />
               </div>
             </div>
           ))}

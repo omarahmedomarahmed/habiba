@@ -48,10 +48,10 @@ const money = (cents: number) =>
  * The real `SpendHeatmap` and the real `Meter` are still inside it, so 65.17
  * holds: this cannot outlive the feature it is about.
  */
-export function CompanyDemo() {
+export function CompanyDemo({ initial }: { initial?: string } = {}) {
   return (
     <DeviceFrame as="browser" path="/sponsor" bodyClassName="h-[26rem]">
-      <CompanyConsole />
+      <CompanyConsole initial={initial} />
     </DeviceFrame>
   );
 }
@@ -63,10 +63,10 @@ export function CompanyDemo() {
  * appointments, the clinicians and where each one's verification has got to,
  * earnings with no withdraw button beside them, and one bill for the period.
  */
-export function ClinicDemo() {
+export function ClinicDemo({ initial }: { initial?: string } = {}) {
   return (
     <DeviceFrame as="browser" path="/clinic" bodyClassName="h-[26rem]">
-      <ClinicConsole />
+      <ClinicConsole initial={initial} />
     </DeviceFrame>
   );
 }

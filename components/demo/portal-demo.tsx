@@ -255,9 +255,20 @@ const CLINIC_TABS: { key: string; label: MessageKey; icon: typeof Users }[] = [
   { key: "bills", label: "clinic.nav.bills", icon: Receipt },
 ];
 
-export function ClinicConsole() {
+/**
+ * 🔴 Task 137 — THE CONSOLE OPENS ON THE TAB THE CALLER IS TALKING ABOUT.
+ *
+ * The homepage shows two company tiles and two clinic tiles, and until this
+ * they rendered the identical console twice: two different claims above two
+ * identical pictures, which reads as a page that ran out of screenshots.
+ *
+ * `initial` is a starting tab, not a locked one. Every tab in the console is
+ * still pressable, because the argument these consoles make is "this is the
+ * real thing, look around it" and a frozen screenshot cannot make it.
+ */
+export function ClinicConsole({ initial = "week" }: { initial?: string }) {
   const t = useT();
-  const [tab, setTab] = useState("week");
+  const [tab, setTab] = useState(initial);
 
   return (
     <Shell
@@ -506,9 +517,9 @@ const COMPANY_TABS: { key: string; label: MessageKey; icon: typeof Users }[] = [
   { key: "settings", label: "sponsor.nav.settings", icon: Settings2 },
 ];
 
-export function CompanyConsole() {
+export function CompanyConsole({ initial = "overview" }: { initial?: string }) {
   const t = useT();
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState(initial);
 
   return (
     <Shell

@@ -2999,6 +2999,42 @@ export const CONTENT_DEMOS = [
    * claims to a patient and the one a still frame cannot make.
    */
   "patient-app",
+  /*
+   * 🔴 Task 137 — THE FOUR THE HERO KEPT TO ITSELF.
+   *
+   * These four existed, and were reachable only from a `hero` block, because
+   * `hero` carried its own inline union of demo names while every other block
+   * used `ContentDemo`. So a `showcase` could never show the session room and
+   * a `howItWorks` tile could never show a clinic console: half the product
+   * was renderable on one block type and invisible to the rest.
+   *
+   * One list now, and `hero` reads it like everything else. `blocks.tsx` has a
+   * single `DemoFor` that renders any name in it, so adding the next demo is
+   * one entry here and one case there rather than a decision about which
+   * blocks are allowed to see it.
+   */
+  "session-room",
+  /*
+   * The live map itself, as against `patient-app`, which is the whole device
+   * opened on its radar tab. `ComponentShowcase` maps both to the same
+   * component; the two names exist because a hero wanting the map and a tile
+   * wanting the app are asking for different things.
+   */
+  "radar",
+  "company",
+  /*
+   * 🔴 The same console, opened where the claim is. Task 137.
+   *
+   * The homepage carries two company tiles and two clinic tiles. With one name
+   * each they rendered the identical screen twice: two different claims above
+   * two identical pictures, which reads as a page that ran out of screenshots.
+   * Every tab stays pressable; only the starting one differs.
+   */
+  "company-pot",
+  "company-wall",
+  "clinic",
+  "clinic-people",
+  "fee-split",
   "none",
 ] as const;
 export type ContentDemo = (typeof CONTENT_DEMOS)[number];
@@ -3026,18 +3062,80 @@ export type ContentBlock =
        * the app itself as well: five tabs, a live bottom bar, and the booking
        * sequence run all the way through with no account asked for.
        */
-      demo?:
-        | "session-room"
-        | "radar"
-        | "patient-app"
-        | "note"
-        | "none"
-        | "company"
-        | "clinic"
-        | "fee-split";
+      /* 🔴 Task 137 — the same list every other block uses. See CONTENT_DEMOS. */
+      demo?: ContentDemo;
       icon?: ContentIcon;
       /** Absolute https:// image URL, or empty for the default gradient. */
       backgroundImage?: string;
+    }
+  /**
+   * 🔴 Task 137 — ONE HERO WITH A VARIABLE IN IT, not five stacked heroes.
+   *
+   * ## What it replaces
+   *
+   * Five `hero` blocks in a row, all on the navy ground: the radar, then one
+   * each for therapists, patients, companies and clinics. Two problems in one
+   * shape. A reader had to scroll past three arguments that were not theirs to
+   * reach the one that was; and spending the dark ground five times running
+   * means the dark ground has stopped saying anything, so the two places it
+   * should carry weight, the fold and the closing call, carry none.
+   *
+   * ## Why it is not a carousel
+   *
+   * A carousel swaps the whole frame, so the reader's eye is reset every few
+   * seconds and they learn to wait or to leave. Here the band, the mark, the
+   * index mark, the first clause of the headline, the buttons, the device
+   * frame and its chrome all stay fixed: roughly seventy per cent of the hero
+   * never moves. What moves is one clause of the headline, one line of lede,
+   * and what is inside the frame.
+   *
+   * The test: cover the swapping clause and the frame's contents. If what is
+   * left is still a complete hero, it is not a slideshow.
+   *
+   * `stem` is the constant first clause, which is what tells the eye it is
+   * still inside the same sentence. Every panel supplies only the rest.
+   */
+  | {
+      type: "audiences";
+      /** The half of the headline that never changes. */
+      stem: string;
+      /** The primary action, constant across all four panels. */
+      ctaLabel?: string;
+      ctaHref?: string;
+      panels: {
+        /** The tab label: one word, the audience's own name for themselves. */
+        label: string;
+        /** The clause that completes `stem`. */
+        clause: string;
+        body?: string;
+        /** Where "how it works" goes for this audience. */
+        href?: string;
+        hrefLabel?: string;
+        demo?: ContentDemo;
+      }[];
+    }
+  /**
+   * 🔴 Task 137 — EIGHT SCREENS, TWO PER PERSON.
+   *
+   * The homepage's job after the fold is to answer "what does this look like
+   * for someone like me", four times, without making anybody read the other
+   * three. Two real screens each, laid out two per row, every one of them the
+   * component the product renders rather than a picture of it.
+   *
+   * The audience name is a mono eyebrow on the tile rather than a coloured
+   * chip, because four colours of chip is a legend the reader has to learn.
+   */
+  | {
+      type: "howItWorks";
+      heading?: string;
+      body?: string;
+      items: {
+        /** Therapist, Patient, Company or Clinic. */
+        audience: string;
+        title: string;
+        body?: string;
+        demo?: ContentDemo;
+      }[];
     }
   | { type: "prose"; heading?: string; body: string; icon?: ContentIcon }
   | {

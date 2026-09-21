@@ -83,6 +83,17 @@ const RULES: Record<string, BlockRule> = {
   hero: {
     keys: ["eyebrow", "heading", "body", "ctaLabel", "ctaHref", "demo", "icon", "backgroundImage"],
   },
+  audiences: {
+    keys: ["stem", "ctaLabel", "ctaHref"],
+    items: {
+      field: "panels",
+      keys: ["label", "clause", "body", "href", "hrefLabel", "demo"],
+    },
+  },
+  howItWorks: {
+    keys: ["heading", "body"],
+    items: { field: "items", keys: ["audience", "title", "body", "demo"] },
+  },
   prose: { keys: ["heading", "body", "icon"] },
   features: { keys: ["heading"], items: { field: "items", keys: ["title", "body", "icon"] } },
   showcase: {
