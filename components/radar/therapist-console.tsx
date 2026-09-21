@@ -74,7 +74,20 @@ export function TherapistConsole(props: ConsoleProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const online = status !== "offline";
+  /*
+   * 🔴 ANYTHING WE DO NOT RECOGNISE IS OFF, NOT ON.
+   *
+   * This was `status !== "offline"`, which makes every value in the world
+   * except one mean "you are visible to strangers in crisis". Two clinicians
+   * on production sat at `available` — a string no part of this product
+   * understands, written straight into a plain `text` column — and this line
+   * told both of them "You are visible to the world" while the board query,
+   * which lists the three real statuses explicitly, could not see them at all.
+   *
+   * Presence is a claim we make to somebody in crisis on a clinician's behalf.
+   * A claim like that fails closed.
+   */
+  const online = status === "online" || status === "pending" || status === "in_session";
 
   const sound = useSyncExternalStore(subscribeAlarm, alarmSnapshot, alarmServerSnapshot);
   const [asking, setAsking] = useState(false);
@@ -173,13 +186,19 @@ export function TherapistConsole(props: ConsoleProps) {
             )}
           >
             <Radio className={cn("h-3 w-3", online && "live-dot")} aria-hidden />
-            {status === "offline"
-              ? t("trad.off")
-              : status === "online"
-                ? t("trad.on")
-                : status === "pending"
-                  ? t("trad.pending")
-                  : t("trad.inSession")}
+            {/*
+              The fall-through used to end at `t("trad.inSession")`, so an
+              unrecognised status read "In a session" — the most alarming
+              label available — to a clinician who was in nothing at all.
+              Name the three, and let anything else say what it really is.
+            */}
+            {status === "online"
+              ? t("trad.on")
+              : status === "pending"
+                ? t("trad.pending")
+                : status === "in_session"
+                  ? t("trad.inSession")
+                  : t("trad.off")}
           </span>
 
           <p className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">

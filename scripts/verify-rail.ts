@@ -1676,8 +1676,9 @@ async function main() {
     /*
      * A future appointment. No room at creation ON PURPOSE: a Daily room
      * expires in four hours, so one built for Thursday on Monday is gone before
-     * anybody arrives. Both arrival paths build it, which is what makes this
-     * safe and is checked above.
+     * anybody arrives. The arrival paths build it — which is what makes this
+     * safe, PROVIDED the patient can reach an arrival path at all. See
+     * DEFERRED below: that proviso is the half this check originally missed.
      */
     "lib/data/scheduling.ts",
     /*
@@ -1695,6 +1696,38 @@ async function main() {
     strangers.length > 0
       ? `unaccounted for: ${strangers.join(", ")}`
       : `${String(makers.length)} session-making files, all accounted for`,
+  );
+
+  /*
+   * 🔴 AND THE DEFERRED PATHS MINT A WAY IN.
+   *
+   * ## The hole this closes, and it is the hole this whole check was for
+   *
+   * The two checks above let a path off building a room if the patient
+   * arrives later, on the grounds that "both arrival paths build one". That
+   * sentence is only true of a patient who can REACH an arrival path.
+   *
+   * `bookSlot` minted no `joinToken`. So a future booking had `join_token`
+   * NULL, there was no `/join/<token>` for the patient anywhere, and the heal
+   * that justified skipping the room could never run — because the only two
+   * places that call `ensureRoom` are the clinician's room page and the join
+   * page, and one of those did not exist for this session. Confirmed on
+   * production: `d20af554`, booked for 24 September, both columns null,
+   * created forty minutes AFTER the room fix shipped.
+   *
+   * Exactly the shape of the `feedbackToken` gap in the same INSERT, one
+   * field along, and invisible for the same reason: the other two creation
+   * paths both mint one, so the rule in everybody's head was true of two
+   * places out of three. Including this one's own verifier.
+   */
+  const DEFERRED = ["lib/data/scheduling.ts"];
+  const tokenless = DEFERRED.filter((file) => !/joinToken:/.test(readSource(file)));
+  check(
+    "🔴 79.1 a path that defers the room still mints a join token to come back with",
+    tokenless.length === 0,
+    tokenless.length > 0
+      ? `no joinToken in: ${tokenless.join(", ")} — the patient has no way to reach the heal`
+      : DEFERRED.join(", "),
   );
 
   check(

@@ -391,11 +391,32 @@ async function main() {
       [drOmar, solo, "Anxiety, sleep, and work stress"],
       [drSara, clinic, "Trauma and grief, Arabic and English"],
     ] as const) {
+      /*
+       * 🔴 'online', NOT 'available', AND `demo` SO THEY STAY THERE.
+       *
+       * This wrote `'available'`, which is not a radar status. The four the
+       * product knows are offline, online, pending, in_session; the column is
+       * plain `text` with a TypeScript-only `$type` on it, so a raw INSERT put
+       * the wrong string straight in and Postgres was glad to take it.
+       *
+       * Two clinicians sat like that on production. The board query names the
+       * three live statuses explicitly, so both were invisible: the public
+       * radar said "No one on shift" and the patient app said "Nobody is
+       * online right now" directly above a list of three therapists. That is
+       * the empty radar, and it was this line.
+       *
+       * `demo` is the other half. `reachable()` exempts a demo row from the
+       * heartbeat, so a seeded clinician stays on the board without a browser
+       * open somewhere pinging every thirty seconds — which is what "the radar
+       * should show the therapists we have, including the demo ones" needs.
+       *
+       * 0112 adds a CHECK so no future seed can do this again.
+       */
       await db.execute(sql`
         INSERT INTO therapist_radar
-          (user_id, organization_id, status, headline, languages, specialties, country, region, city,
+          (user_id, organization_id, status, demo, headline, languages, specialties, country, region, city,
            last_seen_at, accepts_walk_ins)
-        VALUES (${user.id}, ${org.id}, 'available', ${headline}, '["ar","en"]'::jsonb,
+        VALUES (${user.id}, ${org.id}, 'online', true, ${headline}, '["ar","en"]'::jsonb,
                 '["anxiety","sleep"]'::jsonb, 'eg', 'eg', 'Cairo', now(), true)`);
     }
 

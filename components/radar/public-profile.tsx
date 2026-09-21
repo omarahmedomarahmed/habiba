@@ -188,12 +188,32 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
  */
 function AvailabilityLine({ status }: { status: ProfileEntry["status"] }) {
   const t = useT();
-  const map = {
-    online: { dot: "bg-teal-500 live-dot", text: "Available now", tone: "text-teal-700 bg-teal-50" },
-    pending: { dot: "bg-amber-500", text: "Someone is booking them", tone: "text-amber-700 bg-amber-50" },
-    in_session: { dot: "bg-slate-400", text: "In a session", tone: "text-slate-600 bg-slate-100" },
-    offline: { dot: "bg-slate-300", text: "Not on shift", tone: "text-slate-600 bg-slate-100" },
-  }[status];
+  /*
+   * 🔴 A STATUS WE DO NOT KNOW MUST NOT TAKE THE PAGE DOWN.
+   *
+   * This indexed the map and read `map.tone` straight off the result. Any
+   * status outside the four gave `undefined`, and the next line threw. Two
+   * clinicians on production sat at `available` — a string a raw seed INSERT
+   * put into a plain `text` column — and `/t/[id]` and `/patient/t/[id]`
+   * returned 500 nine times across six visitors.
+   *
+   * Worse than it sounds, because of how `reachable()` works: a stale
+   * heartbeat forces the row to read `offline`, which IS in the map, so the
+   * page worked while they were away and broke the moment they were online.
+   * The profile failed exactly when somebody could have booked them.
+   *
+   * 0112 makes the column refuse the bad value. This makes the page survive
+   * one anyway, because a public profile is the last place that should be a
+   * stack trace.
+   */
+  const OFF = { dot: "bg-slate-300", text: "Not on shift", tone: "text-slate-600 bg-slate-100" };
+  const map =
+    {
+      online: { dot: "bg-teal-500 live-dot", text: "Available now", tone: "text-teal-700 bg-teal-50" },
+      pending: { dot: "bg-amber-500", text: "Someone is booking them", tone: "text-amber-700 bg-amber-50" },
+      in_session: { dot: "bg-slate-400", text: "In a session", tone: "text-slate-600 bg-slate-100" },
+      offline: OFF,
+    }[status] ?? OFF;
 
   return (
     <p

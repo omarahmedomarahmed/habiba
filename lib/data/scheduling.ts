@@ -460,6 +460,30 @@ export async function bookSlot(input: {
        * created. The database now refuses a session without one.
        */
       feedbackToken: randomBytes(24).toString("base64url"),
+      /*
+       * 🔴 AND A WAY IN, WHICH THIS PATH HAS NEVER MINTED.
+       *
+       * Exactly the shape of the `feedbackToken` gap above, one field along,
+       * and found the same way: a session booked here had `join_token` NULL,
+       * so there was no `/join/<token>` for the patient at all. Confirmed on
+       * production — `d20af554`, booked for 24 September, `video_room_url`
+       * NULL and `join_token` NULL.
+       *
+       * It also explains why this path looked like the room bug coming back
+       * and is not. A future booking must NOT build a Daily room at booking
+       * time: rooms carry a four-hour expiry, and a room made now for next
+       * Wednesday is dead long before anybody opens it. The room is meant to
+       * be built on arrival, and `app/join/[token]/actions.ts` does exactly
+       * that — but only for somebody who has a token to arrive with. Without
+       * one the heal was unreachable, and so was the session.
+       *
+       * The expiry hangs off the hour that was booked rather than off now,
+       * because "now" can be a fortnight early. It opens immediately, so a
+       * confirmation email can carry it, and closes four hours after the
+       * session was due to start.
+       */
+      joinToken: randomBytes(24).toString("base64url"),
+      joinTokenExpiresAt: new Date(slot.startsAt.getTime() + 4 * 60 * 60 * 1000),
       priceCents: slot.sessionRateCents ?? 0,
       paymentStatus: (slot.sessionRateCents ?? 0) > 0 ? "pending" : "not_required",
     })
