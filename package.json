@@ -135,6 +135,7 @@
     "verify:radar-place": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-radar-place.ts",
     "verify:palette": "node --import tsx scripts/verify-palette.ts",
     "verify:contrast": "node --import tsx scripts/verify-contrast.ts",
+    "admin:inventory": "node --import tsx scripts/admin-inventory.ts",
     "verify:sprint12": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint12.ts",
     "db:reset": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/reset.ts",
     "whatsapp:check": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/whatsapp-check.ts",
