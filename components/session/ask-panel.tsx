@@ -108,7 +108,7 @@ export function AskPanel({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="tap-target rounded-lg p-1 text-slate-400 hover:text-slate-700"
+            className="tap-target rounded-lg p-1 text-slate-500 hover:text-slate-700"
             aria-label={t("troom.ask.close")}
           >
             <X className="h-4 w-4" aria-hidden />
@@ -127,7 +127,7 @@ export function AskPanel({
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {turns.length === 0 && !pending ? (
-          <p className="text-xs text-slate-400">{t("troom.ask.empty")}</p>
+          <p className="text-xs text-slate-500">{t("troom.ask.empty")}</p>
         ) : null}
 
         {turns.map((turn, index) => (
@@ -139,7 +139,7 @@ export function AskPanel({
           </div>
         ))}
 
-        {pending ? <p className="text-xs text-slate-400">{t("troom.ask.thinking")}</p> : null}
+        {pending ? <p className="text-xs text-slate-500">{t("troom.ask.thinking")}</p> : null}
         {error ? <p className="text-xs text-red-600">{error}</p> : null}
       </div>
 

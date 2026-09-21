@@ -60,14 +60,14 @@ export function PatientBriefCard({
       )}
 
       {steps.length > 0 ? (
-        <div className="rounded-2xl bg-teal-50/70 px-4 py-3.5">
-          <p className="text-[11px] font-bold tracking-wider text-teal-700 uppercase">
+        <div className="rounded-2xl bg-brand-50/70 px-4 py-3.5">
+          <p className="text-[11px] font-bold tracking-wider text-brand-700 uppercase">
             {stepsLabel}
           </p>
           <ul className="mt-2.5 space-y-2.5">
             {steps.map((step, index) => (
-              <li key={index} className="flex gap-2.5 text-[15px] leading-relaxed text-teal-950">
-                <span className="mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-md border border-teal-300 bg-white text-teal-600">
+              <li key={index} className="flex gap-2.5 text-[15px] leading-relaxed text-brand-900">
+                <span className="mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-md border border-brand-300 bg-white text-brand-600">
                   <Check className="h-3 w-3" aria-hidden />
                 </span>
                 <span className="min-w-0">{step}</span>

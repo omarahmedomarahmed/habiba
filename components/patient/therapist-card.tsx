@@ -35,7 +35,7 @@ export async function TherapistCard({ therapist }: { therapist: DiscoverTherapis
         <span className="flex items-center gap-2">
           <span className="truncate text-sm font-semibold text-slate-900">{therapist.name}</span>
           {therapist.online ? (
-            <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700">
+            <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
               {t("radar.freeNow")}
             </span>
           ) : null}

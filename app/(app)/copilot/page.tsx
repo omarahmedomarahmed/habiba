@@ -73,7 +73,7 @@ export default async function CopilotInboxPage() {
                         {fullName(thread.firstName, thread.lastName)}
                       </span>
                       {thread.lastMessageAt ? (
-                        <span className="shrink-0 text-xs text-slate-400">
+                        <span className="shrink-0 text-xs text-slate-500">
                           {relativeDay(thread.lastMessageAt, actor.timezone, locale, t)}
                         </span>
                       ) : null}

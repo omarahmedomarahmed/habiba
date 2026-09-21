@@ -182,7 +182,7 @@ export function SosOrb({
                 type="button"
                 aria-label={t("common.close")}
                 onClick={() => setOpen(false)}
-                className="-m-2 rounded-lg p-2 text-slate-400"
+                className="-m-2 rounded-lg p-2 text-slate-500"
               >
                 <X className="h-5 w-5" aria-hidden />
               </button>

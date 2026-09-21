@@ -137,13 +137,24 @@ function main() {
   const gateClaims = new Set<string>();
   for (const d of files) {
     for (const [, line] of lines(d)) {
-      for (const m of line.matchAll(/\b(\d+|twenty[- ]?\w+|eleven|twelve|thirteen|fourteen) gates\b/gi)) {
+      for (const m of line.matchAll(/\b(\d+|twenty[- ]?\w+|thirty[- ]?\w*|eleven|twelve|thirteen|fourteen) gates\b/gi)) {
         gateClaims.add(m[1]!.toLowerCase());
       }
     }
   }
+  /*
+   * 🔴 AND THE MAP HAS TO OUTRUN THE GATE LIST, or the check goes quiet.
+   *
+   * It stopped at 29. Adding the thirtieth gate took the spelled-out form past
+   * the end of this map, and the regex above did not know the word "thirty"
+   * either, so a document saying "thirty gates" was not wrong — it was
+   * INVISIBLE. A counter that silently stops counting is worse than one that
+   * is off by one, because the off-by-one announces itself.
+   */
   const words: Record<number, string> = {
     26: "twenty-six", 27: "twenty-seven", 28: "twenty-eight", 29: "twenty-nine",
+    30: "thirty", 31: "thirty-one", 32: "thirty-two", 33: "thirty-three",
+    34: "thirty-four", 35: "thirty-five",
   };
   const okGate = new Set([String(gateCount), words[gateCount] ?? "", (words[gateCount] ?? "").replace("-", " ")]);
   const wrongGates = [...gateClaims].filter((c) => !okGate.has(c));

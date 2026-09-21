@@ -69,7 +69,7 @@ export function PlanTables({
   return (
     <div className="space-y-5">
       <Card className="p-4">
-        <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Plan</p>
+        <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Plan</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {plans.map((p) => (
             <button
@@ -92,7 +92,7 @@ export function PlanTables({
           for evidence, which is the one thing this plan is not yet.
         */}
         <p className="mt-3 text-xs text-slate-600">
-          <strong className="text-teal-700">{provenance.measured} measured</strong> ·{" "}
+          <strong className="text-brand-700">{provenance.measured} measured</strong> ·{" "}
           {provenance.decided} decided · <strong>{provenance.guess} guessed</strong>
         </p>
         {touched > 0 ? (
@@ -252,7 +252,7 @@ export function PlanTables({
                     className={
                       m.netUsd < 0
                         ? "py-2 text-end font-semibold tabular-nums text-rose-600"
-                        : "py-2 text-end font-semibold tabular-nums text-teal-700"
+                        : "py-2 text-end font-semibold tabular-nums text-brand-700"
                     }
                   >
                     {usd(m.netUsd)}
@@ -297,7 +297,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "go
           tone === "bad"
             ? "mt-1 text-lg font-semibold tabular-nums text-rose-600"
             : tone === "good"
-              ? "mt-1 text-lg font-semibold tabular-nums text-teal-700"
+              ? "mt-1 text-lg font-semibold tabular-nums text-brand-700"
               : "mt-1 text-lg font-semibold tabular-nums text-slate-900"
         }
       >

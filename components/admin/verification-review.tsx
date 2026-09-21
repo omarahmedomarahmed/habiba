@@ -94,10 +94,10 @@ export function VerificationReview(props: {
               </a>
             ) : (
               <>
-                <div className="flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-dashed border-slate-200 text-[11px] text-slate-400">
+                <div className="flex aspect-[4/3] w-full items-center justify-center rounded-xl border border-dashed border-slate-200 text-[11px] text-slate-500">
                   not provided
                 </div>
-                <figcaption className="mt-1 truncate text-[11px] text-slate-400">
+                <figcaption className="mt-1 truncate text-[11px] text-slate-500">
                   {doc.label}
                 </figcaption>
               </>
@@ -171,7 +171,7 @@ export function VerificationReview(props: {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-2">
-      <dt className="w-28 shrink-0 text-slate-400">{label}</dt>
+      <dt className="w-28 shrink-0 text-slate-500">{label}</dt>
       <dd className="min-w-0 flex-1 text-slate-800">{children}</dd>
     </div>
   );

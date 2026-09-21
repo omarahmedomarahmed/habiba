@@ -221,7 +221,7 @@ export function SignUpForm() {
 
       <Submit>{t("tauth.createAccount")}</Submit>
 
-      <p className="text-center text-xs leading-relaxed text-slate-400">
+      <p className="text-center text-xs leading-relaxed text-slate-500">
         {withLinks(t("tauth.terms"), {
           terms: (
             <Link href="/terms" className="underline">

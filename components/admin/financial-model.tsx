@@ -81,7 +81,7 @@ export function FinancialModel({
     <div className="space-y-5">
       {/* ------------------------------------------------------- scenarios -- */}
       <Card className="p-4">
-        <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Scenario</p>
+        <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Scenario</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {scenarios.map((s) => (
             <button
@@ -357,7 +357,7 @@ export function FinancialModel({
 
         {live.money.allocation.length > 0 ? (
           <div className="mt-4">
-            <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               Earmarked for
             </p>
             <div className="mt-2 flex h-3 overflow-hidden rounded-full">
@@ -365,7 +365,7 @@ export function FinancialModel({
                 <div
                   key={a.label}
                   style={{ width: `${a.share * 100}%` }}
-                  className={["bg-teal-600", "bg-teal-400", "bg-slate-400", "bg-slate-300"][i % 4]}
+                  className={["bg-brand-600", "bg-brand-400", "bg-slate-400", "bg-slate-300"][i % 4]}
                 />
               ))}
             </div>
@@ -373,7 +373,7 @@ export function FinancialModel({
               {live.money.allocation.map((a, i) => (
                 <span key={a.label} className="flex items-center gap-1.5">
                   <span
-                    className={`h-2 w-2 rounded-sm ${["bg-teal-600", "bg-teal-400", "bg-slate-400", "bg-slate-300"][i % 4]}`}
+                    className={`h-2 w-2 rounded-sm ${["bg-brand-600", "bg-brand-400", "bg-slate-400", "bg-slate-300"][i % 4]}`}
                   />
                   {a.label} {(a.share * 100).toFixed(0)}%{" "}
                   {usd(live.money.fundingUsd.value * a.share)}
@@ -406,7 +406,7 @@ export function FinancialModel({
             <div key={m.month} className="flex flex-1 flex-col items-center gap-0.5">
               <div className="flex h-24 w-full items-end justify-center gap-px">
                 <div
-                  className="w-1/2 rounded-t bg-teal-500"
+                  className="w-1/2 rounded-t bg-brand-500"
                   style={{ height: `${Math.max(1, (m.revenueUsd / peak) * 100)}%` }}
                 />
                 <div
@@ -415,7 +415,7 @@ export function FinancialModel({
                 />
               </div>
               {m.month % 6 === 0 ? (
-                <span className="text-[9px] text-slate-400">{m.month}</span>
+                <span className="text-[9px] text-slate-500">{m.month}</span>
               ) : (
                 <span className="text-[9px] text-transparent">.</span>
               )}
@@ -424,7 +424,7 @@ export function FinancialModel({
         </div>
         <p className="mt-2 flex gap-4 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-sm bg-teal-500" /> Revenue
+            <span className="h-2 w-2 rounded-sm bg-brand-500" /> Revenue
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-sm bg-slate-300" /> People and overhead
@@ -536,7 +536,7 @@ function Row({ m }: { m: MonthRow }) {
         className={
           m.netUsd < 0
             ? "py-2 text-end font-semibold tabular-nums text-rose-600"
-            : "py-2 text-end font-semibold tabular-nums text-teal-700"
+            : "py-2 text-end font-semibold tabular-nums text-brand-700"
         }
       >
         {usd(m.netUsd)}
@@ -557,7 +557,7 @@ function Row({ m }: { m: MonthRow }) {
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
   return (
     <Card className="p-3">
-      <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{label}</p>
+      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
       <p
         className={
           tone === "bad"
@@ -700,7 +700,7 @@ function Payroll({
         {hires.map((h, i) => (
           <div
             key={i}
-            className="flex flex-wrap items-end gap-3 rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-2"
+            className="flex flex-wrap items-end gap-3 rounded-xl border border-brand-200 bg-brand-50/50 px-3 py-2"
           >
             <label className="flex-1 min-w-40 text-xs text-slate-600">
               Role
@@ -872,7 +872,7 @@ function Keep({ live, dirty }: { live: Assumptions; dirty: boolean }) {
       </div>
 
       {msg.error ? <p className="mt-3 text-sm text-red-600">{msg.error}</p> : null}
-      {msg.ok ? <p className="mt-3 text-sm text-teal-700">{msg.ok}</p> : null}
+      {msg.ok ? <p className="mt-3 text-sm text-brand-700">{msg.ok}</p> : null}
     </Card>
   );
 }

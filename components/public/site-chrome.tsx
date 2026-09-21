@@ -128,7 +128,7 @@ export async function SiteHeader() {
             href={href("/radar")}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-navy-500 px-3.5 text-sm font-semibold text-white hover:bg-navy-600 sm:px-4"
           >
-            <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-400" aria-hidden />
+            <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-400" aria-hidden />
             {t("nav.radar")}
           </Link>
 

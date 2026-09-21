@@ -132,7 +132,7 @@ export function TherapistAdminPanel(props: {
           >
             <item.icon className="h-3.5 w-3.5" aria-hidden />
             {item.label}
-            <span className={cn("text-xs", tab === item.key ? "text-white/50" : "text-slate-400")}>
+            <span className={cn("text-xs", tab === item.key ? "text-white/50" : "text-slate-500")}>
               {item.key === "patients"
                 ? props.patients.length
                 : item.key === "sessions"
@@ -190,7 +190,7 @@ function Patients({ rows }: { rows: Patient[] }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
+            <thead className="border-b border-slate-100 text-start text-xs text-slate-500">
               <tr>
                 <Th>Patient</Th>
                 <Th>Email</Th>
@@ -243,8 +243,8 @@ function SendRecord({ patientId, hasEmail }: { patientId: string; hasEmail: bool
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (sentTo) return <span className="text-xs text-teal-700">sent to {sentTo}</span>;
-  if (!hasEmail) return <span className="text-xs text-slate-400">no address</span>;
+  if (sentTo) return <span className="text-xs text-brand-700">sent to {sentTo}</span>;
+  if (!hasEmail) return <span className="text-xs text-slate-500">no address</span>;
 
   if (!open) {
     return (
@@ -312,7 +312,7 @@ function Sessions({ rows }: { rows: SessionRow[] }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
+            <thead className="border-b border-slate-100 text-start text-xs text-slate-500">
               <tr>
                 <Th>When</Th>
                 <Th>Patient</Th>
@@ -357,7 +357,7 @@ function Sessions({ rows }: { rows: SessionRow[] }) {
                         </Badge>
                       </span>
                     ) : (
-                      <span className="text-slate-400">free</span>
+                      <span className="text-slate-500">free</span>
                     )}
                   </Td>
                 </tr>
@@ -422,7 +422,7 @@ function Copilot({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
+              <thead className="border-b border-slate-100 text-start text-xs text-slate-500">
                 <tr>
                   <Th>Patient</Th>
                   <Th className="text-end">Asked</Th>
@@ -475,7 +475,7 @@ function Billing({
     <div className="space-y-4">
       <Card className="p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <Wallet className="h-4 w-4 text-teal-600" aria-hidden />
+          <Wallet className="h-4 w-4 text-brand-600" aria-hidden />
           Money they have received
         </p>
         <dl className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -537,7 +537,7 @@ function Billing({
                   <span className="block text-sm font-semibold tabular-nums text-slate-900">
                     <Money cents={payment.therapistNetCents} />
                   </span>
-                  <span className="block text-xs tabular-nums text-slate-400">
+                  <span className="block text-xs tabular-nums text-slate-500">
                     of <Money cents={payment.grossCents} />
                   </span>
                 </span>
@@ -885,7 +885,7 @@ function Mini({ label, value, sub }: { label: string; value: string; sub?: strin
     <div className="rounded-2xl bg-slate-50 px-3.5 py-2.5">
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="mt-0.5 text-lg font-bold tabular-nums text-slate-900">{value}</dd>
-      {sub ? <p className="text-[11px] text-slate-400">{sub}</p> : null}
+      {sub ? <p className="text-[11px] text-slate-500">{sub}</p> : null}
     </div>
   );
 }

@@ -44,14 +44,14 @@ export default async function AdminContentPage() {
         rel="noreferrer"
         className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 hover:border-slate-300"
       >
-        <LayoutGrid className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <LayoutGrid className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-slate-900">UI reference</span>
           <span className="block text-xs text-slate-500">
             Every component a block can render, by audience. Not indexed.
           </span>
         </span>
-        <ExternalLink className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <ExternalLink className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
       </Link>
 
       {pages.length === 0 ? (
@@ -81,7 +81,7 @@ export default async function AdminContentPage() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`View ${page.title}`}
-                className="tap-target flex items-center justify-center text-slate-400 hover:text-slate-700"
+                className="tap-target flex items-center justify-center text-slate-500 hover:text-slate-700"
               >
                 <ExternalLink className="h-4 w-4" aria-hidden />
               </Link>

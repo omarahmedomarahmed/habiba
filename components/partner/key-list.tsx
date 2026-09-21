@@ -77,9 +77,9 @@ export function KeyList({
   return (
     <div className="flex flex-col gap-4">
       {state.raw ? (
-        <Card className="border-teal-200 bg-teal-50 p-5">
+        <Card className="border-brand-200 bg-brand-50 p-5">
           <p className="text-sm font-semibold text-slate-900">{state.prefix}</p>
-          <code className="mt-2 block break-all rounded-xl bg-white p-3 font-mono text-xs text-slate-900 ring-1 ring-teal-200">
+          <code className="mt-2 block break-all rounded-xl bg-white p-3 font-mono text-xs text-slate-900 ring-1 ring-brand-200">
             {state.raw}
           </code>
           <p className="mt-2 text-xs leading-relaxed text-slate-600">{t("dev.keyOnce")}</p>

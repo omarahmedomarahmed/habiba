@@ -56,7 +56,7 @@ export default async function PartnerDeliveriesPage() {
                   <span
                     className={
                       delivery.deliveredAt
-                        ? "text-xs font-semibold text-teal-700"
+                        ? "text-xs font-semibold text-brand-700"
                         : "text-xs font-semibold text-amber-700"
                     }
                   >
@@ -75,7 +75,7 @@ export default async function PartnerDeliveriesPage() {
                   {delivery.subjectId ?? "-"}
                 </p>
 
-                <p className="mt-1 break-all font-mono text-xs text-slate-400">{delivery.url}</p>
+                <p className="mt-1 break-all font-mono text-xs text-slate-500">{delivery.url}</p>
 
                 {/* 🔴 `formatDateTime`, not `Intl` (37L.9). */}
                 <p className="mt-1 text-xs text-slate-500">

@@ -91,7 +91,7 @@ export function AvailabilityEditor({
     <Card>
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <CalendarDays className="h-4 w-4 text-slate-400" aria-hidden />
+          <CalendarDays className="h-4 w-4 text-slate-500" aria-hidden />
           {t("tav.title")}
         </p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
@@ -235,7 +235,7 @@ export function AvailabilityEditor({
                     <span
                       className={`flex h-9 items-center rounded-lg px-2.5 text-sm font-medium ${
                         slot.status === "booked"
-                          ? "bg-teal-50 text-teal-800"
+                          ? "bg-brand-50 text-brand-800"
                           : "border border-slate-200 text-slate-700"
                       }`}
                     >
@@ -259,7 +259,7 @@ export function AvailabilityEditor({
                             if (result.error) setError(result.error);
                           })
                         }
-                        className="tap-target rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+                        className="tap-target rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
                       >
                         <X className="h-3.5 w-3.5" aria-hidden />
                       </button>

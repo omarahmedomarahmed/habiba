@@ -85,7 +85,7 @@ export default async function JournalPage() {
           {entries.map((entry) => (
             <li key={entry.id}>
               <Card className="p-4">
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500">
                   {formatDateTime(entry.createdAt, actor.timezone, locale)}
                   {entry.source === "dictated" ? " · spoken" : ""}
                 </p>

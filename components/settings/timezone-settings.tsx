@@ -62,7 +62,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
   return (
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <Globe className="h-4 w-4 text-slate-400" aria-hidden />
+        <Globe className="h-4 w-4 text-slate-500" aria-hidden />
         {t("tset.zone")}
       </p>
       <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
@@ -118,7 +118,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
       </p>
 
       {saved ? (
-        <p className="mt-1 flex items-center gap-1 text-xs text-teal-700">
+        <p className="mt-1 flex items-center gap-1 text-xs text-brand-700">
           <Check className="h-3 w-3" aria-hidden />
           {t("tset.savedDot")}
         </p>

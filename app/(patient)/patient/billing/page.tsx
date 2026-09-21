@@ -118,11 +118,11 @@ export default async function PatientBillingPage() {
       </div>
 
       {creditCents > 0 ? (
-        <Card className="border-teal-200 bg-teal-50 p-4">
-          <p className="text-sm font-semibold text-teal-900">
+        <Card className="border-brand-200 bg-brand-50 p-4">
+          <p className="text-sm font-semibold text-brand-900">
             <Money cents={creditCents} /> {t("pbill.inCredit")}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-teal-800">
+          <p className="mt-1 text-xs leading-relaxed text-brand-800">
             {credits[0]?.reason} It comes off your next session automatically, and it lasts until{" "}
             {formatDate(credits[0]?.expiresAt ?? null, actor.timezone, locale)}.
           </p>

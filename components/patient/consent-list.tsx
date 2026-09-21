@@ -183,7 +183,7 @@ function RequestRow({
               type="button"
               disabled={pending}
               onClick={() => answer("granted", "24h")}
-              className="tap-target h-10 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+              className="tap-target h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
             >
               {t("consent.yesDay")}
             </button>
@@ -246,9 +246,9 @@ function GrantRow({
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
               {live ? (
-                <UserCheck className="h-4 w-4 shrink-0 text-teal-500" aria-hidden />
+                <UserCheck className="h-4 w-4 shrink-0 text-brand-500" aria-hidden />
               ) : (
-                <ShieldOff className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                <ShieldOff className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
               )}
               {grant.therapistName}
             </p>

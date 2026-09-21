@@ -207,7 +207,7 @@ function AddCapitalForm({ thisMonth, onDone }: { thisMonth: string; onDone: () =
 
   if (state.ok) {
     return (
-      <p className="mt-3 rounded-lg bg-teal-50 p-3 text-sm text-teal-800">
+      <p className="mt-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
         {state.ok}{" "}
         <button type="button" onClick={onDone} className="underline">
           Close
@@ -316,7 +316,7 @@ function KindBlock({
       </form>
 
       {state.error && <p className="mt-1 text-sm text-rose-700">{state.error}</p>}
-      {state.ok && <p className="mt-1 text-sm text-teal-700">{state.ok}</p>}
+      {state.ok && <p className="mt-1 text-sm text-brand-700">{state.ok}</p>}
     </div>
   );
 }

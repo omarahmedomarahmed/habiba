@@ -157,7 +157,7 @@ export function Block({
         tone === "grey" && "bg-slate-100 text-slate-600",
         tone === "line" && "border border-slate-200 bg-white text-slate-600",
         tone === "navy" && "bg-navy-500 text-white",
-        tone === "teal" && "bg-teal-500 text-navy-600",
+        tone === "teal" && "bg-brand-500 text-navy-600",
         tone === "dashed" && "border border-dashed border-slate-300 bg-white text-slate-500",
         className,
       )}

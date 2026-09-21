@@ -520,6 +520,22 @@ export const GATES = [
    * own copy of a number stops matching the day somebody tunes the real one
    * (H31, H25).
    */
+  /*
+   * 🔴 THE PALETTE WAS A COMMENT UNTIL SOMETHING READ IT.
+   *
+   * `app/globals.css` described a division of labour between `navy`, `brand`
+   * and `teal` and it was true of that file alone. 277 class names had drifted
+   * onto the wrong ramp, and eighteen buttons carried white ink on the mark's
+   * own teal at 2.17:1, which is under what even large text needs.
+   *
+   * Neither is the kind of thing a person catches by looking, because each one
+   * individually renders fine. Both are arithmetic, so a script does it.
+   */
+  {
+    name: "palette",
+    script: "verify:palette",
+    why: "and every colour is on the ramp the palette assigns to its job",
+  },
   {
     name: "runbook",
     script: "verify:runbook",

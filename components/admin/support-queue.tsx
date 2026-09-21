@@ -197,7 +197,7 @@ function TicketCard({ row }: { row: TicketRow }) {
             {row.waiting ? "waiting on them" : `${row.ageHours}h old`}
           </span>
 
-          <span className="font-mono text-xs text-slate-400">{row.reference}</span>
+          <span className="font-mono text-xs text-slate-500">{row.reference}</span>
           <span className="text-sm font-semibold text-slate-900">{row.name}</span>
           <Badge>{TOPIC_LABELS[row.topic] ?? row.topic}</Badge>
           {row.locale !== "en" ? <Badge>{row.locale}</Badge> : null}
@@ -227,7 +227,7 @@ function TicketCard({ row }: { row: TicketRow }) {
         </p>
 
         {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
-        {note ? <p className="mt-2 text-sm text-teal-700">{note}</p> : null}
+        {note ? <p className="mt-2 text-sm text-brand-700">{note}</p> : null}
 
         <div className="mt-3 flex flex-wrap items-end gap-2">
           {!row.ownerName ? (

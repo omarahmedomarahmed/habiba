@@ -55,13 +55,27 @@ export function ContentIconMark({
 }: {
   name?: string;
   className?: string;
-  tone?: "brand" | "teal" | "light";
+  tone?: "brand" | "navy" | "light";
 }) {
   const Icon = name && name in ICONS ? ICONS[name as ContentIcon] : Sparkles;
 
+  /*
+   * 🔴 THE ALTERNATION IS BETWEEN THE TWO INKS, NOT BETWEEN TWO TEALS.
+   *
+   * `blocks.tsx` alternates these down a list to give it rhythm. The second
+   * tone used to be `teal`, back when `teal-*` and `brand-*` were two ramps
+   * that diverged; once the interface moved onto one ramp it resolved to
+   * `bg-brand-50 text-brand-600` against `bg-brand-50 text-brand-700` — the
+   * same ground and one step of ink apart, which is an alternation nobody can
+   * see and a name that no longer describes anything.
+   *
+   * The palette has exactly two inks and this is what the second one is for.
+   * Navy against teal is the mark's own pairing, so the rhythm is visible and
+   * it is the rhythm the brand already has.
+   */
   const tones = {
     brand: "bg-brand-50 text-brand-700",
-    teal: "bg-teal-50 text-teal-600",
+    navy: "bg-navy-50 text-navy-500",
     light: "bg-white/10 text-white",
   };
 

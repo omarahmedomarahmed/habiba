@@ -60,7 +60,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
   return (
     <Card className="p-5">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <ShieldQuestion className="h-4 w-4 text-slate-400" aria-hidden />
+        <ShieldQuestion className="h-4 w-4 text-slate-500" aria-hidden />
         {challenges.length > 1 ? `Question ${index + 1} of ${challenges.length}` : t("pclaim.oneQuestion")}
       </p>
 

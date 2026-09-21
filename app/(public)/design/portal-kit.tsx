@@ -106,7 +106,7 @@ export function Pot({ loud = false }: { loud?: boolean }) {
         >
           Left in the pot
         </span>
-        <span className={cn("text-[11px] font-semibold", loud ? "text-teal-300" : "text-brand-700")}>
+        <span className={cn("text-[11px] font-semibold", loud ? "text-brand-300" : "text-brand-700")}>
           Runs out 4 March
         </span>
       </div>

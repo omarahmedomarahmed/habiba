@@ -78,11 +78,11 @@ export function PositionCard({ position, months }: { position: Position; months:
           tone={monthlyBurnCents === null ? "good" : "plain"}
           value={
             monthlyBurnCents === null ? (
-              <span className="text-teal-700">nothing</span>
+              <span className="text-brand-700">nothing</span>
             ) : (
               <>
                 <Money cents={monthlyBurnCents} />
-                <span className="text-sm font-normal text-slate-400"> /mo</span>
+                <span className="text-sm font-normal text-slate-500"> /mo</span>
               </>
             )
           }
@@ -97,11 +97,11 @@ export function PositionCard({ position, months }: { position: Position; months:
           tone={runwayMonths !== null && runwayMonths < 3 ? "bad" : "plain"}
           value={
             runwayMonths === null ? (
-              <span className="text-teal-700">no burn</span>
+              <span className="text-brand-700">no burn</span>
             ) : (
               <>
                 {runwayMonths.toFixed(1)}
-                <span className="text-sm font-normal text-slate-400"> months</span>
+                <span className="text-sm font-normal text-slate-500"> months</span>
               </>
             )
           }
@@ -139,11 +139,11 @@ function Figure({
   tone?: "good" | "bad" | "plain";
 }) {
   const colour =
-    tone === "bad" ? "text-rose-700" : tone === "good" ? "text-teal-700" : "text-slate-900";
+    tone === "bad" ? "text-rose-700" : tone === "good" ? "text-brand-700" : "text-slate-900";
 
   return (
     <div className="rounded-lg bg-slate-50 p-3">
-      <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{label}</p>
+      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
       <p className={`mt-1 text-xl font-semibold tabular-nums ${colour}`}>{value}</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">{note}</p>
     </div>

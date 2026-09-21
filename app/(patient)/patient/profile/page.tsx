@@ -111,7 +111,7 @@ export default async function OwnProfilePage() {
                   <p className="text-sm font-medium text-slate-900">
                     {diagnosis.label}
                     {diagnosis.code ? (
-                      <span className="ms-1.5 font-mono text-xs text-slate-400">
+                      <span className="ms-1.5 font-mono text-xs text-slate-500">
                         {diagnosis.code}
                       </span>
                     ) : null}

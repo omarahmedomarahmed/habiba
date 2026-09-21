@@ -52,7 +52,7 @@ function Result({ state }: { state: SettingsFormState }) {
       </p>
     );
   }
-  if (state.ok) return <p className="text-sm text-teal-700">{state.ok}</p>;
+  if (state.ok) return <p className="text-sm text-brand-700">{state.ok}</p>;
   return null;
 }
 
@@ -485,7 +485,7 @@ export function CountryEditor({
     <Card className="p-4">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm font-semibold text-slate-900">
-          {country.name} <span className="font-mono text-xs text-slate-400">{country.code}</span>
+          {country.name} <span className="font-mono text-xs text-slate-500">{country.code}</span>
         </p>
         <Badge>{country.entity === "eg" ? "Egyptian entity" : "US entity"}</Badge>
         {!country.enabled ? <Badge tone="amber">off</Badge> : null}

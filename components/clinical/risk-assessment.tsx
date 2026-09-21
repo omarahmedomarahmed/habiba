@@ -141,11 +141,11 @@ export async function RiskAssessment({
       ) : null}
 
       {protective.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-teal-200 bg-teal-50/60 p-3">
-          <p className="text-xs font-medium text-teal-900">Also said, for the safety plan:</p>
+        <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50/60 p-3">
+          <p className="text-xs font-medium text-brand-900">Also said, for the safety plan:</p>
           <ul className="mt-1 space-y-1">
             {protective.map((finding, index) => (
-              <li key={index} className="text-xs italic text-teal-800">
+              <li key={index} className="text-xs italic text-brand-800">
                 {finding.quote}
               </li>
             ))}

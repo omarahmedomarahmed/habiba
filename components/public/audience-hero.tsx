@@ -56,13 +56,13 @@ export function AudienceHero({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-teal-500/15 blur-3xl"
+        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-brand-500/15 blur-3xl"
       />
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/85">
-            <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
             {eyebrow}
           </span>
 

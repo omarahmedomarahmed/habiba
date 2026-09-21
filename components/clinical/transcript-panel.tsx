@@ -144,7 +144,7 @@ export function TranscriptPanel({
               <p
                 className={cn(
                   "flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase",
-                  line.speaker === "patient" ? "text-teal-300" : "text-brand-300",
+                  line.speaker === "patient" ? "text-brand-300" : "text-brand-300",
                 )}
               >
                 <span className={cn(line.speakerInferred && "border-b border-dotted border-current")}>

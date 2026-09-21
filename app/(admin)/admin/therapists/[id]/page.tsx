@@ -124,7 +124,7 @@ export default async function TherapistDetailPage({
         know the limit is structural rather than assume something is missing.
       */}
       <Card className="flex items-start gap-2.5 border-slate-200 bg-slate-50 p-3.5">
-        <EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         <p className="text-xs leading-relaxed text-slate-600">
           <span className="font-semibold text-slate-800">You cannot read clinical content here.</span>{" "}
           Transcripts, note text, risk indicators and copilot messages are not selected by any query
@@ -221,7 +221,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
         {label}
       </p>
       <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{value}</p>
-      {sub ? <p className="mt-0.5 text-xs text-slate-400">{sub}</p> : null}
+      {sub ? <p className="mt-0.5 text-xs text-slate-500">{sub}</p> : null}
     </Card>
   );
 }

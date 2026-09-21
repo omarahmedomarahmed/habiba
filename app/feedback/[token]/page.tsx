@@ -103,7 +103,7 @@ export default async function FeedbackPage({
         </Card>
       )}
 
-      <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
+      <p className="mt-6 text-center text-xs leading-relaxed text-slate-500">
         {t("urgent.footer")}
       </p>
     </Shell>

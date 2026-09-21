@@ -57,7 +57,7 @@ export function AddPatient() {
         onClick={() => setOpen(true)}
         className="tap-target flex w-full items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 py-3.5 text-sm font-semibold text-slate-600 hover:border-slate-400 hover:bg-slate-50"
       >
-        <UserPlus className="h-4 w-4 text-slate-400" aria-hidden />
+        <UserPlus className="h-4 w-4 text-slate-500" aria-hidden />
         {t("tap.addPatient")}
       </button>
     );

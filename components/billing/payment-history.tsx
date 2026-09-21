@@ -103,7 +103,7 @@ export function PaymentHistory({
                     <p className="text-[15px] font-bold text-slate-900 tabular-nums">
                       <Money cents={payment.therapistNetCents} />
                     </p>
-                    <p className="text-xs text-slate-400 tabular-nums">
+                    <p className="text-xs text-slate-500 tabular-nums">
                       of <Money cents={payment.grossCents} />
                     </p>
                   </div>

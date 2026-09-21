@@ -34,7 +34,7 @@ export function TicketReader({ token }: { token: string }) {
     return (
       <div className="space-y-3">
         <Card className="p-4">
-          <p className="text-xs text-slate-400">Reference {state.ticket.reference}</p>
+          <p className="text-xs text-slate-500">Reference {state.ticket.reference}</p>
           <p className="mt-2 text-sm font-semibold text-slate-900">{t("ttk.whatYouWrote")}</p>
           <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">
             {state.ticket.message}
@@ -49,7 +49,7 @@ export function TicketReader({ token }: { token: string }) {
             <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">
               {event.note}
             </p>
-            <p className="mt-2 text-xs text-slate-400">{event.atLabel}</p>
+            <p className="mt-2 text-xs text-slate-500">{event.atLabel}</p>
           </Card>
         ))}
 

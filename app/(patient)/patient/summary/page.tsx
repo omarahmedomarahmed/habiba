@@ -68,7 +68,7 @@ export default async function PatientSummaryPage() {
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     {t("psummary.version", {
                       n: version.version,
                       date: formatDate(version.approvedAt, actor.timezone, locale),
@@ -81,7 +81,7 @@ export default async function PatientSummaryPage() {
                 </p>
 
                 {version.approvedByLicenseBody ? (
-                  <p className="mt-3 text-xs text-slate-400">
+                  <p className="mt-3 text-xs text-slate-500">
                     {version.approvedByLicenseBody}
                     {version.approvedByLicenseNumber ? ` ${version.approvedByLicenseNumber}` : ""}
                   </p>

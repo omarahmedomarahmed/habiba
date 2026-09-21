@@ -309,7 +309,7 @@ function UseCase({
 
 function Kept({ title, body }: { title: string; body: string }) {
   return (
-    <li className="border-s-2 border-teal-300 ps-4">
+    <li className="border-s-2 border-brand-300 ps-4">
       <p className="font-semibold text-slate-900">{title}</p>
       <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{body}</p>
     </li>

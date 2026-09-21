@@ -408,7 +408,7 @@ function PatientClockNote({
   return (
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm text-slate-700">
-        <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <Clock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         <span>
           About{" "}
           <span className="font-semibold text-slate-900">
@@ -471,7 +471,7 @@ function WhoYouAreWith({
 
       <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
         {therapist.languages.length > 0 ? <span>{t("room.speaks", { languages: therapist.languages.join(listSeparator(locale)) })}</span> : null}
-        {live && elapsed ? <span className="font-medium text-teal-700">{elapsed}</span> : null}
+        {live && elapsed ? <span className="font-medium text-brand-700">{elapsed}</span> : null}
       </div>
 
       <p className="mt-3 flex items-start gap-1.5 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-500">
@@ -512,7 +512,7 @@ function SummaryAndRating({
     return (
       <Card className="p-4">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-          <Mail className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+          <Mail className="h-3.5 w-3.5 text-slate-500" aria-hidden />
           {t("room.summaryTitle")}
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-500">
@@ -525,9 +525,9 @@ function SummaryAndRating({
 
   if (done) {
     return (
-      <Card className="border-teal-200 bg-teal-50/60 p-4">
-        <p className="text-sm font-semibold text-teal-900">{t("room.thanks")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-teal-800">
+      <Card className="border-brand-200 bg-brand-50/60 p-4">
+        <p className="text-sm font-semibold text-brand-900">{t("room.thanks")}</p>
+        <p className="mt-1 text-xs leading-relaxed text-brand-800">
           Your summary will come to that address once {therapist.firstName} has written up the
           session.
         </p>
@@ -645,14 +645,14 @@ function Reassurance() {
   const t = useT();
   return (
     <Card className="p-4">
-      <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">{t("room.goodToKnow")}</p>
+      <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">{t("room.goodToKnow")}</p>
       <ul className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
         <li className="flex gap-2">
-          <Lock className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+          <Lock className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" aria-hidden />
           {t("room.knowRecording")}
         </li>
         <li className="flex gap-2">
-          <Mail className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+          <Mail className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" aria-hidden />
           {t("room.knowSummary")}
         </li>
         {/*
@@ -665,7 +665,7 @@ function Reassurance() {
           there. There is one line now, and it is the one `lib/crisis` owns.
         */}
         <li className="flex gap-2">
-          <Phone className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" aria-hidden />
+          <Phone className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" aria-hidden />
           {t("crisis.notEmergency")}
         </li>
       </ul>

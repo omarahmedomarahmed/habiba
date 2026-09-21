@@ -153,9 +153,9 @@ export default async function PatientHomePage({
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-6">
       {claimed ? (
-        <Card className="border-teal-200 bg-teal-50 p-4">
-          <p className="text-sm font-semibold text-teal-900">{t("home.claimedTitle")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-teal-900/90">
+        <Card className="border-brand-200 bg-brand-50 p-4">
+          <p className="text-sm font-semibold text-brand-900">{t("home.claimedTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-brand-900/90">
             {claimed === "kept" ? t("home.claimedKept") : t("home.claimedDropped")}
           </p>
         </Card>
@@ -188,7 +188,7 @@ export default async function PatientHomePage({
         href="/patient/browse"
         className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-500"
       >
-        <Search className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <Search className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         {t("home.searchPlaceholder")}
       </Link>
 
@@ -216,7 +216,7 @@ export default async function PatientHomePage({
           <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold">{t("home.findNow")}</span>
-            <span className="block text-xs text-white/80">
+            <span className="block text-xs text-navy-600/80">
               {liveNow === 1 ? t("home.liveOne") : t("home.liveMany", { count: liveNow })}
             </span>
           </span>
@@ -230,7 +230,7 @@ export default async function PatientHomePage({
           href="/patient/browse"
           className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:scale-[0.99]"
         >
-          <Globe2 className="h-6 w-6 shrink-0 text-slate-400" aria-hidden />
+          <Globe2 className="h-6 w-6 shrink-0 text-slate-500" aria-hidden />
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-slate-900">
               {t("home.liveNone")}
@@ -456,7 +456,7 @@ export default async function PatientHomePage({
         href="/patient/journal"
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
-        <NotebookPen className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <NotebookPen className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         {t("home.journal")}
       </Link>
 
@@ -464,7 +464,7 @@ export default async function PatientHomePage({
         href="/patient/summary"
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
-        <FileText className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <FileText className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         {t("home.summary")}
       </Link>
 
@@ -472,7 +472,7 @@ export default async function PatientHomePage({
         href="/patient/consent"
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
-        <ShieldCheck className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <ShieldCheck className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         {t("home.whoCanRead")}
       </Link>
 
@@ -481,7 +481,7 @@ export default async function PatientHomePage({
         href="/patient/record"
         className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
       >
-        <Download className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <Download className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         {t("home.getCopy")}
       </Link>
     </main>

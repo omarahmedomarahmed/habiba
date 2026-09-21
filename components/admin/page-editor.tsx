@@ -178,7 +178,7 @@ export function PageEditor({
 
       {blocks.map((block, index) => (
         <Card key={index} className="space-y-3 p-4">
-          <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+          <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
             {block.type}
           </p>
           <p className="-mt-2 text-xs leading-relaxed text-slate-500">

@@ -78,7 +78,7 @@ export function NoShowRecovery({
     return (
       <Card className="p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <Clock className="h-4 w-4 text-slate-400" aria-hidden />
+          <Clock className="h-4 w-4 text-slate-500" aria-hidden />
           {t("tshow.joining")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
@@ -138,7 +138,7 @@ export function NoShowRecovery({
   return (
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <HeartHandshake className="h-4 w-4 text-teal-500" aria-hidden />
+        <HeartHandshake className="h-4 w-4 text-brand-500" aria-hidden />
         {t("tshow.someoneElse")}
       </p>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">

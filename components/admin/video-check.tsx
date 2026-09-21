@@ -38,7 +38,7 @@ export async function VideoCheck() {
           <h2 className="text-sm font-bold text-slate-900">Video rooms</h2>
           <p
             className={`mt-1 text-sm leading-relaxed ${
-              health.ok ? "text-teal-800" : "text-rose-700"
+              health.ok ? "text-brand-800" : "text-rose-700"
             }`}
             role={health.ok ? undefined : "alert"}
           >

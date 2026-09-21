@@ -94,7 +94,7 @@ export function PatientSessionList({
                       {group === "past_instant" ? (
                         <Zap className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
                       ) : (
-                        <CalendarClock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                        <CalendarClock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
                       )}
                       {session.therapistName}
                     </p>
@@ -142,7 +142,7 @@ export function PatientSessionList({
                     ) : null}
 
                     {session.briefPending ? (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
                         <FileText className="h-3 w-3" aria-hidden />
                         {t("psessions.writing")}
                       </p>

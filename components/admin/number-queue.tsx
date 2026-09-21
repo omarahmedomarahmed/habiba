@@ -95,9 +95,9 @@ function Row({ row }: { row: ChangeRow }) {
         </div>
 
         <p className="mt-2 flex items-center gap-2 text-sm text-slate-900">
-          <PhoneCall className="h-4 w-4 text-slate-400" aria-hidden />
+          <PhoneCall className="h-4 w-4 text-slate-500" aria-hidden />
           <span className="font-mono">{row.oldPhone}</span>
-          <span className="text-slate-400">→</span>
+          <span className="text-slate-500">→</span>
           <span className="font-mono font-semibold">{row.newPhone}</span>
         </p>
 
@@ -113,7 +113,7 @@ function Row({ row }: { row: ChangeRow }) {
         </p>
 
         {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
-        {note ? <p className="mt-2 text-sm text-teal-700">{note}</p> : null}
+        {note ? <p className="mt-2 text-sm text-brand-700">{note}</p> : null}
 
         <div className="mt-3 flex flex-wrap items-end gap-2">
           {!row.approved ? (

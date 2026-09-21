@@ -196,7 +196,7 @@ export function UsageMeter({
               {error}
             </p>
           ) : null}
-          {saved ? <p className="mt-3 text-xs font-semibold text-teal-700">Saved.</p> : null}
+          {saved ? <p className="mt-3 text-xs font-semibold text-brand-700">Saved.</p> : null}
 
           <Button
             type="button"

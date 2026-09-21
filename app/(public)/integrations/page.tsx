@@ -216,7 +216,7 @@ Content-Type: application/json`}</Code>
                         <span
                           className={
                             row.method === "GET"
-                              ? "rounded-md bg-teal-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-teal-700"
+                              ? "rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-brand-700"
                               : "rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-brand-800"
                           }
                         >

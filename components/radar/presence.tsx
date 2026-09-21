@@ -510,7 +510,7 @@ export function RadarPresence({
                   }}
                   className={cn(
                     "mt-3 flex h-12 items-center justify-center rounded-xl text-sm font-semibold",
-                    attention.waiting ? "bg-white text-red-700" : "bg-teal-500 text-white",
+                    attention.waiting ? "bg-white text-red-700" : "bg-teal-500 text-navy-600",
                   )}
                 >
                   {attention.waiting ? t("tpres.goIn") : t("tpres.openRoom")}
@@ -659,7 +659,7 @@ function SoundPrompt({
               setBusy(false);
               if (next === "ready") close();
             }}
-            className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
+            className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-navy-600 shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
           >
             <Volume2 className="h-4 w-4" aria-hidden />
             {busy ? t("trad.turningOn") : t("trad.turnOn")}
@@ -761,7 +761,7 @@ function StatusPill({
           <button
             type="button"
             onClick={onEnableSound}
-            className="ms-1 flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-400"
+            className="ms-1 flex items-center gap-1 rounded-full bg-red-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-400"
           >
             <VolumeX className="h-3 w-3" aria-hidden />
             {t("tpres.soundOff")}
@@ -770,7 +770,7 @@ function StatusPill({
           <button
             type="button"
             onClick={onAskPermission}
-            className="ms-1 flex items-center gap-1 rounded-full bg-teal-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-teal-400"
+            className="ms-1 flex items-center gap-1 rounded-full bg-teal-500 px-2 py-1 text-[11px] font-semibold text-navy-600 hover:bg-teal-400"
           >
             <Bell className="h-3 w-3" aria-hidden />
             {t("tpres.alertMe")}

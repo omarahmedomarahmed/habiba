@@ -355,7 +355,7 @@ export function Calendar({
                                     type="button"
                                     disabled={pending}
                                     onClick={() => invite(slot.id)}
-                                    className="tap-target h-9 rounded-lg bg-teal-500 px-2.5 text-xs font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+                                    className="tap-target h-9 rounded-lg bg-brand-500 px-2.5 text-xs font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
                                   >
                                     {pending
                                       ? t("portal.book.inviteSending")

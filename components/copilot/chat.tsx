@@ -311,15 +311,15 @@ export function CopilotChat({
           started (C211).
         */}
         {liveSession ? (
-          <Card className="mb-3 border-teal-200 bg-teal-50 px-4 py-3">
-            <p className="flex items-center gap-2 text-sm font-semibold text-teal-900">
-              <span className="live-dot h-2 w-2 rounded-full bg-teal-500" aria-hidden />
+          <Card className="mb-3 border-brand-200 bg-brand-50 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-semibold text-brand-900">
+              <span className="live-dot h-2 w-2 rounded-full bg-brand-500" aria-hidden />
               {t("tcop.liveNow")}
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-teal-800">{t("tcop.liveFree")}</p>
+            <p className="mt-1 text-xs leading-relaxed text-brand-800">{t("tcop.liveFree")}</p>
             <a
               href={`/sessions/${liveSession}/room`}
-              className="mt-1.5 inline-flex text-xs font-semibold text-teal-900 underline underline-offset-2"
+              className="mt-1.5 inline-flex text-xs font-semibold text-brand-900 underline underline-offset-2"
             >
               {t("tcop.goToRoom")}
             </a>
@@ -433,7 +433,7 @@ export function CopilotChat({
                 <span className="flex-1" />
 
                 {remaining !== null ? (
-                  <span className="text-xs text-slate-400">{t("tcop.left", { count: remaining })}</span>
+                  <span className="text-xs text-slate-500">{t("tcop.left", { count: remaining })}</span>
                 ) : null}
 
                 <Button size="sm" disabled={pending || !draft.trim()} onClick={() => send(draft)}>
@@ -448,7 +448,7 @@ export function CopilotChat({
             </div>
           )}
 
-          <p className="px-1 pt-2 text-[11px] leading-relaxed text-slate-400">
+          <p className="px-1 pt-2 text-[11px] leading-relaxed text-slate-500">
             {t("tcop.citeNote")}
           </p>
         </div>
@@ -458,14 +458,14 @@ export function CopilotChat({
       <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
         <Card className="p-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+            <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
               {t("tcop.readAloud")}
             </p>
             <button
               type="button"
               onClick={() => setShowVoiceSettings((v) => !v)}
               aria-label={t("tcop.voiceSettings")}
-              className="tap-target flex items-center justify-center text-slate-400 hover:text-slate-700"
+              className="tap-target flex items-center justify-center text-slate-500 hover:text-slate-700"
             >
               <Settings2 className="h-4 w-4" aria-hidden />
             </button>
@@ -514,7 +514,7 @@ export function CopilotChat({
         </Card>
 
         <Card className="p-3">
-          <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">{t("tcop.prompts")}</p>
+          <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">{t("tcop.prompts")}</p>
           <ul className="mt-2 space-y-1">
             {templates.map((template) => (
               <li key={template.label} className="flex items-center gap-1">
@@ -532,7 +532,7 @@ export function CopilotChat({
                   className="tap-target flex items-center justify-center rounded-lg text-slate-300 hover:text-slate-600"
                 >
                   {copied === template.label ? (
-                    <span className="text-[10px] font-semibold text-teal-600">{t("tcop.copied")}</span>
+                    <span className="text-[10px] font-semibold text-brand-700">{t("tcop.copied")}</span>
                   ) : (
                     <Copy className="h-3.5 w-3.5" aria-hidden />
                   )}
@@ -590,11 +590,11 @@ function MessageBubble({
 
   if (message.role === "session_note") {
     return (
-      <Card className="border-teal-200 bg-teal-50/60 px-4 py-3">
-        <p className="text-[11px] font-bold tracking-wider text-teal-700 uppercase">
+      <Card className="border-brand-200 bg-brand-50/60 px-4 py-3">
+        <p className="text-[11px] font-bold tracking-wider text-brand-700 uppercase">
           {t("tcop.notedDuring")}
         </p>
-        <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-teal-900">
+        <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-brand-900">
           {message.content}
         </p>
       </Card>
@@ -658,7 +658,7 @@ function MessageBubble({
 
       {openCitation !== null && message.citations[openCitation] ? (
         <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
-          <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+          <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
             {t("tcop.citedAt", {
               who:
                 message.citations[openCitation]!.speaker === "patient"
@@ -700,7 +700,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
   if (result) {
     return (
       <Card className="p-3">
-        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
           {t("tcop.freshStart")}
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
@@ -728,7 +728,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
   return (
     <Card className="space-y-2.5 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">{t("tcop.startOver")}</p>
+        <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">{t("tcop.startOver")}</p>
         <button
           type="button"
           onClick={() => setConfirming(false)}
@@ -747,14 +747,14 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
           {t("tcop.goes")}
         </li>
         <li className="flex gap-1.5">
-          <span aria-hidden className="text-teal-600">
+          <span aria-hidden className="text-brand-600">
             +
           </span>
           {t("tcop.kept")}
         </li>
       </ul>
 
-      <p className="text-[11px] leading-relaxed text-slate-400">
+      <p className="text-[11px] leading-relaxed text-slate-500">
         {t("tcop.notesAreRecord")}
       </p>
 
@@ -817,7 +817,7 @@ function LanguageBox({ patientId, initial }: { patientId: string; initial: strin
 
   return (
     <Card className="p-3">
-      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-400 uppercase">
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-500 uppercase">
         <Languages className="h-3.5 w-3.5" aria-hidden />
         {t("tcop.answerIn")}
       </p>
@@ -844,7 +844,7 @@ function LanguageBox({ patientId, initial }: { patientId: string; initial: strin
           </button>
         ))}
       </div>
-      <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
         {language === "auto"
           ? t("tcop.langAuto")
           : language === "ar"
@@ -886,7 +886,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
   return (
     <Card className="space-y-2.5 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
           {t("tcop.howIAnswer")}
         </p>
         <button
@@ -934,7 +934,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
       ) : null}
 
       {done ? (
-        <p className="text-sm text-teal-700">
+        <p className="text-sm text-brand-700">
           {t("tcop.correctionSaved")}
         </p>
       ) : (

@@ -121,7 +121,7 @@ export function IdentityEditor({
           </p>
         ) : null}
         {named.ok ? (
-          <p role="status" className="text-sm text-teal-700">
+          <p role="status" className="text-sm text-brand-700">
             {t("common.saved")}
           </p>
         ) : null}

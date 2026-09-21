@@ -105,7 +105,7 @@ function Section({
         >
           <span
             aria-hidden
-            className={`text-xs text-slate-400 transition-transform ${open ? "rotate-90" : ""}`}
+            className={`text-xs text-slate-500 transition-transform ${open ? "rotate-90" : ""}`}
           >
             ▶
           </span>
@@ -113,7 +113,7 @@ function Section({
         </button>
         <span className="text-xs text-slate-500">{subtitle}</span>
 
-        <span className="ms-auto text-[11px] tabular-nums text-slate-400">
+        <span className="ms-auto text-[11px] tabular-nums text-slate-500">
           read {when(readAt)}
         </span>
         <button
@@ -144,7 +144,7 @@ function Section({
 /** A big number with its label under it. The unit of this whole screen. */
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "warn" | "good" }) {
   const colour =
-    tone === "warn" ? "text-rose-600" : tone === "good" ? "text-teal-700" : "text-slate-900";
+    tone === "warn" ? "text-rose-600" : tone === "good" ? "text-brand-700" : "text-slate-900";
   return (
     <div className="rounded-xl bg-slate-50 px-3 py-2">
       <p className={`text-lg font-bold tabular-nums ${colour}`}>{value}</p>
@@ -165,7 +165,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-start text-[11px] uppercase tracking-wide text-slate-400">
+          <tr className="text-start text-[11px] uppercase tracking-wide text-slate-500">
             {head.map((h) => (
               <th key={h} className="px-2 py-1 text-start font-medium">
                 {h}

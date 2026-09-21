@@ -46,7 +46,7 @@ function Submit({ sessionRateCents }: { sessionRateCents: number }) {
     <button
       type="submit"
       disabled={pending}
-      className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+      className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-navy-600 hover:bg-teal-400 disabled:opacity-50"
     >
       {sessionRateCents > 0 ? <CreditCard className="h-4 w-4" aria-hidden /> : null}
       {pending
@@ -434,7 +434,7 @@ function WalkIn({ entry }: { entry: RadarEntry }) {
           href={mapsUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-teal-500 px-3 py-2 text-xs font-semibold text-navy-600 hover:bg-teal-400"
         >
           <Navigation className="h-3.5 w-3.5" aria-hidden />
           {t("pbook.directions")}
@@ -475,7 +475,7 @@ function WalkIn({ entry }: { entry: RadarEntry }) {
               type="button"
               disabled={sending || !email.includes("@")}
               onClick={send}
-              className="shrink-0 rounded-xl bg-teal-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
+              className="shrink-0 rounded-xl bg-teal-500 px-3 text-xs font-semibold text-navy-600 disabled:opacity-50"
             >
               {sending ? t("pbook.sending") : t("pbook.send")}
             </button>

@@ -76,7 +76,7 @@ export default async function TaxonomyPage() {
         emptyWarning="Every specialty is off. Clinicians will have nothing to say they work with."
       />
 
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-xs leading-relaxed text-slate-500">
         A country needs a point on the globe, so new ones are a code change. Ask.
       </p>
     </div>

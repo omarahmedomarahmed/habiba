@@ -121,7 +121,7 @@ export function SeatManager({
         <p className="mt-3 text-sm font-semibold text-red-700">{state.error}</p>
       ) : null}
       {state.ok ? (
-        <p className="mt-3 text-sm font-semibold text-teal-700">Saved.</p>
+        <p className="mt-3 text-sm font-semibold text-brand-700">Saved.</p>
       ) : null}
 
       {quote ? (

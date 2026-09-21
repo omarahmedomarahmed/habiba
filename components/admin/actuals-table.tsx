@@ -167,7 +167,7 @@ export function ActualsTable({
                     argument about §6 in one cell.
                   */}
                   {row.headcount > 0 && (
-                    <span className="ms-1.5 text-xs text-slate-400">×{String(row.headcount)}</span>
+                    <span className="ms-1.5 text-xs text-slate-500">×{String(row.headcount)}</span>
                   )}
                 </td>
                 <td className="py-2 text-end tabular-nums text-slate-600">
@@ -180,7 +180,7 @@ export function ActualsTable({
                     the editor at the bottom names them.
                   */}
                   {row.typedCostsCents === 0 && (
-                    <span className="ms-1 text-xs text-amber-600" title="nothing typed in">
+                    <span className="ms-1 text-xs text-amber-700" title="nothing typed in">
                       ?
                     </span>
                   )}
@@ -190,7 +190,7 @@ export function ActualsTable({
                 </td>
                 <td
                   className={`py-2 text-end font-medium tabular-nums ${
-                    row.netCents < 0 ? "text-rose-700" : "text-teal-700"
+                    row.netCents < 0 ? "text-rose-700" : "text-brand-700"
                   }`}
                 >
                   <Money cents={row.netCents} />
@@ -245,7 +245,7 @@ export function ActualsTable({
               </td>
               <td
                 className={`py-2 text-end tabular-nums ${
-                  totals.netCents < 0 ? "text-rose-700" : "text-teal-700"
+                  totals.netCents < 0 ? "text-rose-700" : "text-brand-700"
                 }`}
               >
                 <Money cents={totals.netCents} />

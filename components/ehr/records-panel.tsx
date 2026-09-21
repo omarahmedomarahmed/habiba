@@ -167,7 +167,7 @@ export function RecordsPanel({
                     aria-hidden
                     className={
                       connection.lastSuccessAt
-                        ? "h-2 w-2 rounded-full bg-teal-500"
+                        ? "h-2 w-2 rounded-full bg-brand-500"
                         : "h-2 w-2 rounded-full bg-slate-300"
                     }
                   />
@@ -301,7 +301,7 @@ export function RecordsPanel({
        */}
       {filings.length > 0 ? (
         <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t("records.filings")}
           </p>
           <ul className="mt-2 divide-y divide-slate-100">
@@ -311,7 +311,7 @@ export function RecordsPanel({
                   <span
                     className={
                       filing.state === "filed"
-                        ? "text-xs font-semibold text-teal-700"
+                        ? "text-xs font-semibold text-brand-700"
                         : filing.state === "refused"
                           ? "text-xs font-semibold text-red-600"
                           : "text-xs font-semibold text-amber-700"

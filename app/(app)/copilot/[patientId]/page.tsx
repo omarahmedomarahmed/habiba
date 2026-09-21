@@ -77,7 +77,7 @@ export default async function CopilotThreadPage({
           href={`/patients/${patientId}`}
           className="tap-target flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-          <User className="h-4 w-4 text-slate-400" aria-hidden />
+          <User className="h-4 w-4 text-slate-500" aria-hidden />
           {t("portal.copilot.openProfile")}
         </Link>
       </div>
@@ -103,9 +103,9 @@ export default async function CopilotThreadPage({
           <Card className="mb-4">
             <details>
               <summary className="tap-target flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-800">
-                <FileText className="h-4 w-4 text-slate-400" aria-hidden />
+                <FileText className="h-4 w-4 text-slate-500" aria-hidden />
                 {t("portal.copilot.history")}
-                <span className="ms-auto text-xs font-normal text-slate-400">
+                <span className="ms-auto text-xs font-normal text-slate-500">
                   {history.length}
                 </span>
               </summary>

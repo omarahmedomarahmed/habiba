@@ -178,9 +178,9 @@ export function ClinicianHomework({
               <div className="flex items-start gap-2.5">
                 <span className="mt-0.5 shrink-0">
                   {item.status === "done" ? (
-                    <Check className="h-4 w-4 text-teal-500" aria-hidden />
+                    <Check className="h-4 w-4 text-brand-500" aria-hidden />
                   ) : item.status === "skipped" ? (
-                    <SkipForward className="h-4 w-4 text-slate-400" aria-hidden />
+                    <SkipForward className="h-4 w-4 text-slate-500" aria-hidden />
                   ) : (
                     <span className="block h-4 w-4 rounded-full border border-slate-300" />
                   )}
@@ -191,7 +191,7 @@ export function ClinicianHomework({
                   {item.detail ? (
                     <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{item.detail}</p>
                   ) : null}
-                  <p className="mt-0.5 text-xs text-slate-400">
+                  <p className="mt-0.5 text-xs text-slate-500">
                     {item.source === "drafted" ? `${t("thw.fromNote")} · ` : ""}
                     {formatDate(new Date(item.createdAt), zone, locale)}
                     {item.completedAt
@@ -219,7 +219,7 @@ export function ClinicianHomework({
                       })
                     }
                     aria-label={t("thw.withdraw")}
-                    className="tap-target shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+                    className="tap-target shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>

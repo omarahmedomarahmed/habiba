@@ -117,7 +117,7 @@ export function LedgerAdjust({
       </div>
 
       {state.error ? <p className="mt-3 text-sm text-red-600">{state.error}</p> : null}
-      {state.ok ? <p className="mt-3 text-sm text-teal-700">Posted and audited.</p> : null}
+      {state.ok ? <p className="mt-3 text-sm text-brand-700">Posted and audited.</p> : null}
 
       <Button
         className="mt-4"

@@ -76,7 +76,7 @@ export default async function AssessmentsPage() {
               </p>
               <Link
                 href={`/patient/assessments/${assignment.id}`}
-                className="tap-target mt-3 inline-flex h-11 items-center rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white hover:bg-teal-600"
+                className="tap-target mt-3 inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400"
               >
                 {t("passess.start")}
               </Link>

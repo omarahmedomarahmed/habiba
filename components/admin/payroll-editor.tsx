@@ -111,7 +111,7 @@ function PersonRow({ person, thisMonth }: { person: PayrollPerson; thisMonth: st
 
   return (
     <>
-      <tr className={`border-b border-slate-100 ${person.endedOn ? "text-slate-400" : ""}`}>
+      <tr className={`border-b border-slate-100 ${person.endedOn ? "text-slate-500" : ""}`}>
         <td className="py-2">
           <span className={person.endedOn ? "" : "font-medium text-slate-900"}>{person.name}</span>
           {person.endedOn && (
@@ -160,7 +160,7 @@ function PersonRow({ person, thisMonth }: { person: PayrollPerson; thisMonth: st
             <Save label="Save" />
           </form>
           {state.error && <p className="mt-1 text-end text-xs text-rose-700">{state.error}</p>}
-          {state.ok && <p className="mt-1 text-end text-xs text-teal-700">{state.ok}</p>}
+          {state.ok && <p className="mt-1 text-end text-xs text-brand-700">{state.ok}</p>}
 
           <form action={leaveAction} className="mt-1 flex items-center justify-end gap-1">
             <input type="hidden" name="employeeId" value={person.id} />
@@ -182,7 +182,7 @@ function PersonRow({ person, thisMonth }: { person: PayrollPerson; thisMonth: st
             )}
           </form>
           {leave.error && <p className="mt-1 text-end text-xs text-rose-700">{leave.error}</p>}
-          {leave.ok && <p className="mt-1 text-end text-xs text-teal-700">{leave.ok}</p>}
+          {leave.ok && <p className="mt-1 text-end text-xs text-brand-700">{leave.ok}</p>}
         </td>
       </tr>
 
@@ -196,7 +196,7 @@ function PersonRow({ person, thisMonth }: { person: PayrollPerson; thisMonth: st
               {person.history.map((row) => (
                 <li key={row.effectiveFrom} className="text-xs text-slate-600 tabular-nums">
                   {row.effectiveFrom.slice(0, 7)} <Money cents={row.monthlyCents} />
-                  {row.note ? <span className="text-slate-400"> {row.note}</span> : null}
+                  {row.note ? <span className="text-slate-500"> {row.note}</span> : null}
                 </li>
               ))}
             </ul>
@@ -237,7 +237,7 @@ function AddForm({ thisMonth, onDone }: { thisMonth: string; onDone: () => void 
       <div className="sm:col-span-5">
         <Save label="Add" />
         {state.error && <span className="ms-2 text-xs text-rose-700">{state.error}</span>}
-        {state.ok && <span className="ms-2 text-xs text-teal-700">{state.ok}</span>}
+        {state.ok && <span className="ms-2 text-xs text-brand-700">{state.ok}</span>}
       </div>
     </form>
   );

@@ -68,16 +68,16 @@ export default async function DashboardPage() {
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         <Link href="/sessions/new" className="block">
           <div className="flex items-center gap-3 rounded-2xl bg-brand-500 px-5 py-4 text-navy-600 active:bg-brand-600">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-600/10">
               <Plus className="h-5 w-5" aria-hidden />
             </span>
             <span className="flex-1">
               <span className="block text-[15px] font-semibold">{t("portal.dash.start")}</span>
-              <span className="block text-xs text-white/70">
+              <span className="block text-xs text-navy-600/80">
                 {t("portal.dash.startBlurb")}
               </span>
             </span>
-            <ChevronRight className="h-4 w-4 text-white/60" aria-hidden />
+            <ChevronRight className="h-4 w-4 text-navy-600/70" aria-hidden />
           </div>
         </Link>
 
@@ -103,15 +103,15 @@ export default async function DashboardPage() {
           <Card
             className={
               radar?.status && radar.status !== "offline"
-                ? "flex items-center gap-3 border-teal-300 bg-teal-50/50 p-4 active:bg-teal-50"
+                ? "flex items-center gap-3 border-brand-300 bg-brand-50/50 p-4 active:bg-brand-50"
                 : "flex items-center gap-3 p-4 active:bg-slate-50"
             }
           >
             <span
               className={
                 radar?.status && radar.status !== "offline"
-                  ? "flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500 text-white"
-                  : "flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400"
+                  ? "flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-navy-600"
+                  : "flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500"
               }
             >
               <Radio
@@ -129,7 +129,7 @@ export default async function DashboardPage() {
                       ? t("portal.dash.radarInSession")
                       : t("portal.nav.crisisRadar")}
               </span>
-              <span className="block text-xs text-slate-500">
+              <span className="block text-xs text-slate-600">
                 {radar?.status && radar.status !== "offline"
                   ? t("portal.dash.radarOnBody")
                   : t("portal.dash.radarOffBody")}

@@ -116,7 +116,7 @@ export function MobileNav({
                   "text-base font-semibold text-white",
                 )}
               >
-                <span className="live-dot h-2 w-2 rounded-full bg-teal-400" aria-hidden />
+                <span className="live-dot h-2 w-2 rounded-full bg-brand-400" aria-hidden />
                 {t("nav.openRadar")}
               </Link>
 

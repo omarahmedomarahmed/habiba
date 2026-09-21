@@ -392,7 +392,7 @@ function Hero({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-teal-500/15 blur-3xl"
+        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-brand-500/15 blur-3xl"
       />
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
@@ -421,7 +421,7 @@ function Hero({
                 <ContentIconMark name={block.icon} tone="light" />
               ) : null}
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/85">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
                 {block.eyebrow}
               </span>
             </div>
@@ -631,7 +631,7 @@ function Showcase({
               <figure key={i} className="m-0 min-w-0">
                 <DemoFor name={item.demo} demo={demo} t={t} />
                 <figcaption className="mt-5">
-                  <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "teal" : "brand"} />
+                  <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "navy" : "brand"} />
                   <h3 className="mt-3 text-lg font-bold tracking-tight text-slate-900">
                     {item.title}
                   </h3>
@@ -659,7 +659,7 @@ function Showcase({
               <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
                 <ContentIconMark
                   name={item.icon}
-                  tone={i % 2 === 1 ? "teal" : "brand"}
+                  tone={i % 2 === 1 ? "navy" : "brand"}
                 />
                 <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                   {item.title}

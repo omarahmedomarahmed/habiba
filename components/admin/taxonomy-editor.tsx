@@ -108,7 +108,7 @@ export function TaxonomyEditor({
         <span className="flex-1" />
         <label className="relative">
           <Search
-            className="pointer-events-none absolute top-1/2 start-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute top-1/2 start-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
             aria-hidden
           />
           <Input
@@ -143,8 +143,8 @@ export function TaxonomyEditor({
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 row.enabled
-                  ? "border-teal-300 bg-teal-50 text-teal-800 hover:bg-teal-100"
-                  : "border-slate-200 bg-white text-slate-400 line-through hover:bg-slate-50",
+                  ? "border-brand-300 bg-brand-50 text-brand-800 hover:bg-brand-100"
+                  : "border-slate-200 bg-white text-slate-500 line-through hover:bg-slate-50",
                 row.custom && "rounded-e-none",
               )}
             >
@@ -158,7 +158,7 @@ export function TaxonomyEditor({
                 aria-label={`Delete ${row.label}`}
                 className={cn(
                   "-ms-px inline-flex items-center rounded-e-full border px-2 text-slate-300 hover:text-red-600",
-                  row.enabled ? "border-teal-300 bg-teal-50" : "border-slate-200 bg-white",
+                  row.enabled ? "border-brand-300 bg-brand-50" : "border-slate-200 bg-white",
                 )}
               >
                 <Trash2 className="h-3 w-3" aria-hidden />
@@ -167,7 +167,7 @@ export function TaxonomyEditor({
           </span>
         ))}
         {visible.length === 0 ? (
-          <p className="px-1 py-2 text-sm text-slate-400">Nothing matches “{query}”.</p>
+          <p className="px-1 py-2 text-sm text-slate-500">Nothing matches “{query}”.</p>
         ) : null}
       </div>
 

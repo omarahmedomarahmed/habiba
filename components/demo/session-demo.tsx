@@ -235,7 +235,7 @@ function SessionDemoInner({
                 {live ? labels.inProgress : labels.ended}
               </p>
               {/*
-                🔴 76.83 — `text-slate-400` on navy is 3.2:1, which is under the
+                🔴 76.83 — `text-slate-500` on navy is 3.2:1, which is under the
                 floor for anything a person is meant to read. It is the same
                 grey that was swept off every other surface this sprint, and a
                 hero is the worst place to keep it.

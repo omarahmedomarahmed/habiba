@@ -161,7 +161,7 @@ export function Badge({
     amber: "bg-amber-50 text-amber-700",
     red: "bg-red-50 text-red-700",
     brand: "bg-brand-50 text-brand-800",
-    teal: "bg-teal-50 text-teal-700",
+    teal: "bg-brand-50 text-brand-700",
   };
   return (
     <span

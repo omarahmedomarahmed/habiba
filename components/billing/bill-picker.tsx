@@ -165,7 +165,7 @@ export function BillPicker({
                       <span className="block truncate text-sm text-slate-800">
                         {invoice.description}
                       </span>
-                      <span className="block text-xs text-slate-400">{invoice.issuedAt}</span>
+                      <span className="block text-xs text-slate-500">{invoice.issuedAt}</span>
                     </span>
                     {/*
                       🔴 76.7 — DOLLARS, revealing pounds on hover or a tap, like

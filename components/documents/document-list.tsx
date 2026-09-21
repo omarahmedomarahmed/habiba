@@ -142,7 +142,7 @@ function DocumentCard({
     <li>
       <Card className={flagged ? "border-amber-200" : undefined}>
         <div className="flex items-start gap-3 px-4 py-3">
-          <span className="mt-0.5 text-slate-400">
+          <span className="mt-0.5 text-slate-500">
             {document.source === "dictated" ? (
               <Mic className="h-4 w-4" aria-hidden />
             ) : image ? (
@@ -154,7 +154,7 @@ function DocumentCard({
 
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-slate-900">
-              <span className="me-1.5 font-mono text-xs text-slate-400">D{document.ordinal}</span>
+              <span className="me-1.5 font-mono text-xs text-slate-500">D{document.ordinal}</span>
               {document.title}
             </p>
             {/* 8.7 — provenance, on the face of the row rather than behind it. */}

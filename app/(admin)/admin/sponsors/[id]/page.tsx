@@ -117,7 +117,7 @@ export default async function SponsorProfilePage({
           <p className="mt-0.5 text-2xl font-bold text-slate-900">
             <Money cents={table} />
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             {((pot?.coverageBps ?? 0) / 100).toFixed(0)}% covered
           </p>
         </Card>
@@ -143,7 +143,7 @@ export default async function SponsorProfilePage({
             nothing, and C117 bans the em dash that would otherwise fill them.
           */}
           {[row.contactName, row.contactEmail, row.contactPhone].filter(Boolean).length === 0 ? (
-            <p className="mt-0.5 text-sm text-slate-400">None</p>
+            <p className="mt-0.5 text-sm text-slate-500">None</p>
           ) : (
             <>
               {row.contactName ? (
@@ -179,7 +179,7 @@ export default async function SponsorProfilePage({
       )}
 
       <section className="space-y-2">
-        <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Transfers</h2>
+        <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">Transfers</h2>
 
         {payments.length === 0 ? (
           <Card className="p-5 text-sm text-slate-500">Nothing yet.</Card>
@@ -190,7 +190,7 @@ export default async function SponsorProfilePage({
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-900">
                     <Money cents={p.settlesCents} />{" "}
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-500">
                       {/*
                         🔴 76.28 — WRITTEN OUT, because it printed "5700000 EGP"
                         and an operator matches this against a bank statement.
@@ -216,7 +216,7 @@ export default async function SponsorProfilePage({
 
       {/* ------------------------------------- 🔴 76.29 · where it all went -- */}
       <section className="space-y-2">
-        <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
           Where the pot went
         </h2>
 
@@ -264,7 +264,7 @@ export default async function SponsorProfilePage({
           with no session behind it, which is a defect nobody finds until a
           company asks where their balance went.
         */}
-        <p className={agreement.agrees ? "px-1 text-xs text-teal-700" : "px-1 text-xs text-rose-600"}>
+        <p className={agreement.agrees ? "px-1 text-xs text-brand-700" : "px-1 text-xs text-rose-600"}>
           {agreement.agrees
             ? "Agrees with the ledger."
             : `🔴 Sessions say ${agreement.fromSessions}, the ledger says ${agreement.fromLedger}.`}

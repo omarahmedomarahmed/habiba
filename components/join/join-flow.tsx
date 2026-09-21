@@ -200,7 +200,7 @@ export function JoinFlow({
         </p>
         <a
           href={`/feedback/${feedbackToken ?? token}`}
-          className="mt-4 inline-flex h-12 items-center justify-center rounded-2xl bg-teal-500 px-5 text-sm font-semibold text-white hover:bg-teal-600"
+          className="mt-4 inline-flex h-12 items-center justify-center rounded-2xl bg-brand-500 px-5 text-sm font-semibold text-navy-600 hover:bg-brand-400"
         >
           {t("room.rateAndGet")}
         </a>
@@ -452,7 +452,7 @@ function ConsentStep() {
             className={cn(
               "flex cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm font-medium transition-colors",
               choice === value
-                ? "border-teal-500 bg-teal-50 text-teal-900"
+                ? "border-brand-500 bg-brand-50 text-brand-900"
                 : "border-slate-200 text-slate-700 hover:bg-slate-50",
             )}
           >
@@ -463,7 +463,7 @@ function ConsentStep() {
               required
               checked={choice === value}
               onChange={() => setChoice(value)}
-              className="h-4 w-4 border-slate-300 text-teal-600 focus:ring-teal-500"
+              className="h-4 w-4 border-slate-300 text-brand-600 focus:ring-brand-500"
             />
             {label}
           </label>

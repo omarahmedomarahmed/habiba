@@ -73,7 +73,7 @@ export function NoteCard({
         {/*
           🔴 76.66 — THE FOUR SECTIONS ARE THE DOCUMENT, SO THEY ARE BUILT LIKE ONE.
           
-          The labels were `text-slate-400` on white: **2.56:1**, which fails even
+          The labels were `text-slate-500` on white: **2.56:1**, which fails even
           the 3:1 large-text floor and is being asked to carry 11px bold, where
           the requirement is 4.5:1. A clinician skimming for the Assessment could
           not find the word Assessment. Measured, not judged by eye.
@@ -145,7 +145,7 @@ export function NoteCard({
             <ul className="mt-1.5 space-y-1">
               {note.recommendations.map((rec, i) => (
                 <li key={i} className="flex gap-2 text-sm leading-relaxed text-slate-700">
-                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-teal-400" />
+                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-brand-400" />
                   {rec}
                 </li>
               ))}

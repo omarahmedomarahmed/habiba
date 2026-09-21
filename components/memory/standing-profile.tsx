@@ -136,7 +136,7 @@ export async function StandingProfile({
                 hidden behind a tooltip: a claim you have to hover to check is
                 a claim nobody checks.
               */}
-              <p className="mt-1.5 font-mono text-xs text-slate-400">{section.refs.join(" · ")}</p>
+              <p className="mt-1.5 font-mono text-xs text-slate-500">{section.refs.join(" · ")}</p>
             </section>
           ))}
         </div>
@@ -153,7 +153,7 @@ export async function StandingProfile({
           <ol className="divide-y divide-slate-100">
             {timeline.map((entry) => (
               <li key={entry.id} className="flex items-start gap-3 px-4 py-2.5">
-                <span className="mt-0.5 shrink-0 text-slate-400">
+                <span className="mt-0.5 shrink-0 text-slate-500">
                   {entry.source === "session" ? (
                     <MessageSquare className="h-3.5 w-3.5" aria-hidden />
                   ) : (
@@ -165,7 +165,7 @@ export async function StandingProfile({
                     <Clock className="h-3 w-3" aria-hidden />
                     {formatDate(entry.observedAt, zone, locale)}
                     {entry.ref ? (
-                      <span className="font-mono text-slate-400">{entry.ref}</span>
+                      <span className="font-mono text-slate-500">{entry.ref}</span>
                     ) : null}
                   </p>
                   <p className="mt-0.5 text-sm leading-relaxed text-slate-700">{entry.text}</p>

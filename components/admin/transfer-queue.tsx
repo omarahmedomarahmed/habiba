@@ -90,7 +90,7 @@ const PAYER_LABEL: Record<Row["payerType"], string> = {
 };
 
 const PAYER_TONE: Record<Row["payerType"], string> = {
-  patient: "bg-teal-100 text-teal-800",
+  patient: "bg-brand-100 text-brand-800",
   therapist: "bg-indigo-100 text-indigo-800",
   clinic: "bg-violet-100 text-violet-800",
   company: "bg-amber-100 text-amber-900",
@@ -125,7 +125,7 @@ export function TransferQueue({ rows }: { rows: Row[] }) {
   return (
     <div className="space-y-3">
       {msg.error ? <p className="text-sm text-rose-600">{msg.error}</p> : null}
-      {msg.ok ? <p className="text-sm text-teal-700">{msg.ok}</p> : null}
+      {msg.ok ? <p className="text-sm text-brand-700">{msg.ok}</p> : null}
 
       {/*
         🔴 76.11 — ONE PAGE, FOUR VIEWS, AND "ALL" IS THE DEFAULT.
@@ -235,7 +235,7 @@ function TransferRow({
               which is the same rule every other figure on this rail follows.
             */}
             {row.amountLabel}
-            <span className="ms-2 text-slate-400">
+            <span className="ms-2 text-slate-500">
               settles {row.settlesLabel}
             </span>
             {waited !== null ? (
@@ -254,7 +254,7 @@ function TransferRow({
                 onDone(await confirm(row.id));
               })
             }
-            className="h-10 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white disabled:opacity-40"
+            className="h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 active:bg-brand-600 disabled:opacity-40"
           >
             Confirm
           </button>

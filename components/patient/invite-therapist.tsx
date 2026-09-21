@@ -119,11 +119,11 @@ export function InviteTherapist({
       ) : null}
 
       {state.code ? (
-        <div className="mt-3 rounded-xl bg-teal-50 px-3.5 py-3">
-          <p className="font-mono text-2xl font-bold tracking-[0.2em] text-teal-900">
+        <div className="mt-3 rounded-xl bg-brand-50 px-3.5 py-3">
+          <p className="font-mono text-2xl font-bold tracking-[0.2em] text-brand-900">
             {state.code}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-teal-900/80">
+          <p className="mt-1 text-xs leading-relaxed text-brand-900/80">
             Read it to your therapist. It works until {state.expiresOn}, once, and you will be
             asked to approve before they can read anything.
           </p>

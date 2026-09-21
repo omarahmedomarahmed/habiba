@@ -48,7 +48,7 @@ export default async function AdminAuditPage({
       <Card className="divide-y divide-slate-100">
         {entries.map((entry) => (
           <div key={entry.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
-            <span className="font-mono text-xs text-slate-400">
+            <span className="font-mono text-xs text-slate-500">
               {formatDateTime(entry.createdAt, actor.timezone, "en")}
             </span>
             <Badge tone={entry.category === "phi_access" ? "brand" : "slate"}>
@@ -74,10 +74,10 @@ export default async function AdminAuditPage({
                     : "system")}
             </span>
             {entry.organizationName ? (
-              <span className="text-xs text-slate-400">{entry.organizationName}</span>
+              <span className="text-xs text-slate-500">{entry.organizationName}</span>
             ) : null}
             {entry.patientId ? (
-              <span className="font-mono text-xs text-slate-400">
+              <span className="font-mono text-xs text-slate-500">
                 patient {entry.patientId.slice(0, 8)}…
               </span>
             ) : null}

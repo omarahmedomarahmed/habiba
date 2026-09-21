@@ -87,7 +87,7 @@ export function EarningsCard(props: EarningsProps) {
         ) : (
           <>
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                 <Wallet className="h-4 w-4" aria-hidden />
               </span>
               <div className="min-w-0">
@@ -112,9 +112,9 @@ export function EarningsCard(props: EarningsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-3xl bg-teal-600 text-white">
+      <div className="overflow-hidden rounded-3xl bg-brand-500 text-navy-600">
         <div className="px-5 pt-5 pb-4">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-600/10 px-2.5 py-1 text-xs font-semibold">
             <Wallet className="h-3 w-3" aria-hidden />
             {t("tearn.title")}
           </span>
@@ -122,7 +122,7 @@ export function EarningsCard(props: EarningsProps) {
           <p className="mt-3 text-3xl font-bold tracking-tight">
             {props.availableCents === null ? "-" : formatUsd(props.availableCents)}
           </p>
-          <p className="mt-0.5 text-sm text-white/70">
+          <p className="mt-0.5 text-sm text-navy-600/80">
             {props.availableCents === null
               ? t("tearn.unavailable")
               : `${t("tearn.availableNow")}${
@@ -134,11 +134,11 @@ export function EarningsCard(props: EarningsProps) {
 
           <dl className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-white/60">{t("tearn.thisMonth")}</dt>
+              <dt className="text-xs text-navy-600/80">{t("tearn.thisMonth")}</dt>
               <dd className="mt-0.5 text-2xl font-bold"><Money cents={props.thisMonthNetCents} /></dd>
             </div>
             <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-white/60">{t("tearn.paidSessions")}</dt>
+              <dt className="text-xs text-navy-600/80">{t("tearn.paidSessions")}</dt>
               <dd className="mt-0.5 text-2xl font-bold">{props.paidSessionCount}</dd>
             </div>
           </dl>
@@ -155,7 +155,7 @@ export function EarningsCard(props: EarningsProps) {
                 <p className="text-sm font-semibold">
                   {t("tearn.heldBy", { amount: formatUsd(props.heldCents) })}
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-white/70">
+                <p className="mt-0.5 text-xs leading-relaxed text-navy-600/80">
                   {t("tearn.heldBody")}
                 </p>
               </div>
@@ -174,7 +174,7 @@ export function EarningsCard(props: EarningsProps) {
                 type="button"
                 disabled={pending}
                 onClick={() => run(payOutNow)}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-teal-700 disabled:opacity-50"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-brand-700 disabled:opacity-50"
               >
                 <Banknote className="h-4 w-4" aria-hidden />
                 {pending ? t("tpay.requesting") : t("tearn.payOutNow")}
@@ -184,7 +184,7 @@ export function EarningsCard(props: EarningsProps) {
               type="button"
               disabled={pending}
               onClick={() => run(openPayoutDashboard)}
-              className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-white/15 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-navy-600/10 px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
               {t("tpay.dashboard")}
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
@@ -192,7 +192,7 @@ export function EarningsCard(props: EarningsProps) {
           </div>
         </div>
 
-        <div className="border-t border-white/10 px-5 py-3 text-xs text-white/60">
+        <div className="border-t border-navy-600/15 px-5 py-3 text-xs text-navy-600/80">
           {props.settledFromEarningsCents > 0
             ? t("tearn.lifetimeSettled", {
                 net: formatUsd(props.lifetimeNetCents),

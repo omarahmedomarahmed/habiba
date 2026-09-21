@@ -110,13 +110,13 @@ function Control({
   const t = useT();
   return (
     <div className="flex items-start gap-2.5">
-      <span className={granted ? "mt-0.5 text-teal-300" : "mt-0.5 text-white/40"}>{icon}</span>
+      <span className={granted ? "mt-0.5 text-brand-300" : "mt-0.5 text-white/40"}>{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-white">{label}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-white/50">{detail}</p>
       </div>
       {granted ? (
-        <span className="mt-0.5 flex shrink-0 items-center gap-1 text-xs font-semibold text-teal-300">
+        <span className="mt-0.5 flex shrink-0 items-center gap-1 text-xs font-semibold text-brand-300">
           <Check className="h-3.5 w-3.5" aria-hidden />
           {t("jconsent.on")}
         </span>

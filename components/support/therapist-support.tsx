@@ -53,12 +53,12 @@ export function TherapistSupport({
   return (
     <div className="space-y-4">
       {state.ok ? (
-        <Card className="border-teal-200 bg-teal-50 p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-teal-900">
+        <Card className="border-brand-200 bg-brand-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-brand-900">
             <CheckCircle2 className="h-4 w-4" aria-hidden />
             {t("tsup.reference", { ref: state.ok.reference })}
           </p>
-          <p className="mt-1 text-sm text-teal-900/90">
+          <p className="mt-1 text-sm text-brand-900/90">
             {t("tsup.picksUp", { hours: state.ok.hours })}
           </p>
         </Card>
@@ -138,7 +138,7 @@ export function TherapistSupport({
           <ul className="mt-2 divide-y divide-slate-100">
             {mine.map((row) => (
               <li key={row.reference} className="flex items-center gap-3 py-2 text-sm">
-                <span className="font-mono text-xs text-slate-400">{row.reference}</span>
+                <span className="font-mono text-xs text-slate-500">{row.reference}</span>
                 <span className="text-slate-700">
                   {t(TOPICS.find((x) => x.value === row.topic)?.short ?? "tsup.topicOther")}
                 </span>

@@ -130,9 +130,21 @@ export function PendingBar({
          * So both unfinished states are warning-coloured and the darker one is
          * the one waiting on the payer. Green still means done, because that is
          * a receipt and nothing else in the product claims it.
+         *
+         * 🔴 AND THE GREEN IS 700, BECAUSE 600 COULD NOT CARRY THE WORDS ON IT.
+         *
+         * A crawler that reads computed pixels on every signed-in screen found
+         * this bar at 3.65:1 — white on `emerald-600` #009966, under the 4.5
+         * body text needs, on all four of its own labels. It had been read as
+         * a palette question ("is this green the right green?") and was never
+         * measured, which is how a contrast failure survives being looked at.
+         *
+         * `emerald-700` is 5.36:1 and still unmistakably the receipt colour.
+         * The two amber states carry `amber-950` rather than white and were
+         * never in question; they measure 11.4 and 14.2.
          */
         stage === "confirmed"
-          ? "flex items-center gap-3 bg-emerald-600 px-4 py-2 text-white"
+          ? "flex items-center gap-3 bg-emerald-700 px-4 py-2 text-white"
           : stage === "open"
             ? "flex items-center gap-3 bg-amber-500 px-4 py-2 text-amber-950"
             : "flex items-center gap-3 bg-amber-300 px-4 py-2 text-amber-950"

@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 export type BannerTone = "good" | "warn" | "bad" | "info";
 
 const BANNER: Record<BannerTone, { ring: string; text: string; Icon: typeof Check }> = {
-  good: { ring: "border-teal-200 bg-teal-50", text: "text-teal-900", Icon: Check },
+  good: { ring: "border-brand-200 bg-brand-50", text: "text-brand-900", Icon: Check },
   warn: { ring: "border-amber-200 bg-amber-50", text: "text-amber-900", Icon: AlertTriangle },
   bad: { ring: "border-red-200 bg-red-50", text: "text-red-900", Icon: X },
   info: { ring: "border-slate-200 bg-slate-50", text: "text-slate-700", Icon: Info },
@@ -104,7 +104,7 @@ export function FlowStrip({
             <span
               className={cn(
                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                i <= done ? "bg-teal-600 text-white" : "bg-slate-900 text-white",
+                i <= done ? "bg-brand-500 text-navy-600" : "bg-slate-900 text-white",
               )}
             >
               {i <= done ? <Check className="h-3.5 w-3.5" aria-hidden /> : i + 1}
@@ -164,7 +164,7 @@ export function SeesWhat({
         <ul className="flex flex-col gap-2 bg-white p-4">
           {can.map((item) => (
             <li key={item} className="flex gap-2.5 text-sm text-slate-700">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" aria-hidden />
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
               {item}
             </li>
           ))}
@@ -246,7 +246,7 @@ export function Checklist({
       {items.map((item) => (
         <li key={item.label} className="flex gap-2.5">
           {item.done ? (
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" aria-hidden />
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
           ) : (
             <span
               aria-hidden
@@ -362,7 +362,7 @@ export type SplitPart = {
 };
 
 const SPLIT: Record<SplitPart["kind"], { bar: string; dot: string }> = {
-  keep: { bar: "bg-teal-500", dot: "bg-teal-500" },
+  keep: { bar: "bg-brand-500", dot: "bg-brand-500" },
   fee: { bar: "bg-slate-400", dot: "bg-slate-400" },
   tax: { bar: "bg-amber-400", dot: "bg-amber-400" },
 };

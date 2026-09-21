@@ -148,7 +148,7 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
                     type="button"
                     disabled={pending || !codes[benefit.enrolmentId]}
                     onClick={() => confirm(benefit.enrolmentId)}
-                    className="tap-target h-10 rounded-xl bg-teal-500 px-4 text-xs font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+                    className="tap-target h-10 rounded-xl bg-brand-500 px-4 text-xs font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
                   >
                     {t("benefit.confirm")}
                   </button>
@@ -162,7 +162,7 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
               */}
               {benefits.length > 1 ? (
                 benefit.isPrimary ? (
-                  <p className="mt-1.5 text-xs font-medium text-teal-700">
+                  <p className="mt-1.5 text-xs font-medium text-brand-700">
                     {t("benefit.primary")}
                   </p>
                 ) : (
@@ -239,7 +239,7 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
                 type="button"
                 disabled={pending || !identifier}
                 onClick={activate}
-                className="tap-target h-12 w-full rounded-2xl bg-teal-500 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+                className="tap-target h-12 w-full rounded-2xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
               >
                 {pending ? t("benefit.activating") : t("benefit.activate")}
               </button>

@@ -64,7 +64,7 @@ function Bar({ title, sub }: { title: string; sub?: string }) {
           <p className="truncate text-[17px] font-bold tracking-tight text-navy-500">{title}</p>
           {sub ? <p className="mt-0.5 truncate text-[12px] text-slate-600">{sub}</p> : null}
         </div>
-        <Bell className="mt-1 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <Bell className="mt-1 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
       </div>
     </div>
   );
@@ -141,7 +141,7 @@ function FreeChip({ name, languages, price }: { name: string; languages: string;
   return (
     <div className="w-[8.5rem] shrink-0 rounded-2xl border border-slate-200 bg-white p-2.5">
       <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-brand-700">
-        <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" />
+        <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
         Free now
       </span>
       <p className="mt-1.5 truncate text-[12px] font-bold text-slate-900">{name}</p>
@@ -288,7 +288,7 @@ export function OptionC() {
         <div className="px-4 pt-3 pb-2">
           <p className="text-[17px] font-bold tracking-tight text-white">Who is free now</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-white/80">
-            <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-400" />3 clinicians, verified
+            <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-400" />3 clinicians, verified
           </p>
         </div>
 
@@ -333,7 +333,7 @@ export function OptionC() {
             app to admire it.
           */}
           <div className="mx-4 mt-3 mb-4 flex items-center gap-2.5 rounded-xl bg-navy-500 px-3 py-2.5 text-white">
-            <CalendarDays className="h-4 w-4 shrink-0 text-teal-400" aria-hidden />
+            <CalendarDays className="h-4 w-4 shrink-0 text-brand-400" aria-hidden />
             <span className="min-w-0 flex-1 text-[12px] font-medium">
               Dr Nour Demo, tomorrow 18:00
             </span>

@@ -38,7 +38,7 @@ export default async function PatientsPage() {
         <p className="text-center">
           <Link
             href="/patients/import"
-            className="text-xs font-semibold text-teal-700 hover:underline"
+            className="text-xs font-semibold text-brand-700 hover:underline"
           >
             {t("import.link")}
           </Link>

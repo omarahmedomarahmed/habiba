@@ -111,9 +111,9 @@ export function NewSessionForm({
   return (
     <form action={action} className="space-y-6">
       {welcome ? (
-        <div className="rounded-2xl bg-teal-50 px-4 py-3.5">
-          <p className="text-sm font-semibold text-teal-900">{t("tnew.welcome")}</p>
-          <p className="mt-0.5 text-sm text-teal-800">
+        <div className="rounded-2xl bg-brand-50 px-4 py-3.5">
+          <p className="text-sm font-semibold text-brand-900">{t("tnew.welcome")}</p>
+          <p className="mt-0.5 text-sm text-brand-800">
             {t("tnew.welcomeBody")}
           </p>
         </div>
@@ -333,7 +333,7 @@ export function NewSessionForm({
             <div className="mt-3 space-y-3">
               <Field label={t("tnew.price")} htmlFor="price">
                 <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-400">
+                  <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-500">
                     $
                   </span>
                   <Input
@@ -473,7 +473,7 @@ function ModalityOption({
           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
       )}
     >
-      <span className={cn(active ? "text-brand-700" : "text-slate-400")}>{icon}</span>
+      <span className={cn(active ? "text-brand-700" : "text-slate-500")}>{icon}</span>
       <span className="text-sm font-semibold">{title}</span>
       <span className="text-xs text-slate-500">{body}</span>
     </button>

@@ -67,7 +67,7 @@ export default async function AdminErrorsPage() {
               <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">
                 {latest.method ?? "-"} {latest.route}
               </code>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-500">
                 last {formatDateTime(group.last, actor.timezone, "en")}
                 {group.rows.length > 1 ? ` · first ${formatDateTime(group.first, actor.timezone, "en")}` : ""}
               </span>
@@ -76,7 +76,7 @@ export default async function AdminErrorsPage() {
             <p className="mt-2 text-sm font-medium break-words text-slate-900">{latest.message}</p>
 
             {latest.digest ? (
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-500">
                 Digest <code className="font-mono">{latest.digest}</code>. The code a clinician
                 sees, so a support message quoting it lands here.
               </p>

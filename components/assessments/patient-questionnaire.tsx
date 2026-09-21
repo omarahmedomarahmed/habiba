@@ -161,7 +161,7 @@ export function PatientQuestionnaire({
           aria-valuemax={questions.length}
         >
           <div
-            className="h-full rounded-full bg-teal-500 transition-all duration-300"
+            className="h-full rounded-full bg-brand-500 transition-all duration-300"
             style={{ width: `${(answered / questions.length) * 100}%` }}
           />
         </div>
@@ -185,7 +185,7 @@ export function PatientQuestionnaire({
                 aria-pressed={chosen}
                 className={
                   chosen
-                    ? "tap-target flex min-h-12 w-full items-center rounded-xl border border-teal-500 bg-teal-50 px-4 py-3 text-start text-sm font-medium text-slate-900 disabled:opacity-60"
+                    ? "tap-target flex min-h-12 w-full items-center rounded-xl border border-brand-500 bg-brand-50 px-4 py-3 text-start text-sm font-medium text-slate-900 disabled:opacity-60"
                     : "tap-target flex min-h-12 w-full items-center rounded-xl border border-slate-200 px-4 py-3 text-start text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
                 }
               >
@@ -221,7 +221,7 @@ export function PatientQuestionnaire({
       */}
       <div>
         <p className="text-xs font-medium text-slate-500">{t("passess.sourceLabel")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-400">
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">
           {say(name)}. {attribution}
         </p>
       </div>

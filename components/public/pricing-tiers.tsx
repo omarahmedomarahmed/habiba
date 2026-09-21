@@ -410,7 +410,7 @@ export async function PricingTiers({
               <ul className="mt-5 flex-1 space-y-2.5">
                 {card.bullets.map((bullet) => (
                   <li key={bullet} className="flex gap-2.5 text-[13px] leading-snug text-slate-700">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" aria-hidden />
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden />
                     {bullet}
                   </li>
                 ))}
@@ -486,7 +486,7 @@ export async function PricingTiers({
                         {row.cells.map((cell, i) => (
                           <td key={i} className="px-4 py-2.5 text-[13px] text-slate-700">
                             {cell === YES ? (
-                              <Check className="h-4 w-4 text-teal-500" aria-label={t("pr2.includedWord")} />
+                              <Check className="h-4 w-4 text-brand-500" aria-label={t("pr2.includedWord")} />
                             ) : cell === NO ? (
                               <span className="text-slate-600">{t("pr2.notIncluded")}</span>
                             ) : (

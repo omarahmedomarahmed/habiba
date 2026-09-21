@@ -115,7 +115,7 @@ function Step({
             type="button"
             disabled={pending}
             onClick={() => setAnswering("done")}
-            className="tap-target flex h-11 items-center gap-1.5 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+            className="tap-target flex h-11 items-center gap-1.5 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
           >
             <Check className="h-4 w-4" aria-hidden />
             {t("psteps.didThis")}

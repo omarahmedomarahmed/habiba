@@ -142,8 +142,8 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
         className={cn(
           "mt-3 flex h-13 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold transition-colors",
           bookable
-            ? "bg-teal-500 text-white hover:bg-teal-600"
-            : "cursor-not-allowed bg-slate-100 text-slate-400",
+            ? "bg-teal-500 text-navy-600 hover:bg-teal-400"
+            : "cursor-not-allowed bg-slate-100 text-slate-500",
         )}
       >
         {bookable

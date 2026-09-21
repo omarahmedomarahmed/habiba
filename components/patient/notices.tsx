@@ -103,7 +103,7 @@ export function PatientNotices({ notices }: { notices: NoticeView[] }) {
 
       {earlier.length > 0 ? (
         <div className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t("pnotice.earlier")}
           </h2>
           {earlier.map((notice) => (

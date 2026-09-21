@@ -232,7 +232,7 @@ export default async function PatientDocumentsPage({
             <ul className="mt-3 space-y-3">
               {journals.map((entry) => (
                 <li key={entry.id} className="border-s-2 border-slate-200 ps-3">
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     {formatDate(entry.createdAt, actor.timezone, locale)}
                     {entry.source === "dictated" ? ` · ${t("portal.docs.spoken")}` : ""}
                   </p>

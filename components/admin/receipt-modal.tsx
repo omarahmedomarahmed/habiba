@@ -280,7 +280,7 @@ export function ReceiptModal({
                 type="button"
                 disabled={pending}
                 onClick={onConfirm}
-                className="h-10 rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white disabled:opacity-40"
+                className="h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 active:bg-brand-600 disabled:opacity-40"
               >
                 {pending ? "Working" : "Approve this payment"}
               </button>

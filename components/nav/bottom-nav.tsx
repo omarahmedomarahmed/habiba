@@ -171,14 +171,14 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
           />
           <div className="safe-bottom animate-fade-rise absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-3 pb-24">
             <div className="mb-1 flex items-center justify-between px-2 py-1">
-              <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+              <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
                 {t("portal.nav.more")}
               </p>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={t("common.close")}
-                className="tap-target flex items-center justify-center text-slate-400"
+                className="tap-target flex items-center justify-center text-slate-500"
               >
                 <X className="h-5 w-5" aria-hidden />
               </button>
@@ -251,7 +251,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
             aria-label={t("portal.nav.more")}
             className={cn(
               "tap-target flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5",
-              open || moreActive ? "text-brand-700" : "text-slate-400",
+              open || moreActive ? "text-brand-700" : "text-slate-500",
             )}
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />
@@ -284,7 +284,7 @@ function NavItem({
       aria-current={active ? "page" : undefined}
       className={cn(
         "tap-target flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5",
-        active ? "text-brand-700" : "text-slate-400",
+        active ? "text-brand-700" : "text-slate-500",
       )}
     >
       <Icon className="h-5 w-5" aria-hidden />

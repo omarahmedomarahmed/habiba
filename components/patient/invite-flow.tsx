@@ -35,7 +35,7 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
     return (
       <Card className="p-5">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <Check className="h-4 w-4 text-teal-600" aria-hidden />
+          <Check className="h-4 w-4 text-brand-600" aria-hidden />
           {t("pclaim.doneTitle")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">

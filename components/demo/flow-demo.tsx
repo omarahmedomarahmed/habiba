@@ -242,7 +242,7 @@ const CLAIM: Step[] = [
                   i < typed.length
                     ? "border-brand-300 bg-brand-50 text-slate-900"
                     : i === typed.length
-                      ? "border-brand-600 bg-white text-slate-400 ring-2 ring-brand-200"
+                      ? "border-brand-600 bg-white text-slate-500 ring-2 ring-brand-200"
                       : "border-slate-200 bg-white text-transparent",
                 )}
               >
@@ -383,7 +383,7 @@ const CONSENT: Step[] = [
               <Eye className="h-4 w-4 shrink-0 text-brand-700" aria-hidden />
               {t("dfl.demoTherapist")}
             </span>
-            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-teal-800 uppercase">
+            <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-brand-800 uppercase">
               {t("consent.canRead")}
             </span>
           </span>
@@ -519,7 +519,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                           now
                             ? "bg-brand-500 text-navy-600"
                             : done
-                              ? "bg-teal-100 text-teal-700"
+                              ? "bg-brand-100 text-brand-700"
                               : "bg-slate-100 text-slate-600",
                         )}
                       >

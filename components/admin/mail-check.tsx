@@ -80,7 +80,7 @@ export function MailCheck({ roster }: { roster: PreviewRow[] }) {
         </p>
       ) : null}
       {state.ok ? (
-        <p role="status" className="mt-3 text-sm text-teal-700">
+        <p role="status" className="mt-3 text-sm text-brand-700">
           On their way.
         </p>
       ) : null}

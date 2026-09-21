@@ -52,7 +52,7 @@ export function LinkedPlatforms({
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <Plug className="h-4 w-4 text-slate-400" />
+        <Plug className="h-4 w-4 text-slate-500" />
         <h2 className="text-sm font-semibold text-slate-900">{t("plat.title")}</h2>
       </div>
 

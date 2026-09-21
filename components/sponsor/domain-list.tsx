@@ -175,7 +175,7 @@ function Step({ done, label }: { done: boolean; label: string }) {
       ) : (
         <Circle className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
       )}
-      <span className={done ? "text-slate-700" : "text-slate-400"}>{label}</span>
+      <span className={done ? "text-slate-700" : "text-slate-500"}>{label}</span>
     </li>
   );
 }

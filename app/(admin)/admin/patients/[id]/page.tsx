@@ -83,7 +83,7 @@ export default async function PatientAccountPage({
       />
 
       <section className="space-y-2">
-        <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Transfers</h2>
+        <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">Transfers</h2>
 
         {payments.length === 0 ? (
           <Card className="p-5 text-sm text-slate-500">Nothing yet.</Card>
@@ -94,7 +94,7 @@ export default async function PatientAccountPage({
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-900">
                     <Money cents={p.settlesCents} />{" "}
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-500">
                       sent {p.amountCents} {p.currency.toUpperCase()}
                     </span>
                   </p>

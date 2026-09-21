@@ -114,7 +114,7 @@ export function PayFlow({
         <Field label={t("pay.whereFrom")} htmlFor="country">
           <div className="relative">
             <Globe
-              className="pointer-events-none absolute inset-y-0 start-3 my-auto h-4 w-4 text-slate-400"
+              className="pointer-events-none absolute inset-y-0 start-3 my-auto h-4 w-4 text-slate-500"
               aria-hidden
             />
             <select
@@ -161,7 +161,7 @@ export function PayFlow({
                 <div className="flex justify-between gap-3">
                   <dt className="text-slate-600">
                     VAT ({(breakdown.vatBps / 100).toFixed(breakdown.vatBps % 100 === 0 ? 0 : 1)}%)
-                    <span className="block text-xs text-slate-400">
+                    <span className="block text-xs text-slate-500">
                       {t("pay.vatTo", { country: breakdown.countryName })}
                     </span>
                   </dt>
@@ -242,7 +242,7 @@ export function PayFlow({
         </Button>
 
         <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
-          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-600" aria-hidden />
+          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" aria-hidden />
           {t("pay.stripeNote")}
         </p>
       </Card>

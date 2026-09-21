@@ -80,7 +80,7 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
               {t("import.found", { count: String(found.rows.length) })}
             </p>
 
-            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
               {t("import.matched")}
             </p>
             <ul className="mt-1 space-y-0.5">
@@ -94,7 +94,7 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
             {/* 🔴 Named, from their own file. The promise above, made checkable. */}
             {found.ignoredColumns.length > 0 ? (
               <>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {t("import.ignored")}
                 </p>
                 <p className="mt-1 font-mono text-xs text-slate-600">
@@ -111,7 +111,7 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
 
             {found.problems.length > 0 ? (
               <>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {t("import.problems")}
                 </p>
                 <ul className="mt-1 space-y-0.5">

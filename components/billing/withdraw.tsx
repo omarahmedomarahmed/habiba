@@ -117,7 +117,7 @@ export function Withdraw({
 
       <Card className="p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <Banknote className="h-4 w-4 text-slate-400" aria-hidden />
+          <Banknote className="h-4 w-4 text-slate-500" aria-hidden />
           {t("twd.where")}
         </p>
 
@@ -200,9 +200,9 @@ export function Withdraw({
               return (
                 <li key={row.id} className="py-2.5">
                   <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
-                    <Icon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                    <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
                     <Money cents={row.amountCents} />
-                    <span className="text-slate-400">→</span>
+                    <span className="text-slate-500">→</span>
                     {formatMoney(
                       row.payoutAmountMinor,
                       row.payoutCurrency.toUpperCase(),

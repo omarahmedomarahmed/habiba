@@ -62,7 +62,7 @@ export async function ExploreRail({ therapists }: { therapists: DiscoverTherapis
             </span>
 
             {therapist.online ? (
-              <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700">
+              <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
                 <span className="live-dot">●</span>
                 {t("radar.freeNow")}
               </span>

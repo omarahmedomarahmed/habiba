@@ -172,7 +172,7 @@ export function PlanCard({
           */}
           {unlimited ? (
             <>
-              <p className="mt-0.5 text-sm text-slate-500">{t("tplan.unlimitedNoMeter")}</p>
+              <p className="mt-0.5 text-sm text-slate-600">{t("tplan.unlimitedNoMeter")}</p>
             </>
           ) : (
             <>
@@ -333,7 +333,7 @@ export function PlanCard({
                       ? t("tplan.monthlyEvery", { amount: formatUsd(tier.monthlyCents) })
                       : t("tplan.paygPrice", { amount: formatUsd(platformFeeCents) })}
                   </span>
-                  <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+                  <span className="mt-1 block text-xs leading-relaxed text-slate-600">
                     {tier.monthlyCents > 0
                       ? t("tplan.unlimitedNoMeter")
                       : t("tplan.aiRate", { amount: formatUsd(tier.aiRateCents) })}

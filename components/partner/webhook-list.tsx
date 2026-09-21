@@ -50,8 +50,8 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
   return (
     <div className="flex flex-col gap-4">
       {state.secret ? (
-        <Card className="border-teal-200 bg-teal-50 p-5">
-          <code className="block break-all rounded-xl bg-white p-3 font-mono text-xs text-slate-900 ring-1 ring-teal-200">
+        <Card className="border-brand-200 bg-brand-50 p-5">
+          <code className="block break-all rounded-xl bg-white p-3 font-mono text-xs text-slate-900 ring-1 ring-brand-200">
             {state.secret}
           </code>
           <p className="mt-2 text-xs leading-relaxed text-slate-600">{t("dev.secretOnce")}</p>

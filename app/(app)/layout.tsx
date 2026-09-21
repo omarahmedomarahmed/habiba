@@ -192,8 +192,8 @@ export default async function AppLayout({
             <span className="flex items-center gap-2">
               {t("portal.nav.crisisRadar")}
               {radar?.status === "online" || radar?.status === "in_session" ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-teal-700 uppercase">
-                  <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-700 uppercase">
+                  <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
                   {radar.status === "in_session"
                     ? t("portal.nav.radarInSession")
                     : t("portal.nav.radarLive")}
@@ -231,7 +231,7 @@ export default async function AppLayout({
               <span className="block truncate text-sm font-medium text-slate-800">
                 {actor.firstName} {actor.lastName}
               </span>
-              <span className="block truncate text-xs text-slate-400">{actor.email}</span>
+              <span className="block truncate text-xs text-slate-500">{actor.email}</span>
             </span>
           </Link>
           {/*
@@ -248,7 +248,7 @@ export default async function AppLayout({
                 type="submit"
                 title={t("portal.nav.switchToClinic")}
                 aria-label={t("portal.nav.switchToClinic")}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
               >
                 <Building2 className="h-4 w-4" aria-hidden />
               </button>
@@ -259,7 +259,7 @@ export default async function AppLayout({
               type="submit"
               title={t("portal.nav.signOut")}
               aria-label={t("portal.nav.signOut")}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
             >
               <LogOut className="h-4 w-4" aria-hidden />
             </button>

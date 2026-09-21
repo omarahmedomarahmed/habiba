@@ -133,7 +133,7 @@ export function RatingForm({
       <div className="space-y-4">
         <Heading date={sessionDate} title={t("prating.yourSession")} />
         <Card className="p-5 text-center">
-          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
             <Check className="h-5 w-5" aria-hidden />
           </span>
           <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">{t("room.thanks")}</p>
@@ -148,7 +148,7 @@ export function RatingForm({
 
         {brief ? (
           <Card className="p-5">
-            <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+            <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
               {t("prating.yourSummary")}
             </p>
             {/* Same component the clinician approved this on, so what they
@@ -160,7 +160,7 @@ export function RatingForm({
               next={briefNext}
               rtl={rtl}
             />
-            <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-400">
+            <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
               {t("prating.writtenForYou")}
             </p>
           </Card>
@@ -243,7 +243,7 @@ export function RatingForm({
             className="text-sm font-semibold text-slate-900"
           >
             {t("prating.anythingElse")}{" "}
-            <span className="font-normal text-slate-400">{t("prating.optional")}</span>
+            <span className="font-normal text-slate-500">{t("prating.optional")}</span>
           </label>
           <p className="mt-0.5 text-xs text-slate-500">
             {t("prating.noName")}
@@ -289,7 +289,7 @@ export function RatingForm({
           {pending ? "Sending…" : "Send me my summary"}
         </Button>
         {!ready ? (
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-slate-500">
             {t("prating.ratingsAndEmail")}
           </p>
         ) : null}
@@ -313,7 +313,7 @@ function Heading({ date, title, blurb }: { date: string; title: string; blurb?: 
   const t = useT();
   return (
     <div>
-      <p className="text-xs font-bold tracking-wider text-teal-600 uppercase">{date}</p>
+      <p className="text-xs font-bold tracking-wider text-brand-700 uppercase">{date}</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
       {blurb ? <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{blurb}</p> : null}
     </div>

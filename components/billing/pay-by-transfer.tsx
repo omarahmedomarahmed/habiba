@@ -100,13 +100,13 @@ function Lines({ lines }: { lines?: PaymentLineView[] }) {
             total, and a line that looks identical to the charges above it makes
             a patient add when they should subtract.
           */}
-          <span className={line.credit ? "min-w-0 truncate text-teal-700" : "min-w-0 truncate text-slate-600"}>
+          <span className={line.credit ? "min-w-0 truncate text-brand-700" : "min-w-0 truncate text-slate-600"}>
             {line.label}
           </span>
           <span
             className={
               line.credit
-                ? "shrink-0 font-semibold text-teal-700 tabular-nums"
+                ? "shrink-0 font-semibold text-brand-700 tabular-nums"
                 : "shrink-0 font-medium text-slate-900 tabular-nums"
             }
           >

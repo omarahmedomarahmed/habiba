@@ -286,7 +286,7 @@ export function BillingLedger({
                       className={cn(
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
                         entry.kind === "payment"
-                          ? "bg-teal-50 text-teal-600"
+                          ? "bg-brand-50 text-brand-600"
                           : "bg-slate-100 text-slate-500",
                       )}
                     >
@@ -312,7 +312,7 @@ export function BillingLedger({
                       <span
                         className={cn(
                           "block text-sm font-semibold tabular-nums",
-                          entry.kind === "payment" ? "text-teal-700" : "text-slate-900",
+                          entry.kind === "payment" ? "text-brand-700" : "text-slate-900",
                         )}
                       >
                         {entry.kind === "payment"
@@ -386,7 +386,7 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
         <Line
           label={t("tled.credit")}
           value={
-            <span className="text-teal-700">
+            <span className="text-brand-700">
               −<Money cents={invoice.discountCents} />
               {invoice.discountReason ? ` · ${invoice.discountReason}` : ""}
             </span>
@@ -441,7 +441,7 @@ function UsageBreakdown({ usage }: { usage: NonNullable<LedgerInvoice["usage"]> 
 
   return (
     <div className="mt-2.5 border-t border-slate-200 pt-2.5">
-      <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+      <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
         {t("tled.covered")}
       </p>
       <ul className="mt-1.5 space-y-1">
@@ -479,7 +479,7 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
       <Line
         label={payment.capture === "destination" ? t("tled.intoStripe") : t("tled.heldForYou")}
         value={
-          <span className="font-semibold text-teal-700">
+          <span className="font-semibold text-brand-700">
             <Money cents={payment.therapistNetCents} />
           </span>
         }

@@ -209,7 +209,7 @@ export function RadarCommand({
       <Card className="flex flex-wrap items-center gap-2 p-3">
         <label className="relative">
           <Search
-            className="pointer-events-none absolute top-1/2 start-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute top-1/2 start-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
             aria-hidden
           />
           <Input
@@ -266,7 +266,7 @@ export function RadarCommand({
           ))}
         </div>
 
-        <span className="ms-auto text-xs text-slate-400">
+        <span className="ms-auto text-xs text-slate-500">
           {rows.length} of {view.rows.length}
         </span>
       </Card>
@@ -275,7 +275,7 @@ export function RadarCommand({
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-100 text-start text-xs text-slate-400">
+            <thead className="border-b border-slate-100 text-start text-xs text-slate-500">
               <tr>
                 <Th>Clinician</Th>
                 <Th>Where</Th>
@@ -297,7 +297,7 @@ export function RadarCommand({
                     >
                       {row.name}
                     </button>
-                    <span className="block truncate text-[11px] text-slate-400">{row.email}</span>
+                    <span className="block truncate text-[11px] text-slate-500">{row.email}</span>
                     {row.demo ? (
                       <span className="mt-0.5 inline-block rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">
                         DEMO
@@ -309,7 +309,7 @@ export function RadarCommand({
                       <>
                         <span aria-hidden>{countryFlag(row.country)}</span>{" "}
                         {row.city ?? countryName(row.country, locale) ?? row.country}
-                        <span className="block text-[11px] text-slate-400">{row.region ?? ""}</span>
+                        <span className="block text-[11px] text-slate-500">{row.region ?? ""}</span>
                       </>
                     ) : (
                       "-"
@@ -323,10 +323,10 @@ export function RadarCommand({
                       <span className="inline-flex items-center gap-0.5 text-amber-600">
                         <Star className="h-3 w-3 fill-current" aria-hidden />
                         {row.rating.average.toFixed(1)}
-                        <span className="text-slate-400">({row.rating.count})</span>
+                        <span className="text-slate-500">({row.rating.count})</span>
                       </span>
                     ) : (
-                      <span className="text-slate-300">-</span>
+                      <span className="text-slate-500">-</span>
                     )}
                   </Td>
                   <Td className="text-end tabular-nums text-slate-600">{row.sessions30d}</Td>
@@ -340,7 +340,7 @@ export function RadarCommand({
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                     Nobody matches that.
                   </td>
                 </tr>
@@ -370,7 +370,7 @@ function Stat({
 }) {
   return (
     <Card className="px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">
         {pulse ? <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-400" /> : null}
         {label}
       </p>
@@ -402,7 +402,7 @@ function State({ row, zone }: { row: CommandRow; zone: string | null }) {
           <Ban className="h-2.5 w-2.5" aria-hidden />
           suspended
         </span>
-        <span className="mt-0.5 text-[10px] text-slate-400">
+        <span className="mt-0.5 text-[10px] text-slate-500">
           until {formatDate(row.suspendedUntil, zone, "en")}
         </span>
       </span>
@@ -411,7 +411,7 @@ function State({ row, zone }: { row: CommandRow; zone: string | null }) {
 
   const tone =
     row.status === "online"
-      ? "bg-teal-100 text-teal-700"
+      ? "bg-teal-100 text-teal-800"
       : row.status === "pending"
         ? "bg-amber-100 text-amber-700"
         : row.status === "in_session"
@@ -584,7 +584,7 @@ function Detail({
               {row.organizationName ? ` · ${row.organizationName}` : ""}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="text-sm text-slate-400">
+          <button type="button" onClick={onClose} className="text-sm text-slate-500">
             Close
           </button>
         </div>
@@ -603,7 +603,7 @@ function Detail({
         </dl>
 
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-          <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+          <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
             Edit their radar profile
           </p>
           <Input
@@ -646,7 +646,7 @@ function Detail({
             <Pencil className="h-3.5 w-3.5" aria-hidden />
             {pending ? "Saving…" : "Save"}
           </Button>
-          <p className="text-[11px] leading-relaxed text-slate-400">
+          <p className="text-[11px] leading-relaxed text-slate-500">
             Audited, and reversible by them. For a wrong number or country, not for taking over a
             profile.
           </p>
@@ -659,7 +659,7 @@ function Detail({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[11px] text-slate-400">{label}</dt>
+      <dt className="text-[11px] text-slate-500">{label}</dt>
       <dd className="text-slate-800">{children}</dd>
     </div>
   );

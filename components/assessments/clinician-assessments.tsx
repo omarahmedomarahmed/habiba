@@ -145,7 +145,7 @@ export function ClinicianAssessments({
               type="button"
               disabled={pending}
               onClick={() => send("room")}
-              className="tap-target h-11 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
+              className="tap-target h-11 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
             >
               {pending ? t("cassess.sending") : t("cassess.sendRoom")}
             </button>

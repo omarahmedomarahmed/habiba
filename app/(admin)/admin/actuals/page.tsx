@@ -79,7 +79,7 @@ export default async function ActualsPage() {
       <Card className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               Against the forecast
             </p>
             <p className="mt-1 text-sm text-slate-700">
@@ -93,7 +93,7 @@ export default async function ActualsPage() {
           </div>
           <Link
             href="/admin/financial-model"
-            className="text-sm text-teal-700 underline underline-offset-2"
+            className="text-sm text-brand-700 underline underline-offset-2"
           >
             The forecast
           </Link>

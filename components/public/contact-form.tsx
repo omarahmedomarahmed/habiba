@@ -85,8 +85,8 @@ export function ContactForm({
 
   if (state.ok) {
     return (
-      <Card className="border-teal-200 bg-teal-50 p-5">
-        <p className="flex items-center gap-2 text-sm font-semibold text-teal-900">
+      <Card className="border-brand-200 bg-brand-50 p-5">
+        <p className="flex items-center gap-2 text-sm font-semibold text-brand-900">
           <CheckCircle2 className="h-4 w-4" aria-hidden />
           {s("contact.received")}
         </p>
@@ -95,7 +95,7 @@ export function ContactForm({
           a form nobody trusts they have used, and the reference is short on
           purpose: it is meant to be read out loud.
         */}
-        <p className="mt-2 text-sm leading-relaxed text-teal-900/90">
+        <p className="mt-2 text-sm leading-relaxed text-brand-900/90">
           {fill(s("contact.reference"), {
             reference: state.ok.reference,
             hours: state.ok.hours,

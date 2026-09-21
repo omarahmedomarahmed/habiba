@@ -115,7 +115,7 @@ export default async function VaultPage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card className="p-4">
-          <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
             Held for clinicians
           </p>
           <p className="mt-1 text-xl font-bold text-slate-900">
@@ -124,7 +124,7 @@ export default async function VaultPage() {
           <p className="mt-1 text-xs text-slate-500">Earned, not yet paid out.</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
             Unspent sponsor pots
           </p>
           <p className="mt-1 text-xl font-bold text-slate-900">
@@ -135,7 +135,7 @@ export default async function VaultPage() {
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
             VAT collected, not remitted
           </p>
           <p className="mt-1 text-xl font-bold text-slate-900">
@@ -221,7 +221,7 @@ export default async function VaultPage() {
 
       {/* ------------------------------------------------------------ ledger */}
       <section className="space-y-3">
-        <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
           Ledger · all time
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -289,19 +289,19 @@ export default async function VaultPage() {
                     style={{ height: `${Math.max(2, (month.collected / peak) * 100)}%` }}
                   >
                     <div
-                      className="rounded-b bg-teal-600"
+                      className="rounded-b bg-brand-600"
                       style={{
                         height: `${month.collected > 0 ? (month.invoiceCents / month.collected) * 100 : 0}%`,
                       }}
                     />
-                    <div className="flex-1 rounded-t bg-teal-400" />
+                    <div className="flex-1 rounded-t bg-brand-400" />
                   </div>
                   <div
                     className="w-1/2 rounded-t bg-slate-300"
                     style={{ height: `${Math.max(2, (month.spent / peak) * 100)}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-slate-400">{month.month.slice(5)}</span>
+                <span className="text-[10px] text-slate-500">{month.month.slice(5)}</span>
               </div>
             ))}
           </div>
@@ -318,11 +318,11 @@ export default async function VaultPage() {
                 <tr className="border-b border-slate-100 text-xs text-slate-500">
                   <th className="py-2 text-start font-medium">Month</th>
                   <th className="py-2 text-end font-medium">
-                    <Swatch className="bg-teal-600" />
+                    <Swatch className="bg-brand-600" />
                     Subscriptions
                   </th>
                   <th className="py-2 text-end font-medium">
-                    <Swatch className="bg-teal-400" />
+                    <Swatch className="bg-brand-400" />
                     Session fees
                   </th>
                   <th className="py-2 text-end font-medium">Income</th>
@@ -353,7 +353,7 @@ export default async function VaultPage() {
                       className={
                         month.collected - month.spent < 0
                           ? "py-2 text-end font-semibold tabular-nums text-rose-600"
-                          : "py-2 text-end font-semibold tabular-nums text-teal-700"
+                          : "py-2 text-end font-semibold tabular-nums text-brand-700"
                       }
                     >
                       <UsdMoney cents={month.collected - month.spent} />
@@ -368,7 +368,7 @@ export default async function VaultPage() {
 
       {/* ---------------------------------------------------------- traction */}
       <section className="space-y-3">
-        <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
           Traction & unit economics
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -461,7 +461,7 @@ export default async function VaultPage() {
                       <span className="block font-medium text-slate-900">
                         {t.name || t.email}
                       </span>
-                      <span className="block text-xs text-slate-400">{t.organizationName}</span>
+                      <span className="block text-xs text-slate-500">{t.organizationName}</span>
                     </td>
                     <td className="px-3 py-2.5">
                       <Badge tone={t.plan && t.plan !== "payg" ? "teal" : "slate"}>
@@ -588,7 +588,7 @@ function Money({
             that reveals its pounds, like every other price in the product. */}
         <UsdMoney cents={cents} />
       </p>
-      {sub ? <p className="text-xs text-slate-400">{sub}</p> : null}
+      {sub ? <p className="text-xs text-slate-500">{sub}</p> : null}
     </Card>
   );
 }
@@ -603,7 +603,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
     <Card className="px-4 py-3.5">
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-0.5 text-xl font-bold tracking-tight text-slate-900">{value}</p>
-      {sub ? <p className="text-xs text-slate-400">{sub}</p> : null}
+      {sub ? <p className="text-xs text-slate-500">{sub}</p> : null}
     </Card>
   );
 }

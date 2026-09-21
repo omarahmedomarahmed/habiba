@@ -188,7 +188,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
       </div>
 
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
           <Wallet className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -407,7 +407,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         >
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-400">
+              <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-500">
                 {currency === "egp" ? "E£" : "$"}
               </span>
               <Input

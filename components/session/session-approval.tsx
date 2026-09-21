@@ -141,7 +141,7 @@ export function SessionApproval(props: Props) {
         </p>
       ) : null}
       {feedback.message ? (
-        <p role="status" className="mt-3 text-sm text-teal-700">
+        <p role="status" className="mt-3 text-sm text-brand-700">
           {feedback.message}
         </p>
       ) : null}
@@ -195,7 +195,7 @@ function Choice({
     <label
       className={cn(
         "flex cursor-pointer items-start gap-3 rounded-xl border p-3",
-        done ? "border-teal-200 bg-teal-50/60" : "border-slate-200",
+        done ? "border-brand-200 bg-brand-50/60" : "border-slate-200",
         disabled && !done ? "opacity-50" : null,
       )}
     >

@@ -92,7 +92,7 @@ export function WallCodeList({ codes, zone }: { codes: WallCodeRow[]; zone: stri
                 dangerouslySetInnerHTML={{ __html: entry.svg }}
               />
             ) : (
-              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-center text-xs font-medium text-slate-400">
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-center text-xs font-medium text-slate-500">
                 {t("tset.codeRevoked")}
               </div>
             )}
@@ -102,8 +102,8 @@ export function WallCodeList({ codes, zone }: { codes: WallCodeRow[]; zone: stri
                 {entry.code}
               </p>
               <p className="mt-0.5 text-sm text-slate-600">{entry.label ?? t("tset.codeNoLabel")}</p>
-              <p className="mt-1 text-xs break-all text-slate-400">{entry.url}</p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs break-all text-slate-500">{entry.url}</p>
+              <p className="mt-1 text-xs text-slate-500">
                 {/*
                   37L.2 — these printed `iso.slice(0, 10)`, which is a date in
                   no language and in no zone: the raw UTC day, shown to a

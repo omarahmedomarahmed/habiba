@@ -430,8 +430,8 @@ function Radar({
     const who = RADAR_DEMO[booked];
     return (
       <div className="animate-fade-rise space-y-3 pt-2 text-center">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-teal-100">
-          <Check className="h-7 w-7 text-teal-700" aria-hidden />
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-100">
+          <Check className="h-7 w-7 text-brand-700" aria-hidden />
         </span>
         <p className="text-[16px] font-bold text-slate-900">
           {t("pat.booked", { name: who?.name ?? "" })}
@@ -492,7 +492,7 @@ function Radar({
           marketing page where it is read by nobody who needed it.
         */}
         <p className="flex items-start gap-2 text-[12px] leading-relaxed text-slate-700">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" aria-hidden />
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
           {t("pat.noAccount")}
         </p>
 
@@ -562,8 +562,8 @@ function Radar({
         >
           <span className="flex items-baseline justify-between gap-2">
             <span className="text-[14px] font-semibold text-slate-900">{who.name}</span>
-            <span className="flex items-center gap-1 text-[10px] font-bold tracking-wide text-teal-700 uppercase">
-              <span className="live-dot h-1.5 w-1.5 rounded-full bg-teal-500" />
+            <span className="flex items-center gap-1 text-[10px] font-bold tracking-wide text-brand-700 uppercase">
+              <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
               {t("pat.freeLabel")}
             </span>
           </span>
@@ -636,14 +636,14 @@ function HomeTab({
         onClick={onFindSomeone}
         className="tap-target flex w-full items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-3.5 text-start"
       >
-        <span className="live-dot h-2 w-2 shrink-0 rounded-full bg-teal-500" />
+        <span className="live-dot h-2 w-2 shrink-0 rounded-full bg-brand-500" />
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-semibold text-slate-900">
             {t("home.liveMany", { count: free })}
           </span>
           <span className="block text-[11px] text-slate-600">{t("home.findNow")}</span>
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 rtl:rotate-180" aria-hidden />
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 rtl:rotate-180" aria-hidden />
       </button>
 
       <Tile
@@ -736,7 +736,7 @@ function Billing() {
               <span
                 className={cn(
                   "mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-wide uppercase",
-                  bill.paid ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700",
+                  bill.paid ? "bg-brand-50 text-brand-700" : "bg-amber-50 text-amber-700",
                 )}
               >
                 {bill.paid ? t("pat.paid") : t("pat.due")}
@@ -777,7 +777,7 @@ function You({ content, onScreen }: { content?: DemoContent; onScreen: (screen: 
         </p>
         <div className="mt-2 flex items-center justify-between gap-2">
           <span className="text-[14px] font-semibold text-slate-900">{who}</span>
-          <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-teal-800 uppercase">
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-brand-800 uppercase">
             {t("consent.canRead")}
           </span>
         </div>
@@ -786,7 +786,7 @@ function You({ content, onScreen }: { content?: DemoContent; onScreen: (screen: 
         </span>
       </Row>
       <p className="flex items-start gap-2 text-[12px] leading-relaxed text-slate-700">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" aria-hidden />
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
         {t("consent.neverWhy")}
       </p>
       {/*

@@ -46,7 +46,7 @@ export default async function BrowsePage({
 
       <form action="/patient/browse" className="relative">
         <Search
-          className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
           aria-hidden
         />
         <input
@@ -91,7 +91,7 @@ export default async function BrowsePage({
                   className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
                 >
                   {category.label}
-                  <span className="text-xs text-slate-400">{category.count}</span>
+                  <span className="text-xs text-slate-500">{category.count}</span>
                 </Link>
               </li>
             ))}

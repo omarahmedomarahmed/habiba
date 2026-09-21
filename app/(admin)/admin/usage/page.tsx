@@ -129,7 +129,7 @@ export default async function AdminUsagePage() {
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[32rem] text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-start text-xs text-slate-400">
+              <tr className="border-b border-slate-100 text-start text-xs text-slate-500">
                 <Th>Kind</Th>
                 <Th>Model</Th>
                 <Th align="end">Calls</Th>
@@ -157,7 +157,7 @@ export default async function AdminUsagePage() {
               ))}
               {byKind.length === 0 ? (
                 <tr>
-                  <Td colSpan={5} className="py-6 text-center text-slate-400">
+                  <Td colSpan={5} className="py-6 text-center text-slate-500">
                     No model calls in the last 30 days.
                   </Td>
                 </tr>
@@ -190,7 +190,7 @@ export default async function AdminUsagePage() {
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[40rem] text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-start text-xs text-slate-400">
+              <tr className="border-b border-slate-100 text-start text-xs text-slate-500">
                 <Th>Clinician</Th>
                 <Th align="end">Sessions</Th>
                 <Th align="end">Audio</Th>
@@ -222,7 +222,7 @@ export default async function AdminUsagePage() {
                           {fullName(row.firstName, row.lastName, "")}
                         </Link>
                       )}
-                      <span className="block truncate text-xs text-slate-400">{row.email}</span>
+                      <span className="block truncate text-xs text-slate-500">{row.email}</span>
                     </Td>
                     <Td align="end">{row.sessions}</Td>
                     <Td align="end">{row.audioMinutes} min</Td>
@@ -231,7 +231,7 @@ export default async function AdminUsagePage() {
                       {formatMicrocents(row.costMicrocents)}
                     </Td>
                     <Td align="end"><Money cents={row.patientCents} /></Td>
-                    <Td align="end" className="font-medium text-teal-700">
+                    <Td align="end" className="font-medium text-brand-700">
                       <Money cents={row.feeCents} />
                     </Td>
                   </tr>
@@ -250,7 +250,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "te
     <Card className="p-4">
       <p className="text-xs text-slate-500">{label}</p>
       <p
-        className={`mt-1 text-2xl font-bold tracking-tight ${tone === "teal" ? "text-teal-600" : "text-slate-900"}`}
+        className={`mt-1 text-2xl font-bold tracking-tight ${tone === "teal" ? "text-brand-600" : "text-slate-900"}`}
       >
         {value}
       </p>

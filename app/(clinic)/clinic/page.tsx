@@ -250,7 +250,7 @@ export default async function ClinicOverviewPage({
                   statement, and it is the statement a differencing attack needs.
                 */}
                 {row.sessions === null || row.spendCents === null ? (
-                  <span className="text-xs text-slate-400">{t("clinic.suppressed")}</span>
+                  <span className="text-xs text-slate-500">{t("clinic.suppressed")}</span>
                 ) : (
                   <span className="tabular-nums text-slate-800">
                     {t("clinic.sessionCount", { count: row.sessions })} ·{" "}

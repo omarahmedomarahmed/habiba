@@ -69,7 +69,7 @@ export function VaultPaymentRow(props: {
           <span className="block text-sm font-semibold tabular-nums text-slate-900">
             <Money cents={props.grossCents} />
           </span>
-          <span className="block text-xs tabular-nums text-slate-400">
+          <span className="block text-xs tabular-nums text-slate-500">
             <Money cents={props.therapistNetCents} /> to them
           </span>
         </span>
@@ -93,7 +93,7 @@ export function VaultPaymentRow(props: {
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-label="Refund this payment"
-            className="tap-target flex items-center justify-center rounded-lg px-2 text-slate-400 hover:text-slate-800"
+            className="tap-target flex items-center justify-center rounded-lg px-2 text-slate-500 hover:text-slate-800"
           >
             <Undo2 className="h-4 w-4" aria-hidden />
           </button>

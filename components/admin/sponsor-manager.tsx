@@ -110,7 +110,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
         <span
           className={
             sponsor.state === "active"
-              ? "rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800"
+              ? "rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-800"
               : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
           }
         >

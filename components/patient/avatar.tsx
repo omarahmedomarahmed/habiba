@@ -37,7 +37,7 @@ export function PatientAvatar({
         style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
         className={cn(
           shared,
-          "flex items-center justify-center bg-slate-100 font-semibold text-slate-500",
+          "flex items-center justify-center bg-slate-100 font-semibold text-slate-600",
         )}
       >
         {name.trim().slice(0, 1).toUpperCase() || "?"}

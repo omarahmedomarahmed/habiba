@@ -147,8 +147,8 @@ export function RecordAccess({
       ) : null}
 
       {released ? (
-        <div className="border-b border-teal-200 bg-teal-50 px-4 py-2.5">
-          <p className="text-xs text-teal-800">
+        <div className="border-b border-brand-200 bg-brand-50 px-4 py-2.5">
+          <p className="text-xs text-brand-800">
             {t("pracc.released")}
           </p>
         </div>
@@ -167,7 +167,7 @@ export function RecordAccess({
       <div className="space-y-3 px-4 py-3">
         {claimed ? (
           <p className="flex items-start gap-2 text-sm text-slate-600">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-500" aria-hidden />
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden />
             <span>
               This person took ownership of their record
               {claimedAt ? ` on ${formatDate(claimedAt, zone, locale)}` : ""}. Your notes stay yours; what they
@@ -206,7 +206,7 @@ export function RecordAccess({
         ) : openInvite ? (
           <>
             <p className="flex items-start gap-2 text-sm text-slate-600">
-              <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+              <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
               <span>
                 A link issued on {formatDate(openInvite.issuedAt, zone, locale)} is still unused. It expires{" "}
                 {formatDate(openInvite.expiresAt, zone, locale)}. We cannot show it again.

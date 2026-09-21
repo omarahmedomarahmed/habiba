@@ -63,7 +63,7 @@ export function VaultInvoiceRow(props: {
             <Money cents={payable} />
           </span>
           {applied > 0 ? (
-            <span className="block text-xs text-slate-400 line-through tabular-nums">
+            <span className="block text-xs text-slate-500 line-through tabular-nums">
               <Money cents={props.amountCents} />
             </span>
           ) : null}
@@ -88,7 +88,7 @@ export function VaultInvoiceRow(props: {
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-label="Discount this invoice"
-            className="tap-target flex items-center justify-center rounded-lg px-2 text-slate-400 hover:text-slate-800"
+            className="tap-target flex items-center justify-center rounded-lg px-2 text-slate-500 hover:text-slate-800"
           >
             <Percent className="h-4 w-4" aria-hidden />
           </button>

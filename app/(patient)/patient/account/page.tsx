@@ -117,7 +117,7 @@ export default async function PatientAccountPage() {
 
       <Link href="/patient/consent">
         <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+          <ShieldCheck className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-slate-900">{t("paccount.whoCanSee")}</span>
             <span className="block text-xs text-slate-500">
@@ -135,7 +135,7 @@ export default async function PatientAccountPage() {
       */}
       <Link href="/patient/billing">
         <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
-          <Receipt className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+          <Receipt className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-slate-900">
               {t("paccount.billing")}

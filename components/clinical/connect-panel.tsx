@@ -49,8 +49,8 @@ export function RedeemInvite() {
       ) : null}
 
       {state.ok ? (
-        <div className="mt-3 rounded-xl bg-teal-50 px-3.5 py-3">
-          <p className="text-sm leading-relaxed text-teal-900">
+        <div className="mt-3 rounded-xl bg-brand-50 px-3.5 py-3">
+          <p className="text-sm leading-relaxed text-brand-900">
             {t("tcon.asked", { name: state.patientName ?? "" })}
           </p>
           {state.waitingOnVerification ? (

@@ -370,7 +370,7 @@ export function PaymentPopup({
         {/* ------------------------------------------------ who and what -- */}
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
+            <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
               {t(`pop.for.${subject.payerType}` as "pop.for.patient")}
             </p>
             <p className="truncate text-base font-bold tracking-tight text-slate-900">

@@ -130,7 +130,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminLink href="/admin/radar" icon={Radio}>
             Radar control
             {reports > 0 ? (
-              <span className="ms-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+              <span className="ms-1 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
                 {reports}
               </span>
             ) : null}
@@ -145,7 +145,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminLink href="/admin/transfers" icon={ArrowLeftRight}>
             Transfers
             {transfers > 0 ? (
-              <span className="ms-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+              <span className="ms-1 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
                 {transfers}
               </span>
             ) : null}

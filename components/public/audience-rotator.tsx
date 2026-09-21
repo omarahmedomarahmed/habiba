@@ -134,12 +134,12 @@ export function AudienceRotator({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-teal-500/15 blur-3xl"
+        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-brand-500/15 blur-3xl"
       />
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <div className="min-w-0">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-teal-300">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-300">
             [ 01 ] {eyebrow}
           </p>
 
@@ -174,7 +174,7 @@ export function AudienceRotator({
                   key={one.label}
                   aria-hidden={i !== at}
                   className={cn(
-                    "col-start-1 row-start-1 text-teal-300 transition-[opacity,visibility] duration-200",
+                    "col-start-1 row-start-1 text-brand-300 transition-[opacity,visibility] duration-200",
                     i === at
                       ? "visible opacity-100"
                       : "pointer-events-none invisible opacity-0",
@@ -258,7 +258,7 @@ export function AudienceRotator({
                     data-state={
                       i !== at ? "empty" : running ? "running" : "done"
                     }
-                    className="fill-rule block h-full rounded-full bg-teal-400"
+                    className="fill-rule block h-full rounded-full bg-brand-400"
                   />
                 </span>
               </button>

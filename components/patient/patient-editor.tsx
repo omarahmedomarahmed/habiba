@@ -154,7 +154,7 @@ export function PatientEditor({
         actually be answered.
       */}
       <div className="space-y-3 border-t border-slate-100 pt-3">
-        <p className="text-xs leading-relaxed text-slate-400">
+        <p className="text-xs leading-relaxed text-slate-500">
           {t("pted.retention")}
         </p>
       </div>

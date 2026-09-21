@@ -47,7 +47,7 @@ export default async function AdminCheckinsPage() {
 
       {/* 🔴 The number the ruling named, and the threshold it is measured against. */}
       <Card className={halted ? "border-red-200 bg-red-50 p-5" : "p-5"}>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           {t("acheckin.rate")}
         </p>
         <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">

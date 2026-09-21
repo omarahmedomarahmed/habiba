@@ -94,7 +94,7 @@ export function DiagnosisList({
               <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
                 {diagnosis.label}
                 {diagnosis.code ? (
-                  <span className="font-mono text-xs text-slate-400">{diagnosis.code}</span>
+                  <span className="font-mono text-xs text-slate-500">{diagnosis.code}</span>
                 ) : null}
                 <Badge tone="teal">{t("tdx.confirmed")}</Badge>
                 {diagnosis.flags.map((flag) => (
@@ -120,7 +120,7 @@ export function DiagnosisList({
                 <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
                   {diagnosis.label}
                   {diagnosis.code ? (
-                    <span className="font-mono text-xs text-slate-400">{diagnosis.code}</span>
+                    <span className="font-mono text-xs text-slate-500">{diagnosis.code}</span>
                   ) : null}
                 </p>
                 <Source diagnosis={diagnosis} />
@@ -177,7 +177,7 @@ function Source({
       <span>
         “{diagnosis.sourceSentence}”
         {diagnosis.documentTitle ? (
-          <span className="mt-0.5 block text-slate-400">
+          <span className="mt-0.5 block text-slate-500">
             {diagnosis.documentOrdinal ? `D${diagnosis.documentOrdinal} · ` : ""}
             {diagnosis.documentTitle}
           </span>

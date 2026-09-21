@@ -78,17 +78,17 @@ export default async function FinancialModelPage() {
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               Provenance
             </p>
             <p className="mt-1 text-sm text-slate-700">
-              <strong className="text-teal-700">{split.measured} measured</strong> ·{" "}
+              <strong className="text-brand-700">{split.measured} measured</strong> ·{" "}
               <strong>{split.assumed} assumed</strong>
             </p>
           </div>
           <div className="h-3 min-w-40 flex-1 overflow-hidden rounded-full bg-slate-200">
             <div
-              className="h-full bg-teal-500"
+              className="h-full bg-brand-500"
               style={{
                 width: `${(split.measured / Math.max(1, split.measured + split.assumed)) * 100}%`,
               }}

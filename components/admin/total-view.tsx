@@ -332,7 +332,7 @@ function Now({
 
       <Card className="overflow-hidden">
         <p className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-          <Radio className="h-4 w-4 text-slate-400" aria-hidden />
+          <Radio className="h-4 w-4 text-slate-500" aria-hidden />
           Radar
         </p>
         <ul className="divide-y divide-slate-100">
@@ -358,7 +358,7 @@ function Now({
               </span>
               {row.demo ? <Badge tone="slate">Fixture</Badge> : null}
               {row.suspended ? <Badge tone="red">Suspended</Badge> : null}
-              <span className="shrink-0 text-xs text-slate-400 capitalize">
+              <span className="shrink-0 text-xs text-slate-500 capitalize">
                 {row.status.replace("_", " ")}
               </span>
             </li>
@@ -422,7 +422,7 @@ function Timeline({
         <ul className="divide-y divide-slate-100">
           {grouped.map(([minute, rows]) => (
             <li key={minute} className="flex gap-3 px-4 py-2.5">
-              <span className="w-28 shrink-0 pt-0.5 text-xs text-slate-400 tabular-nums">
+              <span className="w-28 shrink-0 pt-0.5 text-xs text-slate-500 tabular-nums">
                 {minute.replace("T", " ")}
               </span>
               <span className="min-w-0 flex-1 space-y-1">
@@ -494,7 +494,7 @@ function People({
 
       <Card className="overflow-hidden">
         <p className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-          <Users className="h-4 w-4 text-slate-400" aria-hidden />
+          <Users className="h-4 w-4 text-slate-500" aria-hidden />
           {people.length} people
         </p>
         <ul className="divide-y divide-slate-100">
@@ -516,7 +516,7 @@ function People({
                     {p.email ?? "no email on file"} · {p.therapists}
                   </span>
                 </span>
-                <span className="shrink-0 text-xs text-slate-400 tabular-nums">
+                <span className="shrink-0 text-xs text-slate-500 tabular-nums">
                   {p.sessionCount}s · {p.messageCount}m
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
@@ -567,7 +567,7 @@ function PersonDetail({
             <Mail className="h-3.5 w-3.5" aria-hidden />
             {pending ? "Sending…" : "Email their record to them"}
           </Button>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-500">
             Goes to the address on the chart. You are blind-copied.
           </span>
         </div>
@@ -592,7 +592,7 @@ function PersonDetail({
                     <span className="block truncate text-xs text-slate-500">{s.summary}</span>
                   ) : null}
                 </span>
-                <span className="shrink-0 text-xs text-slate-400">
+                <span className="shrink-0 text-xs text-slate-500">
                   {s.durationMinutes ? `${s.durationMinutes} min` : s.status}
                   {s.autoEndedReason ? ` · ${s.autoEndedReason}` : ""}
                 </span>
@@ -663,7 +663,7 @@ function ClinicianRow({ clinician }: { clinician: Clinician }) {
           </span>
           <span className="block truncate text-xs text-slate-500">{clinician.email}</span>
         </span>
-        <span className="shrink-0 text-xs text-slate-400 tabular-nums">
+        <span className="shrink-0 text-xs text-slate-500 tabular-nums">
           {clinician.sessionCount}s · {clinician.patientCount}p
         </span>
         {clinician.status === "suspended" ? <Badge tone="red">Suspended</Badge> : null}
@@ -739,7 +739,7 @@ function AuditList({ rows }: { rows: AuditRow[] }) {
       <ul className="divide-y divide-slate-100">
         {rows.map((row) => (
           <li key={row.id} className="flex gap-3 px-4 py-2.5">
-            <span className="w-28 shrink-0 text-xs text-slate-400 tabular-nums">
+            <span className="w-28 shrink-0 text-xs text-slate-500 tabular-nums">
               {row.at.slice(0, 16).replace("T", " ")}
             </span>
             <span className="min-w-0 flex-1">
@@ -797,7 +797,7 @@ function SessionDetail({ detail, onClose }: { detail: Detail; onClose: () => voi
           {detail.note ? (
             <div className="space-y-3">
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                <FileText className="h-4 w-4 text-slate-400" aria-hidden />
+                <FileText className="h-4 w-4 text-slate-500" aria-hidden />
                 Note
                 <Badge tone={detail.noteStatus === "approved" ? "green" : "amber"}>
                   {detail.noteStatus ?? "none"}
@@ -819,7 +819,7 @@ function SessionDetail({ detail, onClose }: { detail: Detail; onClose: () => voi
               ).map(([label, body]) =>
                 body ? (
                   <div key={label}>
-                    <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                    <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
                       {label}
                     </p>
                     <p className="mt-0.5 text-sm leading-relaxed text-slate-700">{body}</p>
@@ -833,14 +833,14 @@ function SessionDetail({ detail, onClose }: { detail: Detail; onClose: () => voi
             <details className="rounded-2xl border border-slate-200">
               <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
                 Transcript
-                <span className="ms-2 text-xs font-normal text-slate-400">
+                <span className="ms-2 text-xs font-normal text-slate-500">
                   {detail.transcript.length} segments
                 </span>
               </summary>
               <div className="max-h-96 space-y-2 overflow-y-auto border-t border-slate-100 px-4 py-3">
                 {detail.transcript.map((t) => (
                   <p key={t.id} className="text-sm leading-relaxed text-slate-600">
-                    <span className="me-1.5 text-xs font-medium text-slate-400 capitalize">
+                    <span className="me-1.5 text-xs font-medium text-slate-500 capitalize">
                       {t.speaker}
                     </span>
                     {t.text}

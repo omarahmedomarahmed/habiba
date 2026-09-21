@@ -123,13 +123,13 @@ export function PayoutQueue({
               <li key={row.id} className="flex items-center gap-3 py-2 text-sm">
                 <span className="font-medium text-slate-900">{row.therapistName}</span>
                 <span className="text-slate-500"><Money cents={row.amountCents} /></span>
-                <span className="ml-auto text-xs text-slate-400">
+                <span className="ml-auto text-xs text-slate-500">
                   {row.status} · {row.createdAtLabel}
                 </span>
               </li>
             ))}
             {automated.length === 0 ? (
-              <li className="py-2 text-sm text-slate-400">Nothing yet.</li>
+              <li className="py-2 text-sm text-slate-500">Nothing yet.</li>
             ) : null}
           </ul>
         </Card>

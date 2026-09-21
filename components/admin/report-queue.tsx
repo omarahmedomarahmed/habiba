@@ -107,7 +107,7 @@ function ReportCard({ row }: { row: ReportRow }) {
       {row.patientEmail ? (
         <p className="px-4 pb-2 text-xs text-slate-500">Reply to: {row.patientEmail}</p>
       ) : (
-        <p className="px-4 pb-2 text-xs text-slate-400">They left no address.</p>
+        <p className="px-4 pb-2 text-xs text-slate-500">They left no address.</p>
       )}
 
       {row.status === "open" && !done ? (

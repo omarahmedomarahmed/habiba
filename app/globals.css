@@ -31,6 +31,41 @@
  * pack, and `brand-*` is the interface, free to be re-cut the next time a
  * measurement says it has to be.
  *
+ * ## 🔴 AND THAT DIVISION WAS WRITTEN DOWN AND THEN NOT FOLLOWED
+ *
+ * It was true of this file and of nothing else. 409 class names used `teal-*`
+ * and 277 of them were doing interface work — a Saved message, a badge, an
+ * invite panel, a ledger icon, a copilot card — in files that have never been
+ * near the radar. The two ramps are identical at 400 and 500 and differ by one
+ * perceptual step elsewhere, so nothing looked wrong, which is exactly why it
+ * spread: a rule with no visible consequence and no check is a comment.
+ *
+ * It is now a rule with an edge. `teal-*` belongs to eighteen files and only
+ * those: `components/radar/**`, the radar console, the session room, the
+ * session demo, the live state dot and Total View's live tiles. Everywhere
+ * else is `brand-*`. `scripts/verify-palette.ts` fails on any other file that
+ * reaches for `teal-*`, so the next one is caught the day it is written rather
+ * than three hundred call sites later.
+ *
+ * A FILE-level rule rather than a per-usage one, deliberately. "Is this
+ * particular dot live?" is a judgement every reader re-litigates; "does this
+ * file draw the radar or a live session?" is a fact. And it costs nothing,
+ * because the shades where live indicators actually live — 400 and 500 — are
+ * the two the ramps share exactly.
+ *
+ * ## 🔴 WHITE NEVER GOES ON THE LIGHT END OF EITHER RAMP
+ *
+ * The ramp comment below explains why white came off the teal. Eighteen
+ * hand-rolled buttons never got the message and kept `bg-teal-500 text-white`,
+ * which measures 2.17:1 — under the 4.5 body text needs and under the 3.0 even
+ * large text needs. Their hover state went to 600, which is 3.22:1, so the
+ * accessible-looking half of the interaction was also a failure.
+ *
+ * They now carry navy at 7.71:1 and hover LIFTS to 400, the same three states
+ * `components/ui/index.tsx` already used. The verifier fails on `text-white`
+ * anywhere near a 400 or 500 ground so this cannot come back one button at a
+ * time.
+ *
  * Defined once, here, instead of two Tailwind configs that disagreed plus
  * several hundred hardcoded hex literals scattered through page files.
  */

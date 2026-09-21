@@ -42,9 +42,9 @@ export function ChangeNumber({
 
   if (state.ok) {
     return (
-      <Card className="border-teal-200 bg-teal-50 p-4">
-        <p className="text-sm font-semibold text-teal-900">{t("pnumber.requested")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-teal-900/90">
+      <Card className="border-brand-200 bg-brand-50 p-4">
+        <p className="text-sm font-semibold text-brand-900">{t("pnumber.requested")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-brand-900/90">
           {t("pnumber.requestedBody")}
         </p>
       </Card>

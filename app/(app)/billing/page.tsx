@@ -275,13 +275,13 @@ export default async function BillingPage({
         ) : null}
 
         {!summary.subscription.trialSessionUsed ? (
-          <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
+          <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
             {t("portal.billing.firstFree")}
           </p>
         ) : null}
 
         {summary.subscription.upcomingDiscountCents > 0 ? (
-          <p className="rounded-xl bg-teal-50 px-3.5 py-2.5 text-sm text-teal-800">
+          <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
             {t("portal.billing.creditWaiting")}
             {summary.subscription.upcomingDiscountReason
               ? `, ${summary.subscription.upcomingDiscountReason}`
@@ -303,7 +303,7 @@ export default async function BillingPage({
           href="/earnings"
           className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:bg-slate-50"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
             <Wallet className="h-4 w-4" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">

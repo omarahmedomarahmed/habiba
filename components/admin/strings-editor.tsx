@@ -81,7 +81,7 @@ function Go({ label, quiet }: { label: string; quiet?: boolean }) {
 
 function Result({ state }: { state: StringsState }) {
   if (state.error) return <p className="text-sm text-rose-600">{state.error}</p>;
-  if (state.ok) return <p className="text-sm text-teal-700">{state.ok}</p>;
+  if (state.ok) return <p className="text-sm text-brand-700">{state.ok}</p>;
   return null;
 }
 
@@ -93,7 +93,7 @@ export function LanguagePanel({ language }: { language: LanguageState }) {
     <Card className="p-4">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm font-semibold text-slate-900">
-          {language.name} <span className="text-slate-400">{language.nativeName}</span>
+          {language.name} <span className="text-slate-500">{language.nativeName}</span>
         </p>
         <Badge>{language.code}</Badge>
         <Badge>{language.direction.toUpperCase()}</Badge>
@@ -118,7 +118,7 @@ export function LanguagePanel({ language }: { language: LanguageState }) {
         </div>
         <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
           <div
-            className={language.percent === 100 ? "h-full bg-teal-500" : "h-full bg-amber-400"}
+            className={language.percent === 100 ? "h-full bg-brand-500" : "h-full bg-amber-400"}
             style={{ width: `${language.percent}%` }}
           />
         </div>
@@ -292,7 +292,7 @@ function Row({ locale, row }: { locale: string; row: StringRow }) {
             </span>
           ) : null}
           {row.status === "published" && row.source === "human" ? (
-            <span className="inline-flex items-center gap-1 text-xs text-teal-700">
+            <span className="inline-flex items-center gap-1 text-xs text-brand-700">
               <Check className="h-3 w-3" aria-hidden />
               published
             </span>

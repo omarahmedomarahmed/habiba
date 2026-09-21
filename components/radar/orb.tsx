@@ -205,7 +205,7 @@ export function RadarOrb({
                 className={cn(
                   "tap-target flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60",
                   tone === "off"
-                    ? "bg-teal-500 text-white hover:bg-teal-600"
+                    ? "bg-teal-500 text-navy-600 hover:bg-teal-400"
                     : "bg-slate-100 text-slate-700 hover:bg-slate-200",
                 )}
               >

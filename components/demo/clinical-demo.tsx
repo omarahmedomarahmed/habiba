@@ -164,7 +164,7 @@ export function NoteDemo({ content }: { content?: DemoContent }) {
       <div className="flex shrink-0 items-center gap-2.5 border-t border-slate-200 bg-slate-50 px-3.5 py-3">
         {approved ? (
           <>
-            <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-medium text-teal-800">
+            <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-medium text-brand-800">
               <Check className="h-4 w-4 shrink-0" aria-hidden />
               {t("dclin.approved")}
             </p>

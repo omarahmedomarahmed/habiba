@@ -125,11 +125,11 @@ export function PatientSupportNotice({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3.5",
+        "rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3.5",
         className,
       )}
     >
-      <p className="text-sm leading-relaxed text-teal-900">
+      <p className="text-sm leading-relaxed text-brand-900">
         {t("crisis.therapistHere")}{" "}
         {line ? (
           /*
@@ -153,7 +153,7 @@ export function PatientSupportNotice({
           <>{t("crisis.localNumberFree")}</>
         )}
       </p>
-      {line ? <CrisisSteps line={line} className="mt-1.5 block text-xs text-teal-800" /> : null}
+      {line ? <CrisisSteps line={line} className="mt-1.5 block text-xs text-brand-800" /> : null}
     </div>
   );
 }

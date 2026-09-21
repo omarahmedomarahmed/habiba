@@ -91,7 +91,7 @@ export function AccessBanner({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={t("pban.example")}
-                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400"
+                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500"
               />
               <div className="flex flex-wrap gap-2">
                 <button

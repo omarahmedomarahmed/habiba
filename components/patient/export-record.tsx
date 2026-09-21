@@ -76,12 +76,12 @@ export function ExportRecord({ email }: { email: string | null }) {
       </p>
 
       {state.sentTo ? (
-        <div className="mt-4 rounded-xl bg-teal-50 px-3.5 py-3">
-          <p className="text-sm leading-relaxed text-teal-900">
+        <div className="mt-4 rounded-xl bg-brand-50 px-3.5 py-3">
+          <p className="text-sm leading-relaxed text-brand-900">
             {t("pexport.onItsWay", { email: state.sentTo })}
           </p>
           {state.code ? (
-            <p className="mt-1.5 text-xs leading-relaxed text-teal-900/80">
+            <p className="mt-1.5 text-xs leading-relaxed text-brand-900/80">
               {t("pexport.coverCode", { code: state.code })}
             </p>
           ) : null}

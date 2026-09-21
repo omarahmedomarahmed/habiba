@@ -69,7 +69,7 @@ export default async function RatingsPage() {
                   </p>
                   <Score label="therapist" value={row.therapistStars} />
                   <Score label="us" value={row.serviceStars} />
-                  <span className="ms-auto text-[11px] text-slate-400">
+                  <span className="ms-auto text-[11px] text-slate-500">
                     {relativeDay(row.createdAt, actor.timezone, "en", translator("en"))}
                   </span>
                 </div>
@@ -135,7 +135,7 @@ function Stat({
 }) {
   return (
     <Card className="px-3 py-2.5">
-      <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">{label}</p>
+      <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">{label}</p>
       <p
         className={cn(
           "mt-0.5 flex items-center gap-1 text-2xl font-bold tracking-tight tabular-nums",

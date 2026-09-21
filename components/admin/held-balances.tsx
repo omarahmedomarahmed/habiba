@@ -43,7 +43,7 @@ export function HeldBalances({
 }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+      <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
         Held for clinicians
       </h2>
 

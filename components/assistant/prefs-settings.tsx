@@ -128,7 +128,7 @@ export function AssistantPrefsSettings({
         >
           {pending ? t("common.saving") : t("tdoc.save")}
         </button>
-        {saved ? <span className="text-xs text-teal-600">{t("common.saved")}</span> : null}
+        {saved ? <span className="text-xs text-brand-700">{t("common.saved")}</span> : null}
       </div>
     </Card>
   );

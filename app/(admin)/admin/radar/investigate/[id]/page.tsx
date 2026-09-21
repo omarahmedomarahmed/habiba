@@ -85,7 +85,7 @@ export default async function InvestigatePage({
 
       {report.detail ? (
         <Card className="p-4">
-          <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+          <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
             What the patient said
           </p>
           <blockquote className="mt-2 text-sm leading-relaxed whitespace-pre-line text-slate-800 italic">
@@ -98,7 +98,7 @@ export default async function InvestigatePage({
       ) : null}
 
       <Card className="p-4">
-        <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-500 uppercase">
           <EyeOff className="h-3 w-3" aria-hidden />
           Periods with no recording
         </p>
@@ -136,13 +136,13 @@ export default async function InvestigatePage({
       </Card>
 
       <Card className="p-4">
-        <p className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+        <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
           Transcript, {transcript.length} lines
         </p>
         <div className="mt-2 max-h-[36rem] space-y-1.5 overflow-y-auto">
           {transcript.map((line, index) => (
             <p key={index} className="text-sm leading-relaxed">
-              <span className="me-2 font-mono text-[11px] text-slate-400 tabular-nums">
+              <span className="me-2 font-mono text-[11px] text-slate-500 tabular-nums">
                 {formatDuration(Math.round(line.startMs / 1000))}
               </span>
               <span className="font-semibold text-navy-500">

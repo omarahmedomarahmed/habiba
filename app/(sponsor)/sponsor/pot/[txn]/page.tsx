@@ -85,7 +85,7 @@ export default async function InvoicePage({
           </div>
 
           <div className="text-end">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               {t("sponsor.inv.title")}
             </p>
             <p className="font-mono text-sm font-bold text-slate-900">{invoice.number}</p>
@@ -96,7 +96,7 @@ export default async function InvoicePage({
         </div>
 
         <div className="mt-8 border-t border-slate-200 pt-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t("sponsor.inv.billedTo")}
           </p>
           <p className="mt-1 text-sm font-semibold text-slate-900">{invoice.sponsorName}</p>

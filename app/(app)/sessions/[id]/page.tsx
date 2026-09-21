@@ -298,7 +298,7 @@ export default async function SessionDetailPage({
           <details className="group rounded-2xl border border-slate-200 bg-white">
             <summary className="tap-target flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-800">
               {t("portal.session.transcript")}
-              <span className="text-xs font-normal text-slate-400">
+              <span className="text-xs font-normal text-slate-500">
                 {transcript.length} segments
               </span>
             </summary>

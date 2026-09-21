@@ -270,7 +270,7 @@ export function TherapistConsole(props: ConsoleProps) {
               "mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold transition-colors disabled:opacity-50",
               online
                 ? "border border-white/20 text-white hover:bg-white/10"
-                : "bg-teal-500 text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400",
+                : "bg-teal-500 text-navy-600 shadow-lg shadow-teal-500/25 hover:bg-teal-400",
             )}
           >
             <Radio className="h-4 w-4" aria-hidden />
@@ -496,7 +496,7 @@ function GoOnlineSound({
             }
             setFailed(true);
           }}
-          className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
+          className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-teal-500 text-base font-semibold text-navy-600 shadow-lg shadow-teal-500/25 hover:bg-teal-400 disabled:opacity-50"
         >
           <Volume2 className="h-4 w-4" aria-hidden />
           {busy ? t("trad.turningOn") : t("trad.turnOnAndGoLive")}
@@ -610,7 +610,7 @@ function AlertSettings({
               const result = await armAlarmAndAlerts();
               if (result.sound === "ready") playTone("ring");
             }}
-            className="flex h-10 items-center gap-1.5 rounded-xl bg-teal-500 px-3.5 text-xs font-semibold text-white hover:bg-teal-400"
+            className="flex h-10 items-center gap-1.5 rounded-xl bg-teal-500 px-3.5 text-xs font-semibold text-navy-600 hover:bg-teal-400"
           >
             <Volume2 className="h-3.5 w-3.5" aria-hidden />
             {t("trad.turnOn")}

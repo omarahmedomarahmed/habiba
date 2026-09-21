@@ -236,7 +236,7 @@ async function Shell({
         <div className="w-full max-w-md">{children}</div>
       </main>
       <footer className="px-4 pb-6 text-center sm:px-6">
-        <p className="text-xs text-slate-400">{t("urgent.footer")}</p>
+        <p className="text-xs text-slate-500">{t("urgent.footer")}</p>
       </footer>
     </div>
     </PatientChrome>

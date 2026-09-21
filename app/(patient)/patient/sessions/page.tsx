@@ -73,7 +73,7 @@ export default async function PatientSessionsPage({
                 aria-current={entry.key === active ? "page" : undefined}
                 className={cn(
                   "block rounded-xl py-2 text-center text-sm font-semibold",
-                  entry.key === active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+                  entry.key === active ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
                 )}
               >
                 {t(entry.label as MessageKey)}

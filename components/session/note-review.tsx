@@ -477,7 +477,7 @@ export function NoteReview(props: Props) {
           {patientStatus === "approved" ? (
             <Card className="p-4">
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                <Mail className="h-4 w-4 text-teal-600" aria-hidden />
+                <Mail className="h-4 w-4 text-brand-600" aria-hidden />
                 {sent ? t("tnote.sentTitle") : t("tnote.releasedTitle")}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
@@ -550,7 +550,7 @@ function StepEditor({
               disabled={disabled}
               onClick={() => onChange(steps.filter((_, i) => i !== index))}
               aria-label={t("tnote.removeStep", { number: index + 1 })}
-              className="tap-target mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-red-600"
+              className="tap-target mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-red-600"
             >
               <Trash2 className="h-4 w-4" aria-hidden />
             </button>
@@ -563,12 +563,12 @@ function StepEditor({
           type="button"
           disabled={disabled}
           onClick={() => onChange([...steps, ""])}
-          className="mt-2 flex items-center gap-1.5 rounded-lg px-1 py-1.5 text-sm font-semibold text-teal-700 hover:text-teal-800"
+          className="mt-2 flex items-center gap-1.5 rounded-lg px-1 py-1.5 text-sm font-semibold text-brand-700 hover:text-brand-800"
         >
           <Plus className="h-4 w-4" aria-hidden /> {t("tnote.addStep")}
         </button>
       ) : (
-        <p className="mt-2 px-1 text-xs text-slate-400">
+        <p className="mt-2 px-1 text-xs text-slate-500">
           {t("tnote.maxSteps")}
         </p>
       )}
@@ -645,7 +645,7 @@ function LangTab({
       }
     >
       {label}
-      <span className="ms-1.5 text-xs font-normal text-slate-400">{hint}</span>
+      <span className="ms-1.5 text-xs font-normal text-slate-500">{hint}</span>
     </button>
   );
 }

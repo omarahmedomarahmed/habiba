@@ -144,7 +144,7 @@ export function TransferFieldsEditor({
                     }
                     className={
                       on
-                        ? "rounded-full bg-teal-600 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
+                        ? "rounded-full bg-brand-500 px-2.5 py-1 text-xs font-medium text-navy-600 disabled:opacity-50"
                         : "rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 disabled:opacity-50"
                     }
                   >
@@ -207,7 +207,7 @@ export function TransferFieldsEditor({
         </label>
 
         {state.error ? <p className="text-sm text-rose-600">{state.error}</p> : null}
-        {state.ok ? <p className="text-sm text-teal-700">{state.ok}</p> : null}
+        {state.ok ? <p className="text-sm text-brand-700">{state.ok}</p> : null}
 
         <Save locked={locked} />
       </form>

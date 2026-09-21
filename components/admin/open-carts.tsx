@@ -72,7 +72,7 @@ export function OpenCarts({ rows }: { rows: CartRow[] }) {
           </p>
 
           {msg.error ? <p className="px-1 text-sm text-rose-600">{msg.error}</p> : null}
-          {msg.ok ? <p className="px-1 text-sm text-teal-700">{msg.ok}</p> : null}
+          {msg.ok ? <p className="px-1 text-sm text-brand-700">{msg.ok}</p> : null}
 
           <Card className="divide-y divide-slate-100">
             {rows.map((row) => (

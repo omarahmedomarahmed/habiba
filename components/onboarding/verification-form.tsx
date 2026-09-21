@@ -437,7 +437,7 @@ function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
     <div
       className={cn(
         "rounded-2xl border p-3",
-        url ? "border-teal-200 bg-teal-50/40" : "border-slate-200",
+        url ? "border-brand-200 bg-brand-50/40" : "border-slate-200",
       )}
     >
       <div className="flex items-start gap-3">
@@ -450,7 +450,7 @@ function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
             <Camera className="h-5 w-5" aria-hidden />
           </span>
         )}

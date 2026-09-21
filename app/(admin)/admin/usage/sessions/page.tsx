@@ -99,7 +99,7 @@ export default async function SessionCostsPage({
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[48rem] text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-start text-xs text-slate-400">
+              <tr className="border-b border-slate-100 text-start text-xs text-slate-500">
                 <Th>When</Th>
                 <Th>Clinician</Th>
                 <Th align="end">Minutes</Th>
@@ -129,7 +129,7 @@ export default async function SessionCostsPage({
                     </Td>
                     <Td>
                       <span className="font-medium text-slate-900">{row.therapistName}</span>
-                      <span className="block text-xs text-slate-400">
+                      <span className="block text-xs text-slate-500">
                         {row.modality === "video" ? "Video" : "In person"}
                         {row.status !== "completed" ? ` · ${row.status.replace("_", " ")}` : ""}
                       </span>
@@ -157,7 +157,7 @@ export default async function SessionCostsPage({
                     <Td align="end">
                       {row.grossCents ? <Money cents={row.grossCents} /> : <span className="text-slate-300">-</span>}
                     </Td>
-                    <Td align="end" className="font-medium text-teal-700">
+                    <Td align="end" className="font-medium text-brand-700">
                       {row.feeCents ? <Money cents={row.feeCents} /> : <span className="text-slate-300">-</span>}
                     </Td>
                   </tr>
@@ -165,7 +165,7 @@ export default async function SessionCostsPage({
               })}
               {rows.length === 0 ? (
                 <tr>
-                  <Td colSpan={8} className="py-6 text-center text-slate-400">
+                  <Td colSpan={8} className="py-6 text-center text-slate-500">
                     No sessions.
                   </Td>
                 </tr>
