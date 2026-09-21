@@ -48,6 +48,20 @@ export default function CompanyDesignPage() {
             how many screens it should take to answer them.
           </p>
 
+          {/*
+            🔴 THE SAMPLES, LINKED FROM THE TOP RATHER THAN THE BOTTOM.
+            A wireframe withholds everything except position, which is what
+            makes it fast and what makes it impossible to approve a design
+            from. The finished version of each option is one click away.
+          */}
+          <a
+            href="/design/company/sample"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-navy-600 shadow-sm hover:bg-brand-400"
+          >
+            See each option drawn properly
+            <span aria-hidden>&rarr;</span>
+          </a>
+
           <div className="mt-8 overflow-x-auto">
             <table className="w-full min-w-[40rem] border-collapse text-sm">
               <thead>
