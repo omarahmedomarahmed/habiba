@@ -128,7 +128,7 @@ export function HistoryAsks({
                   type="submit"
                   name="decision"
                   value="added"
-                  className="tap-target h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+                  className="tap-target h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
                 >
                   {t("tcon.added")}
                 </button>

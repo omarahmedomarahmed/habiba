@@ -36,7 +36,7 @@ export default function CompanyDesignPage() {
     <main className="bg-white">
       <section className="border-b border-slate-200 bg-slate-50 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
             Design review · company
           </p>
           <h1 className="mt-3 max-w-3xl text-balance text-3xl font-bold tracking-tight text-navy-500 sm:text-4xl">
@@ -360,7 +360,7 @@ export default function CompanyDesignPage() {
               <strong className="text-navy-500">Every button in the demo console is a span.</strong>{" "}
               The marketing page renders a console whose controls do nothing. Whichever option
               is chosen, the same components carry it, so the mockups on{" "}
-              <Link href="/for-companies" className="font-medium text-brand-600 hover:underline">
+              <Link href="/for-companies" className="font-medium text-brand-700 hover:underline">
                 /for-companies
               </Link>{" "}
               and the homepage update with the portal rather than after it.

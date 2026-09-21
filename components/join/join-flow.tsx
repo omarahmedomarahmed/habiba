@@ -27,7 +27,7 @@ function Submit({ priceCents }: { priceCents: number }) {
   const t = useT();
   const paid = priceCents > 0;
   return (
-    <Button type="submit" size="lg" variant="teal" full disabled={pending}>
+    <Button type="submit" size="lg" variant="primary" full disabled={pending}>
       {paid ? <CreditCard className="h-4 w-4" aria-hidden /> : null}
       {pending
         ? paid
@@ -211,7 +211,7 @@ export function JoinFlow({
   if (resumeAfterPayment && !resumed) {
     return (
       <Card className="p-6 text-center">
-        <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-500" aria-hidden />
+        <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-700" aria-hidden />
         <p className="mt-3 text-base font-semibold text-slate-900">{t("join.paymentReceived")}</p>
         <p className="mt-1.5 text-sm text-slate-600">{t("join.takingYouIn")}</p>
       </Card>
@@ -394,7 +394,7 @@ function ConsentGate({
         }
       >
         <ConsentStep />
-        <Button type="submit" size="lg" variant="teal" full disabled={pending}>
+        <Button type="submit" size="lg" variant="primary" full disabled={pending}>
           {pending ? t("consent.gate.submitting") : t("consent.gate.submit")}
         </Button>
       </form>

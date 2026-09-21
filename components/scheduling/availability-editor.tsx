@@ -207,7 +207,7 @@ export function AvailabilityEditor({
                     part,
                   ],
             )}{" "}
-          <Link href="/settings" className="font-medium text-brand-600">
+          <Link href="/settings" className="font-medium text-brand-700">
             {timezone ? t("tav.change") : t("tav.setZone")}
           </Link>
         </p>

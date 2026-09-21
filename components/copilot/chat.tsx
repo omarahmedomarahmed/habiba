@@ -362,7 +362,7 @@ export function CopilotChat({
                 key={prompt}
                 type="button"
                 onClick={() => setDraft(prompt)}
-                className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100"
+                className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-800 hover:bg-brand-100"
               >
                 {prompt}
               </button>
@@ -502,7 +502,7 @@ export function CopilotChat({
                   // Saved on release, not on every pixel of the drag.
                   onPointerUp={() => void saveVoicePreference(voice, speed)}
                   onKeyUp={() => void saveVoicePreference(voice, speed)}
-                  className="w-full accent-brand-500"
+                  className="w-full accent-brand-700"
                 />
               </Field>
             </div>
@@ -581,7 +581,7 @@ function MessageBubble({
   if (message.role === "therapist") {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-brand-500 px-4 py-2.5 text-[15px] leading-relaxed text-white">
+        <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-brand-500 px-4 py-2.5 text-[15px] leading-relaxed text-navy-600">
           {message.content}
         </p>
       </div>
@@ -628,7 +628,7 @@ function MessageBubble({
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors",
               openCitation === i
-                ? "bg-brand-500 text-white"
+                ? "bg-brand-500 text-navy-600"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200",
             )}
           >
@@ -649,7 +649,7 @@ function MessageBubble({
           aria-label={speaking ? t("tcop.stopReading") : t("tcop.readThis")}
           className={cn(
             "tap-target flex items-center justify-center rounded-lg px-2",
-            speaking ? "text-brand-600" : "text-slate-300 hover:text-slate-600",
+            speaking ? "text-brand-700" : "text-slate-300 hover:text-slate-600",
           )}
         >
           <Volume2 className="h-4 w-4" aria-hidden />

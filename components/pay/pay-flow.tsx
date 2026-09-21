@@ -121,7 +121,7 @@ export function PayFlow({
               id="country"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white ps-9 pe-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white ps-9 pe-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
             >
               <option value="">{t("pay.chooseCountry")}</option>
               {countries.map((c) => (

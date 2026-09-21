@@ -339,7 +339,7 @@ function Slider({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-500"
+          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-700"
         />
         <span className="w-24 shrink-0 text-end text-sm font-semibold tabular-nums text-slate-900">
           {format(value)}

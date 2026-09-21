@@ -196,7 +196,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
                 <span
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                    isActive(item.href) ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500",
+                    isActive(item.href) ? "bg-brand-500 text-navy-600" : "bg-slate-100 text-slate-500",
                   )}
                 >
                   <item.icon className="h-4 w-4" aria-hidden />
@@ -229,7 +229,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
           <Link
             href="/sessions/new"
             aria-label={t("portal.dash.start")}
-            className="tap-target -mt-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-lg shadow-brand-500/30 active:bg-brand-600"
+            className="tap-target -mt-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-navy-600 shadow-lg shadow-brand-500/30 active:bg-brand-600"
           >
             <Plus className="h-6 w-6" aria-hidden />
           </Link>
@@ -251,7 +251,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
             aria-label={t("portal.nav.more")}
             className={cn(
               "tap-target flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5",
-              open || moreActive ? "text-brand-600" : "text-slate-400",
+              open || moreActive ? "text-brand-700" : "text-slate-400",
             )}
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />
@@ -284,7 +284,7 @@ function NavItem({
       aria-current={active ? "page" : undefined}
       className={cn(
         "tap-target flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5",
-        active ? "text-brand-600" : "text-slate-400",
+        active ? "text-brand-700" : "text-slate-400",
       )}
     >
       <Icon className="h-5 w-5" aria-hidden />

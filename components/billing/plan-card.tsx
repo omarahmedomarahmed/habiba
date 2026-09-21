@@ -313,7 +313,7 @@ export function PlanCard({
                   onClick={() => setConsidering(chosen ? null : tier.key)}
                   className={
                     isCurrent
-                      ? "rounded-2xl border-2 border-brand-500 bg-brand-50 p-3.5 text-start"
+                      ? "rounded-2xl border-2 border-brand-600 bg-brand-50 p-3.5 text-start"
                       : chosen
                         ? "rounded-2xl border-2 border-slate-900 bg-white p-3.5 text-start"
                         : "rounded-2xl border border-slate-200 bg-white p-3.5 text-start"
@@ -322,7 +322,7 @@ export function PlanCard({
                   <span className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold text-slate-900">{tier.name}</span>
                     {isCurrent ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-navy-600">
                         <Check className="h-2.5 w-2.5" aria-hidden />
                         {t("tplan.yours")}
                       </span>

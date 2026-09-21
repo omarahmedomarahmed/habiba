@@ -87,7 +87,7 @@ export default async function InvitePage({
           <div className="mt-4 space-y-2">
             <Link
               href={`/patient/signup?invite=${token}`}
-              className="flex h-11 w-full items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-white"
+              className="flex h-11 w-full items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-navy-600"
             >
               {t("pinvite.create")}
             </Link>

@@ -58,7 +58,7 @@ export default function PatientDesignPage() {
     <main className="bg-white">
       <section className="border-b border-slate-200 bg-slate-50 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
             Design review · patient
           </p>
           <h1 className="mt-3 max-w-3xl text-balance text-3xl font-bold tracking-tight text-navy-500 sm:text-4xl">
@@ -121,7 +121,7 @@ export default function PatientDesignPage() {
 
           <p className="mt-6 text-sm text-slate-600">
             Company and clinic get the same treatment next. The marketing mockups on{" "}
-            <Link href="/for-patients" className="font-medium text-brand-600 hover:underline">
+            <Link href="/for-patients" className="font-medium text-brand-700 hover:underline">
               /for-patients
             </Link>{" "}
             and the homepage render these same components, so whichever is chosen updates

@@ -185,7 +185,7 @@ export function SessionCopilot({
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-white", className)}>
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-4 py-2.5">
-        <Sparkles className="h-4 w-4 text-brand-600" aria-hidden />
+        <Sparkles className="h-4 w-4 text-brand-700" aria-hidden />
         <span className="text-xs font-bold tracking-wide text-slate-900 uppercase">
           {t("dcp.title")}
         </span>
@@ -249,7 +249,7 @@ export function SessionCopilot({
                 key={i}
                 type="button"
                 onClick={() => { ask(i); }}
-                className="tap-target rounded-full border border-brand-200 bg-white px-3 py-1.5 text-[13px] font-medium text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-50"
+                className="tap-target rounded-full border border-brand-200 bg-white px-3 py-1.5 text-[13px] font-medium text-brand-800 transition-colors hover:border-brand-300 hover:bg-brand-50"
               >
                 {asks[i]?.q}
               </button>
@@ -318,9 +318,9 @@ function Bubble({
         )}
       >
         <div className="flex items-start gap-2.5">
-          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
+          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden />
           <div className="min-w-0">
-            <p className="text-[10px] font-bold tracking-wider text-brand-700 uppercase">
+            <p className="text-[10px] font-bold tracking-wider text-brand-800 uppercase">
               {entry.label}
             </p>
             <p className="mt-0.5 text-[14px] leading-relaxed text-slate-900">{entry.text}</p>
@@ -354,7 +354,7 @@ function Bubble({
               className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors",
                 open === i
-                  ? "bg-brand-500 text-white"
+                  ? "bg-brand-500 text-navy-600"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200",
               )}
             >

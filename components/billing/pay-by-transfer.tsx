@@ -451,7 +451,7 @@ function Declare() {
     <button
       type="submit"
       disabled={pending}
-      className="h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white disabled:opacity-40"
+      className="h-11 w-full rounded-xl bg-brand-500 text-sm font-semibold text-navy-600 disabled:opacity-40"
     >
       {/*
         🔴 76.12 — "Submit", because that is the act. The old label was "I have

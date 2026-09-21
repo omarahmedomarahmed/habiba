@@ -40,7 +40,7 @@ export function NoteCard({
     <div className={cn("rounded-2xl border border-slate-200 bg-white", className)}>
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
             <FileText className="h-4.5 w-4.5" aria-hidden />
           </div>
           <div className="min-w-0">
@@ -174,7 +174,7 @@ function StatusPill({ status }: { status: "draft" | "approved" | "generating" })
   }
   if (status === "generating") {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800">
         <Sparkles className="h-3 w-3" aria-hidden /> {t("tnc.writing")}
       </span>
     );

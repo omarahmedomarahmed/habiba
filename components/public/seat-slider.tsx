@@ -57,7 +57,7 @@ export function SeatSlider({
         max={monthlyByCount.length}
         value={count}
         onChange={(event) => { setCount(Number(event.target.value)); }}
-        className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-500"
+        className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-700"
       />
     </div>
   );

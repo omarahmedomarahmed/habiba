@@ -183,7 +183,7 @@ export function ClinicTeam({
                     name="capabilities"
                     value={capability}
                     defaultChecked={editing?.capabilities.includes(capability) ?? false}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-brand-500"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-brand-700"
                   />
                   {t(LABELS[capability])}
                 </label>
@@ -357,7 +357,7 @@ function AssignmentPicker({
                     : current.filter((id) => id !== clinician.userId),
                 );
               }}
-              className="h-4 w-4 rounded border-slate-300 accent-brand-500"
+              className="h-4 w-4 rounded border-slate-300 accent-brand-700"
             />
             {clinician.name}
           </label>

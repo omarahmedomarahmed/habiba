@@ -52,7 +52,7 @@ export function AnnouncementComposer({ recipientCount }: { recipientCount: numbe
   return (
     <Card className="p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <Megaphone className="h-4 w-4 text-brand-600" aria-hidden />
+        <Megaphone className="h-4 w-4 text-brand-700" aria-hidden />
         Compose
       </p>
 

@@ -80,7 +80,7 @@ export default async function ForClinicsPage() {
           </p>
           <Link
             href="/integrations"
-            className="mt-2 inline-block text-sm font-semibold text-brand-600 underline"
+            className="mt-2 inline-block text-sm font-semibold text-brand-700 underline"
           >
             {t("nav.integrations")}
           </Link>

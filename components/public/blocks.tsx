@@ -451,7 +451,7 @@ function Hero({
           {block.ctaLabel && block.ctaHref ? (
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href={block.ctaHref}>
-                <Button size="lg" variant="teal" full className="sm:w-auto">
+                <Button size="lg" variant="primary" full className="sm:w-auto">
                   {block.ctaLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Button>
@@ -689,7 +689,7 @@ function Cta({ block }: { block: Extract<ContentBlock, { type: "cta" }> }) {
             </p>
           ) : null}
           <Link href={block.ctaHref} className="mt-7 inline-block">
-            <Button size="lg" variant="teal">
+            <Button size="lg" variant="primary">
               {block.ctaLabel}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Button>
@@ -830,7 +830,7 @@ function Companies({
                     <dd>
                       <a
                         href={`tel:${company.phone.replace(/\s/g, "")}`}
-                        className="text-brand-600"
+                        className="text-brand-700"
                       >
                         {company.phone}
                       </a>
@@ -845,7 +845,7 @@ function Companies({
                     <dd>
                       <a
                         href={`mailto:${company.email}`}
-                        className="text-brand-600"
+                        className="text-brand-700"
                       >
                         {company.email}
                       </a>

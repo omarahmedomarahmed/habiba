@@ -15,7 +15,7 @@ export default async function NotFound() {
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <p className="text-sm font-semibold text-brand-600">404</p>
+      <p className="text-sm font-semibold text-brand-700">404</p>
       <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
         {t("nf.title")}
       </h1>

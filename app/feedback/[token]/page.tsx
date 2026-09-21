@@ -43,7 +43,7 @@ export default async function FeedbackPage({
             {t("feedback.expiredBody")}
           </p>
           <Link href="/" className="mt-4 inline-flex items-center">
-            <Logo ink="navy" height={20} />
+            <Logo ink="navy" height={22} />
           </Link>
         </Card>
       </Shell>
@@ -96,7 +96,7 @@ export default async function FeedbackPage({
           <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("feedback.seeBody")}</p>
           <Link
             href="/patient/signup"
-            className="mt-4 inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+            className="mt-4 inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
           >
             {t("feedback.makeMine")}
           </Link>

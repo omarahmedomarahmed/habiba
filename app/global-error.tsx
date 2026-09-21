@@ -37,11 +37,12 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
               padding: "0 1.25rem",
               borderRadius: "0.75rem",
               border: 0,
-              /* brand-500. Inline because this component replaces the
-                 whole document, stylesheet included, so no token is
-                 loaded by the time it renders. */
-              background: "#1A7A71",
-              color: "#fff",
+              /* brand-500 with navy ink, the one primary-button pairing.
+                 Inline because this component replaces the whole document,
+                 stylesheet included, so no token is loaded by the time it
+                 renders. Keep it in step with BUTTON_VARIANTS.primary. */
+              background: "#2EC4B6",
+              color: "#0A2342",
               fontWeight: 600,
               fontSize: "0.875rem",
               cursor: "pointer",

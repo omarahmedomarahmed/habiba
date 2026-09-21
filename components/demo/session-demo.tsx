@@ -334,7 +334,7 @@ function SessionDemoInner({
             </div>
           ) : phase === "writing" ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-              <Sparkles className="h-5 w-5 animate-pulse text-brand-500" aria-hidden />
+              <Sparkles className="h-5 w-5 animate-pulse text-brand-700" aria-hidden />
               <p className="text-sm font-medium text-slate-700">{labels.waiting}</p>
               <span className="h-1 w-40 overflow-hidden rounded-full bg-slate-200">
                 <span className="live-dot block h-full w-1/2 rounded-full bg-brand-500" />

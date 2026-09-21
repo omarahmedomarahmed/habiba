@@ -174,7 +174,7 @@ export function ClinicJoinForm({
           <button
             type="button"
             onClick={() => setExisting(false)}
-            className="w-full text-center text-xs font-medium text-brand-600 underline"
+            className="w-full text-center text-xs font-medium text-brand-700 underline"
           >
             {t("clinic.join.newHere")}
           </button>
@@ -229,7 +229,7 @@ export function ClinicJoinForm({
         <button
           type="button"
           onClick={() => setExisting(true)}
-          className="w-full text-center text-xs font-medium text-brand-600 underline"
+          className="w-full text-center text-xs font-medium text-brand-700 underline"
         >
           {t("clinic.join.haveAccount")}
         </button>

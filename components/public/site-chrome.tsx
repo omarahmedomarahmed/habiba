@@ -90,7 +90,7 @@ export async function SiteHeader() {
           "24Therapy" to anybody who cannot see the mark.
         */}
         <Link href={href("/")} className="flex shrink-0 items-center">
-          <Logo ink="navy" height={26} />
+          <Logo ink="navy" height={28} />
         </Link>
 
         <nav aria-label={t("nav.mainNav")} className="hidden items-center gap-0.5 md:flex">
@@ -153,7 +153,7 @@ export async function SiteFooter() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="min-w-0">
             <Link href={href("/")} className="inline-flex items-center">
-              <Logo ink="navy" height={22} />
+              <Logo ink="navy" height={24} />
             </Link>
             <p className="mt-3 max-w-xs text-xs leading-relaxed text-slate-600">
               {t("nav.tagline")}

@@ -149,7 +149,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
           <button
             type="button"
             onClick={() => setFilter(NO_FILTER)}
-            className="mt-3 text-sm font-semibold text-brand-600"
+            className="mt-3 text-sm font-semibold text-brand-700"
           >
             {t("radar.showEveryone")}
           </button>

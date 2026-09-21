@@ -29,7 +29,7 @@ export default async function PartnerSignInPage() {
     <QuietAuthShell title={t("dev.signInTitle")}>
       <PartnerSignInForm />
       <p className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-600">
-        <Link href={PARTNER_APPLY} className="font-semibold text-brand-600 hover:text-brand-700">
+        <Link href={PARTNER_APPLY} className="font-semibold text-brand-700 hover:text-brand-800">
           {t("dev.apply.title")}
         </Link>
       </p>

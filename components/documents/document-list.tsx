@@ -285,7 +285,7 @@ function DocumentCard({
                   href={`/api/documents/${document.id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-2 inline-flex text-xs font-semibold text-brand-600 hover:underline"
+                  className="mt-2 inline-flex text-xs font-semibold text-brand-700 hover:underline"
                 >
                   Open {document.title}
                 </a>

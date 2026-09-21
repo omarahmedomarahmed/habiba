@@ -204,7 +204,7 @@ function Choice({
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
       />
       <span className="min-w-0">
         <span className="block text-sm font-medium text-slate-900">{title}</span>

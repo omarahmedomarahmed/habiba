@@ -102,7 +102,7 @@ export function CoverageForm({
               step={5}
               value={draft}
               onChange={(e) => setDraft(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-500"
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-700"
             />
             <span className="w-14 shrink-0 text-end text-lg font-bold tabular-nums text-slate-900">
               {draft}%

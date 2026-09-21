@@ -127,14 +127,14 @@ export default async function AppLayout({
         <div className="px-5 py-5">
           {/* The mark, not the name set as text. See components/brand/logo.tsx. */}
           <Link href="/dashboard" className="inline-flex items-center">
-            <Logo ink="navy" height={24} />
+            <Logo ink="navy" height={26} />
           </Link>
         </div>
 
         {cleared ? (
           <Link
             href="/sessions/new"
-            className="mx-4 mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
+            className="mx-4 mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
           >
             <Plus className="h-4 w-4" aria-hidden />
             {t("portal.nav.newSession")}

@@ -96,7 +96,7 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
         <Scroller as="ul" className="space-y-2 bg-white p-3">
             {(content?.observations ?? []).map((row) => (
               <li key={row.at} className="border-s-2 border-brand-200 ps-3">
-                <p className="text-[11px] font-semibold tracking-wide text-brand-600 uppercase">
+                <p className="text-[11px] font-semibold tracking-wide text-brand-700 uppercase">
                   {row.at}
                 </p>
                 <p className="text-sm leading-snug text-slate-700">{row.text}</p>

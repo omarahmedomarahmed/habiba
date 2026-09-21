@@ -60,7 +60,7 @@ export function ContentIconMark({
   const Icon = name && name in ICONS ? ICONS[name as ContentIcon] : Sparkles;
 
   const tones = {
-    brand: "bg-brand-50 text-brand-600",
+    brand: "bg-brand-50 text-brand-700",
     teal: "bg-teal-50 text-teal-600",
     light: "bg-white/10 text-white",
   };

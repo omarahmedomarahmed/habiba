@@ -25,7 +25,7 @@ export default async function PatientForgotPasswordPage() {
 
       <p className="text-center text-sm text-slate-500">
         {t("pauth.areYouTherapist")}{" "}
-        <Link href="/forgot-password" className="font-semibold text-brand-600 hover:underline">
+        <Link href="/forgot-password" className="font-semibold text-brand-700 hover:underline">
           {t("pauth.practiceReset")}
         </Link>
       </p>

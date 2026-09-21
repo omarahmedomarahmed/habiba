@@ -444,7 +444,7 @@ export function IconGrid({
             href={item.href}
             className="flex h-full flex-col items-start gap-2 rounded-2xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
               {item.icon}
             </span>
             <span className="text-sm font-medium text-slate-900">{item.label}</span>

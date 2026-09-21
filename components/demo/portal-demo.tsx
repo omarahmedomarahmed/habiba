@@ -143,7 +143,7 @@ function Shell({
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] font-medium transition-colors",
                 key === active
-                  ? "bg-brand-50 text-brand-700"
+                  ? "bg-brand-50 text-brand-800"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
               )}
             >
@@ -201,7 +201,7 @@ const VERIFY_LINE = {
 
 function Primary({ children, icon: Icon }: { children: React.ReactNode; icon?: typeof Plus }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-[13px] font-semibold text-white">
+    <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-[13px] font-semibold text-navy-600">
       {Icon ? <Icon className="h-3.5 w-3.5" aria-hidden /> : null}
       {children}
     </span>

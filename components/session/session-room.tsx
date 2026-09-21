@@ -813,7 +813,7 @@ export function SessionRoom(props: RoomProps) {
               </button>
             </div>
           ) : (
-            <Button size="lg" variant="teal" full onClick={handleStart} disabled={pending}>
+            <Button size="lg" variant="primary" full onClick={handleStart} disabled={pending}>
               {pending ? t("troom.starting") : t("troom.startSession")}
             </Button>
           )}

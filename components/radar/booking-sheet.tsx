@@ -228,7 +228,7 @@ export function BookingSheet({
         */}
         <a
           href={`/t/${entry.userId}`}
-          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-800"
         >
           {t("pbook.fullProfile")}
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />

@@ -167,11 +167,11 @@ function Tap({
       onClick={onClick}
       className={cn(
         "tap-target block w-full rounded-xl px-3 py-2.5 text-center text-[13px] font-semibold transition-colors",
-        variant === "primary" && "bg-brand-600 text-white hover:bg-brand-700",
+        variant === "primary" && "bg-brand-500 text-navy-600 hover:bg-brand-400",
         variant === "secondary" &&
           "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
         variant === "danger" && "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
-        pressed && "ring-2 ring-brand-500 ring-offset-1",
+        pressed && "ring-2 ring-brand-600 ring-offset-1",
       )}
     >
       {children}
@@ -242,7 +242,7 @@ const CLAIM: Step[] = [
                   i < typed.length
                     ? "border-brand-300 bg-brand-50 text-slate-900"
                     : i === typed.length
-                      ? "border-brand-500 bg-white text-slate-400 ring-2 ring-brand-200"
+                      ? "border-brand-600 bg-white text-slate-400 ring-2 ring-brand-200"
                       : "border-slate-200 bg-white text-transparent",
                 )}
               >
@@ -257,7 +257,7 @@ const CLAIM: Step[] = [
             type="button"
             disabled={typed.length < CODE.length}
             onClick={next}
-            className="tap-target block w-full rounded-xl bg-brand-600 px-3 py-2.5 text-center text-[13px] font-semibold text-white transition-colors hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-500"
+            className="tap-target block w-full rounded-xl bg-brand-500 px-3 py-2.5 text-center text-[13px] font-semibold text-navy-600 transition-colors hover:bg-brand-400 disabled:bg-slate-200 disabled:text-slate-500"
           >
             {t("pclaim.checkCode")}
           </button>
@@ -291,7 +291,7 @@ const CLAIM: Step[] = [
             <span
               className={cn(
                 "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border-2 transition-colors",
-                state.keep ? "border-brand-600 bg-brand-600" : "border-slate-300 bg-white",
+                state.keep ? "border-brand-700 bg-brand-700" : "border-slate-300 bg-white",
               )}
             >
               {state.keep ? <Check className="h-3 w-3 text-white" aria-hidden /> : null}
@@ -311,7 +311,7 @@ const CLAIM: Step[] = [
       <Screen title={t("pclaim.doneTitle")}>
         <Tile tone="brand">
           <span className="flex items-start gap-2.5">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden />
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden />
             {t("pclaim.doneDropped")}
           </span>
         </Tile>
@@ -380,7 +380,7 @@ const CONSENT: Step[] = [
         <Tile tone="brand">
           <span className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
-              <Eye className="h-4 w-4 shrink-0 text-brand-600" aria-hidden />
+              <Eye className="h-4 w-4 shrink-0 text-brand-700" aria-hidden />
               {t("dfl.demoTherapist")}
             </span>
             <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-teal-800 uppercase">
@@ -517,7 +517,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                         className={cn(
                           "mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold",
                           now
-                            ? "bg-brand-600 text-white"
+                            ? "bg-brand-500 text-navy-600"
                             : done
                               ? "bg-teal-100 text-teal-700"
                               : "bg-slate-100 text-slate-600",
@@ -569,7 +569,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                 <button
                   type="button"
                   onClick={() => { setAt((i) => Math.min(steps.length - 1, i + 1)); }}
-                  className="tap-target inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-[13px] font-semibold text-white"
+                  className="tap-target inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-[13px] font-semibold text-navy-600"
                 >
                   {t("dfl.next")}
                   <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />

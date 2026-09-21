@@ -62,7 +62,7 @@ const BLOCK_GUIDE: { type: string; what: string }[] = [
 ];
 
 const SELECT_CLASS =
-  "h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none";
+  "h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none";
 import type { ContentBlock } from "@/lib/db/schema";
 
 /**

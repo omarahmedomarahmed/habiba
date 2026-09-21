@@ -53,7 +53,7 @@ export default async function HomeworkPage() {
       {openAssessments.length > 0 ? (
         <Link
           href="/patient/assessments"
-          className="text-sm font-semibold text-brand-600 hover:underline"
+          className="text-sm font-semibold text-brand-700 hover:underline"
         >
           {t("passess.title")}
         </Link>

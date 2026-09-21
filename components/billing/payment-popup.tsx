@@ -302,7 +302,7 @@ export function PaymentPopup({
            * patient's crisis path never depends on money; a payment reminder
            * covering it would be that rule broken by a stacking context.
            */
-          className="fixed end-3 bottom-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg"
+          className="fixed end-3 bottom-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-navy-600 shadow-lg"
         >
           {/* A banknote, drawn rather than typed, so no font decides its size. */}
           <span aria-hidden className="block h-4 w-6 rounded-[3px] border-2 border-current" />
@@ -331,7 +331,7 @@ export function PaymentPopup({
         <button
           type="button"
           onClick={() => remember(true)}
-          className="h-11 w-full rounded-xl bg-brand-600 text-sm font-semibold text-white"
+          className="h-11 w-full rounded-xl bg-brand-500 text-sm font-semibold text-navy-600"
         >
           {label}
         </button>
@@ -459,7 +459,7 @@ export function PaymentPopup({
         {onwardHref && onwardLabel ? (
           <a
             href={onwardHref}
-            className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-brand-600 text-sm font-semibold text-white"
+            className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-navy-600"
           >
             {onwardLabel}
           </a>

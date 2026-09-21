@@ -226,7 +226,7 @@ export function Withdraw({
                       href={row.proofUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-1 inline-block text-xs font-semibold text-brand-600"
+                      className="mt-1 inline-block text-xs font-semibold text-brand-700"
                     >
                       {t("twd.receipt")}
                     </a>

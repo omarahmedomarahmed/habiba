@@ -204,7 +204,7 @@ export default async function PatientHomePage({
       {liveNow > 0 ? (
         <Link
           href="/patient/radar"
-          className="flex items-center gap-3 rounded-2xl bg-brand-500 px-4 py-3.5 text-white shadow-sm active:scale-[0.99]"
+          className="flex items-center gap-3 rounded-2xl bg-brand-500 px-4 py-3.5 text-navy-600 shadow-sm active:scale-[0.99]"
         >
           <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1">
@@ -255,7 +255,7 @@ export default async function PatientHomePage({
 
       {next ? (
         <Card className="border border-brand-200 p-4">
-          <p className="text-xs font-semibold tracking-wide text-brand-600 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
             {t("home.beforeNext")}
           </p>
           <p className="mt-1.5 text-base leading-relaxed font-medium text-slate-900">
@@ -266,7 +266,7 @@ export default async function PatientHomePage({
           ) : null}
           <Link
             href="/patient/homework"
-            className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
+            className="mt-3 inline-flex text-sm font-semibold text-brand-700 hover:underline"
           >
             {next.othersWaiting > 0
               ? t("home.openAndMore", {
@@ -290,7 +290,7 @@ export default async function PatientHomePage({
       */}
       {openAssessments.length > 0 ? (
         <Card className="border border-brand-200 p-4">
-          <p className="text-xs font-semibold tracking-wide text-brand-600 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
             {t("home.beforeNext")}
           </p>
           <p className="mt-1.5 text-base leading-relaxed font-medium text-slate-900">
@@ -299,7 +299,7 @@ export default async function PatientHomePage({
           <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("passess.body")}</p>
           <Link
             href="/patient/assessments"
-            className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline"
+            className="mt-3 inline-flex text-sm font-semibold text-brand-700 hover:underline"
           >
             {t("passess.start")}
           </Link>
@@ -320,7 +320,7 @@ export default async function PatientHomePage({
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-900">{t("home.exploreTitle")}</h2>
           {explore.length > 0 ? (
-            <Link href="/patient/browse" className="text-xs font-semibold text-brand-600">
+            <Link href="/patient/browse" className="text-xs font-semibold text-brand-700">
               {t("home.exploreAll")}
             </Link>
           ) : null}
@@ -410,7 +410,7 @@ export default async function PatientHomePage({
       {sessions.length > 0 ? (
         <Link
           href="/patient/sessions"
-          className="block text-center text-sm font-semibold text-brand-600"
+          className="block text-center text-sm font-semibold text-brand-700"
         >
           {t("psessions.title")}
         </Link>
@@ -435,10 +435,10 @@ export default async function PatientHomePage({
               : t("home.filesAttachedMany", { count: attached })}
         </p>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
-          <Link href="/patient/claim" className="text-sm font-semibold text-brand-600">
+          <Link href="/patient/claim" className="text-sm font-semibold text-brand-700">
             {person?.claimedAt ? t("home.claimAnother") : t("home.haveRecords")}
           </Link>
-          <Link href="/patient/profile" className="text-sm font-semibold text-brand-600">
+          <Link href="/patient/profile" className="text-sm font-semibold text-brand-700">
             {t("home.openProfile")}
           </Link>
         </div>

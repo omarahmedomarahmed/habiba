@@ -67,7 +67,7 @@ export default async function DashboardPage() {
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         <Link href="/sessions/new" className="block">
-          <div className="flex items-center gap-3 rounded-2xl bg-brand-500 px-5 py-4 text-white active:bg-brand-600">
+          <div className="flex items-center gap-3 rounded-2xl bg-brand-500 px-5 py-4 text-navy-600 active:bg-brand-600">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
               <Plus className="h-5 w-5" aria-hidden />
             </span>
@@ -185,7 +185,7 @@ export default async function DashboardPage() {
         <Card>
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold text-slate-900">{t("portal.dash.recent")}</p>
-            <Link href="/sessions" className="text-xs font-medium text-brand-600">
+            <Link href="/sessions" className="text-xs font-medium text-brand-700">
               {t("portal.all")}
             </Link>
           </div>

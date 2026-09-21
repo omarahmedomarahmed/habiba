@@ -65,7 +65,7 @@ export default async function StringsPage({
               className={
                 language.code === locale
                   ? "me-2 font-semibold text-slate-900"
-                  : "me-2 text-brand-600 underline"
+                  : "me-2 text-brand-700 underline"
               }
             >
               {language.code}

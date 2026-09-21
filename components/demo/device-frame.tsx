@@ -252,8 +252,8 @@ function PhoneFrame({
                       className={cn(
                         "grid place-items-center",
                         lifted
-                          ? "h-11 w-11 rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/30"
-                          : cn("h-5 w-5", on ? "text-brand-600" : "text-slate-600"),
+                          ? "h-11 w-11 rounded-full bg-brand-500 text-navy-600 shadow-lg shadow-brand-500/30"
+                          : cn("h-5 w-5", on ? "text-brand-700" : "text-slate-600"),
                       )}
                     >
                       <Icon className="h-5 w-5" aria-hidden />
@@ -262,7 +262,7 @@ function PhoneFrame({
                       <span
                         className={cn(
                           "max-w-[3.8rem] truncate text-[9px] leading-none",
-                          on ? "font-semibold text-brand-600" : "text-slate-600",
+                          on ? "font-semibold text-brand-700" : "text-slate-600",
                         )}
                       >
                         {label}

@@ -252,7 +252,7 @@ export function RadarOrb({
                   checked={walkIns}
                   disabled={pending || !practiceConfirmed}
                   onChange={(e) => setVisits(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500 disabled:opacity-50"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600 disabled:opacity-50"
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-slate-800">

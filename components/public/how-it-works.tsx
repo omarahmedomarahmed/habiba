@@ -35,7 +35,7 @@ export function HowItWorks({
   return (
     <section className="bg-white px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
-        <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">
+        <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
           [ 02 ] {heading}
         </p>
         {body ? (

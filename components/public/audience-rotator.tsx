@@ -200,7 +200,7 @@ export function AudienceRotator({
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             {cta ? (
               <Link href={cta.href}>
-                <Button size="lg" variant="teal" full className="sm:w-auto">
+                <Button size="lg" variant="primary" full className="sm:w-auto">
                   <span className="live-dot h-1.5 w-1.5 rounded-full bg-navy-600" aria-hidden />
                   {cta.label}
                 </Button>

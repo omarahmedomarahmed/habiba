@@ -78,7 +78,7 @@ export function EarningsCard(props: EarningsProps) {
             </div>
             <Link
               href="/settings"
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
             >
               <Banknote className="h-4 w-4" aria-hidden />
               {t("tearn.finishSetup")}
@@ -99,7 +99,7 @@ export function EarningsCard(props: EarningsProps) {
             </div>
             <Link
               href="/settings"
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-white hover:bg-brand-600"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
             >
               <Banknote className="h-4 w-4" aria-hidden />
               {t("tpay.setUp")}

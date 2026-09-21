@@ -5,33 +5,37 @@ import { cn } from "@/lib/utils";
 /* Small, unopinionated primitives. Everything is sized for a thumb first. */
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "teal";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   full?: boolean;
 };
 
 /**
- * 🔴 The teal button carries NAVY ink, and gets LIGHTER on hover.
+ * 🔴 The primary button carries NAVY ink, and gets LIGHTER on hover.
  *
- * `bg-teal-500` with `text-white` is **2.17:1**. It was the primary call to
- * action on `/for-companies` and `/for-clinics`, so the single most important
- * button on two of the four audience pages was below the floor for any text at
- * any size. docs/BRAND.md states the cause in one line: teal reads 2.19:1 on
- * white, which is the same number from the other side. White ink and a teal
- * ground are the same failing pair whichever one is behind.
+ * Teal and white are the same failing pair whichever one is behind: #2EC4B6 on
+ * white is 2.19:1, and white on #2EC4B6 is 2.17:1. For a while that was worked
+ * around twice over, in opposite directions. `primary` kept white ink and
+ * darkened the ground until white passed, which produced a teal so dark it read
+ * as pine; `teal` kept the real teal and was added as a SECOND variant for the
+ * two audience pages that needed the CTA to look like the brand. So the product
+ * had two primary buttons that disagreed about what its own colour was.
  *
- * Navy on teal is two of the three brand inks in their documented relationship,
- * and it measures 7.7:1 at rest.
+ * There is one now. Navy on teal is two of the three brand inks in their
+ * documented relationship and measures 7.27:1, which means the button can be
+ * the mark's own teal and pass comfortably, and the `teal` variant it used to
+ * need has nothing left to do.
  *
- * Hover goes to `teal-400` rather than `teal-600`, which is backwards for a
- * button and right for this one: darkening the ground under dark ink walks
- * toward the floor, and `teal-700` with navy ink is 3.2:1, a second failure
- * introduced by the fix for the first. Lighter on hover, darker on press, and
- * all three states measure: 8.7, 7.7 and 5.2.
+ * Hover goes to `brand-400` rather than `brand-600`, which is backwards for a
+ * button and right for this one: darkening a ground that carries dark ink walks
+ * toward the floor rather than away from it. Lighter on hover, darker on press,
+ * and all three states measure 8.21, 7.27 and 4.73.
+ *
+ * `danger` keeps white ink because red at the weight a warning needs is dark
+ * enough to carry it: white on #dc2626 is 4.83:1.
  */
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm",
-  teal: "bg-teal-500 text-navy-600 hover:bg-teal-400 active:bg-teal-600 shadow-sm",
+  primary: "bg-brand-500 text-navy-600 hover:bg-brand-400 active:bg-brand-600 shadow-sm",
   secondary:
     "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 active:bg-slate-100",
   ghost: "text-slate-600 hover:bg-slate-100 active:bg-slate-200",
@@ -114,7 +118,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
         className={cn(
           "w-full h-12 rounded-xl border border-slate-200 bg-white px-3.5",
           "text-slate-900 placeholder:text-slate-500",
-          "focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none",
+          "focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none",
           "disabled:bg-slate-50 disabled:text-slate-500",
           className,
         )}
@@ -134,7 +138,7 @@ export const Textarea = React.forwardRef<
       className={cn(
         "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 leading-relaxed",
         "text-slate-900 placeholder:text-slate-500",
-        "focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none",
+        "focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none",
         className,
       )}
       {...props}
@@ -156,7 +160,7 @@ export function Badge({
     green: "bg-emerald-50 text-emerald-700",
     amber: "bg-amber-50 text-amber-700",
     red: "bg-red-50 text-red-700",
-    brand: "bg-brand-50 text-brand-700",
+    brand: "bg-brand-50 text-brand-800",
     teal: "bg-teal-50 text-teal-700",
   };
   return (

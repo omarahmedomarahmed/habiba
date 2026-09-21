@@ -306,7 +306,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           )}
           <a
             href="/earnings"
-            className="mt-3 inline-flex text-sm font-semibold text-brand-600"
+            className="mt-3 inline-flex text-sm font-semibold text-brand-700"
           >
             {state.payoutMethod ? t("tpay.egMethodChange") : t("tpay.egMethodSet")}
           </a>
@@ -482,7 +482,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             type="checkbox"
             name="autoSettle"
             defaultChecked={state.autoSettleFromEarnings}
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
           />
           <span className="min-w-0">
             <span className="block text-sm font-medium text-slate-800">

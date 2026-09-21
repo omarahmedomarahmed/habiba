@@ -238,7 +238,7 @@ export function PracticeForm(props: {
           checked={walkIns && Boolean(chosen)}
           disabled={!chosen}
           onChange={(e) => setWalkIns(e.target.checked)}
-          className="mt-0.5 h-4 w-4 shrink-0 accent-brand-500"
+          className="mt-0.5 h-4 w-4 shrink-0 accent-brand-700"
         />
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">

@@ -75,7 +75,7 @@ export function FeatureBands({ features }: { features: Feature[] }) {
                 every time and only the wide layout swaps.
               */}
               <div className={cn("min-w-0", mirrored && "lg:order-2")}>
-                <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">
+                <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
                   [ {String(index + 1).padStart(2, "0")} ] {feature.label}
                 </p>
                 <h2 className="mt-3 text-balance text-2xl font-bold leading-tight tracking-tight text-navy-500 sm:text-[1.75rem]">
@@ -85,7 +85,7 @@ export function FeatureBands({ features }: { features: Feature[] }) {
                 {feature.link ? (
                   <Link
                     href={feature.link.href}
-                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700"
+                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-800"
                   >
                     {feature.link.label}
                     <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
@@ -155,7 +155,7 @@ export function CostPanel({
   return (
     <section className="bg-slate-50 px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
-        <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">
+        <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
           {label}
         </p>
         <h2 className="mt-3 text-2xl font-bold tracking-tight text-navy-500 sm:text-[1.75rem]">
@@ -220,7 +220,7 @@ export function AudienceClose({
 
         <div className="mt-7 flex flex-col gap-3 sm:flex-row">
           <Link href={cta.href}>
-            <Button size="lg" variant="teal" full className="sm:w-auto">
+            <Button size="lg" variant="primary" full className="sm:w-auto">
               {cta.label}
               <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
             </Button>

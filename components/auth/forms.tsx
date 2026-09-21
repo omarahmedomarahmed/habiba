@@ -67,7 +67,7 @@ function PatientDoor() {
   return (
     <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
       {t("tauth.patientDoor")}{" "}
-      <Link href="/patient/login" className="font-medium text-brand-600 hover:text-brand-700">
+      <Link href="/patient/login" className="font-medium text-brand-700 hover:text-brand-800">
         {t("tauth.patientDoorLink")}
       </Link>
     </p>
@@ -136,7 +136,7 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
         <p className="mt-1 text-sm text-slate-500">
           {withLinks(t("tauth.staffBody"), {
             link: (
-              <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
+              <Link href="/login" className="font-medium text-brand-700 hover:text-brand-800">
                 /login
               </Link>
             ),

@@ -110,7 +110,7 @@ export function NoteReview(props: Props) {
   if (props.noteStatus === "generating" || (!note && props.noteStatus !== "failed")) {
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <Sparkles className="h-6 w-6 animate-pulse text-brand-500" aria-hidden />
+        <Sparkles className="h-6 w-6 animate-pulse text-brand-700" aria-hidden />
         <p className="text-base font-semibold text-slate-900">{t("tnote.writing")}</p>
         <p className="max-w-xs text-sm text-slate-500">
           {t("tnote.writingBody")}
@@ -453,7 +453,7 @@ export function NoteReview(props: Props) {
               </Button>
 
               {patientStatus === "draft" && props.approvals !== false ? (
-                <Button variant="teal" full onClick={handleApproveBrief} disabled={pending}>
+                <Button variant="primary" full onClick={handleApproveBrief} disabled={pending}>
                   {pending ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                   ) : (

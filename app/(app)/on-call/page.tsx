@@ -150,7 +150,7 @@ export default async function RadarConsolePage() {
               index === 0
                 ? [part]
                 : [
-                    <Link key="link" href="/radar" className="font-medium text-brand-600">
+                    <Link key="link" href="/radar" className="font-medium text-brand-700">
                       {t("portal.oncall.publicRadar")}
                     </Link>,
                     part,

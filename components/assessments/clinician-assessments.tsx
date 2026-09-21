@@ -222,7 +222,7 @@ export function ClinicianAssessments({
                     type="button"
                     disabled={pending}
                     onClick={() => poll(assignment.id)}
-                    className="tap-target h-9 rounded-lg px-2 text-xs font-medium text-brand-600 hover:underline disabled:opacity-50"
+                    className="tap-target h-9 rounded-lg px-2 text-xs font-medium text-brand-700 hover:underline disabled:opacity-50"
                   >
                     {t("cassess.refresh")}
                   </button>
@@ -273,7 +273,7 @@ export function ClinicianAssessments({
                       type="button"
                       disabled={pending}
                       onClick={() => showTimings(assignment.id)}
-                      className="tap-target mt-1 h-9 text-xs font-medium text-brand-600 hover:underline disabled:opacity-50"
+                      className="tap-target mt-1 h-9 text-xs font-medium text-brand-700 hover:underline disabled:opacity-50"
                     >
                       {t("cassess.timings")}
                     </button>

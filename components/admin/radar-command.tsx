@@ -293,7 +293,7 @@ export function RadarCommand({
                     <button
                       type="button"
                       onClick={() => setSelected(row)}
-                      className="text-start font-medium text-slate-900 hover:text-brand-600"
+                      className="text-start font-medium text-slate-900 hover:text-brand-700"
                     >
                       {row.name}
                     </button>
@@ -382,7 +382,7 @@ function Stat({
             : tone === "amber"
               ? "text-amber-600"
               : tone === "brand"
-                ? "text-brand-600"
+                ? "text-brand-700"
                 : tone === "red"
                   ? "text-red-600"
                   : "text-slate-900",
@@ -415,7 +415,7 @@ function State({ row, zone }: { row: CommandRow; zone: string | null }) {
       : row.status === "pending"
         ? "bg-amber-100 text-amber-700"
         : row.status === "in_session"
-          ? "bg-brand-100 text-brand-700"
+          ? "bg-brand-100 text-brand-800"
           : "bg-slate-100 text-slate-500";
 
   return (

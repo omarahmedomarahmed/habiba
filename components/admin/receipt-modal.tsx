@@ -166,7 +166,7 @@ export function ReceiptModal({
             >
               <p className="p-4 text-sm text-slate-700">
                 This browser will not display the PDF.{" "}
-                <a href={`${src}?download=1`} className="font-medium text-brand-600 underline">
+                <a href={`${src}?download=1`} className="font-medium text-brand-700 underline">
                   Download it instead
                 </a>
                 .

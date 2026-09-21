@@ -132,7 +132,7 @@ export function Head({ children, action }: { children: React.ReactNode; action?:
   return (
     <div className="flex items-baseline justify-between gap-2 px-3 pt-3 pb-2">
       <span className="text-[13px] font-bold text-navy-500">{children}</span>
-      {action ? <span className="text-[10px] font-semibold text-brand-600">{action}</span> : null}
+      {action ? <span className="text-[10px] font-semibold text-brand-700">{action}</span> : null}
     </div>
   );
 }
@@ -222,7 +222,7 @@ export function Empty({
     return (
       <div className="mx-3 mb-1.5 flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-2.5 py-2">
         <span className="text-[10px] text-slate-600">{label}</span>
-        <span className="rounded-md bg-brand-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+        <span className="rounded-md bg-brand-500 px-1.5 py-0.5 text-[9px] font-semibold text-navy-600">
           {action}
         </span>
       </div>
@@ -231,7 +231,7 @@ export function Empty({
   return (
     <div className="mx-3 mb-1.5 flex min-h-[7rem] flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-center">
       <span className="text-[10px] text-slate-600">{label}</span>
-      <span className="rounded-md bg-brand-600 px-2 py-0.5 text-[9px] font-semibold text-white">
+      <span className="rounded-md bg-brand-500 px-2 py-0.5 text-[9px] font-semibold text-navy-600">
         {action}
       </span>
     </div>
@@ -259,7 +259,7 @@ export function Tabs({
       {items.map((one, i) =>
         i === lifted ? (
           <span key={one} className="flex flex-col items-center gap-0.5">
-            <span className="-mt-3 grid h-7 w-7 place-items-center rounded-full bg-brand-600 text-[8px] font-bold text-white">
+            <span className="-mt-3 grid h-7 w-7 place-items-center rounded-full bg-brand-500 text-[8px] font-bold text-navy-600">
               ●
             </span>
             <span className="text-[8px] font-medium text-slate-600">{one}</span>
@@ -310,7 +310,7 @@ export function Option({
   return (
     <div className="min-w-0">
       <div className="mb-4">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-700">
           {name}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-700">{tagline}</p>

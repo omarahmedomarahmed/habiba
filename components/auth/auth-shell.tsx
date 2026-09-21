@@ -126,7 +126,7 @@ export async function AuthShell({
               */}
               <p className="mt-6 border-t border-slate-100 pt-5 text-sm text-slate-600">
                 {kind === "signin" ? t("nav.noAccount") : t("nav.haveAccount")}{" "}
-                <Link href={flip.href} className="font-semibold text-brand-600 hover:text-brand-700">
+                <Link href={flip.href} className="font-semibold text-brand-700 hover:text-brand-800">
                   {kind === "signin" ? t("nav.createOne") : t("nav.signIn")}
                 </Link>
               </p>
@@ -135,7 +135,7 @@ export async function AuthShell({
 
           <aside className="min-w-0">
             <div className="rounded-3xl bg-navy-500 p-6 text-white sm:p-7">
-              <Logo ink="white" height={22} />
+              <Logo ink="white" height={24} />
               <p className="mt-5 text-lg font-bold leading-snug">{promise}</p>
               <ul className="mt-5 flex flex-col gap-3.5">
                 {points.map((point) => (

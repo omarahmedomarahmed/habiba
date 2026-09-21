@@ -70,7 +70,7 @@ export default async function OnboardingPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-10 sm:px-6">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
           <ShieldCheck className="h-5 w-5" aria-hidden />
         </span>
         <div>

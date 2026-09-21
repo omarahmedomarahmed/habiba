@@ -58,7 +58,7 @@ export default async function VerifyPage({
         />
         <button
           type="submit"
-          className="h-12 rounded-xl bg-brand-500 px-5 text-sm font-semibold text-white"
+          className="h-12 rounded-xl bg-brand-500 px-5 text-sm font-semibold text-navy-600"
         >
           Check it
         </button>

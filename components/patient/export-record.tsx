@@ -34,7 +34,7 @@ export function ExportRecord({ email }: { email: string | null }) {
         </p>
         <Link
           href="/patient/account"
-          className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+          className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
         >
           <Mail className="h-4 w-4" aria-hidden />
           {t("precord.addEmail")}

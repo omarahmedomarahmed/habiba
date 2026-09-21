@@ -137,7 +137,7 @@ export function BillPicker({
               onClick={() =>
                 choose(picked.length === invoices.length ? [] : invoices.map((i) => i.id))
               }
-              className="text-xs font-medium text-brand-700 underline"
+              className="text-xs font-medium text-brand-800 underline"
             >
               {picked.length === invoices.length ? t("bill.none") : t("bill.all")}
             </button>
@@ -159,7 +159,7 @@ export function BillPicker({
                             : [...picked, invoice.id],
                         )
                       }
-                      className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600"
+                      className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-700"
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-slate-800">

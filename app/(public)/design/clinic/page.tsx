@@ -41,7 +41,7 @@ export default function ClinicDesignPage() {
     <main className="bg-white">
       <section className="border-b border-slate-200 bg-slate-50 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-600">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
             Design review · clinic
           </p>
           <h1 className="mt-3 max-w-3xl text-balance text-3xl font-bold tracking-tight text-navy-500 sm:text-4xl">
@@ -361,7 +361,7 @@ export default function ClinicDesignPage() {
             </li>
             <li className="border-t border-slate-200 pt-3">
               <strong className="text-navy-500">The mockups follow.</strong> The console on{" "}
-              <Link href="/for-clinics" className="font-medium text-brand-600 hover:underline">
+              <Link href="/for-clinics" className="font-medium text-brand-700 hover:underline">
                 /for-clinics
               </Link>{" "}
               and the two clinic tiles on the homepage render the same component this portal

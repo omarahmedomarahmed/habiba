@@ -240,7 +240,7 @@ function Sessions({
       */}
       {who ? (
         <div className="animate-fade-rise rounded-2xl border-2 border-brand-400 bg-brand-50/70 p-3.5">
-          <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-brand-700 uppercase">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-brand-800 uppercase">
             <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
             {t("pat.nowLabel")}
           </p>
@@ -248,7 +248,7 @@ function Sessions({
           <p className="mt-0.5 text-[12px] text-slate-700">
             {t("pat.readyNow", { minutes: who.minutes })}
           </p>
-          <span className="mt-2.5 flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-[13px] font-semibold text-white">
+          <span className="mt-2.5 flex items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-[13px] font-semibold text-navy-600">
             <Video className="h-3.5 w-3.5" aria-hidden />
             {t("pat.goIn")}
           </span>
@@ -342,7 +342,7 @@ function RecordCopy() {
       <Row>
         <p className="text-[13px] font-semibold text-slate-900">{t("precord.copyTitle")}</p>
         <p className="mt-1 text-[12px] leading-relaxed text-slate-700">{t("precord.copyBody")}</p>
-        <span className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-[13px] font-semibold text-white">
+        <span className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-[13px] font-semibold text-navy-600">
           <Download className="h-3.5 w-3.5" aria-hidden />
           {t("precord.addEmail")}
         </span>
@@ -407,7 +407,7 @@ function Radar({
         <button
           type="button"
           onClick={onSeeSessions}
-          className="tap-target block w-full rounded-xl bg-brand-600 px-3 py-2.5 text-[13px] font-semibold text-white"
+          className="tap-target block w-full rounded-xl bg-brand-500 px-3 py-2.5 text-[13px] font-semibold text-navy-600"
         >
           {t("pat.seeIt")}
         </button>
@@ -466,7 +466,7 @@ function Radar({
         <button
           type="button"
           onClick={() => { onBook(picked); }}
-          className="tap-target block w-full rounded-xl bg-brand-600 px-3 py-2.5 text-[13px] font-semibold text-white"
+          className="tap-target block w-full rounded-xl bg-brand-500 px-3 py-2.5 text-[13px] font-semibold text-navy-600"
         >
           {t("pat.talkNow")}
         </button>

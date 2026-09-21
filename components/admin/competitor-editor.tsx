@@ -163,7 +163,7 @@ export function CompetitorEditor({
                     type="checkbox"
                     checked={row.concede ?? false}
                     onChange={(e) => { patchRow(i, r, { concede: e.target.checked }); }}
-                    className="mt-0.5 h-4 w-4 accent-brand-500"
+                    className="mt-0.5 h-4 w-4 accent-brand-700"
                   />
                   <span>
                     <b className="text-slate-900">They win this row.</b> Moves the tick to their

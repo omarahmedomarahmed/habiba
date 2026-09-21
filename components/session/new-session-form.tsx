@@ -19,7 +19,7 @@ function Submit() {
   const { pending } = useFormStatus();
   const t = useT();
   return (
-    <Button type="submit" size="lg" variant="teal" full disabled={pending}>
+    <Button type="submit" size="lg" variant="primary" full disabled={pending}>
       {pending ? t("tnew.starting") : t("tnew.startNow")}
     </Button>
   );
@@ -236,7 +236,7 @@ export function NewSessionForm({
             name="patientId"
             value={existing}
             onChange={(event) => setExisting(event.target.value)}
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
+            className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
           >
             <option value="">{t("tnew.newPatient")}</option>
             {patients.map((patient) => (
@@ -317,7 +317,7 @@ export function NewSessionForm({
               type="checkbox"
               checked={charge}
               onChange={(event) => setCharge(event.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
             />
             <span className="min-w-0">
               <span className="block text-sm font-medium text-slate-800">
@@ -469,11 +469,11 @@ function ModalityOption({
       className={cn(
         "flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-start transition-colors",
         active
-          ? "border-brand-500 bg-brand-50 text-brand-900"
+          ? "border-brand-600 bg-brand-50 text-brand-900"
           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
       )}
     >
-      <span className={cn(active ? "text-brand-600" : "text-slate-400")}>{icon}</span>
+      <span className={cn(active ? "text-brand-700" : "text-slate-400")}>{icon}</span>
       <span className="text-sm font-semibold">{title}</span>
       <span className="text-xs text-slate-500">{body}</span>
     </button>

@@ -47,7 +47,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
       {scanned.state === "live" ? (
         <>
           <Card className="border-brand-200 bg-brand-50 p-4">
-            <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
+            <p className="text-xs font-semibold tracking-wide text-brand-800 uppercase">
               You are joining
             </p>
             <p className="mt-1 text-base font-bold tracking-tight text-slate-900">
@@ -76,7 +76,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
 
           <p className="text-center text-sm text-slate-500">
             Already have an account?{" "}
-            <Link href="/patient/login" className="font-semibold text-brand-600 hover:underline">
+            <Link href="/patient/login" className="font-semibold text-brand-700 hover:underline">
               Sign in
             </Link>
           </p>
@@ -93,7 +93,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
           </p>
           <Link
             href="/patient/signup"
-            className="mt-4 inline-flex text-sm font-semibold text-brand-600"
+            className="mt-4 inline-flex text-sm font-semibold text-brand-700"
           >
             Create an account anyway
           </Link>

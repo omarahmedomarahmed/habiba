@@ -356,7 +356,7 @@ export function TherapistConsole(props: ConsoleProps) {
               id="country"
               name="country"
               defaultValue={props.country ?? ""}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
             >
               <option value="">{t("trad.notShared")}</option>
               {props.countryOptions.map((country) => (
@@ -407,7 +407,7 @@ function CheckGroup({
         {options.map((option) => (
           <label
             key={option.code}
-            className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-500 has-checked:bg-brand-50 has-checked:text-brand-700"
+            className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-600 has-checked:bg-brand-50 has-checked:text-brand-800"
           >
             <input
               type="checkbox"

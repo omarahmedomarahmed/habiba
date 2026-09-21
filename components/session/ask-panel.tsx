@@ -159,11 +159,11 @@ export function AskPanel({
               setPrepared(true);
               ask(t("troom.ask.preparePrompt"));
             }}
-            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700 disabled:opacity-50"
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800 disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
             {t("troom.ask.prepare")}
-            <span className="text-xs font-normal text-brand-500">
+            <span className="text-xs font-normal text-brand-700">
               {t("troom.ask.prepareOnce")}
             </span>
           </button>

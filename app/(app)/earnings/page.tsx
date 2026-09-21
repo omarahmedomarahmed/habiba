@@ -117,7 +117,7 @@ export default async function EarningsPage() {
             </p>
             <Link
               href="/billing"
-              className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
+              className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700"
             >
               {t("portal.earnings.seeOwed")}
               <ChevronRight className="h-4 w-4" aria-hidden />

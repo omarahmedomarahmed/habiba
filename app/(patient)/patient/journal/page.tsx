@@ -72,7 +72,7 @@ export default async function JournalPage() {
         </p>
         <Link
           href="/patient/consent"
-          className="mt-2.5 inline-flex text-sm font-semibold text-brand-600"
+          className="mt-2.5 inline-flex text-sm font-semibold text-brand-700"
         >
           {t("home.whoCanRead")}
         </Link>

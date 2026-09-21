@@ -157,7 +157,7 @@ export function RadarFilters({
           onClick={() => onChange(NO_FILTER)}
           className={cn(
             "text-xs font-semibold",
-            dark ? "text-teal-300" : "text-brand-600",
+            dark ? "text-teal-300" : "text-brand-700",
           )}
         >
           {t("radar.clearFilters")}

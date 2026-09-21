@@ -124,7 +124,7 @@ export function SeatLadder({
             max={monthlyByCount.length}
             value={count}
             onChange={(event) => setCount(Number(event.target.value))}
-            className="h-2 w-full max-w-xs cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-500"
+            className="h-2 w-full max-w-xs cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-700"
           />
           <span className="text-sm font-medium tabular-nums text-slate-700">
             {strings.seatsByCount[count - 1] ?? ""}

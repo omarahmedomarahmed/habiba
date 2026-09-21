@@ -184,7 +184,7 @@ export function NoteDemo({ content }: { content?: DemoContent }) {
             <button
               type="button"
               onClick={() => { setApproved(true); }}
-              className="tap-target shrink-0 rounded-xl bg-brand-600 px-3.5 text-[12px] font-semibold text-white hover:bg-brand-700"
+              className="tap-target shrink-0 rounded-xl bg-brand-500 px-3.5 text-[12px] font-semibold text-navy-600 hover:bg-brand-400"
             >
               {t("dclin.approve")}
             </button>

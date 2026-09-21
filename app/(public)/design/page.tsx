@@ -56,7 +56,7 @@ export default async function UiReferencePage() {
     <div className="bg-slate-50 px-4 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto max-w-6xl">
         <header className="max-w-2xl">
-          <p className="text-xs font-semibold tracking-wider text-brand-600 uppercase">Internal</p>
+          <p className="text-xs font-semibold tracking-wider text-brand-700 uppercase">Internal</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             UI reference
           </h1>

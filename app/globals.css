@@ -16,16 +16,20 @@
  * every button, link and focus ring in the product at once, and a diff of this
  * file is the whole change.
  *
- * `brand-*` is now a teal ramp that darkens fast, because the light end of teal
- * cannot carry white text: #2EC4B6 on white is 2.19:1 and white on #2EC4B6 is
- * the same failure from the other side. So `brand-500` is teal at the weight
- * white text needs (5.2:1) and the bright teal keeps its own scale for the
- * places it belongs: a dot, a rule, a mark on a dark ground.
+ * `brand-*` is now the mark's own teal, and `brand-500` IS #2EC4B6. The light
+ * end of teal cannot carry white text, so it does not: it carries navy, which
+ * is the other half of the mark and measures 7.27:1. See the ramp below for
+ * what that buys and what it costs.
  *
  * The division of labour that falls out of it:
  *   navy   the ground, the structure, the ink
  *   brand  the thing you press, and the thing you press it against
  *   teal   live, now, and anything on the radar's own dark ground
+ *
+ * `brand` and `teal` now agree at 500 by construction. They are kept separate
+ * because they answer different questions: `teal-*` is the mark, fixed by the
+ * pack, and `brand-*` is the interface, free to be re-cut the next time a
+ * measurement says it has to be.
  *
  * Defined once, here, instead of two Tailwind configs that disagreed plus
  * several hundred hardcoded hex literals scattered through page files.
@@ -56,21 +60,59 @@
   --color-navy-900: #030b17;
 
   /*
-   * Measured, because the whole point of the change is that the old ramp was
-   * not. Against white: 500 is 5.17:1, 600 is 8.50:1. Against navy-500: 300 is
-   * 9.30:1. White text on 500 is 5.17:1, which is the number the old teal
-   * button failed at 2.17:1.
+   * 🔴 WHITE CAME OFF THE TEAL, AND THAT IS WHAT MADE THE TEAL TEAL.
+   *
+   * The first pass at this ramp kept white as the ink on the pressable ground,
+   * and that one decision set the whole scale. White needs 4.5:1, so the ground
+   * had to sit at lightness 0.29 or below, so `brand-500` was #1a7a71. The same
+   * ramp is also the LINK ink on a white page, at 80 call sites, and ink on
+   * white needs the same 4.5:1 from the other direction, so `brand-600` was
+   * #12564f at lightness 0.20.
+   *
+   * Both of those are hue 174, which is teal. Neither of them READS teal,
+   * because at lightness 0.20 to 0.29 a cyan-green reads as pine. The hue was
+   * right and the value was wrong, and no amount of nudging the hue fixes a
+   * value problem. One ramp was being asked to be a ground for light ink and
+   * ink for a light ground at the same time, and those two jobs want opposite
+   * ends of a scale.
+   *
+   * So the jobs are separated, and the division is three sentences:
+   *
+   *   on a teal ground, the ink is navy        500 is the ground, 400 lifts it,
+   *                                            600 presses it
+   *   on a white ground, teal ink is 700       5.61:1, and 800 where it was 700
+   *   edges and focus rings are 600            3.34:1, over the 3:1 that a
+   *                                            non-text boundary needs
+   *
+   * Navy on #2ec4b6 is 7.27:1, so the ground can now BE the mark's own teal
+   * rather than a darkened stand-in for it. That is the whole visible change:
+   * every button, dot, meter and glow in the product moves from lightness 0.29
+   * to lightness 0.47.
+   *
+   * Hover goes LIGHTER (400) and press goes darker (600), which is backwards
+   * for a button and right for this one: darkening a ground that carries dark
+   * ink walks toward the floor rather than away from it. All three states
+   * measure 8.21, 7.27 and 4.73.
+   *
+   * Every number in this comment is computed, not estimated.
+   *
+   *          on white   navy on it     job
+   *   400      1.92        8.21        hover
+   *   500      2.17        7.27        THE GROUND
+   *   600      3.34        4.73        press, edges, rings
+   *   700      5.61        2.81        ink on white
+   *   800      8.76        1.80        heavier ink on white
    */
-  --color-brand-50: #e9faf7;
-  --color-brand-100: #c5f0ea;
-  --color-brand-200: #92e2d7;
-  --color-brand-300: #55dbcb;
-  --color-brand-400: #23a094;
-  --color-brand-500: #1a7a71;
-  --color-brand-600: #12564f;
-  --color-brand-700: #0e453f;
-  --color-brand-800: #0b3833;
-  --color-brand-900: #072623;
+  --color-brand-50: #edfbf8;
+  --color-brand-100: #cbf4ed;
+  --color-brand-200: #9ae9de;
+  --color-brand-300: #5fdccc;
+  --color-brand-400: #38d0be;
+  --color-brand-500: #2ec4b6;
+  --color-brand-600: #1f9d92;
+  --color-brand-700: #15746c;
+  --color-brand-800: #0e544e;
+  --color-brand-900: #083732;
 
   --color-teal-50: #e6faf7;
   --color-teal-100: #c0f2eb;
@@ -144,7 +186,7 @@
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-500;
+    @apply outline-2 outline-offset-2 outline-brand-700;
   }
 
   @media (prefers-reduced-motion: reduce) {

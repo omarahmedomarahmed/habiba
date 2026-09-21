@@ -180,7 +180,7 @@ export function BillingLedger({
               onClick={() =>
                 setSelected(selected.size === due.length ? new Set() : new Set(due.map((i) => i.id)))
               }
-              className="text-xs font-medium text-brand-600"
+              className="text-xs font-medium text-brand-700"
             >
               {selected.size === due.length ? t("tled.clear") : t("tled.selectAll")}
             </button>
@@ -197,7 +197,7 @@ export function BillingLedger({
                       className={cn(
                         "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
                         checked
-                          ? "border-brand-500 bg-brand-500 text-white"
+                          ? "border-brand-600 bg-brand-500 text-navy-600"
                           : "border-slate-300 bg-white",
                       )}
                     >

@@ -251,7 +251,7 @@ function SendRecord({ patientId, hasEmail }: { patientId: string; hasEmail: bool
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
+        className="rounded-lg px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
       >
         Send their record
       </button>
@@ -813,7 +813,7 @@ function Manage({
           </Button>
           <Button
             size="sm"
-            variant={status === "active" ? "danger" : "teal"}
+            variant={status === "active" ? "danger" : "primary"}
             disabled={pending}
             onClick={() =>
               run(
@@ -830,7 +830,7 @@ function Manage({
 
       <Card className="p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <Mail className="h-4 w-4 text-brand-600" aria-hidden />
+          <Mail className="h-4 w-4 text-brand-700" aria-hidden />
           Email {therapistName}
         </p>
         <p className="mt-0.5 text-sm text-slate-500">

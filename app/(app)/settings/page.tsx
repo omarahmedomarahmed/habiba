@@ -143,7 +143,7 @@ export default async function SettingsPage({
             {practice !== "approved" ? (
               <Link
                 href="/onboarding"
-                className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white"
+                className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
               >
                 {t("portal.settings.openVerification")}
               </Link>
@@ -169,7 +169,7 @@ export default async function SettingsPage({
             </p>
             <Link
               href="/settings/codes"
-              className="mt-3 inline-flex text-sm font-semibold text-brand-600"
+              className="mt-3 inline-flex text-sm font-semibold text-brand-700"
             >
               {t("portal.settings.openCodes")}
             </Link>
@@ -189,7 +189,7 @@ export default async function SettingsPage({
             </p>
             <Link
               href="/settings/integrations"
-              className="mt-3 inline-flex text-sm font-semibold text-brand-600"
+              className="mt-3 inline-flex text-sm font-semibold text-brand-700"
             >
               {t("portal.meet.title")}
             </Link>

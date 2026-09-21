@@ -80,7 +80,7 @@ export function AudienceHero({
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link href={cta.href}>
-              <Button size="lg" variant="teal" full className="sm:w-auto">
+              <Button size="lg" variant="primary" full className="sm:w-auto">
                 {cta.label}
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
               </Button>

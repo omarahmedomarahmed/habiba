@@ -217,7 +217,7 @@ Content-Type: application/json`}</Code>
                           className={
                             row.method === "GET"
                               ? "rounded-md bg-teal-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-teal-700"
-                              : "rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-brand-700"
+                              : "rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-brand-800"
                           }
                         >
                           {row.method}
@@ -236,7 +236,7 @@ Content-Type: application/json`}</Code>
             </div>
             <Link
               href="/developers"
-              className="mt-4 inline-block text-sm font-semibold text-brand-700 hover:underline"
+              className="mt-4 inline-block text-sm font-semibold text-brand-800 hover:underline"
             >
               The full reference, with every field and every error
             </Link>

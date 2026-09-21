@@ -229,7 +229,7 @@ async function Shell({
         chance to fix that, and it has to be visible without scrolling.
       */}
       <header className="flex items-center justify-between px-4 py-5 sm:px-6">
-        <Logo ink="navy" height={24} />
+        <Logo ink="navy" height={26} />
         <LanguageSwitch />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 sm:items-center sm:px-6">

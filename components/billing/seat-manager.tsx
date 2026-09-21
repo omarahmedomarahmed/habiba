@@ -78,7 +78,7 @@ export function SeatManager({
           max={maxSeats}
           value={wanted}
           onChange={(event) => ask(Number(event.target.value))}
-          className="h-2 w-full max-w-xs cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-500"
+          className="h-2 w-full max-w-xs cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-700"
           aria-label="Number of seats"
         />
         <span className="text-2xl font-bold tabular-nums text-slate-900">{wanted}</span>

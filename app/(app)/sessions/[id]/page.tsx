@@ -168,7 +168,7 @@ export default async function SessionDetailPage({
               </p>
             </div>
             <Link href={`/sessions/${id}/room`}>
-              <Button variant="teal">
+              <Button variant="primary">
                 {t("portal.session.openRoom")}
                 <ChevronRight className="h-4 w-4" aria-hidden />
               </Button>

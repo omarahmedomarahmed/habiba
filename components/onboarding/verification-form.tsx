@@ -205,7 +205,7 @@ export function VerificationForm({
               value={country}
               onChange={(event) => setCountry(event.target.value)}
               disabled={locked}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 focus:outline-none"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
             >
               <option value="">{t("tver.chooseCountry")}</option>
               {countryOptions.map((country) => (
@@ -251,7 +251,7 @@ export function VerificationForm({
                       className={cn(
                         "rounded-full border px-2.5 py-1 text-[11px] font-medium",
                         licenseBody === body
-                          ? "border-brand-500 bg-brand-50 text-brand-700"
+                          ? "border-brand-600 bg-brand-50 text-brand-800"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
                       )}
                     >
@@ -312,7 +312,7 @@ export function VerificationForm({
         </p>
 
         {country ? (
-          <p className="mt-2 text-xs font-medium text-brand-700">
+          <p className="mt-2 text-xs font-medium text-brand-800">
             {t("tver.showingFor", {
               country:
                 countryOptions.find((c) => c.code === country)?.name ?? t("tver.thisCountry"),
@@ -516,7 +516,7 @@ function ChipGroup({
         {options.map((option) => (
           <label
             key={option.code}
-            className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-500 has-checked:bg-brand-50 has-checked:text-brand-700"
+            className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-600 has-checked:bg-brand-50 has-checked:text-brand-800"
           >
             <input
               type="checkbox"

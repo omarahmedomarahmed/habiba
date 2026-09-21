@@ -397,7 +397,7 @@ export async function PricingTiers({
               key={card.key}
               className={
                 card.featured
-                  ? "relative flex flex-col rounded-3xl border-2 border-brand-500 bg-white p-6 shadow-xl shadow-brand-500/10"
+                  ? "relative flex flex-col rounded-3xl border-2 border-brand-600 bg-white p-6 shadow-xl shadow-brand-500/10"
                   : "relative flex flex-col rounded-3xl border border-slate-200 bg-white p-6"
               }
             >

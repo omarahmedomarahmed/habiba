@@ -39,7 +39,7 @@ export default async function SessionsPage() {
               body={t("portal.sessions.noneBody")}
               action={
                 <Link href="/sessions/new">
-                  <Button variant="teal">{t("portal.sessions.start")}</Button>
+                  <Button variant="primary">{t("portal.sessions.start")}</Button>
                 </Link>
               }
             />

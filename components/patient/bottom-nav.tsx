@@ -107,7 +107,7 @@ export function PatientBottomNav({ liveSession = null }: Props) {
               href="/patient/radar"
               aria-label={t("tab.radar")}
               onClick={intercept ? (event) => intercept(event, "/patient/radar") : undefined}
-              className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/30 active:scale-95"
+              className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-brand-500 text-navy-600 shadow-lg shadow-brand-500/30 active:scale-95"
             >
               <Globe2 className="h-6 w-6" aria-hidden />
             </Link>
@@ -139,7 +139,7 @@ export function PatientBottomNav({ liveSession = null }: Props) {
               <button
                 type="button"
                 onClick={() => setLeavingTo(null)}
-                className="tap-target flex-1 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white"
+                className="tap-target flex-1 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-navy-600"
               >
                 {t("tab.stay")}
               </button>
@@ -185,7 +185,7 @@ function Item({
         onClick={onClick ? (event) => onClick(event, href) : undefined}
         className={cn(
           "tap-target flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium",
-          tone === "live" ? "text-red-600" : active ? "text-brand-600" : "text-slate-500",
+          tone === "live" ? "text-red-600" : active ? "text-brand-700" : "text-slate-500",
         )}
       >
         <Icon className="h-5 w-5" aria-hidden />

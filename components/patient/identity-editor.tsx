@@ -75,7 +75,7 @@ export function IdentityEditor({
             type="button"
             disabled={busy}
             onClick={() => picker.current?.click()}
-            className="block text-sm font-semibold text-brand-600"
+            className="block text-sm font-semibold text-brand-700"
           >
             {busy ? t("common.uploading") : hasPhoto ? t("pid.changePhoto") : t("pid.addPhoto")}
           </button>

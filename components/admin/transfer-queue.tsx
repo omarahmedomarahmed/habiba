@@ -289,7 +289,7 @@ function TransferRow({
               <button
                 type="button"
                 onClick={() => setLooking(true)}
-                className="font-medium text-brand-600 underline"
+                className="font-medium text-brand-700 underline"
               >
                 View the evidence
               </button>

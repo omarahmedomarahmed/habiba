@@ -25,10 +25,10 @@ export function ClinicianRow(props: {
   return (
     <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center">
       <Link href={`/admin/therapists/${props.id}`} className="group min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-900 group-hover:text-brand-600">
+        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-900 group-hover:text-brand-700">
           {props.name || props.email}
           <ArrowRight
-            className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-brand-600"
+            className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-brand-700"
             aria-hidden
           />
         </p>
