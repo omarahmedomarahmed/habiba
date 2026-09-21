@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 
 import {
   CLAIM_MINUTES,
@@ -241,12 +241,80 @@ export async function bookFromRadar(
     session.id,
     CLAIM_MINUTES * 60,
   );
+  /*
+   * 🔴 NEVER TAKE AWAY A SESSION SOMEBODY HAS PAID FOR.
+   *
+   * ## What this did
+   *
+   * The WHERE was `id = previous AND status = 'scheduled'`. It did not look at
+   * `payment_status`, so a session that had been paid for — and whose payment a
+   * human had sat and confirmed — was cancelled and had its join token set to
+   * NULL, which is the patient's only way in.
+   *
+   * Caught on production to the millisecond while five walkers shared one
+   * address:
+   *
+   *   02:28:11  session f840e119 created by one visitor
+   *   02:28:19  that patient submitted their transfer reference
+   *   02:28:47  an admin CONFIRMED the payment, payment_status -> 'paid'
+   *   02:33:04  a DIFFERENT visitor booked a DIFFERENT clinician
+   *   02:33:04  f840e119 -> cancelled, join_token -> NULL
+   *
+   * Four minutes after paying, with nothing said to them. Their pay page still
+   * read "We are checking your transfer. It will be waiting for you here."
+   *
+   * ## Why it is not a test artefact
+   *
+   * The hold is keyed by `callerKey`, which collapses to a network, and the
+   * comment above explains why: a script must not accumulate claims faster
+   * than it releases them. But a network is not a person. A household, an
+   * office, a campus and every mobile carrier on CGNAT are one address, so
+   * "the previous booking from this address" is routinely somebody else
+   * entirely. On a product whose whole promise is reaching a person in crisis,
+   * the failure reads as: I paid, and then the door was taken away.
+   *
+   * ## The rule
+   *
+   * The hold exists to reclaim ABANDONED bookings, and money is the clearest
+   * possible evidence that a booking was not abandoned. So is having walked
+   * through the door. Either one makes this session untouchable, and the
+   * clinician's claim stays with it.
+   *
+   * Guarded twice on purpose: once here, so we do not release the claim of a
+   * session we are about to leave alone, and once in the WHERE, so a payment
+   * confirmed in the gap between this read and that write still cannot lose.
+   */
   if (previous && previous !== session.id) {
-    await releaseClaim(previous);
-    await db
-      .update(sessions)
-      .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
-      .where(and(eq(sessions.id, previous), eq(sessions.status, "scheduled")));
+    const [prior] = await db
+      .select({
+        paymentStatus: sessions.paymentStatus,
+        patientJoinedAt: sessions.patientJoinedAt,
+      })
+      .from(sessions)
+      .where(eq(sessions.id, previous))
+      .limit(1);
+
+    const settled = prior?.paymentStatus === "paid" || prior?.patientJoinedAt !== null;
+
+    if (settled) {
+      log.warn("radar hold kept a settled session", {
+        session: ref(previous),
+        reason: prior?.paymentStatus === "paid" ? "paid" : "patient already arrived",
+      });
+    } else {
+      await releaseClaim(previous);
+      await db
+        .update(sessions)
+        .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
+        .where(
+          and(
+            eq(sessions.id, previous),
+            eq(sessions.status, "scheduled"),
+            ne(sessions.paymentStatus, "paid"),
+            isNull(sessions.patientJoinedAt),
+          ),
+        );
+    }
   }
 
   try {

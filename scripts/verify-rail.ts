@@ -1730,6 +1730,91 @@ async function main() {
       : DEFERRED.join(", "),
   );
 
+  /*
+   * 🔴 NOTHING CANCELS A SESSION SOMEBODY HAS PAID FOR.
+   *
+   * ## The hour this cost a stranger
+   *
+   * `bookFromRadar` holds one clinician per address, and hands back whatever
+   * that address held before so an abandoned booking does not strand a
+   * clinician for ten minutes. Reclaiming the old one read:
+   *
+   *     .set({ status: "cancelled", joinToken: null })
+   *     .where(and(eq(sessions.id, previous), eq(sessions.status, "scheduled")))
+   *
+   * No payment term. Observed on production to the millisecond: a session was
+   * created, paid for, and CONFIRMED BY A HUMAN at 02:28:47, and at 02:33:04 a
+   * different visitor booked a different clinician and that paid session was
+   * cancelled with its join token set to NULL. Four minutes after paying, with
+   * nothing said to them, and their pay page still reading "It will be waiting
+   * for you here."
+   *
+   * The key is a NETWORK, not a person — a household, an office, a campus, any
+   * carrier on CGNAT. So "the previous booking from this address" is routinely
+   * a stranger's.
+   *
+   * ## Why a gate and not just a fix
+   *
+   * The periodic sweep in `lib/data/radar.ts` already guarded on
+   * `payment_status` and `patient_joined_at`. The same intent was implemented
+   * twice, one of them was wrong, and the wrong one was the one on the request
+   * path. A comment would not have caught that. This does: every site that
+   * cancels a session it did not create in the same request has to carry both
+   * guards, or be named here with a reason.
+   */
+  const CANCEL_EXEMPT = new Map<string, string>([
+    /*
+     * Cancels the session it created moments earlier in the same call, after
+     * losing the claim race or failing to build a room. Nobody has paid for a
+     * session that is seconds old and was never handed to anyone.
+     */
+    ["app/(public)/radar/actions.ts", "also cancels its own just-created session, which is exempt"],
+    /*
+     * A clinician cancelling their own session from their own screen. Paid or
+     * not is their call to make, not ours to refuse.
+     */
+    ["lib/data/sessions.ts", "a clinician cancelling their own booking on purpose"],
+    /* Cancels a slot's session on the clinician's instruction, same reasoning. */
+    ["lib/data/scheduling.ts", "a clinician cancelling or rescheduling their own hour"],
+    /* Offers the patient a cancellation after a no-show; they choose it. */
+    ["lib/data/recovery.ts", "the patient's own choice after nobody turned up"],
+  ]);
+
+  const cancellers = everySource.filter((file) =>
+    /status:\s*"cancelled"/.test(readSource(file)),
+  );
+  const cancelUnguarded = cancellers.filter((file) => {
+    if (CANCEL_EXEMPT.has(file)) return false;
+    const body = readSource(file);
+    return !(/paymentStatus/.test(body) && /patientJoinedAt/.test(body));
+  });
+  check(
+    "🔴 no path cancels a session that is paid for or already joined",
+    cancelUnguarded.length === 0,
+    cancelUnguarded.length > 0
+      ? `cancels without a payment guard: ${cancelUnguarded.join(", ")}`
+      : `${String(cancellers.length)} cancelling files, ${String(CANCEL_EXEMPT.size)} named exempt`,
+  );
+
+  /*
+   * And the one that bit us carries the guards in the specific block that bit
+   * us, not merely somewhere in a two-thousand line file. The exemption above
+   * lets this file cancel its OWN new session; it must still never take away
+   * somebody else's paid one.
+   */
+  const radarBody = readSource("app/(public)/radar/actions.ts");
+  const holdBlock = radarBody.slice(radarBody.indexOf("takeHold("));
+  const holdGuarded =
+    /ne\(sessions\.paymentStatus,\s*"paid"\)/.test(holdBlock) &&
+    /isNull\(sessions\.patientJoinedAt\)/.test(holdBlock);
+  check(
+    "🔴 …and the per-address hold will not reclaim a paid booking",
+    holdGuarded,
+    holdGuarded
+      ? "the reclaim checks payment and arrival"
+      : "the reclaim can still cancel a session a stranger paid for",
+  );
+
   check(
     "🔴 CONTROL the sweep finds the files it is about, not an empty set",
     makers.length >= 4 && makers.includes("lib/data/session-invite.ts"),
