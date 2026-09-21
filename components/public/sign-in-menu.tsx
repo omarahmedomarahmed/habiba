@@ -107,7 +107,7 @@ export function SignInMenu({ className }: { className?: string }) {
           aria-label={t("nav.whichAreYou")}
           className="absolute end-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-navy-900/10"
         >
-          <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
             {t("nav.whichAreYou")}
           </p>
           {doors(t, "signin").map((door, index) => (

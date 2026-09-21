@@ -64,7 +64,7 @@ function Bar({ title, sub }: { title: string; sub?: string }) {
           <p className="truncate text-[17px] font-bold tracking-tight text-navy-500">{title}</p>
           {sub ? <p className="mt-0.5 truncate text-[12px] text-slate-600">{sub}</p> : null}
         </div>
-        <Bell className="mt-1 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+        <Bell className="mt-1 h-4 w-4 shrink-0 text-slate-600" aria-hidden />
       </div>
     </div>
   );
@@ -104,7 +104,7 @@ function NextSession({ compact = false }: { compact?: boolean }) {
 function SectionLabel({ children, action }: { children: string; action?: string }) {
   return (
     <div className="mt-5 mb-2 flex items-baseline justify-between gap-2 px-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{children}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-600">{children}</p>
       {action ? <span className="text-[11px] font-semibold text-brand-700">{action}</span> : null}
     </div>
   );
@@ -116,7 +116,7 @@ function StepRow({ text, when }: { text: string; when: string }) {
       <span className="mt-0.5 h-4 w-4 shrink-0 rounded-md border-2 border-slate-300" />
       <span className="min-w-0 flex-1">
         <span className="block text-[13px] leading-snug font-medium text-slate-900">{text}</span>
-        <span className="mt-0.5 block text-[11px] text-slate-500">{when}</span>
+        <span className="mt-0.5 block text-[11px] text-slate-600">{when}</span>
       </span>
     </div>
   );
@@ -257,7 +257,7 @@ export function OptionB() {
             <Search className="h-4 w-4" aria-hidden />
             Find someone now
           </span>
-          <p className="mt-1.5 text-center text-[10px] text-slate-500">
+          <p className="mt-1.5 text-center text-[10px] text-slate-600">
             3 clinicians free this minute
           </p>
         </div>
@@ -319,7 +319,7 @@ export function OptionC() {
                 <span className="block text-[13px] font-bold tabular-nums text-slate-900">
                   ${String(Math.round(who.priceCents / 100))}
                 </span>
-                <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                <span className="flex items-center gap-1 text-[10px] text-slate-600">
                   <Clock className="h-2.5 w-2.5" aria-hidden />
                   {who.minutes} min
                 </span>

@@ -113,7 +113,7 @@ export function AlsoIncluded({ title, items }: { title: string; items: string[] 
   return (
     <section className="bg-white px-4 py-12 sm:px-6">
       <div className="mx-auto max-w-6xl">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+        <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
           {title}
         </h2>
         <ul className="mt-5 grid gap-x-10 border-t border-slate-200 sm:grid-cols-2">

@@ -120,7 +120,7 @@ export function MobileNav({
                 {t("nav.openRadar")}
               </Link>
 
-              <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 {t("nav.whichAreYou")}
               </p>
               {doors(t, "signin").map((door) => (

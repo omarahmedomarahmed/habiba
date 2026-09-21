@@ -32,6 +32,7 @@
  */
 import { readdirSync } from "node:fs";
 
+import { CONTENT_DEMOS } from "../lib/db/schema";
 import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
@@ -285,11 +286,42 @@ function main() {
   const defaults = readSource("lib/content/defaults.ts");
   const defaultsAr = readSource("lib/content/defaults-ar.ts");
 
+  /*
+   * 🔴 THIS ASSERTED A SYNTAX THAT TASK 137 DELETED ON PURPOSE.
+   *
+   * The old form looked for `| "patient-app"` in the schema, which was the
+   * hero's own inline union of demo names. Task 137 removed that union
+   * precisely because it existed: `hero` carried its own list while every
+   * other block used `ContentDemo`, so half the product was renderable on one
+   * block type and invisible to the rest. The hero now reads `ContentDemo`
+   * like everything else, which is the outcome this check wanted, and the
+   * check went red for it.
+   *
+   * The property is "the type allows it and the renderer draws it", so that is
+   * what is asserted: the name is in the ONE list, the hero's demo field is
+   * typed by that list rather than by a union of its own, and blocks.tsx
+   * renders it. A check bound to how something was written fails when somebody
+   * improves it, which teaches people to read past a red line.
+   */
   check(
     "🔴 77.6 a hero can render the patient's app, in both the type and the renderer",
-    /\| "patient-app"/.test(schema) &&
+    CONTENT_DEMOS.includes("patient-app") &&
+      /demo\?: ContentDemo;/.test(schema) &&
       /block\.demo === "patient-app" \?/.test(blocks),
     "a demo name the schema allows and the renderer ignores is a blank column",
+  );
+
+  /*
+   * 🔴 CONTROL — the list is the real one, and the hero has not quietly grown a
+   * second one. Without this, `includes` could be reading an empty import and
+   * the regex could be matching a comment.
+   */
+  check(
+    "🔴 77.6 CONTROL the demo list is the real one and the hero has only that one",
+    CONTENT_DEMOS.length > 10 &&
+      !CONTENT_DEMOS.includes("verify77-not-a-demo" as never) &&
+      !/demo\?:\s*"[a-z-]+"\s*\|/.test(schema),
+    `${String(CONTENT_DEMOS.length)} demo names, and no inline union beside them`,
   );
 
   check(

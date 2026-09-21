@@ -242,7 +242,7 @@ const CLAIM: Step[] = [
                   i < typed.length
                     ? "border-brand-300 bg-brand-50 text-slate-900"
                     : i === typed.length
-                      ? "border-brand-600 bg-white text-slate-500 ring-2 ring-brand-200"
+                      ? "border-brand-600 bg-white text-slate-600 ring-2 ring-brand-200"
                       : "border-slate-200 bg-white text-transparent",
                 )}
               >

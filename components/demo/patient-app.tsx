@@ -643,7 +643,7 @@ function HomeTab({
           </span>
           <span className="block text-[11px] text-slate-600">{t("home.findNow")}</span>
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 rtl:rotate-180" aria-hidden />
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-600 rtl:rotate-180" aria-hidden />
       </button>
 
       <Tile
@@ -697,7 +697,7 @@ function Therapists({ onFindSomeone }: { onFindSomeone: () => void }) {
               <span className="block text-[13px] font-semibold tabular-nums text-slate-900">
                 {money(who.priceCents)}
               </span>
-              <span className="flex items-center gap-1 text-[10px] text-slate-500">
+              <span className="flex items-center gap-1 text-[10px] text-slate-600">
                 <Clock className="h-2.5 w-2.5" aria-hidden />
                 {t("pat.minutes", { minutes: who.minutes })}
               </span>

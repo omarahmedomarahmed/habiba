@@ -18,7 +18,7 @@ export default function PatientSamplePage() {
     <main className="bg-white">
       <section className="border-b border-slate-200 px-4 py-12 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
             Design review
           </p>
           <h1 className="mt-2 max-w-3xl text-balance text-3xl font-bold tracking-tight text-navy-500 sm:text-4xl">

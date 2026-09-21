@@ -61,7 +61,13 @@ function WeekStrip() {
           key={one.day}
           className="rounded-lg border border-slate-200 bg-white px-1.5 py-1.5 text-center"
         >
-          <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{one.day}</p>
+          {/*
+            🔴 slate-600, not slate-500. At 9px this needs 4.5:1 and 77.1 bans
+            the lighter two outright on a surface a visitor reaches. A day
+            label nobody can read is a column heading that has stopped being
+            one, and the sample exists to show the design working.
+          */}
+          <p className="text-[9px] font-bold uppercase tracking-wide text-slate-600">{one.day}</p>
           <p className="mt-0.5 text-base font-bold tabular-nums text-navy-500">{one.n}</p>
           <div className="mt-1 flex justify-center gap-0.5">
             {Array.from({ length: Math.max(one.n, 1) }).map((_, i) => (

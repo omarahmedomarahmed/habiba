@@ -54,7 +54,7 @@ export function HowItWorks({
                     because repeating the word at full weight makes the eye
                     read it as a new section rather than the same one.
                   */
-                  i % 2 === 0 ? "text-navy-500" : "text-slate-500",
+                  i % 2 === 0 ? "text-navy-500" : "text-slate-600",
                 )}
               >
                 {item.audience}

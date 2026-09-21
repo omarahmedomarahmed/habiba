@@ -112,12 +112,37 @@ function main() {
      * has to re-run by hand to learn anything from, and a gate somebody re-runs by hand
      * is one they stop running.
      */
+    /*
+     * 🔴 AND WHEN THERE IS MORE THAN FITS, IT SAYS SO AND KEEPS THE LAST LINE.
+     *
+     * The slice was twelve lines and silent about it, and `verifiers` is the
+     * gate that made that expensive: it runs seventy-nine scripts and prints
+     * "N of 79 verifiers failed" as its FINAL line, so the one number that
+     * would reveal the truncation is the first thing the truncation removes.
+     *
+     * A pass reported four failing verifiers. Six had failed. The other two
+     * were fixed, the pass re-run, and the two survivors appeared as if they
+     * were new, which cost an hour of attributing them to work that had
+     * nothing to do with them. A summary that quietly drops the part saying
+     * how much it dropped is worse than no summary.
+     *
+     * So: the first eleven matching lines, then the LAST one, then a count of
+     * what was left out. The last line of a checker's output is where it puts
+     * its total, which is exactly the line worth keeping.
+     */
     if (!ok) {
-      const detail = `${run.stdout ?? ""}${run.stderr ?? ""}`
+      const lines = `${run.stdout ?? ""}${run.stderr ?? ""}`
         .split("\n")
         .filter((line) => /FAIL|Error|error|✗|rose|UP from/.test(line))
-        .slice(0, 12);
-      for (const line of detail) console.log(`          ${line.trim()}`);
+        .map((line) => line.trim());
+
+      const shown = lines.length <= 12 ? lines : [...lines.slice(0, 11), lines.at(-1)!];
+      for (const line of shown) console.log(`          ${line}`);
+      if (lines.length > 12) {
+        console.log(
+          `          … and ${String(lines.length - 12)} more, run \`npm run ${gate.script}\` for all of it`,
+        );
+      }
     }
   }
 

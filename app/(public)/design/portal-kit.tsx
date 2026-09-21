@@ -34,7 +34,7 @@ export function Console({
         <span className="h-2 w-2 rounded-full bg-slate-300" />
         <span className="h-2 w-2 rounded-full bg-slate-300" />
         <span className="h-2 w-2 rounded-full bg-slate-300" />
-        <span className="ms-2 truncate rounded bg-white px-2 py-0.5 font-mono text-[10px] tracking-wide text-slate-500">
+        <span className="ms-2 truncate rounded bg-white px-2 py-0.5 font-mono text-[10px] tracking-wide text-slate-600">
           {path}
         </span>
       </div>
@@ -101,7 +101,7 @@ export function Pot({ loud = false }: { loud?: boolean }) {
         <span
           className={cn(
             "text-[10px] font-bold uppercase tracking-[0.12em]",
-            loud ? "text-white/60" : "text-slate-500",
+            loud ? "text-white/60" : "text-slate-600",
           )}
         >
           Left in the pot
@@ -140,7 +140,7 @@ export function Pot({ loud = false }: { loud?: boolean }) {
 export function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-2.5">
-      <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-600">{label}</p>
       <p className="mt-0.5 text-lg font-bold tabular-nums tracking-tight text-navy-500">{value}</p>
       {note ? <p className="mt-0.5 text-[10px] leading-snug text-slate-600">{note}</p> : null}
     </div>
@@ -167,7 +167,7 @@ export function Table({
               <th
                 key={h}
                 className={cn(
-                  "px-2.5 py-1.5 font-bold uppercase tracking-wide text-slate-500",
+                  "px-2.5 py-1.5 font-bold uppercase tracking-wide text-slate-600",
                   i === 0 ? "text-start" : "text-end",
                 )}
               >
@@ -262,7 +262,7 @@ export function SampleIntro({
   return (
     <section className="border-b border-slate-200 px-4 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto max-w-6xl">
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
           {eyebrow}
         </p>
         <h1 className="mt-2 max-w-3xl text-balance text-3xl font-bold tracking-tight text-navy-500 sm:text-4xl">

@@ -120,7 +120,7 @@ export default function CompanySamplePage() {
                 <Stat label="Used it" value="40" note="this month" />
                 <Stat label="Per person" value="$47" note="average" />
               </div>
-              <p className="mt-3 mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+              <p className="mt-3 mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">
                 Your people
               </p>
               <Table head={["Name", "Cover", "Since"]} rows={ROSTER} note={WALL} />
