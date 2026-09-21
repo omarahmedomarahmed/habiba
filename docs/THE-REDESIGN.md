@@ -139,7 +139,18 @@ once they assign a clinic admin who accepts.
 **Today:** `/clinic/apply` exists and is the same enquiry shape. The upgrade
 path does not exist.
 
-🔴 **The upgrade collides with the strongest rule in the clinic code.**
+**DECIDED: two accounts, one sign-in.** The clinic surfaces stay in
+`(clinic)` and never appear inside `(app)`. A person who is both a clinician
+and a practice manager holds two principals and switches between them;
+`app/(app)/switch-principal` is the mechanism. The therapist portal never grows
+a clinic tab, and no shell asks what kind of person is reading it.
+
+What "upgrade" means under that decision: it creates the clinic and the
+manager principal, links them to the same sign-in, and drops the person into
+the clinic context. It does not change the therapist portal at all.
+
+🔴 **This decision is what keeps the rule below true**, and the rule is the
+strongest one in the clinic code.
 `app/(clinic)/layout.tsx` states it plainly:
 
 > "The therapist portal minus every clinical surface" is a different product,
@@ -149,29 +160,53 @@ path does not exist.
 > reading the conditional, a practice manager has a link to a caseload. Hidden
 > is one bug away from visible.
 
-The spec asks for exactly that conditional: a therapist portal that sometimes
-carries clinic tabs. This is a real architectural conflict and it needs a
-decision, not a workaround. The safe shape is almost certainly **two accounts
-with one sign-in**, so the clinic surfaces stay in `(clinic)` and the therapist
-switches context, rather than one portal that grows a second product's tabs.
-`app/(app)/switch-principal` already exists and may be most of the answer.
+The spec's first sketch asked for exactly that conditional: a therapist portal
+that sometimes carries clinic tabs. Two accounts behind one sign-in avoids it
+entirely, which is why that is the decision above.
+
+🔴 **What still has to be proved, because the decision does not prove it.**
+Two principals on one sign-in is only safe if the switch is a real boundary.
+Before this ships: a clinic principal must not be able to read a caseload by
+holding a therapist session cookie, and `verify:sprint54`'s sweep for clinical
+words has to run against the switched state as well as the clinic one. The
+decision removes the conditional from the shell; it does not remove the need to
+check what each principal can reach.
 
 ### Payout when a therapist is inside a clinic
 
-**Spec is undecided**, and lists three options. They are not equivalent:
+**DECIDED.** The therapist holds their own bank details and requests their own
+payout. The clinic sees it and may endorse it. **If the clinic does nothing for
+three days the request reaches us anyway.** A clinic cannot hold a clinician's
+money by inaction, and a clinic never puts its own account details against
+another person's earnings.
 
-| Design | Who holds bank details | Risk |
-| --- | --- | --- |
-| Therapist requests, clinic approves, then us | Therapist | Clinic can stall a person's pay indefinitely |
-| Clinic requests on the therapist's behalf | Clinic | Clinic can redirect a therapist's earnings |
-| Therapist requests us directly, clinic is told | Therapist | Clinic loses control it may need for payroll |
+🔴 **ESCALATION IS NOT APPROVAL.** After three days the request enters OUR
+queue; it does not pay itself. The clinic loses its veto, not the money, and we
+still approve every payout by hand. Anything that auto-pays on a timer is a
+defect, not a feature.
 
-🔴 **This is a money-custody decision, not a UX one.** The second option lets a
-practice put its own account details against another person's earnings. If that
-is ever allowed it needs its own audit trail and its own consent. My
-recommendation is the first with a **time limit**: the clinic sees and may
-approve, and if it does not act within N days the request comes to us anyway,
-so a clinic cannot hold a clinician's money hostage by inaction.
+**What exists today, and it is less than the rule assumes.** `PAYOUT_STATUSES`
+is `requested, approved, sent, confirmed, rejected`, and `approved` means *we*
+approved it: `approvePayout` is called only from
+`app/(admin)/admin/payouts/actions.ts` with an `approverUserId` from staff.
+
+🔴 **There is no clinic step at all.** The clinic's earnings page does not
+mention payouts. So this is not "add a timer to an existing hop", it is:
+
+1. A clinic-visible view of its clinicians' payout requests.
+2. A clinic decision recorded on the request, distinct from ours.
+3. The three day clock, and what the request looks like while it runs.
+4. The escalation, which moves it into our queue with the clinic's silence
+   recorded as the reason.
+
+The status list needs one more state between `requested` and `approved`, or a
+nullable clinic decision on the row. A new state is clearer: `requested` is
+what the therapist did, the new one is what the clinic did, `approved` stays
+what we did. Three parties, three records, and no column that means two things.
+
+`payout_status_events` already records how a request reached its status, so the
+escalation has somewhere honest to say "nobody at the clinic acted for three
+days" rather than appearing as a silent state change.
 
 ### Bills when a therapist joins a clinic
 

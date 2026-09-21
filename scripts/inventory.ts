@@ -1,8 +1,8 @@
 /**
- * Every admin page, every control on it, and whether the control does anything.
+ * Every page in the product, every control on it, and whether it does anything.
  *
- *     npm run admin:inventory            # print it
- *     npm run admin:inventory -- --write # …and write docs/ADMIN-INVENTORY.md
+ *     npm run inventory            # print it
+ *     npm run inventory -- --write # …and write docs/INVENTORY.md
  *
  * ## Why this exists
  *
@@ -33,7 +33,28 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 
-const ADMIN = "app/(admin)/admin";
+/**
+ * 🔴 EVERY PORTAL, NOT JUST THE ADMIN ONE.
+ *
+ * This started as an admin inventory because the admin side is the one with 32
+ * pages and a navigation three rows deep. But every instrument downstream takes
+ * its list of places to go from here, and a list that covers one portal
+ * produces a crawler that covers one portal.
+ *
+ * `verify:contrast` learned that the hard way twice: it walked nine therapist
+ * pages it had never loaded, and reported `/earnings` as fine while never
+ * visiting it, because its paths were a hand typed array rather than a derived
+ * one. A hand typed list of routes is wrong the week after it is written.
+ */
+const PORTALS = [
+  { who: "admin", root: "app/(admin)" },
+  { who: "therapist", root: "app/(app)" },
+  { who: "patient", root: "app/(patient)" },
+  { who: "company", root: "app/(sponsor)" },
+  { who: "clinic", root: "app/(clinic)" },
+  { who: "partner", root: "app/(partner)" },
+  { who: "public", root: "app/(public)" },
+];
 
 type Control = {
   kind: "form" | "button" | "link" | "select" | "input";
@@ -43,6 +64,7 @@ type Control = {
 };
 
 type Surface = {
+  who: string;
   route: string;
   file: string;
   title: string;
@@ -122,26 +144,72 @@ function controlsIn(source: string, actions: Map<string, string>): Control[] {
     ].map((m) => m[1]!),
   );
 
-  for (const m of s.matchAll(/<form[^>]*\saction=\{(\w+)\}/g)) {
+  /*
+   * 🔴 AN ACTION CAN ARRIVE AS A PROP, AND THEN THERE IS NOTHING TO LOOK UP.
+   *
+   * `useActionState(actions.begin, {})` in `components/ehr/records-panel.tsx`
+   * takes its action off a `PanelActions` prop the caller supplies. So does the
+   * patient's auth form. A rule that demanded an exported name in this file
+   * called four of those dead.
+   *
+   * A member expression and a destructured prop are wired by construction: the
+   * caller provides them and the compiler checks the type. What remains
+   * suspicious is a BARE identifier that is not an export, not a dispatch and
+   * not a prop of this component, which is the only shape that can really
+   * dangle.
+   */
+  const props = new Set(
+    [...s.matchAll(/[{,]\s*(\w+)\s*[,}:]/g)].map((m) => m[1]!),
+  );
+
+  /*
+   * 🔴 AND A LOCAL THAT IS AN ALIAS FOR REAL ACTIONS.
+   *
+   * `components/patient/auth-form.tsx` picks its action at render:
+   *
+   *     const action = mode === "signup" ? patientSignUp : patientSignIn;
+   *
+   * `action` is not an export, not a dispatch and not a prop, so the rule above
+   * still called the patient's sign-in and sign-up forms dead. They are the two
+   * doors every patient comes through.
+   *
+   * A local whose right hand side mentions a known action is an alias for it.
+   * That is the last shape, and with it the detector reports nothing dead,
+   * which is why the control at the bottom of this file matters more than the
+   * number does.
+   */
+  const aliases = new Set(
+    [...s.matchAll(/const\s+(\w+)\s*=\s*([^;\n]+)/g)]
+      .filter((m) =>
+        (m[2]!.match(/\w+/g) ?? []).some((word) => actions.has(word)),
+      )
+      .map((m) => m[1]!),
+  );
+
+  const reachable = (name: string) =>
+    name.includes(".") ||
+    actions.has(name) ||
+    dispatches.has(name) ||
+    props.has(name) ||
+    aliases.has(name);
+
+  for (const m of s.matchAll(/<form[^>]*\saction=\{([\w.]+)\}/g)) {
     const name = m[1]!;
     out.push({
       kind: "form",
       label: labelNear(s, m.index),
       wiring: dispatches.has(name) ? `dispatch ${name}` : `action ${name}`,
-      ok: actions.has(name) || dispatches.has(name),
+      ok: reachable(name),
     });
   }
 
-  /* And the action the hook was given, which is the one that can be absent. */
-  for (const m of s.matchAll(
-    /useActionState<[^>]*>?\(\s*(\w+)|useActionState\(\s*(\w+)/g,
-  )) {
-    const name = (m[1] ?? m[2])!;
+  for (const m of s.matchAll(/useActionState(?:<[^>]*>)?\(\s*([\w.]+)/g)) {
+    const name = m[1]!;
     out.push({
       kind: "form",
       label: name,
       wiring: `useActionState ${name}`,
-      ok: actions.has(name),
+      ok: reachable(name),
     });
   }
 
@@ -161,20 +229,39 @@ function controlsIn(source: string, actions: Map<string, string>): Control[] {
    * This is the check the inventory exists for. A button with no handler, no
    * submit type and no explanation renders exactly like one that works.
    */
+  /*
+   * 🔴 ANY HANDLER, NOT JUST `onClick`, AND THE FIRST RULE FAILED THE ONE
+   * BUTTON IT COULD LEAST AFFORD TO.
+   *
+   * `components/patient/sos-orb.tsx` is the crisis orb: the button a patient
+   * presses when somebody is in danger. It is draggable, so it carries
+   * `onPointerDown`, `onPointerMove` and `onPointerUp`, and the pointer-up
+   * handler is what tells a drag from a tap and opens the sheet. It has no
+   * `onClick` at all.
+   *
+   * A rule that knew only `onClick` reported it as having nothing attached. If
+   * that had gone out as a finding it would have read as "the crisis button is
+   * dead", which is false and is the most alarming false thing this tool could
+   * possibly say.
+   *
+   * So the test is any React event prop. A button that handles pointers,
+   * keys or focus is wired; only a button with no handler of any kind and no
+   * submit is not.
+   */
   for (const m of s.matchAll(/<button\b([^>]*)>/g)) {
     const attrs = m[1]!;
-    const onClick = /onClick=/.test(attrs);
+    const handler = /\bon[A-Z]\w*=/.exec(attrs);
     const submit = /type=["'`]submit/.test(attrs);
-    const named = /onClick=\{(?:\(\)\s*=>\s*)?(\w+)/.exec(attrs);
+    const named = /\bon[A-Z]\w*=\{(?:\(\)\s*=>\s*)?(\w+)/.exec(attrs);
     out.push({
       kind: "button",
       label: labelNear(s, m.index),
       wiring: submit
         ? "submit"
-        : onClick
-          ? `onClick ${named?.[1] ?? "inline"}`
+        : handler
+          ? `${handler[0].replace("=", "")} ${named?.[1] ?? "inline"}`
           : "NOTHING",
-      ok: onClick || submit,
+      ok: Boolean(handler) || submit,
     });
   }
 
@@ -231,12 +318,24 @@ function main() {
   const control = selfTest(actions);
   console.log(`control: ${control.ok ? "ok  " : "FAIL"} ${control.detail}`);
   if (!control.ok) process.exitCode = 1;
-  const pages = walk(ADMIN).filter((f) => f.endsWith("page.tsx"));
   const surfaces: Surface[] = [];
+  const pages: { file: string; who: string; root: string }[] = [];
+  for (const portal of PORTALS) {
+    for (const file of walk(portal.root).filter((f) =>
+      f.endsWith("page.tsx"),
+    )) {
+      pages.push({ file, who: portal.who, root: portal.root });
+    }
+  }
 
-  for (const file of pages.sort()) {
+  for (const { file, who, root } of pages.sort((a, b) =>
+    a.file.localeCompare(b.file),
+  )) {
     const source = readFileSync(file, "utf8");
-    const route = `/${file.replace(`app/(admin)/`, "").replace("/page.tsx", "")}`;
+    const route = `/${file
+      .replace(`${root}/`, "")
+      .replace("/page.tsx", "")
+      .replace(/^page\.tsx$/, "")}`;
 
     const title =
       /title:\s*["'`]([^"'`]+)/.exec(source)?.[1] ??
@@ -275,6 +374,7 @@ function main() {
       );
 
     surfaces.push({
+      who,
       route,
       file,
       title,
@@ -292,7 +392,7 @@ function main() {
   lines.push("# The admin side, as it is");
   lines.push("");
   lines.push(
-    "Generated by `npm run admin:inventory`. Do not edit by hand: a hand written",
+    "Generated by `npm run inventory`. Do not edit by hand: a hand written",
     "inventory is out of date the day after it is written, which is how this",
     "surface reached 32 pages without anybody being able to describe it.",
     "",
@@ -352,8 +452,8 @@ function main() {
 
   const text = lines.join("\n");
   if (process.argv.includes("--write")) {
-    writeFileSync("docs/ADMIN-INVENTORY.md", `${text}\n`);
-    console.log("wrote docs/ADMIN-INVENTORY.md");
+    writeFileSync("docs/INVENTORY.md", `${text}\n`);
+    console.log("wrote docs/INVENTORY.md");
   }
   console.log(
     `${String(surfaces.length)} pages · ` +
