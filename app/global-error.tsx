@@ -37,7 +37,10 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
               padding: "0 1.25rem",
               borderRadius: "0.75rem",
               border: 0,
-              background: "#1F5EFF",
+              /* brand-500. Inline because this component replaces the
+                 whole document, stylesheet included, so no token is
+                 loaded by the time it renders. */
+              background: "#1A7A71",
               color: "#fff",
               fontWeight: 600,
               fontSize: "0.875rem",

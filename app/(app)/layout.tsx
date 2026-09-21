@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BRAND } from "@/lib/brand";
+import { Logo } from "@/components/brand/logo";
 import {
   CalendarClock,
   CalendarDays,
@@ -125,8 +125,9 @@ export default async function AppLayout({
       {/* Desktop is the enhancement: a sidebar appears only at lg and above. */}
       <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-slate-200 bg-white lg:flex">
         <div className="px-5 py-5">
-          <Link href="/dashboard" className="text-[15px] font-bold tracking-tight text-navy-500">
-            {BRAND}
+          {/* The mark, not the name set as text. See components/brand/logo.tsx. */}
+          <Link href="/dashboard" className="inline-flex items-center">
+            <Logo ink="navy" height={24} />
           </Link>
         </div>
 

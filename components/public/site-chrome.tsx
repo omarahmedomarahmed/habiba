@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 
-import { BRAND, Logo } from "@/components/brand/logo";
+import { Logo } from "@/components/brand/logo";
+import { BRAND } from "@/lib/brand";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { MobileNav } from "@/components/public/mobile-nav";
 import { SignInMenu } from "@/components/public/sign-in-menu";
@@ -78,9 +79,18 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        <Link href={href("/")} className="flex shrink-0 items-center gap-2">
-          <Logo ink="navy" height={22} />
-          <span className="text-[15px] font-bold tracking-tight text-navy-500">{BRAND}</span>
+        {/*
+          🔴 The mark alone. The word is gone from beside it.
+
+          The pack's lockup is the mark; "24Therapy" set in the page's own face
+          next to it was a second wordmark competing with the first. One
+          identity, and it is the one that was drawn.
+
+          `title` stays on the Logo, so the link is still announced as
+          "24Therapy" to anybody who cannot see the mark.
+        */}
+        <Link href={href("/")} className="flex shrink-0 items-center">
+          <Logo ink="navy" height={26} />
         </Link>
 
         <nav aria-label={t("nav.mainNav")} className="hidden items-center gap-0.5 md:flex">
@@ -142,9 +152,8 @@ export async function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="min-w-0">
-            <Link href={href("/")} className="flex items-center gap-2">
-              <Logo ink="navy" height={20} />
-              <span className="text-sm font-bold tracking-tight text-navy-500">{BRAND}</span>
+            <Link href={href("/")} className="inline-flex items-center">
+              <Logo ink="navy" height={22} />
             </Link>
             <p className="mt-3 max-w-xs text-xs leading-relaxed text-slate-600">
               {t("nav.tagline")}

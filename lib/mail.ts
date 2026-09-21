@@ -356,7 +356,7 @@ export async function sendPasswordReset(opts: { to: string; url: string }): Prom
     "Reset your password",
     `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Reset your password</p>
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;">This link works once and expires in one hour.</p>
-     <a href="${esc(opts.url)}" style="display:inline-block;background:#1F5EFF;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Choose a new password</a>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#1A7A71;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Choose a new password</a>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;">If you did not ask for this, nothing has changed and you can ignore this email.</p>`,
   );
   return send({ to: opts.to, subject: "Reset your 24Therapy password", html });
@@ -454,7 +454,7 @@ export async function sendRecordExport(opts: {
        ${esc(opts.clinicianName)}: your details, every session, every note, and the
        transcript of anything that was recorded.
      </p>
-     <a href="${esc(opts.url)}" style="display:inline-block;background:#1F5EFF;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open your record</a>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#1A7A71;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open your record</a>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
        The link works for ${esc(opts.expiresInHours)} hours and then stops, so save or print
        the page while it is open. It was generated automatically and nobody at

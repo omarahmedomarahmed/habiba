@@ -74,11 +74,11 @@ export function WorldRadar({
     >
       <defs>
         <radialGradient id="radar-sweep" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#24C8DB" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#24C8DB" stopOpacity="0" />
+          <stop offset="0%" stopColor="#2EC4B6" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#2EC4B6" stopOpacity="0" />
         </radialGradient>
         <radialGradient id="radar-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#1F5EFF" stopOpacity="0.30" />
+          <stop offset="0%" stopColor="#2EC4B6" stopOpacity="0.30" />
           <stop offset="100%" stopColor="#0A2342" stopOpacity="0" />
         </radialGradient>
       </defs>
@@ -87,7 +87,7 @@ export function WorldRadar({
       <rect width="1000" height="500" fill="url(#radar-glow)" />
 
       {/* Graticule: every 30° of longitude, every 30° of latitude. */}
-      <g stroke="#24C8DB" strokeOpacity="0.08" strokeWidth="1">
+      <g stroke="#2EC4B6" strokeOpacity="0.08" strokeWidth="1">
         {[...Array(11)].map((_, i) => (
           <line key={`v${i}`} x1={(i + 1) * 83.3} y1="0" x2={(i + 1) * 83.3} y2="500" />
         ))}
@@ -97,7 +97,7 @@ export function WorldRadar({
       </g>
 
       {/* Land. */}
-      <g fill="#24C8DB" fillOpacity="0.22">
+      <g fill="#2EC4B6" fillOpacity="0.22">
         {land.map((dot, i) => (
           <circle key={i} cx={dot.x * 1000} cy={dot.y * 500} r="2.6" />
         ))}

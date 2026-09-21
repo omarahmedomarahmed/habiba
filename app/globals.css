@@ -3,35 +3,74 @@
 /*
  * Design tokens.
  *
- * Same palette as before — navy #0A2342, blue #1F5EFF, teal #2EC4B6, cyan
- * #24C8DB — but defined once, here, instead of two Tailwind configs that
- * disagreed plus several hundred hardcoded hex literals scattered through page
- * files. The old therapist app also referenced ~90 utility classes that were
- * never defined anywhere (`bg-surface-tertiary`, `text-ink-500`), which is what
- * happens when tokens live in more than one place.
+ * Two inks: navy #0A2342 and teal #2EC4B6, from the logo pack. Nothing else.
+ *
+ * ## 🔴 THE BLUE IS GONE, AND THAT IS WHY `brand-*` LOOKS LIKE THIS
+ *
+ * `brand-500` was #1F5EFF, a blue that appears nowhere in the mark. It was the
+ * interactive colour on 215 class names across the app and the portals, so the
+ * product read blue while its own logo read navy and teal.
+ *
+ * The values changed and the NAMES did not. Renaming the token would have meant
+ * editing 215 call sites and getting one of them wrong; redefining it changes
+ * every button, link and focus ring in the product at once, and a diff of this
+ * file is the whole change.
+ *
+ * `brand-*` is now a teal ramp that darkens fast, because the light end of teal
+ * cannot carry white text: #2EC4B6 on white is 2.19:1 and white on #2EC4B6 is
+ * the same failure from the other side. So `brand-500` is teal at the weight
+ * white text needs (5.2:1) and the bright teal keeps its own scale for the
+ * places it belongs: a dot, a rule, a mark on a dark ground.
+ *
+ * The division of labour that falls out of it:
+ *   navy   the ground, the structure, the ink
+ *   brand  the thing you press, and the thing you press it against
+ *   teal   live, now, and anything on the radar's own dark ground
+ *
+ * Defined once, here, instead of two Tailwind configs that disagreed plus
+ * several hundred hardcoded hex literals scattered through page files.
  */
 @theme {
-  --color-navy-50: #eef2f8;
-  --color-navy-100: #d3dded;
-  --color-navy-200: #a8bbd9;
-  --color-navy-300: #7392bf;
-  --color-navy-400: #3f66a0;
+  /*
+   * 🔴 The light end is DESATURATED, and that is the point of it.
+   *
+   * A navy ramp tinted toward white is a pale blue: the old `navy-100`
+   * #d3dded is hue 217 at 38% saturation, which reads as blue however it was
+   * derived. The dark end keeps its hue because a navy ground is supposed to
+   * be navy; the tints are pulled to a cool grey so a future `bg-navy-50` is a
+   * neutral surface and not the blue coming back through the ramp.
+   *
+   * `.render/no-blue.mjs` reads computed pixels on every public page and fails
+   * on anything in the blue arc above 35% saturation, which is the number
+   * these now sit under.
+   */
+  --color-navy-50: #f1f4f7;
+  --color-navy-100: #dde3ea;
+  --color-navy-200: #b9c4cf;
+  --color-navy-300: #7f909f;
+  --color-navy-400: #4a5d72;
   --color-navy-500: #0a2342;
   --color-navy-600: #091e39;
   --color-navy-700: #07182e;
   --color-navy-800: #051223;
   --color-navy-900: #030b17;
 
-  --color-brand-50: #eaf0ff;
-  --color-brand-100: #d0dcff;
-  --color-brand-200: #a3baff;
-  --color-brand-300: #7595ff;
-  --color-brand-400: #4776ff;
-  --color-brand-500: #1f5eff;
-  --color-brand-600: #164ad6;
-  --color-brand-700: #1039a6;
-  --color-brand-800: #0b2a7a;
-  --color-brand-900: #071b50;
+  /*
+   * Measured, because the whole point of the change is that the old ramp was
+   * not. Against white: 500 is 5.17:1, 600 is 8.50:1. Against navy-500: 300 is
+   * 9.30:1. White text on 500 is 5.17:1, which is the number the old teal
+   * button failed at 2.17:1.
+   */
+  --color-brand-50: #e9faf7;
+  --color-brand-100: #c5f0ea;
+  --color-brand-200: #92e2d7;
+  --color-brand-300: #55dbcb;
+  --color-brand-400: #23a094;
+  --color-brand-500: #1a7a71;
+  --color-brand-600: #12564f;
+  --color-brand-700: #0e453f;
+  --color-brand-800: #0b3833;
+  --color-brand-900: #072623;
 
   --color-teal-50: #e6faf7;
   --color-teal-100: #c0f2eb;
@@ -43,10 +82,6 @@
   --color-teal-700: #1a7a71;
   --color-teal-800: #12564f;
   --color-teal-900: #0b3833;
-
-  --color-cyan-400: #4fd6e6;
-  --color-cyan-500: #24c8db;
-  --color-cyan-600: #1aa3b4;
 
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -85,7 +120,7 @@
      * argue with.
      */
     background-image:
-      radial-gradient(circle at 15% 0%, rgba(31, 94, 255, 0.05), transparent 45%),
+      radial-gradient(circle at 15% 0%, rgba(10, 35, 66, 0.05), transparent 45%),
       radial-gradient(circle at 85% 100%, rgba(46, 196, 182, 0.05), transparent 45%),
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='1' cy='1' r='1' fill='%230A2342' fill-opacity='0.05'/%3E%3C/svg%3E");
     background-attachment: fixed, fixed, scroll;

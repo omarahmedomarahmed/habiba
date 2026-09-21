@@ -139,7 +139,7 @@ export async function AuthShell({
               <p className="mt-5 text-lg font-bold leading-snug">{promise}</p>
               <ul className="mt-5 flex flex-col gap-3.5">
                 {points.map((point) => (
-                  <li key={point} className="flex gap-3 text-sm leading-relaxed text-navy-100">
+                  <li key={point} className="flex gap-3 text-sm leading-relaxed text-white/85">
                     {/*
                       Teal on navy, which is one of the two grounds the brand
                       allows it on. It reads 2.19:1 on white, so this mark can

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { ComponentShowcase } from "@/components/demo/component-showcase";
 import { DeviceFrame } from "@/components/demo/device-frame";
@@ -64,6 +65,31 @@ export default async function UiReferencePage() {
             wears. Not linked from anywhere and not indexed. A blank in a row is a screen this
             product cannot yet show that audience.
           </p>
+
+          {/*
+            🔴 The reviews, which are a different question from this page.
+            
+            This page answers "what does the product look like today". Those
+            answer "which of three arrangements should we build next", in grey
+            wireframes rather than the finished visual language, because a
+            wireframe drawn in the finished language gets judged on its colour
+            instead of on where things are.
+          */}
+          <nav aria-label="Design reviews" className="mt-6 flex flex-wrap gap-2">
+            {[
+              { href: "/design/patient", label: "Patient app, three ways" },
+              { href: "/design/company", label: "Company portal, three ways" },
+              { href: "/design/clinic", label: "Clinic portal, three ways" },
+            ].map((one) => (
+              <Link
+                key={one.href}
+                href={one.href}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-navy-500 hover:border-slate-400"
+              >
+                {one.label}
+              </Link>
+            ))}
+          </nav>
         </header>
 
         <Section

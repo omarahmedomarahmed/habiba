@@ -732,7 +732,7 @@ export function renderExportHtml(
           padding:2px 10px; font-size:12px; font-weight:600; }
   .note { border-left:3px solid #2EC4B6; padding-left:16px; margin-top:12px; }
   details { margin-top:14px; }
-  summary { cursor:pointer; font-size:14px; font-weight:600; color:#1F5EFF; }
+  summary { cursor:pointer; font-size:14px; font-weight:600; color:#1A7A71; }
   .tx { margin-top:10px; border-top:1px solid #e2e8f0; padding-top:10px;
         max-height:32rem; overflow:auto; font-size:14.5px; }
   .tx p { margin:0 0 6px; }
@@ -740,7 +740,7 @@ export function renderExportHtml(
   .tx .s { font-weight:600; color:#0A2342; }
   .code { font:700 22px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em;
           background:#f1f5f9; border-radius:12px; padding:12px 16px; display:inline-block; margin:6px 0; }
-  a.dl { display:inline-block; margin-top:10px; background:#1F5EFF; color:#fff;
+  a.dl { display:inline-block; margin-top:10px; background:#1A7A71; color:#fff;
          text-decoration:none; border-radius:12px; padding:10px 16px; font-weight:600; font-size:14px; }
   footer { color:#64748b; font-size:13px; text-align:center; margin-top:24px; line-height:1.7; }
   @media print {

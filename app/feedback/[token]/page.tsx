@@ -4,7 +4,7 @@ import Link from "next/link";
 import { RatingForm } from "@/components/feedback/rating-form";
 import { Card } from "@/components/ui";
 import { feedbackContext } from "@/lib/data/feedback";
-import { BRAND } from "@/lib/brand";
+import { Logo } from "@/components/brand/logo";
 import { getI18n } from "@/lib/i18n/server";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { crisisCountryFor } from "@/lib/crisis/line";
@@ -42,8 +42,8 @@ export default async function FeedbackPage({
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
             {t("feedback.expiredBody")}
           </p>
-          <Link href="/" className="mt-4 inline-block text-sm font-semibold text-brand-600">
-            {BRAND}
+          <Link href="/" className="mt-4 inline-flex items-center">
+            <Logo ink="navy" height={20} />
           </Link>
         </Card>
       </Shell>

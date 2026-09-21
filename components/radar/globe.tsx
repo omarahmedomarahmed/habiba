@@ -329,9 +329,9 @@ export function Globe({
             <stop offset="100%" stopColor="#04101f" />
           </radialGradient>
           <radialGradient id="globe-halo" cx="50%" cy="50%" r="50%">
-            <stop offset="72%" stopColor="#24C8DB" stopOpacity="0" />
-            <stop offset="92%" stopColor="#24C8DB" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="#24C8DB" stopOpacity="0" />
+            <stop offset="72%" stopColor="#2EC4B6" stopOpacity="0" />
+            <stop offset="92%" stopColor="#2EC4B6" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#2EC4B6" stopOpacity="0" />
           </radialGradient>
           <clipPath id="globe-clip">
             <circle cx={CX} cy={CY} r={BASE_RADIUS} />
@@ -353,7 +353,7 @@ export function Globe({
           <path
             ref={graticule}
             fill="none"
-            stroke="#24C8DB"
+            stroke="#2EC4B6"
             strokeOpacity="0.12"
             strokeWidth="0.7"
           />
@@ -446,7 +446,7 @@ export function Globe({
           cy={CY}
           r={BASE_RADIUS}
           fill="none"
-          stroke="#24C8DB"
+          stroke="#2EC4B6"
           strokeOpacity="0.3"
           strokeWidth="1"
         />

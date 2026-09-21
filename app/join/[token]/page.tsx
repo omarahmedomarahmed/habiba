@@ -7,7 +7,7 @@ import { PatientChrome } from "@/components/patient/chrome";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
-import { BRAND } from "@/lib/brand";
+import { Logo } from "@/components/brand/logo";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { getI18n } from "@/lib/i18n/server";
 import { confirmCheckout } from "@/lib/billing/stripe";
@@ -229,7 +229,7 @@ async function Shell({
         chance to fix that, and it has to be visible without scrolling.
       */}
       <header className="flex items-center justify-between px-4 py-5 sm:px-6">
-        <span className="text-[15px] font-bold tracking-tight text-navy-500">{BRAND}</span>
+        <Logo ink="navy" height={24} />
         <LanguageSwitch />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 sm:items-center sm:px-6">
