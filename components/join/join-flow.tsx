@@ -56,6 +56,7 @@ export function JoinFlow({
   paymentStatus,
   resumeAfterPayment,
   cancelled,
+  initialConsent,
 }: {
   therapist: Therapist;
   token: string;
@@ -66,6 +67,11 @@ export function JoinFlow({
   paymentStatus: "not_required" | "pending" | "paid";
   resumeAfterPayment: boolean;
   cancelled: boolean;
+  /** What this session already records, so the room does not open by denying it. */
+  initialConsent: {
+    recording: "granted" | "declined" | null;
+    profileShare: "granted" | "declined" | null;
+  };
 }) {
   const t = useT();
   const [state, action] = useActionState(submitJoin, INITIAL);
@@ -74,10 +80,23 @@ export function JoinFlow({
   const [recording, setRecording] = useState(false);
   // 7.8 — the two controls, kept in step with the recording indicator by the
   // same poll that drives it.
+  /*
+   * 🔴 STARTS FROM WHAT THE ROW ALREADY SAYS, not from null.
+   *
+   * This started at `{recording: null, profileShare: null}` and waited for the
+   * five-second poll. In that window the room showed a patient who had just
+   * answered "Yes, you may record this session" a control reading "Record this
+   * session — Turn on": their own consent, handed back to them as though they
+   * had never given it, on the screen where they are about to talk about the
+   * worst thing in their life. Caught independently on two walks.
+   *
+   * The server already knows. It is on the session row before this component
+   * renders, and the page passes it in.
+   */
   const [consent, setConsent] = useState<{
     recording: "granted" | "declined" | null;
     profileShare: "granted" | "declined" | null;
-  }>({ recording: null, profileShare: null });
+  }>(initialConsent);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   /*
    * The countdown, from the same server call that already tells them whether

@@ -165,6 +165,11 @@ export default async function JoinPage({
           (Boolean(checkout) || booked === "1" || Boolean(session.patientJoinedAt))
         }
         cancelled={checkout === "cancelled"}
+        /* Already answered, so the room does not open by denying it. */
+        initialConsent={{
+          recording: session.recordingConsent,
+          profileShare: session.profileShareConsent,
+        }}
       />
 
       {/*

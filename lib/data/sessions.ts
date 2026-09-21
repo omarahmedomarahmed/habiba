@@ -802,6 +802,19 @@ export async function resolveJoinToken(token: string) {
        * recording question, and been in the room.
        */
       patientJoinedAt: sessions.patientJoinedAt,
+      /*
+       * 🔴 WHAT THEY ALREADY ANSWERED, SO THE ROOM DOES NOT ASK AGAIN.
+       *
+       * The room's "Your choices" panel started from `{recording: null}` and
+       * waited for the five-second poll to tell it otherwise, so a patient who
+       * had just answered "Yes, you may record this session" was shown
+       * "Record this session — Turn on", their own consent displayed back to
+       * them as not given. Two separate walks caught it independently.
+       *
+       * The answer is already on the row by then. Render it.
+       */
+      recordingConsent: sessions.recordingConsent,
+      profileShareConsent: sessions.profileShareConsent,
     })
     .from(sessions)
     .where(and(eq(sessions.joinToken, token), isNull(sessions.endedAt)))

@@ -418,6 +418,31 @@ async function main() {
            last_seen_at, accepts_walk_ins)
         VALUES (${user.id}, ${org.id}, 'online', true, ${headline}, '["ar","en"]'::jsonb,
                 '["anxiety","sleep"]'::jsonb, 'eg', 'eg', 'Cairo', now(), true)`);
+
+      /*
+       * 🔴 HOURS TO BOOK, BECAUSE THERE WERE NONE ANYWHERE.
+       *
+       * `availability_slots` had ZERO rows on production — not few, none, for
+       * every clinician on the platform. So "book a future session", the
+       * second thing a patient would ever want to do, had nothing to offer,
+       * and nothing on any therapist screen said the diary was empty.
+       *
+       * Fourteen days of afternoons, on the hour because the table's
+       * constraint requires it, skipping Fridays and Saturdays, which are the
+       * Egyptian weekend. Generated from `now()` in SQL rather than from a JS
+       * date so the seed does not carry this machine's clock into the rows —
+       * the same skew that hid two payment defects earlier tonight.
+       */
+      await db.execute(sql`
+        INSERT INTO availability_slots (therapist_user_id, organization_id, starts_at, duration_minutes, status)
+        SELECT ${user.id}, ${org.id}, slot, 60, 'open'
+          FROM generate_series(
+                 date_trunc('day', now() + interval '1 day'),
+                 date_trunc('day', now() + interval '14 days'),
+                 interval '1 day') AS day,
+               generate_series(11, 16) AS hour,
+               LATERAL (SELECT day + make_interval(hours => hour)) AS s(slot)
+         WHERE extract(dow from day) NOT IN (5, 6)`);
     }
 
     /* ------------------------------------------------ the clinic --- */
