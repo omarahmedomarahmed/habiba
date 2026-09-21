@@ -246,7 +246,7 @@ export default async function BillingPage({
               subject={{
                 viewerName,
                 orgName: practiceName,
-                what: t("transfer.forBill"),
+                what: t("transfer.subjectBill"),
                 /* A practice of one is a therapist; more than one is a clinic. */
                 /*
                  * The same question `manualEntry`'s audience asks, four lines

@@ -583,10 +583,17 @@ function CompanyOverview() {
             {t("sponsor.spendTitle")}
           </p>
           <SpendHeatmap
-            weeks={SPEND_CURVE.map((point, index) => ({
-              weekStart: `W${String(index + 1)}`,
-              spendCents: index === 2 ? null : point.cents,
-            }))}
+            weeks={SPEND_CURVE.map((point, index) => {
+              /*
+               * The mockup's weeks are ordinals, not dates, so the key and the
+               * label are the same synthetic string. On the real portal they
+               * differ: an ISO Monday for React and a formatted one for the
+               * reader. One binding here rather than two so this stays a
+               * placeholder rather than a second thing to translate.
+               */
+              const week = `W${String(index + 1)}`;
+              return { weekStart: week, label: week, spendCents: index === 2 ? null : point.cents };
+            })}
           />
         </div>
 

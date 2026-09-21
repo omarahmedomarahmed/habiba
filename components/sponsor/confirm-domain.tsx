@@ -20,7 +20,7 @@ export function ConfirmDomain({ domainId, token }: { domainId: string; token: st
   if (done === true) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-teal-700">Thank you. That half is done.</p>
+        <p className="text-sm font-semibold text-brand-700">Thank you. That half is done.</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           We still need the DNS record published before joining codes work. Whoever set this up
           can see both on their own domains page.

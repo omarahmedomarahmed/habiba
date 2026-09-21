@@ -8,6 +8,7 @@ import { potBalance, roster, weeklySpend } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
+import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Your account", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -103,36 +104,108 @@ export default async function SponsorOverviewPage() {
   const putIn = balanceCents === null ? null : balanceCents + totals.spentCents;
   const usedPercent = putIn !== null && putIn > 0 ? Math.round((totals.spentCents / putIn) * 100) : null;
 
+  /*
+   * 🔴 THE POT IS A VESSEL WITH A DATE ON IT, NOT THREE TILES AND A PARAGRAPH.
+   * Option A, /design/company/sample.
+   *
+   * This was a balance, a total and a session count in three equal cards, and
+   * then, one card lower, a sentence saying how many weeks the pot had left or
+   * what percentage of it was gone. A balance is a noun. How long it lasts is
+   * the only thing on this screen that ever makes anybody act, and it was set
+   * in the same weight as the other two, below them, in prose.
+   *
+   * So the runway comes up onto the pot, with a bar, and the two figures that
+   * are context rather than decisions sit beside it at the size of context.
+   *
+   * 🔴 EVERY SUPPRESSION RULE IS UNCHANGED, and that is the part to be careful
+   * about. `weeksLeft` and `usedPercent` are both invertible from the spend, so
+   * a suppressed balance suppresses them too: when `balanceCents` is null there
+   * is no bar, no percentage and no projection, only the sentence that says the
+   * floor has not been reached. Moving a figure up a card must not move it past
+   * a gate, so the same `balanceCents === null` test guards all of it.
+   */
+  const potLine =
+    actor.kind === "university"
+      ? weeksLeft === null
+        ? t("sponsor.planUnknown")
+        : t("sponsor.planBody", { weeks: weeksLeft })
+      : usedPercent === null
+        ? t("sponsor.planUnknown")
+        : t("sponsor.budgetBody", { percent: usedPercent });
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card className="p-4">
-          <p className="text-xs font-medium text-slate-500">{t("sponsor.balance")}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Card className="p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {t("sponsor.balance")}
+            </p>
+            {/*
+              🔴 37L.9 — THROUGH `formatDate`, BECAUSE AN ISO SLICE IS NOT A DATE
+              ANYBODY READS.
+
+              This printed `expiresAt.toISOString().slice(0, 10)`, which is the
+              exact thing the clinic page's own comment records being caught
+              doing, and the fault is worse in Arabic than it looks in English.
+              "2027-09-21" dropped into an RTL paragraph is reordered by the
+              bidi algorithm and renders "21-09-2027": the same three numbers in
+              the opposite order, with nothing on screen to say which. A reader
+              gets the right day here only because this one happens to be
+              palindromic in meaning; 2027-03-05 would read as the fifth of
+              March to one reader and the third of May to the next.
+
+              The helper takes the zone as an argument, so UTC stays explicit
+              (a pot expires on a date, not at an hour in somebody's city) and
+              the LANGUAGE still comes from the reader, which is the split the
+              rule exists to keep.
+            */}
+            {terms?.expiresAt ? (
+              <p className="text-xs font-semibold text-brand-700">
+                {t("sponsor.expires", { date: formatDate(terms.expiresAt, "UTC", locale) })}
+              </p>
+            ) : null}
+          </div>
+
+          <p className="mt-1.5 text-3xl font-bold tracking-tight tabular-nums text-navy-500">
             {balanceCents === null ? t("sponsor.balanceSuppressed") : fmt(balanceCents)}
           </p>
-          {terms?.expiresAt ? (
-            <p className="mt-1 text-xs text-slate-500">
-              {t("sponsor.expires", {
-                date: terms.expiresAt.toISOString().slice(0, 10),
-              })}
-            </p>
+
+          {/*
+            The bar only exists when the balance does. A bar drawn from a
+            suppressed figure is the suppression undone by a rectangle.
+          */}
+          {usedPercent !== null ? (
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <span
+                className="block h-full rounded-full bg-brand-500"
+                style={{ width: `${String(Math.min(100, Math.max(0, 100 - usedPercent)))}%` }}
+              />
+            </div>
           ) : null}
-        </Card>
 
-        <Card className="p-4">
-          <p className="text-xs font-medium text-slate-500">{t("sponsor.spentTotal")}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-            {fmt(totals.spentCents)}
+          <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
+            {actor.kind === "university" ? t("sponsor.planTitle") : t("sponsor.budgetTitle")}
+            {". "}
+            {potLine}
           </p>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-xs font-medium text-slate-500">{t("sponsor.sessionsTotal")}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-            {totals.sessions}
-          </p>
-        </Card>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-500">{t("sponsor.spentTotal")}</p>
+            <p className="mt-1 text-xl font-bold tracking-tight tabular-nums text-navy-500">
+              {fmt(totals.spentCents)}
+            </p>
+          </Card>
+
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-500">{t("sponsor.sessionsTotal")}</p>
+            <p className="mt-1 text-xl font-bold tracking-tight tabular-nums text-navy-500">
+              {totals.sessions}
+            </p>
+          </Card>
+        </div>
       </div>
 
       {!terms ? (
@@ -140,22 +213,6 @@ export default async function SponsorOverviewPage() {
           <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.noPot")}</p>
         </Card>
       ) : null}
-
-      {/* 53.26 — the face, chosen by `kind`, which is one column on one table. */}
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">
-          {actor.kind === "university" ? t("sponsor.planTitle") : t("sponsor.budgetTitle")}
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {actor.kind === "university"
-            ? weeksLeft === null
-              ? t("sponsor.planUnknown")
-              : t("sponsor.planBody", { weeks: weeksLeft })
-            : usedPercent === null
-              ? t("sponsor.planUnknown")
-              : t("sponsor.budgetBody", { percent: usedPercent })}
-        </p>
-      </Card>
 
       <Card className="p-5">
         <p className="text-sm font-semibold text-slate-900">{t("sponsor.spendTitle")}</p>
@@ -170,7 +227,10 @@ export default async function SponsorOverviewPage() {
         ) : (
           <SpendHeatmap
             weeks={weeks.map((week) => ({
+              /* The key. Machine-shaped, stable, never rendered. */
               weekStart: week.weekStart.toISOString().slice(0, 10),
+              /* 🔴 37L.9 — and the same Monday in the reader's language. */
+              label: formatDate(week.weekStart, "UTC", locale),
               /*
                * 🔴 `null` crosses the wire as null, and it is NOT zero.
                *

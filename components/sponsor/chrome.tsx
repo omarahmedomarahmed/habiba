@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
 import { signOutSponsor } from "@/app/(sponsor)/sponsor/sign-in/actions";
-import { NeverBar } from "@/components/visual/primitives";
+import { Desk } from "@/components/portal/desk";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -50,107 +47,62 @@ const TABS: { href: string; key: MessageKey }[] = [
   { href: "/sponsor/settings", key: "sponsor.nav.settings" },
 ];
 
+/**
+ * 🔴 THIS FILE IS NOW THE SPONSOR'S ANSWERS, AND `Desk` IS THE QUESTIONS.
+ *
+ * What stayed here: the section list above and every word of why it is that
+ * short, the sign out action, and the three sentences of the wall. Those are
+ * facts about this portal. What left: a header, a nav, a column and a footer
+ * that were byte for byte the clinic's, and are now one component both render.
+ */
 export function SponsorChrome({
   children,
   nav,
-  /**
-   * 🔴 A door page brings its own chrome, so this one steps out of the way.
-   * Task 154.
-   *
-   * The sign in page now renders the real site header and footer, the same two
-   * components the marketing pages use, because a centred card on an empty
-   * ground was the last thing a person saw before deciding to trust us. Those
-   * are full width. Dropped into this shell's `max-w-4xl px-4 py-8` column they
-   * would be a site header 896px wide floating in the middle of a grey page.
-   *
-   * The layout still WRAPS the door, which is deliberate and unchanged: it
-   * calls `get*Actor` rather than `require*`, because a layout that redirected
-   * would redirect the door. What changes here is only the container.
-   */
   bare = false,
   sponsorName,
   role,
 }: {
   children: React.ReactNode;
-  /** Signed out gets the door and no tabs: every tab would bounce them. */
+  /** Signed out gets the door and no rail: every link would bounce them. */
   nav: boolean;
   bare?: boolean;
   sponsorName: string | null;
   role: "admin" | "viewer" | null;
 }) {
   const t = useT();
-  const pathname = usePathname();
 
   return (
-    <div className="min-h-dvh bg-slate-50">
-      {nav ? (
-        <header className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-            <span className="text-sm font-bold tracking-tight text-slate-900">{sponsorName}</span>
-            {role === "viewer" ? (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                {t("sponsor.nav.overview")}
-              </span>
-            ) : null}
-            <form action={signOutSponsor} className="ms-auto">
-              <button
-                type="submit"
-                className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-              >
-                {t("sponsor.signOut")}
-              </button>
-            </form>
-          </div>
-
-          <nav className="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-3 pb-2">
-            {TABS.map((tab) => {
-              const active =
-                tab.href === "/sponsor" ? pathname === "/sponsor" : pathname.startsWith(tab.href);
-              return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  className={
-                    active
-                      ? "tap-target whitespace-nowrap rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
-                      : "tap-target whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                  }
-                >
-                  {t(tab.key)}
-                </Link>
-              );
-            })}
-          </nav>
-        </header>
-      ) : null}
-
-      {bare ? (
-        children
-      ) : (
-        <div className="mx-auto max-w-4xl px-4 py-8">{children}</div>
-      )}
-
-      {nav ? (
-        <footer className="mx-auto max-w-4xl px-4 pb-10">
-          {/*
-            🔴 65.12 / C240 / C227 — A STANDING VISUAL, NOT A SENTENCE IN GREY.
-
-            C240 put the attendance sentence on every screen of this portal and was right
-            to; what it could not fix is that the tenth time somebody scrolls past a grey
-            paragraph they have stopped seeing it. Three crosses are read from their
-            shape, and C227's rule — you will never see an individual — is beside it
-            rather than on a different page.
-          */}
-          <NeverBar
-            label={t("sponsor.neverLabel")}
-            items={[
-              t("sponsor.neverIndividual"),
-              t("sponsor.neverAttendance"),
-              t("sponsor.neverClinical"),
-            ]}
-          />
-        </footer>
-      ) : null}
-    </div>
+    <Desk
+      nav={nav}
+      bare={bare}
+      home="/sponsor"
+      name={sponsorName}
+      badge={role === "viewer" ? t("sponsor.nav.overview") : null}
+      sections={TABS.map((tab) => ({
+        href: tab.href,
+        label: t(tab.key),
+        exact: tab.href === "/sponsor",
+      }))}
+      actions={
+        <form action={signOutSponsor}>
+          <button
+            type="submit"
+            className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            {t("sponsor.signOut")}
+          </button>
+        </form>
+      }
+      never={{
+        label: t("sponsor.neverLabel"),
+        items: [
+          t("sponsor.neverIndividual"),
+          t("sponsor.neverAttendance"),
+          t("sponsor.neverClinical"),
+        ],
+      }}
+    >
+      {children}
+    </Desk>
   );
 }

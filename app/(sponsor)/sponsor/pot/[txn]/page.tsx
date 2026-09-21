@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
+import { formatDate } from "@/lib/utils";
 import { invoiceFor } from "@/lib/billing/invoice";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 
@@ -39,7 +40,9 @@ export default async function InvoicePage({
   params: Promise<{ txn: string }>;
 }) {
   const actor = await requireSponsor();
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
+  /* 🔴 37L.9 — an invoice date is read, so it is formatted rather than sliced. */
+  const day = (at: Date) => formatDate(at, "UTC", locale);
   const { txn } = await params;
 
   /*
@@ -87,7 +90,7 @@ export default async function InvoicePage({
             </p>
             <p className="font-mono text-sm font-bold text-slate-900">{invoice.number}</p>
             <p className="mt-1 text-xs text-slate-600">
-              {invoice.issuedAt.toISOString().slice(0, 10)}
+              {day(invoice.issuedAt)}
             </p>
           </div>
         </div>

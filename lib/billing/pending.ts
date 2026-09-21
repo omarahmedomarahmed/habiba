@@ -193,8 +193,8 @@ async function describe(
   refId: string | null,
   t: Translate,
 ): Promise<string> {
-  if (purpose === "pot_topup") return t("transfer.forPot");
-  if (purpose === "subscription") return t("transfer.forBill");
+  if (purpose === "pot_topup") return t("transfer.subjectPot");
+  if (purpose === "subscription") return t("transfer.subjectBill");
 
   if (purpose === "session" && refId) {
     const [row] = await db
@@ -205,10 +205,10 @@ async function describe(
       .limit(1);
 
     const name = [row?.first, row?.last].filter(Boolean).join(" ");
-    if (name) return t("transfer.forSessionWith", { name });
+    if (name) return t("transfer.subjectSessionWith", { name });
   }
 
-  return t("transfer.forSession");
+  return t("transfer.subjectSession");
 }
 
 function hrefFor(purpose: string, refId: string | null): string {

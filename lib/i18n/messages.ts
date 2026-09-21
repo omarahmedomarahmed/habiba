@@ -1545,6 +1545,11 @@ export const en = {
   "sponsor.topUpSubmit": "Add to the pot",
   "sponsor.topUpTooSmall": "The minimum top up is {min}.",
   "sponsor.expiresOn": "Unspent money expires on {date}.",
+  /* 🔴 What a saved coverage change says. It was two English template literals
+     in the action itself, so the Arabic portal answered in English. */
+  "sponsor.coverageNow": "Your people now pay {percent}% of a session.",
+  "sponsor.coverageFrom":
+    "Saved. This takes effect on {date}, so anybody who has already booked keeps the percentage they agreed to.",
   /* 🔴 53.15 — the documents, rendered from the ledger rather than stored. */
   "sponsor.invoices": "Your invoices",
   /*
@@ -1746,6 +1751,12 @@ export const en = {
   "clinic.aiFee": "AI fee",
   "clinic.total": "Total",
   "clinic.sessionCount": "{count} sessions",
+  "clinic.hoursBooked": "Booked this week",
+  "clinic.onTheRota": "Clinicians on the rota",
+  "clinic.usageBasis":
+    "Counted by the week each session was billed, which is not always the week it happened. The rota above is by the hour itself.",
+  /* Says what a zero means, and nothing about who covered it or with what. */
+  "clinic.nothingToPay": "Nothing to pay",
   "clinic.billsEmpty": "Nothing billed yet.",
   /* 🔴 54.6 / C261 — the invitation, and the sentence before the button. */
   "clinic.join.title": "{name} has invited you",
@@ -1863,10 +1874,30 @@ export const en = {
   "topup.vat": "VAT",
   "topup.send": "Transfer this",
   "topup.unavailable": "Top-ups are not set up yet. Talk to us and we will arrange it.",
-  "transfer.forSession": "for this session",
-  "transfer.forSessionWith": "Session with {name}",
-  "transfer.forBill": "for your bill",
-  "transfer.forPot": "for your pot",
+  /*
+   * 🔴 THESE FOUR NAME A PAYMENT, AND A NAME IS A NOUN.
+   *
+   * They were `forSession` / `forBill` / `forPot` and read "for this session",
+   * "for your bill", "for your pot". Every slot they land in is a SUBJECT: the
+   * bold heading of the payment sheet, the `what` half of the bar that follows
+   * an unfinished payment around the product, and a line in a receipt. So the
+   * sponsor's banner rendered
+   *
+   *     for your pot            EGP 142,500
+   *
+   * which starts mid-sentence, and the sheet's heading under COMPANY PAYMENT
+   * said the same. The fourth key, `Session with {name}`, was already a noun
+   * phrase, and so are its neighbours in the receipt: `Your benefit paid`,
+   * `VAT`. The three fragments were the odd ones out everywhere they appeared.
+   *
+   * The key names carried the fault, which is why they changed too: a key
+   * called `forPot` invites the next person to write `Transfer {forPot}` and
+   * put the fragment back. `subject` says what the slot is.
+   */
+  "transfer.subjectSession": "This session",
+  "transfer.subjectSessionWith": "Session with {name}",
+  "transfer.subjectBill": "Your bill",
+  "transfer.subjectPot": "Your pot top-up",
   "transfer.billDue": "You owe {amount} across {count} invoices.",
   "transfer.billDueOne": "You owe {amount}.",
   "pay.title": "Pay for your session",
@@ -5023,6 +5054,9 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.topUpSubmit": "أضف إلى المحفظة",
   "sponsor.topUpTooSmall": "الحد الأدنى للإضافة {min}.",
   "sponsor.expiresOn": "ينتهي المبلغ غير المنفق في {date}.",
+  "sponsor.coverageNow": "يدفع موظفوك الآن {percent}% من قيمة الجلسة.",
+  "sponsor.coverageFrom":
+    "تم الحفظ. يسري هذا في {date}، فمن حجز بالفعل يحتفظ بالنسبة التي وافق عليها.",
   "sponsor.invoices": "فواتيرك",
   "aclinic.nav": "العيادات",
   "aclinic.title": "العيادات والمستشفيات",
@@ -5186,6 +5220,11 @@ export const ar: Record<MessageKey, string> = {
   "clinic.aiFee": "رسم الذكاء الاصطناعي",
   "clinic.total": "الإجمالي",
   "clinic.sessionCount": "{count} جلسة",
+  "clinic.hoursBooked": "محجوز هذا الأسبوع",
+  "clinic.onTheRota": "معالجون على الجدول",
+  "clinic.usageBasis":
+    "محسوبة بأسبوع صدور فاتورة كل جلسة، وهو ليس دائمًا أسبوع انعقادها. أما الجدول أعلاه فبالساعة نفسها.",
+  "clinic.nothingToPay": "لا شيء للدفع",
   "clinic.billsEmpty": "لا فواتير بعد.",
   "clinic.join.title": "{name} دعتك",
   "clinic.join.body": "ضع كلمة مرور وتدخل. وتوثّق ترخيصك بنفسك بعدها.",
@@ -5264,10 +5303,11 @@ export const ar: Record<MessageKey, string> = {
   "transfer.amountPlaceholder": "بالدولار الأمريكي",
   "transfer.sendAtLeast": "أرسل {amount} على الأقل",
   "transfer.rateNote": "نحوّل بسعر {rate} للدولار.",
-  "transfer.forSession": "مقابل هذه الجلسة",
-  "transfer.forSessionWith": "جلسة مع {name}",
-  "transfer.forBill": "مقابل فاتورتك",
-  "transfer.forPot": "مقابل رصيدك",
+  /* Nouns here too: "مقابل" is the same headless "for" the English had. */
+  "transfer.subjectSession": "هذه الجلسة",
+  "transfer.subjectSessionWith": "جلسة مع {name}",
+  "transfer.subjectBill": "فاتورتك",
+  "transfer.subjectPot": "شحن رصيدك",
   "transfer.billDue": "عليك {amount} على {count} فواتير.",
   "transfer.billDueOne": "عليك {amount}.",
   "pay.title": "ادفع مقابل جلستك",

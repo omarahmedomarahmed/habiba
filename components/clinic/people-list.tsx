@@ -102,7 +102,7 @@ export function ClinicPeopleList({
                   <span
                     className={
                       person.verificationStatus === "verified"
-                        ? "ms-auto rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800"
+                        ? "ms-auto rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-800"
                         : "ms-auto rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
                     }
                   >
@@ -220,16 +220,16 @@ export function ClinicPeopleList({
             ) : null}
 
             {state.ok && state.link ? (
-              <div className="rounded-xl bg-teal-50 p-3">
-                <p className="text-xs font-medium text-teal-900">{t("clinic.inviteSent")}</p>
+              <div className="rounded-xl bg-brand-50 p-3">
+                <p className="text-xs font-medium text-brand-900">{t("clinic.inviteSent")}</p>
                 {/*
                   🔴 The link is shown as well as sent, and that is honesty rather than
                   convenience: our mail domain is not verified yet, so `notify` reports
                   a failure rather than delivering, and a practice onboarding six people
                   needs a way through that does not depend on us.
                 */}
-                <p className="mt-1 text-xs text-teal-800">{t("clinic.inviteLink")}</p>
-                <p className="mt-1 break-all font-mono text-xs text-teal-900">{state.link}</p>
+                <p className="mt-1 text-xs text-brand-800">{t("clinic.inviteLink")}</p>
+                <p className="mt-1 break-all font-mono text-xs text-brand-900">{state.link}</p>
               </div>
             ) : null}
 

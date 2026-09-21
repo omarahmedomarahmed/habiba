@@ -1296,7 +1296,20 @@ async function main() {
      */
     check(
       "🔴 C240 the attendance sentence is in the chrome, so it is on every sponsor screen",
-      /<NeverBar/.test(chrome) && /sponsor\.neverAttendance/.test(chrome),
+      /*
+       * 🔴 ONE HOP. The chrome hands its wall to `components/portal/desk.tsx`,
+       * the shell both admin portals now share, which renders it in the rail
+       * instead of a footer under the content. C240 asks for the sentence on
+       * every screen; the rail puts it on every screen without a scroll.
+       *
+       * Both halves are named, as the note above insists: the sponsor's own
+       * file must still say `neverAttendance` (that sentence is a fact about
+       * THIS portal and does not belong in a shared shell), and whatever it
+       * hands that to must actually draw a wall.
+       */
+      (/<NeverBar/.test(chrome) ||
+        (/never=\{\{/.test(chrome) && /<NeverBar/.test(readSource("components/portal/desk.tsx")))) &&
+        /sponsor\.neverAttendance/.test(chrome),
       "the person drafting a policy will not click through to find out",
     );
 

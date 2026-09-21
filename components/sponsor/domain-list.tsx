@@ -67,7 +67,7 @@ export function DomainList({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-mono text-sm font-semibold text-slate-900">{row.domain}</p>
               {row.byAgreement ? (
-                <span className="text-xs font-medium text-teal-700">
+                <span className="text-xs font-medium text-brand-700">
                   Proved by signed agreement
                 </span>
               ) : null}
@@ -85,7 +85,7 @@ export function DomainList({
                 {row.problem}
               </p>
             ) : (
-              <p className="mt-3 text-sm font-medium text-teal-700">
+              <p className="mt-3 text-sm font-medium text-brand-700">
                 Proved. This domain can issue joining codes.
               </p>
             )}
@@ -156,7 +156,7 @@ export function DomainList({
             <p className="mt-2 text-sm font-semibold text-red-700">{state.error}</p>
           ) : null}
           {state.ok ? (
-            <p className="mt-2 text-sm font-semibold text-teal-700">
+            <p className="mt-2 text-sm font-semibold text-brand-700">
               Added. Publish the record above, and we will email a code to an address at that
               domain.
             </p>
@@ -171,7 +171,7 @@ function Step({ done, label }: { done: boolean; label: string }) {
   return (
     <li className="flex items-center gap-2 text-sm">
       {done ? (
-        <Check className="h-4 w-4 shrink-0 text-teal-600" aria-hidden />
+        <Check className="h-4 w-4 shrink-0 text-brand-600" aria-hidden />
       ) : (
         <Circle className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
       )}

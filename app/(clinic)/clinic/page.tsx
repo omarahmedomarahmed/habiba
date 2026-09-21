@@ -5,7 +5,7 @@ import { Card } from "@/components/ui";
 import { requireClinic } from "@/lib/clinic-auth/guard";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
-import { formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "This week", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -75,11 +75,45 @@ export default async function ClinicOverviewPage({
    */
   const when = (at: Date | null) => formatDateTime(at, "UTC", locale);
 
+  /*
+   * 🔴 AND THE WEEK LABELS GO THROUGH IT TOO, which they did not.
+   *
+   * The comment above was written about the rota's times and stopped there, so
+   * both "Week of ..." labels on this page still printed
+   * `toISOString().slice(0, 10)` a few lines below it. In Arabic the bidi
+   * algorithm reorders "2026-09-21" on screen to "21-09-2026", which is the
+   * same three numbers with the year and day swapped and nothing to say so.
+   *
+   * The ISO string is still what the prev/next links carry, because a URL
+   * parameter is machine-shaped by design and `new Date(...)` parses it on the
+   * way back in. Only the rendered label changes.
+   */
+  const day = (at: Date) => formatDate(at, "UTC", locale);
+
   const money = (cents: number) =>
     new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
       style: "currency",
       currency: "USD",
     }).format(cents / 100);
+
+  /*
+   * 🔴 THE WEEK IN TWO FIGURES, FROM ROWS ALREADY IN HAND. Option A,
+   * /design/clinic/sample.
+   *
+   * The sample put a summary strip above the rota, and the obvious build is to
+   * fetch seats and the next bill for it. That would be wrong here: this page
+   * is reachable with `schedule.read` alone, and `clinicClinicians` and
+   * `clinicBills` are gated behind `people.read` and `bills.read`. A receptionist
+   * who can see the rota would get a thrown query rather than a screen, and the
+   * fix somebody reached for under that error would be to widen the read.
+   *
+   * So both figures are derived from `rows`, which this page already has under
+   * the capability it already requires. Neither is new information: every
+   * session counted here is a visible row in the table below, and a count of
+   * DISTINCT clinicians is not a caseload for any of them, which is the line
+   * `components/clinic/people-list.tsx` draws.
+   */
+  const onTheRota = new Set(rows.map((row) => row.therapistName)).size;
 
   return (
     <div className="space-y-4">
@@ -115,7 +149,7 @@ export default async function ClinicOverviewPage({
           {t("clinic.prevWeek")}
         </Link>
         <span className="text-xs font-medium text-slate-500">
-          {t("clinic.week", { date: monday.toISOString().slice(0, 10) })}
+          {t("clinic.week", { date: day(monday) })}
         </span>
         <Link
           href={`/clinic?week=${next.toISOString().slice(0, 10)}`}
@@ -124,6 +158,35 @@ export default async function ClinicOverviewPage({
           {t("clinic.nextWeek")}
         </Link>
       </div>
+
+      {/*
+        🔴 AND NOT ON A WEEK WITH NOTHING IN IT.
+
+        Rendered unconditionally, an empty week drew "Booked this week 0" and
+        "Clinicians on the rota 0" directly above "No appointments this week",
+        which is the same fact three times. The second one was worse than
+        redundant: a practice with six clinicians and a quiet week was told it
+        had none, two inches from a rail with "Your clinicians" in it.
+
+        Both figures summarise the rows. With no rows there is nothing to
+        summarise, and the empty state below says the whole truth on its own.
+      */}
+      {rows.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-500">{t("clinic.hoursBooked")}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
+              {rows.length}
+            </p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs font-medium text-slate-500">{t("clinic.onTheRota")}</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
+              {onTheRota}
+            </p>
+          </Card>
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <Card className="p-5">
@@ -154,6 +217,19 @@ export default async function ClinicOverviewPage({
       {/* 🔴 54.10 / C262 — the same floor as C229, through the same function. */}
       <Card className="p-5">
         <p className="text-sm font-semibold text-slate-900">{t("clinic.usageTitle")}</p>
+        {/*
+          🔴 WHICH WEEK, because this card and the rota above it both say "week"
+          and mean different ones.
+
+          `clinicSchedule` filters on `sessions.scheduled_at`: the hour itself.
+          `clinicUsage` groups `invoices` by `issued_at`: when it was billed. A
+          session on the 14th invoiced on the 21st is in last week's rota and
+          this week's total, both correctly. On one screen, with no label, that
+          reads as the page contradicting itself, and the first thing a practice
+          manager does with a portal that contradicts itself is stop trusting
+          the figures in it.
+        */}
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">{t("clinic.usageBasis")}</p>
 
         {usage.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500">{t("clinic.suppressed")}</p>
@@ -165,7 +241,7 @@ export default async function ClinicOverviewPage({
                 className="flex flex-wrap items-baseline justify-between gap-3 text-sm"
               >
                 <span className="text-slate-600">
-                  {t("clinic.week", { date: row.weekStart.toISOString().slice(0, 10) })}
+                  {t("clinic.week", { date: day(row.weekStart) })}
                 </span>
                 {/*
                   🔴 null is SUPPRESSED and it is NOT zero.
@@ -177,7 +253,28 @@ export default async function ClinicOverviewPage({
                   <span className="text-xs text-slate-400">{t("clinic.suppressed")}</span>
                 ) : (
                   <span className="tabular-nums text-slate-800">
-                    {t("clinic.sessionCount", { count: row.sessions })} · {money(row.spendCents)}
+                    {t("clinic.sessionCount", { count: row.sessions })} ·{" "}
+                    {/*
+                      🔴 A BARE "$0.00" BESIDE FIVE SESSIONS READS AS A BROKEN PAGE.
+
+                      It is not broken and it is not rounding. A session whose
+                      invoice is `included` or `waived` costs the clinic
+                      nothing: their welcome credit covered it, or a patient's
+                      employer did, or somebody waived it. The row summed to
+                      zero honestly, and the first thing a practice manager
+                      does with a money figure they cannot account for is stop
+                      believing the other ones.
+
+                      The words say only what the zero already said, which is
+                      why this is safe to show: no new fact about who was
+                      covered or by what, because this page must not carry one.
+                      The sessions count is still under the C262 floor above.
+                    */}
+                    {row.spendCents === 0 && row.sessions > 0 ? (
+                      <span className="font-medium text-slate-600">{t("clinic.nothingToPay")}</span>
+                    ) : (
+                      money(row.spendCents)
+                    )}
                   </span>
                 )}
               </li>

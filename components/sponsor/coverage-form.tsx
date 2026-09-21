@@ -178,7 +178,7 @@ export function CoverageForm({
         <p className="mt-3 text-sm font-semibold text-red-700">{state.error}</p>
       ) : null}
       {state.ok && state.message ? (
-        <p className="mt-3 text-sm font-semibold text-teal-700">{state.message}</p>
+        <p className="mt-3 text-sm font-semibold text-brand-700">{state.message}</p>
       ) : null}
     </Card>
   );

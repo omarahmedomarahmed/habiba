@@ -129,17 +129,185 @@ async function main() {
    * C240 and 54.9 both rule that the limit is on EVERY screen of the portal. A component
    * in the chrome is how that is true of a page nobody has written yet.
    */
+  /*
+   * 🔴 THE WALL MOVED ONE HOP, SO THE CHECK FOLLOWS IT.
+   *
+   * Both chromes used to render `<NeverBar>` themselves. They now hand their
+   * three sentences to `components/portal/desk.tsx`, the one shell both admin
+   * portals share, which renders it in the RAIL rather than in a footer below
+   * the content. C240's rule is that the limit is on every screen; it is on
+   * every screen and now also above the fold on every screen.
+   *
+   * The property is a chain, so the check is a chain: the chrome names its wall
+   * and hands it over, and the thing it hands it to renders one. Asserting only
+   * the first half would pass a chrome wired to a shell that dropped it.
+   */
+  const desk = readSource("components/portal/desk.tsx");
+  const deskRendersWall = /<NeverBar/.test(desk);
+
   for (const [portal, file] of [
     ["sponsor", "components/sponsor/chrome.tsx"],
     ["clinic", "components/clinic/chrome.tsx"],
   ] as const) {
     const chrome = readSource(file);
+    const handsItOver = /never=\{\{/.test(chrome) && /neverLabel/.test(chrome);
     check(
-      `🔴 65.12 the ${portal} chrome renders the standing limit, on every screen`,
-      /<NeverBar/.test(chrome),
+      `🔴 65.12 the ${portal} chrome carries the standing limit, on every screen`,
+      (/<NeverBar/.test(chrome) || (handsItOver && deskRendersWall)) &&
+        /<Desk|<NeverBar/.test(chrome),
       "in the chrome, so a page nobody has written yet already carries it",
     );
   }
+
+  /*
+   * 🔴 CONTROL — the SECOND half of the chain has to be load-bearing.
+   *
+   * The clause above is an OR, so a chrome that hands its wall over passes as
+   * long as the shell draws one. If the shell stopped drawing one, that clause
+   * has to go false. Re-evaluating it against a shell that renders no wall is
+   * the only way to know the `deskRendersWall` term is doing work rather than
+   * riding along beside a `handsItOver` that is true either way.
+   */
+  const sponsorChrome = readSource("components/sponsor/chrome.tsx");
+  const withoutWall =
+    (/<NeverBar/.test(sponsorChrome) || (/never=\{\{/.test(sponsorChrome) && false)) &&
+    /<Desk|<NeverBar/.test(sponsorChrome);
+  check(
+    "🔴 65.12 CONTROL a shell that drew no wall would fail the portals that delegate to it",
+    withoutWall === false,
+    "so the chain is a chain rather than one half of one",
+  );
+
+  /* ================================================================== */
+  /*  75.3 · the language switch, on every signed-in screen             */
+  /* ================================================================== */
+
+  /*
+   * 🔴 75.3 HAD NO CHECK, AND THE SWITCH JUST MOVED.
+   *
+   * The rule is that somebody who has signed in can still change language, on
+   * every screen, because reading English on an invoice and Arabic on a consent
+   * form is one afternoon rather than two accounts. It was kept true by a
+   * `LanguageCorner` pasted into each signed-in layout, which is exactly the
+   * kind of rule that is true until the day one layout is written without it.
+   *
+   * On the two admin portals it has now moved off the glass and into the desk's
+   * rail, because a pill fixed to the top corner sat on top of the payment
+   * bar's Dismiss button. That is the second reason to write the check: a rule
+   * that survives being moved is a rule somebody can move again safely.
+   *
+   * So the property is REACHES A SWITCH, not renders one component. Either the
+   * layout draws the corner itself, or it draws a chrome that gets there.
+   */
+  const deskSwitches = /<LanguageSwitch/.test(desk);
+
+  for (const [shell, layout, chrome] of [
+    ["therapist", "app/(app)/layout.tsx", null],
+    ["patient", "app/(patient)/layout.tsx", null],
+    ["admin", "app/(admin)/layout.tsx", null],
+    ["room", "app/(room)/layout.tsx", null],
+    ["partner", "app/(partner)/layout.tsx", null],
+    ["sponsor", "app/(sponsor)/layout.tsx", "components/sponsor/chrome.tsx"],
+    ["clinic", "app/(clinic)/layout.tsx", "components/clinic/chrome.tsx"],
+  ] as const) {
+    const source = readSource(layout);
+    const viaDesk = chrome !== null && /<Desk/.test(readSource(chrome)) && deskSwitches;
+
+    check(
+      `🔴 75.3 the ${shell} shell reaches a language switch, on every screen`,
+      /<LanguageCorner/.test(source) || viaDesk,
+      chrome === null ? "the corner, in the layout" : "the rail, through the desk",
+    );
+  }
+
+  /*
+   * 🔴 CONTROL — the same clause, against a desk that renders no switch.
+   *
+   * The two portals below pass only through `viaDesk`, and `viaDesk` is an AND
+   * whose second half is the only part that reads the shell. A desk that
+   * stopped rendering a switch has to take them down with it, or the check is
+   * asserting that a chrome imports `Desk` and nothing more.
+   */
+  const strandedPortal =
+    /<LanguageCorner/.test(readSource("app/(sponsor)/layout.tsx")) ||
+    (/<Desk/.test(sponsorChrome) && false);
+
+  check(
+    "🔴 75.3 CONTROL a desk that rendered no switch would strand the portals that delegate to it",
+    strandedPortal === false,
+    "so this asserts the switch is reachable, not that a chrome imports a shell",
+  );
+
+  /* ================================================================== */
+  /*  37L.9 · an ISO slice is not a date anybody reads                  */
+  /* ================================================================== */
+
+  /*
+   * 🔴 NINE RENDERED DATES ON THESE TWO PORTALS WERE `toISOString().slice(0, 10)`.
+   *
+   * The pot's expiry twice, the coverage change date, the top-up form's date,
+   * every invoice in the pot history, "last verified" on the roster, both
+   * "Week of ..." labels on the clinic's rota, and the heatmap's tooltips.
+   * 37L.9 already forbids a page formatting a date itself, and the clinic page
+   * carried a comment about being caught doing it — four lines above two more
+   * of them.
+   *
+   * The reason this matters more than tidiness is Arabic. An ISO string dropped
+   * into an RTL paragraph is reordered by the bidi algorithm, so "2027-09-21"
+   * renders "21-09-2027": the same three numbers with the year and the day
+   * swapped, and nothing on screen to say which end is which. A benefits
+   * administrator reading a refund deadline off that is reading a guess.
+   *
+   * 🔴 AND THE CHECK IS NOT "NO SLICES". Two are legitimate and both stay: a
+   * `week=` URL parameter is machine-shaped by design, and React's key wants a
+   * stable string rather than a translated one. So the rule is that every slice
+   * is on a line that is a URL or a key, and anything else is a date on screen.
+   *
+   * `readSource` strips comments, so the paragraphs above do not count
+   * themselves.
+   */
+  const PORTAL_DIRS = [
+    "app/(sponsor)",
+    "app/(clinic)",
+    "components/sponsor",
+    "components/clinic",
+  ];
+  const SLICE = /toISOString\(\)\.slice\(0, 10\)/;
+  /* A URL parameter, or the field the heatmap keys on. Both are not read. */
+  const MACHINE = /href=|weekStart:/;
+
+  const rendered: string[] = [];
+  for (const dir of PORTAL_DIRS) {
+    for (const file of walk(dir)) {
+      readSource(file)
+        .split("\n")
+        .forEach((line, index) => {
+          if (SLICE.test(line) && !MACHINE.test(line)) rendered.push(`${file}:${index + 1}`);
+        });
+    }
+  }
+
+  check(
+    "🔴 37L.9 no date on the company or clinic portal is an ISO slice a person has to read",
+    rendered.length === 0,
+    rendered.join(", ") || "every rendered date goes through `formatDate`",
+  );
+
+  /*
+   * 🔴 CONTROL — the same sweep, over a line that IS the fault.
+   *
+   * The clause is two tests joined by AND and the second one is an exemption,
+   * so a `MACHINE` pattern that matched everything would make this pass on any
+   * codebase. Running it against a line that renders a slice proves it still
+   * catches one.
+   */
+  const plantedLine = '{t("sponsor.expiresOn", { date: pot.expiresAt.toISOString().slice(0, 10) })}';
+
+  check(
+    "🔴 37L.9 CONTROL the same sweep still catches a rendered slice",
+    SLICE.test(plantedLine) && !MACHINE.test(plantedLine),
+    "the exemption exempts URLs and keys, not every line that has a date on it",
+  );
 
   /* ================================================================== */
   /*  65.22 · decoration instead of information                         */
@@ -437,7 +605,33 @@ async function main() {
     ["AR", DEFAULT_PAGES_AR],
   ] as const) {
     const home = pages.find((page) => page.slug === "home");
-    const heroes = (home?.blocks ?? []).filter((block) => block.type === "hero");
+
+    /*
+     * 🔴 A DOOR, NOT A `hero` BLOCK. The rule outlived the shape it was written
+     * against, and this check did not.
+     *
+     * 65.15 asserted four `hero` blocks because that is how the homepage said
+     * "one door per audience" the day it was written. Task 137 replaced five
+     * stacked navy heroes with ONE `audiences` block that rotates four panels
+     * through a single fold, each panel carrying its own clause and its own
+     * live component. The property 65.15 exists for — every audience arrives at
+     * a door of their own, and no two doors show the same picture — is exactly
+     * as true, and stronger, since the four are now side by side instead of
+     * four screens apart.
+     *
+     * The check went red anyway, and stayed red, because it was counting a
+     * block type. That is the failure mode C200 ruled on: a gate that names an
+     * implementation reports a rewrite as a regression and teaches whoever
+     * meets it to leave the page alone.
+     *
+     * So a door is a hero OR an audiences panel, and both are read here.
+     */
+    const blocks = home?.blocks ?? [];
+    const heroes = blocks.filter((block) => block.type === "hero");
+    const panels = blocks.flatMap((block) =>
+      block.type === "audiences" ? block.panels : [],
+    );
+    const doors = [...heroes, ...panels];
 
     /*
      * 🔴 77.8 — THE RULE WAS "EXACTLY FOUR" AND IT IS "ONE EACH, NO REPEATS" NOW.
@@ -455,13 +649,20 @@ async function main() {
      * same component, and every hero must show one — which is the property
      * "a hero is a door rather than an argument" actually rests on.
      */
-    const demoNames = heroes.map((hero) => (hero as { demo?: string }).demo);
-    const REQUIRED = ["radar", "session-room", "company", "clinic"];
+    const demoNames = doors.map((door) => (door as { demo?: string }).demo);
+
+    /*
+     * 🔴 The patient's door is named twice in the schema and is one component.
+     * `ComponentShowcase` maps `radar` and `patient-app` to the same thing:
+     * `PatientApp` opened on its radar tab. A check that insists on the older
+     * spelling is asserting a synonym rather than a door.
+     */
+    const REQUIRED = [["radar", "patient-app"], ["session-room"], ["company"], ["clinic"]];
 
     check(
-      `🔴 65.15 the ${locale} homepage has a hero for every audience who arrives`,
-      heroes.length >= 4 && REQUIRED.every((name) => demoNames.includes(name)),
-      `${String(heroes.length)} heroes: ${demoNames.join(", ")}`,
+      `🔴 65.15 the ${locale} homepage has a door for every audience who arrives`,
+      doors.length >= 4 && REQUIRED.every((names) => names.some((n) => demoNames.includes(n))),
+      `${String(heroes.length)} hero(es) + ${String(panels.length)} panel(s): ${demoNames.join(", ")}`,
     );
 
     /*
@@ -469,7 +670,7 @@ async function main() {
      * fifth hero is a fifth thing to look at rather than a fifth paragraph.
      */
     check(
-      `🔴 65.15 …and no two ${locale} heroes show the same component`,
+      `🔴 65.15 …and no two ${locale} doors show the same component`,
       new Set(demoNames).size === demoNames.length && demoNames.every(Boolean),
       demoNames.join(", "),
     );

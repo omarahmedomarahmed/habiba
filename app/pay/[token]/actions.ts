@@ -332,8 +332,8 @@ export async function openSessionPayment(token: string): Promise<void> {
     owed,
     vatCents: money.vatCents,
     sessionLabel: therapistName
-      ? t("transfer.forSessionWith", { name: therapistName })
-      : t("transfer.forSession"),
+      ? t("transfer.subjectSessionWith", { name: therapistName })
+      : t("transfer.subjectSession"),
     benefitLabel: t("pay.benefitPaid"),
     vatLabel: t("topup.vat"),
   });

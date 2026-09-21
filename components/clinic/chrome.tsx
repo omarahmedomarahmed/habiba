@@ -1,12 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
 import { signOutClinic } from "@/app/(clinic)/clinic/sign-in/actions";
 import { switchToClinician } from "@/app/(clinic)/clinic/team/actions";
 import type { ClinicCapability } from "@/lib/clinic-auth/capabilities";
-import { NeverBar } from "@/components/visual/primitives";
+import { Desk } from "@/components/portal/desk";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -58,30 +55,25 @@ const TABS: { href: string; key: MessageKey; needs: ClinicCapability }[] = [
   { href: "/clinic/records", key: "records.title", needs: "team.manage" },
 ];
 
+/**
+ * 🔴 THIS FILE IS NOW THE CLINIC'S ANSWERS, AND `Desk` IS THE QUESTIONS.
+ *
+ * What stayed: the section list above and every word of why it is that short,
+ * the capability filter and the note that it is a courtesy rather than a gate,
+ * the two session-ending actions, and the three sentences of the wall. What
+ * left: a header, a nav, a column and a footer that were byte for byte the
+ * sponsor's.
+ */
 export function ClinicChrome({
   children,
   nav,
-  /**
-   * 🔴 A door page brings its own chrome, so this one steps out of the way.
-   * Task 154.
-   *
-   * The sign in page now renders the real site header and footer, the same two
-   * components the marketing pages use, because a centred card on an empty
-   * ground was the last thing a person saw before deciding to trust us. Those
-   * are full width. Dropped into this shell's `max-w-4xl px-4 py-8` column they
-   * would be a site header 896px wide floating in the middle of a grey page.
-   *
-   * The layout still WRAPS the door, which is deliberate and unchanged: it
-   * calls `get*Actor` rather than `require*`, because a layout that redirected
-   * would redirect the door. What changes here is only the container.
-   */
   bare = false,
   clinicName,
   capabilities = [],
   linked = false,
 }: {
   children: React.ReactNode;
-  /** Signed out gets the door and no tabs: every tab would bounce them. */
+  /** Signed out gets the door and no rail: every link would bounce them. */
   nav: boolean;
   bare?: boolean;
   clinicName: string | null;
@@ -91,102 +83,56 @@ export function ClinicChrome({
   linked?: boolean;
 }) {
   const t = useT();
-  /*
-   * 🔴 `?? "/clinic"`, and this was found by RENDERING it rather than by reading it.
-   *
-   * `usePathname` returns null outside a router context, and `verify:sprint54` renders
-   * this component to sweep its markup for clinical words (54.9). Without the fallback it
-   * threw on `pathname.startsWith`, which is a crash in the verifier and would also be a
-   * crash anywhere else this is rendered outside a route: a test, a story, an error
-   * boundary. The fallback is the portal's own home, so the first tab reads as active,
-   * which is the correct thing for a chrome with no path to highlight.
-   */
-  const pathname = usePathname() ?? "/clinic";
 
   return (
-    <div className="min-h-dvh bg-slate-50">
-      {nav ? (
-        <header className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-            <span className="text-sm font-bold tracking-tight text-slate-900">{clinicName}</span>
-            {/*
-              🔴 63.2 / C352 — THE SWITCHER, and it is a handover rather than a link.
+    <Desk
+      nav={nav}
+      bare={bare}
+      home="/clinic"
+      name={clinicName}
+      sections={TABS.filter((tab) => capabilities.includes(tab.needs)).map((tab) => ({
+        href: tab.href,
+        label: t(tab.key),
+        exact: tab.href === "/clinic",
+      }))}
+      actions={
+        <>
+          {/*
+            🔴 63.2 / C352 — THE SWITCHER, and it is a handover rather than a link.
 
-              A therapist who upgraded is a clinician AND the practice's admin. The
-              two principals have separate cookies, which means both could be live at
-              once unless something ends one of them: pressing this revokes every
-              clinic session this person holds and then signs them in as the
-              clinician, in that order, audited.
-            */}
-            {linked ? (
-              <form action={switchToClinician} className="ms-auto">
-                <button
-                  type="submit"
-                  className="tap-target h-9 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  {t("clinic.switchToClinician")}
-                </button>
-              </form>
-            ) : null}
-
-            <form action={signOutClinic} className={linked ? "" : "ms-auto"}>
+            A therapist who upgraded is a clinician AND the practice's admin. The
+            two principals have separate cookies, which means both could be live
+            at once unless something ends one of them: pressing this revokes
+            every clinic session this person holds and then signs them in as the
+            clinician, in that order, audited.
+          */}
+          {linked ? (
+            <form action={switchToClinician}>
               <button
                 type="submit"
-                className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                className="tap-target h-9 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                {t("clinic.signOut")}
+                {t("clinic.switchToClinician")}
               </button>
             </form>
-          </div>
+          ) : null}
 
-          <nav className="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-3 pb-2">
-            {TABS.filter((tab) => capabilities.includes(tab.needs)).map((tab) => {
-              const active =
-                tab.href === "/clinic" ? pathname === "/clinic" : pathname.startsWith(tab.href);
-              return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  className={
-                    active
-                      ? "tap-target whitespace-nowrap rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
-                      : "tap-target whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                  }
-                >
-                  {t(tab.key)}
-                </Link>
-              );
-            })}
-          </nav>
-        </header>
-      ) : null}
-
-      {bare ? (
-        children
-      ) : (
-        <div className="mx-auto max-w-4xl px-4 py-8">{children}</div>
-      )}
-
-      {nav ? (
-        <footer className="mx-auto max-w-4xl px-4 pb-10">
-          {/*
-            🔴 65.11 / 65.12 / 54.9 — THE SAME STANDING VISUAL AS THE SPONSOR'S.
-
-            54.9 put this on every screen of the portal. 65.4's rule is that the same rule
-            on two screens looks like the same rule, and "what this principal will never
-            see" is the same rule for a practice and for an employer: one component, two
-            chromes, one place a fix lands.
-          */}
-          <NeverBar
-            label={t("clinic.neverLabel")}
-            items={[
-              t("clinic.neverNote"),
-              t("clinic.neverRisk"),
-              t("clinic.neverBuilt"),
-            ]}
-          />
-        </footer>
-      ) : null}
-    </div>
+          <form action={signOutClinic}>
+            <button
+              type="submit"
+              className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              {t("clinic.signOut")}
+            </button>
+          </form>
+        </>
+      }
+      never={{
+        label: t("clinic.neverLabel"),
+        items: [t("clinic.neverNote"), t("clinic.neverRisk"), t("clinic.neverBuilt")],
+      }}
+    >
+      {children}
+    </Desk>
   );
 }

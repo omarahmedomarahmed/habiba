@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { RosterList } from "@/components/sponsor/roster-list";
 import { roster } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
+import { formatDate } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 
@@ -24,7 +25,9 @@ export const dynamic = "force-dynamic";
  */
 export default async function SponsorPeoplePage() {
   const actor = await requireSponsor();
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
+  /* 🔴 37L.9 — "last verified" is a date a person reads, not an identifier. */
+  const day = (at: Date) => formatDate(at, "UTC", locale);
   const settings = await getSettings();
 
   const people = await roster(actor.sponsorId);
@@ -53,7 +56,7 @@ export default async function SponsorPeoplePage() {
            * safe to render at all, and the reasoning is on the schema column.
            */
           lastChecked: person.lastVerifiedAt
-            ? person.lastVerifiedAt.toISOString().slice(0, 10)
+            ? day(person.lastVerifiedAt)
             : null,
           paused: person.paused,
         }))}

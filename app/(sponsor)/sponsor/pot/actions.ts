@@ -111,13 +111,30 @@ export async function setCoveragePercent(
    * and changed nothing reads as a bug. It is the notice window doing exactly
    * what it is for.
    */
+  /*
+   * 🔴 AND IT SAYS IT IN THE READER'S LANGUAGE, WITH A DATE THEY CAN READ.
+   *
+   * Both halves were English template literals with an ISO slice in them, so an
+   * Arabic benefits administrator who lowered their coverage percentage got an
+   * English sentence containing "2027-09-21", which the bidi algorithm then
+   * rendered "21-09-2027". The one fact this message exists to deliver is WHEN,
+   * and it was the fact hardest to read.
+   *
+   * `getI18n` works here for the same reason it works in `app/pay`: a server
+   * action runs inside the request, so the cookie that decides the language is
+   * in scope.
+   */
+  const { getI18n } = await import("@/lib/i18n/server");
+  const { t, locale } = await getI18n();
+  const { formatDate } = await import("@/lib/utils");
+
   const from = result.effectiveFrom;
   const immediate = !from || from.getTime() <= Date.now() + 60_000;
   return {
     ok: true,
     message: immediate
-      ? `Your people now pay ${100 - percent}% of a session.`
-      : `Saved. This takes effect on ${from.toISOString().slice(0, 10)}, so anybody who has already booked keeps the percentage they agreed to.`,
+      ? t("sponsor.coverageNow", { percent: String(100 - percent) })
+      : t("sponsor.coverageFrom", { date: formatDate(from, "UTC", locale) }),
   };
 }
 

@@ -2,7 +2,6 @@ import { ClinicChrome } from "@/components/clinic/chrome";
 import { getClinicActor } from "@/lib/clinic-auth/session";
 import { headers } from "next/headers";
 
-import { LanguageCorner } from "@/components/i18n/language-corner";
 import { CLINIC_SIGN_IN } from "@/lib/routing";
 
 /**
@@ -43,8 +42,14 @@ export default async function ClinicLayout({ children }: { children: React.React
    * unchanged — it calls `getClinicActor` rather than `requireClinic` because
    * a layout that redirected would redirect the door.
    *
-   * `LanguageCorner` goes with it: the site header already carries the switch,
-   * and two of them in one corner is what 75.3 was fixing.
+   * 🔴 AND THE SWITCH IS NOT RENDERED HERE AT ALL ANY MORE.
+   *
+   * It was a `LanguageCorner`, fixed to the top corner of the glass, which on
+   * this portal meant a pill sitting on top of the first thing on the page. It
+   * now rides in the desk's rail with Sign out, where it is in the same place
+   * on every screen of this portal without being on top of one. The door needs
+   * no line of its own either way: the site header it brings carries its own
+   * switch.
    */
   const door = (head.get("x-pathname") ?? "") === CLINIC_SIGN_IN;
 
@@ -56,8 +61,6 @@ export default async function ClinicLayout({ children }: { children: React.React
       capabilities={actor?.capabilities ?? []}
       linked={Boolean(actor?.linkedUserId)}
     >
-      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
-      {door ? null : <LanguageCorner />}
       {children}
     </ClinicChrome>
   );

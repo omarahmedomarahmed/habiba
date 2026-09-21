@@ -171,7 +171,7 @@ export function SponsorIntegrations({
                 aria-hidden
                 className={
                   live
-                    ? "h-2.5 w-2.5 rounded-full bg-teal-500"
+                    ? "h-2.5 w-2.5 rounded-full bg-brand-500"
                     : "h-2.5 w-2.5 rounded-full bg-slate-300"
                 }
               />
@@ -231,11 +231,11 @@ Content-Type: application/json
                     {i === 2 && canManage ? (
                       <div className="mt-2">
                         {minted ? (
-                          <div className="rounded-xl bg-teal-50 p-3">
-                            <p className="text-xs font-medium text-teal-900">
+                          <div className="rounded-xl bg-brand-50 p-3">
+                            <p className="text-xs font-medium text-brand-900">
                               {t("sint.keyOnce")}
                             </p>
-                            <p className="mt-1 break-all font-mono text-xs text-teal-900">
+                            <p className="mt-1 break-all font-mono text-xs text-brand-900">
                               {minted}
                             </p>
                           </div>

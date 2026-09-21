@@ -14,6 +14,7 @@ import { topUpHistory } from "@/lib/billing/invoice";
 import { potTerms } from "@/lib/data/sponsor-admin";
 import { coverageFor, potBalance } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
+import { formatDate } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 
@@ -35,6 +36,22 @@ export const dynamic = "force-dynamic";
 export default async function SponsorPotPage() {
   const actor = await requireSponsor();
   const { t, locale } = await getI18n();
+
+  /*
+   * 🔴 37L.9 — EVERY DATE ON THIS PAGE, IN THE READER'S LANGUAGE.
+   *
+   * Five of them printed `toISOString().slice(0, 10)`: the expiry on the meter,
+   * the expiry in the terms, the date a coverage change takes effect, the date
+   * on the top-up form, and the date on every invoice in the history. An ISO
+   * slice is not a date anybody reads, and in Arabic it is worse than ugly: the
+   * bidi algorithm reorders "2027-09-21" on screen to "21-09-2027", so the year
+   * and the day swap ends with nothing to say which is which. A finance officer
+   * reading a refund deadline off that is reading a guess.
+   *
+   * UTC, explicitly: a pot expires on a date, not at an hour in somebody's
+   * city, and two people in two offices must read the same one.
+   */
+  const day = (at: Date) => formatDate(at, "UTC", locale);
   const settings = await getSettings();
 
   /*
@@ -136,7 +153,7 @@ export default async function SponsorPotPage() {
             }
             note={
               pot.expiresAt
-                ? t("sponsor.expiresOn", { date: pot.expiresAt.toISOString().slice(0, 10) })
+                ? t("sponsor.expiresOn", { date: day(pot.expiresAt) })
                 : undefined
             }
           />
@@ -154,7 +171,7 @@ export default async function SponsorPotPage() {
           pendingCoverageBps={coverage.pendingCoverageBps}
           pendingFromLabel={
             coverage.pendingCoverageFrom
-              ? coverage.pendingCoverageFrom.toISOString().slice(0, 10)
+              ? day(coverage.pendingCoverageFrom)
               : null
           }
           noticeDays={settings.sponsor.coverageNoticeDays}
@@ -180,7 +197,7 @@ export default async function SponsorPotPage() {
           subject={{
             viewerName: actor.email,
             orgName: actor.sponsorName,
-            what: t("transfer.forPot"),
+            what: t("transfer.subjectPot"),
             payerType: "company",
           }}
           details={rail.details}
@@ -202,7 +219,7 @@ export default async function SponsorPotPage() {
             minimumLabel={fmt(settings.sponsor.minTopUpCents)}
             terms={{
               refundPolicy: terms.refundPolicy,
-              expiresLabel: terms.expiresAt.toISOString().slice(0, 10),
+              expiresLabel: day(terms.expiresAt),
             }}
           />
         ) : (
@@ -213,7 +230,7 @@ export default async function SponsorPotPage() {
               {terms.refundPolicy}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-600">
-              {t("sponsor.expiresOn", { date: terms.expiresAt.toISOString().slice(0, 10) })}
+              {t("sponsor.expiresOn", { date: day(terms.expiresAt) })}
             </p>
           </Card>
         )
@@ -244,7 +261,7 @@ export default async function SponsorPotPage() {
                   href={`/sponsor/pot/${entry.txnId}`}
                   className="flex items-baseline justify-between gap-3 py-1 text-sm text-slate-700 hover:underline"
                 >
-                  <span>{entry.at.toISOString().slice(0, 10)}</span>
+                  <span>{day(entry.at)}</span>
                   <span className="tabular-nums">{fmt(entry.amountCents)}</span>
                 </Link>
               </li>

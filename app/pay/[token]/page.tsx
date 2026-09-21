@@ -175,8 +175,8 @@ export default async function PayPage({
       owed,
       vatCents: money.vatCents,
       sessionLabel: therapistName
-        ? t("transfer.forSessionWith", { name: therapistName })
-        : t("transfer.forSession"),
+        ? t("transfer.subjectSessionWith", { name: therapistName })
+        : t("transfer.subjectSession"),
       benefitLabel: t("pay.benefitPaid"),
       vatLabel: t("topup.vat"),
     }),
@@ -226,8 +226,8 @@ export default async function PayPage({
               orgName: practiceName,
               payerType: "patient",
               what: therapistName
-                ? t("transfer.forSessionWith", { name: therapistName })
-                : t("transfer.forSession"),
+                ? t("transfer.subjectSessionWith", { name: therapistName })
+                : t("transfer.subjectSession"),
             }}
             details={rail.details}
             amountLabel={rail.amountLabel}

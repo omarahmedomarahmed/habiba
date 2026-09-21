@@ -385,7 +385,7 @@ function AssignmentPicker({
           {t("clinic.team.saveAssignments")}
         </button>
       ) : saved ? (
-        <p className="mt-2 text-xs font-semibold text-teal-700">{t("clinic.team.saved")}</p>
+        <p className="mt-2 text-xs font-semibold text-brand-700">{t("clinic.team.saved")}</p>
       ) : null}
     </div>
   );

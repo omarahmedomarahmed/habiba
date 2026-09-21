@@ -28,6 +28,19 @@ import { useT } from "@/lib/i18n/client";
 export type HeatWeek = {
   /** ISO date of the Monday, already grouped in SQL. No day exists upstream. */
   weekStart: string;
+  /**
+   * 🔴 37L.9 — THE SAME MONDAY, IN WORDS, AND IT IS A SEPARATE FIELD ON PURPOSE.
+   *
+   * `weekStart` was doing both jobs: React's key and the date a person reads.
+   * A key has to be stable and machine-shaped; a date a person reads has to be
+   * formatted in their language, which an ISO slice is not. In Arabic it is
+   * actively wrong rather than merely ugly, because the bidi algorithm reorders
+   * "2027-09-21" to "21-09-2027" on screen and nothing says which end is the
+   * year.
+   *
+   * So the server formats it and sends both. The key stays the ISO string.
+   */
+  label: string;
   /** 🔴 null is SUPPRESSED, not zero. The two render differently on purpose. */
   spendCents: number | null;
 };
@@ -59,10 +72,10 @@ export function SpendHeatmap({ weeks }: { weeks: HeatWeek[] }) {
           const step = share === 0 ? 0 : share < 0.25 ? 1 : share < 0.5 ? 2 : share < 0.75 ? 3 : 4;
           const shade = [
             "bg-slate-100",
-            "bg-teal-100",
-            "bg-teal-200",
-            "bg-teal-400",
-            "bg-teal-600",
+            "bg-brand-100",
+            "bg-brand-200",
+            "bg-brand-400",
+            "bg-brand-600",
           ][step];
 
           return (
@@ -71,12 +84,12 @@ export function SpendHeatmap({ weeks }: { weeks: HeatWeek[] }) {
               title={
                 suppressed
                   ? t("sponsor.suppressedBody")
-                  : t("sponsor.week", { date: week.weekStart })
+                  : t("sponsor.week", { date: week.label })
               }
               aria-label={
                 suppressed
                   ? t("sponsor.suppressed")
-                  : t("sponsor.week", { date: week.weekStart })
+                  : t("sponsor.week", { date: week.label })
               }
               className={
                 suppressed
