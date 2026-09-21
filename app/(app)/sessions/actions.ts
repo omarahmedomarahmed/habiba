@@ -264,7 +264,7 @@ export async function startNewSession(
       if (room) {
         await db
           .update(sessions)
-          .set({ videoRoomUrl: room.url, videoRoomName: room.name })
+          .set({ videoRoomUrl: room.url, videoRoomName: room.name, videoRoomExpiresAt: room.expiresAt })
           .where(eq(sessions.id, session.id));
       }
 

@@ -22,7 +22,7 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 const API = "https://api.daily.co/v1";
 
-export type RoomInfo = { url: string; name: string };
+export type RoomInfo = { url: string; name: string; expiresAt: Date };
 
 /**
  * 🔴 79.1 — WHY THERE IS NO ROOM, AND NOT JUST THAT THERE IS NONE.
@@ -63,7 +63,25 @@ function randomRoomName(): string {
   return `s-${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
-export async function createPrivateRoom(sessionId: string): Promise<RoomResult> {
+/** Four hours of room, which is long enough for any session plus the overrun. */
+const ROOM_LIFETIME_MS = 4 * 60 * 60 * 1000;
+
+export async function createPrivateRoom(
+  sessionId: string,
+  /*
+   * 🔴 WHEN THIS ROOM HAS TO BE ALIVE, which is not always now.
+   *
+   * The expiry used to be `now + 4h`, full stop. That is right for a session
+   * starting this minute and catastrophic for one booked for Wednesday: a
+   * clinician who opens that session's room page on Monday to have a look
+   * builds a room that dies 57 hours before anybody needs it, and because the
+   * row then holds a URL, the heal never fires again.
+   *
+   * Passing the hour the session is actually for makes the room outlive the
+   * appointment instead of the curiosity.
+   */
+  opts: { liveAt?: Date | null } = {},
+): Promise<RoomResult> {
   if (!env.dailyApiKey) {
     /*
      * 🔴 A LINE, EVERY TIME. This is the branch that was silent, and it is the
@@ -74,7 +92,13 @@ export async function createPrivateRoom(sessionId: string): Promise<RoomResult> 
   }
 
   const name = randomRoomName();
-  const expiry = Math.floor(Date.now() / 1000) + 4 * 60 * 60;
+  /*
+   * From whichever is later: now, or the hour this session is booked for. A
+   * room for a session in three days is built to open in three days.
+   */
+  const liveFrom = Math.max(Date.now(), opts.liveAt?.getTime() ?? 0);
+  const expiresAt = new Date(liveFrom + ROOM_LIFETIME_MS);
+  const expiry = Math.floor(expiresAt.getTime() / 1000);
 
   try {
     const response = await fetch(`${API}/rooms`, {
@@ -115,7 +139,7 @@ export async function createPrivateRoom(sessionId: string): Promise<RoomResult> 
       log.warn("daily returned a room with no url", { session: ref(sessionId) });
       return { ok: false, reason: "malformed" };
     }
-    return { ok: true, room: { url: room.url, name: room.name } };
+    return { ok: true, room: { url: room.url, name: room.name, expiresAt } };
   } catch (error) {
     log.warn("daily room creation errored", {
       session: ref(sessionId),

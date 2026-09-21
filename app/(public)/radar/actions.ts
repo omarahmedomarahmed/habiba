@@ -353,7 +353,7 @@ export async function bookFromRadar(
     const room = made.room;
     await db
       .update(sessions)
-      .set({ videoRoomUrl: room.url, videoRoomName: room.name })
+      .set({ videoRoomUrl: room.url, videoRoomName: room.name, videoRoomExpiresAt: room.expiresAt })
       .where(eq(sessions.id, session.id));
 
     // The alarm the clinician hears is driven by this row's existence, via the

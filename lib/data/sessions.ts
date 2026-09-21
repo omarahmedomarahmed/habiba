@@ -773,6 +773,8 @@ export async function resolveJoinToken(token: string) {
       modality: sessions.modality,
       videoRoomUrl: sessions.videoRoomUrl,
       videoRoomName: sessions.videoRoomName,
+      /* So `ensureRoom` can tell a live room from one Daily has already reaped. */
+      videoRoomExpiresAt: sessions.videoRoomExpiresAt,
       expiresAt: sessions.joinTokenExpiresAt,
       organizationId: sessions.organizationId,
       therapistId: sessions.therapistId,
@@ -979,14 +981,45 @@ export async function ensureRoom(session: {
   modality: string;
   videoRoomUrl: string | null;
   videoRoomName: string | null;
+  /** When Daily reaps the room we already have. Null means we do not know. */
+  videoRoomExpiresAt?: Date | null;
+  /** The hour this session is for, so a room built early still opens on the day. */
+  scheduledAt?: Date | null;
 }): Promise<{ ok: true; url: string; name: string } | { ok: false; reason: string }> {
   if (session.modality !== "video") return { ok: false, reason: "not_video" };
-  if (session.videoRoomUrl && session.videoRoomName) {
-    return { ok: true, url: session.videoRoomUrl, name: session.videoRoomName };
+
+  /*
+   * 🔴 IS THERE A ROOM, AND IS IT STILL ALIVE WHEN THIS SESSION NEEDS IT.
+   *
+   * This used to be `if (url && name) return it`, which asks only the first
+   * half. A Daily room has a hard expiry, so a URL in the row is not evidence
+   * that anything is behind it — and because nothing ever nulls that column,
+   * a dead URL was permanent and this heal could never fire again.
+   *
+   * What that cost, observed on production: a session booked for Wednesday
+   * 16:00, a clinician who opened its room page on Monday out of curiosity,
+   * and a room built with a four hour life that died 57 hours before the
+   * appointment. On Wednesday both people would be handed a door that Daily
+   * had already reaped, by the very code written to prevent that.
+   *
+   * A null expiry means a row from before this column existed. Treated as
+   * expired on purpose: the cost of rebuilding unnecessarily is one wasted
+   * room, and the cost of the other guess is two people in a session they
+   * cannot enter.
+   */
+  const needsBy = session.scheduledAt ?? new Date();
+  const alive =
+    session.videoRoomUrl &&
+    session.videoRoomName &&
+    session.videoRoomExpiresAt &&
+    session.videoRoomExpiresAt > needsBy;
+
+  if (alive) {
+    return { ok: true, url: session.videoRoomUrl!, name: session.videoRoomName! };
   }
 
   const { createPrivateRoom } = await import("@/lib/video");
-  const made = await createPrivateRoom(session.id);
+  const made = await createPrivateRoom(session.id, { liveAt: session.scheduledAt ?? null });
   if (!made.ok) {
     log.error("a session has no video room and one could not be made", {
       session: ref(session.id),
@@ -995,13 +1028,28 @@ export async function ensureRoom(session: {
     return { ok: false, reason: made.reason };
   }
 
+  /*
+   * The conditional UPDATE still makes two concurrent arrivals safe, but the
+   * condition can no longer be "there is no room" — we are now also here to
+   * REPLACE a dead one. So: take it if the row has no room, or if the room it
+   * has is already expired. Whoever writes a live room first wins, and the
+   * loser reads theirs back below.
+   */
   const [claimed] = await db
     .update(sessions)
-    .set({ videoRoomUrl: made.room.url, videoRoomName: made.room.name })
+    .set({
+      videoRoomUrl: made.room.url,
+      videoRoomName: made.room.name,
+      videoRoomExpiresAt: made.room.expiresAt,
+    })
     .where(
       and(
         eq(sessions.id, session.id),
-        isNull(sessions.videoRoomUrl),
+        or(
+          isNull(sessions.videoRoomUrl),
+          isNull(sessions.videoRoomExpiresAt),
+          lt(sessions.videoRoomExpiresAt, needsBy),
+        ),
       ),
     )
     .returning({ url: sessions.videoRoomUrl, name: sessions.videoRoomName });

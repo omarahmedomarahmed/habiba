@@ -700,6 +700,17 @@ export const sessions = pgTable(
 
     videoRoomUrl: text("video_room_url"),
     videoRoomName: text("video_room_name"),
+    /**
+     * 🔴 WHEN DAILY WILL REAP THE ROOM, so we can tell a live room from a
+     * corpse without asking Daily on every render.
+     *
+     * A Daily room carries a hard expiry. Without this column `ensureRoom` had
+     * no way to know whether the URL in the row still opened onto anything, so
+     * it returned early whenever a URL was present — and a room built early
+     * for a future appointment was a dead link by the time the appointment
+     * came, permanently, because the heal could never fire again.
+     */
+    videoRoomExpiresAt: timestamp("video_room_expires_at", { withTimezone: true }),
 
     /**
      * What the patient pays the therapist for this session. Zero means the

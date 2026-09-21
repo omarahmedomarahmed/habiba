@@ -1815,6 +1815,46 @@ async function main() {
       : "the reclaim can still cancel a session a stranger paid for",
   );
 
+  /*
+   * 🔴 A ROOM THAT OUTLIVES THE APPOINTMENT IT IS FOR.
+   *
+   * A Daily room has a hard expiry. `createPrivateRoom` set it to four hours
+   * from the moment it was called, with no reference to when the session was
+   * actually for, and `ensureRoom` returned early whenever a URL was present,
+   * with no check on whether that URL still opened onto anything.
+   *
+   * Each half is fine alone. Together they destroy a future appointment
+   * permanently, and it takes one curious clinician: open Wednesday's session
+   * on Monday, the room page builds a room that dies Monday teatime, and on
+   * Wednesday `ensureRoom` sees a URL and returns it. Nothing ever nulls that
+   * column, so the heal written for exactly this case can never fire again.
+   *
+   * Observed on production: room `s-14347218b21044bbaf83`, exp
+   * 2026-09-21T06:38Z, for a session at 2026-09-23T16:00Z. Dead 57 hours
+   * early.
+   */
+  const videoBody = readSource("lib/video.ts");
+  const expiryFromSession = /liveAt/.test(videoBody) && /Math\.max\(Date\.now\(\)/.test(videoBody);
+  check(
+    "🔴 a room's expiry is taken from the hour the session is for, not from now",
+    expiryFromSession,
+    expiryFromSession
+      ? "createPrivateRoom builds from max(now, the session's hour)"
+      : "the expiry ignores scheduledAt, so a future booking gets a room that dies first",
+  );
+
+  const sessionsBody = readSource("lib/data/sessions.ts");
+  const healChecksExpiry =
+    /videoRoomExpiresAt/.test(sessionsBody) &&
+    /videoRoomExpiresAt\s*>\s*needsBy/.test(sessionsBody);
+  check(
+    "🔴 …and the heal treats an expired room as no room at all",
+    healChecksExpiry,
+    healChecksExpiry
+      ? "ensureRoom asks whether the room is alive when the session needs it"
+      : "ensureRoom returns any URL it finds, including a room Daily has reaped",
+  );
+
   check(
     "🔴 CONTROL the sweep finds the files it is about, not an empty set",
     makers.length >= 4 && makers.includes("lib/data/session-invite.ts"),

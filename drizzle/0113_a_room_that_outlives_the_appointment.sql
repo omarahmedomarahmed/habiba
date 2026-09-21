@@ -1,0 +1,29 @@
+-- When the video room dies, so we can tell a live room from a corpse.
+--
+-- A Daily room carries a hard `exp`. `createPrivateRoom` set it to four hours from the
+-- moment it was called, with no reference to when the session was actually for, and
+-- `ensureRoom` returned early whenever `video_room_url` was present, with no check on
+-- whether that URL still opened onto anything.
+--
+-- Both are fine for a session starting now. Together they destroy a future appointment,
+-- permanently, and it takes one curious clinician:
+--
+--   * A session is booked for Wednesday 16:00. No room at booking time, deliberately.
+--   * On Monday the clinician opens that session's room page to have a look. The page
+--     calls `ensureRoom` on render, with no date gate.
+--   * A room is built with exp = Monday 06:38. The session is at Wednesday 16:00. The
+--     room dies 57 hours before anybody needs it.
+--   * On Wednesday `ensureRoom` sees a URL in the row and returns early. Nothing ever
+--     nulls that column, so the heal that exists for exactly this case can never fire.
+--
+-- Observed on production: room `s-14347218b21044bbaf83`, built 2026-09-21T02:38:16Z with
+-- config.exp 2026-09-21T06:38:16Z, for a session at 2026-09-23T16:00:00Z.
+--
+-- Recording the expiry is what lets `ensureRoom` ask the only question that matters: is
+-- there a room, and is it still alive when this session needs it.
+--
+-- Backfilled as NULL, which reads as "unknown". `ensureRoom` treats unknown as expired
+-- and rebuilds, which is the safe direction: the cost is one wasted room, and the cost
+-- of the other direction is two people in a session they cannot enter.
+
+ALTER TABLE sessions ADD COLUMN video_room_expires_at timestamptz;
