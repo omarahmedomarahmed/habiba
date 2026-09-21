@@ -4,7 +4,7 @@ import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { getConnectAccount } from "@/lib/billing/connect";
 import { getPatient } from "@/lib/data/patients";
-import { createSession } from "@/lib/data/sessions";
+import { createSession, ensureRoom } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
 import { notify } from "@/lib/notify";
 import { fullName } from "@/lib/utils";
@@ -82,6 +82,40 @@ export async function inviteToSession(actor: Actor, patientId: string): Promise<
 
   if (!session?.joinToken) {
     return { error: "Could not create the session. Try again." };
+  }
+
+  /*
+   * 🔴 79.1 — THE THIRD PATH, AND THE ONE THAT ACTUALLY BIT.
+   *
+   * This creates a `modality: "video"` session and, until now, no room. Not a
+   * room that failed to build: no attempt at all. The clinician pressed Invite,
+   * the patient got a message with a door in it, both of them opened it, and
+   * they sat in the same session record unable to hear each other.
+   *
+   * It was missed twice over. `startNewSession` and the radar both build a room
+   * and were the two places anybody looked, so the rule read as "the room is
+   * built where sessions are made" when it was really "the room is built in two
+   * of the three places sessions are made". And the first diagnosis of the
+   * live failure blamed a missing `DAILY_API_KEY`, which was wrong: the console
+   * health check says the key works and always did. The room was never asked
+   * for.
+   *
+   * `ensureRoom` on arrival covers the sessions already out there. This covers
+   * the ones made from here on, which matters because the comment in
+   * `startNewSession` states the actual rule: whoever arrives first should
+   * never find an empty room, and the patient is usually first.
+   */
+  const built = await ensureRoom({
+    id: session.id,
+    modality: "video",
+    videoRoomUrl: null,
+    videoRoomName: null,
+  });
+  if (!built.ok) {
+    return {
+      error:
+        "We could not open a room for this session, so nobody has been invited. Try again in a moment.",
+    };
   }
 
   const url = `${env.appUrl}/join/${session.joinToken}`;

@@ -1590,6 +1590,120 @@ async function main() {
   }
 
   /*
+   * 🔴 79.1 — EVERY PATH THAT MAKES A VIDEO SESSION, FOUND RATHER THAN LISTED.
+   *
+   * The two checks above name two files, and naming files is exactly how this
+   * shipped. There is a THIRD path, `lib/data/session-invite.ts`, which creates
+   * a `modality: "video"` session from the patient profile and never asked for
+   * a room at all. Not a room that failed: no attempt. A clinician pressed
+   * Invite, the patient got a door, and the two of them sat in the same session
+   * record unable to hear each other.
+   *
+   * It survived because the rule in everybody's head was "the room is built
+   * where sessions are made", and that was true of two places out of three. So
+   * this finds the callers instead of trusting a list: every file that creates
+   * a session with `modality: "video"` must also reach a room, directly or
+   * through `ensureRoom`.
+   */
+  const { readdirSync: readDir } = await import("node:fs");
+  const { join: joinPath } = await import("node:path");
+  const everySource: string[] = [];
+  const sweep = (dir: string) => {
+    for (const entry of readDir(dir, { withFileTypes: true })) {
+      const path = joinPath(dir, entry.name);
+      if (entry.isDirectory()) sweep(path);
+      else if (path.endsWith(".ts") || path.endsWith(".tsx")) everySource.push(path);
+    }
+  };
+  sweep("app");
+  sweep("lib");
+
+  /*
+   * A THERAPY session, not an auth one. `createSession` is the name of both,
+   * and three of the six files that call something by that name are signing
+   * somebody in. The discriminator is where it comes from, or a direct insert
+   * into the table.
+   */
+  const makers = everySource.filter((file) => {
+    const body = readSource(file);
+    return (
+      /import\s*\{[^}]*\bcreateSession\b[^}]*\}\s*from\s*"@\/lib\/data\/sessions"/.test(body) ||
+      /\.insert\(sessions\)/.test(body)
+    );
+  });
+
+  /*
+   * 🔴 THE RULE IS NOT "BUILD A ROOM AT CREATION", and getting that wrong is
+   * how the first draft of this check went red about correct code.
+   *
+   * A Daily room carries a four-hour `exp`. An appointment booked on Monday for
+   * Thursday would outlive its own room, so `bookFromSlot` in
+   * `lib/data/scheduling.ts` deliberately creates none and is RIGHT not to.
+   *
+   * What must hold is that nobody ever meets a session with no room. That has
+   * two halves, and both are checked: a path whose patient is invited to arrive
+   * NOW builds the room before the invitation goes, and both arrival paths
+   * build one if they find none. The second half is what makes a future booking
+   * safe; the first is what stops a patient being the one who discovers the
+   * door is cold.
+   */
+  const IMMEDIATE = [
+    "app/(app)/sessions/actions.ts",
+    "app/(public)/radar/actions.ts",
+    "lib/data/session-invite.ts",
+  ];
+
+  const coldDoors = IMMEDIATE.filter(
+    (file) => !/createPrivateRoom\(|ensureRoom\(/.test(readSource(file)),
+  );
+  check(
+    "🔴 79.1 every path that invites somebody NOW builds the room first",
+    coldDoors.length === 0,
+    coldDoors.length > 0 ? `no room in: ${coldDoors.join(", ")}` : IMMEDIATE.join(", "),
+  );
+
+  /*
+   * 🔴 AND THE LIST IS CHECKED AGAINST REALITY, because a list is how this
+   * shipped. `session-invite.ts` was the third of three and nobody had it: the
+   * rule in everybody's head was "the room is built where sessions are made",
+   * which was true of two places out of three. A new file that makes sessions
+   * fails here until somebody decides which half of the rule it lives under.
+   */
+  const KNOWN = [
+    ...IMMEDIATE,
+    /* Where `createSession` and `ensureRoom` themselves live. */
+    "lib/data/sessions.ts",
+    /*
+     * A future appointment. No room at creation ON PURPOSE: a Daily room
+     * expires in four hours, so one built for Thursday on Monday is gone before
+     * anybody arrives. Both arrival paths build it, which is what makes this
+     * safe and is checked above.
+     */
+    "lib/data/scheduling.ts",
+    /*
+     * 🔴 FOUND BY THIS CHECK, which is the first thing it did. A session a
+     * partner's platform already RAN, written back to us as `status:
+     * "completed"` so the note and the books exist. Nobody joins it through us
+     * and there is nothing to join, so it needs no room and never will.
+     */
+    "lib/partner/writeback.ts",
+  ];
+  const strangers = makers.filter((file) => !KNOWN.includes(file));
+  check(
+    "🔴 …and no file makes sessions that this rule has not been applied to",
+    strangers.length === 0,
+    strangers.length > 0
+      ? `unaccounted for: ${strangers.join(", ")}`
+      : `${String(makers.length)} session-making files, all accounted for`,
+  );
+
+  check(
+    "🔴 CONTROL the sweep finds the files it is about, not an empty set",
+    makers.length >= 4 && makers.includes("lib/data/session-invite.ts"),
+    `${String(makers.length)} found: a sweep that misses the file this was written about proves nothing`,
+  );
+
+  /*
    * 🔴 CONTROL, because every check above is satisfied by a file that does not
    * mention rooms at all. The scan must be able to see the thing it is about.
    */
