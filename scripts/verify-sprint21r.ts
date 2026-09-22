@@ -440,6 +440,31 @@ async function main() {
    * now matched their own documentation. Stripping comments is not a detail of
    * one scan, it is the default.
    */
+  /*
+   * 🔴 79.5 — AND IT IS NOT THE SAME NUMBER AS NEON'S SUSPEND TIMEOUT.
+   *
+   * This cache expired every 300 seconds. The production compute suspends
+   * after 300 seconds with no query. Two correct numbers, chosen for unrelated
+   * reasons, that happened to be identical: the refresh landed on almost
+   * exactly the moment the database would have gone to sleep, so any trickle
+   * of crawler traffic held it awake around the clock.
+   *
+   * Measured rather than argued: production ran 59 per cent of a three hour
+   * window against an 11 per cent lifetime average, on a site with no users.
+   *
+   * 300 is the floor Neon allows on this plan, so the application is the only
+   * side that can move. This refuses the collision rather than the value: any
+   * number is fine except that one.
+   */
+  const seconds = Number(/CACHE_SECONDS = (\d+)/.exec(service)?.[1] ?? "0");
+  check(
+    "🔴 79.5 the CMS cache does not expire on Neon's suspend boundary, or the database never sleeps",
+    seconds > 0 && seconds !== 300,
+    seconds === 300
+      ? "300 is exactly the suspend timeout: every expiry wakes a compute that was about to idle"
+      : `${String(seconds)}s, clear of the 300s suspend timeout`,
+  );
+
   check(
     "🔴 21R.6 CONTROL, the same scan, run WITHOUT stripping comments, would have failed on the paragraph explaining the fix",
     /revalidate:\s*false/.test(serviceSource),

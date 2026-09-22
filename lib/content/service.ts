@@ -82,8 +82,43 @@ export const CACHE_VERSION = "v4";
 /**
  * Long enough that the database is out of the request path, short enough that
  * a missed invalidation is an inconvenience rather than a false statement.
+ *
+ * ## 🔴 79.5 — IT WAS 300, AND SO IS NEON'S SUSPEND TIMEOUT.
+ *
+ * The production compute suspends after 300 seconds with no query. This cache
+ * expired after 300 seconds and then asked for one. The two numbers were
+ * identical, so the refresh landed on almost exactly the moment the database
+ * would have gone to sleep, and any trickle of traffic held it awake forever.
+ *
+ * Measured rather than reasoned: production ran 59 per cent of a three hour
+ * window against 11 per cent of its lifetime average, on a site with no real
+ * users, while search engine crawlers walked the marketing pages.
+ *
+ * Nobody wrote a bug. Two correct numbers chosen for unrelated reasons
+ * happened to be the same number, and a compute that is meant to scale to zero
+ * never got to.
+ *
+ * 🔴 THIRTY MINUTES, AND THE ORIGINAL ARGUMENT SURVIVES INTACT.
+ *
+ * C92's ticket was a `/pricing` page serving copy from before a rewrite,
+ * making a false claim about where a person's money sits, **for two days**.
+ * The fix was to bound staleness rather than trust it away. Thirty minutes is
+ * still bounded and still two orders of magnitude inside that failure.
+ *
+ * The TTL is only the backstop. `revalidateTag(CMS_TAG)` is what actually
+ * makes an edit appear, the instant the editor saves, and that is untouched.
+ * This number is what happens when the invalidation does not fire.
+ *
+ * The arithmetic: six database wakes an hour became two, and each wake is a
+ * five minute minimum of billed compute. That is roughly thirty billed
+ * minutes an hour back on a site nobody is visiting yet.
+ *
+ * 🔴 AND IT MUST NOT BE A MULTIPLE OF THE SUSPEND TIMEOUT EITHER. 1800 is six
+ * times 300, but the refresh happens 300 seconds INTO a 1800 second window, so
+ * the compute idles the remaining 1500 and suspends. The failure was the two
+ * being EQUAL, not related.
  */
-const CACHE_SECONDS = 300;
+const CACHE_SECONDS = 1800;
 
 function cached<Args extends unknown[], Result>(
   keyParts: string[],
