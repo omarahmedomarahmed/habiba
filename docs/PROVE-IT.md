@@ -52,7 +52,9 @@ boundary working and also the easiest way to confuse yourself all day.
 | 7 | **Clinic**, Nile Practice | `/clinic/sign-in` | `habibaheikal27@gmail.com` |
 | 8 | **Company**, Habiba Holdings | `/sponsor/sign-in` | `habiba@24therapy.app` |
 
-One password for every one of them: `Demo2026!Therapy`.
+One password for every one of them, `Demo2026!Therapy`, **except the operator, support and the
+company**, who take `DEMO_PRIVATE_PASSWORD` from the operator's own `.env.local`. This
+repository is public, and those three open the production console and a company's money.
 
 🔴 **1b is not a ninth person.** It is the operator's second window, and it exists because
 `/security` promises that a role is a list rather than a rank. The only way to see that is to

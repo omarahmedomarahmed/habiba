@@ -48,7 +48,7 @@
 import { writeFileSync } from "node:fs";
 
 import { CAST, PAYROLL, SIMULATION_PASSWORD, WITH_LOGINS } from "./_cast";
-import { DEMO_LOGINS, DEMO_PASSWORD, UNCLAIMED_EMAIL } from "./_demo-cast";
+import { DEMO_LOGINS, DEMO_PASSWORD, UNCLAIMED_EMAIL, isPrivateLogin } from "./_demo-cast";
 
 const PATH = "docs/simulation/12-THE-LOGINS.md";
 const DEMO_PATH = "docs/DEMO-LOGINS.md";
@@ -208,12 +208,19 @@ function demoDoc(): string[] {
     "approved notes on them, a company pot with a spending record behind it, a clinic with a",
     "fortnight in it, and a queue in front of the operator.",
     "",
-    "One password for all of them:",
+    "One password for every patient, clinician and the clinic:",
     "",
     "    " + DEMO_PASSWORD,
     "",
+    "🔴 **Except three, which never take it:** the platform admin, the support account and the",
+    "company. This repository is public, so a password written here is a password every reader",
+    "holds, and those three open the production console and a company's money. Their password",
+    "is `DEMO_PRIVATE_PASSWORD` in the operator's own `.env.local`, which is never committed;",
+    "without it the seed gives each a random password nobody is told.",
+    "",
     "`npm run on:production -- verify:demo` reads every row back out of the database, checks",
-    "the password actually opens it, and checks that what each portal would show is not",
+    "the password actually opens it (and that the published one does NOT open the three),",
+    "and checks that what each portal would show is not",
     "empty. The second half is the one that matters: a seed can write every row correctly and",
     "still produce a caseload the clinician cannot see.",
     "",
@@ -221,7 +228,10 @@ function demoDoc(): string[] {
     "",
     "| Who | Sign-in page | Address |",
     "| --- | --- | --- |",
-    ...DEMO_LOGINS.map((l) => `| ${l.who} | \`${l.where}\` | \`${l.email}\` |`),
+    ...DEMO_LOGINS.map(
+      (l) =>
+        `| ${l.who}${isPrivateLogin(l.email) ? " (private password)" : ""} | \`${l.where}\` | \`${l.email}\` |`,
+    ),
     "",
     "## 🔴 The one with no way in, which is a state rather than a gap",
     "",
