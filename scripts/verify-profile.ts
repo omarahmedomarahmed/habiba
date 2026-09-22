@@ -257,10 +257,27 @@ async function main() {
      * easy to get wrong: an `<img src={person.avatarUrl}>` renders the right
      * face and turns a private object into a public one the moment the page is
      * screenshotted, forwarded or cached.
+     *
+     * ## 🔴 AND THIS CHECK WENT RED FOR AN IMPROVEMENT, WHICH IS ITS OWN LESSON
+     *
+     * It used to assert the page contained the literal `/api/patient/avatar/`.
+     * 79.4 moved that string into `PatientAvatar`, because the page had been
+     * hand-rolling an `<img>` that drew a broken image glyph for every patient
+     * with no photo. The page got better and the check went red.
+     *
+     * That is the trap `docs/TRAPS.md` records as "a check bound to a syntax
+     * rather than a property", and the question it tells you to ask is: *if
+     * somebody improved this code, would my check still pass?*
+     *
+     * So it asks the property. The face reaches this page through the
+     * authenticated route, whether the page builds that URL itself or renders
+     * the one component that does. `verify:sprint25` is what makes the second
+     * spelling as strong as the first: it asserts `PatientAvatar` is the ONLY
+     * file in the product allowed to build an avatar URL.
      */
     check(
       "🔴 C115 the headshot is served through the authenticated route",
-      page.includes("/api/patient/avatar/"),
+      page.includes("/api/patient/avatar/") || page.includes("PatientAvatar"),
       "the route asks on every request whether this reader may see this face",
     );
 

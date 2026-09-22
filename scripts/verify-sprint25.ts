@@ -615,7 +615,7 @@ async function main() {
     if (file === "components/patient/avatar.tsx") continue;
     /* The route implementing itself is not a caller of itself. */
     if (file.includes("api/patient/avatar/")) continue;
-    if (/`\/api\/patient\/avatar\/\$\{/.test(stripComments(readFileSync(file, "utf8")))) {
+    if (/`\/api\/patient\/avatar\/\$\{/.test(readSource(file))) {
       avatarBuilders.push(file);
     }
   }
@@ -632,9 +632,7 @@ async function main() {
    */
   check(
     "🔴 79.4 CONTROL the scan finds the component that legitimately builds it",
-    /`\/api\/patient\/avatar\/\$\{/.test(
-      stripComments(readFileSync("components/patient/avatar.tsx", "utf8")),
-    ),
+    /`\/api\/patient\/avatar\/\$\{/.test(readSource("components/patient/avatar.tsx")),
     "the allowed call site was actually read, so an empty result means clean",
   );
 
