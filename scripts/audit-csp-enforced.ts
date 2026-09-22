@@ -46,34 +46,53 @@ const PORT = 3111;
 const BASE = `http://127.0.0.1:${String(PORT)}`;
 
 /**
- * The public surface, plus the two that carry the most machinery.
+ * 🔴 THE PAGES ARE DERIVED, AND THE FIRST DRAFT TYPED THEM OUT.
  *
- * Derived rather than typed would be better (T3), and `inventory.routes()` is
- * the derivation. It is not used here because most of those 125 routes are
- * behind a sign-in and would report a redirect rather than a page, which is a
- * gate measuring the harness. These are the ones a stranger actually loads.
+ * `docs/TRAPS.md` T3: a hand typed list of this product's own routes is wrong
+ * the week after it is written. This file proved it immediately. The first
+ * version guessed `/how-it-works` and `/compliance` from the page TITLES in
+ * `lib/content/defaults.ts`, and both answer 404, because those pages live at
+ * the slugs `features` and `hipaa`. Two of nineteen entries wrong on the first
+ * run, in a list written by somebody reading the file they came from.
+ *
+ * So the content pages come out of `DEFAULT_PAGES` by slug, and the rest are
+ * the directories under `app/(public)` that really are public pages.
+ *
+ * `inventory.routes()` would be the fuller derivation and is deliberately not
+ * used: most of those 125 routes sit behind a sign-in and would answer with a
+ * redirect, which is a gate measuring the harness rather than the product.
+ * These are the pages a stranger actually loads.
  */
-const PAGES = [
-  "/",
-  "/for-therapists",
-  "/for-patients",
-  "/for-companies",
-  "/for-clinics",
-  "/pricing",
-  "/how-it-works",
-  "/radar",
-  "/login",
-  "/patient/login",
-  "/staff/sign-in",
-  "/clinic/sign-in",
-  "/sponsor/sign-in",
-  "/support",
-  "/privacy",
-  "/terms",
-  "/security",
-  "/compliance",
-  "/contact",
-];
+async function publicPages(): Promise<string[]> {
+  const { DEFAULT_PAGES } = await import("../lib/content/defaults");
+
+  /* `home` is served at `/`, not at `/home`. */
+  const content = DEFAULT_PAGES.map((page) => (page.slug === "home" ? "/" : `/${page.slug}`));
+
+  /*
+   * The static public routes, read off the filesystem. `[slug]` is the catch
+   * all that serves the content pages above, `t` is a short link resolver with
+   * no page of its own, and `design` and `verify` take a parameter.
+   */
+  const { readdirSync, statSync } = await import("node:fs");
+  const skip = new Set(["[slug]", "t", "layout.tsx", "page.tsx", "design", "verify"]);
+  const statics = readdirSync("app/(public)")
+    .filter((entry) => !skip.has(entry))
+    .filter((entry) => statSync(`app/(public)/${entry}`).isDirectory())
+    .map((entry) => `/${entry}`);
+
+  /* The six doors, which are the most-loaded pages on the product. */
+  const doors = [
+    "/login",
+    "/patient/login",
+    "/staff/sign-in",
+    "/clinic/sign-in",
+    "/sponsor/sign-in",
+    "/partner/sign-in",
+  ];
+
+  return [...new Set([...content, ...statics, ...doors])];
+}
 
 /** A console line the browser writes when the policy refused something. */
 function isViolation(text: string): boolean {
@@ -159,6 +178,7 @@ async function main() {
       if (isViolation(error.message)) violations.push(`${page.url()}: ${error.message}`);
     });
 
+    const PAGES = await publicPages();
     for (const path of PAGES) {
       const response = await page.goto(`${BASE}${path}`, {
         waitUntil: "networkidle",
