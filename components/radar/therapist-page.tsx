@@ -5,6 +5,7 @@ import { egpRateMicro } from "@/lib/billing/manual";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { formatUsd } from "@/lib/billing/plans";
+import { formatMonthYear } from "@/lib/utils";
 import { publicProfile } from "@/lib/data/radar";
 import { reliabilityFor } from "@/lib/data/recovery";
 import { openHours } from "@/lib/data/scheduling";
@@ -58,7 +59,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
    * one honest word rather than an empty gap in the middle of a sentence.
    */
   const approvedOn = profile.verifiedOn
-    ? new Intl.DateTimeFormat(tag, { month: "long", year: "numeric" }).format(profile.verifiedOn)
+    ? formatMonthYear(profile.verifiedOn, profile.timezone, locale)
     : t("radar.verifiedNoDate");
 
   return (

@@ -147,3 +147,31 @@ export function formatLongDate(
   return formatCalendarDate(d, resolveZone(zone).name, dateTag(locale));
 }
 
+/**
+ * `September 2026`, for a fact whose DAY is nobody's business.
+ *
+ * 🔴 51.9 — the clinician's public page says which month a person approved
+ * their verification. To the day it invites "why was mine three weeks after
+ * theirs", which is a question about our review queue and none of a reader's
+ * business, so the day is dropped at the formatter rather than at each call
+ * site that might forget.
+ *
+ * Three parameters like every other formatter here, and for the same reason:
+ * a month is zone-dependent for the few hours either side of a boundary, and
+ * an optional parameter is a thing to remember. `verify:sprint37l2` asserts
+ * the arity of all eight.
+ */
+export function formatMonthYear(
+  date: Date | string | null | undefined,
+  zone: string | null,
+  locale: Locale,
+): string {
+  if (!date) return "-";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat(dateTag(locale), {
+    month: "long",
+    year: "numeric",
+    timeZone: resolveZone(zone).name,
+  }).format(d);
+}
+

@@ -27,7 +27,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { ar, en } from "../lib/i18n/messages";
 import { dateTag, intlTag, localeTag } from "../lib/i18n/config";
 import { formatCalendarDate, formatDay, formatWeekday, formatWhen } from "../lib/scheduling/tz";
-import { formatDate, formatDateTime, formatLongDate } from "../lib/utils";
+import { formatDate, formatDateTime, formatLongDate, formatMonthYear } from "../lib/utils";
 import { stripComments } from "./_dashes";
 import { reporter } from "./_verify";
 import { bySurface, scanI18n, walk } from "./_i18n-coverage";
@@ -64,8 +64,10 @@ function main() {
       formatDay.length === 3 &&
       formatWeekday.length === 3 &&
       formatWhen.length === 3 &&
-      formatCalendarDate.length === 3,
-    "formatDate, formatDateTime, formatLongDate, formatDay, formatWeekday, formatWhen, formatCalendarDate",
+      formatCalendarDate.length === 3 &&
+      /* 51.9 — `September 2026` on a clinician's public page. */
+      formatMonthYear.length === 3,
+    "formatDate, formatDateTime, formatLongDate, formatDay, formatWeekday, formatWhen, formatCalendarDate, formatMonthYear",
   );
 
   /* ---------------------------------------------------- 37L.9 · the reading */
