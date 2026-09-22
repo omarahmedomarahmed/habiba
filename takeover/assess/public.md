@@ -113,3 +113,46 @@ Working notes (filled in page by page below):
   - "Any individual, ever" (under "never show you")
   - "Spendable on sessions here, never withdrawable as cash"
 
+### /pricing  (screenshots: 011 desktop EN, 045 390 EN, 074 the EGP reveal at 390, Arabic below)
+- For: the clinician's price, in two ways, plus the clinic seat price. Says so: yes, "One product, priced two ways".
+- Next: "Sign up free" (x3), "Talk to us" for a clinic (to /clinic/apply). Obvious.
+- Missing: nothing for a patient or a company, which is right, but the page does not say so; a company visitor who lands here from the footer finds nothing about pots.
+- Decoration: the second full-width "Sign up free" under the three cards; the "How we compare" section is a sixth block on a page that already has cards, a matrix and a seat ladder.
+- 390px: no page scroll sideways, but the "What is in each" matrix is wider than the screen and clips the Therapist and Clinic columns at the card edge with no scroll cue (045 sheet 0: "THE", "$80", "Noth", "Inclu"). The competitor tabs clip the same way.
+- Arabic RTL: see below.
+- Promise: T3 is here, and stated correctly as netting: "While we hold your earnings the session fee comes out of them. Where Stripe pays you directly, we bill you instead." and "Can I pay my 24Therapy bill out of my earnings? Yes. When we are holding your earnings the session fee comes out of them automatically." Kept in words.
+- Defects:
+  - THE PRICE BADGE: every USD price has a dotted underline and hides the EGP figure behind a hover or tap. Tapping "$80" (074) swaps the big figure to "EGP 4,000" and pops a small navy "$80" badge that sits on top of the "One clinician" subtitle, overlapping it. The badge reads as part of the price. Founder complaint confirmed. On a touch screen nothing says the price can be tapped.
+  - "HIPAA BAA included" appears on two cards and as a row of ticks in the matrix, and the FAQ on /features says "Is a BAA included? Yes, on every plan." /hipaa says "not yet HIPAA compliant" and lists every BAA as "not yet signed". This is the most serious false claim on the public site.
+  - "What does the session rate actually include? ... plus the copilot questions about that patient shown on the cards above". No card shows a number of copilot questions.
+  - "It lasts as long as the pricing page says" is written on the pricing page itself; the figure ("Credit lasts 12 months") is in a different block.
+  - "Your first completed session is free either way" (here) vs "Your first session is free" (home, /for-therapists): the word "completed" matters and is only here.
+- Claims and honesty: honesty.ts refuses nothing here. The fee rule is respected: there is no claim that a session covers the fee; "Divide the monthly price by what one session with AI costs you" gives the break-even without forecasting income. "Get booked on the Crisis Radar. Patients find you and book you" is the allowed form. Time promises and absolutes, quoted:
+  - "SOAP note in under a minute"
+  - "Prices change; if one of these is out of date, tell us and it is corrected the same day."
+  - "Your patient never pays us anything." (the booking sheet on /radar charges the patient "$75", which goes to the clinician; true, but the sentence reads as "free for patients")
+  - "Nothing is deleted, nothing is locked, and every note, patient and recording stays exactly where it was."
+  - "We do not cut anything off mid-month over a card that expired."
+  - "Where you have a Stripe account the money is charged straight into it and we never hold it."
+
+### /features  (screenshots: 014 desktop EN, 047 390 EN, Arabic below)
+- For: the clinician's feature list. Says so: yes, but with an overclaim, "The whole product is one screen".
+- Next: "Start free for therapists" (/signup) or "Sign in" (/login). Obvious.
+- Missing: it is almost a copy of /for-therapists: same hero room mockup, transcript, copilot, risk alert, note, patient sessions phone. A reader who has seen one has seen the other; neither page says why both exist.
+- Decoration: an icon tile above every heading (microphone, brain, warning, document); fake URL bars.
+- 390px: no sideways scroll. The copilot mockup is ~250px of white with one sentence (047 sheet 0).
+- Arabic RTL: see below.
+- Promise: T1, T2, T5 described. "Alerts go to you and only to you" is the risk promise.
+- Defects:
+  - "Is a BAA included? Yes, on every plan." is false against /hipaa.
+  - Risk-alert mockup's URL reads "24therapy.app/radar".
+  - "The whole product is one screen" is contradicted by the same page listing a patient app, a profile, homework and a separate note view.
+- Claims and honesty: nothing honesty.ts would refuse. Absolutes and time promises, quoted:
+  - "The whole product is one screen"
+  - "so each line is attributed with certainty" / "so two similar voices are never confused."
+  - "One tap stops capture without ending the session. Nothing recorded, nothing transcribed, nothing stored."
+  - "Alerts go to you and only to you."
+  - "A dropped chunk costs a few seconds of transcript, not the session."
+  - "Is a BAA included? Yes, on every plan."
+  - "Every line traceable to the session it came from."
+

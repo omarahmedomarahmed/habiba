@@ -201,3 +201,23 @@ in English and then Arabic.
 - Arabic RTL: see Arabic pass below.
 - Promise: P2 (an invitation appears in the app) and T4's patient side. Not testable here without a real invitation.
 - Defects: a token that never existed is told it was "used, expired, or taken back", which is not true; dead end card.
+
+### /patient/t/[id]  (screenshots: 070 (from browse), 071 desktop, 072 390 full; Sara Demo's page, /patient/t/561c6496-7cef-4933-8059-42a6727ede64)
+- For: one therapist's page: who they are, start now, or book an hour. Says so: yes, by its content (no heading beyond the name).
+- Next: "Start a session now" (teal, not pressed: it opens the booking sheet and holds the clinician) or pick an hour slot (not pressed). Clear.
+- Missing: her credential ("Clinical psychologist" is on the summary page but not here); what Mariam would pay after her employer's share (the page shows $75 twice and EGP 3,750, never her 40%); what a slot press does before it does it.
+- Decoration: 60 identical slot buttons over ten days (14:00 to 19:00 every day), three per row, making the page 2200px at 390 (072); "Copy this page's link" as a full width button directly under the main action.
+- 390px: **the SOS orb sits on the bottom right corner of "Start a session now" and the right end of "Copy this page's link"** (070). No sideways scroll.
+- Arabic RTL: see Arabic pass below.
+- Promise: P1 (start now) and E3 (a price shown is a price owed). E3 is at risk for Mariam: "30 minutes, starting now $75" and "One hour $75" are both shown, the same price for half and a whole hour, and neither is her share.
+- Defects: same $75 for 30 and 60 minutes (070); headline "Trauma and grief, Arabic and English" while "Works with: Anxiety, Sleep" (070) and the browse card says the same; "Sara Demo" with no "Dr" here but "Dr Sara Demo" on /patient/summary.
+
+### The radar booking sheet (reached from /patient/radar by pressing a therapist row; screenshot 076)
+- For: the profile and "Pay $X and start now" in one sheet, without leaving the radar.
+- **Opening it is not looking.** Pressing a row reserves the clinician for 60 seconds ("They now show as busy to everyone else", `pbook.heldBody`; `HOLD_SECONDS = 60` in `components/radar/booking-sheet.tsx` 36). I pressed Sara's row twice while assessing (073, 076). On the second press the sheet showed Sara to me as "Being booked. Someone is on this profile now" (076), apparently my own hold from 073 (the headless browser closed without releasing it), and the header dropped to "1 therapist on shift" while the tab still said "2 free". The hold lapses on its own after 60 seconds; I did not press anything inside the sheet.
+- **SOS is covered.** The sheet is portalled into `document.body` at `z-[100]` (`booking-sheet.tsx` 172), above the SOS orb's `z-[70]`. In 076 the SOS orb is gone from the screen. In the bookable state the same sheet carries "Pay $75 and start now" and a "Held for you · 60s" countdown: money, on top of SOS. The only way back to SOS is to close the sheet.
+- Missing in the sheet: the price she would actually pay after cover; a credential line (shown only if `entry.credentials`, blank for Sara).
+- Defects: "See their full profile" goes to `/t/<id>`, the public page, not `/patient/t/<id>`, so a signed-in patient leaves the patient app's chrome from here.
+
+### The SOS sheet (opened from the orb on /patient/journal; screenshot 074)
+- Opens in one tap, no network: "Help now. These are phone numbers, not a chat." A red Egypt card "نجدة 105 مصر · Egypt, Press 1 for Arabic, then 1 for mental health", then "Anywhere else, call your local emergency number." It chose Egypt from Mariam's +20 number, correctly. It covers the lower half of the screen and dims the rest, including the language switch. Nothing about money appears in it. This is the one crisis surface that fully keeps P5.

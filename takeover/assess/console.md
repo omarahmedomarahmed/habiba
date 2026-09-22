@@ -125,3 +125,12 @@ Rule held throughout: looked, never acted. No confirm, reject, approve, send, re
   - "No Stripe account" in red under each clinician, when payouts go by InstaPay (027): the operator is warned about a rail that is not used.
   - The Account dropdown uses database names (`therapist_payable`, `fx_difference`) (033, 034).
   - Refund is a single icon with no label, and a refund "reverses the transfer and returns our cut"; whether it asks for confirmation could not be checked without pressing it, so it was not pressed.
+
+### /admin/sponsors  (screenshots: evidence/assess/assess-operator/035, 036, 037, 038)
+- For: the list of company and university accounts, and for each one its status, billing entity, joining code, pot and portal users. Does the screen itself say so? half: "Corporate and university accounts: one type, two faces, different words on their own screens." explains a data model, not the job.
+- Next: "Open" expands the account in place (037). Inside: three grey chips "held", "suspended", "closed"; "Billed from" with a chip "US"; "Mint a code"; and a form to add a portal user with a password the operator types.
+- Missing: **no link to the company's own page, `/admin/sponsors/[id]`**, which is where E1 is proved (spend without names). The list does not show what was funded, what was spent or how many people are on the pot, only one balance ($2,330.00) in small grey text (035). Contact, email and phone are all "not given" with no way to fill them here.
+- Decoration: "EG" and "company" badges beside the name repeat what the expanded view says again.
+- 390px: works, no sideways scroll; the balance and Close wrap to a second line under the name (038).
+- Promise: E1, E4, E5 depend on the pot this page opens; the page shows none of them.
+- Defects: **one-click state changes dressed as labels.** From `components/admin/sponsor-manager.tsx`: the chips "held", "suspended", "closed" and the "US" chip are buttons that act on click with no confirm. The entity row lists only the entities they are NOT on, so "Billed from  US" reads as a fact (they are billed from the US) when it is the button that moves an Egyptian company to the US entity and onto a different rail (line 190 to 202; the badge "EG" is the real entity) (037). "Mint a code" is one click, and its rotate form "kills every printed poster" per the source comment, with no confirm. "no code" is set in wide monospace like a code value (037). The operator types a portal user's password into the console and hands it over, instead of the person setting their own.

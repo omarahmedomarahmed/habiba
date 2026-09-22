@@ -42,3 +42,15 @@ marked as such.
 
 On `live`: held P1, T1, T2, T4, A1, RA1 and P3 first half; partly P2, P3; broken E3 (task 116),
 the payment confirmation half of P2, and task 123 (twice: video and in person).
+
+## 🔴 STOP CONDITION HIT, 2026-09-22 23:49 UTC, during the screen assessment on `live`
+
+`/sponsor/people` (company portal, signed in as Habiba Holdings) shows **"Mariam Demo"**, a
+per-person "Last checked 22 Sept 2026" and "End their benefit", beside a sidebar reading "THIS
+PORTAL WILL NEVER SHOW YOU: Any individual, ever". `/sponsor` shows live, unfloored "Sessions
+paid for 6" and "Spent so far $270" (`potTotals`, `lib/billing/pot.ts:997`). One name plus a live
+count is that person's attendance, and daily reloads date each new session. Screenshots:
+`evidence/assess/assess-company/020`, `021`, `012`, `013`. Verified by the coordinator from the
+screenshot. Per `docs/PROVE-IT.md` ("a patient's name, session time or attendance appearing
+anywhere in the company portal ... Stop, screenshot, say so immediately") the walk is paused and
+the founder told. No reseed until the founder decides.
