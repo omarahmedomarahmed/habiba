@@ -127,6 +127,26 @@ Every entry: where, what it says, what is true or suspected instead.
    (H49). Check whether the census compares bytes or only counts.
 8. `verify:prove` reads `lib/content/defaults.ts`, not published rows; task 156 is live drift.
    Fetch the live pages for every `where` citation in step 3.
+9. **E1 vs `/sponsor` weekly spend heatmap** (`weeklySpend`). If spend is shown per week, a
+   company with one or two people on the pot can tell which week somebody went. The published
+   balance moving every five sessions protects the balance; does anything protect the heatmap?
+10. **E1/E4 vs `/sponsor/people`**: a named roster with a Remove control. Enrolment is not usage,
+    so names of enrolled staff may be acceptable; but the roster must never show activity.
+    Removing is a different act from 0% coverage (E4); check what Remove does to a booked session.
+11. **C2 vs `/clinic` "This week" schedule and `/clinic/export?what=schedule`**. README says the
+    clinic sees patient names and appointment times; C2 says no patient name anywhere. One of
+    them is false and the export is the obvious leak.
+12. **Contrast**: BRAND.md measures teal `#2EC4B6` at 2.19:1 on white. `brand-500` is now that teal,
+    so every primary button and focus ring on a light ground is teal. White text on it fails
+    4.5:1; a 2.19:1 focus ring fails WCAG 1.4.11 (3:1). `verify:palette` claims to refuse white on
+    teal; check what text colour buttons actually carry.
+13. `verify:email-dns` accepts DMARC `p=none` until 2026-10-06 and then goes red by design. A
+    reminder in our own suite, not an external deadline (TAKEOVER s5).
+14. INVENTORY omits `/login`, `/signup`, `/staff/sign-in`, `/join/[token]`, the room, `/pay`, and
+    `/[slug]` pages. Its generator scans seven route groups only, so any gate deriving routes
+    from `inventory.routes()` (T3's rule) cannot see those pages either. Check in step 2.
+15. Home sends "the patient a plain-language summary" by email; P2 says nothing is only in email.
+    Consistent only if the summary is also in the app. Walk it.
 
 ## Unclaimed (the code can do it; no promise covers it; no walk exercises it)
 
@@ -143,6 +163,23 @@ Candidates from documents only, to be confirmed in code:
 6. Retention cron deletes audit records older than six years.
 7. Instruments (assessment questionnaires with scoring), `instruments` table.
 8. Company welcome credit $100.
+
+## Live-site checks, 2026-09-22 (fetched from 24therapy.app, not read from defaults)
+
+- `robots.txt` serves `Allow: /` with `/join/`, `/dashboard`, `/sessions` disallowed. TAKEOVER s5
+  blocker 1 confirmed closed.
+- All nine page-and-phrase citations in VALUE-STATEMENTS resolve on the live page they name
+  (P1 on `/`, P3/T5 and P4 on `/for-patients`, C1 C3 C5 E1 E2 on `/`).
+- **Stale:** `docs/PROVE-IT.md` live step 6 says "We say three taps on `/for-patients`". The live
+  sentence is on `/` only. The value statement itself is right.
+- **Suspect, copy vs product:** `/` and `/for-therapists` say "Your first session is free"; the
+  plan's offer is "month 1 free" by customer age. Check what the code gives a new clinician.
+- **Suspect, copy vs product:** `/`, `/pricing`, `/for-therapists`: the plan has "no per-session
+  fee", while the 15% cut is still taken from every paid session. Whether a commission is a
+  "per-session fee" is a wording question for the founder, but a clinician reading it would
+  reasonably think nothing comes off a paid session.
+- **Suspect:** `/for-therapists` "No seat fee and no minimum" beside a $72-per-seat, minimum-two
+  clinic plan. Probably means pay-as-you-go; the sentence does not say so. H27 is this shape.
 
 ## Directory map (step 2)
 
