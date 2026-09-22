@@ -105,3 +105,23 @@ Rule held throughout: looked, never acted. No confirm, reject, approve, send, re
 - 390px: works (032).
 - Promise: none of the 25 directly. A screen serving no promise, per TAKEOVER s10, is one to argue for or delete; its data would serve better on the clinician page and the radar row (which shows Rating "-").
 - Defects: "0.0" with a filled star when there are no ratings (031, 032); should be a dash, as the radar does.
+
+### /admin/vault  (screenshots: evidence/assess/assess-operator/033, 034)
+- For: all the money in one long page: what we hold for clinicians, unspent sponsor pots, VAT owed, a hand adjustment form, ledger totals, monthly income, traction, model spend, per clinician margin, every invoice and every patient payment with a refund control. Does the screen itself say so? "Money in, money out, what is left." True, and it is eleven screens in one (033 is 4,414px tall on desktop, 034 is 5,227px on a phone).
+- Next: refund a patient payment (an unlabelled curved arrow icon on each row), discount an invoice (from the inventory), or post a balanced hand adjustment with a reason. None of these is signposted; an operator arriving to answer "why is Sara owed $382.50" has to scroll past traction metrics to find her payments.
+- Missing: headings that split money we hold (a liability) from our revenue and from vanity metrics; any link from a held balance to the clinician or to their payout request; labels on the refund icons (the icon is the only control, 033); any date range control.
+- Decoration: "Traction & unit economics" (signups, MRR, ARPU) and the income chart (two teal blocks for one month) are founder reporting sitting in the middle of an operational money page (033). "Held for clinicians $395.50" appears twice, once as a list heading and once as a tile.
+- 390px: no page scroll sideways, but the "Income and spend, by month" table runs its columns together into "$76.50$114.50$0.07$114.43" (034), the Per clinician table loses every column after Sessions, and the adjustment form's Account select shows raw ledger names.
+- Promise: T3 (held vs owed), A2 (a second confirm makes no second ledger leg: the ledger is here), A4 (unclaimed money). The page states the rule for adjustments well ("A balanced pair, never an edited balance. Audited with your name and your reason.").
+- Defects: **the numbers disagree with every other screen.**
+  - Omar is holding $13 here (033), and `/admin/payouts` asks the operator to approve a $255 payout to him (027). Nothing on either page says so; an operator can approve paying out twenty times what is held.
+  - Kareem has four $75 sessions, three "paid", on his clinician page (013), yet no payment of his appears in Patient payments and he is not in "Held for clinicians" (033).
+  - Omar's sessions: 11 on the clinician list (009), 14 in 30 days on the radar (021), 12 here (033).
+  - Sessions in 30 days: 21 on the Overview (002), 18 here.
+  - Collected: $36 on the Overview (002), $114.50 here, both unqualified.
+  - "Activated 0, 0% of signups" directly above its own definition ("a clinician who has completed at least one session") while three clinicians have completed sessions (033).
+  - "Gross margin $114.43, 100%" with model spend $0.07 shown next to it.
+  - Invoices are worded to the clinician on an admin page: "taken from your earnings", "from your credit" (033).
+  - "No Stripe account" in red under each clinician, when payouts go by InstaPay (027): the operator is warned about a rail that is not used.
+  - The Account dropdown uses database names (`therapist_payable`, `fx_difference`) (033, 034).
+  - Refund is a single icon with no label, and a refund "reverses the transfer and returns our cut"; whether it asks for confirmation could not be checked without pressing it, so it was not pressed.

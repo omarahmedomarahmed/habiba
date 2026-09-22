@@ -84,3 +84,32 @@ Working notes (filled in page by page below):
   - "It reaches your notes on this patient and no further."
   - "a patient never pays us anything for the software."
 
+### /for-clinics  (screenshots: 009 desktop EN, 043 390 EN, Arabic below)
+- For: telling a practice manager that seats, verification and one bill live here, and the clinical record does not. Says so: yes, "Several clinicians, one practice, one set of books".
+- Next: "Talk to us", which actually goes to /clinic/apply (an application form), and "Contact" (/contact). A button labelled "Talk to us" that opens an application is mislabelled; the manager does not know they are starting a sign-up.
+- Missing: the price. The page never says $72 a seat, a month; a manager has to find /pricing from the footer. No sign-in link for an existing practice (the hero has none; /clinic/sign-in is reachable only from the Sign in menu). The page is short (2,700px at 390): hero, one mockup, five questions.
+- Decoration: browser-chrome dots, the "For clinics" pill.
+- 390px: no sideways scroll, but the mockup table crushes: "APPOINTMENTS" runs into the next tile, clinician names wrap over three lines, the third row is cut at the card bottom (043).
+- Arabic RTL: see below.
+- Promise: C1, C2, C3, C5. C2 is BROKEN by the page's own hero mockup: a PATIENT column with "Mariam A.", "Omar S.", "Laila F.", "Tarek M.", "Dina H.", "Adam R.", directly under "a wall your practice cannot see through". /clinic/sign-in adds "See the rota and move a patient between your own clinicians", which is the opposite of the wall. C3 is muddied by "4 clinicians of 11 seats, $792 billed".
+- Defects: patient names in the clinic mockup (009, 043); "Talk to us" goes to /clinic/apply; no price.
+- Claims and honesty: nothing honesty.ts would refuse. Absolutes, quoted:
+  - "The clinician treating them. Not a colleague, not a practice manager, not us, and there is no administrative override."
+  - "Their access ends with their account, and their patients hand the record on themselves."
+  - Honest and good: "A clinic-level export into your own system is not built." and "Egyptian data staying in Egypt is designed and not live."
+
+### /for-companies  (screenshots: 010 desktop EN, 044 390 EN, Arabic below)
+- For: telling an employer they fund a pot and never learn who went. Says so: yes, "Cover therapy for your people, and never learn who went".
+- Next: "Talk to us" (to /sponsor/apply, again an application behind a conversation label) or "Contact". Twice each.
+- Missing: any price or the $100 welcome credit (TAKEOVER s6); how a pot is topped up (the Egyptian rail is manual, which a buyer would want to know); a sign-in link for an existing company.
+- Decoration: the "What has been spent, by week" chart is eight coloured squares of identical height with no axis and no figure, one hatched (044). It shows nothing.
+- 390px: works. Stat tiles fit; "LEFT IN YOUR POT" wraps to two lines.
+- Arabic RTL: see below.
+- Promise: E1, E2 stated plainly and well ("You watch the money, not the people", "Weekly totals, with small figures suppressed"). A weakness in E1 as drawn: "Where the money went" lists each named therapist and what they were paid ($840, $660, $540, $360). With a small staff and one clinician who speaks a rare language, a per-therapist total can identify who went; the page does not say this list is suppressed for small figures the way the weekly totals are.
+- Defects: "USED IT 40 this month" is a monthly figure on a page promising "A weekly figure, never a daily one" (not a contradiction, but the dashboard shows monthly and the copy promises weekly); /sponsor/sign-in says "Watch the pot, the spend and the take-up, month by month", a third cadence.
+- Claims and honesty: nothing honesty.ts would refuse. Absolutes, quoted:
+  - "We tell you what it cost, and nothing else."
+  - "You never see who went, and there is no screen behind this one that does."
+  - "Any individual, ever" (under "never show you")
+  - "Spendable on sessions here, never withdrawable as cash"
+
