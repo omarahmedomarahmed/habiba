@@ -442,3 +442,191 @@ Verifier template used below: Claims / Reads / Control / T1 / T3 / T4 / T6.
 - Demo data: the seeded session is `modality: "in_person"` with 12 transcript segments and an approved note, and NO `recording_consent` set (378 to 420): an in-person session with a transcript and no consent on record, the task 123 shape, planted by the seed. The note sets no `patient_status`/`provenance` (defaults), so per `seed-demo.ts:946 to 958` the patient app says "still writing" and "not recorded" over a transcript. Password fallback literal (47, printed at 431).
 - Header "Idempotent, safe to re-run on every deploy" (1, 2): `--refresh-content` is not safe on any deploy that has authored copy (H49). T6: `main()` unguarded (441).
 
+(Note on order: `seed-demo.ts` is entered after `on-production.ts` and `prose-sweep.ts` after `q.ts`, because they were read in that order; every file on the slice list has exactly one entry above.)
+
+## Stale
+
+1. `scripts/_cast.ts:25 to 31`: "Three people are seeded". `SEEDED` is seven (OP, OP2, SU1 to SU5).
+2. `scripts/_cast.ts:64 to 81` says patient email cannot exist; `CAST` still gives P1 to P7 an `email`, so `WITH_LOGINS` counts seven addresses the file calls impossible.
+3. `scripts/_content-ready.ts:42`: `AWAITS = "22.8b"`; every content skip today names a sprint step long past as its cause.
+4. `scripts/_dashes.ts:21, 22`: `lib/i18n/config.ts` named as an allowed exception; `ALLOWED` (40 to 44) does not list it.
+5. `scripts/_demo-cast.ts:33`: "THE FOUR REAL INBOXES"; `OWNED_INBOXES` has five. `:23, :29` "eleven logins"; `DEMO_LOGINS` has twelve. `scripts/seed-demo.ts:2` "TEN LOGINS"; twelve. `scripts/logins.ts:198` "right about ten of eleven"; twelve.
+6. `scripts/_prove-doc.ts:162 to 167` (and therefore `docs/VALUE-STATEMENTS.md:270`): "Three of these are at example.com ... Dr Sara, Dr Kareem and Mariam". Seven of the twelve logins are at example.com. A generated document with a hand-typed false count.
+7. `scripts/_gates.ts:386 to 430, 511 to 533`: comment blocks sit above the wrong entries (the `served` and `orb` comments above `caseload`; the `runbook` comment above `palette`). `:491 to 510` "eighty-one ... ran twelve ... seventy-nine" versus 35 gates. `scripts/gates.ts:21 to 34` "these four"; 35.
+8. `scripts/_surfaces.ts:308 to 334` (C369): `upsertSubject`, `queueWebhook`, `potBalance`, `unpause` "Zero callers". All now have callers (see Looks broken, is handled). `:146` promises `../thing` imports are followed; code follows only same-directory `./leaf`.
+9. `scripts/_stub-empty.ts:1 to 3` and `scripts/_stub-link.tsx:1, 2`: "used only by render-check.ts" / "only by verify-sprint17.ts"; both are loaded for ~20 scripts via `_render-preload.mjs` (package.json).
+10. `scripts/_verify.ts:189, 206`: "The five that need the door" / "not one of the five". Six files pass `productionIsAllowed: true` (migrate, sync-blocks, age, settings, simulate-seed, seed-demo). `HAZARDS.md:231, 232` "which four do"; `scripts/verify-sprint57.ts:414` "Four files may pass it" beside its own "THE SIXTH DOOR" (440).
+11. `scripts/demo.ts:12 to 15`: `therapist_radar.demo` exempts from heartbeat; MAP.md Suspect 2 says demo became "a label and never a decision" on 2026-09-22, while `scripts/seed-demo.ts:458 to 461` still relies on `reachable()` exempting demo rows. One of the three is stale.
+12. `scripts/migrate.ts:79, 80`: the audit "runs on every deploy"; HAZARDS H16 says nothing runs migrations on deploy.
+13. `scripts/on-production.ts:114 to 116`: snapshot "holds the six month simulation as it stood"; same block 124 to 128 and `logins.ts:18 to 24` say production held only the starting position.
+14. `scripts/seed-demo.ts:196 to 199`: "the last thing this script does is check that [the trigger] is enabled again"; no such check.
+15. `scripts/seed-demo.ts:31 to 37`: "every cent is posted"; 14 sessions are written `paid` with no payment behind them (see Suspect).
+16. `scripts/seed.ts:115 to 131`: `--refresh-content` "touches nothing else"; the org, subscription, super-admin upsert and `--demo` branch still run. `:1, 2` "safe to re-run on every deploy".
+17. `scripts/pitch-deck.cjs:14 to 20`: numbers "read out of the code that charges it"; every figure is a literal, and the pricing model ($6/$99/10% Stripe Connect) is superseded (payg $1 + $3, Practice $80, Clinic $144, manual transfers).
+18. `scripts/capture-payments.tsx:28 to 33`: "Every amount here comes from the product's own helpers"; most are typed.
+19. `scripts/seed-coverage.ts:16 to 18`: "Every step runs through the product's own functions"; only the money does, and the owed figure is the script's own arithmetic.
+20. `scripts/reset.ts:7 to 10`: "Every row in this product today is test data"; undated state claim, now false for production.
+21. `scripts/check-live.ts:21 to 23`: "the page is the one the database describes, it states no price of its own"; neither is checked any more.
+22. `scripts/probe.ts:446 to 449`: F8 checks a staff account "CANNOT reach the founder-only half"; it signs in as the admin and never tests a refusal.
+23. `scripts/lifecycles.ts:9` "the eleven machines", `scripts/_prove-doc.ts:67` "five per audience", `_value-statements.ts:62` "TWENTY-FIVE": typed counts (the last two are correct today).
+24. `scripts/inventory.ts:433`: generated doc titled "The admin side, as it is" while covering seven portals.
+25. MAP.md Stale 7 (where crisis lines live) is ANSWERED by this slice: `country_settings.crisis_line_label/tel/verified_at/verified_by` (`lib/db/schema.ts:3520 to 3527`), a KEEP table in `seed-demo.ts:71`.
+
+## Suspect
+
+1. `scripts/seed-demo.ts:977 to 1031, 1098 to 1114, 1192 to 1197`: sessions marked `payment_status 'paid'` with no `manual_payments`, no `session_payments` and no patient ledger leg, then billed to the clinician via `chargeForSession`, and a raw $255 payout request. Matters for A2/A4/T3 walks on the `money` position: held earnings and payouts may rest on money that never arrived. Answer: `lib/billing/service.ts chargeForSession`, the earnings query, and `verify-demo.ts`.
+2. `scripts/seed-demo.ts:152 to 167`: nulls EVERY FK column from KEEP tables to users/people/organizations, not only audit columns. Would matter if any KEEP table holds an ownership FK (e.g. an `employees` login link) or `country_settings.crisis_line_verified_by` (certain, schema 3524). Answer: `lib/db/schema.ts` for each KEEP table's FKs.
+3. `scripts/on-production.ts:131` + `seed-demo.ts:88`: the wipe is non-transactional; any throw after the DELETE passes leaves production wiped and half seeded. And nothing checks a snapshot exists.
+4. `scripts/seed-demo.ts:481 to 511`: seeded demo clinicians on the PRODUCTION public radar, online indefinitely if `reachable()` still exempts `demo` rows, with bookable slots and fabricated licence numbers. Answer: `lib/data/radar*` `reachable()`, and the public radar query. If true, a real stranger can book a fake clinician on the live site: the exact reason `on-production.ts:188` refuses `demo:seed`.
+5. `scripts/copilot-exam.ts:490 to 509` omits `capabilities`; `lib/ai/case-copilot.ts:507 to 513` says absent means no restriction. The same default applies to "the one other caller (the in-session suggestions)". If any PRODUCT caller omits it, a clinician's copilot reads documents, journals and profile beyond their grant (T5). Answer: every caller of `askPatientCopilot`.
+6. `scripts/probe.ts:703 to 810`: `organizations.region` defaults to `us`; a self-signed-up Egyptian clinician is offered Stripe checkout ("You will be taken to the card page") until an operator changes the region. Priority 2 and 4. Answer: signup action and `organizationNeedsTransfer`.
+7. `scripts/probe.ts:657 to 667`: a patient can never add an email, yet `/patient/account` calls it "the only way to receive your record". If true, a phone-only patient cannot receive their record export (P4-adjacent). Answer: `app/(patient)/patient/account`, data export path.
+8. `scripts/reset.ts:126, 145`: truncates first, then reseeds via children; if `settings.ts seed` calls `writesTo()` it refuses production after the truncate, leaving production empty. Answer: `scripts/settings.ts` seed verb.
+9. `scripts/_verify.ts:193` `writesTo` inspects only `DATABASE_URL`. Any writer that connects via `dbFor(region)` with a per-region URL, or `connect(otherUrl)`, is unguarded. Answer: `lib/db/index.ts` region URL resolution.
+10. `scripts/mail-preview.ts:127 to 130`: if `previewMessages().send(to)` writes notification or audit rows, this writes to whatever DB is configured with no guard. Answer: `lib/mail-previews.ts`.
+11. `scripts/physics.ts:129` and `render-check.ts:82`: `getSettings()` may insert missing defaults on read, making "read" allow-list entries writers. Answer: `lib/settings`.
+12. `scripts/capture-therapist-money.ts:166 to 176`: cleanup omits auth_sessions/audit/notifications; a FK from those to users would make the user delete throw inside `finally`, leaving fixtures on the branch.
+13. `scripts/build-world.mjs:112, 115` + `lib/geo.ts:173` + `lib/data/taxonomy.ts:88`: Bahrain, Palestine, Singapore, Malta, Cyprus, Luxembourg, Hong Kong, Maldives, Mauritius absent from the country picker (checked in `lib/countries.json`). Answer: whether the taxonomy table in the DB overrides the fallback (`taxonomy_entries`).
+14. Password literals other than the documented demo password (values deliberately not copied): `scripts/_cast.ts:55` (simulation cast, also written into `docs/simulation/12-THE-LOGINS.md` by `logins.ts:78`), `scripts/browser/shot.mjs:39` / `probe.ts:462, 1308` / `screens-prep.ts:23` (local screenshot admin), `scripts/capture-coverage.ts:81` / `capture-therapist-money.ts:40` / `seed-coverage.ts:97`, `scripts/demo.ts:29` (fallback), `scripts/probe/_probe.ts:48`, `scripts/seed-capture.ts:49, 59`, `scripts/seed.ts:47` (fallback). All appear to be synthetic fixture passwords for branch/local accounts; but `seed.ts:47` and `demo.ts:29` are fallbacks that would become real passwords on any database those scripts reach, and the simulation password is published in a committed doc. No API keys or tokens seen.
+15. `scripts/age.ts:193 to 238`: UPDATEs on tables with triggers (append-only clinical summaries, derived verification status) could throw mid-run; with no transaction, a retry double-ages. Answer: trigger definitions in `drizzle/`.
+
+## Broken
+
+1. `scripts/seed-demo.ts:1143 to 1150`: seeded copilot answers use `role 'assistant'`; the product reads `therapist | copilot | correction` (`lib/data/copilot.ts:139, 496`; `lib/ai/case-copilot.ts:562`), and the column is plain text (`lib/db/schema.ts:1326`). A tester on the demo cast sees each copilot thread as a question with no answer. Grepped for a mapping of 'assistant' to 'copilot' in `lib/data/copilot.ts`: none.
+2. `scripts/seed-capture.ts:589, 593`: `recording_consent` written as boolean `true` into a text column typed `"granted" | "declined"` (`lib/db/schema.ts:802`). The seeded in-person session has a transcript and a note while its consent reads as neither granted nor declined; the AI line keyed on `= 'granted'` (schema 2068) is not charged. Capture branch only.
+3. `scripts/seed.ts:134 to 139, 167 to 196, 264 to 428`: `--refresh-content` skips `writesTo()` but does not skip the super-admin upsert or the `--demo` branch. `db:seed -- --refresh-content` from a shell with `SEED_ADMIN_*` set re-passwords that admin on whatever DB it points at, production included; with `--demo` it creates a documented-password therapist and patient there. The `on:production` allow-list does not list `db:seed` (REFUSED) but `ship:content` runs this mode per the comment at 120 to 123.
+4. `scripts/seed.ts:378 to 420`: demo session is `in_person` with a transcript and approved note and no `recording_consent`: fixture data that is exactly the task 123 defect (recorded without consent).
+5. `scripts/_surfaces.ts:204 to 215`: `unwiredActions` tests callers against raw `s.body`, comments included (T1). An action named only in a comment reads as wired: the false PASS the file's own `code` comment (97 to 112) says is the dangerous half. `uncalledRoutes`, `unlinkedPages` and `uncalledExports` were fixed to use `s.code`; this one was not.
+6. `scripts/inventory.ts:50 to 58`: `routes()` (the derived list TRAPS T3 mandates) omits `app/join`, `app/pay`, `app/(room)`, `app/(auth)`, `app/feedback`, `app/support`, `app/j` (checked with `find`). Every T3-compliant consumer (`verify-machines.ts:36`, `verify-contrast.ts:51`) cannot see the pay sheet, the join page or the room.
+7. `scripts/check-live.ts:59, 61, 138, 148 to 151`: a page that answers an error is silently dropped; zero pages read exits 0. `LIVE_PAGES` (hand-typed) feeds `smoke-public.ts:41`, the "renders" gate. T2 and T3 at once.
+8. `scripts/_reachability.ts:38`: skips `public` at every depth (H31, the exact bug `_surfaces.ts:48 to 62` fixed for itself); also reads raw source (T1) and counts any `components/` file as a surface (contradicts C356).
+9. `scripts/prose-sweep.ts:579 to 620`: `--write` records a risen baseline and exits 0 before the rise check; the ratchet can be raised by the documented write.
+10. `scripts/probe/_probe.ts:77 to 93` + `probe.ts:60 to 85`: `report()` sets no exit code and `finish` has one check, so a probe with every flow blocked exits PASS. Plus `probe.ts:1036 to 1042` records "the ledger agrees with the screen" as ok without comparing.
+11. `scripts/render-check.ts:384 to 395`: any number of English passages on Arabic pages is a skip, and skips exit 0.
+12. `scripts/gates.ts:134 to 145`: keeps the last FILTERED line, not the last line; a failing gate whose message lacks FAIL/Error words shows no reason, and a lower-case "failed" total is dropped (T4 partly unfixed despite its comment).
+13. `scripts/age.ts:173 to 255`: no transaction; partial failure then retry double-ages rows on production.
+
+## Looks broken, is handled
+
+1. `scripts/_surfaces.ts:313 to 324` lists four safety functions with zero callers, including `potBalance` (E1's anti-differencing floor). Handled: `app/(sponsor)/sponsor/page.tsx:7, 63` and `app/(sponsor)/sponsor/pot/page.tsx:15, 83` call `potBalance`; `upsertSubject` at `lib/partner/platform.ts:142, 143`; `queueWebhook` at `app/(patient)/patient/consent/actions.ts:167, 168` and `lib/partner/webhooks.ts:183, 210`; `unpause` at `app/(admin)/admin/benefits/actions.ts:7, 43`; `diariseSession` at `lib/ai/notes.ts:386, 387`.
+2. `scripts/_demo-cast.ts:5 to 19` / `_value-statements.ts:359 to 373`: the T6 disaster (verify-demo importing seed-demo and wiping the DB). Handled: shared data lives in no-main files; `seed-demo.ts` imports only from them.
+3. `scripts/_i18n-coverage.ts:274`, `inventory.ts:513`, `reset.ts:78`, `audit-daily-hosts.ts:187`: guards on argv. Handled by `ranDirectly` exact basename (`_verify.ts:319 to 322`), not a suffix. Exception: `check-live.ts:219` uses `includes` (Broken 7 area, low risk).
+4. `scripts/seed-demo.ts:201 to 222`: disables the append-only clinical-summary trigger on production. Re-enabled in a `finally` (219 to 221), though never verified afterwards (Stale 14).
+5. `scripts/on-production.ts:288 to 290`: a read command could inherit write permission. Handled: `I_MEAN_PRODUCTION` is deleted for read entries, and `writesTo` requires both the flag and the caller's own opt-in (`_verify.ts:204 to 247`).
+6. `scripts/republish.ts:58` skips the guard for `--staging`: staging locales are unreachable by readers (`_content-ready.ts:54 to 61`, `republish.ts:133 to 142` nulls nav fields).
+7. `scripts/age.ts:157, 196` `sql.raw` with interpolated values: `days` is validated to an integer 1..400 (129) and the timestamp is an ISO string from a local file.
+8. `scripts/_verify.ts:115 to 131` `sawRows` never fails on empty data: deliberate and printed in the summary line.
+9. `scripts/screens.ts:100 to 131` refuses the demo cast DB (orgs lack "demo" in their names): fails safe.
+
+## Unclaimed
+
+(a) worth selling, nothing advertises it:
+- `scripts/copilot-exam.ts` design: absent-fact controls graded as hard as recall ("brother called Hossam"), i.e. a measured "the copilot says it does not know" property. No promise says the copilot refuses to invent.
+- `scripts/render-check.ts:234 to 237`: the crisis panel on `/for-patients` points at the radar (a free human now), a crisis route no promise names beyond P5's button.
+- Anonymous ratings ("no query anywhere joins a rating back to a patient", `pitch-deck.cjs:658, 744`): not among the 25.
+(b) nobody should have it, a hole:
+- `scripts/grant-admin.ts:93 to 98`: promotes ANY existing user to super_admin and replaces the password, on production, with no audit row and outside the allow-list.
+- `scripts/q.ts`: arbitrary SQL, any database, no host printed.
+- `scripts/copilot-exam.ts`: an allow-listed production command that impersonates each patient's last clinician, reads the full record without grant scoping, and ships clinical text to a second model call and to a committable JSON file.
+- `scripts/seed-demo.ts`: allow-listed command that deletes `audit_log` on production every reseed (A5's "every read is written down" is erasable by a sanctioned command).
+- `scripts/demo.ts:266`: `demo:purge` deletes every organisation with any `@example.com` user, which includes the platform org once `staff.demo@example.com` exists in it.
+(c) half built:
+- `scripts/pitch-deck.cjs:1137`: "Facial-affect analysis in the copilot, on the video we already have consent to record" as a 90-day plan: a capability no consent text covers (recording consent is not affect-analysis consent).
+- `scripts/probe.ts:657 to 667`: patient email: named as needed ("only way to receive your record") with no screen to add it.
+- `scripts/_reachability.ts:151 to 154`: `partner_consents` (patient cannot see what a partner recorded about their consent) and `partner_clinicians` (no list for the partner): named gaps.
+- `scripts/lifecycles.ts:124 to 133`: promises with no clock (#166 alerting not built).
+
+## Promise evidence
+
+- P1: `seed-demo.ts:1226 to 1290` seeds the `live` position (a session ten minutes out, invitation notice). Cannot tell from here.
+- P2: `seed-demo.ts:1246 to 1249, 1288` writes the in-app notice row directly, deliberately not through `notify()`, so the seed does not prove the send path. Cannot tell.
+- P3: `seed-demo.ts:960 to 968` seeds notes already signed and released; `seed.ts:410 to 420` seeds an approved note with default `patient_status` (patient sees "still writing"). Walk-only; partly: the seeds skip the signing flow.
+- P4: `seed-demo.ts:763 to 772` two summaries, two authors via raw insert; the wipe disables the append-only trigger (201 to 222) and deletes every summary. Kept in product per the trigger; the sanctioned seed can erase every version on production.
+- P5: `render-check.ts:234 to 237` checks the crisis panel exists on staged `/for-patients` only. `reset.ts` truncation would erase crisis numbers with no reseed. Cannot tell from here for the button.
+- T1: `backfill-diarise.ts`, `benchmark-ai.ts` show attribution feeding notes. Cannot tell.
+- T2: nothing in slice enforces it. Cannot tell.
+- T3: `seed-demo.ts:300 to 313` puts Dr Omar on payg to make netting walkable; payout request inserted raw (1192). Partly: the seed's held earnings rest on sessions with no money behind them (Suspect 1).
+- T4: `inventory.routes()` does not include `/join/[token]` (Broken 6), so no derived checker covers it. Cannot tell.
+- T5: `copilot-exam.ts` bypasses grant scoping (not product); `case-copilot.ts:507 to 513` default "no restriction" when `capabilities` is absent. Partly / suspect.
+- C1: `demo.ts` and `seed-demo.ts` put clinicians on the radar by raw insert, skipping the clinic seat flow. Cannot tell.
+- C2, C3, C4, C5: not enforced in slice. Cannot tell.
+- E1: `seed-demo.ts:995 to 1020` six covered sessions to cross the publication floor of five; `_surfaces.ts` C369 note that `potBalance` was uncalled is now fixed (Looks handled 1). Kept as far as this slice can see.
+- E2: nothing in slice. Cannot tell.
+- E3: `seed-demo.ts:575 to 583` sets coverage before `payFromPot` so each session's split is frozen (the CV7 mechanism). Cannot tell beyond that.
+- E4: nothing. E5: `growth` position pot is $200 plus $50 overdraft, not "$100" as stated (`_value-statements.ts:380 to 385`, VALUE-STATEMENTS.md:247): still runs out; the stated figure is wrong.
+- A1: `probe.ts:961 to 969` asserts a declared transfer is not confirmed; `seed-demo.ts:572, 573` confirms through `confirmPayment`. Kept as far as seen. But `seed-demo.ts` marks sessions paid with no confirmation (Suspect 1) and `screens-prep.ts:148` inserts submitted payments raw.
+- A2: nothing in slice. A3: `seed-demo.ts:1369 to 1374` rejects with a verbatim reason; `money` orphan claim uses payer kind `session` (MAP Suspect 4). Cannot tell whether read verbatim.
+- A4: `seed-demo.ts:1292 to 1320` seeds an unmatched claim. Cannot tell.
+- A5: `_demo-cast.ts:83 to 88` and `seed-demo.ts:340 to 343` add a non-founder staff login so a refusal can be walked; `probe.ts` F8/F9 claim to test the refusal and do not; `seed-demo.ts` deletes `audit_log`; `grant-admin.ts` grants a role unaudited. Partly: the refusal is walkable, the record of it is erasable.
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| scripts/_browser.ts | 107 | read |
+| scripts/_cast.ts | 473 | read |
+| scripts/_content-ready.ts | 180 | read |
+| scripts/_dashes.ts | 95 | read |
+| scripts/_demo-cast.ts | 152 | read |
+| scripts/_environments.ts | 84 | read |
+| scripts/_gates.ts | 627 | read |
+| scripts/_i18n-coverage.ts | 287 | read |
+| scripts/_i18n-lines.ts | 17 | read |
+| scripts/_i18n-list.ts | 19 | read |
+| scripts/_prove-doc.ts | 178 | read |
+| scripts/_reachability.ts | 155 | read |
+| scripts/_region-pins.ts | 86 | read |
+| scripts/_render-preload.mjs | 46 | read |
+| scripts/_render.ts | 118 | read |
+| scripts/_scan-deferrals.ts | 85 | read |
+| scripts/_stub-empty.ts | 13 | read |
+| scripts/_stub-link.tsx | 22 | read |
+| scripts/_stub-navigation.tsx | 56 | read |
+| scripts/_surfaces.ts | 424 | read |
+| scripts/_tmp-owed.ts | 37 | read |
+| scripts/_value-statements.ts | 435 | read |
+| scripts/_verify.ts | 521 | read |
+| scripts/age.ts | 266 | read |
+| scripts/audit-csp-enforced.ts | 230 | read |
+| scripts/audit-daily-hosts.ts | 187 | read |
+| scripts/backfill-diarise.ts | 139 | read |
+| scripts/baseline.ts | 241 | read |
+| scripts/benchmark-ai.ts | 471 | read |
+| scripts/browser/shot.mjs | 52 | read |
+| scripts/build-world.mjs | 241 | read |
+| scripts/capture-coverage.ts | 171 | read |
+| scripts/capture-payments.tsx | 637 | read |
+| scripts/capture-therapist-money.ts | 181 | read |
+| scripts/check-live.ts | 219 | read |
+| scripts/copilot-exam.ts | 618 | read |
+| scripts/db.ts | 24 | read |
+| scripts/demo.ts | 338 | read |
+| scripts/forecast.ts | 128 | read |
+| scripts/gates.ts | 157 | read |
+| scripts/grant-admin.ts | 124 | read |
+| scripts/inventory.ts | 513 | read |
+| scripts/lifecycles.ts | 163 | read |
+| scripts/logins.ts | 268 | read |
+| scripts/mail-preview.ts | 178 | read |
+| scripts/measure-cuts.ts | 89 | read |
+| scripts/migrate.ts | 124 | read |
+| scripts/on-production.ts | 304 | read |
+| scripts/physics.ts | 425 | read |
+| scripts/pitch-deck.cjs | 1221 | read |
+| scripts/plan.ts | 193 | read |
+| scripts/probe.ts | 1449 | read |
+| scripts/probe/_probe.ts | 151 | read |
+| scripts/prose-sweep.ts | 630 | read |
+| scripts/prove.ts | 19 | read |
+| scripts/q.ts | 7 | read |
+| scripts/render-check.ts | 412 | read |
+| scripts/republish.ts | 226 | read |
+| scripts/reset.ts | 160 | read |
+| scripts/screens-prep.ts | 174 | read |
+| scripts/screens.ts | 197 | read |
+| scripts/seed-capture.ts | 869 | read |
+| scripts/seed-coverage.ts | 275 | read |
+| scripts/seed-demo.ts | 1427 | read |
+| scripts/seed.ts | 441 | read |
+
+65 files, 18,556 lines. One deviation from the hard rules to report: to confirm a finding I ran `node -e` once to read `lib/countries.json` (a read of a committed JSON file, no network, no DB).
