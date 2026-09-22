@@ -25,7 +25,10 @@
  * That is the single most expensive mistake available here, it is one line,
  * and it is invisible to every other check in this repository.
  */
+import { readFileSync } from "node:fs";
+
 import { contentSecurityPolicy } from "../lib/security/csp";
+import { installedVersion, sdkDomains } from "./audit-daily-hosts";
 import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
@@ -87,7 +90,7 @@ function main() {
   );
 
   /*
-   * 🔴 CONTROL — the reader has to be able to find a directive that is absent
+   * 🔴 CONTROL. The reader has to be able to find a directive that is absent
    * and read one that is present, or every line above passes on an empty
    * string. Three absences in a row pass just as happily against a parser that
    * returns nothing for everything.
@@ -132,6 +135,96 @@ function main() {
     "🔴 report-only is opt IN, so a forgotten variable enforces rather than watches",
     /CSP_ENFORCE\s*===\s*"0"/.test(csp),
     "enforcing by default, report-only only when asked for by name",
+  );
+
+  /* ================================================================== */
+  /*  The video room's hosts, which are not in the package we installed  */
+  /* ================================================================== */
+
+  /*
+   * 🔴 THE POLICY WAS WRITTEN FROM THE WRONG FILE ONCE ALREADY.
+   *
+   * `@daily-co/daily-js` in `node_modules` is a loader. The client is a 1.8MB
+   * bundle it downloads at join time, and the production signalling API named
+   * in it is `https://prod-ks.pluot.blue`, a host the installed package never
+   * mentions. A policy read off the package blocks it, and the symptom is a
+   * clinician in a room that never connects.
+   *
+   * `docs/DAILY-HOSTS.md` carries the audit as data. These checks assert the
+   * policy still matches it, and that the audit is not about an older version
+   * than the one installed. See `npm run audit:daily-hosts`.
+   */
+  const audit = readFileSync("docs/DAILY-HOSTS.md", "utf8");
+  const block = audit.match(/```audited\n([\s\S]*?)\n```/)?.[1] ?? "";
+  const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+  const auditedVersion = lines.find((line) => line.startsWith("daily-js "))?.slice(9) ?? "";
+  const allowed = lines.filter((l) => l.startsWith("allow ")).map((l) => l.split(" ")[1]);
+  const unclassified = lines.filter((line) => line.startsWith("unclassified "));
+
+  const connect = directive("connect-src");
+
+  /*
+   * A policy entry `https://*.daily.co` covers the bare `daily.co` too: the
+   * SDK uses the bare name as a SUFFIX it builds hosts onto (`c.` + domain),
+   * never as a host of its own, so the wildcard is what actually gets used.
+   */
+  const covered = (host: string, scheme: "https" | "wss") => {
+    const bare = host.replace(/^\*\./, "");
+    return connect.some((value) => {
+      if (!value.startsWith(`${scheme}://`)) return false;
+      const named = value.slice(scheme.length + 3);
+      return named === host || named === `*.${bare}` || named === bare;
+    });
+  };
+
+  const missing = allowed.filter((host) => !covered(host, "https") || !covered(host, "wss"));
+
+  check(
+    "🔴 every host the audited bundle needs is in connect-src, over https and wss",
+    allowed.length > 0 && missing.length === 0,
+    missing.length > 0
+      ? `missing ${missing.join(" · ")}`
+      : allowed.join(" · ") || "the audited block names no allowed host at all",
+  );
+
+  check(
+    "🔴 the audit is of the version actually installed",
+    auditedVersion === installedVersion(),
+    auditedVersion === installedVersion()
+      ? `daily-js ${auditedVersion}`
+      : `docs/DAILY-HOSTS.md audited ${auditedVersion || "nothing"}, installed is ${installedVersion()}. Run: npm run audit:daily-hosts -- --write`,
+  );
+
+  check(
+    "🔴 every host the bundle names has a decision written against it",
+    unclassified.length === 0,
+    unclassified.join(" · ") || "nothing in the bundle is undecided",
+  );
+
+  /*
+   * The SDK's own list of domains it will serve itself from, lifted out of the
+   * installed package rather than retyped. An upgrade that adds a fourth goes
+   * red here rather than arriving as a quiet line in a lockfile diff.
+   */
+  const domains = sdkDomains();
+  const uncoveredDomains = domains.filter((d) => !covered(d, "https") || !covered(d, "wss"));
+
+  check(
+    "🔴 the SDK's own domain list is covered, read out of the package not retyped",
+    uncoveredDomains.length === 0,
+    uncoveredDomains.length > 0 ? `missing ${uncoveredDomains.join(" · ")}` : domains.join(" · "),
+  );
+
+  /*
+   * 🔴 CONTROL. The coverage test has to say no to something. Four "is it
+   * covered" passes in a row read exactly the same against a matcher that
+   * returns true for everything, which is the shape of every trap in
+   * `docs/TRAPS.md`.
+   */
+  check(
+    "🔴 CONTROL the coverage test refuses a host the policy does not name",
+    covered("*.pluot.blue", "wss") && !covered("*.example.com", "https") && !covered("*.pluot.co", "https"),
+    "the signalling host reads as covered, an unnamed host and a noted-but-blocked one do not",
   );
 
   finish("csp");

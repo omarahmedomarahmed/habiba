@@ -581,6 +581,7 @@ defects that sixty verifiers had missed.
 | `docs/INVENTORY.md` | Every page and every control in the product, with whether it is wired to anything. Generated: `npm run inventory -- --write` |
 | `docs/LIFECYCLES.md` | Every state a session, payment, payout, claim or clinician can be in, and every way a person gets stuck in one. Generated: `npm run lifecycles -- --write` |
 | `docs/EMAIL-DNS.md` | What is published for the domain, what is not, and what each gap costs. `verify:email-dns` asks live DNS rather than this file |
+| `docs/DAILY-HOSTS.md` | Every host the video room actually talks to, read out of the bundle Daily downloads at join time rather than the package we installed. Generated: `npm run audit:daily-hosts -- --write` |
 | `docs/THE-REDESIGN.md` | The current plan: what exists against what the redesign needs, what breaks, and the order to do it in |
 | `docs/SIMULATION-PROMPT.md` | **The prompt that starts the simulation.** Keys, the branch, the steps, and what to report back |
 | `docs/simulation/` | The seventeen documents it reads first: what was hit before it, the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, what the run hands the plan, the forty eight money edges, each person's week by week story, who is allowed to read a record, the logins, the audio, the rehearsal and the deploy. `verify:runbook` checks them against the code |

@@ -36,9 +36,68 @@
  * The consequence for this file is that Daily's signalling is a direct
  * connection from the page, so `connect-src` has to name it over both https
  * and wss, and its workers and media need `blob:`.
+ *
+ * ## 🔴 AND THE HOSTS ARE NOT THE ONES ON THE TIN
+ *
+ * The package in `node_modules` is a 200KB loader. The product is a 1.8MB
+ * bundle it DOWNLOADS at join time, from
+ * `https://c.daily.co/call-machine/versioned/<version>/static/`, and the hosts
+ * that matter are named in the part that was never installed.
+ *
+ * The first version of this policy was written by reading the installed
+ * package, found only `daily.co`, and would have blocked every call in
+ * production. The downloaded bundle says, in as many words:
+ *
+ *     getAPIBaseURL = (e) => { if (isProduction(e)) return "https://prod-ks.pluot.blue"; … }
+ *
+ * `pluot.blue` is Daily's own infrastructure, from before the company was
+ * called Daily, and in production it is the signalling API, not a fallback,
+ * not a test path, the first branch. A policy naming only `*.daily.co` sends a
+ * clinician into a room that cannot connect, with a console error nobody in
+ * production ever reads.
+ *
+ * `docs/DAILY-HOSTS.md` is the audit, `npm run audit:daily-hosts` re-runs it,
+ * and `verify:csp` fails when the installed version moves past the audited one
+ * so that the re-run is not something anybody has to remember.
+ *
+ * ## What stays blocked on purpose
+ *
+ * **Daily's Sentry** (`o77906.ingest.sentry.io`). The SDK reports its own
+ * errors to a Sentry we do not control, with whatever context it attaches. The
+ * transport is a `fetch` whose rejection the SDK swallows, so blocking it costs
+ * a console line and nothing else. Consultation data does not leave here to buy
+ * somebody else a stack trace.
+ *
+ * **WebAssembly** (no `'wasm-unsafe-eval'`). The only wasm in the bundle is
+ * Banuba, the background-blur and virtual-background engine, which this product
+ * does not turn on. If background effects or Daily's noise cancellation are
+ * ever enabled, `script-src` needs `'wasm-unsafe-eval'` and this comment is
+ * where you found that out.
  */
 const DAILY = "https://*.daily.co";
 const DAILY_SOCKET = "wss://*.daily.co";
+
+/**
+ * 🔴 Daily's signalling API and its alternate media domains.
+ *
+ * `pluot.blue` carries the production signalling API and the region lookup.
+ * `dailywebrtc.com` and `.net` are the alternates the SDK swaps in when a room
+ * URL is served from one of them; they are Daily's own list, read out of the
+ * installed package by `verify:csp`, so an upgrade that adds a fourth goes red
+ * rather than quiet.
+ *
+ * Nothing here widens the threat model. `*.daily.co` already serves a SCRIPT
+ * into this origin under `strict-dynamic`; a host that may additionally open a
+ * socket is strictly less trusted than one that may run code.
+ */
+const DAILY_INFRA = [
+  "https://*.pluot.blue",
+  "wss://*.pluot.blue",
+  "https://*.dailywebrtc.com",
+  "wss://*.dailywebrtc.com",
+  "https://*.dailywebrtc.net",
+  "wss://*.dailywebrtc.net",
+];
 
 export type CspOptions = {
   /** Per-request, per-response. Never reused, never guessable. */
@@ -95,7 +154,7 @@ export function contentSecurityPolicy({ nonce }: CspOptions): string {
     /* Recorded audio played back from an object URL, and Daily's media. */
     "media-src": ["'self'", "blob:", DAILY],
 
-    "connect-src": ["'self'", DAILY, DAILY_SOCKET],
+    "connect-src": ["'self'", DAILY, DAILY_SOCKET, ...DAILY_INFRA],
 
     /* Daily builds its workers from blobs. */
     "worker-src": ["'self'", "blob:"],

@@ -23,7 +23,7 @@
  */
 import { readFileSync, readdirSync } from "node:fs";
 
-import { reporter } from "./_verify";
+import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -203,6 +203,46 @@ function truncatesSilently(file: string): boolean {
   return !/more,|more lines|left out|and \$\{|… and/.test(body);
 }
 
+/* ====================================================================== */
+/*  T5 · a dependency that downloads the rest of itself                   */
+/* ====================================================================== */
+
+/**
+ * 🔴 THE INSTALLED PACKAGE IS NOT THE ARTIFACT.
+ *
+ * The Content Security Policy was written by reading `@daily-co/daily-js` in
+ * `node_modules`, which names exactly one host, `daily.co`. The package is a
+ * loader. At join time it appends a `<script>` for a 1.8MB bundle, and the
+ * production signalling API named in THAT is `https://prod-ks.pluot.blue`, a
+ * host the installed package never mentions. The policy would have blocked
+ * every call in production, and the symptom is a clinician in a room that
+ * never connects with the explanation in a console nobody has open.
+ *
+ * The fix is not a longer list. It is that the list is AUDITED against the
+ * thing that actually runs, the audit is pinned to a version, and the pin
+ * fails when the version moves. `npm run audit:daily-hosts` writes it,
+ * `docs/DAILY-HOSTS.md` holds it, `verify:csp` enforces it.
+ *
+ * This reads with comments stripped, because a detector asking whether a file
+ * mentions a rule is T1 wearing a different hat: a comment describing the
+ * audit would pass for the audit.
+ */
+function dailyAuditIsWired(file: string): { wired: boolean; detail: string } {
+  const body = readSource(file);
+  const missing = [
+    /docs\/DAILY-HOSTS\.md/.test(body) ? "" : `${file} no longer reads the audit record`,
+    /installedVersion\(\)/.test(body) ? "" : `${file} no longer pins the audit to the installed version`,
+    /unclassified/.test(body) ? "" : `${file} no longer fails on a host with no decision`,
+  ].filter(Boolean);
+
+  return {
+    wired: missing.length === 0,
+    detail:
+      missing.join(" · ") ||
+      "the audit is read, pinned to the installed version, and an undecided host is a failure",
+  };
+}
+
 function main() {
   const all = scripts();
 
@@ -279,6 +319,21 @@ function main() {
     "🔴 T4 a report that truncates says how much it left out",
     silent.length === 0,
     silent.join(" · ") || "both runners name what they dropped",
+  );
+
+  /* ------------------------------------------------------------ T5 */
+
+  const daily = dailyAuditIsWired("scripts/verify-csp.ts");
+  check(
+    "🔴 T5 the hosts a downloaded bundle needs are audited against the bundle, not the package",
+    daily.wired,
+    daily.detail,
+  );
+
+  check(
+    "🔴 T5 CONTROL the wiring detector says no to a verifier that does none of it",
+    dailyAuditIsWired("scripts/verify-palette.ts").wired === false,
+    "a verifier with no audit in it does not read as audited",
   );
 
   /*

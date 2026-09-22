@@ -115,6 +115,37 @@ and which command prints all of it.
 
 ---
 
+### T5 · A dependency that downloads the rest of itself
+
+**The trap.** The package in `node_modules` is read as though it were the thing
+that runs. For a loader, it is not.
+
+**What it costs.** The Content Security Policy was written from
+`@daily-co/daily-js`, which names exactly one host, `daily.co`. That package is
+a 200KB loader; on join it appends a `<script>` for a 1.8MB bundle, and the
+production signalling API named in that bundle is `https://prod-ks.pluot.blue`,
+a host the installed package never mentions. Not a fallback: the first branch
+of `getAPIBaseURL` under `isProduction`. The policy would have refused it, and
+the symptom is a clinician sitting in a room that never connects, with the
+explanation in a console nobody in production has open. Every local check was
+green, because everything local was correct.
+
+**Where else it has the same shape.** A lockfile that carries a critical CVE
+while every version constraint in `package.json` reads clean. A CDN script tag
+audited by its URL. Anything whose real behaviour arrives after install.
+
+**The rule.** Audit the artifact that runs, pin the audit to a version, and
+fail when the version moves past the audit. `npm run audit:daily-hosts` fetches
+the bundle and writes what it found into `docs/DAILY-HOSTS.md`, classified: a
+host with no decision written against it is `unclassified`, and that is a
+failure rather than a default.
+
+**Enforced by `verify:csp`, and `verify:traps` asserts that enforcement is
+still wired,** for the reason T1 gives: two checkers for one property is worse
+than one.
+
+---
+
 ## Traps recorded but not yet checkable
 
 These have the same shape and no cheap static test. They are here so the
