@@ -500,3 +500,43 @@ Sources are the Broken (B), Suspect (S) and "Looks broken, is handled" (H) secti
 - Severity: S4
 - Fix sketch: pass `null` for the session id, and add `logUsage` plus a limiter to both speak routes. Proof: `ai_request_logs` gains a row per dictation.
 - Decision it came from: none recorded.
+
+### CLIN-49 · The meeting-transcript webhook is not signed
+- Verdict: PARTLY
+- Sources: code-05 S5, code-05 Stale 11, code-07 H2
+- Promise: T1 (a note written from what was actually said)
+- Who is hurt and how: anyone who learns a session id and the bot id of a live, consented external meeting can post transcript lines into that clinical record, which then feed the note and the crisis scan. The comment calls the webhook "Ours, signed"; nothing checks a signature. Held: unknown sessions get a bland 200, a bot id that is not the session's is refused (`assertOurBot`), and nothing is accepted without live consent (`app/api/meetings/transcript/[sessionId]/route.ts:86-106`).
+- Evidence: the route authenticates only by `payload.bot_id` matching the stored bot (`:60-94`); no HMAC, secret or header check in the file (grep); `lib/meetings/recall.ts:56,109` builds the URL with no secret.
+- Severity: S2
+- Fix sketch: add a per-session secret to the webhook URL (or verify Recall's signature header), compared in constant time. Proof: a post without the secret is refused.
+- Decision it came from: 41.x (bot dispatch).
+
+### CLIN-50 · The note writer is still sent the chart's working diagnoses
+- Verdict: CONFIRMED
+- Sources: code-05 Stale 5
+- Promise: T1
+- Who is hurt and how: C168 decided the note generator is "sent no diagnoses at all", because every measured leak was diagnosis-shaped (a history of panic attacks became "panic disorder" in the note). The evidence-layer filter enforces that, but `buildContext` separately adds `patients.clinical.diagnoses` as "Working diagnoses", so the highest-consequence label still reaches the model.
+- Evidence: `lib/ai/notes.ts:113-115`; the rule at `lib/clinical/context.ts:86-100`.
+- Severity: S3
+- Fix sketch: drop the "Working diagnoses" line (keep goals). Proof: a unit on `buildContext` with a diagnosis on the chart.
+- Decision it came from: C168 applied to `factsForPrompt` only.
+
+### CLIN-51 · The copilot's standing profile ignores the live-session time bound
+- Verdict: CONFIRMED
+- Sources: code-05 Stale 1
+- Promise: T5 (the copilot "only knows what came before this session", its own prompt)
+- Who is hurt and how: during a live session, a profile rebuilt mid-session reaches the copilot, contrary to the C373 rule its header describes as fixed.
+- Evidence: `lib/ai/case-copilot.ts:450-457` `profileFor(..., before)` then `void before;`, while the C373 header at `:354-365` says both sources now take the bound.
+- Severity: S4
+- Fix sketch: skip the profile when `profile.generatedAt >= before`. Proof: unit.
+- Decision it came from: C373.
+
+### CLIN-52 · Public copy says in-person patients are asked for consent on the same screen
+- Verdict: CONFIRMED
+- Sources: code-05 Stale 10, code-05 Stale 6
+- Promise: T2
+- Who is hurt and how: a clinician choosing the product reads, on the public integrations list, that "The patient is asked for consent on the same screen, in their language". No code does this (CLIN-1), so a clinician relying on it records without consent believing the product asked.
+- Evidence: `lib/integrations/registry.ts:66-72` (state "live"); `lib/consent.ts:2` ("before they enter the room") likewise; the only consent writers are the join actions (MAP item 4).
+- Severity: S2 (a false public statement that makes the legal defect worse)
+- Fix sketch: change the copy today to "Ask your patient before you start; the app does not ask them yet", until the in-person consent step ships. Proof: `verify:claims` pattern for it.
+- Decision it came from: the registry written ahead of the feature.
