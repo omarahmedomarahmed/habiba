@@ -11,7 +11,7 @@ verifier unless it says CONFIRMED (MAP n), which is carried in from the coordina
 Pure arithmetic was run with `node --import tsx` where it settled a claim; nothing touched a
 database or the network.
 
-Written 2026-09-22 against commit 8acf13b.
+Written 2026-09-22 against commit 8acf13b; no file under lib/, app/, components/ or drizzle/ changed through 8bd51ac.
 
 ---
 
