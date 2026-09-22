@@ -1,4 +1,5 @@
 import { PatientBottomNav } from "@/components/patient/bottom-nav";
+import { SessionOrb } from "@/components/patient/session-orb";
 import { SosOrb } from "@/components/patient/sos-orb";
 
 /**
@@ -18,8 +19,9 @@ import { SosOrb } from "@/components/patient/sos-orb";
  *
  * `liveSession` locks the session tab and makes leaving ask first (25.4).
  */
-export function PatientChrome({
+export async function PatientChrome({
   children,
+  openSession = null,
   liveSession = null,
   nav = true,
   practiceNumber = null,
@@ -27,6 +29,15 @@ export function PatientChrome({
   country = null,
 }: {
   children: React.ReactNode;
+  /**
+   * 🔴 79.3 — THE SESSION THIS PERSON HAS OPEN, priced or paid.
+   *
+   * Rendered here for the reason the SOS orb is: "every screen" is the
+   * requirement. A founder paid for a session on production, went back to the
+   * app and found nothing at all, because the payment sheet lives on its own
+   * route and the join link lives in an email.
+   */
+  openSession?: { href: string; state: "owes" | "ready"; live: boolean } | null;
   liveSession?: { href: string } | null;
   /**
    * A visitor who is not signed in gets the orb and no navigation, because
@@ -61,6 +72,12 @@ export function PatientChrome({
         requirement and a page that forgets it is a page somebody reaches on
         the night they need it.
       */}
+      {/*
+        🔴 UNDER the SOS orb, which is why it is rendered before it. Both can
+        be on screen; if they ever overlap the crisis button is the one on top,
+        because C235 is that a patient's crisis path never depends on money.
+      */}
+      <SessionOrb session={openSession} />
       <SosOrb
         dimmed={liveSession !== null}
         practiceNumber={practiceNumber}

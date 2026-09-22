@@ -57,6 +57,7 @@ export function JoinFlow({
   resumeAfterPayment,
   cancelled,
   initialConsent,
+  knownName,
 }: {
   therapist: Therapist;
   token: string;
@@ -72,6 +73,20 @@ export function JoinFlow({
     recording: "granted" | "declined" | null;
     profileShare: "granted" | "declined" | null;
   };
+  /**
+   * 🔴 79.2 — THEIR OWN NAME, WHEN WE ALREADY KNOW IT.
+   *
+   * This route was built for a stranger on a bare link, and it was right to
+   * be: most people it reaches have never signed in and should not have to.
+   * But the same link also arrives by email to a patient who HAS an account,
+   * with a record, sitting in the app, signed in, and it asked them to type
+   * their first name as though nobody had ever met them.
+   *
+   * Set only when the signed-in person IS this session's patient, proved by a
+   * `patients` row rather than by a matching name. Null for everybody else,
+   * and the form is exactly what it was.
+   */
+  knownName: string | null;
 }) {
   const t = useT();
   const [state, action] = useActionState(submitJoin, INITIAL);
@@ -272,9 +287,26 @@ export function JoinFlow({
 
       <input type="hidden" name="token" value={token} />
 
-      <Field label={t("join.firstName")} htmlFor="name">
-        <Input id="name" name="name" autoComplete="given-name" autoCapitalize="words" required />
-      </Field>
+      {/*
+        🔴 79.2 — we already know who this is, so we do not ask.
+
+        The value still goes up in the form, as a hidden input, because the
+        action reads `name` and this component must not become the only reason
+        a submission is well formed. What changes is that a person who is
+        signed in is told who they are joining as rather than interviewed.
+      */}
+      {knownName ? (
+        <>
+          <input type="hidden" name="name" value={knownName} />
+          <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">
+            {t("join.joiningAs", { name: knownName })}
+          </p>
+        </>
+      ) : (
+        <Field label={t("join.firstName")} htmlFor="name">
+          <Input id="name" name="name" autoComplete="given-name" autoCapitalize="words" required />
+        </Field>
+      )}
 
       {owes ? (
         <Field label={t("join.receiptEmail")} htmlFor="email" hint={t("join.optional")}>

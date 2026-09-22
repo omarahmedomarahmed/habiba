@@ -16,8 +16,8 @@ import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { therapistRadar, users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { patients, therapistRadar, users } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
 import { callerKey, releaseHold } from "@/lib/rate-limit";
 
 /*
@@ -96,6 +96,34 @@ export default async function JoinPage({
    * deserves to see the name and the credentials of the clinician they picked,
    * on the screen, while they wait.
    */
+  /*
+   * 🔴 79.2 — IS THE PERSON READING THIS THE PATIENT ON THIS SESSION?
+   *
+   * The join route was built for a stranger on a bare link and it is right to
+   * be: most people it reaches have never signed in. But the same link arrives
+   * by email to somebody who HAS an account and a record, and it asked them to
+   * type their first name as though nobody had ever met them.
+   *
+   * Proved by a `patients` row joining the signed-in person to this session's
+   * patient, never by a matching name or address. A person has several
+   * `patients` rows, one per organisation, so the question is whether any of
+   * theirs IS the one on the session.
+   *
+   * Null for everybody else, and the form is exactly what it always was.
+   */
+  const signedIn = await optionalPatient();
+  let knownName: string | null = null;
+  if (signedIn && session.patientId) {
+    const [mine] = await db
+      .select({ id: patients.id })
+      .from(patients)
+      .where(
+        and(eq(patients.id, session.patientId), eq(patients.personId, signedIn.personId)),
+      )
+      .limit(1);
+    if (mine) knownName = signedIn.firstName;
+  }
+
   const [clinician] = await db
     .select({
       firstName: users.firstName,
@@ -165,6 +193,8 @@ export default async function JoinPage({
           (Boolean(checkout) || booked === "1" || Boolean(session.patientJoinedAt))
         }
         cancelled={checkout === "cancelled"}
+        /* 🔴 79.2 — their own name, when this is their own session. */
+        knownName={knownName}
         /* Already answered, so the room does not open by denying it. */
         initialConsent={{
           recording: session.recordingConsent,

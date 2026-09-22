@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
@@ -173,6 +173,80 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
  * happens on the other rail. The instant somebody pressed Start is the instant
  * there is somewhere to go.
  */
+/**
+ * 🔴 79.3 — THE SESSION THIS PERSON HAS OPEN, whether it has started or not.
+ *
+ * `liveSessionForPatient` answers "is a clinician in a room right now", which
+ * is the banner. This answers the other question, and it is the one a founder
+ * asked after paying for a session on production and going back to the app:
+ * **where did it go?**
+ *
+ * Nowhere. The payment sheet lives on `/pay/:token`, the join link lives in an
+ * email, and the app itself held neither. A person who paid and navigated away
+ * had a receipt somewhere and no door anywhere.
+ *
+ * So this returns the open session and what the person has to DO about it, and
+ * the chrome renders an orb from it on every patient screen. Two states,
+ * because there are two things it can be:
+ *
+ *   `owes`  priced, unpaid. The orb opens the payment.
+ *   `ready` paid or free. The orb IS the door.
+ *
+ * ## What it deliberately does not return
+ *
+ * Nothing clinical, and no therapist name. An orb sits on a screen other
+ * people can read over a shoulder, so it carries a state and a link and
+ * stops. The banner names the clinician because it appears once a session is
+ * live and the person is about to see them anyway.
+ *
+ * ## Why the newest rather than a list
+ *
+ * A person with two unpaid sessions has one problem, not two, and an orb that
+ * could mean either is worse than an orb that means the most recent. The
+ * sessions tab is the list.
+ */
+export async function openSessionForPatient(
+  personId: string,
+): Promise<{ href: string; state: "owes" | "ready"; live: boolean } | null> {
+  const db = dbFor(await regionOfPerson(personId));
+
+  const [row] = await db
+    .select({
+      joinToken: sessions.joinToken,
+      status: sessions.status,
+      paymentStatus: sessions.paymentStatus,
+      priceCents: sessions.priceCents,
+    })
+    .from(sessions)
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .where(
+      and(
+        eq(patients.personId, personId),
+        isNull(patients.deletedAt),
+        /*
+         * Not ended and not called off. A completed session has nothing to do
+         * and a cancelled one is somebody else's problem to explain, which
+         * `docs/LIFECYCLES.md` records as its own dead end.
+         */
+        inArray(sessions.status, ["scheduled", "in_progress"]),
+        isNull(sessions.endedAt),
+        isNotNull(sessions.joinToken),
+      ),
+    )
+    .orderBy(desc(sessions.createdAt))
+    .limit(1);
+
+  if (!row?.joinToken) return null;
+
+  const owes = row.priceCents > 0 && row.paymentStatus === "pending";
+
+  return {
+    href: `/join/${row.joinToken}`,
+    state: owes ? "owes" : "ready",
+    live: row.status === "in_progress",
+  };
+}
+
 export async function liveSessionForPatient(
   personId: string,
 ): Promise<{ sessionId: string; href: string; therapistName: string } | null> {

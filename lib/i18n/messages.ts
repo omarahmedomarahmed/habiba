@@ -45,6 +45,17 @@ export const en = {
   "join.subtitlePaid":
     "No account needed. Tell us what to call you, then pay to enter.",
   "join.firstName": "Your first name",
+  /* 🔴 79.2 — shown instead of the name field when we already know them. */
+  "join.joiningAs": "Joining as {name}.",
+  /*
+   * 🔴 79.3 — the session orb, on every patient screen.
+   *
+   * A state and a door, never a clinician, a time or a price: an orb sits on a
+   * screen other people read over a shoulder.
+   */
+  "porb.pay": "Pay for your session",
+  "porb.ready": "Open your session",
+  "porb.joinNow": "Your session has started. Join now",
   "join.receiptEmail": "Email for your receipt",
   "join.optional": "Optional.",
   "join.thisSession": "This session",
@@ -3921,6 +3932,11 @@ export const ar: Record<MessageKey, string> = {
   "join.subtitlePaid":
     "لا حاجة إلى حساب. أخبرنا بما نناديك به، ثم ادفع للدخول.",
   "join.firstName": "اسمك الأول",
+  "join.joiningAs": "تنضم باسم {name}.",
+  /* 🔴 79.3 — see the English block: a state and a door, and nothing else. */
+  "porb.pay": "ادفع قيمة جلستك",
+  "porb.ready": "افتح جلستك",
+  "porb.joinNow": "بدأت جلستك. انضم الآن",
   "join.receiptEmail": "بريد إلكتروني لإيصال الدفع",
   "join.optional": "اختياري.",
   "join.thisSession": "هذه الجلسة",

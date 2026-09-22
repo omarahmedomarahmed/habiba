@@ -31,7 +31,7 @@
  */
 import { PatientChrome } from "@/components/patient/chrome";
 import { SessionStarted } from "@/components/patient/session-started";
-import { liveSessionForPatient } from "@/lib/data/patient-view";
+import { liveSessionForPatient, openSessionForPatient } from "@/lib/data/patient-view";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { LanguageCorner } from "@/components/i18n/language-corner";
 
@@ -58,10 +58,23 @@ export default async function PatientLayout({ children }: { children: React.Reac
    * otherwise: a live session belongs to a person, and a visitor is not one
    * yet. A guest with a join link already arrives holding the door.
    */
-  const live = actor?.personId ? await liveSessionForPatient(actor.personId) : null;
+  /*
+   * 🔴 79.3 — two questions, deliberately separate.
+   *
+   * `live` is "is a clinician in a room right now", which draws the banner and
+   * names them. `open` is "does this person have a session at all", which
+   * draws the orb and names nobody. A session can be open for a week before it
+   * is live, and that week is exactly when the app used to hold nothing.
+   */
+  const [live, open] = actor?.personId
+    ? await Promise.all([
+        liveSessionForPatient(actor.personId),
+        openSessionForPatient(actor.personId),
+      ])
+    : [null, null];
 
   return (
-    <PatientChrome nav={actor !== null} phone={actor?.phone ?? null}>
+    <PatientChrome nav={actor !== null} phone={actor?.phone ?? null} openSession={open}>
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       <LanguageCorner />
       {live ? <SessionStarted href={live.href} therapistName={live.therapistName} /> : null}
