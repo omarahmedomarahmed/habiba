@@ -292,6 +292,36 @@ export function readSource(file: string): string {
 }
 
 /**
+ * 🔴 T6 — WAS THIS FILE RUN, OR WAS IT IMPORTED? AND THE ANSWER IS A BASENAME.
+ *
+ * Every script here calls `main()` at module scope, so importing one runs it.
+ * The files that need to be both a library and a command guard that call, and
+ * five of them guarded it on what `process.argv[1]` ENDS WITH.
+ *
+ * A suffix is not an identity. `scripts/verify-prove.ts` ends with `prove.ts`,
+ * so `verify-prove.ts` importing the document builder out of `prove.ts` ran the
+ * writer, which rewrote the file a moment before the gate compared it: the
+ * staleness check reported `current` on anything and could not fail.
+ *
+ * Three of the others are the same collision waiting for a filename. The worst
+ * is `reset.ts`, whose `main()` DROPS TABLES and whose guard a file called
+ * `verify-reset.ts` would satisfy.
+ *
+ * So the comparison is the basename, exactly. `verify-reset.ts` is not
+ * `reset.ts` and never will be.
+ *
+ * 🔴 **This is the second-best answer.** The best one is for the shared half to
+ * live in a file with a leading underscore and no `main()` in it at all, the
+ * way `_cast.ts`, `_demo-cast.ts`, `_gates.ts`, `_value-statements.ts` and
+ * `_prove-doc.ts` do. Reach for that first; this is for the handful of scripts
+ * that genuinely are a command and a library at once.
+ */
+export function ranDirectly(basename: string): boolean {
+  const entry = process.argv[1] ?? "";
+  return entry.split(/[\\/]/).pop() === basename;
+}
+
+/**
  * 🔴 THE TWO CONSTRAINT-CONTRADICTION AUDITS, IN ONE PLACE, BECAUSE THEY ARE SIBLINGS.
  *
  * Neither audit can see the other's shape, and both were found the same way: by a script that tidied

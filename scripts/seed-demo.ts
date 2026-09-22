@@ -4,6 +4,16 @@
  *     npm run seed:demo                     # on whatever DATABASE_URL points at
  *     npm run on:production -- seed:demo    # the counted door
  *
+ * 🔴 80.1 — AND ONE OF FIVE POSITIONS, because the everyday one proves the
+ * everyday promises and nothing else.
+ *
+ *     npm run on:production -- seed:demo -- --scenario=money
+ *
+ * `scripts/_value-statements.ts` holds the five and what each is walked to
+ * prove. Each is a COMPLETE position rather than a diff: this script wipes and
+ * rebuilds every time, so there is no order dependence between them and a
+ * half-finished walk cannot poison the next one. `docs/PROVE-IT.md` is the walk.
+ *
  * ## What this is for, and why it is not the simulation
  *
  * `scripts/simulate-seed.ts` creates an operator and two applications and
@@ -45,6 +55,7 @@ import { sql } from "drizzle-orm";
 
 import { hashPassword } from "../lib/auth/password";
 import { DEMO_LOGINS, DEMO_PASSWORD, UNCLAIMED_EMAIL } from "./_demo-cast";
+import { scenario, scenarioFrom, TUNING } from "./_value-statements";
 import { connect } from "./db";
 import { writesTo } from "./_verify";
 
@@ -75,6 +86,17 @@ type Row = Record<string, unknown>;
 
 async function main() {
   writesTo({ productionIsAllowed: true });
+
+  /*
+   * 🔴 PARSED BEFORE THE WIPE, so an unknown name is a refusal rather than an
+   * emptied database followed by one. `scenarioFrom` throws on anything not in
+   * the list, and this is the only statement in this script that runs before
+   * the first DELETE.
+   */
+  const name = scenarioFrom(process.argv.slice(2));
+  const position = scenario(name);
+  const tuning = TUNING[name];
+  console.log(`\n  🔴 scenario: ${name} — ${position.title}\n`);
 
   const { db, pool } = connect();
   const one = async <T>(text: ReturnType<typeof sql>): Promise<T> => {
@@ -274,9 +296,24 @@ async function main() {
      * every screen that asks. `verify:sprint1` counts orphaned rows and is what
      * caught it.
      */
+    /*
+     * 🔴 80.1 — CAIRO COUNSELLING IS ON `payg`, AND IT USED TO BE ON `practice`.
+     *
+     * The founder's testers are a named list and one of them is *"1 PAYG
+     * therapist"*. On `practice` the clinician's bill is a flat monthly figure
+     * and the per-session fee is zero, so the metered rail — a dollar for the
+     * room and three for the note, raised per session, netted out of held
+     * earnings — had nobody on it. That is `T3`, it is the money path a solo
+     * clinician in Egypt actually lands on, and it was seeded away.
+     *
+     * It also makes the upgrade walkable: somebody on the free door can be
+     * shown the tiers, the figure, and what happens to the per-session fee
+     * (`PL1`, `PL2`, `PL3`), which is a decision nobody can be walked through
+     * from a plan they are already on.
+     */
     for (const [org, plan] of [
       [platform, "payg"],
-      [solo, "practice"],
+      [solo, "payg"],
       [clinic, "clinic"],
     ] as const) {
       await db.execute(sql`
@@ -291,6 +328,19 @@ async function main() {
       VALUES (${platform.id}, 'omar@24therapy.app', 'Omar', 'Abdelgawad', 'super_admin', ${hash}, 'active',
               'Africa/Cairo')
       RETURNING id`);
+
+    /*
+     * 🔴 80.1 — AND ONE COLLEAGUE WHO IS NOT A FOUNDER.
+     *
+     * `role = 'staff'` rather than `super_admin`, so the founder-only screens
+     * refuse somebody. `_demo-cast.ts` carries the argument: a permission
+     * nobody was ever refused by is a permission nobody has tested, and the
+     * cast had no way to be refused.
+     */
+    await db.execute(sql`
+      INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status, timezone)
+      VALUES (${platform.id}, 'staff.demo@example.com', 'Sami', 'Demo', 'staff', ${hash}, 'active',
+              'Africa/Cairo')`);
 
     /*
      * 🔴 `verification_status` IS NOT WRITTEN HERE, AND MUST NOT BE.
@@ -496,14 +546,17 @@ async function main() {
 
     /* A real top-up, through the cart and confirmed by the operator. */
     const { openCart } = await import("../lib/billing/cart");
-    const { submitProof, confirmPayment, egpMinorFor, egpRateMicro } = await import(
+    const { submitProof, confirmPayment, rejectPayment, egpMinorFor, egpRateMicro } = await import(
       "../lib/billing/manual"
     );
     const { grantFor } = await import("../lib/billing/manual-grants");
     const { potTopUpMoney, entityVatBps } = await import("../lib/billing/pot");
 
     const rate = await egpRateMicro();
-    const money = potTopUpMoney({ creditCents: 250_000, vatBps: await entityVatBps("eg") });
+    const money = potTopUpMoney({
+      creditCents: tuning.topUpCreditCents,
+      vatBps: await entityVatBps("eg"),
+    });
     const topUp = await openCart({
       purpose: "pot_topup",
       refId: sponsor.id,
@@ -519,9 +572,15 @@ async function main() {
     await submitProof({ paymentId: topUp.id, reference: "MISR-88120", proofUrl: null });
     await confirmPayment({ paymentId: topUp.id, byUserId: admin.id, onConfirmed: grantFor });
 
-    /* The company covers 60%, so a covered session splits visibly. */
+    /*
+     * The company covers a share, so a covered session splits visibly. Set
+     * BEFORE the first `payFromPot` below, because that is the moment the
+     * split is frozen onto each session: a coverage edited afterwards would
+     * leave six sessions posted at one rate and a pot claiming another, which
+     * is `CV7` as a bug rather than as a scenario.
+     */
     await db.execute(sql`
-      UPDATE sponsor_pots SET coverage_bps = 6000 WHERE sponsor_id = ${sponsor.id}`);
+      UPDATE sponsor_pots SET coverage_bps = ${tuning.coverageBps} WHERE sponsor_id = ${sponsor.id}`);
 
     /*
      * 🔴 THE MONEY IS CHECKED HERE, BECAUSE `confirmPayment` DOES NOT FAIL LOUD.
@@ -636,6 +695,25 @@ async function main() {
       INSERT INTO enrolments (sponsor_id, person_id, state, is_primary, identifier_hash,
                               identifier_kind, last_verified_at)
       VALUES (${sponsor.id}, ${mariamPerson.id}, 'active', true, 'demo-mariam', 'domain_email', now())`);
+
+    /*
+     * 🔴 A SECOND PERSON ON THE SAME POT, in `money` and `growth` only.
+     *
+     * One covered employee proves the split. TWO proves the things that only
+     * exist once a pot has more than one claim on it: `CV11`, where the
+     * employer's own spend page lists both people's sessions and names
+     * neither, and `RR9`, where two bookings race a balance that can fund one.
+     *
+     * It is off in the other three positions because it costs the cast its
+     * only patient who is enrolled nowhere, and that person is the one the
+     * enrolment flow is walked with.
+     */
+    if (tuning.enrolTheSecondPatient) {
+      await db.execute(sql`
+        INSERT INTO enrolments (sponsor_id, person_id, state, is_primary, identifier_hash,
+                                identifier_kind, last_verified_at)
+        VALUES (${sponsor.id}, ${omarPerson.id}, 'active', true, 'demo-omar', 'domain_email', now())`);
+    }
 
     /* 4 — Tarek: saw one clinician, then handed the record to a second. */
     const tarekPerson = await person("Tarek", "Demo", "tarek.demo@example.com", "+201000000004");
@@ -1113,10 +1191,200 @@ async function main() {
               'eg', 'open', 'patient', 'en', now() + interval '20 hours')`);
 
     /* ============================================================== */
+    /*  the position                                                  */
+    /* ============================================================== */
+
+    /**
+     * 🔴 80.1 — THE ROWS THIS POSITION NEEDS AND THE EVERYDAY ONE DOES NOT.
+     *
+     * Everything above is the cast. Everything here is the SITUATION they are
+     * in, and the rule for this block is that it only ever adds: no UPDATE that
+     * contradicts a posting, no DELETE, nothing that leaves the books
+     * describing a history that did not happen. The money differences live in
+     * `TUNING` above, at the moment the money is posted.
+     *
+     * 🔴 AND IT SEEDS THE POSITION, NEVER THE ACT.
+     *
+     * A session waiting to be paid for is a position. Paying for it is the walk,
+     * and a seed that did it would be a seed that proves the product to itself.
+     * So each entry below stops one click short of the thing being tested.
+     */
+
+    /** A session starting in a few minutes, priced, with nobody paid up. */
+    const imminent = async (opts: { patientId: string; token: string; priceCents: number }) =>
+      one<{ id: string; join: string }>(sql`
+        INSERT INTO sessions (organization_id, therapist_id, patient_id, status, modality,
+                              session_type, join_token, feedback_token, price_cents, price_currency,
+                              payment_status, scheduled_at)
+        VALUES (${solo.id}, ${drOmar.id}, ${opts.patientId}, 'scheduled', 'video', 'paid_link',
+                ${opts.token}, ${`${opts.token}-fb`}, ${opts.priceCents}, 'USD', 'pending',
+                now() + interval '10 minutes')
+        RETURNING id, join_token AS join`);
+
+    /**
+     * 🔴 THE IN-APP ROW IS WRITTEN DIRECTLY, AND NOT THROUGH `notify()`.
+     *
+     * `notify()` is the seam and it works; calling it here would also send a
+     * real email and a real WhatsApp message to the founder's own inboxes every
+     * time anybody reseeds, five times over a day of testing. The row is what
+     * the app reads, the row is the position, and the SEND is a separate thing
+     * the walk exercises by pressing the button in the product.
+     */
+    const noticeFor = async (personId: string, kind: string, key: string) =>
+      db.execute(sql`
+        INSERT INTO patient_notifications (person_id, kind, message_key)
+        VALUES (${personId}, ${kind}, ${key})`);
+
+    if (name === "live" || name === "crisis") {
+      /*
+       * 🔴 THE EXACT STATE THE FOUNDER FOUND ON PRODUCTION AND REPORTED.
+       *
+       * A clinician invited a patient to a paid session; the patient opened the
+       * app and there was nothing at all: no invitation, no price, no door.
+       *
+       * A session ten minutes out, priced, unpaid, and the in-app notice that
+       * used not to exist. The patient signs in and the orb should be there,
+       * amber, before they touch anything.
+       *
+       * 🔴 AND NO PAYMENT ROW IS WRITTEN HERE, WHICH WAS THE FIRST DRAFT.
+       *
+       * Two reasons, and the second is the one that matters.
+       *
+       * `openSessionForPatient` draws the orb from the SESSION: scheduled or
+       * in progress, a price above zero, payment pending. It never looks at
+       * `manual_payments`. So a seeded claim proves nothing about the orb and
+       * only adds a row that could disagree with it.
+       *
+       * And `/pay/:token` prices the sheet itself, through `sessionOwed` and
+       * `sessionLines`, then RE-STATES the open row from what it computed. A
+       * claim seeded with arithmetic done here would be silently overwritten
+       * the moment somebody opened the sheet, and until then it would show an
+       * operator a figure this script invented. A tester cannot tell that from
+       * a pricing defect, and a false finding costs more than a missing one.
+       *
+       * `RA1`, paid and closed the browser, is therefore WALKED rather than
+       * seeded: open the sheet, close the tab, come back. That is the rule this
+       * whole block states, applied to itself.
+       */
+      await imminent({
+        patientId: omarChart.id,
+        token: "demo-live-now",
+        priceCents: 6_000,
+      });
+
+      await noticeFor(omarPerson.id, "session_invited", "pnotice.sessionInvited");
+      console.log("  a session in ten minutes, unpaid, with the invitation in the app");
+    }
+
+    if (name === "money") {
+      /*
+       * 🔴 `RA8` — MONEY WITH NO CLAIM AT ALL, which the operator's queue has
+       * never once had in it.
+       *
+       * `/admin/transfers` has an open-carts tab for exactly this and it has
+       * always been empty, so the screen a person uses to work out what an
+       * unmatched bank line belongs to has never been used. This is a claim
+       * opened against a session that was then paid another way, which is the
+       * ordinary way one appears.
+       */
+      const orphan = await imminent({
+        patientId: lailaChart.id,
+        token: "demo-orphan-claim",
+        priceCents: 6_000,
+      });
+      const stray = await openCart({
+        purpose: "session",
+        refId: orphan.id,
+        amountCents: egpMinorFor(6_000, rate),
+        settlesCents: 6_000,
+        lineItems: [{ label: "Session", cents: 6_000 }],
+        payer: { kind: "session", organizationId: solo.id },
+      });
+      if (!stray.id) throw new Error(`the orphan claim did not open: ${stray.error ?? "?"}`);
+      await submitProof({ paymentId: stray.id, reference: "CIB-TRX-4471902", proofUrl: null });
+
+      console.log("  an unmatched transfer is waiting on the operator's queue");
+    }
+
+    if (name === "continuity") {
+      /*
+       * 🔴 A DECISION SITTING ON THE PATIENT'S OWN SCREEN.
+       *
+       * Every history grant in the cast is already `granted`, which shows the
+       * outcome and hides the choice. The claim is *"grant each separately,
+       * take either back on its own"*, and neither half of that can be walked
+       * from a database where every answer has already been given.
+       *
+       * Dr Kareem asking for Tarek's history is the second clinician on one
+       * record, which is the shape the public page describes as a psychiatrist
+       * and a therapist.
+       */
+      await db.execute(sql`
+        INSERT INTO history_grants (person_id, therapist_user_id, organization_id, status, shape,
+                                    request_note, requested_at)
+        VALUES (${tarekPerson.id}, ${drKareem.id}, ${clinic.id}, 'requested', 'summary',
+                'Seeing him alongside Dr Sara for the sleep side and it would help to read the history.',
+                ${daysAgo(1).toISOString()})`);
+
+      console.log("  a second clinician is waiting on the patient's answer");
+    }
+
+    if (name === "crisis") {
+      /*
+       * 🔴 A REJECTED TRANSFER, WHICH TASK 124 SAYS IS A DEAD END.
+       *
+       * The promise is that a rejection is a sentence in the operator's own
+       * words and the payer reads it verbatim. The open defect says nobody is
+       * told at all. Both cannot be true, and the only way to find out which is
+       * to reject one and then go and look at the payer's screen.
+       *
+       * Seeded rejected rather than walked, because the walk needs the payer's
+       * side and the founder has one operator and one patient on two devices:
+       * this puts the result in front of them without spending the sitting on
+       * the setup.
+       */
+      const bill = await openCart({
+        purpose: "session",
+        refId: null,
+        amountCents: egpMinorFor(7_500, rate),
+        settlesCents: 7_500,
+        lineItems: [{ label: "Session with Dr Sara Demo", cents: 7_500 }],
+        payer: { kind: "patient", patientAccountId: mariamAccount.id },
+      });
+      if (!bill.id) throw new Error(`the rejected claim did not open: ${bill.error ?? "?"}`);
+      await submitProof({ paymentId: bill.id, reference: "NBE-99120", proofUrl: null });
+      await rejectPayment({
+        paymentId: bill.id,
+        byUserId: admin.id,
+        reason:
+          "The reference on the screenshot is NBE-99120 and nothing with that reference reached the account. Send the bank's own receipt rather than the app screen, and we will match it.",
+      });
+
+      console.log("  a rejected transfer is sitting on the patient's side");
+    }
+
+    if (name === "growth") {
+      /*
+       * Nothing is added here, and that is the design.
+       *
+       * `growth` is the position where everything that happens is done by a
+       * person: the clinic adds Dr Yasmin's seat, the admin approves her
+       * verification, the clinic releases Dr Kareem's seat, HR moves the
+       * slider. What makes it a different POSITION is the pot, which `TUNING`
+       * funded to $100 against six covered sessions wanting $270, so it ran out
+       * partway through its own history and the next booking has nothing to
+       * take.
+       */
+      const left = await one<{ balance: number }>(sql`
+        SELECT balance_cents AS balance FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`);
+      console.log(`  the pot is down to ${String(left.balance)} cents and cannot fund a session`);
+    }
+
+    /* ============================================================== */
     /*  what to type in                                               */
     /* ============================================================== */
 
-    console.log(`\n🔴 Seeded. One password for every login: ${DEMO_PASSWORD}\n`);
+    console.log(`\n🔴 Seeded: ${name}. One password for every login: ${DEMO_PASSWORD}\n`);
     /* Printed from `_demo-cast.ts` rather than typed here, so this list and the
      * one `verify:demo` checks cannot disagree about who exists. */
     for (const login of DEMO_LOGINS) {
@@ -1125,7 +1393,19 @@ async function main() {
     console.log(
       `  ${"Patient, never claimed".padEnd(32)} ${"(no account, on Dr Omar's list)".padEnd(34)} ${UNCLAIMED_EMAIL}`,
     );
-    console.log("");
+
+    /*
+     * 🔴 AND WHAT TO DO NEXT, because a seeded position nobody walks is a wipe.
+     *
+     * The list of promises comes out of `_value-statements.ts` rather than
+     * being typed here, for the same reason the logins come out of
+     * `_demo-cast.ts`: two copies of a list disagree the first time one is
+     * edited, and the copy that drifts is the one somebody reads.
+     */
+    console.log(`\n  this position is walked to prove: ${position.proves.join(", ")}`);
+    console.log(`  it puts the product into: ${position.edges.join(", ")}`);
+    console.log(`  the walk is docs/PROVE-IT.md, section "${name}"`);
+    console.log(`\n  then: npm run on:production -- verify:demo -- --scenario=${name}\n`);
   } finally {
     await pool.end();
   }

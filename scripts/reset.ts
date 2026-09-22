@@ -42,6 +42,7 @@ import { stdin, stdout } from "node:process";
 import { sql } from "drizzle-orm";
 
 import { connect } from "./db";
+import { ranDirectly } from "./_verify";
 
 /**
  * Everything with rows, in no particular order.
@@ -74,7 +75,7 @@ export async function tableNames(db: ReturnType<typeof connect>["db"]): Promise<
 }
 
 /** `true` when this module was run directly rather than imported by a checker. */
-const isEntrypoint = process.argv[1]?.endsWith("reset.ts") ?? false;
+const isEntrypoint = ranDirectly("reset.ts");
 
 async function main() {
   const confirmed = process.argv.includes("--i-mean-it");

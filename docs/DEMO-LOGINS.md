@@ -21,6 +21,7 @@ still produce a caseload the clinician cannot see.
 | Who | Sign-in page | Address |
 | --- | --- | --- |
 | Platform admin | `/staff/sign-in` | `omar@24therapy.app` |
+| Support, not a founder | `/staff/sign-in` | `staff.demo@example.com` |
 | Company (Habiba Holdings) | `/sponsor/sign-in` | `habiba@24therapy.app` |
 | Clinic manager (Nile Practice) | `/clinic/sign-in` | `habibaheikal27@gmail.com` |
 | Therapist, solo practice | `/login` | `omarabdelgawad001@gmail.com` |

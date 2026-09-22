@@ -243,6 +243,53 @@ function dailyAuditIsWired(file: string): { wired: boolean; detail: string } {
   };
 }
 
+/* ====================================================================== */
+/*  T6 · a script that runs when it is imported                           */
+/* ====================================================================== */
+
+/**
+ * 🔴 EVERY SCRIPT HERE CALLS `main()` AT MODULE SCOPE.
+ *
+ * So importing one does not read a value out of it, it RUNS it, and the
+ * importer is almost always a verifier reading the thing that script just
+ * changed. `verify-demo.ts` imported the cast from `seed-demo.ts` and wiped the
+ * database it was reading, then reported the pot at zero because it had just
+ * emptied it.
+ *
+ * The fix is a file with a leading underscore and no `main()` in it. What this
+ * check refuses is the OTHER fix, the one that looks careful and is not:
+ * guarding the side effect on what `process.argv[1]` ends with.
+ *
+ * `prove.ts` did that, and `scripts/verify-prove.ts` also ends with
+ * `prove.ts`, so the gate's own import rewrote the document a moment before
+ * the gate compared it. The staleness check reported `current` on anything. A
+ * suffix is not an identity, and the collision is always the one nobody
+ * thought of.
+ *
+ * Every `.ts` in `scripts/`, not only the verifiers: the offender was a
+ * generator, and a scan of `verify-*` alone would have missed it entirely.
+ */
+function guardsOnArgvSuffix(): string[] {
+  return readdirSync("scripts")
+    .filter((f) => f.endsWith(".ts"))
+    .map((f) => `scripts/${f}`)
+    /*
+     * 🔴 THIS FILE IS SKIPPED, AND IT IS T1 ARRIVING FROM A THIRD DIRECTION.
+     *
+     * The control below holds the offending line as a STRING, so the detector
+     * finds itself and reports the gate as the defect. `readSource` strips
+     * comments and does not strip string literals, correctly, because a
+     * literal is code.
+     *
+     * The alternative was to write the control's pattern in pieces so it did
+     * not match, which is the cheapest way to pass and exactly the behaviour
+     * T1 warns about: it makes the check pass by damaging the evidence. So the
+     * control keeps the real line and the scan names its one exemption.
+     */
+    .filter((file) => file !== "scripts/verify-traps.ts")
+    .filter((file) => /process\.argv\[1\][^\n]*endsWith/.test(readSource(file)));
+}
+
 function main() {
   const all = scripts();
 
@@ -334,6 +381,30 @@ function main() {
     "🔴 T5 CONTROL the wiring detector says no to a verifier that does none of it",
     dailyAuditIsWired("scripts/verify-palette.ts").wired === false,
     "a verifier with no audit in it does not read as audited",
+  );
+
+  /* ------------------------------------------------------------ T6 */
+
+  const suffixGuards = guardsOnArgvSuffix();
+  check(
+    "🔴 T6 nothing in scripts/ guards a side effect on an argv SUFFIX",
+    suffixGuards.length === 0,
+    suffixGuards.length > 0
+      ? `${suffixGuards.join(" · ")}: move the shared half into an _underscore file with no main()`
+      : "anything two scripts share lives in a file with nothing to run",
+  );
+
+  /*
+   * 🔴 T6 CONTROL — and the scan can find one, or the line above means nothing.
+   *
+   * T2, applied to the check that was written BECAUSE a check could not fail.
+   * The pattern is run against a string holding the exact guard that shipped,
+   * so "none found" is proved to mean "none" rather than "the regex was wrong".
+   */
+  check(
+    "🔴 T6 CONTROL the detector recognises the guard that shipped",
+    /process\.argv\[1\][^\n]*endsWith/.test(`if (process.argv[1]?.endsWith("prove.ts")) main();`),
+    "the exact line that made a gate unfalsifiable is matched",
   );
 
   /*

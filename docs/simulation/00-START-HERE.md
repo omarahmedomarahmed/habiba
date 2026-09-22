@@ -326,7 +326,7 @@ was handed the answer to is a gate nobody tested.
 | 3 | The mark before the run | `npm run on:production -- baseline -- check` | 🔴 **exits 1**, with exactly five seed deltas and no sixth |
 | 4 | Almost nothing is spent yet | `npm run on:production -- spend -- --budget 10` | **$0.0286**, the founder's own session. Not zero |
 | 5 | The cron secret matches the deployed site | `curl` with `CRON_SECRET`, in `SIMULATION-PROMPT.md` | **200.** A 401 means wave 4 breaks and you find out now |
-| 6 | The product itself is not already broken | `rm -rf .next && npm run build && npm run gates` | 34 gates, against **dev**, which is correct |
+| 6 | The product itself is not already broken | `rm -rf .next && npm run build && npm run gates` | 35 gates, against **dev**, which is correct |
 | 7 | The ageing script obeys its own rule | `npm run verify:age` | 8 checks, one past and one future timestamp in the same row. Dev, because it plants a row |
 | 8 | Mark the start of wave one | `npm run on:production -- age -- --marker wave1 --start` | writes the marker. 🔴 **Bare, this ages dev and the six month clock never starts** |
 | 9 | **Open the rail** | `/admin/settings`, `/admin/sponsors`, `/admin/clinics` | `04-THE-RAIL.md`. Nothing Egyptian works until this is done |

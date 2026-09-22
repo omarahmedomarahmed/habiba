@@ -32,6 +32,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 
 import { stripComments } from "./_dashes";
+import { ranDirectly } from "./_verify";
 
 export type FileCount = {
   file: string;
@@ -270,7 +271,7 @@ export function bySurface(counts: FileCount[]): Record<Surface, number> {
   return totals;
 }
 
-if (process.argv[1]?.endsWith("_i18n-coverage.ts")) {
+if (ranDirectly("_i18n-coverage.ts")) {
   const counts = scanI18n();
   const totals = bySurface(counts);
   console.log("\nEnglish literals still in the markup, by surface\n");

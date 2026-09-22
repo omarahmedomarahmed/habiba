@@ -600,4 +600,28 @@ export const GATES = [
     script: "verify:runbook",
     why: "and the documents the run is driven by still match the product",
   },
+  /*
+   * 🔴 80.1 — AND A PROMISE NOBODY WALKS IS A FAILING GATE.
+   *
+   * Every gate above holds the product to a rule. This one holds it to a
+   * SENTENCE: twenty-five things we say on pages a stranger can read, each with
+   * a seeded position somebody can put the database into and a walk that ends
+   * with a person having seen it or written down that they did not.
+   *
+   * It belongs in the product's own pass rather than one sprint's for the
+   * reason `verify:runbook` does. The failure it exists for is silent: a
+   * promise is added to `_value-statements.ts`, the walk is not extended, and
+   * `docs/PROVE-IT.md` still reads as complete because nothing in it is wrong.
+   * That is how every count in the simulation documents came to disagree with
+   * something while all eighteen of them looked fine.
+   *
+   * It also runs the promises through `lib/content/honesty.ts`, the same
+   * checker that refuses a claim at `savePage`. A promise we could not publish
+   * is one we must not hand eight people and ask them to prove.
+   */
+  {
+    name: "prove",
+    script: "verify:prove",
+    why: "and every promise we make has somebody walking it on a real device",
+  },
 ] as const;

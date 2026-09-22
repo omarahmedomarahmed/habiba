@@ -583,6 +583,9 @@ defects that sixty verifiers had missed.
 | `docs/EMAIL-DNS.md` | What is published for the domain, what is not, and what each gap costs. `verify:email-dns` asks live DNS rather than this file |
 | `docs/DAILY-HOSTS.md` | Every host the video room actually talks to, read out of the bundle Daily downloads at join time rather than the package we installed. Generated: `npm run audit:daily-hosts -- --write` |
 | `docs/NEON-BRANCHES.md` | Which Neon branch is production, which is dev, which is the one snapshot a script names as the undo. Read it before deleting any of them: three of the six are live connection strings and none of their names says so |
+| `docs/VALUE-STATEMENTS.md` | **The twenty-five things this product promises**, five per audience, each one a claim already made on a page a stranger can read. Generated: `npm run prove` |
+| `docs/PROVE-IT.md` | **The day the promises are tested.** Eight people on eight devices, five reseeds, cross-referenced so step 4 on one person's screen depends on step 3 on somebody else's. `verify:prove` fails if a promise is never walked |
+| `docs/DEMO-LOGINS.md` | Who is on the deployed product right now and where each one signs in. Generated: `npm run logins` |
 | `docs/THE-REDESIGN.md` | The current plan: what exists against what the redesign needs, what breaks, and the order to do it in |
 | `docs/SIMULATION-PROMPT.md` | **The prompt that starts the simulation.** Keys, the branch, the steps, and what to report back |
 | `docs/simulation/` | The seventeen documents it reads first: what was hit before it, the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, what the run hands the plan, the forty eight money edges, each person's week by week story, who is allowed to read a record, the logins, the audio, the rehearsal and the deploy. `verify:runbook` checks them against the code |

@@ -66,6 +66,26 @@ export type DemoLogin = {
  */
 export const DEMO_LOGINS: DemoLogin[] = [
   { who: "Platform admin", email: "omar@24therapy.app", table: "users", where: "/staff/sign-in" },
+  /*
+   * 🔴 80.1 — A SECOND CONSOLE ACCOUNT THAT IS NOT A FOUNDER, and without it
+   * one of our own promises cannot be walked at all.
+   *
+   * `/security` says *"a role is a list, not a rank"*, and `/admin/actuals`,
+   * `/admin/benefits`, `/admin/radar`, the board and the error log are
+   * founder-only: a support person opening one is redirected. The cast held
+   * exactly one console login and it was `super_admin`, so the only way to see
+   * that boundary was to be refused by it, and nobody could be.
+   *
+   * `docs/simulation/12-THE-LOGINS.md` says it in as many words about the run
+   * that was never made: **a permission nobody was ever refused by is a
+   * permission nobody has tested.** This is the person who does the refusing.
+   */
+  {
+    who: "Support, not a founder",
+    email: "staff.demo@example.com",
+    table: "users",
+    where: "/staff/sign-in",
+  },
   {
     who: "Company (Habiba Holdings)",
     email: "habiba@24therapy.app",

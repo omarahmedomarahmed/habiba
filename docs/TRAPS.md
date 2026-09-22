@@ -146,6 +146,38 @@ than one.
 
 ---
 
+### T6 · A script that runs when it is imported
+
+**The trap.** Every script here calls `main()` at module scope. So `import { x }
+from "./that-script"` does not read a value out of it, it RUNS it, and the
+importer is usually a verifier reading the thing that script just changed.
+
+**What it costs.** `verify-demo.ts` imported the cast list from
+`scripts/seed-demo.ts` and wiped the database it was in the middle of reading,
+then reported the pot at zero because it had just deleted it. Against dev that
+is five seconds. Against production it is a command documented as read-only, on
+the read half of the `on:production` allow-list, emptying the founders'
+database the first time anybody ran it there.
+
+It happened again the day `verify:prove` was written, with a guard that was
+supposed to prevent exactly this. `prove.ts` held both the document builder and
+the writer, and ran the writer only when
+`process.argv[1]?.endsWith("prove.ts")`. **`scripts/verify-prove.ts` also ends
+with `prove.ts`.** So the gate's import rewrote the file a moment before the
+gate compared it, and the staleness check reported `current` on anything. A
+check that cannot fail is the whole of T2, arrived at from a new direction.
+
+**The rule.** Anything two scripts share lives in a file with a leading
+underscore, no `main()`, and no side effect: `_cast.ts`, `_demo-cast.ts`,
+`_gates.ts`, `_value-statements.ts`, `_prove-doc.ts`. A suffix guard is not a
+substitute, because suffixes are not unique and the one that collides is the one
+nobody thought of.
+
+**Enforced by `verify:traps`:** no script may guard a side effect on what
+`process.argv[1]` ends with.
+
+---
+
 ## Traps recorded but not yet checkable
 
 These have the same shape and no cheap static test. They are here so the

@@ -40,14 +40,34 @@
 import { sql } from "drizzle-orm";
 
 import { DEMO_LOGINS, DEMO_PASSWORD, OWNED_INBOXES, UNCLAIMED_EMAIL } from "./_demo-cast";
+import { scenario, scenarioFrom, TUNING } from "./_value-statements";
 import { hostOf, reporter } from "./_verify";
 import { connect } from "./db";
 
 const { check, finish } = reporter();
 
 async function main() {
+  /*
+   * 🔴 80.1 — THE SAME FLAG THE SEED TAKES, PARSED BY THE SAME FUNCTION.
+   *
+   *     npm run on:production -- verify:demo -- --scenario=money
+   *
+   * Two scripts parsing one flag two ways is how you seed one position and
+   * certify another, and both report success. `scenarioFrom` is the only
+   * reader, and it throws on a name that is not in the list rather than
+   * quietly falling back to the default, which would certify `live` against a
+   * database holding `money` and pass.
+   *
+   * Told the wrong name, this goes red on the coverage and the enrolment, which
+   * is the useful answer: it says which position the database is actually in.
+   */
+  const name = scenarioFrom(process.argv.slice(2));
+  const position = scenario(name);
+  const tuning = TUNING[name];
+
   const { db, pool } = connect();
-  console.log(`\nreading ${hostOf()}\n`);
+  console.log(`\nreading ${hostOf()}`);
+  console.log(`scenario: ${name} — ${position.title}\n`);
 
   try {
     const { verifyPassword } = await import("../lib/auth/password");
@@ -232,7 +252,11 @@ async function main() {
        WHERE s.name = 'Habiba Holdings'`);
     const potRow = pot.rows[0] as { balance?: number; coverage?: number } | undefined;
     check("the company's pot holds money", Number(potRow?.balance ?? 0) > 0, `${String(potRow?.balance ?? 0)} cents`);
-    check("the company covers a share", Number(potRow?.coverage ?? 0) === 6000, `${String(potRow?.coverage ?? 0)} bps`);
+    check(
+      "the company covers the share this position was seeded at",
+      Number(potRow?.coverage ?? 0) === tuning.coverageBps,
+      `${String(potRow?.coverage ?? 0)} bps, wanted ${String(tuning.coverageBps)}`,
+    );
 
     /*
      * 🔴 AND THE BALANCE IS THE LEDGER'S, not a number somebody typed.
@@ -275,11 +299,18 @@ async function main() {
         `${String(totals.sessions)} sessions, ${String(totals.spentCents)} cents`,
       );
 
-      /* 60% of $75, three times, is $135. A wrong coverage reads here first. */
+      /*
+       * 🔴 ITS SHARE, NOT THE WHOLE PRICE, and the arithmetic is derived from
+       * the position rather than typed. The literal `0.6` here is what made
+       * this check silently wrong for four of the five positions the moment
+       * they existed: it would have gone red on `money` for the pot behaving
+       * exactly as `money` asks it to.
+       */
+      const share = Math.round((7_500 * tuning.coverageBps) / 10_000);
       check(
-        "and it paid its 60 per cent, not all of it",
-        totals.spentCents === Math.round(7_500 * 0.6) * totals.sessions,
-        `${String(totals.spentCents)} cents for ${String(totals.sessions)}`,
+        `and it paid its ${String(tuning.coverageBps / 100)} per cent, not all of it`,
+        totals.spentCents === share * totals.sessions,
+        `${String(totals.spentCents)} cents for ${String(totals.sessions)}, at ${String(share)} each`,
       );
     } else {
       check("sessions the company paid towards", false, "no sponsor");
@@ -292,12 +323,26 @@ async function main() {
     /*
      * The one the founder named: a patient who is NOT enrolled, so the
      * enrolment flow has somebody to be walked through.
+     *
+     * 🔴 AND IN TWO POSITIONS HE IS, DELIBERATELY. `money` and `growth` put a
+     * second person on the same pot, because one covered employee proves the
+     * split and two prove the things that only exist with more than one claim
+     * on a pot: `CV11`, where the employer's spend page lists both and names
+     * neither, and `RR9`, where two bookings race a balance that funds one.
+     * Asserted in both directions rather than skipped, so a position that
+     * enrols him by accident fails as loudly as one that forgets to.
      */
     const unenrolled = await num(sql`
       SELECT count(*)::int AS n FROM people p
        WHERE p.email = 'mr.3omar.a7mad@gmail.com'
          AND NOT EXISTS (SELECT 1 FROM enrolments e WHERE e.person_id = p.id)`);
-    check("one patient is not enrolled anywhere", unenrolled === 1);
+    check(
+      tuning.enrolTheSecondPatient
+        ? "the second patient IS enrolled, which this position needs"
+        : "one patient is not enrolled anywhere",
+      unenrolled === (tuning.enrolTheSecondPatient ? 0 : 1),
+      `${String(unenrolled)} unenrolled`,
+    );
 
     /* ------------------------------------------------- the patient's app -- */
 
@@ -356,6 +401,119 @@ async function main() {
     ] as const) {
       const got = await num(text);
       check(`admin: ${label}`, got >= 1, `${String(got)}`);
+    }
+
+    /* ---------------------------------------------- and this position -- */
+
+    /*
+     * 🔴 80.1 — THE ROWS THAT MAKE THIS POSITION DIFFERENT FROM THE OTHER FOUR.
+     *
+     * Everything above is true of all five and would pass on any of them, which
+     * means a reseed that silently did nothing — a flag misspelled, a scenario
+     * block that threw and was swallowed — reads as a clean run. These are the
+     * checks that can only pass on the position that was actually asked for.
+     */
+    if (name === "live" || name === "crisis") {
+      const soon = await num(sql`
+        SELECT count(*)::int AS n FROM sessions
+         WHERE status = 'scheduled' AND payment_status = 'pending'
+           AND scheduled_at BETWEEN now() AND now() + interval '1 hour'`);
+      check("a session is minutes away and unpaid", soon >= 1, `${String(soon)}`);
+
+      /*
+       * 🔴 AND IT IS PRICED, because a session at zero opens the room and asks
+       * for nothing. `openSessionForPatient` draws the amber orb from
+       * `priceCents > 0 AND paymentStatus = 'pending'`, so a price of nothing
+       * is a teal orb and half this walk has nothing to press.
+       *
+       * No claim row is asserted, and the seed writes none: `/pay/:token`
+       * prices the sheet itself and re-states the row from what it computed, so
+       * a seeded one would be a figure this repository invented sitting in
+       * front of an operator until somebody opened the sheet.
+       */
+      const priced = await num(sql`
+        SELECT count(*)::int AS n FROM sessions
+         WHERE status = 'scheduled' AND payment_status = 'pending' AND price_cents > 0
+           AND scheduled_at BETWEEN now() AND now() + interval '1 hour'`);
+      check("and it has a price on it, so the orb is amber", priced >= 1, `${String(priced)}`);
+
+      /*
+       * 🔴 THE ROW THE WHOLE OF 79.1 EXISTS FOR. A clinician invited a patient
+       * on production, the patient opened the app and there was nothing there.
+       * If this reads zero, the position cannot prove `P2` and nothing else in
+       * this file would have said so.
+       */
+      const told = await num(sql`
+        SELECT count(*)::int AS n FROM patient_notifications n
+         JOIN people p ON p.id = n.person_id
+        WHERE p.email = 'mr.3omar.a7mad@gmail.com' AND n.kind = 'session_invited'`);
+      check("and the invitation is findable inside the app", told >= 1, `${String(told)}`);
+    }
+
+    if (name === "money") {
+      /*
+       * `RA8`. The open-carts tab on `/admin/transfers` exists for this and has
+       * never had a row in it, so the screen an operator uses to work out what
+       * an unmatched bank line belongs to has never been used by anybody.
+       */
+      const waiting = await num(sql`
+        SELECT count(*)::int AS n FROM manual_payments
+         WHERE state = 'submitted' AND decided_at IS NULL`);
+      check("an unmatched transfer is on the operator's queue", waiting >= 1, `${String(waiting)}`);
+
+      const bothCovered = await num(sql`
+        SELECT count(*)::int AS n FROM enrolments WHERE state = 'active' AND removed_at IS NULL`);
+      check("two people are on one pot", bothCovered >= 2, `${String(bothCovered)}`);
+    }
+
+    if (name === "continuity") {
+      const asking = await num(sql`
+        SELECT count(*)::int AS n FROM history_grants WHERE status = 'requested'`);
+      check("a clinician is waiting on the patient's answer", asking >= 1, `${String(asking)}`);
+
+      /*
+       * The control for it: a record with a request on it must ALSO already
+       * carry a granted one, or the patient has no second clinician to compare
+       * against and `P4` is being walked on one version of one summary.
+       */
+      const already = await num(sql`
+        SELECT count(*)::int AS n FROM history_grants WHERE status = 'granted'`);
+      check("and one was granted earlier, so there are two to tell apart", already >= 1, `${String(already)}`);
+    }
+
+    if (name === "crisis") {
+      const refused = await db.execute(sql`
+        SELECT reject_reason AS why FROM manual_payments WHERE state = 'rejected' LIMIT 1`);
+      const why = String((refused.rows[0] as { why?: string } | undefined)?.why ?? "");
+      check(
+        "a rejected transfer is waiting on the payer's side",
+        why.split(/\s+/).length >= 15,
+        why ? `${String(why.split(/\s+/).length)} words` : "no rejection found",
+      );
+    }
+
+    if (name === "growth") {
+      /*
+       * 🔴 THE POT CANNOT FUND THE NEXT SESSION, which is the whole position.
+       *
+       * Asserted as arithmetic rather than as a balance, because `CV9` is about
+       * what happens when the balance is SHORT rather than when it is low: a
+       * pot with $40 in it funds a $45 share of nothing.
+       */
+      const share = Math.round((7_500 * tuning.coverageBps) / 10_000);
+      const balance = Number(potRow?.balance ?? 0);
+      check(
+        "the pot cannot fund another session, which is the point of this one",
+        balance < share,
+        `${String(balance)} cents against a ${String(share)} cent share`,
+      );
+
+      const applicant = await num(sql`
+        SELECT count(*)::int AS n FROM therapist_verifications v
+         WHERE v.state = 'submitted'
+           AND NOT EXISTS (SELECT 1 FROM clinic_seats s WHERE s.user_id = v.user_id
+                             AND s.released_at IS NULL)`);
+      check("somebody is waiting to be let in, with no seat yet", applicant >= 1, `${String(applicant)}`);
     }
 
     /* ------------------------------------- what the wipe was not allowed -- */

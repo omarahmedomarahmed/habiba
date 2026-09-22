@@ -32,6 +32,7 @@
  * pages RENDER; a later pass should prove each control's effect.
  */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { ranDirectly } from "./_verify";
 
 /**
  * 🔴 EVERY PORTAL, NOT JUST THE ADMIN ONE.
@@ -509,4 +510,4 @@ function main() {
  * scripts import `routes()` from here, and an import that prints 125 pages and
  * sets an exit code is an import that breaks the thing importing it.
  */
-if (process.argv[1]?.endsWith("inventory.ts")) main();
+if (ranDirectly("inventory.ts")) main();

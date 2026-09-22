@@ -202,7 +202,9 @@
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
-    "verify:notices": "node --import tsx scripts/verify-notices.ts"
+    "verify:notices": "node --import tsx scripts/verify-notices.ts",
+    "prove": "node --import tsx scripts/prove.ts",
+    "verify:prove": "node --import tsx scripts/verify-prove.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

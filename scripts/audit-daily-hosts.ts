@@ -29,6 +29,7 @@
  * to ignore gates. The gate checks the RECORD; this writes it.
  */
 import { readFileSync, writeFileSync } from "node:fs";
+import { ranDirectly } from "./_verify";
 
 const PACKAGE = "node_modules/@daily-co/daily-js";
 const DOC = "docs/DAILY-HOSTS.md";
@@ -183,4 +184,4 @@ async function main() {
   console.log(`\nwrote the audited block in ${DOC}`);
 }
 
-if (process.argv[1]?.endsWith("audit-daily-hosts.ts")) main();
+if (ranDirectly("audit-daily-hosts.ts")) main();
