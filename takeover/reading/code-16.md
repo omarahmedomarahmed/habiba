@@ -587,3 +587,247 @@
 - `people.json` (22 lines): four invented walkthrough personas (admin, two therapists, one patient) at `.test` domains with first/last names, an Egyptian test phone number and PLAINTEXT PASSWORDS for each (4 passwords, values not copied here). Not the documented demo password.
 - Should they be committed in a public repo: ids.json and session-url.txt carry no personal data and no live link (localhost, local UUIDs): harmless but pointless. people.json holds no real person's data (`.test` domains, invented names, the same fake +20 100 123 4567 used throughout the tests) but does commit four working passwords for accounts that exist in whatever database the walkthrough ran against; if that was the shared dev branch, those accounts (including a staff admin) are signable with these passwords. Recommend removing people.json from git (the .gitignore already excludes state-*.json and invite.txt for the same reason, L39-43) and rotating or deleting those accounts. The storage-state files with cookies are correctly ignored and absent.
 
+
+## Stale
+
+1. evals/grounding.ts L26-27, L185-187, L204: "0.0% against 18 planted terms", "9 poisoned facts", "Five cases, so one is 20 points". Set is now 16 sessions, 27 poison facts, 12 contradiction cases; the 0.19 band is two cases, not under one.
+2. evals/suites/notes.ts L22, L112, L123, L158: "three cases", "one planted term in eighteen", "fifteen facts across three cases", "One Arabic case". True: 16 sessions, 6 Arabic.
+3. evals/suites/risk-model.ts L14-15: "17 positives, 13 negatives". True: 36 and 29.
+4. evals/suites/risk.ts L88-90: "the scanner is a list of English phrases". It carries Arabic, dialect and Arabizi (same file L104-106).
+5. evals/suites/attribution.ts L63: "forty-line set". About 440 lines now.
+6. evals/run.ts L21-24: "Three of the four suites call the real models". Six suites, five need a model.
+7. evals/report.ts L27-29: tolerance "stated in the baseline where it can be argued with". `compare` L163-180 uses the suite code's tolerance and never reads the stored one.
+8. evals/cases.json: "high-water mark" 15 sessions / 48 risk cases; actual 16 / 65.
+9. tests/.hydration-zone.29342.ts: a leftover temp file from tests/hydration.test.tsx L181 (killed run), committed in 24ff7b4. Also typechecked via tsconfig `**/*.ts`.
+10. tests/hydration.test.tsx L113: `mkdtempSync` directory created and never used.
+11. tests/money.test.ts L124-130: title "no verification yet means no Connect payout on an assumption", assertion says the opposite (`connect`).
+12. tests/routing.test.ts L302-310: "clinic and partner rows carry no prefixes yet". lib/routing.ts L304, L321 give both prefixes.
+13. tests/e2e.test.ts L493: "the paid path is covered above". It is below (L571). L696-716: the same comment block twice.
+14. tests/people.test.ts L110-116: title says redaction "never reveals the length", comment and code say it does encode length.
+15. tests/safety.test.ts L659-708: four JSDoc blocks (C289, C377, C380, C381) stacked with no test between them, each describing a test further down.
+16. tests/physics.test.ts L100 and throughout: "microcents" for thousandths of a cent (H13, known).
+17. tests/ingest.test.ts L142: `{ expiresAt } as never` sets a key `sourceFor` ignores, so the "valid a second before" half does not test the one-second boundary it names.
+18. tests/coverage.test.ts L74: `3_333 % 500 === 0 ? 3_333 : 3_500` is always 3_500 (dead ternary).
+19. .walkthrough/run.sh L3 and .walkthrough2/up.sh L3: `set -a; . ./.env.local; set +a`, the exact H48 hazard HAZARDS forbids.
+20. .walkthrough2/f15-start.mjs L8 clicks `Video` (removed sprint 41); f17-approve.mjs L7 clicks "Approve note" (replaced by Sign, sprints 26/47). Both harness scripts assert UI that was deliberately changed.
+21. .walkthrough2/routes.mjs: hand-typed route list (T3), no sponsor, clinic, partner, join, records or feedback routes.
+22. .walkthrough/lib.mjs L3: writes screenshots to docs/walkthrough, deleted 2026-09-14 per .gitignore L47-52. Whole .walkthrough directory is a dead harness.
+23. .env.example L13: CRON_SECRET under "Strongly recommended"; lib/env requires it in production (safety.test.ts L164-183).
+24. .nvmrc says Node 20; package.json L7 engines says 22.x.
+25. package.json L37 `db:generate` is `drizzle-kit generate` without `--custom`, which H19 says cannot be used here.
+26. vercel.json has 5 crons; README says 3, TAKEOVER six (settles MAP Stale #2: five).
+27. evals/production-baseline.json: describes production on 2026-09-17 (H36 already says stale).
+
+## Suspect
+
+1. Grounding eval measures the FILTER, not the model. evals/suites/grounding.ts builds context through `factsPrompt` (lib/clinical/context.ts L150-151 calls `factsForPrompt`), which drops every diagnosis (C168), every unverified AI fact (C167), and every `presentation`/`function`/`risk` fact (C170) (pinned by tests/facts.test.ts L165-189). By my count only 4 of 27 poison facts can reach the model (exams-arabic medication document, couple-conflict divorce history, drinking-again rehab history, cairo sertraline document), and 5 of 12 contradiction facts are filtered out (sleep-and-work, grief, exams-arabic, panic, chronic-pain), so those cases pass for free. `grounding.leak` 0.111 = 3/27 may be 3 of 4 reachable (75%), and `grounding.contradiction` 0.528 includes free passes. Matters: this is the number quoted for "another patient's facts" in notes. Confirm by running factsForPrompt over the fixtures.
+2. evals/metrics.ts L230-231 substring matching: neverSaid `الأب` normalises to `الاب`, a substring of `الابن`; bereavement-arabic's own priorFact is "الابن الأكبر في العائلة" (cases.ts L585, L590). burnout-quiet-session neverSaid `work`,`sleep` vs its own priorFact "saying no at work" (L623-628). Any grounded note using true prior facts scores a fabrication. Stated facts pass on `same` (sam), `50` (5).
+3. evals/run.ts L103: without OPENAI_API_KEY, `npm run evals` runs only `risk` and prints PASS. A keyless CI or gate run is green over 1 of 6 suites (it does print "not run").
+4. tests/e2e.test.ts L360-365: de-identification check reads `mock.state.chatRequests[0]`. The diariser runs before the note (evals/prose.json sprint76i) and risk may also call chat, so [0] is likely not the note prompt. The patient-name-never-sent check may be looking at the wrong request. Fix: select by system prompt.
+5. tests/e2e.test.ts L272-275 sets `users.verification_status` directly; MAP says it is derived by trigger 0083. Either the write is overwritten or refused; the test's approval step may not do what it says.
+6. tests/e2e.test.ts L571-614: the paywall test relies on Stripe being unconfigured and a "Pay $60 and join" card flow; the product's Egyptian path is manual transfer. Possibly an assertion about a path the product no longer takes by default (H20 shape). Also L209 hero text comes from CMS rows and may have changed.
+7. tests/run-e2e.sh, scripts/db.ts `connect()`, tests/ledger.test.ts, tests/radar.test.ts, .walkthrough/lib2.mjs `clearLimits`, .walkthrough2/q.ts (arbitrary `sql.raw` from argv), seed-risk.ts, stub-docs.ts: all write to whatever DATABASE_URL names with no production refusal. e2e and lib2 run `DELETE FROM rate_limits` on every row. HAZARDS says every writer carries `writesTo()`; these do not (they are outside scripts/).
+8. tests/run-e2e.sh: sets no BLOB_READ_WRITE_TOKEN while HAZARDS says `next start` refuses to boot without one. Unless the caller's env has it, test:e2e cannot start its server, i.e. may be unrunnable today (H30 shape).
+9. tests/consent.test.ts L111: `revoked` keeps `copilot: true`. T5 says a revoked grant stops the copilot on the next question. Consistent only if the revoked-state copilot reads nothing of the patient's history; check lib/ai/case-copilot.ts and lib/access/state.ts.
+10. tests/radar.test.ts `after` (L110-119) does not delete the `therapist_radar`, `therapist_verifications` or `session_reports` rows it created; if FKs do not cascade, an "online" "Radar Tester" row survives on a public page.
+11. tests/attribution.test.ts L69-76, L83-87: straddle examples "verbatim from the branch database", one a crisis disclosure. evals/cases.ts L8-14 forbids anything from a person in git. If the branch held a real session (a founder's offline test, prose.json sprint76i mentions one), this is a real transcript fragment committed.
+12. .walkthrough2/f24-risk.mjs L8-15: the walkthrough starts an IN-PERSON session and records it with no consent step in the script. Evidence toward task 123 only if the product did not ask; check the room's in-person path.
+13. .simulation-wave1/2.json markers (2026-09-16 23:46) predate evals/production-baseline.json (2026-09-17 00:38, production host). If the waves ran on production, the "before" baseline was taken after.
+14. vercel.json: crisis cron once daily at 03:00 UTC. If crisis-alert re-delivery depends on it, a failed alert waits up to 24 h.
+15. Credentials in the repo (values not copied): .env.example L64 SEED_TEST_PASSWORD (realistic literal for test@24therapy.app); .walkthrough2/people.json four plaintext passwords incl. a staff admin; .walkthrough/p25.mjs L12, .walkthrough/settings.mjs L5, .walkthrough2/f21-stranger.mjs L13, .walkthrough2/f21b.mjs L9 literal passwords. None is the documented demo password. If those accounts exist on a shared branch they are signable. No API keys or tokens found; all other secret-shaped values are obvious placeholders.
+
+## Broken
+
+1. evals/cases/long-session.ts fixture contradicts itself, so cairo-long-session scores correct notes as failures: neverSaid `المستشفى` (L137) is in the transcript (L425, "تعالي المستشفى"); mustNotSay `المعادي` (L208) is in the transcript (L232, traffic at Maadi); mustNotSay `لوحدها` (L208) is in the transcript (L400, her mother would have lived alone). A note that faithfully reports the father being taken to hospital counts as a fabrication; a note mentioning the ring road at Maadi or why she moved in fails the contradiction case. No test checks trap terms against their own transcript (tests/evals.test.ts). Grepped: no patch elsewhere.
+2. tests/radar.test.ts L746-783 and L816-837: the two consent tests write `recording_consent`/`recording_paused_at` themselves with `db.update` and read back what they wrote. They cannot fail and prove nothing about `submitJoin`. The comment above them calls this "the test that matters". (L785-814 does call real code and is fine.)
+3. tests/safety.test.ts L709-741 ("two bookings racing cannot both spend the same pot money") and L832-856 ("a sponsor cannot difference two balances") test functions defined inside the test. They cannot go red if `payFromPot` or the balance publication regresses. E1's anti-differencing rule and the pot race have no unit test of product code in this slice. L1090 asserts against `wrongOrder + 1`, which is meaningless.
+4. tests/transfer-rail.test.ts L178-193 "CONTROL" never calls product code; it would pass with `grantPotTopUp` regressed.
+5. tests/attribution.test.ts L47 `assert.ok(450 - 160 > 0)` and L266-278 (checks names the test itself chose) cannot fail.
+
+## Looks broken, is handled
+
+1. tests/e2e.test.ts sits red on "no headless shell" (its own header): handled, `launchOptions` from scripts/_browser.ts resolves the real Chromium (e2e L132-149), and the five stale UI assertions were rewritten (signTheNote, chooseTheRoom).
+2. tests/crisis-line.test.ts asserts Egypt gets 105 where it once asserted nothing: deliberate, documented at L17-32 (C350), with a four-country control.
+3. tests/radar.test.ts L588-617 feedback token test once asserted the join token reached feedback: rewritten for the two-token design and explained.
+4. drizzle/meta/_journal.json 0115 `when` is 1 s after 0114, which looks hand-made: it is, deliberately, per H18; ordering is strictly increasing.
+5. .walkthrough2/state-*.json and invite.txt (browser cookies, live invite links) are referenced but absent: correctly git-ignored (.gitignore L41-43).
+6. tests/documents-extract.test.ts writes into the repo's `.uploads/`: git-ignored (.gitignore L24) and removed in `t.after`.
+7. prebuild writes settings to the build's database on every deploy: by design, settings is one of the four scripts allowed past `writesTo` (HAZARDS "One command reaches production").
+
+## Unclaimed
+
+(a) worth selling, nothing advertises it:
+- tests/checkins.test.ts: automated check-in messages with patient-timezone quiet hours, a 6 h floor, a channel-wide mute-rate halt, and stop words that never unsubscribe "I cannot stop crying".
+- tests/documents-extract.test.ts / documents.test.ts: uploaded referral letters chunked and cited, two-column PDFs refused rather than misread, diagnoses kept only with a verbatim source sentence.
+- tests/patient-import.test.ts: CSV import of a caseload that refuses to import clinical columns.
+- tests/diarisation.test.ts: speaker attribution that never names a voice by elimination (couples and groups).
+(b) nobody should have it:
+- .walkthrough2/q.ts: committed arbitrary-SQL runner against DATABASE_URL.
+- .walkthrough2/people.json: working passwords for walkthrough accounts incl. staff admin.
+(c) half built:
+- evals/coverage.ts L56-97: seven model surfaces (copilot, case-copilot, partner copilot, assistant, profile, diagnoses, translate) with no quality measurement, incl. T5's copilot answers.
+- evals speech: 3 synthetic sentences; no real-audio or diarisation error rate (gap 37.4).
+- tests/ingest.test.ts: external meeting bot ingestion (MAP Unclaimed #1) tested at the token door only.
+
+## Promise evidence
+
+- P1: radar claim integrity real-DB tested (radar.test.ts L156-249); e2e stranger to room (e2e L482-561). Taps never counted. Partly.
+- P2: nothing in this slice tests in-app notices or the orb. Cannot tell.
+- P3: sign-then-release via checkbox in e2e (L343-383); the "still writing" state untested; name-not-sent check probably reads the wrong request (Suspect 4). Partly.
+- P4: claim/redaction/unclaimed rules (people, challenge, consent tests); walkthrough f13, f21, f29 walked it. Kept at unit level.
+- P5: crisis number per country (crisis-line.test.ts), patient message carries no risk words (safety L66-93). SOS-on-top only probed by walkthrough probe6. Partly.
+- T1: note from transcript measured by evals (notes.unsupported 1.4%, coverage 72.7%); fixture defects (Broken 1) and substring scoring (Suspect 2) distort it. Partly.
+- T2: worklet emits nothing while muted (public/audio-recorder.worklet.js L33-39); e2e checks no upload for 11 s; clock never ends an off-record session. Transcript hole and note silence untested. Partly.
+- T3: settle-from-held netting in ledger.test.ts L226-253. Kept at ledger level.
+- T4: stranger join and consent gate in e2e; signed-in "Joining as" path untested. Partly.
+- T5: citations resolve or are dropped (documents, memory, safety L1201-1252); answer quality unmeasured; revoked keeps copilot (Suspect 9). Partly/cannot tell.
+- C1: not tested here. Cannot tell.
+- C2: not tested here. Cannot tell.
+- C3: per-seat pricing arithmetic (seats.test.ts). Partly (one-invoice untested).
+- C4: 2 -> 1 seat lowers the bill by $64, not one seat ($72) (seats.test.ts L87-98); 3+ seats lowers by exactly one. PAYG landing untested. Partly broken at the clinic minimum.
+- C5: not tested. Cannot tell.
+- E1: differencing floor test does not call product code (Broken 3). Cannot tell from here.
+- E2: router refuses sponsor cookie on clinical paths (routing.test.ts L330-340). Partly (router half).
+- E3: not tested (coverageNow by date is a different rule). Cannot tell.
+- E4: 0% arithmetic leaves the patient the whole price (coverage.test.ts L54-58). Partly.
+- E5: pot race test is local arithmetic (Broken 3). Cannot tell.
+- A1-A4: no confirm/reject/idempotency/unmatched-line code exercised in this slice (transfer-rail.test.ts is pricing only). Cannot tell.
+- A5: routing redirects to the right door (routing.test.ts); "on the record" untested. Partly.
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| evals/cases.ts | 1164 | read |
+| evals/cases/diarisation.ts | 333 | read |
+| evals/cases/long-session.ts | 603 | read |
+| evals/coverage.ts | 125 | read |
+| evals/metrics.ts | 340 | read |
+| evals/report.ts | 198 | read |
+| evals/run.ts | 281 | read |
+| evals/suites/attribution.ts | 89 | read |
+| evals/suites/grounding.ts | 216 | read |
+| evals/suites/notes.ts | 171 | read |
+| evals/suites/risk-model.ts | 167 | read |
+| evals/suites/risk.ts | 136 | read |
+| evals/suites/speech.ts | 131 | read |
+| tests/.hydration-zone.29342.ts | 2 | read |
+| tests/alarm.test.ts | 245 | read |
+| tests/assistant.test.ts | 144 | read |
+| tests/attribution.test.ts | 278 | read |
+| tests/challenge.test.ts | 65 | read |
+| tests/checkins.test.ts | 211 | read |
+| tests/clock.test.ts | 182 | read |
+| tests/consent.test.ts | 284 | read |
+| tests/coverage.test.ts | 121 | read |
+| tests/crisis-line.test.ts | 107 | read |
+| tests/diarisation.test.ts | 326 | read |
+| tests/documents-extract.test.ts | 171 | read |
+| tests/documents.test.ts | 256 | read |
+| tests/e2e.test.ts | 775 | read |
+| tests/evals.test.ts | 194 | read |
+| tests/facts.test.ts | 219 | read |
+| tests/fixtures/make-pdf.ts | 77 | read |
+| tests/hydration.test.tsx | 198 | read |
+| tests/ingest.test.ts | 234 | read |
+| tests/ledger.test.ts | 421 | read |
+| tests/locale-paths.test.ts | 114 | read |
+| tests/memory.test.ts | 187 | read |
+| tests/mock-openai.ts | 144 | read |
+| tests/money.test.ts | 176 | read |
+| tests/patient-import.test.ts | 177 | read |
+| tests/people.test.ts | 116 | read |
+| tests/physics.test.ts | 199 | read |
+| tests/radar.test.ts | 898 | read |
+| tests/risk-level.test.ts | 281 | read |
+| tests/routing.test.ts | 436 | read |
+| tests/run-e2e.sh | 71 | read |
+| tests/safety.test.ts | 1294 | read |
+| tests/scheduling.test.ts | 142 | read |
+| tests/seats.test.ts | 303 | read |
+| tests/timezones.test.ts | 328 | read |
+| tests/toasts.test.ts | 77 | read |
+| tests/transcribe.test.ts | 98 | read |
+| tests/transfer-rail.test.ts | 193 | read |
+| .walkthrough/lib.mjs | 15 | read |
+| .walkthrough/lib2.mjs | 15 | read |
+| .walkthrough/p25.mjs | 19 | read |
+| .walkthrough/run.sh | 4 | read |
+| .walkthrough/settings.mjs | 10 | read |
+| .walkthrough2/ar-check.mjs | 19 | read |
+| .walkthrough2/ar-dump.mjs | 9 | read |
+| .walkthrough2/f1-therapist.mjs | 20 | read |
+| .walkthrough2/f10-patient.mjs | 15 | read |
+| .walkthrough2/f11-signup.mjs | 18 | read |
+| .walkthrough2/f12-create.mjs | 19 | read |
+| .walkthrough2/f13-claim.mjs | 14 | read |
+| .walkthrough2/f14-session.mjs | 10 | read |
+| .walkthrough2/f15-start.mjs | 15 | read |
+| .walkthrough2/f16-room.mjs | 18 | read |
+| .walkthrough2/f17-approve.mjs | 11 | read |
+| .walkthrough2/f17b.mjs | 10 | read |
+| .walkthrough2/f18-close.mjs | 16 | read |
+| .walkthrough2/f19-claim-order.mjs | 10 | read |
+| .walkthrough2/f1b.mjs | 17 | read |
+| .walkthrough2/f2-onboard.mjs | 25 | read |
+| .walkthrough2/f20-code.mjs | 11 | read |
+| .walkthrough2/f21-stranger.mjs | 17 | read |
+| .walkthrough2/f21b.mjs | 18 | read |
+| .walkthrough2/f22-patient-tour.mjs | 19 | read |
+| .walkthrough2/f23-sos.mjs | 13 | read |
+| .walkthrough2/f24-risk.mjs | 24 | read |
+| .walkthrough2/f25-more.mjs | 19 | read |
+| .walkthrough2/f26-qr.mjs | 21 | read |
+| .walkthrough2/f27-portability.mjs | 13 | read |
+| .walkthrough2/f28-grant.mjs | 18 | read |
+| .walkthrough2/f29-approve.mjs | 15 | read |
+| .walkthrough2/f3-submit.mjs | 17 | read |
+| .walkthrough2/f30-ask.mjs | 18 | read |
+| .walkthrough2/f31-decline.mjs | 18 | read |
+| .walkthrough2/f32-recheck.mjs | 21 | read |
+| .walkthrough2/f4-admin.mjs | 19 | read |
+| .walkthrough2/f5-approve.mjs | 11 | read |
+| .walkthrough2/f6-dash.mjs | 10 | read |
+| .walkthrough2/f7-patient.mjs | 14 | read |
+| .walkthrough2/f8-add.mjs | 20 | read |
+| .walkthrough2/f9-invite.mjs | 14 | read |
+| .walkthrough2/f9b.mjs | 9 | read |
+| .walkthrough2/f9c.mjs | 10 | read |
+| .walkthrough2/f9d.mjs | 18 | read |
+| .walkthrough2/lib.mjs | 105 | read |
+| .walkthrough2/mock.ts | 4 | read |
+| .walkthrough2/peek.mjs | 11 | read |
+| .walkthrough2/probe.mjs | 15 | read |
+| .walkthrough2/probe2.mjs | 12 | read |
+| .walkthrough2/probe3.mjs | 20 | read |
+| .walkthrough2/probe4.mjs | 13 | read |
+| .walkthrough2/probe5.mjs | 9 | read |
+| .walkthrough2/probe6.mjs | 14 | read |
+| .walkthrough2/probe7.mjs | 16 | read |
+| .walkthrough2/probe8.mjs | 11 | read |
+| .walkthrough2/q.ts | 9 | read |
+| .walkthrough2/re-signin.mjs | 14 | read |
+| .walkthrough2/routes.mjs | 89 | read |
+| .walkthrough2/seed-risk.ts | 58 | read |
+| .walkthrough2/stub-docs.ts | 39 | read |
+| .walkthrough2/sweep.mjs | 84 | read |
+| .walkthrough2/up.sh | 25 | read |
+| postcss.config.mjs | 7 | read |
+| public/audio-recorder.worklet.js | 45 | read |
+| package.json | 244 | read |
+| vercel.json | 25 | read |
+| tsconfig.json | 43 | read |
+| .env.example | 70 | read |
+| .nvmrc | 2 | read |
+| drizzle/meta/_journal.json | 817 | read |
+| .simulation-wave1.json | 5 | read |
+| .simulation-wave2.json | 5 | read |
+| evals/baseline.json | 180 | read |
+| evals/cases.json | 7 | read |
+| evals/physics.json | 209 | read |
+| evals/production-baseline.json | 126 | read |
+| evals/prose.json | 101 | read |
+| evals/unmeasured.json | 5 | read |
+| scripts/_i18n-coverage.json | 37 | read |
+| scripts/_region-pins.json | 9 | read |
+| .walkthrough2/ids.json, people.json, session-url.txt (extra, not on list) | 1, 22, 1 | read |

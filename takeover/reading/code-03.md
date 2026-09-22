@@ -275,6 +275,34 @@
 - Promises: T2 and task 123 are NOT enforced here: the one writer checks neither `recordingConsent` nor an off-record flag. Whatever the upload route accepts is written.
 - Notes: the crisis scan runs on therapist lines too (speaker not filtered), unlike `assessSessionRisk` which scans non-therapist text only (session-risk.ts:93-96); a clinician saying "have you thought about killing yourself" raises a high alert. `crisis` in the return is true even when the segment was a duplicate and no alert was raised.
 
+### lib/data/usage.ts (552 lines)
+- For: operator model-spend accounting (microcents), per clinician, per kind, per session, per patient, per account, consent rate, revenue by source, per-session costs.
+- Decides: `formatMicrocents` (30) $1 = 100,000 units (matches H13). `PLATFORM_BUCKET` (46) null attribution becomes a named row. `usageByTherapist` (71) three aggregates, no join. `usageByKind` (168). `costPerSession` (192). `usageForSession` (216). `costByPatient` (253) internal only (C280). `costByAccount` (289). `consentRate` (326) completed sessions: granted/declined/not asked. `revenueBySource` (381) four figures never summed. `sessionCosts` (473).
+- Assumes: admin-only callers; `ai_request_logs.cost_microcents` populated.
+- Promises: none of the 25; T2/task 123 evidence: `consentRate.notAsked` counts completed sessions with `recording_consent IS NULL`, which is every in-person session (no join page, sessions.ts:236-239), so the operator can see the size of task 123 here.
+- Notes: reads `sessions` and `session_payments` (person-region data) through `controlDb` (8). `usageByTherapist`, `revenueBySource` and `sessionCosts` sum `session_payments` by `created_at` with no status filter, so refunded and failed payments count as patient revenue and platform fee; `ledgerSummary` in vault.ts filters `status = 'paid'`, so the two admin pages disagree. `costByPatient` returns `patient_id` values; a per-person timeline of model calls (C280) is on an admin page.
+
+### lib/data/vault.ts (467 lines)
+- For: the admin "Vault": money in (invoices plus Connect fees), model spend, margin, monthly ledger, per-clinician economics, traction.
+- Decides: `ledgerSummary` (50) paid invoices net of discounts plus paid session-payment fees net of settled invoice cents; AI cost from microcents / 1000. `allInvoices` (114). `allSessionPayments` (156) no `payerName` (C243/C244). `monthlyLedger` (205) invoices and session fees separately (C349). `therapistEconomics` (275). `tractionMetrics` (352). `costByKind` (455).
+- Assumes: `invoices`, `session_payments`, `ai_request_logs` as the money truth.
+- Promises: A2/A4 not enforced here; this is reporting. Ledger legs: none of this file reads `ledger_entries`. Pot top-ups, pot spend, manual (bank transfer) receipts, overpayments and unmatched lines are invisible to the Vault unless they also produce an invoice or a `session_payments` row.
+- Notes: see Stale (header says metrics derive from the ledger). `tractionMetrics` revenue (`revenue30`, 400-405) is invoices only, the exact partial definition C349 (181-199) fixed in `monthlyLedger`, so revenue and margin per session on the traction card omit session fees. `mrrCents = payingOrgs * 9900` (423) hard-codes a $99 plan the comment at 383-388 says no longer exists. `therapistEconomics.revenueCents` is the whole organisation's paid invoices repeated on every clinician in a clinic.
+
+### lib/data/verification.ts (336 lines)
+- For: the clinician verification gate: state, draft row, what is missing, admin queue, approve/reject with the two-rejections document purge.
+- Decides: `practiceState` (94) reads `therapist_verifications.state` directly (C285). `ensureVerification` (120). `missingFrom` (139) eight fields. `isCleared` (167) super_admin exempt. `reviewQueue` (173) includes document URLs and licence number for staff. `decideVerification` (235) conditional on `submitted`; rejection count incremented in SQL; second rejection deletes the blobs and clears the columns (300-321); no mirror write (trigger 0083).
+- Assumes: `requireVerified()` in actions and an app-shell redirect; trigger 0083 syncs `users.verification_status`; trigger 0060 on grants.
+- Promises: C1 partly (verification state is what puts a seat on the radar). A5: no audit in this file (caller's job).
+- Notes: there is no function here to withdraw an approval, although radar.ts:423-428 designs for "an administrator revoked this clinician". If one exists elsewhere, note that trigger 0060 checks grants only on INSERT/UPDATE of `history_grants`, so a clinician de-verified later keeps every grant already `granted`. In the purge, `deleteDocument` runs before the columns are nulled; a failure there leaves the state rejected with columns pointing at partly deleted blobs.
+
+### lib/data/verified.ts (91 lines)
+- For: the single SQL definition of "verified" (an approved `therapist_verifications` row) for WHERE and SELECT, plus the regulator and approval date for public pages.
+- Decides: `APPROVED` EXISTS subquery (34); `isVerifiedClinician` (41), `verifiedFlag` (46), `verifiedByBody` (76), `verifiedOn` (85). Licence number and document URLs never exposed (62-70).
+- Assumes: `users` is in scope of the calling query.
+- Promises: C1 (verification state on the row). "Only certified therapists" claim.
+- Notes: not `server-only` (pure SQL fragments). `verifiedOn` comment says rendered as month and year; that is the renderer's job. Callers in this slice: radar.ts `queryBoard`, `publicProfile`, `radarCount`. Not used by `replacementsFor` (recovery.ts) or `resolveCode` (therapist-codes.ts), which is why those can surface unverified clinicians.
+
 <!-- FILES-END -->
 
 ## Stale
