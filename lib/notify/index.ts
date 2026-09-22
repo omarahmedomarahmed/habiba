@@ -2,6 +2,8 @@ import "server-only";
 
 import { env } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
+import type { MessageKey } from "@/lib/i18n/messages";
+import type { PatientNoticeKind } from "@/lib/db/schema";
 
 /**
  * One place a message to a patient goes out from. PLAN.md 11.7, and C43.
@@ -32,6 +34,23 @@ import { log, safeErrorMessage } from "@/lib/logger";
 export type Channel = "email" | "whatsapp";
 
 export type Recipient = {
+  /**
+   * 🔴 79.1 — THE PERSON, SO THE MESSAGE ALSO LANDS INSIDE THE APP.
+   *
+   * Every message this function sends used to leave by email or WhatsApp and
+   * appear nowhere the recipient could find it again. `patient_notifications`
+   * existed the whole time and had exactly three writers, all of them about the
+   * employer benefit, so a patient invited to a session by their clinician
+   * opened the app to an empty log and no way in. That is what a founder found
+   * by inviting a patient on production and watching nothing happen.
+   *
+   * The delivery channels and the in-app log are the same event, so they are
+   * written at the same seam rather than at twenty-six call sites that each
+   * have to remember. Pass this and `notice` on the message, and the row is
+   * written; pass neither and nothing changes, which is what makes the gate a
+   * ratchet rather than a wall.
+   */
+  personId?: string | null;
   email: string | null;
   /** E.164, or null. 0 of 66 patients had one when this was written — see C43. */
   phone: string | null;
@@ -58,6 +77,21 @@ export type Recipient = {
 };
 
 export type Message = {
+  /**
+   * 🔴 79.1 — WHERE THIS LANDS INSIDE THE APP, when it should land anywhere.
+   *
+   * Two fields rather than one because the row and the channels want different
+   * things. `kind` groups it for the reader; `key` is a `MessageKey` resolved
+   * at RENDER through the same three layer resolver as every other string, so a
+   * notice written in March reads in Arabic in April if the person switches,
+   * and an admin can reword every copy of it at once. A `body` column holding a
+   * sentence would have frozen the wording at the moment it was sent, in one
+   * language, which `lib/data/notices.ts` argues at length.
+   *
+   * Absent means this message has no in-app home yet. `verify:notices` counts
+   * those and the number may only fall.
+   */
+  notice?: { kind: PatientNoticeKind; key: MessageKey };
   /** A stable key, so a provider template can be mapped to it. */
   kind:
     | "booking.confirmed"
@@ -252,6 +286,34 @@ export type Delivery = {
  */
 export async function notify(to: Recipient, message: Message): Promise<Delivery> {
   const sent: Channel[] = [];
+
+  /*
+   * 🔴 THE IN-APP ROW IS WRITTEN FIRST, and that order is the decision.
+   *
+   * Email and WhatsApp are best effort: a provider is down, a key is missing,
+   * a number was never collected. The log inside the app is the one place the
+   * person can always come back to, so it must not depend on a third party
+   * having answered. A send that fails still leaves them something to open.
+   *
+   * It is also why this is wrapped: a notice that cannot be written must not
+   * swallow a session invitation. The failure is logged and the send proceeds.
+   */
+  if (to.personId && message.notice) {
+    try {
+      const { controlDb } = await import("@/lib/db");
+      const { patientNotifications } = await import("@/lib/db/schema");
+      await controlDb.insert(patientNotifications).values({
+        personId: to.personId,
+        kind: message.notice.kind,
+        messageKey: message.notice.key,
+      });
+    } catch (error) {
+      log.warn("in-app notice not written", {
+        kind: message.kind,
+        reason: safeErrorMessage(error),
+      });
+    }
+  }
 
   for (const channel of order(to)) {
     if (channel === "whatsapp") {

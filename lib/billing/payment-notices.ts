@@ -107,6 +107,8 @@ async function recipientFor(
         email: patientAccounts.email,
         phone: people.phone,
         first: people.firstName,
+        /* 🔴 79.1 — so a confirmed payment also appears in the patient's app. */
+        personId: patientAccounts.personId,
       })
       .from(patientAccounts)
       .leftJoin(people, eq(people.id, patientAccounts.personId))
@@ -115,7 +117,7 @@ async function recipientFor(
 
     if (!row?.email && !row?.phone) return null;
     return {
-      to: { email: row.email ?? null, phone: row.phone ?? null },
+      to: { personId: row.personId, email: row.email ?? null, phone: row.phone ?? null },
       name: row.first ?? "there",
     };
   }
@@ -225,6 +227,14 @@ export async function noticePaymentConfirmed(paymentId: string): Promise<void> {
     const amount = await poundsFor(payment.settlesCents);
 
     await notify(who.to, {
+      /*
+       * 🔴 79.1 — AND THE JOIN LINK IS IN THE APP, not only in an inbox.
+       *
+       * A patient paid, went back to the app and had nothing: no record of the
+       * payment and no way into the session they had just bought. The link was
+       * in an email they had to go and find.
+       */
+      notice: { kind: "payment_confirmed", key: "pnotice.paymentConfirmed" },
       kind: "payment.confirmed",
       subject: join ? "Your session is paid for" : "Your payment is confirmed",
       body:

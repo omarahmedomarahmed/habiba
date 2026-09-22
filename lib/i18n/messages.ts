@@ -1378,6 +1378,16 @@ export const en = {
   "benefit.primary": "Paying for your sessions",
   /* 🔴 C231 — the patient's own log. No employer named, no reason. */
   "pnotice.benefitStarted": "Your sessions are now paid for.",
+  /*
+   * 🔴 79.1 — the four things the app never told a patient.
+   *
+   * No clinical content and no reason, the same rule the invitation email
+   * follows: a notice sits on a screen other people can read.
+   */
+  "pnotice.sessionInvited": "Your therapist has invited you to a session.",
+  "pnotice.sessionStarted": "Your session has started. The door is open.",
+  "pnotice.paymentConfirmed": "Your payment is confirmed.",
+  "pnotice.accessRequested": "A clinician has asked to see your record.",
   "pnotice.benefitEnded": "Your benefit has ended. Your record, your notes and your history are unchanged.",
   "pnotice.benefitPaused": "Your benefit is paused until you confirm you are still eligible.",
   "pnotice.verifyNeeded": "Confirm your work address to keep your benefit.",
@@ -4936,6 +4946,11 @@ export const ar: Record<MessageKey, string> = {
   "benefit.makePrimary": "استخدم هذه",
   "benefit.primary": "تدفع لجلساتك",
   "pnotice.benefitStarted": "جلساتك مدفوعة الآن.",
+  /* 🔴 79.1 — see the English block for why the wording carries no reason. */
+  "pnotice.sessionInvited": "دعاك معالجك إلى جلسة.",
+  "pnotice.sessionStarted": "بدأت جلستك. الباب مفتوح.",
+  "pnotice.paymentConfirmed": "تم تأكيد دفعتك.",
+  "pnotice.accessRequested": "طلب معالج الاطلاع على ملفك.",
   "pnotice.benefitEnded": "انتهت ميزتك. ملفك وملاحظاتك وتاريخك كما هي.",
   "pnotice.benefitPaused": "ميزتك متوقفة حتى تؤكد أنك ما زلت مؤهلًا.",
   "pnotice.verifyNeeded": "أكّد عنوان عملك للحفاظ على ميزتك.",

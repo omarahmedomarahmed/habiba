@@ -65,6 +65,14 @@ export async function noticeSessionStarted(sessionId: string): Promise<void> {
         patientEmail: patients.email,
         patientPhone: patients.phone,
         patientFirst: patients.firstName,
+        /*
+         * 🔴 79.1 — so the alert also lands in the patient's own log.
+         *
+         * Null for a guest with no record, which is a real state rather than a
+         * gap: there is nobody to write a notice for, and `notify()` writes
+         * none. The email still goes.
+         */
+        personId: patients.personId,
         therapistFirst: users.firstName,
         therapistLast: users.lastName,
       })
@@ -77,6 +85,7 @@ export async function noticeSessionStarted(sessionId: string): Promise<void> {
     if (!row?.joinToken) return;
 
     const to = {
+      personId: row.personId,
       email: row.patientEmail ?? row.email ?? null,
       phone: row.patientPhone ?? null,
     };
@@ -87,6 +96,9 @@ export async function noticeSessionStarted(sessionId: string): Promise<void> {
     const url = `${env.appUrl}/join/${row.joinToken}`;
 
     await notify(to, {
+      /* 🔴 79.1 — the door being open is the most time-critical thing this
+         product says, and it used to exist only in an inbox. */
+      notice: { kind: "session_started", key: "pnotice.sessionStarted" },
       kind: "session.started",
       subject: "Your session has started",
       body:

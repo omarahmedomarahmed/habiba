@@ -19,6 +19,17 @@
 export const GATES = [
   { name: "prose", script: "prose", why: "the screens got shorter" },
   { name: "claims", script: "verify:claims", why: "and no claim was dropped to do it" },
+  /*
+   * 🔴 79.1 — a message that leaves the building and lands nowhere it can be
+   * found again. A clinician invited a patient on production and the patient's
+   * app said nothing at all, because `notify()` and the in-app log were two
+   * systems that almost nobody wired together.
+   */
+  {
+    name: "notices",
+    script: "verify:notices",
+    why: "and what the product tells a person can be found again inside it",
+  },
   {
     name: "principals",
     script: "verify:principals",

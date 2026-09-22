@@ -129,8 +129,23 @@ export async function inviteToSession(actor: Actor, patientId: string): Promise<
    * phone.
    */
   const delivery = await notify(
-    { email: patient.email, phone: patient.phone, timezone: patient.timezone },
     {
+      /*
+       * 🔴 79.1 — AND IT LANDS INSIDE THE APP TOO.
+       *
+       * This message used to leave by email or WhatsApp and appear nowhere the
+       * patient could find it again. A clinician invited a patient on
+       * production, the patient opened the app, and there was nothing there:
+       * no invitation, no price, no door. `notify()` writes the in-app row when
+       * it is given a person and a notice, so this is the whole fix.
+       */
+      personId: patient.personId,
+      email: patient.email,
+      phone: patient.phone,
+      timezone: patient.timezone,
+    },
+    {
+      notice: { kind: "session_invited", key: "pnotice.sessionInvited" },
       kind: "session.invite",
       subject: `${who} has invited you to a session`,
       body: `${who} would like to see you on 24Therapy.\n\nOpen the link below to join. You will be asked to pay for the session first, and you do not need an account.`,

@@ -7068,6 +7068,23 @@ export const PATIENT_NOTICE_KINDS = [
   "benefit_ended",
   "benefit_paused",
   "verify_needed",
+  /*
+   * 🔴 79.1 — EVERYTHING ELSE THE PRODUCT TELLS A PATIENT.
+   *
+   * The four kinds above are the employer benefit, which is what this table
+   * was built for, and for a long time they were the only things ever written
+   * to it. `notify()` sent the session invitations, the payment confirmations
+   * and the session-started alerts by email and WhatsApp and wrote NOTHING
+   * here, so a patient who opened the app after being invited to a session saw
+   * an empty log and no way in.
+   *
+   * A clinician invited a patient on production and the patient's app said
+   * nothing at all. That is how these were found.
+   */
+  "session_invited",
+  "session_started",
+  "payment_confirmed",
+  "access_requested",
 ] as const;
 export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
 
