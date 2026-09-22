@@ -34,7 +34,13 @@ The order is fixed and it is not negotiable:
 
 Between 4 and 5 there is one report, in section 10b: **what percentage of what we claim
 actually holds**, what is broken and why, what only LOOKS broken because it is patched
-elsewhere, and what you would do differently. Nobody has ever been able to write it.
+elsewhere, **what the code does that we never promised**, and what you would do differently.
+Nobody has ever been able to write it.
+
+🔴 **Only two things here are a source of truth: the code, and
+`docs/VALUE-STATEMENTS.md`.** Everything else, this document included, is a claim on a date.
+`PLAN.md` in particular is a sprint log whose later sprints overrode earlier ones without
+saying so, and section 8 says more about that.
 
 The founder has said it plainly: **no work without reading first.** That includes the four
 defects in section 12, however urgent they look from here.
@@ -358,7 +364,10 @@ beautiful screen that says one of those things will be refused at save time.**
 ## 7 · The gate economy, and please stop running all of them
 
 **`npm run gates` takes 25 minutes.** The session before you ran it far too often and wasted
-hours. It runs 35 gates, one of which runs 76 more verifiers and another 33 unit suites.
+hours. It runs 35 gates. One of them, `verifiers`, runs every `verify:` script no gate
+already covers, deriving that list at runtime so it cannot go stale; another runs the 33 unit
+suites. The arithmetic: **107 `verify:` scripts, 25 of them gates in their own right and 3 of
+them properties of the DATABASE rather than the code, leaving the 79 that `verifiers` runs.**
 
 **Run the narrow thing.** Almost every check is individually runnable and takes seconds.
 
@@ -484,7 +493,7 @@ redesign a screen without knowing what it was promising.
 | 1 | `docs/VALUE-STATEMENTS.md` | The 25 promises. The whole point of the product |
 | 2 | `docs/TRAPS.md` | What this codebase has learned about being wrong |
 | 3 | `HAZARDS.md` | Traps that have already caused defects in the product |
-| 4 | `PLAN.md` | The specification. §2 every concern and its ruling, §6 the standing rules. 5,425 lines |
+| 4 | `PLAN.md` | 🔴 **A SPRINT LOG, NOT A SPECIFICATION.** See the warning below before you read a line of it |
 | 5 | `docs/LIFECYCLES.md` | 11 state machines, 48 states, 51 transitions, every way a person gets stuck |
 | 6 | `docs/THE-PLAN.md` | Phases 0 to 5 and which task sits in which |
 | 7 | `docs/THE-REDESIGN.md` | What exists against what the redesign needs |
@@ -496,6 +505,27 @@ redesign a screen without knowing what it was promising.
 Keep a list as you go: **every promise, and where it says it is enforced.** That list is what
 step 2 checks and step 3 walks.
 
+### 🔴 `PLAN.md` IS NOT A SOURCE OF TRUTH, AND THE FOUNDER SAYS SO DIRECTLY
+
+It is 5,400 lines of **build sprints**: what was decided, sprint by sprint, on the day it was
+decided. That is worth reading for the reasoning, and only for the reasoning.
+
+**Later sprints changed earlier ones and the change was often never written back.** So a
+ruling in sprint 30 can be flatly contradicted by what sprint 60 built, with nothing in the
+file admitting it. Its own header now says this, and its dead file paths are listed there too.
+Read it as an argument somebody once had, never as a description of the product.
+
+🔴 **There are exactly two sources of truth here:**
+
+| | |
+|---|---|
+| **The code** | What the product actually does |
+| **`docs/VALUE-STATEMENTS.md`** | What we promise, and therefore what the code is answerable to |
+
+Everything else in this repository, this document included, is a claim awaiting your check.
+When a `.md` and the code disagree, the code wins and the `.md` is a defect you should fix as
+you pass.
+
 ### Then the code, all of it
 
 **1,158 files, about 280,000 lines.** The comments are a large fraction because this codebase
@@ -504,7 +534,7 @@ argues with itself in prose.
 | Directory | Files | Lines | What it is |
 |---|---|---|---|
 | `lib` | 244 | 92,074 | Everything that is not a screen. Money, auth, AI, data, notify |
-| `scripts` | 180 | 69,724 | 35 gates, 76 more verifiers, seeds, the simulation harness |
+| `scripts` | 180 | 69,724 | 35 gates, 107 `verify:` scripts, seeds, the simulation harness |
 | `components` | 224 | 54,334 | React, including marketing blocks and every portal |
 | `app` | 271 | 37,099 | Next.js App Router. Eight route groups, one per principal |
 | `tests` | 37 | 9,673 | Unit suites, run as one gate |
@@ -787,7 +817,26 @@ when you find one, say so in this section: *"this looks broken, here is where it
 handled, here is why it reads wrong."* That list is how the next reader is spared the same
 hour.
 
-**4. What you would do differently, and why.** You are invited to attack this. Audit the
+**4. 🔴 What the code does that we never promised.** This is the other direction and nobody has
+ever looked. The 25 statements were written by reading the pages we publish, so they are a
+list of what we SAY, checked against what we DO. They cannot tell you about a capability that
+exists in the code and appears on no page and in no test.
+
+Those exist, and each one is one of three things:
+
+| What you found | What it means |
+|---|---|
+| A capability worth selling that nothing advertises | A promise we should be making. Propose it as a 26th statement |
+| A capability nobody should have | A hole. It is doing something for somebody we never agreed to do |
+| A half-built capability | A lifecycle with no way out, or a screen with no door to it |
+
+So as you read each directory, keep a third list beside **Stale** and **Suspect**:
+**Unclaimed**. Anything the code can do for a person that no value statement covers and no
+walk exercises. Bring it with the report, sorted into those three columns, with the file and
+the reason. A promise we could honestly make and are not making is worth as much to the
+founder as a promise we are breaking.
+
+**5. What you would do differently, and why.** You are invited to attack this. Audit the
 architecture, the money, the claims, the checks, the schema, the design. Suggest anything,
 including throwing something away. **Say why**, in terms of what it costs and what it buys,
 and the founder will judge it. A takeover that only implements the previous plan is worth less
@@ -805,7 +854,7 @@ enforced rather than remembered:
 | 171 | Read every `.md`, then every line of code, and build the map | Step 1 and 2 |
 | 172 | Walk every flow as the demo cast, with agents, and prove the 25 promises | Step 3 |
 | 173 | Assess every user-facing screen while walking it | Step 4 |
-| 176 | Report what percentage of our claims holds, and what only looks broken | Section 10b |
+| 176 | Report what holds, what only looks broken, and what we never promised | Section 10b |
 | 174 | **Rewrite `/design` as a complete new design, as samples to approve** | Step 5, and the deliverable |
 | 175 | Find the tasks nobody knew to ask for | Throughout, delivered with 176 |
 

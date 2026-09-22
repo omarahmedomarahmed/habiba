@@ -25,7 +25,7 @@ this one included, is a claim somebody made on a date. The code is the evidence.
 
 | You are here to | Read, in this order | Do not skip |
 |---|---|---|
-| **Take the product over** | `docs/TAKEOVER-PROMPT.md`, then `docs/TAKEOVER.md` | It says in its own first section why you must not trust it about the code |
+| **Take the product over** | `docs/TAKEOVER.md`, all of it, before anything else | It says in its own first section why you must not trust it about the code |
 | **Understand what we are and what we promise** | `docs/ORIENTATION.md`, then `docs/VALUE-STATEMENTS.md` | The 25 promises are the product. Everything else serves one of them |
 | **Audit the money or the plan** | `docs/FINANCIAL-PLAN.md`, then `lib/finance/plans.ts` | Every number is labelled MEASURED, DECIDED or GUESS. Only two are measured |
 | **Audit our claims for honesty** | `lib/content/honesty.ts`, `docs/VALUE-STATEMENTS.md`, `lib/content/defaults.ts` | Two claim shapes are refused at save time. Find a third we should refuse |
@@ -72,8 +72,11 @@ npx tsc --noEmit -p tsconfig.json     always, it costs seconds
 npm run gates                         TWICE ONLY: when you think you are done, and before a deploy
 ```
 
-🔴 **`npm run gates` takes 25 minutes.** It runs 35 gates, one of which runs 76 more
-verifiers and another 33 unit suites. Run the ONE narrow check for what you touched
+🔴 **`npm run gates` takes 25 minutes.** It runs 35 gates. One of them, `verifiers`, runs
+every `verify:` script no gate already covers, deriving that list at runtime so it cannot go
+stale; another runs the 33 unit suites. The arithmetic: **107 `verify:` scripts, 25 of which
+are gates in their own right and 3 of which are properties of the DATABASE rather than the
+code, leaving the 79 that `verifiers` runs.** Run the ONE narrow check for what you touched
 instead; `docs/TAKEOVER.md` §7 is the table of which. A session that ran the full pass
 between edits wasted hours.
 
@@ -597,7 +600,6 @@ defects that sixty verifiers had missed.
 |---|---|
 | `docs/ORIENTATION.md` | **What this platform is, what it promises, and where every answer lives**, written for a model arriving with any goal |
 | `docs/TAKEOVER.md` | **Start here if you are taking the product over.** External state that is in no file (Neon, Vercel, DNS, the two live launch blockers), the business, which gate to run instead of all 35, and a reading plan. It says in its first section why you must not trust it about the code |
-| `docs/TAKEOVER-PROMPT.md` | The one thing to paste into a new session that is taking over |
 | `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
 | `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
 | `docs/TRAPS.md` | **Traps in the CHECKERS**, which is a different list. Each one has a check in `verify:traps`, and the gate fails if this file describes a trap nothing enforces |
