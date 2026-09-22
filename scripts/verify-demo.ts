@@ -67,7 +67,7 @@ async function main() {
 
   const { db, pool } = connect();
   console.log(`\nreading ${hostOf()}`);
-  console.log(`scenario: ${name} — ${position.title}\n`);
+  console.log(`scenario: ${name}. ${position.title}\n`);
 
   try {
     const { verifyPassword } = await import("../lib/auth/password");

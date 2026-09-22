@@ -96,7 +96,7 @@ async function main() {
   const name = scenarioFrom(process.argv.slice(2));
   const position = scenario(name);
   const tuning = TUNING[name];
-  console.log(`\n  🔴 scenario: ${name} — ${position.title}\n`);
+  console.log(`\n  🔴 scenario: ${name}. ${position.title}\n`);
 
   const { db, pool } = connect();
   const one = async <T>(text: ReturnType<typeof sql>): Promise<T> => {
