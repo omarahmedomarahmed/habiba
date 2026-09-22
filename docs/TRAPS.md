@@ -1,0 +1,132 @@
+# Traps
+
+Every one of these was walked into more than once. That is the reason this file
+exists: each was already written down somewhere before it was repeated, and a
+rule a person has to remember is a rule that holds until the person is tired.
+
+**Each trap here has a check in `scripts/verify-traps.ts`.** `npm run
+verify:traps` fails if this file describes a trap nothing enforces, so the
+register and the enforcement cannot drift apart. That is itself the lesson: the
+palette was a comment for months, and became true the day something read it.
+
+---
+
+## The shape they all share
+
+A checker reports on something ADJACENT to what it claims to check, and the
+report reads the same either way. A green line that means "clean" and a green
+line that means "I looked at nothing" are the same green line.
+
+So the question to ask of any new check is not *is this rule right*. It is:
+**if the thing I am checking were completely broken, would this line go red?**
+If you cannot answer yes, the check needs a control before it needs anything
+else.
+
+---
+
+### T1 · A checker reads source with its comments in
+
+**The trap.** This codebase documents a defect by naming it. A comment says
+`text-slate-500 on navy is 3.2:1, which is under the floor`. Any scanner
+hunting for `slate-500` matches that sentence.
+
+**What it costs.** A file gets cleaned up and the gate still calls it dirty. The
+cheapest way to pass becomes deleting the explanation rather than the defect, so
+the gate rewards destroying the record it depends on. In the other direction it
+is worse: a comment mentioning `/api/cron` made an orphaned API route look
+called, and hid a second route that genuinely had no caller.
+
+**Where it has happened.** `uncalledExports` (whose own header says the rule had
+been forgotten eight times by the time it was written), the route and page
+scanners in `_surfaces.ts`, `verify-palette.ts` on the day it was written,
+`verify-raw-sql.ts`, `verify-sprint31.ts`.
+
+**The rule.** Strip comments before any scan of source, without exception. Use
+`stripCommentsKeepingLines` from `scripts/_dashes.ts`, which preserves line
+numbers so nothing that reports a line shifts.
+
+---
+
+### T2 · A checker with nothing proving it can fail
+
+**The trap.** Three absences in a row pass just as happily against a scanner
+that matched nothing at all.
+
+**What it costs.** Every instrument here has produced a green line while looking
+at nothing: a crawler measuring a modal instead of the page behind it, a crawler
+walking nine pages signed out and reporting them fine, a counter that silently
+stopped counting at twenty-nine, an audit returning "no failures" from a page
+that rendered nothing at all.
+
+**The rule.** Every check gets a CONTROL: a planted offender the rule must
+catch, and where the rule could fire on everything, a known-good example it must
+leave alone. Both halves, because a control that only proves the rule fires
+passes against a rule that fires on everything.
+
+**Ratchet.** 19 of 101 verifiers still have none. The number may only fall.
+
+---
+
+### T3 · A list of the product's own routes, typed by hand
+
+**The trap.** A hand typed list of routes is wrong the week after it is written.
+
+**What it costs.** `verify-contrast.ts` held one and walked nine therapist pages
+it had never loaded, while reporting `/earnings` as fine without ever visiting
+it. `verify-served.ts` held a list of four and warmed four routes for a crawler
+that walks a hundred and twenty five, which produced three consecutive passes
+blaming three different sets of perfectly good screens.
+
+**The rule.** Derive from `inventory.routes()`. Adding a page adds it
+everywhere; deleting one removes it everywhere; nobody has to remember either.
+
+---
+
+### T4 · A report that truncates and drops the line saying it truncated
+
+**The trap.** A checker puts its total on its LAST line, so a slice from the
+front removes exactly the number that would reveal the slice.
+
+**What it costs.** `gates.ts` cut each failing gate's output to twelve lines.
+`verifiers.ts` runs seventy-nine scripts and prints "N of 79 failed" last. Six
+verifiers failed, four were shown, and the two survivors appeared a pass later
+looking like new breakage, which cost an hour of attributing them to work that
+had nothing to do with them.
+
+**The rule.** Keep the first N and the last line, and say how many were left out
+and which command prints all of it.
+
+---
+
+## Traps recorded but not yet checkable
+
+These have the same shape and no cheap static test. They are here so the
+question gets asked in review.
+
+**A check bound to a syntax rather than a property.** `verify:sprint77` asserted
+`| "patient-app"` appeared in the schema, which was the hero's own inline union
+of demo names. A later sprint deleted that union deliberately, because the hero
+carrying its own list was the defect. The check went red for the improvement it
+wanted. Ask: *if somebody improved this code, would my check still pass?*
+
+**A check that reads one of the N files that implement a thing.**
+`verify:sprint28` read `component-showcase.tsx` and not `blocks.tsx`, so six
+perfectly drawable demos looked undrawable, and the gap had been papered over
+with a hand typed exemption for two of them. Ask: *is this the only place that
+does this?*
+
+**A check looking for an answer in the wrong medium.** `verify:sprint18` looked
+for the word "help" in editable marketing copy. The question it was asking is
+answered by a component, whose words come from the dictionary, so the copy could
+never contain them. `verify:claims` asked a two word label to carry a
+disclosure that lives in its sibling field. Ask: *where does the product
+actually answer this?*
+
+**A gate measuring the harness instead of the product.** `verify:contrast`
+reported `/billing` as a 500, then twelve other pages, then one, on the same
+commit, while a browser opened every one by hand. The server log said `GET
+/favicon.ico 200 in 11170ms`: a static file taking eleven seconds because the
+container was running `next dev` and Chromium at once. It now asks the server
+log whether the product answered, and says which. It stays red either way,
+because going green is the red line explained away and calling it a product
+failure is how people stop reading the pass.

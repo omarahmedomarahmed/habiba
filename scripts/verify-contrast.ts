@@ -46,7 +46,9 @@
  */
 import { existsSync, readdirSync } from "node:fs";
 
+import { DEFAULT_PAGES } from "../lib/content/defaults";
 import { DEMO_PASSWORD } from "./_demo-cast";
+import { routesByPortal } from "./inventory";
 import { LOCALE_COOKIE } from "../lib/i18n/config";
 import { reporter } from "./_verify";
 
@@ -106,18 +108,51 @@ const RUNS = process.env.CONTRAST_RUNS
     )
   : ALL_RUNS;
 
-/** Public pages, and then one signed-in sweep per kind of person. */
+/**
+ * 🔴 EVERY PUBLIC PAGE, DERIVED, because nine of them were typed here by hand.
+ *
+ * The comment below already says what a missing path costs, and this list was
+ * written anyway. It held nine routes; the product has considerably more public
+ * pages than that, and each one it omitted was a page reporting green without
+ * ever being opened.
+ *
+ * `routesByPortal()` walks `app/(public)` itself. Two exclusions, both about
+ * what this gate can measure rather than about what matters:
+ *
+ *   - a dynamic segment has no id to put in it from here
+ *   - `/design/**` is the design system's own sample pages, which exist to show
+ *     a treatment rather than to be one; they are measured by `verify:sprint77`
+ *     against a stricter rule than this one
+ */
+/*
+ * 🔴 AND HALF THE PUBLIC SITE IS NOT A FILE, which the first derived version
+ * got wrong in the other direction.
+ *
+ * Deriving from the page files alone produced EIGHT paths where the hand typed
+ * list had nine, and the two it lost were `/pricing` and `/for-patients`: the
+ * most read pages on the site. Both are rows in the CMS, served by one
+ * `app/(public)/[slug]/page.tsx`, so there is no file named after either and a
+ * filter that drops dynamic segments drops them.
+ *
+ * It did find `/verify`, which the hand typed list had never included. So the
+ * old list was wrong and the naive derivation was wrong differently, and a
+ * narrower list that felt derived would have been the worse of the two: a
+ * coverage loss that reads as an improvement.
+ *
+ * Both halves, then. The files give the routes that are code; `DEFAULT_PAGES`
+ * gives the routes that are content. `home` is the root and is already there.
+ */
+const CMS = DEFAULT_PAGES.map((page) => (page.slug === "home" ? "/" : `/${page.slug}`));
+
 const PUBLIC = [
-  "/",
-  "/for-patients",
-  "/for-companies",
-  "/for-clinics",
-  "/for-therapists",
-  "/pricing",
-  "/radar",
-  "/integrations",
-  "/developers",
-];
+  ...new Set([
+    ...routesByPortal()
+      .filter((r) => r.who === "public")
+      .map((r) => r.route)
+      .filter((route) => !route.includes("[") && !route.startsWith("/design")),
+    ...CMS,
+  ]),
+].sort();
 
 /*
  * 🔴 A PATH THAT IS NOT LISTED IS NOT MEASURED, and that is the quiet way an
@@ -479,6 +514,27 @@ async function audit(exe: string) {
    * clicked through the switch. Clicking would work and would also mean every
    * run depends on the switch still being where the last run left it.
    */
+  /*
+   * 🔴 DO NOT FETCH WHAT THIS GATE CANNOT MEASURE.
+   *
+   * The audit reads computed styles: `color`, `backgroundColor`, `fontSize`,
+   * `fontWeight`. Not one of those depends on a picture arriving. So every
+   * image, icon, video and favicon this crawler downloads is work the server
+   * does for nothing, roughly a hundred times per run.
+   *
+   * It was not free. On a container running `next dev` and Chromium together,
+   * the server log recorded `GET /favicon.ico 200 in 11170ms`: a static file
+   * taking eleven seconds because the machine had nothing left. With a 45
+   * second navigation budget, that starvation is what pushed real pages over
+   * the edge, and which pages went over was luck. Three passes blamed three
+   * different sets of perfectly good screens.
+   *
+   * Stylesheets and fonts are NOT blocked, and the distinction is the point: a
+   * missing stylesheet changes the colours this measures and a missing font
+   * changes which text wraps, so blocking those would make the gate measure a
+   * page nobody will ever see. Blocking pictures changes nothing it reads.
+   */
+  const MEASURES_NOTHING = new Set(["image", "media", "font"]);
   const contextFor = async (
     run: (typeof RUNS)[number],
     storageState?: object,
@@ -488,6 +544,18 @@ async function audit(exe: string) {
       ...(storageState ? { storageState: storageState as never } : {}),
     });
     await c.addCookies([{ name: LOCALE_COOKIE, value: run.locale, url: BASE }]);
+    await c.route("**/*", (route) => {
+      const type = route.request().resourceType();
+      const url = route.request().url();
+      /*
+       * Fonts are allowed through for the reason above, with one exception:
+       * a favicon is requested on every navigation, is never measured, and is
+       * the single request the server log caught taking eleven seconds.
+       */
+      if (MEASURES_NOTHING.has(type) && type !== "font") return route.abort();
+      if (url.includes("favicon")) return route.abort();
+      return route.continue();
+    });
     return c;
   };
 

@@ -29,6 +29,8 @@
  * not "did we declare it" but "is it there".
  */
 import { readFileSync } from "node:fs";
+
+import { stripCommentsKeepingLines } from "./_dashes";
 import { execSync } from "node:child_process";
 
 import { sql } from "drizzle-orm";
@@ -90,7 +92,17 @@ async function main() {
   const findings: Finding[] = [];
 
   for (const file of files) {
-    const text = readFileSync(file, "utf8");
+    /*
+     * 🔴 C205 — COMMENTS FIRST, because a commented-out query is not a query.
+     *
+     * This scans for `sql` template literals and checks every column named
+     * inside one against the real table. A query somebody commented out while
+     * debugging, or an example inside a doc comment explaining the very defect
+     * this gate exists for, is matched exactly like live code. The failure it
+     * produces is a red line naming a column that nothing reads, which is the
+     * kind of red line people learn to explain away.
+     */
+    const text = stripCommentsKeepingLines(readFileSync(file, "utf8"));
     /* Every sql`…` template, including nested backticks in ${} we do not care about. */
     const templates = [...text.matchAll(/sql`([\s\S]*?)`/g)];
 

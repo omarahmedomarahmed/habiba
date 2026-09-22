@@ -39,9 +39,33 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 
+import { stripCommentsKeepingLines } from "./_dashes";
+
 import { reporter } from "./_verify";
 
 const { check, finish } = reporter();
+
+/**
+ * 🔴 SOURCE WITH THE COMMENTS TAKEN OUT, and this gate needed it more than most.
+ *
+ * C205 is a standing rule here: strip comments before any scan of source. This
+ * file broke it the day it was written, and the way it broke is specific to
+ * what it does. Half the comments in this codebase NAME the colour they
+ * removed, because the reason a shade went is worth keeping:
+ *
+ *     🔴 76.83 — `text-slate-500` on navy is 3.2:1, which is under the floor.
+ *
+ * Every rule below matches a class name anywhere in the file, so that sentence
+ * counted as a USE of slate-500. An explanation of a fix read as the defect it
+ * describes, which means a screen could be cleaned up and the gate would still
+ * call it dirty, and worse, somebody could satisfy the gate by deleting the
+ * explanation instead of the colour.
+ *
+ * The stripper keeps line numbers, so nothing that reports a line shifts.
+ */
+function source(file: string): string {
+  return stripCommentsKeepingLines(readFileSync(file, "utf8"));
+}
 
 /**
  * 🔴 The only files whose job is "live, now, or the radar's own dark ground".
@@ -109,8 +133,7 @@ function main() {
   const strays: string[] = [];
   for (const file of files) {
     if (mayUseTeal(file)) continue;
-    const source = readFileSync(file, "utf8");
-    const hits = source.match(/\bteal-\d+\b/g);
+    const hits = source(file).match(/\bteal-\d+\b/g);
     if (hits) strays.push(`${file} (${[...new Set(hits)].sort().join(" ")})`);
   }
 
@@ -148,7 +171,7 @@ function main() {
    */
   const offRamp: string[] = [];
   for (const file of files) {
-    const hits = readFileSync(file, "utf8").match(/\b(?:brand|teal)-(\d+)\b/g) ?? [];
+    const hits = source(file).match(/\b(?:brand|teal)-(\d+)\b/g) ?? [];
     for (const hit of hits) {
       const shade = hit.split("-")[1]!;
       if (!(shade in BRAND)) offRamp.push(`${file}: ${hit}`);
@@ -203,7 +226,7 @@ function main() {
    */
   const whiteInk: string[] = [];
   for (const file of files) {
-    readFileSync(file, "utf8")
+    source(file)
       .split("\n")
       .forEach((line, index) => {
         const ground = /bg-(?:brand|teal)-(400|500|600)\b/.exec(line);
@@ -256,7 +279,7 @@ function main() {
   const SMALL = /\btext-(?:xs|\[1[0-3]px\]|\[0\.\d+rem\])\b/;
   const smallInk: string[] = [];
   for (const file of files) {
-    readFileSync(file, "utf8")
+    source(file)
       .split("\n")
       .forEach((line, index) => {
         if (/\btext-(?:brand|teal)-600\b/.test(line) && SMALL.test(line)) {
@@ -309,7 +332,7 @@ function main() {
 
   const onTint: string[] = [];
   for (const file of files) {
-    readFileSync(file, "utf8")
+    source(file)
       .split("\n")
       .forEach((line, index) => {
         const resting = /(?<!hover:)(?<!focus:)\bbg-slate-100\b/.test(line);

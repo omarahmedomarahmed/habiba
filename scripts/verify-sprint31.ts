@@ -35,6 +35,8 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+import { stripCommentsKeepingLines } from "./_dashes";
+
 import { DEFAULT_LOCALE, LOCALES, LOCALE_COOKIE } from "../lib/i18n/config";
 import { alternatesFor, isLocalisable, localisedPath, splitLocale } from "../lib/i18n/paths";
 import { reporter } from "./_verify";
@@ -380,7 +382,15 @@ async function main() {
     if (ALLOWED.has(file)) continue;
     let body: string;
     try {
-      body = readFileSync(file, "utf8");
+      /*
+       * 🔴 C205 — a sentence saying a word was RETIRED is not a use of it.
+       *
+       * This bans a list of retired words from every tracked file, and the
+       * comment explaining why a word was retired necessarily contains it.
+       * Left unstripped, the only way to pass is to delete the explanation,
+       * which is the gate rewarding the loss of the record it depends on.
+       */
+      body = stripCommentsKeepingLines(readFileSync(file, "utf8"));
     } catch {
       continue;
     }

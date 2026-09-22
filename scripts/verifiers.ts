@@ -135,14 +135,27 @@ function main() {
     const ok = proc.status === 0;
 
     if (!ok) {
-      failed.push({
-        name,
-        detail: out
-          .split("\n")
-          .filter((line) => /^\s*FAIL|FAILED|Error:|error:/.test(line))
-          .slice(0, 6)
-          .map((line) => line.trim()),
-      });
+      /*
+       * 🔴 T4 — KEEP THE LAST LINE AND SAY WHAT WAS DROPPED.
+       *
+       * `gates.ts` had this same slice and it cost an hour: a checker puts its
+       * TOTAL on its last line, so cutting from the front removes exactly the
+       * number that would reveal the cut. Fixed there, and this file, which
+       * does the identical thing one level down, was left alone. That is the
+       * shape of nearly every trap in `docs/TRAPS.md`: the fix lands in one of
+       * the two places that need it.
+       */
+      const lines = out
+        .split("\n")
+        .filter((line) => /^\s*FAIL|FAILED|Error:|error:/.test(line))
+        .map((line) => line.trim());
+
+      const detail =
+        lines.length <= 6 ? lines : [...lines.slice(0, 5), lines.at(-1)!];
+      if (lines.length > 6) {
+        detail.push(`… and ${String(lines.length - 6)} more, run \`npm run ${name}\` for all of it`);
+      }
+      failed.push({ name, detail });
     }
 
     /* One character each, because eighty lines of "ok" is eighty lines nobody reads. */

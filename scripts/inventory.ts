@@ -82,15 +82,32 @@ type Surface = {
  * list, and this file's own header says what those are worth.
  */
 export function routes(): string[] {
-  const out: string[] = [];
+  return routesByPortal().map((r) => r.route);
+}
+
+/**
+ * 🔴 THE SAME WALK, KEEPING WHO EACH PAGE BELONGS TO.
+ *
+ * `verify:contrast` needs the public pages specifically, and hand typed its
+ * own list of nine. Its own comment says why that is dangerous, in its own
+ * words: "A path that is not listed is not measured, and that is the quiet way
+ * an audit like this lies. `/earnings` was missing from the first list, so a
+ * whole page of money went unlooked at while the run reported green."
+ *
+ * It knew, and typed the list anyway, which is the argument for deriving it
+ * rather than for writing the warning again.
+ */
+export function routesByPortal(): { who: string; route: string }[] {
+  const out: { who: string; route: string }[] = [];
   for (const portal of PORTALS) {
     for (const file of walk(portal.root).filter((f) => f.endsWith("page.tsx"))) {
-      out.push(
-        `/${file
+      out.push({
+        who: portal.who,
+        route: `/${file
           .replace(`${portal.root}/`, "")
           .replace("/page.tsx", "")
           .replace(/^page\.tsx$/, "")}`,
-      );
+      });
     }
   }
   return out;

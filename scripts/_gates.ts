@@ -550,6 +550,23 @@ export const GATES = [
     script: "verify:machines",
     why: "and no lifecycle has a state a person enters and cannot leave",
   },
+  /*
+   * 🔴 THE GATES THEMSELVES ARE CODE, AND NOTHING WAS CHECKING THEM.
+   *
+   * Thirty gates hold the product to its rules. What held the gates? A set of
+   * conventions in comments, each learned expensively and each broken again
+   * within a few sprints: strip comments before scanning source (broken five
+   * times), give every check a control, derive a path list rather than typing
+   * it, say when a report is truncated.
+   *
+   * `docs/TRAPS.md` is the prose and this is the enforcement, and the last
+   * check in it fails if the document describes a trap this does not hold.
+   */
+  {
+    name: "traps",
+    script: "verify:traps",
+    why: "and the checkers are still checking what they claim to",
+  },
   {
     name: "runbook",
     script: "verify:runbook",
