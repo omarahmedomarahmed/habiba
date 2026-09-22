@@ -46,7 +46,7 @@
  *
  * It only reads files.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { GATES } from "./_gates";
@@ -214,6 +214,115 @@ function main() {
     missing.length === 0
       ? `${String(present.size)} documents, every reference resolves`
       : missing.slice(0, 6).join("; "),
+  );
+
+  /* --------------------------- C2 · every PATH a document points at is real */
+
+  /*
+   * 🔴 THE README IS A MAP, AND A MAP WITH A ROAD THAT IS NOT THERE IS WORSE
+   * THAN NO MAP.
+   *
+   * It exists so somebody arriving with no context knows what to read, and it
+   * does that by naming files. Every rename in this repository is a chance for
+   * one of those names to stop resolving, and the failure is silent: the table
+   * still looks authoritative, and the person following it loses an hour
+   * before concluding the document is stale and ignoring all of it.
+   *
+   * Check C above does this for the simulation folder's own `NN-NAME.md`
+   * cross references and stops there. This covers any repository path a
+   * document points at, in the README and in `docs/`, which is where the
+   * orientation for a new session actually lives.
+   *
+   * The pattern is deliberately narrow: a backticked token starting with a
+   * real top-level directory. `npm run gates` is a command, `p=none` is a DNS
+   * value, and neither is a path, so neither is checked.
+   */
+  /**
+   * 🔴 A PATH A DOCUMENT PROMISES IS NOT A PATH A DOCUMENT IS WRONG ABOUT.
+   *
+   * `docs/simulation-run/` is where the six month run WRITES its output. It
+   * does not exist because the run has not happened, and the prompt naming it
+   * is correct: that is the instruction for where to put the report.
+   *
+   * Listed rather than pattern-matched, so a genuinely dead path cannot hide
+   * behind a rule like "anything under docs/ that looks like output". Each
+   * entry carries why, and the check below fails if one starts existing, which
+   * is the same stale-exemption rule `verify:reachable` applies to its own
+   * allow-list.
+   */
+  const NOT_YET: Record<string, string> = {
+    "docs/simulation-run/":
+      "Where the six month run writes its output. The prompt names it as an instruction, and it appears the day the run produces something.",
+  };
+
+  const POINTERS = /`((?:app|components|lib|scripts|docs|drizzle|evals|tests)\/[A-Za-z0-9._/()[\]-]+)`/g;
+  const docFiles = [
+    { name: "README.md", body: readFileSync("README.md", "utf8") },
+    ...readdirSync("docs")
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => ({ name: `docs/${f}`, body: readFileSync(join("docs", f), "utf8") })),
+  ];
+
+  const dangling: string[] = [];
+  let pointers = 0;
+  for (const doc of docFiles) {
+    for (const [n, line] of lines(doc as never)) {
+      for (const m of line.matchAll(POINTERS)) {
+        pointers += 1;
+        /*
+         * `docs/INVENTORY.md` is generated and lists a component as
+         * `components/admin/actuals-table`, because that is how the page
+         * imports it. The file on disk carries the extension. Trying both is
+         * the difference between a checker that reads what documents actually
+         * contain and one that reports two hundred false findings on its first
+         * run, which is a checker somebody switches off.
+         */
+        const target = m[1]!;
+        const promised = Object.keys(NOT_YET).some((prefix) => target.startsWith(prefix));
+        const resolves =
+          promised ||
+          existsSync(target) ||
+          existsSync(`${target}.tsx`) ||
+          existsSync(`${target}.ts`);
+        if (!resolves) dangling.push(`${doc.name}:${String(n)} -> ${target}`);
+      }
+    }
+  }
+
+  check(
+    "🔴 every repository path a document points at exists",
+    dangling.length === 0,
+    dangling.length === 0
+      ? `${String(pointers)} pointers across ${String(docFiles.length)} documents, all resolve`
+      : dangling.slice(0, 6).join("; "),
+  );
+
+  /*
+   * 🔴 CONTROL — a scan that matched nothing would report the same green line
+   * as a scan that matched everything and found no fault. It also has to
+   * refuse a path that is not there, or "all resolve" means "none were asked".
+   */
+  check(
+    "🔴 CONTROL the pointer scan found real paths and would catch a dead one",
+    pointers > 20 && existsSync("scripts/_gates.ts") && !existsSync("scripts/_gates-not-a-file.ts"),
+    `${String(pointers)} paths were actually looked up`,
+  );
+
+  /*
+   * 🔴 AND A PROMISE THAT HAS BEEN KEPT STOPS BEING AN EXEMPTION.
+   *
+   * The moment the run writes its output, `docs/simulation-run/` is an
+   * ordinary path and this entry covers nothing while reading as a considered
+   * decision. That is the shape every stale allow-list in this repository has
+   * had, and the rule that catches it is the same one `verify:reachable` uses.
+   */
+  const kept = Object.keys(NOT_YET).filter((path) => existsSync(path));
+  check(
+    "🔴 no 'not yet written' exemption outlives the thing it was waiting for",
+    kept.length === 0 && Object.values(NOT_YET).every((why) => why.split(/\s+/).length >= 12),
+    kept.length > 0
+      ? `${kept.join(", ")} exists now. Delete its entry.`
+      : `${String(Object.keys(NOT_YET).length)} promised path(s), none of them written yet`,
   );
 
   /* ------------------------------------------------- D · the cron jobs are real */

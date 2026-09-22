@@ -15,6 +15,54 @@ story that the patient owns and carries.
 
 ---
 
+## 🔴 New here? Read these four, in this order, before you write anything
+
+This repository is large and most of it is comments. That is deliberate: the
+expensive things here are not hard to code, they are hard to *know*, and every
+one of them has been paid for once already.
+
+| # | Read | Why this one, and why in this position |
+| --- | --- | --- |
+| 1 | `docs/TRAPS.md` | The mistakes that have been made more than once, and the rule that stops each. Ten minutes, and it is the highest return ten minutes in the repository |
+| 2 | `HAZARDS.md` | Traps that have already caused defects in the product itself |
+| 3 | `PLAN.md` §6 | The standing rules. §2 is every concern and its ruling, when you need a decision's reasoning |
+| 4 | `docs/simulation/00-LESSONS.md` | What the last run walked into. Read once; it is the only file allowed to talk about the past |
+
+**Then look at the product rather than reading about it.** Three instruments
+answer three different questions, and all three derive their answers rather
+than being maintained:
+
+```
+npm run inventory     every page and every control, and whether it does anything
+npm run lifecycles    every state a thing can be in, and every way a person gets stuck
+npm run gates         the 33 checks that hold all of it
+```
+
+### How to know your work is good
+
+```
+npm run typecheck && npm run gates
+```
+
+`gates` runs 33 checks and prints what each one is *for*, not just its name.
+A red line is a finding, not an inconvenience: three times in one session a
+check here reported green while looking at nothing at all, and every one of
+those was a passing test that meant nothing.
+
+### The four rules that are not obvious
+
+1. **Every check needs a CONTROL.** A rule that has never been watched failing
+   cannot tell "clean" from "blind". `docs/TRAPS.md` T2.
+2. **Strip comments before scanning source.** This codebase documents a defect
+   by naming it, so the sentence explaining a fix matches the pattern hunting
+   for it. Broken five times. T1.
+3. **Never hand-type a list of routes.** Derive it from `npm run inventory`.
+   Broken twice, and both times the checker reported pages it had never
+   opened. T3.
+4. **No em dash, anywhere a person reads.** `verify:sprint24` enforces it.
+
+---
+
 ## Who signs in, and what each one can never see
 
 Six kinds of person authenticate today. A seventh is being built. The last
@@ -76,7 +124,7 @@ must never see. Do not share a table between them.
 | A patient claims their record and carries it to a new therapist | `lib/data/portability.ts` |
 | A clinician asks the record about a patient, with citations that resolve | `lib/ai/case-copilot.ts` |
 | A patient books a therapist who is available right now | `app/(public)/radar` |
-| A company or university funds therapy and never learns who went | `lib/data/sponsor.ts` |
+| A company or university funds therapy and never learns who went | `lib/data/sponsors.ts` |
 | A hospital connects its EHR and our chart appears inside it | `lib/ehr/` |
 | A partner platform reads a record under a grant the patient gave | `lib/partner/` |
 
@@ -529,6 +577,11 @@ defects that sixty verifiers had missed.
 |---|---|
 | `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
 | `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
+| `docs/TRAPS.md` | **Traps in the CHECKERS**, which is a different list. Each one has a check in `verify:traps`, and the gate fails if this file describes a trap nothing enforces |
+| `docs/INVENTORY.md` | Every page and every control in the product, with whether it is wired to anything. Generated: `npm run inventory -- --write` |
+| `docs/LIFECYCLES.md` | Every state a session, payment, payout, claim or clinician can be in, and every way a person gets stuck in one. Generated: `npm run lifecycles -- --write` |
+| `docs/EMAIL-DNS.md` | What is published for the domain, what is not, and what each gap costs. `verify:email-dns` asks live DNS rather than this file |
+| `docs/THE-REDESIGN.md` | The current plan: what exists against what the redesign needs, what breaks, and the order to do it in |
 | `docs/SIMULATION-PROMPT.md` | **The prompt that starts the simulation.** Keys, the branch, the steps, and what to report back |
 | `docs/simulation/` | The seventeen documents it reads first: what was hit before it, the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, what the run hands the plan, the forty eight money edges, each person's week by week story, who is allowed to read a record, the logins, the audio, the rehearsal and the deploy. `verify:runbook` checks them against the code |
 | `docs/FINANCIAL-PLAN.md` | The operating plan the simulation rehearses. Egypt, the $20k, the offer, and every number labelled measured, decided or guessed |
