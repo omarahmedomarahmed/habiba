@@ -28,6 +28,16 @@ Started 2026-09-22. Every line is a claim on the date it was written.
   state. It exists only as numbers inside documents. Rebuild it from THE-PLAN, TAKEOVER s11 and
   the PLAN digest into `takeover/TASKS.md`.
 
+## Founder decisions
+
+- 2026-09-22: **The walk runs on the live site**, as PROVE-IT describes (reseeding production).
+  Take a fresh Neon branch of production `main` before the first reseed; the reader found
+  `seed-demo.ts` has no transaction, so a halted run leaves production wiped.
+- 2026-09-22: **The founder changes the passwords of `omar@24therapy.app` and
+  `habiba@24therapy.app` themselves.** Before any reseed, `seed-demo.ts` must stop assigning
+  `DEMO_PASSWORD` to those two, or every reseed republishes a console password. Their password
+  comes from a local, uncommitted setting; the seed refuses production without it.
+
 ## The promises, and where each claims to be enforced
 
 From `docs/VALUE-STATEMENTS.md`. "Enforced by" is the claim; "Code says" is filled in by step 2.
