@@ -6,6 +6,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { therapistRadar, therapistVerifications, users } from "@/lib/db/schema";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
+import { HEARTBEAT_STALE_MS } from "@/lib/data/radar";
 import { activeTaxonomy } from "@/lib/data/taxonomy";
 
 /*
@@ -112,12 +113,46 @@ async function listableRows() {
       languages: therapistRadar.languages,
       specialties: therapistRadar.specialties,
       status: therapistRadar.status,
+      lastSeenAt: therapistRadar.lastSeenAt,
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
     .innerJoin(therapistVerifications, eq(therapistVerifications.userId, users.id))
     .where(listable(now))
     .limit(500);
+}
+
+/**
+ * 🔴 80.3 — PRESENT MEANS BEATING, AND THE COLUMN IS A CACHE OF THAT.
+ *
+ * `therapist_radar.status` is maintained by the radar sweep, so it is only ever
+ * as fresh as the last time that cron ran. Three surfaces here read it directly
+ * and reported `online: true` for somebody who had closed their laptop.
+ *
+ * That was survivable while demo rows were exempt from the sweep, because it
+ * was wrong in a way nobody was looking at. It stopped being survivable the
+ * moment the exemption came off: the live board drops a clinician the instant
+ * their heartbeat goes stale, and the directory would have gone on saying
+ * "online" about the same person on the same screen. A patient taps somebody
+ * the directory says is available and lands on a profile that says offline.
+ *
+ * `therapistProfile` in `radar.ts` already derives this from the heartbeat.
+ * This is the same derivation, in the one place all three shapes share, so
+ * there is one answer to "are they there" across the whole product.
+ *
+ * 🔴 THE ROW STAYS LISTED EITHER WAY. Being asleep is not being absent, which
+ * is the rule `listable()` states and the reason the heartbeat is not in its
+ * WHERE clause. This decides what the card SAYS, never whether it is drawn.
+ *
+ * 🔴 `HEARTBEAT_STALE_MS` IS IMPORTED, NOT REDECLARED. The first draft of this
+ * wrote `90_000` again, which is the shape of every drift in this repository: a
+ * number tuned in one file and stale in the other, so the board and the
+ * directory would disagree about the same person by whatever the difference
+ * was. `radar.ts` exports it and owns it.
+ */
+function present(row: { status: string; lastSeenAt: Date | null }, now: Date): boolean {
+  if (row.status !== "online") return false;
+  return row.lastSeenAt !== null && row.lastSeenAt.getTime() >= now.getTime() - HEARTBEAT_STALE_MS;
 }
 
 function shape(
@@ -138,7 +173,7 @@ function shape(
       rating && rating.count >= RATINGS_VISIBLE_AFTER
         ? { average: Math.round(rating.average * 10) / 10, count: rating.count }
         : { average: 0, count: 0 },
-    online: row.status === "online",
+    online: present(row, new Date()),
   };
 }
 
@@ -214,7 +249,7 @@ export async function topRated(limit = 6): Promise<DiscoverTherapist[]> {
           languages: row.languages ?? [],
           specialties: row.specialties ?? [],
           rating: { average: Math.round(rating.average * 10) / 10, count: rating.count },
-          online: row.status === "online",
+          online: present(row, new Date()),
         } satisfies DiscoverTherapist,
       ];
     })
@@ -283,7 +318,7 @@ export async function search(query: string, limit = 20): Promise<DiscoverTherapi
         specialties: row.specialties ?? [],
         /* No score is shown as no score, never as zero. */
         rating: visible ? { average: Math.round(rating.average * 10) / 10, count: rating.count } : { average: 0, count: 0 },
-        online: row.status === "online",
+        online: present(row, new Date()),
       } satisfies DiscoverTherapist;
     })
     .sort((a, b) => Number(b.online) - Number(a.online) || b.rating.count - a.rating.count)
