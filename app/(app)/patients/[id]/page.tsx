@@ -19,7 +19,8 @@ import { copilotViewFor } from "@/lib/data/copilot-view";
 import { listDocuments } from "@/lib/data/documents";
 import { accessFor } from "@/lib/data/grants";
 import { getPatient, getPatientHistory } from "@/lib/data/patients";
-import { personIdForPatient } from "@/lib/data/people";
+import { hasAvatar, personIdForPatient } from "@/lib/data/people";
+import { PatientAvatar } from "@/components/patient/avatar";
 import { formatDate, fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
@@ -103,6 +104,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
    * that was never about your own work.
    */
   const documents = personId ? await listDocuments(personId) : [];
+  /* 🔴 79.4 — asked here so an empty avatar costs no request and draws no
+     broken image. See `hasAvatar` in lib/data/people.ts. */
+  const photo = personId ? await hasAvatar(personId) : false;
   const mine = documents.filter((row) => row.uploadedByUserId === actor.userId);
 
   const claimed = access?.claimed ?? false;
@@ -128,21 +132,28 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       <div className="flex items-start gap-4 px-4 pt-3 pb-4 sm:px-6">
         {claimed && personId ? (
           /*
-           * 🔴 C115 — served through the authenticated route, never the
-           * storage URL. `/api/patient/avatar/:personId` asks on every request
-           * whether this reader may see this face, and answers 404 when the
-           * person has no picture, which is why this can render unconditionally
-           * for a claimed record without knowing whether one exists.
+           * 🔴 79.4 — `PatientAvatar`, not a second hand-rolled `<img>`.
            *
-           * A plain `<img>`, not `next/image`: the route is authenticated and
-           * per-reader, so an optimiser cache in front of it would be a cache
-           * of somebody's photograph keyed on nothing but an id.
+           * This used to build its own, with a comment arguing that the route
+           * "answers 404 when the person has no picture, which is why this can
+           * render unconditionally". That is wrong in the one way that shows:
+           * a 404 on an `<img>` is not an empty circle, it is a broken image
+           * glyph, and it is a red line in the console of every clinician
+           * looking at a patient who never uploaded a photo.
+           *
+           * The component thirty files away had already made the opposite
+           * argument correctly: `hasPhoto` is asked for rather than discovered,
+           * because "a 404 per empty avatar in a caseload list is a hundred
+           * requests to say nothing". Two comments, both confident, one right.
+           *
+           * `verify:sprint25` now refuses a third copy.
            */
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`/api/patient/avatar/${personId}`}
-            alt=""
-            className="h-16 w-16 shrink-0 rounded-full bg-slate-100 object-cover"
+          <PatientAvatar
+            personId={personId}
+            hasPhoto={photo}
+            name={patient.firstName ?? ""}
+            size={64}
+            className="h-16 w-16"
           />
         ) : (
           <div

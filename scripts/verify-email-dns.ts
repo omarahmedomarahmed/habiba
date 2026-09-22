@@ -47,6 +47,18 @@ const DOMAIN = process.env.EMAIL_DOMAIN ?? "24therapy.app";
  * Each `false` is a real gap with a real consequence, and each one is the
  * user's to close in their registrar rather than ours in a commit.
  */
+/**
+ * 🔴 WHEN THE MONITORING FORTNIGHT RUNS OUT.
+ *
+ * DMARC was published at `p=none` on 2026-09-22. `docs/EMAIL-DNS.md` asks for
+ * a fortnight of reading the `rua` reports before tightening, and this is that
+ * fortnight as a date rather than as a thing somebody remembers.
+ *
+ * On 2026-10-06 this gate starts failing until the policy moves to
+ * `p=quarantine`. Moving earlier is fine and turns the line green early.
+ */
+const MONITORING_UNTIL = new Date("2026-10-06T00:00:00Z");
+
 const BASELINE = {
   /* `v=spf1 include:zohomail.com ~all` — the mailbox host, not the sender. */
   spf: true,
@@ -62,8 +74,12 @@ const BASELINE = {
    * `resend._domainkey` and `zmail._domainkey` both publish a key.
    */
   dkim: true,
-  /* Nothing at `_dmarc.24therapy.app`. This is the real gap. */
-  dmarc: false,
+  /*
+   * 🔴 Published 2026-09-22, at `p=none`, after this gate spent two days
+   * saying it was the real gap. See `MONITORING_UNTIL` above for the clock on
+   * moving it to `p=quarantine`.
+   */
+  dmarc: true,
   /*
    * SPF names zohomail.com and the product sends through Resend, so SPF FAILS
    * for our transactional mail.
@@ -170,17 +186,54 @@ async function main() {
       );
 
       /*
-       * A DMARC policy of `p=none` monitors and enforces nothing. It is the
-       * right first step and the wrong resting place, so it is reported as its
-       * own line rather than counted as having DMARC.
+       * 🔴 `p=none` MONITORS AND ENFORCES NOTHING, and this is a CLOCK rather
+       * than a permanently red line.
+       *
+       * It is the right first step and the wrong resting place. The obvious
+       * check is `!p=none`, and it went red the hour the record was published,
+       * which is C90's defect exactly: *a gate that is red for a known reason
+       * is a gate everybody learns to skim, and the next real failure hides
+       * inside it.* Two weeks of that and nobody reads this gate at all.
+       *
+       * So the fortnight `docs/EMAIL-DNS.md` asks for is enforced instead of
+       * remembered. `p=none` is FINE until `MONITORING_UNTIL`, and a failure
+       * after it. The date is written down once, by the person who published
+       * the record, and the gate counts the days.
+       *
+       * The reports are the point of the fortnight: `rua=` is how you find out
+       * who else sends as this domain, and moving to `quarantine` before
+       * reading them is how a company discovers its own invoicing system was a
+       * sender, by having it stop.
        */
       if (dmarcRecord) {
+        const monitoring = /p=none/i.test(dmarcRecord);
+        const daysLeft = Math.ceil((MONITORING_UNTIL.getTime() - Date.now()) / 86_400_000);
+
         check(
-          "🔴 the DMARC policy actually refuses something",
-          !/p=none/i.test(dmarcRecord),
-          /p=none/i.test(dmarcRecord)
-            ? "p=none monitors and enforces nothing. Move to quarantine once the reports are clean."
+          "🔴 the DMARC policy refuses something, or is still inside its monitoring fortnight",
+          !monitoring || daysLeft > 0,
+          monitoring
+            ? daysLeft > 0
+              ? `p=none, ${String(daysLeft)} day(s) of report reading left before this fails`
+              : `the fortnight is up. Read the rua reports, then move to p=quarantine.`
             : dmarcRecord,
+        );
+
+        /*
+         * 🔴 AND THE ALIGNMENT IS RELAXED, WHICH IS NOT A DETAIL HERE.
+         *
+         * SPF names Zoho and the product sends through Resend, so SPF fails on
+         * every transactional message and DKIM is the only thing carrying it.
+         * Under `aspf=s` that is still true; under a future `p=reject` with
+         * strict alignment it would silently quarantine every password reset
+         * and session invitation this product sends.
+         */
+        check(
+          "🔴 …and alignment is relaxed while SPF still does not name the sender",
+          now.spfCoversSender || (!/aspf=s/i.test(dmarcRecord) && !/adkim=s/i.test(dmarcRecord)),
+          now.spfCoversSender
+            ? "SPF names the sender, so strict alignment is survivable"
+            : "relaxed, which is what keeps transactional mail authenticating on DKIM alone",
         );
       }
     },

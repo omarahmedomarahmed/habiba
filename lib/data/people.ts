@@ -197,6 +197,34 @@ export async function getPerson(personId: string): Promise<Person | null> {
  * a GET: rendering a chart should not create identity rows for every patient a
  * clinician happens to open.
  */
+/**
+ * 🔴 79.4 — DOES THIS PERSON HAVE A PICTURE, asked BEFORE one is requested.
+ *
+ * `components/patient/avatar.tsx` takes `hasPhoto` rather than discovering it,
+ * and its own comment says why: "a 404 per empty avatar in a caseload list is
+ * a hundred requests to say nothing."
+ *
+ * The clinician's patient page disagreed with that in a comment of its own. It
+ * hand-rolled an `<img>` and argued the route "answers 404 when the person has
+ * no picture, which is why this can render unconditionally". Both comments
+ * were confident and only one was right: a 404 on an `<img>` is not an empty
+ * circle, it is a BROKEN IMAGE GLYPH, and it is a red line in the console of
+ * every clinician looking at a patient who never uploaded a photo.
+ *
+ * Found by a founder reading the console during a live session.
+ *
+ * Returns false for a person with no row at all, which is the same answer for
+ * the same reason: there is nothing to fetch.
+ */
+export async function hasAvatar(personId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ avatarUrl: people.avatarUrl })
+    .from(people)
+    .where(eq(people.id, personId))
+    .limit(1);
+  return Boolean(row?.avatarUrl);
+}
+
 export async function personIdForPatient(patientId: string): Promise<string | null> {
   const [row] = await db
     .select({ personId: patients.personId })

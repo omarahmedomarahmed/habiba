@@ -14,7 +14,7 @@
  *   - **C119** a patient may exist with no password, and the database refuses
  *     an account with no way to reach it at all.
  */
-import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 
 import { and, eq, sql } from "drizzle-orm";
 
@@ -575,6 +575,67 @@ async function main() {
     "🔴 25.18 …and creating the session issues the invite immediately, on that number",
     /createInviteLink\(newPatientId\)/.test(creating),
     "both halves in one action rather than two screens apart",
+  );
+
+  /* ------------------------------------ 79.4 · one avatar, one component */
+
+  /*
+   * 🔴 THE FACE IS RENDERED BY ONE COMPONENT, and here is what a second cost.
+   *
+   * `components/patient/avatar.tsx` takes `hasPhoto` rather than discovering
+   * it, and says why: "a 404 per empty avatar in a caseload list is a hundred
+   * requests to say nothing."
+   *
+   * The clinician's patient page hand-rolled its own `<img>` anyway, with a
+   * comment arguing the opposite: that the route "answers 404 when the person
+   * has no picture, which is why this can render unconditionally". Two
+   * confident comments, one right. A 404 on an `<img>` is not an empty circle,
+   * it is a broken image glyph and a red line in the console of every
+   * clinician looking at a patient who never uploaded a photo. A founder found
+   * it reading the console during a live session.
+   *
+   * So the URL may be built in exactly one place. Comments stripped first,
+   * because this file and the component both NAME the route in prose and
+   * `docs/TRAPS.md` T1 is what happens when a scanner counts that as a use.
+   */
+  const avatarBuilders: string[] = [];
+  const roots = ["app", "components", "lib"];
+  const walkAll = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir)) {
+      if (entry === "node_modules" || entry.startsWith(".")) continue;
+      const full = `${dir}/${entry}`;
+      if (statSync(full).isDirectory()) out.push(...walkAll(full));
+      else if (/\.tsx?$/.test(full)) out.push(full);
+    }
+    return out;
+  };
+
+  for (const file of roots.flatMap(walkAll)) {
+    if (file === "components/patient/avatar.tsx") continue;
+    /* The route implementing itself is not a caller of itself. */
+    if (file.includes("api/patient/avatar/")) continue;
+    if (/`\/api\/patient\/avatar\/\$\{/.test(stripComments(readFileSync(file, "utf8")))) {
+      avatarBuilders.push(file);
+    }
+  }
+
+  check(
+    "🔴 79.4 only PatientAvatar builds an avatar URL, so no page renders a broken image",
+    avatarBuilders.length === 0,
+    avatarBuilders.join(" · ") || "one component asks hasPhoto first; nothing else asks at all",
+  );
+
+  /*
+   * 🔴 CONTROL — the scan has to find the one place that IS allowed to, or
+   * "no offenders" means "I read nothing". Every trap in `docs/TRAPS.md` T2.
+   */
+  check(
+    "🔴 79.4 CONTROL the scan finds the component that legitimately builds it",
+    /`\/api\/patient\/avatar\/\$\{/.test(
+      stripComments(readFileSync("components/patient/avatar.tsx", "utf8")),
+    ),
+    "the allowed call site was actually read, so an empty result means clean",
   );
 
   finish("sprint 25");

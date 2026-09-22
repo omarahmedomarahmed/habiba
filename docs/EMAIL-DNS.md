@@ -15,11 +15,28 @@ gate is the fact.
 | SPF | `v=spf1 include:zohomail.com ~all` | Authorises Zoho, which hosts the mailboxes |
 | DKIM `zmail._domainkey` | published | Signs mail sent from a Zoho mailbox |
 | DKIM `resend._domainkey` | published | Signs the product's transactional mail |
-| DMARC `_dmarc` | **absent** | Nothing, because it does not exist |
+| DMARC `_dmarc` | `v=DMARC1; p=none; rua=…; sp=none; adkim=r; aspf=r` | Reports who sends as us. Enforces nothing yet, on purpose |
 
 ---
 
-## 🔴 What the missing DMARC actually costs
+## 🔴 DMARC is published, and the clock is running
+
+Added 2026-09-22 at `p=none` with `rua` pointing at the founder's inbox, and
+relaxed alignment on both mechanisms. `verify:email-dns` treats `p=none` as
+fine until **2026-10-06** and fails after it, so the fortnight below is a date
+the gate counts rather than a thing somebody remembers.
+
+Relaxed alignment is load-bearing while SPF still does not name Resend: under
+`aspf=s` every transactional message would fail SPF alignment and rest on DKIM
+alone, and a later `p=reject` would quarantine every password reset and session
+invitation this product sends. The gate checks that too.
+
+`ruf=` was deliberately left off. Failure reports carry the failing message,
+headers and sometimes body, and this product's mail carries session
+invitations and links into a clinical record. Google and Microsoft do not send
+`ruf` anyway, so it would have been the exposure without the benefit.
+
+## 🔴 What a missing DMARC would have cost, which is why it was added
 
 **Anybody can send mail as `24therapy.app` and no receiver is told to refuse
 it.** SPF and DKIM let a receiver check a message; DMARC is the record that
