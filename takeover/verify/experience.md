@@ -567,3 +567,98 @@ items are carried in as CONFIRMED with their MAP number and not re-verified.
 - Fix sketch: drop the fallback (link nowhere rather than to a wrong page).
 - Decision it came from: the two-token design.
 
+### UX-57 · Money layers inside the patient chrome stay under the SOS button
+- Verdict: HANDLED (except the radar sheet, UX-26)
+- Sources: code-10 Looks handled 4, 5, 6; code-11 Suspect (payment-popup z-60)
+- Promise: P5
+- Who is hurt and how: nobody on these layers: the session orb, the payment orb, the leave sheet and the minimised room all sit below the SOS orb.
+- Evidence: SOS `z-[70]` (components/patient/sos-orb.tsx:161); session orb `z-[60]` (components/patient/session-orb.tsx:63); payment orb `z-[60]` (components/billing/payment-popup.tsx:305, on /pay, outside the chrome); leave sheet `z-[60]` (components/patient/bottom-nav.tsx:150); minimised room `z-[65]` (components/join/patient-room.tsx:191). The exception is the radar booking sheet at `z-[100]` (UX-26).
+- Severity: none
+- Fix sketch: a verifier that fails on any `fixed` layer at or above the SOS z-index outside the crisis components.
+- Decision it came from: C235.
+
+### UX-58 · A crashed patient page keeps the SOS button
+- Verdict: HANDLED (the patient group only)
+- Sources: code-08 Looks handled 6, code-08 Promise evidence P5
+- Promise: P5
+- Who is hurt and how: nobody inside /patient; a crash there still shows SOS. Which crisis line it shows with no phone or country passed is for the safety domain (code-08 Suspect 14).
+- Evidence: app/(patient)/error.tsx:5, 60 renders `<SosOrb />`. app/global-error.tsx and app/not-found.tsx do not (grep), as the note says.
+- Severity: none here
+- Fix sketch: render SosOrb in global-error and not-found too.
+- Decision it came from: the error boundary fix recorded in code-08.
+
+### UX-59 · The feedback page shows the patient's summary without checking it is signed
+- Verdict: HANDLED (for the signed check; see the caveat)
+- Sources: code-10 Looks handled 1, code-10 Suspect 2
+- Promise: P3
+- Who is hurt and how: nobody sees an unsigned brief here: the data layer blanks it until signed and the page says "still writing" instead.
+- Evidence: lib/data/feedback.ts:155-158 passes `brief`, `briefSteps`, `briefNext` only when `signed`, and `notePending: !signed`; components/feedback/rating-form.tsx:139-144 shows `prating.stillWriting`. Caveat, not re-verified here and owned by the content domain: the same line falls back to `noteContent.summary`, the clinician-facing field, when `patientBrief` is empty (code-05 Broken 9).
+- Severity: none for the signed gate
+- Fix sketch: drop the `?? summary` fallback.
+- Decision it came from: P3 / 47.x.
+
+---
+
+## Table
+
+| Id | Title (short) | Verdict | Severity |
+|---|---|---|---|
+| UX-1 | 26 of 29 notify() sites write no in-app row | CONFIRMED | S2 |
+| UX-2 | /patient/notices, messages, residency have no door | CONFIRMED | S2 |
+| UX-3 | Cross-border consent read by nothing | CONFIRMED | S1 |
+| UX-4 | Phone change has no code screen, blocks retries | CONFIRMED | S2 |
+| UX-5 | WhatsApp ticket can never close; console cannot open a ticket | CONFIRMED | S2 |
+| UX-6 | Work-email benefit code can never be reissued | CONFIRMED | S2 |
+| UX-7 | Clinician note screen stuck on "Writing" | CONFIRMED | S3 |
+| UX-8 | Patient list "still writing" for cancelled sessions | CONFIRMED | S3 |
+| UX-9 | P1: five taps plus typing; paid path cannot finish | CONFIRMED | S2 |
+| UX-10 | E5: no "ask HR" screen | CONFIRMED | S2 |
+| UX-11 | First session free vs month 1 free | PARTLY | S3 |
+| UX-12 | "No per-session fee" / "nothing else" beside the 15% cut | PARTLY | S3 |
+| UX-13 | "No seat fee" under per-seat prices | CONFIRMED | S3 |
+| UX-14 | 30 minutes vs one hour at one price | CONFIRMED | S2 |
+| UX-15 | Arabic calendar says off the radar | CONFIRMED | S3 |
+| UX-16 | Three consent stories on the join screen | CONFIRMED | S1 |
+| UX-17 | No-show refund promises a card refund | CONFIRMED | S2 |
+| UX-18 | Patient billing "Covered" for partial cover | CONFIRMED | S2 |
+| UX-19 | White on teal: earnings button and three emails | CONFIRMED | S3 |
+| UX-20 | "Go in" under the language pill at 390px | CONFIRMED | S2 |
+| UX-21 | No language switch on the public site on phones | CONFIRMED | S3 |
+| UX-22 | text-end inside dir=rtl left-aligns Arabic | CONFIRMED | S3 |
+| UX-23 | Hard-coded English, collected | CONFIRMED | S3 |
+| UX-24 | Staff sign-in empty h1 | CONFIRMED | S4 |
+| UX-25 | SOS not keyboard operable; shaky tap fails | CONFIRMED | S1 |
+| UX-26 | Radar booking sheet covers SOS, patient app too | CONFIRMED | S1 |
+| UX-27 | In-room abuse report says sent, files nothing | CONFIRMED | S1 |
+| UX-28 | "Saved" and "Reading…" whatever happened | CONFIRMED | S3 |
+| UX-29 | Invite email promises Stripe to transfer payers | CONFIRMED | S2 |
+| UX-30 | Rejected transfer told to nobody (MAP Confirmed 7) | CONFIRMED | S2 |
+| UX-31 | Domain proof link redirects to sign-in | CONFIRMED | S2 |
+| UX-32 | No password reset in clinic, company, partner portals | CONFIRMED | S2 |
+| UX-33 | Patient reset code may not arrive; "another code" link | PARTLY | S3 |
+| UX-34 | "Open your session" emails open the clinician portal | CONFIRMED | S2 |
+| UX-35 | Journal crisis alert links to a 404 | CONFIRMED | S1 |
+| UX-36 | Non-founder staff land on "Verify your practice" | CONFIRMED | S2 |
+| UX-37 | Booking calendar hides days after the tenth | CONFIRMED | S3 |
+| UX-38 | Seat "up from", 10% "You keep", EGP printed as $ | CONFIRMED | S2 |
+| UX-39 | Clinic role edit strips permissions | CONFIRMED | S2 |
+| UX-40 | Summary held behind rating and email | CONFIRMED | S2 |
+| UX-41 | "Add an email" leads nowhere; record export impossible | CONFIRMED | S2 |
+| UX-42 | "We can look at paused periods" contradicts T2 | CONFIRMED | S3 |
+| UX-43 | Arabic contact address is an admin instruction; prices differ | PARTLY | S3 |
+| UX-44 | Controls with no accessible name | CONFIRMED | S3 |
+| UX-45 | "Reply stop" goes nowhere; opt-out has no door | CONFIRMED | S2 |
+| UX-46 | Sound prompt covers "Go in now" while ringing | CONFIRMED | S2 |
+| UX-47 | Risk suggestion pushed out of sight | CONFIRMED | S2 |
+| UX-48 | "Paid" banner regardless of confirmation | CONFIRMED | S3 |
+| UX-49 | Session orb points at a dead session for ever | CONFIRMED | S3 |
+| UX-50 | "Added to your record" when nothing moved | PARTLY | S3 |
+| UX-51 | Calendar publishes in UTC with no stored zone | CONFIRMED | S3 |
+| UX-52 | Clinic invite uses the patient WhatsApp template | PARTLY | S3 |
+| UX-53 | Cosmetic: empty demo tab, mid-Atlantic dots, counts only | CONFIRMED | S4 |
+| UX-54 | Partner cannot mint employment key | WRONG | S4 |
+| UX-55 | Signing discards a failed edit | WRONG | S4 |
+| UX-56 | Rating link falls back to join token | HANDLED | S4 |
+| UX-57 | Chrome money layers under SOS | HANDLED | none |
+| UX-58 | Patient error page keeps SOS | HANDLED | none |
+| UX-59 | Feedback brief shown only when signed | HANDLED | none |

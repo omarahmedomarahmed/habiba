@@ -370,3 +370,103 @@ Written 2026-09-22 against commit 8acf13b.
 - Fix sketch: seat changes belong to the clinic manager principal (lib/clinic-auth) with the `seats.manage` capability; `setUpcomingDiscount` adds rather than replaces.
 - Decision it came from: sprint 62 put the seat control on the therapist billing page before clinic managers existed (sprint 63).
 
+### MONEY-36 · When the pot runs out the patient is simply asked to pay; the "ask HR" screen does not exist
+- Verdict: CONFIRMED (settles MAP Suspect 16)
+- Sources: MAP Suspect 16, SIMULATION-digest CV9 row, code-04 Promise evidence E5 and pot-alerts.ts file note
+- Promise: E5
+- Who is hurt and how: an employee booking against an empty pot is shown the ordinary pay link with no word that their benefit has run out or that HR can top it up; they may pay out of pocket for a benefit they were promised. What holds: the pot takes nothing and the company's admins are emailed. What does not: a booking that loses the race for the last of the pot alerts nobody, and every refused booking re-sends the alert to every admin.
+- Evidence: every caller discards `payFromPot`'s reason (app/join/[token]/actions.ts:192-193, lib/data/sessions.ts:280, lib/data/scheduling.ts:540); grep of app/, components/ and lib/i18n finds no patient-facing copy for an empty or exhausted benefit (the only "when the pot runs out" string is the demo portal, messages.ts:3409). Alert: pot.ts:431-439 on the early read only; the race-lost return (pot.ts:496-500) sends nothing; pot-alerts.ts has no de-duplication.
+- Severity: S2 (a person misled into paying)
+- Fix sketch: return the reason to the booking and pay screens and show "Your company's benefit has run out for now. You can pay yourself, or ask your HR team." on `insufficient`; alert on the race-lost path; one alert per pot per day.
+- Decision it came from: CV9 (09-THE-EDGES) specified it; C243 kept the sponsor alert free of names (kept).
+
+### MONEY-37 · Setting coverage to zero stops the money and removes nobody
+- Verdict: HANDLED (for billing); walk note below
+- Sources: code-04 Promise evidence E4, code-03 Looks-handled (setCoverage audited)
+- Promise: E4
+- Who is hurt and how: nobody; 0% is legal and `payFromPot` returns `no_benefit` without touching the enrolment, so the person keeps their badge and roster place and pays the whole price.
+- Evidence: lib/billing/pot.ts:340-353; lib/data/sponsors.ts:595 allows 0; setCoverage writes only `sponsor_pots`. Side defect: a provisional employee's one allowance is consumed on this path (MONEY-38). Walk note for E3 and E4: a DECREASE (including to 0%) is scheduled, not immediate: it bites after `sponsor.coverageNoticeDays` (default 30, minimum 7; lib/data/sponsors.ts:630-641, lib/settings/defs.ts `coverageNow`). A walk that lowers coverage and books "the next one" the same afternoon will see the OLD share on both, by design; the walk must move the pending date or read `pendingCoverageFrom`.
+- Severity: S4
+- Fix sketch: none in code; fix the walk script.
+- Decision it came from: C345 and C344 (decrease needs notice).
+
+### MONEY-38 · An unconfirmed employee's one sponsored session is used up by a booking the pot never funded
+- Verdict: CONFIRMED
+- Sources: code-04 Broken 11
+- Promise: E4, E5
+- Who is hurt and how: someone matched by HR but not yet confirmed has an allowance of one covered session. If their company has no pot yet, or covers 0%, the booking still uses the allowance and does not give it back, so when the pot opens they must pay for their first session.
+- Evidence: lib/billing/pot.ts:290-321 claims the allowance; the returns at :324 (`no_pot`) and :350-353 (`no_benefit`) do not call `releaseProvisional` (defined at :397, used at :410, :498, :581), contrary to the function's own rule at :276-286.
+- Severity: S3
+- Fix sketch: move the pot and coverage checks above the claim, or call `releaseProvisional` on both returns.
+- Decision it came from: 61.9 / C350.
+
+### MONEY-39 · Coverage is frozen when the pot pays, which for an invitation to a not-yet-linked patient is at join, not at booking
+- Verdict: PARTLY
+- Sources: code-08 Suspect 2 and Looks-handled 1 and 9, code-04 Looks-handled 3
+- Promise: E3
+- Who is hurt and how: for most bookings the company's share is fixed when the session is booked and every later reader uses the frozen figure (kept). But an invitation sent to somebody whose record is not yet linked to their benefit is paid from the pot only when they open the link and join; a coverage decrease whose notice date falls between the invitation and the join reprices it.
+- Evidence: kept: pot.ts:346-348 and 541-543 freeze the split; connect.ts:494-521, session-owed.ts:52-91 and manual-grants.ts:186-206 read the row. Gap: `payFromPot` runs at creation (sessions.ts:280, scheduling.ts:540) and again at join (app/join/[token]/actions.ts:192-193); at creation a guest has no `personId`, so it returns `no_benefit` and the split is decided at join with `coverageNow` at that moment.
+- Severity: S3 (narrow: needs a scheduled decrease landing inside the window)
+- Fix sketch: store the coverage in force at booking on the session (or the notice date check against `scheduled_at`) and pass it to the later `payFromPot`.
+- Decision it came from: C311 (frozen at booking).
+
+### MONEY-40 · Nothing is granted before a person confirms; pressing Confirm twice moves the money once
+- Verdict: HANDLED
+- Sources: code-04 Looks-handled 1, 5 and 6 and Promise evidence A1 A2, code-09 Looks-handled 3 and Promise evidence A1 A2, code-01 Looks-handled (manual_payments CHECKs exist)
+- Promise: A1, A2
+- Who is hurt and how: nobody on the transfer rail's happy path. Opening a sheet or submitting proof creates only a row; the grant runs only as `onConfirmed` after the `submitted -> confirmed` compare-and-set; a second Confirm returns "That payment is not waiting for a decision." Two taps on "I have paid" land on one row.
+- Evidence: lib/billing/manual.ts:519-528 (state in the WHERE, DB clock); grants guarded again (manual-grants.ts:81-85 session, :439-443 invoices, :593-613 pot, which has its own race, MONEY-20); `subscribeByTransfer` raises a due bill only (service.ts:867-935); open is `onConflictDoNothing` plus the partial unique index (manual.ts:278-308); state and purpose CHECKs in drizzle/0102:68-71. Limits that are elsewhere in this file: the ledger has no database-level idempotency (MONEY-41), payouts are not safe against a double press (MONEY-2), and grants that find nothing to do report success (MONEY-19).
+- Severity: S4
+- Fix sketch: none.
+- Decision it came from: C360, 78.6.
+
+### MONEY-41 · The ledger has no database-level guard: no unique reference, no append-only rule
+- Verdict: CONFIRMED
+- Sources: code-04 ledger.ts file note, code-01 Suspect (0024 legs sum to zero and append-only unenforced), code-14 Suspect 3 (verifiers delete legs freely)
+- Promise: A2 ("no second ledger leg")
+- Who is hurt and how: every "posted once" guarantee rests on the caller's own status check; any caller that posts before its guard (MONEY-2) or runs twice (MONEY-13, MONEY-23) writes a second set of legs, and nothing stops a script from editing or deleting the books.
+- Evidence: `journal` (lib/billing/ledger.ts:70-104) checks only that legs sum to zero in memory. drizzle/0024_ledger.sql, 0047, 0054, 0111: no trigger on `ledger_entries`, and the only unique index nearby is `earnings_transfers_stripe_unique`. scripts/verify-sprint16.ts:647-650 deletes ledger rows database-wide.
+- Severity: S3
+- Fix sketch: a partial unique index on (txn_kind, ref_type, ref_id) for the kinds that must be once-only (manual_payout, earnings_transfer, invoice_settled, session_payment per ref), and a trigger refusing UPDATE and DELETE outside a named maintenance role.
+- Decision it came from: 16.8 (the books), idempotency left to callers by design.
+
+### MONEY-42 · Held Stripe earnings can be sent twice, and the nightly sweep pays out with no person approving
+- Verdict: CONFIRMED (USD rail only; needs Stripe configured)
+- Sources: code-04 Suspect 10 and 11 and Unclaimed (b)
+- Promise: T3, A2
+- Who is hurt and how: when a clinician finishes Stripe onboarding the webhook and the settings page both release held earnings at the same moment; each creates its own transfer row and its own idempotency key, so Stripe sends the balance twice. The nightly job also pays held earnings to any connected clinician with nobody pressing anything, and does not subtract a manual payout already approved for the same money, and does not net what they owe.
+- Evidence: lib/billing/connect.ts:1109-1190 reads the balance, inserts a new `earnings_transfers` row, then transfers with key `earnings-release-${transfer.id}` (unique per call). Concurrent callers: connect.ts:235 (webhook) and :265 (refresh on return). Nightly: app/api/cron/[job]/route.ts:175-189 -> `releaseAllHeldEarnings` (connect.ts:1200-1215).
+- Severity: S2 (money double-moved, gated on the USD rail being live)
+- Fix sketch: claim first: a conditional insert keyed on (therapist, held-balance snapshot) or an advisory lock per clinician; subtract approved manual payouts; net due invoices first.
+- Decision it came from: 16.x Connect release, written before manual payouts existed.
+
+### MONEY-43 · A failed Stripe webhook is never retried
+- Verdict: PARTLY
+- Sources: code-04 Broken 12
+- Promise: none directly (USD rail entitlement)
+- Who is hurt and how: if the work behind a Stripe event throws, the event id is already recorded, so Stripe's retry is ignored. For a completed checkout the browser redirect (`confirmCheckout`) covers it when the payer comes back; for renewals (`invoice.paid`) and subscription changes nothing else applies them, so a clinician who paid can stay on the wrong plan.
+- Evidence: lib/billing/stripe.ts:602-608 inserts `stripe_events` before processing, with no transaction. Redirect cover: app/(app)/billing/page.tsx:42-44 and app/join/[token]/page.tsx:54-56 call `confirmCheckout` (stripe.ts:572-583), which re-reads the checkout from Stripe (safe to call with any id). The reconciler `reconcileRenewals` reports but does not repair.
+- Severity: S3
+- Fix sketch: record the event id in the same transaction as the work, or delete it on failure so the retry runs.
+- Decision it came from: "Stripe redelivers" guard.
+
+### MONEY-44 · A second charge run for one session spends credit and takes from earnings again
+- Verdict: CONFIRMED (a race)
+- Sources: code-04 Broken 13
+- Promise: T3
+- Who is hurt and how: if the nightly reconciler and a live session end charge the same session at once, the clinician's credit is spent twice or their held earnings are netted twice; only the invoice is deduplicated.
+- Evidence: lib/billing/service.ts:155 (`spendCredit`) and :179-187 (`netFeeFromEarnings`, which posts `postFeeNettedFromHeld` at :251 whether or not its `raiseInvoice` created a row) run before the invoice insert that is the idempotency (`onConflictDoNothing` on `session_id`). Callers: lib/session-finish.ts:78 and the reconciler service.ts:653-669 (sessions with no invoice yet, 48 h window). The file's own comment (61-64) names this race.
+- Severity: S3
+- Fix sketch: claim the invoice row first (insert a `pending` invoice), then spend credit and net only if the claim won.
+- Decision it came from: 46.x credit and netting added ahead of the idempotent insert.
+
+### MONEY-45 · Prepaid credit stops being spent once the oldest batch is used up
+- Verdict: CONFIRMED (latent: nothing can buy credit today)
+- Sources: code-04 Broken 10, code-04 Unclaimed (c) `createCreditCheckout`
+- Promise: none
+- Who is hurt and how: a clinician holding two credit batches is billed pay-as-you-go once the first is spent, while their dashboard still shows credit.
+- Evidence: lib/billing/credits.ts:163-187 selects the soonest-expiring `active` batch and `break`s when it has nothing left; nothing ever marks a batch exhausted (grep of `sessionCredits` status writes). The only writer of credit rows is `createPendingPurchase` via `createCreditCheckout`, which has no caller (stripe.ts:154, grep), so only rows that already exist are affected.
+- Severity: S4
+- Fix sketch: filter to batches with remaining value in the WHERE (or mark them spent).
+- Decision it came from: 46.4 credit as money.
+
