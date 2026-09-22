@@ -557,6 +557,58 @@
 
 ## Design system inventory (slice-specific)
 
+### Tokens (app/globals.css, read for context)
+- navy-50..900 (#f1f4f7 .. #030b17; 500 = #0a2342, the mark). brand-50..900 (500 = #2ec4b6, the mark's teal; 700 #15746c is teal ink on white 5.61:1; 800 #0e544e). teal-50..900 (same at 400/500, allowed only in radar/session/live files). White on brand/teal 400-500 is 1.9 to 2.2:1 and is banned; navy on brand-500 is 7.27:1.
+- Rules the components state and mostly follow: brand-500 ground carries navy-600 ink, hover brand-400, press brand-600; teal ink on white is brand-700/800; focus rings brand-600/700; red reserved for crisis (pending-bar.tsx:121-133) but used for live badge, radar booked/in-session dots, usage meters, Meter at 90%, revoke buttons.
+- Off-token colours in this slice: hex literals in radar/globe.tsx, radar/world-radar.tsx, public-radar/radar-console (#04101f, #071a2e), patient-app (#04101f), spend-heatmap hatch, ui/index Card shadow; violet-700 simulation banner; emerald-* for success in several files beside brand for success elsewhere (two "good" greens).
+
+### components/ui/index.tsx
+- `Button` props: variant `primary` (bg-brand-500 text-navy-600 hover:bg-brand-400 active:bg-brand-600 shadow-sm) | `secondary` (bg-white text-slate-800 border-slate-200) | `ghost` (text-slate-600 hover:bg-slate-100) | `danger` (bg-red-600 text-white); size `sm` h-9 rounded-lg | `md` h-11 rounded-xl | `lg` h-13 rounded-2xl text-base; `full`; all button attrs. Disabled opacity-50.
+- `Card` (div): rounded-2xl border-slate-200 bg-white hairline shadow.
+- `Field` {label, hint, error, children, htmlFor}: label text-sm slate-700; hint text-xs slate-600; error text-sm red-600.
+- `Input`, `Textarea` (forwardRef): h-12 rounded-xl border-slate-200, placeholder slate-500, focus border-brand-600 ring-brand-600/15.
+- `Badge` {tone: slate | green (emerald-50/700) | amber | red | brand (brand-50/800) | teal (brand-50/700)}: rounded-full text-xs.
+- `EmptyState` {icon, title, body, action}: centred, py-14 (the "~100px card with 70% white" that wire.tsx:197-200 wants replaced by a one-line empty).
+- `PageHeader` {title, subtitle, action}: text-2xl.
+- `Spinner`.
+
+### components/ui/money.tsx
+- `Money` {cents, currency="USD", children, className}: dotted underline decoration-slate-300, cursor-help; popup bg-slate-900 text-white text-xs.
+
+### components/visual/primitives.tsx
+- `StateBanner` {tone: good (brand-50/200/900) | warn (amber) | bad (red) | info (slate), children, detail}.
+- `FlowStrip` {steps: {title, detail}[], done}: done steps `bg-brand-500 text-navy-600` with tick, pending `bg-slate-900 text-white` numbers.
+- `SeesWhat` {who, can[], cannot[]}: tick brand-600, cross red-500, equal columns.
+- `Meter` {usedLabel, ofLabel, fraction, note}: bar brand-500, amber-500 at 75%, red-500 at 90%.
+- `Checklist` {items: {label, done, next}[]}.
+- `BeforeAfter` {beforeLabel, before, afterLabel, after}.
+- `NeverBar` {label, items[]}: text-xs slate-600 with red-500 crosses (grey-thin text at the size of a disclosure the header calls the most important).
+- `SplitBar` {parts: {label, value, kind: keep (brand-500) | fee (slate-400) | tax (amber-400)}[], note}.
+- `IconGrid` {items: {key, label, icon, href}[]}: icon chip bg-brand-50 text-brand-700.
+
+### components/design/wire.tsx (wireframe kit for /design)
+- `Phone` {path, children, note}, `Browser` {path, children, note, nav[]}, `PickWide` {option A|B|C, path, note, nav, children}, `Pick` {option, path, note, children}, `Head` {children, action}, `Block` {label, h, tone: grey | line | navy (bg-navy-500 text-white) | teal (bg-brand-500 text-navy-600) | dashed, className}, `Cols`, `Chips` {items, active} (active bg-navy-500 text-white), `Empty` {label, action, size: card | line}, `Fill`, `Tabs` {items, active, lifted} (lifted bg-brand-500 text-navy-600), `Orb` (SOS, bg-red-600 text-white), `Option` {name, tagline, children}, `Compare` {n, title, question, children}.
+- Text sizes 8 to 11px throughout (wireframe only).
+
+### components/nav/bottom-nav.tsx and components/portal/desk.tsx
+- Clinician `BottomNav` {cleared}: fixed bottom z-40 bg-white/95; items text-[10px], active text-brand-700, inactive text-slate-500; raised Start `bg-brand-500 text-navy-600` h-14 rounded-2xl; More sheet items with icon tiles (active bg-brand-500 text-navy-600).
+- `Desk` {nav, bare, name, badge, home, sections: {href, label, exact}[], actions, never: {label, items}}: lg rail w-60 white, Logo navy 22px, name text-navy-500, active section `bg-navy-500 text-white`, inactive text-slate-600 hover:text-navy-500; below lg a header with pill row; NeverBar in rail or footer.
+- Three different "active nav" idioms coexist: Desk navy pill, partner chrome slate-900 pill, clinician bottom nav brand-700 text, public docs-nav brand-50/800, portal-demo brand-50/800.
+
+### White-on-teal and grey-thin findings for the redesign
+- White on teal: billing/earnings.tsx:187 (white text on the brand-500 card). No other instance in this slice; every other teal ground carries navy.
+- Grey-thin text (below 4.5:1 or very small): session-demo disclaimer text-slate-300 outside the navy box (353, 407); audience-page `text-white/60` (238); audience-rotator labels `text-white/60` (245); radar-list `text-white/30` and `/35` (112, 118, 131, 147); radar-console spinner `text-white/30`; earnings `text-amber-200` icon on teal (153); many `text-[10px]`/`text-[11px]` labels in slate-600 across demo/portal-demo, radar chips, wire.tsx 8-9px; NeverBar text-xs.
+
+### Radar: globe, presence, demo label, empty globe
+- Two maps: `Globe` (orthographic, drag/zoom, country filter, dots at pins or centroids, used by PublicRadar, RadarConsole, RadarHero) and `WorldRadar` (flat dot matrix, sweep, used by TherapistConsole and the patient-app marketing mockup). They disagree on where a no-country clinician goes (nowhere vs mid-Atlantic).
+- Demo label (`radar.demoAccount`) appears only on `TherapistCard` (therapist-card.tsx:125-134). Not on BookingSheet, PublicProfile, RadarList rows, Globe dots or hero fallback copy. In this slice `demo` is never used as a filter or decision (label-only is kept; the label is just missing in four places).
+- Empty globe: Globe draws no dots and no sentence when `entries` is empty; the sentence is in the callers (PublicRadar bottom strip "No one on the radar this minute", RadarConsole chip `radar.noOne`, RadarHero `strings.nobody`). WorldRadar at small size draws 1.4px dots unless `scale` is passed (world-radar.tsx:44-58).
+- Presence: see Broken (heartbeat stops in hidden tabs).
+
+### Demo vs real app
+- Real components on the marketing site: TranscriptPanel, NoteCard, RiskBanner (clinical-demo, session-demo), SpendHeatmap and Meter (portal-demo), SplitBar/FlowStrip/SeesWhat (blocks, audience-demos), PricingTiers, RadarHero (real live radar), ContactForm.
+- Hand-built mockups presented as the product: PatientApp, SessionCopilot, FlowDemo screens, ClinicConsole, CompanyConsole. Mockup claims the real product does not match: patient column on clinic week view; per-therapist spend and weekly deduction dates on the company console; covered-per-year and cap-per-session settings; 14% VAT hardcoded; flat WorldRadar where the real patient app opens a Globe; `consent.neverWhy` shown without its cross.
+
 <!-- DS-END -->
 
 ## Stale

@@ -156,6 +156,11 @@ Every entry: where, what it says, what is true or suspected instead.
     stranger reading the repo can sign in to the production console. Nothing real is there
     today, but the console can confirm transfers and approve payouts. **Before launch this
     account must not have a published password.** (New task.)
+19. `.walkthrough2/people.json` (committed 2026-09-21) holds four working passwords for `.test`
+    accounts, one a staff admin `admin@24therapy.test`. Check whether that staff account exists on
+    production; if it does, it is a second published console login. The patient phone
+    `+201001234567` is a valid-shaped Egyptian mobile: the rule is invented people use reserved
+    addresses, and a phone number has no reserved range in Egypt. Check nothing texts it.
 15. Home sends "the patient a plain-language summary" by email; P2 says nothing is only in email.
     Consistent only if the summary is also in the app. Walk it.
 
