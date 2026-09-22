@@ -1,4 +1,4 @@
-import { contains, fold } from "./fold";
+import { contains, containsWords, fold } from "./fold";
 
 /**
  * When a matched crisis phrase is not about this patient, now. PLAN.md 35R,
@@ -246,8 +246,8 @@ export function suppressedIn(sentence: string, phrase: string): Suppression {
    * to kill myself last year" is past, unresolved, and exactly the sentence a
    * clinician must see. Only an explicit statement that it ended suppresses.
    */
-  const past = PAST.some((marker) => contains(sentence, marker));
-  const resolved = RESOLVED.some((marker) => contains(sentence, marker));
+  const past = PAST.some((marker) => containsWords(sentence, marker));
+  const resolved = RESOLVED.some((marker) => containsWords(sentence, marker));
   if (past && resolved) return { suppressed: true, because: "resolved" };
 
   /*
@@ -255,7 +255,10 @@ export function suppressedIn(sentence: string, phrase: string): Suppression {
    * usually the patient talking about the consequences, not the actor.
    */
   const before = folded.slice(0, at);
-  if (THIRD_PARTY.some((who) => contains(before, who))) {
+  /*
+   * 🔴 Whole words, not substrings: "he " is inside "the ". See `containsWords`.
+   */
+  if (THIRD_PARTY.some((who) => containsWords(before, who))) {
     /* "I" anywhere before the phrase means the speaker put themselves in it. */
     if (/\bi\b|\bانا\b|\bنفسي\b/.test(before)) return { suppressed: false, because: null };
     return { suppressed: true, because: "third_party" };
@@ -313,12 +316,12 @@ export function stillCounts(text: string, phrase: string): boolean {
        * ago I felt suicidal. I feel that way again now." must alert, and the
        * cost of getting that wrong is the only cost that cannot be undone.
        */
-      const past = PAST.some((marker) => contains(part, marker));
+      const past = PAST.some((marker) => containsWords(part, marker));
       if (!past) return true;
 
       const after = parts.slice(index + 1);
       if (after.some((later) => PRESENT.some((marker) => contains(later, marker)))) return true;
-      if (after.some((later) => RESOLVED.some((marker) => contains(later, marker)))) return false;
+      if (after.some((later) => RESOLVED.some((marker) => containsWords(later, marker)))) return false;
 
       return true;
     }
