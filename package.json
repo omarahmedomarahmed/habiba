@@ -204,7 +204,8 @@
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
     "verify:notices": "node --import tsx scripts/verify-notices.ts",
     "prove": "node --import tsx scripts/prove.ts",
-    "verify:prove": "node --import tsx scripts/verify-prove.ts"
+    "verify:prove": "node --import tsx scripts/verify-prove.ts",
+    "audit:csp-enforced": "node --env-file-if-exists=.env.local --import tsx scripts/audit-csp-enforced.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

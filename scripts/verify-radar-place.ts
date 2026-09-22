@@ -30,7 +30,7 @@
  */
 import { eq, isNotNull } from "drizzle-orm";
 
-import { reporter, required, writesTo } from "./_verify";
+import { readSource, reporter, required, writesTo } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -150,6 +150,74 @@ async function main() {
     "76.18 the gate says how many rows it read",
     withCountry.length === placed.length,
     `${rows.length} radar rows, ${placed.length} with a country, ${online.length} online`,
+  );
+
+  /* ------------------------------------------------------------------ */
+  /*  80.3 · `demo` is a label, and presence is measured for everybody   */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * 🔴 THE EXEMPTION THAT WAS IN THREE PLACES AT ONCE.
+   *
+   * `therapist_radar.demo` used to mean "nothing is beating for this row, do
+   * not let it go stale", and three separate expressions honoured that:
+   * `reachable()` skipped the heartbeat, the staleness sweep skipped the row,
+   * and the public profile computed `stale = !row.demo && !beating`. A fourth
+   * place, `discover.ts`, borrowed the same column to mean "a fixture, hide it
+   * from the patient's directory", gated on `SIMULATION_RUNNING`.
+   *
+   * The result was a permanently bookable fixture on a radar whose entire
+   * promise is *somebody who is free NOW*, and a patient directory held up by
+   * the same environment variable that served `Disallow: /` to every crawler.
+   *
+   * The founder's ruling: demo clinicians are listed like anybody else, and
+   * their presence is real. So the column may now be SELECTED and never
+   * decided upon, and this is the fence around that.
+   *
+   * 🔴 Comments stripped first. T1: the paragraph you are reading names the
+   * pattern it forbids, and a scan with comments in would report this file's
+   * own explanation as the offence.
+   */
+  const PRESENCE_FILES = ["lib/data/radar.ts", "lib/data/discover.ts"];
+
+  /** A `demo` mention that is not simply reading the column out. */
+  const decidedOn: string[] = [];
+  for (const file of PRESENCE_FILES) {
+    for (const [index, line] of readSource(file).split("\n").entries()) {
+      if (!/\bdemo\b/.test(line)) continue;
+      /* `demo: therapistRadar.demo,` is a projection and is allowed. */
+      if (/^\s*demo:\s*therapistRadar\.demo,\s*$/.test(line)) continue;
+      decidedOn.push(`${file}:${String(index + 1)} ${line.trim()}`);
+    }
+  }
+
+  check(
+    "🔴 80.3 nothing decides presence or listing from the demo flag",
+    decidedOn.length === 0,
+    decidedOn.length > 0
+      ? decidedOn.join(" · ")
+      : `${PRESENCE_FILES.length} files, demo is read and never tested`,
+  );
+
+  /*
+   * 🔴 CONTROL — and the scan can see a line, or the check above is a
+   * comparison against a file it failed to open.
+   *
+   * §6 and T2: an absence assertion with nothing proving it can fire is the
+   * shape that produced four green lines about a constraint nobody parsed. The
+   * projections are what the rule ALLOWS, so counting them proves the scanner
+   * reached the column at all.
+   */
+  const projections = PRESENCE_FILES.flatMap((file) =>
+    readSource(file)
+      .split("\n")
+      .filter((line) => /^\s*demo:\s*therapistRadar\.demo,\s*$/.test(line)),
+  );
+
+  check(
+    "🔴 80.3 CONTROL the scanner can see the column it is checking",
+    projections.length >= 3,
+    `${String(projections.length)} projections found, so 'none tested' means none`,
   );
 
   finish("radar place");

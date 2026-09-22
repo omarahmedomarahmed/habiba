@@ -172,11 +172,26 @@ function reachable(now: Date) {
     // A suspended clinician is unbookable even by a direct call to the action,
     // not merely hidden from the board.
     or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
-    or(
-      // Nothing is beating for a fixture, and nothing needs to.
-      eq(therapistRadar.demo, true),
-      gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
-    ),
+    /*
+     * 🔴 80.3 — A DEMONSTRATION ACCOUNT IS NOW A LABEL, NOT AN EXEMPTION.
+     *
+     * This used to read `or(demo = true, heartbeat)`, so a seeded clinician was
+     * permanently reachable with no browser open anywhere. That is what a
+     * screenshot needs and it is a lie to a patient: the Crisis Radar's whole
+     * promise is *somebody who is free NOW*, and a row exempted from the
+     * heartbeat answers that question with a fixture.
+     *
+     * The founder's ruling, in their own words: demo clinicians show on the
+     * radar, and *"if they're logged in and active they show, if they're logged
+     * out they show as offline as demo"*. So presence is measured for everyone
+     * and the flag only decides what the screen CALLS them.
+     *
+     * The consequence is deliberate and worth stating: with nobody signed in,
+     * the live board is empty. That is the true answer. `discover.ts` still
+     * lists them in the patient's directory, because being asleep is not the
+     * same as not existing, and that split is the one this change makes real.
+     */
+    gte(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),
     /*
      * 11.5 — off the radar from fifteen minutes before a booked hour until the
      * end of it.
@@ -665,7 +680,13 @@ export async function publicProfile(
    */
   const beating =
     row.lastSeenAt !== null && row.lastSeenAt.getTime() >= now.getTime() - HEARTBEAT_STALE_MS;
-  const stale = !row.demo && !beating;
+  /*
+   * 🔴 80.3 — `!row.demo &&` came off the front of this, and it was the third
+   * copy of the same exemption. The profile page said a seeded clinician was
+   * online while the board said offline, or would have once the other two were
+   * fixed. One definition of present, measured the same way everywhere.
+   */
+  const stale = !beating;
   return {
     ...shaped,
     status: row.status === "offline" || stale ? "offline" : shaped.status,
@@ -1210,8 +1231,15 @@ export async function sweepRadar(): Promise<{
     .where(
       and(
         eq(therapistRadar.status, "online"),
-        // Demonstration accounts never go stale — nothing is beating for them.
-        eq(therapistRadar.demo, false),
+        /*
+         * 🔴 80.3 — AND A DEMONSTRATION ACCOUNT GOES OFFLINE LIKE ANYBODY ELSE.
+         *
+         * This carried `eq(demo, false)` so a seeded clinician left on `online`
+         * stayed there for ever. Paired with the heartbeat exemption in
+         * `reachable()` above, that made a fixture permanently bookable by a
+         * stranger in crisis. Both are gone: the sweep measures presence, and a
+         * demo account signed out is offline, which is what it is.
+         */
         or(
           isNull(therapistRadar.lastSeenAt),
           lt(therapistRadar.lastSeenAt, new Date(now.getTime() - HEARTBEAT_STALE_MS)),

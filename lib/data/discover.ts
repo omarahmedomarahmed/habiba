@@ -2,7 +2,6 @@ import "server-only";
 
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 
-import { SIMULATION_RUNNING } from "@/lib/env";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { therapistRadar, therapistVerifications, users } from "@/lib/db/schema";
@@ -72,35 +71,30 @@ function listable(now: Date) {
     eq(users.role, "therapist"),
     eq(therapistVerifications.state, "approved"),
     /*
-     * 🔴 ONE BOOLEAN DOING TWO JOBS, AND THIS IS THE JOB IT DOES BADLY.
+     * 🔴 80.3 — THE `demo` FILTER IS GONE FROM HERE, AND THAT IS THE WHOLE
+     * REPAIR THE OLD COMMENT SAID WAS OWED.
      *
-     * `demo` means "nothing is beating for this row, do not let it go stale" in
-     * the three places that matter — `reachable()`, the staleness sweep, and
-     * the admin's stale-advertised count. This line borrowed it to mean
-     * something else entirely: "a fixture, keep it out of the patient's
-     * directory".
+     * What used to be here: `SIMULATION_RUNNING ? undefined : demo = false`.
+     * One boolean was doing two jobs. `demo` meant "nothing is beating for this
+     * row, do not let it go stale" in `reachable()`, in the staleness sweep and
+     * on the profile page; this line borrowed it to mean "a fixture, keep it
+     * out of the patient's directory". The two meanings disagreed the moment
+     * somebody needed both, and the cost was a radar showing two clinicians
+     * while the same patient's home page said "No therapist is listed yet".
      *
-     * Those two meanings disagreed the moment somebody needed both. I set
-     * `demo = true` on the seeded clinicians so they would stay on the Crisis
-     * Radar without a browser open somewhere heartbeating, which is what a
-     * demo deployment needs and what it now does. The same change silently
-     * emptied every directory surface in the patient app: the "Therapists
-     * here" rail on the home page, `/patient/browse`, the categories and the
-     * rated list. The radar said two clinicians; the patient's own home page
-     * said "No therapist is listed yet", in the same session, about the same
-     * two people. An agent walking a booking found it twenty minutes later.
+     * The old comment ended *"the real repair is to split the flag in two, and
+     * that is a migration and it is not this commit"*. It needed no migration.
+     * The flag is now a LABEL and nothing else: the three heartbeat exemptions
+     * came out of `radar.ts`, so presence is measured for every row, and
+     * nothing here has to decide whether a fixture is real.
      *
-     * So: hide fixtures from a real deployment, and stop hiding them from a
-     * deployment that IS the fixtures. `SIMULATION_RUNNING` is exactly that
-     * distinction and is already what puts "Everybody here is invented" across
-     * the top of every page. When the cast is the product, the cast is listed.
-     *
-     * The real repair is to split the flag in two — `demo` for the heartbeat
-     * exemption, something like `fixture` for directory visibility — so no
-     * future change has to know that these two ideas share a column. That is a
-     * migration and it is not this commit.
+     * 🔴 AND IT NO LONGER DEPENDS ON `SIMULATION_RUNNING`, which was holding
+     * the patient's directory up by accident. That variable also serves
+     * `Disallow: /` to every crawler from `app/robots.ts`, so the site could
+     * not be indexed for as long as the radar had anybody on it. Two unrelated
+     * things wired to one switch, and removing the switch to get indexed would
+     * have emptied the radar in the same moment with nothing saying why.
      */
-    SIMULATION_RUNNING ? undefined : eq(therapistRadar.demo, false),
     or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
   );
 }

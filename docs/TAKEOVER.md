@@ -51,12 +51,34 @@ Three examples from the last two days alone, each of which passed every gate:
 In all three, the code was locally correct and the gate was locally correct. **Reading two or
 three files about one subject and concluding you understand it is how all three happened.**
 
-### So your first task, and it is a large one
+### So your first task, and it is the whole job until it is done
 
-Read every file. Not a sample, not the ones that look important: `app`, `lib`, `components`,
+**The goal, in the founder's words: know this platform, and be aware of every single line of
+code.** Not a sample, not the files that look important. `app`, `lib`, `components`,
 `scripts`, `tests`, `drizzle`, `evals`, directory by directory. That is **1,106 files and
 about 280,000 lines**, and the comments are a large fraction of it because this codebase
 argues with itself in prose.
+
+🔴 **And here is the arithmetic nobody should pretend away.** 280,000 lines is roughly three
+to four million tokens. **No context window holds that**, including yours. A session that
+simply reads from `app/` to `tests/` will have forgotten the first third by the time it
+reaches the last, and will not know it has, which is worse than not having read it.
+
+So "aware of every line" is achieved by **reading plus leaving a trail that survives you**:
+
+1. Take one directory at a time, in the order in section 7.
+2. When a directory is finished, write what you learned into a working map before opening the
+   next one: what each file is for, what it assumes, what it decides, and the two lists
+   (**stale** and **suspect**). One line per file is enough for most; the money, auth and
+   session paths deserve more.
+3. **The map is the deliverable of the reading phase.** It is what you re-read after a
+   compaction, and it is what makes the second pass cheap. Keep it outside `docs/` while it
+   is working notes.
+4. Anything you write into that map is a claim you made, subject to the same rule as
+   everything else here: it becomes a fact when you have clicked it.
+
+A session that does this can genuinely say it has seen every line and can find its way back to
+any of them. A session that reads straight through cannot, and will not know the difference.
 
 | Directory | Files | Lines | What it is |
 |---|---|---|---|
@@ -213,8 +235,6 @@ Team `team_RZRihzvgqAscDaNXv7bh6oE7`. Production environment variables that chan
 
 | Variable | Value | What it does |
 |---|---|---|
-| `CSP_ENFORCE` | `0` | **The Content Security Policy is REPORT-ONLY on production** |
-| `SIMULATION_RUNNING` | set | Three separate effects, below |
 | `DATABASE_URL` | production branch | |
 | `RESEND_API_KEY`, `EMAIL_FROM` | set | Email |
 | `DAILY_API_KEY` | set | Video |
@@ -223,39 +243,43 @@ Team `team_RZRihzvgqAscDaNXv7bh6oE7`. Production environment variables that chan
 | `STRIPE_*` | set | Present but Egypt runs on the transfer rail |
 | `CRON_SECRET` | set | Six cron jobs |
 
-### 🔴 TWO LAUNCH BLOCKERS THAT ARE LIVE RIGHT NOW
+### 🔴 TWO LAUNCH BLOCKERS THAT WERE LIVE, AND WERE CLOSED ON 2026-09-22
 
-Both verified against the running site on 2026-09-22, not inferred.
+Both were found by reading the Vercel configuration against the running site, not from any
+file, which is why this section exists. **Both are now fixed**, and the history matters
+because the second one nearly took the radar with it.
 
-**1. `24therapy.app` is invisible to search engines.**
+**1. `24therapy.app` served `Disallow: /` to every crawler.** `app/robots.ts` does that
+whenever `SIMULATION_RUNNING` is set, deliberately, so a simulation on production could not be
+indexed. The variable was still set long after there was any simulation. It is now removed and
+`robots.txt` allows crawling.
 
-```
-$ curl https://24therapy.app/robots.txt
-User-Agent: *
-Disallow: /
-```
+**2. The Content Security Policy was report-only.** `CSP_ENFORCE=0` on production. The policy
+was correct and complete and was watching rather than blocking. The variable is gone and the
+policy enforces.
 
-`app/robots.ts` returns that whenever `SIMULATION_RUNNING` is set, deliberately, so a
-simulation on production could not be indexed. **It is still set.** Nothing will be indexed
-until it is removed.
+🔴 **AND THEY WERE COUPLED, WHICH IS THE PART THAT WOULD HAVE HURT.** `SIMULATION_RUNNING`
+also made `lib/data/discover.ts` skip a `demo = false` filter, so **the demo cast's clinicians
+were listed in the patient's directory only because that variable was set.** Removing it to
+get indexed would have emptied the directory in the same moment, with nothing anywhere saying
+why, and it would have read as a regression in a completely different part of the product.
 
-**2. The Content Security Policy is not enforcing.**
+That was repaired before the variable came off, and the repair is worth knowing about because
+it changed a rule:
 
-The live response carries `content-security-policy-report-only`. The policy is correct and
-complete; it is watching rather than blocking. Removing `CSP_ENFORCE` and redeploying enforces
-it. Three clicks.
+> **`therapist_radar.demo` is a LABEL and never a decision.** It used to grant a heartbeat
+> exemption in three separate expressions, so a seeded clinician was permanently "available
+> now" on a radar whose whole promise is somebody who is free this minute. Presence is now
+> measured for every row. A demo clinician who is signed in and on shift is online; signed
+> out, they are offline. They stay listed in the patient's directory either way, because
+> being asleep is not the same as not existing.
 
-🔴 **And they are coupled, which is the part nobody has noticed.** `SIMULATION_RUNNING` also
-makes `lib/data/discover.ts` skip the `demo = false` filter on the radar. **The demo cast's
-clinicians are visible on the public radar only because that variable is set.** Turn it off to
-fix the indexing and the radar empties of the seeded clinicians at the same moment. Verify
-that before the founder switches it, because it will look like a regression and will not be
-one.
+`verify:radar-place` holds that rule with a control. If you find `demo` inside an `and()`, an
+`or()`, an `eq()` or a `!row.demo`, something has regressed.
 
-It also widens every rate limit except `global:` by a multiplier. `verify:limits` asserts the
-production default is untouched and that the global ceiling is never widened, so the blast
-radius is bounded, but a production deployment running with simulation limits is not what
-anybody intends at launch.
+`SIMULATION_RUNNING` also widened every rate limit except `global:`. That is gone too, so
+production now runs the real limits. `verify:limits` asserts the production default is
+untouched and that the global ceiling is never widened even when the flag is set.
 
 ### Domain and email
 
@@ -555,15 +579,19 @@ Read these as claims, after the code, not before.
 
 ## 10 · The first week
 
-1. **Read the code.** All of it, in the order in section 7. Keep the stale list and the
-   suspect list.
-2. **Do not run `npm run gates` while reading.** Nothing you are doing can break it.
+1. **Read the code.** All of it, in the order in section 7, building the map as section 1
+   describes. This is the job, not a preliminary to it. The founder has said plainly: **no
+   work without reading first.** That includes the four defects in section 8, however urgent
+   they look from here.
+2. **Do not run `npm run gates` while reading.** Nothing you are doing can break it, and it
+   costs 25 minutes every time.
 3. **When the reading is done**, put the database into each of the five positions and walk
    `docs/PROVE-IT.md` yourself. That is where a claim becomes a fact.
-4. **Bring the founder a list**, separated into: promises that are true, promises that are
-   not, things nobody had noticed, and things in these documents that are no longer true.
-5. **Then and only then** pick up Phase 0, because four defects that hurt a real person
-   outrank everything in this document including the redesign.
+4. **Bring the founder four lists**: promises that are true, promises that are not, things
+   nobody had noticed, and things in these documents that are no longer true.
+5. **Then** Phase 0, because four defects that hurt a real person outrank everything else
+   including the redesign. By then you will know whether they are still real, which is the
+   point of doing it in this order.
 
 The founder is not technical. Explain in plain words, say what to click, never imply a
 deadline that does not exist, and when something is broken say so plainly rather than
