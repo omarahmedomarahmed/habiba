@@ -2,7 +2,7 @@
   "name": "24therapy",
   "version": "2.0.0",
   "private": true,
-  "description": "24Therapy \u2014 AI clinical documentation for therapists. Single mobile-first Next.js app.",
+  "description": "24Therapy — AI clinical documentation for therapists. Single mobile-first Next.js app.",
   "engines": {
     "node": "22.x"
   },
@@ -232,6 +232,6 @@
     "drizzle-kit": "^0.30.1",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "5.8.2"
   }
 }
