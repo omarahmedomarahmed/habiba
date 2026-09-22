@@ -575,6 +575,8 @@ defects that sixty verifiers had missed.
 
 | File | What |
 |---|---|
+| `docs/TAKEOVER.md` | **Start here if you are new to this repository.** External state that is in no file (Neon, Vercel, DNS, the two live launch blockers), the business, which gate to run instead of all 35, and a reading plan. It says in its first section why you must not trust it about the code |
+| `docs/TAKEOVER-PROMPT.md` | The one thing to paste into a new session that is taking over |
 | `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
 | `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
 | `docs/TRAPS.md` | **Traps in the CHECKERS**, which is a different list. Each one has a check in `verify:traps`, and the gate fails if this file describes a trap nothing enforces |
