@@ -8,7 +8,7 @@
  *
  *   node takeover/walk/step.mjs --run live --as patientA --label "open the orb" \
  *        [--url /patient] [--click "Pay now"] [--selector "button[aria-label=SOS]"] \
- *        [--fill "input[name=email]=someone@example.com"] [--press Enter] \
+ *        [--fill "input[name=email]::someone@example.com"] [--press Enter] \
  *        [--mobile] [--wait 1500] [--text] [--board "SAW: amber orb, ROW: -"]
  *
  * Each persona keeps its own browser profile under evidence/<run>/.profiles, so
@@ -89,8 +89,8 @@ try {
   await page.screenshot({ path: before, fullPage: Boolean(a.full) });
 
   for (const pair of a.fill) {
-    const at = pair.indexOf("=");
-    await page.locator(pair.slice(0, at)).first().fill(pair.slice(at + 1), { timeout: 15000 });
+    const at = pair.indexOf("::");
+    await page.locator(pair.slice(0, at)).first().fill(pair.slice(at + 2), { timeout: 15000 });
   }
   if (a.selector) await page.locator(a.selector).first().click({ timeout: 15000 });
   if (a.click) {
