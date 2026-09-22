@@ -60,6 +60,18 @@ export type RadarEntry = {
   nextOpenAt: string | null;
   status: "online" | "pending" | "in_session";
   /**
+   * 🔴 80.5 — TRUE FOR OUR OWN DEMONSTRATION ACCOUNTS, AND SHOWN.
+   *
+   * Every card built from this carries a label saying so. A stranger in crisis
+   * picking somebody off a public radar is entitled to know which of the faces
+   * is a real practice taking patients and which is us showing the product.
+   *
+   * It is safe here, where `RadarEntry`'s own header says nothing may be added
+   * that is not the clinician's shopfront: this is a fact about the ACCOUNT, not
+   * about any patient, and it is a fact we are choosing to publish.
+   */
+  demo: boolean;
+  /**
    * True when the pending state is this visitor's own reservation — the
    * difference between "someone is booking them" and "you are booking them".
    * Getting this wrong locked patients out of bookings they had started.

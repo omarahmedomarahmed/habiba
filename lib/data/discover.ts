@@ -54,6 +54,19 @@ export type DiscoverTherapist = {
   specialties: string[];
   rating: { average: number; count: number };
   online: boolean;
+  /**
+   * 🔴 80.5 — A DEMONSTRATION ACCOUNT SAYS SO, ON THE SCREEN.
+   *
+   * The founder's ruling, and it is about honesty rather than tidiness: these
+   * are our own accounts standing in a public directory a stranger browses, and
+   * a stranger choosing a therapist is entitled to know which of them is a
+   * demonstration before they tap one.
+   *
+   * 80.3 made the flag stop deciding anything. This is the other half: having
+   * removed its power, publish it. A column that decides nothing and is shown to
+   * nobody would have been a column to delete.
+   */
+  demo: boolean;
 };
 
 export type DiscoverCategory = { code: string; label: string; count: number };
@@ -114,6 +127,7 @@ async function listableRows() {
       specialties: therapistRadar.specialties,
       status: therapistRadar.status,
       lastSeenAt: therapistRadar.lastSeenAt,
+      demo: therapistRadar.demo,
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
@@ -174,6 +188,7 @@ function shape(
         ? { average: Math.round(rating.average * 10) / 10, count: rating.count }
         : { average: 0, count: 0 },
     online: present(row, new Date()),
+    demo: row.demo,
   };
 }
 
@@ -250,6 +265,7 @@ export async function topRated(limit = 6): Promise<DiscoverTherapist[]> {
           specialties: row.specialties ?? [],
           rating: { average: Math.round(rating.average * 10) / 10, count: rating.count },
           online: present(row, new Date()),
+          demo: row.demo,
         } satisfies DiscoverTherapist,
       ];
     })
@@ -319,6 +335,7 @@ export async function search(query: string, limit = 20): Promise<DiscoverTherapi
         /* No score is shown as no score, never as zero. */
         rating: visible ? { average: Math.round(rating.average * 10) / 10, count: rating.count } : { average: 0, count: 0 },
         online: present(row, new Date()),
+        demo: row.demo,
       } satisfies DiscoverTherapist;
     })
     .sort((a, b) => Number(b.online) - Number(a.online) || b.rating.count - a.rating.count)

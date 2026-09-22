@@ -115,6 +115,23 @@ export function TherapistCard({
                 {t("pclinic.radarLabel")}
               </span>
             ) : null}
+            {/*
+              🔴 80.5 — AND ONE OF OUR OWN ACCOUNTS SAYS SO, on the public radar
+              a stranger in crisis reads. It carries the same weight as the
+              clinic label above it and for the same reason: a fact that decides
+              something for the reader, one or two words, never a dialog in front
+              of somebody in distress.
+            */}
+            {entry.demo ? (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                  dark ? "bg-white/10 text-white/85" : "bg-slate-100 text-slate-600",
+                )}
+              >
+                {t("radar.demoAccount")}
+              </span>
+            ) : null}
             {entry.specialties.slice(0, 2).map((item) => (
               <span
                 key={item}

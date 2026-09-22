@@ -994,6 +994,17 @@ export const en = {
   "pracc.inviteBody": "A link you hand over in the room. They choose whether you keep access.",
   "pracc.whyPlaceholder": "Why, e.g. spoke to her, she typed her married name",
   "radar.freeNow": "Free now",
+  /*
+   * 🔴 80.5 — ONE OF OUR OWN ACCOUNTS, SAID ON THE CARD.
+   *
+   * The demonstration clinicians are the founders' own logins standing in a
+   * public directory a stranger browses. A stranger choosing a therapist is
+   * entitled to know which of the faces is a real practice taking patients and
+   * which is us showing the product, before they tap one rather than after.
+   *
+   * Two words, beside the name, never instead of it.
+   */
+  "radar.demoAccount": "Demo account",
   "pexport.title": "A copy of everything",
   /*
    * 🔴 65.3 — `pexport.body` and `pexport.notCertificate` became these eight.
@@ -4658,6 +4669,7 @@ export const ar: Record<MessageKey, string> = {
   "pracc.inviteBody": "رابط تسلّمه في الغرفة. وهو يقرر إن كنت تحتفظ بالإذن.",
   "pracc.whyPlaceholder": "لماذا، مثلًا: تحدثت معها، وكتبت اسمها بعد الزواج",
   "radar.freeNow": "متاح الآن",
+  "radar.demoAccount": "حساب تجريبي",
   "pexport.title": "نسخة من كل شيء",
   "pexport.who": "النسخة التي نرسلها إليك",
   "pexport.hasSessions": "كل جلسة وتاريخها",

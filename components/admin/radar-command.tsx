@@ -120,6 +120,8 @@ export function RadarCommand({
         .filter((row) => row.status !== "offline")
         .map((row) => ({
           userId: row.userId,
+          /* 🔴 80.5 — the operator's globe marks a demonstration account too. */
+          demo: row.demo,
           firstName: row.name.split(" ")[0] ?? row.name,
           lastName: null,
           credentials: null,

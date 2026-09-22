@@ -72,6 +72,13 @@ export const RESERVATION_SECONDS = 60;
 
 export type RadarTherapist = {
   userId: string;
+  /**
+   * 🔴 80.5 — one of our own demonstration accounts, and every card says so.
+   * `components/radar/types.ts` carries the argument. 80.3 took this column's
+   * power away; this publishes it, because a flag that decides nothing and is
+   * shown to nobody is a flag to delete.
+   */
+  demo: boolean;
   organizationId: string;
   firstName: string;
   lastName: string | null;
@@ -523,6 +530,7 @@ function shapeBoard(
           : null;
       })(),
       status: status as "online" | "pending" | "in_session",
+      demo: row.demo,
       nextOpenAt: nextOpen.get(row.userId)?.toISOString() ?? null,
       reservedByYou:
         Boolean(viewerHash) && !lapsed && row.reservedBy === viewerHash && row.status === "pending",

@@ -165,10 +165,18 @@ export async function radarCommandView(): Promise<CommandView> {
 
   const mapped: CommandRow[] = rows.map((row) => {
     const suspended = row.suspendedUntil && row.suspendedUntil > now;
+    /*
+     * 🔴 80.3 — `!row.demo &&` CAME OFF THE FRONT, and it was the fourth copy
+     * of the same exemption, in the one place it hurt most.
+     *
+     * This is the OPERATOR's board. It hid our own demonstration accounts from
+     * the "advertised but probably gone" column, which is precisely the column
+     * that should have shouted about them: a clinician showing as available
+     * with a dead heartbeat is the defect, and it being our account makes it
+     * more worth seeing rather than less.
+     */
     const stale =
-      !row.demo &&
-      row.status !== "offline" &&
-      (!row.lastSeenAt || row.lastSeenAt < fresh);
+      row.status !== "offline" && (!row.lastSeenAt || row.lastSeenAt < fresh);
 
     return {
       userId: row.userId,
@@ -334,7 +342,11 @@ export async function staleAdvertised(): Promise<number> {
     .from(therapistRadar)
     .where(
       and(
-        eq(therapistRadar.demo, false),
+        /*
+         * 🔴 80.3 — `eq(demo, false)` came out of here, the fifth and last copy.
+         * The count is "whose heartbeat says one thing and whose status says
+         * another". A demonstration account in that state is in that state.
+         */
         or(eq(therapistRadar.status, "online"), eq(therapistRadar.status, "pending")),
         or(
           isNull(therapistRadar.lastSeenAt),

@@ -178,16 +178,55 @@ async function main() {
    * pattern it forbids, and a scan with comments in would report this file's
    * own explanation as the offence.
    */
-  const PRESENCE_FILES = ["lib/data/radar.ts", "lib/data/discover.ts"];
+  /*
+   * 🔴 THREE FILES, AND THE FIRST DRAFT OF THIS LISTED TWO.
+   *
+   * `radar-admin.ts` was missed, and it held the fourth and fifth copies of the
+   * exemption, in the place they hurt most: they hid our own demonstration
+   * accounts from the operator's "advertised but probably gone" column. A
+   * clinician showing available with a dead heartbeat is the defect that column
+   * exists for, and it being our account makes it more worth seeing, not less.
+   *
+   * The gate found them, which is the argument for writing it.
+   */
+  const PRESENCE_FILES = [
+    "lib/data/radar.ts",
+    "lib/data/discover.ts",
+    "lib/data/radar-admin.ts",
+  ];
 
-  /** A `demo` mention that is not simply reading the column out. */
+  /*
+   * 🔴 A PROPERTY, NOT A LIST OF PERMITTED SPELLINGS.
+   *
+   * The first draft allowed exactly `demo: therapistRadar.demo,` and nothing
+   * else, so publishing the flag to the UI in 80.5 turned four honest reads
+   * into four failures. A checker that goes red for an improvement is the
+   * "bound to a syntax rather than a property" trap in `docs/TRAPS.md`, and it
+   * is the one this repository walks into most.
+   *
+   * The rule is what it always meant: the column may be READ and never TESTED.
+   * A read is a declaration, an assignment, or a COUNT. A test is any of these
+   * operators standing next to it.
+   *
+   * 🔴 `filter` AND `where` CAME OUT OF THIS LIST, on the gate's own evidence.
+   * It flagged `demo: mapped.filter((r) => r.demo).length`, which is the
+   * operator's dashboard counting how many demonstration accounts exist. That
+   * is a number on a tile, not a decision about who is present or listed, and
+   * failing it would have pushed somebody to delete a count the operator wants.
+   *
+   * Nothing is lost by dropping them: a filter that EXCLUDES demo rows has to
+   * negate, and `!`, `eq(`, `===` and the ternary are all still here. The
+   * control below plants exactly that case.
+   */
+  const DECIDES = /(\beq\(|!|\?|===|!==|&&|\|\|)/;
+
   const decidedOn: string[] = [];
+  const reads: string[] = [];
   for (const file of PRESENCE_FILES) {
     for (const [index, line] of readSource(file).split("\n").entries()) {
       if (!/\bdemo\b/.test(line)) continue;
-      /* `demo: therapistRadar.demo,` is a projection and is allowed. */
-      if (/^\s*demo:\s*therapistRadar\.demo,\s*$/.test(line)) continue;
-      decidedOn.push(`${file}:${String(index + 1)} ${line.trim()}`);
+      if (DECIDES.test(line)) decidedOn.push(`${file}:${String(index + 1)} ${line.trim()}`);
+      else reads.push(`${file}:${String(index + 1)}`);
     }
   }
 
@@ -196,28 +235,32 @@ async function main() {
     decidedOn.length === 0,
     decidedOn.length > 0
       ? decidedOn.join(" · ")
-      : `${PRESENCE_FILES.length} files, demo is read and never tested`,
+      : `${String(PRESENCE_FILES.length)} files, ${String(reads.length)} reads, no test`,
   );
 
   /*
-   * 🔴 CONTROL — and the scan can see a line, or the check above is a
-   * comparison against a file it failed to open.
+   * 🔴 CONTROL — the detector can say both words, which is T2.
    *
-   * §6 and T2: an absence assertion with nothing proving it can fire is the
-   * shape that produced four green lines about a constraint nobody parsed. The
-   * projections are what the rule ALLOWS, so counting them proves the scanner
-   * reached the column at all.
+   * Two plants rather than one, because this check has two ways to be useless:
+   * a pattern that matches nothing reports every file clean, and a pattern that
+   * matches everything would have reported the honest reads as failures, which
+   * is exactly what the first draft did.
    */
-  const projections = PRESENCE_FILES.flatMap((file) =>
-    readSource(file)
-      .split("\n")
-      .filter((line) => /^\s*demo:\s*therapistRadar\.demo,\s*$/.test(line)),
+  check(
+    "🔴 80.3 CONTROL the detector catches a test and passes a read",
+    DECIDES.test("eq(therapistRadar.demo, false),") &&
+      DECIDES.test("const stale = !row.demo && !beating;") &&
+      DECIDES.test("rows.filter((r) => !r.demo)") &&
+      !DECIDES.test("      demo: therapistRadar.demo,") &&
+      !DECIDES.test("  demo: boolean;") &&
+      !DECIDES.test("      demo: mapped.filter((r) => r.demo).length,"),
+    "the two exemptions and an excluding filter are caught; a projection, a declaration and a count are not",
   );
 
   check(
-    "🔴 80.3 CONTROL the scanner can see the column it is checking",
-    projections.length >= 3,
-    `${String(projections.length)} projections found, so 'none tested' means none`,
+    "🔴 80.3 CONTROL the scanner can see the column at all",
+    reads.length >= 3,
+    `${String(reads.length)} reads found, so 'no test' means none rather than nothing scanned`,
   );
 
   finish("radar place");

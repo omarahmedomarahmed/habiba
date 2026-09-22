@@ -39,6 +39,19 @@ export async function TherapistCard({ therapist }: { therapist: DiscoverTherapis
               {t("radar.freeNow")}
             </span>
           ) : null}
+          {/*
+            🔴 80.5 — BESIDE THE NAME, NEVER INSTEAD OF IT.
+            These are our own accounts standing in a directory a stranger
+            browses, and a stranger choosing a therapist is entitled to know
+            which face is a real practice and which is us showing the product,
+            before they tap rather than after. Slate rather than a warning
+            colour: it is a fact about the account, not a problem with it.
+          */}
+          {therapist.demo ? (
+            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+              {t("radar.demoAccount")}
+            </span>
+          ) : null}
         </span>
         {therapist.headline ? (
           <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-slate-600">
