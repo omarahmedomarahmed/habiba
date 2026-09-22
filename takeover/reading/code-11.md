@@ -553,7 +553,6 @@
 - Decides: no accent prop, no collapse, logical properties (6-38); SplitBar widths are the real values, no minimum (370-393); Meter clamps 0..1 and turns amber at 75%, red at 90% (206-207).
 - Notes: header says "Six primitives" (9); the file exports nine (Stale). `Meter` red at 90% is used for a pot's spent fraction (portal-demo.tsx:667), red for money. `NeverBar` and `SeesWhat` crosses `text-red-500`.
 
-<!-- FILES-END -->
 
 ## Design system inventory (slice-specific)
 
@@ -609,7 +608,6 @@
 - Real components on the marketing site: TranscriptPanel, NoteCard, RiskBanner (clinical-demo, session-demo), SpendHeatmap and Meter (portal-demo), SplitBar/FlowStrip/SeesWhat (blocks, audience-demos), PricingTiers, RadarHero (real live radar), ContactForm.
 - Hand-built mockups presented as the product: PatientApp, SessionCopilot, FlowDemo screens, ClinicConsole, CompanyConsole. Mockup claims the real product does not match: patient column on clinic week view; per-therapist spend and weekly deduction dates on the company console; covered-per-year and cap-per-session settings; 14% VAT hardcoded; flat WorldRadar where the real patient app opens a Globe; `consent.neverWhy` shown without its cross.
 
-<!-- DS-END -->
 
 ## Stale
 
@@ -638,7 +636,6 @@
 - components/design/wire.tsx:208-217: words must be props; "Option", "SOS" are literals in the same file.
 - components/ehr/records-panel.tsx and many forms: "Working…" literals in files whose headers celebrate the i18n ratchet (clinic/*, partner/*, sponsor/*): the ratchet (H23) cannot see ternaries.
 
-<!-- STALE-END -->
 
 ## Suspect
 
@@ -658,7 +655,6 @@
 - scripts/verify-palette.ts:232-235 matches ground and `text-white` on one line only, so a teal ground on a parent (earnings.tsx:115 vs 187) passes. The same blind spot may hide other instances outside this slice.
 - components/settings/wall-codes.tsx:89-93: `dangerouslySetInnerHTML` of a server SVG; safe only if the label is never interpolated into it.
 
-<!-- SUSPECT-END -->
 
 ## Broken
 
@@ -684,7 +680,6 @@
 
 - components/settings/payouts.tsx:469-471. With the rate currency set to EGP (432-441), the split bar labels "You keep" and the fee with `formatUsd`, so a 1,500 EGP rate reads "You keep $1,275, fee $225": a pound amount printed as dollars on the screen where the clinician decides whether the price is fair.
 
-<!-- BROKEN-END -->
 
 ## Looks broken, is handled
 
@@ -697,7 +692,6 @@
 - components/billing/payment-popup.tsx:231-232: cancel could delete a submitted transfer claim; hidden once proof is in, and `cancelCart` has the state in its WHERE (claimed 141-145).
 - components/radar/public-profile.tsx:191-216 and therapist-console.tsx:77-90: an unknown status string once crashed the profile and showed "online"; both now fail closed, and migration 0112 refuses the value (claimed).
 
-<!-- HANDLED-END -->
 
 ## Unclaimed
 
@@ -716,7 +710,6 @@
 - (c) components/partner/usage-meter.tsx: partner session limits and billing, a whole metered product with no promise.
 - (c) components/demo/portal-demo.tsx:776-782: "require attendance" shown as a not-built setting (deliberate, C244).
 
-<!-- UNCLAIMED-END -->
 
 ## Promise evidence
 
@@ -745,8 +738,116 @@
 - A4: top-up-stepper Broken creates overpayments A4 must then catch.
 - A5: not in slice.
 
-<!-- PROMISE-END -->
 
 ## Coverage
 
-<!-- COVERAGE-END -->
+| File | Lines | Status |
+|---|---|---|
+| components/billing/bill-picker.tsx | 206 | read |
+| components/billing/earnings.tsx | 210 | read |
+| components/billing/ledger.tsx | 509 | read |
+| components/billing/pay-by-transfer.tsx | 466 | read |
+| components/billing/payment-history.tsx | 215 | read |
+| components/billing/payment-popup.tsx | 470 | read |
+| components/billing/pending-bar.tsx | 216 | read |
+| components/billing/plan-card.tsx | 436 | read |
+| components/billing/seat-manager.tsx | 145 | read |
+| components/billing/top-up-stepper.tsx | 196 | read |
+| components/billing/withdraw.tsx | 257 | read |
+| components/brand/logo.tsx | 143 | read |
+| components/clinic/apply-form.tsx | 113 | read |
+| components/clinic/chrome.tsx | 138 | read |
+| components/clinic/join-form.tsx | 239 | read |
+| components/clinic/people-list.tsx | 248 | read |
+| components/clinic/sign-in-form.tsx | 68 | read |
+| components/clinic/team.tsx | 392 | read |
+| components/demo/clinical-demo.tsx | 236 | read |
+| components/demo/component-showcase.tsx | 165 | read |
+| components/demo/device-frame.tsx | 394 | read |
+| components/demo/fixtures.ts | 64 | read |
+| components/demo/flow-demo.tsx | 601 | read |
+| components/demo/patient-app.tsx | 805 | read |
+| components/demo/portal-demo.tsx | 803 | read |
+| components/demo/session-copilot.tsx | 381 | read |
+| components/demo/session-demo.tsx | 445 | read |
+| components/design/wire.tsx | 372 | read |
+| components/ehr/records-panel.tsx | 375 | read |
+| components/forms/phone-field.tsx | 126 | read |
+| components/forms/timezone-field.tsx | 71 | read |
+| components/i18n/language-corner.tsx | 45 | read |
+| components/i18n/language-switch.tsx | 106 | read |
+| components/marketing/state-dot.tsx | 14 | read |
+| components/memory/standing-profile.tsx | 180 | read |
+| components/money/price-tag.tsx | 230 | read |
+| components/nav/bottom-nav.tsx | 294 | read |
+| components/notes/provenance-client.tsx | 35 | read |
+| components/notes/provenance.tsx | 132 | read |
+| components/partner/apply-form.tsx | 85 | read |
+| components/partner/chrome.tsx | 129 | read |
+| components/partner/key-list.tsx | 202 | read |
+| components/partner/sign-in-form.tsx | 64 | read |
+| components/partner/usage-meter.tsx | 219 | read |
+| components/partner/webhook-list.tsx | 145 | read |
+| components/pay/pay-flow.tsx | 251 | read |
+| components/portal/desk.tsx | 251 | read |
+| components/public/audience-demos.tsx | 96 | read |
+| components/public/audience-hero.tsx | 107 | read |
+| components/public/audience-page.tsx | 254 | read |
+| components/public/audience-rotator.tsx | 305 | read |
+| components/public/blocks.tsx | 1003 | read |
+| components/public/comparison.tsx | 264 | read |
+| components/public/contact-form.tsx | 276 | read |
+| components/public/docs-nav.tsx | 76 | read |
+| components/public/how-it-works.tsx | 77 | read |
+| components/public/icons.tsx | 89 | read |
+| components/public/mobile-nav.tsx | 143 | read |
+| components/public/pricing-tiers.tsx | 579 | read |
+| components/public/seat-ladder.tsx | 137 | read |
+| components/public/seat-slider.tsx | 64 | read |
+| components/public/sign-in-menu.tsx | 130 | read |
+| components/public/site-chrome.tsx | 259 | read |
+| components/radar/booking-sheet.tsx | 494 | read |
+| components/radar/feedback-card.tsx | 132 | read |
+| components/radar/filters.tsx | 270 | read |
+| components/radar/globe.tsx | 516 | read |
+| components/radar/orb.tsx | 333 | read |
+| components/radar/practice-form.tsx | 266 | read |
+| components/radar/presence.tsx | 786 | read |
+| components/radar/public-profile.tsx | 250 | read |
+| components/radar/public-radar.tsx | 180 | read |
+| components/radar/radar-console.tsx | 410 | read |
+| components/radar/radar-hero.tsx | 293 | read |
+| components/radar/radar-list.tsx | 165 | read |
+| components/radar/session-history.tsx | 245 | read |
+| components/radar/therapist-card.tsx | 250 | read |
+| components/radar/therapist-console.tsx | 658 | read |
+| components/radar/therapist-page.tsx | 144 | read |
+| components/radar/types.ts | 80 | read |
+| components/radar/world-radar.tsx | 157 | read |
+| components/sessions/status-badge.tsx | 52 | read |
+| components/settings/meeting-accounts.tsx | 156 | read |
+| components/settings/payouts.tsx | 527 | read |
+| components/settings/section.tsx | 74 | read |
+| components/settings/settings-forms.tsx | 162 | read |
+| components/settings/timezone-settings.tsx | 134 | read |
+| components/settings/wall-codes.tsx | 139 | read |
+| components/simulation-banner.tsx | 81 | read |
+| components/sponsor/apply-form.tsx | 101 | read |
+| components/sponsor/chrome.tsx | 108 | read |
+| components/sponsor/code-card.tsx | 116 | read |
+| components/sponsor/confirm-domain.tsx | 62 | read |
+| components/sponsor/coverage-form.tsx | 207 | read |
+| components/sponsor/domain-list.tsx | 190 | read |
+| components/sponsor/gate-settings.tsx | 182 | read |
+| components/sponsor/integrations.tsx | 386 | read |
+| components/sponsor/roster-list.tsx | 138 | read |
+| components/sponsor/sign-in-form.tsx | 65 | read |
+| components/sponsor/spend-heatmap.tsx | 105 | read |
+| components/sponsor/top-up-form.tsx | 82 | read |
+| components/support/therapist-support.tsx | 155 | read |
+| components/support/ticket-reader.tsx | 86 | read |
+| components/ui/index.tsx | 235 | read |
+| components/ui/money.tsx | 133 | read |
+| components/visual/primitives.tsx | 456 | read |
+
+106 of 106 files read in full. Total 25,507 lines.

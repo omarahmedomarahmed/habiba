@@ -406,3 +406,143 @@ looks for the answer where the product does not give it.
 - Decides: nothing in the product. Writes three files into `app/` when run.
 - Notes: comment contains no stale claim found. No DB, no network. T6 bare `void main()`.
 
+Note on the slice-specific focus: `on-production.ts`, `seed-demo.ts`, `verify-demo.ts`, `_value-statements.ts` and the demo cast files are NOT in this slice, so the KEEP list, census logic and verify:demo / verify:prove are not recorded here. verify-sprint57.ts l.436-473 is the only place in this slice that names `seed-demo.ts`: it is one of six scripts allowed through to production, and its comment claims a Neon snapshot first (`br-nameless-dust-a6ae5e4r`), DELETE not TRUNCATE, a before/after count of "fourteen configuration and payroll tables" that throws if one lost a row (a COUNT, which matches MAP suspect 7: a count cannot see a replaced row), and `verify:demo` afterwards.
+
+## Stale
+
+1. HAZARDS.md:231-235 says four scripts may pass `writesTo({ productionIsAllowed: true })` and "`verify:sprint57` asserts it is exactly those four". verify-sprint57.ts:436-473 asserts SIX (age, migrate, seed-demo, settings, simulate-seed, sync-blocks). `_verify.ts:206` prints "not one of the five". Three numbers for one set.
+2. verify-sprint53.ts:1623 detail text says the null crisis reader is "the Egyptian one"; since C350 (l.1570-1581) it is a UK number.
+3. verify-sprint7.ts:95-108 "historical sessions were NOT backfilled" asserts `COUNT(recording_started_at) = 0` over every session ever: true only of a database where no session has been recorded since sprint 7.
+4. verify-sprint7.ts:388-394 comment: the `+2013000` phone block "is reserved for fiction and no real account can be in it, so sweeping it is safe". seed-capture.ts:90-104 seeds the capture cast's patient accounts in that block.
+5. whatsapp-check.ts:7-9 "Nothing else in the product does that yet" (notify now sends WhatsApp templates; see verify-sprint76.ts:78-81).
+6. demo-full.mts:34-36 tells the operator to read `--dry-run` output first; no such flag exists in the file.
+7. demo-video.mts:22-24 says the fixtures are the demo clinicians from `scripts/demo.ts`; the code (l.150) books whoever is "Available".
+8. demo-edit.mts film copy (l.361-362 prices and Stripe payouts; l.554-555 "in the next sixty seconds"; l.735 "Notes for free"; l.348 summary by email) describes pricing and promises the product has since changed or banned.
+9. verify-synthetic.ts:47-52 comment: every listed domain is RFC-reserved and "cannot reach a real inbox"; the list includes `24therapy.app`, the company's real domain.
+10. verify-traps.ts:319-324 labels a check "CONTROL the walk detector fires on a scanner that does not strip"; nothing in it makes the detector fire.
+11. verify-sprint65.ts:682-686 labelled CONTROL (`Set` size of a list plus a repeat) is a tautology for any non-empty list. verify-sprint55.ts:216-221 compares the count of `if (` in lib/routing.ts with itself. verify-sprint57.ts:281-287 is `check(..., true, ...)`. Three checks that print ok and cannot fail.
+12. verify-sprint59.ts:195 requires `RENEWAL_RAILS` to include `egypt_gateway`; TAKEOVER/ORIENTATION say Egypt has no gateway (manual transfers). Either future work or stale naming (MAP contradiction 2).
+13. MAP stale 6 (T2 ratchet 19 of 101 vs 18 of 106): verify-traps.ts:162 `NO_CONTROL_BASELINE = 19`, and its "has a control" test is the raw word CONTROL, so the number measures a spelling.
+
+## Suspect
+
+1. The corporate wall (E1/E2) is checked in this slice only by: verify-sprint49 (three reporting files, name co-occurrence), verify-sprint53 (information_schema on 9 hand-typed tables, a 1400-char window of `roster` in lib/data/sponsors.ts), verify-sprint60/61/66 (syntax). No verifier here reads `lib/data/sponsor-admin.ts`, `sponsor-integrations.ts` select lists beyond `deliveriesFor`, or renders any `app/(sponsor)` page. Whether a sponsor page can reach a session time is for the lib/data and app slices.
+2. `lib/data/assessments.ts:82-112` `publishInstrument` has no role check (verify-sprint56 publishes with `users LIMIT 1`). Every caller must gate; check the admin action that calls it.
+3. verify-sprint54.ts: the solo organisation `removeClinician` creates is not named `verify54-%` and is never cleaned; each run may leave an orphan org (check `lib/data/clinic-admin.ts` removeClinician).
+4. verify-sprint68 `alertApproachingLimits()` runs over ALL partners on the branch; a real partner near its limit gets a real alert when the gate runs.
+5. The partner platform's "named clinician" is any non-blank `clinicianRef` string the partner's server sends (verify-sprint68.ts:364-374 accepts "C-9"). Whether summaries delivered to a partner's patient carry anything like P3's "name and credentials" belongs to lib/partner.
+6. demo-full.mts confirms `/api/radar` returns clinicians' `lastName` publicly (l.361-365). Intended for a public board, but worth confirming what else that payload carries.
+7. walkthrough.ts: `/admin/transfers` (A1, A4) and `/admin/actuals` have never been walked; a full run exits before writing findings.
+8. verify-sprint63.ts:170-183 inserts users with `verification_status = 'verified'` directly. MAP says trigger 0083 derives that column; if the trigger allows a direct write, "derived" is a convention (check drizzle/0083).
+9. verify-sprint60 (E3) and verify-sprint62 (C4) prove the arithmetic and the spelling; no gate in this slice books a session, lowers coverage and reads back the split, or releases a seat and reads the next bill. Both promises rest on other gates or on the walk.
+
+## Broken
+
+Instrument and tooling defects (confident from reading; none of them is a product screen, all of them are things the gates or tools do wrong):
+1. verify-sprint53.ts:53, 1962-1969: `restoreInvoice` starts `null` and is set only at l.1023; on any throw between l.563 and l.1020 the `finally` DELETEs the real `invoice` row from `platform_settings` on that branch. The 76.21 defect survives on the failure path.
+2. verify-sprint7.ts:394: `DELETE FROM patient_accounts WHERE phone LIKE '+2013000%'` deletes the capture cast's patient accounts seeded by seed-capture.ts:90-104 (the accounts demo films and walkthrough.ts:548 sign in as) and any concurrent verifier's fixtures.
+3. verify-sprint50.ts:112-133: an existing verification is forced to `approved` and never restored; `taxonomy_entries` for EG is deleted unconditionally. Every run approves one real (dev) clinician and wipes an operator's EG entry.
+4. verify-sprint5.ts: writes planted people and charts through `scripts/db.ts` `connect()` with no production guard at all (no `writesTo()`, no inline endpoint check), contrary to HAZARDS.md:152.
+5. verify-traps.ts: its T1 detector and the C205 scan it defers to both miss `readFileSync(variable)` in a file that also mentions `readSource`: verify-sprint51.ts:165 and verify-sprint53.ts:79/540 read TypeScript raw and pass both gates. Its T1 "control" cannot fire. Its T3 misses path lists that do not start with "/" (page files, layouts). Its T4 covers two files. The gate that certifies the other gates is itself T1/T2/T3/T4-blind.
+6. verify-sprint67.ts:178-192, 274-284: `\b` word boundaries mean `noteContent`, `soapText`, `note_content` are not caught, and the control uses `.some`, so it passes on "content" while "noteText" is in fact not caught.
+7. walkthrough.ts:429 vs 879: exits 1 before writing findings, and with today's routes on disk a full run always exits there.
+8. demo-full.mts:286-290: approves the first applicant in the real verification queue if the demo row is not found.
+9. demo-video.mts:97: deletes all of `demo-output/`, including demo-speech's paid audio and demo-full's tour stills.
+10. verify-sprint55.ts:216-221, verify-sprint57.ts:281-287, verify-sprint65.ts:682-686: checks that cannot fail (tautology, literal true, set tautology).
+11. verify-sprint77.ts:142, 386 and verify-synthetic.ts:100, 125: truncate offenders with no count (T4), outside verify-traps' two-file T4 scope.
+
+Product-facing, from this slice's reading:
+12. Promise C2 is false by design: the clinic portal receives and exports patient names (first name plus last initial) with appointment times. verify-sprint54.ts:440-444 and verify-sprint63.ts:259-263, 495-501 REQUIRE it; `lib/data/clinic.ts:388-390` returns it. C5 ("each clinician's patients are not [visible]") likewise.
+13. The marketing film (demo-edit.mts:554-555) still says "Talk to a real therapist in the next sixty seconds", the claim verify-sprint57.ts:316 bans from published pages; and "Notes for free" (l.735). If this film has been shown or uploaded, it carries both.
+
+## Looks broken, is handled
+
+1. `lib/data/homework.ts:244-282` `assignStep` writes a task for any person id with no relationship check (verify-sprint9 assigns to a stranger successfully). The only caller `app/(app)/patients/[id]/homework/actions.ts:21-38` gates on `getPatient(actor, patientId)` and `accessFor(...) !== "revoked"` first. (Its `sessionId` input is passed through unchecked.)
+2. `A_PARTNER_NEVER_READS_A_CHART = true` (lib/partner/api.ts:513) beside partner routes named transcript, note, summary, memory, copilot (app/api/partner/v1/*). `app/api/partner/v1/subjects/[ref]/memory/route.ts` reads `sessionMaterial` for the partner's OWN sessions only and says so in its response; verify-sprint68.ts:466-482 asserts the partner copilot does not call our record builders. The routes are the partner's own material, not our tenancy's chart (sprint 68 was confirmed by reading the memory route; the other four were not opened).
+3. `copilot/actions.ts` free in-room questions: `sessionId` is taken from the server-derived live session (`app/(app)/copilot/actions.ts:115,150`), not from client input, so the free path cannot be claimed by a client (verify-sprint48 exercises only the counting half).
+4. verify-sprint6/7/8/9 do not call `writesTo()` but each carries an inline refusal of the production endpoint (sprint 6 l.46-58, 7 l.35-47, 8 l.35-46, 9 l.36-47). Only verify-sprint5 has none (Broken 4).
+
+## Unclaimed
+
+(a) worth selling, nothing advertises it
+- Assessments with per-answer timings (verify-sprint56: 90 seconds on PHQ-9 item 9 is recorded; a score can be cited but never becomes a diagnosis).
+- Homework with the asymmetry rule "trend to the therapist, next action to the patient" (verify-sprint9: the patient's query returns one step and no rate or streak).
+- Documents with per-person citations `[D1:1]` that never resolve across people, and flags that never delete (verify-sprint8).
+- Egypt's crisis line 105 with its menu printed on the button in both languages (verify-sprint69).
+- Invoice to a sponsor that refuses to render without our legal details (verify-sprint53 53.15).
+(b) nobody should have it, a hole
+- Partner notes "approved" by any non-blank string (verify-sprint68.ts:364-374); summaries then go to the partner's patient.
+- demo-full.mts / demo-video.mts: unguarded scripts that create, approve and book real clinicians and sessions on whatever `DEMO_BASE` is, including production.
+- verify-sprint63 cleanup and the retention cron (MAP unclaimed 6) show `audit_log` rows are deletable; A5's "every read is written down" is not append-only.
+(c) half built
+- The partner platform (sprint 68): transcripts, notes, summaries, memory and copilot as a paid API with limits and billing. No value statement, no audience among the 25.
+- WhatsApp password reset for phone-only patients is blocked on a Meta template approval (whatsapp-check.ts:25-29): a lockout from one's own record until then.
+- Clinic staff principal with custom roles (sprint 63): built and gated, unpromised (MAP unclaimed 3).
+
+## Promise evidence
+
+- P1: not measured in this slice (walkthrough navigates by URL, not taps). Cannot tell.
+- P2: verify-sprint76 proves a started session gives the patient an in-app join door (`liveSessionForPatient`) and a notify kind. Partly (session start only). demo-edit film says the summary arrives "by email".
+- P3: product side not in slice. Partner path (verify-sprint68): "named clinician" is an opaque ref. Cannot tell for the main product; partly broken on the partner path.
+- P4: verify-sprint5 (one person, charts at several practices), sprint 6/7 (claim, keeps-access stored, revoke degrades, audited as the patient), sprint 8 (documents withheld when revoked). Kept as far as these exercise.
+- P5: verify-sprint51 (orb on seven hand-typed pages, tel: links, no network), sprint53 (crisis lookup unaffected by pot state: vacuous, pure function), sprint69 (Egypt 105 with menu), sprint76 (session-started banner cannot cover the orb). The payment orb `components/patient/session-orb.tsx` P5 names is not examined by any verifier in this slice. Partly.
+- T1: not in slice (demo-full films it). Cannot tell.
+- T2: not in slice. Cannot tell.
+- T3: not in slice. Cannot tell.
+- T4: not in slice. Cannot tell.
+- T5: verify-sprint48 (access checked before quota, text order), sprint7 (`accessFor` flips to revoked at once), sprint8 (copilot document assembly returns nothing when revoked). Partly kept (documents half measured; transcript and journal halves by syntax).
+- C1: verify-sprint50 (radar filter, closed country), sprint59 (placement refused without a rail). Seat-to-radar timing not checked. Cannot tell.
+- C2: BROKEN as worded. verify-sprint54.ts:440-444 and verify-sprint63.ts:259-263 require patient short names on the clinic schedule and export; lib/data/clinic.ts:388-390.
+- C3: verify-sprint54 (practice billed through the ordinary path, figures add up), sprint62 (seat arithmetic). Partly.
+- C4: verify-sprint62 (release before reparent, reduction negative and not refunded). "Next bill lower by one seat" and "keeps working on PAYG" not checked. Partly.
+- C5: broken as worded ("patients are not [visible]"), same evidence as C2; earnings per clinician not checked here.
+- E1: verify-sprint53 (activity floor with differencing attack, weekly only, carried forward), sprint61 (lookup not an oracle, syntax), sprint66 (HR log names nobody). Partly.
+- E2: verify-sprint49/53 column and window checks; no sponsor page rendered. Partly.
+- E3: verify-sprint60 by syntax only (frozen split read in connect.ts). Partly.
+- E4: verify-sprint60 (0% arithmetic, `setCoverage` has no removedAt). Partly.
+- E5: not in slice. Cannot tell.
+- A1: not in slice (demo films never show a transfer). Cannot tell.
+- A2: not in slice. Cannot tell.
+- A3: verify-sprint69 shows a VERIFICATION rejection reason reaches the clinician's email (not A3's transfer rejection). Cannot tell for A3.
+- A4: `/admin/transfers` never walked (walkthrough.ts). Cannot tell.
+- A5: clinic side kept (verify-sprint63 capabilities, refusal on the resource, audited). Staff console not in slice.
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| scripts/verify-sprint48.ts | 359 | read |
+| scripts/verify-sprint49.ts | 404 | read |
+| scripts/verify-sprint5.ts | 282 | read |
+| scripts/verify-sprint50.ts | 297 | read |
+| scripts/verify-sprint51.ts | 705 | read |
+| scripts/verify-sprint53.ts | 1982 | read |
+| scripts/verify-sprint54.ts | 1069 | read |
+| scripts/verify-sprint55.ts | 1498 | read |
+| scripts/verify-sprint56.ts | 549 | read |
+| scripts/verify-sprint57.ts | 527 | read |
+| scripts/verify-sprint59.ts | 303 | read |
+| scripts/verify-sprint6.ts | 434 | read |
+| scripts/verify-sprint60.ts | 163 | read |
+| scripts/verify-sprint61.ts | 215 | read |
+| scripts/verify-sprint62.ts | 589 | read |
+| scripts/verify-sprint63.ts | 689 | read |
+| scripts/verify-sprint65.ts | 918 | read |
+| scripts/verify-sprint66.ts | 349 | read |
+| scripts/verify-sprint67.ts | 292 | read |
+| scripts/verify-sprint68.ts | 536 | read |
+| scripts/verify-sprint69.ts | 418 | read |
+| scripts/verify-sprint7.ts | 478 | read |
+| scripts/verify-sprint76.ts | 232 | read |
+| scripts/verify-sprint77.ts | 568 | read |
+| scripts/verify-sprint8.ts | 392 | read |
+| scripts/verify-sprint9.ts | 358 | read |
+| scripts/verify-synthetic.ts | 186 | read |
+| scripts/verify-traps.ts | 433 | read |
+| scripts/walkthrough.ts | 890 | read |
+| scripts/whatsapp-check.ts | 96 | read |
+| scripts/demo-edit.mts | 989 | read |
+| scripts/demo-full.mts | 636 | read |
+| scripts/demo-speech.mts | 200 | read |
+| scripts/demo-video.mts | 191 | read |
+| scripts/icon.mts | 161 | read |

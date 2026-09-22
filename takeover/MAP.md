@@ -156,6 +156,10 @@ Every entry: where, what it says, what is true or suspected instead.
     stranger reading the repo can sign in to the production console. Nothing real is there
     today, but the console can confirm transfers and approve payouts. **Before launch this
     account must not have a published password.** (New task.)
+    **CONFIRMED by coordinator 2026-09-22:** `scripts/seed-demo.ts:259,328` seeds
+    `omar@24therapy.app` as `super_admin` with `DEMO_PASSWORD`; `lib/auth/actions.ts:170-295`
+    signs staff in with email and password only, no second factor anywhere in `lib/auth`. Only
+    `/admin/tv` has a second key. Founder told; not tried against production.
 19. `.walkthrough2/people.json` (committed 2026-09-21) holds four working passwords for `.test`
     accounts, one a staff admin `admin@24therapy.test`. Check whether that staff account exists on
     production; if it does, it is a second published console login. The patient phone

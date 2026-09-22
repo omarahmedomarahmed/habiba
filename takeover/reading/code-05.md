@@ -519,3 +519,187 @@
 - Promises: P1 depends on it. No consent or recording here (recording is the app's own recorder).
 - Notes: a room built for a session booked days ahead opens at creation time too (Daily has no not-before here); only the expiry moves.
 
+
+## Stale
+
+1. lib/ai/case-copilot.ts:354-365 and 456-457. The C373 header says the live-session time bound was missing from `documentsFor` and `profileFor` and implies both now take it. `profileFor` still ignores it (`void before;` at 457). A profile rebuilt during the live session reaches a copilot that says "I only know what came before this session".
+2. lib/audio/recorder.ts:53-66 and 99. The comment says "The caller now has to say" and "Never assume consent: the caller states it". In fact `muted?: boolean` is optional and the default is still `options.muted ?? false` (100), so a caller that says nothing records. components/copilot/chat.tsx:211 omits it (dictation, harmless).
+3. lib/crisis/alerts.ts:50-52 says the module "is imported by exactly one caller (`appendTranscriptSegment`)". It has four: lib/data/transcript.ts, lib/data/session-risk.ts, lib/data/journals.ts, lib/checkins/receive.ts.
+4. lib/crisis/alerts.ts:410 says "detected in a live session". The same function is used for check-in replies (receive.ts:82), which happen outside any session.
+5. lib/clinical/context.ts:88-108 (C168) says "the note generator is sent no diagnoses at all". lib/ai/notes.ts:113-115 still sends `patients.clinical.diagnoses` as "Working diagnoses". The filter only covers the evidence layer.
+6. lib/consent.ts:2 says consent is asked "before they enter the room", and lib/ehr/policy.ts:90 says the transcript is held "under a consent we recorded (C214)". Neither is true for in-person sessions, which never get a consent write (see Broken 1).
+7. lib/ehr/owner.ts:6-18 says the file picks the owning organisation "in one place" and "does nothing but pick the owner". Only `whatIsMissing` exists. `ConnectionOwner` (19) is used by nothing.
+8. lib/ehr/file-note.ts:36-41 and 181-189 say the author is "the clinician or nobody". At 205 it is hard-coded to `authorReference: null`, so it is always nobody, which the same header calls the defect.
+9. lib/ehr/smart.ts:185-191 says the scope re-check refuses a token that can read a whole chart. vendors.ts:106-117 only refuses a `*`, `user/` and v1-style writes. See Broken 9.
+10. lib/integrations/registry.ts:71 (public copy) says in-person patients are "asked for consent on the same screen, in their language". No code does that. registry.ts:147 says "the note you approve is filed back". `fileNote` has no caller. The registry header (29-32) says each state is "a fact about the code".
+11. lib/meetings/recall.ts:56 describes the webhook as "Ours, signed." Nothing signs it or checks a signature. app/api/meetings/transcript/[sessionId]/route.ts has no signature, secret or HMAC check (grep). The only check is the `bot_id` in the JSON body.
+12. lib/mail.ts:432-438 says the record export is "Sent to the patient, never to whoever pressed the button", and the body (460) says "nobody at 24Therapy read it". Line 440 has a `copyTo` bcc, and app/(admin)/admin/tv/actions.ts:51 passes the staff member's own address.
+13. lib/mail-previews.ts:143-145 says the `sendNotification` copy is "lifted from those call sites rather than invented". The check-in preview (370-379: "No answer needed ... turn these off in your account") does not match the real body (lib/checkins/send.ts:124: one of twelve wordings plus "Reply with the word stop and they end."). The "therapist message" row (197-206) is labelled audience `patient`, but `sendTherapistMessage` mails clinicians.
+14. lib/partner/api.ts:441-452 says the `isNull(revokedAt)` in `resolveSubject` "closes whoMayRead, writeBackSession and deliverNote at once". `deliverableNote` never calls `resolveSubject`. See Broken 3.
+15. lib/partner/media.ts:25-36 says "THE CONSENT BOUNDARY IS NOT NEGOTIABLE HERE". `ingestPartnerAudio` takes `fromSeconds` and never reads it.
+16. lib/partner/keys.ts:167-170 says `lastUsedAt` is written on calls that then fail on a scope. It is written only after the scope check passes (343).
+17. lib/partner/launch.ts:65-67 says a new window means "no credential of ours in their hands". The launch URL returned to the partner's server is that credential. See Suspect 1.
+18. lib/session-clock.ts:116-121 says a clinician "working off record" has no last segment, so silence cannot end the session. That is true only if they are off record from the start. See Suspect 6.
+19. lib/diarisation/align.ts and lib/transcript/descriptors.ts assume real segment windows. In production every window is `(seq-1)*8000` to `seq*8000` (see Broken 5).
+
+## Suspect
+
+1. lib/partner/launch.ts:99-164 and 177-265. The launch URL, a two-minute bearer token, is handed to the PARTNER'S SERVER. `redeemLaunch` needs nothing else. So the partner (or any log or proxy that sees the URL) can open it and hold an ordinary full clinician session for one hour. That session covers the clinician's whole caseload (targets include /patients and /notes). The clinician does not need to be present or agree. This matters because a partner is a third party, not a principal allowed into charts. The answer is in app/api/partner/launch (whether redemption requires the clinician's own prior session or a second factor). I found none here.
+2. lib/checkins/receive.ts:158-181. The crisis alert for a check-in reply goes to the session ordered by `sessions.scheduledAt DESC`. `scheduledAt` is nullable (schema.ts:846), and Postgres sorts NULLS FIRST under DESC. No status filter is applied either. So a walk-in or unscheduled session, a cancelled one, or a future booking with a new clinician can win. The alert then wakes the wrong clinician, possibly one whose grant was revoked. This is moot today because the function has no caller (Broken 2), and live the moment it is wired.
+3. lib/crisis/alerts.ts:405-417. Crisis "delivery" is one row in the clinician's in-app `notifications` table. No email, push or WhatsApp is sent from here, and `alertStatus = delivered` means only that the row was written. A journal or check-in alert at 3am waits until the clinician next opens the app. The sweeper retries only the insert. A clinician-side paging path, if one exists, would be outside this slice.
+4. lib/meetings/dispatch.ts:60-143. The bot joins on one "yes" from the join-link patient. In a couples, family or group session on Zoom, nobody else in the meeting is asked. Their only notice is a participant named "24Therapy recorder" (108). create.ts:125-126 sets `waiting_room: false` and `join_before_host: true`, and the raw link goes to the therapist's calendar. Anyone forwarded that link walks into a recorded meeting unasked.
+5. app/api/meetings/transcript/[sessionId]/route.ts, from recall.ts:109. The webhook URL is `appUrl/api/meetings/transcript/<sessionId>` with no secret. Anyone who knows a session id and the bot id can write transcript lines into a clinical record, and those lines then feed the note and the crisis scan. Recall bot ids appear in logs and the provider dashboard.
+6. lib/session-clock.ts:122-134. After running time (default 50 min), going off record stops segments. After `silenceSeconds` the server ends the session as abandoned and `finishSession` runs (room deleted, note generated). This is T2 turned against the clinician. The value of `silenceSeconds` is in lib/settings/defs.ts.
+7. lib/partner/keys.ts:59 and 318. One key gets 60 calls a minute across every session it runs, and going over SUSPENDS the key until a human re-enables it. Audio chunks, transcript polls and copilot questions from more than a handful of concurrent live sessions will kill a legitimate partner's whole integration mid-session. It depends on how the partner media route batches calls.
+8. lib/partner/billing.ts:65 and 150. The price is read from settings when the month is billed, not when sessions ran (the E3 shape). The debt is also posted to `therapist_receivable`, which mislabels a partner's debt in reconciliation.
+9. lib/partner/writeback.ts:87-126. Idempotency is select-then-insert, so a concurrent retry can write two sessions unless a unique index exists (not visible here). A `feedbackToken` is minted (121), so rating-reminder sweeps may email a patient about a session held on another platform.
+10. lib/ai/case-copilot.ts:497-529. `askPatientCopilot` has no grant or caseload check of its own, and `capabilities` is optional ("absent means no restriction"). T5's "a revoked grant stops it on the next question" holds only if every caller recomputes `accessFor` per question. The callers are app/api/copilot and the in-session suggestion route.
+11. lib/ai/assistant.ts:169-183 sends every roster patient's full name to OpenAI on every general-assistant question. lib/ai/notes.ts:81-89 takes pains never to send a name. The de-identification policy is inconsistent, and no patient was told names go to a model provider.
+12. lib/partner/copilot.ts:149-174. The partner copilot reads ended sessions without re-checking the consent log, so a withdrawn consent does not stop later reading. It also never calls `logUsage`, so model spend on partner copilot questions is missing from every cost figure.
+13. lib/crisis/line.ts:154. Any Arabic-locale reader with no region is shown Egypt's 105. lib/ai/translate.ts:35 says the Arabic copy is addressed to a Gulf reader. A Gulf patient gets a number that does not connect from their country.
+14. lib/partner/webhooks.ts:56-63. A partner can register any https URL, including internal hosts, and our cron POSTs to it (SSRF, limited to a three-field body).
+15. lib/meetings/providers.ts:66. Teams `OnlineMeetings.ReadWrite` can read the user's existing meetings, which is the "meeting history" the guard exists to refuse. It passes because the regex only looks for words.
+
+## Broken
+
+1. **Task 123: in-person sessions are recorded with no consent, and the note says they were not.** No in-person consent is ever asked. The only writers of `sessions.recording_consent` and `recording_started_at` are app/join/[token]/actions.ts:373, 384, 694 and 703 (grep). An in-person session has no join step, so consent stays NULL. components/session/session-room.tsx:103 and 109 initialise off-record only when consent is `"declined"`, so NULL means the recorder is built unmuted (lib/audio/recorder.ts:100 default false). app/api/sessions/[id]/transcribe/route.ts has no consent or off-record check at all; it checks only `status === in_progress` (126), and neither does lib/data/transcript.ts. The session is transcribed and model risk-classified (lib/session-finish.ts:100), and a note is generated from the transcript (lib/ai/notes.ts:367). Then lib/data/feedback.ts:519 `noteProvenanceFor` returns `provenance: "clinician"` for any consent other than `granted`, so a note written by a model from an unconsented recording is badged as clinician-written from memory. The public registry (lib/integrations/registry.ts:71) says the patient "is asked for consent on the same screen". Legal defect.
+2. **Check-in replies go nowhere, including crisis replies.** lib/checkins/receive.ts:59 `handleReply` has no caller outside scripts/verify-sprint44.ts and tests (grep), and there is no inbound email or WhatsApp route under app/api. The cron still sends check-ins (app/api/cron/[job]/route.ts:346), and each one ends "Reply with the word stop and they end." (lib/i18n/messages.ts:2291, appended at lib/checkins/send.ts:124). A person who replies "stop" keeps getting them. A person who replies "I want to die" to an unprompted message from us reaches no human, is shown nothing, and no alert is raised. verify:sprint44 passes because it calls the function directly. If the function were wired, it would tell a person with no clinician "Your therapist has been notified" (alerts.ts:507, returned at receive.ts:122 even when `noClinician` is true).
+3. **A partner key can read any approved note of a linked person, including after the patient cut the link, and including notes by clinicians unconnected to that partner.** lib/partner/api.ts:348-393 `deliverableNote` (route app/api/partner/v1/notes/[sessionId]/route.ts:39) joins `partner_subjects` on `person_id` with no `isNull(revokedAt)`, no `organizations.partner_id`/`billing_mode` scope and no patient grant check. It returns the whole `session_notes.content` (SOAP, impressions, summary). `whoMayRead` (142) and `writeBackSession` (257) were both fixed for exactly this "other therapist" shape; this function was not. The C277 promise that the patient can cut the link and leave is broken for the one endpoint that returns clinical text.
+4. **Crisis context suppression misses real disclosures, in the file that calls itself the most dangerous in the repo.** lib/crisis/context.ts:71-76 lists `"he "`, `"her "`, `"his "`, `"she "`, `"they "` and `"their "` as third-party markers, and `contains` (lib/crisis/fold.ts:74) is a plain substring test. "the " contains "he ", "other " contains "her ", "headache " contains "he ". `suppressedIn` (257-261) then suppresses the match unless an "I" appears before the phrase. Example: "The thought of suicide will not leave." has no present marker, "the " comes before the phrase, and there is no "i", so it is suppressed as third party and nothing is raised. The same goes for "Sometimes the pain makes me want to die". tests/risk-level.test.ts has no case with "the" before a phrase. This is the one direction the file says it may never be wrong in.
+5. **T2 cannot be seen in the data, and every segment timestamp is fiction.** app/api/sessions/[id]/transcribe/route.ts:178-179 stamps `startMs = (seq-1)*8000` and `endMs = seq*8000`. components/session/session-room.tsx:174 increments `seq` only when a chunk is uploaded, and a muted (off-record) recorder emits nothing (recorder.ts:201), so off-record time consumes no sequence numbers. Chunks are also 2 to 8 s (pause cutting), not 8. The result: `offRecordGaps` (lib/data/feedback.ts:476, gap > 20 s) never finds an off-record minute, `provenance` is never `partial` from going off record, and `offRecordSeconds` stays null. The note is badged "transcript" for a session that had off-record minutes. Citation `atSeconds` (case-copilot.ts:727), words per minute and pauses (descriptors.ts) are all wrong. The transcript has a hole in its content, but no record says where or how long.
+6. **The copilot reads the OLDEST twelve sessions, not the latest.** lib/ai/case-copilot.ts:276-277: `.orderBy(asc(sessions.createdAt)).limit(12)`. For a patient past twelve sessions, the copilot never sees anything recent, and its answers carry valid-looking citations to old sessions. T5 is degraded without anyone noticing.
+7. **Copilot citations can resolve to the wrong sentence.** profile.ts:171-197 numbers sessions `S1..S8` over the 8 most recent sessions across ALL of the person's charts, and stores those refs in `person_profiles.sections[].refs`. case-copilot.ts:480 pastes that profile, refs included, into the copilot prompt. The copilot's own index numbers `S1..S12` as this clinician's oldest-first sessions (283, 310). A model that copies "S2:14" from the profile is resolved by `resolveCitations` (706) against the copilot's index, so a DIFFERENT real segment is attached as the source. For T5 this is worse than no citation: a wrong source that looks verified.
+8. **Regenerating a note after the patient's copy was approved puts unapproved model text on the patient's screen as signed.** lib/ai/notes.ts:448-459: the upsert conflict path rewrites `content` (including `patientBrief/Steps/Next`) but not `status` or `patient_status`. app/(app)/sessions/actions.ts:408 `regenerateNote` has no status guard. lib/data/patient-view.ts:114 and 131 read the live `content->>'patientBrief'` and call it signed when `patient_status = approved`. The UI shows "Try again" only when `noteStatus` is failed or there is no note (components/session/note-review.tsx:122), so it is reachable through a later failed run or a direct server-action call. This breaks P3.
+9. **The patient email falls back to the clinician's summary.** lib/data/feedback.ts:643 (`releaseBrief`) and lib/mail.ts:242 send `patientBrief || summary`. `summary` is the clinician-facing field ("presented as guarded"), and it carries the late-recording stamp that notes.ts:414 prepends. The patient-copy editor (actions.ts:493) edits only the three patient fields, so a clinician who clears the brief to send nothing, or a model that returned an empty brief (which the prompt allows), sends clinical text nobody approved for the patient. feedback.ts:600-605 claims it reads exactly three patient fields. This breaks P3.
+10. **The EHR scope guard admits a whole chart.** lib/ehr/vendors.ts:106-117 `scopesAreMinimal` passes `patient/Condition.read`, `patient/MedicationRequest.read`, `patient/AllergyIntolerance.read` (everything on `THEIRS_NEVER_OURS`), and SMART v2 writes such as `patient/Condition.c` or `.cruds` (the write regex needs a `u`). smart.ts:246 also accepts a grant with an empty scope string without checking it.
+11. **The check-in no-repeat rule never fires.** lib/checkins/send.ts:124 stores `body = wording + "\n\n" + howToStop`, and lib/data/checkins.ts:101 hands that stored body back as `lastBody`. lib/checkins/wording.ts:68 compares it to the bare wording, which can never be equal. So the same message repeats about one time in twelve, the exact failure 44.1 names.
+12. **Partner sessions opened before consent are never billed.** lib/partner/platform.ts:87 decides `billable` at the first open, and the conflict update (114-118) deliberately leaves it untouched. A session opened, then consented ten minutes later by a second open (the flow 68.2 describes), does all the work at billable = false. That is a free path for every session.
+13. **A record-export email to the patient gives a staff member a working link to the patient's whole record.** app/(admin)/admin/tv/actions.ts:49-52 calls `sendRecordExport` with `copyTo: actor.email`, which becomes a bcc of the same private link (mail.ts:470) to the full record including transcripts. The email tells the patient nobody at 24Therapy read it. The act is audited, but the wording to the patient is false.
+14. **The session invite promises Stripe to Egyptian payers.** lib/mail.ts:417-421 says "Payment is handled securely by Stripe and goes to your therapist. You will get a receipt by email.", with a `$` amount. Egypt has no processor: the payer makes a manual bank transfer to us (BRIEF). The first money sentence an Egyptian patient reads is false.
+
+## Looks broken, is handled
+
+1. lib/ai/copilot.ts:60 (in-session suggestions) reads a session's segments with no auth. It is handled at app/api/sessions/[id]/transcribe/route.ts:101-117 (clinician owns the session) and 198 (never on the bot token branch).
+2. lib/ingest/token.ts lets a bot append audio without a person's session. The route (route.ts:206-216) returns no clinical text and no crisis flag on that branch. (It still appends with no consent check; see Broken 1.)
+3. lib/meetings/dispatch.ts `withdrawBot` leaves `bot_id` in place, so `assertOurBot` still returns true for a withdrawn bot. That is handled in the webhook route, app/api/meetings/transcript/[sessionId]/route.ts:103, which refuses when consent is not granted, recording is paused or `botLeftAt` is set.
+4. lib/ai/notes.ts writes a draft that a patient might see. It is handled by `patient_status` (default 'draft', drizzle/0023) and the separate `approvePatientNote` (actions.ts:547). This holds except in Broken 8 and 9.
+5. lib/documents/formats.ts:108 labels extraction `none` as "Searchable". That is correct: `none` means typed or dictated text (schema.ts:4373).
+6. lib/documents/identity-access.ts gives `super_admin` every passport. `super_admin` is our platform role, not a clinic owner (schema.ts:96-103).
+7. lib/ai/diarise.ts, the H11 cap: genuinely retired, with no LIMIT at 353.
+8. lib/crisis/context.ts PRESENT markers are also substring matches ("know" contains "now"). That errs toward alerting, which is the safe direction.
+
+## Unclaimed
+
+(a) Worth selling, nothing advertises it:
+- The per-patient copilot with sentence-level citations to transcripts and documents (lib/ai/case-copilot.ts). T5 covers access, not the citation feature itself as a selling point on a screen.
+- The dated observation timeline and the standing profile with conflicts surfaced between history and sessions (lib/ai/profile.ts:57-83, 367).
+- Diagnoses extracted only when written verbatim, with the source sentence (lib/ai/diagnoses.ts).
+- Arabic, Egyptian dialect and Arabizi crisis scanning (lib/crisis/alerts.ts:147-303). Nothing public says the scanner reads Franco-Arab.
+
+(b) Nobody should have it, a hole:
+- Crisis scanning of journals and check-in replies with alerts to a clinician (lib/crisis, lib/data/journals.ts, lib/checkins/receive.ts). Nothing the patient was promised covers "we scan what you write and tell a clinician" (MAP Unclaimed 5), and lib/ehr/policy.ts:110 says journals come with "no watcher".
+- Partner launch: a third party's server can obtain a full clinician session on demand (lib/partner/launch.ts; Suspect 1).
+- Partner note delivery of full SOAP to a partner credential, outside grant and revocation (Broken 3).
+- The meeting bot records third parties in couples or group calls on one person's consent (lib/meetings/dispatch.ts; Suspect 4).
+- An unscheduled check-in message stream (lib/checkins) with no working opt-out by reply (Broken 2). The only opt-out left is a screen switch the mail preview mentions.
+
+(c) Half built:
+- The EHR note writeback (lib/ehr/file-note.ts `fileNote`) has no caller. The connection flow exists, so a practice can connect, but no note ever files, and the writebacks list (lib/data/ehr.ts:347) is empty forever. A refused filing could never be retried anyway (file-note.ts:160-178).
+- Acoustic diarisation (lib/diarisation/*): no provider, and lib/data/session-voices.ts `recordVoices`/`attachLines` have no caller, so the voices panel on /sessions/[id] is always empty.
+- Check-ins: sent, never received (Broken 2). There is also no WhatsApp template for `checkin.asking` (lib/notify/whatsapp.ts:48), so they go only to the minority of patients with email.
+- `sessions.extendedAt`, documented dead (lib/session-clock.ts:31-36).
+
+## Promise evidence
+
+- **P2** (nothing only in an email). Partly. lib/notify/index.ts:301 writes the in-app notice only when a caller passes both `personId` and `notice`. lib/sessions/started-notice.ts does. Check-ins (lib/checkins/send.ts:126), the session report (mail.ts:171), invites (mail.ts:392) and record exports exist only in email. Who finds out about a failed send: a `delivery_attempts` row, whose reason says "no channel available" even when the provider rejected (index.ts:355), plus log lines. Nobody is alerted.
+- **P3** (nothing machine-written reaches you unsigned). Partly. Kept: `patient_status` gating and three-field editing (actions.ts:493, 547), partner and EHR notes needing an approved note. Broken: regeneration after approval (Broken 8), the summary fallback (Broken 9), and partner summaries needing no approval of their own text (lib/partner/notes.ts:131, draft.ts:90). Machine-translated interface strings are drafts (translate.ts), so they cannot be judged from here.
+- **P4** (one record, versions, patient decides readers). Partly. lib/documents/read-access.ts checks the grant on every document read. The profile (profile.ts:141-160) merges transcripts across all of the person's clinicians into prose every liveProfile clinician reads, which contradicts the consent wording "Only your therapist can see it" (consent.ts:31). The partner note path ignores revocation (Broken 3).
+- **P5** (crisis path never depends on money). Kept for money: nothing in lib/crisis, lib/checkins or lib/session-finish's risk step reads a payment, price or subscription. But the crisis path itself is weaker than the promise implies: in-app-only delivery (Suspect 3), check-in replies unrouted (Broken 2), suppression misses (Broken 4).
+- **T1** (draft from transcript, says draft until signed). Kept at generation: `status: "draft"` on insert (notes.ts:443), built from segments. The in-person variant is built from an unconsented recording (Broken 1). The note context still receives diagnoses (Stale 5).
+- **T2** (off record: nothing kept, note silent). Partly. The capture layer keeps nothing while muted (recorder.ts:201), and the note prompt only sees what was kept. But the hole is invisible in the data, and provenance never records it (Broken 5). Nothing tells the model not to speculate about a gap. Going off record late can end the session (Suspect 6). The server does not enforce off-record at all: the transcribe route accepts any chunk the browser sends.
+- **T5** (only the chosen clinician, cites source sentence, revoke stops next question). Partly. Citations resolve or are dropped (case-copilot.ts:706, chunk.ts:145). Revocation depends on the caller (Suspect 10). Broken 6 and 7 (oldest sessions, cross-numbered refs) undermine "the sentence it came from".
+- **E1/E2** (sponsor never learns who or when). Kept in slice: lib/partner/employment.ts answers one boolean about enrolment and never usage; the sponsor mail previews carry no person (mail-previews.ts:431-454).
+- **E3-like** for partners: see Suspect 8.
+- **A5** (every read written down). Partly. partner note delivery, who-may-read and writeback are audited (api.ts:147, 324, 404). EHR filing is audited (file-note.ts:264). Staff record export is audited, but the staff member gets a live link (Broken 13).
+- **Task 117** (anonymous sessions and memory): nothing in this slice handles anonymous identity. The only related facts: `generateAndStoreNote` accepts `patientId: null` (guest sessions still get a note and an in-session copilot), and a guest session has no person, so no profile and no copilot thread memory beyond the session (`recordSessionNote` with null patientId, outside slice).
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| lib/ai/assistant.ts | 486 | read |
+| lib/ai/case-copilot.ts | 795 | read |
+| lib/ai/client.ts | 300 | read |
+| lib/ai/copilot.ts | 162 | read |
+| lib/ai/diagnoses.ts | 243 | read |
+| lib/ai/diarise.ts | 502 | read |
+| lib/ai/note-writer.ts | 205 | read |
+| lib/ai/notes.ts | 523 | read |
+| lib/ai/profile.ts | 434 | read |
+| lib/ai/risk.ts | 179 | read |
+| lib/ai/transcribe.ts | 223 | read |
+| lib/ai/translate.ts | 134 | read |
+| lib/assistant/roster.ts | 125 | read |
+| lib/audio/recorder.ts | 355 | read |
+| lib/checkins/policy.ts | 149 | read |
+| lib/checkins/receive.ts | 190 | read |
+| lib/checkins/send.ts | 163 | read |
+| lib/checkins/wording.ts | 98 | read |
+| lib/clinical/context.ts | 177 | read |
+| lib/clinical/currency.ts | 224 | read |
+| lib/consent.ts | 109 | read |
+| lib/crisis/alerts.ts | 511 | read |
+| lib/crisis/context.ts | 327 | read |
+| lib/crisis/fold.ts | 153 | read |
+| lib/crisis/level.ts | 209 | read |
+| lib/crisis/line.ts | 256 | read |
+| lib/diarisation/align.ts | 182 | read |
+| lib/diarisation/provider.ts | 62 | read |
+| lib/diarisation/turns.ts | 197 | read |
+| lib/diarisation/voices.ts | 263 | read |
+| lib/documents/chunk.ts | 172 | read |
+| lib/documents/extract.ts | 132 | read |
+| lib/documents/formats.ts | 143 | read |
+| lib/documents/identity-access.ts | 192 | read |
+| lib/documents/layout.ts | 148 | read |
+| lib/documents/read-access.ts | 92 | read |
+| lib/ehr/fhir.ts | 239 | read |
+| lib/ehr/file-note.ts | 286 | read |
+| lib/ehr/owner.ts | 38 | read |
+| lib/ehr/pending.ts | 103 | read |
+| lib/ehr/policy.ts | 187 | read |
+| lib/ehr/smart.ts | 300 | read |
+| lib/ehr/vendors.ts | 130 | read |
+| lib/ingest/token.ts | 160 | read |
+| lib/integrations/registry.ts | 233 | read |
+| lib/mail-previews.ts | 486 | read |
+| lib/mail.ts | 601 | read |
+| lib/meetings/create.ts | 157 | read |
+| lib/meetings/dispatch.ts | 247 | read |
+| lib/meetings/providers.ts | 90 | read |
+| lib/meetings/recall.ts | 153 | read |
+| lib/notify/email.ts | 34 | read |
+| lib/notify/index.ts | 427 | read |
+| lib/notify/whatsapp.ts | 231 | read |
+| lib/partner/api.ts | 513 | read |
+| lib/partner/billing.ts | 192 | read |
+| lib/partner/consent.ts | 169 | read |
+| lib/partner/copilot.ts | 174 | read |
+| lib/partner/draft.ts | 109 | read |
+| lib/partner/employment.ts | 226 | read |
+| lib/partner/keys.ts | 415 | read |
+| lib/partner/launch.ts | 313 | read |
+| lib/partner/media.ts | 110 | read |
+| lib/partner/notes.ts | 180 | read |
+| lib/partner/platform.ts | 300 | read |
+| lib/partner/route.ts | 92 | read |
+| lib/partner/usage.ts | 283 | read |
+| lib/partner/webhooks.ts | 373 | read |
+| lib/partner/writeback.ts | 154 | read |
+| lib/session-clock.ts | 158 | read |
+| lib/session-finish.ts | 128 | read |
+| lib/sessions/started-notice.ts | 125 | read |
+| lib/transcript/descriptors.ts | 94 | read |
+| lib/video.ts | 223 | read |
+
+74 files, 17,248 lines, all read.
