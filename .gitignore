@@ -91,3 +91,21 @@ docs/walkthrough-2/
 # real-looking surnames, so nothing photographed there is committable:
 # `scripts/demo.ts` says what publishing an operator frame would disclose.
 .probe-shots/
+
+# 🔴 80.6 — EVERY SCREENSHOT IS EVIDENCE, AND EVIDENCE DOES NOT LIVE IN GIT.
+#
+# The walkthrough protocol in docs/TAKEOVER.md asks for a screenshot before and
+# after every click, from every persona, on every scenario. That is tens of
+# images per flow and hundreds per run, and their whole purpose is to be
+# stitched into a demo video per feature and then superseded by the next run.
+#
+# Committing them did exactly what you would expect: this repository carried 35
+# PNGs of two older versions of the product, in `captures/` and `docs/screens/`,
+# showing screens that no longer exist, next to a README describing a walkthrough
+# nobody had run since. A new session reading those would learn the wrong product.
+#
+# So the tools stay, the output is ignored, and a run's evidence is a directory
+# on disk plus the report that references it.
+captures/
+docs/screens/
+evidence/

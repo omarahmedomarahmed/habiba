@@ -647,8 +647,6 @@ wider than the task says.
 - `docs/simulation/` is 17 documents about a run that **never happened**.
   `docs/simulation/12-THE-LOGINS.md` says so at the top. `verify:runbook` keeps their counts
   honest against the code but cannot tell you they describe a plan rather than a history.
-- `docs/walkthrough-archive/` is explicitly marked stale: written for a product with one
-  therapist and one patient in it.
 - `UNWIRED_BASELINE = 18` in `verify:notices`: 18 `notify()` call sites still write nothing a
   patient can find in the app. The number may only fall.
 - Two unions report **no CHECK on this database** in `verify:migrations`:

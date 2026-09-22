@@ -366,9 +366,18 @@ async function main() {
    * `lib/env.ts` is the one live file, and it says the retired subdomain is
    * still attached and still public, which is true and is the point.
    */
+  /*
+   * 🔴 80.6 — `docs/audit-archive/AUDIT-PROMPT.md` CAME OUT OF THIS SET.
+   *
+   * The archive was deleted: nine audit documents and a prompt describing a
+   * product two redesigns ago, which a new session reading its way in would
+   * have taken for the current one. An exemption covering a file that no longer
+   * exists reads as a considered decision and lets the next offender slip under
+   * it unremarked, which is the rule `verify:notices` states about its own
+   * outbound-only list.
+   */
   const ALLOWED = new Set([
     "PLAN.md",
-    "docs/audit-archive/AUDIT-PROMPT.md",
     "lib/env.ts",
     "scripts/verify-sprint31.ts",
     "docs/simulation/DEPLOY.md",

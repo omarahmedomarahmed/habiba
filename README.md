@@ -4,62 +4,81 @@
 not an EHR. The layer that makes every session, held anywhere, part of one patient's
 story that the patient owns and carries.
 
-**One Next.js application. One deployment. One database.**
+**One Next.js application. One deployment. One database.** Launching in Egypt at
+`24therapy.app`.
 
-> **Status: development. Nothing has launched, and nobody real has an account here.**
-> As of 2026-09-19 production holds 9 users (4 administrators, 5 staff), 7 people on the
-> payroll, 2 organisations, 3 sponsors, 1 patient and 1 completed session, all of them
-> planted by `simulate:seed` to give the six month run something to start from. **Every
-> account that has ever existed here was synthetic**, and that is the claim to keep true:
-> the counts move every time the run does.
+> **Status: development. Nothing has launched and nobody real has an account here.**
+> Production carries a twelve-person demonstration cast seeded by `npm run seed:demo`,
+> described in `docs/DEMO-LOGINS.md`. **Every account that has ever existed here was
+> synthetic**, and that is the claim to keep true.
 
 ---
 
-## 🔴 New here? Read these four, in this order, before you write anything
+## 🔴 You are probably a model. Read the row that matches why you are here
 
-This repository is large and most of it is comments. That is deliberate: the
-expensive things here are not hard to code, they are hard to *know*, and every
-one of them has been paid for once already.
+This repository is 280,000 lines across 1,106 files, and most of it is comments. That
+is deliberate: the expensive things here are not hard to code, they are hard to *know*,
+and every one of them has been paid for once already.
 
-| # | Read | Why this one, and why in this position |
-| --- | --- | --- |
-| 1 | `docs/TRAPS.md` | The mistakes that have been made more than once, and the rule that stops each. Ten minutes, and it is the highest return ten minutes in the repository |
-| 2 | `HAZARDS.md` | Traps that have already caused defects in the product itself |
-| 3 | `PLAN.md` §6 | The standing rules. §2 is every concern and its ruling, when you need a decision's reasoning |
-| 4 | `docs/simulation/00-LESSONS.md` | What the last run walked into. Read once; it is the only file allowed to talk about the past |
+**Nothing below is a summary you can trust instead of the source.** Every `.md` here,
+this one included, is a claim somebody made on a date. The code is the evidence.
 
-**Then look at the product rather than reading about it.** Three instruments
-answer three different questions, and all three derive their answers rather
-than being maintained:
+| You are here to | Read, in this order | Do not skip |
+|---|---|---|
+| **Take the product over** | `docs/TAKEOVER-PROMPT.md`, then `docs/TAKEOVER.md` | It says in its own first section why you must not trust it about the code |
+| **Understand what we are and what we promise** | `docs/ORIENTATION.md`, then `docs/VALUE-STATEMENTS.md` | The 25 promises are the product. Everything else serves one of them |
+| **Audit the money or the plan** | `docs/FINANCIAL-PLAN.md`, then `lib/finance/plans.ts` | Every number is labelled MEASURED, DECIDED or GUESS. Only two are measured |
+| **Audit our claims for honesty** | `lib/content/honesty.ts`, `docs/VALUE-STATEMENTS.md`, `lib/content/defaults.ts` | Two claim shapes are refused at save time. Find a third we should refuse |
+| **Attack it** | `docs/TRAPS.md`, `HAZARDS.md`, `lib/security/csp.ts`, `lib/auth/`, `middleware.ts` | Six principals, six cookies. The company portal must never reach a patient name |
+| **Walk it as a person** | `docs/DEMO-LOGINS.md`, then `docs/PROVE-IT.md` | Twelve logins, five seeded positions, one password |
+| **Judge the design** | `docs/THE-REDESIGN.md`, then `/design` on a running app | Task 174 replaces all of it. `docs/TAKEOVER.md` §10 is the brief |
+| **Write or fix a check** | `docs/TRAPS.md`, then `scripts/_gates.ts`, then `scripts/_verify.ts` | Six traps, each enforced. A check with no control is not a check |
+| **Change the database** | `lib/db/schema.ts`, then `drizzle/` in order | The schema file is intent; the 116 migrations are what happened |
+| **Just make a small change** | This file, then `docs/TRAPS.md` | Then run the ONE narrow check for what you touched, not all 35 |
+
+### The four rules that are not obvious
+
+1. **Every check needs a CONTROL.** A rule that has never been watched failing cannot
+   tell "clean" from "blind". `docs/TRAPS.md` T2.
+2. **Strip comments before scanning source.** This codebase documents a defect by
+   naming it, so the sentence explaining a fix matches the pattern hunting for it.
+   Broken five times. T1.
+3. **Never hand-type a list of routes.** Derive it from `npm run inventory`. Broken
+   three times, most recently by a check written the same day this rule was reread. T3.
+4. **No em dash and no en dash, anywhere a person reads**, including a console line.
+   `verify:sprint24` enforces it.
+
+### 🔴 Three things that destroy production
+
+- **`npm run seed:demo` deletes people.** The Neon snapshot `br-nameless-dust-a6ae5e4r`
+  is the only undo.
+- **Nothing reaches production except `npm run on:production -- <command>`** and its
+  allow-list. `.env.local` stays pointed at dev.
+- **This repository is public.** No real secret in any committed file, ever.
+
+### Look at the product rather than reading about it
 
 ```
 npm run inventory     every page and every control, and whether it does anything
 npm run lifecycles    every state a thing can be in, and every way a person gets stuck
-npm run gates         the 34 checks that hold all of it
+npm run logins        who is on the deployed product right now
 ```
 
 ### How to know your work is good
 
 ```
-npm run typecheck && npm run gates
+npx tsc --noEmit -p tsconfig.json     always, it costs seconds
+npm run gates                         TWICE ONLY: when you think you are done, and before a deploy
 ```
 
-`gates` runs 34 checks and prints what each one is *for*, not just its name.
-A red line is a finding, not an inconvenience: three times in one session a
-check here reported green while looking at nothing at all, and every one of
-those was a passing test that meant nothing.
+🔴 **`npm run gates` takes 25 minutes.** It runs 35 gates, one of which runs 76 more
+verifiers and another 33 unit suites. Run the ONE narrow check for what you touched
+instead; `docs/TAKEOVER.md` §7 is the table of which. A session that ran the full pass
+between edits wasted hours.
 
-### The four rules that are not obvious
-
-1. **Every check needs a CONTROL.** A rule that has never been watched failing
-   cannot tell "clean" from "blind". `docs/TRAPS.md` T2.
-2. **Strip comments before scanning source.** This codebase documents a defect
-   by naming it, so the sentence explaining a fix matches the pattern hunting
-   for it. Broken five times. T1.
-3. **Never hand-type a list of routes.** Derive it from `npm run inventory`.
-   Broken twice, and both times the checker reported pages it had never
-   opened. T3.
-4. **No em dash, anywhere a person reads.** `verify:sprint24` enforces it.
+It prints what each gate is *for*, not just its name. A red line is a finding, not an
+inconvenience: three times in one session a check here reported green while looking at
+nothing at all, and every one of those was a passing test that meant nothing.
 
 ---
 
@@ -148,7 +167,7 @@ There are **two ways to pay, and joining is free either way.**
 | **Clinic** | $72 a seat, minimum two | nothing |
 
 A monthly plan is **unlimited**: unlimited sessions, unlimited AI, and no
-per-session fee at all. That is also a safety property and not only a price —
+per-session fee at all. That is also a safety property and not only a price:
 the AI fee is incurred by the therapist and switched on by the **patient**, so an
 unlimited plan removes the last amount that could ride on a consent
 conversation. Pay as you go keeps the split fee, which does the same job from the
@@ -159,7 +178,7 @@ lines. A missing row is a gap; a zero is a fact, and every report keyed on line
 kind keeps working without being told a plan exists.
 
 🔴 **No amount of credit reaches a plan.** A subscription is bought, never
-earned, and `tierForSpend` walks credit tiers only — the one-line filter that
+earned, and `tierForSpend` walks credit tiers only, and the one-line filter that
 stops any therapist who ever topped up a dollar from holding a clinic plan for
 nothing.
 
@@ -265,7 +284,7 @@ lower, and the generated value is a wall clock that lands behind our synthetic o
 
 ## Environment variables
 
-### Required — the app refuses to boot in production without them
+### Required, or the app refuses to boot in production
 
 | Var | What it is |
 |---|---|
@@ -275,7 +294,7 @@ lower, and the generated value is a wall clock that lands behind our synthetic o
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks |
 | `APP_URL` | Public origin, no trailing slash |
 
-### Recommended — the feature degrades, the app still runs
+### Recommended: without them the feature degrades and the app still runs
 
 | Var | What breaks without it |
 |---|---|
@@ -340,8 +359,8 @@ These are the ones that end the company if they break.
    suspended account or an empty pot all leave it untouched.
 3. **A journal may be quoted and never concluded from.** C123's alerting path is
    separate and unchanged: a journal is still scanned and a grant-holder still told.
-4. **A note carries how it was made** — transcript, partial, or the clinician's own
-   memory — on every surface it appears.
+4. **A note carries how it was made**, whether transcript, partial, or the clinician's
+   own memory, on every surface it appears.
 5. **Nothing about any record appears before a handle is proven.** Not a name, not a
    photo, not an initial.
 6. **"24/7" describes the radar being open**, never that anybody will answer. No
@@ -575,7 +594,8 @@ defects that sixty verifiers had missed.
 
 | File | What |
 |---|---|
-| `docs/TAKEOVER.md` | **Start here if you are new to this repository.** External state that is in no file (Neon, Vercel, DNS, the two live launch blockers), the business, which gate to run instead of all 35, and a reading plan. It says in its first section why you must not trust it about the code |
+| `docs/ORIENTATION.md` | **What this platform is, what it promises, and where every answer lives**, written for a model arriving with any goal |
+| `docs/TAKEOVER.md` | **Start here if you are taking the product over.** External state that is in no file (Neon, Vercel, DNS, the two live launch blockers), the business, which gate to run instead of all 35, and a reading plan. It says in its first section why you must not trust it about the code |
 | `docs/TAKEOVER-PROMPT.md` | The one thing to paste into a new session that is taking over |
 | `PLAN.md` | The specification. §2 is every concern and its ruling; §6 is the standing rules |
 | `HAZARDS.md` | Traps that have already caused defects here. Read once before your first commit |
@@ -592,8 +612,7 @@ defects that sixty verifiers had missed.
 | `docs/SIMULATION-PROMPT.md` | **The prompt that starts the simulation.** Keys, the branch, the steps, and what to report back |
 | `docs/simulation/` | The seventeen documents it reads first: what was hit before it, the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, what the run hands the plan, the forty eight money edges, each person's week by week story, who is allowed to read a record, the logins, the audio, the rehearsal and the deploy. `verify:runbook` checks them against the code |
 | `docs/FINANCIAL-PLAN.md` | The operating plan the simulation rehearses. Egypt, the $20k, the offer, and every number labelled measured, decided or guessed |
-| `docs/simulation-run/` | What the simulation produced: frames per person at months 0, 1, 3 and 6, the board every week for six months, the database in words at each checkpoint, the money reconciliation, and the findings |
-| `docs/walkthrough-archive/` | The written record of the two earlier walkthroughs. **Their frames were deleted on 2026-09-14**, and both video scripts are marked stale: they were written for a product that had one therapist and one patient in it |
+| `docs/BRAND.md` | The 24T mark: proportions, the three inks, and where each is used |
 
 ---
 
