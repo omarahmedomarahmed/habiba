@@ -126,3 +126,338 @@
 - Promises: A5 broken for these reads: `app/(admin)/admin/tv/page.tsx` renders transcripts, notes, copilot content, patient names and emails for any person or session named in the query string and calls `audit()` nowhere; only the unlock is recorded. P4 ("the patient decides who may read the history") is not true for our own super_admin while elevated. Contradicts `lib/auth/guard.ts:145-153` ("no screen behind this guard queries a clinical table").
 - Notes: `radarNow` treats `demo` as a decision (always shown), relevant to MAP suspect 2. `clinicianRoster.patientCount` is a caseload count, admin only (C2 is about the clinic portal, so not a breach).
 
+### lib/content/defaults-ar.ts (815 lines)
+- For: shipped Arabic public pages (home, for-patients, features, pricing, contact) and an Arabic competitors table. Legal pages deliberately absent (18-23), fall back to English.
+- Decides: nothing executable; data only. Seeded into `content_pages` by db:seed / ship:content; served only when no row exists or the DB is down (see service.ts).
+- Assumes: `content:sync` compares block TYPES between locales (comment 407-409).
+- Promises: copy for P1 (305 "three taps"), P3/T5 (506 "take it back and it stops that second"), E1/E2 (317, 323), C1/C2 (329 "no caseload count"), C3/C5 (335), T1/T2 (293-299).
+- Notes: 
+  - The Arabic competitors table states DIFFERENT competitor prices from the English one under the same `checkedOn: "2026-09-19"`: TherapyNotes "from $59" (82) vs English "about $69" (defaults.ts:82); Upheal "limited free plan, paid from about $79 a month" (120) vs English "about $1 a session, capped near $69"; Mentalyc "from about $39" (158) vs English "$20 to $70". Same table, two sets of facts about rivals by language.
+  - AR SimplePractice "ours" row types our own prices into copy: "one dollar for the room and three for AI per session" (48). English deliberately writes no figure (C60). If platform_settings has moved, the Arabic page is wrong and nothing reads it.
+  - AR contact `companies.address` for both entities is an operator instruction, "set the registered address from admin panel, content, contact" (794, 802), which would render as the address to a public visitor. English leaves it "" (defaults.ts:992,1002).
+  - AR for-patients promises a licence number of the signer on every note and export (424, 564). defaults.ts:757-760 says the public page does not print a licence number "so this line must not promise one"; the export may, not verifiable here.
+  - AR features page has 3 blocks (hero, showcase, features) where English has 7 (faq, second showcase, cta, crisis missing). AR contact block order differs from English (two extra prose blocks, no features). If `content:sync` compares types, these two pages mismatch.
+  - AR adds claims English does not make: difference refunded as credit when the replacement is cheaper (556); AI fees added only when the patient turns AI on (700).
+  - No English pasted as Arabic found; product names and Latin brand kept by design. Arabic is Egyptian colloquial in demos, MSA here.
+
+### lib/content/defaults.ts (1282 lines)
+- For: shipped English public pages: home, for-patients, features, pricing, contact, privacy, terms, hipaa (Compliance), security; shared COMPETITORS block; `findDefaultPage`.
+- Decides: nothing executable. Used as CMS seed and as fallback when DB unavailable (service.ts 218) or when no row exists for a slug.
+- Assumes: authored rows win (H28); pricing figures come from `platform_settings` via the `pricing` block.
+- Promises: this is where several promises are "said": P1 (343), P3 (613-615), P4 (507-508), T1/T2 (331, 337), T5 (608-609), C1/C2 (367), C3/C5 (373), E1/E2 (355, 361), A5 (1237-1238 "A role is a list, not a rank"; 1232-1233 "Every read is written down").
+- Notes (claims contradicted by code or by other pages, as shipped defaults; published rows may differ):
+  - Features FAQ "Is a BAA included? Yes, on every plan" (790-791) and privacy "Each of these is a subprocessor covered by a business associate agreement" (1074) contradict the hipaa page "none of them is signed yet ... do not put protected health information into this product" (1178-1183).
+  - hipaa "sessions expire after 30 minutes of inactivity and 8 hours absolute" (1193) is false for clinicians and staff: `lib/auth/session.ts:34,36` is 2 hours idle, 12 hours absolute (30/8 is the clinic manager's, `lib/clinic-auth/session.ts:62-63`).
+  - hipaa "Clinicians cannot delete a patient or a session" (1193) vs privacy "Clinicians can export or delete a patient record ... Deletion removes the chart, its sessions, transcripts and notes" (1084). The two pages contradict each other.
+  - security "Every read is written down" (1232-1233) and hipaa "Every read and write of clinical data is recorded" (1193): the elevated console reads transcripts, notes and copilot content without writing an audit row (see reads.ts). "every clinical query is scoped to one practice" (1238, 1256): lib/console/reads.ts is unscoped by design.
+  - for-patients "Take it back and it stops that second" (609) vs `lib/access/state.ts:167-176` revoked keeps `copilot: true`.
+  - for-patients "Nothing is deleted and nothing expires" (533) vs MAP unclaimed 6 (retention cron) and grants that expire.
+  - features FAQ "For in-person sessions they do not touch the software at all" (775): so in-person recording consent cannot come from the patient's own device; relevant to task 123. hipaa "Patients are asked to agree to being recorded before they enter the room" (1193) cannot be true of an in-person session where the patient never touches the software.
+  - home radar card "Pick one, say what to call you, and you are in a session" (282) with A1 "nothing is granted before a person confirms": for a paid session on the Egyptian manual-transfer rail these cannot both hold. P1 is only three taps for a free or card session.
+  - "Your first session is free" (417, 821, 834, 891): a therapist-side claim; check lib/billing.
+  - contact hours "09:00-18:00 UTC" and "10:00-19:00 Cairo" (995, 1004).
+  - security page does not mention the partner principal or clinic staff.
+
+### lib/content/demo.ts (570 lines)
+- For: the words inside the live marketing demo components (transcript, brief, homework, observations, summary versions, journal, SOAP note, copilot prompts and asks with citations, risk phrase), English and Arabic floors, overridable by a `content_pages` row with slug `demo`.
+- Decides: `getDemoContent` (443-480) exact locale row, then English row, then the language floor; any error returns the floor. `fromBlocks` (489-570) maps CMS blocks by heading; note, copilot, copilotAsks, riskIndicator and patientSessions are never CMS-editable (529-550); summary version numbers positional (555-561); a transcript line is "patient" only if the item title contains "patient" (515-517).
+- Assumes: `components/demo/fixtures.ts` DEMO_NOTE/DEMO_TRANSCRIPT.
+- Promises: P3/T5 demonstration (citations on every ask, 75-79); nothing clinical read.
+- Notes: comment 231 says "There is no `demo` row in `content_pages` and there never has been" (a state claim, undated). If an Arabic `demo` row is ever missing but an English one exists, Arabic readers get the English CMS demo rather than the Arabic floor (472), the opposite of 455's intent. Arabic demo dates use Eastern Arabic digits (272 "١٢ مارس") while defaults-ar.ts:15-16 says Western digits are kept deliberately. Arabic demo mixes the patient's grammatical gender (masculine SOAP "يفيد المريض" 342, feminine homework 283, masculine patientSteps 369-371). Harmless demo copy.
+
+### lib/content/honesty.ts (130 lines)
+- For: refusing two claims in CMS content: "paid sessions cover our fee" and earnings forecasts.
+- Decides: `FEE_CLAIMS` five regexes (46-52), `EARNINGS_CLAIMS` seven regexes (64-72), `readableStrings` skips type/icon/demo/slug/backgroundImage/ctaHref (87), `honestyProblems` first hit per rule (96-116), `honestyMessage` (126-130).
+- Assumes: callers `app/(admin)/admin/actions.ts:110` (savePage) and `scripts/verify-sprint28.ts:44,72` (published rows), `scripts/verify-prove.ts:179`.
+- Promises: T3 (netting is the true version). The two forbidden claims hold for ENGLISH only.
+- Notes: every pattern is English. An Arabic row (`ar` locale) is scanned with English regexes, so an Arabic fee or earnings claim passes both savePage and verify:sprint28. Money pattern `(make|earn)\s+[$£€]\s?\d` (68) has no EGP/جنيه/LE form, so "earn EGP 20,000 a month" in English also passes, in a product launching in Egypt. The i18n dictionary (admin-published message overrides, see lib/i18n) is not scanned by this at all; only `content_pages` blocks are. What third claim should be refused: a compliance claim, "BAA included / covered by a business associate agreement / HIPAA compliant", which the shipped defaults already make (defaults.ts:791, 1074) while the hipaa page says none is signed (defaults.ts:1178-1183). Second candidate: any response-time promise attached to "24/7" or to the crisis path (MAP invariants list "24/7 never a response-time promise" as load-bearing, and nothing in this file enforces it).
+
+### lib/content/registry.ts (64 lines)
+- For: shipped content per locale (`CONTENT_DEFAULTS` en + ar), `localesWithDefaults`, `defaultsFor` (no English substitution), `localesForSlug`.
+- Decides: legal pages are English-only by absence (55-58).
+- Assumes: `LOCALES` in lib/i18n/config.
+- Promises: none.
+- Notes: comment 23-27 says `getPublicPage` falls back to English, true; but when the DB is down `readPage` falls back to `findDefaultPage` which reads English `DEFAULT_PAGES` only (service.ts:218), never `DEFAULT_PAGES_AR`, so the Arabic defaults are only a seed, never a runtime fallback.
+
+### lib/content/sanitise.ts (226 lines)
+- For: whitelisting CMS block shapes before `savePage` writes them (moved out of a "use server" file).
+- Decides: `RULES` (82-131) keyed by every ContentBlock type, asserted equal to the schema union by verify:sprint17 via `SANITISER_BLOCK_TYPES` (139). Strings capped 8000 (top level) / 4000 (items); `backgroundImage` through `safeImageUrl`; unknown type or missing items array rejects the whole save (164, 192).
+- Assumes: renderer escapes text (React).
+- Promises: none.
+- Notes: `ctaHref`, panel `href`, competitor and vendor `logo` pass as unchecked strings (84, 90, 121, 127). React escapes attribute values, and React 19 blocks `javascript:` hrefs, so this is admin-to-visitor only; `logo` is fine in an `<img src>` but not if ever used in CSS `url()`. Lines 220-226 are a dangling docstring "Discount an issued invoice ... A full discount settles the invoice" with no function under it (stale, moved code left its comment).
+
+### lib/content/service.ts (407 lines)
+- For: the CMS read path: `getPublicPage`, `getPublicNav`, `getFooterLinks`, `publishedSlugs`, admin `listAllPages`, `getPageById`; `unstable_cache` with tag `cms`, 1800 s TTL, `CACHE_VERSION = "v4"`.
+- Decides: defaults vs published rows (163-227): requested-locale published row, else English row; a found draft returns null (page 404s); only when NO row exists for the slug, or the DB is unavailable, is `findDefaultPage` (English) served. So authored rows win forever (H28) and the Arabic defaults are never a runtime fallback. `readNav` excludes `-x-staging` locales (262); `readFooter` does not (318) and relies on staging rows having no nav_label. `publishedSlugs` en only.
+- Assumes: `revalidateTag(CMS_TAG)` on every publish.
+- Promises: none directly; this is how every "where we say it" citation reaches a visitor.
+- Notes: a published English page whose Arabic row is a DRAFT serves English to Arabic readers (197-201), fine. An Arabic reader of a slug with no row at all and DB up gets English defaults. Cache TTL rationale (86-121) is a dated measurement, fine.
+
+### lib/content/url.ts (31 lines)
+- For: `safeImageUrl`: same-origin paths or absolute http(s), rejecting quotes, parens, backslash, whitespace, angle brackets.
+- Decides: as above; applied at save and render.
+- Assumes: CSP img-src allows the resulting host (lib/security/csp.ts).
+- Promises: none.
+- Notes: http (not only https) is accepted (26), which a production CSP may block as mixed content; harmless.
+
+### lib/crypto/secretbox.ts (135 lines)
+- For: the one reversible primitive: AES-256-GCM seal/open for OAuth refresh tokens (Zoom, EHR), key from `TOKEN_ENCRYPTION_KEY` read live on every call.
+- Decides: key must be exactly 32 bytes base64 (71-75); `encryptSecret` throws with no key (fails closed, 92-96); format `v1.iv.tag.body` base64url; `decryptSecret` throws on any mismatch (119-135). `secretsConfigured` (80-88).
+- Assumes: key rotation is not supported (single VERSION, no key id): rotating the key makes every stored token undecryptable.
+- Promises: none of the 25.
+- Notes: sound. No AAD binding the ciphertext to its row, so a sealed token could be copied between rows by a DB writer; low risk.
+
+### lib/env.ts (397 lines)
+- For: boot guard and the typed `env` object; `features` derived flags; `SIMULATION_RUNNING`.
+- Decides: `REQUIRED_IN_PRODUCTION` DATABASE_URL, OPENAI_API_KEY, STRIPE_WEBHOOK_SECRET, APP_URL, CRON_SECRET, BLOB_READ_WRITE_TOKEN (31-76); RECOMMENDED DAILY_API_KEY, STRIPE_SECRET_KEY, RESEND_API_KEY, EMAIL_FROM (79-84). Branch/database cross-check: simulation branch must use endpoint `ep-empty-queen-a62vlkkp`, and no other branch may (195-220). AUTH_SECRET non-placeholder and >= 32 chars in production (224-236). `assertEnv` skipped during `next build` (251), runs at module load (265). `SIMULATION_RUNNING = process.env.SIMULATION_RUNNING === "1"` (159). Dev fallbacks for DATABASE_URL and AUTH_SECRET (291, 296).
+- Assumes: `VERCEL_GIT_COMMIT_REF` present on Vercel; `inspectEnv` exercised by tests/safety.test.ts.
+- Promises: none directly; guards P5-adjacent crons by requiring CRON_SECRET (57).
+- Notes: comment 222 says AUTH_SECRET "is checked in every environment", but the check sits inside `if (isProd)` (225); stale comment. AUTH_SECRET is not a session key (sessions are random tokens) but it salts sponsor eligibility hashes (`lib/data/enrolment.ts:100,128`), the sponsor domain mailbox HMAC (`lib/data/sponsor-domains.ts:187`) and the rate-limit bucket keys (`lib/rate-limit.ts:47`); rotating it silently breaks enrolment matching, nothing here says so. CRON_SECRET has no strength check (any non-empty value boots). The simulation cross-check reads only DATABASE_URL; `DATABASE_URL_DIRECT` and any regional URLs are not checked. No secret values in this file other than dev placeholders (296) and a Neon endpoint id (162), which is not a credential.
+
+### lib/feedback-options.ts (38 lines)
+- For: the patient rating tags (therapist and service) and RTL language codes.
+- Decides: THERAPIST_TAGS (14-25), SERVICE_TAGS (27-35), RTL_LANGUAGE_CODES (38).
+- Assumes: rendered through i18n somewhere, or English only (these are English literals; if shown raw to an Arabic reader they are English pasted into an Arabic screen, not verifiable from here).
+- Promises: none.
+- Notes: none.
+
+### lib/geo.ts (298 lines)
+- For: coarse radar geography: land mask, equirectangular projection, country table, flags, ICU country names, radar language and specialty allowlists.
+- Decides: `countryName` uses `Intl.DisplayNames` with explicit locale (ar-AE / en-GB) (150-171); `countryPoint` uppercases (202-206), unknown codes land at (-30, 20) in the Atlantic. RADAR_LANGUAGES 25 (209-235), RADAR_SPECIALTIES 18 incl. "Suicidal thoughts", "Self-harm" (279-298).
+- Assumes: `lib/countries.json`.
+- Promises: P1 (radar filters).
+- Notes: comment 240-244 says "where no single flag is defensible the entry is a neutral globe", yet English gets the US flag and Arabic the Egyptian flag (247, 254). Specialty and language labels are English literals (i18n handled elsewhere or not).
+
+### lib/geocode.ts (144 lines)
+- For: server-side Nominatim geocoding of a clinician's typed address, coordinate paste parser, Google Maps directions link.
+- Decides: `geocode` 10 s timeout, 5 results, User-Agent identifies us (37-99); `parseCoordinates` (109-119); `directionsUrl` prefers coordinates (128-144).
+- Assumes: caller confirms the hit with the clinician before publishing (17-21).
+- Promises: none.
+- Notes: sends the clinician's practice address to OpenStreetMap (a third party) on save; no subprocessor list mentions it (defaults.ts hipaa page lists Vercel, Neon, OpenAI, Daily, Stripe, Resend). geo.ts:8-11 says "a clinician's precise location is not ours to publish", while this publishes an in-person address's exact coordinates by design (in-person is opt-in).
+
+### lib/globe.ts (137 lines)
+- For: orthographic projection maths for the radar globe (project, visible, ringPath, shortestTurn, ease, zoomForBounds, spread).
+- Decides: pure maths.
+- Assumes: nothing.
+- Promises: none.
+- Notes: none.
+
+### lib/i18n/authoring.ts (413 lines)
+- For: admin writes to interface strings and languages: saveString (draft by default), publishString (one at a time), clearString (delete row), saveLanguage (completeness gate), draftTranslations (machine drafts), approveDrafts, editorRows.
+- Decides: unknown key refused (70-72), empty value refused (73-75); every write audited (`string.saved`, `string.published`, `string.cleared`, `language.saved`, `strings.machine_drafted`, `strings.approved`); a language goes public only at 100% (216-223); machine drafts never overwrite a published row (`setWhere status='draft'`, 328); `approveDrafts` refuses a batch containing any safety key (359-365) but a batch of exactly one safety key passes.
+- Assumes: callers are admin actions that already checked the role (this file takes an `Actor` and does not check it); `lib/ai/translate`.
+- Promises: A5 (audited writes) kept here. P5 depends on crisis copy not being corrupted: see strings.ts on the safety prefix list.
+- Notes: `actor as never` (101, 149, 177, 250, 332, 380) defeats the type check on the audit actor. `saveString` accepts an explicit `status: "published"` (66), so a caller can publish a human edit of a safety string in one step; whether an admin action passes it is outside this slice. Neither CMS honesty rules nor any claim check runs on these overrides: an admin override can reintroduce "HIPAA BAA included" or an earnings forecast in either language and nothing refuses it.
+
+### lib/i18n/client.tsx (106 lines)
+- For: client `I18nProvider`, `useT`, `useLocale`; layers published overrides (only the edited keys) over the bundled dictionary.
+- Decides: resolution override, then dictionary, then English (80); outside a provider, English (96-102).
+- Assumes: root layout passes `overridesFor(locale)`.
+- Promises: none.
+- Notes: fine.
+
+### lib/i18n/config.ts (117 lines)
+- For: `LOCALES = ["en","ar"]`, cookie `24t_locale`, RTL, Intl tags (`ar-AE-u-nu-latn`, en-US money, en-GB dates), list separator.
+- Decides: Western digits in Arabic through Intl (52-63).
+- Assumes: nothing.
+- Promises: none.
+- Notes: the Western-digits rule is applied by Intl only; several Arabic dictionary strings hard-code Eastern Arabic digits (messages.ts 4096 "٢٤:١٠", 4103 "١٨", 4218 "[ ٠٧ ]", 4468 "٢٤ ساعة", 4817 "٣٠ دقيقة"), and demo.ts observations do the same. Cosmetic, but it contradicts the stated rule (52-58) for times and counts.
+
+### lib/i18n/messages.ts (7055 lines)
+- For: the complete English (`en`, 22-3911) and Arabic (`ar`, 3924-7053) dictionaries; `MessageKey`; `DICTIONARIES`.
+- Decides: `ar: Record<MessageKey, string>` (3924) makes a missing Arabic key a type error. Read in full: no key found missing in Arabic (type-enforced), and no English sentence pasted as an Arabic value. Latin-only Arabic values are only brand or product names (Google Meet, Zoom, Microsoft Teams, 4927-4929; "you@example.com" 4728; "ahmed@example.com" 6078).
+- Assumes: `lib/i18n/strings.ts` overrides layered on top.
+- Promises: this file carries the words for many promises. Contradictions between keys and with code, compactly:
+  - Recording consent, three incompatible stories on one surface: "jconsent.changeAnyTime" "You can change these at any time during the session" (1151) and "jconsent.cannotUndo" "Recording cannot stop part-way. Ask your therapist to end the session" (1152) on the same consent screen; "consent.point.changeMind" "Ask your therapist to stop at any point" (99); "portal.new.consentStop" "Can stop it at any point in the session" (2014) and "troom.offRecordPatient" "Stop recording" (3877, the patient's own button since 48.10). `jconsent.cannotUndo` is stale. Arabic mirrors all of them (4783-4784, 3971, 5440, 7041).
+  - In-person consent: "ft.also3" "In-person sessions, recorded on one device with consent taken first" (448) and "portal.new.consentAsked" "Is asked before anything is captured" (2013) vs "portal.dash.startBlurb" "In person or video, recording begins straight away" (1290), "tnew.inPersonBody" "Record from this device" (2755), "tnew.consent"/"troom.consentFirst" "Confirm your patient has consented" (2780, 3451): in person the only consent is the clinician's own attestation. Relevant to task 123.
+  - Consent to AI and consent to recording are the same act in copy: "tplan.confirmDownMeter" "The AI fee comes back, charged only when a patient agrees to be recorded" (3739), "note.origin.patientTranscript" "You turned the AI on for this session" (3845). Settles MAP contradiction 3 at the copy level: one flag.
+  - C2 is contradicted by the product's own disclosed design: "clinic.join.sees.names" "Each patient's first name and last initial" (2105), "pclinic.theySee" "Your name, to them:" (2037) with "the day and time of each appointment" (2039), "clinic.scheduleBody" "a name and a time, because you pay for the hour" (1739), "auth.clinic.p3" "See the rota and move a patient between your own clinicians" (491). The clinic portal shows patient names by design, disclosed to both patient and clinician. C2 as written in VALUE-STATEMENTS is false by intent, and README's "names and appointment times" is the truth. Also two different name formats promised: "first name and last initial" (clinician told) vs "Your name" (patient told).
+  - Residency: "residency.home" "In {country}, where it belongs. Nothing crosses a border." (691, Arabic 4414) vs "marketing.clinics.a4" "On infrastructure in the United States. Egyptian data staying in Egypt is designed and not live." (2004) and lib/audit.ts pinned to the default region. The patient is told something the clinic page denies.
+  - "marketing.clinics.a1" "Who can see a patient's chart? The clinician treating them. Not ... us, and there is no administrative override." (1998) vs lib/console/reads.ts + `/admin/tv` (super_admin reads transcripts, notes, copilot text, unaudited).
+  - "pricing.feature.baa" "HIPAA BAA included" (185, Arabic 4035) vs defaults.ts hipaa page "none of them is signed yet". A dictionary string, so honesty.ts and savePage never see it.
+  - Stripe copy on an Egyptian manual rail: "join.privateNotePaid" (80), "pbook.noAccount" "Stripe takes the payment" (1237), "pay.stripeNote" (1951), "tpay.*" (2661-2683) coexist with "tpay.egRail" "We collect by bank transfer here and pay you by hand" (2686) and "transfer.*" (1842-1861). Which renders depends on region logic outside this slice.
+  - P1 vs A1: "crisis.noAccountLine" and "pat.noAccount" "No account, no card, no form. A first name and you are in." (215, 3285) cannot be true for a paid radar session on the manual transfer rail, where A1 says nothing starts before an operator confirms.
+  - E1/E2 edge: "dpo.neverWhoWent" "You see the therapists you paid and what you paid them" (3399) and "auth.company.p2" "the take-up" (485): the sponsor sees clinician names per spend. With few enrolled staff and a known therapist, that is who went. "sponsor.neverIndividual" "Any individual, ever" (1473) sits beside "sponsor.roster" "Who is on your list" and "benefit.theySeeName" "That you are on the list" (1432, 1389): the sponsor sees named enrolees. Consistent with E1 (who used it vs who is enrolled) only if the roster never marks use.
+  - Copilot allowance, two models: "portal.copilot.credits" "Each session earns {count} copilot questions ... rolling over for {months} months" (2576) vs "tcop.exhaustedBody" "Pay as you go includes {limit} copilot messages per patient per month" (2939). One is stale.
+  - Refunds on a manual rail: "tshow.refundedBody" "The full amount is on its way back, including our fee" (3076) and "prating.neverJoined" (1210). Who sends a bank-transfer refund, and when, is not in this slice.
+  - "pexport.onItsWay" "Nobody here read it" (1023) and "contact.kept" are fine; "dfl.consentWhy3" "Every read is written into an audit log you can ask for" (3333) conflicts with the unaudited console reads.
+  - "devs.promise4Body" "A read of a record appears in the patient's own access log ... naming your platform" (2236): lib/audit.ts has no partner actor slot; check lib/partner.
+- Arabic translation defects (not missing keys):
+  - "portal.book.body" Arabic says the opposite of English: "على ملفك وخارج الرادار" = "on your profile and OFF the radar" (5713) vs "on your profile and the radar" (2379).
+  - "portal.nav.hintRadar" "اتّصل واحجز" ("call and book", 6054) and "portal.dash.radarOffBody" "اتّصل ..." (5868) render "go online" as "call".
+  - Register switches between MSA and Egyptian colloquial inside one screen: pop.cancel* (5335-5338), tpay.eg* (5996-6000), tattr.* (6546-6552), tplan.confirm* (6965-6973), pinv.sent (5810) are colloquial while their neighbours are MSA; the file header (17) says MSA for a Gulf reader.
+  - "apartner.neverMints" Arabic (5147) carries an extra sentence not in English (2635), about employment keys being identity queries "aimed at our patients". Divergent content, not an error of translation only.
+- Notes: comment 1490 says "C227 removed the roster" while `sponsor.roster*` keys remain (1432-1433, 1565-1566); either the keys are dead or the roster came back.
+
+### lib/i18n/paths.ts (158 lines)
+- For: URL-prefixed Arabic for public pages (`/ar/...` rewritten, header `x-locale`), `splitLocale`, `localisedPath`, `isLocalisable` (PUBLIC_PREFIXES), `alternatesFor`.
+- Decides: only public marketing paths get a prefix (83-126); private areas never get a second URL (76-81).
+- Assumes: middleware rewrites and deletes any client `x-locale` header (server.ts 56-63).
+- Promises: none.
+- Notes: `alternatesFor` builds hreflang for every locale regardless of `isLocalisable` (144-158), the exact defect the 97-110 comment describes; it is safe only while every caller is a localisable page.
+
+### lib/i18n/server.ts (131 lines)
+- For: `getLocale` (URL header, cookie, Accept-Language, English), `format`, `translator`, `getI18n` (overrides via stringsFor, falls back to dictionary).
+- Decides: order as above (40-77); Accept-Language only detects Arabic (74).
+- Assumes: middleware strips client-sent `x-locale`.
+- Promises: none.
+- Notes: comment 28-39 says a language turned off keeps serving readers with that cookie; `getLocale` does not consult `publicLanguages` at all, so this is true trivially (and a disabled shipped locale would still be served to anyone with the URL prefix).
+
+### lib/i18n/strings.ts (304 lines)
+- For: runtime override layer (`ui_strings`), safety prefixes, completeness, languages list.
+- Decides: `SAFETY_PREFIXES = ["crisis.", "consent.", "recording.", "risk."]` (57); `stringsFor` override, dictionary, English, logs untranslated (156-183); `languages()` English can never be turned off (232); `completeness` counts machine drafts as missing (280-304).
+- Assumes: `revalidateTag("ui-strings")` on writes.
+- Promises: P5 (crisis copy protected from bulk machine publication) partly.
+- Notes: the safety prefix list misses most consent, recording and emergency strings in the dictionary: `jconsent.*` (the actual join consent screen, 1144-1152), `portal.new.consent*` (2012-2016), `proom.recording*` (3891-3892), `room.recording`/`room.knowRecording` (118, 127), `troom.consentFirst`, `troom.offRecordPatient*`, `tnew.consent`, `feedback.emergency` (149), `urgent.footer` (508), `radar.appearWhenOnline`/`radar.nobodyYetBody` (emergency number sentences, 306, 1174), `error.body` ("The SOS button still works", 730), `tshow.*` (refund). A machine translation of any of these can be bulk-approved by `approveDrafts`. `recording.` matches no key in messages.ts at all (no key starts with it): an exemption covering nothing.
+
+### lib/lifecycle/machines.ts (515 lines)
+- For: declared state machines (states, kind, exit, promise, transitions with actor), anchored to schema constants, checked by `scripts/verify-machines.ts`.
+- Decides, every state and way out:
+  - payout (payout_requests, 151-177): requested (working, 3 days) -> approved | rejected (staff); approved (2 days) -> sent (staff); sent (5 days) -> confirmed (clinician); confirmed success; rejected dead-end "a corrected request can be made". NO arrow out of `sent` for a transfer that bounces or never lands; `twd.fullNameHint` itself says a mismatched name "bounces". A bounced payout sits in `sent` forever with only a promise. Comment 130-149 specifies a clinic-endorsement state that does not exist.
+  - session (183-208): scheduled -> in_progress (clinician), -> cancelled ("either side cancels" but `by: "patient"` only); in_progress -> completed (clinician), -> cancelled (time, abandoned). No no-show / reassignment path (the product has one: `tshow.*` refund or reassign), no clinician-cancel actor, no completed -> refunded.
+  - invoice (222-253): due -> paid (clinician), failed (system), waived, void (staff), included (system); failed -> paid | void. `due` promises "the allowance before service is interrupted" but no time arrow moves it; payer is always "clinician" although clinics pay invoices too.
+  - payment (payments, 259-283): pending -> paid | failed (staff, "an operator confirms the transfer"); paid -> refunded (staff). failed dead-end "another attempt can be made".
+  - verification (289-310): draft -> submitted (clinician) -> approved | rejected (staff); rejected -> submitted. `approved` is terminal: no revocation, suspension or licence expiry arrow, so a clinician found to be unlicensed has no modelled way off `approved`.
+  - claim (patient_claims, 316-348): pending -> verified (patient), rejected (clinician), expired (time), locked (system); locked -> pending (time).
+  - grant (350-374): entity "benefit_grants", anchor GRANT_STATUSES, all transitions by "company" ("the employer approves/refuses/ends cover"). There is no `benefit_grants` table anywhere in lib (grep: only this file); `GRANT_STATUSES` (schema.ts:4299) belongs to `historyGrants`, the patient's grant of record access to a clinician. So the machine that should describe P4/T5 consent (patient grants, clinician asks, patient revokes, time expires it via `expiresAt`) describes an employer workflow that does not exist, and the verifier passes because only the state names are anchored.
+  - sponsor (380-419): held -> active (staff); active -> suspended (staff) -> active (staff); active -> closed (company). `held` has no way out except approval: an applicant we decline, or never call, stays `held` forever with promise "until we have called them" (no length). No suspended -> closed.
+  - renewal (subscription_renewals, 421-446): due -> paid (clinician), lapsed (time), void (staff); lapsed -> paid. `lapsed` is blocked with no promise.
+  - presence (therapist_radar, 452-476): offline <-> online (clinician), online -> pending (patient), pending -> in_session (clinician) | online (time), in_session -> online (clinician), online -> offline (time). No admin suspension state although `suspendedUntil` exists (torb.suspended, reads.ts 78).
+  - slot (availability_slots, 478-501): open -> held (patient) -> booked (patient) | open (time); open <-> blocked (clinician); booked -> open (patient cancels). No clinician cancel of a booked hour (`tav.cancelAppointment` exists in the dictionary).
+- Assumes: verify:machines checks anchors and exits.
+- Promises: A1/A3/A4 depend on the manual transfer lifecycle, which is NOT declared: `manual_payments` with `MANUAL_PAYMENT_STATES` awaiting_proof, submitted, confirmed, rejected (schema.ts:8846-8851) has no machine, so "every stopped person has a way out" is not checked for the Egyptian rail (task 124, rejected transfer dead end). Also undeclared: enrolments (active, paused, removed), clinic state (organizations.clinicState held/active/...), record-access grants (see above), support tickets, withdrawals on the Egyptian rail.
+- Notes: kinds and exits are prose; nothing verifies an exit is a real button.
+
+### lib/logger.ts (57 lines)
+- For: structured console logging with UUIDs truncated to 8 chars; `ref`, `safeErrorMessage`.
+- Decides: messages and field values scrubbed of full UUIDs only (27-29); debug suppressed in production.
+- Assumes: callers never pass names, emails, transcript text as fields.
+- Promises: none.
+- Notes: only UUIDs are scrubbed; an email, phone or name passed as a field value is logged verbatim. `lib/i18n/strings.ts:91` logs `String(error)` of a DB error, which can contain a query with values.
+
+### lib/marketing/fixtures.ts (272 lines)
+- For: synthetic constants for marketing demos (spend curve, pot, clinic seats, note, patient brief, clinic team, clinic week, clinic bill, company paid, company code, radar demo clinicians, patient bills).
+- Decides: no imports, no queries (21-29).
+- Assumes: components render them.
+- Promises: C2: `CLINIC_WEEK` (158-171) puts patient names ("Mariam A.", "Omar S.") on the marketing demo of the clinic portal, i.e. the public site itself shows the clinic seeing patient names. E1: `COMPANY_PAID` (206-211) shows the sponsor which therapists were paid and how much.
+- Notes: comment 199-204 says `lib/data/sponsors.ts:96` "holds no therapist and no count" and in the same breath that "A company sees what it paid a clinician"; the roster select at `lib/data/sponsors.ts:95-107` in fact returns enrolees' first and last names to the sponsor. RADAR_DEMO prices 50 minutes (263-265) while the product prices 30 minutes (`radar.fromPrice` "for 30 minutes", `tpay.rateLabel`).
+
+### lib/observability/errors.ts (195 lines)
+- For: our own error log (`error_events`), path and text scrubbing, FNV-1a fingerprint, 10-minute dedupe, 30-day retention.
+- Decides: `scrubPath` replaces uuids, 20+ char tokens, numbers (45-59); `scrubText` removes emails and uuids only (65-70); never throws (155-163).
+- Assumes: `/admin/errors` guarded by the admin layout.
+- Promises: none.
+- Notes: comment 26-27 says errors live "under the same access control and the same retention rules as the record it came from"; they are readable by any back-office role on /admin/errors and kept 30 days, not the record's rules. A stack or message containing a patient's words or name (not email/uuid) is stored verbatim up to 4000 chars.
+
+### lib/partner-auth/guard.ts (44 lines)
+- For: partner (EHR / integrator developer) portal guards.
+- Decides: `requirePartner` redirect to PARTNER_SIGN_IN; `requirePartnerAdmin` non-admin -> redirect /partner (40-44).
+- Assumes: data layer; `authenticateKey` for API keys (not here).
+- Promises: none of the 25.
+- Notes: refusal not audited.
+
+### lib/partner-auth/session.ts (144 lines)
+- For: partner developer session: cookie `PARTNER_COOKIE`, table `partner_auth_sessions`, `PartnerActor` (no organisation id of any spelling).
+- Decides: idle 30 min, absolute 8h (54-55); all conditions in WHERE incl. `partners.state = 'active'` (111-121); lastSeen written every request (126-129).
+- Assumes: API keys authenticate separately and read the same partner state.
+- Promises: none.
+- Notes: a `held` partner cannot sign in (119), yet `dev.apply.sentBody` tells an applicant "Your account is open and has no keys yet" (messages.ts 2172). No audit slot for partner users in lib/audit.ts, so nothing a partner developer does in the portal can be attributed in audit_log.
+
+### lib/patient-auth/actions.ts (291 lines)
+- For: patient sign-up, sign-in (password, either handle), sign-out. Cookie and table via session.ts.
+- Decides: phone required, E.164 via `toE164` (78-87); password optional, shared policy if given (109-112); signup limited 5 per hour per connection (116); existing email or phone refused (128-151); new `people` row always, never auto-linked (153-181); after signup, redirect to the invite page if a token rode along, else /patient/claim (206-207); sign-in limited 10 per 15 min per connection (232), one failure message (282).
+- Assumes: `patient_accounts` unique handles; `lib/data/people.normaliseEmail`.
+- Promises: P2/P4 indirectly (claim flow entry).
+- Notes: the timing equaliser does not equalise. `INVALID` (277) is a bcrypt-shaped string; `verifyPassword` returns false immediately for anything not starting `scrypt$` (lib/auth/password.ts:29-30) without running scrypt. So "no account" and "account with no password" answer in microseconds while an account with a password costs a full scrypt: the response time tells anybody with a phone list which numbers hold a password-protected patient account, the exact disclosure 266-276 says it prevents. Sign-up enumeration: an existing phone or email gets "We could not create that account. Try signing in instead." (150), which says in words that the handle is registered; comment 143-148 claims it matches the wrong-password wording, it does not. Patient sign-in and sign-up write no audit row.
+
+### lib/patient-auth/code-signin.ts (228 lines)
+- For: passwordless patient sign-in: six-digit code to the handle typed.
+- Decides: code 6 digits CSPRNG, sha256 stored, 15 min, purpose `handle_verify` (63-68, 120-126); sent only to the handle typed (129-141); per-connection limits 5 requests / 10 confirms per 15 min (105, 158); wrong codes counted, token burned past RESET_CODE_ATTEMPTS (186-200); success marks the channel's handle verified and signs in (207-224).
+- Assumes: `notify`; DB CHECK bounds attempts.
+- Promises: none.
+- Notes: the request path does a DB insert and a notify only when the account exists (116-144), so "every path returns the same sentence" (46-49) is true of the words and false of the timing. Shares `purpose: "handle_verify"` with handle.ts, so a code issued by a signed-in patient's handle verification can be used here to sign in and vice versa (same table, same purpose, latest token wins); harmless because both go to the account's own handle, but it means requesting a sign-in code silently invalidates an in-flight verification code.
+
+### lib/patient-auth/guard.ts (32 lines)
+- For: `requirePatient` (redirect /patient/login), `optionalPatient`.
+- Decides: as named.
+- Assumes: data layer scopes by personId and grants.
+- Promises: none.
+- Notes: none.
+
+### lib/patient-auth/handle.ts (202 lines)
+- For: proving a signed-in patient's handle before the claim screen reveals whether any clinician holds a record for them (§6, C121).
+- Decides: `requestHandleCode` (77-127) chooses `channel = account.phone ? "whatsapp" : "email"` (104) and calls `notify({ email: account.email, phone: account.phone })` (114-122); `confirmHandleCode` (130-202) marks `phoneVerifiedAt` when `row.channel === "whatsapp"` (187-191).
+- Assumes: `notify` sends on one channel.
+- Promises: privacy wall on record existence (priority 1), and P4's claim flow.
+- Notes: BROKEN. `notify` sends on EVERY channel that can carry the message (lib/notify/index.ts:268-286, 318-340), so the code goes to the account's email as well as (or, while WhatsApp is not approved, instead of) the phone, but the token is recorded as `channel: "whatsapp"`. Typing it back marks the PHONE verified. The comment at 178-182 states the opposite rule. So: sign up with a stranger's phone number (only refused if that number already has a patient account, and the target here is an unclaimed record a clinician keeps) plus your own email, request the code, read it in your inbox, confirm, and the account now has a "verified" phone; the claim screen then says whether a therapist keeps notes for that number and shows initials, which is the leak 37-42 describes as closed. With WhatsApp still unapproved (54-56), email is the only channel that delivers, so this is the normal path, not an edge.
+
+### lib/patient-auth/reset.ts (265 lines)
+- For: patient password reset by six-digit code (WhatsApp plus email).
+- Decides: request limited 5 per 15 min per connection (121), code to both handles on the account (151-159), channel recorded but not used for verification; confirm limited 10 per 15 min (184); attempts bounded (212-233); success rehashes, revokes all patient sessions, audits `patient.password.reset` with `actor: null` (235-262).
+- Assumes: DB CHECK `patient_auth_tokens_attempts_bounded`.
+- Promises: none.
+- Notes: timing differs between account and no account on request (139-166), same as code-signin. Sending the reset code to both handles is correct here because both belong to the account; but the account's phone may be unverified (a stranger's number typed at sign-up), so a reset code can be delivered by WhatsApp to a person who is not the account holder, once WhatsApp is live.
+
+### lib/patient-auth/session.ts (210 lines)
+- For: patient session: cookie `PATIENT_COOKIE` (re-exported from lib/routing), table `patient_auth_sessions`, `PatientActor` (no organisationId).
+- Decides: idle 4h, absolute 7 days, touch throttled 1 min (46-48); all conditions in WHERE (153-161); `revokeAllPatientSessions` (200-210).
+- Assumes: routing's PATIENT_COOKIE shared with middleware.
+- Promises: none.
+- Notes: heading "A shorter window" (29) introduces a longer one (4h/7d vs 2h/12h); stale wording. Comment 25-27: a clinician and a patient may be signed in in one browser at once, by design.
+
+### lib/phone/e164.ts (185 lines)
+- For: local numbers to E.164 with a required country; display helpers.
+- Decides: "+" kept as given, "00" stripped, else country required, trunk zero dropped, own-code-without-plus detected, length 8..15 (74-119). `countryFromLocale` maps bare "ar" to EG (182-183).
+- Assumes: 26 countries in DIALLING_CODES.
+- Promises: none.
+- Notes: a number with a leading "+" is accepted with any country code on earth even though `DIALLING_CODES` exists to say where "we cannot send messages" (135); `toE164` never consults the table for "+" input. The own-code heuristic (99-101) misreads a national number that happens to start with the country code digits (e.g. an Egyptian `20...` landline typed without trunk zero); rare.
+
+### lib/rate-limit.ts (330 lines)
+- For: DB-backed fixed-window limiter (`consume`), `refund`, holds (`takeHold`, `releaseHold`), `/24` or `/64` bucketing, `globalCeiling`, purge.
+- Decides: one atomic UPSERT using Postgres `now()` (114-156); subjects salted-hashed with AUTH_SECRET (45-51); `SIMULATION_RUNNING` multiplies EVERY non-`global:` limit by 25 (97, 110-111).
+- Assumes: `clientIp` is trustworthy (see request.ts); `rate_limits` table.
+- Promises: none directly.
+- Notes (SIMULATION_RUNNING): the 25x applies to every caller of `consume`, not only sign-in: clinician sign-in 20 -> 500 per 15 min, console two-key unlock 5 -> 125 per hour (lib/console/gate.ts:99), patient sign-in 10 -> 250, patient code confirm 10 -> 250 per 15 min, reset and code requests 5 -> 125 per 15 min (strangers' phones buzz 25 times more), clinic sign-in 8 -> 200. `lib/env.ts:117-158` says the flag is set on the production deployment for the duration of the run and that "a flag that changes how production behaves is a flag somebody leaves on"; the violet strip announces it, but nothing announces that every brute-force limit, including the console elevation, is 25 times wider. HAZARDS H50 describes only the sign-in half. `purgeExpiredLimits` (304-310) compares against Node's `new Date()`, the two-clock mistake 116-134 and 215-227 fixed everywhere else; with a skewed DB clock it can delete a live hold or window early.
+
+### lib/regulators.ts (240 lines)
+- For: suggested regulators per country and document-slot requirements for clinician verification, with admin overrides.
+- Decides: `regulatorsFor` (138-145), `documentRequirements` field-by-field override (159-186), dictionary keys per slot/country (197-240); idFront, licence, headshot required, idBack optional.
+- Assumes: onboarding form renders labelKey via i18n.
+- Promises: supports "Verified" badges (C1 "verification state on the row").
+- Notes: `regulatorsFromConstants` and `keyFor` do not uppercase the country (148, 208) while overrides do (142, 163): a lowercase 'eg' gets no regulators and "Government ID" labels. Same shape as the bug geo.ts:189-201 describes; migration 0114 may make it unreachable.
+
+### lib/request.ts (33 lines)
+- For: `clientIp` (first X-Forwarded-For value, else X-Real-IP) and `clientUserAgent` for audit rows and the limiter.
+- Decides: first XFF entry (18-19).
+- Assumes: the platform overwrites X-Forwarded-For with the real client address (Vercel does; a different proxy or a direct origin hit would not).
+- Promises: A5 (IP on audit rows).
+- Notes: if the deployment is ever reached other than through Vercel's edge, the first XFF entry is attacker-chosen and every per-network limit in the product is bypassed by rotating a header.
+
+### lib/routing.ts (407 lines)
+- For: the principal table used by middleware: cookies, prefixes, doors, homes, open routes; `ownerOf`, `routeDecision`, segment-boundary `isUnder`.
+- Decides: cookies `24t_session` (clinician AND staff), `24t_patient`, `24t_sponsor`, `24t_clinic`, `24t_partner` (15-20, 99, 117, 138). Staff owns `/admin` with the clinician cookie (237-244); clinician owns PROTECTED_PREFIXES (34-49) with `/support` open (276); patient `/patient` with `/patient/invite` open; sponsor, clinic, partner each own their prefix with apply (and clinic join) open. `routeDecision` (371-396): owned path + own cookie absent -> that principal's sign-in with next; own cookie present at own door -> home unless `expired`.
+- Assumes: every page runs its own guard (not the boundary, 206-210).
+- Promises: priority 5, cross-principal cookies. Each prefix is gated only by its own principal's cookie; no other principal's cookie is ever consulted for it, so a sponsor, clinic or partner cookie cannot open a clinician, patient or staff route at the edge, and the guards read only their own cookie. The one shared cookie is clinician/staff, by design (197-205): a staff account is a clinician-cookie holder and passes middleware on every clinician prefix; what it reaches there depends on `requireUser` (role unchecked) vs `requireVerified`.
+- Notes: counts "six principals" but five cookies (212). A signed-in staff member who opens `/login` is sent to `/dashboard` (clinician home), not `/admin`, because `/login` belongs to the clinician row.
+
+### lib/scheduling/hours.ts (135 lines)
+- For: bookable-hour arithmetic: whole hours, holds, radar auto-offline, booking warnings.
+- Decides: `isWholeHour` in UTC (9-11); `HOLD_MS` 10 minutes (36); `OFFLINE_BEFORE_MS` 15 min (47); `WARN_BEFORE_MS` 10 min (56); `isBookable` treats an expired hold as open (72-77); `shouldAutoOffline` whole booked hour plus 15 min before (87-96).
+- Assumes: DB enforces whole hours too.
+- Promises: none directly.
+- Notes: `nextHour` (21-26) has two identical branches: dead conditional. `isWholeHour` in UTC makes a whole local hour in a half-hour-offset zone (India +05:30) unbookable; not Egypt. The 10-minute hold is justified by "3-D Secure and a mistyped card" (33-35); on the Egyptian manual transfer rail a payment takes "usually within a few hours" (messages.ts `bar.eta`), so a slot held for a transferring patient lapses long before an operator confirms (A1), and the slot machine's held -> booked "the payment completes" cannot happen in time. Whether booking on that rail uses holds at all is outside this slice.
+
+### lib/scheduling/tz.ts (349 lines)
+- For: zone-bound formatting, day bucketing, local-hour to UTC with DST gap detection, quiet hours 22:00-07:00.
+- Decides: `resolveZone` reader, clinician, UTC (40-47); every formatter requires a zone; `zonedHourToUtc` two-pass, null in a spring-forward gap (258-280); `isQuietHour` (346-349).
+- Assumes: Intl IANA data.
+- Promises: P2 (reminders at sane hours).
+- Notes: `formatWhenWithCaveat` appends English literals ", your therapist's time zone" and ". We do not have your time zone, so this is UTC" (184-185) to a date formatted in Arabic: English pasted into Arabic output. `formatTime` always en-GB (101-111), fine (Western digits).
+
+### lib/scheduling/use-reader-zone.ts (44 lines)
+- For: client hook returning the browser zone after mount (null first render).
+- Decides: as above.
+- Assumes: nothing.
+- Promises: none.
+- Notes: none.
+

@@ -57,3 +57,325 @@
 - Promises: T1 kept for generation (draft from transcript, `status: "draft"`). P3 at risk: see Broken (regeneration overwrites an approved patient copy). T2: provenance/offRecordSeconds recorded; the note content is not told about the gap.
 - Notes: translation failure returns null quietly (211), fine. `patients.clinical` blob diagnoses are sent to the model as "Working diagnoses" alongside the rule that background must not name a diagnosis.
 
+### lib/ai/profile.ts (434 lines)
+- For: the rolling per-PERSON standing profile and observation timeline (9.1 to 9.4), rebuilt wholesale.
+- Decides: `gather` (105) reads the first 60 document passages (by ordinal ASC) and the 8 most recent sessions across EVERY `patients` row sharing this `personId` (141 to 160), i.e. across clinicians and practices, 120 segments each plus each note's summary. `regenerateProfile` (218) upserts `person_profiles` and deletes/reinserts `observations`. `keepCitedSections` (337) drops a section if any ref is unknown; `keepCitedConflicts` (367) needs two real refs; `keepDatedObservations` (400) drops undated or implausible dates.
+- Assumes: consumers gate the profile behind `capabilities.liveProfile` (case-copilot.ts:455). Called after every note (notes.ts:490).
+- Promises: P4 in spirit (one record across clinicians). But it breaks the recording consent wording "Only your therapist can see it" (consent.ts:31): transcripts from clinician A's sessions become profile prose that clinician B's copilot reads. T5: see Broken (S-ref collision with the copilot).
+- Notes: the S numbering (`S${number}` at 194) is local to this build (8 most recent sessions across all charts) and is stored in `sections[].refs`. The same `.limit` ASC shape as diagnoses: a person with more than 60 passages never has later documents in their profile. Error path does not `logUsage` an error row (264).
+
+### lib/ai/risk.ts (179 lines)
+- For: the model risk classifier: returns indicators with exact quotes, never a level (35.1).
+- Decides: `traceable` (111) keeps a finding only when its normalised quote is in the normalised transcript (Arabic letter folding, punctuation stripped) and the indicator is in `RISK_INDICATORS`; `classifyRisk` (147) takes only a transcript string.
+- Assumes: level computed by `levelFor` in lib/crisis/level.ts; caller logs usage.
+- Promises: supports P5 indirectly (crisis detection), not money.
+- Notes: the looser matcher (punctuation stripped, 3-char minimum) is much looser than diagnoses' verbatim rule; a 3 to 5 character "quote" such as a single word will match almost any transcript. The quote can be the clinician's own line; only the prompt forbids that.
+
+### lib/ai/transcribe.ts (223 lines)
+- For: transcribe one WAV chunk; language normalisation, anti-hallucination prompt and artefact filter.
+- Decides: `transcribeAudio` (40), `transcribeChunk` (72) logs usage both ways and rethrows; `normaliseLanguage` (146); `cleanTranscript` (217) drops known stock phrases.
+- Assumes: the caller has decided the chunk may be transcribed (no consent parameter exists at this layer).
+- Promises: T1 input quality. Consent: none checked here.
+- Notes: none.
+
+### lib/ai/translate.ts (134 lines)
+- For: machine translation of interface strings into drafts (21.16).
+- Decides: `translateStrings` (45) drops any translation that lost a `{placeholder}` (109); returns a sentence on failure.
+- Assumes: `draftTranslations` (caller) writes `status = 'draft'` and a human publishes.
+- Promises: P3 adjacent: machine-written interface text (including crisis and consent strings, per the prompt at 33) reaches patients only after a human publishes; cannot tell from here whether publish requires review.
+- Notes: error path does not `logUsage`.
+
+### lib/assistant/roster.ts (125 lines)
+- For: turn roster names in an assistant answer into links, server-side (10.3).
+- Decides: `linkRoster` (41) longest name first, case-insensitive, Unicode word boundaries (104, 122); names shorter than 3 chars never link (43); `mentionsIn` (81) dedupes.
+- Assumes: roster comes from `buildRoster` (caseload-scoped).
+- Promises: none of the 25; a correct safety property (no link to a patient not on the roster).
+- Notes: two patients with the same full name on one roster: the first in sort order wins every time, so a link can point to the wrong one of two same-named patients.
+
+### lib/audio/recorder.ts (355 lines)
+- For: the browser recorder: 16 kHz mono WAV chunks cut at pauses; one instance per audio source.
+- Decides: `muted` option (66, 100) gates `push` (201); `setMuted` (150) flushes what was captured before the mute; `flush` (224) drops sub-second and silent chunks; `shouldCut` (276).
+- Assumes: the CALLER passes the consent state as `muted`. Sequence numbers are assigned by the caller at upload.
+- Promises: T2 (off record means the recorder captures nothing) is kept at the capture layer while `muted` is true. Consent (task 123): the default is still UNMUTED; see Stale and Broken.
+- Notes: a muted recorder emits nothing, so no sequence number is consumed; combined with the server stamping startMs from sequence, off-record time leaves no gap in the timeline (see Broken).
+
+### lib/checkins/policy.ts (149 lines)
+- For: pure decision "may we send this person a check-in now" (44.1, C97).
+- Decides: `shouldSend` (96): channel off, mute-rate halt, unreachable, muted, quiet hours in THEIR zone (unknown zone treated as quiet, 124), cadence clamped at `MIN_HOURS_BETWEEN = 6` (47, 130). `inQuietWindow` (89) handles wrap.
+- Assumes: `lib/data/checkins.ts` measures mute rate and candidates.
+- Promises: none of the 25 (unclaimed capability, see Unclaimed).
+- Notes: a patient with no timezone is NEVER sent a check-in (always quiet_hours), silently; the sweep counts it as quiet_hours rather than as "no zone".
+
+### lib/checkins/receive.ts (190 lines)
+- For: handle a patient's reply to a check-in: crisis scan first, then stop word, then store.
+- Decides: `handleReply` (59): no prior check-in, ignored (70). Crisis indicators, raise `level: "high"` alert on the most recent session's clinician (82), store with `crisisAlertRaised`, return the patient-facing crisis message and helpline (122). No session at all, warn log only (104). `mostRecentSessionFor` (158) orders by `sessions.scheduledAt DESC` across all charts of the person.
+- Assumes: `raiseCrisisAlert` delivers; `patients.personId` links charts.
+- Promises: P5: the crisis path here has no money condition (kept). But see Suspect: NULL `scheduledAt` sorts first under DESC in Postgres, and cancelled or future sessions are not excluded, so the alert can wake the wrong clinician (or one whose grant was revoked).
+- Notes: a person who claimed a record and was never seen gets the helpline text and no human is alerted; only a log line (104). Nobody reads that log line by design (see notify findings).
+
+### lib/checkins/send.ts (163 lines)
+- For: the cron sweep that sends check-ins, reporting skips by reason.
+- Decides: `sweepCheckins` (42): halt checked once (62, 66), per-person `shouldSend`, wording via admin-editable strings, body = wording + stop instruction (124), `notify` then `recordCheckin` with `delivered` (147).
+- Assumes: `notify` returns `{sent, channel}` and never throws.
+- Promises: P2 adjacent: a check-in exists only as email/WhatsApp; nothing in-app (P2 says nothing the product tells you is only in an email).
+- Notes: see Broken for the no-repeat rule.
+
+### lib/checkins/wording.ts (98 lines)
+- For: pick one of 12 admin-editable wordings, never the last one; the exact-match stop words.
+- Decides: `nextWording` (55) excludes the wording whose rendered text equals `lastBody`; `isStopWord` (89) whole-message match in English and Arabic.
+- Assumes: `lastBody` is the rendered wording. It is not: see Broken.
+- Promises: none.
+- Notes: none.
+
+### lib/clinical/context.ts (177 lines)
+- For: which evidence-layer facts reach the note generator, and the "KNOWN BEFORE THIS SESSION" block (34.1).
+- Decides: `factsForPrompt` (66): only active and current facts; unverified `ai` facts never (85, C167); no `diagnosis` domain (108, C168); no `presentation`, `function`, `risk` (137, C170). `factsPrompt` (150) puts the rules above the list.
+- Assumes: the note generator's only diagnosis source is this block. It is not: see Broken (notes.ts sends `patients.clinical.diagnoses`).
+- Promises: T1 (note from what was said, not from background).
+- Notes: none beyond the contradiction.
+
+### lib/clinical/currency.ts (224 lines)
+- For: how old a fact may be before it stops being current; source priority ladder (33.2, 33.3, C166).
+- Decides: `HALF_LIFE_DAYS` (26): risk 30, medication 90, presentation 60, function 90, goal 90, social 365, diagnosis and history never. `currencyOf` (86) ages from `effectiveAt`. `ageLabel` (106) en/ar. `SOURCE_PRIORITY` (145) clinician 1, document 2, patient 3, ai 4; `maySupersede` (159); `rankFacts` (205) current before stale, then priority, then newest.
+- Assumes: DB CHECK ties `source_priority` to `source_type` (comment 132).
+- Promises: none of the 25 directly.
+- Notes: `ageLabel` Arabic plurals are ungrammatical for 1 and 2 (for example "منذ 1 أشهر"), cosmetic.
+
+### lib/consent.ts (109 lines)
+- For: the recording consent wording and version; the late-recording stamp (7.8).
+- Decides: `RECORDING_CONSENT_VERSION` (15), `RECORDING_CONSENT` (27) wording, `isRecordingConsent` (43), `lateRecordingStamp` (77) returns a sentence when recording began at least 60 s after `startedAt`, else null (null also when either time is unknown).
+- Assumes: the join form (app/join/[token]/actions.ts:373, 694) is the only writer of `recording_consent` and `recording_started_at`. There is no other writer anywhere (grep), so an in-person session never has consent asked or `recording_started_at` set.
+- Promises: task 123 and T2. The wording promises "Only your therapist can see it" (31) and "the recording indicator turns amber" (32). Code: in-person sessions record with consent NULL (see Broken); transcripts feed the cross-clinician profile (profile.ts:141) and so reach other clinicians' copilots; audio and text go to OpenAI; meeting audio goes through a third-party bot. The wording is not kept.
+- Notes: the file says the patient is asked "before they enter the room", which only exists for video join links. `lateRecordingStamp` can never fire for in-person sessions because `recordingStartedAt` is never written for them.
+
+### lib/crisis/alerts.ts (511 lines)
+- For: the crisis phrase lists (English, Arabic, Arabizi), the scan, alert write and delivery, the sweeper, and the patient-facing crisis message.
+- Decides: `scanForCrisisLanguage` (326) two passes, each filtered by `stillCounts`. `raiseCrisisAlert` (359): 10-minute dedup per session (369), insert `risk_assessments` as `pending`, insert an in-app `notifications` row for the therapist, flip to `delivered` (405 to 417). `sweepUndeliveredAlerts` (437) retries pending rows, 50 at a time. `patientFacingCrisisMessage` (478) returns "Your therapist has been notified and is here with you" plus the configured or verified line, or "call your local emergency number".
+- Assumes: the clinician opens the app. "Delivered" means a row exists in `notifications`; no email, push or WhatsApp is sent to a clinician from here.
+- Promises: P5: nothing in this file consults money, a payment state or a subscription (kept here). But the delivery channel is in-app only; see Suspect.
+- Notes: stale single-caller claim (Stale). The notification body says "in a live session" (410) even when raised from a check-in reply.
+
+### lib/crisis/context.ts (327 lines)
+- For: suppress a crisis match that is about someone else or explicitly resolved (35R, C171). The file calls itself the most dangerous file in the repository.
+- Decides: `suppressedIn` (234): present marker anywhere in the sentence cancels suppression; past AND resolved suppresses; a THIRD_PARTY marker before the phrase suppresses unless `\bi\b`, `انا` or `نفسي` appears before it. `stillCounts` (275): a present marker anywhere in the text returns true; else any unsuppressed relevant sentence counts, unless it is past and a later sentence is resolved.
+- Assumes: `contains` (fold.ts:74) is a plain substring test after folding. It has no word boundaries.
+- Promises: P5 adjacent (the alert path). See Broken: `"he "`, `"her "`, `"his "`, `"she "`, `"they "` are matched as substrings, so "the " contains "he ", "other " contains "her ", "headache " contains "he ". "The thought of suicide will not leave" is suppressed as third party and raises nothing.
+- Notes: the same substring behaviour makes PRESENT fire on "know" (contains "now") and "again" etc., which errs toward alerting (safe). Arabic `امي` ("my mother") is a substring of `ايامي` ("my days"); `عمي` of `عميق` ("deep").
+
+### lib/crisis/fold.ts (153 lines)
+- For: the single Arabic fold and the empty-needle-safe `contains`; the separate Arabizi fold.
+- Decides: `fold` (52) lowercases, strips marks, unifies alef, ة to ه, ى to ي, hamza seats; `contains` (74) returns false on an empty folded needle; `foldsToNothing` (87); `foldArabizi` (124) private; `containsArabizi` (149).
+- Assumes: callers want substring semantics. context.ts needs word boundaries for its pronoun markers and does not get them.
+- Promises: P5 adjacent.
+- Notes: `foldArabizi` turns non letters into spaces but `containsArabizi` is still a substring test on the folded string, so "an7ar" (I kill myself) matches inside longer words containing that run.
+
+### lib/crisis/level.ts (209 lines)
+- For: the deterministic risk ladder over classifier indicators, with the keyword floor (35.3).
+- Decides: `keywordFloor` (99) any hit is `elevated`; `levelFor` (121) homicidal or psychosis critical; ideation+plan+(means or timeframe) critical; ideation+(plan or intent) high; ideation+(means or timeframe) high; ideation elevated; plan or intent elevated; self_harm, abuse elevated; previous_attempt moderate. `recommendedAction` (176); `shouldAlert` (207) at elevated or above.
+- Assumes: `protective_factor` never read (kept).
+- Promises: P5 adjacent (kept: no money input).
+- Notes: none.
+
+### lib/crisis/line.ts (256 lines)
+- For: which crisis number to show: configured line from `country_settings`, verified fallback table (US 988, EG 105 with menu steps), or none.
+- Decides: `crisisCountryFor` (145) region then Arabic locale implies EG; `crisisLine` (159) configured wins and keeps menu steps only when the number matches the verified one; `countriesMissingACrisisLine` (201); `lineForNumber` (226) longest-prefix on dialling codes; `countryForNumber` (252).
+- Assumes: callers pass the configured line; `lineForNumber` never receives a configured line, so an operator-configured number for a country outside the table is never shown on the number-based path.
+- Promises: P5 (the number dialled does not depend on money here: kept).
+- Notes: Arabic locale maps to Egypt for anyone reading Arabic, including a Gulf reader (the translation prompt in lib/ai/translate.ts:35 says Arabic is addressed to a Gulf reader), who would be shown Egypt's 105.
+
+### lib/diarisation/align.ts (182 lines)
+- For: put acoustic turns and transcript chunks on one clock; assign a chunk to a voice or refuse with a reason (37.1).
+- Decides: `alignSegments` (89): `no_window`, `silence` below `MIN_COVERAGE = 0.2` (69), `contested` below `MIN_SHARE = 0.75` (79), else `assigned`; speech is the union of turns (115, 136). `summarise` (172).
+- Assumes: segment windows are real audio times. In production they are not: the transcribe route stamps every chunk as `(sequence-1)*8000` to `sequence*8000` (app/api/sessions/[id]/transcribe/route.ts:178) while chunks are 2 to 8 s, so any future alignment against real provider turns would align against fictional windows.
+- Promises: none of the 25.
+- Notes: pure and tested; no production caller supplies turns (provider not built, see provider.ts).
+
+### lib/diarisation/provider.ts (62 lines)
+- For: the type of the unbuilt acoustic diarisation provider (named gap 37.4).
+- Decides: nothing; types only.
+- Assumes: n/a.
+- Promises: none.
+- Notes: half built by design; stated as such.
+
+### lib/diarisation/turns.ts (197 lines)
+- For: turn arithmetic: normalise, merge same-voice fragments within 250 ms, speaking time, crosstalk, coverage, voice order.
+- Decides: `normaliseTurns` (96), `crosstalk` (144), `speechCoverage` (176), `voiceOrder` (191).
+- Assumes: provider turns.
+- Promises: none.
+- Notes: `crosstalk` `break` at 152 relies on sort by start; correct.
+
+### lib/diarisation/voices.ts (263 lines)
+- For: bind an acoustic voice to therapist or patient only by track evidence or an operator; otherwise "Speaker N" (37.2, 37.3).
+- Decides: `tallyEvidence` (126) needs 3 measured chunks and 90% purity; `bindVoices` (174) no elimination, ties bind nobody; `displayFor` (224); `speakerFor` (242).
+- Assumes: caller passes only `speaker_inferred = false` rows as evidence; migration 0065 CHECK.
+- Promises: none of the 25.
+- Notes: consumed by lib/data/session-voices.ts, whose `recordVoices`/`attachLines` have no production caller (grep), so the voices panel on /sessions/[id] can only ever be empty until a provider exists. Unclaimed (c).
+
+### lib/documents/chunk.ts (172 lines)
+- For: cut document text into citable passages; parse and keep only resolvable `[D n:m]` citations (8.3, 8.5).
+- Decides: `chunkText` (39) prefers paragraph, then sentence (including `؟`), then space; 120 to 1,200 chars. `parseCitations` (109), `formatCitation` (128), `keepResolvableCitations` (145) deletes an unresolvable marker from the prose and tidies.
+- Assumes: the same text always yields the same chunks (deterministic, so re-extraction keeps refs stable only if text is identical).
+- Promises: T5 (document citations resolve or vanish): kept.
+- Notes: deleting an invented citation leaves the claim it supported standing in the answer with no marker at all; the reader cannot tell a sentence that lost its citation from one that never had one.
+
+### lib/documents/extract.ts (132 lines)
+- For: extract text from a stored document (txt, md, csv, PDF via unpdf with a column check, docx via mammoth).
+- Decides: `extractText` (37) null for unreadable types, interleaved PDFs (84), empty results, or >5% replacement characters (58). `fetchDocument` (120) reads `.uploads/` locally for `/api/uploads/` paths or fetches the stored URL.
+- Assumes: `blobUrl` is always a value our own upload code wrote. `fetch(blobUrl)` would fetch any URL a writer stored (see partner media notes); `join(cwd, ".uploads", ...)` does not normalise `..`.
+- Promises: T5 adjacent (what the copilot can cite).
+- Notes: none.
+
+### lib/documents/formats.ts (143 lines)
+- For: what may be uploaded (25 MB), what is readable versus stored-only, and the searchability label (8.2, 8.4).
+- Decides: `readabilityOf` (76), `documentProblem` (83), `searchabilityLabel` (102) (`none` is "Searchable" because `none` means typed or dictated text, schema.ts:4373), `isImage`, `extensionFor`.
+- Assumes: schema meaning of `extraction`.
+- Promises: none of the 25.
+- Notes: none.
+
+### lib/documents/identity-access.ts (192 lines)
+- For: who may read a clinician's identity documents (29.1), and the local-disk fallback check.
+- Decides: `identityReadDecision` (122) owner or `super_admin` (platform role, schema.ts:96) only. `parseIdentityRef` (103). `localUploadAllowed` (166): super_admin; `receipt/...` readable by any back-office role (187); otherwise the path owner segment must equal the user id.
+- Assumes: stored paths follow `<kind>/<userId>/...`; `receipt/<sessionId>/...` for transfer receipts.
+- Promises: A5 partly: the comment says every receipt read is audited (184); this function does not audit, the caller must. Cannot tell from here.
+- Notes: a patient (separate principal) can never read their own uploaded receipt through this check; only back office can.
+
+### lib/documents/layout.ts (148 lines)
+- For: detect multi-column PDF pages so they are not extracted (C50).
+- Decides: `linesOf` (74), `columnCount` (106) with a 12% gap touching the middle band on at least 40% of lines (min 8 lines), `isInterleaved` (146) any page.
+- Assumes: unpdf item coordinates.
+- Promises: T5 adjacent (no wrong passage behind a citation).
+- Notes: right-to-left Arabic PDFs are sorted left to right (99); fine for the gap test, irrelevant to order because the text itself comes from unpdf.
+
+### lib/documents/read-access.ts (92 lines)
+- For: the single decision for reading a person's document (patient, or clinician under grant).
+- Decides: `documentReadDecision` (37): a patient reads only their own person's documents; a clinician needs a non-deleted patient row for that person in their org and caseload (super_admin sees the org), then either uploaded it themselves (83) or `accessFor(...).capabilities.patientFiles` (89).
+- Assumes: `lib/data/grants.accessFor` evaluates the grant at call time.
+- Promises: P4 (patient decides who reads history) and T5's grant discipline for documents: kept at this layer, checked per request.
+- Notes: a revoked clinician keeps documents they uploaded (by design, §3).
+
+### lib/ehr/fhir.ts (239 lines)
+- For: the FHIR R4 client: read a patient's display name; file an approved note as a `DocumentReference`. No DB import (43.4).
+- Decides: `request` (48) refuses scheme or `..` paths, never passes a refusal body through; `readPatientName` (93) returns only a string; `fileDocumentReference` (141) LOINC 11488-4, author only when given (182), requires an id from body or Location (216).
+- Assumes: callers supply a live token and the approved text.
+- Promises: P3 analogue for charts (only approved text files): depends on the caller (file-note.ts).
+- Notes: none.
+
+### lib/ehr/file-note.ts (286 lines)
+- For: file an approved note into the hospital chart, idempotently, with a pending receipt first.
+- Decides: `fileNote` (74): note must be `approved` with `approvedAt` and `approvedBy` (103 to 105) in the caller's org; live connection; a non-severed launch for the patient (126); claim `ehr_writebacks` row with `onConflictDoNothing` (154); file with `authorReference: null` ALWAYS (205); record `refused` or `filed`; audit on success (264). `noteAsText` (52) sends SOAP only.
+- Assumes: something calls it. Nothing does: the only references are scripts/verify-sprint43.ts and verify-sprint67.ts (grep). Writeback is unreachable from the product.
+- Promises: P3/T1 adjacent. The header's "author is the clinician or nobody" is always nobody, which is the exact outcome the header calls the defect (a note in a chart with no human name on it).
+- Notes: a `refused` row is never reset by anything (no other writer of `ehr_writebacks`), and a retry of a refused note returns "That note is already being filed." (178) forever. Only the approving clinician's `status` is checked; `patient_status` is irrelevant here (fine).
+
+### lib/ehr/owner.ts (38 lines)
+- For: says it decides who owns a records connection; actually only `whatIsMissing` (32).
+- Decides: `whatIsMissing` names missing client id or sealing key.
+- Assumes: n/a.
+- Promises: none.
+- Notes: see Stale: `ConnectionOwner` (19) is exported and used nowhere; the "one place both spellings meet ... pick the owner" function does not exist.
+
+### lib/ehr/pending.ts (103 lines)
+- For: carry the PKCE verifier and flow state across the OAuth redirect in a sealed, httpOnly, lax, 15-minute cookie.
+- Decides: `putPending` (55), `takePending` (87) deletes the cookie on read whether or not it validates; org in the cookie is only for a mismatch check.
+- Assumes: the callback re-derives the organisation from the live session (comment 28 to 36; cannot confirm from this slice).
+- Promises: A5 adjacent (principal boundaries).
+- Notes: none.
+
+### lib/ehr/policy.ts (187 lines)
+- For: the written decision of what we hold versus what the hospital's chart is the record for (43.4).
+- Decides: constants `WE_HOLD`, `THEIRS_NEVER_OURS`, `FORBIDDEN_COLUMN_FRAGMENTS`, `RETENTION`.
+- Assumes: verify:sprint43 sweeps the schema.
+- Promises: P4 (the patient's record outlives the hospital connection).
+- Notes: `WE_HOLD` says the transcript was recorded "under a consent we recorded (C214)" (90). Not true for any session whose consent is null (every in-person session, see Broken).
+
+### lib/ehr/smart.ts (300 lines)
+- For: SMART on FHIR discovery, PKCE, authorise URL, code and refresh exchange.
+- Decides: `discover` (59) https only and same origin for both endpoints; `pkce` (134); `redirectUri` from `env.appUrl` (141); `authorizeUrl` (152) sets `aud`; `exchange` (193) refuses a grant that fails `scopesAreMinimal` (246).
+- Assumes: `scopesAreMinimal` catches over-broad grants. It does not (see vendors.ts).
+- Promises: none of the 25.
+- Notes: a grant with an empty `scope` string is accepted without any check (246 `granted.length > 0`).
+
+### lib/ehr/vendors.ts (130 lines)
+- For: the vendors list and the requested scopes, and the scope guard.
+- Decides: `REQUESTED_SCOPES` (80); `scopesAreMinimal` (110) refuses a `*`, a `user/` prefix, or a write regex `\.(write|c?ud?|\*)$` on anything but DocumentReference.
+- Assumes: scopes are SMART v1 style.
+- Promises: none of the 25.
+- Notes: see Broken: explicit per-resource reads (`patient/Condition.read`, `patient/MedicationRequest.read`, all of `THEIRS_NEVER_OURS`) pass the guard, and SMART v2 write permissions such as `patient/Condition.c` or `patient/Observation.cruds` do not match the write regex and pass too.
+
+### lib/ingest/token.ts (160 lines)
+- For: the session-scoped bearer token that lets a meeting bot append audio to one session (36.2).
+- Decides: `mintIngestToken` (51) `si_<sessionId>_<48 hex>`, 6 h; `hashIngestToken` sha256; `sessionIdIn` (72); `bearerFrom` (78); `ingestDecision` (106): no token, malformed, wrong session (URL vs token vs row), no source, not issued, revoked, expired, constant-time hash mismatch.
+- Assumes: the transcribe route returns no clinical text on the token branch (it does: route.ts:206 to 216) and never runs the copilot (route.ts:198).
+- Promises: none of the 25. Consent: a valid token appends audio with no consent check at all, same as the browser door (the route has none).
+- Notes: none.
+
+### lib/integrations/registry.ts (233 lines)
+- For: the public integrations page's source of truth, with states that are "a fact about the code" (28.5, C149).
+- Decides: `INTEGRATIONS` (52), `HR_VENDORS` (198), `EHR_VENDORS` (214), labels.
+- Assumes: each `today` sentence is true.
+- Promises: public claims. Two are false against the code (see Broken): in-person "The patient is asked for consent on the same screen, in their language" (71): nothing ever writes `recording_consent` for an in-person session; clinic systems "the note you approve is filed back" (147): `fileNote` has no caller.
+- Notes: the record-extract entry says the extract is "emailed to the patient and to nobody else" (105); P2 concern if the app itself does not show it (outside slice).
+
+### lib/mail-previews.ts (486 lines)
+- For: the one list of every automated message, rendered by a script or sent from /admin/settings to one typed address.
+- Decides: `previewMessages` (151) 25 entries grouped by audience; `previewRoster` (95) strips `send` for the client.
+- Assumes: the header claim (143 to 145) that `sendNotification` copy is "lifted from those call sites rather than invented".
+- Promises: E1/E2 (company messages carry no person: kept in the previews at 431 to 454). P2 context.
+- Notes: see Stale: the "check-in" preview (370 to 379) says "No answer needed ... goes on your record and your therapist sees it ... turn these off in your account"; the real check-in (lib/checkins/send.ts:124) is one of twelve wordings plus "Reply with the word stop and they end." The "therapist message" row is labelled audience `patient` and "the clinician writes to them from the patient profile" (197 to 206), but `sendTherapistMessage` is 24Therapy writing to a clinician (mail.ts:319, footer "Sent by 24Therapy to the address on your clinician account"). The founder reads this list to learn who gets what.
+
+### lib/mail.ts (601 lines)
+- For: every email template and the Resend send; also the email channel behind `lib/notify`.
+- Decides: `esc` (26) on every dynamic value; `send` (56) returns false and logs warn when no key, on rejection, or on throw. `sendSessionReport` (171) sends `patientBrief || summary` (242), steps, next line, per-language chrome (en, ar, fr, es). `sendRatingReminder` (278), `sendTherapistMessage` (319), `sendPasswordReset`, `sendClaimCode` (no clinical detail, 374), `sendSessionInvite` (392) with a `$` price and "Payment is handled securely by Stripe" (419), `sendRecordExport` (440) with optional `bcc: copyTo`, `sendClinicianHistory` (481) CSV attachment, `sendWalkInDirections` (529), `sendNotification` (576).
+- Assumes: callers only send approved patient text; `releaseBrief` (lib/data/feedback.ts:643) is the caller for the report.
+- Promises: P3 at risk (the summary fallback, see Broken). P2: every function returns a boolean and never throws; who reads the false is the caller. E2 not touched.
+- Notes: `sendRecordExport` header (432 to 438) says it is "Sent to the patient, never to whoever pressed the button", and the body says "nobody at 24Therapy read it" (460), but `copyTo` exists and app/(admin)/admin/tv/actions.ts:51 passes the staff member's own address, so the operator receives a working link to the patient's entire record including transcripts. The invite text is false for the Egyptian manual transfer rail (Stripe, "$", "receipt by email").
+
+### lib/meetings/create.ts (157 lines)
+- For: create a Zoom meeting inside the clinician's own account (41.2); Meet and Teams refused by name.
+- Decides: `createMeeting` (49) returns a reason instead of throwing; `createZoomMeeting` (112) `waiting_room: false`, `join_before_host: true`, `auto_recording: "none"`.
+- Assumes: the topic passed is neutral (the caller's duty); the link is never handed to the patient (41.4).
+- Promises: none of the 25 (unclaimed capability). Consent of others: `join_before_host: true` with no waiting room means anybody holding the raw join link enters without the host; the raw link is given to the therapist for their calendar (comment 26).
+- Notes: none.
+
+### lib/meetings/dispatch.ts (247 lines)
+- For: dispatch the Recall bot only on the patient's consent, remove it on withdrawal or session end, hard stop on an unknown bot.
+- Decides: `sendBotForConsent` (60) only for an external, provisioned source with no bot yet; claims `bot_id` conditionally and removes a racing second bot (125 to 140). `withdrawBot` (156) stamps `botLeftAt` before asking the provider. `assertOurBot` (207) audits and removes an unexpected bot.
+- Assumes: `answerConsent` is the only caller (comment 52; outside slice). The consent that dispatches is ONE answer from the patient who used the join link.
+- Promises: none of the 25. Consent of other participants: see Suspect: in a couples, family or group session held on Zoom, the bot joins on the single join-link patient's "yes"; nobody else in the meeting is asked, and the only notice is the participant name "24Therapy recorder" (108).
+- Notes: `withdrawBot` returns early when no bot (170) and never writes `botStatus` for the "session_ended" reason if the bot had never joined (fine).
+
+### lib/meetings/providers.ts (90 lines)
+- For: Zoom, Meet, Teams OAuth endpoints and the meeting-only scope list (C132).
+- Decides: `PROVIDERS` (44); `scopesAreMeetingOnly` (84) regex refuses calendar, recording, history, report, user:read, contacts, drive, mail.
+- Assumes: a verifier calls the guard.
+- Promises: none of the 25.
+- Notes: Teams `OnlineMeetings.ReadWrite` is a delegated scope that can read the user's online meetings (their existing meetings), which is the "meeting history" the guard exists to refuse; it passes the regex because the word is not in it.
+
+### lib/meetings/recall.ts (153 lines)
+- For: the thin Recall.ai adapter: dispatch a bot, remove a bot.
+- Decides: `dispatchBot` (46) refuses when `features.meetingBots` is off; posts `meeting_url`, `bot_name`, real-time transcription to our webhook; `removeBot` (136) `leave_call`.
+- Assumes: the webhook is "Ours, signed." (56).
+- Promises: none of the 25.
+- Notes: see Stale/Suspect: nothing signs the webhook. The URL is `${appUrl}/api/meetings/transcript/${sessionId}` with no secret, and app/api/meetings/transcript/[sessionId]/route.ts contains no signature, secret or HMAC check (grep); it authenticates only by the `bot_id` in the JSON body matching the stored one. Audio and meeting text go to a third party (Recall.ai) using `meeting_captions`, i.e. the meeting platform's own captioning.
+
+### lib/notify/email.ts (34 lines)
+- For: the email channel adapter for `notify`, delegating to `sendNotification`.
+- Decides: `sendNotificationEmail` (27).
+- Assumes: lib/mail.ts escaping and footer.
+- Promises: P2 context.
+- Notes: the header records that DMARC is not published (25).
+
+### lib/notify/index.ts (427 lines)
+- For: the one seam every message to a person goes out through: in-app notice, WhatsApp and email, and a delivery-attempt row.
+- Decides: `notify` (287): writes `patient_notifications` first when both `personId` and `message.notice` are given (301), swallowing failure at warn (311); tries WhatsApp (if configured, a phone, a template) then email (both, not either); records every attempt in `delivery_attempts` via `record` (379), which also swallows failure. Returns `{sent, channel, channels, reason}`. `reachable` (420), `emailConfigured` (425).
+- Assumes: callers pass `personId` and `notice` for the message to land in the app; callers read `Delivery.reason` and show it.
+- Promises: P2 partly: the in-app copy exists only for callers that pass both fields (`verify:notices` counts the rest). Who finds out about a failure: nobody is alerted. A failed send becomes (a) a `log.warn`/`log.info` line and (b) a `delivery_attempts` row with a reason; a failed in-app notice or a failed attempt row is only a `log.warn`. The reason recorded is wrong when the provider refused: a recipient with an email whose send Resend rejected is recorded as "no channel available" (355), indistinguishable from an unconfigured channel.
+- Notes: crisis alerts do not go through `notify` at all (they write the clinician's in-app `notifications` table only, alerts.ts:406).
+
+### lib/notify/whatsapp.ts (231 lines)
+- For: WhatsApp via the Meta Cloud API with approved templates; off by default and never run against a live account (10 to 16).
+- Decides: `TEMPLATES` (48) for booking, session started, summary ready, claim code and invite, session invite, password reset code, payment submitted and confirmed; `sendWhatsapp` (142) refuses no config, no template, wrong variable count, non E.164; throws only on transport failure.
+- Assumes: Meta approves each template in `ar` (129).
+- Promises: P2 (in practice email plus in-app). A3 not touched.
+- Notes: `checkin.asking` has no template, so check-ins go by email only, while `notify`'s own header and policy.ts treat WhatsApp as the channel most Egyptian patients have (56 of 66 without email). `payout.*`, `record.export`, `consent.granted`, `sponsor.pot_empty` also have no template (fine for some by design).
+
