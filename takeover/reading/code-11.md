@@ -720,6 +720,31 @@
 
 ## Promise evidence
 
+- P1: radar hero, console, booking sheet: pick a clinician, type a first name, pay/start (booking-sheet.tsx:313-335). Tap count from app home is outside slice. Undermined by presence.tsx:252 (clinicians silently drop off when their tab is hidden) and by "Pay $X" excluding VAT. Partly.
+- P2: pending-bar.tsx (payment states in every portal, cannot dismiss unfinished), pay-by-transfer polling. Kept for payments in this slice.
+- P3: provenance.tsx, status-badge.tsx `summaryHeld`; feedback-card.tsx:56 suggests the summary is gated on a rating. Cannot tell from here.
+- P4: marketing only (flow-demo, patient-app Summary with two authors). Cannot tell from here.
+- P5: payment-popup.tsx:297-305 orb at z-60 "under SOS"; depends on SOS z-index outside slice. Crisis block and `crisis.notEmergency` on radar need no account/money. Cannot tell fully; partly.
+- T1: status-badge draft/approved; clinical-demo, session-demo (marketing). Kept as far as this slice shows.
+- T2: provenance.tsx partial with minutes (long form only; list badge numberless); clinical-demo off-record toggle does not show a gap. Partly.
+- T3: ledger PaymentDetail (fee, bill settled, net) and pricing `pricing.netting` kept in wording; payouts.tsx:480-498 makes netting opt-in (`autoSettleFromEarnings`) and pricing-tiers.tsx:556 shows it only when `netFeeFromHeldEarnings`; withdraw.tsx shows held without owed; therapist-console "You keep" uses 10% not the 15% setting. Partly.
+- T5: session-copilot mockup shows citations (marketing only). Cannot tell from here.
+- C1: people-list.tsx verification state on the row. Partly (radar appearance not in slice).
+- C2: broken by the product's own disclosure: join-form.tsx:56 `clinic.join.sees.names`, chrome.tsx:20-21, app/(clinic)/clinic/page.tsx:201 `row.patientName`; portal-demo ClinicWeek advertises a patient column. people-list keeps no caseload count. Broken (names), kept (counts).
+- C3: portal-demo "one total for the period" (marketing); seat-manager single seat figure. Cannot tell.
+- C4: seat-manager "Removing seats does not refund this month ... smaller bill starts at renewal" (108-112); matches "next bill lower". Kept in wording.
+- C5: join-form lists earnings as visible to the clinic; portal-demo earnings tab without withdraw. Kept in wording.
+- E1: spend-heatmap (spend only, suppression), coverage-form "we never say who used it", roster names are enrolment not use. Integrations delivery log and roster last-checked dates are a possible "when" (Suspect). Portal-demo advertises per-therapist spend the real query cannot produce. Partly.
+- E2: sponsor chrome never-bar; no component in components/sponsor carries a session, note or attendance field. Kept in this slice.
+- E3: coverage-form.tsx:76-77, 163-164 states it. Kept in wording.
+- E4: coverage-form.tsx:166-170 states 0% is not removal; roster-list keeps people. Kept in wording.
+- E5: not in slice.
+- A1: pay-by-transfer "submitted" is waiting, nothing granted client-side. Kept here.
+- A2: not in slice.
+- A3: pay-by-transfer.tsx:267-269 renders the operator's reason verbatim; withdraw.tsx:221-223 renders payout rejection reasons. Kept on screen; no retry path on the component (Unclaimed c).
+- A4: top-up-stepper Broken creates overpayments A4 must then catch.
+- A5: not in slice.
+
 <!-- PROMISE-END -->
 
 ## Coverage
