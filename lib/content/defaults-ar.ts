@@ -444,6 +444,20 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
             body: "إن توقفت، لا يُحذف شيء ولا تنتهي صلاحية شيء. عد بعد سنة أو بعد خمس، فتجد الملف حيث تركته، ما زال ملكك، وما زال مقروءًا، وما زال شيئًا تستطيع تسليمه لشخص جديد.",
             icon: "clock",
           },
+          /*
+           * 🔴 51.9 — the capability that was shipped and never sold.
+           *
+           * The Arabic showcase caption mentions the language filter in
+           * passing, inside a sentence about the map. For a reader outside
+           * Egypt that is the whole reason to be here rather than with a
+           * therapist down their own street, and a sub-clause is not selling
+           * it. It gets its own item, in both languages.
+           */
+          {
+            title: "معالج يتكلم لغتك الأولى",
+            body: "أصعب ما في العلاج بلغة ثانية أنك تترجم شعورك قبل أن تقوله. رشّح الرادار باللغة قبل أن تختار أحدًا، وتكلم بالعربية مع من يسمعها كما تقولها.",
+            icon: "heart",
+          },
         ],
       },
       {
@@ -454,7 +468,8 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
         items: [
           {
             title: "أن تجد شخصًا الآن",
-            body: "خريطة حية لمعالجين متاحين هذه اللحظة. رشّح حسب اللغة وتحدث بلغة تفكر بها لا بلغة تترجم إليها. أو احجز ساعة بدل ذلك: لكل معالج مواعيد، ويصلك تذكير قبلها.",
+            /* 🔴 51.9 — the language clause moved up into its own item. */
+            body: "خريطة حية لمعالجين متاحين هذه اللحظة. أو احجز ساعة بدل ذلك: لكل معالج مواعيد، ويصلك تذكير قبلها.",
             icon: "zap",
             /*
               `patient-app`, not `radar`: the CMS union does not carry a

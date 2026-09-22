@@ -533,6 +533,21 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             body: "Nothing is deleted and nothing expires.",
             icon: "clock",
           },
+          /*
+           * 🔴 51.9 — the capability that was shipped and never sold.
+           *
+           * Every clinician on the radar carries the languages they work in,
+           * and the filter bar has narrowed by language since sprint 50. Not
+           * one page had ever said so, which is the expensive kind of gap:
+           * the code is paid for and the value is not collected. For a
+           * diaspora reader it is the whole reason to be here rather than
+           * with a therapist down their own street.
+           */
+          {
+            title: "Somebody who speaks your first language",
+            body: "Narrow the radar by language before you pick anybody.",
+            icon: "heart",
+          },
         ],
       },
       {
@@ -550,7 +565,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Find somebody now",
-            body: "A live map of clinicians who are online this minute. Filter by language and talk in the one you think in rather than the one you translate into. Or book an hour instead: everyone has a calendar, and a reminder goes out before it.",
+            /*
+             * 🔴 51.9 — the language clause LEFT here when it got its own item
+             * above. It was a sub-clause in a sentence about the map, which is
+             * not selling it, and keeping both would be saying it twice on one
+             * page. The prose budget is what made that a decision rather than
+             * an accumulation.
+             */
+            body: "A live map of clinicians who are online this minute. Or book an hour instead: everyone has a calendar, and a reminder goes out before it.",
             icon: "zap",
             /*
               `patient-app`, not `radar`: the CMS union does not carry a
