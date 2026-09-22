@@ -51,9 +51,25 @@
 - Promises: P4 indirectly (who reaches a record).
 - Notes: exact match only. Hamza-on-alef folds (NFKD splits U+0623 into alef plus U+0654, which is in the stripped range), but tatweel (U+0640), alef maksura vs ya, and ta marbuta vs ha are not folded, so common Egyptian spelling variants of one name are a miss. A near miss is sent to an invite link by design.
 
+### lib/data/notices.ts (111 lines)
+- For: the patient's in-app notice log (`patient_notifications`), keyed by message key, no prose, no sponsor id.
+- Decides: `noticesFor` (57) all notices incl. dismissed, 200 cap, on controlDb. `undismissedCount` (79). `dismissNotice` (100) stamps, scoped to person in the WHERE, idempotent.
+- Assumes: writers in lib/notify/index.ts, lib/data/enrolment.ts, enrolment-verify.ts, sponsors.ts; message keys exist in lib/i18n/messages.
+- Promises: P2 partly: this is the in-app half, but see Stale (the badge function has no caller). E1/E2: no sponsor id on the row (30-31), kept.
+- Notes: patient notices live on controlDb (control plane) although they are about a person; every other person-owned table routes by region. Deliberate or not, it is the one person table in this slice on the control plane besides meeting connections.
+
+### lib/data/notifications.ts (69 lines)
+- For: the clinician's `notifications` table: unread list, mark read.
+- Decides: `unreadNotifications` (31), `markSessionNotificationsRead` (48) matches `action_url LIKE %sessionId%` (59), `markAllRead` (64).
+- Assumes: writers (crisis alerter, radar, journals, grants) use an action URL containing the session id when session-bound.
+- Promises: none directly.
+- Notes: reads on the default-region pool (18); lib/data/journals.ts:162/185 WRITES crisis notifications through `dbFor(regionOfPerson)`. Today `eg` falls back to the US URL (lib/db/region.ts:27-33) so they meet; the day `DATABASE_URL_EG` is set, an Egyptian patient's journal alert lands in Cairo and the clinician's banner reads Virginia.
+
 <!-- FILES-END -->
 
 ## Stale
+- lib/data/notices.ts:78 `undismissedCount` says "Drives the badge". It has no caller anywhere in the repo. Whatever badge the patient chrome draws, it is not this.
+- lib/data/notifications.ts:21-29 header says rows "never marked read by anything" is fixed. `markAllRead` (64) has no caller in the repo, and `markSessionNotificationsRead` only clears URLs containing a session id (room page and session page). Any notification not tied to a session (journal crisis alert `/people/<id>`, grant notices) is still permanent on the dashboard, which is the exact failure the header describes.
 
 ## Suspect
 - lib/data/grants.ts:493-497 `revokeGrant` awaits `notifyGrantRevoked` with no catch. The comment says a partner we failed to reach must never mean a live grant, and that holds (revocation committed first), but if the webhook queue insert throws, the patient's revoke action errors after it succeeded, so the patient sees a failure for a revocation that took effect. Check `lib/partner/webhooks.ts` for an internal catch.
