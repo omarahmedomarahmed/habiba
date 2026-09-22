@@ -408,3 +408,39 @@ stripped?) / T3 (hand-typed routes?) / T4 (truncation?) / T6 (main on import / a
 - `writesTo()` + `required()`. `void main()`. T6: `main()` at module scope.
 - Promises: P2 adjacent (check-ins are outbound messages); P5 partly (crisis beats "stop"; no-clinician case reaches nobody).
 
+### scripts/verify-sprint45.tsx (337 lines)
+- For: sprint 45 every string admin-editable on both halves: the client provider honours overrides (45.3), a save is a draft until published (45.5), no rendered component reads the dictionary as a value (45.7), literal ratchet (45.8), facts.ts has no NUL (45.0).
+- Decides: writes a render script into `.verify-tmp-*` in the repo and runs it in a child process without `react-server`; `I18nProvider` with an override renders it, without renders the shipped words (l.76-152: both halves, a real render, right medium); layout passes `overridesFor(` and `overrides={overrides}` (l.160-165); client.tsx literal `edited[key] ?? dictionary[key]` (l.176-181); draft invisible, publish visible, clear restores (l.185-237: both halves); no app/components file imports `DICTIONARIES|en|ar` as a value from `i18n/messages`, >200 files, with four planted import strings (l.260-297); per-surface ratchet (l.307-324); no NUL in facts.ts (l.328-332).
+- Reads: a real render, live DB via `lib/i18n/authoring`, `readSource`.
+- 🔴 This file is `.tsx`, so the C205 gate in verify-sprint37l2.ts (`^verify-.*\.ts$`) never examines it. It reads `.ts` source only through `readSource` today, so it happens to be clean, but it is outside the gate that TRAPS T1 says protects every verifier. Also: is it wired to `npm run verify:sprint45` and to the `verifiers` gate? Cannot tell from here (package.json not in slice).
+- Mutates a real string: `clearString` on `tled.patient` in `en` at start and end (l.192, 229) deletes any real operator override of that key (same shape as sprint 21).
+- The planted-import control tests the regex against strings, not the walk; `>200` files is the read-something control.
+- The bypass regex only catches `import {...} from` at line start; `const { en } = await import(...)` or a re-export through another module passes.
+- Child process inherits the operator's environment (H29); it only renders, so harmless.
+- `writesTo()` + `required()`. `void main()`. T6: `main()` at module scope.
+
+### scripts/verify-sprint46.ts (566 lines)
+- For: sprint 46 split fee: a platform fee on every session, an AI fee only where the patient consented (C209); one invoice per session and one line per kind (C251); reconciler repairs a missing line; therapist surfaces never read the PAYER (C243, the corporate leak); no price on a consent surface; crisis path reads no billing fact (C253).
+- Decides: pure `sessionLines`: declined = platform fee > 0, consented = fee + tier AI rate (l.110-124); DB refuses a second invoice for one session (l.149-193) and a second line of one kind (l.202-220); real `chargeForSession` on a planted payg org: declined session has exactly one `platform` line at the fee, consented has platform + ai and the invoice total is their sum (l.245-317); deleting the AI line then `reconcileMissingCharges()` restores it (l.328-359); five hand-typed display files and the `recentPayments` body do not mention `payerName|payerEmail`, and the query does name `patientName` via `patients.` (l.398-434); payment history has no brand/last4 (l.436-440); within 600 chars after "consent" in two hand-typed files, no `${digit`/`formatUsd`/`formatMoney` (l.452-477); three crisis modules mention no invoice/credit/subscription/billing (l.486-498); tiers shape and credits.ts literals (l.502-540).
+- Reads: live DB through the real billing service; `readSource`.
+- Control: both halves on the split (presence of the platform line, not only absence of AI). Good.
+- 🔴 Side effect on the whole database: `reconcileMissingCharges()` (l.346) is the production reconciler and runs over EVERY session on the branch, raising charges for any real session that lacks a line, not only the planted one.
+- The planted practice cleanup (l.547-561) is NOT in a `finally`; any throw between l.70 and l.547 leaks the org, user, subscription and sessions. Ledger legs keyed by invoice id (not session id) are not deleted (l.555-556 deletes by session `ref_id` only).
+- Wrong-reason passes: the two DB refusals (l.185, 212) catch any error.
+- One of N: C243 is proved over five hand-typed files and one query. Any other therapist-facing surface that selects `session_payments.payer_name` (a new earnings widget, a clinic portal earnings view, an admin panel) is invisible. This is the sponsor anonymity wall (E1, priority 1). Same for the three crisis modules (P5) and two consent surfaces.
+- Settles MAP contradiction 3: the AI fee keys on `sessions.recording_consent` (l.252, 286-309), so "consent to recording" and "AI on" are the same flag in billing.
+- `writesTo()` + `required()`. `void main()`. T6: `main()` at module scope.
+- Promises: T3 adjacent (fee arithmetic); E1 partly (payer name hidden on five named surfaces only); P5 partly (three crisis modules free of billing words); A2-adjacent (one invoice per session enforced by index, attempted).
+
+### scripts/verify-sprint47.ts (417 lines)
+- For: sprint 47 the honest record: a note's provenance comes from captured evidence not consent alone (C212), a journal can never produce a diagnosis or risk level (C214, `facts_journal_never_concludes`), provenance carried on every read, journal page promises no watcher.
+- Decides: a granted session with no segments stamps `clinician` (l.71-95); a declined one (borrowed, if any) stamps `clinician` (l.97-112); "the stored default is clinician" (l.121-130); `recordFact` from a journal refused for diagnosis and risk (l.167-197), a raw insert refused (l.208-232), a `presentation` fact from the journal allowed (l.242-268), a clinician diagnosis allowed (l.279-309); `SOURCE_PRIORITY` clinician 1 ai 4 (l.319-323); five hand-typed reads mention `sessionNotes.provenance` (l.334-352); server and client badge share `note.origin.*` keys (l.363-373); journal page has none of four watch patterns (l.385-397); the single line containing `<SosOrb` in chrome has no grant/therapist/credit/invoice word (l.405-412).
+- Reads: live DB, real `lib/data/facts`, `lib/data/feedback`; `readSource`.
+- Control: both halves on C214 (refused and allowed). Good.
+- T2: l.126-130 is labelled "the stored default is `clinician`" and asserts `defaulted === undefined || defaulted.provenance !== undefined`, which is always true. The column default is never read.
+- Plants a suicidal journal entry on the FIRST real `people` row (l.143-163), with `accountId: person.id` (a person id in an account column), removed in the `finally`. While it exists, any cron or reader sees a crisis sentence in a real person's journal.
+- Wrong-reason pass: l.188 labels every non-`JournalInferenceError` as "database", and l.224 accepts any error as the DB CHECK.
+- The orb check (l.406-410) inspects only the one line that contains `<SosOrb`; a condition on the line above passes (sprint 25 at least looked for `?`/`&&` before it).
+- `writesTo()` + `required()`. `void main()`. T6: `main()` at module scope.
+- Promises: P3 kept at the data layer (a note written from memory is not badged as transcript when capture failed); P5 partly; DB rule `facts_journal_never_concludes` proved by attempted write.
+

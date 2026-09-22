@@ -468,6 +468,91 @@
 - For: clinician wall (poster) codes: create with a label, list with server-rendered QR SVG, revoke by form.
 - Notes: renders `entry.svg` with `dangerouslySetInnerHTML` (89-93); safe only if the SVG is generated server-side from the URL and never includes the free-text label (not in slice).
 
+### components/simulation-banner.tsx (81 lines)
+- For: violet strip on every page when on the simulation branch or when `SIMULATION_RUNNING` is set on production, naming the database endpoint.
+- Decides: endpoint read back out of `env.databaseUrl` (60-70).
+- Notes: prints the Neon endpoint id (not a secret per its comment 26-29; no credential visible). English literal "Simulation. Everybody here is invented." (77). `bg-violet-700 text-white`, a third hue outside navy/teal.
+
+### components/sponsor/apply-form.tsx (101 lines)
+- For: corporate/university enquiry (org, kind, contact, email, phone, best time).
+- Notes: "Working…" hardcoded. Purchasing language only (30-34).
+
+### components/sponsor/chrome.tsx (108 lines)
+- For: sponsor portal chrome on `Desk`: overview, people, code, pot, domains, integrations, settings; never-bar (individual, attendance, clinical).
+- Decides: viewer role gets a badge; the badge text is `t("sponsor.nav.overview")` (80), i.e. the word "Overview", not a "read only" label: a viewer's badge says nothing about being read-only.
+- Notes: comment 11 "Five destinations" but seven tabs (Stale). Comment 14-16 says `lib/data/sponsors.ts` select has "no therapist", matching portal-demo.tsx:624-628 and contradicting the demo's per-therapist spend column.
+
+### components/sponsor/code-card.tsx (116 lines)
+- For: printable joining code poster (server QR data URI), failed-attempt count and spike note, rotate with confirm.
+- Decides: counts only, no attempt list (35-42); rotate needs a second tap and does not unenrol (17-20).
+- Promises: E1/E2 (no individual data in props). Rotate confirm `bg-red-600 text-white`.
+
+### components/sponsor/confirm-domain.tsx (62 lines)
+- For: mailbox half of domain proof, confirmed by a button press (not GET) (8-15).
+- Notes: all copy hardcoded English (23-27, 35-38, 42-44, 58). The mailbox recipient is told "set up mental health cover for your people" (35), while code-card.tsx:12-16 rules every poster word must be a benefit word; this is an admin mailbox, so lower risk.
+
+### components/sponsor/coverage-form.tsx (207 lines)
+- For: sponsor coverage percentage in 5% steps, locked until Edit, "covers about N sessions" at the average price, pending reduction with its date, 0% is not removal.
+- Decides: raise now, lower after `noticeDays` (160-165); booked sessions keep their percentage (74-79); 0% keeps people on the list (166-170).
+- Promises: E3 (stated, 76-77, 163-164), E4 (stated, 166-170). Kept in wording; enforcement is in `setCoveragePercent`.
+- Notes: all copy hardcoded English (60-65, 76-77, 92-94, 120-133, 146, 156, 161-174, 204). "covers about N sessions" divides by `sessionPriceUsd * draft/100` from settings' average, a projection of pot use, not of anybody's earnings. No "covered per year" or "cap per session" control exists here, though the marketing console shows both (portal-demo.tsx:756-760).
+
+### components/sponsor/domain-list.tsx (190 lines)
+- For: sponsor domains with two proofs (mailbox, DNS TXT), check-now, add domain.
+- Notes: all copy hardcoded English. Check-now shows "Found it. This half is proved." whenever `checkDnsRecord` returns no `error` (125), regardless of any ok flag; correct only if the action always sets `error` on a miss (Suspect). `byAgreement` domains skip both proofs.
+
+### components/sponsor/gate-settings.tsx (182 lines)
+- For: what an employee must present to enrol (domain email or staff-number shape, max two), public listing toggle.
+- Decides: only two identifier kinds, DB CHECK (24-31); weak-gate warning above the choice (32-38); shape hint cannot contain four digits or `@` (40-45, DB).
+- Notes: the pattern field and the hint field both use label `sponsor.shapeHint` (142, 147), so two inputs carry the same label. "Working…" hardcoded. Drop gate is one tap, no confirm (106).
+
+### components/sponsor/integrations.tsx (386 lines)
+- For: HR employment-verification connection: never-sync sentence before the switch, system pick, on/off (off revokes keys), live indicator by last success, steps with an API snippet and a mint-once key, keys list, failed-attempt count, delivery log.
+- Decides: live only after a successful call (83-84); failed attempts as a count only (309-326); delivery log has no names (379-380).
+- Promises: E1/E2 surface.
+- Notes: the delivery log lists each verification call with its time (357-373). One call happens when an employee enrols, so the log is a timestamped list of enrolment events; with a small staff and the roster's "last checked" date beside it, that is "when" for a named person (see Suspect). Snippet hardcodes host `https://24therapy.app` and a 2026-09-14 date (220-228).
+
+### components/sponsor/roster-list.tsx (138 lines)
+- For: sponsor roster: name, paused label, last-checked date, remove with a reason.
+- Decides: four-column select, ordered by name, no join date (14-30); removal says funding ends and record does not (32-38).
+- Promises: E1 partly: the roster shows NAMES of enrolled people (81) with a `lastChecked` date (88-90). E1 forbids who USED it; enrolment is not use, so kept as written, but the last-checked date is a per-person date (see Suspect with integrations).
+
+### components/sponsor/sign-in-form.tsx (65 lines)
+- For: sponsor sign-in, no sign-up link. "Working…" hardcoded.
+
+### components/sponsor/spend-heatmap.tsx (105 lines)
+- For: a year of weekly spend as five-step shaded cells; suppressed weeks hatched and labelled differently from zero.
+- Decides: `null` suppressed vs `0` empty (8-19, 44-45); five steps not continuous (67-79); no session count prop (21-25).
+- Promises: E1 kept here (spend only, suppression visible); the "published every five sessions" balance rule is upstream.
+- Notes: cells are `div`s with `title`/`aria-label` only, not focusable; hatch uses hex literals. Shades slate-100, brand-100/200/400/600.
+
+### components/sponsor/top-up-form.tsx (82 lines)
+- For: card-rail pot top-up: free-text amount, refund terms and expiry above the button (C233).
+- Notes: comment 29 names `EgpSettlement`; the component is `EgpDisclosure` in components/money/price-tag.tsx (Stale). Free-text amount field, the thing top-up-stepper.tsx:27-31 calls dangerous on the transfer rail (here only the card rail). "Working…" hardcoded.
+
+### components/support/therapist-support.tsx (155 lines)
+- For: clinician support ticket: topic, optional payout, optional session, message; list of own tickets.
+- Notes: comment 17-19 lists topics "billing, payouts, a session, verification, the app"; `TOPICS` has billing, a_session, account, something_else (Stale). Ticket `row.status` printed as the raw enum (146), the defect the comment 22-23 says was fixed for topics.
+
+### components/support/ticket-reader.tsx (86 lines)
+- For: `/support/[token]` reader: six-digit code then the ticket and its events; same error for unknown token and wrong code (15-18).
+- Notes: English literals "Checking…", "Read the reply", "Reference", "Our reply", "Update", "Your six-digit code" (24, 37, 47, 67).
+
+### components/ui/index.tsx (235 lines)
+- For: the base primitives: Button, Card, Field, Input, Textarea, Badge, EmptyState, PageHeader, Spinner (full list in Design system inventory).
+- Decides: primary `bg-brand-500 text-navy-600 hover:bg-brand-400 active:bg-brand-600` (37-43); danger white on red-600 (34-35).
+- Notes: `Badge tone="teal"` maps to `bg-brand-50 text-brand-700` (164), so "teal" is a brand alias here and teal-* is not used. Spinner aria-label "Loading" English (228). `h-13` custom size in `lg`.
+
+### components/ui/money.tsx (133 lines)
+- For: `Money`: a USD figure that reveals EGP on hover (450ms), focus or tap, fetched from the server `egpFor`.
+- Decides: no conversion until asked; server formats pounds (24-40); non-USD currency shows no reveal (44-57).
+- Notes: every USD figure becomes `role="button"` with `tabIndex=0` (117-118), so a ledger of forty prices is forty tab stops; the popup is `role="status"` (125), one live region per figure (H8). Uses physical `left-1/2 -translate-x-1/2` (126). Two EGP mechanisms coexist: `Money` asks the server; `PriceTag` (components/money/price-tag.tsx:92) computes pounds in the browser with `convert()` from a server rate, which is what this file's comment 30-36 says a browser must never do. The pounds sit behind an interaction, which visual/primitives.tsx:23-30 (65.23, "nothing hides behind an interaction") forbids for things a payer should see.
+
+### components/visual/primitives.tsx (456 lines)
+- For: the "visual vocabulary": StateBanner, FlowStrip, SeesWhat, Meter, Checklist, BeforeAfter, NeverBar, SplitBar, IconGrid.
+- Decides: no accent prop, no collapse, logical properties (6-38); SplitBar widths are the real values, no minimum (370-393); Meter clamps 0..1 and turns amber at 75%, red at 90% (206-207).
+- Notes: header says "Six primitives" (9); the file exports nine (Stale). `Meter` red at 90% is used for a pot's spent fraction (portal-demo.tsx:667), red for money. `NeverBar` and `SeesWhat` crosses `text-red-500`.
+
 <!-- FILES-END -->
 
 ## Design system inventory (slice-specific)

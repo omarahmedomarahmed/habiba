@@ -461,3 +461,71 @@
 - Promises: none.
 - Notes: none.
 
+### lib/security/csp.ts (265 lines)
+- For: the Content Security Policy as data, and whether it is enforcing.
+- Decides: `script-src 'self' 'nonce-…' 'strict-dynamic'`, plus `'unsafe-eval'` only when `isVideoRoom` (`/sessions/:id/room`) (151-183); `style-src 'self' 'unsafe-inline'` (199); `img-src 'self' data: blob: https:` (208); `font-src 'self' data:`; `media-src 'self' blob: https://*.daily.co`; `connect-src 'self'` + `https://*.daily.co`, `wss://*.daily.co`, `https|wss://*.pluot.blue`, `https|wss://*.dailywebrtc.com`, `https|wss://*.dailywebrtc.net` (77-100, 216); `worker-src 'self' blob:`; `frame-src 'self' https://*.daily.co`; `frame-ancestors 'none'`; `object-src 'none'`; `base-uri 'self'`; `form-action 'self'`; `manifest-src 'self'`; `upgrade-insecure-requests`. Daily's Sentry deliberately blocked (65-69). `CSP_ENFORCE=0` switches to report-only (261-265); no report-uri/report-to, so report-only mode reports to nobody.
+- Assumes: middleware mints a per-request nonce and sets the policy on request and response; `verify:csp` pins daily-js version against docs/DAILY-HOSTS.md.
+- Promises: none of the 25 directly; protects every promise from script injection.
+- Notes: the room relaxation is chosen per DOCUMENT request in middleware, but next.config.ts:112-119 explains that a clinician reaches the room by client-side navigation and so keeps the policy of the first document loaded. By the same mechanism, a clinician who navigates dashboard -> new session -> room client-side is still under the strict policy without `'unsafe-eval'`, so daily-js's `Function(...)` compile (156-166) is refused and the call never connects. Either the room link forces a full load (outside this slice) or video is broken on the common path. `connect-src` does not include the OpenAI or Blob hosts, so nothing in the browser may talk to them (good); `img-src https:` lets any stored blob or radar photo URL load.
+
+### lib/sponsor-auth/guard.ts (44 lines)
+- For: sponsor portal guards.
+- Decides: `requireSponsor` redirect to SPONSOR_SIGN_IN (25-29); `requireSponsorAdmin` non-admin -> /sponsor (40-44), the only individual-level power being ending someone's funding.
+- Assumes: data layer (`lib/data/sponsors.ts`) holds the wall.
+- Promises: E1/E2 structurally (no organisationId on the actor).
+- Notes: refusals not audited.
+
+### lib/sponsor-auth/session.ts (150 lines)
+- For: sponsor session: cookie `24t_sponsor`, table `sponsor_auth_sessions`, `SponsorActor`.
+- Decides: idle 30 min, absolute 8h (37-38); WHERE includes user not deleted and `sponsors.state = 'active'` (110-120); lastSeen written each request.
+- Assumes: nothing on the patient side reads sponsor state (85-88).
+- Promises: E2 structurally; P5 (sponsor suspension never touches a patient).
+- Notes: a `held` sponsor cannot sign in at all (118), while lib/lifecycle/machines.ts:386-390 says the held state's screen is "the company portal, with every page saying what is waiting" and `sponsor.apply.sentBody` tells the applicant "Your account is open". The held applicant has no portal and no screen: they wait for a phone call with nothing to open.
+
+### lib/uploads.ts (315 lines)
+- For: Vercel Blob uploads (credential, headshot, support, avatar, receipt), local-disk dev fallback, receipt undeletability, `documentUrl`.
+- Decides: images only 8 MB for credentials (30, 39, 67-74), avatars 2 MB (58), support and receipts images or PDF 25 MB (77-107); path `kind/userId/label-<24 random bytes>.ext` (167-172); every blob `access: "public"`, cache 3600 s for headshots else 0 (190-195); receipts cannot be deleted, malformed URL counts as undeletable (235-270); `documentUrl` returns the stored https URL unchanged (306-313).
+- Assumes: nobody leaks a URL; callers audit opens.
+- Promises: H14 (blob URLs are secrets, not access control). A1/A4 evidence (receipts kept). A5 ("every read written down") is not achievable for documents: whoever has a URL has the file, with no record.
+- Notes: comment says "The random 32-byte path prefix is the access control" (20) and "32 random bytes" (143); the code uses `randomBytes(24)` (168): stale. The prefix is not a prefix either, it is a suffix after the user id. Support attachments ("a patient photographing a prescription ... has sent us a medical record", 42-46) and bank-transfer receipts (names, account numbers) are public blobs whose URL is the only protection; the avatar comment says reads go "through an authenticated route rather than the storage URL" (55-57), but `documentUrl` hands out the storage URL itself, so no route stands between reader and file. The dictionary promise "Everything you open is recorded against your name" (messages.ts `tdl.newTab`) can only record the click that revealed the URL, never a reopening or a forward. The userId in the path is by design (169-171). HEIC is allowed for credentials yet "only formats a browser will render" (33): most browsers do not render HEIC, so an operator reviewing a licence may see nothing.
+
+### lib/utils.ts (177 lines)
+- For: `cn`, `initials`, `fullName`, `formatDuration`, zone- and locale-required date formatters, `relativeDay` with dictionary keys.
+- Decides: all formatters require zone and locale, null zone = UTC (73-176).
+- Assumes: lib/scheduling/tz, lib/i18n/config.
+- Promises: none.
+- Notes: `fullName` default fallback "Unnamed" is an English literal (15).
+
+### lib/viewer.ts (34 lines)
+- For: per-tab anonymous viewer id in sessionStorage for radar booking holds.
+- Decides: `viewerId()` (19-34), not a credential by design.
+- Assumes: atomic claim elsewhere decides the booking.
+- Promises: P1 (booking flow).
+- Notes: none.
+
+### instrumentation.ts (43 lines)
+- For: Next `onRequestError` hook to `recordError` (path, method, digest only; no body, query, headers, cookies).
+- Decides: as above.
+- Assumes: lib/observability/errors.
+- Promises: none.
+- Notes: none.
+
+### middleware.ts (197 lines)
+- For: locale prefix handling, the principal redirect table, CSP nonce and header, `x-pathname`.
+- Decides: `/ar/<non-public>` redirected to the unprefixed path and the locale cookie set (58-69); `/en/*` redirected (71-75); five cookie presences fed to `routeDecision` (91-98), with `?expired=1` as the loop breaker (97); nonce `btoa(randomUUID())` per request on request and response (135-160); client-sent `x-locale` deleted (171); matcher excludes `_next`, images, favicon and all of `/api/` (191-196).
+- Assumes: every page runs its own guard; the edge knows only cookie presence (16-28).
+- Promises: priority 5: no cookie of one principal is consulted for another principal's prefix (see lib/routing.ts); staff and clinician share `24t_session`.
+- Notes: `?expired=1` on ANY URL disables the "signed in at your own door" redirect for that request (routing.ts:391); harmless (it only lets a signed-in person see their own sign-in form). `/api/*` is wholly outside middleware, so every route handler must authenticate itself; not verifiable from this slice. Comment 193-194 names only the Stripe webhook and transcribe endpoint as reasons, while the exclusion covers every API route.
+
+### mock-run.ts (4 lines)
+- For: starts `tests/mock-openai` on port 8899 for local e2e runs.
+- Decides/Assumes/Promises: none.
+- Notes: a root-level scratch runner outside `scripts/`; not referenced by package scripts as far as this slice shows (not checked). Candidate dead file.
+
+### next.config.ts (139 lines)
+- For: security headers (nosniff, strict-origin-when-cross-origin, X-Frame-Options DENY, HSTS 2 years preload), one Permissions-Policy (camera, microphone, display-capture for self and *.daily.co; geolocation and payment none), `X-Robots-Tag noindex` on /admin, server action body 2 MB, single-process build, `distDir` from NEXT_DIST_DIR.
+- Decides: as above.
+- Assumes: CSP set in middleware, not here.
+- Promises: none.
+- Notes: the argument at 112-119 (policies attach to the document, client navigation inherits them) is the reason the per-route CSP relaxation in csp.ts is suspect. Server action body limit 2 MB (59) while uploads allow 8 MB credentials and 25 MB receipts and support files: any upload that goes through a server action above 2 MB fails before `uploadProblem` can say why, unless those uploads use a route handler (outside this slice). A receipt screenshot "6 MB" is exactly the case uploads.ts:93-96 says must not be refused.
+

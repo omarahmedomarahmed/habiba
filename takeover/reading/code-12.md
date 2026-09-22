@@ -347,3 +347,47 @@ Verifier template used below: Claims / Reads / Control / T1 / T3 / T4 / T6.
 - T6: `main()` unguarded (1427); T6 fixed at the source by `_demo-cast.ts`/`_value-statements.ts` holding the shared data.
 - Promises: P4 (two summaries, two authors, both kept: seeded by raw insert, 763), T5 (grant states seeded raw), E1 (six covered sessions to cross the floor of five, 995 to 1020), A3 (rejection with a verbatim reason, 1369 to 1374), P2 (in-app notice row, 1288).
 
+### scripts/physics.ts (425 lines)
+- For: fits the two-term (fixed + per-minute) AI cost model per kind and model from `ai_request_logs`, evaluates at `--at` (50) minutes, and compares against `evals/physics.json` (the benchmark); exits 1 on disagreement or a missing benchmark. On the production allow-list as a READ.
+- Claims: the fifty-minute cost the forecast rests on.
+- Reads: `ai_request_logs` (x axis = transcribe `audio_seconds`, 87 to 105), `getSettings()` rates (129 to 135), the benchmark file.
+- Control: yes in part: an empty fit is "NOTHING TO COMPARE" and exits 1 (236 to 261, the H42 fix); a partial fit is labelled a floor (288 to 294); a planted-offender control lives in `verify:physics` (per `_gates.ts`), not here.
+- Notes: `rateFor` returns 0 for a model with no configured rate (132 to 134), so an unpriced model contributes $0 and the fit UNDERSTATES, the opposite of H12's rule that an unpriced model deliberately overstates. Sessions with AI calls but no `transcribe` row are dropped by the inner join (102). `getSettings()` is product code: if it inserts missing defaults on read, this "read" writes (not checked; Suspect). `main()` is called at 376 before `const BENCHMARK_PATH` at 378; works only because the first use follows an `await` (fragile TDZ). T6 unguarded.
+
+### scripts/pitch-deck.cjs (1221 lines)
+- For: builds a 14-slide investor deck with pptxgenjs from screenshots produced by `scripts/demo-video.mts`.
+- Claims (header 14 to 20): "Every number on these slides is either read out of the code that charges it ... or derived". FALSE: every figure is a hand-typed literal ($6 PAYG, $99 Unlimited, 10% take rate, 15/3/2 cents cost bars, 20 cents, 89% margin, ARR 14,400 to 2,880,000, "$80 radar sessions") (797 to 799, 883, 928, 931, 951, 1006 to 1009). The model it describes is superseded: current pricing per this slice is payg ($1 room + $3 note), Practice $80, Clinic $144 (`probe.ts:744 to 746`, `seed-demo.ts:305`). "Charged on the patient's card at booking, clinician paid out by Stripe Connect" (799) contradicts the Egyptian manual-transfer rail. "≈89% gross margin on a $6 session" (931) is the claim family `lib/content/honesty.ts` refuses ("paid sessions cover our fee").
+- Trust claims that other code in this slice contradicts: "Nobody deletes a patient or a session. Not the clinician, not support. Clinical records are append-only" (743) and "Every action is on the audit trail" (750) versus `seed-demo.ts` (deletes every session, disables the append-only trigger, deletes `audit_log`) and `demo.ts purge`. "Ratings never name their author ... no query anywhere joins a rating back to a patient" (744, 677) unverified here. "Facial-affect analysis in the copilot" as a 90-day plan (1137): unclaimed capability, see Unclaimed. Contact email on the close slide (1189) is the account holder's.
+- Runs on require (no guard); writes `demo-output/24therapy-pitch.pptx`. `pptxgenjs` deliberately not a dependency (10 to 13).
+
+### scripts/plan.ts (193 lines)
+- For: prints `lib/finance/beta` plan scenarios (pure).
+- Notes: the "What this cannot know" list (168 to 174) interpolates the monthly price (fixed after a stale "1,000 EGP", 157 to 164) but still HAND-TYPES the assumptions it quotes ("40% of solo therapists", "5% ... 40% active", "3%" card cost, "two in three" renew), the same failure the comment describes for the price. "Two measured numbers in here" (190) is typed. No DB. T6 unguarded.
+
+### scripts/probe.ts (1449 lines)
+- For: the "mini simulation": drives a real browser against a local server (`PROBE_URL`, default 127.0.0.1:3412) through nine flows and reads back the row each step produced.
+- Guard: `writesTo()` (47), production refused; sweeps `Probe` people before and after (58, 81, 1428 to 1447).
+- Flows and what they actually assert:
+  - F1 therapist sign-up, onboarding, documents, submit (97 to 433): real form, real upload. "the form says what it is still waiting for" records `ok` even when the missing list is EMPTY (393 to 401; the text says "(nothing listed, which would be the defect)" but the state is not `defect`).
+  - F8 support (451 to 533): header says it checks that a `staff` account clears its queue AND is refused the founder-only half (446 to 449). It signs in as `admin@24therapy.test` (461, presumably the super admin from `screens-prep`) and never tests a refusal. The audit check (517 to 520) counts ANY `verification%` audit row in the last two minutes, not the row for this approval. A5 is NOT tested despite the claim.
+  - F2 patient (550 to 671): records as a `defect` that a patient can never add an email and `/patient/account` calls it "the only way to receive your record" while offering no control (657 to 667). Product finding (priority 4, a thing a person cannot do and is told they need).
+  - F5 transfer (688 to 973): documents that `organizations.region` DEFAULTS TO `us`, so a self-signed-up Egyptian clinician is offered Stripe checkout and "You will be taken to the card page" until an operator changes the region (703 to 810); the probe then flips the region with a raw `UPDATE` (820, 821). Asserts `manual_payments` is not `confirmed` after declaring (961 to 969): A1 evidence.
+  - F4 money out (986 to 1046): "...and the ledger agrees with the screen" is recorded `ok` UNCONDITIONALLY (1036 to 1042); it never compares the ledger figure to the screen. T2.
+  - F6 practice apply, F7 employer apply (1059 to 1191): a held `organizations`/`sponsors` row; "applying does not grant a console".
+  - F3 session (1212 to 1289): does not run a session; POSTs to `/api/sessions/<zero uuid>/transcribe` and treats any non-404 as ok (1252 to 1267), so a 500 is "ok".
+  - F9 founder (1301 to 1343): opens six admin pages as the admin; no staff refusal either.
+- Password literals: the local admin password (462, 1308, same as `shot.mjs`) and `_probe.ts` `PASSWORD` (values not copied).
+- Sweep deletes `audit_log` rows of probe users (1441) and any sponsor or organisation whose NAME contains "Probe" (1445, 1446): a real clinic called "Probe..." on dev would be deleted.
+- T6: `main()` unguarded (1449).
+
+### scripts/probe/_probe.ts (151 lines)
+- For: probe harness: `BASE`, `SURNAME = "Probe"`, `PASSWORD` (a fifth password literal, 48), `emailFor`, `record`/`report`, `openBrowser` via `_browser.ts`, `asPerson` (fresh context per person; page errors recorded as defects), `go`, `gist`, `shot` to `.probe-shots` (gitignored).
+- Notes: module-level `findings` array (67), so it is stateful on import but runs nothing. `report()` never sets an exit code; `probe.ts` exits via `reporter().finish` whose `check` is only called once ("there is a product to walk"), so a probe run with every flow BLOCKED or DEFECT exits 0 as `PASS (1 checks)`. T2/T4 shape: the green line and the findings disagree.
+
+### scripts/prove.ts (19 lines)
+- For: writes `docs/VALUE-STATEMENTS.md` from `_prove-doc.ts`. Side effect at module scope, by design, with the builder moved out (T6 fix). Nothing imports it.
+
+### scripts/q.ts (7 lines)
+- For: runs ANY SQL passed as `argv[2]` against `DATABASE_URL` and prints rows.
+- Notes: no `writesTo()`, no `hostOf()`, no read-only transaction: an unguarded write console that does not even print which database it hit. With `.env.local` on dev it is dev; the day `.env.local` points at production (HAZARDS records that afternoon) it is a production write door outside every count. Not in package.json.
+

@@ -463,3 +463,59 @@
 - Promises: A5 adjacent.
 - Notes: none.
 
+### lib/partner/usage.ts (283 lines)
+- For: the partner's own monthly session limit, usage and projection, alerts at 80 and 90 per cent, stop stamp.
+- Decides: `usageFor` (58) counts live billable sessions this month; `setLimit` (123) clears alerts and stop; `mayRun` (169) sandbox always, limit 0 means unlimited, else stop at `used >= limit`; `alertApproachingLimits` (202) claims each stamp conditionally then `notify`; `markStopped` (278).
+- Assumes: `billable` is decided correctly at open (see platform.ts).
+- Promises: none of the 25.
+- Notes: the alert link is the relative path "/partner/usage" (261), which in an email is not a working link (every other caller passes `${env.appUrl}`). `stopped` in `usageFor` reads `limitRow.periodStart`, which `markStopped` never updates, so a stop recorded in a later month under an old periodStart reads as not stopped (display only; `mayRun` uses counts).
+
+### lib/partner/webhooks.ts (373 lines)
+- For: signed, content-free partner webhooks (event, id, time), queue and drain; grant-revoked and record-claimed emitters.
+- Decides: `registerWebhook` (56) https and sealed secret; `queueWebhook` (101); `notifyGrantRevoked` (152) only the partner whose own clinician lost the grant; `notifyRecordClaimed` (202) every partner with a live link; `deliverPending` (228) HMAC over timestamp.body, 6 attempts; `deliveriesFor`, `webhooksFor`, `disableWebhook`.
+- Assumes: the grant and claim code paths call the two emitters (outside slice; the header 128 to 142 says they were never called before).
+- Promises: P4 adjacent (the patient can leave; the partner is told).
+- Notes: `registerWebhook` accepts any https URL, including internal hosts, and the cron then POSTs to it (SSRF by a partner against our network, limited to a three-field body). No backoff between attempts: six attempts can be spent in six consecutive cron runs.
+
+### lib/partner/writeback.ts (154 lines)
+- For: write a completed session held on a partner's platform into our chart, source-attributed (55.7).
+- Decides: `recordExternalSession` (46) validates duration and time, idempotency by (external meeting id, org, kind) via select-then-insert (87 to 99), inserts a completed video session with price 0 and a `feedbackToken` (121), and a `partner_platform` source row provisioned by the clinician.
+- Assumes: a unique index backs the idempotency (the select-then-insert races otherwise; cannot confirm from here).
+- Promises: P4 (the session appears in the patient's record, attributed).
+- Notes: a `feedbackToken` is minted, so whatever sweeps feedback/rating reminders may email the patient about rating a session held on another platform (cannot confirm from here). `recording_consent` null is correct here and the file says so.
+
+### lib/session-clock.ts (158 lines)
+- For: the one session timeline (running, countdown, over) shared by both screens and the server.
+- Decides: `capSeconds` (82); `sessionClock` (86): over at the cap, or "silent" when past running time AND the last transcript segment is older than `silenceSeconds` (123); `formatRemaining` (148).
+- Assumes: `lastActivityAt` is the latest transcript segment.
+- Promises: T2 interaction: see Suspect. Going off record after the running time (minute 50 by default) stops segments, so after `silenceSeconds` the server ends the session as abandoned. The comment (116 to 121) covers only a session that was off record from the start.
+- Notes: `sessions.extendedAt` is documented dead (31 to 36).
+
+### lib/session-finish.ts (128 lines)
+- For: the one after-session routine for every way a session ends: delete room, release radar claim, charge, settle from held, session-level risk classifier, note.
+- Decides: `finishSession` (38) runs five independently guarded steps, each failure only `log.error`.
+- Assumes: `generateAndStoreNote` only has a transcript when recording was permitted. There is no consent check before the risk classifier or the note (task 123: an in-person session with consent NULL is transcribed, risk-classified by a model and written up).
+- Promises: T1 (the note starts as soon as the session ends). P5: the risk step has no money condition (billing runs first but a billing failure does not stop the risk step).
+- Notes: a failed step is a log line; nobody is shown it (for example a failed room delete leaves the room open until its 4 h expiry, and a failed charge leaves no invoice with no screen saying so).
+
+### lib/sessions/started-notice.ts (125 lines)
+- For: tell the patient the moment the clinician presses Start, with the join link, in app and by channel (76.17, 79.1).
+- Decides: `noticeSessionStarted` (53) patient contact falling back to guest email; writes an in-app notice when there is a person; one WhatsApp variable; never throws.
+- Assumes: `startSession` calls it only on the scheduled to started transition.
+- Promises: P2 kept for patients with a person row; a guest gets email only (by design).
+- Notes: none.
+
+### lib/transcript/descriptors.ts (94 lines)
+- For: words per minute and pause length, never emotion labels (3.3).
+- Decides: `countWords` (49), `wordsPerMinute` (66) null when unknown, capped at 400; `pauseBeforeMs` (87).
+- Assumes: segment durations and start times are real. They are not: the transcribe route stamps every chunk as exactly 8 s from its sequence number (route.ts:178), so wpm is words per 8 s and every pause is 0 unless a sequence number was skipped.
+- Promises: none of the 25.
+- Notes: the descriptors are computed from fictional timings (see Broken, T2 measurement).
+
+### lib/video.ts (223 lines)
+- For: Daily.co private rooms, meeting tokens, deletion, a health check.
+- Decides: `createPrivateRoom` (69) random name, private, 4 h after the later of now or `liveAt`, eject at expiry, chat off, screenshare on; returns a reason on failure. `roomFailureText` (46), `videoHealth` (160), `createMeetingToken` (171) 120 min default, `deleteRoom` (205) swallows failure, `roomUrlWithToken` (219).
+- Assumes: tokens are minted only for the two people in the session.
+- Promises: P1 depends on it. No consent or recording here (recording is the app's own recorder).
+- Notes: a room built for a session booked days ahead opens at creation time too (Daily has no not-before here); only the expiry moves.
+

@@ -519,3 +519,206 @@ screen is for, what a person does next, empty states, which promise it serves.
 - For: the page a closed-ticket email links to.
 - Screen: next action: enter the code, read the conversation. SOS orb. English literals (36-40). Promise: P2-adjacent (the email carries nothing, the content is in-app).
 
+## Stale
+
+1. `app/api/cron/[job]/route.ts:31` "Four jobs, three of them on a clock". The map has six (crisis, billing, radar, retention, reminders, extract) and `vercel.json` schedules five. Lines 81-84 say the schedule "went to nothing at all"; `vercel.json` has five live schedules.
+2. `app/api/cron/[job]/route.ts:99-102` "An hour late is fine" for the abandoned-patient backstop; crisis runs once a day at 03:00 (`vercel.json`).
+3. `app/api/cron/[job]/route.ts:337` "this job runs HOURLY like the rest" (check-ins inside `billing`); billing runs daily at 03:05.
+4. `app/api/cron/[job]/route.ts:375-391` two stacked docblocks for `radar`, and 423-434 is the `extract` docblock sitting above `reminders`; `extract` (604) has none.
+5. `app/api/revalidate/route.ts:55-57` "Length-independent comparison": the code is an early-exit `!==`. Lines 31 vs 33 contradict each other on whether cached entries expire on a timer.
+6. `app/api/sessions/[id]/state/route.ts:25-27` "polled ... only while it is waiting for a patient"; the room polls it for the whole session and it auto-ends sessions.
+7. `app/(app)/sessions/actions.ts:242-245` says `recordingPausedAt` "is what `answerConsent` and the transcript webhook both already read". `answerConsent` writes it, the only reader that refuses audio is the meeting-bot webhook, which stores nothing. The 24T room path reads nothing.
+8. `app/join/[token]/actions.ts:768-769` "Pausing the transcript is enough when the audio is ours: the 24Therapy room stops sending it." Nothing makes the room stop (see Broken 1).
+9. `app/actions/locale.ts:17` "patients here never have an account"; patients have accounts (`/patient/login`).
+10. `app/records/[token]/route.ts:53-54` "Ask your therapist to send it again"; only an administrator can send a record (`app/(app)/patients/actions.ts:150-162`).
+11. `app/api/partner/v1/launch/route.ts:37-40` "There is NO SCOPE for this, deliberately"; line 49 requires `record:read`.
+12. `app/api/partner/v1/sessions/[ref]/summary/route.ts:39` the draft "is written from `patientBrief` and `patientSteps`"; code writes it from the transcript (73-74).
+13. `app/pay/[token]/actions.ts:125-127` amounts recomputed "from `sessions.price_cents`"; the rail now uses `patientOwesFor`.
+14. `app/(app)/patients/[id]/homework/actions.ts:60,80` and `assessments/actions.ts:68` revalidate `/patients/<id>/homework` and `/patients/<id>/assessments`, routes with no page; the UI is on `/patients/<id>/documents`, which neither revalidates.
+15. `components/scheduling/calendar.tsx:330-336` (cited by `bookings/page.tsx`) "A booked hour is cancelled with a message, elsewhere": the only cancel is on `/on-call`, and the calendar does not link there.
+
+## Suspect
+
+1. `app/(app)/bookings/actions.ts:127` and `app/api/cron/[job]/route.ts:541`: patient-facing links to `${appUrl}/sessions/<id>`. `app/(patient)/sessions/[id]/` has only `recovery-actions.ts`, no page, so the URL resolves to the CLINICIAN route `app/(app)/sessions/[id]/page.tsx`. A patient tapping "Open your session" probably lands on a clinician login. Check `lib/routing.ts` for a `/sessions` rule.
+2. `lib/data/feedback.ts:796-829` (task 122): the no-show sweep matches ANY `scheduled` session where the patient joined 10+ minutes ago and it has not started, not only radar bookings, and emails "A patient booked you on the Crisis Radar". A calendar patient opening the link early can get a clinician warned, then suspended. Check whether calendar sessions carry `patientJoinedAt` before `scheduledAt`.
+3. `app/(app)/billing/actions.ts:258-314`: `quoteSeats`/`saveSeats` check only `requireUser`. If `applySeatChange` has no role check, any clinician on a clinic's org can change the clinic's seat count and bill.
+4. `app/(app)/billing/page.tsx:42-44,127-131`: any `?checkout=<x>` runs `confirmCheckout` and shows the green "paid" banner whether or not confirmation succeeded. Same unauthenticated call on `app/join/[token]/page.tsx:54-56`. Depends on `confirmCheckout` verifying ownership.
+5. `app/api/copilot/speak/route.ts` and `app/api/documents/[id]/speak/route.ts`: TTS with no rate limit and no cost row (direct `openai()` call), so model spend there is invisible to the cost ledger.
+6. `app/api/copilot/voice/route.ts:44` passes `sessionId: ""` to `transcribeChunk`; if it lands in a uuid column, every dictation 500s (H6 shape).
+7. `app/api/partner/v1/copilot/route.ts:57-80`: no patient grant and no consent check; any opted-in clinician ref of a partner can ask about any subject ref of that partner, and the partner's server sets the opt-in (PUT 101-127).
+8. `app/api/partner/v1/sessions/[ref]/note/route.ts:57`: a draft is written only when a note row already exists. If `noteFor` is null, GET returns `draft: null` indefinitely.
+9. `app/(app)/sessions/actions.ts:408-430` `regenerateNote` can run on a session whose note is signed; whether `generateAndStoreNote` overwrites approved content is outside the slice.
+10. `app/(app)/earnings/page.tsx` vs `settings/page.tsx` vs `billing/page.tsx`: "held" comes from two functions (`earningsSummary.heldCents`, `heldForTherapist`) and "owed" from three (`billingSummary().outstandingCents`, own SQL at `settings/page.tsx:57-62`, `billLines`). If they disagree, one screen shows two numbers for one fact (T3).
+11. `app/(app)/support/actions.ts:42-43`: related session and payout ids come unverified from the form.
+12. `app/(app)/settings/actions.ts:56-62`: the credentials shown under a clinician's name (radar, join page, `/j`, patient summary per P3) are self-typed, never checked against the verified licence.
+13. `app/join/[token]/page.tsx:190-194` (task 115): resume needs `guestName`; for a session invited onto an existing chart, check that `joinByToken` writes `guestName`.
+
+## Broken
+
+1. **The patient's stop-recording button, a late decline, and the clinician's "don't record" tick do not stop the 24T room recording (T2, task 123).** A patient presses stop (`app/join/[token]/actions.ts:747-763`) or declines after the room opened (`recordConsent` 376-377); their screen then says not recording (`checkJoinState` 608). The clinician's recorder keeps uploading because the room reads consent only once, at render (`components/session/session-room.tsx:103,109`), and its poll does not carry the pause. The server keeps transcribing because `app/api/sessions/[id]/transcribe/route.ts` never reads `recordingPausedAt` or `recordingConsent`. Likewise, unticking Record at creation (`app/(app)/sessions/actions.ts:247-252`) is ignored by the room and the route, and Off record then Resume clears the stamp (`setRecordingPaused(false)`, room 446). T2 holds only for the clinician's own client-side mute (`lib/audio/recorder.ts:201`). No server-side guard exists; I grepped for every reader of `recordingPausedAt`.
+2. **In-person sessions are recorded with no consent step (task 123).** In-person has no join form, so `recordingConsent` is null and Start records the room (`session-room.tsx:103, 254-255, 333-337`). The only safeguard is the caption `troom.consentFirst` (850). The ingest-token path (`transcribe/route.ts:73-93`) has no consent check at all.
+3. **"Go in now" can be covered by a modal you cannot dismiss.** `components/radar/presence.tsx:620` is a full-screen `z-[200]` sound prompt, forced while a booking rings (424). When the browser has blocked sound it offers only a close button, which cannot dismiss it while forced (615, 669-675). The booking card with "Go in now" (`z-[60]`, 454, 516) stays underneath until the booking goes away. That in turn feeds the no-show sweep that warns and then suspends the clinician (task 122, `lib/data/feedback.ts:856-859`).
+4. **A guest payer never sees a rejection (task 124, A3).** `app/pay/[token]/page.tsx:161-184` -> `manualEntry` -> `paymentsFor` returns `[]` for `payerKind: "session"` (`lib/billing/manual.ts:431`), so `live = {state: "none"}`. The page shows the bank details again with no reason, which invites a second transfer.
+5. **A "no_show" report refunds the patient and suspends the clinician with no check that the session was missed.** `app/feedback/[token]/actions.ts:59-138` with `lib/data/feedback.ts:338-371`: the only check is that the feedback token exists. It fires on a completed session, duplicates are allowed (no unique index, drizzle/0013), each repeat escalates, and the first report already suspends. No patch found elsewhere.
+6. **Signed charts and released patient copies can be edited in place.** `saveNote`/`savePatientNote` (`app/(app)/sessions/actions.ts:432-529`) ignore status, the UI offers Edit after signing and after release (`components/session/note-review.tsx:351,451`), and no trigger on `session_notes` stops it. The text a patient already read changes with no version and no new signature (P3/P4 spirit).
+7. **A revoked clinician still sees the person's live profile.** `app/(app)/patients/[id]/documents/page.tsx:88-97,208-224,267-329` renders the standing profile, timeline, all diagnoses (with titles of documents they can no longer open) and homework by `personId`, ignoring `capabilities.liveProfile` (false when revoked, `lib/access/state.ts:167-176`). The copilot honours the same flag. The avatar route likewise ignores revocation (`app/api/patient/avatar/[personId]/route.ts:95-117`).
+8. **An approved clinician can swap verification documents server-side.** `app/(app)/onboarding/actions.ts:57,117` refuse only `submitted`, so a direct action call replaces the licence or ID of an `approved` clinician, deletes the reviewed file (141), and the row stays approved. Only the form is locked (`verification-form.tsx:153`).
+9. **Calendar bookings are not visible without opening a day.** `components/scheduling/calendar.tsx:231-242`: month, week and day grids show counts only ("9 · 2 booked"). Who and when appear only after tapping a day (299-327).
+
+## Looks broken, is handled
+
+1. `app/api/partner/v1/launch/route.ts:37-49` "every key may launch" reads like a partner minting a session for any clinician. `lib/partner/launch.ts:105-139` joins the clinician to an org with `partner_id = key.partnerId` and `billing_mode = partner_billed`, and refuses any other clinician with a 404.
+2. `app/api/meetings/transcript/[sessionId]/route.ts` is unauthenticated, but `assertOurBot` hard-stops (86-93) and unknown sessions get a bland 200.
+3. `app/(app)/assistant/page.tsx:41` uses a URL thread id unchecked, but `messagesIn`/`ask` are user-scoped (`assistant/actions.ts:42`).
+4. `app/(app)/layout.tsx:116-119` fails open when `x-pathname` is missing, but every page and action guards itself, and middleware redirects locale-prefixed private paths first (`middleware.ts:58-69`).
+5. `app/api/cron/[job]/route.ts:625` `job in JOBS` accepts prototype keys, but only behind `CRON_SECRET` (621).
+6. `app/(app)/billing/actions.ts:56` `startSubscription` is not exported, deliberately; `upgradeAndPay` is the only door (443).
+
+## Unclaimed
+
+(a) Worth selling, not advertised:
+- Caseload CSV import with duplicate detection (`app/(app)/patients/import`).
+- Clinic-wall QR codes (`app/(app)/settings/codes`, `app/j/[code]`).
+- Per-item answer timings on questionnaires (`patients/[id]/assessments/actions.ts:126`).
+- Evidence page: every fact with its quote, historical ones included (`patients/[id]/evidence`).
+- Patient-side "stepped away" signal to the clinician (`join/actions.ts:823`, `state/route.ts:116`).
+- Read-a-document-aloud without the text reaching the browser (`api/documents/[id]/speak`).
+- Couples consent monotonic toward decline (`join/actions.ts:370-399`).
+
+(b) Nobody should have it:
+- Automatic refund + suspension from any feedback-token holder (Broken 5).
+- Editing signed notes and released copies (Broken 6).
+- Unmetered TTS of arbitrary text (Suspect 5).
+- Partner server toggling a clinician's copilot opt-in (`partner/v1/copilot` PUT).
+- A sponsor HR key verifying employment (`api/hr/v1/employment`); E1 adjacent, needs a promise.
+- Retention cron deleting audit rows after 6 years (`cron retention`).
+
+(c) Half built:
+- External meeting transcripts are accepted and discarded (`api/meetings/transcript` 116-117). Zoom/Meet/Teams sessions therefore produce no transcript.
+- The EHR connection (`settings/records`, `api/ehr/callback`) has no promise.
+- The general assistant (`/assistant`) is missing from the desktop sidebar (`app/(app)/layout.tsx`) and reachable only from the mobile bottom nav (`components/nav/bottom-nav.tsx:68`).
+- Two availability editors (`/bookings` and `/on-call`) with different zone rules; only one can cancel.
+- `NoShowRecovery` never shows for radar sessions (no `scheduledAt`).
+
+## Promise evidence
+
+- P1: `api/radar` public, `on-call` toggle requires verification. Tap count cannot be told from here.
+- P2: partly. Invitations and reminders go through `notify` (email/WhatsApp) with links to the clinician route (Suspect 1). In-app delivery depends on `notify`. The clinician side has a PendingBar (`layout.tsx:280`).
+- P3: partly. `rateSession` releases the brief only after approval (`feedback/actions.ts:37-47`), but a released copy can be rewritten (Broken 6). Credentials are self-typed (Suspect 12). The partner summary POST names no approver (summary route 101-108).
+- P4: partly. Documents route honours revocation (`api/documents/[id]`), summaries are versioned via `publishSummary`, but the documents page and avatar ignore revocation (Broken 7).
+- P5: kept on every patient page in this slice (SosOrb on feedback, j, join, pay, support).
+- T1: kept in shape. `endSession` -> `finishSession` in `after()` (sessions/actions.ts:392), draft status on /notes and dashboard. A signed note stays editable (Broken 6).
+- T2: broken beyond the clinician's own client mute (Broken 1). The segment timeline is synthesised, so the hole is invisible (`transcribe/route.ts:178`).
+- T3: partly. `/earnings` shows held and settled-from-earnings, not owed beside held with the payout as the difference. Owed is on /billing and held+owed together only on /settings (`settings/page.tsx:220-222`). Auto-settle is opt-in (`settings/actions.ts:261`), and the payout request does not net bills (`lib/billing/payouts.ts`).
+- T4: partly. "Joining as" only when the signed-in person's personId owns the session's patient row (`join/page.tsx:114-125`). Reload survives through `patientJoinedAt` (190-194).
+- T5: partly. Access is re-read on every question (`copilot/actions.ts:55`), but a revoked grant keeps the copilot answering over the clinician's own material (`lib/access/state.ts:167-176`), so it does not "stop". The partner copilot has no grant check (Suspect 7).
+- C1..C5, E2, E4: not in slice. `billing/actions.ts` seats relate to C3/C4; see Suspect 3.
+- E1: `api/hr/v1/employment` returns only active/as_of. Kept here.
+- E3/E5: kept on the pay rail. `patientOwesFor` is the frozen share (`pay/actions.ts:86,234`), and `payFromPot` runs before the price (`join/actions.ts:192`).
+- A1: kept here. Subscription and session transfers start on operator confirmation, and the pay page redirects only when `paid`.
+- A2: cannot tell (Stripe webhook idempotency is in lib).
+- A3: broken for guest payers (Broken 4); clinicians and account payers get `lastRejection` (`manual-entry.ts:338-352`).
+- A4: partly. The cron only logs pot and renewal drift (`cron:231-233,266-274`).
+- A5: `api/admin/radar` checks role per request; identity reads are audited (`api/uploads/[id]`).
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| app/(app)/assistant/actions.ts | 126 | read |
+| app/(app)/assistant/page.tsx | 77 | read |
+| app/(app)/billing/actions.ts | 465 | read |
+| app/(app)/billing/page.tsx | 374 | read |
+| app/(app)/bookings/actions.ts | 148 | read |
+| app/(app)/bookings/page.tsx | 87 | read |
+| app/(app)/connect/actions.ts | 67 | read |
+| app/(app)/connect/page.tsx | 45 | read |
+| app/(app)/copilot/[patientId]/page.tsx | 162 | read |
+| app/(app)/copilot/actions.ts | 251 | read |
+| app/(app)/copilot/live/route.ts | 43 | read |
+| app/(app)/copilot/page.tsx | 118 | read |
+| app/(app)/dashboard/page.tsx | 252 | read |
+| app/(app)/earnings/actions.ts | 88 | read |
+| app/(app)/earnings/page.tsx | 204 | read |
+| app/(app)/layout.tsx | 349 | read |
+| app/(app)/notes/page.tsx | 91 | read |
+| app/(app)/on-call/actions.ts | 293 | read |
+| app/(app)/on-call/page.tsx | 163 | read |
+| app/(app)/on-call/schedule-actions.ts | 92 | read |
+| app/(app)/onboarding/actions.ts | 205 | read |
+| app/(app)/onboarding/page.tsx | 160 | read |
+| app/(app)/patients/[id]/assessments/actions.ts | 162 | read |
+| app/(app)/patients/[id]/documents/actions.ts | 217 | read |
+| app/(app)/patients/[id]/documents/page.tsx | 333 | read |
+| app/(app)/patients/[id]/evidence/actions.ts | 72 | read |
+| app/(app)/patients/[id]/evidence/page.tsx | 164 | read |
+| app/(app)/patients/[id]/homework/actions.ts | 82 | read |
+| app/(app)/patients/[id]/page.tsx | 407 | read |
+| app/(app)/patients/actions.ts | 356 | read |
+| app/(app)/patients/import/actions.ts | 117 | read |
+| app/(app)/patients/import/page.tsx | 43 | read |
+| app/(app)/patients/page.tsx | 84 | read |
+| app/(app)/sessions/[id]/actions.ts | 205 | read |
+| app/(app)/sessions/[id]/page.tsx | 346 | read |
+| app/(app)/sessions/actions.ts | 799 | read |
+| app/(app)/sessions/new/page.tsx | 121 | read |
+| app/(app)/sessions/page.tsx | 83 | read |
+| app/(app)/settings/actions.ts | 306 | read |
+| app/(app)/settings/codes/actions.ts | 34 | read |
+| app/(app)/settings/codes/page.tsx | 76 | read |
+| app/(app)/settings/integrations/actions.ts | 32 | read |
+| app/(app)/settings/integrations/page.tsx | 79 | read |
+| app/(app)/settings/page.tsx | 297 | read |
+| app/(app)/settings/records/actions.ts | 79 | read |
+| app/(app)/settings/records/page.tsx | 87 | read |
+| app/(app)/support/actions.ts | 55 | read |
+| app/(app)/support/page.tsx | 98 | read |
+| app/(app)/switch-principal/actions.ts | 41 | read |
+| app/(room)/layout.tsx | 24 | read |
+| app/(room)/sessions/[id]/room/page.tsx | 121 | read |
+| app/actions/fx.ts | 43 | read |
+| app/actions/locale.ts | 28 | read |
+| app/api/admin/radar/route.ts | 21 | read |
+| app/api/copilot/speak/route.ts | 61 | read |
+| app/api/copilot/voice/route.ts | 55 | read |
+| app/api/cron/[job]/route.ts | 637 | read |
+| app/api/documents/[id]/route.ts | 101 | read |
+| app/api/documents/[id]/speak/route.ts | 127 | read |
+| app/api/ehr/callback/route.ts | 122 | read |
+| app/api/hr/v1/employment/route.ts | 115 | read |
+| app/api/meetings/callback/[provider]/route.ts | 109 | read |
+| app/api/meetings/connect/[provider]/route.ts | 78 | read |
+| app/api/meetings/transcript/[sessionId]/route.ts | 118 | read |
+| app/api/partner/launch/route.ts | 70 | read |
+| app/api/partner/v1/consent/route.ts | 166 | read |
+| app/api/partner/v1/copilot/route.ts | 127 | read |
+| app/api/partner/v1/launch/route.ts | 71 | read |
+| app/api/partner/v1/notes/[sessionId]/route.ts | 43 | read |
+| app/api/partner/v1/sessions/[ref]/media/route.ts | 93 | read |
+| app/api/partner/v1/sessions/[ref]/note/route.ts | 129 | read |
+| app/api/partner/v1/sessions/[ref]/summary/route.ts | 113 | read |
+| app/api/partner/v1/sessions/[ref]/transcript/route.ts | 60 | read |
+| app/api/partner/v1/sessions/route.ts | 68 | read |
+| app/api/partner/v1/subjects/[ref]/memory/route.ts | 71 | read |
+| app/api/partner/v1/subjects/[ref]/readers/route.ts | 42 | read |
+| app/api/patient/avatar/[personId]/route.ts | 117 | read |
+| app/api/radar/profile/[id]/route.ts | 38 | read |
+| app/api/radar/route.ts | 74 | read |
+| app/api/revalidate/route.ts | 68 | read |
+| app/api/sessions/[id]/state/route.ts | 137 | read |
+| app/api/sessions/[id]/transcribe/route.ts | 246 | read |
+| app/api/stripe/webhook/route.ts | 35 | read |
+| app/api/uploads/[...path]/route.ts | 81 | read |
+| app/api/uploads/[id]/route.ts | 127 | read |
+| app/feedback/[token]/actions.ts | 141 | read |
+| app/feedback/[token]/page.tsx | 128 | read |
+| app/j/[code]/page.tsx | 110 | read |
+| app/join/[token]/actions.ts | 850 | read |
+| app/join/[token]/page.tsx | 274 | read |
+| app/pay/[token]/actions.ts | 349 | read |
+| app/pay/[token]/page.tsx | 279 | read |
+| app/records/[token]/data.json/route.ts | 40 | read |
+| app/records/[token]/route.ts | 66 | read |
+| app/session-expired/route.ts | 43 | read |
+| app/support/[token]/actions.ts | 60 | read |
+| app/support/[token]/page.tsx | 53 | read |

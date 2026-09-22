@@ -1398,3 +1398,296 @@ email or student number, hashed); `enrolment_attestations.identifier_hash`;
 9. `manual_payments.sponsor_id`: pot top-ups only, no session; safe as far as the schema goes.
 `patient_notifications` deliberately has no sponsor column.
 
+
+## Stale
+
+- drizzle/0012_radar_demo_ban.sql:3-6 and lib/db/schema.ts:1648-1656: `demo` "is exempt from the
+  heartbeat expiry ... set by `scripts/demo.ts` and by nothing else". MAP says demo became a
+  label only on 2026-09-22, and 0114:71-77 shows `scripts/seed-demo.ts` writing demo rows.
+- drizzle/0040_repair.sql:45-104: "the multi-statement DO $$ blocks, repaired forward" omits
+  `person_invites_issuer_fk` and `person_invites_used_by_fk` from 0034:54-55.
+- drizzle/0050_country_rails.sql:31-33: argues a 10,000 bps ceiling; the CHECK is 5000.
+- drizzle/0063_risk_findings.sql:10: calls `indicators` text[]; it is jsonb (0000:116).
+- drizzle/0062_clinical_facts.sql:176-178: "The evidence pointer must match the kind it claims";
+  the CHECK only tests the clinician branch (ELSE true).
+- drizzle/0072_corporate.sql:189-196: "ONE IDENTIFIER, USED ONCE, EVER, across every sponsor";
+  false since the hash is salted per sponsor (0085 admits it).
+- drizzle/0079_one_fk_per_column.sql: name reads schema-wide; fixes one column.
+- drizzle/0082_set_null_vs_check.sql:12-24: "an audit written for the new shape found six" and
+  "a permanent check in verify:sprint52"; at least four more pairs exist (see Broken).
+- drizzle/0089_renewal_obligations.sql:37: "0088's rule decides which" currency; 0088 is the
+  crisis line.
+- lib/db/directory.ts:23-32: "a per-request Map" cache; no cache exists in the file.
+- lib/db/schema.ts:22: "22 tables"; about 100.
+- lib/db/schema.ts:300: "Soft signal only, it must never gate the clinical loop" sits over
+  `verification_status`, which 0060/0083 make the gate for grants and partner launch.
+- lib/db/schema.ts:316-325: "We never hold their money ... paying it out by hand would make us a
+  payment intermediary"; 0024 ledger, 0047 manual payouts and 0102 manual rail do exactly that.
+- lib/db/schema.ts:3918-3923: patient_accounts.phone "NOT VALID until sprint 22"; validated in
+  0054.
+- lib/db/schema.ts:3755-3757, 4167-4169: "56 of 66 patients have no email and none has a phone"
+  is a pre-purge measurement.
+- lib/db/schema.ts:5138-5141: payout_requests.approved_by_user_id "restrict, 0082"; DB is SET
+  NULL, 0082 changed phone_change_requests (schema.ts 5433 still says set null).
+- lib/db/schema.ts:6541: verify_cycle_months default 3; DB default 6 (0073).
+- lib/db/schema.ts:4164-4175: person_invites doc comment is detached above claimAttempts;
+  8542: ehrWritebacks "Why it was refused" doc comment orphaned.
+
+## Suspect
+
+- lib/db/index.ts:63 `max: 1` per URL: a `controlDb` or outer-client query inside a
+  `dbFor(r).transaction` waits on the connection the transaction holds (eg and us share a URL
+  today). Answer: grep `regionOf`/`controlDb` inside `.transaction(` callbacks.
+- lib/db/index.ts:165-171: any "relation does not exist" is treated as a cold database, masking
+  H16 (code shipped before its migration) as a graceful fallback.
+- lib/db/region.ts:137-147: pin registry fills only when pinned code runs; verify:sprint30's
+  count can read low (T2). Check scripts/verify-sprint30.ts.
+- Privacy P1: ledger_entries pot legs (ref_type 'sponsor') share txn_id with session payment
+  legs (lib/billing/pot.ts:618-651); per-session timestamps per sponsor are one GROUP BY away.
+  Answer in lib/data/sponsors.ts (weeklySpend) and anything reading sponsor_pot legs by date.
+- Privacy P1: 0098 lets a sponsor own `partner_webhooks`; deliveries can carry
+  'session.completed' / 'note.approved' with subject_id and created_at, and no DB rule limits a
+  sponsor webhook's events. Answer in the webhook fan-out (lib/partner, lib/sponsor).
+- Privacy: 0075 one partner row can hold a sponsor-scoped key and partner_subjects receiving
+  session.completed. Same place.
+- 0093 clinic_staff_assignments: nothing ties user_id / clinic_manager_id to organization_id;
+  lib/clinic-auth must.
+- 0093 clinic_managers.role_id SET NULL falls back to the built-in `role`, which may be admin.
+- 0092 organizations.seats vs live clinic_seats rows: two seat counts (C3, C4). lib/billing.
+- 0060 history_grants: verification checked at write only; a granted grant survives a lapsed
+  verification. history_grants.status has no CHECK, no transition rule.
+- 0062: facts can cite a segment/chunk/journal of a different person; 'segment'/'chunk'/
+  'journal' facts can be inserted with no pointer and stay active.
+- 0068/0070 facts_journal_never_concludes depends on literal domain strings 'diagnosis'/'risk'.
+- 0071: nothing ties bot dispatch to sessions.recording_consent (consent). lib/meetings.
+- 0095 partner_consents called append-only, no trigger. 0096 note_approved_by_ref is the
+  partner server's word (P3 for partner patients).
+- 0102 manual_payments.currency default 'EGP' uppercase vs lowercase everywhere else; no CHECK.
+- 0107 line_items: no CHECK it sums to settles_cents; invoices named only inside line_items are
+  outside the one-live-per-ref guard, so one invoice can sit in two live transfers (money
+  twice). lib/billing/manual.ts confirm path.
+- 0089 renewal_obligations.settled_ref not unique: one gateway ref can settle two obligations.
+- 0066 session_credits: no spent <= credit / consumed <= quantity CHECK.
+- 0024 / schema 2459: "legs of a txnId always sum to exactly zero" and "append-only" have no DB
+  enforcement.
+- schema 6972 vs 0106:3-8: sponsor_pots.balance_cents currency (entity's vs USD).
+- 0085 identifier_hash_global not required on new rows.
+- 0086 "exactly one actor column" on audit_log: no CHECK.
+- 0032 fx_rate_micro int4 overflows for currencies above about 2147 per base unit.
+- 0039 availability_slots duration unconstrained: a 120-minute slot overlaps the next hour.
+- 0017/0018/0042-0046 and later: files without `--> statement-breakpoint` run as one
+  multi-statement query; fine on the websocket driver, check scripts/migrate.ts.
+- 0078:26-28, 0082:28-31: "no hard DELETE on these parents anywhere in the code"; the whole
+  set-null-vs-check argument rests on it.
+
+## Broken
+
+(Latent: each fires only on a hard DELETE, which 0082 says the product never does. Grepped for
+a later fix: none found in 0083-0115.)
+- `patient_invites.redeemed_by_user_id` SET NULL (0060:55) vs `patient_invites_redemption_
+  complete` (0060:70-74): deleting a clinician who redeemed an invite fails with a CHECK error.
+- `patient_clinical_facts.verified_by` SET NULL (0062:75) vs `clinical_facts_verified_pair`
+  (0062:163-167): deleting a clinician who verified a fact fails. 0082 fixed entered_by beside it.
+- `sponsor_domains.agreement_approved_by` SET NULL vs `agreement_pair` (0091:41-43).
+- `partners.approved_by_user_id` SET NULL vs `partners_approval_pair` (0095:244-256).
+- clinical_summaries append-only trigger (0059:55-65) refuses the FK CASCADE / SET NULL writes:
+  deleting a person, an approving clinician, their organization or the source session fails
+  once a summary exists. A person-erasure request cannot be done by DELETE.
+- Schema/DB drift that will mislead the next migration author: lib/db/schema.ts:5138-5141 vs
+  0047 (payout approver), 5433 vs 0082 (phone change approver), 6541 vs 0073.
+
+## Looks broken, is handled
+
+- 0049 phone_change / 0070 instruments / 0074 invitations / 0075 organizations.partner_id and
+  auth_sessions.partner_id set-null-vs-check pairs: fixed by 0082:61-93.
+- 0075 enrolment_attestations answered_by_key SET NULL vs CHECK: 0078 added RESTRICT under the
+  wrong drop name, 0079:38-63 removed the SET NULL duplicate.
+- 0102 manual_payments exactly-one-payer vs SET NULL: 0103:45-83, 0104.
+- Takeover claim "manual_payments_state and manual_payments_purpose have no CHECK":
+  0102:68-71 has both; schema.ts:8838-8852 match value for value.
+- journals.risk_level union (6 values, schema.ts:5703) wider than CHECK (3, 0059:102-105): only
+  writer writes 'high' or null (lib/data/journals.ts:99-100).
+- EXTERNAL_SOURCE_KINDS (schema.ts:5988) omits partner_platform while 0076 requires provisioning
+  for it: the only writer inserts it directly with provisioning (lib/partner/writeback.ts:139-146).
+- 0115: in-app notices refused by the old CHECK (P2 broken on production for a window); fixed.
+- 0112 / 0114: radar status 'available' and lowercase 'eg' written by the raw-SQL seed; repaired
+  and CHECKed.
+- NOT VALID constraints: all 15 from 0042-0050 validated in 0054; every later NOT VALID is
+  validated in the same file.
+
+## Unclaimed
+
+- (a) patient_clinical_facts evidence layer with supersession rules (0062): no promise covers it.
+- (a) assessments with per-answer timing (0070); check-ins with crisis routing and mute log
+  (0081); cross-border consent with frozen wording (0061); claim-by-phone challenge (0043-0045).
+- (a) EHR SMART-on-FHIR connections, launches, writebacks (0080, 0099); partner platform
+  intelligence (0095-0096); meeting bots (0071).
+- (b) ai_request_logs.patient_id (0069): a timestamped per-person care-volume trail no promise
+  covers and C280 itself calls dangerous.
+- (b) ledger_entries sponsor legs keyed to sessions by txn_id (see Suspect).
+- (c) partner_limits, partner_clinicians, finance_scenarios, employees/salaries,
+  capital_contributions, other_costs: back-office tables with no audience promise.
+- (c) history_asks (0060): a patient's ask to an old therapist; if unanswered there is no
+  expiry column and no escalation, a request that can wait forever.
+- (c) claim_attempts locked_at: release only by the therapist who wrote the record (schema
+  4192-4196); a patient whose therapist left has no way out in the schema.
+
+## Promise evidence
+
+- P2: 0115 widens patient_notifications_kind for invite/start/payment; partly (was broken on
+  production until 0115; delivery_attempts 0109 records attempts). Kept now at the schema level.
+- P3: clinical_summaries.approved_by_name NOT NULL, credentials snapshotted (0059); kept for our
+  sessions; partner notes rest on partner-sent `note_approved_by_ref` (0096): partly.
+- P4: append-only summaries trigger (0059:55-65); kept (at the cost of undeletable people).
+  Patient decides readers: history_grants (0035) with verified-only trigger (0060); partly (no
+  status CHECK, lapsed verification keeps grant).
+- P5: crisis line per country (0088), seeded empty by design; Egypt has no number until an
+  operator enters one. Cannot tell the screen from here.
+- T1/T2: session_notes.provenance and off_record_seconds (0067), recording_paused_at (0015);
+  provenance and recording_consent have no CHECK: partly.
+- T3: ledger accounts exist; no zero-sum or append-only enforcement: cannot tell from here.
+- T5: grant trigger (0060), copilot_threads unique per patient (0002): partly (see P4).
+- C1: therapist_radar status CHECK (0112), verification derived (0083): kept at schema level.
+- C2: broken by design in the schema's own words: patients.clinic_visibility_shown_at COMMENT
+  (0093:135-136, schema.ts:620-621) says clinic staff see first name, last initial and
+  appointment times; 0099 comment lists "which patient reference" on the clinic records page.
+- C3/C4: organizations.seats and clinic_seats both exist, unlinked: cannot tell from here.
+- C5: nothing in schema.
+- E1: published_balance_cents (0084) exists; per-session ledger legs keyed to sponsor remain:
+  partly.
+- E2: session_payments carries no sponsor id (schema 2315); sponsor webhooks may carry
+  session.completed (0098); ledger join exists: partly, suspect.
+- E3: coverage frozen on session_payments with shares_sum CHECK (0090): kept.
+- E4: coverage 0 legal, removal separate (0090, 0072 removal_complete): kept.
+- E5: overdraft_bounded (0072); nothing about the message: cannot tell.
+- A1: manual_payments states CHECKed (0102); action on confirm is code: cannot tell.
+- A2: one_live_per_ref (0102) covers only ref_id; line_items invoices unguarded: partly.
+- A3: rejection_has_reason CHECK (0102): kept in DB; guest payer (0105) reading it: cannot tell.
+- A4: nothing in schema for unmatched bank lines: cannot tell.
+- A5: users.role has no CHECK (0049:4-6); audit_log gains actor columns (0086): partly.
+
+## Coverage
+
+| File | Lines | Read |
+|---|---|---|
+| drizzle.config.ts | 12 | read |
+| drizzle/0000_abandoned_daredevil.sql | 285 | read |
+| drizzle/0001_invoices.sql | 76 | read |
+| drizzle/0002_copilot_chat.sql | 56 | read |
+| drizzle/0003_connect.sql | 60 | read |
+| drizzle/0004_radar.sql | 42 | read |
+| drizzle/0005_rate_limits.sql | 16 | read |
+| drizzle/0006_radar_reservation.sql | 7 | read |
+| drizzle/0007_note_language.sql | 8 | read |
+| drizzle/0008_verification.sql | 49 | read |
+| drizzle/0009_data_exports.sql | 47 | read |
+| drizzle/0010_taxonomy.sql | 27 | read |
+| drizzle/0011_practice.sql | 23 | read |
+| drizzle/0012_radar_demo_ban.sql | 15 | read |
+| drizzle/0013_feedback.sql | 87 | read |
+| drizzle/0014_arrival_rating.sql | 13 | read |
+| drizzle/0015_recording_paused.sql | 11 | read |
+| drizzle/0016_session_stars.sql | 13 | read |
+| drizzle/0017_recording_consent.sql | 25 | read |
+| drizzle/0018_error_events.sql | 33 | read |
+| drizzle/0019_usage_microcents.sql | 44 | read |
+| drizzle/0020_content_locale.sql | 23 | read |
+| drizzle/0021_speaker_inferred.sql | 13 | read |
+| drizzle/0022_feedback_token.sql | 25 | read |
+| drizzle/0023_patient_note_approval.sql | 27 | read |
+| drizzle/0024_ledger.sql | 63 | read |
+| drizzle/0025_session_ladder.sql | 17 | read |
+| drizzle/0026_console_keys.sql | 13 | read |
+| drizzle/0027_copilot_language.sql | 12 | read |
+| drizzle/0028_transcript_language.sql | 16 | read |
+| drizzle/0029_platform_settings.sql | 29 | read |
+| drizzle/0030_session_credits.sql | 24 | read |
+| drizzle/0031_acoustic_descriptors.sql | 2 | read |
+| drizzle/0032_money_model.sql | 41 | read |
+| drizzle/0033_people.sql | 79 | read |
+| drizzle/0034_patient_accounts.sql | 81 | read |
+| drizzle/0035_consent.sql | 66 | read |
+| drizzle/0036_documents.sql | 107 | read |
+| drizzle/0037_memory.sql | 73 | read |
+| drizzle/0038_assistant.sql | 35 | read |
+| drizzle/0039_scheduling.sql | 64 | read |
+| drizzle/0040_repair.sql | 104 | read |
+| drizzle/0041_requeue_documents.sql | 27 | read |
+| drizzle/0042_sweep.sql | 85 | read |
+| drizzle/0043_claim_by_phone.sql | 96 | read |
+| drizzle/0044_challenge_passed.sql | 15 | read |
+| drizzle/0045_two_handles.sql | 96 | read |
+| drizzle/0046_no_show.sql | 112 | read |
+| drizzle/0047_two_rails.sql | 331 | read |
+| drizzle/0048_support_tickets.sql | 157 | read |
+| drizzle/0049_back_office.sql | 240 | read |
+| drizzle/0050_country_rails.sql | 40 | read |
+| drizzle/0051_strings_and_languages.sql | 116 | read |
+| drizzle/0052_audit_resource_key.sql | 18 | read |
+| drizzle/0053_patient_reset.sql | 46 | read |
+| drizzle/0054_validate.sql | 51 | read |
+| drizzle/0055_handle_verification.sql | 24 | read |
+| drizzle/0056_optional_password.sql | 37 | read |
+| drizzle/0057_patient_avatar.sql | 14 | read |
+| drizzle/0058_therapist_codes.sql | 34 | read |
+| drizzle/0059_summaries_and_journals.sql | 117 | read |
+| drizzle/0060_portability.sql | 116 | read |
+| drizzle/0061_region.sql | 80 | read |
+| drizzle/0062_clinical_facts.sql | 340 | read |
+| drizzle/0063_risk_findings.sql | 57 | read |
+| drizzle/0064_session_sources.sql | 136 | read |
+| drizzle/0065_session_voices.sql | 223 | read |
+| drizzle/0066_split_fee.sql | 48 | read |
+| drizzle/0067_note_provenance.sql | 70 | read |
+| drizzle/0068_journal_inference.sql | 46 | read |
+| drizzle/0069_usage_attribution.sql | 45 | read |
+| drizzle/0070_assessments.sql | 165 | read |
+| drizzle/0071_meeting_bots.sql | 122 | read |
+| drizzle/0072_corporate.sql | 324 | read |
+| drizzle/0073_pot_rails.sql | 102 | read |
+| drizzle/0074_clinics.sql | 243 | read |
+| drizzle/0075_partner_plane.sql | 430 | read |
+| drizzle/0076_partner_sessions.sql | 49 | read |
+| drizzle/0077_partner_launch.sql | 59 | read |
+| drizzle/0078_attestation_key_restrict.sql | 42 | read |
+| drizzle/0079_one_fk_per_column.sql | 63 | read |
+| drizzle/0080_ehr.sql | 183 | read |
+| drizzle/0081_checkins.sql | 106 | read |
+| drizzle/0082_set_null_vs_check.sql | 93 | read |
+| drizzle/0083_verification_one_truth.sql | 141 | read |
+| drizzle/0084_pot_balance_floor.sql | 25 | read |
+| drizzle/0085_identifier_once_ever.sql | 34 | read |
+| drizzle/0086_audit_the_other_principals.sql | 48 | read |
+| drizzle/0087_a_partner_link_can_be_cut.sql | 62 | read |
+| drizzle/0088_a_crisis_line_per_country.sql | 63 | read |
+| drizzle/0089_renewal_obligations.sql | 93 | read |
+| drizzle/0090_coverage_percentage.sql | 106 | read |
+| drizzle/0091_proving_a_company.sql | 90 | read |
+| drizzle/0092_seats.sql | 65 | read |
+| drizzle/0093_clinic_staff.sql | 136 | read |
+| drizzle/0094_clinic_application.sql | 44 | read |
+| drizzle/0095_partner_platform.sql | 259 | read |
+| drizzle/0096_partner_content.sql | 64 | read |
+| drizzle/0097_sponsor_key.sql | 72 | read |
+| drizzle/0098_sponsor_webhooks.sql | 43 | read |
+| drizzle/0099_clinic_records.sql | 60 | read |
+| drizzle/0100_reapply_after_two_rejections.sql | 32 | read |
+| drizzle/0101_financial_model.sql | 57 | read |
+| drizzle/0102_manual_rail.sql | 110 | read |
+| drizzle/0103_payment_survives_the_payer.sql | 86 | read |
+| drizzle/0104_num_nonnulls.sql | 36 | read |
+| drizzle/0105_session_is_a_payer.sql | 54 | read |
+| drizzle/0106_what_it_settles.sql | 44 | read |
+| drizzle/0107_what_this_transfer_is_for.sql | 44 | read |
+| drizzle/0108_the_patient_stepped_away.sql | 28 | read |
+| drizzle/0109_we_tried_to_tell_them.sql | 65 | read |
+| drizzle/0110_what_the_people_cost.sql | 102 | read |
+| drizzle/0111_the_money_in_the_bank.sql | 115 | read |
+| drizzle/0112_a_status_the_product_understands.sql | 31 | read |
+| drizzle/0113_a_room_that_outlives_the_appointment.sql | 29 | read |
+| drizzle/0114_a_country_code_the_map_can_find.sql | 85 | read |
+| drizzle/0115_the_notice_the_database_refused.sql | 42 | read |
+| lib/db/directory.ts | 85 | read |
+| lib/db/index.ts | 172 | read |
+| lib/db/region.ts | 157 | read |
+| lib/db/schema.ts | 8944 | read |

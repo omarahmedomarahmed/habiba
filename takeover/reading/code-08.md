@@ -633,3 +633,101 @@ Per-page redesign fields used below: **Screen** (what it is for), **Next** (what
 - Promises: P4-adjacent (portable record can be checked by a third party without identifying the person).
 - Notes: RTL: entirely hardcoded English, and `issuedAt.toISOString().slice(0,10)` raw ISO (line 75). No rate limit visible on an unauthenticated lookup (12-character space, low risk).
 
+### app/(sponsor)/layout.tsx (90 lines)
+- For: sponsor shell `SponsorChrome`, no crisis orb (comment 21 to 27); a `PendingBar` for a signed-in sponsor's pending bank transfer (76.4).
+- Decides: `bare` on exact `SPONSOR_SIGN_IN`; pending payment read on every render.
+- Promises: A1/A3 (the payer sees their transfer is in the queue; whether a rejection sentence reaches this bar is inside `pendingPaymentFor`, not in slice).
+- Notes: RTL: language switch in the rail (comment 49 to 56).
+
+### app/(sponsor)/sponsor/apply/actions.ts (37 lines)
+- For: corporate enquiry; HELD account only; kind company or university; 5 per hour.
+- Notes: English errors.
+
+### app/(sponsor)/sponsor/apply/page.tsx (58 lines)
+- For: corporate door. Screen: title, form, `SeesWhat` (can: a count, spend, a weekly figure never daily; cannot: an individual, attendance, anything clinical). Next: submit.
+- Promises: E1, E2 said before the sale.
+- Notes: RTL via `t()`, metadata English.
+
+### app/(sponsor)/sponsor/code/actions.ts (36 lines)
+- For: `replaceCode` (rotate the joining code), admin, audited.
+- Promises: none of the 25.
+
+### app/(sponsor)/sponsor/code/page.tsx (94 lines)
+- For: the joining code, a server-made QR of `/patient/benefit?code=XXXX`, the poster line, and the attempts count on the code (53.19 spike). Next: print, rotate (admin). Empty: `sponsor.codeNone`.
+- Decides: `attemptsOnCode` reads the raw `rate_limits.count` for the code (lib/data/sponsors.ts:356 to 366), no activity floor.
+- Promises: **E1 "never when" at risk**: the attempts counter is live and unsuppressed; an HR admin reloading the page watches it go from 3 to 4 while a known employee stands at the poster. It counts enrolment attempts, not sessions, but it is exactly the "who and when" signal about somebody trying to get therapy. Suspect.
+- Notes: RTL: poster line localised; QR itself fine.
+
+### app/(sponsor)/sponsor/domains/actions.ts (144 lines)
+- For: `addSponsorDomain` (admin; returns DNS token), `checkDnsRecord` (live TXT lookup against the per-domain token, scoped by the sponsor's own list), `confirmDomainMailbox(domainId, token)` (NO session: HMAC token is the authorisation, constant time).
+- Promises: none of the 25 (domain proof gates the joining code, C318).
+- Notes: English error strings.
+
+### app/(sponsor)/sponsor/domains/confirm/[id]/page.tsx (49 lines)
+- For: the mailbox proof link clicked by an IT contact who "may have no account here at all" (comment 12 to 24). Renders `ConfirmDomain`.
+- Notes: **Broken, see there**: the path is under `/sponsor`, and `lib/routing.ts:299` lists only `SPONSOR_APPLY` as open for the sponsor principal; `routeDecision` (lib/routing.ts:371 to 385) redirects any unsigned request under the prefix to `/sponsor/sign-in`. The link is built at lib/data/sponsor-domains.ts:112. An IT contact without a sponsor cookie lands on the sign-in page and cannot complete the proof; a sponsor whose IT contact is not the portal admin can never issue a code. Hardcoded English title/subtitle.
+
+### app/(sponsor)/sponsor/domains/page.tsx (65 lines)
+- For: domains with two proofs each (mailbox, DNS) plus by-agreement, and `domainProblem` computed server side. Next: add domain, check DNS. Empty: in `DomainList`.
+- Notes: RTL: `PageHeader` title and subtitle hardcoded English ("Your domains", "Two proofs for each one..."). Only screen in the portal not through `t()` besides confirm.
+
+### app/(sponsor)/sponsor/integrations/actions.ts (115 lines)
+- For: HR connection: `setVerification` (on/off, off revokes every key), `mintHrKey` (raw key once, prefix in audit), `revokeHrKey`. All `requireSponsorAdmin`; sponsor id from session only.
+- Promises: E2-adjacent (employment verification answers one question about one person, C227).
+
+### app/(sponsor)/sponsor/integrations/page.tsx (79 lines)
+- For: HR connection screen: enabled, HR system, keys with last success, delivery log (event, status, attempts, error, time), failed attempt count.
+- Promises: E2: delivery rows are HR webhook events (employment checks), timestamped to the minute (`formatDateTime`). If an event is emitted when a specific employee enrols, the delivery timestamp is "somebody enrolled at 10:42"; Suspect, depends on `deliveriesFor` event types (lib/data/sponsor-integrations).
+- Notes: `suspendedReason ?? "Suspended"` English fallback.
+
+### app/(sponsor)/sponsor/page.tsx (255 lines)
+- For: sponsor overview. Screen: pot card (published balance or "suppressed", expiry, a bar and a runway/percent line, all suppressed with the balance), two side cards "spent total" and "sessions total", "no pot" card, weekly spend heatmap (hidden entirely under the headcount floor), why-weekly note. Next: the rail (pot, people, code...). Empty: `sponsor.noPot`, `sponsor.suppressed`.
+- Decides: `potBalance` (published, C377) for the balance; headcount floor gates the weekly series before it is fetched (lines 76 to 77); derived figures suppressed with the balance (lines 97 to 105).
+- Assumes: `potTotals` (lib/billing/pot.ts:997 to 1016) is a LIVE `SUM` and `COUNT` over `ledger_entries` with no floor.
+- Promises: **E1 broken**: the "spent total" (line 198) and "sessions total" (line 205) cards are live and unsuppressed and sit beside a balance that is carefully published in batches. A sponsor reading the overview on Monday and Tuesday sees sessions go from 11 to 12 and spend rise by one session's sponsor share: that is when, and what one session cost, which is exactly the differencing attack the C377 comment (lines 51 to 60) says the published balance exists to stop. `usedPercent` mixes the published balance with the live spend (line 104), so it drifts too, though it is suppressed when the balance is. E2: no name, time or attendance on the screen (kept).
+- Notes: RTL: money via `Intl` with ar-EG, dates via `formatDate`. The overdraft/negative case has no wording here: a published negative balance renders as a negative currency figure.
+
+### app/(sponsor)/sponsor/people/actions.ts (74 lines)
+- For: `endBenefit(enrolmentId, reason)`, the sponsor's only individual power; admin; fixed reasons; audited with enrolment id, not the patient.
+- Promises: E4 is about coverage, not this; removal ends funding and badge only (C234). Patient side reads "your benefit has ended" with no employer named (notices page comment).
+
+### app/(sponsor)/sponsor/people/page.tsx (72 lines)
+- For: roster: name, last verified (the sponsor's cycle date, same for everybody, C256), paused; count; verify cycle note. Next: remove (admin). Empty: in `RosterList`.
+- Promises: E1 ("how many people", yes; never who used it: the roster is who ENROLLED, not who used it; kept). E2 kept: no session, no date of joining. **E4**: coverage is not shown per person, so at 0% the employee stays on this list with no "removed" state (kept by construction on this screen).
+- Notes: RTL via `t()` and `formatDate`.
+
+### app/(sponsor)/sponsor/pot/[txn]/page.tsx (148 lines)
+- For: printable VAT invoice for one top-up (server rendered, browser prints). Refuses with "not yet" when legal name, address or tax id missing.
+- Decides: `invoiceFor(sponsorId, txn)` scoped by session sponsor.
+- Promises: E2 kept (no person, session or date beyond the top-up's own).
+- Notes: RTL: money formatted `en-US` always (line 68) even for Arabic, unlike every other sponsor screen.
+
+### app/(sponsor)/sponsor/pot/actions.ts (316 lines)
+- For: `addToPot` (card rail, `topUpPot`), `setCoveragePercent` (increase immediate, decrease after notice days, message localised), `declarePotTransfer` (Egyptian manual rail: min and max, VAT added server side, optional proof upload, `declarePaid` with the sponsor id as ref so one live claim per company), `openPotPayment` (opens a cart with credit and VAT line items).
+- Decides: amount in whole units converted once (lines 28, 170); `sponsorNeedsTransfer` rechecked (line 236).
+- Promises: **E3**: the asymmetry (decrease waits) lives in `setCoverage`, not here; whether a BOOKED session keeps its old share depends on when the split is frozen: schema says "as it stood at booking" (lib/db/schema.ts:2226 to 2232) but lib/billing/pot.ts:541 to 543 writes `coverageBps` when the pot PAYS; if payment happens after booking, a decrease between the two reprices (Suspect, pot.ts owner). **E4**: `percent` is only checked `Number.isFinite` here (line 83); 0 is accepted and the message then says the employee pays 100 per cent (`coverageNow` with `100 - percent`), no "removed" wording (kept here). A1: transfer is a claim, an operator credits (kept by shape). A2: one live claim per company via unique index (kept here).
+- Notes: RTL: error strings English (lines 29, 83, 171, 192, 203, 237). Proof upload `userId: actor.sponsorUserId` under kind `receipt`.
+
+### app/(sponsor)/sponsor/pot/page.tsx (274 lines)
+- For: the pot. Screen: published balance as a `Meter` against the last top-up with expiry (or the suppressed card), `CoverageForm` (the coverage slider, admin, with pending change and date), the payment popup for the Egyptian rail with a stepper ladder, or the card `TopUpForm`, or read-only terms for a viewer, "no pot" card when terms missing, invoice history. Next: top up, change coverage, open an invoice.
+- Decides: forms only when terms exist (C233); one rail per sponsor.
+- Promises: **E1**: balance published (kept on this page). **E3/E4**: the slider is `CoverageForm` (component not in slice), fed `balanceUsd` from the published balance, 0 when suppressed (line 178), so any runway maths in the slider on a suppressed pot starts from $0. Negative balance: `potBalance` returns `overdraftCents` and this page never reads it; a negative published balance renders as a negative figure in `Meter` with `fraction > 1` and no words about overdraft or who covers it (no negative-balance wording exists in this slice).
+- Notes: RTL: dates `formatDate`, money ar-EG. `viewerName: actor.email` shown as the payer name in the popup.
+
+### app/(sponsor)/sponsor/settings/actions.ts (97 lines)
+- For: `addGate` (identifier kind), `dropGate`, `setPublicListing` (C236, unlisted default). Admin, audited.
+- Notes: `dropGate` audits even when `removeIdentifierField` removed nothing (no result checked).
+
+### app/(sponsor)/sponsor/settings/page.tsx (63 lines)
+- For: "How people join": gates and public listing (admin) or a read-only list (viewer); verify cycle note.
+- Promises: none of the 25.
+- Notes: RTL via `t()`.
+
+### app/(sponsor)/sponsor/sign-in/actions.ts (44 lines)
+- For: `signInSponsor` 8 per 15 min on the way in; `signOutSponsor`.
+- Notes: no password reset anywhere in the sponsor group (matches design/company/page.tsx:381 to 385).
+
+### app/(sponsor)/sponsor/sign-in/page.tsx (38 lines)
+- For: sponsor door, `AuthShell who="company"`, no forgot link.
+- Notes: RTL via `t()`.
+
