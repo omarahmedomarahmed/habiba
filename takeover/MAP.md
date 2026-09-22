@@ -237,6 +237,15 @@ Candidates from documents only, to be confirmed in code:
    "Rejected, and they have been told why." (`app/(admin)/admin/transfers/actions.ts:72`), which
    is false.
 
+8. **Record claim: no ownership check.** `sendClaimCode(personId)` takes the id from the client
+   (`app/(patient)/patient/claim/actions.ts:97`); `startClaim` (`lib/data/claims.ts:200`) checks only
+   exists and unclaimed; the code goes to the claimer's own inbox (`:119`). `verifyClaim` then
+   binds the person to the account. `challengePassed` (`lib/data/challenge.ts:531`) has no caller.
+   Exploit needs an unclaimed person UUID; partner webhooks carry person ids by design
+   (`notifyRecordClaimed`, README "a webhook carries an event and an id"). Fix: startClaim refuses
+   a person not returned by `suggestionsFor` for the account's PROVEN handles (or not reached by
+   invite token), and wire the two-question challenge.
+
 ## Live-site checks, 2026-09-22 (fetched from 24therapy.app, not read from defaults)
 
 - `robots.txt` serves `Allow: /` with `/join/`, `/dashboard`, `/sessions` disallowed. TAKEOVER s5
