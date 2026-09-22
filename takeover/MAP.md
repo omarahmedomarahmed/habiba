@@ -263,6 +263,18 @@ Candidates from documents only, to be confirmed in code:
    USD, so the walk cannot meet it. Fix: until price carries a currency end to end, convert to
    USD at save and keep the EGP figure for display, or withdraw the EGP option.
 
+## Walk preparation, 2026-09-23
+
+- Snapshot of production taken first: `snapshot-before-takeover-walk-2026-09-23`
+  (`br-autumn-art-a6gk6knr`, no compute), parent `main` at LSN 0/12301EB0.
+- Production before the walk (read-only query): 5 users, 4 patient accounts, 22 sessions, 2
+  manual payments (both confirmed), coverage 60%, only `omar@24therapy.app` in the back office
+  (no `staff.demo`, so the cast predates 80.1), no clinician priced in EGP.
+- Seven Neon branches, not six: Vercel made `preview/claude/lucid-fermi-pwdz7f`
+  (`br-plain-snow-a6yfowy6`) for this session's branch. NEON-BRANCHES.md is stale by one.
+- The changed seed ran on dev (`live`): `verify:demo` PASS 79. The same verifier against
+  production (read-only) FAILS 10, on exactly the published-password defect: the control.
+
 ## Verification pass, 2026-09-23
 
 Eight verifiers re-checked every reader claim against the code, looking for the patch first.
