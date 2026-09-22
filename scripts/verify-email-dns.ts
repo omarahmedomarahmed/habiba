@@ -81,17 +81,23 @@ const BASELINE = {
    */
   dmarc: true,
   /*
-   * SPF names zohomail.com and the product sends through Resend, so SPF FAILS
-   * for our transactional mail.
+   * 🔴 THIS SAID `false` FOR TWO DAYS AND THE SETUP WAS FINE THE WHOLE TIME.
    *
-   * It is not the catastrophe it first looks like, and the reason is worth
-   * writing down rather than rediscovering: DMARC passes on EITHER aligned SPF
-   * or aligned DKIM. Resend signs with `resend._domainkey.24therapy.app` and
-   * the From is `noreply@24therapy.app`, so DKIM aligns and the mail
-   * authenticates. Adding Resend to SPF is still worth doing, because SPF is
-   * what survives when DKIM signatures are broken by a forwarder.
+   * The root SPF is `v=spf1 include:zohomail.com ~all`, which names the
+   * MAILBOX host and not the sender, so a check looking there concluded the
+   * sender was uncovered and a founder was told to go and fix a record that
+   * was already correct.
+   *
+   * Resend puts nothing in the root SPF. Its setup creates `send.<domain>`
+   * carrying `v=spf1 include:amazonses.com ~all`, because Resend sends through
+   * Amazon SES and the bounce address lives on that subdomain. Under the
+   * `aspf=r` in our DMARC record the two are the same organisational domain,
+   * so SPF passes and aligns.
+   *
+   * The lesson is the one in `docs/TRAPS.md`: this check knew where it
+   * expected the answer to be rather than where the product actually puts it.
    */
-  spfCoversSender: false,
+  spfCoversSender: true,
 };
 
 async function txt(name: string): Promise<string[]> {
@@ -119,6 +125,29 @@ async function main() {
         (await txt(`_dmarc.${DOMAIN}`)).find((r) => r.startsWith("v=DMARC1")) ?? null;
 
       /*
+       * 🔴 THIS GATE LOOKED IN THE WRONG PLACE AND REPORTED A REAL SETUP AS A GAP.
+       *
+       * It asked whether the ROOT domain's SPF names Resend, found
+       * `v=spf1 include:zohomail.com ~all`, and said the sender was uncovered.
+       * It then told a founder to go and add Resend to SPF, which was work
+       * they did not need to do on a record that was already correct.
+       *
+       * Resend does not put anything in the root SPF. Its domain setup creates
+       * a SENDING SUBDOMAIN, `send.<domain>`, carrying
+       * `v=spf1 include:amazonses.com ~all`, because Resend sends through
+       * Amazon SES and the bounce address lives there.
+       *
+       * That still aligns for DMARC, and the reason is `aspf=r`: under RELAXED
+       * alignment `send.24therapy.app` and `24therapy.app` are the same
+       * organisational domain, so SPF passes AND aligns. Under `aspf=s` they
+       * are two different domains and every message would fail SPF alignment.
+       * So the relaxed setting is not a soft default here, it is what makes
+       * this setup work, which is why the check below asserts it.
+       */
+      const sendingSubdomainSpf =
+        (await txt(`send.${DOMAIN}`)).find((r) => r.startsWith("v=spf1")) ?? null;
+
+      /*
        * Selectors are provider specific, so several are tried rather than one
        * guessed at. Finding none is the finding; finding any means DKIM is set
        * up for somebody.
@@ -143,7 +172,7 @@ async function main() {
          * what it covers, and does not cover the mail this product actually
          * sends, which is the shape that survives an audit.
          */
-        spfCoversSender: spfRecord !== null && /resend/i.test(spfRecord),
+        spfCoversSender: spfRecord !== null && (/resend/i.test(spfRecord) || sendingSubdomainSpf !== null),
       };
 
       const lost = (Object.keys(BASELINE) as (keyof typeof BASELINE)[]).filter(

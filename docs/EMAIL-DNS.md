@@ -12,7 +12,8 @@ gate is the fact.
 
 | Record | State | What it does |
 | --- | --- | --- |
-| SPF | `v=spf1 include:zohomail.com ~all` | Authorises Zoho, which hosts the mailboxes |
+| SPF, root | `v=spf1 include:zohomail.com ~all` | Authorises Zoho, which hosts the mailboxes |
+| SPF, `send.` | `v=spf1 include:amazonses.com ~all` | **Authorises Resend**, which sends through Amazon SES. This is where Resend puts it |
 | DKIM `zmail._domainkey` | published | Signs mail sent from a Zoho mailbox |
 | DKIM `resend._domainkey` | published | Signs the product's transactional mail |
 | DMARC `_dmarc` | `v=DMARC1; p=none; rua=…; sp=none; adkim=r; aspf=r` | Reports who sends as us. Enforces nothing yet, on purpose |
@@ -51,7 +52,24 @@ mail from us is a patient primed to trust it.
 It also costs us the reporting. `rua=` is how you find out who is sending as
 your domain, and with no DMARC record nobody is telling us.
 
-## What the SPF gap costs, which is less than it looks
+## 🔴 There is no SPF gap, and this file said there was
+
+For two days this document and `verify:email-dns` both reported that SPF did
+not cover the sender, because both looked at the ROOT record, saw Zoho, and
+concluded Resend was unauthorised. A founder was told to go and add something
+to a record that was already correct.
+
+Resend puts nothing in the root SPF. Its domain setup creates a **sending
+subdomain**, `send.24therapy.app`, carrying `v=spf1 include:amazonses.com ~all`,
+because Resend sends through Amazon SES and the bounce address lives there.
+
+That aligns because the DMARC record says `aspf=r`. Under **relaxed** alignment
+`send.24therapy.app` and `24therapy.app` are the same organisational domain, so
+SPF passes and aligns. Under `aspf=s` they are two different domains and every
+message this product sends would fail SPF alignment. **The relaxed setting is
+not a soft default here. It is what makes this setup work.**
+
+## The old note, kept because the reasoning is still right
 
 SPF names Zoho and the product sends through Resend, so **SPF fails on our
 transactional mail**. That sounds fatal and is not, for one reason worth
