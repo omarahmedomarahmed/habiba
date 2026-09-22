@@ -137,6 +137,7 @@
     "verify:contrast": "node --import tsx scripts/verify-contrast.ts",
     "verify:machines": "node --import tsx scripts/verify-machines.ts",
     "verify:traps": "node --import tsx scripts/verify-traps.ts",
+    "verify:csp": "node --import tsx scripts/verify-csp.ts",
     "inventory": "node --import tsx scripts/inventory.ts",
     "lifecycles": "node --import tsx scripts/lifecycles.ts",
     "verify:sprint12": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint12.ts",

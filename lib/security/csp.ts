@@ -1,0 +1,147 @@
+/**
+ * The Content Security Policy, as data, with the reason for every relaxation.
+ *
+ * ## What this is for
+ *
+ * Every other security header this product sends is one line and one decision.
+ * A CSP is thirteen decisions, and the difference between a good one and a
+ * decorative one is whether anybody had to argue for each line. So each
+ * directive below carries what it allows and why, and `verify:csp` asserts the
+ * shape rather than the string, so a future relaxation is a deliberate edit
+ * that fails a gate rather than a quiet one.
+ *
+ * ## 🔴 WHY THIS PRODUCT CAN AFFORD A STRICT ONE
+ *
+ * The audit that produced this found no third-party scripts, no external font
+ * host, no analytics, no tag manager and one `dangerouslySetInnerHTML` (a QR
+ * code the server generates from a server-minted eight character code). That
+ * is unusual and it is worth a lot: it means `script-src` can be a nonce and
+ * nothing else, which is the only configuration that actually stops an
+ * injected `<script>` from running.
+ *
+ * The one thing it does NOT stop, and nothing does, is a compromised
+ * dependency executing inside our own bundle. `strict-dynamic` deliberately
+ * trusts what our trusted scripts load, because Next's chunk loader is such a
+ * script. That is the accepted limit and it is stated rather than implied.
+ */
+
+/**
+ * 🔴 The video room is the only third party the BROWSER talks to.
+ *
+ * `@daily-co/daily-js` runs in call-object mode rather than as a prebuilt
+ * iframe, which is a deliberate choice made for the clinical record: prebuilt
+ * does not hand you per-participant media tracks, so a session recorded
+ * through it captures the clinician and not the patient.
+ *
+ * The consequence for this file is that Daily's signalling is a direct
+ * connection from the page, so `connect-src` has to name it over both https
+ * and wss, and its workers and media need `blob:`.
+ */
+const DAILY = "https://*.daily.co";
+const DAILY_SOCKET = "wss://*.daily.co";
+
+export type CspOptions = {
+  /** Per-request, per-response. Never reused, never guessable. */
+  nonce: string;
+};
+
+export function contentSecurityPolicy({ nonce }: CspOptions): string {
+  const directives: Record<string, string[]> = {
+    /* Nothing loads from anywhere unless a directive below says otherwise. */
+    "default-src": ["'self'"],
+
+    /*
+     * 🔴 THE ONE THAT MATTERS. A nonce and `strict-dynamic`, no host list.
+     *
+     * An injected `<script>` has no nonce, so it does not run, and adding a
+     * host to an allow-list cannot accidentally re-enable it. `strict-dynamic`
+     * is what lets Next's own bootstrap load the chunks it needs: a script we
+     * trusted may load more, and nothing else may.
+     *
+     * There is no `'unsafe-inline'` and no `'unsafe-eval'` here, and if either
+     * ever appears this policy has stopped being a control and become a
+     * decoration. `verify:csp` fails on both.
+     */
+    "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"],
+
+    /*
+     * 🔴 `'unsafe-inline'` FOR STYLES, AND THIS IS THE HONEST WEAK SPOT.
+     *
+     * React writes the `style` attribute for every inline style in the tree,
+     * and a nonce cannot cover a style ATTRIBUTE, only a `<style>` element. The
+     * hero backgrounds alone are `style={{ backgroundImage: url(...) }}`.
+     *
+     * What this costs is bounded and worth naming: CSS injection can restyle
+     * and can exfiltrate through a background image URL, but it cannot execute.
+     * The value that reaches those declarations goes through
+     * `lib/content/url.ts`, which REJECTS rather than escapes anything with a
+     * quote, a parenthesis, a backslash or whitespace, and is applied both on
+     * save and at render.
+     */
+    "style-src": ["'self'", "'unsafe-inline'"],
+
+    /*
+     * `https:` because an administrator may set any absolute image URL as a
+     * section background, validated by `lib/content/url.ts`. An image cannot
+     * execute; the cost of the breadth is that a background could beacon to a
+     * third party, which is a thing an administrator can already do.
+     * `blob:` is object URLs: the avatar preview before an upload finishes.
+     */
+    "img-src": ["'self'", "data:", "blob:", "https:"],
+
+    /* `next/font` self hosts and there is no external font host. */
+    "font-src": ["'self'", "data:"],
+
+    /* Recorded audio played back from an object URL, and Daily's media. */
+    "media-src": ["'self'", "blob:", DAILY],
+
+    "connect-src": ["'self'", DAILY, DAILY_SOCKET],
+
+    /* Daily builds its workers from blobs. */
+    "worker-src": ["'self'", "blob:"],
+
+    /*
+     * No frames of our own, and Daily only if call-object mode ever falls back.
+     * Kept narrow rather than removed, because a room that silently refuses to
+     * load is a clinician sitting in an empty call.
+     */
+    "frame-src": ["'self'", DAILY],
+
+    /* 🔴 The modern form of X-Frame-Options, which is also still sent. */
+    "frame-ancestors": ["'none'"],
+
+    /* No Flash, no applets, no `<object>`. There is no reason for any. */
+    "object-src": ["'none'"],
+
+    /* An injected `<base>` can redirect every relative URL on the page. */
+    "base-uri": ["'self'"],
+
+    /* A form cannot be made to post a session elsewhere. */
+    "form-action": ["'self'"],
+
+    "manifest-src": ["'self'"],
+  };
+
+  const rendered = Object.entries(directives)
+    .map(([name, values]) => `${name} ${values.join(" ")}`)
+    .join("; ");
+
+  return `${rendered}; upgrade-insecure-requests`;
+}
+
+/**
+ * 🔴 WHICH HEADER NAME, and why it is not a coin flip.
+ *
+ * A CSP that white screens the product is worse than none, because the next
+ * person to try one inherits the story rather than the policy. Report-only is
+ * how you find out what breaks without finding out in front of a patient.
+ *
+ * `CSP_ENFORCE=0` puts it back into report-only without a deploy of code.
+ * There is no third state: it is enforcing unless somebody deliberately turned
+ * that off, so a forgotten environment variable fails safe rather than open.
+ */
+export function cspHeaderName(): "content-security-policy" | "content-security-policy-report-only" {
+  return process.env.CSP_ENFORCE === "0"
+    ? "content-security-policy-report-only"
+    : "content-security-policy";
+}

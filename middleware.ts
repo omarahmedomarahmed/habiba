@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { contentSecurityPolicy, cspHeaderName } from "@/lib/security/csp";
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
@@ -111,6 +112,49 @@ export function middleware(request: NextRequest) {
   forwarded.set("x-pathname", pathname);
 
   /*
+   * 🔴 THE CSP NONCE, MINTED HERE BECAUSE THIS IS THE ONLY PLACE THAT RUNS
+   * ONCE PER REQUEST BEFORE ANYTHING IS RENDERED.
+   *
+   * The policy itself is `lib/security/csp.ts`, which carries the argument for
+   * each directive. Two mechanics matter here and both are easy to get subtly
+   * wrong:
+   *
+   *   - The nonce goes on the REQUEST headers as well as the response. Next
+   *     reads the policy off the incoming request and stamps the same nonce
+   *     onto its own bootstrap and chunk-loading scripts. Set it only on the
+   *     response and every one of those scripts is blocked, which is a white
+   *     page rather than a subtle failure.
+   *
+   *   - It is minted per request and never reused. A nonce that repeats is an
+   *     allow-list entry an attacker can read off the last page they were
+   *     served, which is the same as having no `script-src` at all.
+   *
+   * `crypto.randomUUID()` rather than `Math.random()`, and this is edge
+   * runtime, where the Web Crypto API is the one that exists.
+   */
+  const nonce = btoa(crypto.randomUUID());
+  const policy = contentSecurityPolicy({ nonce });
+  const header = cspHeaderName();
+  forwarded.set("x-nonce", nonce);
+  forwarded.set(header, policy);
+
+  /**
+   * Applied to both responses that RENDER A DOCUMENT, which is why it is a
+   * function rather than two copies.
+   *
+   * The three redirects above this line deliberately do not get one. A
+   * redirect has no body for a policy to govern, and the response it sends the
+   * browser to passes through here and gets its own. What matters is the
+   * property underneath: every HTML document this product serves comes through
+   * this function, because the matcher excludes only `api/`, `_next` and image
+   * extensions, and none of those is a page.
+   */
+  const withPolicy = <T extends NextResponse>(response: T): T => {
+    response.headers.set(header, policy);
+    return response;
+  };
+
+  /*
    * 🔴 Deleted before it is set, on every request.
    *
    * The header is forwarded from the client, so without this line anybody
@@ -121,7 +165,9 @@ export function middleware(request: NextRequest) {
    */
   forwarded.delete(LOCALE_HEADER);
 
-  if (!prefixed) return NextResponse.next({ request: { headers: forwarded } });
+  if (!prefixed) {
+    return withPolicy(NextResponse.next({ request: { headers: forwarded } }));
+  }
 
   /*
    * 🔴 The URL wins over the cookie, and only for this request.
@@ -134,7 +180,7 @@ export function middleware(request: NextRequest) {
   forwarded.set(LOCALE_HEADER, locale);
   const url = request.nextUrl.clone();
   url.pathname = rest;
-  return NextResponse.rewrite(url, { request: { headers: forwarded } });
+  return withPolicy(NextResponse.rewrite(url, { request: { headers: forwarded } }));
 }
 
 export const config = {

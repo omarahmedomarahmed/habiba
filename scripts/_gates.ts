@@ -567,6 +567,23 @@ export const GATES = [
     script: "verify:traps",
     why: "and the checkers are still checking what they claim to",
   },
+  /*
+   * 🔴 A CSP DECAYS IN ONE DIRECTION AND THE HEADER NEVER STOPS BEING SENT.
+   *
+   * Something breaks, `'unsafe-inline'` goes into `script-src` to unbreak it,
+   * and the policy keeps appearing in every security review while no longer
+   * stopping an injected script. Nothing about the response looks different.
+   *
+   * It also holds the one line that is invisible everywhere else: middleware
+   * setting the policy on the REQUEST headers, which is how Next learns the
+   * nonce to stamp on its own scripts. Delete it and the product serves a
+   * white page under a perfectly correct looking header.
+   */
+  {
+    name: "csp",
+    script: "verify:csp",
+    why: "and the content policy still refuses a script we did not write",
+  },
   {
     name: "runbook",
     script: "verify:runbook",
