@@ -256,6 +256,32 @@ Candidates from documents only, to be confirmed in code:
    a person not returned by `suggestionsFor` for the account's PROVEN handles (or not reached by
    invite token), and wire the two-question challenge.
 
+9. **EGP prices are charged as dollars (MONEY-14).** `app/(app)/settings/actions.ts` stores the
+   typed number with `rateCurrency` egp; sessions copy `priceCents` (+ `priceCurrency`, except
+   `bookSlot`); `sessionTransferMoney` (`lib/billing/manual-entry.ts:183`) treats `priceCents` as
+   USD and converts to pounds. 1,500 EGP is quoted as about 85,500 EGP. The demo cast is priced in
+   USD, so the walk cannot meet it. Fix: until price carries a currency end to end, convert to
+   USD at save and keep the EGP figure for display, or withdraw the EGP option.
+
+## Verification pass, 2026-09-23
+
+Eight verifiers re-checked every reader claim against the code, looking for the patch first.
+Files in `takeover/verify/`. Totals (entries after merging duplicates):
+
+| Domain | Entries | Confirmed | Partly | Handled | Wrong | Untestable |
+|---|---|---|---|---|---|---|
+| money | 60 | 46 | 9 | 4 (+12 grouped) | 0 | 0 |
+| walls | 39 | 21 | 6 | 9 | 3 | 0 |
+| clinical | 52 | 38 | 8 | 3 | 2 | 1 |
+| identity | 44 | 29 | 9 | 2 | 1 | 3 |
+| sessions | 35 | 25 | 4 | 6 | 0 | 0 |
+| experience | 59 | 47 | 6 | 4 | 2 | 0 |
+| checks | 65 | 51 | 10 | 2 | 1 | 1 |
+| **total** | **354** | **257** | **52** | **30** | **9** | **5** |
+
+Plus `stale.md` (386 stale statements, 299 confirmed) and `takeover/TASKS.md` (38 inherited
+tasks rebuilt, none closed; 8 wider than described).
+
 ## Live-site checks, 2026-09-22 (fetched from 24therapy.app, not read from defaults)
 
 - `robots.txt` serves `Allow: /` with `/join/`, `/dashboard`, `/sessions` disallowed. TAKEOVER s5
