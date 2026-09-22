@@ -66,8 +66,29 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
      * call itself, so it is refused here and served by the catch-all route,
      * which now asks the same question this one does.
      */
+    /*
+     * 🔴 AND A SINGLE LEADING SLASH, BECAUSE `//` IS NOT A PATH.
+     *
+     * `new URL("//evil.example/x", "https://24therapy.app/…")` resolves to
+     * `https://evil.example/x`. A protocol-relative value is the one shape
+     * that looks like a same-origin path, passes a `startsWith("/")` check and
+     * is a different origin, and it is how a redirect turns into an open one.
+     *
+     * Nothing writes such a value today: `lib/uploads.ts` produces either a
+     * blob URL or `/api/uploads/...`. This is the same standard
+     * `lib/content/url.ts` sets for background images, and for the same stated
+     * reason: a value that reached the database some other way still cannot
+     * reach a person. The destination here is an identity document.
+     */
     if (!decision.storedUrl.startsWith("https://")) {
-      return NextResponse.redirect(new URL(decision.storedUrl, _request.url));
+      const local = decision.storedUrl;
+      if (!local.startsWith("/") || local.startsWith("//")) {
+        log.warn("identity document has a stored path that is not same-origin", {
+          verification: ref(reference.verificationId),
+        });
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      return NextResponse.redirect(new URL(local, _request.url));
     }
 
     const upstream = await fetch(decision.storedUrl);
