@@ -247,9 +247,10 @@ manager reading a bill at 390px is not how anybody reads a bill.
 
 ## The video scripts
 
-`docs/walkthrough-archive/SCRIPT-EN.md` and `SCRIPT-AR.md` were written against a product with
-one therapist and one patient in it. **They are stale and they are replaced, not edited**, by
-scripts written against what this run actually produced.
+There were two, `SCRIPT-EN.md` and `SCRIPT-AR.md`, written against a product with one therapist
+and one patient in it. **They were deleted rather than edited**, along with every screenshot
+they described, because a script written against a product two redesigns old is worse than no
+script. Write new ones against what this run actually produced.
 
 Five cuts, each a story the run can tell honestly because it happened:
 

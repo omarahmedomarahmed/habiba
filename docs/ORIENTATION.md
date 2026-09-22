@@ -5,7 +5,7 @@ table. This is the substance behind it: what this product is for, what it claims
 values, what it refuses, and which file answers which question.
 
 🔴 **This file is a claim, like every other `.md` here.** It was written by a session that
-had read a few dozen files out of 1,106. The code is the evidence. Where this and the code
+had read a few dozen files out of 1,158. The code is the evidence. Where this and the code
 disagree, the code is right and this file is a defect.
 
 ---
@@ -141,7 +141,9 @@ which is real cash leaving rather than a discount.
 
 ## 7 · What this codebase believes about checking things
 
-You will find 35 gates and 76 more verifiers, and they are unusual enough to explain.
+You will find **35 gates** and **107 `verify:` scripts**, and they are unusual enough to
+explain. The two lists overlap: `npm run verifiers` derives its own list at runtime as every
+`verify:` script no gate already runs, so no number here can go stale against it.
 
 > **A checker reports on something ADJACENT to what it claims to check, and the report reads
 > the same either way. A green line meaning "clean" and a green line meaning "I looked at
@@ -154,8 +156,10 @@ before being written down.
 The question to ask of any check: **if the thing I am checking were completely broken, would
 this line go red?** If you cannot answer yes, it needs a control before anything else.
 
-🔴 **19 of 106 verifiers still have no control**, so 19 of them cannot be shown to fail. That
-number may only go down.
+🔴 **18 of the 106 `scripts/verify-*.ts` files have no control**, so 18 cannot be shown to
+fail, and that number may only go down. It is measured by
+`grep -LE "control|CONTROL" scripts/verify-*.ts | wc -l`, which finds the word rather than the
+thing, so treat it as a floor and re-measure rather than quoting it.
 
 ---
 
@@ -178,6 +182,7 @@ number may only go down.
 | What is published for the domain | `docs/EMAIL-DNS.md` |
 | The phases and what is open | `docs/THE-PLAN.md` |
 | What the redesign has to fix | `docs/THE-REDESIGN.md` |
+| What the identity is, and how it was briefed | `docs/BRAND.md`, `docs/LOGO-BRIEF.md` |
 | External state in no file: Neon, Vercel, DNS | `docs/TAKEOVER.md` §5 |
 | The six-month run that has never happened | `docs/simulation/`, `docs/SIMULATION-PROMPT.md` |
 

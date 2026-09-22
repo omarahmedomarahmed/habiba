@@ -79,14 +79,21 @@ disagrees with this table, you stop and ask rather than guessing.
 | Token | Hex | Job |
 |---|---|---|
 | `navy-500` | `#0A2342` | **The identity colour.** The mark is navy |
-| `brand-500` | `#1F5EFF` | The primary button and every focus ring. **Not the logo** |
-| `teal-500` | `#2EC4B6` | Secondary accent, Crisis Radar's signature |
+| `brand-500` | `#2EC4B6` | The primary button and every focus ring |
+| `teal-500` | `#2EC4B6` | The mark's teal. Live-and-now, and Crisis Radar's signature |
 | `navy-600` | `#091E39` | The session room surface, painted edge to edge |
 | `radar-void` | `#04101F` | Crisis Radar's surface |
 | `white` | `#FFFFFF` | The reversed ink on both dark surfaces |
 
-**Navy is the brand, blue is the button.** They get confused because both sound brand-ish. A
-mark drawn in `brand-500` reads as a call to action sitting in a header.
+🔴 **The blue is gone, and the artifact predates its going.** `brand-500` used to be
+`#1F5EFF`, a blue appearing nowhere in the mark while carrying 215 class names. It is now the
+mark's own teal. The token NAMES were kept and the VALUES changed, so one diff of
+`app/globals.css` was the whole change. Anything in the artifact that says the button is blue
+is describing a product that no longer exists, and **`app/globals.css` is the authority**.
+
+**Navy is the identity and the mark is navy.** `brand` and `teal` agree at 500 by
+construction, and are kept separate because `teal-*` is the mark and `brand-*` is the
+interface, free to be re-cut when a contrast measurement says it must be.
 
 ---
 

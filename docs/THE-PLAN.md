@@ -91,11 +91,22 @@ online while suspended, release leaving them offline, #121 the sweep's schedule.
 
 ---
 
-## Phase 3 — The redesign
+## Phase 3, the redesign
 
-In the priority order already set: **patient first, company second, clinic third, partner last.**
-Nothing here starts before Phase 2 for that surface is closed, because redesigning a broken
-screen produces a prettier broken screen.
+🔴 **THE TASKS BELOW NO LONGER EXIST, AND THIS SECTION IS NOW RAW MATERIAL RATHER THAN A PLAN.**
+Phase 3 was held as tasks 133 to 141 and 155. Every one of them was deleted and **task 174
+replaces the lot**: the founder's ruling is that the design is drawn again from nothing, every
+app and every portal at once, rather than repaired surface by surface. `docs/TAKEOVER.md` §10
+is the brief for that.
+
+Read what follows as the list of complaints it was built from, which is still worth having.
+Item 3 has already been dealt with differently: demo clinicians now carry a Demo badge and
+appear on the radar only while their heartbeat is live, rather than being permanently marked
+off shift.
+
+The priority order below still stands: **patient first, company second, clinic third, partner
+last.** So does the reason nothing starts early: redesigning a broken screen produces a
+prettier broken screen.
 
 1. **The design system at `/design`** — the palette taken from the live site (`#0a2342` ground,
    `#2ec4b6` accent, retiring `#eaf0ff` as a surface), type scale, components, both themes. Every

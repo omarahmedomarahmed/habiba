@@ -3,9 +3,16 @@
 Working document. Sessions share it through git: the commit is the only channel
 between them, so write here and commit whenever you decide something.
 
-**Baseline:** `main` · migrations `0000–0028` · 109 tests across eight suites
-(60 run without a database, 49 need one).
-**Hazards:** `HAZARDS.md` — read once before your first commit.
+🔴 **This file is a DATED LEDGER, not a description of the product today.** Every entry below
+is what somebody decided on the day they wrote it. File paths inside an old entry are the
+paths as they were then, and several no longer resolve: `lib/ai/crisis.ts` is now
+`lib/crisis/`, `lib/ai/descriptors.ts` is now `lib/transcript/descriptors.ts`, and
+`lib/ai/patient-copilot.ts`, `scripts/_fk.ts`, `docs/screens/`, `docs/walkthrough/` and
+`docs/walkthrough-2/` were deleted. A dead path here is history, not a defect. **For what is
+true now, read `docs/ORIENTATION.md` and then the code.**
+
+**Baseline:** `main` · 116 migrations, `0000` to `0115` · 33 test suites.
+**Hazards:** `HAZARDS.md`, read once before your first commit.
 
 ---
 
