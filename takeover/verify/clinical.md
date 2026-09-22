@@ -540,3 +540,63 @@ Sources are the Broken (B), Suspect (S) and "Looks broken, is handled" (H) secti
 - Severity: S2 (a false public statement that makes the legal defect worse)
 - Fix sketch: change the copy today to "Ask your patient before you start; the app does not ask them yet", until the in-person consent step ships. Proof: `verify:claims` pattern for it.
 - Decision it came from: the registry written ahead of the feature.
+
+## Summary table
+
+| Id | Title | Verdict | Severity |
+|---|---|---|---|
+| CLIN-1 | Recording without consent (MAP 4) | CONFIRMED (carried) | S1 |
+| CLIN-2 | "Do not record" tick ignored by the room | CONFIRMED | S1 |
+| CLIN-3 | Resume erases the patient's Stop | CONFIRMED | S1 |
+| CLIN-4 | Unconsented recording badged "not recorded" | CONFIRMED | S1 |
+| CLIN-5 | Invented segment times hide off-record gaps | CONFIRMED | S2 |
+| CLIN-6 | Consent panel contradicts itself, goes stale | CONFIRMED | S3 |
+| CLIN-7 | Meeting bot on one person's grant | PARTLY | S2 |
+| CLIN-8 | Off record near the end ends the session | CONFIRMED | S2 |
+| CLIN-9 | Fixtures and tests encode the consent defect | CONFIRMED | S4 |
+| CLIN-10 | Regeneration after release shows unreviewed text | CONFIRMED | S2 |
+| CLIN-11 | Signed notes and released copies edited in place | CONFIRMED | S2 |
+| CLIN-12 | Patient email falls back to clinician summary | CONFIRMED | S2 |
+| CLIN-13 | After-session summary lacks credentials | PARTLY | S2 |
+| CLIN-14 | "Still writing" forever for cancelled sessions | CONFIRMED | S3 |
+| CLIN-15 | Signing discards a failed edit | WRONG | S4 |
+| CLIN-16 | Patient copy released before chart signed | HANDLED | S4 |
+| CLIN-17 | Guest must rate to see their summary | PARTLY | S3 |
+| CLIN-18 | Record export prints unsigned risk output | CONFIRMED | S2 |
+| CLIN-19 | Copilot grant check / capabilities default | HANDLED | S3 |
+| CLIN-20 | Copilot reads oldest twelve sessions | CONFIRMED | S2 |
+| CLIN-21 | Copilot citations resolve to wrong sentence | CONFIRMED | S2 |
+| CLIN-22 | In-room copilot answers show no source | CONFIRMED | S3 |
+| CLIN-23 | "Prepare me once" bounded only in browser | CONFIRMED | S4 |
+| CLIN-24 | Copilot thread frozen to first clinician | WRONG | S4 |
+| CLIN-25 | Revoked clinician still reads profile and summary | CONFIRMED | S1 |
+| CLIN-26 | Seeded copilot answers never render | CONFIRMED | S4 |
+| CLIN-27 | Crisis filter "he" in "the" (MAP 2) | CONFIRMED, fixed on branch | S1 |
+| CLIN-28 | Check-in replies reach nobody | CONFIRMED | S1 |
+| CLIN-29 | Check-in no-repeat rule never fires | CONFIRMED | S4 |
+| CLIN-30 | Check-ins to any sign-up, off switch has no door | PARTLY | S3 |
+| CLIN-31 | Journal alerts skip open-ended grants | CONFIRMED | S1 |
+| CLIN-32 | Journal alert links to a missing page | CONFIRMED | S2 |
+| CLIN-33 | Risk history by clinician, not patient | CONFIRMED | S2 |
+| CLIN-34 | Crisis cron daily, README says 5 minutes | CONFIRMED | S2 |
+| CLIN-35 | Crisis alert is only an in-app row | CONFIRMED | S2 |
+| CLIN-36 | Risk suggestion card can be pushed off | CONFIRMED | S3 |
+| CLIN-37 | SOS dead from keyboard, shaky tap misses | CONFIRMED | S1 |
+| CLIN-38 | Radar price sheet covers SOS | CONFIRMED | S1 |
+| CLIN-39 | SOS missing or blank on crash screens | PARTLY | S2 |
+| CLIN-40 | Any Arabic reader given Egypt's line | CONFIRMED | S2 |
+| CLIN-41 | Anonymous record unfindable (task 117) | PARTLY | S2 |
+| CLIN-42 | In-session abuse report silently dropped | CONFIRMED | S1 |
+| CLIN-43 | Feedback link falls back to join token | HANDLED | S4 |
+| CLIN-44 | Consent copy outside protected safety strings | CONFIRMED | S3 |
+| CLIN-45 | Grounding eval scores the filter; bad fixture | CONFIRMED | S3 |
+| CLIN-46 | e2e name check may read the wrong request | UNTESTABLE HERE | S3 |
+| CLIN-47 | Assistant sends roster names to the provider | CONFIRMED | S2 |
+| CLIN-48 | Voice and read-aloud spend unmetered | PARTLY | S4 |
+| CLIN-49 | Meeting webhook not signed | PARTLY | S2 |
+| CLIN-50 | Note writer still sent working diagnoses | CONFIRMED | S3 |
+| CLIN-51 | Copilot profile ignores live-session bound | CONFIRMED | S4 |
+| CLIN-52 | Public copy claims in-person consent | CONFIRMED | S2 |
+
+Totals: 52 entries. CONFIRMED 38 (two carried from MAP, one of them fixed on this branch), PARTLY 8,
+HANDLED 3, WRONG 2, UNTESTABLE HERE 1. S1 11, S2 20, S3 11, S4 10.

@@ -385,7 +385,7 @@ Written 2026-09-22 against commit 8acf13b.
 - Sources: code-04 Promise evidence E4, code-03 Looks-handled (setCoverage audited)
 - Promise: E4
 - Who is hurt and how: nobody; 0% is legal and `payFromPot` returns `no_benefit` without touching the enrolment, so the person keeps their badge and roster place and pays the whole price.
-- Evidence: lib/billing/pot.ts:340-353; lib/data/sponsors.ts:595 allows 0; setCoverage writes only `sponsor_pots`. Side defect: a provisional employee's one allowance is consumed on this path (MONEY-38). Walk note for E3 and E4: a DECREASE (including to 0%) is scheduled, not immediate: it bites after `sponsor.coverageNoticeDays` (default 30, minimum 7; lib/data/sponsors.ts:630-641, lib/settings/defs.ts `coverageNow`). A walk that lowers coverage and books "the next one" the same afternoon will see the OLD share on both, by design; the walk must move the pending date or read `pendingCoverageFrom`.
+- Evidence: lib/billing/pot.ts:340-353; lib/data/sponsors.ts:600 allows 0; setCoverage writes only `sponsor_pots`. Side defect: a provisional employee's one allowance is consumed on this path (MONEY-38). Walk note for E3 and E4: a DECREASE (including to 0%) is scheduled, not immediate: it bites after `sponsor.coverageNoticeDays` (default 30, minimum 7; lib/data/sponsors.ts:636-647, lib/settings/defs.ts:1757-1773 `coverageNow`). A walk that lowers coverage and books "the next one" the same afternoon will see the OLD share on both, by design; the walk must move the pending date or read `pendingCoverageFrom`.
 - Severity: S4
 - Fix sketch: none in code; fix the walk script.
 - Decision it came from: C345 and C344 (decrease needs notice).
@@ -470,3 +470,243 @@ Written 2026-09-22 against commit 8acf13b.
 - Fix sketch: filter to batches with remaining value in the WHERE (or mark them spent).
 - Decision it came from: 46.4 credit as money.
 
+### MONEY-46 · A session with an abandoned card checkout, later paid by transfer, is booked as if an employer had paid
+- Verdict: PARTLY
+- Sources: code-04 Suspect 5
+- Promise: T3
+- Who is hurt and how: if a session has any `session_payments` row (for example an abandoned card checkout from before the practice switched to the Egyptian rail), a transfer confirmation posts only a VAT entry: the clinician's earnings and our fee are never recorded and the old row stays `pending`.
+- Evidence: lib/billing/manual-grants.ts:186-195 reads any row for the session and :244-285 treats it as the pot case without checking `fundingSource = 'pot'` or `status = 'paid'`. Reachable only when one session meets both rails: the pay page offers one rail per practice (app/pay/[token]/actions.ts:197-199), and a solo clinician can switch region in settings (app/(app)/settings/actions.ts:266-280) after a card attempt.
+- Severity: S3 (narrow)
+- Fix sketch: branch on `fundingSource === 'pot'`; otherwise replace a `pending` card row.
+- Decision it came from: 76.33.
+
+### MONEY-47 · VAT on the transfer rail is derived by subtraction
+- Verdict: HANDLED
+- Sources: code-04 Suspect 4 and Promise evidence CV1/CV4
+- Promise: CV4 (VAT never by subtraction), E3
+- Who is hurt and how: nobody found. The reader's worry was that a price change between declaration and confirmation would post the difference as VAT. No code path changes `sessions.price_cents` after creation (grep of every `priceCents:` write: only inserts), and the quote side computes VAT forwards on the share (lib/billing/manual-entry.ts:183-206). The subtraction (manual-grants.ts:227) therefore recovers exactly the VAT that was quoted. The backward VAT on pot top-ups (manual-grants.ts:575-580) was checked by running the round trip for every credit from $1 to $1,000 at 14%: forward and backward agree to the cent.
+- Evidence: see above.
+- Severity: S4
+- Fix sketch: none needed; a comment tying the subtraction to the immutability of `price_cents` would keep it true.
+- Decision it came from: 75.7.
+
+### MONEY-48 · A company's invoice is re-printed with today's VAT rate, not the rate the books hold
+- Verdict: CONFIRMED
+- Sources: code-04 Suspect 8 and invoice.ts file note
+- Promise: E1 (what the company is shown it paid)
+- Who is hurt and how: if the VAT rate changes, or the country is switched off in settings, every past top-up invoice re-renders with a different VAT split (or none), disagreeing with the tax the books recorded and with what the company already filed.
+- Evidence: lib/billing/invoice.ts:160-171 derives VAT backwards from the cash leg using `countryVatBps(sponsor.entity)` (:199-205), which reads the CURRENT enabled `country_settings` row and returns 0 when disabled; the `vat_payable` leg of the same txn is not read.
+- Severity: S3
+- Fix sketch: read the txn's `vat_payable` leg for the VAT line.
+- Decision it came from: C226/C241 invoice rendered from the ledger.
+
+### MONEY-49 · A momentary database error prices payments with default settings
+- Verdict: CONFIRMED
+- Sources: code-04 Suspect 9 and lib/settings/index.ts file note
+- Promise: E3, CV2
+- Who is hurt and how: if the settings read fails, the pay screen quotes at the default 50 pounds to the dollar and 15% fee whatever the operator set; if the country read fails, an Egyptian session is quoted with no VAT. The payer declares against that figure and the claim freezes it.
+- Evidence: lib/settings/index.ts:58-71 (`getSettings` returns `SETTINGS_DEFAULTS` on any error), :81-88 (`getCountries` returns []), so `getCountrySettings` is null and `sessionTransferMoney` uses `vatBps = 0` (lib/billing/manual-entry.ts:201). The card path refuses an unknown country (connect.ts:474-475); the transfer path does not.
+- Severity: S3
+- Fix sketch: money paths call a strict reader that throws; the transfer quote refuses an Egyptian practice with no country row.
+- Decision it came from: the settings reader's "never take the site down" fallback.
+
+### MONEY-50 · An Egyptian clinician's patients are sent to the card rail until the clinician finds the region setting
+- Verdict: PARTLY
+- Sources: code-04 Suspect 12, code-12 Suspect 6
+- Promise: P1-adjacent (a person stuck at the pay step)
+- Who is hurt and how: a new practice is `us` by default, so its patients get the card screen; a patient choosing Egypt is refused with "Ask your therapist for a free link". The remedy exists: a solo clinician can set "where you practise" in Settings, which switches the practice to the transfer rail. A clinic cannot change it itself ("Ask us").
+- Evidence: lib/db/schema.ts:155 `region` default `us`; lib/billing/manual-entry.ts:142 `organizationNeedsTransfer` is `region === 'eg'`; lib/settings/defs.ts:1464-1481 refuses Egypt on the card rail; app/(app)/settings/actions.ts:266-286 sets region for `kind = 'solo'` only.
+- Severity: S2
+- Fix sketch: set region from the clinician's verified country at approval, and ask for it at signup.
+- Decision it came from: 74.6.
+
+### MONEY-51 · The invitation email names a dollar price and promises Stripe, even to an Egyptian patient and to a covered employee
+- Verdict: CONFIRMED
+- Sources: code-05 Broken 14
+- Promise: E3 ("a price somebody was shown is a price they are owed"), E1/C243 adjacency
+- Who is hurt and how: the first money sentence an Egyptian patient reads says "$60" and "Payment is handled securely by Stripe and goes to your therapist. You will get a receipt by email." They will be asked for pounds by bank transfer to us, with VAT. A covered employee is told the full price, not their share.
+- Evidence: lib/mail.ts:398-421: `amount` is always `$` from `priceCents` (the full price), the Stripe sentence is unconditional for any paid session.
+- Severity: S2 (misled about what they will pay and to whom)
+- Fix sketch: build the email line from the same `patientOwesFor` plus rail decision the pay page uses.
+- Decision it came from: the Stripe-era invite template.
+
+### MONEY-52 · Several screens show a price computed differently from what is charged
+- Verdict: CONFIRMED (four small defects, one entry)
+- Sources: code-11 Suspect (booking sheet VAT), code-11 Broken (therapist-console 10%), code-11 Broken (payouts.tsx formatUsd on EGP), code-11 Broken (seat-manager "up from")
+- Promise: E3, CV2
+- Who is hurt and how: (a) the radar booking sheet says "Pay $X and start now"; an Egyptian patient is then asked for pounds plus 14% VAT. (b) The clinician's radar console shows "You keep" at a hard-coded 10% fee while the real fee is 15%. (c) A clinician who prices in pounds sees "You keep $1,275, fee $225" for 1,500 EGP. (d) Removing seats reads "costs $144 a month, up from $216".
+- Evidence: (a) components/radar/booking-sheet.tsx:53-56, 306-309 (`formatUsd(sessionRateCents)`, no VAT). (b) components/radar/therapist-console.tsx:221-222 (`* 1000 / 10_000`) vs lib/settings/defs.ts:562 (1500 bps). (c) components/settings/payouts.tsx:469-471 (`formatUsd` whatever `currency`). (d) components/billing/seat-manager.tsx:96-98.
+- Severity: S3
+- Fix sketch: (a) show the total including VAT in the payer's currency from the server; (b) read `platformFeeBps`; (c) format in the chosen currency; (d) "down from" when lower.
+- Decision it came from: none recorded; each screen does its own arithmetic.
+
+### MONEY-53 · The pricing page says "no seat fee" beside a per-seat clinic price, and "your patient never pays us anything"
+- Verdict: PARTLY (copy; the code side is as described)
+- Sources: code-11 Broken (pricing.noFees), code-11 Suspect (radarBody "and nothing else"), code-11 Suspect (patientPaysNothing), MAP live-site checks (no seat fee, no per-session fee)
+- Promise: C3 (what a practice was sold)
+- Who is hurt and how: a practice reads "No seat fee, no setup fee, no minimum" and a per-seat ladder on the same page. An Egyptian patient does pay us: they transfer to our account, including VAT we remit.
+- Evidence: lib/i18n/messages.ts:170, 187-192 (English), 4020, 4037-4041 (Arabic), 3800 and 7000 (`patientPaysNothing`). Per-seat pricing: components/public/pricing-tiers.tsx:167-213. The rail: app/pay/[token]/actions.ts:183-263. Probably the sentences mean pay-as-you-go; they do not say so.
+- Severity: S3
+- Fix sketch: scope each sentence to the plan it describes; a founder wording decision.
+- Decision it came from: H27 has the same shape.
+
+### MONEY-54 · Partner sessions opened before consent are never billed, and a month is priced at bill time
+- Verdict: CONFIRMED
+- Sources: code-05 Broken 12, code-05 Suspect 8
+- Promise: none of the 25 (partner revenue)
+- Who is hurt and how: us: a partner session whose first open came before consent stays `billable = false` for ever, so every session opened that way is free; a price change mid-month reprices sessions already held.
+- Evidence: lib/partner/platform.ts:80 decides `billable` at insert; the conflict update (:94-100) sets `recordingFromSeconds` and `stoppedReason` but not `billable`. lib/partner/billing.ts:63-65 reads `partnerSessionCents` from settings at bill time; the debt is posted to `therapist_receivable` (:146-159).
+- Severity: S3
+- Fix sketch: `billable = excluded.billable OR partner_sessions.billable` on conflict; freeze the price on the session row; a `partner_receivable` account.
+- Decision it came from: 68.2 partner flow.
+
+### MONEY-55 · Receipts over 2 MB cannot be submitted, although the upload rule promises 25 MB
+- Verdict: CONFIRMED
+- Sources: code-06 Broken 6
+- Promise: A1, A3 (a payer who cannot submit proof)
+- Who is hurt and how: a payer whose banking app screenshot is 3 to 6 MB gets a framework error instead of either success or the product's own sentence about file size.
+- Evidence: next.config.ts:59 `serverActions: { bodySizeLimit: "2mb" }`; receipts go through server actions (app/pay/[token]/actions.ts:201-219, app/(app)/billing/actions.ts, app/(sponsor)/sponsor/pot/actions.ts); lib/uploads.ts:93-107 allows 25 MB.
+- Severity: S2
+- Fix sketch: upload receipts through a route handler (or client-side direct upload) and pass the key to the action; or raise the limit for these actions.
+- Decision it came from: the 2 MB PHI body limit predates receipt upload.
+
+### MONEY-56 · After one abandoned card checkout, the pay page quotes the session at $0 and Stripe then charges the full price
+- Verdict: CONFIRMED (new; found while checking code-04's session-owed.ts note)
+- Sources: this verifier; code-04 lib/billing/session-owed.ts file note (no status filter)
+- Promise: E3, CV2
+- Who is hurt and how: a patient who opens the card payment, backs out, and returns sees the session priced at nothing (no price, no VAT) on the pay page, while pressing Pay takes them to Stripe for the full price. A covered session refunded to the pot keeps telling the patient they owe only their share.
+- Evidence: `session_payments.patient_share_cents` is `NOT NULL DEFAULT 0` (lib/db/schema.ts:2247). The card checkout row does not set it (lib/billing/connect.ts:764-788). `patientOwesFor` reads any row for the session with no filter on `fundingSource` or `status`, and its `null` fallback can never fire (lib/billing/session-owed.ts:61-80), so it returns `grossCents: 0`. Both quote paths use it: `priceFor` (app/pay/[token]/actions.ts:86-114) and the transfer quote on the page (app/pay/[token]/page.tsx:128-133). The charge ignores it (`createSessionPaymentCheckout` reads only `fundingSource = 'pot'` rows, connect.ts:494-521).
+- Severity: S2 (price shown is not the price charged)
+- Fix sketch: `patientOwesFor` reads only `fundingSource = 'pot' AND status = 'paid'` rows; the card insert writes the share it is charging.
+- Decision it came from: 76.27 / 76.33 (quote from the frozen split), which assumed only pot rows exist before payment.
+
+### MONEY-57 · Staff see, per funded session, the date and the clinician under an employer's name
+- Verdict: PARTLY
+- Sources: code-09 Promise evidence E1 and Unclaimed (b) 7
+- Promise: E1 (admin half)
+- Who is hurt and how: the E1 proof asks only that `/admin/sponsors/<id>` list spend without a patient name, and it does (a session-id prefix, not a name). But the same page gives any staff member each funded session's date and clinician under the company, which is the sponsor-to-session join C244 says no screen, the console included, may show.
+- Evidence: app/(admin)/admin/sponsors/[id]/page.tsx:237-248 (date, clinician, coverage per row), guarded by `requireStaff` (:43); lib/console/pot-trace.ts:125-135; the rule: lib/billing/pot.ts:701-710.
+- Severity: S3 (staff-only)
+- Fix sketch: aggregate by month on the admin page; keep the per-session trace behind the founder elevation with an audited reason.
+- Decision it came from: C232 (every pot cent traces), in tension with C244.
+
+### MONEY-58 · The founders' ledger adjustment can post any amount to any account, once per press
+- Verdict: PARTLY
+- Sources: code-04 Unclaimed (b) (`postAdjustment`), code-09 Console map (ledger adjustment not idempotent)
+- Promise: A2
+- Who is hurt and how: an adjustment is a deliberate founder tool, and it is audited with a reason; but a double press posts twice, and it can create book cash or pot balance ("never invents money" holds only for the platform's own side).
+- Evidence: app/(admin)/admin/actions.ts:505-530 (`requireRole("super_admin")`, audited with account and amount); lib/billing/ledger.ts:636-678. The only screen passes `therapistId: null` (components/admin/ledger-adjust.tsx:131).
+- Severity: S4
+- Fix sketch: an idempotency key per form render; refuse `cash` and `sponsor_pot` without a second founder.
+- Decision it came from: 16.8.
+
+### MONEY-59 · Smaller money findings, each checked
+- Verdict: see each line
+- Sources: as listed
+- Promise: as listed
+- Who is hurt and how, evidence and verdict, one line each:
+  - CONFIRMED S4 · payment notices to a company go to its first portal user, not its admins, although the comment says "Admins only" (lib/billing/payment-notices.ts:68-77; code-04 Stale 5).
+  - CONFIRMED S4 · `manual_payments.currency` defaults to uppercase "EGP" where everything else is lowercase, with no CHECK (lib/billing/manual.ts:244, 285; code-01 Suspect 0102). Only display reads it today.
+  - CONFIRMED S4 · a patient posting a foreign enrolment id to "choose primary" leaves themselves with no primary benefit, so the pot silently stops paying (lib/data/enrolment.ts:512-527; code-02 Suspect 11). Only reachable by a hand-made request.
+  - CONFIRMED S4 · a failed Stripe cancellation when a clinician joins a clinic is only logged, so their own plan can renew once more (app/(clinic)/clinic/join/[token]/actions.ts:72-80; code-08 Suspect 7). Transfer-rail plans do not auto-renew, so Egyptian clinicians are unaffected.
+  - CONFIRMED S4 · the demo seed marks sessions paid with no payment row and no ledger leg, and writes a payout request by raw SQL, so the `money` walk sees held earnings only from pot sessions (scripts/seed-demo.ts:975-1013; code-12 Suspect 1). The walk cannot meet MONEY-12 or MONEY-14.
+  - CONFIRMED S4 · two unit tests that claim to hold the pot race and the transfer-rail pot credit exercise functions written inside the test and would stay green if the product regressed (tests/safety.test.ts:709-741, tests/transfer-rail.test.ts:177-193; code-16 Broken 3 and 4).
+  - PARTLY S4 · `postSessionPayment` throws on a destination charge carrying VAT after the session was already marked paid, leaving it with no ledger leg (lib/billing/ledger.ts:360-364, connect.ts:862-877; code-04 Looks-handled 8). Only reachable if an operator sets VAT on a Stripe country.
+  - PARTLY S4 · the billing page shows the green "paid" banner for any `?checkout=` value; the confirmation itself re-reads Stripe and is safe (app/(app)/billing/page.tsx:42-44, 125-129; lib/billing/stripe.ts:572-583; code-07 Suspect 4).
+  - PARTLY S3 · choosing Pay as you go on the plan card calls `upgradeAndPay("payg")`, which creates no payment (the reader's worry is WRONG: `subscribeByTransfer` refuses an unpriced tier, lib/billing/service.ts:880-882) but answers "That is not a plan you can subscribe to" instead of downgrading (components/billing/plan-card.tsx:380-391; code-11 Suspect).
+  - CONFIRMED S4 · `renewal_obligations.settled_ref` is not unique and `session_credits` has no spent-within-credit CHECK (code-01 Suspect 0089, 0066); nothing exploits either today.
+  - WRONG · `fx_rate_micro` int4 overflow (code-01 Suspect 0032): overflow needs a rate above about 2,147 per dollar; the settings parser caps the pound rate at 1,000 (lib/settings/defs.ts `parseGroup`), and USD pairs are identity.
+- Evidence: inline above.
+- Severity: as listed
+- Fix sketch: per line; none is urgent.
+- Decision it came from: n/a.
+
+---
+
+## Looks broken, is handled
+
+### MONEY-60 · Handled on inspection (reader claims that a patch elsewhere settles)
+- Verdict: HANDLED
+- Sources and patches, one line each:
+  - code-04 Suspect 15, `confirmWithoutProof` audits with `organizationId ?? ""` into a uuid column: `users.organization_id` is NOT NULL (lib/db/schema.ts:288-290), so the fallback never fires for a real operator.
+  - code-04 Suspect 14, Stripe `invoice.paid` obligation with plan "": our checkout sets `subscription_data.metadata.tierKey` (lib/billing/stripe.ts:290-292), which the handler reads; only subscriptions made outside the product would carry "".
+  - MAP Suspect 9 and code-11 Looks-handled, weekly spend heatmap revealing a week: `applyActivityFloor` hides every week until five sessions accumulate and carries them forward (lib/data/sponsors.ts:137-163). What defeats it is the live total beside it, MONEY-1.
+  - code-04 Looks-handled 2 and code-16 Broken 3's subject, two bookings racing one pot: the conditional debit is the guard (lib/billing/pot.ts:481-500) and the unique `session_id` insert the idempotency with a compensating credit (:520-583).
+  - code-04 Looks-handled 4, a foreign or paid invoice id from the browser: pinned to organisation and `due` in the WHERE (lib/billing/bill-lines.ts:54-58, service.ts `sumPayable`).
+  - code-04 Looks-handled 5, pot credited in pounds: `grantPotTopUp` credits `settles_cents` (USD), not `amount_cents` (lib/billing/manual-grants.ts:576-596).
+  - code-04 Looks-handled 7, `tierForSpend` giving a paid plan for a cent: filtered to `monthlyCents === 0` (lib/billing/plans.ts:56) and `settingsProblem` refuses a tier with both axes (lib/settings/defs.ts:1323-1326).
+  - code-10 Suspect 11 and code-11 Suspect (ledger.tsx), browser arithmetic for VAT and invoice totals: both use the server's own formulas (half-up VAT, floor fee, amount minus discount; components/session/new-session-form.tsx:97-108, components/billing/ledger.tsx:114-117), and the server recomputes the charged figure (manual-entry.ts `sessionTransferMoney`, service.ts `sumPayable`).
+  - code-11 Looks-handled, cancel deleting a submitted claim: `cancelCart` deletes only `awaiting_proof` (lib/billing/cart.ts:185-190).
+  - MAP live-site Suspect, "Your first session is free": the clinician's first session fee is waived by a one-time conditional claim (lib/billing/service.ts:112-131). Whether the copy means the clinician or the patient is a wording question.
+  - code-01 Looks-handled, `manual_payments` state and purpose CHECKs: present (drizzle/0102:68-71).
+  - lib/finance (slice 04): no Broken or Suspect entries were raised; readers recorded stale comments only (code-04 Stale 17-20). Nothing in lib/finance forecasts a clinician's earnings.
+- Severity: S4
+
+---
+
+## Summary table
+
+| Id | Verdict | Severity |
+|---|---|---|
+| MONEY-1 | CONFIRMED (MAP 5) | S1 |
+| MONEY-2 | CONFIRMED (MAP 6) | S1 |
+| MONEY-3 | CONFIRMED (MAP 7) | S2 |
+| MONEY-4 | CONFIRMED | S1 |
+| MONEY-5 | CONFIRMED | S2 |
+| MONEY-6 | CONFIRMED | S1 |
+| MONEY-7 | CONFIRMED | S1 |
+| MONEY-8 | CONFIRMED | S2 |
+| MONEY-9 | CONFIRMED | S2 |
+| MONEY-10 | CONFIRMED | S1 |
+| MONEY-11 | CONFIRMED | S3 |
+| MONEY-12 | CONFIRMED | S2 |
+| MONEY-13 | CONFIRMED | S1 |
+| MONEY-14 | CONFIRMED | S1 |
+| MONEY-15 | CONFIRMED | S2 |
+| MONEY-16 | CONFIRMED | S2 |
+| MONEY-17 | CONFIRMED | S2 |
+| MONEY-18 | CONFIRMED | S2 |
+| MONEY-19 | CONFIRMED | S2 |
+| MONEY-20 | CONFIRMED | S2 |
+| MONEY-21 | CONFIRMED | S2 |
+| MONEY-22 | CONFIRMED | S2 |
+| MONEY-23 | CONFIRMED | S1 |
+| MONEY-24 | CONFIRMED | S3 |
+| MONEY-25 | CONFIRMED | S3 |
+| MONEY-26 | CONFIRMED | S3 |
+| MONEY-27 | CONFIRMED | S3 |
+| MONEY-28 | CONFIRMED | S2 |
+| MONEY-29 | PARTLY | S3 |
+| MONEY-30 | CONFIRMED | S1 |
+| MONEY-31 | PARTLY | S2 |
+| MONEY-32 | CONFIRMED | S3 |
+| MONEY-33 | CONFIRMED | S3 |
+| MONEY-34 | CONFIRMED | S3 |
+| MONEY-35 | CONFIRMED | S2 |
+| MONEY-36 | CONFIRMED | S2 |
+| MONEY-37 | HANDLED | S4 |
+| MONEY-38 | CONFIRMED | S3 |
+| MONEY-39 | PARTLY | S3 |
+| MONEY-40 | HANDLED | S4 |
+| MONEY-41 | CONFIRMED | S3 |
+| MONEY-42 | CONFIRMED | S2 |
+| MONEY-43 | PARTLY | S3 |
+| MONEY-44 | CONFIRMED | S3 |
+| MONEY-45 | CONFIRMED | S4 |
+| MONEY-46 | PARTLY | S3 |
+| MONEY-47 | HANDLED | S4 |
+| MONEY-48 | CONFIRMED | S3 |
+| MONEY-49 | CONFIRMED | S3 |
+| MONEY-50 | PARTLY | S2 |
+| MONEY-51 | CONFIRMED | S2 |
+| MONEY-52 | CONFIRMED | S3 |
+| MONEY-53 | PARTLY | S3 |
+| MONEY-54 | CONFIRMED | S3 |
+| MONEY-55 | CONFIRMED | S2 |
+| MONEY-56 | CONFIRMED | S2 |
+| MONEY-57 | PARTLY | S3 |
+| MONEY-58 | PARTLY | S4 |
+| MONEY-59 | mixed (7 CONFIRMED, 3 PARTLY, 1 WRONG) | S3/S4 |
+| MONEY-60 | HANDLED (12 claims) | S4 |
+
+Counts over the 60 entries: CONFIRMED 46 (3 carried from MAP), PARTLY 9, HANDLED 4 (MONEY-60 groups 12 handled claims), mixed 1 (MONEY-59: 7 CONFIRMED, 3 PARTLY, 1 WRONG line). No whole entry is WRONG; one WRONG line sits in MONEY-59 and one WRONG half in MONEY-22. By severity: S1 10, S2 22, S3 21, S4 7.

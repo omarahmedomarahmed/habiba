@@ -18,6 +18,7 @@ second factor) and item 8 (record claim with no ownership check). Not re-verifie
 - Evidence: `docs/VALUE-STATEMENTS.md:251-257` (password and admin address in a generated doc), `scripts/seed-demo.ts:259,328` (seeded as super_admin), `lib/auth/actions.ts:170-295` (email plus password only; grep of lib and app for totp/mfa/two-factor finds nothing). Only `/admin/tv` has a second key (`lib/console/gate.ts`).
 - Severity: S1
 - Fix sketch: rotate the production admin password now and stop printing it (`scripts/_value-statements.ts` generates the doc); add a second factor (emailed code at minimum) to the `audience: "staff"` branch of `signIn`. Proof: signing in at `/staff/sign-in` with the documented password on production fails.
+- Note: while this file was written, uncommitted working-tree edits appeared in `scripts/_demo-cast.ts` (a `PRIVATE_LOGINS` list that stops the super_admin, support and company logins taking the shared password), `scripts/seed-demo.ts`, `scripts/logins.ts`, `scripts/verify-demo.ts` and `docs/DEMO-LOGINS.md`. Not reviewed here. Until committed and re-seeded on production, the committed state and production are as described. Line numbers in these files in this report are from the working tree of 2026-09-22.
 - Decision it came from: the PROVE-IT walk design ("one password for all of them", VALUE-STATEMENTS generator) and seed:demo run on production 2026-09-20.
 
 ### ID-2 · Record claim: any signed-in patient can take an unclaimed record by its id, and the two-question challenge is never required
@@ -185,7 +186,7 @@ second factor) and item 8 (record claim with no ownership check). Not re-verifie
 - Sources: code-06 Suspect 4, code-06 file note on `lib/rate-limit.ts`, code-13 Suspect (verify-limits caching), SIMULATION-digest s1
 - Promise: none directly (A1 and A5 through the console)
 - Who is hurt and how: while the flag is on, a password guesser gets 500 tries per 15 minutes per network at the staff door, 125 per hour at the console's two-key unlock, and a stranger's phone can be sent 125 codes per 15 minutes; nothing on screen says the limits moved.
-- Evidence: holds in code: `lib/rate-limit.ts:97,110-111` multiplies every non-`global:` key; `lib/env.ts:159` reads the flag; console unlock uses `consume(callerKey("console-unlock"), 5, 3600)` (`lib/console/gate.ts:99`), not exempt. Does not hold today: the flag also makes `robots.txt` disallow everything (`app/robots.ts:30-34`), and MAP "Live-site checks, 2026-09-22" fetched `Allow: /` from production, so the flag was off on production that day. The per-account lockout (5 failures, `lib/auth/actions.ts:227-240`) is not multiplied, which bounds guessing against one staff account. Side note: `purgeExpiredLimits` compares with Node's clock (`lib/rate-limit.ts:304-310`), the two-clock mistake fixed elsewhere in the file.
+- Evidence: holds in code: `lib/rate-limit.ts:97,110-111` multiplies every non-`global:` key; `lib/env.ts:159` reads the flag; console unlock uses `consume(callerKey("console-unlock"), 5, 3600)` (`lib/console/gate.ts:99`), not exempt. Does not hold today: the flag also makes `robots.txt` disallow everything (`app/robots.ts:30-34`), and MAP "Live-site checks, 2026-09-22" fetched `Allow: /` from production, so the flag was off on production that day. The per-account lockout (5 failures, `lib/auth/actions.ts:227-240`) is not multiplied, which bounds guessing against one staff account. Side note: `purgeExpiredLimits` compares with Node's clock (`lib/rate-limit.ts:304-310`), the two-clock mistake fixed elsewhere in the file. code-13's worry that `verify:limits` re-imports a cached `lib/env` (`scripts/verify-limits.ts:223-228`) is not settled here (it needs a database); if it does, the widened check reads the unwidened limit and goes red, not falsely green.
 - Severity: S3 (S1 whenever the flag is set on production, given ID-1)
 - Fix sketch: exempt `console-unlock`, `login`, `patient:*code*` and reset keys from the multiplier (a short deny list beside the `global:` exemption); show "limits widened" in the violet strip. Proof: `verify:limits` asserts the console key stays at 5 with the flag on.
 - Decision it came from: 76.49 (simulation on production), HAZARDS H50.
@@ -390,3 +391,123 @@ second factor) and item 8 (record claim with no ownership check). Not re-verifie
 - Fix sketch: none.
 - Decision it came from: C230, C259, 21R.1.
 
+### ID-38 · Claiming a record errors after it has committed when any clinician holding it is not approved
+- Verdict: CONFIRMED (code level; how often a holder is unapproved is UNTESTABLE HERE)
+- Sources: code-03 Broken (applyClaimDecision), code-02 Suspect 4 (the "applyClaimDecision overwrites?" question)
+- Promise: P4
+- Who is hurt and how: a patient who claims their record and ticks "my therapist keeps access" sees an error although the claim went through; clinicians after the failing one in the loop get no access the patient granted, and partners are never told.
+- Evidence: `lib/data/grants.ts:529-570` inserts `status: "granted"` for every clinician holding a chart of the person, with no verification filter and no catch; trigger `history_grants_verified_only` raises for an unapproved holder (`drizzle/0060_portability.sql:18-40`). Called after the claim transaction commits (`lib/data/claims.ts:375-379` and `:604-608`); `notifyRecordClaimed` follows it (`:381-382`, `:610-611`); `confirmClaim` has no try (`app/(patient)/patient/claim/actions.ts:161-176`). `decideGrant` does catch the same refusal (`grants.ts:394-403`). The `onConflictDoNothing` means it does not overwrite an existing grant (answers code-02 Suspect 4's question).
+- Severity: S2
+- Fix sketch: filter holders to approved clinicians in the query (join `therapist_verifications.state = 'approved'`) and write a pending request for the others; wrap each insert. Proof: a verifier claims a person held by one approved and one draft clinician and reads one grant, one pending request, no error.
+- Decision it came from: 27.x grant-at-claim default, trigger 0060.
+
+### ID-39 · Two routes to one record at once: a code claim can be verified after an invite already took the record
+- Verdict: PARTLY
+- Sources: code-02 Suspect 4, code-02 Looks handled 5
+- Promise: P4
+- Who is hurt and how: in a narrow race (a pending code claim by one account, then the invite link redeemed by another), the loser's code still "succeeds": their claim is marked verified, their account can be pointed at the record, and their keep-access answer is applied on top of the owner's.
+- Evidence: `redeemInvite` does not expire other pending claims (`lib/data/claims.ts:545-600`); `verifyClaim` updates `people` guarded on `claimed_at IS NULL` but ignores whether it matched (`:344-352`) and continues to `bindAccountToPerson` and `applyClaimDecision` (`:363-379`). Handled part: `patient_accounts_person_unique` (`drizzle/0034_patient_accounts.sql:61`) aborts the transaction when the winner's account was moved onto the person; the gap is when the winner kept their own person (`bindAccountToPerson` returns "kept", `:166-169`). `applyClaimDecision` does not overwrite a live grant (`onConflictDoNothing`).
+- Severity: S3
+- Fix sketch: `verifyClaim` returns `{ok:false}` when the `people` update returns no row; `redeemInvite` expires pending claims on the person in its transaction. Proof: verifier with a pending claim, then an invite redemption by another account, then the code: refused.
+- Decision it came from: none visible.
+
+### ID-40 · The two-question challenge: a relocked record looks unlocked to the clinician, and a "no" is not final after a release
+- Verdict: CONFIRMED
+- Sources: code-02 Broken 5, code-02 Broken 6, code-10 file note on `claim-challenge.tsx` (one-tap final "No")
+- Promise: P4
+- Who is hurt and how: a patient locked out a second time is told "ask your therapist for an invite link" while the therapist's screen says nobody is locked out; a patient who answered "I have not seen this therapist" is asked about the record again after a release.
+- Evidence: relock at `lib/data/challenge.ts:401-410` sets `lockedAt` and leaves `releasedAt`; `lockedOn` requires `releasedAt IS NULL` (`:635-648`), as does the partial index (`drizzle/0045_two_handles.sql:96`). `releaseLock` retires the claim to `expired` (`:614-622`); a later `answerSeen(false)` inserts a new `rejected` row because the upsert only conflicts on `pending` (`:265-285`); `openChallenges` left-joins claims with no status filter (`:180-186`), so the `expired` row (with `seenTherapist` true) passes the filter at `:212` and the record is offered at stage "name".
+- Severity: S3
+- Fix sketch: relock sets `releasedAt = null`; `openChallenges` joins only the newest claim row, or treats any `rejected` row for (patient, account) as final. Proof: verifier: lock, release, lock again, `lockedOn` true; reject after release, `openChallenges` empty.
+- Decision it came from: sprint 13 challenge, 45 (two handles).
+
+### ID-41 · Claim suggestions only on a proven handle
+- Verdict: PARTLY
+- Sources: code-08 Looks handled 3, code-10 Suspect 12 (a clinician's typo offers the record to the owner of the mistyped handle), code-14 Broken 9 (verify-sprint25 does not test C121)
+- Promise: P4
+- Who is hurt and how: the rule holds for the list, but ID-3 lets anybody "prove" a phone they do not own, and ID-2 lets the list be skipped entirely; a clinician's typo in a patient's phone or email offers that record to whoever owns the mistyped handle, behind a code to their own inbox.
+- Evidence: holds: `app/(patient)/patient/claim/actions.ts:61-84` and `lib/data/challenge.ts:153-154` match only verified handles; `claim/page.tsx:77` shows `ProveHandle` first. Does not hold: ID-3 (email code marks phone), ID-2 (personId from client). Typo case is inherent to matching by handle; the challenge question "have you seen Dr X" is its only defence, and ClaimFlow skips it for email matches (ID-2). Gate: `scripts/verify-sprint25.ts:161-178` claims C121 and does not exercise it (code-14, not re-read here).
+- Severity: S2 (through ID-2 and ID-3)
+- Fix sketch: fixes of ID-2 and ID-3, and require the challenge for every match route. Proof: as in ID-2 and ID-3.
+- Decision it came from: 25.14 / C121.
+
+### ID-42 · A phone-only patient has no working way to reset, sign in by code, prove their number, change it, or receive their record
+- Verdict: CONFIRMED
+- Sources: code-08 Suspect 13, code-12 Suspect 7, code-03 Broken (phone change dead end), code-03 Suspect (phone-change code from Math.random), code-06 Unclaimed (c)
+- Promise: P2, P4
+- Who is hurt and how: most patients here sign up with a phone and no email. Until Meta approves WhatsApp they cannot reset a forgotten password, sign in with a code, prove their number (so the claim screen stays empty), or receive their record; the account page tells them to add an email and offers no way to; asking to change their number sticks for ever in "a person is looking at it".
+- Evidence: email optional at sign-up (`lib/patient-auth/actions.ts:59,164`); reset, code sign-in and handle proof all fall to WhatsApp for a phone-only account (`lib/patient-auth/reset.ts:137-152`, `code-signin.ts:117`, `handle.ts:104`), each saying the channel is down. `app/(patient)/patient/account/actions.ts` exports no way to add an email (`askToChangeNumber`, `saveOwnName`, `saveOwnPhoto`, `removeOwnPhoto`); `account/page.tsx:111-114` shows "Another way to sign in, and the only way to receive your record" (`messages.ts:810`) with no control; `components/patient/export-record.tsx:36-40` links to that page. Phone change: `completeChange` (`lib/data/phone-change.ts:299`) has no caller in app, components or lib (grep); staff send the code (`app/(admin)/admin/numbers/actions.ts:34`), the patient has nowhere to type it. The code is `Math.random` (`phone-change.ts:264`), not a CSPRNG (the handle and sign-in codes use `randomInt`).
+- Severity: S2
+- Fix sketch: an "add email" action that sends a code to the new address and marks `emailVerifiedAt`; a screen for the phone-change code calling `completeChange`; `randomInt` for that code. Proof: a phone-only account adds an email, receives a code, and the claim screen then lists its records.
+- Decision it came from: C86 (phone required, email optional), 13R.10 (WhatsApp reset pending Meta).
+
+### ID-43 · Any clinician in a clinic can change the practice's seat count from the therapist portal
+- Verdict: CONFIRMED
+- Sources: code-07 Suspect 3
+- Promise: C3, C4 (the practice's bill), clinic capability rule "seats.manage is never delegable"
+- Who is hurt and how: a clinician employed by a practice, even one still unverified, opens `/billing` and raises or lowers the practice's seat count; the clinic portal forbids even the practice's own staff from doing that.
+- Evidence: `app/(app)/billing/actions.ts:255-300` `quoteSeats` and `saveSeats` call only `requireUser` and act on `actor.organizationId`; `applySeatChange` checks only the number (`lib/billing/seats.ts:98-100`); `/billing` is open to unverified clinicians (`app/(app)/layout.tsx:64`). In the clinic portal `seats.manage` is never delegable (`lib/clinic-auth/capabilities.ts:73`, DB CHECK `drizzle/0093_clinic_staff.sql:59-66`). The change is audited (`billing/actions.ts:289-296`). Whether it moves the invoice is the billing domain's question (code-04 Broken 4 says the price reads `organizations.seats`).
+- Severity: S2
+- Fix sketch: `saveSeats` refuses unless the organisation is `kind = 'solo'` (a clinic's seats belong to the clinic admin), or unless the actor is the linked clinic admin. Proof: a staffed clinician's call returns an error and the count is unchanged.
+- Decision it came from: 57 / 62 seats built in the therapist portal before the clinic portal existed.
+
+### ID-44 · Sign-ins at the patient, clinic, sponsor and partner doors write no audit row
+- Verdict: CONFIRMED
+- Sources: code-06 file note on `lib/patient-auth/actions.ts` ("patient sign-in and sign-up write no audit row"), code-06 Promise evidence A5
+- Promise: A5
+- Who is hurt and how: after an account is misused, nobody can say when or from where it was signed into, except for clinicians and staff.
+- Evidence: `audit(` appears in none of `lib/patient-auth/actions.ts`, `code-signin.ts`, `handle.ts`, `app/(clinic)/clinic/sign-in/actions.ts`, `app/(sponsor)/sponsor/sign-in/actions.ts`, `app/(partner)/partner/sign-in/actions.ts`, or the clinic and sponsor session files (grep). Clinician and staff sign-in and sign-out are audited (`lib/auth/actions.ts:265,301`); patient password reset is audited (`lib/patient-auth/reset.ts:235-262`); the clinic switch is audited (`lib/clinic-auth/switch.ts:83,121`). `audit()` has slots for patient accounts, sponsor users and clinic managers already (`lib/audit.ts:86-95`), so only the calls are missing (partner has no slot, ID-34).
+- Severity: S3
+- Fix sketch: one `audit({category:"auth", action:"signin"})` per door using the existing slot. Proof: sign in at each door and read the row.
+- Decision it came from: 0086 added the slots; the doors were not revisited.
+
+## Summary table
+
+| Id | Title (short) | Verdict | Severity |
+|---|---|---|---|
+| ID-1 | Staff console: published password, no second factor | CONFIRMED (MAP 1) | S1 |
+| ID-2 | Record claim by id, challenge skipped | CONFIRMED (MAP 8) | S1 |
+| ID-3 | Email code marks the phone proven | CONFIRMED | S1 |
+| ID-4 | Patient sign-in timing oracle, sign-up wording | CONFIRMED | S2 |
+| ID-5 | Locked/suspended said before password check | CONFIRMED | S4 |
+| ID-6 | Open redirect `next=/\host` | CONFIRMED | S3 |
+| ID-7 | Clinician reset unlimited, unaudited | CONFIRMED | S3 |
+| ID-8 | A5: non-founder staff bounced to onboarding, no record | CONFIRMED | S2 |
+| ID-9 | Staff account gets a verification row | PARTLY | S4 |
+| ID-10 | Staff cookie passes `requireUser` pages | PARTLY | S4 |
+| ID-11 | Total View clinical reads unaudited | CONFIRMED | S1 |
+| ID-12 | Board actions reachable by manager | WRONG | S4 |
+| ID-13 | Both principals live via two doors | CONFIRMED | S3 |
+| ID-14 | Clinic role editor saves wrong capabilities | CONFIRMED | S3 |
+| ID-15 | Clinic staff password typed by admin, no removal, no resets | CONFIRMED | S2 |
+| ID-16 | Never-delegable, role fallback, assignment tenancy | HANDLED | S4 |
+| ID-17 | Clinic staff crash page; records log by URL | CONFIRMED | S2 |
+| ID-18 | SIMULATION_RUNNING widens every limit | PARTLY | S3 |
+| ID-19 | X-Forwarded-For trusted | UNTESTABLE HERE | S3 |
+| ID-20 | Partner key suspends at 60/min | UNTESTABLE HERE | S3 |
+| ID-21 | Partner launch URL is a clinician bearer credential | CONFIRMED | S2 |
+| ID-22 | Approved clinician swaps licence documents | CONFIRMED | S2 |
+| ID-23 | T4 "Joining as" and task 115 resume | PARTLY | S3 |
+| ID-24 | Patient sign-in ignores `next` from invite | CONFIRMED | S3 |
+| ID-25 | Clinician invite codes unmetered | CONFIRMED | S3 |
+| ID-26 | Clinic join GET stamps terms shown | CONFIRMED | S4 |
+| ID-27 | Patient session email lands on clinician login | CONFIRMED | S2 |
+| ID-28 | Sponsor domain-proof link needs sign-in | CONFIRMED | S2 |
+| ID-29 | Room CSP relaxation lost on client navigation | UNTESTABLE HERE | S1 if it reproduces |
+| ID-30 | 2 MB server-action cap on every upload | CONFIRMED | S2 |
+| ID-31 | HEIC, raw blob URL to payer; sibling routes fine | PARTLY | S3 |
+| ID-32 | Env guard gaps (cron secret strength, CSP off) | PARTLY | S3 |
+| ID-33 | Writers outside `writesTo()` | PARTLY | S3 |
+| ID-34 | Partner-launched reads audited as clinician | CONFIRMED | S3 |
+| ID-35 | Committed credentials inventory | CONFIRMED | S1 |
+| ID-36 | Real-looking personal data inventory | CONFIRMED | S2 |
+| ID-37 | Middleware and cookie boundaries | HANDLED | S4 |
+| ID-38 | Claim errors after commit on unapproved holder | CONFIRMED | S2 |
+| ID-39 | Code claim verified after invite took the record | PARTLY | S3 |
+| ID-40 | Challenge relock and release defects | CONFIRMED | S3 |
+| ID-41 | Suggestions only on proven handle | PARTLY | S2 |
+| ID-42 | Phone-only patient dead ends | CONFIRMED | S2 |
+| ID-43 | Any clinic clinician changes seat count | CONFIRMED | S2 |
+| ID-44 | Non-clinician sign-ins unaudited | CONFIRMED | S3 |
+
+Counts: CONFIRMED 29, PARTLY 9, HANDLED 2, WRONG 1, UNTESTABLE HERE 3 (44 entries). Severity: S1 5 (plus ID-29 if it reproduces), S2 14, S3 17, S4 7.

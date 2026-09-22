@@ -511,3 +511,245 @@ people being pushed into before `db:migrate` was allow-listed).
 - Fix sketch: `verify:sprint28` already scans published rows; point the citation check at the same reader, or add the nine phrases to `smoke-public`'s live fetch.
 - Decision it came from: task 156 (live drift), accepted in the gate's comment.
 
+## Part E: narrow scopes, gates that require the breach, and tooling that lies about its result
+
+### CHK-50 · The live API survey probes 20 of 32 routes and skips every partner clinical-data route
+- Verdict: CONFIRMED
+- Sources: code-13 Broken (survey-live 64-90)
+- Promise: E2, C2, P4 (who can read a transcript or note)
+- Who is hurt and how: "no API route hands an anonymous caller a 200" is unproved exactly where it matters: `/api/partner/v1/sessions/[ref]/transcript|summary|media|note`, `/api/partner/v1/notes/[sessionId]`, `/api/partner/v1/subjects/[ref]/memory|readers` and `/api/meetings/transcript/[sessionId]` are not in the list. Its closing "CONTROL" repeats an earlier assertion.
+- Evidence: `scripts/survey-live.ts:64-90` hand-typed `API` (20 entries) under a comment saying "Every API route"; `find app/api -name route.ts`: 32. `:291-295` control.
+- Severity: S2
+- Fix sketch: derive from `app/api/**/route.ts`, substituting a nil uuid for each dynamic segment; the control asserts the derived count equals the file count.
+- Decision it came from: sprint 69 simulation needs (survey written by hand).
+
+### CHK-51 · verify:sprint67's "no column could hold note content" misses `note_content`, and its control proves only that `content` matches
+- Verdict: CONFIRMED
+- Sources: code-15 Broken 6
+- Promise: none named (EHR writeback log; clinical wall)
+- Who is hurt and how: `\b(content|text|...)\b` treats `_` as a word character, so `note_content`, `soap_text`, `noteText` are all clean to it; the control passes on `.some(...)` because `content` alone matches.
+- Evidence: `scripts/verify-sprint67.ts:178-192` regex and control; `:274-284` the same regex over `information_schema.columns`.
+- Severity: S2 (a check that cannot see the column name most likely to be added)
+- Fix sketch: split identifiers on `_` and case changes before matching; control with `.every` over `note_content`, `noteText`, `soap_text`.
+- Decision it came from: 67.8.
+
+### CHK-52 · Two gates REQUIRE the clinic portal to show patient names, so C2 is broken by design and certified green
+- Verdict: CONFIRMED (the product half belongs to the clinic domain; the gate half is here)
+- Sources: code-15 Broken 12, code-13 Suspect (verify-principals clinic-export), MAP Contradiction 1 and Suspect 11
+- Promise: C2 ("no patient name, on any screen"), C5
+- Who is hurt and how: `verify:sprint54` and `verify:sprint63` assert that the schedule and export carry first name plus last initial, so a fix for C2 would turn two gates red. The value statement and the gates contradict each other and the gates win.
+- Evidence: `scripts/verify-sprint54.ts:440-444` CONTROL "it still returns the name and the time C260 grants" (`patients.firstName` required in the schedule query); `scripts/verify-sprint63.ts:259-263` requires `patientName === "Sarah M"`; product `lib/data/clinic.ts:388-390` `shortenForClinic(...)`, including guests. Rulings C260 and C327 grant it; MAP Contradiction 1 records the README vs C2 conflict.
+- Severity: S1 (a privacy promise contradicted by the gates meant to hold it)
+- Fix sketch: a founder ruling first (C2 or README); then either rewrite C2 or flip both assertions to "no patient name" and fix `clinicSchedule`.
+- Decision it came from: sprint 54 (clinic wall) and 63 (clinic staff), both after README's "names and times only".
+
+### CHK-53 · The clinic bill doubles any invoice with two lines, and verify:sprint54's control cannot see it because its fixture has one
+- Verdict: CONFIRMED (by reading the SQL and the fixture)
+- Sources: code-08 Suspect 1
+- Promise: C3 (one bill, priced correctly)
+- Who is hurt and how: `clinicBills` sums `invoices.amount_cents` over `invoices LEFT JOIN invoice_lines`, so an invoice with a platform line and an AI line is counted twice in `total_cents`. The gate's control ("platform + AI = total") would catch exactly this, but its fixture session has no recording consent, so `chargeForSession` writes one line and the doubling never shows.
+- Evidence: `lib/data/clinic.ts:653-667`; `scripts/verify-sprint54.ts:486-512` fixture session with no `recording_consent`; `:524-527` asserts only `lines > 0`; control `:588-592`.
+- Severity: S2 (a practice shown a bill twice its size)
+- Fix sketch: sum line amounts in one subquery and invoice totals in another (or `SUM(DISTINCT ...)` by invoice id); fixture with consent granted so two lines exist, and assert `lines === 2`.
+- Decision it came from: 54.8.
+
+### CHK-54 · verify:sprint26 proves "a second clinician adds a version" with the same clinician twice
+- Verdict: PARTLY
+- Sources: code-14 Stale 8
+- Promise: P4 (every version under its author's name)
+- Who is hurt and how: the check never has two authors, so "each named" is untested. The code path does not key the version on the author (`lib/data/summaries.ts:173-186` numbers by person and stamps the actor's name), so the property most likely holds; the walk's `continuity` position is where it is proved.
+- Evidence: `scripts/verify-sprint26.ts:83, 113, 123` one `actor` for both `publishSummary` calls.
+- Severity: S3
+- Fix sketch: plant a second clinician at a second organisation with a grant and assert two versions with two different `approvedByName`.
+- Decision it came from: 26.1.
+
+### CHK-55 · Narrow hand-listed scopes on wall checks (verify:sprint46 C243, verify:sprint20 A5, verify:sprint49/53 corporate wall)
+- Verdict: PARTLY
+- Sources: code-14 Suspect 6, 7; code-15 Suspect 1, 9
+- Promise: E1, E2, A5, C5
+- Who is hurt and how: each wall is checked over a list typed into the verifier (five display files for C243; only pages that literally call `requireStaff()`/`requireManager()` for A5), so a new surface is outside the wall by default. No current leak found: `payerName`/`payer_name` in `app` and `lib` appears only in the payer's own pages, the pot (written `null`) and comments.
+- Evidence: `scripts/verify-sprint46.ts:404-410`; `scripts/verify-sprint20.ts:99-102`; grep for `payerName|payer_name` across `app/`, `lib/`.
+- Severity: S3
+- Fix sketch: derive the surfaces from the import graph (`_surfaces`), as `verify:principals` does, and fail on any page reaching `session_payments` outside the payer's own portal.
+- Decision it came from: C243, sprint 20.
+
+### CHK-56 · simulate-seed's "exactly ONE platform organisation" counts every solo clinician
+- Verdict: CONFIRMED
+- Sources: code-13 Suspect (simulate-seed 295-304)
+- Promise: none
+- Who is hurt and how: the check counts `organizations WHERE kind = 'solo'`, the default kind of every solo clinician's own organisation, so it goes red on any database with a solo therapist and passes on an empty branch while measuring nothing about platform organisations.
+- Evidence: `scripts/simulate-seed.ts:295-304`; `lib/db/schema.ts:165` `kind ... default("solo")`.
+- Severity: S4
+- Fix sketch: count by the platform slug (`'24therapy'`) it just inserted.
+- Decision it came from: simulation seed.
+
+### CHK-57 · `age` double-ages on a retry
+- Verdict: WRONG
+- Sources: code-12 Broken 13, code-12 Suspect 15
+- Promise: none
+- Who is hurt and how: nobody. Each table is aged by one UPDATE that moves `created_at` in the same statement as every other date column, scoped `WHERE created_at >= since`; a row already aged has its `created_at` moved back by the interval and falls out of the scope, so a retry after a mid-run failure ages only the tables that were not reached. The marker is written after the loop (`:251-256`), which is what makes the retry possible at all. What is true: between the failure and the retry, tables are out of step with each other.
+- Evidence: `scripts/age.ts:176-230` (sets built from every timestamp column, `:78` includes `created_at`; `:225-229` `UPDATE ... WHERE created_at >= since`).
+- Severity: S4
+- Fix sketch: wrap the loop in a transaction anyway so a failure leaves nothing out of step.
+- Decision it came from: simulation ageing.
+
+### CHK-58 · Verifier cleanups that leak or inflate branch data (verify:cycle, verify:actuals, verify:sprint43, 54, 21, 45)
+- Verdict: CONFIRMED (cycle and actuals read); others taken from readers
+- Sources: code-13 Broken (verify-money-cycle 416-418; verify-actuals 224-227, 509-514); code-14 Broken 6, 7; code-15 Suspect 3
+- Promise: none (dev and simulation branches)
+- Who is hurt and how: every `verify:cycle` leaves a "Nour Demo" person (patients deleted before the people subquery that needs them); every `verify:actuals` run adds $7 to a month's video cost when a row existed, and renames that row's note to `screens`; 43 and 54 leak a solo organisation made by `removeClinician`; 21 and 45 clear published string overrides with no restore.
+- Evidence: `scripts/verify-money-cycle.ts:416-418` order (`verify-money-edges.ts:747-749` has it right); `scripts/verify-actuals.ts:224-227` upsert leaves `note`, `:509-514` restores `WHERE note = 'verify'`.
+- Severity: S4
+- Fix sketch: delete people by a subquery taken before the patients delete; actuals records the prior row id and value and restores by id.
+- Decision it came from: not traceable.
+
+### CHK-59 · Tooling that reports success it did not measure: spend, verify:raw-sql, probe, render-check, prose-sweep, verify:reachable, verify:cast
+- Verdict: CONFIRMED
+- Sources: code-13 Broken (spend 47, 127-135; verify-raw-sql 170-174; verify-cast 252), code-12 Broken 9, 10, 11, code-13 Stale (verify-reachable 94-101)
+- Promise: none directly; the budget guard protects the simulation's money
+- Who is hurt and how: `spend --budget abc` computes NaN, both comparisons are false, and it prints "Inside the budget" and exits 0; `verify:raw-sql` prints ok over zero files; `probe` never sets an exit code, so a run with every flow blocked passes, and it records "the ledger agrees with the screen" without comparing; `render-check` treats any number of English passages on Arabic pages as a skip; `prose-sweep --write` records a risen baseline and exits 0; `verify:reachable`'s floor was raised from 87 to 96 under a comment saying it must never rise; `verify:cast`'s "Ziad never signed up" looks for an email a self-signed-up patient never has.
+- Evidence: `scripts/spend.ts:47, 127-135`; `scripts/verify-raw-sql.ts:170-173`; `scripts/probe/_probe.ts:77-93` (no `exitCode`), `scripts/probe.ts:1030-1040` (`state: "ok"` unconditionally); `scripts/prose-sweep.ts:579-620` (write returns before the rise check); `scripts/verify-reachable.ts:94-101`; `scripts/verify-cast.ts:251-252`. `render-check.ts:384-395` from the reader.
+- Severity: S3 for spend (the stop-the-run line), S4 for the rest
+- Fix sketch: `Number.isFinite` on `--budget`; zero files is a failure; `report()` sets `exitCode = 1` on any blocked or defect step; `--write` refuses a baseline above the stored one; baseline back to the measured number with a written reason for each raise.
+- Decision it came from: various; the reachable raise is not explained in the file.
+
+### CHK-60 · unlabel-straddles rewrites transcripts with no guard
+- Verdict: CONFIRMED
+- Sources: code-13 Broken (unlabel-straddles 57-67)
+- Promise: T1 (who said what in the note's source)
+- Who is hurt and how: from a production `.env.local` it rewrites speaker labels on `transcript_segments` with no host line and no refusal.
+- Evidence: `scripts/unlabel-straddles.ts:18, 24` `connect()`; `:58` `update(transcriptSegments)`; no `writesTo` (grep).
+- Severity: S3
+- Fix sketch: `writesTo()`.
+- Decision it came from: 76.45 straddle finding.
+
+### CHK-61 · Test and fixture data encode the recording-without-consent defect
+- Verdict: CONFIRMED
+- Sources: code-12 Broken 2, 4; code-14 Unclaimed (c) (`verify-sprint36.ts:147-156`); code-16 Suspect 12
+- Promise: legal consent to record (MAP Confirmed 4, task 123)
+- Who is hurt and how: the seeds that testers and films use present an in-person session with a transcript and an approved note and no consent (`seed.ts`), or consent written as boolean `true` into a text column, which reads as neither granted nor declined (`seed-capture.ts`); `verify:sprint36` accepts an in-person source with no consent field; the walkthrough records an in-person session with no consent step. Every one normalises the state MAP Confirmed 4 calls a legal defect.
+- Evidence: per readers: `scripts/seed.ts:378-420`; `scripts/seed-capture.ts:589, 593` vs `lib/db/schema.ts:802`; `scripts/verify-sprint36.ts:147-156`; `.walkthrough2/f24-risk.mjs:8-15`.
+- Severity: S2
+- Fix sketch: once the product refuses to transcribe without consent (MAP Confirmed 4 fix), make each fixture carry `'granted'` with a version, and add a CHECK that a session with transcript segments has `recording_consent = 'granted'`.
+- Decision it came from: task 123.
+
+### CHK-62 · Committed credentials and an arbitrary-SQL runner in the walkthrough folders
+- Verdict: CONFIRMED (carries MAP Suspect 19)
+- Sources: code-16 Suspect 15, Unclaimed (b); code-12 Suspect 14
+- Promise: A5
+- Who is hurt and how: `.walkthrough2/people.json` holds working passwords for four `.test` accounts including a staff admin; other harness files hold literal passwords; `seed.ts:47` and `demo.ts:29` fall back to a literal password on any database they reach. If any of those accounts exists on production it is a second published console login (MAP Suspect 19 asks exactly this).
+- Evidence: per readers (values deliberately not copied): `.walkthrough2/people.json`, `.walkthrough/p25.mjs:12`, `.walkthrough2/f21-stranger.mjs:13`, `scripts/seed.ts:47`, `scripts/demo.ts:29`, `.env.example:64`.
+- Severity: S2 until production is checked for those accounts; S1 if the staff admin exists there
+- Fix sketch: the walk: sign-in attempt list against production's `users` (a read, by email only); rotate and remove the files; fallbacks throw instead of defaulting.
+- Decision it came from: walkthrough harness (2026-09-21).
+
+### CHK-63 · verify:sprint44 certifies crisis handling of check-in replies in a function nothing in the product calls, and records "nobody is woken" as a pass
+- Verdict: CONFIRMED
+- Sources: code-14 Suspect 5, code-14 Unclaimed (c); related code-05 Broken 2
+- Promise: P5-adjacent (crisis), README crisis invariants
+- Who is hurt and how: the cron sends check-ins that invite a reply; a patient who answers "I cannot stop crying" reaches nobody, because `handleReply` has no caller in `app/`, `lib/` or `components/` and there is no inbound route under `app/api`. The gate goes green by calling `handleReply` directly, and for a person with no session it asserts `noClinician === true` and `crisis_alert_raised = false` as correct behaviour. A reachability check would have gone red; this one proves the unreachable function.
+- Evidence: `scripts/verify-sprint44.ts:472-494`; grep for `handleReply` outside `lib/checkins/receive.ts`: no hit in `app`, `lib`, `components`; `ls app/api`: no inbound email or WhatsApp route.
+- Severity: S1 (a crisis disclosure that goes nowhere, behind a green gate)
+- Fix sketch: add `handleReply` to `verify:reachable`'s `MUST_WIRE`; stop sending check-ins that invite a reply until an inbound route exists; a crisis reply with no clinician routes to the crisis line and the on-call operator, and the gate asserts that.
+- Decision it came from: sprint 44 (check-ins), inbound channel never built.
+
+### CHK-64 · Looks broken, is handled (grouped)
+- Verdict: HANDLED
+- Sources: code-12 Handled 2, 3, 5, 6, 7; code-13 Handled 1, 2, 3, 5; code-14 Handled 1, 4, 5; code-15 Handled 4; code-16 Suspect 10, Handled 7; code-14 Suspect 2
+- Promise: various
+- Who is hurt and how: nobody; each looked like a hole and a patch holds it.
+- Evidence:
+  - T6 imports (verify-sprint12 importing `reset`, verify-csp importing `audit-daily-hosts` and `_i18n-coverage`): exact-basename guard `scripts/_verify.ts:319-322` (`ranDirectly`), used at `reset.ts:78`. The one weaker guard is `check-live.ts:219` (CHK-43).
+  - A read command on the production list cannot inherit write permission: `on-production.ts:289-290` deletes `I_MEAN_PRODUCTION` for read entries; `writesTo` needs the flag and the script's own opt-in (`_verify.ts:204-247`). (It does not stop a read-labelled script that writes without calling `writesTo`: CHK-46.)
+  - verify-sprint6 to 10 refuse production inline (`verify-sprint7.ts:37-40`, `verify-sprint10.ts:42-43`, same endpoint string as `_verify.ts:148`).
+  - `shoot-room.ts` writing `users.verification_status` directly: trigger 0083 derives it (reader cites `verify-c285.ts:104-117`).
+  - `settings seed` as `prebuild` on every deploy: insert-only, `onConflictDoNothing` (`scripts/settings.ts:700-718`).
+  - `tests/radar.test.ts` leaving an online "Radar Tester": `therapist_radar.user_id`, `therapist_verifications.user_id` and `session_reports` FKs are `ON DELETE CASCADE` (`lib/db/schema.ts:481, 1517-1523, 1569`), and since 80.3 an unheartbeated row is off the live board anyway.
+  - `verify-sprint4` planting a static FX quote on production: `quoteMaySettle` refuses it there (CHK-3).
+  - The fail-open copilot `capabilities` default: the one product caller passes them (CHK-9).
+- Severity: none
+- Fix sketch: none needed; CHK-43 and CHK-46 cover the two residues.
+- Decision it came from: TRAPS T6 (basename guard), 76.52 (production door), 80.3.
+
+### CHK-65 · walkthrough.ts throws away its findings on every full run; verify:synthetic counts the company's real domain as fictional
+- Verdict: CONFIRMED
+- Sources: code-15 Broken 7, Suspect 7, Stale 9
+- Promise: A1, A4 (`/admin/transfers` never walked); C80 override (captures are synthetic)
+- Who is hurt and how: `walkthrough.ts` checks that every route was walked before it writes `findings-*.json`, and exits 1 if not; with `/admin/transfers` and `/admin/actuals` unwalked, every full run discards everything it found. `verify:synthetic`, the gate that lets admin screenshots be committed, treats `24therapy.app` as an RFC-reserved domain "that cannot reach a real inbox"; it is the company's domain and holds the founders' real addresses (`omar@24therapy.app`, `habiba@24therapy.app`), so a capture showing a real staff address passes.
+- Evidence: `scripts/walkthrough.ts:423-429` `process.exit(1)` inside `assertEveryRouteIsWalked`, called at `:878` before the `writeFileSync` at `:880-883`. `scripts/verify-synthetic.ts:47-52` `DOMAINS` includes `"24therapy.app"`.
+- Severity: S3
+- Fix sketch: write findings first, then assert coverage; drop `24therapy.app` from `DOMAINS` and name the cast's own addresses there instead.
+- Decision it came from: 70.6 (console captures admitted after `verify:synthetic`).
+
+## Summary table
+
+| Id | Verdict | Severity | Title |
+|---|---|---|---|
+| CHK-1 | CONFIRMED | S2 | verify:sprint1/2 rewrite live prices, no guard, restore outside finally |
+| CHK-2 | CONFIRMED | S3 | verify:sprint2 headline property untested |
+| CHK-3 | PARTLY | S4 | verify:sprint4 unguarded FX write (harm handled by quoteMaySettle) |
+| CHK-4 | CONFIRMED | S3 | verify:sprint5 no production guard |
+| CHK-5 | CONFIRMED | S3 | guarded verifiers damage their branch (7, 10, 14, 16, 41, 50, 53) |
+| CHK-6 | CONFIRMED | S2 | ship:content runs unguarded verifiers on production |
+| CHK-7 | CONFIRMED | S2 | seed --refresh-content re-passwords and reactivates the admin |
+| CHK-8 | CONFIRMED | S2 | demo-full / demo-video write real rows on DEMO_BASE |
+| CHK-9 | CONFIRMED | S2 | copilot-exam reads records without grant scoping on production |
+| CHK-10 | CONFIRMED | S3 | grant-admin, q.ts, backfill-diarise outside the door |
+| CHK-11 | PARTLY | S2 | db:reset has no endpoint refusal (settings seed does not refuse) |
+| CHK-12 | CONFIRMED | S3 | tests and walkthrough delete all rate_limits |
+| CHK-13 | CONFIRMED | S2 | seed-demo wipe not transactional |
+| CHK-14 | PARTLY | S4 | KEEP census by count (sufficient for a DELETE-only wipe) |
+| CHK-15 | CONFIRMED | S2 | seed-demo paid sessions with no payment, raw payout |
+| CHK-16 | PARTLY | S2 | demo clinicians bookable on production (live-board half fixed by 80.3) |
+| CHK-17 | CONFIRMED | S3 | seed-demo deletes audit_log (S1 once real people exist) |
+| CHK-18 | CONFIRMED | S3 | seeded copilot answers use role 'assistant' |
+| CHK-19 | HANDLED | S4 | trigger re-enable is checked by verify:demo |
+| CHK-20 | CONFIRMED | S1 | consent tests write and read their own rows |
+| CHK-21 | CONFIRMED | S1 | pot race and differencing tests test local functions |
+| CHK-22 | CONFIRMED | S3 | transfer-rail CONTROL calls no product code |
+| CHK-23 | CONFIRMED | S4 | attribution test arithmetic |
+| CHK-24 | PARTLY | S3 | verify:rail never touches a database (A1 held by cycle/edges) |
+| CHK-25 | CONFIRMED | S2 | grounding eval measures the filter; 3 of 4 reachable foreign facts leak |
+| CHK-26 | CONFIRMED | S3 | eval fixtures contradict their own transcripts |
+| CHK-27 | PARTLY | S3 | evals without a key exit green over one suite |
+| CHK-28 | UNTESTABLE HERE | S2 | e2e de-identification reads chatRequests[0] |
+| CHK-29 | CONFIRMED | S1 | verify:principals ignores server actions |
+| CHK-30 | CONFIRMED | S1 | verify:principals raw source, capability exemption, size>=0 control |
+| CHK-31 | CONFIRMED | S2 | controls that assert constants (machines, palette, rail, 55, 57, 65...) |
+| CHK-32 | CONFIRMED | S2 | verify:machines has no transfer machine, no dead ends |
+| CHK-33 | CONFIRMED | S1 | verify:sprint25 never tests C121 |
+| CHK-34 | CONFIRMED | S1 | indexOf ordering passes when anchor missing (crisis alert) |
+| CHK-35 | CONFIRMED | S2 | refused() accepts any error |
+| CHK-36 | CONFIRMED | S2 | verify:sprint11 checks its own copy of the radar predicate |
+| CHK-37 | CONFIRMED | S3 | verify:sprint17 netting control greps a dead phrase |
+| CHK-38 | CONFIRMED | S3 | verify:palette same-line only; white on teal ships |
+| CHK-39 | CONFIRMED | S3 | C205 blind to readFileSync(variable); verify:traps T1/T2 by spelling |
+| CHK-40 | CONFIRMED | S3 | unwiredActions reads comments |
+| CHK-41 | CONFIRMED | S4 | _reachability skips public at every depth |
+| CHK-42 | CONFIRMED | S2 | inventory.routes() omits join, pay, room, sign-in, records |
+| CHK-43 | PARTLY | S3 | LIVE_PAGES hand-typed, misses /for-therapists (smoke handles errors) |
+| CHK-44 | CONFIRMED | S4 | gates.ts keeps last filtered line |
+| CHK-45 | CONFIRMED | S2 | "exactly six doors" counts a flag, not the property |
+| CHK-46 | CONFIRMED | S2 | verify:migrations count-only; --repair writes production via a read door |
+| CHK-47 | CONFIRMED | S4 | verify:runbook accepts "forty eight" |
+| CHK-48 | CONFIRMED | S2 | verify:notices baseline 18 and per-file counting |
+| CHK-49 | PARTLY | S3 | verify:prove reads defaults, not published rows |
+| CHK-50 | CONFIRMED | S2 | live API survey skips partner clinical routes |
+| CHK-51 | CONFIRMED | S2 | verify:sprint67 misses note_content |
+| CHK-52 | CONFIRMED | S1 | gates require patient names in the clinic portal (C2) |
+| CHK-53 | CONFIRMED | S2 | clinic bill doubles two-line invoices; fixture has one line |
+| CHK-54 | PARTLY | S3 | verify:sprint26 second clinician is the same clinician |
+| CHK-55 | PARTLY | S3 | wall checks over hand-listed scopes |
+| CHK-56 | CONFIRMED | S4 | simulate-seed counts solo orgs as platform orgs |
+| CHK-57 | WRONG | S4 | age double-ages on retry |
+| CHK-58 | CONFIRMED | S4 | verifier cleanups leak or inflate branch data |
+| CHK-59 | CONFIRMED | S3 | spend NaN, raw-sql zero files, probe, prose-sweep, reachable raise, cast |
+| CHK-60 | CONFIRMED | S3 | unlabel-straddles unguarded |
+| CHK-61 | CONFIRMED | S2 | fixtures encode recording without consent |
+| CHK-62 | CONFIRMED | S2 | committed credentials and SQL runner |
+| CHK-63 | CONFIRMED | S1 | verify:sprint44 certifies an uncalled crisis-reply handler |
+| CHK-64 | HANDLED | none | looks broken, is handled (grouped) |
+| CHK-65 | CONFIRMED | S3 | walkthrough discards findings; synthetic treats 24therapy.app as fictional |
+
+Counts by verdict: CONFIRMED 51, PARTLY 10, HANDLED 2, UNTESTABLE HERE 1, WRONG 1. Total 65.
+Counts by severity: S1 8, S2 24, S3 22, S4 10, none 1.
