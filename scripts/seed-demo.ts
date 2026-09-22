@@ -606,7 +606,20 @@ async function main() {
           "the welcome credit plus the top-up. The grant did not land",
       );
     }
-    console.log(`  pot funded: ${String(funded.balance)} cents, covering 60 per cent`);
+    /*
+     * 🔴 THE SHARE IS READ, NOT TYPED, and this line said `60 per cent` while
+     * the `money` position was running at 10.
+     *
+     * A number hardcoded into an output line is a number that stops being true
+     * the first time the thing it describes is made configurable, and nothing
+     * fails: the log is read by a person who has no reason to doubt it. This
+     * one was caught by `verify:demo` printing `1000 bps, wanted 1000` four
+     * lines below a sentence claiming 60 per cent, which is only luck.
+     */
+    console.log(
+      `  pot funded: ${String(funded.balance)} cents, ` +
+        `covering ${String(tuning.coverageBps / 100)} per cent`,
+    );
 
     /* ------------------------------------------------ the patients -- */
 

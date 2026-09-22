@@ -251,7 +251,29 @@ async function main() {
         FROM sponsor_pots p JOIN sponsors s ON s.id = p.sponsor_id
        WHERE s.name = 'Habiba Holdings'`);
     const potRow = pot.rows[0] as { balance?: number; coverage?: number } | undefined;
-    check("the company's pot holds money", Number(potRow?.balance ?? 0) > 0, `${String(potRow?.balance ?? 0)} cents`);
+    /*
+     * 🔴 AND IN ONE POSITION IT IS IN THE RED, WHICH IS THE PRODUCT WORKING.
+     *
+     * `growth` funds the pot to $100 against six covered sessions that want
+     * $270, so `payFromPot` spends it down and the last session it funds takes
+     * the balance negative. That is not a bug: `openPot` sets an overdraft of
+     * 5,000 cents deliberately, the ledger agrees with the pot to the cent, and
+     * the next booking is refused because 4,500 no longer fits inside what is
+     * left of it.
+     *
+     * The floor asserted is therefore the overdraft rather than zero. A pot
+     * BELOW its own overdraft would be the real defect, and this is the only
+     * check in the repository that would see it.
+     */
+    const balance = Number(potRow?.balance ?? 0);
+    const floor = tuning.topUpCreditCents > 100_000 ? 0 : -5_000;
+    check(
+      floor === 0
+        ? "the company's pot holds money"
+        : "the company's pot is spent down, and not past its own overdraft",
+      balance > floor,
+      `${String(balance)} cents, floor ${String(floor)}`,
+    );
     check(
       "the company covers the share this position was seeded at",
       Number(potRow?.coverage ?? 0) === tuning.coverageBps,

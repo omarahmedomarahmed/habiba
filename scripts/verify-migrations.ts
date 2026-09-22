@@ -249,6 +249,129 @@ async function main() {
       feedback?.is_nullable === "NO",
       `is_nullable=${feedback?.is_nullable}`,
     );
+
+    /* ------------------------------------------------------------------ */
+    /*  80.2 · a TypeScript union and the CHECK it claims to describe      */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * 🔴 THE UNION IN THE SCHEMA FILE IS NOT A CONSTRAINT, AND THAT COST A FIX.
+     *
+     * 79.1 added four kinds to `PATIENT_NOTICE_KINDS`, wired `notify()` to
+     * write the row, shipped `verify:notices` to keep it wired, and deployed it
+     * as the fix for a clinician inviting a patient and the patient's app
+     * saying nothing at all.
+     *
+     * The CHECK from 0072 still allowed only the original four. So on
+     * production the insert raised, `notify()` caught it, logged
+     * `in-app notice not written` at warn, and sent the email anyway. The
+     * patient's app went on showing nothing. **The fix did not work, the gate
+     * for it passed on every run, and the only evidence was a log line nobody
+     * opens.**
+     *
+     * Nothing that reads source could have found it: the TypeScript was right,
+     * the wiring was right, and the disagreement was between a file and a
+     * catalogue. It took `seed:demo` writing one of those kinds outside a
+     * request handler, where the throw was not swallowed.
+     *
+     * So this asks the catalogue. A column whose values are fixed in two places
+     * has to agree in both, and `hostOf()` means it can be asked of production,
+     * which is the database where it was wrong.
+     *
+     * 🔴 THE LIST IS DELIBERATELY SHORT AND TYPED OUT. A generic scan would
+     * have to infer which union goes with which CHECK, and would then be a
+     * check about a heuristic. These are the unions whose disagreement is
+     * SILENT, because something catches the error: everywhere else a mismatch
+     * surfaces as a failed request somebody sees.
+     */
+    const { PATIENT_NOTICE_KINDS, MANUAL_PAYMENT_STATES, MANUAL_PAYMENT_PURPOSES } = await import(
+      "../lib/db/schema"
+    );
+
+    const UNIONS: { table: string; constraint: string; values: readonly string[] }[] = [
+      {
+        table: "patient_notifications",
+        constraint: "patient_notifications_kind",
+        values: PATIENT_NOTICE_KINDS,
+      },
+      {
+        table: "manual_payments",
+        constraint: "manual_payments_state",
+        values: MANUAL_PAYMENT_STATES,
+      },
+      {
+        table: "manual_payments",
+        constraint: "manual_payments_purpose",
+        values: MANUAL_PAYMENT_PURPOSES,
+      },
+    ];
+
+    for (const union of UNIONS) {
+      const [row] = await db
+        .execute<{ def: string }>(
+          sql`SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint
+               WHERE conrelid = ${sql.raw(`'${union.table}'::regclass`)}
+                 AND conname = ${union.constraint}`,
+        )
+        .then((r) => r.rows);
+
+      if (!row) {
+        /*
+         * No CHECK at all is a different fact from a stale one, and it is not
+         * automatically wrong: a column may be constrained by an enum type or
+         * by nothing. It is printed rather than failed, so the absence is
+         * visible without turning this into a demand that every union carry a
+         * CHECK.
+         */
+        console.log(`  --    ${union.constraint}: no CHECK on this database`);
+        continue;
+      }
+
+      /*
+       * The values out of `kind = ANY (ARRAY['a'::text, 'b'::text])`. Read from
+       * the rendered definition rather than from `consrc`, which Postgres
+       * removed in 12, and compared as SETS: the order a CHECK renders in is
+       * not the order the union is written in, and failing on that would be a
+       * gate about formatting.
+       */
+      const inDb = new Set([...row.def.matchAll(/'([^']+)'::text/g)].map((m) => m[1]!));
+      const inCode = new Set(union.values);
+      const missing = [...inCode].filter((v) => !inDb.has(v));
+      const extra = [...inDb].filter((v) => !inCode.has(v));
+
+      check(
+        `🔴 80.2 ${union.constraint} allows exactly what the TypeScript union does`,
+        missing.length === 0 && extra.length === 0,
+        missing.length > 0
+          ? `THE DATABASE REFUSES ${missing.join(", ")}, which the code writes. A migration is missing`
+          : extra.length > 0
+            ? `the CHECK still allows ${extra.join(", ")}, which the code no longer has`
+            : `${String(inCode.size)} values, both sides agree`,
+      );
+    }
+
+    /*
+     * 🔴 CONTROL — and the reader can actually see values, or every line above
+     * is a comparison between two empty sets reporting agreement.
+     *
+     * `docs/TRAPS.md` T2: this is the exact shape that produced four green
+     * lines about a constraint nobody had parsed. A regex that stopped matching
+     * after a Postgres upgrade would make every union read as "0 values, both
+     * sides agree".
+     */
+    const [sample] = await db
+      .execute<{ def: string }>(
+        sql`SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint
+             WHERE conname = 'patient_notifications_kind'`,
+      )
+      .then((r) => r.rows);
+    const parsed = sample ? [...sample.def.matchAll(/'([^']+)'::text/g)].length : 0;
+
+    check(
+      "🔴 80.2 CONTROL the definition reader actually parses values out of a CHECK",
+      parsed >= 4,
+      `${String(parsed)} values read out of one constraint definition`,
+    );
   } finally {
     await pool.end();
   }

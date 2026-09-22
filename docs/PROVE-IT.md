@@ -634,9 +634,21 @@ unpaid.
 
 ### 1 · Company reads an empty pot
 
-`/sponsor`. The balance is a figure that cannot fund another session.
+`/sponsor`. The balance cannot fund another session.
 
-Does the screen say so, in words, before somebody finds out by booking?
+🔴 **It is slightly in the red, and that is the product working rather than a seeding
+accident.** `openPot` allows an overdraft of 5,000 cents on purpose, so the last session the
+pot could partly afford took it below zero and stopped there. The ledger agrees with the pot
+to the cent.
+
+Nobody has ever looked at that screen. So:
+
+- What does `/sponsor` say a negative balance is?
+- Does it read as an error, as a debt, or as nothing at all?
+- Does it say so **before** somebody finds out by booking?
+
+Write down the exact words. If the screen shows a minus sign and no sentence, that is the
+finding.
 
 ### 2 · Patient B books against it anyway
 
