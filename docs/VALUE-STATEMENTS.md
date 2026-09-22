@@ -248,15 +248,19 @@ The company covers **60 per cent** and the pot was funded with **100 dollars**. 
 
 ## Everyone you sign in as
 
-One password for all of them:
+One password for every patient, clinician and the clinic:
 
     Demo2026!Therapy
 
+🔴 **The three marked private never take it**: the repository is public and they open the
+production console and a company's money. Their password is `DEMO_PRIVATE_PASSWORD` in the
+operator's own `.env.local`, never committed. `docs/DEMO-LOGINS.md` says more.
+
 | Who | Sign-in page | Address |
 | --- | --- | --- |
-| Platform admin | `/staff/sign-in` | `omar@24therapy.app` |
-| Support, not a founder | `/staff/sign-in` | `staff.demo@example.com` |
-| Company (Habiba Holdings) | `/sponsor/sign-in` | `habiba@24therapy.app` |
+| Platform admin (private password) | `/staff/sign-in` | `omar@24therapy.app` |
+| Support, not a founder (private password) | `/staff/sign-in` | `staff.demo@example.com` |
+| Company (Habiba Holdings) (private password) | `/sponsor/sign-in` | `habiba@24therapy.app` |
 | Clinic manager (Nile Practice) | `/clinic/sign-in` | `habibaheikal27@gmail.com` |
 | Therapist, solo practice | `/login` | `omarabdelgawad001@gmail.com` |
 | Therapist, clinic, 2 patients | `/login` | `dr.sara.demo@example.com` |
@@ -267,8 +271,8 @@ One password for all of them:
 | Patient, record handed on | `/patient/login` | `tarek.demo@example.com` |
 | Patient, Dr Kareem's | `/patient/login` | `nadia.demo@example.com` |
 
-🔴 **Three of these are at `example.com` and cannot receive email.** Dr Sara, Dr Kareem and
-Mariam sign in with the password like everybody else, and anything the product would have
+🔴 **7 of these are at `example.com` and cannot receive email:** `staff.demo@example.com`, `dr.sara.demo@example.com`, `dr.kareem.example@example.com`, `dr.yasmin.example@example.com`, `mariam.demo@example.com`, `tarek.demo@example.com`, `nadia.demo@example.com`.
+They sign in like everybody else, and anything the product would have
 emailed them goes nowhere. That is deliberate, because RFC 2606 reserves the domain so a
 message that escapes a test reaches nobody, and it means **the email half of any promise must be
 walked on one of the five real inboxes**, never on those three. `P2` is written to be

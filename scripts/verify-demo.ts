@@ -39,7 +39,14 @@
  */
 import { sql } from "drizzle-orm";
 
-import { DEMO_LOGINS, DEMO_PASSWORD, OWNED_INBOXES, UNCLAIMED_EMAIL } from "./_demo-cast";
+import {
+  DEMO_LOGINS,
+  DEMO_PASSWORD,
+  OWNED_INBOXES,
+  UNCLAIMED_EMAIL,
+  isPrivateLogin,
+  privatePassword,
+} from "./_demo-cast";
 import { scenario, scenarioFrom, TUNING } from "./_value-statements";
 import { hostOf, reporter } from "./_verify";
 import { connect } from "./db";
@@ -108,6 +115,23 @@ async function main() {
       const hash = (rows[0] as { h?: string } | undefined)?.h;
       if (!hash) {
         check(`${login.who} ${login.email}`, false, "no row");
+        continue;
+      }
+      /*
+       * 🔴 The three private logins are checked for the OPPOSITE property: the
+       * published password must not open them, because it is in a public
+       * repository and they open the console and a company's money. Whether the
+       * private one opens them is checked only when it is configured here.
+       */
+      if (isPrivateLogin(login.email)) {
+        check(
+          `${login.who} ${login.email}: the published password does NOT open it`,
+          !(await verifyPassword(DEMO_PASSWORD, hash)),
+        );
+        const mine = privatePassword();
+        if (mine) {
+          check(`${login.who} ${login.email}: the private password opens it`, await verifyPassword(mine, hash));
+        }
         continue;
       }
       check(`${login.who} ${login.email}`, await verifyPassword(DEMO_PASSWORD, hash));

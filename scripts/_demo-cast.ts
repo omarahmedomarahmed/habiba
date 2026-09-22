@@ -30,6 +30,38 @@
 export const DEMO_PASSWORD = "Demo2026!Therapy";
 
 /**
+ * 🔴 THE THREE LOGINS THAT NEVER TAKE THE SHARED PASSWORD.
+ *
+ * This repository is public and `DEMO_PASSWORD` is written above, so every
+ * login that takes it is a login any reader of the repository holds. For a
+ * patient or a clinician in the demo cast that is the point. For these three it
+ * is the production console and a company's money: the founder's super_admin,
+ * the support account (which confirms and rejects transfers), and the company
+ * that funds the pot. Found on 2026-09-22: staff sign-in is a password alone,
+ * so the published password opened the production console.
+ *
+ * Their password is `DEMO_PRIVATE_PASSWORD` from the local environment, which
+ * is never committed. Unset, each is given a random password printed nowhere,
+ * so nobody can sign in as them at all: the safe failure, rather than a
+ * refusal that stops every dev reseed.
+ */
+export const PRIVATE_LOGINS = [
+  "omar@24therapy.app",
+  "staff.demo@example.com",
+  "habiba@24therapy.app",
+] as const;
+
+export function isPrivateLogin(email: string): boolean {
+  return (PRIVATE_LOGINS as readonly string[]).includes(email.toLowerCase());
+}
+
+/** The private password when one is configured, else null. Never logged. */
+export function privatePassword(): string | null {
+  const value = process.env.DEMO_PRIVATE_PASSWORD?.trim() ?? "";
+  return value.length >= 12 ? value : null;
+}
+
+/**
  * 🔴 THE FOUR REAL INBOXES, NAMED, because everything else must be invented.
  *
  * The founder asked for these four addresses specifically: they own them, and

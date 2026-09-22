@@ -51,10 +51,12 @@
  * the person-shaped tables are DELETED in dependency order. Nothing
  * configuration-shaped is touched.
  */
+import { randomBytes } from "node:crypto";
+
 import { sql } from "drizzle-orm";
 
 import { hashPassword } from "../lib/auth/password";
-import { DEMO_LOGINS, DEMO_PASSWORD, UNCLAIMED_EMAIL } from "./_demo-cast";
+import { DEMO_LOGINS, DEMO_PASSWORD, UNCLAIMED_EMAIL, privatePassword } from "./_demo-cast";
 import { scenario, scenarioFrom, TUNING } from "./_value-statements";
 import { connect } from "./db";
 import { writesTo } from "./_verify";
@@ -257,6 +259,16 @@ async function main() {
     /* ============================================================== */
 
     const hash = await hashPassword(DEMO_PASSWORD);
+    /*
+     * 🔴 The three logins in `PRIVATE_LOGINS` never take `hash`: the shared
+     * password is published in this repository, and these three open the
+     * production console and a company's money. Unset, a random password nobody
+     * is told, so the account exists for the walk to find but opens for nobody.
+     */
+    const configuredPrivate = privatePassword();
+    const privateHash = await hashPassword(
+      configuredPrivate ?? randomBytes(24).toString("base64url"),
+    );
     const now = new Date();
     const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
 
@@ -325,7 +337,7 @@ async function main() {
 
     const admin = await one<{ id: string }>(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status, timezone)
-      VALUES (${platform.id}, 'omar@24therapy.app', 'Omar', 'Abdelgawad', 'super_admin', ${hash}, 'active',
+      VALUES (${platform.id}, 'omar@24therapy.app', 'Omar', 'Abdelgawad', 'super_admin', ${privateHash}, 'active',
               'Africa/Cairo')
       RETURNING id`);
 
@@ -339,7 +351,7 @@ async function main() {
      */
     await db.execute(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status, timezone)
-      VALUES (${platform.id}, 'staff.demo@example.com', 'Sami', 'Demo', 'staff', ${hash}, 'active',
+      VALUES (${platform.id}, 'staff.demo@example.com', 'Sami', 'Demo', 'staff', ${privateHash}, 'active',
               'Africa/Cairo')`);
 
     /*
@@ -532,7 +544,7 @@ async function main() {
 
     await db.execute(sql`
       INSERT INTO sponsor_users (sponsor_id, email, name, role, password_hash)
-      VALUES (${sponsor.id}, 'habiba@24therapy.app', 'Habiba', 'admin', ${hash})`);
+      VALUES (${sponsor.id}, 'habiba@24therapy.app', 'Habiba', 'admin', ${privateHash})`);
 
     const { openPot } = await import("../lib/data/sponsor-admin");
     const opened = await openPot({
@@ -1398,6 +1410,12 @@ async function main() {
     /* ============================================================== */
 
     console.log(`\n🔴 Seeded: ${name}. One password for every login: ${DEMO_PASSWORD}\n`);
+    console.log(
+      configuredPrivate
+        ? "   Except the console, the support account and the company, which take DEMO_PRIVATE_PASSWORD.\n"
+        : "   Except the console, the support account and the company, which nobody can sign in to:\n" +
+            "   DEMO_PRIVATE_PASSWORD is not set, so each was given a random password nobody was told.\n",
+    );
     /* Printed from `_demo-cast.ts` rather than typed here, so this list and the
      * one `verify:demo` checks cannot disagree about who exists. */
     for (const login of DEMO_LOGINS) {

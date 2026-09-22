@@ -45,7 +45,10 @@ import {
   VALUE_STATEMENTS,
   type Audience,
 } from "./_value-statements";
-import { DEMO_LOGINS, DEMO_PASSWORD } from "./_demo-cast";
+import { DEMO_LOGINS, DEMO_PASSWORD, isPrivateLogin } from "./_demo-cast";
+
+/** Logins nothing can email, derived rather than counted by hand. */
+const UNREACHABLE = DEMO_LOGINS.filter((l) => l.email.toLowerCase().endsWith("@example.com"));
 
 export const VALUE_STATEMENTS_PATH = "docs/VALUE-STATEMENTS.md";
 
@@ -151,16 +154,24 @@ export function document(): string[] {
   lines.push(
     "## Everyone you sign in as",
     "",
-    "One password for all of them:",
+    "One password for every patient, clinician and the clinic:",
     "",
     "    " + DEMO_PASSWORD,
     "",
+    "🔴 **The three marked private never take it**: the repository is public and they open the",
+    "production console and a company's money. Their password is `DEMO_PRIVATE_PASSWORD` in the",
+    "operator's own `.env.local`, never committed. `docs/DEMO-LOGINS.md` says more.",
+    "",
     "| Who | Sign-in page | Address |",
     "| --- | --- | --- |",
-    ...DEMO_LOGINS.map((l) => `| ${l.who} | \`${l.where}\` | \`${l.email}\` |`),
+    ...DEMO_LOGINS.map(
+      (l) =>
+        `| ${l.who}${isPrivateLogin(l.email) ? " (private password)" : ""} | \`${l.where}\` | \`${l.email}\` |`,
+    ),
     "",
-    "🔴 **Three of these are at `example.com` and cannot receive email.** Dr Sara, Dr Kareem and",
-    "Mariam sign in with the password like everybody else, and anything the product would have",
+    `🔴 **${String(UNREACHABLE.length)} of these are at \`example.com\` and cannot receive email:** ` +
+      `${UNREACHABLE.map((l) => `\`${l.email}\``).join(", ")}.`,
+    "They sign in like everybody else, and anything the product would have",
     "emailed them goes nowhere. That is deliberate, because RFC 2606 reserves the domain so a",
     "message that escapes a test reaches nobody, and it means **the email half of any promise must be",
     "walked on one of the five real inboxes**, never on those three. `P2` is written to be",

@@ -7,12 +7,19 @@ opened and redesigned against real history rather than an empty screen: sessions
 approved notes on them, a company pot with a spending record behind it, a clinic with a
 fortnight in it, and a queue in front of the operator.
 
-One password for all of them:
+One password for every patient, clinician and the clinic:
 
     Demo2026!Therapy
 
+🔴 **Except three, which never take it:** the platform admin, the support account and the
+company. This repository is public, so a password written here is a password every reader
+holds, and those three open the production console and a company's money. Their password
+is `DEMO_PRIVATE_PASSWORD` in the operator's own `.env.local`, which is never committed;
+without it the seed gives each a random password nobody is told.
+
 `npm run on:production -- verify:demo` reads every row back out of the database, checks
-the password actually opens it, and checks that what each portal would show is not
+the password actually opens it (and that the published one does NOT open the three),
+and checks that what each portal would show is not
 empty. The second half is the one that matters: a seed can write every row correctly and
 still produce a caseload the clinician cannot see.
 
@@ -20,9 +27,9 @@ still produce a caseload the clinician cannot see.
 
 | Who | Sign-in page | Address |
 | --- | --- | --- |
-| Platform admin | `/staff/sign-in` | `omar@24therapy.app` |
-| Support, not a founder | `/staff/sign-in` | `staff.demo@example.com` |
-| Company (Habiba Holdings) | `/sponsor/sign-in` | `habiba@24therapy.app` |
+| Platform admin (private password) | `/staff/sign-in` | `omar@24therapy.app` |
+| Support, not a founder (private password) | `/staff/sign-in` | `staff.demo@example.com` |
+| Company (Habiba Holdings) (private password) | `/sponsor/sign-in` | `habiba@24therapy.app` |
 | Clinic manager (Nile Practice) | `/clinic/sign-in` | `habibaheikal27@gmail.com` |
 | Therapist, solo practice | `/login` | `omarabdelgawad001@gmail.com` |
 | Therapist, clinic, 2 patients | `/login` | `dr.sara.demo@example.com` |
