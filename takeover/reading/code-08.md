@@ -731,3 +731,287 @@ Per-page redesign fields used below: **Screen** (what it is for), **Next** (what
 - For: sponsor door, `AuthShell who="company"`, no forgot link.
 - Notes: RTL via `t()`.
 
+### app/global-error.tsx (57 lines)
+- For: last-resort boundary replacing the root layout; own `<html lang="en">`, inline styles, "Something went wrong", "Try again".
+- Promises: P5 not kept on this path: no SOS orb. Patient routes have their own boundary with the orb (app/(patient)/error.tsx); `/radar`, `/t/[id]`, `/join`, `/pay` (public patient-facing doors outside the patient group) fall through to this one on an unhandled throw and lose the orb.
+- Notes: RTL: hardcoded English and `lang="en"` with no `dir`; an Arabic reader gets English LTR. Hex colours inline (documented reason, lines 40 to 43).
+
+### app/globals.css (397 lines)
+- For: design tokens (Tailwind v4 `@theme`): navy ramp desaturated at the light end, `brand-*` = the mark's teal (500 #2ec4b6, navy ink on it), `teal-*` reserved for radar/live files (enforced by `verify-palette`), system font stack, radii; base layer (page texture of two washes plus a dot grid, suppressed when `[data-surface="room"]` is present; 16px inputs; focus ring brand-700; reduced-motion kills animation); utilities (`safe-bottom`, `safe-top`, `tap-target` 44px, `no-scrollbar`, `text-balance`, `live-dot`, `fill-rule` with an RTL origin flip, `animate-fade-rise`, `wave-bar`, `radar-sweep`, `radar-ping`).
+- Promises: none.
+- Notes for the redesign: no dark-mode tokens; no Arabic typeface in `--font-sans` (system fallback only); `fill-rule` is the only RTL-aware rule in the file. STALE numbers: line 64 says the teal buttons "now carry navy at 7.71:1" while the ramp table (line 136) and line 122 say navy on #2ec4b6 is 7.27:1; line 62 "hover state went to 600, which is 3.22:1" while the table gives 600 on white 3.34 (brand-600 is #1f9d92, teal-600 #23a094: two different 600s).
+
+### app/layout.tsx (92 lines)
+- For: root layout: `lang` and `dir` from `getLocale()`/`dirFor` on `<html>` (server, never client-toggled), `I18nProvider` with admin overrides (failure swallowed), `SimulationBanner`.
+- Promises: RTL foundation for every page.
+- Notes: default `metadata` title "24Therapy, your session notes, written for you" and description "Record a therapy session on your phone and walk away with a SOAP note, clinical insights and a report you can send to your patient" (lines 10 to 14): English only, not localised for `/ar`, and "a report you can send to your patient" sits awkwardly against P3 (a patient receives only a signed summary/brief). `robots: index true` default; pages opt out one by one.
+
+### app/manifest.ts (36 lines)
+- For: PWA manifest, `start_url: /patient`, standalone, portrait.
+- Notes: English only name/description; a clinician who adds the site to a home screen lands on the patient app. Description "Your sessions, your notes" (a patient never sees a clinical note, §6) is loose wording.
+
+### app/not-found.tsx (30 lines)
+- For: localised 404 with a Home button. RTL via `t()`.
+- Notes: renders outside every route-group layout, so inside the patient app a 404 has no orb and no nav.
+
+### app/robots.ts (62 lines)
+- For: robots rules. `SIMULATION_RUNNING` (lib/env.ts:159, `process.env.SIMULATION_RUNNING === "1"`) disallows everything; otherwise allow `/` and disallow `/join/`, `/dashboard`, `/sessions`, `/patients`, `/notes`, `/copilot`, `/on-call`, `/billing`, `/settings`, `/admin`, `/api/`, `/login`, `/signup`, `/reset-password`, `/forgot-password`.
+- Promises: none directly.
+- Notes: the comment (lines 8 to 15) says "Everything behind a login ... must not be" crawled, but the list omits `/patient`, `/clinic`, `/sponsor`, `/partner`, `/staff`, `/design`, `/pay/` (a token URL, like `/join/`), `/records/`, `/feedback/`, `/verify`. Each page has `noindex` in metadata, so this is belt-without-braces rather than a leak; `/pay/<joinToken>` crawled is the same class as `/join/` the comment calls out.
+
+### app/sitemap.ts (53 lines)
+- For: sitemap: `/`, `/radar`, and every published CMS slug, once per locale with alternates. `revalidate = 3600`.
+- Notes: the hand-built public pages (`/for-clinics`, `/for-companies`, `/for-therapists`, `/developers`, `/integrations`, `/integrations/*`, `/verify`) are not CMS rows and never appear in the sitemap. `revalidate = 3600` is the hourly database touch that app/(public)/[slug]/page.tsx:8 to 15 removed from pages for keeping the database awake (only when a crawler asks, so minor).
+
+## Stale
+
+1. app/(partner)/partner/actions.ts:35 to 39: "`mintKey` refuses `employment:verify` without one". lib/partner/keys.ts:94 to 106 says that check was removed 2026-09-14; `sponsorId` is still accepted and written (keys.ts:151) for no purpose.
+2. app/(partner)/partner/actions.ts:81 to 94: comment says "Who raised it, and when ... has to come from a row"; the audit row has `actor: null` and no partner-user id, so it records which partner, not who.
+3. app/(patient)/patient/consent/page.tsx:187: "`SeesWhat` above now carries it as `consent.canKeep`"; the key rendered is `consent.mayKeep` (line 119).
+4. app/(patient)/patient/messages/page.tsx:39: "Check-ins is reached from the account screen"; the account page has no link to `/patient/messages` and nothing else links to it.
+5. app/(patient)/patient/notices/page.tsx:33: "Dismissing takes an entry out of the main view"; there is no main view, `noticesFor` has one caller (this page) and nothing links here.
+6. app/(patient)/layout.tsx:10 to 12: "the radar and the live session ... are not in this route group"; `/patient/radar` IS in the group (only the public `/radar` is not).
+7. app/(clinic)/clinic/export/route.ts:46 to 50: "the screen this mirrors shows one week at a time"; the export window is 180 days.
+8. app/(public)/developers/page.tsx:12 and `devs.body` (lib/i18n/messages.ts:2209): "Five things you can do"; three use cases render since two were deleted (comment 56 to 70).
+9. app/(public)/integrations/page.tsx:49 to 50: "`/developers` holds every endpoint ... generated from the same constants the API uses"; `/developers` is hand-typed strings, and the two pages' payload examples disagree.
+10. app/(public)/integrations/page.tsx:168: "There is no self-serve key"; lib/partner/keys.ts:108 to 113 "A SANDBOX KEY IS SELF-SERVE". Line 199 "Nothing is signed with a shared secret"; webhooks hand the partner a signing secret (app/(partner)/partner/webhooks/actions.ts:37).
+11. app/(public)/design/page.tsx:200 to 206: "six items · two by three" renders `THERAPIST.slice(0, 6)` of a five-item list.
+12. app/(public)/design/patient/page.tsx:94 to 99: "Chosen: Option A · Four tabs ... Home, Sessions, Therapists, Profile"; shipped bar is Home, Sessions, lifted radar, Therapists, You (components/patient/bottom-nav.tsx:59 to 65).
+13. app/(public)/design/patient/sample/page.tsx:85 and samples.tsx: "The SOS control is on every screen" in all three options; none of the three drawn options draws one.
+14. app/globals.css:62 and 64: 3.22:1 and 7.71:1; the computed table in the same file gives 3.34 and 7.27.
+15. app/(public)/design/*/page.tsx imports unused: company/page.tsx imports `Chips`, `Option`, `Browser`; patient/page.tsx imports `Cols` (dead imports).
+16. app/(sponsor)/sponsor/domains/confirm/[id]/page.tsx:12 to 24 "NO GUARD": the page has no guard of its own but the router guards it (see Broken 5); the comment describes a door that is shut.
+17. app/(public)/design/clinic/page.tsx:159: wireframe B "No patient names on this screen"; the chosen and built Option A shows patient names.
+
+## Suspect
+
+1. lib/data/clinic.ts:653 to 667 (rendered by app/(clinic)/clinic/bills/page.tsx:125): `SUM(i.amount_cents - i.discount_cents)` over `invoices LEFT JOIN invoice_lines` counts each invoice once PER LINE. An invoice with a platform line and an AI line doubles its total. scripts/verify-sprint54.ts:588 to 592 asserts platform + ai === total, which only catches this if its fixture invoice has two non-zero lines. Owner: lib/data/clinic.ts reader.
+2. app/(sponsor)/sponsor/pot/actions.ts and lib/billing/pot.ts:541 to 543: E3 says the share is frozen at BOOKING (schema comment lib/db/schema.ts:2226 to 2232); pot.ts writes `coverageBps` when the pot PAYS. If payment is later than booking, a coverage decrease in between reprices a booked session. The notice window in `setCoverage` may cover it. Owner: lib/billing/pot.ts.
+3. app/(sponsor)/sponsor/code/page.tsx:52: `attemptsOnCode` is a live, unsuppressed counter of enrolment attempts; watched on refresh it says when somebody tried to join. E1 "never when".
+4. app/(sponsor)/sponsor/integrations/page.tsx:68 to 76: HR webhook deliveries timestamped to the minute; if an event fires per enrolment or per employment check triggered by one person, it dates an individual's enrolment. Owner: lib/data/sponsor-integrations.
+5. app/(clinic)/clinic/records/page.tsx:52 to 62: filing log shows each signed note's approving clinician and time (up to 100), which is notes per clinician (a caseload proxy, C2) and `lastError` raw from a hospital server may quote patient identifiers.
+6. app/(clinic)/clinic/team/actions.ts:112 to 118: `inviteStaff` takes the new staff member's PASSWORD from the admin's form, so an admin knows a colleague's password; no reset or forced change is visible. design/clinic/page.tsx:324 and 383 say staff cannot be removed or have a role changed either.
+7. app/(clinic)/clinic/join/[token]/actions.ts:72 to 80: a failed `cancelSubscription` (Stripe) only logs; the clinician is billed for their own plan and the seat, nobody is told. For an Egyptian clinician on the manual rail, `lib/billing/stripe.cancelSubscription` may be the wrong function entirely.
+8. app/(clinic)/clinic/join/[token]/page.tsx:38 and app/(patient)/patient/record/page.tsx:38: a GET render stamps `terms_shown_at` / `clinic_visibility_shown_at`; link previewers and mail scanners stamp them too, so "proof we said it" is proof a URL was fetched.
+9. app/(clinic)/clinic/records/actions.ts:27 to 35: `fhirBaseUrl` from the form is fetched server side by `beginConnection` (SSRF surface; check lib/data/ehr validation). Same shape: partner webhook URLs (lib/partner/webhooks).
+10. app/(clinic)/clinic/people/actions.ts:62: a clinician job invitation uses `notify` kind `claim.invite` (the patient claim kind); the in-app rendering or template for that kind may describe a record claim.
+11. app/(patient)/patient/billing/page.tsx:181 to 189: "therapist fee" shows `grossCents`, which includes the platform fee (therapist net = gross minus fee, schema 2253), so the three lines do not sum to the headline.
+12. app/(patient)/patient/login/page.tsx and app/(patient)/patient/invite/[token]/page.tsx:95: the invite sends `?next=/patient/invite/<token>`; whether `PatientAuthForm` honours `next` is not visible in this slice.
+13. app/(patient)/patient/forgot-password/page.tsx: reset code "goes over WhatsApp"; claim/actions.ts:92 to 95 says WhatsApp is not wired. A patient with no email may have no working reset.
+14. app/(patient)/error.tsx:60: `<SosOrb />` with no phone or country; the default line shown on an error may be the wrong country.
+15. app/(public)/contact/actions.ts:37 to 40: a filled honeypot returns a fake reference "RECEIVED"; a password manager or autofill that fills a hidden `website` field silently drops a real message that may be clinical.
+16. app/(patient)/patient/residency/actions.ts:21: locale falls back to "en" on error, so the consent record can claim English wording was read.
+
+## Broken
+
+1. **Anybody holding a session id can take over, cancel-and-refund, or no-show any session that has not started.** app/(patient)/sessions/[id]/recovery-actions.ts:55 to 182 is unauthenticated by design ("the session id is the capability"); the five-minute wait lives only in the client (components/session/no-show-recovery.tsx:65). Server side, `reassignSession` and `refundNoShow` refuse only `startedAt IS NOT NULL` or an existing outcome (lib/data/recovery.ts:175 to 180, 296 to 301), and `offerReplacements` stamps `noShowAt` on any unstarted session (recovery-actions.ts:79). So a week before a booked session: `takeRefund` cancels it and refunds it; `takeReplacement(sessionId, anyUserId)` moves it to any non-deleted user whose rate is at or below the price, including an unverified clinician with no rate, and lib/data/recovery.ts:160 to 165 says that "is the same act as granting somebody full read on its transcript, its note and the patient's chart"; `offerReplacements` lowers the real clinician's reliability score. The id is not secret: the booking confirmation sends `/sessions/<sessionId>` by email/WhatsApp (app/(public)/t/[id]/book/actions.ts:160). A person would see: their appointment cancelled, or a stranger in their clinician's place. Grep found no scheduled-time check in either file.
+2. **Claiming somebody else's record needs only their person uuid.** app/(patient)/patient/claim/actions.ts:97 to 160 takes `personId` from the client; `startClaim` (lib/data/claims.ts:200 to 216) checks only that the person exists and is unclaimed; the code is sent to the CALLER's own email/phone (actions.ts:119); `verifyClaim` (claims.ts:304 to 320) checks claim, account, code, expiry. Nothing re-checks that the person matched this account's proven handle (that check lives only in `mySuggestions`, actions.ts:76 to 85). Exploit needs an unclaimed person's uuid; the outcome is ownership of their therapy record and the grant decision.
+3. **Sponsor overview shows live spend and live session count beside the published balance** (E1). app/(sponsor)/sponsor/page.tsx:195 to 207 renders `potTotals` (lib/billing/pot.ts:997 to 1016, live SUM and COUNT, no floor). Two visits a day apart give the date and the sponsor share of one session, the exact differencing the C377 comment on lines 51 to 60 says publishing the balance prevents.
+4. **The clinic portal shows patient names and a cancelled badge per patient** (C2 as written). app/(clinic)/clinic/page.tsx:201, 206 to 210; export of 180 days of the same as CSV, app/(clinic)/clinic/export/route.ts:42 to 53. Deliberate (C260, `clinic.scheduleBody` "a name and a time, because you pay for the hour"; the patient is told on /patient/record), so this is the promise and README disagreeing, settled in README's favour: C2's "no patient name on any screen" is false.
+5. **The sponsor's domain mailbox proof link cannot be opened by the person it is sent to.** Link built at lib/data/sponsor-domains.ts:112 as `/sponsor/domains/confirm/<id>?t=`; lib/routing.ts:299 opens only `/sponsor/apply` inside `/sponsor`; `routeDecision` (lib/routing.ts:371 to 385) redirects an unsigned visitor to `/sponsor/sign-in`. The page's own comment says the clicker "may have no account here at all". A company whose IT contact is not a portal admin can never finish domain proof, so never issues a joining code. A person would see: the sign-in page.
+6. **Patient billing says "Covered" for a partly covered session.** app/(patient)/patient/billing/page.tsx:79, 149 to 179 branch on `fundingSource === "pot"` and never select `patientShareCents`; lib/billing/pot.ts:541 to 559 writes one row per session with `fundingSource: "pot"` and `patientShareCents = gross - sponsorShare`. At 10 per cent cover (the `money` position) the patient paid 90 per cent and reads "Covered" with no amount. No app/(patient) file reads the patient share (grep).
+7. **The in-app notice log has no door** (P2). /patient/notices is linked from nowhere and `noticesFor` has no other caller (grep of app, components, lib). Same for /patient/messages and /patient/residency (screens with no door).
+8. **Clinic seats never move the clinic bill** (C3, C4). The clinic bills screen reads only per-session invoices (`i.session_id IS NOT NULL`, lib/data/clinic.ts:664), shows no seat; `organizations.seats` is written only from the therapist portal (app/(app)/billing/actions.ts:295, recorded by app/(public)/design/clinic/page.tsx:21 to 32 and 375 to 380). Removing a clinician (app/(clinic)/clinic/people/actions.ts:114) shows no bill effect.
+9. **Every partner admin sees the names of all our active sponsor companies.** app/(partner)/partner/page.tsx:41 calls `sponsorChoices()` (lib/data/partner-admin.ts:258 to 264, every `state = 'active'` sponsor), for a scope that is no longer a partner scope (lib/partner/keys.ts:94 to 106). C319/C349 treat "which companies buy therapy for staff" as a fact a company publishes or not; this lists all of them to third parties.
+
+## Looks broken, is handled
+
+1. A signed-in patient booking from `/patient/radar` books as a guest (app/(public)/radar/actions.ts:117 to 206, no patient id) so no pot is applied at booking: handled at the join page, which links the person and charges the pot (lib/data/sessions.ts:346 to 359).
+2. The radar hold releases "the previous booking from this network" (app/(public)/radar/actions.ts:239 to 243), which on CGNAT is somebody else's: guarded twice so a paid or joined session is never cancelled (lines 287 to 318).
+3. `/patient/claim` could reveal that a stranger's number is in therapy: suggestions only on a PROVEN handle (claim/actions.ts:61 to 78; claim/page.tsx:77 to 81).
+4. The sponsor balance moving per session: `potBalance` publishes only after `activityFloor` sessions (lib/data/sponsors.ts:241 to 266), used by both sponsor pages; but see Broken 3 for the cards beside it.
+5. The clinic invoice could tie an AI fee to a named patient's consent: bills are summed by month and kind with no session id (lib/data/clinic.ts:636 to 667), and the schedule select has no consent column (app/(clinic)/clinic/page.tsx:29 to 33).
+6. A crashed patient page used to lose the SOS orb: app/(patient)/error.tsx now keeps it (only global-error still drops it, see its entry).
+7. Partner deliveries could resolve to a patient: the subject id is opaque and never resolved (app/(partner)/partner/deliveries/page.tsx:22 to 26, 73 to 76).
+8. The clinic "earnings" page could let a manager move a colleague's money: `requestPayout` needs a clinician `Actor` nothing in the clinic group can produce (app/(clinic)/clinic/earnings/page.tsx:21 to 25).
+9. Sponsor coverage decrease applying instantly: asymmetry is in `setCoverage` with a notice window (pot/actions.ts:71 to 74, message 131 to 137); see Suspect 2 for the booking-time question.
+
+## Unclaimed
+
+(a) worth selling, nothing advertises it
+- app/(patient)/sessions/[id]/recovery-actions.ts: a no-show is rescued in the moment: a replacement clinician at or below the paid price with the difference as credit, or a full refund including our fee (once it is locked down, see Broken 1).
+- app/(patient)/patient/consent/actions.ts:113 to 130: "ask my previous therapist to add my history", with a guaranteed answer (C108).
+- app/(patient)/patient/consent/actions.ts:154 to 176: a patient can cut a partner platform's link to them (C277).
+- app/(public)/verify/page.tsx: a third party can check a record extract's authenticity without learning who it is about.
+- app/(patient)/patient/assessments: questionnaires with the patient's own score history, no bands (C113).
+- app/(patient)/patient/messages: check-ins with an opt-out screen and crisis routing of replies.
+- app/(clinic)/clinic/records: EHR connection and note write-back for a practice.
+
+(b) nobody should have it, a hole
+- Session id as a capability for reassignment and refund with no time bound (Broken 1).
+- Claim by person uuid (Broken 2).
+- Partner admin sees every sponsor's name (Broken 9).
+- Sponsor attempts counter live (Suspect 3).
+- Clinic admin sets staff passwords (Suspect 6).
+- Clinic filing log, notes per clinician with times (Suspect 5).
+
+(c) half built, a lifecycle with no way out or a screen with no door
+- /patient/notices, /patient/messages, /patient/residency: no links (Broken 7).
+- Clinic and sponsor and partner portals: no password reset (sign-in pages have no link; design pages confirm "no route, no link").
+- Clinic staff: no remove, no role change (design/clinic/page.tsx:382 to 384; no action in team/actions.ts).
+- Clinic seats: `quoteSeatChange`/`applySeatChange` reachable only from the clinician portal (Broken 8).
+- Sponsor domain mailbox proof: link redirected to sign-in (Broken 5).
+- /clinic/join/[token] expired state and /patient/invite/[token] used state: a sentence and no link anywhere.
+- Expired pot still pays (recorded at app/(public)/design/company/page.tsx:375 to 378; not verifiable from this slice).
+
+## Promise evidence
+
+- P1: radar is one tap from Home when anybody is live (app/(patient)/patient/page.tsx:211 to 227), then sheet, name, submit (app/(public)/radar/actions.ts). Free clinician: plausibly three. Paid clinician: `/pay` then a bank transfer an operator confirms. Verdict: partly (free sessions only).
+- P2: orb in the chrome on every patient page, state `owes | ready` only for an OPEN session (app/(patient)/layout.tsx:69 to 80, components/patient/chrome.tsx:40); session-started banner live; invitation lands in app (/patient/invite). Payment confirmations and notices: the notice log has no door (Broken 7), billing lists only `paid`. Verdict: partly.
+- P3: /patient/summary shows only approved versions with name, credentials, licence (summary/page.tsx:63 to 88); "still writing" lives in the sessions list (`psessions.writing`), not on Summary, whose empty state says "Nothing has been written yet". Verdict: kept, with the empty-state wording gap.
+- P4: every version with its author (summary/page.tsx); provenance per document (profile/page.tsx:73 to 78); grants, revoke, invite code, ask-back (consent/*). Undermined by Broken 2 (claim by uuid) and Broken 1 (reassignment hands the chart to another clinician). Verdict: partly.
+- P5: SOS z-70 above session orb z-60 (components/patient/sos-orb.tsx:163, session-orb.tsx:63); patient error boundary keeps it; public /radar and /t/[id] draw it; global-error and not-found do not. Verdict: kept in the app, partly outside it.
+- T3: clinic earnings show earnings and withdrawals, no owed half (app/(clinic)/clinic/earnings/page.tsx). Cannot tell from here for the clinician's own screen.
+- T4: /patient/signup locks the invited phone and names the therapist (signup/page.tsx:18 to 46). Cannot tell the join page from here.
+- T5: revoke is one tap, "effective on the next read" (consent/actions.ts:49 to 63); copilot side not in slice. Cannot tell fully.
+- C1: invited clinician joins `unverified` (join/[token]/actions.ts:11 to 16), so "on the radar the same hour" holds only for an already verified clinician; verification state is on the people row. Verdict: partly.
+- C2: patient names on /clinic and in the CSV export; filing log per clinician. Verdict: broken (by design, C260).
+- C3: one aggregated bill per month per practice, yes; priced per seat, no. Verdict: partly.
+- C4: seat release does not move the bill (design/clinic/page.tsx:21 to 32). Verdict: broken.
+- C5: earnings per clinician, no patients (earnings/page.tsx). Verdict: kept.
+- E1: balance published (C377) but live spent and sessions cards beside it (Broken 3); roster is enrolment, not use. Verdict: broken.
+- E2: no screen in the sponsor group renders a patient name beside a session, a session time or attendance; roster names are enrolled people with the cycle date only. Verdict: kept, subject to Suspects 3 and 4.
+- E3: decrease waits a notice window (pot/actions.ts:71 to 74); share frozen at pay time rather than booking (Suspect 2); patient billing hides the patient's share (Broken 6). Verdict: partly.
+- E4: 0% accepted, message says employee pays 100 per cent, roster unchanged, benefit page shows no coverage at all. Verdict: kept on these screens.
+- E5: the patient benefit page has no empty-pot or "ask HR" state; the sentence, if anywhere, is at pay/join time (not in slice). Verdict: cannot tell from here; absent where a patient would look for their benefit.
+- A1: sponsor transfer is a declared claim an operator credits (pot/actions.ts:141 to 269). Kept on this side.
+- A2: one live sponsor top-up claim per company (pot/actions.ts:242 to 247). Kept on this side.
+- A3: sponsor `PendingBar` (layout); patient billing shows only paid rows, so a patient's rejected transfer sentence is not on /patient/billing. Cannot tell for the pay page.
+- A5: /staff/sign-in exists, unlinked (auth/staff/sign-in/page.tsx). Cannot tell further.
+
+Public `where` phrases (VALUE-STATEMENTS): all of "Somebody who is free now" (P1), "You never talk to the AI" (P3, T5), "It moves with you" (P4), "Seats and the people on them" (C1, C2), "One set of books" (C3, C5), "The pot, and what is left in it" (E1) and "What you will never see" (E2) occur in source only in `lib/content/defaults.ts` (plus "What you will never see" in app/(public)/design/company/page.tsx:270). They reach `/` through app/(public)/page.tsx and `/for-patients` through app/(public)/[slug]/page.tsx, both `BlockRenderer` over the published CMS row, so the live wording is data, not code (H28). None of the hand-built pages (for-clinics, for-companies, for-therapists, developers, integrations) carries any of them.
+
+RTL summary for the redesign: `dir` is set on `<html>` from the request (app/layout.tsx:78) and most screens use logical properties and `t()`. Hardcoded English remains in: auth login notices and reset-password invalid state; patient billing credit and FX lines, journal " · spoken", profile watermark, claim "your number", consent "A therapist", recovery and booking notifications (booking `when` forced to "en"); partner usage labels (raw ISO); every server-action error string in every portal; sponsor domains pages; the whole of /integrations, /integrations/[slug], /verify, /design/*, global-error. Raw ISO dates (the bidi defect the clinic and sponsor pages fixed) remain in patient account lock date, consent codes and linked platforms, partner usage, /verify.
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| app/(auth)/forgot-password/page.tsx | 23 | read |
+| app/(auth)/layout.tsx | 21 | read |
+| app/(auth)/login/page.tsx | 55 | read |
+| app/(auth)/reset-password/page.tsx | 49 | read |
+| app/(auth)/signup/page.tsx | 57 | read |
+| app/(auth)/staff/sign-in/page.tsx | 41 | read |
+| app/(clinic)/clinic/apply/actions.ts | 45 | read |
+| app/(clinic)/clinic/apply/page.tsx | 55 | read |
+| app/(clinic)/clinic/bills/page.tsx | 135 | read |
+| app/(clinic)/clinic/earnings/page.tsx | 111 | read |
+| app/(clinic)/clinic/export/route.ts | 71 | read |
+| app/(clinic)/clinic/join/[token]/actions.ts | 83 | read |
+| app/(clinic)/clinic/join/[token]/page.tsx | 67 | read |
+| app/(clinic)/clinic/page.tsx | 291 | read |
+| app/(clinic)/clinic/people/actions.ts | 142 | read |
+| app/(clinic)/clinic/people/page.tsx | 72 | read |
+| app/(clinic)/clinic/records/actions.ts | 110 | read |
+| app/(clinic)/clinic/records/page.tsx | 81 | read |
+| app/(clinic)/clinic/sign-in/actions.ts | 41 | read |
+| app/(clinic)/clinic/sign-in/page.tsx | 32 | read |
+| app/(clinic)/clinic/team/actions.ts | 203 | read |
+| app/(clinic)/clinic/team/page.tsx | 64 | read |
+| app/(clinic)/layout.tsx | 67 | read |
+| app/(partner)/layout.tsx | 53 | read |
+| app/(partner)/partner/actions.ts | 98 | read |
+| app/(partner)/partner/apply/actions.ts | 32 | read |
+| app/(partner)/partner/apply/page.tsx | 52 | read |
+| app/(partner)/partner/deliveries/page.tsx | 95 | read |
+| app/(partner)/partner/page.tsx | 68 | read |
+| app/(partner)/partner/sign-in/actions.ts | 42 | read |
+| app/(partner)/partner/sign-in/page.tsx | 38 | read |
+| app/(partner)/partner/usage/page.tsx | 63 | read |
+| app/(partner)/partner/webhooks/actions.ts | 44 | read |
+| app/(partner)/partner/webhooks/page.tsx | 39 | read |
+| app/(patient)/error.tsx | 63 | read |
+| app/(patient)/layout.tsx | 84 | read |
+| app/(patient)/patient/account/actions.ts | 159 | read |
+| app/(patient)/patient/account/page.tsx | 188 | read |
+| app/(patient)/patient/assessments/[id]/page.tsx | 57 | read |
+| app/(patient)/patient/assessments/actions.ts | 59 | read |
+| app/(patient)/patient/assessments/page.tsx | 131 | read |
+| app/(patient)/patient/benefit/actions.ts | 132 | read |
+| app/(patient)/patient/benefit/page.tsx | 66 | read |
+| app/(patient)/patient/billing/page.tsx | 222 | read |
+| app/(patient)/patient/browse/page.tsx | 109 | read |
+| app/(patient)/patient/claim/actions.ts | 206 | read |
+| app/(patient)/patient/claim/challenge-actions.ts | 72 | read |
+| app/(patient)/patient/claim/page.tsx | 117 | read |
+| app/(patient)/patient/consent/actions.ts | 176 | read |
+| app/(patient)/patient/consent/page.tsx | 192 | read |
+| app/(patient)/patient/forgot-password/page.tsx | 34 | read |
+| app/(patient)/patient/homework/actions.ts | 41 | read |
+| app/(patient)/patient/homework/page.tsx | 63 | read |
+| app/(patient)/patient/invite/[token]/page.tsx | 111 | read |
+| app/(patient)/patient/journal/actions.ts | 46 | read |
+| app/(patient)/patient/journal/page.tsx | 102 | read |
+| app/(patient)/patient/login/page.tsx | 63 | read |
+| app/(patient)/patient/messages/actions.ts | 28 | read |
+| app/(patient)/patient/messages/page.tsx | 79 | read |
+| app/(patient)/patient/notices/actions.ts | 27 | read |
+| app/(patient)/patient/notices/page.tsx | 60 | read |
+| app/(patient)/patient/page.tsx | 489 | read |
+| app/(patient)/patient/profile/actions.ts | 54 | read |
+| app/(patient)/patient/profile/page.tsx | 145 | read |
+| app/(patient)/patient/radar/page.tsx | 39 | read |
+| app/(patient)/patient/record/actions.ts | 33 | read |
+| app/(patient)/patient/record/page.tsx | 106 | read |
+| app/(patient)/patient/residency/actions.ts | 37 | read |
+| app/(patient)/patient/residency/page.tsx | 45 | read |
+| app/(patient)/patient/sessions/page.tsx | 92 | read |
+| app/(patient)/patient/signup/page.tsx | 49 | read |
+| app/(patient)/patient/summary/page.tsx | 96 | read |
+| app/(patient)/patient/t/[id]/page.tsx | 46 | read |
+| app/(patient)/sessions/[id]/recovery-actions.ts | 182 | read |
+| app/(public)/[slug]/page.tsx | 56 | read |
+| app/(public)/contact/actions.ts | 80 | read |
+| app/(public)/design/clinic/page.tsx | 404 | read |
+| app/(public)/design/clinic/sample/page.tsx | 185 | read |
+| app/(public)/design/company/page.tsx | 401 | read |
+| app/(public)/design/company/sample/page.tsx | 154 | read |
+| app/(public)/design/page.tsx | 283 | read |
+| app/(public)/design/patient/page.tsx | 772 | read |
+| app/(public)/design/patient/sample/page.tsx | 101 | read |
+| app/(public)/design/patient/sample/samples.tsx | 378 | read |
+| app/(public)/design/portal-kit.tsx | 286 | read |
+| app/(public)/developers/page.tsx | 317 | read |
+| app/(public)/for-clinics/page.tsx | 100 | read |
+| app/(public)/for-companies/page.tsx | 115 | read |
+| app/(public)/for-therapists/page.tsx | 165 | read |
+| app/(public)/integrations/[slug]/page.tsx | 86 | read |
+| app/(public)/integrations/page.tsx | 379 | read |
+| app/(public)/layout.tsx | 47 | read |
+| app/(public)/page.tsx | 26 | read |
+| app/(public)/radar/actions.ts | 449 | read |
+| app/(public)/radar/page.tsx | 58 | read |
+| app/(public)/t/[id]/book/actions.ts | 178 | read |
+| app/(public)/t/[id]/page.tsx | 72 | read |
+| app/(public)/verify/[code]/page.tsx | 21 | read |
+| app/(public)/verify/page.tsx | 103 | read |
+| app/(sponsor)/layout.tsx | 90 | read |
+| app/(sponsor)/sponsor/apply/actions.ts | 37 | read |
+| app/(sponsor)/sponsor/apply/page.tsx | 58 | read |
+| app/(sponsor)/sponsor/code/actions.ts | 36 | read |
+| app/(sponsor)/sponsor/code/page.tsx | 94 | read |
+| app/(sponsor)/sponsor/domains/actions.ts | 144 | read |
+| app/(sponsor)/sponsor/domains/confirm/[id]/page.tsx | 49 | read |
+| app/(sponsor)/sponsor/domains/page.tsx | 65 | read |
+| app/(sponsor)/sponsor/integrations/actions.ts | 115 | read |
+| app/(sponsor)/sponsor/integrations/page.tsx | 79 | read |
+| app/(sponsor)/sponsor/page.tsx | 255 | read |
+| app/(sponsor)/sponsor/people/actions.ts | 74 | read |
+| app/(sponsor)/sponsor/people/page.tsx | 71 | read |
+| app/(sponsor)/sponsor/pot/[txn]/page.tsx | 148 | read |
+| app/(sponsor)/sponsor/pot/actions.ts | 316 | read |
+| app/(sponsor)/sponsor/pot/page.tsx | 274 | read |
+| app/(sponsor)/sponsor/settings/actions.ts | 97 | read |
+| app/(sponsor)/sponsor/settings/page.tsx | 63 | read |
+| app/(sponsor)/sponsor/sign-in/actions.ts | 44 | read |
+| app/(sponsor)/sponsor/sign-in/page.tsx | 38 | read |
+| app/global-error.tsx | 57 | read |
+| app/globals.css | 397 | read |
+| app/layout.tsx | 92 | read |
+| app/manifest.ts | 36 | read |
+| app/not-found.tsx | 30 | read |
+| app/robots.ts | 62 | read |
+| app/sitemap.ts | 53 | read |
+
+126 files, 14,730 lines, all read. No real secrets seen (only the fake `sk_live_...` placeholder in app/(public)/integrations/page.tsx:195).
