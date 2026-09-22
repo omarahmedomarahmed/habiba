@@ -82,7 +82,7 @@ items are carried in as CONFIRMED with their MAP number and not re-verified.
 - Sources: code-03 Suspect (sessionsForPatient)
 - Promise: P3
 - Who is hurt and how: a patient whose session was cancelled, swept or missed sees, under it, that their therapist is still writing the summary of a session that never happened.
-- Evidence: `sessionsForPatient` (lib/data/patient-view.ts:88-125) selects no `status` and filters none; `briefPending = !signed && at < now` (:131-ish, noted at line 62 of the mapped block); components/patient/session-list.tsx:144-149 renders `psessions.writing` (messages.ts:883).
+- Evidence: `sessionsForPatient` (lib/data/patient-view.ts:88-125) selects no `status` and filters none; `briefPending: !signed && at.getTime() < now` (:149); components/patient/session-list.tsx:144-149 renders `psessions.writing` (messages.ts:883).
 - Severity: S3
 - Fix sketch: select `sessions.status`; `briefPending` only for `completed`; label cancelled and no-show rows.
 - Decision it came from: none visible.
