@@ -27,7 +27,7 @@ import { chromium } from "playwright";
 const BASE = process.env.WALK_BASE ?? "https://24therapy.app";
 
 function args(argv) {
-  const out = { fill: [], press: [] };
+  const out = { fill: [], press: [], selector: [], select: [] };
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     if (!key.startsWith("--")) continue;
@@ -36,6 +36,8 @@ function args(argv) {
     const flag = next === undefined || next.startsWith("--");
     if (name === "fill") out.fill.push(next), i++;
     else if (name === "press") out.press.push(next), i++;
+    else if (name === "selector") out.selector.push(next), i++;
+    else if (name === "select") out.select.push(next), i++;
     else if (flag) out[name] = true;
     else (out[name] = next), i++;
   }
@@ -92,7 +94,15 @@ try {
     const at = pair.indexOf("::");
     await page.locator(pair.slice(0, at)).first().fill(pair.slice(at + 2), { timeout: 15000 });
   }
-  if (a.selector) await page.locator(a.selector).first().click({ timeout: 15000 });
+  for (const pair of a.select) {
+    const at = pair.indexOf("::");
+    await page.locator(pair.slice(0, at)).first().selectOption({ label: pair.slice(at + 2) }, { timeout: 15000 });
+  }
+  for (const sel of a.selector) {
+    /* A leading "?" makes the click optional: a pop-up that is not always there. */
+    if (sel.startsWith("?")) await page.locator(sel.slice(1)).first().click({ timeout: 2500 }).catch(() => {});
+    else await page.locator(sel).first().click({ timeout: 15000 });
+  }
   if (a.click) {
     const exact = page.getByRole("button", { name: a.click, exact: false });
     const link = page.getByRole("link", { name: a.click, exact: false });
