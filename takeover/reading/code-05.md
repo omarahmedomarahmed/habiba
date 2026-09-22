@@ -379,3 +379,87 @@
 - Promises: P2 (in practice email plus in-app). A3 not touched.
 - Notes: `checkin.asking` has no template, so check-ins go by email only, while `notify`'s own header and policy.ts treat WhatsApp as the channel most Egyptian patients have (56 of 66 without email). `payout.*`, `record.export`, `consent.granted`, `sponsor.pot_empty` also have no template (fine for some by design).
 
+### lib/partner/api.ts (513 lines)
+- For: the partner API's subject-based functions: who may read, session writeback, deliver an approved note, resolve and link subjects (55.5 to 55.8, C277).
+- Decides: `whoMayRead` (86) emails and verified flag of THIS partner's clinicians holding a live grant (scoped by `organizations.partner_id` and `billing_mode = partner_billed`, 142). `writeBackSession` (178) finds the clinician through the subject's own patient rows, scoped to the partner, refuses ambiguity (409) and unverified clinicians. `deliverableNote` (348) returns the full note content where status approved, approvedAt and approvedBy are set and the session's person is linked to ANY `partner_subjects` row of this partner. `resolveSubject` (429) excludes revoked links. `upsertSubject` (471).
+- Assumes: every path to a person goes through `resolveSubject` (comment 441 to 452 says so).
+- Promises: P3 (only approved notes leave): kept. P4 / T5 grant discipline: broken for notes (see Broken): `deliverableNote` does not use `resolveSubject`, has no `revokedAt` filter and no partner-clinician scope, and checks no patient grant.
+- Notes: `A_PARTNER_NEVER_READS_A_CHART` (513) sits beside a function that returns SOAP, impressions and summary to a partner credential.
+
+### lib/partner/billing.ts (192 lines)
+- For: the partner's monthly bill from `partner_sessions.billable`, posted through the ledger.
+- Decides: `billFor` (60) counts live, billable sessions created in the month times `settings.pricing.partnerSessionCents`; `postMonthlyBill` (124, private) idempotent on `refType partner_month` + `partnerId:YYYY-MM`; `billAllPartners` (171) bills the previous month.
+- Assumes: the ledger `journal` balances; the price in settings at billing time is the price the partner was shown.
+- Promises: E3-like (price shown is price owed): not guaranteed: a reprice between the month and the bill changes the bill for the closed month. Money posted to `therapist_receivable` (150) for a debt that is a partner's, which mislabels the account in every reconciliation.
+- Notes: a check-then-journal race on the idempotency read (134) if two crons run at once; depends on whether the ledger has a unique index on ref (cannot tell from here).
+
+### lib/partner/consent.ts (169 lines)
+- For: the append-only consent log for sessions on a partner's platform, and the coverage sentence (68.1, 68.2).
+- Decides: `recordConsent` (51) clamps future `answeredAt` to now and offset to 0..86,400; `recordingFrom` (101) last event by `answeredAt` wins, `given` returns its offset, else null; `coverageSentence` (135); `consentHistory` (148).
+- Assumes: the partner's server reports the patient's answer truthfully; we never see the patient.
+- Promises: T2 / consent analogue for partners: the boundary is enforced on what we are told, not on the audio (media.ts says so).
+- Notes: given at 0, withdrawn at 10, given at 20 yields "from 20" and silently discards the consented first ten minutes (conservative).
+
+### lib/partner/copilot.ts (174 lines)
+- For: the copilot for a clinician on a partner's platform, reading only that partner's own ended sessions (68.7, 68.8).
+- Decides: `askPartnerCopilot` (68) refuses with no material; citations kept only when the `[ref]` appears in the answer and is one we sent (124). `sessionMaterial` (149) 30 most recent ended sessions for (partner, subject), approved note else transcript.
+- Assumes: the route checks `clinicianEnabled` and `mayAnswer`.
+- Promises: T5 analogue (citations resolve).
+- Notes: no `logUsage` call, so partner copilot model spend is absent from the cost ledger. `sessionMaterial` does not re-check the per-session consent boundary: an ended session whose consent was later withdrawn still feeds the copilot.
+
+### lib/partner/draft.ts (109 lines)
+- For: draft note and patient summary for a partner session using the same `noteFromTranscript`.
+- Decides: `writeSessionNote` (39) SOAP as plain text; `writePatientSummary` (90) brief plus steps.
+- Assumes: the summary is approved like the note.
+- Promises: P3 analogue at risk: the summary is produced by a SEPARATE model call from the note (95), so the text the clinician approved as a note is not the generation the patient summary came from; see notes.ts.
+- Notes: two model calls per session for the same transcript.
+
+### lib/partner/employment.ts (226 lines)
+- For: the sponsor's single-person employment verification step (C255, C265).
+- Decides: `verifyEmployment` (87): key must carry a sponsor; sponsor active; atomically claims a live unanswered attestation (132); answers one boolean from active, unremoved, unpaused enrolment; audits both outcomes.
+- Assumes: attestations are created only by the person's own enrolment.
+- Promises: E1/E2 (the employer learns nothing about use): kept here; the answer is enrolment state, not usage.
+- Notes: none.
+
+### lib/partner/keys.ts (415 lines)
+- For: minting, authenticating, rate-limiting and revoking partner and sponsor API keys.
+- Decides: `mintKey` (80) scope list check, live keys need `partners.approvedAt`; sha256 hash. `authenticateKey` (211) hash lookup, active owner via left joins (283), constant-time compare, 60 calls/min per key SUSPENDS the key (318), scope check. `keysFor` (378), `revokeKey` (401), `stampSuccess` (172).
+- Assumes: a human re-enables suspended keys.
+- Promises: A5 adjacent.
+- Notes: see Suspect: one key for a whole live integration and 60 calls a minute across every session it runs; `sponsorId` on `mintKey` is taken from the caller unchecked. Stale: `stampSuccess` comment (167 to 170) says `lastUsedAt` is written on calls that then fail on a scope; it is written only after the scope check passes (343).
+
+### lib/partner/launch.ts (313 lines)
+- For: a partner's server asks for a URL that signs one of its clinicians into our product (42.3, 55.9).
+- Decides: `launchClinician` (99) clinician must be at an org with this `partner_id` and `partner_billed`, and verified; stores a 2-minute token hash and an allow-listed target; returns the URL to the partner's server. `redeemLaunch` (177) claims the token atomically, re-checks org and verification, inserts an `auth_sessions` row (1 h, `created_via partner_launch`), sets the ordinary session cookie, audits. `sweepExpiredLaunches` (306).
+- Assumes: only the clinician's browser opens the URL.
+- Promises: A5 / principal boundaries: see Suspect: the URL is a bearer credential held by the partner's server; whoever opens it within two minutes gets a full clinician session over that clinician's whole caseload. The clinician need not be present or consent to any given launch.
+- Notes: none.
+
+### lib/partner/media.ts (110 lines)
+- For: transcribe partner audio chunks and append to `partner_sessions.transcript_text`.
+- Decides: `ingestPartnerAudio` (39) uses `transcribeAudio` (no usage row), language detection, SQL append (89); `transcriptFor` (101).
+- Assumes: the route passed `fromSeconds` from our consent log; nothing here uses `fromSeconds` at all (it is accepted and ignored).
+- Promises: consent: the comment says the boundary "is not negotiable here", but the function does not read `input.fromSeconds`; the only enforcement is the route's `mayAnswer` null check.
+- Notes: see Stale.
+
+### lib/partner/notes.ts (180 lines)
+- For: the partner draft, the clinician's approval of exact text, and summary delivery.
+- Decides: `draftNote` (45) prepends the coverage sentence; `approveNote` (75) stores the clinician's text and a free-text `clinicianRef`, once; `deliverSummary` (131) requires `noteApprovedAt` only.
+- Assumes: routes scope `partnerSessionId` to the calling partner (these functions take a bare id).
+- Promises: P3 analogue partly: the note needs a named clinician, but the patient SUMMARY needs no approval of its own text; any text the partner posts (including our unreviewed `writePatientSummary` output) is delivered once the separate note is approved.
+- Notes: "named clinician" is whatever string the partner sends.
+
+### lib/partner/platform.ts (300 lines)
+- For: open a partner session through the limit and consent gates; the `mayAnswer` gate; per-clinician opt-in.
+- Decides: `openSession` (50): limit first, then consent; `billable` only when live, not stopped and consented; conflict path keeps `billable` (101); creates an unlinked subject for live sessions. `mayAnswer` (212) 404 / 409 stopped / 403 no consent. `enableClinician` (260), `clinicianEnabled` (284).
+- Assumes: consent arrives before or during the session via recordConsent and a second `openSession` call.
+- Promises: none of the 25 (partner is unclaimed).
+- Notes: `billable` is decided at the FIRST open; a session opened before consent (billable false) and consented ten minutes later via a second open stays unbilled, since the conflict update leaves `billable` alone. A partner can get every session free by opening before consent. `partner_sessions.person_id` is selected (188) but nothing here writes it.
+
+### lib/partner/route.ts (92 lines)
+- For: `withKey`, the one guard for every partner route: per-IP 240/min, key auth, scope, non-null partner.
+- Decides: `withKey` (46), `fail` (90).
+- Assumes: every handler under app/api/partner/v1 calls it.
+- Promises: A5 adjacent.
+- Notes: none.
+
