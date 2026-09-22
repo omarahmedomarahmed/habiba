@@ -42,7 +42,7 @@
 
 ### evals/run.ts (281 lines)
 - For: the eval CLI (`npm run evals`, flags --suite, --offline, --repeat N, --record).
-- Decides: without OPENAI_API_KEY every needsModel suite is silently dropped (L103) and the run can still print `evals: PASS` on the two offline suites (risk, and whatever else is offline: only `risk` is `needsModel:false`). Record refuses a partial run (L225). Case-set change fails the run (L239). A thrown suite exits 1 "INCOMPLETE" (L166-169).
+- Decides: without OPENAI_API_KEY every needsModel suite is silently dropped (L103) and the run can still print `evals: PASS` on the one offline suite (`risk`, the only `needsModel:false`). Record refuses a partial run (L225). Case-set change fails the run (L239). A thrown suite exits 1 "INCOMPLETE" (L166-169).
 - Assumes: suites return measurements in stable order across takes (`mean` indexes by position).
 - Notes: `mean` L77 labels unioned details `run ${i+1}` using the index in the DEDUPLICATED set, not the take number, so "run 2" may be take 3. Minor. Header L21-24 says "Three of the four suites call the real models" while SUITES has six (five need a model): stale.
 
@@ -198,14 +198,14 @@
 - Can it fail: yes.
 - Promises: T5 (citations must resolve), P3-adjacent (machine text constrained before a clinician reads it).
 
+### tests/mock-openai.ts (144 lines)
+- For: HTTP stand-in for OpenAI used by e2e (`startMockOpenAi`): records transcription uploads (bytes, content-type) and chat requests (model, body); returns "Transcribed chunk N"; returns a diarise-shaped alternating `{turns}` when the system prompt contains "labelling the turns of a recorded therapy session"; otherwise returns a fixed SOAP NOTE.
+- Notes: the fixed NOTE carries an `objective` section with observed affect ("Affect mildly constricted") which evals/cases.ts L100-111 says an audio-only session cannot support; harmless in a mock but it is the shape the product must not produce. Any other chat caller (risk classifier, copilot) also receives the note JSON. Because diarise and risk calls are recorded in the same `chatRequests` array, e2e's `chatRequests[0]` is not necessarily the note call.
+
 ### tests/money.test.ts (176 lines)
 - Exercises: lib/billing/money `convert` (refund is exact negation, -0 case), `rateWithSpread`, `egpSettlement` (C76 disclosure fields), `crossingFor`, `holdsMoney`, `isCrossBorder`, `entityFor`, `payoutRailFor` (Egypt always manual), `collectionCurrencyFor`/`collectionRailFor` (patient country decides), `payoutCurrencyFor`.
 - Can it fail: yes.
 - Notes: L124-130 test is TITLED "no verification yet means no Connect payout on an assumption" and ASSERTS the opposite (`"connect"` for a null country). Title and assertion disagree: see Stale. `collectionRailFor("EG")` returns `local_egp` ("its own gateway" in ledger.test.ts L141-143), which reads as the pre-transfer-rail model (MAP contradiction 2).
-
-### tests/mock-openai.ts (144 lines)
-- For: HTTP stand-in for OpenAI used by e2e (`startMockOpenAi`): records transcription uploads (bytes, content-type) and chat requests (model, body); returns "Transcribed chunk N"; returns a diarise-shaped alternating `{turns}` when the system prompt contains "labelling the turns of a recorded therapy session"; otherwise returns a fixed SOAP NOTE.
-- Notes: the fixed NOTE carries an `objective` section with observed affect ("Affect mildly constricted") which evals/cases.ts L100-111 says an audio-only session cannot support; harmless in a mock but it is the shape the product must not produce. Any other chat caller (risk classifier, copilot) also receives the note JSON. Because diarise and risk calls are recorded in the same `chatRequests` array, e2e's `chatRequests[0]` is not necessarily the note call.
 
 ### tests/patient-import.test.ts (177 lines)
 - Exercises: lib/data/patient-import `parseImport`: quoted commas and doubled quotes, national numbers expanded by chosen country (C64), same digits under EG vs IT differ, international numbers keep their code, bad numbers refused with a reason, non-core columns (Notes, Diagnosis, Risk flag) NAMED as ignored and never imported, duplicate numbers reported, missing name/phone column refuses the file, bad email dropped not fatal, CRLF+BOM, spreadsheet line numbers.
@@ -498,12 +498,6 @@
 - For: boots the walkthrough server: sources .env.local (L3, the H48 hazard), NODE_ENV=production, mock OpenAI key and placeholder secrets, `pkill -f "next-server"` and the mock, starts the mock and `next start -p 3000`.
 - Notes: same H48 defect as .walkthrough/run.sh; the DATABASE_URL the server gets depends on the shell rather than the file. Placeholder secrets only, no real values.
 
-### .walkthrough2 data files not on the slice list but asked about (read in full)
-- `ids.json` (1 line): two UUIDs, a patient id and a session id from a local walkthrough database.
-- `session-url.txt` (1 line, no trailing newline): `http://localhost:3000/sessions/<that session id>/room`. A localhost link, not a live public link.
-- `people.json` (22 lines): four invented walkthrough personas (admin, two therapists, one patient) at `.test` domains with first/last names, an Egyptian test phone number and PLAINTEXT PASSWORDS for each (4 passwords, values not copied here). Not the documented demo password.
-- Should they be committed in a public repo: ids.json and session-url.txt carry no personal data and no live link (localhost, local UUIDs): harmless but pointless. people.json holds no real person's data (`.test` domains, invented names, the same fake +20 100 123 4567 used throughout the tests) but does commit four working passwords for accounts that exist in whatever database the walkthrough ran against; if that was the shared dev branch, those accounts (including a staff admin) are signable with these passwords. Recommend removing people.json from git (the .gitignore already excludes state-*.json and invite.txt for the same reason, L39-43) and rotating or deleting those accounts. The storage-state files with cookies are correctly ignored and absent.
-
 ### postcss.config.mjs (7 lines)
 - For: Tailwind v4 via `@tailwindcss/postcss`. Nothing else.
 
@@ -586,4 +580,10 @@
 ### scripts/_region-pins.json (9 lines)
 - For: ratchet of region-pinned call sites (`verify:sprint30`): 89 call sites in 84 files, measured 2026-09-17.
 - Notes: records two commits that raised pins without raising the number, leaving verify:sprint30 red on main (sprint 48, 76b): the same H20 pattern.
+
+### .walkthrough2 data files not on the slice list but asked about (read in full)
+- `ids.json` (1 line): two UUIDs, a patient id and a session id from a local walkthrough database.
+- `session-url.txt` (1 line, no trailing newline): `http://localhost:3000/sessions/<that session id>/room`. A localhost link, not a live public link.
+- `people.json` (22 lines): four invented walkthrough personas (admin, two therapists, one patient) at `.test` domains with first/last names, an Egyptian test phone number and PLAINTEXT PASSWORDS for each (4 passwords, values not copied here). Not the documented demo password.
+- Should they be committed in a public repo: ids.json and session-url.txt carry no personal data and no live link (localhost, local UUIDs): harmless but pointless. people.json holds no real person's data (`.test` domains, invented names, the same fake +20 100 123 4567 used throughout the tests) but does commit four working passwords for accounts that exist in whatever database the walkthrough ran against; if that was the shared dev branch, those accounts (including a staff admin) are signable with these passwords. Recommend removing people.json from git (the .gitignore already excludes state-*.json and invite.txt for the same reason, L39-43) and rotating or deleting those accounts. The storage-state files with cookies are correctly ignored and absent.
 
