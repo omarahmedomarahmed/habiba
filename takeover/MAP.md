@@ -220,6 +220,23 @@ Candidates from documents only, to be confirmed in code:
    authority), the state poll carries the pause and the room obeys it, in-person gets a consent
    step before the mic opens.
 
+5. **E1 broken: live totals beside a floored balance.** `app/(sponsor)/sponsor/page.tsx:195-207`
+   renders `potTotals` (`lib/billing/pot.ts:997`): live COUNT and SUM of every pot spend leg, no
+   floor. The page's own comment at :50-56 names this exact differencing attack for the balance.
+6. **Payout double-post is concurrency-only.** `markPayoutSent` (`lib/billing/payouts.ts:362-392`)
+   reads status, posts the ledger (`postManualPayout`, `lib/billing/ledger.ts`), then moves the
+   state conditionally. Sequential second press is refused; two simultaneous presses both post.
+   `journal()` does not dedupe and no unique index covers ledger refs (migrations checked).
+   Fix: move first (conditional), post inside the same transaction, or a unique
+   (kind, ref_type, ref_id) on manual_payout.
+7. **A3 partly kept.** Reason stored verbatim (min 10 chars, `lib/billing/manual.ts:670+`) and
+   shown verbatim on the payment sheet to a signed-in payer who reopens it
+   (`lib/billing/manual-entry.ts:338-352`, `components/billing/pay-by-transfer.tsx:258`). Nothing
+   is sent; the bar tracks only pending states so a rejection makes it vanish; a guest
+   (`session` payer) gets `[]` from `paymentsFor` and never sees it. The operator is told
+   "Rejected, and they have been told why." (`app/(admin)/admin/transfers/actions.ts:72`), which
+   is false.
+
 ## Live-site checks, 2026-09-22 (fetched from 24therapy.app, not read from defaults)
 
 - `robots.txt` serves `Allow: /` with `/join/`, `/dashboard`, `/sessions` disallowed. TAKEOVER s5
