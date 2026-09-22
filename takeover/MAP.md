@@ -208,6 +208,18 @@ Candidates from documents only, to be confirmed in code:
    (`app/(public)/t/[id]/book/actions.ts:160`). Fix: the due-time condition in the data layer,
    and a verified-clinician check on the taker.
 
+4. **Recording consent (task 123) is wider than the task says.** (a) `components/session/session-room.tsx:103`
+   mutes only when `recordingConsent === "declined"`; in person there is no join form, consent
+   stays null, the mic records. (b) The patient's stop and a decline after the room opened set
+   `sessions.recording_paused_at` (`app/join/[token]/actions.ts:377,762`), but the room's 5s poll
+   (`/api/sessions/[id]/state`) neither returns nor reads it, so the clinician's recorder keeps
+   uploading. (c) `app/api/sessions/[id]/transcribe/route.ts` checks neither consent nor pause;
+   only `app/api/meetings/transcript/[sessionId]/route.ts:103` does. The clinician's own
+   off-record toggle does mute locally (`:439-447`), so T2 holds for the clinician's button only.
+   Fix: the transcribe route refuses unless consent is granted and not paused (server is the
+   authority), the state poll carries the pause and the room obeys it, in-person gets a consent
+   step before the mic opens.
+
 ## Live-site checks, 2026-09-22 (fetched from 24therapy.app, not read from defaults)
 
 - `robots.txt` serves `Allow: /` with `/join/`, `/dashboard`, `/sessions` disallowed. TAKEOVER s5
