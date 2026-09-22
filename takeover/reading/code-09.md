@@ -113,3 +113,58 @@
 - Decides: state change result DISCARDED (`void (await setState(...))` :136), so a refused state change shows nothing. Region errors are shown (:165). Password field is `type="text"` (:187).
 - Notes: no confirm on state changes (activate/suspend with one click).
 
+### app/(admin)/admin/financial-model/actions.ts (115 lines)
+- For: save a forecast scenario, take a unit-economics benchmark snapshot.
+- Decides: super_admin; shipped slugs refused (:55); audited with reason text; resourceId omitted on scenario save.
+- Promises: none. Comment :24 says `verify:finance` asserts lib/finance cannot import billing.
+
+### app/(admin)/admin/financial-model/page.tsx (130 lines)
+- For: 36 month forecast, plan tables, provenance split measured vs assumed.
+- Decides: super_admin :45. Hardcoded couldNotMeasure fallback list (:56) incl. "card fees: Stripe is in test mode".
+- Notes: `scenarios[0]!` (:64) throws if no scenarios at all (shipped ones are code, so presumably always present).
+
+### app/(admin)/admin/numbers/actions.ts (53 lines)
+- For: phone-number change queue: approve, send code to new number, refuse.
+- Decides: `requireStaff()` (all back office). None changes an account directly (:13); refusal reason passed to `refuseChange` (validation there). No audit call in this file: relies on lib/data/phone-change.ts.
+- Promises: A5 (audit) delegated.
+
+### app/(admin)/admin/numbers/page.tsx (60 lines)
+- For: queue of patient phone number change requests with old/new numbers and reason.
+- Decides: requireStaff :20. A "stuck people" screen in effect: a patient locked out of their record by a number change waits here (LOCK_DAYS lock text :39).
+- Notes: shows old and new phone numbers of patients to any staff role; no name, no clinical data.
+
+### app/(admin)/admin/page.tsx (104 lines)
+- For: Overview: counts (practices, clinicians, patient charts, sessions 30d), AI usage/cost/errors, billing collected/outstanding 30d.
+- Decides: `requireRole("super_admin")` :13.
+- Notes: BROKEN for every non-founder: staff sign-in lands on `/admin` (lib/auth/actions.ts:283 `wantedByStaff = ... : "/admin"`), the header logo links `/admin` (layout.tsx:76) and the "Overview" nav item is shown to all roles (layout.tsx:98). A `staff` or `manager` is therefore redirected on arrival to /dashboard, then by the clinician layout to /onboarding ("Verify your practice"). Footer text "Stripe is the ledger of record" (:88) contradicts the manual EGP rail (TAKEOVER).
+
+### app/(admin)/admin/partners/actions.ts (141 lines)
+- For: partner state, first portal user, approve/withdraw production.
+- Decides: super_admin all. No key minting (:23). Approval requires approver id (DB refuses otherwise, :96). Withdraw revokes no existing keys (:119). `withdrawProduction` does not check a result.
+- Promises: none of the 25 (partner unclaimed).
+
+### app/(admin)/admin/partners/page.tsx (58 lines)
+- For: partner list with key COUNT, users, documents URL, approval time. super_admin :19.
+
+### app/(admin)/admin/patients/[id]/page.tsx (122 lines)
+- For: a patient's manual transfers only (money page linked from /admin/transfers). Shows patient EMAIL as title, up to 50 manual_payments with state, reference, reject reason, session ref prefix.
+- Decides: `requireStaff()` :49 (any back office role). Direct `controlDb` query (:52). No audit of the read (A5 "every read is written down" not kept here). Not linked from nav.
+- Promises: A3: shows `rejectReason` verbatim to the operator (:107). E1/E2 n/a.
+- Notes: display bug: `sent {p.amountCents} {currency}` (:98) prints the raw minor-unit integer with a currency code (e.g. "sent 150000 EGP" for 1,500 EGP) while the line above uses `<Money>`. Every row with a refId is labelled "session" (:104) whatever `purpose` is. The comment (:25) promises nothing but money: holds.
+
+### app/(admin)/admin/payouts/actions.ts (129 lines)
+- For: manual payout queue buttons: take on, approve, mark sent (with proof URL), confirm arrival, reject.
+- Decides: EVERY action `requireRole("super_admin")` (:27, :45, :70, :92, :110) although the page is `requireStaff` and the comment calls them "The 24/7 team's four buttons" (:18). A staff/manager sees the buttons and pressing one redirects them away (to /dashboard, then /onboarding). Rejection reason: required >= 5 chars and stored verbatim as `rejectedReason`, sent as the notification body (lib/billing/payouts.ts:445-478); the audit row here omits the reason (:120). Idempotency: state transitions are compare-and-set on status (lib/billing/payouts.ts:261), BUT `markPayoutSent` reads status, then posts the ledger (`postManualPayout`, lib/billing/ledger.ts:705) BEFORE the conditional `move` (lib/billing/payouts.ts:371-393): two concurrent "Mark sent" can both post a manual_payout ledger txn and only one moves the row. ledger_entries has no unique on (ref_type, ref_id) (drizzle/0024_ledger.sql:33 is a plain index). Detected after the fact by `duplicatePayouts` (lib/billing/ledger.ts:980), not prevented. Undo: none (no un-send, no re-open of a rejected request).
+- Promises: A2 partly (sequential double press refused; concurrent mark-sent not). A3-like for clinicians: kept (verbatim).
+- Notes: two-person rule (lib/billing/payouts.ts:326) needs a DIFFERENT member to own; with every action founder only, two founders are needed above the threshold.
+
+### app/(admin)/admin/payouts/page.tsx (130 lines)
+- For: books-balance card (cash, held for clinicians, out of balance, unbalanced entries, cash by entity, unbacked entity), manual payout queue, last 50 Stripe Connect transfers.
+- Decides: `requireStaff()` :40, nav shows to all.
+- Promises: T3 (held balance visible to operator).
+
+### components/admin/payout-queue.tsx (277 lines)
+- For: tabs Manual / Automated; per request row: age (red when overdue), clinician name, status, entity, "Two people", "Owned", amount USD -> payout amount in local currency, method, identifier, account name; buttons by status.
+- Decides: Take it on (when unowned), Approve (requested), Mark sent with required proof URL text (approved), Confirm arrival (sent), Reject with required reason (any status except sent; server also refuses from confirmed/rejected). No confirm dialog on Approve or Mark sent. Proof is a free-text URL, not an upload.
+- Notes: one error line shows the first error across the five forms (:173). After a redirect-refusal (non-founder) nothing is shown here: the page navigates away.
+

@@ -165,3 +165,80 @@ Per-page redesign fields used below: **Screen** (what it is for), **Next** (what
 - Promises: C2 structural (no import path to clinical components, comment 18 to 20).
 - Notes: `/clinic/apply` and `/clinic/join/[token]` are NOT bare, so a stranger sees the clinic desk chrome with no nav (comment 36 to 44 says only the sign-in brings site header). RTL: language switch lives in chrome rail.
 
+### app/(partner)/layout.tsx (53 lines)
+- For: partner (EHR / integrator developer) shell `PartnerChrome`; no crisis orb (comment 22 to 26).
+- Decides: `bare` on exact `PARTNER_SIGN_IN` via `x-pathname` (line 44); `LanguageCorner` on every non-door screen (line 49).
+- Assumes: middleware header `x-pathname`.
+- Promises: none of the 25 (partner has no audience in the 25).
+- Notes: RTL: `LanguageCorner` here is the floating corner pill that the clinic layout (app/(clinic)/layout.tsx:45 to 52) removed for sitting on top of page content; partner still has it. Inconsistent with clinic and sponsor.
+
+### app/(partner)/partner/actions.ts (98 lines)
+- For: `createKey`, `revoke`, `saveLimit` (monthly session cap).
+- Decides: `requirePartnerAdmin` on all (lines 26, 54, 71); partner id from actor not form; raw key returned once (line 50); limit change audited (lines 86 to 94) with `actor: null` and no partner-user id (who raised it is NOT recorded, only which partner).
+- Assumes: `mintKey` (lib/partner/keys.ts:80) validates scopes, refuses `live` unless `partners.approved_at`.
+- Promises: none of the 25.
+- Notes: STALE comment lines 35 to 39: "`mintKey` refuses `employment:verify` without one". lib/partner/keys.ts:94 to 106 says that check was removed 2026-09-14 because `employment:verify` is no longer a partner scope. The form still sends `sponsorId` and `mintKey` still writes it (keys.ts:151), so a partner key can be tagged with any sponsor's id for no purpose. Audit on `saveLimit` names no human, contradicting its own comment "Who raised it, and when ... has to come from a row" (line 83).
+
+### app/(partner)/partner/apply/actions.ts (32 lines)
+- For: integrator enquiry `apply`, creates a HELD `partners` row.
+- Decides: 5 per hour rate limit (line 19).
+- Assumes: `applyToPartner`.
+- Promises: none.
+- Notes: English error string.
+
+### app/(partner)/partner/apply/page.tsx (52 lines)
+- For: integrator's door. Screen: title, body, form, three sentences (grant is the patient's, webhooks carry no content, keys note). Next: submit. Empty: n/a.
+- Decides: nothing.
+- Assumes: `PartnerApplyForm`.
+- Promises: T5/P4-adjacent sentence `devs.useCase3Body` (patient can revoke and leave, C277).
+- Notes: comment 36 to 44 records employment verification moved to the sponsor. RTL via `t()`, metadata English.
+
+### app/(partner)/partner/deliveries/page.tsx (95 lines)
+- For: webhook delivery log. Screen: per delivery: event name, delivered/pending, HTTP status, attempts, opaque subject uuid, URL, created time, last error. Next: none (debug). Empty: `dev.deliveriesEmpty`.
+- Decides: `requirePartner` (any partner user, line 32); subject id never resolved to a name (comment 22 to 26).
+- Assumes: `deliveriesFor` scopes to `actor.partnerId`.
+- Promises: none of the 25. Privacy: an event log of session events keyed by opaque id with timestamps is a per-session timeline; acceptable for an EHR partner of the clinician, not a sponsor path.
+- Notes: RTL: `delivery.lastError` raw. `lastStatus` numeric.
+
+### app/(partner)/partner/page.tsx (68 lines)
+- For: developer home = key list. Screen: keys with label, prefix, scopes, environment, SPONSOR NAME, last used, suspended/revoked. Next: mint (admin), revoke (admin). Empty: in `KeyList`.
+- Decides: `requirePartner`; `sponsorChoices()` fetched for partner admins (line 41).
+- Assumes: `sponsorChoices` (lib/data/partner-admin.ts:258) returns id and name of EVERY active sponsor.
+- Promises: E1/E2-adjacent: **every partner admin is shown the names of all our active sponsor companies** (the list of employers who fund staff therapy) in a dropdown, for a scope (`employment:verify`) that is no longer a partner scope (lib/partner/keys.ts:94 to 106). Not a patient name, but a customer list disclosed to third parties for no remaining purpose. See Broken.
+- Notes: RTL: dates via `formatDate`; scope and environment strings raw.
+
+### app/(partner)/partner/sign-in/actions.ts (42 lines)
+- For: `signInPartner`, `signOutPartner`.
+- Decides: 8 per 15 min on every attempt (line 23); redirect `/partner`.
+- Assumes: `checkPartnerPassword`.
+- Promises: none.
+- Notes: English errors.
+
+### app/(partner)/partner/sign-in/page.tsx (38 lines)
+- For: partner door, `QuietAuthShell` with link to apply.
+- Decides: nothing.
+- Assumes: separate cookie.
+- Promises: none.
+- Notes: RTL via `t()`. No forgot-password link.
+
+### app/(partner)/partner/usage/page.tsx (63 lines)
+- For: monthly session limit, used, projected, stopped, last month's bill. Next: admin changes limit. Empty: `lastMonth` null when no sessions.
+- Decides: last month computed in UTC (lines 37 to 39); `periodLabel` and bill label are `toISOString().slice(0,7)` (lines 50, 54).
+- Assumes: `usageFor`, `billFor` (same function the cron posts from).
+- Promises: none of the 25.
+- Notes: RTL: `YYYY-MM` labels are raw ISO strings, the exact bidi-reordering defect the clinic page comment (app/(clinic)/clinic/page.tsx:79 to 90) fixed there and did not fix here. No `getI18n` on this page at all.
+
+### app/(partner)/partner/webhooks/actions.ts (44 lines)
+- For: `addWebhook` (returns secret once), `disable`.
+- Decides: `requirePartnerAdmin`; events cast from form (`as WebhookEvent[]`, line 27), validation in `registerWebhook`.
+- Assumes: `registerWebhook` refuses to store a secret with no sealing key.
+- Promises: none.
+- Notes: partner-supplied URL receives server-side POSTs (SSRF surface lives in lib/partner/webhooks, not in slice).
+
+### app/(partner)/partner/webhooks/page.tsx (39 lines)
+- For: endpoint list. Next: add/disable (admin). Empty: in `WebhookList`.
+- Decides: `webhooksFor` never selects `secret_sealed` (comment 14 to 16).
+- Assumes: component.
+- Promises: none.
+- Notes: RTL via `t()` for title only.
+

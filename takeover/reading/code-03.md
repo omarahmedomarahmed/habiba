@@ -105,8 +105,13 @@
 ## Stale
 - lib/data/notices.ts:78 `undismissedCount` says "Drives the badge". It has no caller anywhere in the repo. Whatever badge the patient chrome draws, it is not this.
 - lib/data/notifications.ts:21-29 header says rows "never marked read by anything" is fixed. `markAllRead` (64) has no caller in the repo, and `markSessionNotificationsRead` only clears URLs containing a session id (room page and session page). Any notification not tied to a session (journal crisis alert `/people/<id>`, grant notices) is still permanent on the dashboard, which is the exact failure the header describes.
+- lib/data/patients.ts:294 JSDoc "Soft delete. Sessions are ON DELETE RESTRICT, so the chart is never orphaned." sits above nothing: the function it documented was removed (comment at 295-304 says so).
+- lib/data/patient-view.ts:293-296 says "the caller passes a zone-bucketed comparison in"; `groupOf` takes no zone and uses a rolling 24 hours.
 
 ## Suspect
+- lib/data/patient-view.ts:208-247 `openSessionForPatient` (the orb, P2) has no time bound: a `scheduled` session from last month that never started and was never cancelled keeps an orb ("ready" or "owes") on every patient screen forever, pointing at `/join/<token>`. Whether a sweep cancels stale scheduled sessions is outside this slice (check lib/cron, sessions no-show handling).
+- lib/data/patient-view.ts:250-288 `liveSessionForPatient` has no clock bound either, unlike the copilot's `liveSessionForPatient` which "bounds itself by the session clock (C224)". A room left in_progress shows the patient a "your session is live" banner indefinitely.
+- lib/data/patient-view.ts:88-151 `sessionsForPatient` does not filter status, so cancelled and no-show sessions are listed, and any past one with no signed note gets `briefPending: true` ("still writing") for ever, which is false for a session that never happened.
 - lib/data/grants.ts:493-497 `revokeGrant` awaits `notifyGrantRevoked` with no catch. The comment says a partner we failed to reach must never mean a live grant, and that holds (revocation committed first), but if the webhook queue insert throws, the patient's revoke action errors after it succeeded, so the patient sees a failure for a revocation that took effect. Check `lib/partner/webhooks.ts` for an internal catch.
 
 
