@@ -438,3 +438,65 @@ Sources are the Broken (B), Suspect (S) and "Looks broken, is handled" (H) secti
 - Severity: S1
 - Fix sketch: a join-token report action that resolves with `resolveJoinToken` and files the same report; show the error when one comes back. Proof: submit from the room and count `session_reports` rows.
 - Decision it came from: the two-token design (feedback token separate from join token, `feedback.ts:81-88`) after the room's report box was written.
+
+### CLIN-43 · The feedback link falls back to the join token
+- Verdict: HANDLED
+- Sources: code-10 S13
+- Promise: none
+- Who is hurt and how: nobody in practice. `components/join/join-flow.tsx:217` links `/feedback/${feedbackToken ?? token}`, and the feedback page cannot resolve a join token; but every session creator mints a feedback token (`lib/data/sessions.ts:257,337`, `lib/data/scheduling.ts:462`) and `drizzle/0022_feedback_token.sql:22-24` backfilled old rows, so the fallback is dead code.
+- Evidence: as above.
+- Severity: S4
+- Fix sketch: drop the fallback so a missing token shows an honest message rather than a dead link.
+- Decision it came from: 0022 (two tokens).
+
+## Around the clinical AI
+
+### CLIN-44 · Consent and recording copy is outside the protected "safety strings"
+- Verdict: CONFIRMED
+- Sources: code-06 (lib/i18n/messages.ts notes: safety prefix list misses consent strings), code-06 promise P5 row
+- Promise: T2, P5
+- Who is hurt and how: the strings an admin can reword in one step without the safety rule (rewordable, never removable, no machine draft) are only those whose key starts `crisis.`, `consent.`, `recording.` or `risk.`. The actual join consent screen (`jconsent.*`), the room's recording notices (`room.recording`, `room.knowRecording`, `troom.consentFirst`, `proom.recording*`) and `feedback.emergency` do not start with those prefixes. Counted by execution: of 180 keys whose names mention consent, record, crisis, SOS, emergency or helpline, 102 are unprotected (some are unrelated "record" keys such as `precord.*`, but the consent screen and room notices are among them).
+- Evidence: `lib/i18n/strings.ts:57` `SAFETY_PREFIXES = ["crisis.", "consent.", "recording.", "risk."]`; keys at `lib/i18n/messages.ts:1144-1152`, `2012-2016`, `3891-3892`.
+- Severity: S3
+- Fix sketch: add `jconsent.`, `proom.recording`, `troom.consent`, `room.recording`, `room.knowRecording`, `feedback.emergency` (or rename the keys under a protected prefix). Proof: `isSafetyKey("jconsent.recordDetail")` is true.
+- Decision it came from: 21.7 (prefix list chosen so new strings are protected automatically; the consent screen's keys were named later under another prefix).
+
+### CLIN-45 · The note-grounding eval scores the filter, and one fixture contradicts itself
+- Verdict: CONFIRMED (proved by execution)
+- Sources: code-16 S1, code-16 B1, code-16 S2
+- Promise: T1 ("written from what was actually said")
+- Who is hurt and how: the founders. The "another patient's facts leak into a note" number quoted for T1 is measured mostly on facts that never reach the model, and one Arabic case marks faithful notes as fabrications.
+- Evidence: ran `factsForPrompt` (`lib/clinical/context.ts:66`) over `evals/cases.ts` exactly as `evals/suites/grounding.ts:44-68` does: 4 of 27 poison facts reach the model; 5 of 12 contradiction cases have their fact filtered out (sleep-and-work, grief-and-return-to-work, exams-arabic, panic-on-the-metro, chronic-pain), so they pass for free. `evals/cases/long-session.ts:137` lists `المستشفى` as never said while `:425` says it; `:208` forbids `المعادي` and `لوحدها`, said at `:232` and `:400`. The substring matching concern (S2) was not re-run here.
+- Severity: S3
+- Fix sketch: make poison and contradiction facts of kinds the filter passes (verified, non-diagnosis, allowed domains), assert in `tests/evals.test.ts` that every trap reaches the prompt and that no trap term occurs in its own transcript. Proof: the same count returns 27 of 27 and 12 of 12.
+- Decision it came from: C167, C168, C170 (the filter) landed after the fixtures were written.
+
+### CLIN-46 · The end-to-end "patient's name is never sent to the model" check may read the wrong request
+- Verdict: UNTESTABLE HERE
+- Sources: code-16 S4
+- Promise: README invariant (de-identified note prompt)
+- Who is hurt and how: if the note prompt did carry the name, this test could still pass, because it inspects the first chat request and `finishSession` calls the risk classifier and the diariser before the note (`lib/session-finish.ts`, steps risk then note; `lib/ai/notes.ts:386-398`).
+- Evidence: `tests/e2e.test.ts:357-363` reads `mock.state.chatRequests[0]`; the mock records every chat call in order (`tests/mock-openai.ts:67`).
+- Severity: S3
+- Fix sketch: select the request by its system prompt. To settle: run `test:e2e` on a branch with a print of each request's first line and see which is at index 0.
+- Decision it came from: none.
+
+### CLIN-47 · The general assistant sends every patient's full name to the model provider
+- Verdict: CONFIRMED
+- Sources: code-05 S11
+- Promise: README "patient never converses with a model" is not this; the de-identification policy of `lib/ai/notes.ts:81-89` is
+- Who is hurt and how: every question a clinician asks the general assistant sends the names of their whole roster to OpenAI, while the note writer is careful never to send one name. No patient is told names go to a model provider.
+- Evidence: `lib/ai/assistant.ts:169-183` builds `- ${row.name}, last seen ...` for every roster row into the prompt.
+- Severity: S2
+- Fix sketch: send chart ids or initials and map them back in the answer (as C59 "names to ids" already did elsewhere). Proof: a mock-provider test asserting no roster name in the request.
+- Decision it came from: C58 (general copilot separate) and the "Names and dates only" block.
+
+### CLIN-48 · Copilot voice and read-aloud spend is invisible and unmetered
+- Verdict: PARTLY
+- Sources: code-07 S5, code-07 S6
+- Promise: none (cost)
+- Who is hurt and how: the company. Text-to-speech on the copilot and documents has no rate limit and writes no cost row. Dictation (`copilot/voice`) works, contrary to the reader's worry: `sessionId: ""` fails the uuid insert inside `logUsage`, which catches and logs (`lib/ai/client.ts:158-180`), so the request succeeds and only its cost row is lost.
+- Evidence: `app/api/copilot/voice/route.ts:38-45` (`sessionId: ""`), `aiRequestLogs.sessionId` is a uuid (`lib/db/schema.ts:1690`); `app/api/copilot/speak/route.ts` has no `logUsage` or `consume` call (grep).
+- Severity: S4
+- Fix sketch: pass `null` for the session id, and add `logUsage` plus a limiter to both speak routes. Proof: `ai_request_logs` gains a row per dictation.
+- Decision it came from: none recorded.
