@@ -325,3 +325,29 @@ looks for the answer where the product does not give it.
 - Traps: T2 good pairs. T6 bare `main()`.
 - Promises: none of the 25 directly ("trend to the therapist, next action to the patient" is a product rule without a value statement: Unclaimed (a)).
 
+### scripts/verify-synthetic.ts (186 lines)
+- For: gate before committing operator-console screenshots: is every person on this database invented (surname Demo/Example, email at a reserved domain)?
+- Decides / checks: discovers every `last_name` column and every column whose name contains `email` from information_schema (derived, width floor >= 3 and >= 8); for each, `sql.raw` query for surnames not in (Demo, Example) and emails not ILIKE any of `DOMAINS`; control plants a person "Control Okonkwo" at gmail.com and deletes it in a finally, then checks it is gone.
+- Reads: live DB rows (right medium for "this database, at this moment").
+- 🔴 `DOMAINS` (l.52) includes `24therapy.app`, while the comment above it (l.47-51) says every listed domain is reserved by RFC 2606/6761 and "cannot reach a real inbox". 24therapy.app is the company's own domain and does receive mail (VALUE-STATEMENTS lists `omar@24therapy.app` and `habiba@24therapy.app` as real sign-ins, and says only the three example.com addresses cannot receive email). So an address that belongs to a real founder passes as "invented".
+- Coverage gap: names are only looked for in columns called exactly `last_name`. A real name typed into `sessions.guest_name` (read by `lib/data/clinic.ts:390`), a `contact_name`, a `full_name`, a first name, or free text is never scanned, so "every person here is invented" is a claim about one column name.
+- T2: the CONTROL does not run "the same scan": it runs a separate hand-written query over `people` only, with a different domain list of three (example.com, example.invalid, 24therapy.app). A defect in the dynamic `sql.raw` loop (for example a wrong NOT ILIKE join) would leave the control green.
+- T4: each column's offenders are `LIMIT 20` and the report is `slice(0, 8)` with no total of offenders or "N more" line.
+- Traps: T1 n/a. T6 bare `main()`. Calls `writesTo()` (it plants a row), so it refuses production.
+- Promises: none directly; it underwrites the "all accounts are synthetic" premise in MAP, and would FAIL on the demo cast (gmail addresses, non-Demo surnames), which is correct for that database.
+
+### scripts/verify-traps.ts (433 lines)
+- For: the enforcement half of docs/TRAPS.md: each trap T1..T6 has a check here, and the register cannot describe a trap this file does not check.
+- Decides / checks:
+  - T1 (l.74-132, 298-324): asserts `verify-sprint37l2.ts` still contains the C205 label and scan (a verifier checking the SPELLING of another verifier). Its own walk detector `readsSourceRaw` returns false the moment a file mentions `readSource` or `stripCommentsKeepingLines` ANYWHERE (l.90), which is exactly the weakness its own comment (l.56-69) says let verify-csp through. The C205 scan it defers to (verify-sprint37l2.ts:271-276, read) only matches a `readFileSync(` whose argument contains a literal `.ts"`/`.tsx"`. Result, confirmed in this slice: `verify-sprint51.ts:165` (`readFileSync(file, "utf8")` over three .ts files in a loop) and `verify-sprint53.ts:79` (`readFileSync(f, "utf8")` over every source file, used raw at l.540) both read TypeScript with comments in and are invisible to BOTH detectors (each file also imports `readSource`, and neither has a literal path inside the call).
+  - 🔴 The "T1 CONTROL the walk detector fires on a scanner that does not strip" (l.319-324) never makes the detector fire: it asserts `readsSourceRaw("scripts/verify-traps.ts") === false` and that `_surfaces.ts` contains `readFileSync(`. No planted offender is passed to `readsSourceRaw`. The label describes a control that does not exist (T2 inside the T2 gate).
+  - T2 (l.328-335): "has a control" is measured as the word `CONTROL` appearing anywhere in the file, case-insensitive, read RAW (T1): a comment saying "control" counts. Baseline 19 (matches TRAPS.md "19 of 101"; MAP stale 6 notes TAKEOVER/ORIENTATION say 18 of 106). The count scans only `scripts/verify-*.ts`.
+  - T3 (l.177-183, 339-360): an array of three or more string literals that each START WITH "/". Hand-typed lists of page FILES (`"app/(public)/radar/page.tsx"`, verify-sprint51.ts:323-331; the seven layouts in verify-sprint65.ts:204-212; the three audience pages in verify-sprint65.ts:692-696; sprint53's `/sponsor`, `/sponsor/people`, `/sponsor/pot` are passed as separate call arguments, not an array) do not match, so T3 cannot see them. Allow-list `PATHS_BY_DESIGN` has a stale-entry check and a 15-word reason rule (good).
+  - T4 (l.199-204, 364-369): only two hand-typed files, `gates.ts` and `verifiers.ts`, are checked, and a file passes if it contains `and ${` anywhere. The silent truncations in this slice (`verify-sprint77.ts:142` slice(0, 6), `:386` slice(0, 5), `verify-synthetic.ts:100,125` slice(0, 8)) are outside its scope.
+  - T5: verify-csp.ts mentions DAILY-HOSTS.md, `installedVersion()`, `unclassified` (readSource); control on verify-palette.ts. Mention-level.
+  - T6 (l.272-291, 388-408): every `scripts/*.ts` (top level; `.mts` excluded) read via readSource for `process.argv[1]...endsWith`; itself exempt by name; control on the literal shipped line. Good, but only catches that one spelling (a `.includes("prove")` or regex guard passes).
+  - Register (l.417-428): every `### T<n>` heading in docs/TRAPS.md has a `"🔴 T<n> ` label in this file.
+- Reads: other verifiers' source (mostly raw `readFileSync`, deliberately for T2/T3/T4), docs/TRAPS.md.
+- Traps: its own T1 and T2 weaknesses above. T6 bare `main()`.
+- Promises: none; it is the instrument everything else is trusted through, which is why its blind spots matter.
+

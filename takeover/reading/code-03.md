@@ -240,6 +240,41 @@
 - Promises: A5 (ticket reads audited). P2: the answer to a ticket is reachable only through the emailed/SMSed link; a signed-in patient who filed from the app has no in-app place to read the reply (nothing in this file offers one). Task 105: nothing in this file, app/(admin)/admin/support/actions.ts or app/(admin)/admin/actions.ts lets staff send a claim link; the only claim-code sender is the patient's own flow (app/(patient)/patient/claim/actions.ts:97). So task 105 is not built.
 - Notes: close code from `Math.random` (520); no attempt limit on the code in `readByToken`. `readByToken` returns every event, including staff-internal notes (`awaitReply` note, extension reason, "claimed") to the sender. `closeTicket` UPDATE is not conditional on status (race: two closes send two codes, the second overwrites the first). `movedToWhatsapp` is not conditional and can be pressed on a closed ticket.
 
+### lib/data/taxonomy.ts (323 lines)
+- For: admin overrides over the built-in lists of countries, languages and specialties (enable, rename, reorder, add custom), and the closed-country set the radar reads.
+- Decides: a code with no row is enabled (33). `taxonomy` (117) merges built-ins with overrides, collated in the reader's locale. `activeTaxonomy` (157). `closedCodes` (184) the visibility switch (distinct from `country_settings.enabled`, the money switch, 164-178). `isActive` (199). `validateSelections` (216) allowlist plus what the clinician already had, 40 max. Writes drop the radar board cache (245-252). `addTaxonomyEntry` (278) refuses countries. `removeTaxonomyEntry` (311) custom only.
+- Assumes: callers audit operator changes.
+- Promises: C1 indirectly (a closed country hides seated clinicians).
+- Notes: writes invalidate only the instance that served the admin; others lag up to 2s (stated). No audit in this file.
+
+### lib/data/therapist-codes.ts (206 lines)
+- For: clinic-wall QR codes: one clinician per code, revocable, resolves to signup with the practice named.
+- Decides: 8 chars from a 32-letter alphabet via `randomInt` (50-57). `createCode` (93) max 10 live, retry on unique. `revokeCode` (144) own codes only. `resolveCode` (174) live/revoked/unknown; a left clinician reads as revoked (198).
+- Assumes: the `/j/[code]` page leads to the ordinary claim/signup.
+- Promises: none directly.
+- Notes: `resolveCode` does not check verification; an unverified but active clinician's poster resolves as live and names them with credentials. Distinguishing "revoked" from "unknown" confirms a code once existed (stated as acceptable, 168-172).
+
+### lib/data/timeline.ts (212 lines)
+- For: operator view of who is live now, sessions overlapping a minute, per-minute live count and AI spend.
+- Decides: `liveNow` (60) started and not ended; recording = not paused; consent shown. `sessionsAtMinute` (101). `minuteTimeline` (148) `generate_series` with lateral counts. `peakConcurrency` (201).
+- Assumes: admin-only callers.
+- Promises: A5 partly (these reads are not audited here). T2 visibility: `consent` column shown per live session.
+- Notes: unscoped across all organisations; `patientLabel` is `guestName`, which `joinByToken` fills with the patient's typed name, so the operator board shows patient names live. `liveNow` has no time bound, so an in_progress session nobody ended appears live for ever until `sweepOverrunSessions` runs (nightly).
+
+### lib/data/timezone.ts (78 lines)
+- For: the clinician's stored IANA zone, with first-use adoption of the browser's zone.
+- Decides: `readTimezone` (40), `clinicianZone` (57) stored, else adopt browser and save, else UTC; `writeTimezone` (73) refuses an unusable zone.
+- Assumes: the screen says when a zone was adopted.
+- Promises: none.
+- Notes: header (20-22) says the reminder cron "runs at 03:20"; scheduling.ts:822-826 says it now runs hourly (vercel.json `20 * * * *`). Stale detail.
+
+### lib/data/transcript.ts (122 lines)
+- For: the single writer of transcript segments, with descriptors and the keyword crisis scan.
+- Decides: `appendTranscriptSegment` (53) trims, reads previous segment end for pause, inserts ON CONFLICT (session, sequence) DO NOTHING, scans every inserted segment and raises a `high` keyword alert on a match.
+- Assumes: the caller has already decided the segment may be recorded (consent, off-record). No other app/lib writer exists (grep; only scripts/seed-demo.ts and seed-capture.ts insert raw).
+- Promises: T2 and task 123 are NOT enforced here: the one writer checks neither `recordingConsent` nor an off-record flag. Whatever the upload route accepts is written.
+- Notes: the crisis scan runs on therapist lines too (speaker not filtered), unlike `assessSessionRisk` which scans non-therapist text only (session-risk.ts:93-96); a clinician saying "have you thought about killing yourself" raises a high alert. `crisis` in the return is true even when the segment was a duplicate and no alert was raised.
+
 <!-- FILES-END -->
 
 ## Stale
