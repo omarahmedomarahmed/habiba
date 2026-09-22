@@ -78,6 +78,28 @@ export function contains(haystack: string, needle: string): boolean {
 }
 
 /**
+ * 🔴 Does `haystack` contain `needle` as whole words, when the needle is Latin?
+ *
+ * `contains` is a substring test, which is right for Arabic (a prefix like و
+ * or ب is written onto the word) and wrong for a short Latin marker: the
+ * third-party marker "he " matched inside "the ", so "The only way out is to
+ * kill myself" read as a sentence about somebody else and raised nothing.
+ *
+ * So a needle made only of Latin letters, digits and spaces must sit between
+ * word edges. Anything else falls back to `contains`. Use this for every list
+ * that SUPPRESSES an alert: a stricter match there can only suppress less.
+ * Never use it for a list that cancels suppression (PRESENT), where the loose
+ * match is the one that errs toward alerting.
+ */
+export function containsWords(haystack: string, needle: string): boolean {
+  const folded = fold(needle).trim();
+  if (folded.length === 0) return false;
+  if (!/^[a-z0-9 ]+$/.test(folded)) return contains(haystack, needle);
+  const words = folded.split(/ +/).join(" +");
+  return new RegExp(`(?:^|[^a-z0-9])${words}(?:$|[^a-z0-9])`).test(fold(haystack));
+}
+
+/**
  * Every entry in a marker list that folds away to nothing.
  *
  * Exported so `verify:sprint35r` can assert the lists are all still readable

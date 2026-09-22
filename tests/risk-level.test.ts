@@ -232,6 +232,30 @@ test("🔴 …and a relative in the same sentence does not silence the speaker",
   );
 });
 
+test("🔴 a pronoun inside another word is not somebody else", () => {
+  // The third-party markers were matched as substrings, so the "he " inside
+  // "the " read as a third person and silenced the patient's own disclosure
+  // whenever "the" came before the phrase and the word "I" did not. Found by
+  // running stillCounts on ordinary sentences during the 2026-09-22 read.
+  for (const sentence of [
+    "The thought of suicide will not leave me.",
+    "Nothing matters. The only way out is to kill myself.",
+    "Some days the urge to kill myself is strong.",
+    "Where do you go when suicide is the only thing you think about?",
+    "The economy, the rent, all of it: suicide feels like the answer.",
+  ]) {
+    assert.ok(scanForCrisisLanguage(sentence).length > 0, sentence);
+  }
+});
+
+test("…while a real pronoun still names somebody else", () => {
+  assert.deepEqual(scanForCrisisLanguage("He took an overdose last year."), []);
+  assert.deepEqual(scanForCrisisLanguage("She said suicide was on her mind for years."), []);
+  // Both sentences carry a listed phrase, so each is silenced by the pronoun and
+  // by nothing else: without the marker they would alert.
+  assert.ok(scanForCrisisLanguage("Suicide was on my mind for years.").length > 0);
+});
+
 test("something said to be over does not alert", () => {
   assert.deepEqual(
     scanForCrisisLanguage(
