@@ -35,7 +35,7 @@ than being maintained:
 ```
 npm run inventory     every page and every control, and whether it does anything
 npm run lifecycles    every state a thing can be in, and every way a person gets stuck
-npm run gates         the 33 checks that hold all of it
+npm run gates         the 34 checks that hold all of it
 ```
 
 ### How to know your work is good
@@ -44,7 +44,7 @@ npm run gates         the 33 checks that hold all of it
 npm run typecheck && npm run gates
 ```
 
-`gates` runs 33 checks and prints what each one is *for*, not just its name.
+`gates` runs 34 checks and prints what each one is *for*, not just its name.
 A red line is a finding, not an inconvenience: three times in one session a
 check here reported green while looking at nothing at all, and every one of
 those was a passing test that meant nothing.
