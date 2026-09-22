@@ -27,9 +27,10 @@
  */
 import { readFileSync } from "node:fs";
 
-import { contentSecurityPolicy } from "../lib/security/csp";
+import { contentSecurityPolicy, isVideoRoom } from "../lib/security/csp";
 import { installedVersion, sdkDomains } from "./audit-daily-hosts";
 import { readSource, reporter } from "./_verify";
+import { walk } from "./_i18n-coverage";
 
 const { check, finish } = reporter();
 
@@ -225,6 +226,96 @@ function main() {
     "🔴 CONTROL the coverage test refuses a host the policy does not name",
     covered("*.pluot.blue", "wss") && !covered("*.example.com", "https") && !covered("*.pluot.co", "https"),
     "the signalling host reads as covered, an unnamed host and a noted-but-blocked one do not",
+  );
+
+  /* ================================================================== */
+  /*  The one relaxation, and the fence around it                        */
+  /* ================================================================== */
+
+  /*
+   * 🔴 DAILY COMPILES ITS OWN CLIENT FROM A STRING.
+   *
+   * `@daily-co/daily-js` downloads the call machine as text and runs it
+   * through the Function constructor, which is `unsafe-eval` by definition.
+   * The first audit of this dependency grepped for `eval(` and `new Function`,
+   * found neither, and said so. `Function(...)` without `new` is the same
+   * capability, and what caught it was a live session and a console.
+   *
+   * So the room gets the keyword and nothing else does. These checks are the
+   * fence: the exception may not grow a second token, and it may not grow a
+   * second route.
+   */
+  const ROOM = contentSecurityPolicy({ nonce: "TESTNONCE", videoRoom: true });
+
+  const roomScript = (ROOM.split(";").find((p) => p.trim().startsWith("script-src ")) ?? "")
+    .trim()
+    .split(/\s+/)
+    .slice(1);
+
+  check(
+    "🔴 the video room is the ONLY place 'unsafe-eval' appears, and it does appear",
+    roomScript.includes("'unsafe-eval'") && !POLICY.includes("'unsafe-eval'"),
+    "Daily runs its client through the Function constructor; every other route refuses it",
+  );
+
+  /*
+   * 🔴 AND THE EXCEPTION IS EXACTLY ONE TOKEN WIDE.
+   *
+   * A relaxation that is allowed to differ in "some" ways is one that grows.
+   * The room's policy must be the strict policy plus `'unsafe-eval'` and
+   * nothing else at all, compared as whole strings.
+   */
+  check(
+    "🔴 …and the room's policy differs from the strict one by that token alone",
+    ROOM.replace(" 'unsafe-eval'", "") === POLICY,
+    "every other directive stays exactly as strict on the room as everywhere else",
+  );
+
+  /*
+   * 🔴 ONE ROUTE, DERIVED RATHER THAN TRUSTED.
+   *
+   * The matcher is a literal in `lib/security/csp.ts` because middleware runs
+   * on the edge and cannot read the file system. So the check is the other
+   * way round: assert that daily-js is imported by exactly one component and
+   * rendered by exactly one page. A second page that loads Daily goes red
+   * here rather than silently running without the keyword it needs, or
+   * silently getting one it should have had to argue for.
+   */
+  const importers = walk("app")
+    .concat(walk("components"))
+    .filter((file) => /\.tsx?$/.test(file))
+    .filter((file) => /@daily-co\/daily-js/.test(readSource(file)));
+
+  check(
+    "🔴 exactly one component runs Daily inside our own origin",
+    importers.length === 1 && importers[0] === "components/session/video-call.tsx",
+    importers.join(" · ") || "nothing imports daily-js, which cannot be right",
+  );
+
+  const roomPages = walk("app")
+    .filter((file) => file.endsWith("page.tsx"))
+    .filter((file) => /components\/session\/session-room/.test(readSource(file)));
+
+  check(
+    "🔴 …and exactly one page renders it, the one the matcher covers",
+    roomPages.length === 1 && roomPages[0] === "app/(room)/sessions/[id]/room/page.tsx",
+    roomPages.join(" · ") || "no page renders the session room",
+  );
+
+  /*
+   * 🔴 CONTROL. The matcher has to say no. A path test that returns true for
+   * everything hands `'unsafe-eval'` to the whole product while every check
+   * above still passes.
+   */
+  check(
+    "🔴 CONTROL the route matcher accepts the room and refuses everything else",
+    isVideoRoom("/sessions/abc-123/room") &&
+      isVideoRoom("/sessions/abc-123/room/") &&
+      !isVideoRoom("/sessions/abc-123") &&
+      !isVideoRoom("/join/tok") &&
+      !isVideoRoom("/") &&
+      !isVideoRoom("/sessions/abc/room/extra"),
+    "the clinician's room only, and not the patient's join page or anything above it",
   );
 
   finish("csp");

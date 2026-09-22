@@ -46,6 +46,28 @@ type RoomProps = {
   recordingConsent: "granted" | "declined" | null;
   /** ISO, so the countdown survives a refresh mid-session. */
   startedAt: string | null;
+  /**
+   * 🔴 THE INSTANT THE SERVER RENDERED, and the reason it is a prop.
+   *
+   * The clock used to start from the browser's own `Date.now()` in a
+   * `useState` initialiser. The server computes one instant, renders the
+   * elapsed time into the HTML, and seconds later the browser hydrates and
+   * computes a different one. React sees two different TEXT NODES and throws
+   * #418, which is not a warning: it discards the server tree and re-renders
+   * the whole room on the client.
+   *
+   * Everything under it unmounts and remounts, including `VideoCall`, whose
+   * cleanup then destroys the Daily call object the new mount is joining. That
+   * is the "Use after destroy" and "already joined meeting" pair in the
+   * console, and it is the clinician being thrown out of the room and back in.
+   *
+   * One text node. The whole session.
+   *
+   * The server's instant makes the first client render byte-identical to the
+   * HTML. The interval takes over with the browser's own clock a second later,
+   * so a skewed client corrects itself invisibly.
+   */
+  serverNow: number;
   /** ISO of the moment the clinician chose to keep going, if they have. */
   clockLimits: ClockLimits;
   /**
@@ -95,7 +117,13 @@ export function SessionRoom(props: RoomProps) {
    * actually ends the session.
    */
   const [startedAt, setStartedAt] = useState<string | null>(props.startedAt);
-  const [now, setNow] = useState(() => Date.now());
+  /*
+   * 🔴 The SERVER's instant, not one read here.
+   *
+   * Reading the clock on both sides is what threw React #418 and remounted the
+   * whole room. `serverNow` in the props above carries the full argument.
+   */
+  const [now, setNow] = useState(() => props.serverNow);
   const [crisis, setCrisis] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [micDenied, setMicDenied] = useState(false);

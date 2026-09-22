@@ -84,6 +84,16 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
       modality={row.session.modality}
       initialStatus={row.session.status}
       startedAt={row.session.startedAt?.toISOString() ?? null}
+      /*
+       * 🔴 The instant THIS render happened, so the room's clock hydrates
+       * without a mismatch. `components/session/session-room.tsx` carries the
+       * argument: one differing text node threw React #418, which remounted
+       * the room and destroyed the live call object under the clinician.
+       *
+       * Safe because this route is `force-dynamic`: the value is computed per
+       * request rather than baked into a build.
+       */
+      serverNow={Date.now()}
       clockLimits={(await getSettings()).clock}
       videoRoomUrl={videoUrl}
       videoToken={videoToken}

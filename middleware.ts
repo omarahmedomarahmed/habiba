@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { contentSecurityPolicy, cspHeaderName } from "@/lib/security/csp";
+import { contentSecurityPolicy, cspHeaderName, isVideoRoom } from "@/lib/security/csp";
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
@@ -133,7 +133,12 @@ export function middleware(request: NextRequest) {
    * runtime, where the Web Crypto API is the one that exists.
    */
   const nonce = btoa(crypto.randomUUID());
-  const policy = contentSecurityPolicy({ nonce });
+  /*
+   * 🔴 The clinician's room gets ONE extra source expression, and `rest` is
+   * the path with any locale prefix already stripped, so `/ar/sessions/x/room`
+   * is the same route as `/sessions/x/room` rather than a way round the match.
+   */
+  const policy = contentSecurityPolicy({ nonce, videoRoom: isVideoRoom(rest) });
   const header = cspHeaderName();
   forwarded.set("x-nonce", nonce);
   forwarded.set(header, policy);

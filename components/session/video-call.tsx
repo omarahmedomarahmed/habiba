@@ -88,12 +88,56 @@ export function VideoCall({
 
   useEffect(() => {
     let cancelled = false;
+    let call: DailyCall | null = null;
 
-    // daily-js permits one call object at a time; a stale instance from a fast
-    // remount will refuse to join.
-    const existing = Daily.getCallInstance();
-    const call = existing ?? Daily.createCallObject({ subscribeToTracksAutomatically: true });
-    callRef.current = call;
+    /*
+     * 🔴 THE CALL OBJECT IS A PAGE-WIDE SINGLETON, AND TWO EFFECTS FOUGHT OVER IT.
+     *
+     * This used to read
+     *
+     *     const existing = Daily.getCallInstance();
+     *     const call = existing ?? Daily.createCallObject(...);
+     *
+     * and then destroy that object unconditionally on cleanup. Reuse plus
+     * unconditional teardown is a race with itself the moment this component
+     * remounts: the OLD effect's cleanup destroys the instance the NEW effect
+     * just adopted and is about to join. The console said both halves of it,
+     * "Use after destroy" and "already joined meeting, call leave() before
+     * joining again", and the clinician was thrown out of the room and back in.
+     *
+     * The remount had a cause, fixed in `session-room.tsx`: one text node whose
+     * server and client renders disagreed threw React #418, which discards the
+     * server tree and re-renders everything under it. But a component that only
+     * survives never being remounted is not fixed, it is lucky. So:
+     *
+     *   - a stale instance is DESTROYED, never adopted;
+     *   - the cleanup only destroys the instance THIS effect created;
+     *   - `destroy()` leaves on its way out, so calling `leave()` first is a
+     *     second async operation racing the first for no benefit.
+     */
+    const start = async () => {
+      const stale = Daily.getCallInstance();
+      if (stale) {
+        try {
+          await stale.destroy();
+        } catch {
+          /* Already gone is the outcome we wanted. */
+        }
+      }
+      if (cancelled) return;
+
+      call = Daily.createCallObject({ subscribeToTracksAutomatically: true });
+      callRef.current = call;
+      wire(call);
+
+      try {
+        await call.join({ url: roomUrl, ...(token ? { token } : {}), userName });
+      } catch {
+        if (!cancelled) onError?.("Could not connect to the video room.");
+      }
+    };
+
+    const wire = (call: DailyCall) => {
 
     const onParticipant = (event?: DailyEventObjectParticipant) => {
       if (event?.participant.local) {
@@ -126,16 +170,18 @@ export function VideoCall({
       onError?.(event?.errorMsg ?? "The video call hit a problem.");
     });
 
-    void call
-      .join({ url: roomUrl, ...(token ? { token } : {}), userName })
-      .catch(() => onError?.("Could not connect to the video room."));
+    };
+
+    void start();
 
     return () => {
       cancelled = true;
       onRemoteAudioTrack(null);
-      void call.leave().catch(() => {});
-      void call.destroy().catch(() => {});
-      callRef.current = null;
+      const mine = call;
+      call = null;
+      /* Only if nobody else has taken the ref, or a later mount loses its own. */
+      if (callRef.current === mine) callRef.current = null;
+      if (mine) void mine.destroy().catch(() => {});
     };
     // Intentionally joins once: roomUrl carries a meeting token and does not
     // change for the life of the room.

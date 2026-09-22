@@ -102,9 +102,36 @@ const DAILY_INFRA = [
 export type CspOptions = {
   /** Per-request, per-response. Never reused, never guessable. */
   nonce: string;
+  /**
+   * 🔴 THE CLINICIAN'S ROOM, AND THE ONE RELAXATION IN THIS FILE.
+   *
+   * `isVideoRoom` below decides this from the path. Everything else gets the
+   * strict policy.
+   */
+  videoRoom?: boolean;
 };
 
-export function contentSecurityPolicy({ nonce }: CspOptions): string {
+/**
+ * 🔴 WHICH PATHS RUN DAILY'S CODE IN OUR OWN ORIGIN.
+ *
+ * Exactly one, and the asymmetry is the point:
+ *
+ *   - the CLINICIAN at `/sessions/:id/room` runs daily-js in call-object mode,
+ *     so Daily's client executes inside this origin and our `script-src`
+ *     governs it;
+ *   - the PATIENT at `/join/:token` gets an IFRAME on `*.daily.co`, which is a
+ *     separate origin running under its own policy. Ours reaches it only
+ *     through `frame-src`, which already allows the host.
+ *
+ * So the relaxation costs one route rather than the product. `verify:csp`
+ * asserts that only one component imports daily-js and only one page renders
+ * it, which is what stops this quietly becoming two.
+ */
+export function isVideoRoom(pathname: string): boolean {
+  return /^\/sessions\/[^/]+\/room\/?$/.test(pathname);
+}
+
+export function contentSecurityPolicy({ nonce, videoRoom = false }: CspOptions): string {
   const directives: Record<string, string[]> = {
     /* Nothing loads from anywhere unless a directive below says otherwise. */
     "default-src": ["'self'"],
@@ -121,7 +148,39 @@ export function contentSecurityPolicy({ nonce }: CspOptions): string {
      * ever appears this policy has stopped being a control and become a
      * decoration. `verify:csp` fails on both.
      */
-    "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"],
+    "script-src": [
+      "'self'",
+      `'nonce-${nonce}'`,
+      "'strict-dynamic'",
+      /*
+       * 🔴 `'unsafe-eval'`, ON THE CLINICIAN'S ROOM ALONE, AND HERE IS THE PROOF.
+       *
+       * `@daily-co/daily-js` downloads its 1.8MB call machine as TEXT and
+       * compiles it with the Function constructor. From the installed package:
+       *
+       *     Function('"use strict";' + i)(...)
+       *
+       * That is `unsafe-eval` by definition. It is not a fallback we can avoid
+       * and it is not something a setting turns off: it is how the SDK loads
+       * the thing that holds the call.
+       *
+       * This was found the expensive way. The first audit of this dependency
+       * grepped for `eval(` and `new Function` and reported neither, which was
+       * true and useless, because `Function(...)` without `new` is the same
+       * capability. What caught it was a live session and a console. Recorded
+       * in `docs/TRAPS.md` and in `docs/DAILY-HOSTS.md`.
+       *
+       * What it costs, stated rather than waved at: an injected `<script>`
+       * still cannot run, because it carries no nonce and `strict-dynamic`
+       * trusts only what a trusted script loads. What opens is the narrower
+       * hole of a script we DO trust being made to compile attacker-controlled
+       * text. Every other directive stays enforcing on this route.
+       *
+       * The alternative was report-only on the whole product, which is no
+       * policy at all, so this is the trade and it is one route wide.
+       */
+      ...(videoRoom ? ["'unsafe-eval'"] : []),
+    ],
 
     /*
      * 🔴 `'unsafe-inline'` FOR STYLES, AND THIS IS THE HONEST WEAK SPOT.
