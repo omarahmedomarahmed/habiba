@@ -34,6 +34,7 @@ import {
   VALUE_STATEMENTS,
   type Audience,
 } from "./_value-statements";
+import { findDefaultPage } from "../lib/content/defaults";
 import { honestyProblems } from "../lib/content/honesty";
 import { readSource, reporter } from "./_verify";
 
@@ -249,6 +250,62 @@ function main(): void {
     "the walk says what it cannot prove",
     /cannot prove/i.test(walk) && /Cycle 5/.test(walk) && /Cycle 9/.test(walk),
     "sign-up, Arabic and deliberate failure are named as out of scope",
+  );
+
+  /* -------------------------------- and every citation points at real copy -- */
+
+  /*
+   * 🔴 80.2 — A `where` THAT NAMES THE WRONG PAGE IS THE WHOLE FILE'S ONE JOB
+   * FAILING QUIETLY.
+   *
+   * The constraint this array exists to hold is that nothing in it is invented
+   * marketing: every `says` is a claim the product ALREADY makes, and `where`
+   * is the proof of that. A citation pointing at a page the sentence is not on
+   * cannot be told apart, by reading, from one that is. It reads the same.
+   *
+   * P1 was exactly that. It cited ``/for-patients``, the radar card:
+   * "Somebody who is free now", and both that phrase and P1's own promise are
+   * on the HOME page. Nine of the twenty-five carry a page-and-phrase citation
+   * and only that one was wrong, which is why nobody had noticed: eight
+   * neighbours that resolve make the ninth look checked.
+   *
+   * 🔴 THIS CHECKS `defaults.ts`, WHICH IS WHAT WE INTEND TO PUBLISH, NOT WHAT
+   * IS PUBLISHED. The CMS row can drift from it, and task 156 is an instance
+   * where it did. `verify:sprint28` is the one that scans the published rows.
+   * Passing here means the citation is honest about our own source copy.
+   */
+  const CITED = /`\/([a-z-]*)`[^“”]*[“"]([^“”"]+)[”"]/u;
+  const cited = VALUE_STATEMENTS.map((s) => ({ id: s.id, m: CITED.exec(s.where) })).filter(
+    (x): x is { id: string; m: RegExpExecArray } => x.m !== null,
+  );
+
+  const copy = (slug: string): string => {
+    const page = findDefaultPage(slug === "" ? "home" : slug);
+    return page === null ? "" : JSON.stringify(page.blocks);
+  };
+
+  const wrong = cited.filter(({ m }) => !copy(m[1]).includes(m[2]));
+  check(
+    "every value statement that cites a page and a phrase cites copy we publish",
+    wrong.length === 0,
+    wrong.length === 0
+      ? `${String(cited.length)} citations, each phrase found on the page it names`
+      : wrong.map(({ id, m }) => `${id} cites /${m[1]} for "${m[2]}"`).join(", "),
+  );
+
+  /*
+   * 🔴 CONTROL. The scan above reports "all found" just as happily when it
+   * matched no citations at all, or when `copy()` returns "" for every slug and
+   * `.includes` is never really asked anything. So: the parser must have found
+   * the nine that exist, a real phrase must be found on its real page, and the
+   * same lookup must REFUSE that phrase on a different page.
+   */
+  const homeHasIt = copy("home").includes("Somebody who is free now");
+  const patientsDoesNot = !copy("for-patients").includes("Somebody who is free now");
+  check(
+    "🔴 CONTROL the citation scan finds real copy and refuses the wrong page",
+    cited.length === 9 && homeHasIt && patientsDoesNot,
+    `${String(cited.length)} citations parsed, and P1's phrase is on home and not on for-patients`,
   );
 
   finish("prove");

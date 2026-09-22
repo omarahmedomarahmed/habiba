@@ -72,7 +72,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     id: "P1",
     audience: "patient",
     says: "Three taps from opening it to being in a session.",
-    where: "`/for-patients`, the radar card: “Somebody who is free now”",
+    where: "`/`, the radar card: “Somebody who is free now”",
     proof:
       "From the app's home screen to a live video room, counting the taps out loud. If it is more than three, the number is the finding.",
   },

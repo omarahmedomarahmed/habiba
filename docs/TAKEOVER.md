@@ -526,6 +526,24 @@ Everything else in this repository, this document included, is a claim awaiting 
 When a `.md` and the code disagree, the code wins and the `.md` is a defect you should fix as
 you pass.
 
+🔴 **And the second source of truth was audited, because saying it is one is not the same as
+it being one.** Every `where` field in `scripts/_value-statements.ts` was checked: the four
+code files it names exist, the eight `09-THE-EDGES.md` case codes resolve, and each of the
+nine page-and-phrase citations was fetched from the LIVE site and searched for the sentence.
+
+**Eight of the nine were right. P1 cited `/for-patients` for a phrase that is on `/`,** and so
+is P1's own promise. Nothing was dishonest; the sentence is genuinely published, and it was
+cited to the wrong page. That is the worst shape a defect can have here, because reading
+cannot catch it: eight neighbours that resolve make the ninth look checked. It is fixed, and
+`verify:prove` now carries the check that would have caught it, plus a control that watched it
+go red on the real defect before it was repaired.
+
+🔴 **Know exactly what that gate does and does not cover.** It reads
+`lib/content/defaults.ts`, which is what we INTEND to publish. The CMS row can drift from it
+without anything going red, and **task 156 is a live instance of that drift.** Only
+`verify:sprint28` looks at published rows, and only a fetch of the running site looks at what
+a stranger actually reads. When you check a claim in step 3, fetch the page.
+
 ### Then the code, all of it
 
 **1,158 files, about 280,000 lines.** The comments are a large fraction because this codebase

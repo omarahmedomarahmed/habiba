@@ -34,7 +34,7 @@ Signs in at `/patient/login`. 2 testers.
 
 ### P1 · Three taps from opening it to being in a session.
 
-**Where we say it.** `/for-patients`, the radar card: “Somebody who is free now”
+**Where we say it.** `/`, the radar card: “Somebody who is free now”
 
 **Proved when.** From the app's home screen to a live video room, counting the taps out loud. If it is more than three, the number is the finding.
 
