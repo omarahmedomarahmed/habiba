@@ -25,11 +25,8 @@
  * That is the single most expensive mistake available here, it is one line,
  * and it is invisible to every other check in this repository.
  */
-import { readFileSync } from "node:fs";
-
 import { contentSecurityPolicy } from "../lib/security/csp";
-import { stripCommentsKeepingLines } from "./_dashes";
-import { reporter } from "./_verify";
+import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
 
@@ -107,7 +104,7 @@ function main() {
   /*  The wiring that makes the policy survivable                        */
   /* ================================================================== */
 
-  const middleware = stripCommentsKeepingLines(readFileSync("middleware.ts", "utf8"));
+  const middleware = readSource("middleware.ts");
 
   check(
     "🔴 middleware puts the policy on the REQUEST headers, or every page is blank",
@@ -130,7 +127,7 @@ function main() {
    * and stops nothing at all. `CSP_ENFORCE=0` is the deliberate way back; a
    * missing variable fails safe.
    */
-  const csp = stripCommentsKeepingLines(readFileSync("lib/security/csp.ts", "utf8"));
+  const csp = readSource("lib/security/csp.ts");
   check(
     "🔴 report-only is opt IN, so a forgotten variable enforces rather than watches",
     /CSP_ENFORCE\s*===\s*"0"/.test(csp),

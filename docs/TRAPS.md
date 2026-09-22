@@ -42,8 +42,25 @@ scanners in `_surfaces.ts`, `verify-palette.ts` on the day it was written,
 `verify-raw-sql.ts`, `verify-sprint31.ts`.
 
 **The rule.** Strip comments before any scan of source, without exception. Use
-`stripCommentsKeepingLines` from `scripts/_dashes.ts`, which preserves line
+`readSource` from `scripts/_verify.ts`, which does it and preserves line
 numbers so nothing that reports a line shifts.
+
+**Enforced by `verify:sprint37l2` (C205), not by `verify:traps`,** and the
+reason is the best illustration of this trap in the file.
+
+`verify-csp.ts` was written during this audit, by somebody who had just spent
+an hour fixing five instances of T1, and it shipped with T1 in it. It read
+`middleware.ts` with `stripCommentsKeepingLines` wrapped around the call, which
+is correct behaviour, and `verify:traps` passed it because the detector asked
+whether the file mentions a stripper anywhere. C205 asks the stricter question,
+whether a literal `.ts` path appears inside a `readFileSync` at all, and caught
+it on the next full pass.
+
+Two checkers for one property is worse than one: the weaker gives cover to what
+the stronger would refuse, and nobody can tell which was consulted. So
+`verify:traps` stopped re-implementing it and now asserts that C205 is still
+there and still wired. It keeps one check of its own, for the shape C205 cannot
+see: a scanner that WALKS a directory of source rather than naming a file.
 
 ---
 

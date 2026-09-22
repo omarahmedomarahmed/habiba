@@ -53,6 +53,38 @@ const read = (file: string) => readFileSync(file, "utf8");
  * A file gets cleaned up and the gate still calls it dirty, and the cheapest
  * way to pass becomes deleting the explanation.
  */
+/**
+ * 🔴 T1 IS ENFORCED BY `verify:sprint37l2`, AND THIS FILE LEARNED THAT THE HARD
+ * WAY: BY SHIPPING THE TRAP IT WAS WRITTEN TO CATCH.
+ *
+ * `verify-csp.ts` read `middleware.ts` through `stripCommentsKeepingLines` at
+ * the call site. The detector below asks whether a file mentions a stripper
+ * anywhere, so it passed. C205 in `verify-sprint37l2.ts` asks whether the file
+ * contains `readFileSync(".../something.ts")` at all, regardless of what wraps
+ * it, and caught it on the next full pass.
+ *
+ * The stricter rule is the right one, and it already existed. Two checkers for
+ * one property is worse than one, because the weaker gives cover to what the
+ * stronger would refuse, and nobody knows which was consulted.
+ *
+ * So this no longer re-implements it. It asserts that the real enforcement is
+ * still there and still wired, which is the job a register should do: point at
+ * the check rather than become a second, weaker copy of it.
+ */
+function c205IsEnforced(): { wired: boolean; detail: string } {
+  const rule = read("scripts/verify-sprint37l2.ts");
+  const hasRule = /C205 no verifier reads TypeScript source/.test(rule);
+  const hasScan = /readFileSync\\\(\[\^\)\]\*\\\.tsx\?/.test(rule) || /rawScanners/.test(rule);
+  return {
+    wired: hasRule && hasScan,
+    detail: hasRule
+      ? hasScan
+        ? "verify:sprint37l2 still carries the C205 scan"
+        : "verify:sprint37l2 names C205 but no longer scans for it"
+      : "verify:sprint37l2 no longer carries C205 at all",
+  };
+}
+
 function readsSourceRaw(file: string): boolean {
   const body = read(file);
   if (/stripCommentsKeepingLines|readSource/.test(body)) return false;
@@ -176,15 +208,29 @@ function main() {
 
   /* ------------------------------------------------------------ T1 */
 
+  const c205 = c205IsEnforced();
+  check(
+    "🔴 T1 the rule that comments are not code is still enforced, by verify:sprint37l2",
+    c205.wired,
+    c205.detail,
+  );
+
+  /*
+   * And the same property one layer out, which C205 does not cover: a scanner
+   * that walks a directory of source rather than naming a file. C205 looks for
+   * a literal `.ts` path in a `readFileSync` call, so a walk over `components/`
+   * whose results are read raw slips past it. Neither rule is redundant; they
+   * catch the two different shapes the same mistake takes.
+   */
   const raw = all.filter(readsSourceRaw);
   check(
-    "🔴 T1 every source scanner strips comments first, so prose is not code",
+    "🔴 T1 …and a scanner that WALKS source strips it too",
     raw.length === 0,
-    raw.join(" · ") || `${String(all.length)} verifiers, none reading source raw`,
+    raw.join(" · ") || `${String(all.length)} verifiers, none walking source raw`,
   );
 
   check(
-    "🔴 T1 CONTROL the detector fires on a scanner that does not strip",
+    "🔴 T1 CONTROL the walk detector fires on a scanner that does not strip",
     readsSourceRaw("scripts/verify-traps.ts") === false &&
       /readFileSync\(/.test(read("scripts/_surfaces.ts")),
     "this file reads no product source, and the one that does was checked",
