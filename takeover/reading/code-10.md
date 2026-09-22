@@ -572,3 +572,212 @@ appended to as the read went on.
 - Promises: T1 adjacent (honest attribution).
 - Notes: while one action is pending every voice's buttons read "saving" (123, 131). English: none.
 
+## Stale
+
+1. components/join/consent-controls.tsx:12-18: "Why they are one-way ... Wants to turn it off, cannot". Since 48.10 the patient has a "Stop recording" button in the same room (patient-room.tsx:343-357); the rendered footnote `jconsent.cannotUndo` (`lib/i18n/messages.ts:1152`) still says recording cannot stop part-way.
+2. components/auth/forms.tsx:56-64: `PatientDoor` "every one of them carries the way out" for "these four pages". Only Forgot and Reset render it (280, 307).
+3. components/auth/auth-shell.tsx:199-204: "Omit it ... An empty string here would render an empty h1". Omitting it also renders an empty h1 (216), and the staff page passes `title=""` (`app/(auth)/staff/sign-in/page.tsx:35`).
+4. components/session/cancel-session.tsx:34-35: "clicking anywhere else disarms it". No such handler; only Back disarms.
+5. components/scheduling/booking-calendar.tsx:19-21: "`toLocaleTimeString` with no locale argument uses the browser's". The code uses `formatTime`/`formatWhen` with an explicit zone.
+6. components/scheduling/booking-calendar.tsx:25-26: "The Resend domain is not verified and there is no WhatsApp key": an undated environment claim.
+7. components/patient/record-access.tsx:21-22: "Measured on this database: 56 of 66 patients have no email ... none has a phone": undated.
+8. components/patient/chrome.tsx:76-79: the session orb is "UNDER the SOS orb, which is why it is rendered before it". DOM order does not decide it; z-index (60 vs 70) does.
+9. components/patient/back.tsx:30-33: "The cost of being wrong is one extra tap". The cost is `router.back()` leaving the site.
+10. components/patient/category-grid.tsx:70-74: "A prefix match". The code is a substring match (`key.includes`, 75).
+11. components/session/new-session-form.tsx:55: doc comment "Absent when the therapist has not finished Stripe onboarding" orphaned above another doc comment.
+12. components/session/new-session-form.tsx:184-186: "The patient decides that, on their own screen". An in-person patient (the default choice, 88) has no screen.
+13. components/copilot/chat.tsx:693, 803, 859: `locale` declared and unused in three components. Dead code.
+14. components/join/join-flow.tsx:5, 10: unused imports `Star` and `rateOnArrival`. Dead code.
+15. components/patient/invite-flow.tsx:34-51: the `done` card is unreachable in practice because success immediately `router.replace`s (102).
+16. components/clinical/transcript-panel.tsx:147: dead ternary, both speakers `text-brand-300`.
+17. components/session/session-room.tsx:561: banner says "no audio is being kept" while the server accepts audio whenever the recorder sends it (the claim is true only of the client mute).
+
+## Suspect
+
+1. app/api/sessions/[id]/transcribe/route.ts (outside slice, read to test session-room): no check of `recordingPausedAt` or `recordingConsent`. If `lib/audio/recorder.ts` `setMuted` still emits (silent) chunks, T2's "nothing in that minute is kept" rests on the transcriber returning empty text. Check `lib/audio/recorder.ts`.
+2. components/session/session-approval.tsx:79-98 and note-review.tsx:197-218: the patient copy can be released without the clinical note being signed. `lib/data/feedback.ts:155` shows the brief when `signed`; which flag that reads decides P3. Check `lib/data/feedback.ts` `signed`.
+3. components/scheduling/calendar.tsx: `/bookings` shows only availability slots (`myHours`). Sessions scheduled by the new-session form, `inviteToPaidSession` or the radar may never appear on the clinician's calendar. Check `lib/data/scheduling.ts` `myHours`.
+4. components/scheduling/availability-editor.tsx:266-281: a `held` slot (a patient mid-booking) shows the withdraw bin. Safe only if `withdraw` is conditional on `status = 'open'`, which calendar.tsx:42 says of `withdrawHour`. Check the `/on-call` action.
+5. components/session/ask-panel.tsx:154-170: "prepare me once per session" is client state; a reload re-offers it. Check whether `askCopilot` bounds it.
+6. components/onboarding/verification-form.tsx:385-401: an approved clinician sees an enabled Submit. Check `submitForReview` refuses approved users.
+7. components/patient/reset-form.tsx:124-127: "Ask for another code" links to the same route; client state keeps the code screen. Probably a dead link.
+8. components/patient/claim-flow.tsx:196: `sendClaimCode(..., "email")` hard-wired for phone matches. Check the action's fallback.
+9. components/feedback/rating-form.tsx:480: "We can look at the session record, including any period the recording was paused". If staff can see content from an off-record period, T2 is false; if it means only the timestamps, the copy overclaims. Check what `recordingPausedAt` periods store.
+10. app/feedback/[token]/actions.ts:103 (outside slice): the automatic no-show refund passes the THERAPIST's id as `adminUserId`, so the audit names the clinician as the admin who refunded.
+11. components/session/new-session-form.tsx:99-108: the patient's VAT total is computed here and again on the pay page. Two formulas for one shown figure (E3/CV2).
+12. components/patient/patient-editor.tsx:89-107: a clinician's typo in a patient's email or phone offers that record to the owner of the mistyped handle on `/patient/claim` (behind a code and a redacted name).
+13. components/join/join-flow.tsx:217: `/feedback/${feedbackToken ?? token}` falls back to the join token, which the feedback page cannot resolve.
+14. components/session/new-session-form.tsx:109, 313: an in-person session cannot be charged from this form. Who pays for it (P2 orb, E5) is not visible here.
+15. components/copilot/chat.tsx:186-189: a revoked grant shows up only as whatever `askCopilot` returns on the next ask. T5's "stops on the next question" depends on the action checking the grant on every call.
+
+## Broken
+
+1. PATIENT "STOP RECORDING" DOES NOT STOP THE RECORDING (consent, T2, task 123 family). The patient taps Stop (components/join/patient-room.tsx:343-357). `stopRecording` only sets `sessions.recordingPausedAt` (app/join/[token]/actions.ts:760-763). The clinician's room never reads that column: the room page passes only `recordingConsent` (app/(room)/sessions/[id]/room/page.tsx:112), and the room poll reads `patientJoined`, `patientAwaySeconds`, `nextBooking`, `status` (components/session/session-room.tsx:372-391). The clinician's recorders stay unmuted (they mute only through `toggleOffRecord`, 439-447) and keep uploading; the transcribe route has no pause or consent check. Meanwhile the patient's strip says "Recording has stopped" from a local latch (patient-room.tsx:309-313). What a person sees: they are told recording stopped, and the transcript goes on being written. Grepped for a patch: `recordingPausedAt` readers are `app/(app)/sessions/actions.ts`, the join actions, the meetings transcript webhook, timeline, admin TV and console reads; none is the 24Therapy room or its transcribe route.
+2. THE NEW-SESSION "RECORD" UNTICK IS IGNORED BY THE 24THERAPY ROOM (task 123). Unticking stores `recordingPausedAt` (app/(app)/sessions/actions.ts:247-251, "the same switch the off-record button uses"). The room starts off record only when `recordingConsent === "declined"` (session-room.tsx:103, 109) and never sees `recordingPausedAt`; the transcribe route does not check it. An in-person session the clinician marked "do not record" records and transcribes on Start, while the note path that reads `recordingPausedAt` may describe it as not recorded.
+3. IN-PERSON SESSIONS RECORD WITHOUT ANYBODY BEING ASKED (task 123). In person is the default (new-session-form.tsx:88) and has no join link, so `recordingConsent` stays null; the room treats null as "record" (session-room.tsx:103). The only consent step is the footer sentence "Make sure your patient has consented to recording." (session-room.tsx:850, `troom.consentFirst`).
+4. IN-ROOM ABUSE REPORT IS SILENTLY DROPPED. components/join/patient-room.tsx:733 calls `reportSession({ token, ... })` with the JOIN token; `fileReport` looks up `sessions.feedbackToken` (lib/data/feedback.ts:351), a separate secret (lib/data/feedback.ts:81-88). The action returns "This link is no longer valid."; the component ignores the result and shows "sent to us" (733-734). A patient reporting a clinician from inside the session is told it went through and nothing is filed. Only other caller (rating-form.tsx:459) uses the feedback token correctly.
+5. NO-SHOW REFUND CONFIRMATION IS UNCONDITIONAL (A1/A3 family, money). components/feedback/rating-form.tsx:464-467 always says "Your payment has been refunded ... The refund reaches your card in a few days." The action refunds only a `session_payments` (card) row and swallows any failure (app/feedback/[token]/actions.ts:89-108); a manual bank-transfer payer (the Egyptian rail) has no such row, is refunded nothing, and is told their card was refunded.
+6. SOS ORB NOT KEYBOARD OPERABLE, AND A TREMBLING TAP CAN FAIL (P5). components/patient/sos-orb.tsx:143-160 opens the sheet only on `onPointerUp` without a drag; there is no `onClick`, so Enter or Space on the focused button does nothing. Any `pointermove` with the button down sets `dragging` with no distance threshold (149-151), so a tap that moves a pixel is treated as a drag and the sheet does not open.
+7. A PRICE SHEET COVERS THE SOS ORB ON THE RADAR (P5). components/radar/booking-sheet.tsx:172 is `fixed inset-0 z-[100]`, portalled to body, and shows the price and "Pay {amount} and start now" (booking-sheet.tsx:55, 309, 335); `/radar` renders `SosOrb` at `z-[70]` (app/(public)/radar/page.tsx:55, sos-orb.tsx:163). While the sheet is open the crisis button is under a money screen. (Inside the patient chrome everything money-related is at 50 to 65 and stays under SOS.)
+8. "GO IN" COVERED BY THE LANGUAGE SWITCH (task 122 candidate). components/patient/session-started.tsx:47-73 puts the strip at the very top of the flow, full width at 390px, with the "Go in" pill at the inline end; app/(patient)/layout.tsx:79 renders `LanguageCorner` `fixed top-0 end-0 z-50` with a pointer-events-auto pill (components/i18n/language-corner.tsx:37-41) over the same corner. The pill paints over "Go in" and takes the tap there. Geometry from the code, not a screenshot.
+9. RISK SUGGESTION CAN DISAPPEAR. components/session/copilot-toasts.tsx:28-30 says a risk card stays until dismissed; `mergeToasts` puts new cards first and truncates to six (183) and only three render (69). Three newer suggestions hide it; six delete it.
+10. IN-ROOM COPILOT ANSWERS HAVE NO SOURCE (T5). components/session/ask-panel.tsx:72-75 keeps only `answer.content`; the citations the same `askCopilot` returns (copilot/chat.tsx:198) are dropped, with no "no source" badge either.
+11. NOTE SCREEN STUCK ON "WRITING" (T1/P3 status contradiction). components/session/note-review.tsx:110 shows the "writing your note" card when `!note && noteStatus !== "failed"`, which includes `noteStatus === "none"`; the refresh poll runs only for `generating` (99). A session with no note being generated shows "writing" forever.
+12. SIGNING DISCARDS FAILED EDITS. components/session/note-review.tsx:168-169: `if (editing) await saveNote(...)` result ignored, then `approveNote`. A failed save signs the previous text and exits edit mode.
+13. RTL: `text-end` INSIDE `dir="rtl"` LEFT-ALIGNS ARABIC. components/clinical/patient-brief-card.tsx:49 (the patient's summary on the feedback page and the clinician preview) and components/session/copilot-toasts.tsx:141.
+14. /bookings PUBLISHES IN UTC FOR A CLINICIAN WITH NO STORED ZONE. app/(app)/bookings/page.tsx:66 passes `actor.timezone ?? "UTC"` into `Calendar`, whose `openHoursOn` publishes in that zone (calendar.tsx:111; `lib/data/scheduling.ts` `zonedHourToUtc(day, hour, input.zone)`). `/on-call` adopts the browser zone for the same person (availability-editor.tsx:78-81, 165). 18:00 chosen in Cairo becomes a 21:00 appointment. The zone is printed (calendar.tsx:196-198), so it is visible, not silent.
+15. BOOKING CALENDAR HIDES HOURS. components/scheduling/booking-calendar.tsx:224 shows only the first 10 days that have slots, with no "more" and no sentence.
+16. STAFF SIGN-IN HAS AN EMPTY h1 AND A SECOND h1. components/auth/auth-shell.tsx:216 with `title=""` (app/(auth)/staff/sign-in/page.tsx:35) plus forms.tsx:133.
+17. DOCUMENT READ-ALOUD STUCK. components/documents/document-list.tsx:131-132: a non-OK response returns without resetting `speaking`; the button stays disabled on "Reading…".
+18. CONSENT CONTROLS IGNORE LATER PROPS. components/join/consent-controls.tsx:40 seeds `useState` once, so the 5 s poll's new consent (join-flow.tsx:154, 175) never reaches the two controls.
+19. PATIENT STRIP LATCH. components/join/patient-room.tsx:309-313: once the patient stops recording, the strip says "stopped" forever even if the clinician resumes (`setRecordingPaused(false)` clears the pause, session-room.tsx:446), while the minimised orb's red dot follows the poll (208). Two indicators disagree.
+20. FAILURES SHOWN AS SUCCESS: prefs-settings.tsx:123-124 ("Saved" regardless), prefs-prompt.tsx:56-57, patient-room.tsx:593-594 (`rateOnArrival`), checkin-switch.tsx:22-26 (optimistic, never reverts), copilot/chat.tsx:973-978 (`correctCopilot` failure silent).
+
+## Looks broken, is handled
+
+1. components/feedback/rating-form.tsx:149-167 renders `brief` with no signed check: handled in lib/data/feedback.ts:155-159, which passes `brief` only when signed and sets `notePending = !signed`.
+2. components/clinical/connect-panel.tsx:121-125 lets a clinician decline a history ask with an empty reason: the database refuses a decline with no reason (components/patient/ask-history.tsx:22-24, 61-63), and the error shows at the top of the panel.
+3. components/scheduling/calendar.tsx:338 offers withdraw only for open hours: `withdrawHour` is conditional on `status = 'open'` (app/(app)/bookings/actions.ts:39-56), so a stale screen cannot delete a booked hour.
+4. components/join/patient-room.tsx:223 room is `fixed inset-0 z-50`, which looks like it covers everything: the SOS orb is `z-[70]` (sos-orb.tsx:163) and chrome renders it on `/join/[token]` (chrome.tsx:81-86, app/join/[token]/page.tsx:246), dimmed.
+5. components/patient/bottom-nav.tsx:150 leave sheet `fixed inset-0 z-[60]` over a live session: SOS at 70 stays on top.
+6. components/patient/session-orb.tsx:63 and components/billing/payment-popup.tsx:305 share the exact box `end-3 bottom-24 z-[60]`: they render on different routes today (`/pay/[token]` is outside the chrome), so they do not overlap.
+7. components/join/join-flow.tsx:111-114 consent state: seeded from the row and from the gate's answer (194-198), fixing the "room says Turn on after I said yes" defect described at 98-110 (but see Broken 18 for the child component).
+8. components/assessments/clinician-assessments.tsx:216-220 band: `pollAssessment` returns a null band until completed (comment 30-32), so the "band only when finished" rule is server enforced.
+
+## Unclaimed
+
+(a) worth selling, nothing advertises it
+- Assessment instruments with per-item answer timings for the clinician and no score for the patient (components/assessments/*).
+- Evidence panel: every clinical fact with its source sentence, age, and contradictions (components/clinical/evidence-panel.tsx:152-198).
+- Patient minimise-to-orb during a session, with the clinician told the patient stepped away (patient-room.tsx:72-96; session-room.tsx:534-542).
+- No-show recovery: replacement clinician free now, or refund, after five minutes (components/session/no-show-recovery.tsx).
+- Two-sided identical countdown (session-clock-bar.tsx; patient-room.tsx:370-422).
+- Voice naming with audited, never-model attribution (voices-panel.tsx).
+
+(b) nobody should have it, a hole
+- An in-room abuse report that reports success and files nothing (patient-room.tsx:733).
+- Recording that continues after the patient's own Stop and after the clinician's "do not record" (Broken 1, 2).
+- A clinician can set a patient's email and phone, the handles `/patient/claim` matches on (patient-editor.tsx:89-107).
+- Journal crisis scanning with nothing on the journal screen saying so (journal-writer.tsx:14-21, deliberate per C123).
+
+(c) half built
+- `/bookings` calendar has no way to cancel a booked hour; the only cancel is on `/on-call` (calendar.tsx:330-337).
+- Code sign-in, handle proof and claim code screens have no "resend" or "wrong handle" way back (code-signin-form.tsx:49-93, prove-handle.tsx:65-85).
+- Claim challenge ends on a blank screen when everything was answered No or skipped (claim-challenge.tsx:46-57); "No" is final with no confirmation (89-103).
+- Rejected diagnoses vanish with no undo (diagnosis-list.tsx:46-47).
+- Record export only by email (export-record.tsx), and most patients have no email.
+- Cross-border residency consent (residency-notice.tsx) and partner platform unlinking (linked-platforms.tsx): no promise covers either.
+
+## Promise evidence
+
+- P1 (three taps): join-flow.tsx: a paid guest goes name, pay, consent gate, waiting room, at least three submits before the room (261-345, 377-435). session-started.tsx: one tap from anywhere once live, but see Broken 8. Verdict: partly.
+- P2 (nothing only in email; orb on every screen while money owed or door open): chrome.tsx:80 plus session-orb.tsx on every `(patient)` screen; session-started.tsx for a live session; booking-calendar.tsx:100-102 says when nothing was sent. Against: export-record.tsx is email only; patient-room.tsx:519, 531 promise the summary by email; `/pay`, `/feedback`, `/t`, `/radar` render only SOS, no session orb. Verdict: partly.
+- P3 (nothing machine-written unsigned; summary carries name and credentials; "still writing" before signing): rating-form.tsx:141-145 and session-list.tsx:144-149 show "still writing"; brief gated on signed (lib/data/feedback.ts:155). But `PatientBriefCard` and the feedback summary carry no clinician name or credentials (patient-brief-card.tsx; rating-form.tsx:156-165); session-list shows the name only (99). Note screen stuck on "writing" when nothing is (Broken 11). Verdict: partly (unsigned kept out; name and credentials missing).
+- P4 (one record, every version under its author; patient decides readers): consent-list.tsx (24 h first, one-tap stop), keeps-access default off (claim-flow.tsx:45, invite-flow.tsx:29), session-approval.tsx:110-123 shows previous version with author, patient-editor.tsx:145-155 no delete. Verdict: kept in the UI (append-only is a DB rule outside the slice); decline reasons stored in English (consent-list.tsx:149-160).
+- P5 (crisis path never depends on money, SOS on top): kept inside the patient chrome (session orb 60, payment popup 50/60, leave sheet 60, room 50, minimised room 65, all under 70). Broken on `/radar` by the booking sheet at z-100 (Broken 7), and the orb is not keyboard operable and fragile to a shaky tap (Broken 6). Verdict: partly.
+- T1 (draft from transcript, says draft until signed): note-card.tsx:17 defaults to Draft; note-review.tsx tabs show state; attribute-transcript.tsx, voices-panel.tsx keep attribution honest. Against: Broken 11, 12. Verdict: partly.
+- T2 (off the record, nothing kept): session-room.tsx:439-447 mutes client recorders and the call; the server does not enforce (transcribe route), the patient's own stop does not reach the room (Broken 1), and rating-form.tsx:480 tells patients staff can look at paused periods. Verdict: broken for the patient's stop; partly for the clinician's toggle (client only).
+- T4 (stranger asked a name; signed-in patient sees "Joining as" and is asked nothing): join-flow.tsx:298-309 kept for the name; the receipt email is still asked when money is owed (311-322); the public booking calendar asks a signed-in patient for name and contact (booking-calendar.tsx:139-164). Verdict: partly.
+- T5 (only a chosen clinician; source sentence attached; revoke stops next question): copilot/chat.tsx shows sources as date chips with the sentence one click away and allows uncited answers with a badge (622-677); ask-panel.tsx shows no source at all (Broken 10); revocation depends on the server (Suspect 15); consent-list.tsx revoke is one tap. Verdict: partly (broken in the room).
+- E1/E2 (sponsor never learns who or when): benefit-form.tsx:274-285 states it; notices.tsx:29-33 names no employer. Verdict: kept as far as this slice shows.
+- E3/CV2 (price shown is price owed; figure equals the price screen): join-flow.tsx shows the same cents twice with different formatters (`Money` in the page locale at 272, `formatUsd` en-US at 37); new-session-form.tsx:99-108 recomputes the VAT total; session-room.tsx:645 rounds the price with `toFixed(0)` and a literal `$`. Verdict: partly (same number, inconsistent rendering, one rounded).
+- E4 (0% is not removal): benefit-form.tsx `benefit.ifRemoved` copy matches. Verdict: cannot tell beyond copy.
+- A1/A3 (nothing granted before confirmation; rejection read verbatim): rating-form.tsx no-show copy claims a card refund that may not exist (Broken 5). Verdict: cannot tell for A1 from here; the refund message is broken.
+- A5: staff door not linked publicly (auth-shell.tsx:186-192, forms.tsx:112-125). Verdict: cannot tell from components.
+- C1: verification-form.tsx gates submission on saved fields; rejected-with-no-note shows nothing (173). Verdict: partly.
+
+## Hard-coded English, collected (RTL/i18n)
+
+assistant-chat.tsx:148; prefs-prompt.tsx:107; prefs-settings.tsx:100; evidence-panel.tsx:143-144; patient-brief-card.tsx:34-35, 58; risk-assessment.tsx:32-44, 98, 112-113, 125, 139, 145, 160, 171-172, 179-180; transcript-panel.tsx:102; diagnosis-list.tsx:146; document-list.tsx:170, 290 (plus `lib/documents/formats.ts:102-120` labels); rating-form.tsx:199, 212-214, 289, 341, 466-467, 475, 479-480, 509; patient-steps.tsx:101; join-flow.tsx:278; patient-room.tsx:413-418, 451, 467, 519-520, 531-532, 543-544, 555, 598, 626-627, 738; benefit-form.tsx:337; claim-challenge.tsx:53-54, 64, 87, 109; consent-list.tsx:134 (+ `REJECTION_REASONS`); invite-therapist.tsx:127-128; patient-editor.tsx:60; record-access.tsx:172-174, 211-212; residency-notice.tsx:57, 69; import-patients.tsx:37; booking-calendar.tsx:96, 101-102, 116-117, 130, 211; copilot-toasts.tsx:151; note-review.tsx:139, 344; session-room.tsx:512-513, 537-540, 559-562, 631, 641-646; video-call.tsx:136, 170, 218, 221, 242, 256.
+
+RTL defects: `text-end` in `dir="rtl"` (patient-brief-card.tsx:49, copilot-toasts.tsx:141); physical `rounded-br-sm` bubble (copilot/chat.tsx:584); `->` arrow (import-patients.tsx:89); phone numbers in `font-mono` without `dir="ltr"` (auth-form.tsx:106-108, change-number.tsx:57). Everything else in the slice uses logical properties (`ms-`, `me-`, `ps-`, `border-s`, `start-`, `end-`, `text-start`).
+
+390px notes: calendar month view `grid-cols-7` with weekday labels (calendar.tsx:205); therapist-card name truncated by two badges (therapist-card.tsx:35-55); confirmed diagnosis header without wrap (diagnosis-list.tsx:94); bottom nav six items during a live session (bottom-nav.tsx:104-112); language pill over "Go in" (Broken 8).
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| components/assessments/clinician-assessments.tsx | 289 | read |
+| components/assessments/patient-questionnaire.tsx | 230 | read |
+| components/assistant/assistant-chat.tsx | 243 | read |
+| components/assistant/prefs-prompt.tsx | 141 | read |
+| components/assistant/prefs-settings.tsx | 135 | read |
+| components/auth/auth-shell.tsx | 225 | read |
+| components/auth/forms.tsx | 310 | read |
+| components/clinical/attribute-transcript.tsx | 179 | read |
+| components/clinical/connect-panel.tsx | 150 | read |
+| components/clinical/evidence-panel.tsx | 260 | read |
+| components/clinical/note-card.tsx | 187 | read |
+| components/clinical/patient-brief-card.tsx | 87 | read |
+| components/clinical/risk-assessment.tsx | 185 | read |
+| components/clinical/risk-banner.tsx | 159 | read |
+| components/clinical/transcript-panel.tsx | 173 | read |
+| components/copilot/chat.tsx | 988 | read |
+| components/documents/add-document.tsx | 226 | read |
+| components/documents/diagnosis-list.tsx | 188 | read |
+| components/documents/document-list.tsx | 299 | read |
+| components/documents/document-panel.tsx | 53 | read |
+| components/documents/own-profile-panel.tsx | 70 | read |
+| components/feedback/rating-form.tsx | 517 | read |
+| components/homework/clinician-homework.tsx | 287 | read |
+| components/homework/patient-steps.tsx | 145 | read |
+| components/join/consent-controls.tsx | 135 | read |
+| components/join/join-flow.tsx | 506 | read |
+| components/join/patient-room.tsx | 746 | read |
+| components/onboarding/verification-form.tsx | 534 | read |
+| components/patient/access-banner.tsx | 126 | read |
+| components/patient/add-to-history.tsx | 31 | read |
+| components/patient/ask-history.tsx | 141 | read |
+| components/patient/auth-form.tsx | 179 | read |
+| components/patient/avatar.tsx | 59 | read |
+| components/patient/back.tsx | 66 | read |
+| components/patient/benefit-form.tsx | 346 | read |
+| components/patient/bottom-nav.tsx | 216 | read |
+| components/patient/category-grid.tsx | 94 | read |
+| components/patient/change-number.tsx | 107 | read |
+| components/patient/checkin-switch.tsx | 54 | read |
+| components/patient/chrome.tsx | 89 | read |
+| components/patient/claim-challenge.tsx | 161 | read |
+| components/patient/claim-flow.tsx | 219 | read |
+| components/patient/code-signin-form.tsx | 129 | read |
+| components/patient/consent-list.tsx | 304 | read |
+| components/patient/explore-rail.tsx | 75 | read |
+| components/patient/export-record.tsx | 108 | read |
+| components/patient/identity-editor.tsx | 143 | read |
+| components/patient/invite-flow.tsx | 110 | read |
+| components/patient/invite-therapist.tsx | 155 | read |
+| components/patient/invite-to-session.tsx | 141 | read |
+| components/patient/journal-writer.tsx | 131 | read |
+| components/patient/keeps-access.tsx | 61 | read |
+| components/patient/linked-platforms.tsx | 118 | read |
+| components/patient/notices.tsx | 119 | read |
+| components/patient/patient-editor.tsx | 163 | read |
+| components/patient/prove-handle.tsx | 109 | read |
+| components/patient/record-access.tsx | 259 | read |
+| components/patient/reset-form.tsx | 173 | read |
+| components/patient/residency-notice.tsx | 102 | read |
+| components/patient/session-list.tsx | 159 | read |
+| components/patient/session-orb.tsx | 89 | read |
+| components/patient/session-started.tsx | 76 | read |
+| components/patient/sos-orb.tsx | 258 | read |
+| components/patient/therapist-card.tsx | 77 | read |
+| components/patients/add-patient.tsx | 149 | read |
+| components/patients/import-patients.tsx | 195 | read |
+| components/scheduling/availability-editor.tsx | 325 | read |
+| components/scheduling/booking-calendar.tsx | 256 | read |
+| components/scheduling/calendar.tsx | 434 | read |
+| components/session/ask-panel.tsx | 202 | read |
+| components/session/cancel-session.tsx | 73 | read |
+| components/session/copilot-toasts.tsx | 188 | read |
+| components/session/new-session-form.tsx | 481 | read |
+| components/session/no-show-recovery.tsx | 200 | read |
+| components/session/note-review.tsx | 651 | read |
+| components/session/session-approval.tsx | 215 | read |
+| components/session/session-clock-bar.tsx | 89 | read |
+| components/session/session-room.tsx | 856 | read |
+| components/session/source-panel.tsx | 163 | read |
+| components/session/video-call.tsx | 263 | read |
+| components/session/voices-panel.tsx | 165 | read |
+
+81 files, 17,499 lines, all read in full.

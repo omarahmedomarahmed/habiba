@@ -184,6 +184,19 @@ Candidates from documents only, to be confirmed in code:
 7. Instruments (assessment questionnaires with scoring), `instruments` table.
 8. Company welcome credit $100.
 
+## Confirmed by the coordinator (run or read directly, not a reader's claim)
+
+1. **Published console password**, see Suspect 18.
+2. **Crisis filter silences real disclosures.** `lib/crisis/context.ts` THIRD_PARTY holds `"he "`,
+   `"her "`, `"they "`, matched by `contains` (`lib/crisis/fold.ts:74`), a plain substring test, so
+   "t**he** " inside "the" reads as a third party. Ran `stillCounts` itself under node 22
+   (scratchpad/crisis/probe.ts): SUPPRESSED "The thought of suicide will not leave me.",
+   "Nothing matters. The only way out is to kill myself.", "Some days the urge to kill myself is
+   strong."; ALERT only where the word "I" precedes the phrase. P5-adjacent, the README safety
+   invariant list, and the file's own header ("the most dangerous file"). Fix first once the
+   reading is closed: word-boundary match for pronoun markers, plus a control set of these
+   sentences in `verify:sprint35r`.
+
 ## Live-site checks, 2026-09-22 (fetched from 24therapy.app, not read from defaults)
 
 - `robots.txt` serves `Allow: /` with `/join/`, `/dashboard`, `/sessions` disallowed. TAKEOVER s5
