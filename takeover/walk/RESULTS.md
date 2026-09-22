@@ -30,6 +30,8 @@ marked as such.
 | 6 | P1 | Patient, from home: orb, "Yes, you may record", "Go in" | Three taps to the room | - | **held** (3) |
 | 6 | copy | same | "You can change these at any time during the session" beside "Recording cannot stop part-way" | - | defect (UX-16) |
 | 7-8 | T2 | Two runs | **RETRACTED, untested.** Run 1: the speech began ~13s before Start, so the off-record phrases played before the toggle. Run 2: the selector `button[aria-pressed]` hit the English/Arabic switch, not "Off record"; the header still said "Recording". Neither run went off the record. Run 3 targets the button by its label | sessions 540268c3, 6994939e | untested so far |
+| 7-8 | T2 | Run 3, in person: "Off record" at audio ~60s, "Resume" at ~120s, off-record phrases at 86-97s, all in silence | Transcript goes from "...the breathing exercise" to "Back to your sleep"; no cat, zebra or umbrella; timestamps continue 32000 then 40000 with no visible gap; the note (1,447 chars) never mentions it | session 2f13d524, transcript_segments 1..8 | **held** (for the clinician's button; the patient's Stop is a separate path, found broken in code, MAP 4) |
+| 7-8 | task 123 | same session, in person | `recording_consent` NULL throughout, recorded and transcribed; the note page says "From the clinician's notes. Not recorded. This is the clinician's own account" over a note drafted from the transcript | session 2f13d524 | **broken, proven on production**: unconsented recording, and the record says it was not recorded |
 | 8 | T1 | Ended the session | Draft note within seconds, from what was said (4am waking, wind-down on four nights, phone away an hour before bed), marked Draft | session_notes draft | **held** |
 | 8 | provenance | same | "The whole session was captured and this note was drafted from it." | - | to recheck once off-record really runs |
 | 9 | P3 | Patient opened the session before signing | "Your therapist is still writing your summary." No draft shown | - | **held** |
@@ -38,5 +40,5 @@ marked as such.
 | 11 | P2 | Notices | "Your session has started. The door is open." present | - | **held** for session start |
 | 12 | T4 (stranger) | Dr Omar invited Laila; link opened signed out | "Your first name" asked | session 1d59e584 | **held** |
 
-So far on `live`: held P1, T1, T4, A1, RA1 and P3 first half; partly P2, P3; broken E3 (task 116),
-the payment confirmation half of P2, and task 123; T2 untested.
+On `live`: held P1, T1, T2, T4, A1, RA1 and P3 first half; partly P2, P3; broken E3 (task 116),
+the payment confirmation half of P2, and task 123 (twice: video and in person).

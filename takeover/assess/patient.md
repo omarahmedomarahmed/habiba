@@ -111,3 +111,93 @@ in English and then Arabic.
 - Arabic RTL: see Arabic pass below.
 - Promise: P4 in spirit ("shown to nobody unless you choose"). Kept.
 - Defects: SOS over the textarea (030). The entry date "23 Sept, 02:22" is the seed time (today), fine.
+
+### /patient/messages  (screenshots: 032, 033, 034)
+- For: turning check-in messages ("how are you?") on or off, and what happens to replies. Says so: partly; the title names the messages but not how they arrive (SMS, WhatsApp, email?), from whom, or how often.
+- Next: "Send them" / "Do not send them" (not pressed). Which one is currently on is not stated: "Send them" is navy filled and "Do not send them" pale, which reads as a primary and a secondary button rather than a current state (033).
+- Missing: the current setting in words; the channel and frequency; a door: nothing in the app links to this page (no reference to `/patient/messages` anywhere in `app/`, `components/` or `lib/`).
+- Decoration: none; the tick/cross card is the useful part (a reply that sounds like danger shows help and tells the therapist; otherwise nobody reads it; no machine interprets it).
+- 390px: works; SOS floats below the buttons, covers nothing (033).
+- Arabic RTL: see Arabic pass below.
+- Promise: P5 in part (a reply that sounds like danger points to help) and P3 ("never given to a machine to interpret"). Kept in words.
+- Defects: React hydration error #418 in the console on this page (032 to 034 run); ambiguous on/off state; doorless.
+
+### /patient/notices  (screenshots: 035, 036, 037)
+- For: the in-app list of things that happened (invitations, payments, sessions starting), the P2 inbox. Says so: no; the page is "What has happened" and one line, "Nothing to tell you." (036).
+- Next: nothing.
+- Missing: a door (no link to `/patient/notices` anywhere in the app: not on home, not in the bottom bar, not on account); a subtitle saying what would appear here. And content: six sessions were paid from her employer's pot today, each leaving her a 40% share, and none of that is a notice.
+- Decoration: none.
+- 390px: works; almost the whole screen is empty.
+- Arabic RTL: see Arabic pass below.
+- Promise: P2 ("nothing only in an email"). This is where P2 should be kept and it cannot be: it holds nothing, and nobody can find it.
+- Defects: doorless; empty while a payment event exists; a 502 on one resource load on the desktop look (035 run).
+
+### /patient/profile  (screenshots: 038, 039, 040)
+- For: documents a clinician added about her (letters, prescriptions, reports), readable and flaggable by her. Says so: yes, though "Your profile" is the wrong name for a document list (the account page calls the same link "Your own documents", home calls it "Open your profile").
+- Next: nothing. The empty state says "Letters, prescriptions, scans and old reports belong here." and there is no way to put one here: the upload control was removed on purpose (`components/documents/own-profile-panel.tsx` 17 to 30). The account card that leads here still says "Anything you have uploaded or written down about yourself."
+- Missing: an honest empty state ("your therapist adds these"); the journal card "Want to say how things have been? Write a journal instead" does not look like a link (no arrow, no link colour) though it is one (040).
+- Decoration: the journal nudge card, as placed.
+- 390px: works (040).
+- Arabic RTL: see Arabic pass below.
+- Promise: P4 ("travels with you, you decide who reads it"). Kept in words; nothing to see.
+- Defects: three names for one page (Your profile / Your own documents / Open your profile); empty state invites an action that does not exist; account copy promises uploads that were removed.
+
+### /patient/radar  (screenshots: 041, 042, 043)
+- For: who is free right now, on a globe and as a list, to start a session now (P1). Says so: no title; the only header is a pill "2 therapists on shift". "Find someone now", the name home gives it, appears nowhere on the page.
+- Next: tap a therapist row (chevron). Obvious enough on mobile, where the list is visible under the globe.
+- Missing: a title; a back link (it is the centre tab, so tolerable); on 390 the "Not an emergency service. If you are in immediate danger..." line is in the text but not visible in the viewport or the full capture (under the bottom bar, 042/043); for Mariam, the price she would actually pay (rows show list prices $60 and $75, never her 40% share).
+- Decoration: the globe. At 390 it takes the top 60% of the screen and shows two overlapping teal dots on Egypt, a few pixels each (042): the founder's "radar globe appearing empty with two clinicians on it" is confirmed. Chips "Demo account" and "Practice" on each row.
+- 390px: **the SOS orb sits on the "Everyone on shift" tab** of the 2 free / Everyone on shift switch, covering its right end (042); that tab is still pressable on its left half. No sideways scroll. The two therapist cards reach the bottom bar; with a third therapist the list would scroll under it.
+- Arabic RTL: see Arabic pass below.
+- Promise: P1. Home (1 tap, the teal card or centre button) > radar > therapist row (2) > profile or booking; continued under /patient/t/[id].
+- Defects: desktop (041): the language switch covers the end of the hint "Drag to spin, tap a country to ..." (clipped mid sentence); the bottom bar crosses the two side panels; "Omar Abdelgaw..." truncated in the list although there is space. "Demo account" chip is shown to patients on production.
+
+### /patient/record  (screenshots: 044, 045, 046)
+- For: emailing yourself a copy of your whole record, and what the practice (Nile Practice) can and cannot see. Says so: yes ("Your whole record ... in one document you can keep"). Home's link calls it "Get a copy of everything"; the page title (metadata) is "A copy of your record"; the heading "Your whole record": three names.
+- Next: "Email me my record" (not pressed: it sends). Clear.
+- Missing: a download in the app. The only route is an email, and Mariam's address is `@example.com`, so for her (and six other demo accounts) the copy goes nowhere; for a real patient it is P2's "only in an email" in reverse. What her EMPLOYER can see is not here (it is on /patient/benefit, which has no door).
+- Decoration: two tick and cross tables (red crosses again); "Not hidden behind a setting: it is not built."
+- 390px: works. SOS orb covers the right end of "Emailed to mariam.demo@example.com and nowhere else" (046), just above the Email button, which stays clear.
+- Arabic RTL: see Arabic pass below.
+- Promise: P4 (one record, every version) and C2's patient side (what the practice sees). "That they are paying for your hour" under NILE PRACTICE reads, to a patient whose employer pays, as if the practice pays for her session; it means the practice pays the therapist. Misleading on the one screen about who sees what.
+- Defects: "the day and time of each appointment" starts lowercase on its own line (the "And:" label does not render in the text, 046); three names for one page; practice-pays line.
+
+### /patient/residency  (screenshots: 047, 048, 049)
+- For: asking a patient whose record "belongs to Egypt" to agree to it being held in the United States. Says so: yes, plainly.
+- Next: "I understand, and I agree" (not pressed: it records consent). There is no "No" and no statement of what happens if she does not agree; "You can withdraw at any time" but no withdraw control shows until after agreeing.
+- Missing: a door. Nothing in the app links here (no reference to `/patient/residency` outside its own files), so a consent the product says it asks "explicitly" is on a page nobody is sent to. Mariam has not agreed, and her record is already in the US. A decline option.
+- Decoration: none.
+- 390px: works (048).
+- Arabic RTL: see Arabic pass below.
+- Promise: none of P1 to P5; a legal duty rather than a promise. Worth keeping, but it must be reached.
+- Defects: "kept in United States" / "servers in United States" (missing "the"); React hydration error #418 on this page (048 run); doorless; consent with only a yes.
+
+### /patient/sessions  (screenshots: 050, 051, 052; Upcoming tab: see the extra looks below)
+- For: every session, past and upcoming, in tabs All / Upcoming / Past. Says so: yes.
+- Next: nothing. Cards are not links: no way from a past session to its summary, its receipt, or what she owes on it; no "book again with Sara".
+- Missing: payment state per session. Each card says "· $75" (051) while the session is 60% covered and 40% owed (`lib/billing/pot.ts` ~510, session stays `pending`); there is no "you owe $30" and no pay link anywhere. No upcoming session and, on "All", no empty line saying so. Who signed the summary text (P3).
+- Decoration: "You turned the AI on for this session" pill on every card (six times); the calendar icon before each name; "Sessions you booked." subtitle (she did not book these; her therapist did).
+- 390px: works, no sideways scroll. The SOS orb sits across the right edge of the second card and its summary text (051). The list is the same component and the same six cards as home, so home and this tab duplicate each other.
+- Arabic RTL: see Arabic pass below.
+- Promise: P2 (a session starting, a payment confirmed, in the app) and P3 (signed summaries). P2: no payment state at all on this screen. P3: the summary paragraphs carry only "Sara Demo", no credentials, no "signed on".
+- Defects: list price shown instead of her share; nothing owed shown while money is owed; times "02:22 (Cairo)" are seed artifacts but show that nothing sanity-checks a session at 2 am.
+
+### /patient/summary  (screenshots: 053, 054, 055)
+- For: the clinical summary, version by version, under each author's name. Says so: yes.
+- Next: nothing to do; reading. No link back to the sessions it summarises or to "who can read your history".
+- Missing: "signed" wording (the card shows name, credential, version and date, which is enough for P3, but it never says signed or draft); a way to flag or question a line.
+- Decoration: none. This is the best-made page in the portal: one card, one author, one date.
+- 390px: works (055). SOS floats below the card, covers nothing.
+- Arabic RTL: see Arabic pass below.
+- Promise: P3 and P4. P3 kept here: "Dr Sara Demo, Clinical psychologist, Version 1, 20 Sept 2026". Note that the same clinician is "Sara Demo" (no title) on home, sessions, billing and the radar; only here is she "Dr".
+- Defects: in the accessible text, name and credential run together ("Dr Sara DemoClinical psychologist").
+
+### /patient/invite/[token]  (screenshots: 056, 057, 058; a made-up token, since no real invite exists for Mariam)
+- For: opening a therapist's invitation to take over your record. With a bad token it says "This link is no longer valid. Used, expired, or taken back. Ask your therapist for a new one." (057)
+- Next: ask the therapist; there is no button (no "go home", no "open your sessions", no way to contact the therapist). The bottom bar is the only exit.
+- Missing: a way forward; the valid-invite state (create account / sign in / "Joining as") could not be seen without a real token.
+- Decoration: none.
+- 390px: works; card centred vertically, the SOS orb sits just under its bottom right corner (057).
+- Arabic RTL: see Arabic pass below.
+- Promise: P2 (an invitation appears in the app) and T4's patient side. Not testable here without a real invitation.
+- Defects: a token that never existed is told it was "used, expired, or taken back", which is not true; dead end card.
