@@ -529,3 +529,198 @@
 - Promises: none.
 - Notes: the argument at 112-119 (policies attach to the document, client navigation inherits them) is the reason the per-route CSP relaxation in csp.ts is suspect. Server action body limit 2 MB (59) while uploads allow 8 MB credentials and 25 MB receipts and support files: any upload that goes through a server action above 2 MB fails before `uploadProblem` can say why, unless those uploads use a route handler (outside this slice). A receipt screenshot "6 MB" is exactly the case uploads.ts:93-96 says must not be refused.
 
+## Stale
+
+1. lib/audit.ts vs HAZARDS.md H6: H6 is marked "live" but `audit()` routes non-uuid ids to `resource_key` centrally (lib/audit.ts:129-130).
+2. lib/auth/session.ts:155 "Absolute cap is checked in the same read" then does a second query (156-164).
+3. lib/env.ts:222 "AUTH_SECRET is checked in every environment"; the check is inside `if (isProd)` (225).
+4. lib/content/sanitise.ts:220-226 docstring "Discount an issued invoice ... A full discount settles the invoice" with no function beneath it.
+5. lib/content/defaults.ts:1193 hipaa page "sessions expire after 30 minutes of inactivity and 8 hours absolute"; clinician/staff sessions are 2h / 12h (lib/auth/session.ts:34,36).
+6. lib/console/pot-trace.ts:46-50 says the patient reference "LINKS to their own admin page"; `patientHref` is hard-coded null (130) and the reference is a session id prefix (129).
+7. lib/i18n/strings.ts:57 `SAFETY_PREFIXES` includes "recording."; no key in messages.ts starts with "recording." (grep: 0). An exemption covering nothing, while the real recording keys (`room.recording`, `proom.recording*`, `jconsent.*`) are unprotected.
+8. lib/i18n/messages.ts:1152 "jconsent.cannotUndo" ("Recording cannot stop part-way") predates 48.10, which gave the patient a Stop recording button ("troom.offRecordPatient", 3877).
+9. lib/i18n/messages.ts:1490 "C227 removed the roster" while `sponsor.roster*` keys (1432-1433, 1565-1566) and `lib/data/sponsors.ts:92-107 roster()` exist.
+10. lib/i18n/messages.ts:2576 vs 2939: two copilot allowance models ("earns N per session, rolls over" vs "N per patient per month"); one is stale.
+11. lib/lifecycle/machines.ts:350-374 `grant` machine names entity `benefit_grants`, which does not exist; GRANT_STATUSES belongs to `historyGrants` (record access).
+12. lib/lifecycle/machines.ts:386-390 sponsor `held` screen "the company portal"; a held sponsor cannot sign in (lib/sponsor-auth/session.ts:118).
+13. lib/lifecycle/machines.ts:130-149 specifies a clinic-endorsement payout state that does not exist (the comment says so; still a spec living in a verifier's input).
+14. lib/patient-auth/session.ts:29 "A shorter window" introducing longer limits (4h/7d vs 2h/12h).
+15. lib/patient-auth/actions.ts:143-148 "Deliberately the same wording as a wrong password on sign-in"; it is not (150 vs 282) and it names the fix ("Try signing in instead").
+16. lib/patient-auth/actions.ts:266-276 and 213-216 claim equal timing; `verifyPassword` returns early on the fake hash (see Broken).
+17. lib/patient-auth/handle.ts:178-182 "A code that arrived by email proves the address, not the number"; the code records `whatsapp` whenever a phone exists and notify also emails it (see Broken).
+18. lib/uploads.ts:20 and 143 "32-byte"/"32 random bytes"; code is `randomBytes(24)` (168). 55-57 avatar "read goes through an authenticated route"; `documentUrl` returns the storage URL.
+19. lib/scheduling/hours.ts:21-26 `nextHour` has two identical branches.
+20. lib/observability/errors.ts:26-27 "same access control and the same retention rules as the record"; errors are 30-day and staff-readable.
+21. lib/auth/guard.ts:145-153 "no screen behind this guard queries a clinical table"; `/admin/tv` behind requireManager + elevation reads transcripts, notes, copilot content (lib/console/reads.ts).
+22. lib/marketing/fixtures.ts:199-204 describes `lib/data/sponsors.ts:96` as holding "no therapist and no count" while the same comment says the company sees what it paid each clinician.
+23. lib/content/demo.ts:231 "There is no `demo` row in `content_pages` and there never has been": undated state claim.
+24. lib/geo.ts:240-244 "neutral globe where no single flag is defensible" while English=US flag, Arabic=Egypt flag.
+25. lib/i18n/config.ts:52-58 Western digits for times and counts; several Arabic strings hard-code Eastern digits (messages.ts 4096, 4103, 4218, 4468, 4817; demo.ts 272-277).
+26. middleware.ts:193-194 matcher comment names two API reasons; the exclusion is all of `/api/`.
+27. lib/rate-limit.ts:304-310 `purgeExpiredLimits` still uses Node `new Date()`, the two-clock defect fixed everywhere else in the file (116-134).
+28. mock-run.ts: referenced by nothing outside takeover/ (grep). Dead root-level file.
+
+## Suspect
+
+1. lib/security/csp.ts:130-182 + middleware.ts:141 + next.config.ts:112-119: the `'unsafe-eval'` needed by daily-js is attached only to a document request for `/sessions/:id/room`; next.config's own comment says the room is normally reached by client-side navigation, which keeps the first document's (strict) policy. If so, Daily's `Function()` is blocked and the clinician's call cannot connect. Answer: how the room is linked (full load or `<Link>`), and a live room walk.
+2. lib/access/state.ts:167-176: revoked state keeps `copilot: true`. T5 "a revoked grant stops it on the next question" and the patient copy "Take it back and it stops that second" (defaults.ts:609, messages ar 506) hold only if lib/ai scopes a revoked clinician's copilot to their own material. Answer in lib/ai/case-copilot.ts.
+3. lib/request.ts:18-19: first X-Forwarded-For entry is trusted. Safe on Vercel (which overwrites it); a bypass of every limiter if the origin is ever reachable directly.
+4. lib/rate-limit.ts:97-111: while SIMULATION_RUNNING=1 every limit is 25x, including the console two-key unlock (125/hour) and patient code confirmations. Whether it is still set on production is not in the code.
+5. lib/scheduling/hours.ts:36 hold of 10 minutes vs manual transfer confirmation "within a few hours": a slot held for an Egyptian patient paying by transfer lapses before A1's confirmation. Answer in lib/data/booking and the pay flow.
+6. lib/console/board.ts:149-158 and lib/console/pot-trace.ts:106-120: joins sessions to sponsors through `enrolments.personId` with no enrolment period or pot id, so a person who changed employer is attributed to both (the simulation's P5 does exactly this).
+7. lib/content/honesty.ts: savePage runs English regexes on Arabic rows; an Arabic fee or earnings claim cannot be refused. Also `(make|earn)\s+[$£€]` misses EGP.
+8. lib/i18n/authoring.ts:66 `saveString` accepts `status: "published"` from the caller; whether an admin action passes it (publishing a safety string edit in one step) is in app/(admin).
+9. lib/i18n/messages.ts:2236 "devs.promise4Body": a partner read "appears in the patient's own access log ... naming your platform"; lib/audit.ts has no partner actor slot. Answer in lib/partner and lib/data/portability.
+10. lib/auth/session.ts + lib/routing.ts: a staff (back-office) cookie passes `requireUser`; every clinician page guarded only by `requireUser` renders for a staff account. What `/dashboard` shows a back-office role is in app/(app)/layout.
+11. lib/clinic-auth/guard.ts:49-50 claims a DB CHECK refuses undelegatable capabilities in stored roles; not visible here (lib/db/schema, drizzle/).
+12. lib/uploads.ts:39: HEIC accepted for licence photos but not renderable in most browsers; operator verification may see a broken image.
+13. lib/content/service.ts:308-319 `readFooter` has no `-x-staging` filter (readNav does); safe only while staging rows carry no nav_label.
+14. lib/marketing/fixtures.ts:263-265 prices 50-minute radar sessions; the product prices 30 minutes (`radar.fromPrice`, `tpay.rateLabel`).
+15. lib/i18n/messages.ts:1210, 3055-3078: patient self-service refunds on no-show ("Refund me in full", "including our fee"); on the manual rail who pays it back and when is not in this slice, and machines.ts has no session/payment arrow for it.
+16. lib/content/defaults.ts:417,821,834,891 "Your first session is free"; check lib/billing for the first-free rule.
+
+## Broken
+
+1. STAFF SIGN-IN HAS NO SECOND FACTOR (coordinator's question). `/staff/sign-in` posts to `signIn` in lib/auth/actions.ts:170-295 with `audience: "staff"`: email + password, a per-/24 limiter (20 per 15 min, 500 while SIMULATION_RUNNING) and a 5-failure lockout. Nothing else: no TOTP, no email code, no device check, no IP allowlist (grep of lib and app for totp/mfa/two-factor finds none in any auth path). The two-key elevation (lib/console/gate.ts) guards only the live console reads on `/admin/tv`; every other /admin screen (transfers Confirm/Reject, sponsors, clinics, strings, content publishing) is password-only. With `Demo2026!Therapy` published in docs/VALUE-STATEMENTS.md:253 for `omar@24therapy.app` (a platform admin on production), anyone who reads the repo can sign in to the production staff console and confirm money (A1/A2), publish copy, or open the elevation gate screen. The lockout does not help (the password is right the first time).
+2. lib/patient-auth/handle.ts:104,114-122,187-191 with lib/notify/index.ts:268-340: the handle code is sent on every channel but recorded as `whatsapp` whenever the account has a phone, so receiving it by EMAIL marks the PHONE verified. Sign up with a stranger's number and your own email, confirm from your inbox, and the claim screen tells you whether a clinician keeps notes for that number, with initials. The disclosure handle.ts exists to close (37-42) is open, and while WhatsApp is unapproved email is the only working channel. Priority 1.
+3. /admin/tv reads are unaudited: `app/(admin)/admin/tv/page.tsx:41-65` renders `sessionDetail` (note + transcript + risks), `conversationFor` (copilot text), `peopleByEmail` (names, emails) from lib/console/reads.ts and writes no audit row; only unlock/deny are recorded (lib/console/gate.ts:110-132). Breaks A5 "every read is written down", the /security page claim (defaults.ts:1232-1233), `marketing.clinics.a1` "not us, and there is no administrative override", and `dfl.consentWhy3`.
+4. lib/console/board.ts:101, 238, 286-287 divide `cost_microcents` by 1,000,000 and label the result cents; the unit is thousandths of a cent (H13; lib/ai/client.ts:171 and lib/data/vault.ts:66 divide by 1000). `components/admin/board.tsx:264-268,387,439-440` show it with `usd()`: model spend on the founders' board is 1000x too small and "in minus AI" is overstated.
+5. lib/patient-auth/actions.ts:277-280: the "timing-equal" path verifies against a bcrypt-shaped string that `verifyPassword` rejects without running scrypt (lib/auth/password.ts:29-30). No account / no password answers fast, a real password account answers after a full scrypt: a phone-number oracle for "has a patient account with a password". Sign-up also says so in words ("Try signing in instead", 150).
+6. Receipts larger than 2 MB cannot be submitted: next.config.ts:59 caps Server Action bodies at 2 MB, receipts are uploaded through server actions (`app/pay/[token]/actions.ts:1,213`, `app/(app)/billing/actions.ts:208`, `app/(sponsor)/sponsor/pot/actions.ts:221`), while lib/uploads.ts:93-107 promises 25 MB precisely so "your screenshot is 6 MB" never blocks a payment. The payer sees a framework error, not `receiptUploadProblem`'s sentence. A1/A3 path.
+7. lib/i18n/messages.ts, three contradictory consent stories on the consent surface itself: "jconsent.changeAnyTime" vs "jconsent.cannotUndo" (1151-1152) on the same screen, vs "portal.new.consentStop" (2014) and the patient's own Stop button (3877). A patient is told on the join screen that recording cannot be stopped part-way. Priority 3.
+8. lib/i18n/messages.ts:5713 Arabic "portal.book.body" says the published hours are bookable "on your profile and OFF the radar"; English says "and the radar".
+9. lib/content/defaults-ar.ts:794, 802: the Arabic contact page's two entity addresses are an admin instruction ("set the registered address from admin, content, contact"), rendered to the public if the block shows `address`.
+10. lib/content/defaults-ar.ts:82,120,158 vs defaults.ts:82,120,158: the competitor table states different rival prices in Arabic and English under the same `checkedOn` date; defaults-ar.ts:48 also types our own per-session prices into copy (C60).
+11. lib/lifecycle/machines.ts: the manual-transfer lifecycle (`manual_payments`, awaiting_proof/submitted/confirmed/rejected) is not declared, so verify:machines' "every stopped person has a way out" never examines the Egyptian rail (task 124's dead end); and `payout.sent` has no way out for a bounced transfer.
+12. lib/clinic-auth/switch.ts + `app/(clinic)/clinic/sign-in/actions.ts:18-36` + lib/auth/actions.ts:264: C352 "never one session carrying both capability sets" holds only on the switch path; signing in at both doors leaves a linked human with a live clinician cookie and a live clinic cookie at once.
+13. lib/auth/actions.ts:293: `next` accepting `/\host` is an open redirect after clinician sign-in (browsers normalise `/\` to `//`).
+14. lib/auth/actions.ts:312-341: clinician/staff password reset has no rate limit (patient reset has one): unlimited reset emails to any address, unaudited.
+15. lib/scheduling/tz.ts:184-185: English caveat sentences appended to Arabic-formatted dates.
+
+## Looks broken, is handled
+
+1. Staff and clinicians share one cookie and one session table (lib/auth/session.ts:22, lib/routing.ts:197-205). Handled for /admin: the staff door refuses a non-back-office account after the password (lib/auth/actions.ts:252-256) and `requireStaff` allowlists roles on every admin page (lib/auth/guard.ts:154-157); the practice door refuses back-office accounts (257-262). The residual is Suspect 10.
+2. A clinic manager carries the real organisation id, so clinical queries could be scoped by it. Handled by spelling it `clinicOrganizationId` and giving the type no `userId`/`Role` (lib/clinic-auth/session.ts:65-108), and by audit refusing a clinic-manager row that names a patient (lib/audit.ts:103-105).
+3. `sql.raw` in lib/rate-limit.ts:112,228 looks like H7; the only value is `Math.floor` of a number the code supplies, never data.
+4. lib/content/url.ts accepts any https image into a CSS `url()` under `style-src 'unsafe-inline'`; the character blacklist (18) plus re-validation at render keeps the value inside the declaration, and csp.ts:192-197 accepts the beacon risk explicitly.
+5. lib/auth/password.ts:32-35 lets a stored hash choose scrypt cost; only a DB writer can plant one, and `maxmem` is fixed (50).
+6. Middleware only sees cookie presence (middleware.ts:16-28); every guard re-reads its own session table with revocation, idle and absolute checks in the WHERE (clinic, sponsor, partner, patient session files).
+7. Receipts could be deleted by a future cleanup; handled by `isUndeletable` throwing (lib/uploads.ts:235-270) with a malformed URL counted as undeletable.
+8. `x-locale` could be forged by a client to change a page's language; middleware deletes it before setting (middleware.ts:171), and server.ts reads it first.
+
+## Unclaimed
+
+(a) worth selling, nothing advertises it:
+- Clinic staff custom roles with a closed capability vocabulary, therapist-scoped assistants, undelegatable money and membership (lib/clinic-auth/capabilities.ts:32-105). No promise; C1-C5 talk only about the manager.
+- Switching between clinician and practice principals in one click, revoking the side left (lib/clinic-auth/switch.ts).
+- Machine translation of the whole interface into a new language, gated at 100% human approval, with safety strings protected (lib/i18n/authoring.ts, strings.ts).
+- DST-correct scheduling with gap detection and quiet hours for reminders (lib/scheduling/tz.ts:258-349).
+(b) nobody should have it, a hole:
+- A super_admin with the two console keys reads any person's transcripts, notes, copilot conversations and risk flags across all organisations, unaudited (lib/console/reads.ts; /admin/tv).
+- An operator can mail a clinician's full session history, with every patient's name and email, to any external address typed in a box, telling only the clinician (lib/console/history.ts; app/(admin)/admin/tv/actions.ts:79-132).
+- Anyone can learn whether a phone number has a record with a clinician via the handle-verification channel bug (lib/patient-auth/handle.ts; Broken 2).
+- An admin can override any interface string in either language, including "HIPAA BAA included", with no claim check (lib/i18n/authoring.ts).
+- The sponsor sees enrolees by first and last name (lib/data/sponsors.ts:95-107 via fixtures comment) and which therapists its pot paid (lib/marketing/fixtures.ts:206-211, `dpo.neverWhoWent`).
+(c) half built:
+- Payout `sent` with no failure arrow; clinic endorsement state specified and absent (lib/lifecycle/machines.ts:130-176).
+- Sponsor `held` and partner `held`: no portal, no screen, no rejection path (lib/sponsor-auth/session.ts:118, lib/partner-auth/session.ts:119, machines.ts:385-419).
+- Verification `approved` has no revocation arrow (machines.ts:289-310).
+- Record-access grants have no declared machine (machines.ts:350-374 describes a table that does not exist).
+- WhatsApp codes for patients (sign-in, handle proof, reset) all say "incomplete until Meta approves"; phone-only patients have no way to recover or prove a handle (lib/patient-auth/*.ts headers).
+- Egypt payment gateway env keys exist and are empty on purpose (lib/env.ts:308-321).
+
+## Promise evidence
+
+- P1 (three taps): lib/content/defaults.ts:282,343 and messages `pat.noAccount`/`crisis.noAccountLine` promise a session from a first name; A1 and the 10-minute hold (lib/scheduling/hours.ts:36) make that false for a paid session on the manual rail. Verdict: partly (free or card sessions only), cannot tell the tap count from here.
+- P2 (nothing only in email): lib/notify/index.ts writes the in-app notice first (read for Broken 2). Verdict: cannot tell from here.
+- P3 (nothing machine-written unsigned): copy only here (messages `psessions.writing`, `prating.stillWriting`, `tappr.*`). Verdict: cannot tell from here.
+- P4 (one record, patient decides readers): lib/access/state.ts grant arithmetic; broken at the edges by the console's unaudited cross-organisation reads (lib/console/reads.ts) and the handle-proof hole (lib/patient-auth/handle.ts). Verdict: partly.
+- P5 (crisis never depends on money): sponsor suspension touches no patient (lib/sponsor-auth/session.ts:85-88); crisis strings protected only under `crisis.` prefix (lib/i18n/strings.ts:57); emergency sentences under other prefixes are not. Verdict: partly (the SOS itself is outside this slice).
+- T1, T2: copy only (messages `ft.f1`, `ft.f2`). Cannot tell.
+- T3 (netting): lib/content/honesty.ts refuses the fee claim in English CMS rows only. Verdict: kept for English CMS, not for Arabic rows or dictionary overrides.
+- T4: not in this slice.
+- T5: lib/access/state.ts:167-176 keeps copilot on revoke (Suspect 2). Cannot tell; at risk.
+- C1: regulators and verification labels (lib/regulators.ts). Cannot tell.
+- C2 (no patient name, no caseload count in clinic portal): contradicted by design: `schedule.read` "names and appointment times" (lib/clinic-auth/capabilities.ts:33), `clinic.join.sees.names` "first name and last initial", `pclinic.theySee` "Your name", `clinic.scheduleBody` (messages 1739, 2037, 2105), and the marketing demo shows names (lib/marketing/fixtures.ts:158-171). No caseload count: kept in fixtures (126-136). Verdict: broken as written (names shown, disclosed); the promise, not the code, is wrong.
+- C3, C4, C5: copy only; `earnings.read` capability exists (capabilities.ts:39). Cannot tell.
+- E1 (never who, never when): admin board and pot trace are counts and references (lib/console/board.ts, pot-trace.ts); sponsor sees enrolee names and therapists paid (Unclaimed b). Verdict: partly (who is enrolled and which clinicians were paid are visible).
+- E2: sponsor actor has no organisationId (lib/sponsor-auth/session.ts:40-48). Kept structurally.
+- E3, E4, E5: copy only (`sponsor.coverageFrom`, `benefit.*`). Cannot tell.
+- A1 (nothing granted before a person confirms): receipts > 2 MB cannot be submitted at all (Broken 6); staff Confirm reachable with the published password (Broken 1). Verdict: at risk.
+- A2, A3, A4: `paymentsBoard` shows the queue and oldest wait (lib/console/board.ts:301-317); no manual-payment machine (Broken 11). Cannot tell from here.
+- A5 (role is a list, refusals redirect, on the record): lists not ranks: kept (lib/auth/guard.ts:67-79, clinic capabilities). Refusal redirects: kept (requireRole, requireClinicCapability, requireSponsorAdmin, requirePartnerAdmin all redirect). Refusal on the record: broken, none of these guards writes an audit row; only the console key denial is recorded (lib/console/gate.ts:110-115). "Every read is written down": broken for /admin/tv (Broken 3) and for blob documents (lib/uploads.ts, H14).
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| lib/access/state.ts | 252 | read |
+| lib/alarm.ts | 453 | read |
+| lib/audit.ts | 158 | read |
+| lib/auth/actions.ts | 424 | read |
+| lib/auth/doors.ts | 80 | read |
+| lib/auth/guard.ts | 170 | read |
+| lib/auth/password.ts | 62 | read |
+| lib/auth/session.ts | 231 | read |
+| lib/brand.ts | 13 | read |
+| lib/clinic-auth/capabilities.ts | 186 | read |
+| lib/clinic-auth/guard.ts | 102 | read |
+| lib/clinic-auth/session.ts | 248 | read |
+| lib/clinic-auth/switch.ts | 138 | read |
+| lib/console/board.ts | 406 | read |
+| lib/console/gate.ts | 169 | read |
+| lib/console/history.ts | 155 | read |
+| lib/console/pot-trace.ts | 172 | read |
+| lib/console/reads.ts | 406 | read |
+| lib/content/defaults-ar.ts | 815 | read |
+| lib/content/defaults.ts | 1282 | read |
+| lib/content/demo.ts | 570 | read |
+| lib/content/honesty.ts | 130 | read |
+| lib/content/registry.ts | 64 | read |
+| lib/content/sanitise.ts | 226 | read |
+| lib/content/service.ts | 407 | read |
+| lib/content/url.ts | 31 | read |
+| lib/crypto/secretbox.ts | 135 | read |
+| lib/env.ts | 397 | read |
+| lib/feedback-options.ts | 38 | read |
+| lib/geo.ts | 298 | read |
+| lib/geocode.ts | 144 | read |
+| lib/globe.ts | 137 | read |
+| lib/i18n/authoring.ts | 413 | read |
+| lib/i18n/client.tsx | 106 | read |
+| lib/i18n/config.ts | 117 | read |
+| lib/i18n/messages.ts | 7055 | read |
+| lib/i18n/paths.ts | 158 | read |
+| lib/i18n/server.ts | 131 | read |
+| lib/i18n/strings.ts | 304 | read |
+| lib/lifecycle/machines.ts | 515 | read |
+| lib/logger.ts | 57 | read |
+| lib/marketing/fixtures.ts | 272 | read |
+| lib/observability/errors.ts | 195 | read |
+| lib/partner-auth/guard.ts | 44 | read |
+| lib/partner-auth/session.ts | 144 | read |
+| lib/patient-auth/actions.ts | 291 | read |
+| lib/patient-auth/code-signin.ts | 228 | read |
+| lib/patient-auth/guard.ts | 32 | read |
+| lib/patient-auth/handle.ts | 202 | read |
+| lib/patient-auth/reset.ts | 265 | read |
+| lib/patient-auth/session.ts | 210 | read |
+| lib/phone/e164.ts | 185 | read |
+| lib/rate-limit.ts | 330 | read |
+| lib/regulators.ts | 240 | read |
+| lib/request.ts | 33 | read |
+| lib/routing.ts | 407 | read |
+| lib/scheduling/hours.ts | 135 | read |
+| lib/scheduling/tz.ts | 349 | read |
+| lib/scheduling/use-reader-zone.ts | 44 | read |
+| lib/security/csp.ts | 265 | read |
+| lib/sponsor-auth/guard.ts | 44 | read |
+| lib/sponsor-auth/session.ts | 150 | read |
+| lib/uploads.ts | 315 | read |
+| lib/utils.ts | 177 | read |
+| lib/viewer.ts | 34 | read |
+| instrumentation.ts | 43 | read |
+| middleware.ts | 197 | read |
+| mock-run.ts | 4 | read |
+| next.config.ts | 139 | read |
+| Total (69 files) | 22329 | read |

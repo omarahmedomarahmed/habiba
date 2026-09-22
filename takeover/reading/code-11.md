@@ -701,6 +701,21 @@
 
 ## Unclaimed
 
+- (a) components/radar/booking-sheet.tsx:384-494, practice-form.tsx: walk-in clinics on the radar with confirmed address, directions and emailed directions. No promise mentions walk-ins.
+- (a) components/radar/presence.tsx: clinician alarm (sound, sticky notifications, flashing title) when a patient books or waits. Worth selling to clinicians (the P1 other half).
+- (a) components/public/comparison.tsx: honest competitor comparison with conceded rows.
+- (a) components/sponsor/code-card.tsx, gate-settings.tsx, domain-list.tsx: joining code poster, two-proof domain verification, weak-gate warning.
+- (a) components/radar/therapist-page.tsx:92-117: public verified page (regulator and month) and reliability score.
+- (a) components/settings/wall-codes.tsx: printable wall codes for reception desks.
+- (b) components/settings/meeting-accounts.tsx: connecting Zoom/Meet/Teams accounts for a recording bot; nothing on this screen addresses consent of the other participants in someone else's meeting (MAP unclaimed 1; priority 3).
+- (b) components/clinic/team.tsx: clinic staff accounts created by the admin with an admin-typed password; a principal no promise covers and whose password the admin knows.
+- (b) components/sponsor/integrations.tsx: an HR employment-verification API (identity oracle per partner/sign-in-form.tsx:22-24) and a timestamped delivery log visible to the sponsor.
+- (b) components/radar/feedback-card.tsx:56: rating as the price of seeing one's own summary (if true, see Suspect).
+- (c) components/partner/key-list.tsx: employment-verification keys cannot be minted from the portal (no sponsor picker): a scope with no way in.
+- (c) components/billing/pay-by-transfer.tsx:258-273: a rejected transfer shows the reason and no control to try again or pay another way on this component (MAP suspect 4 / task 124); whatever lets the payer retry must live on the page.
+- (c) components/partner/usage-meter.tsx: partner session limits and billing, a whole metered product with no promise.
+- (c) components/demo/portal-demo.tsx:776-782: "require attendance" shown as a not-built setting (deliberate, C244).
+
 <!-- UNCLAIMED-END -->
 
 ## Promise evidence
