@@ -82,3 +82,41 @@ screen is for, what a person does next, empty states, which promise it serves.
 - Decides: a session row links to `/sessions/<id>` only when `completed`, else to `/room` (203-207), so a cancelled or no-show session opens the room.
 - Notes: "The radar is not open in your country yet" is a hardcoded English string (91). Crisis alert link falls back to `/sessions`.
 
+### app/(app)/earnings/actions.ts (88 lines)
+- For: payout destination and withdrawal request on the manual (Egyptian) rail.
+- Decides: `savePayoutDestination` (23) method must be in `PAYOUT_METHODS`; stamps `editedByUserId` even for self edits (C74, 41-45). `requestWithdrawal` (63) takes a dollar figure from the form, `Math.round(dollars*100)`; all checks against held/available are in `requestManualPayout` (lib/billing/payouts). NaN input ("abc") becomes `Math.round(NaN)` = NaN cents passed to the lib.
+- Promises: T3 depends on `requestManualPayout` refusing more than held minus owed; `lib/billing/payouts.ts` contains no reference to invoices (grep "invoice|settle": only line 352), so the payout request itself does not net outstanding bills. Netting, if any, happens when earnings are credited (`settledInvoiceCents`, ledger), not at payout.
+
+### app/(app)/earnings/page.tsx (204 lines)
+- For: "money in": earnings card, "held pays your bills" card, manual withdraw panel, payment and transfer history.
+- Screen: a clinician checks whether they can pay rent. Next action: set a payout destination, request a withdrawal of the available amount, or follow "see what you owe" to /billing. Empty state: no billing -> amber notice (83); Withdraw panel hidden unless held > 0, a past request, or the org is on the transfer rail (142). Promise: T3.
+- Decides: `availableCents = max(0, held - requested/approved - sent)` (62-68), the only figure with a button. Two different "held" figures on one page: `earnings.heldCents` from `lib/billing/connect.earningsSummary` (EarningsCard, held card) and `held` from `lib/billing/ledger.heldForTherapist` (Withdraw). If those two sources disagree, the page shows two held numbers.
+- Promises: T3 PARTLY. The page shows held, and `settledFromEarningsCents` (what earnings already paid off, `components/billing/earnings.tsx:196-200`), but NOT the currently owed amount beside held with the payout as the difference: owed lives on /billing behind a link (118-124). The proof ("held earnings and what is owed as two halves of one number, and the payout is the difference") is not on this screen as written. Available is held minus payouts in flight, not held minus owed.
+
+### app/(app)/layout.tsx (349 lines)
+- For: the clinician portal shell: sidebar, bottom nav, pending payment bar, radar presence/orb, clinic switcher, sign out.
+- Screen: persistent chrome. Unverified clinicians are redirected to /onboarding unless on /onboarding, /settings, /billing, /earnings (64, 116-119), and gated links are hidden (153-205). PendingBar follows money in flight (280-289, P2-like for clinicians). RadarPresence rings on views/bookings for cleared therapists (298-326).
+- Decides: redirect keyed on `x-pathname` from middleware; fails open if missing (111-114), per-page guards then decide. Clinic switch button shown only if a `clinic_managers.linked_user_id` row exists (101-106, 245).
+- Assumes: pages call `requireUser` themselves (52-55).
+- Notes: `OPEN_TO_UNVERIFIED` uses `startsWith`, so `/settingsX` style paths also pass; harmless. (Locale prefixes are not an issue: `middleware.ts:58-69` redirects any prefixed non-public path to the bare path before this layout renders.)
+
+### app/(app)/notes/page.tsx (91 lines)
+- For: the list of recent notes with their status (clinical note and patient copy).
+- Screen: next action: open a draft to review and approve. Subtitle counts open notes and ones "held" waiting on the patient copy (19-43). Empty state: no notes -> EmptyState (47-54). Promise: T1 (draft visible), P3 (patient copy status separate).
+- Notes: shows `note.content.summary` of drafts in the clinician's own list (78-82): fine for the clinician.
+
+### app/(app)/on-call/actions.ts (293 lines)
+- For: radar console actions: profile setup, go online/offline, heartbeat ping, alert prefs, geocode, practice address, walk-in toggle.
+- Decides: `toggleRadar(true)` requires `requireVerified` (84); `setOnline` refuses countries with no rail (dashboard comment). `radarPing` (116) heartbeat + pending booking + status + `suspendedUntil`/`suspendedReason` (task 122 surface: a suspension is returned to the client here). `saveRadarSetup` allowlists taxonomy, `safeImageUrl` against stored XSS (64-67). `findPracticeLocation` rate limited 30 per 300s per clinician (198). `savePractice` requires a picked point when an address is given (247). `toggleClinicVisits` refuses without a confirmed address (in lib).
+- Notes: `saveAlertPreferences` read-modify-write on `users.profile` jsonb without a transaction (151-167): a concurrent writer of another profile key can be lost (the comment names the risk; it is only half addressed).
+
+### app/(app)/on-call/page.tsx (163 lines)
+- For: the Crisis Radar console.
+- Screen: next action: go online (TherapistConsole), publish bookable hours (AvailabilityEditor), read radar session history and feedback, set practice address and walk-ins. Empty states: delegated to components. Promise: P1 (the clinician side of "somebody free now"), C1 upstream.
+- Notes: `ensureRadarProfile` WRITES a profile row on render if missing (52). Availability is edited in TWO places: here (`schedule-actions.ts`: publish/withdraw/cancel) and `/bookings` (`bookings/actions.ts`: openHoursOn/closeHour/invite). Only this one can CANCEL a booked hour; the /bookings calendar says a booked hour "is cancelled with a message, elsewhere" (`components/scheduling/calendar.tsx:330-336`) and does not link here.
+
+### app/(app)/on-call/schedule-actions.ts (92 lines)
+- For: publish hours in the clinician's zone, withdraw an open hour, cancel a booking.
+- Decides: `publish` resolves zone via `clinicianZone` (stored, else browser zone adopted, else UTC) and reports source and impossible DST hours (43-62). `withdraw` refuses booked hours (68-71). `cancel` -> `cancelBooking({by: "therapist"})`, hour returns to calendar, patient told via notify (77-92).
+- Notes: duplicate of `bookings/actions.ts` `openHoursOn`/`closeHour`, with a different zone rule: `openHoursOn` trusts `input.zone` from the client, `publish` resolves the stored zone first. Two ways to publish the same hours with two zone policies.
+

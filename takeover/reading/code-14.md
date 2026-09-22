@@ -66,3 +66,39 @@ stripped?) / T3 (hand-typed routes?) / T4 (truncation?) / T6 (main on import / a
 - `writesTo()` (l.58). Cleanup deletes `patients.first_name LIKE 'verify12%'` globally (fine, tagged).
 - Promises: none directly.
 
+### scripts/verify-sprint13.ts (404 lines)
+- For: sprint 13 claim-by-phone: a mis-claim must be impossible; the record challenge (seen this therapist? name?) reveals nothing and locks.
+- Decides: patient account created with verified E.164 (l.106-118); second account on same phone refused by `patient_accounts_phone_unique` (l.126-136); account without phone refused `patient_accounts_phone_present` (l.138-148); two therapists holding one number give two challenges (l.182-187); challenge payload keys exactly attemptsLeft,claimId,patientId,stage,therapistName (l.195-200); no patient name in payload (l.208-212); "no" is remembered and does not touch the other challenge (l.216-228); wrong name refused without hint (l.234-243); blank never matches (l.245-246); question one alone does not pass `challengePassed` (l.257-261); third wrong name locks and drops from queue (l.265-281); right name with case and spaces passes and opens gate (l.317-332); passing leaves claim `pending` for consent (l.339-353); account zone stored, patient zone not overwritten (l.357-380).
+- Reads: live DB and real `lib/data/challenge`.
+- Control: DB refusals are attempted writes (good). Known-good path exists (Yasmin happy path).
+- Stale: l.234-243 "a near-miss name is refused and does not say how close it was" answers `"Yasmine"` against a record whose first name is now `"verify13-patient"` (l.161, renamed by 22R per l.201-207). It is no longer a near miss, so the "does not say how close" property is untested; the error check `!includes("yasmin")` is trivially true.
+- `writesTo()` (l.66). T6: `main()` at module scope.
+- Promises: none of the 25 directly; supports P4 "patient decides" indirectly (claim before consent).
+
+### scripts/verify-sprint13r.ts (366 lines)
+- For: 13R: account shape (phone required, email optional, NULLS DISTINCT), name-attempt budget survives a fresh code (C87), therapist release restores one budget (C88), sign-in by either handle.
+- Decides: phone-only accounts accepted twice (l.84-113); duplicate email refused (l.123-135); duplicate phone refused (l.138-150); no phone refused (l.153-165); MAX_NAME_ATTEMPTS wrong answers spend budget and set status `locked` (l.200-224); `startClaim` then correct name still refused (l.234-247); `releaseLock` restores to zero and records who/why/when, blank reason refused (l.251-293); one account reachable by phone and email (l.304-328); exactly one distinct `error: "That..."` string in `lib/patient-auth/actions.ts` (l.336-342).
+- Reads: live DB, real `lib/data/challenge` and `lib/data/claims`; `readSource` for the auth file (T1 clean).
+- Wrong medium: l.296-300 says sign-in by either handle is "Exercised through the real action, with a real password hash", but l.314-328 are two plain `db.select` by phone and by email. The sign-in action is never called; the hash is unused.
+- Syntax not property: l.337 counts only messages beginning with the literal `That`; a second failure message worded differently is invisible, and a message moved to the i18n dictionary gives "none found" (size 0) which fails for the wrong reason.
+- No check that `releaseLock` refuses a clinician who does not hold the record (it is called with the first `users` row, l.251-255). Authorisation of the release is untested here.
+- `writesTo()` (l.57). T6: `main()` at module scope.
+
+### scripts/verify-sprint14.ts (345 lines)
+- For: sprint 14 no-show recovery: replacements never cost more than the patient paid, reassignment remembers the absentee, difference becomes 12-month patient credit, reliability score floor.
+- Decides: `replacementsFor` excludes dearer clinicians (l.127-136) and includes cheaper (l.188-192) and never the absentee (l.193-196); `reassignSession` moves and records `reassignedFromUserId` (l.198-214); credit = 1000c (l.216-225) expiring in 12 months (l.227-232); DB refuses negative credit and overspend by constraint name (l.235-261); ceiling re-checked at write (l.268-289); `reliabilityFor` null below `MIN_FOR_SCORE` (l.293-303); roster block of `lib/ai/assistant.ts` reads `s.scheduled_at` and not `s.status,`/price/modality/notes/transcript (l.313-323).
+- Reads: live DB, real `lib/data/recovery`, `readSource` (T1 clean).
+- 🔴 Mutates real clinicians and never restores them: the first three `users` rows FOUND (l.72-75) are used as `absent`/`cheaper`; `cheaper` has `session_rate_cents` set to 6000, then 2000, then 9000 (l.122-125, 140, 268), `charges_enabled=true` (l.148) and a `therapist_radar` row upserted `online` with `suspended_until` cleared (l.141-147). The `finally` (l.325-333) deletes only PLANTED users. On a seeded dev or simulation branch a real clinician is left at $90, charges enabled, online on the radar and un-suspended. `writesTo()` refuses production only; the simulation branch is fair game.
+- Control: l.127-136 passes vacuously on an empty list (zero-uuid session); the known-good at l.188 partly covers it. Roster scan is a 3000-char window after `buildRoster` (syntax, one of N).
+- T6: `main()` at module scope.
+- Promises: none of the 25 (no-show recovery is unclaimed, see Unclaimed).
+
+### scripts/verify-sprint15.ts (327 lines)
+- For: sprint 15 patient app: a patient never sees a transcript or clinical note (15.8), unsigned brief withheld (15.4), groups, and the patient app does not import clinical tables (C16).
+- Decides: plants a note with a sentinel in every clinical field plus a transcript segment (l.100-134); `sessionsForPatient` returns 1 row and the sentinel is absent from its JSON (l.138-153) with a CONTROL query one column wider that must surface it (l.162-174: offender half); patient brief present when approved (l.176-180); exact key allow-list at,brief,briefPending,group,id,modality,paymentStatus,priceCents,priceCurrency,provenance,therapistName (l.209-216); `patientStatus='draft'` withholds brief and sets briefPending (l.220-230); `groupOf` (l.235-251); `app/(patient)/patient` has billing/account/consent dirs (l.256-266); no file under `app/(patient)` or `components/patient` names sessionNotes, transcriptSegments, sessionInsights (l.284-295) with a control that an `(app)` file does (l.298-305).
+- Reads: live DB, `lib/data/patient-view`, `readSource` on every walked file (T1 clean).
+- Control: both halves on 15.8 and C16. Good verifier.
+- Limit: C16 scan only sees table names in the patient tree itself; a patient page calling a `lib/data/*` helper that selects note content passes (one of N). The sentinel covers `sessionsForPatient` only.
+- `writesTo()`. T6: `main()` at module scope.
+- Promises: P3 "before they sign it, the app says still writing": kept at the data layer (`briefPending`). P3 "carries a clinician's name AND credentials": the allow-listed row has `therapistName` and no credentials field, so credentials must come from somewhere else or are missing (cannot tell from here).
+

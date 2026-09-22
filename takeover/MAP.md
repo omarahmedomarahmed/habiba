@@ -145,6 +145,17 @@ Every entry: where, what it says, what is true or suspected instead.
 14. INVENTORY omits `/login`, `/signup`, `/staff/sign-in`, `/join/[token]`, the room, `/pay`, and
     `/[slug]` pages. Its generator scans seven route groups only, so any gate deriving routes
     from `inventory.routes()` (T3's rule) cannot see those pages either. Check in step 2.
+16. **E5 may promise a screen that does not exist.** 09 CV9 and three simulation docs require an
+    "Account on hold, ask HR" patient screen; `docs/simulation/03-THE-MONEY.md:239` and
+    `docs/SIMULATION-PROMPT.md:1020` say it does not exist and the patient is simply asked to pay.
+    Settle in code (patient booking path when `payFromPot` refuses).
+17. **Only 12 of the 48 edges in 09-THE-EDGES are held by `verify:edges`** (per the simulation
+    digest). C4 (PL6), A3 (RA4) and A4 (RA6, RA8) rest entirely on ungated edges.
+18. Production holds real gmail inboxes with the shared demo password `Demo2026!Therapy`, which is
+    published in this public repository, including the platform admin `omar@24therapy.app`. A
+    stranger reading the repo can sign in to the production console. Nothing real is there
+    today, but the console can confirm transfers and approve payouts. **Before launch this
+    account must not have a published password.** (New task.)
 15. Home sends "the patient a plain-language summary" by email; P2 says nothing is only in email.
     Consistent only if the summary is also in the app. Walk it.
 

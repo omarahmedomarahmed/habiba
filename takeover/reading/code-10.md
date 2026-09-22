@@ -110,3 +110,45 @@ appended to as the read went on.
 - Promises: T2 adjacent (shows Paused vs Recording when `live`).
 - Notes: HARD-CODED ENGLISH: "Transcript" header (102). Dead ternary: both speaker colours are `text-brand-300` (147). `aria-live="polite"` on a panel that updates every few seconds (131); HAZARDS H8 says one polite region per screen, and the room also has other live regions (check session-room). RTL: fine.
 
+### components/copilot/chat.tsx (988 lines)
+- For: the per-patient case copilot: ask questions about one patient, citations, voice dictation of questions, read-aloud, per-patient answer language, standing corrections, reset.
+- Decides: optimistic question removed on error or quota exhaustion (180-190); live-session indicator polled every 15 s from `/copilot/live?patient=` (108-132), failed polls silent; dictation audio posted to `/api/copilot/voice`, text dropped into the box, never auto-sent (228-230); read-aloud posts the answer text to `/api/copilot/speak` (266-271); reset keeps `session_note` messages (549-557); language control reverts on error (808-816); corrections listed so they can be checked (902-934).
+- Assumes: `askCopilot` in `app/(app)/copilot/actions` enforces the grant (T5), the quota and citation building; `Citation` carries `sessionDate`, `atSeconds`, `speaker`, `quote`.
+- Promises: T5 "the copilot answers with the sentence it came from attached": PARTLY. Each citation renders as a chip showing only date and timestamp (622-638); the source sentence is shown only after the clinician clicks a chip (659-677), one at a time. An answer with zero citations is still rendered, with an amber "no source" badge (640-642), so an uncited answer can reach the screen. Revocation: nothing client side; a revoked grant surfaces only as whatever `result.error` says on the next ask (186-189), which matches "stops on the next question" if the action checks every call (cannot tell from here).
+- Notes: `correctCopilot` failure is silent (973-978): no error state in `CorrectionBox`, the box just stays open with the text, so a clinician may think it saved. `removeCorrection` failure also silent (922-924). `setCopilotLanguage` failure reverts without a message (814). `locale` declared and unused in `ResetBox`, `LanguageBox`, `CorrectionBox` (693, 803, 859). Send is Ctrl/Cmd+Enter only (394). Therapist bubble uses physical `rounded-br-sm` (584), so in RTL the tail corner is on the wrong side; `justify-end` is logical. `"العربية"` literal (829) is correct as a language self-name. Voice speed saved `onPointerUp`/`onKeyUp` with the closure's `speed` (503-504), may save the previous value if no re-render happened between the last change and release. 390px: aside stacks under the chat below `lg`; composer is `sticky bottom-0` (374) and on a phone the patient bottom nav is not here (clinician side), fine. English: none in JSX besides the self-name.
+
+### components/documents/add-document.tsx (226 lines)
+- For: clinician adds a document to a patient: upload a file, type, or dictate with the browser's Web Speech API.
+- Decides: dictation runs on the device, stored as `dictated`; editing by hand after dictating flips it back to typed (176-182); dictation button hidden where the API is absent (186); recognition language is the page's `lang` (110).
+- Assumes: `onUpload`/`onNote` bound by `document-panel.tsx` to server actions with the patient id in a closure.
+- Promises: P4 adjacent (provenance on the record).
+- Notes: Cancel/`reset` (74-80) does not stop an active recognition; results keep arriving and refill `body` after cancel, and `listening` stays true until the browser ends it. File input not cleared on reset (fine, it unmounts). `recognition.lang` of `ar` for an Arabic page, so an English-speaking clinician on the Arabic UI dictates in Arabic mode (commented as the honest failure). RTL: `file:me-3` logical (165). English: none.
+
+### components/documents/diagnosis-list.tsx (188 lines)
+- For: diagnoses proposed from documents, with the source sentence quoted above the confirm button, and clinician confirm/reject.
+- Decides: the sentence is rendered for proposed and confirmed rows (106, 126); confirm and reject only when `canDecide` (128); "read documents" re-proposes (65-81).
+- Assumes: `decideDiagnosis`, `proposeFromDocuments` check the grant.
+- Promises: none of the 25 (source-sentence discipline like T5).
+- Notes: HARD-CODED ENGLISH: reject button "No" (146); flag reasons rendered as `flag.reason.replace("_", " ")` (102), raw English enum and only the first underscore replaced. Rejected diagnoses are dropped from the view entirely (46-47), no way to undo a mistaken No. Confirmed-row header `flex` without wrap (94) holding label, code, badge and every flag badge: overflows at 390px when flags exist. RTL: `border-s-2 ps-2.5` logical (175).
+
+### components/documents/document-list.tsx (299 lines)
+- For: a person's documents, same list for clinician and patient: provenance, searchability label, read-aloud, flag, open with watermark.
+- Decides: bytes always via `/api/documents/<id>` (consent check and audit per comment 25-29); read-aloud posts an id, not text (126-139); watermark overlaid on images (250-273); flag never deletes (214-221).
+- Assumes: `/api/documents/[id]` and `/api/documents/[id]/speak` check consent and audit (not in slice).
+- Promises: P4 adjacent.
+- Notes: "The label is the feature" (15-21) and the label is English: `searchabilityLabel` in `lib/documents/formats.ts:102-120` returns literal English ("Searchable", "Image, not searchable", ...), rendered at 167 on both the clinician's and the PATIENT's screen. HARD-CODED ENGLISH also: `Flagged: {reason}` (170), `Open {document.title}` (290). DEFECT: `speak()` sets `speaking` true and on a non-OK response returns without resetting it (131-132), so the button stays disabled on "Reading..." until reload. Object URL never revoked (133). Non-image files open in a new tab with no watermark (284-291), which the copy admits (282). RTL: `me-1.5`, `ms-auto` logical (157, 204). 390px: buttons wrap; the image viewer `overflow-auto` with `max-h-[70vh]`, fine.
+
+### components/documents/document-panel.tsx (53 lines)
+- For: clinician wrapper binding upload, note and flag actions with the patient id in a closure.
+- Decides: patient id is a closure argument, not a form field (14-18).
+- Assumes: actions re-check server side (comment 18).
+- Promises: none directly.
+- Notes: `canAdd` hides only the add control; flagging is always offered to the clinician (47-49).
+
+### components/documents/own-profile-panel.tsx (70 lines)
+- For: the patient's own documents, read and flag only; points to the journal instead of uploading.
+- Decides: patient upload removed (17-29); zone from `useReaderZone` after mount (39-44).
+- Assumes: `flagOwnContent` in `app/(patient)/patient/profile/actions`.
+- Promises: P4 (the patient sees what was added about them, with who added it).
+- Notes: the English searchability label (see document-list) lands here on a patient's screen. First render in UTC then the reader's zone, so dates may visibly shift after hydration (40-43).
+

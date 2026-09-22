@@ -102,3 +102,66 @@ Per-page redesign fields used below: **Screen** (what it is for), **Next** (what
 - Promises: **C2 broken as written.** Line 201 renders `row.patientName` beside `row.therapistName` on every row; comment lines 22 to 27 (C260) defend it ("The line is money"). With names and clinician on each row across a week, a caseload per clinician is countable by eye, so "no caseload count on any row" is kept only literally (no number printed). E2-style attendance: a `cancelled` badge per named patient (line 206) is an attendance signal about a named patient to the employer of their clinician. This settles MAP contradiction 1: README is right, C2 is wrong.
 - Notes: RTL: labels via `t()`, dates via `formatDateTime/formatDate` with locale; `row.status` "cancelled" rendered raw English (line 208). Week boundary UTC, so an Egyptian evening session (after 22:00 Cairo on Sunday) lands in the next week. `hoursBooked` label is a count of sessions, not hours (check dictionary).
 
+### app/(clinic)/clinic/people/actions.ts (142 lines)
+- For: `invite`, `cancelInvitation`, `remove` for clinicians on the practice.
+- Decides: `requireClinicAdmin` on all three (lines 28, 96, 115); invite link is RETURNED to the manager because mail domain is unverified and `notify` reports `sent:false` (comment 50 to 54); notification uses `kind: "claim.invite"` (line 62) for a job invitation; each act audited with `clinicManagerId`, `actor: null` (0086).
+- Assumes: `inviteClinician`, `removeClinician` (moves them to own practice and disconnects meeting accounts, C266), `revokeInvitation`.
+- Promises: C1 (seat add = invite), C4 (release = `remove`): nothing in this action touches `organizations.seats` or the seat bill; `removeClinician` calls `releaseSeat` (per verify-sprint62), and design/clinic/page.tsx:25 says those move the bill by zero (see there). No quote before remove, nobody told what the bill becomes. P2: the clinician is notified through `notify` (in-app plus email) best effort.
+- Notes: invitation body text is English only (lines 63, 64). `notify` kind `claim.invite` reuses the patient claim kind, so in-app notice rendering may label it wrongly (Suspect).
+
+### app/(clinic)/clinic/people/page.tsx (72 lines)
+- For: the clinician list: name, email, verification status, future billable-from date for a seat whose period has not started (62.6). Screen: list plus invite form (admin only). Next: invite, cancel invitation, remove. Empty: in `ClinicPeopleList` (not in slice).
+- Decides: `canManage = actor.role === "admin"` (line 54); waiting-seat date formatted server side (lines 45 to 50); only `state === "sent"` invitations shown (line 63), so expired/declined invitations vanish without trace.
+- Assumes: `clinicClinicians` checks `people.read`; `seatsFor` (lib/billing/seats.ts:181).
+- Promises: C1 partly: verification state IS on the row (`verificationStatus`). C2: no caseload count here (kept). C3/C4: no seat price, no bill figure on the people screen, so removing somebody shows no effect on the bill.
+- Notes: RTL: only dates localised here; rest in component. Page uses `requireClinic`; `clinicClinicians` throws without `people.read` (error boundary instead of redirect).
+
+### app/(clinic)/clinic/records/actions.ts (110 lines)
+- For: EHR (SMART on FHIR) connect `begin` and `disconnect` for the practice.
+- Decides: `requireClinicAdmin` (lines 25, 91); PKCE verifier sealed via `putPending`, redirect to hospital's authorize URL; audits before redirect (line 49).
+- Assumes: `/api/ehr/callback` does the token exchange; `beginConnection` validates `fhirBaseUrl`.
+- Promises: none of the 25 (Unclaimed: EHR).
+- Notes: `vendor` cast from form without validation (line 27, `as EhrVendor`); `beginConnection` presumably validates. `fhirBaseUrl` is user supplied and fetched server side by `beginConnection` (SSRF surface, Suspect, lib/data/ehr).
+
+### app/(clinic)/clinic/records/page.tsx (81 lines)
+- For: the practice's record-system (EHR) connection and filing log. Screen: `RecordsPanel isClinic` with connections, last 100 filings (state, last error, response status, APPROVING CLINICIAN NAME, created time), and `filers` count. Next: connect/disconnect (admin). Empty: in panel.
+- Decides: `onClinicPlan={true}` by construction (comment 38 to 46).
+- Assumes: `writebacksFor` (lib/data/ehr.ts:344) joins users for approver name, no patient column.
+- Promises: C2 partly broken: the filing log is one row per signed note with clinician name and timestamp, so notes per clinician (a caseload proxy) and when each was filed are on screen. `lastError` is raw text from the hospital server and could carry patient identifiers (Suspect).
+- Notes: page uses `requireClinic`, not a capability; any clinic staff principal with any role reaches the note filing log. Layout `mx-auto max-w-2xl px-4 py-8` differs from the other clinic pages (own padding inside chrome). RTL: dates localised; `state`, `vendor`, `lastError` raw.
+
+### app/(clinic)/clinic/sign-in/actions.ts (41 lines)
+- For: `signInClinic` and `signOutClinic`.
+- Decides: rate limit 8 per 15 min on every attempt (line 22); `createClinicSession`, redirect `/clinic`. Sign-out redirects to `/clinic/sign-in`.
+- Assumes: `checkClinicPassword` returns a generic error.
+- Promises: A5-adjacent (separate cookie per principal).
+- Notes: no `next` parameter, always lands on `/clinic` (a receptionist without `schedule.read` lands on a page whose query throws: Suspect, check `clinicSchedule` refuseWithout).
+
+### app/(clinic)/clinic/sign-in/page.tsx (32 lines)
+- For: the clinic door, `AuthShell who="clinic"`. Next: sign in. RTL via `t()`.
+- Decides: nothing.
+- Assumes: separate clinic cookie (comment 13 to 16).
+- Promises: none.
+- Notes: no forgot-password link rendered here (none passed as `belowForm`); a clinic manager who forgets a password has no self-service path visible on this page (check `ClinicSignInForm`).
+
+### app/(clinic)/clinic/team/actions.ts (203 lines)
+- For: custom roles (`saveRole`, `deleteRole`), `inviteStaff`, `saveAssignments`, `switchToClinician`.
+- Decides: roles and staff need `requireClinicAdmin` (lines 36, 84, 107); assignments need `team.manage` (line 150); role changes audited with capability list in `reason` (line 76); `switchToClinician` revokes clinic sessions THEN creates a clinician session (C352, lines 191 to 203).
+- Assumes: `leaveClinicPrincipal` returns the linked `userId`.
+- Promises: A5-like for clinics (roles as lists, audited). Not one of the 25 (Unclaimed: clinic staff principal).
+- Notes: `inviteStaff` sets the staff member's password from the form (line 116): the admin chooses and therefore knows another person's password; no invitation or forced reset visible here (Suspect/hole). `saveAssignments` accepts arbitrary `clinicManagerId` and `userIds`; tenancy check is in `setAssignments` (not in slice). `switchToClinician` if `leaveClinicPrincipal` errors, redirect `/clinic` silently.
+
+### app/(clinic)/clinic/team/page.tsx (64 lines)
+- For: staff and roles screen. Screen: roles with capabilities, staff with role and assignments. Next: add role, add staff, assign clinicians. Empty: in `ClinicTeam`.
+- Decides: `requireClinicCapability("team.manage")` (line 31); clinicians list only with `people.read` (line 41).
+- Assumes: `DELEGABLE` capabilities list.
+- Promises: none of the 25.
+- Notes: RTL: none here; all in component.
+
+### app/(clinic)/layout.tsx (67 lines)
+- For: clinic shell `ClinicChrome`; no crisis orb by design (comment 22 to 26).
+- Decides: `bare` only on exact path `CLINIC_SIGN_IN` via `x-pathname` header (line 54); nav shown iff actor.
+- Assumes: middleware sets `x-pathname`; `ClinicChrome` hides nav items by capability.
+- Promises: C2 structural (no import path to clinical components, comment 18 to 20).
+- Notes: `/clinic/apply` and `/clinic/join/[token]` are NOT bare, so a stranger sees the clinic desk chrome with no nav (comment 36 to 44 says only the sign-in brings site header). RTL: language switch lives in chrome rail.
+

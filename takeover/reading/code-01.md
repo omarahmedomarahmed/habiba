@@ -239,3 +239,189 @@ FKs, and any earlier rule it changed.
   per base unit overflows; fine for USD/EGP (about 50), not for a currency like IDR. Recorded
   as Suspect.
 
+### drizzle/0033_people.sql (79 lines)
+- Added: `people` (first_name, last_name, email, phone, claimed_at, claimed_by_user_id,
+  preferred_country, preferred_currency). Partial unique email and phone WHERE claimed_at IS NOT
+  NULL. patients.person_id FK people SET NULL. Backfill: one person per patient, no merging
+  (comment 35-51 is explicit and the SQL matches: INSERT..SELECT with no GROUP BY).
+- CHECKs: none. Patient identity: `people` is the cross-organisation identity table.
+- Notes: the backfill pairs created people to patients by row_number over created_at, id on
+  both sides; correct only because both sides filter on the same `person_id IS NULL` set
+  inside one statement. Comment names a real address (`omarabdelgawad001@gmail.com`, the solo
+  therapist's demo login) as the example of two patients sharing an email.
+
+### drizzle/0034_patient_accounts.sql (81 lines)
+- Added: patient_accounts (person_id, email NOT NULL, password_hash NOT NULL, email/phone
+  verified, phone, deleted_at), patient_auth_sessions, person_claims (route default 'match',
+  status default 'pending', token_hash, channel, therapist_keeps_access), person_invites
+  (issued_by_user_id, token_hash, used_by_account_id). FKs (all inside ONE DO block, see
+  Suspect): patient_accounts.person_id RESTRICT, patient_auth_sessions.account CASCADE,
+  person_claims person/account CASCADE, person_invites person CASCADE, issuer CASCADE,
+  used_by SET NULL. Unique email and person_id WHERE deleted_at IS NULL; person_claims open
+  unique (person, account) WHERE pending.
+- Changed earlier rule: people.claimed_by_user_id (FK users) renamed to claimed_by_account_id
+  and repointed to patient_accounts SET NULL.
+- CHECKs: none. person_claims.status, route, channel free text.
+
+### drizzle/0035_consent.sql (66 lines)
+- Added: history_grants (person_id CASCADE, therapist_user_id CASCADE, organization_id SET
+  NULL, status default 'pending', shape, request_note, requested/decided/expires/revoked,
+  rejection_reason). Partial unique (person, therapist) WHERE status IN ('pending','granted').
+  audit_log.actor_account_id FK patient_accounts SET NULL. sessions.recording_started_at,
+  profile_share_consent, profile_share_consent_at.
+- CHECKs: none. history_grants.status free text here; sessions.profile_share_consent free text.
+- Promises: P4 (patient decides readers), T5 (grant).
+
+### drizzle/0036_documents.sql (107 lines)
+- Added: person_documents (person, ordinal, source, title, uploader user/account, org,
+  blob_url, body, extraction default 'none'), document_chunks (document_id, person_id,
+  sequence, text), person_diagnoses (label, source_sentence NOT NULL, source doc/chunk, status
+  default 'proposed', confirmed_by), content_flags (target_type, target_id, reason,
+  raised_by user/account, withdrawn_at). FKs all in multi-ALTER DO blocks: person CASCADE,
+  uploader SET NULL, org SET NULL, chunk.document CASCADE, diagnosis.document CASCADE,
+  diagnosis.chunk SET NULL, confirmer SET NULL, flag raiser SET NULL. Unique (person_id,
+  ordinal); (document_id, sequence).
+- CHECKs: none (extraction, status, source, target_type free text).
+- Notes: nothing ties document_chunks.person_id to its document's person_id; a chunk can be
+  filed under a different person from its document with no constraint refusing it. Same for
+  person_diagnoses.person_id vs its source document. The ordinal-uniqueness comment ("never to
+  somebody else's") is only as good as that match. Suspect.
+- content_flags.target_id has no FK (polymorphic).
+
+### drizzle/0037_memory.sql (73 lines)
+- Added: person_profiles (one per person, unique person_id), observations (person, observed_at,
+  text, source, source_id, ref), homework_items (person, session SET NULL, assigned_by SET
+  NULL, org SET NULL, status default 'open', completed_by_account SET NULL). FKs in one DO
+  block. No CHECKs.
+
+### drizzle/0038_assistant.sql (35 lines)
+- Added: assistant_threads (user CASCADE, org CASCADE), assistant_messages (thread CASCADE,
+  user CASCADE, role, content, mentions), quota index WHERE role = 'therapist'. No CHECK on
+  role.
+
+### drizzle/0039_scheduling.sql (64 lines)
+- Added: availability_slots (therapist_user_id CASCADE, org CASCADE, starts_at, duration default
+  60, status default 'open', held_until, session_id SET NULL, booked_by_account_id SET NULL,
+  note). CHECK `availability_slots_whole_hour` (minute = 0 and second = 0). Unique (therapist,
+  starts_at). sessions.scheduled_at.
+- CHECKs: whole_hour only; status free text; duration_minutes unconstrained (a 120 minute slot
+  at 19:00 and another at 20:00 overlap and both satisfy the unique index, so the "no
+  overlapping hours" comment at 36-38 holds only while duration is 60). Suspect.
+
+### drizzle/0040_repair.sql (104 lines)
+- Added: users.timezone, patients.timezone, availability_slots.reminded_at; strips
+  ' [reminded]' from notes; partial reminder index. Re-adds, one per block, the FKs from the
+  multi-statement DO blocks of 0034, 0036, 0037, 0038, 0039.
+- Stale / incomplete: the repair list omits two FKs from 0034's block:
+  `person_invites_issuer_fk` and `person_invites_used_by_fk` (0034 lines 54-55). Comment
+  line 57-62 says every FK from those blocks was measured present, so this is latent, but the
+  "repair forward" is not complete for 0034. (patient_accounts_person_id_people_id_fk is the
+  first in its block so it cannot have been skipped by the pattern.)
+
+### drizzle/0041_requeue_documents.sql (27 lines)
+- Data only: person_documents 'unsupported' PDF/docx back to 'pending'.
+
+### drizzle/0042_sweep.sql (85 lines)
+- Added CHECKs (all NOT VALID): sessions_feedback_token_present, patients_phone_present
+  (source='therapist' implies phone), patients_phone_e164, patient_accounts_phone_e164,
+  people_phone_e164.
+- Validated later: all five in 0054.
+
+### drizzle/0043_claim_by_phone.sql (96 lines)
+- Added: unique patient_accounts.phone WHERE deleted_at IS NULL AND phone IS NOT NULL;
+  CHECK patient_accounts_phone_present NOT VALID (validated 0054); patient_accounts.timezone;
+  person_claims.seen_therapist, name_attempts, challenged_at, patient_id (FK patients
+  CASCADE).
+- Changed earlier rule: dropped person_claims_open_unique (person, account) and recreated as
+  (account, person, patient_id) NULLS NOT DISTINCT WHERE pending.
+
+### drizzle/0044_challenge_passed.sql (15 lines)
+- Added: person_claims.name_confirmed_at.
+
+### drizzle/0045_two_handles.sql (96 lines)
+- Changed earlier rule: patient_accounts.email DROP NOT NULL (0034 had NOT NULL);
+  patient_accounts_email_unique rebuilt NULLS DISTINCT WHERE deleted_at IS NULL AND email IS NOT
+  NULL.
+- Added: claim_attempts (account CASCADE, patient CASCADE, attempts, locked_at, released_at,
+  released_by_user_id SET NULL, release_reason); unique (account, patient).
+- CHECKs: none on claim_attempts (no attempts ceiling in the DB, unlike patient_auth_tokens in
+  0053).
+
+### drizzle/0046_no_show.sql (112 lines)
+- Added: sessions.reassigned_from_user_id (FK users SET NULL), reassigned_at, no_show_at,
+  recovery_offered_at, recovery_outcome with CHECK sessions_recovery_outcome_known (NULL or
+  reassigned/refunded/abandoned) NOT VALID (validated 0054). Table patient_credits (person
+  CASCADE, amount, currency, spent, from_session SET NULL, reason, expires_at) with CHECKs
+  amount_positive and spend_within (0 <= spent <= amount).
+- Notes: patient_credits cascade on the person; patient credit (money owed to the patient)
+  disappears if the person row is deleted.
+
+### drizzle/0047_two_rails.sql (331 lines)
+- Added: ledger_entries.entity + CHECK entity_known ('us','eg') NOT VALID; users.rate_currency;
+  sessions.price_currency; invoices.settled_currency, settled_amount_minor, fx_rate_micro,
+  fx_quoted_at + CHECK invoices_fx_complete (all three or none) NOT VALID;
+  session_payments.crossing + CHECK crossing_known (4 values) NOT VALID; session_payments.entity
+  + CHECK NOT VALID. All four validated in 0054.
+- Table payout_methods (therapist CASCADE, org CASCADE, edited_by SET NULL; CHECK named
+  (account_name and identifier trimmed length > 2), CHECK method_known (instapay, wallet,
+  stripe); partial unique default per therapist).
+- Table payout_requests (org RESTRICT, therapist RESTRICT, method SET NULL, approver/sender/
+  owner/editor SET NULL; CHECKs amount_positive, status_known (requested, approved, sent,
+  confirmed, rejected), entity_known, approver_not_payee, approver_not_editor,
+  sent_was_approved (sent_at implies approved_at)).
+- Table payout_request_events (request CASCADE, actor SET NULL). No CHECK on to_status.
+- Notes: no CHECK that `rejected` carries `rejected_reason`, and none that `sent_by` differs from
+  `approved_by`. `rate_currency`, `price_currency` free text with no CHECK.
+
+### drizzle/0048_support_tickets.sql (157 lines)
+- Added: support_tickets (reference unique, source, name, email, phone, patient_account SET
+  NULL, user SET NULL, topic, message, locale, entity, status, owner SET NULL, due_at,
+  closed_by SET NULL). CHECKs one_handle (email or phone), message_present (>= 10 chars),
+  topic_known (7 values), status_known (open, waiting_on_them, closed), entity_known,
+  closed_dated. support_ticket_events (ticket CASCADE, actor SET NULL); kind free text.
+- Patient identity: support_tickets name/email/phone/patient_account_id.
+
+### drizzle/0049_back_office.sql (240 lines)
+- Added: support_tickets.audience (+CHECK NOT VALID, validated 0054), related_session_id (FK
+  sessions SET NULL), related_payout_request_id (FK SET NULL), moved_to_whatsapp_at,
+  whatsapp_summary (+CHECK whatsapp_summarised NOT VALID, validated 0054), access_token
+  (unique), access_code_hash, access_code_expires_at. Table support_attachments (ticket CASCADE,
+  uploader SET NULL; CHECK type_known (jpeg/png/webp/heic/pdf), sized (0 < size <= 25 MiB)).
+  Table phone_change_requests (account CASCADE, owner/approver SET NULL; CHECKs status_known,
+  reasoned (>=10), consented (status refused or contact_consent), e164 both, actually_changes,
+  done_was_verified, done_was_approved (status done implies approved_by_user_id NOT NULL));
+  unique one open per account.
+- Notes: comment lines 4-6 state `users.role` has no DB CHECK: "the check living in the
+  application's union type". Recorded under enum-like unions without CHECK.
+- Broken (latent, see 0082 below for whether handled): `phone_change_done_was_approved`
+  requires approved_by_user_id NOT NULL on a done row, while its FK is ON DELETE SET NULL. Deleting
+  the staff user who approved any completed phone change fails with a CHECK violation, so that
+  staff row cannot be deleted. This is exactly the shape 0082 names ("set_null_vs_check").
+
+### drizzle/0050_country_rails.sql (40 lines)
+- Added: country_settings.collection_provider, payout_methods, entity (+CHECK NOT VALID,
+  validated 0054), regulators, id_label_front/back, licence_label, sample_image_url. CHECK
+  vat_sane 0..5000 bps NOT VALID (validated 0054).
+- Stale: comment line 31-33 says "10,000bps is the whole payment" and "a country configured
+  above that is a typo", but the CHECK ceiling is 5000. Not wrong, but the comment argues 10,000.
+
+### drizzle/0051_strings_and_languages.sql (116 lines)
+- Added: locales (code pk, direction CHECK ltr/rtl, code_shaped CHECK, public_implies_authoring
+  CHECK, updated_by SET NULL), ui_strings (pk key+locale, status CHECK draft/published, source
+  CHECK human/machine, not_blank CHECK, machine_attributed CHECK, updated_by SET NULL).
+- Notes: ui_strings.locale has no FK to locales.code.
+
+### drizzle/0052_audit_resource_key.sql (18 lines)
+- Added: audit_log.resource_key text + index. Fixes H6 shape (resource_id is uuid).
+
+### drizzle/0053_patient_reset.sql (46 lines)
+- Added: patient_auth_tokens (account CASCADE, purpose, token_hash unique, channel, attempts,
+  expires_at, used_at). CHECKs expires (> created_at), attempts_bounded (0..5), channel_known
+  (whatsapp, email), purpose_known ('password_reset').
+
+### drizzle/0054_validate.sql (51 lines)
+- VALIDATEs the 15 NOT VALID constraints from 0042, 0043, 0046, 0047, 0049, 0050 (checked
+  against my running list: all 15 accounted for). sessions.feedback_token SET NOT NULL.
+- Notes: comment says "22.1 has just emptied every table". The NOT VALID list is complete as of
+  0053.
+

@@ -75,6 +75,44 @@
 - Promises: T3 partly: shows held/requested/sent/available, but no "owed" figure beside held, so the netting (owed out of earned) is not visible here.
 - Notes: comment 14 "an English-only surface" while every string goes through `t()` (Stale); `formatUsd` imported unused (15). `ml-auto` (211) not logical property (RTL).
 
+### components/brand/logo.tsx (143 lines)
+- For: the inline SVG 24T mark.
+- Decides: `ink` is one of navy #0A2342, teal #2EC4B6, white (30-34); viewBox is ink box plus 10 units clear space (68-76); min box height 21px (85, 111); `title=null` hides it from AT (118-120).
+- Notes: no wordmark component by decision (129-143). Teal ink is 2.19:1 on white, for radar ground only.
+
+### components/clinic/apply-form.tsx (113 lines)
+- For: practice enquiry form (held row plus a phone call, never an active clinic).
+- Decides: asks name, contact, email, phone, registration number/authority, free-text intended clinicians (45-89); no clinician count (22-25).
+- Notes: pending label "Working…" hardcoded English (14).
+
+### components/clinic/chrome.tsx (138 lines)
+- For: clinic portal chrome; wraps `Desk` with tabs filtered by capability, switcher to clinician, sign out, and the "never" wall sentences.
+- Decides: tabs overview(schedule.read), people, bills, earnings, team(team.manage), records(team.manage) (39-56); filter is courtesy, pages recheck with `requireClinicCapability` and `refuseWithout` (31-37). Switch revokes clinic sessions then signs in as clinician (101-108).
+- Promises: C2: comment 20-21 says outright "The nearest thing is a NAME ON A SCHEDULE ROW", i.e. the clinic overview shows patient names (confirmed app/(clinic)/clinic/page.tsx:201 renders `row.patientName`). C2 broken by design.
+- Notes: comment 14 says "THREE DESTINATIONS" and 48 "a fourth destination"; the list has six (Stale).
+
+### components/clinic/join-form.tsx (239 lines)
+- For: clinician accepting a clinic invitation, new account or existing account.
+- Decides: renders `SeesWhat` with can = calendar, NAMES, radar, prices, earnings, withdrawals; cannot = notes, risk, copilot, consent (52-67). C261 no private patients sentence above the button (161-164, 216-219).
+- Promises: C2 contradicted in the product's own disclosure: `clinic.join.sees.names` and comment 93 "They see each patient's name and appointment time and never a note". C5 kept (earnings).
+- Notes: "Working…" hardcoded (15).
+
+### components/clinic/people-list.tsx (248 lines)
+- For: clinic's clinician list with verification word, seat-billable-from date, remove, invitations, invite form.
+- Decides: verification is a word, never a control (23-30, 101-110); no caseload/session count/patient/earnings on a row (31-35). Remove needs a confirm tap (128-157). Invite link shown on screen because mail domain unverified (225-232).
+- Promises: C1 partly (verification state on row, 102-110). C2 kept on this screen (no count). C4 (remove confirm text `clinic.removeConfirm`).
+- Notes: verified pill `bg-brand-100 text-brand-800`, pending `bg-amber-100 text-amber-800`; remove `bg-red-600 text-white`. Comment 226-229 "our mail domain is not verified yet, so notify reports a failure" is a dated state claim. "Working…" hardcoded.
+
+### components/clinic/sign-in-form.tsx (68 lines)
+- For: clinic manager sign-in. No sign-up link, no clinician link (22-28).
+- Notes: "Working…" hardcoded.
+
+### components/clinic/team.tsx (392 lines)
+- For: clinic staff (receptionist-type principals), up to two named roles with delegable capabilities, per-staff clinician assignment.
+- Decides: role form shown while roles<2 or editing (161); `grantable` drawn, seats/clinicians-manage never delegable, said in amber note (193-196); staff invited with an admin-typed password (270-278); `AssignmentPicker` posts full set, replace semantics (314-392).
+- Assumes: `createRole` refuses a third; `scopeToAssigned` null for admin.
+- Notes: capability labels exhaustive by type (40-50). See Broken for the role editor. After a successful assignment save, `dirty` still compares against the stale `assigned` prop, so "Saved" (387) only shows if the page revalidates.
+
 <!-- FILES-END -->
 
 ## Design system inventory (slice-specific)
@@ -94,6 +132,9 @@
 - components/billing/top-up-stepper.tsx:56,62-67. The stepper starts at index 0 (the floor) on every mount and, 700ms later, calls `onChoose(floor)`, which `openPotPayment` saves as the company's open payment (app/(sponsor)/sponsor/pot/page.tsx:211-212; no initial-index prop exists, grep of callers). The comment at 44-48 says the point of `onChoose` is that a finance officer who picked $1,500 and came back tomorrow does not find it reset to the floor; that is exactly what happens, and the saved $1,500 is overwritten with the floor as soon as the sheet renders. If they then submit proof without re-stepping, the hidden `amount` (pay-by-transfer.tsx:404) is the floor while their bank sent $1,500: an operator sees an overpayment (A4 path) for a company that did everything right.
 - components/billing/earnings.tsx:187. "Payout dashboard" button renders `text-white` on the `bg-brand-500` card (via `bg-navy-600/10`): white on teal, about 2.2:1, the combination app/globals.css:56-67 says is banned and verified. verify-palette misses it because it matches ground and `text-white` on the SAME line only (scripts/verify-palette.ts:232-235); here the teal ground is on the parent at line 115.
 - components/billing/seat-manager.tsx:96-98. Removing seats reads "N seats costs $X a month, up from $Y" with X < Y.
+
+- components/clinic/team.tsx:161-191. With one role, the "add role" form is already mounted. Pressing Edit sets `editing`; only the name Input is keyed (170), so it resets, but the capability checkboxes are uncontrolled `defaultChecked` inside the same mounted form and do NOT update. The admin sees the role's name with every box unticked (or the previous role's ticks); saving then posts an empty or wrong capability set and `saveRole` replaces the role's capabilities with it. With two roles the form mounts fresh on Edit and is correct, so the defect shows only in the 0/1 role state.
+- C2 contradiction, by design: components/clinic/join-form.tsx:56 (`clinic.join.sees.names`) and chrome.tsx:20-21 state the practice sees patient names on the schedule; app/(clinic)/clinic/page.tsx:201 renders `row.patientName`. Promise C2 says "Nowhere in the clinic portal ... a patient name, on any screen". One of the two is false; the code shows names.
 
 <!-- BROKEN-END -->
 

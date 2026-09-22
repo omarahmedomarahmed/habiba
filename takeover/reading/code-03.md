@@ -65,6 +65,41 @@
 - Promises: none directly.
 - Notes: reads on the default-region pool (18); lib/data/journals.ts:162/185 WRITES crisis notifications through `dbFor(regionOfPerson)`. Today `eg` falls back to the US URL (lib/db/region.ts:27-33) so they meet; the day `DATABASE_URL_EG` is set, an Egyptian patient's journal alert lands in Cairo and the clinician's banner reads Virginia.
 
+### lib/data/partner-admin.ts (341 lines)
+- For: everything that changes a partner (EHR integrator): enquiry, state, first user, sign-in check, admin lists, production approval.
+- Decides: `applyToPartner` (44) creates a HELD partner, no user, no key. `setPartnerState` (101) no side effects on clinicians. `createPartnerUser` (123) password >= 12, unique email across partners, one message either way. `checkPartnerPassword` (161) constant work; held/suspended get the same "do not match" (191-193). `sponsorChoices` (258) active sponsors, name and id only, shown on the partner's own screen. `approveForProduction` (286) refuses without documents URL, contact name, phone; DB `partners_approval_pair`. `withdrawApproval` (333) stops new live keys, keeps existing.
+- Assumes: `getPartnerActor`/`authenticateKey` read `partners.state` in their WHERE; audit written by app/(admin)/admin/partners/actions.ts (46, 78, 105, 130).
+- Promises: A5 (audit) kept via the caller. E2: `sponsorChoices` lists every active sponsor's name to any partner operator; a partner therefore learns the full list of our corporate customers (see Unclaimed (b)).
+- Notes: `applyToPartner` is open to strangers with no rate limit visible here (caller may limit). `checkPartnerPassword` runs a full `verifyPassword` for a held partner but returns early for no user after a hash; both paths do one hash, so timing holds.
+
+### lib/data/partner-links.ts (101 lines)
+- For: the patient's view of which partner platforms can identify them, and cutting a link.
+- Decides: `linkedPartners` (49) live links, partner name and date only. `unlinkPartner` (78) person id as a WHERE condition; `resolveSubject` in lib/partner/api.ts filters `revoked_at` so it is immediate.
+- Assumes: caller app/(patient)/patient/consent/actions.ts:154 queues `subject.unlinked`.
+- Promises: P4 (patient decides) kept for partner write-back.
+- Notes: no `audit()` on unlink here or in the caller (consent/actions.ts:154-176); a consent withdrawal leaves only a log line. The caller's comment says telling the partner is "best effort" but `queueWebhook` is awaited with no catch (consent/actions.ts:167-171).
+
+### lib/data/patient-import.ts (328 lines)
+- For: a clinician imports their own caseload from a CSV: pure parse and preview, then one `createPatient` per row.
+- Decides: only four columns cross (`COLUMNS` 68-73); every other column is named in `ignoredColumns` (205-207). `parseImport` (176) requires a name and a phone column, phone through `toE164` with a country (227), duplicates within the file refused (234-237), bad email dropped not refused (246-248). `importPatients` (269) skips numbers already on the caseload (`patientPhonesOnCaseload`, scope is caseload not org), collects failures, one `patient.import` audit with counts only (308-314).
+- Assumes: app/(app)/patients/import/actions.ts:76-113 re-validates the JSON rows that come back from the form (E.164 regex, lengths). `createPatient` writes the org and therapist from the actor.
+- Promises: none of the 25. Unclaimed (a): migration from another platform.
+- Notes: the header alias `name` maps to firstName (69), so a single "Name" column puts the full name in first name. No row cap in the parser; the commit action caps at 2000. `AN_IMPORT_CARRIES_NO_CLINICAL_TEXT` (328) is a constant for a verifier, not enforcement.
+
+### lib/data/patient-view.ts (318 lines)
+- For: the only session queries a patient screen may use: own sessions grouped, the open-session orb, the live banner.
+- Decides: `sessionsForPatient` (88) routed by person region; select list is the enforcement: only `content->>'patientBrief'`, `provenance`, `patientStatus` from notes (107-117); brief shown only when `patientStatus = 'approved'` (131, 148); `briefPending` when unsigned and in the past (149). `openSessionForPatient` (208) newest scheduled/in_progress, not ended, with a join token; `owes` when price > 0 and payment pending (241). `liveSessionForPatient` (250) in_progress, not ended. `groupOf` (298) future within 24h is "today"; past unscheduled or radar is "past_instant".
+- Assumes: `patient_status` is set only by a clinician's signature; `sessions.join_token` present for joinable sessions.
+- Promises: P3 partly: nothing unsigned reaches the patient (kept), "still writing" state exists (`briefPending`), but the row carries the therapist's name only, no credentials (143). P2 partly: `openSessionForPatient` is the orb's source. P4: sessions across all clinicians shown to the person (kept).
+- Notes: see Suspect for stale doors and cancelled sessions. `groupOf` "today" is "next 24 hours", not the reader's calendar day, and a session earlier today is "past".
+
+### lib/data/patients.ts (313 lines)
+- For: clinician caseload reads and writes on `patients`.
+- Decides: `scope` (23) org plus own caseload unless super_admin. `patientsWithPhone` (43) and `patientPhonesOnCaseload` (70) caseload-scoped so a duplicate check is not a lookup oracle. `listPatients` (83) with completed session count (correlated subquery fixed, 92-111). `getPatient` (119) audits `patient.read`. `getPatientHistory` (137) sessions on this patient row incl. note content and off-record seconds. `createPatient` (180) E.164 required; person created best effort (213). `updatePatient` (238) allowlisted fields; diagnosis change refused unless `capabilities.diagnosisChanges` (272-278). No delete (295-304).
+- Assumes: migration 0042 phone rule for `source = 'therapist'`; `ensurePersonForPatient` in people.ts.
+- Promises: P4 (diagnosis change gated on grant) kept.
+- Notes: `updatePatient` writes `phone` with no E.164 check (257), unlike `createPatient`. `getPatientHistory` returns `sessionNotes.content` whole, i.e. the full clinical note, including sessions another therapist ran on this same patient row.
+
 <!-- FILES-END -->
 
 ## Stale
@@ -83,6 +118,7 @@
 - lib/data/journals.ts:191 the crisis notification's `actionUrl` is `/people/${personId}`. No `app/**/people/[...]` page exists for a clinician (only `app/(clinic)/clinic/people/page.tsx` and `app/(sponsor)/sponsor/people/page.tsx`), and nothing rewrites `/people/`. A clinician who does get the alert taps into a 404. The route would also need a patient id, not a person id.
 
 ## Looks broken, is handled
+- lib/data/partner-admin.ts:101, :286, :333 change a partner's state and production approval with no `audit()` call. The admin actions audit every one: app/(admin)/admin/partners/actions.ts:46, :78, :105, :130.
 
 ## Unclaimed
 
