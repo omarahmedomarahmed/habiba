@@ -351,3 +351,58 @@ looks for the answer where the product does not give it.
 - Traps: its own T1 and T2 weaknesses above. T6 bare `main()`.
 - Promises: none; it is the instrument everything else is trusted through, which is why its blind spots matter.
 
+### scripts/walkthrough.ts (890 lines)
+- For: the click-by-click Playwright walkthrough (sprint 52.2/52.3), one screenshot per interaction per portal, in English or Arabic, and a findings list of controls not findable by their visible label, broken steps, slow doors.
+- Decides: `guard()` (l.88-105) refuses production by name AND anything that is not the capture endpoint `ep-little-sky-a6v9sdx4` (two-sided, good). Labels come from the dictionary (`say()` builds exact-match regexes from `lib/i18n/messages`), so the Arabic pass tests the Arabic catalogue (right medium). `control()` tries role/label/text, requires VISIBLE, records a "not-findable" finding when a CSS fallback is needed. `signIn` uses the real form and waits for the URL to leave the door, records > 3s as slow. `routesOnDisk()` derives every non-dynamic `page.tsx` (not hand-typed, good) and `assertEveryRouteIsWalked()` fails a full run if a route is neither walked nor in `NOT_WALKABLE` (two entries with reasons).
+- The flows' itineraries are hand-typed per portal (T3 by construction), defended by the derived route comparison. Sign-ins use the capture cast accounts (layla.demo, test@24therapy.app, manager@, hr@, dev@, admin@example.com) with passwords typed into the source at l.549, 594, 653, 722, 755, 789, 818 (fixture credentials for the capture branch, not the documented demo password; not copied here).
+- 🔴 `tour()` adds a route to `walked` BEFORE `page.goto` and swallows goto errors (l.346-347). "Walked" therefore means "requested", not "rendered": a route that 500s or redirects to a sign-in door counts as walked. Only the optional `expect` text distinguishes, and no itinerary entry passes one.
+- 🔴 `assertEveryRouteIsWalked()` calls `process.exit(1)` (l.429) BEFORE `findings-<locale>.json` is written (l.879-882). A full run that meets one unwalked route loses every finding it collected. Today's disk (listed with find) has routes no flow visits: `/admin/actuals`, `/admin/financial-model`, `/admin/transfers`, `/admin/usage/sessions`, `/for-therapists`, `/design`, `/design/clinic`, `/design/clinic/sample`, `/design/company`, `/design/company/sample`, `/design/patient`, `/design/patient/sample`. So a full run currently exits 1 and writes no findings file. `/admin/transfers` is the screen A1/A4 name, and the walkthrough has never photographed it.
+- Traps: T1 n/a (browser). T4: findings are all printed. T6 bare `void main()`; exports a type only.
+- Promises: P1 (taps) not measured here (it navigates by URL, not by taps); A4's screen never walked.
+
+### scripts/whatsapp-check.ts (96 lines)
+- For: operator tool that sends ONE real WhatsApp template message to a number given on the command line, to prove the Meta wiring.
+- Decides: refuses a non-E.164 argument with the reason (never guesses a country); refuses if `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_NUMBER_ID` are unset; sends `booking.reminder` with two variables; exit code reflects sent.
+- Stale: l.7-9 "Nothing else in the product does that yet": `lib/notify/whatsapp.ts` has a template map used by `notify()` (verify-sprint76.ts:78-81 asserts `"session.started"` is templated there; verify-sprint51.ts:227-232 asserts the reminder cron notifies on WhatsApp). The header also says it sends `session_reminder` while the code sends kind `booking.reminder` (mapping not verified here).
+- Notes: l.25-29 records that until Meta approves the `password_reset_code` authentication template, "a patient with no email address cannot reset their password at all", locking them out of their own clinical record (priority 4: stuck with no way out). Whether that is still pending is a production fact, not checkable here.
+- Traps: none (not a verifier). No DB. Network: sends a real message when run.
+
+### scripts/demo-edit.mts (989 lines)
+- For: composites stills from demo-video/demo-full into a finished marketing film (short, or `DEMO_FILM=tour`) on a canvas in Chromium and records it with MediaRecorder; `DEMO_STILLS` renders chosen frames for review.
+- Decides: nothing in the product. The film's copy is hard-coded in `SHORT` (l.72-204) and `TOUR` (l.214-381) and in the scene functions.
+- 🔴 Claims in the film that the product's own rules forbid or contradict, and no gate reads `.mts`:
+  - l.554-555 title card of the short film: "Talk to a real therapist / in the next sixty seconds." This is the exact response-time promise sprint 57 removed from published pages (`verify-sprint57.ts:316` bans "in the next sixty seconds"; C275/C288; verify-sprint65 65.8 "may not promise a therapist in sixty seconds").
+  - l.735 outro "Care in a minute. Notes for free." contradicts the per-session AI note fee (README/TAKEOVER: "$3 more"; verify-sprint57 `sessionLines` PAYG).
+  - l.361-362 "six dollars a completed session, or ninety-nine a month ... Radar sessions are charged to the patient and paid out through Stripe": a price held in prose (H27) and a Stripe payout claim that is false for Egypt (verify-sprint59: `payoutRailFor("EG")` is always manual; no card processor in Egypt).
+  - l.348 "The patient gets a plain-language summary by email": P2 says nothing the product tells you is only in an email.
+  - l.198 "Crisis language flagged while it is still being said" and l.83 "Every card is a licensed clinician who is online this minute": claims about a probabilistic detector and live state (57.6 required published copy to say the scan can miss).
+  - l.743 "MVP live in production" and "Every frame in this film is the running product."
+  - Many strings contain em dashes (e.g. l.105, 228, 301), which verify:sprint24/51 ban in shipped strings; `.mts` is outside every scanner (verify-sprint57's door count and verify-traps both read `*.ts` only).
+- Notes: the local static server (l.912-923) joins the request path onto OUT without normalising `..` (path traversal on 127.0.0.1 only, dev tool). No DB, no production guard needed (reads local PNGs).
+- Traps: n/a. T6 bare `void main()`.
+
+### scripts/demo-full.mts (636 lines)
+- For: drives the whole product end to end in three browser contexts (clinician, admin, patient) against `DEMO_BASE`, with a synthesised WAV as the microphone, and screenshots every step for the tour film.
+- 🔴 No database or host guard of any kind. The header (l.30-36) says it writes "real rows, in whatever database DEMO_BASE is pointed at, including a clinician who appears on the public radar" and to "Read `--dry-run` output first": there is no `--dry-run` anywhere in the file (stale reference to a flag that does not exist). demo-speech.mts:16-17 describes the database as "shared with production".
+- 🔴 Act 3 (l.268-292) signs in as the seed admin, opens `/admin/verifications`, clicks the demo clinician's row IF it is found (`if (await row.count())`), then clicks the FIRST `^Approve$` button on the page regardless (l.286-290). If the row was not found (renamed, paginated, filtered), it approves whichever applicant is first in the real queue: a clinician approved by a script, with no review, onto the radar. Priority 5/C1 integrity.
+- 🔴 The demo clinician is registered with a real regulator and a plausible licence (l.203-209: country AE, "Dubai Health Authority", a DHA-format number) and then approved and put live on the public radar. The header of `makeDocument` (l.89-96) says "a plausible-looking licence with a real regulator's name on it is not a thing to leave lying in a database": the images carry SPECIMEN, the database fields do not. Cleanup (l.612-621) only takes the clinician offline; the verified account, documents, session, transcript, note, rating and audit rows stay, and are only printed "for cleanup".
+- Personal data in source: l.60 defaults the patient's summary recipient to a real personal gmail address (the summary email of a synthetic session is sent there on every run unless `DEMO_PATIENT_EMAIL` is set). l.57 hard-codes the demo clinician's password (not the documented demo password). Values not copied here.
+- Other: uses `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from the environment; confirms the clinician is on `/api/radar` by `lastName`, which shows the public radar API returns clinicians' last names.
+- Promises touched (as a film): P3 (two signatures, chart then patient summary "Approve and send"), T1 (note from transcript), A1 not shown.
+
+### scripts/demo-speech.mts (200 lines)
+- For: synthesises the two-voice session audio (OpenAI `gpt-4o-mini-tts`, 14 turns about sleep and work stress) into `demo-output/session-audio.wav`, cached unless `DEMO_SPEECH_FORCE`.
+- Decides: refuses a missing or `sk-smoke` key; parses and concatenates WAV chunks with 380ms gaps, refusing mismatched formats.
+- Notes: deliberately not a crisis script "because the crisis path sends alerts and emails, and firing that at a database shared with production to make a nicer video would be a bad trade" (l.15-17): an admission that the demo target database is production-shared. Network call, costs money. The script text contains em dashes (l.32, 52, 68, 91).
+
+### scripts/demo-video.mts (191 lines)
+- For: records the patient's ninety seconds (homepage, language filter, radar, booking sheet, name, join, recording consent, room) with an injected cursor, plus numbered stills, against `DEMO_BASE`.
+- 🔴 Books a REAL session: it clicks the first "Available" clinician on the live board (l.150-152; the comment says it used to name one and the real booking row broke the next run), types "Sam", presses Start now, consents to recording and enters the room. With no host guard, pointed at production it rings and occupies a real clinician. The header (l.22-24) says the fixtures are "the demo clinicians from scripts/demo.ts": the code picks whoever is available, demo or not.
+- 🔴 l.97 `rmSync(OUT, { recursive: true, force: true })` deletes the whole `demo-output/` directory, which also holds `session-audio.wav` (paid TTS, demo-speech) and `full/` (the tour stills from demo-full). demo-edit.mts:4 documents `demo-video && demo-edit`; running demo-video after demo-full destroys the tour's inputs.
+- Traps: n/a. T6 bare `void main()`.
+
+### scripts/icon.mts (161 lines)
+- For: renders the "24" navy tile once at 1024px in Chromium, downsamples to 16/32/48/180/512, writes `app/favicon.ico` (PNG-in-ICO), `app/icon.png`, `app/apple-icon.png`.
+- Decides: nothing in the product. Writes three files into `app/` when run.
+- Notes: comment contains no stale claim found. No DB, no network. T6 bare `void main()`.
+

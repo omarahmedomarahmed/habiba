@@ -516,3 +516,59 @@ appended to as the read went on.
 - Promises: TASK 123: the comment says the patient decides recording "on their own screen" (184-186), but the default "where" is IN PERSON (88), where the patient has no join link and no screen, and the Record tick is on by default (89). How an in-person patient is asked is not in this form; see session-room. E3/CV2: the price the clinician types is the price; the VAT total is computed here with the same half-up rounding as `vatOn` (99-108), a second computation of a figure the pay page also computes (Suspect: two formulas). T3 adjacent: "you keep / our fee" split.
 - Notes: price input has a literal `$` prefix (336-338) and `formatUsd` everywhere (381-413): USD only, `en-US` formatting on an Arabic page. `placeholder="+20 100 123 4567"` and `"60"` literals (283, 349). Charging cannot be turned on for an in-person session (313). Comment "Absent when the therapist has not finished Stripe onboarding" (55) sits above a different doc comment, orphaned. RTL: `start-3.5`, `ps-7` logical (336, 348). 390px: `grid-cols-2` where-options (147) with body text, fine.
 
+### components/session/no-show-recovery.tsx (200 lines)
+- For: the patient's waiting screen when the clinician has not joined: "joining shortly" for five minutes, then replacements who are free now, or a refund.
+- Decides: no blame in the first five minutes (21-26); offer fetched once at five minutes, not polled (58-73); refund or replacement by button (116-191).
+- Assumes: `offerReplacements`, `takeRefund`, `takeReplacement` in `app/(patient)/sessions/[id]/recovery-actions`; the page polls for the clinician joining.
+- Promises: A1/A2 adjacent (a refund is money moving): whether `takeRefund` works for a manual-transfer payment is server side (see the rating-form no-show refund below, which only refunds `session_payments`).
+- Notes: credit formatted as USD regardless of the settlement currency (101), unlike session-list.tsx:118-122 which reads the row's currency. `offerReplacements` rejection unhandled (67). The refund button in the "none" state has no pending label (116-128); the second refund button shows no pending state (178-191). Replacement prices via `<Money>` (171). English: none.
+
+### components/session/note-review.tsx (651 lines)
+- For: the clinician's note editor with two documents: the clinical SOAP note (sign) and the patient's copy (approve and send), language/English view toggle, regenerate on failure.
+- Decides: separate signatures for chart and patient copy (51-63); English translation read-only and never signable (78-84, 262-287); polls by `router.refresh` every 3 s while generating (90-102); no send-to-any-address (468-476); steps capped at 4 (500-508); when `approvals === false` this is only an editor and `SessionApproval` owns signing (38-48).
+- Assumes: `saveNote`, `approveNote`, `savePatientNote`, `approvePatientNote`, `regenerateNote` in `app/(app)/sessions/actions`.
+- Promises: T1 ("says draft on every screen until signed"): KEPT here (tab states 235-256, `NoteCard status`). P3: the patient copy is approved separately and the "nothing sent" line shows until then (489-493).
+- Notes: SEE BROKEN: (1) `(!note && props.noteStatus !== "failed")` (110) includes `noteStatus === "none"`, so a session with no note being generated (recording declined, no transcript) shows "writing your note" with a pulsing icon and NO poll (the poll runs only for `generating`, 99), a permanent false state. (2) `handleApprove` saves edits with the result ignored and then signs (168-169): if the save fails, the clinician's edits are discarded and the previously saved text is signed. `regenerateNote` result ignored (134). HARD-CODED ENGLISH: "Try again" (139); "A machine translation of the note above, for a supervisor or an insurer. The record" glued before a translated remainder (344-345), a sentence half English on an Arabic page. `PatientBriefCard` with `rtl` carries the `text-end` defect (439-445). 390px: tabs `flex-1` truncate, fine.
+
+### components/session/session-approval.tsx (215 lines)
+- For: one panel, three items: sign the clinical note, release the patient copy, and write the versioned treatment summary; nothing preselected.
+- Decides: everything defaults off, silence publishes nothing (15-21); already-done items shown done and disabled (80-97); summary typed, not generated, and the previous version shown with its author's name (30-36, 110-123); the button is disabled until something is ticked or typed (66-69, 152).
+- Assumes: `approveSession` in `app/(app)/sessions/actions`; append-only summary trigger (P4).
+- Promises: P4 ("every version stays under its author's name"): the previous version is shown with `approvedByName` (113-117); KEPT as far as the UI goes. P3: the patient copy can be released without signing the clinical note (the two checkboxes are independent, 79-98); whether "released" alone counts as signed for `lib/data/feedback.ts:155` (`signed`) is server side (Suspect).
+- Notes: only the LAST previous version is shown (47), not the history. English: none.
+
+### components/session/session-clock-bar.tsx (89 lines)
+- For: the clinician's countdown bar, silent while running, amber near the end, red when over.
+- Decides: no live region (50-55, H8); one clock for both sides (8-29).
+- Assumes: `formatRemaining`, `ClockStage` from `lib/session-clock`.
+- Promises: none.
+- Notes: the `\u0000` slot split (73-84) relies on the translated row keeping `{time}`. None else.
+
+### components/session/session-room.tsx (856 lines)
+- For: the clinician's live room: start, video (Daily call object) or in person, two recorders (local mic, patient track) uploading 8-second chunks to `/api/sessions/[id]/transcribe`, off-record toggle, spoken-language pin, crisis banner, copilot toasts, ask panel, clock, poll of patient presence and server end.
+- Decides: the room starts off record ONLY when `recordingConsent === "declined"` (92-112, 554-565); recorders start muted from a ref (C370, 257-268, 288-291); a single-track (in person, or video with no patient track) chunk is labelled `unknown` (239-255); patient track drop said out loud (307-325); off record mutes both recorders and the outgoing call and writes `setRecordingPaused` fire-and-forget (439-447); poll every 5 s reads `patientJoined`, `patientAwaySeconds`, `nextBooking`, `status` (364-397); end flushes both recorders and waits up to 5 s for in-flight chunks (414-437); server instant as initial clock (49-70, 126).
+- Assumes: `app/(room)/sessions/[id]/room/page.tsx:112` passes `recordingConsent` and NOT `recordingPausedAt`; `app/api/sessions/[id]/transcribe/route.ts` (read: it checks auth, `status === "in_progress"`, size, sequence; it has NO check of `recordingPausedAt` or `recordingConsent`); `lib/audio/recorder.ts` `setMuted`.
+- Promises: T2 PARTLY: off-record is enforced only by the clinician's browser muting its recorders (442-443); the server accepts any chunk while `in_progress`. TASK 123 / consent: BROKEN, see Broken (three separate holes). P5: the clinician room has no SOS (not a patient screen).
+- Notes: SEE BROKEN for: patient "Stop recording" never reaches this room; the new-session "Record" untick (stored as `recordingPausedAt`, `app/(app)/sessions/actions.ts:247-251`) never reaches this room; an in-person session has `recordingConsent` null and starts recording. HARD-CODED ENGLISH: "Your next appointment starts in {n} minute(s)." (512-513), both "Your patient minimised the session ... They can still hear you." sentences (537-540), "{name} asked not to be recorded." and "The room is off record and no audio is being kept. Only turn recording on if they tell you ..." (559-562), "{name} is in the room, waiting for you to start." (631), "Waiting for your patient" and "· paid" / "· ${price} to pay before they can join" with a literal `$` and `toFixed(0)` (641-646, which rounds $12.50 to "$13" and ignores the settlement currency). The declined banner says "no audio is being kept" (561) while the transcribe route would accept audio if the recorder sent any. `startRemoteRecorder`/`handleRemoteTrack` omit `t` from deps (298, 330). The pre-start footer "Make sure your patient has consented to recording." (`troom.consentFirst`, 850) is the only consent step an in-person session gets. `RiskBanner level="high"` hard-wired (670), no crisis line passed, so it renders the "no line" sentence. `"العربية"` (773). RTL: `lg:border-e` logical (584). 390px: single column; controls sticky at the bottom.
+
+### components/session/source-panel.tsx (163 lines)
+- For: where a session's audio came from (`session_sources`), and the one-time upload credential (issue, revoke).
+- Decides: no field for a meeting link, by design (24-30); credential shown once, stored as a hash (32-36).
+- Assumes: `issueUploadCredential`/`revokeUploadCredential` in `app/(app)/sessions/[id]/actions`; the ingest bearer path in the transcribe route (`bearerFrom`, `ingestDecision`).
+- Promises: none of the 25 (external recording is Unclaimed, MAP 1).
+- Notes: `t(\`portal.source.kind.${kind}\` as MessageKey)` (86) casts an unchecked key; an unknown kind renders the raw key. Revoke shown only when `tokenExpiresAt` is set (142). Dates arrive preformatted.
+
+### components/session/video-call.tsx (263 lines)
+- For: the clinician's Daily call-object video with the patient's audio track handed to the recorder.
+- Decides: call-object mode so the patient's track can be transcribed (13-27); a stale instance is destroyed, never adopted, and cleanup only destroys its own (93-117); off record mutes the outgoing call too (191-195).
+- Assumes: `@daily-co/daily-js` loader and the CSP host (TRAPS T5).
+- Promises: T2 adjacent.
+- Notes: HARD-CODED ENGLISH: "Could not connect to the video room." (136), "The video call hit a problem." fallback (170), "Waiting for your patient to join" / "Connecting…" (218), "Share the join link below. They need no account." (221), camera aria-labels (242), mic aria-labels (256). The mic indicator is a `span` with `tap-target` and an aria-label (251-259) that looks like a button and does nothing. Remote audio `<audio autoPlay>` (213) may be blocked by autoplay policy with no prompt. RTL: `end-3`, `start-3` logical (232, 237).
+
+### components/session/voices-panel.tsx (165 lines)
+- For: naming separated voices (me / the patient) or unnaming them; a voice is a numbered speaker until a person decides.
+- Decides: `bound_by` only `track` or `operator`, never model (16-27); unbinding resets lines by trigger (29-38).
+- Assumes: `nameVoice`/`unnameVoice` in `app/(app)/sessions/[id]/actions`; the no-repoint trigger.
+- Promises: T1 adjacent (honest attribution).
+- Notes: while one action is pending every voice's buttons read "saving" (123, 131). English: none.
+

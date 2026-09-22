@@ -613,9 +613,50 @@
 
 ## Stale
 
+- components/billing/payment-history.tsx:46-50: "The card brand and last four are here"; they were removed (13-22, 92-98).
+- components/billing/pending-bar.tsx:179-181: "red is unfinished business waiting on the payer"; red was removed at 121-133, both unfinished states are amber.
+- components/billing/withdraw.tsx:14: "an English-only surface"; every string goes through `t()`. `formatUsd` import unused.
+- components/clinic/chrome.tsx:14 "THREE DESTINATIONS" and :48 "a fourth destination"; six tabs exist.
+- components/partner/chrome.tsx:13 "FOUR DESTINATIONS"; five tabs.
+- components/sponsor/chrome.tsx:11 "Five destinations"; seven tabs.
+- components/partner/key-list.tsx:70-75, 183: describe a sponsor picker and a C265 sentence beside a checkbox; neither is rendered, `sponsors` prop unused.
+- components/partner/webhook-list.tsx:22-26: "the signing scheme is printed with it"; only the secret and one dictionary line render.
+- components/demo/component-showcase.tsx:12-17: "Every one of these is the component the clinician actually uses"; PatientApp and SessionCopilot are mockups.
+- components/demo/device-frame.tsx:165-171: fallback TABS are the pre-Option-A bar patient-app.tsx:82-93 says the product no longer has.
+- components/demo/session-demo.tsx:28-35: "a client component ... cannot read the dictionary"; `useT()` is used by client components throughout the folder.
+- components/public/audience-demos.tsx:13-16, 77-78: claims `TherapistCard` is imported and figures come from fixtures; neither is so.
+- components/public/audience-page.tsx:14-19 and blocks.tsx:545-556: say `Features` discards `item.body`; blocks.tsx:575-577 renders it.
+- components/public/audience-rotator.tsx:42-45: screen readers "get all four headlines"; the inactive three are `aria-hidden`/`inert`.
+- components/public/how-it-works.tsx:39: eyebrow hardcodes "[ 02 ]" whatever the block's position.
+- components/money/price-tag.tsx:52-54: `formatMoney` pins en-US "until 19.4"; locale is already a prop.
+- components/notes/provenance.tsx:32-37: C213 says a partial badge without a number is useless; `NoteOrigin` ignores its `offRecordSeconds`.
+- components/radar/therapist-console.tsx:30-31: `PING_MS` declared, never used (polling moved to RadarPresence per 95-100).
+- components/radar/types.ts:65: "Every card built from this carries a label"; only TherapistCard does.
+- components/sponsor/top-up-form.tsx:29: names `EgpSettlement`; the component is `EgpDisclosure`.
+- components/support/therapist-support.tsx:17-19: topic list in the comment does not match `TOPICS`.
+- components/visual/primitives.tsx:9: "Six primitives"; nine exported.
+- components/design/wire.tsx:208-217: words must be props; "Option", "SOS" are literals in the same file.
+- components/ehr/records-panel.tsx and many forms: "Working…" literals in files whose headers celebrate the i18n ratchet (clinic/*, partner/*, sponsor/*): the ratchet (H23) cannot see ternaries.
+
 <!-- STALE-END -->
 
 ## Suspect
+
+- components/ehr/records-panel.tsx:183-185, 344-346: the clinic portal renders a hospital FHIR server's error text verbatim. An OperationOutcome can quote a patient identifier or name. If so, a patient identifier reaches the clinic portal (C2). Answer: lib/ehr writeback error capture, whether `lastError` is sanitised before storage.
+- components/radar/booking-sheet.tsx:53-56, 306-311 (and radar-hero fromPrice, public-profile 134, therapist-card price): the patient is told "Pay $X and start now"; VAT is added on the next screen (pay-flow.tsx:160-178). Price shown before the tap is not the price charged. Whether the Egyptian transfer rail adds 14% too: lib/billing/manual (sessionTransferMoney).
+- components/radar/feedback-card.tsx:56: "your patient rates you to unlock their summary". If a patient's own session summary is withheld until they rate the clinician, P3 (the summary) is gated on a rating nobody promised. Answer: app/feedback/[token], patient summary page, lib/data/feedback.
+- components/public/pricing-tiers.tsx:547-548 (`pricing.radarBody`, messages.ts:191-192): "we take {percent}% ... and nothing else" while the PAYG tier charges a per-session platform fee and AI fee for the same session. Possibly true only for plan subscribers.
+- components/public/pricing-tiers.tsx:431 (`pricing.patientPaysNothing`): "Your patient never pays us anything" while on the Egyptian rail the patient transfers into our account and we collect VAT.
+- components/sponsor/integrations.tsx:357-373 with roster-list.tsx:88-90: timestamped delivery log of employment checks plus per-person "last checked" dates on the named roster. If a check fires at booking time (not only at enrolment or on a schedule), the sponsor can line up a person's name with a time of use (E1 "never when"). Answer: where `lastChecked` and HR deliveries are written (lib/data/sponsors, lib/hr).
+- components/billing/payment-popup.tsx:297-305: the patient payment orb is `z-[60]` and claims to sit under the SOS orb. P5 holds only if the SOS orb is above 60 (components/patient/session-orb.tsx or the crisis orb; not in slice). The presence booking card is also `z-[60]` and the sound prompt `z-[200]`.
+- components/billing/plan-card.tsx:385-410: "Confirm and pay" calls `upgradeAndPay(tier.key)` for a downgrade to PAYG too, then sets the payment-sheet key and reloads. If `upgradeAndPay` raises a bill or opens a cart for a PAYG key, a downgrade creates a payment. app/(app)/billing/actions.ts.
+- components/billing/seat-manager.tsx:52-62, 134: quotes fire per slider step with no debounce and resolve out of order; `saveSeats(from, to)` must refuse a stale `from` (PL7). app/(app)/billing/actions.ts.
+- components/billing/ledger.tsx:115-117, 256-257: the Stripe button label total is browser arithmetic; `payInvoices` must price the same way.
+- components/sponsor/domain-list.tsx:122-126: success text shown whenever the action returns no `error`.
+- components/settings/settings-forms.tsx:91-97: licence number editable after verification; whether an edit re-opens verification is in `updateProfile`.
+- components/radar/globe.tsx:379-389: saturated blue land fills (#17547a, #1c6f8c, #123a63) on public pages; globals.css:82-84 says `.render/no-blue.mjs` fails above 35% saturation in the blue arc. Either the check exempts the radar or it is not run on `/radar` and `/`.
+- scripts/verify-palette.ts:232-235 matches ground and `text-white` on one line only, so a teal ground on a parent (earnings.tsx:115 vs 187) passes. The same blind spot may hide other instances outside this slice.
+- components/settings/wall-codes.tsx:89-93: `dangerouslySetInnerHTML` of a server SVG; safe only if the label is never interpolated into it.
 
 <!-- SUSPECT-END -->
 
@@ -646,6 +687,15 @@
 <!-- BROKEN-END -->
 
 ## Looks broken, is handled
+
+- components/billing/ledger.tsx:61, payment-history.tsx:23: patient names on a therapist money screen look like a payer leak; they are the therapist's own patients from the chart, and the payer (possibly an employer) is deliberately never shown (C243).
+- components/billing/payment-popup.tsx:64: a person's name on the payment sheet; it is `viewerName`, the signed-in payer's own name, and `verify:rail` refuses imports from therapist/admin surfaces (60-62, claimed).
+- components/radar/booking-sheet.tsx:229-235 and types.ts: anonymous visitors receive clinician data; `RadarEntry` is shopfront-only by type and `practice` is null unless the clinician confirmed and opted in.
+- components/radar/presence.tsx:331, 467: patient name in the clinician's booking alert; it is the name the visitor typed for this clinician.
+- components/clinic/chrome.tsx:31-37: tabs filtered client-side look like the permission; pages re-check with `requireClinicCapability` and `refuseWithout` (claimed, outside slice).
+- components/sponsor/spend-heatmap.tsx: weekly spend could reveal a single person's session week; suppression renders hatched and weeks roll forward (C229), with the suppression itself upstream.
+- components/billing/payment-popup.tsx:231-232: cancel could delete a submitted transfer claim; hidden once proof is in, and `cancelCart` has the state in its WHERE (claimed 141-145).
+- components/radar/public-profile.tsx:191-216 and therapist-console.tsx:77-90: an unknown status string once crashed the profile and showed "online"; both now fail closed, and migration 0112 refuses the value (claimed).
 
 <!-- HANDLED-END -->
 

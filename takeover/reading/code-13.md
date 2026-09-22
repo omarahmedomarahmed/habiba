@@ -299,3 +299,188 @@ truncated output; "T6" = main() at module scope or an argv suffix guard.
 - Assumes: `readSource` for every `.ts`/`.tsx` (T1 clean for source). `readFileSync` on two `.sql` files (24, 529) with comments IN (a constraint name mentioned only in a SQL comment would pass).
 - Promises: A1 (the value statements cite this file as where A1 is said). A2 (1064 to 1069, second Confirm posts nothing: by source). A3 (270 to 274, the payer's screen renders `live.reason`: by source, one screen). A4 (354 to 392, `confirmUnclaimed` with reason). E3/E5 (the payer's share, 724 to 745). T3 (1077 to 1081, held not routed). P5 (1339 to 1345). Verdicts in Promise evidence.
 - Notes: WRONG MEDIUM throughout. This file never touches a database. The CHECK constraints and the unique index (40 to 69, 529 to 536) are read from the MIGRATION FILES, not `pg_constraint`/`pg_indexes`: a later migration dropping or replacing one, or a hand fix on production (C66 records exactly that), leaves this green; `verify-migrations.ts` checks only three unions and `NOT VALID`, not these names. Almost every other check is a SYNTAX pin on an exact expression (`const unreachable: never = payment.purpose`, `z-[60]` vs `z-[70]`, `pb-20`, `/was not pending[\s\S]{0,220}?\n\s*return;/`, `select({ region: organizations.region })` exactly twice, `balance_cents = balance_cents + ${net}` and `10_000 + vatBps`, `Math.max(0, payment.settlesCents - \w+)`, etc.). The file's own comments record three of these going red on correct improvements (157 to 167, 686 to 697, 710 to 723, 1166 to 1186) and the file's own 1470 to 1477 note says source is "the weaker kind of evidence here". P5 is asserted as two Tailwind z-index class names in two files (1342 to 1343); a stacking context between them would put the payment orb over SOS with this check green. Several CONTROLS re-run a regex on a literal string instead of the pipeline (96 to 101, 550 to 554, 747 to 762, 833 to 837, 898 to 902, 927 to 933, 1127 to 1131); the "one language only" control (261 to 268) tests a local `pretend` object and never runs `monolingual` on anything (fake). The paid-session cancel guard (1783 to 1797) is FILE-level: a file that mentions `paymentStatus` and `patientJoinedAt` anywhere passes, and four files are exempt wholesale, including `lib/data/sessions.ts` and `lib/data/scheduling.ts`, so any future automatic cancel added to either is invisible. The rejection-reason check covers `components/billing/pay-by-transfer.tsx` only; whether a GUEST payer (payer kind `session`, MAP suspect 4 / task 124) ever reaches that component after a rejection is not asked. `main()` at module scope.
+
+### scripts/verify-raw-sql.ts (186 lines)
+- For: `verify:raw-sql`: every snake_case identifier inside a whole-statement `sql\`...\`` template in `app` and `lib` is a column of a table that statement names, checked against live `information_schema`.
+- Decides: file list from `grep -rl` (72 to 77); comments stripped via `stripCommentsKeepingLines(readFileSync(...))` (105, T1 clean); fragments that do not start with SELECT/INSERT/UPDATE/DELETE/WITH are skipped (121); a word is flagged only if it is a column somewhere or ends in a column-ish suffix (154).
+- Assumes: `controlDb` from `@/lib/db`; reads only, no `writesTo`, so it can run on production (the right database for "is it there").
+- Promises: none directly; it is what would have caught the `/sponsor/integrations` 500 (E1/E2 surface).
+- Notes: NO CONTROL (T2): if `grep` finds no files or the regex matches no templates, it prints "ok" and exits 0; nothing plants a bad column. The template regex `sql\`([\s\S]*?)\`` stops at the first backtick, so a statement containing a nested template in `${}` is cut short. Fragments are skipped entirely, so a wrong column in a `sql` WHERE fragment inside a query builder (the commonest raw SQL shape) is never checked. `scripts/` excluded by design (66 to 71). `void main()` at module scope.
+
+### scripts/verify-reachable.ts (432 lines)
+- For: `verify:reachable` (58.1 to 58.9, C335, C356, C369): every server action reachable from a rendered page, every API route has a caller or a reasoned allow-list entry, every page is linked, named safety exports are wired, the dead-export count only falls, no stale exemption.
+- Decides: via `_surfaces.ts` helpers (which strip comments, per the C205 control at 385 to 427); `ROUTES_BY_DESIGN` three entries (54 to 75); `MUST_WIRE` six entries (194 to 256); `DEAD_EXPORT_BASELINE = 96` (101). Planted-action and planted-route controls in both directions (320 to 427). T2 honoured.
+- Assumes: `_surfaces.ts` graph; reads source only.
+- Promises: A4 indirectly (`unbalancedTransactions` must be wired), E1 (`potBalance`, C229 anti-differencing floor, 195 to 196), brief priority 4 (screens with no door).
+- Notes: THE RATCHET HAS RISEN. The comment at 94 to 99 says "87 exported safety functions have no caller ... it must never rise"; the constant is 96. Somebody raised the floor by nine. The `MUST_WIRE` reasons are written in the present tense of the defect ("nothing calls it", 217; "no event has ever fired", 215; "nothing asks it", 232): if this gate passes, every one of those sentences is stale; if it fails, the gate is red. Either way the prose is wrong about one of the two. "Linked from somewhere" is an import-graph and string property, not "a principal can reach it after signing in". `main()` at module scope.
+
+### scripts/verify-runbook.ts (463 lines)
+- For: `verify:runbook` (76.62, H47): the simulation documents: no production-only command written without `on:production`, "N gates" claims equal `GATES.length`, edge-count claims equal the rows in `09-THE-EDGES.md`, cross-references and repository paths resolve, cron job names exist in the route, no document denies that the run is on production, no archaeology outside `00-LESSONS.md`.
+- Decides: production-only set parsed from `scripts/on-production.ts` via `readSource` (104 to 107) with a control (128 to 132); gate claims (136 to 168); edges (175 to 198); references (202 to 217); pointers with `NOT_YET` exemption (253 to 326); cron jobs parsed from `app/api/cron/[job]/route.ts` (336 to 354); denial phrases with a control (370 to 421); archaeology phrases (430 to 458).
+- Assumes: markdown read raw with `readFileSync` (correct for `.md`).
+- Promises: none directly (the run's documents).
+- Notes: the EDGE COUNT CHECK HAS A HOLE AT EXACTLY THE DEFECT ITS HEADER NAMES. `okEdge = new Set([String(edgeIds.size), "forty eight"])` (187): "forty eight" is always accepted, so a document saying forty eight while the file lists thirty (the header's own example, 22 to 23 and 172 to 173) passes. Gate-count words only cover 26 to 35 (154 to 158); past 35 a spelled-out count becomes invisible, the exact failure its comment at 145 to 153 describes. The production-only parse depends on the `name: { writes:` layout of `on-production.ts` (106). Lists cut at 5, 6 or 8 (216, 297, 412, 448; T4, some with "and N more", some without). `main()` at module scope.
+
+### scripts/verify-served.ts (412 lines)
+- For: `verify:served` (76.30, 76.61, H37, H39): boots `next dev` on 3199 into `.next/served`, warms every static route from `inventory.routes()` plus four named, runs `verify:sprint31` and `verify:contrast` (partial grid `en1280,ar390`) against it, fails on any non-zero exit or any "deferred to a running server", correlates browser "no response" with the server log, kills `next-server` processes by pid difference.
+- Decides: `NEEDS_A_SERVER` (44); `PARTIAL` (58); warm list derived (215 to 224, T3 fixed); pid snapshot and difference kill (351 to 412).
+- Assumes: `VERIFY_URL` if set is used instead of booting (75); child verifiers inherit the full environment (249 to 253).
+- Promises: none directly.
+- Notes: header 29 to 30 says "IT READS ONLY ... safe against any branch, production included". It spawns `verify:contrast`, which SIGNS IN as five real founder addresses with the demo password (verify-contrast.ts:164 to 238): against production that is five real authentications that bump `rate_limits` (H50) and write session rows; "reads only" is not true of what it runs. Warming GETs every static route including any non-dynamic API route `inventory.routes()` returns, with side effects only as safe as each route's GET. The kill-by-difference (404 to 411) would also kill a `next-server` somebody else started during the run. `main()` at module scope.
+
+## Stale
+
+- scripts/ship-content.ts:28 to 30, "it refuses `--yes` as a substitute for reading that": there is no prompt; it prints the host and proceeds.
+- scripts/settings.ts:709 to 711 vs 712 to 717: "reprice keeps the guard", "rails keeps it too", then both are `productionIsAllowed: true`.
+- scripts/settings.ts:89 to 91: "every remaining field in the stored sponsor row already equals its default", a dated fact presented as the safety argument for an overwrite.
+- scripts/simulate-seed.ts:58, "three scripts and two documents import it from here": no importer of `simulate-seed` exists.
+- scripts/shoot-room.ts:294, "the five states are the whole ticket": four are driven.
+- scripts/verifiers.ts:45 to 47, "read-only with one exception the pass names ... none of them writes": no exception is named, and most run verifiers plant and delete fixtures.
+- scripts/verify-actuals.ts:115 to 116, "Balancing pairs are used anyway, so nothing here would fail a trial balance": the planted txn (123 to 129) sums to -8,940.
+- scripts/verify-c285.ts:23 to 24, surfaces "the clinic list and the clearance gate": never exercised. 197 to 198, "Called with a synthetic key": the partner endpoint is gone.
+- scripts/verify-cast.ts:227, "the three seeded people": the check reads all seven of PAYROLL.
+- scripts/verify-email-dns.ts:252 to 258, "SPF names Zoho ... so SPF fails on every transactional message": contradicted by 84 to 99 (the `send.` subdomain SPF aligns under `aspf=r`).
+- scripts/verify-boundary.ts:41 to 42, "a bare identifier known to be a function is refused": no code does this.
+- scripts/verify-money-edges.ts:606, "these sixteen scenarios": thirteen sections plus one numbered 16.
+- scripts/verify-reachable.ts:94 to 99, "87 ... must never rise" vs `DEAD_EXPORT_BASELINE = 96` (101): the floor was raised.
+- scripts/verify-reachable.ts:215, 217, 232: `MUST_WIRE` reasons say "no event has ever fired", "nothing calls it", "nothing asks it"; if the check passes these describe a past state.
+- scripts/sync-blocks.ts:111 to 112, "If nothing matches, append": code returns 0 (top of page) at 122.
+- scripts/sync-blocks.ts:45 "the fifth door" vs HAZARDS.md:231 "four do" (`settings`, `simulate-seed`, `age`, `migrate`); `sync-blocks` is at least a fifth, and `settings.ts` opens it for two verbs.
+- scripts/verify-principals.ts:690 to 697: C205 comment reads as covering the file, but only the audit scan strips comments; the guard scan reads `s.body` raw.
+- scripts/verify-palette.ts:98, ramps "kept here so the check can MEASURE": a copy of `app/globals.css` nothing compares to the CSS.
+- scripts/verify-machines.ts:259 to 260, "'Contact support' is not an exit if no screen offers it": the check is a verb regex, it never looks at a screen.
+- scripts/verify-served.ts:29 to 30, "IT READS ONLY ... production included": it runs `verify:contrast`, which signs in.
+- HAZARDS.md:231 to 235 (outside slice) "exactly those four": see sync-blocks above.
+
+## Suspect
+
+- scripts/simulate-seed.ts:295 to 304: "exactly ONE platform organisation" counts `organizations WHERE kind = 'solo'`; `kind` defaults to `'solo'` and is every solo clinician's own org (`lib/db/schema.ts:165`, `:8351`). Fails on production as soon as any solo therapist exists; on an empty branch passes measuring the wrong thing. Matters because `simulate:seed` is the run's first production command. Answer: run it against a production-shaped branch.
+- scripts/verify-limits.ts:223 to 228: `freshLimiter` clears `require.cache` but imports ESM with a query string; if `SIMULATION_RUNNING` is read in `lib/env`, the second import reuses the cached `lib/env` and the "widened" check measures the unwidened limiter (red, not false green). Answer: `lib/rate-limit.ts`, `lib/env.ts`.
+- lib/billing/payouts.ts:301 to 345 via scripts/verify-payout.ts:190 to 196: `approvePayout` has no role check; any user id other than the requester (and last editor) approves. Whether only staff can call it depends on the server action. Answer: `app/(admin)/admin/payouts/actions.ts` (slice with `app/(admin)`).
+- scripts/verify-principals.ts:240 to 243: `clinic-export` rows come from `clinicSchedule` and `clinicBills` "and their shortened patient names"; `clinic` declared non-clinical. Promise C2 says no patient name anywhere in the clinic portal. Answer: `lib/data/clinic.ts` select lists and the clinic pages.
+- scripts/verify-principals.ts:77 to 296: sponsor modules (`enrolment`, `enrolment-verify`, `sponsor-integrations`, `sponsor-domains`) are all declared non-clinical, so E2 rests entirely on their select lists, which no gate reads. Answer: `lib/data/enrolment*.ts`, `lib/data/sponsors.ts`.
+- scripts/verify-money-cycle.ts:400 to 420: ledger legs for the session and invoice payments are not deleted by organisation; if `ledger_entries.organization_id` has a FK the org delete fails and the fixture org leaks, otherwise orphan legs accumulate on dev. Answer: schema FK on `ledger_entries.organization_id`.
+- scripts/verify-entitlement.ts:237 to 243: cleanup deletes invoices, obligations, subscriptions, org, but not ledger legs that `settleOldestObligationByTransfer` or `applySeatChange` may post. Same answer.
+- scripts/verify-prove.ts:53: `readSource` on markdown strips everything after `//` on a line (URLs), a false red for any id or scenario command after a URL.
+- scripts/check-live.ts:219 (outside slice, imported by smoke-public): `if (process.argv[1]?.includes("check-live")) void main();` is a SUBSTRING guard, weaker than the suffix guard T6 forbids and not caught by the `verify:traps` rule as described (which looks for "ends with").
+- app/api/uploads/[...path]/route.ts and app/api/uploads/[id]/route.ts (outside slice, seen while counting routes): sibling dynamic segments with different names at one level; Next.js normally refuses to build with "different slug names for the same dynamic path". The `[id]` directory is dated 2026-09-22 22:13. If the build rejects it, production cannot deploy. Answer: `npm run build`, or whoever reads `app/api`.
+- scripts/verify-rail.ts:1339 to 1345: P5 held by two class names (`z-[60]`, `z-[70]`) in two files; a stacking context would invert them while green. Answer: render the pay page with SOS in a browser.
+- scripts/verify-notices.ts:82 to 85: wiring counted per file; a file with one wired and one unwired `notify(` counts as wired. Answer: per-call audit of the 27 files.
+
+## Broken
+
+- scripts/verify-money-cycle.ts:416 to 418: cleanup deletes `patients` first, then `people WHERE id IN (SELECT person_id FROM patients ...)`, which is now empty; `patients.person_id` is `ON DELETE SET NULL` (`lib/db/schema.ts:584`). Every run of `verify:cycle` (a gate) leaves a `people` row "Nour Demo" on the branch. `verify-money-edges.ts:747 to 749` has the right order.
+- scripts/verify-actuals.ts:224 to 227 and 509 to 514: when a video cost already exists for that month, the upsert changes only `amount_cents` and leaves `note` alone; the `finally` restores with `WHERE note = 'verify'`, which matches nothing. Each run permanently adds 700 cents to that month's video cost on the branch, and the next run's `videoWas` reads the inflated figure.
+- scripts/verify-machines.ts:113 to 120: the "anchor catches an invented state and a dropped one" CONTROL asserts facts about two literal sets and never runs the drift loop; it passes with the loop deleted.
+- scripts/verify-principals.ts:590 to 594: the "forward graph really resolves imports" CONTROL asserts `size >= 0`; it cannot fail.
+- scripts/verify-principals.ts:351 to 358 and 526 to 546: guard and capability detection read RAW source (`s.body`, not `s.code`, `_surfaces.ts:165 to 169`), so a guard or a capability name in a comment counts (T1); and any capability identifier (including `listRadar`, `publicProfile`) exempts an unguarded page from ALL clinical-module checks with no scope test. A public page that shows the radar and reaches `lib/data/sessions` passes the privacy gate.
+- scripts/verify-palette.ts:187 to 191 and 255 to 260: two controls that do not run the scans they claim to control (a constant membership test, and a regex re-run on a literal that omits 600 and the exemption).
+- scripts/verify-rail.ts:261 to 268: the "one language only" control tests a local `pretend` object; the `monolingual` check is never exercised against a missing key.
+- scripts/verify-runbook.ts:187: `"forty eight"` is always an accepted edge count, so the header's own example defect (a document saying forty eight while the file lists thirty) passes.
+- scripts/survey-live.ts:64 to 90: the comment says "Every API route under `app/api`"; 20 of 32 route files are probed, and the missing ones include every partner clinical-data route (`/api/partner/v1/sessions/[ref]/transcript|summary|media|note`, `/api/partner/v1/notes/[sessionId]`, `/api/partner/v1/subjects/[ref]/memory|readers`) and `/api/meetings/transcript/[sessionId]`. "No API route hands an anonymous caller a 200" is unproved for exactly the routes where it matters. The final "CONTROL" (291 to 295) repeats an earlier assertion.
+- scripts/verify-cast.ts:252: the Ziad (P6) "never signed up" control looks for keys starting `ziad.`; the same file (136 to 148) says a self-signed-up patient has no email and is keyed by phone digits, so the real sign-up path is invisible to it.
+- scripts/verify-migrations.ts:114 to 118: journal vs ledger compared by COUNT, not hash set; a stale ledger hash plus a missing migration reports agreement. `--repair` (81 to 105) writes the production ledger with no `writesTo()` guard and records any migration whose tables and columns exist as applied, even if its constraints, triggers, indexes or data never ran (H17's failure mode, produced by the repair tool).
+- scripts/unlabel-straddles.ts:57 to 67: writes `transcript_segments` with no `writesTo()`; runs against production without `I_MEAN_PRODUCTION`.
+- scripts/verify-raw-sql.ts:170 to 174: exits 0 with "ok" on zero files or zero templates; no control.
+- scripts/spend.ts:47 and 127 to 135: `--budget abc` gives NaN, both comparisons are false, and the budget guard prints "Inside the budget" and exits 0.
+
+## Looks broken, is handled
+
+- scripts/shoot-room.ts:178 to 181 writes `users.verification_status = 'verified'` directly; trigger 0083 (`users_verification_status_derived`) forces the column to the derived value, proved by `scripts/verify-c285.ts:104 to 117`, and the approved `therapist_verifications` row inserted at 164 to 176 makes it verified anyway.
+- scripts/verify-csp.ts:31 to 33 imports from `audit-daily-hosts.ts` and `_i18n-coverage.ts`, both scripts with `main()`: both guard by exact basename, `ranDirectly("audit-daily-hosts.ts")` (`audit-daily-hosts.ts:187`) and `_i18n-coverage.ts:274`, per `_verify.ts:319 to 322`.
+- scripts/verify-demo.ts imports from `_demo-cast` and `_value-statements`, and verify-prove.ts from `_prove-doc`: the T6 incident files, now split into underscore files with no `main()` (TRAPS T6, `_demo-cast.ts:8 to 17`).
+- scripts/settings.ts:13 to 15 says `lib/settings` throws outside a request, while `verify-entitlement.ts:62` and `verify-physics.ts:95` import `getSettings`: both npm scripts run with `--conditions=react-server` (package.json lines 65, 194), which silences `server-only`.
+- scripts/ship-content.ts calls no guard and so writes production freely: deliberate and documented (23 to 30, HAZARDS H26, C148); the safer surgical path is `scripts/sync-blocks.ts` with a real untouched-bytes control (284 to 290).
+- scripts/verify-money-edges.ts:104 to 106 sets `sponsor_pots.balance_cents` by raw UPDATE, bypassing the ledger: `potSpendAgrees` (486 to 493) compares sessions to ledger, not balance, so the check it feeds is unaffected.
+- scripts/verify-boundary.ts:86 to 90 reads raw source with `readFileSync`: deliberate, the `"use client"` directive's position is the property (80 to 85).
+- scripts/verify-nul.ts reads raw bytes: deliberate, a NUL in a comment blinds grep too (36 to 41).
+
+## Unclaimed
+
+- (a) scripts/verify-caseload.ts:86 to 113: an in-person session with only a first name creates a `walk_in` chart attached to the session, so a walk-in lands on the caseload. Worth saying to clinicians; no promise names it.
+- (a) scripts/verify-payout.ts:119 to 285: money out has four enforced refusals (more than held, a second request in flight, self-approval, sent without a receipt) and receipts are undeletable by rule. A clinician-facing trust claim nobody makes.
+- (a) scripts/verify-money-edges.ts:208 to 230: card quote and transfer quote agree on a covered session; `sessionLines` shows what covered the rest. Would strengthen E3.
+- (a) scripts/verify-rail.ts:1733 to 1816: nothing cancels a session somebody has paid for or joined (after a production incident). Worth a patient-facing promise.
+- (b) lib/console/reads.ts:66 to 93 (found via verify-radar-place): the admin Total View `radarNow()` lists every `demo` clinician as present regardless of heartbeat, the exemption 80.3 removed everywhere else.
+- (b) scripts/simulate-seed.ts:329 to 338 and 396 to 400: re-running the seed silently resets the operator's and every staff member's password to the simulation password and forces their roles. The pre-check at 221 to 231 refuses a second cast, so this only bites on a database with no clinic or sponsor, but on such a database it is an account reset with no confirmation.
+- (b) scripts/verify-migrations.ts:94 to 97: an unguarded command that rewrites the production migration ledger.
+- (c) scripts/verify-machines.ts:53: `KNOWN_DEAD_ENDS` is empty; the lifecycle declarations admit no stuck state, while MAP task 124 records a rejected guest transfer as a dead end. The register that would hold it (#163) is not built.
+- (c) scripts/verify-notices.ts:46: 18 senders with no in-app home; a patient who loses the email has no door back for those messages.
+
+## Promise evidence
+
+- P1: scripts/verify-radar-place.ts:59 to 102 keeps "online with a drawable country"; the tap count is not checked anywhere in this slice. Cannot tell.
+- P2: scripts/verify-notices.ts:46 and grep (27 files call `notify(`, 3 pass `notice:`). The three things P2 names (invitation, payment confirmation, session starting) are exactly the three wired files; everything else is email only. verify-migrations.ts:257 to 351 now checks the notice-kind CHECK that silently defeated the first fix. PARTLY: kept for the three named events, broken as the general sentence "nothing ... is only in an email".
+- P3: not touched in this slice. Cannot tell.
+- P4: scripts/verify-demo.ts:402 to 409 (Tarek: two versions, two clinicians, two practices) and :587 to 590 (append-only trigger re-enabled after the seed). Kept on the seeded data; the patient deciding readers is not checked here.
+- P5: scripts/verify-rail.ts:1339 to 1345 (two z-index class names). Partly: the ordering is asserted as syntax, not as rendered stacking; "dials without passing anything about money" not checked.
+- T1, T2: not checked in this slice. Cannot tell.
+- T3: scripts/verify-payout.ts:216 to 226 (payable ledger moves on send), verify-rail.ts:1077 to 1081 (held not routed). Partly: netting of what is owed against earnings is not exercised by any verifier here.
+- T4: scripts/verify-profile.ts:95 to 136 (invite creates a video session and a link to its token). Partly: the stranger vs signed-in patient behaviour is not checked.
+- T5: scripts/verify-profile.ts:218 to 242 (another practice's clinician gets null). Partly: revocation stopping the next question is not checked here.
+- C1: scripts/verify-c285.ts:180 to 247 (radar filters on the real verification, two second cache). Kept for the verification half; "same hour after a seat is added" not checked.
+- C2: scripts/verify-principals.ts:225 and 238 to 245: the clinic module is declared non-clinical and its export carries shortened patient names and a schedule. BROKEN on the evidence of the gate's own declarations (or the README is right and C2 is wrong); verify:demo does not check it.
+- C3, C4, C5: C4's mechanism (leaving a clinic lands on payg, no suspend) is asserted as source only (verify-rail.ts:877 to 902); verify-entitlement.ts:202 to 221 proves a prorated seat bill. Cannot tell for the promises as worded.
+- E1: scripts/verify-money-edges.ts:486 to 507 (pot trace names none of six planted first names; spend agrees with ledger); verify-reachable.ts:195 requires the C229 anti-differencing `potBalance` to be wired. Partly: names checked by regex of known names, not by the query shape; the five-session published balance is not checked here.
+- E2: scripts/verify-principals.ts: every sponsor module is non-clinical and the capability-auth and raw-source holes apply. Cannot tell from here; the gate that claims it has two holes (Broken).
+- E3: scripts/verify-money-edges.ts:414 to 437. Kept.
+- E4: scripts/verify-money-edges.ts:385 to 408. Kept at the data level; "no screen says removed" not checked.
+- E5: scripts/verify-money-edges.ts:443 to 464, verify-demo.ts:517 to 531. Partly: pot takes nothing and the full price is owed; "the screen says who to ask" not checked.
+- A1: scripts/verify-money-cycle.ts:252 to 259 and verify-entitlement.ts:135 to 154 (paid or entitled only after confirm/settle, via service functions called with a fixture `admin` user id and no Actor); verify-rail.ts (the cited enforcer) is source-only. Partly: the property holds in the functions; nothing here proves only staff can press Confirm, or that a submitted payment is still `pending` before confirm.
+- A2: scripts/verify-money-edges.ts:344 to 358 (second `confirmPayment` moves no legs, no balance). Kept for a session transfer; pot and invoice double-confirm by source only (verify-rail.ts:622 to 627, 1064 to 1069).
+- A3: scripts/verify-rail.ts:270 to 274 (payer screen renders `live.reason`), verify-demo.ts:507 to 514 (crisis position has a 15-word reason), verify-payout.ts:239 to 249 (empty rejection refused). Partly: the reason reaching a GUEST payer is not checked (MAP suspect 4 stands).
+- A4: scripts/verify-rail.ts:354 to 392 (`confirmUnclaimed` needs a 10-char reason kept on the payment), verify-demo.ts:475 to 489 (an unmatched transfer on the queue). Partly: "overpayment ... with the difference visible" is not checked anywhere in this slice.
+- A5: scripts/verify-principals.ts:672 to 749 (sponsor and clinic action files call `audit`), simulate-seed.ts creates staff roles. Partly: reads are not checked, admin and partner actions are not checked, and "refused screens redirect" is not checked here.
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| scripts/settings.ts | 750 | read |
+| scripts/ship-content.ts | 91 | read |
+| scripts/shoot-room.ts | 391 | read |
+| scripts/simulate-seed.ts | 629 | read |
+| scripts/smoke-public.ts | 300 | read |
+| scripts/spend.ts | 156 | read |
+| scripts/suites.ts | 141 | read |
+| scripts/survey-live.ts | 300 | read |
+| scripts/sync-blocks.ts | 325 | read |
+| scripts/unlabel-straddles.ts | 77 | read |
+| scripts/verifiers.ts | 179 | read |
+| scripts/verify-actuals.ts | 542 | read |
+| scripts/verify-age.ts | 228 | read |
+| scripts/verify-board.ts | 269 | read |
+| scripts/verify-boundary.ts | 433 | read |
+| scripts/verify-c285.ts | 285 | read |
+| scripts/verify-caseload.ts | 219 | read |
+| scripts/verify-cast.ts | 295 | read |
+| scripts/verify-claims.ts | 645 | read |
+| scripts/verify-contrast.ts | 649 | read |
+| scripts/verify-csp.ts | 324 | read |
+| scripts/verify-demo.ts | 622 | read |
+| scripts/verify-email-dns.ts | 274 | read |
+| scripts/verify-entitlement.ts | 248 | read |
+| scripts/verify-finance.ts | 608 | read |
+| scripts/verify-limits.ts | 240 | read |
+| scripts/verify-machines.ts | 393 | read |
+| scripts/verify-migrations.ts | 426 | read |
+| scripts/verify-money-cycle.ts | 427 | read |
+| scripts/verify-money-edges.ts | 758 | read |
+| scripts/verify-money.ts | 285 | read |
+| scripts/verify-notices.ts | 161 | read |
+| scripts/verify-nul.ts | 185 | read |
+| scripts/verify-palette.ts | 359 | read |
+| scripts/verify-payout.ts | 313 | read |
+| scripts/verify-physics.ts | 261 | read |
+| scripts/verify-plan.ts | 643 | read |
+| scripts/verify-principals.ts | 754 | read |
+| scripts/verify-profile.ts | 374 | read |
+| scripts/verify-prove.ts | 314 | read |
+| scripts/verify-radar-place.ts | 269 | read |
+| scripts/verify-rail.ts | 1889 | read |
+| scripts/verify-raw-sql.ts | 186 | read |
+| scripts/verify-reachable.ts | 432 | read |
+| scripts/verify-runbook.ts | 463 | read |
+| scripts/verify-served.ts | 412 | read |
+
+46 files, 18,524 lines (wc). `on-production.ts`, `seed-demo.ts` and `_demo-cast.ts` are not in this slice; the KEEP census is described only through `verify-demo.ts:543 to 590` (which checks three kept tables for at least one row and defers the rest to the seed's own census).

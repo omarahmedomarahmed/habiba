@@ -163,13 +163,6 @@
 - Promises: E3 partly: price is frozen on the session at booking (`priceCents`), but the currency is not (see Broken). E5/pot: `payFromPot` at booking. P2: a released booking is returned for the caller to notify.
 - Notes: `bookSlot` vs siblings: it now mints `joinToken` (485) and `feedbackToken` (462), but still sets no `priceCurrency` (column default `usd`, lib/db/schema.ts:722) and no `sessionType` (default `direct`, schema.ts:676-679), where `createSession` sets `rateCurrencyFor` and `paid_link`/`direct` (sessions.ts:252, 267) and `createRadarSession` sets `radar` and `rateCurrencyFor` (335, 341). `bookSlot` claims a slot in `held` state whoever holds it and however fresh the hold (513); the hold has no owner. `bookSlot` checks nothing about the clinician (verification, suspension, closed country). `cancelBooking` does not touch payment: a paid booking cancelled by either side leaves the money with no refund or credit path here.
 
-### lib/data/sessions.ts (1083 lines)
-- For: clinician session reads and writes: list, get, create (direct/paid link/in-person), radar session create, transitions, clock, auto-end, overrun sweep, transcript, notes, join tokens, live session for the copilot, room repair.
-- Decides: `scope` (46) org plus own sessions unless super_admin. `getSession` (110) audits `session.read`. `createSession` (132): patient row from a typed name with `source` therapist/join_link/walk_in by what contact exists (199-234); in-person gets no join token and price forced to 0 (236-239); `sessionType` paid_link or direct; currency from `rateCurrencyFor`; `payFromPot`. `createRadarSession` (317) type radar, 3h token, no patient row, no pot. `TRANSITIONS` (370) and `CANCELLABLE_FROM` (381). `startSession` (387) status in the WHERE, then `noticeSessionStarted` (P2). `readSessionClock` (451) unauthenticated countdown. `autoEndSession` (505) unscoped, guarded on in_progress. `sweepOverrunSessions` (547). `completeSession` (582). `cancelSession` (665) guarded, clears join token. `getTranscript` (688), `getNote` (713), `listRecentNotes` (723), `countOpenDrafts` (756). `resolveJoinToken` (779) refuses ended, expired, cancelled, completed. `joinByToken` (843) creates a `join_link` patient from the typed name if none, marks joined. `liveSessionForPatient` (908) bounded by the session clock (C224). `ensureRoom` (990) rebuilds a missing or expired Daily room, conditional update.
-- Assumes: `lib/session-finish.ts` for what happens after end; recording consent is captured only on the join page (app/join/[token]/actions.ts:373, :694); the room records unless `recordingConsent === "declined"` (components/session/session-room.tsx:103-109).
-- Promises: P2: `startSession` sends the "session starting" notice (in-app half is the orb, patient-view.ts). T4: `resolveJoinToken`/`joinByToken` are the link's server side. T2: off-record lives in the room component, not here. P1 (radar session path).
-- Notes: the JSDoc at 291-300 describing `createRadarSession` now sits above `rateCurrencyFor` (308). `cancelSession` does not release a booked availability slot, a radar claim, or any payment; since `reachable()` in radar.ts:217-223 hides a clinician during any `booked` slot, a session cancelled through `cancelSession` (rather than `cancelBooking`) keeps its slot booked and keeps the clinician off the radar for that hour. `completeSession` allows scheduled to completed with no start (no duration) and sets `noteStatus: generating` even when nothing was recorded. `joinByToken` creates the patient row without phone or email and never links to an existing chart for the same person.
-
 ### lib/data/session-invite.ts (167 lines)
 - For: invite a patient on the clinician's caseload to a paid video session from their profile.
 - Decides: `inviteToSession` (58) caseload check via `getPatient`; refuses with no phone and no email (62-66) and with no rate (71-75); price from `getConnectAccount` on the server; `createSession` then `ensureRoom` (108-119) and refuses if no room; `notify` with a `personId` and an in-app `notice` (`pnotice.sessionInvited`, 142-148); audited.
@@ -198,6 +191,13 @@
 - Promises: T1 (the note is built from what was actually said, attributed) indirectly.
 - Notes: `bindVoice`/`unbindVoice` are scoped to the org, not the session's therapist, and do not check that `voiceId` belongs to `input.sessionId` (the audit records the given session id, which may be a different session). `patientId` for a patient binding is taken as given. `attachLines` returns the slice length, not rows actually updated.
 
+### lib/data/sessions.ts (1083 lines)
+- For: clinician session reads and writes: list, get, create (direct/paid link/in-person), radar session create, transitions, clock, auto-end, overrun sweep, transcript, notes, join tokens, live session for the copilot, room repair.
+- Decides: `scope` (46) org plus own sessions unless super_admin. `getSession` (110) audits `session.read`. `createSession` (132): patient row from a typed name with `source` therapist/join_link/walk_in by what contact exists (199-234); in-person gets no join token and price forced to 0 (236-239); `sessionType` paid_link or direct; currency from `rateCurrencyFor`; `payFromPot`. `createRadarSession` (317) type radar, 3h token, no patient row, no pot. `TRANSITIONS` (370) and `CANCELLABLE_FROM` (381). `startSession` (387) status in the WHERE, then `noticeSessionStarted` (P2). `readSessionClock` (451) unauthenticated countdown. `autoEndSession` (505) unscoped, guarded on in_progress. `sweepOverrunSessions` (547). `completeSession` (582). `cancelSession` (665) guarded, clears join token. `getTranscript` (688), `getNote` (713), `listRecentNotes` (723), `countOpenDrafts` (756). `resolveJoinToken` (779) refuses ended, expired, cancelled, completed. `joinByToken` (843) creates a `join_link` patient from the typed name if none, marks joined. `liveSessionForPatient` (908) bounded by the session clock (C224). `ensureRoom` (990) rebuilds a missing or expired Daily room, conditional update.
+- Assumes: `lib/session-finish.ts` for what happens after end; recording consent is captured only on the join page (app/join/[token]/actions.ts:373, :694); the room records unless `recordingConsent === "declined"` (components/session/session-room.tsx:103-109).
+- Promises: P2: `startSession` sends the "session starting" notice (in-app half is the orb, patient-view.ts). T4: `resolveJoinToken`/`joinByToken` are the link's server side. T2: off-record lives in the room component, not here. P1 (radar session path).
+- Notes: the JSDoc at 291-300 describing `createRadarSession` now sits above `rateCurrencyFor` (308). `cancelSession` does not release a booked availability slot, a radar claim, or any payment; since `reachable()` in radar.ts:217-223 hides a clinician during any `booked` slot, a session cancelled through `cancelSession` (rather than `cancelBooking`) keeps its slot booked and keeps the clinician off the radar for that hour. `completeSession` allows scheduled to completed with no start (no duration) and sets `noteStatus: generating` even when nothing was recorded. `joinByToken` creates the patient row without phone or email and never links to an existing chart for the same person.
+
 ### lib/data/sponsor-admin.ts (613 lines)
 - For: everything that changes a sponsor account (not what a sponsor may read): enquiry, state, entity, first user, pot opening with terms and welcome credit, joining code, identifier fields, listing, sign-in, admin lists.
 - Decides: `MAX_IDENTIFIER_FIELDS` 2 (37). `applyToSponsor` (52) held, unlisted, `us`/`usd`, no user, no pot. `setSponsorState` (113) one column plus cycle start on first activation (COALESCE). `setSponsorEntity` (166) refused once the pot holds money; currency follows entity. `createSponsorUser` (198). `openPot` (233) terms and expiry required; welcome credit capped by `sponsor.maxWelcomeCreditCents`; pot inserted with the balance, then ledger legs `platform_expense` +credit / `sponsor_pot` -credit (327-344). `rotateCode` (371) revokes the live code, then mints an 8-char code (retry 8x). `setIdentifierField` (412) kinds from `IDENTIFIER_KINDS`, domain shape, regex must compile, DB refuses specimens. `setListed` (505). `checkSponsorPassword` (522) constant work, held/suspended same message. `allSponsors` (564), `potTerms` (585), `sponsorUsersFor` (601).
@@ -205,19 +205,12 @@
 - Promises: E1/E2: nothing here reads a person. E4: n/a. Vault/ledger: welcome credit now has its legs (75.8).
 - Notes: `openPot` is not a transaction: pot row with balance first, journal second (287-344); a failed journal leaves exactly the drift 75.8 describes. `rotateCode` revokes before minting: if all 8 attempts fail, the sponsor has no live code and the posters stop working. `setIdentifierField` accepts any compiling regex from the operator form; `matchesGate` runs it against user input at enrolment (catastrophic-backtracking pattern is possible; the operator is trusted). The field-count check (423-430) is read-then-insert, so two concurrent adds can make three.
 
-### lib/data/sponsors.ts (676 lines)
-- For: THE WALL: what a sponsor may read (roster, spend, balance, code attempts, coverage) and the two acts a sponsor performs (remove from roster, set coverage).
-- Decides: `roster` (92) enrolment id, name, last verified, paused; no join date; ordered by name not by created_at (111-119). `DEFAULT_ACTIVITY_FLOOR` 5 (154). `applyActivityFloor` (181) rolls sub-floor weeks forward, emits null not zero. `potBalance` (241): publishes the live balance only when the ledger session count (`potTotals`) has moved by at least `settings.sponsor.activityFloor` since the last publication, conditional update against `publishedSessions`; otherwise returns the previously published balance or null. `attemptsOnCode` (356) a count. `identifierFields` (369). `removeFromRoster` (401) enrolment only, primary flag cleared, patient notice with no employer and no reason. `ATTENDANCE_IS_NEVER_CONFIRMED` (467), `FINEST_GRANULARITY` (480). `weeklySpend` (490) positive `sponsor_pot` legs with `ref_type = 'sponsor'`, grouped by week in SQL, through the floor. `setCoverage` (586) increase immediate, decrease pending with `noticeDays`. `coverageFor` (660).
-- Assumes: `potTotals` in lib/billing/pot.ts reads the ledger; callers app/(sponsor)/sponsor/page.tsx and pot/page.tsx; the people action audits removal (app/(sponsor)/sponsor/people/actions.ts:50-60), the pot action audits coverage and passes `settings.sponsor.coverageNoticeDays` (pot/actions.ts:85-101).
-- Promises: E1 partly (see Broken: the published balance is undone by live totals on the same screen). E2 kept in this file: no select here returns a session, a time, a therapist or a patient beyond the roster name; the only join from sponsor to sessions is the ledger `txn_id`, which nothing here performs. E3/E4: `setCoverage` touches no roster (0% is not removal), reduction waits for notice. E5 not here.
-- Notes: `potBalance` returns the live figure to the caller that triggered publication even if its conditional update lost the race (299-319). `weeklySpend` counts every positive pot leg as a session (`COUNT(*)`), so any non-session positive leg (a refund to the sponsor, a correction) counts toward the floor and toward "sessions". The heatmap gate on the page is headcount (`people.length < floor`), which C229 (133-153) says is the wrong population; the per-week floor is applied as well.
-
 ### lib/data/sponsor-domains.ts (261 lines)
 - For: proving a sponsor controls an email domain (mailbox code AND DNS TXT, or an approved agreement), and the non-oracle employer lookup.
 - Decides: `domainProved` (41) agreement OR (mailbox AND dns). `domainProblem` (57). `addDomain` (75) shape check, random DNS token, emails `postmaster@domain` an HMAC link (110-128); unique-index failure gives one message naming no customer. `mailboxToken` (186) HMAC with `AUTH_SECRET`, not exported; `mailboxTokenMatches` (191) constant time. `markMailboxProved`/`markDnsProved` (204, 216) single stamp. `employerLookup` (243) always the same message, query run regardless.
 - Assumes: something checks DNS and calls `markDnsProved`; the confirm route checks `mailboxTokenMatches`.
 - Promises: E2 (no oracle for which companies buy therapy) kept here.
-- Notes: the `notify` call is inside the `try` (92-146): if sending throws after the insert, the catch returns "We cannot add that domain here..." although the row now exists, and a retry then hits the unique index and gets the same message forever. The comment at 107-108 says sending is best effort; the code makes it fatal and misleading. `employerLookup` still does a DB round trip only when a row... no: it always runs the same query, timing parity holds.
+- Notes: the `notify` call is inside the `try` (92-146): if sending throws after the insert, the catch returns "We cannot add that domain here..." although the row now exists, and a retry then hits the unique index and gets the same message forever. The comment at 107-108 says sending is best effort; the code makes it fatal and misleading. `employerLookup` always runs the same query whatever is typed, so timing parity holds.
 
 ### lib/data/sponsor-integrations.ts (336 lines)
 - For: the sponsor's own HR connection: enable employment verification, mint/revoke a sponsor-scoped key, delivery log, failed-attempt count.
@@ -225,6 +218,13 @@
 - Assumes: `verifyEmployment` (lib/partner or enrolment) answers only about a just-typed identifier, consumed once.
 - Promises: E1/E2 partly: no identifiers in the log. But see Suspect: the delivery log timestamps.
 - Notes: `failedAttemptsFor` counts attestations whose question was never ANSWERED (HR never called back), not attempts that FAILED an identifier check, which is what the comment at 296-306 says the admin reads ("47 attempts failed the identifier check"). Keys are hashed with plain SHA-256 (fine for 24 random bytes).
+
+### lib/data/sponsors.ts (676 lines)
+- For: THE WALL: what a sponsor may read (roster, spend, balance, code attempts, coverage) and the two acts a sponsor performs (remove from roster, set coverage).
+- Decides: `roster` (92) enrolment id, name, last verified, paused; no join date; ordered by name not by created_at (111-119). `DEFAULT_ACTIVITY_FLOOR` 5 (154). `applyActivityFloor` (181) rolls sub-floor weeks forward, emits null not zero. `potBalance` (241): publishes the live balance only when the ledger session count (`potTotals`) has moved by at least `settings.sponsor.activityFloor` since the last publication, conditional update against `publishedSessions`; otherwise returns the previously published balance or null. `attemptsOnCode` (356) a count. `identifierFields` (369). `removeFromRoster` (401) enrolment only, primary flag cleared, patient notice with no employer and no reason. `ATTENDANCE_IS_NEVER_CONFIRMED` (467), `FINEST_GRANULARITY` (480). `weeklySpend` (490) positive `sponsor_pot` legs with `ref_type = 'sponsor'`, grouped by week in SQL, through the floor. `setCoverage` (586) increase immediate, decrease pending with `noticeDays`. `coverageFor` (660).
+- Assumes: `potTotals` in lib/billing/pot.ts reads the ledger; callers app/(sponsor)/sponsor/page.tsx and pot/page.tsx; the people action audits removal (app/(sponsor)/sponsor/people/actions.ts:50-60), the pot action audits coverage and passes `settings.sponsor.coverageNoticeDays` (pot/actions.ts:85-101).
+- Promises: E1 partly (see Broken: the published balance is undone by live totals on the same screen). E2 kept in this file: no select here returns a session, a time, a therapist or a patient beyond the roster name; the only join from sponsor to sessions is the ledger `txn_id`, which nothing here performs. E3/E4: `setCoverage` touches no roster (0% is not removal), reduction waits for notice. E5 not here.
+- Notes: `potBalance` returns the live figure to the caller that triggered publication even if its conditional update lost the race (299-319). `weeklySpend` counts every positive pot leg as a session (`COUNT(*)`), so any non-session positive leg (a refund to the sponsor, a correction) counts toward the floor and toward "sessions". The heatmap gate on the page is headcount (`people.length < floor`), which C229 (133-153) says is the wrong population; the per-week floor is applied as well.
 
 ### lib/data/summaries.ts (224 lines)
 - For: the patient-owned clinical summary: append-only versions with the approving clinician's name, credentials and licence.
@@ -303,7 +303,6 @@
 - Promises: C1 (verification state on the row). "Only certified therapists" claim.
 - Notes: not `server-only` (pure SQL fragments). `verifiedOn` comment says rendered as month and year; that is the renderer's job. Callers in this slice: radar.ts `queryBoard`, `publicProfile`, `radarCount`. Not used by `replacementsFor` (recovery.ts) or `resolveCode` (therapist-codes.ts), which is why those can surface unverified clinicians.
 
-<!-- FILES-END -->
 
 ## Stale
 - lib/data/notices.ts:78 `undismissedCount` says "Drives the badge". It has no caller anywhere in the repo. Whatever badge the patient chrome draws, it is not this.
@@ -356,12 +355,94 @@
 - A support ticket moved to WhatsApp can never be closed. lib/data/support.ts:512-517 `closeTicket` refuses while `whatsappSummary` is under 20 characters, and nothing anywhere writes `whatsappSummary` (grep of app/ and lib/ finds only this read and the schema). Staff press "moved to WhatsApp" (458) and the ticket is stuck open and overdue for ever, and the sender never gets the close link.
 
 ## Looks broken, is handled
+- lib/data/radar.ts `reachable` (177-225) lacks the verification and closed-country conditions, which reads as a booking hole; `bookFromRadar` re-reads `listRadar`/`queryBoard`, which has both (app/(public)/radar/actions.ts:165-169, radar.ts:430, 445-447).
+- lib/data/radar-admin.ts:293 `investigate` returns a full transcript with no audit; the page audits before rendering (app/(admin)/admin/radar/investigate/[id]/page.tsx:43).
 - lib/data/sponsors.ts:401-451 `removeFromRoster` takes `bySponsorUserId` and writes no audit; the caller writes it: app/(sponsor)/sponsor/people/actions.ts:50-60. `setCoverage` likewise audited by app/(sponsor)/sponsor/pot/actions.ts:94-102, and the notice window is the setting `sponsor.coverageNoticeDays`, not a sponsor input.
 - lib/data/partner-admin.ts:101, :286, :333 change a partner's state and production approval with no `audit()` call. The admin actions audit every one: app/(admin)/admin/partners/actions.ts:46, :78, :105, :130.
 
 ## Unclaimed
+- (a) Journal crisis scanning with alerts to grant holders (lib/data/journals.ts:86-194). Worth selling carefully; today it barely fires (see Broken).
+- (a) Session risk assessment: keyword floor plus model classification with quotes (lib/data/session-risk.ts:60-188).
+- (a) No-show recovery: replacement at equal or lower price with credit, or a full refund including our fee (lib/data/recovery.ts). Needs its server-side preconditions first.
+- (a) Caseload CSV import that names the dropped clinical columns (lib/data/patient-import.ts).
+- (a) Patient-initiated share codes and "ask my old therapist for my history" with a mandatory reason on decline (lib/data/portability.ts:125-300, 408-562).
+- (a) Homework with a patient view that can never show a score (lib/data/homework.ts:22-106).
+- (a) PHQ-9/GAD-7 instruments, verbatim, English-only until reviewed (lib/data/instrument-seeds.ts).
+- (a) Clinic-wall QR codes (lib/data/therapist-codes.ts); external meeting connections and ingest tokens (meeting-connections.ts, session-sources.ts).
+- (b) lib/data/radar-admin.ts:293-336 `investigate` gives staff the full transcript of a reported session. Audited and report-gated, but no promise tells a patient that a complaint opens their session transcript to our staff.
+- (b) lib/data/usage.ts:253-280 `costByPatient` and `ai_request_logs.patient_id`: a per-person timeline of model calls on an admin page (C280 names the risk).
+- (b) lib/data/partner-admin.ts:258-264 `sponsorChoices` lists every active sponsor's name to any partner operator: our corporate customer list, which C319 treats as the company's to publish.
+- (b) lib/data/timeline.ts:60-92 live operator board with patient-typed names across all organisations.
+- (b) lib/data/recovery.ts:130-246 anyone with a session id can move an unstarted session, and chart access, to any user id priced at or below it.
+- (c) Phone number change: request and staff approval exist, completion and refusal have no patient screen (lib/data/phone-change.ts:299, 353).
+- (c) Cross-border consent recorded, gates nothing (lib/data/residency.ts).
+- (c) Support ticket moved to WhatsApp cannot be closed (lib/data/support.ts:458-517).
+- (c) Task 105, staff sending a claim link from the console: not built anywhere in this slice or the support/admin actions.
+- (c) `undismissedCount` (notices.ts:79) and `markAllRead` (notifications.ts:64): functions with no caller, so the patient notice badge and "mark all read" do not exist.
 
 ## Promise evidence
 - T5: `revokeGrant` (grants.ts:447) is effective immediately because `accessFor` reads the row each time and app/(app)/copilot/actions.ts:55 calls it per question. BUT `capabilitiesFor("revoked")` in lib/access/state.ts:167-176 returns `copilot: true` (over the therapist's own material). So a revoked grant does not stop the copilot on the next question; it narrows what it may read. The promise text ("a revoked grant stops it on the next question") and the code disagree by design. Verdict: partly (immediacy kept; "stops" broken unless the promise means "stops reading the person's record"). Whether the copilot context really drops live profile/files on revoke is in lib/ai/case-copilot.ts, outside this slice.
+- P1: lib/data/radar.ts `reachable` (177-225) makes presence honest for everyone incl. demo; `queryBoard` requires verification (430). Taps not countable from data code. Board exhaustion via unbounded viewing holds (see Broken) threatens it. Verdict: partly.
+- P2: in-app halves exist for invitations (session-invite.ts:142-148 notice), the session orb (patient-view.ts:208-248) and session start (sessions.ts:434-435). Broken for: phone-change refusal and code entry (no screen), support replies (link by email/SMS only, support.ts:549-557), unpaid sessions swept at 03:00 (orb vanishes, nobody told), and the notice badge function has no caller. Verdict: partly.
+- P3: summaries carry name, credentials, licence (summaries.ts:183-186); patient brief shown only when signed, `briefPending` otherwise (patient-view.ts:131-149). Session list row carries therapist name only, no credentials (patient-view.ts:143). Latent risk: author lookup through the person's region. Verdict: kept for summaries, partly for the session list.
+- P4: append-only versioned named summaries kept (summaries.ts). "The patient decides who may read the history" broken for clinicians: revoked or never-granted clinicians still see the person-level standing profile, timeline, other clinicians' homework and the latest summary (documents page, session page). Verdict: partly.
+- P5: not touched by this slice (journals never claim anyone is watching, 32-38).
+- T1: transcript.ts is the one writer; voices bound by track or a named operator (session-voices.ts). Cannot tell from here whether the draft is transcript-built.
+- T2: nothing in this slice enforces off-record; the transcript writer checks no flag (transcript.ts). Cannot tell; enforcement must be in the upload route.
+- T4: `resolveJoinToken`/`joinByToken` (sessions.ts:779-895); `bookSlot` now mints a join token (scheduling.ts:485). Cannot test "Joining as" from here.
+- T5: see first entry; plus the documents page ignores `liveProfile`. Verdict: partly/broken.
+- C1: radar board requires `isVerifiedClinician`, heartbeat and not-closed country; a seat appears once verified and online. Verdict: kept in data code.
+- E1: `potBalance` implements the five-session publication (sponsors.ts:241-326) but the company home page shows live `potTotals` spend and session count beside it (app/(sponsor)/sponsor/page.tsx:198, 205). Verdict: broken.
+- E2: every sponsor read in sponsors.ts, sponsor-admin.ts, sponsor-domains.ts, sponsor-integrations.ts returns no session, time, therapist or patient beyond roster names; no query joins sponsor to sessions (weeklySpend reads ledger legs by `ref_type = 'sponsor'` only). Possible leak of enrolment times via the HR delivery log (Suspect). Verdict: kept in this slice, one suspect.
+- E3: price frozen on the session at creation everywhere; `bookSlot` records it in USD regardless of the clinician's currency. Verdict: broken on the calendar path.
+- E4: `setCoverage` never touches the roster (sponsors.ts:574-578). Verdict: kept here.
+- E5: `payFromPot` called at booking and link creation (scheduling.ts:539-540, sessions.ts:279-280); outcome is in lib/billing/pot.ts. Cannot tell from here.
+- A1/A2/A3/A4: not enforced in this slice. A4 exposure: a confirmed transfer against a swept (cancelled) session is marked paid with no door (manual-grants.ts:78-84). Vault reports none of the manual rail. Verdict: cannot tell / A4 partly at risk.
+- A5: ticket reads, investigations, grant decisions, homework, imports, summaries, voice binding are audited; phone-change completion/refusal, partner unlink, payroll reads, timeline reads are not. Verdict: partly.
 
 ## Coverage
+| File | Lines | Status |
+|---|---|---|
+| lib/data/grants.ts | 611 | read |
+| lib/data/homework.ts | 355 | read |
+| lib/data/instrument-seeds.ts | 139 | read |
+| lib/data/journals.ts | 291 | read |
+| lib/data/meeting-connections.ts | 196 | read |
+| lib/data/memory.ts | 67 | read |
+| lib/data/name-match.ts | 52 | read |
+| lib/data/notices.ts | 111 | read |
+| lib/data/notifications.ts | 69 | read |
+| lib/data/partner-admin.ts | 341 | read |
+| lib/data/partner-links.ts | 101 | read |
+| lib/data/patient-import.ts | 328 | read |
+| lib/data/patient-view.ts | 318 | read |
+| lib/data/patients.ts | 313 | read |
+| lib/data/payroll.ts | 341 | read |
+| lib/data/people.ts | 316 | read |
+| lib/data/phone-change.ts | 389 | read |
+| lib/data/portability.ts | 562 | read |
+| lib/data/radar-admin.ts | 419 | read |
+| lib/data/radar.ts | 1569 | read |
+| lib/data/recovery.ts | 407 | read |
+| lib/data/residency.ts | 177 | read |
+| lib/data/scheduling.ts | 946 | read |
+| lib/data/session-invite.ts | 167 | read |
+| lib/data/session-risk.ts | 270 | read |
+| lib/data/session-sources.ts | 273 | read |
+| lib/data/session-voices.ts | 231 | read |
+| lib/data/sessions.ts | 1083 | read |
+| lib/data/sponsor-admin.ts | 613 | read |
+| lib/data/sponsor-domains.ts | 261 | read |
+| lib/data/sponsor-integrations.ts | 336 | read |
+| lib/data/sponsors.ts | 676 | read |
+| lib/data/summaries.ts | 224 | read |
+| lib/data/support.ts | 768 | read |
+| lib/data/taxonomy.ts | 323 | read |
+| lib/data/therapist-codes.ts | 206 | read |
+| lib/data/timeline.ts | 212 | read |
+| lib/data/timezone.ts | 78 | read |
+| lib/data/transcript.ts | 122 | read |
+| lib/data/usage.ts | 552 | read |
+| lib/data/vault.ts | 467 | read |
+| lib/data/verification.ts | 336 | read |
+| lib/data/verified.ts | 91 | read |
