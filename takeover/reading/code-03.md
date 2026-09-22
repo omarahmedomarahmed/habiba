@@ -310,6 +310,15 @@
 - lib/data/notifications.ts:21-29 header says rows "never marked read by anything" is fixed. `markAllRead` (64) has no caller in the repo, and `markSessionNotificationsRead` only clears URLs containing a session id (room page and session page). Any notification not tied to a session (journal crisis alert `/people/<id>`, grant notices) is still permanent on the dashboard, which is the exact failure the header describes.
 - lib/data/patients.ts:294 JSDoc "Soft delete. Sessions are ON DELETE RESTRICT, so the chart is never orphaned." sits above nothing: the function it documented was removed (comment at 295-304 says so).
 - lib/data/patient-view.ts:293-296 says "the caller passes a zone-bucketed comparison in"; `groupOf` takes no zone and uses a rolling 24 hours.
+- lib/data/vault.ts:23-31 says metrics "sit on top of the ledger and are derived from it". No function in the file reads `ledger_entries`; every figure comes from `invoices`, `session_payments` and `ai_request_logs`. It also says money out is `cost_cents`, which the same file (447-453) says was abandoned for `cost_microcents`.
+- lib/data/vault.ts:421-423 "MRR counts only recurring subscriptions" computed as `payingOrgs * 9900`, while 383-388 says the plan it priced no longer exists and "paying" now means holding unspent credits.
+- lib/data/taxonomy.ts:231 cites `lib/data/radar.ts:201` for the board TTL; `BOARD_TTL_MS` is at radar.ts:250.
+- lib/data/timezone.ts:20-22 "the reminder cron ... runs at 03:20"; reminders run hourly (vercel.json `20 * * * *`, scheduling.ts:822-826).
+- app/api/cron/[job]/route.ts:95-101 (read for this slice's `sweepRadar`) describes the crisis job as hourly/"an hour late is fine"; vercel.json schedules `crisis` once a day at 03:00, so the radar sweep and abandoned-patient backstop run daily.
+- lib/billing/manual-grants.ts:74-75 (read for the sweep finding): "a session that was cancelled while the money was in flight is NOT quietly revived"; the WHERE (82-83) checks `payment_status` only, not `status`.
+- lib/data/people.ts:193-199 JSDoc for `personIdForPatient` is detached from it by `hasAvatar` (200-226). lib/data/sessions.ts:291-300 JSDoc for `createRadarSession` sits above `rateCurrencyFor`.
+- lib/data/support.ts:563-569 "Every successful read is audited" is true only because the caller (app/support/[token]/actions.ts:34-41) audits; `readByToken` itself does not.
+- lib/data/sponsor-integrations.ts:296-306 describes the count as attempts that "failed the identifier check"; the query (328-333) counts attestations never answered.
 
 ## Suspect
 - lib/data/patient-view.ts:208-247 `openSessionForPatient` (the orb, P2) has no time bound: a `scheduled` session from last month that never started and was never cancelled keeps an orb ("ready" or "owes") on every patient screen forever, pointing at `/join/<token>`. Whether a sweep cancels stale scheduled sessions is outside this slice (check lib/cron, sessions no-show handling).
