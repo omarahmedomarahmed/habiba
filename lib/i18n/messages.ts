@@ -1921,6 +1921,22 @@ export const en = {
   "radar.worksWith": "Works with",
   "radar.basedIn": "Based in",
   "radar.language": "Language",
+  /*
+   * 🔴 51.9 — WHAT WE CHECKED, AND WHEN. Never a bare "Verified".
+   *
+   * `/verify` draws this line for a record extract: we can say we produced a
+   * document, not that its diagnosis is right. A clinician's page needs the
+   * same cut. A badge reading only "Verified" is heard as "this person is
+   * good", which is a claim nobody here is able to make, so the label names
+   * the regulator we checked and the month a person approved it and stops.
+   *
+   * The licence NUMBER is deliberately absent: this page is indexed by design
+   * and the number is not ours to publish on a clinician's behalf.
+   */
+  "radar.verifiedWith": "Licence checked with {body}, {when}",
+  "radar.verifiedPlain": "Licence and identity checked by 24Therapy, {when}",
+  "radar.verifiedMeans": "We checked their documents. We do not rate their clinical work.",
+  "radar.verifiedNoDate": "before we started recording the date",
   "pbook.yourFirstName": "Your first name",
   "pbook.emailHint": "Optional, for your receipt.",
   "prating.rateTherapist": "Rate your therapist",
@@ -5331,6 +5347,11 @@ export const ar: Record<MessageKey, string> = {
   "radar.worksWith": "يعمل مع",
   "radar.basedIn": "مقره",
   "radar.language": "اللغة",
+  /* 🔴 51.9 — see the English block above for why the wording stops here. */
+  "radar.verifiedWith": "رخصة موثّقة لدى {body}، {when}",
+  "radar.verifiedPlain": "وثّقت 24Therapy الهوية والرخصة، {when}",
+  "radar.verifiedMeans": "راجعنا مستنداته. ولا نقيّم عمله الإكلينيكي.",
+  "radar.verifiedNoDate": "قبل أن نبدأ تسجيل التاريخ",
   "pbook.yourFirstName": "اسمك الأول",
   "pbook.emailHint": "اختياري، لإيصالك.",
   "prating.rateTherapist": "قيّم معالجك",

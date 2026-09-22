@@ -46,3 +46,46 @@ export function isVerifiedClinician(): SQL {
 export function verifiedFlag(): SQL<boolean> {
   return sql<boolean>`${APPROVED}`;
 }
+
+/**
+ * 🔴 WHAT WE CHECKED AND WHEN, FOR A PAGE A STRANGER READS.
+ *
+ * ## The two sentences these keep apart
+ *
+ * `/verify` already draws this line for a record extract: "24Therapy produced
+ * this document" is something we can say, and "the diagnosis in it is correct"
+ * is not. A clinician's public page needs the same cut. We can say a named
+ * regulator was checked and a human approved it on a date. We cannot say this
+ * person is good at their job, and a badge that says only "Verified" is read as
+ * the second sentence while being defensible as the first.
+ *
+ * ## What is deliberately NOT here
+ *
+ * The **licence number** and every document URL. `/t/:id` is indexed by search
+ * engines by design, and the number is not ours to publish on a clinician's
+ * behalf. The document URLs are worse: `therapist_verifications` says in as
+ * many words that the unguessable path IS the credential, so those columns
+ * never reach a select a patient can read. If a licence number should ever be
+ * public, that is a founder's decision and a separate change, not a field
+ * somebody adds to a helper.
+ *
+ * Both read the approved row directly for the reason the rest of this file
+ * exists: an assertion made to a stranger should rest on the row that makes it
+ * true, not on a copy of it.
+ */
+export function verifiedByBody(): SQL<string | null> {
+  return sql<string | null>`(
+    SELECT v.license_body FROM therapist_verifications v
+     WHERE v.user_id = ${users.id} AND v.state = 'approved'
+     LIMIT 1
+  )`;
+}
+
+/** The date a human approved it. Rendered as a month and a year, never a day. */
+export function verifiedOn(): SQL<Date | null> {
+  return sql<Date | null>`(
+    SELECT v.reviewed_at FROM therapist_verifications v
+     WHERE v.user_id = ${users.id} AND v.state = 'approved'
+     LIMIT 1
+  )`;
+}

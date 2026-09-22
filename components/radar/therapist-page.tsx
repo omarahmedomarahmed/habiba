@@ -47,9 +47,55 @@ export async function TherapistPageBody({ id }: { id: string }) {
   const { locale, t } = await getI18n();
   const tag = localeTag(locale);
 
+  /*
+   * 🔴 51.9 — a MONTH and a year, never a day.
+   *
+   * The date is evidence that a person looked, not an audit trail for a
+   * stranger. To the day it invites "why was mine three weeks after theirs",
+   * which is a question about our queue and none of a reader's business.
+   *
+   * An approved row with no `reviewed_at` is possible, so the fallback is the
+   * one honest word rather than an empty gap in the middle of a sentence.
+   */
+  const approvedOn = profile.verifiedOn
+    ? new Intl.DateTimeFormat(tag, { month: "long", year: "numeric" }).format(profile.verifiedOn)
+    : t("radar.verifiedNoDate");
+
   return (
     <>
       <PublicProfile initial={profile} />
+
+      {/*
+        🔴 51.9 — THE VERIFIED PAGE A CLINICIAN CAN SHOW.
+
+        The verification pipeline has been real since sprint 26: photo ID, a
+        licence document, a named regulator, a human approval with a date. None
+        of it reached this page, so the product was checking credentials and
+        the clinician had nothing to point at.
+
+        What it says is the whole design. `/verify` already separates "24Therapy
+        produced this document" from "the diagnosis in it is correct", and this
+        is the same cut: we name the regulator we checked and the month a person
+        approved it, and the second line says out loud that we did not assess
+        their clinical work. A badge reading only "Verified" is heard as the
+        sentence we cannot make.
+
+        The licence NUMBER is not here, and that is a decision rather than an
+        omission: this page carries `robots: { index: true }` by design, and the
+        number is not ours to publish on a clinician's behalf.
+
+        `verifiedBy` is null only for a super admin, whom `isCleared` exempts
+        from verification entirely. They get the plain line, which claims the
+        identity and licence check without naming a regulator nobody consulted.
+      */}
+      <div className="mx-auto max-w-2xl px-4 pt-3 sm:px-6">
+        <p className="text-sm font-semibold text-slate-800">
+          {profile.verifiedBy
+            ? t("radar.verifiedWith", { body: profile.verifiedBy, when: approvedOn })
+            : t("radar.verifiedPlain", { when: approvedOn })}
+        </p>
+        <p className="mt-0.5 text-xs text-slate-600">{t("radar.verifiedMeans")}</p>
+      </div>
 
       {/*
         14.7 — the reliability score, where somebody deciding can see it.

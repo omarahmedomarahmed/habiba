@@ -21,7 +21,7 @@ import {
   therapistRadar,
   users,
 } from "@/lib/db/schema";
-import { isVerifiedClinician } from "@/lib/data/verified";
+import { isVerifiedClinician, verifiedByBody, verifiedOn } from "@/lib/data/verified";
 import { accessStateFor, isGated, type AccessState } from "@/lib/access/state";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
 import { closedCodes } from "@/lib/data/taxonomy";
@@ -567,6 +567,15 @@ export type PublicProfile = Omit<RadarTherapist, "status"> & {
   bio: string | null;
   /** The zone the booking calendar renders in before the browser answers. 12.3. */
   timezone: string | null;
+  /**
+   * 🔴 51.9 — the regulator we checked, and the date a person approved it.
+   *
+   * Not the licence number, which is not ours to publish on an indexed page,
+   * and not a document URL, whose unguessable path IS the credential. See
+   * `lib/data/verified.ts` for the argument.
+   */
+  verifiedBy: string | null;
+  verifiedOn: Date | null;
 };
 
 export async function publicProfile(
@@ -610,6 +619,15 @@ export async function publicProfile(
       lastSeenAt: therapistRadar.lastSeenAt,
       /* 🔴 63.13 — the same CASE as the board, for the same reason. */
       clinicName: sql<string | null>`CASE WHEN ${organizations.kind} = 'clinic' THEN ${organizations.name} END`,
+      /*
+       * 🔴 51.9 — WHAT WE CHECKED AND WHEN, and nothing else.
+       *
+       * The regulator's name and the date a human approved it. Never the
+       * licence number and never a document URL: this page is indexed by
+       * design, and `lib/data/verified.ts` argues the line these two sit on.
+       */
+      verifiedBy: verifiedByBody(),
+      verifiedOn: verifiedOn(),
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
@@ -653,6 +671,14 @@ export async function publicProfile(
     status: row.status === "offline" || stale ? "offline" : shaped.status,
     bio: row.profile?.bio ?? null,
     timezone: row.timezone,
+    /*
+     * The WHERE clause above already refuses anybody who is not approved, so
+     * a row reaching here is verified. `verifiedBy` can still be null for a
+     * super admin exempted by `isCleared`, and the page says nothing rather
+     * than naming a regulator nobody checked.
+     */
+    verifiedBy: row.verifiedBy,
+    verifiedOn: row.verifiedOn ? new Date(row.verifiedOn) : null,
   };
 }
 

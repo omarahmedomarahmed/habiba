@@ -625,6 +625,44 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
           },
         ],
       },
+      /*
+       * 🔴 51.9 — the English page has had this section since sprint 18 and the
+       * Arabic one never did, so an Arabic reader met the room and then the
+       * page stopped. Four items, the same four, and the last of them is the
+       * capability 51.9 is about.
+       */
+      {
+        type: "features",
+        heading: "وما حولها",
+        items: [
+          {
+            title: "خارج التسجيل",
+            body: "ضغطة واحدة توقف التسجيل دون أن تنهي الجلسة.",
+            icon: "shield",
+          },
+          {
+            title: "فيديو حين تحتاجه",
+            body: "غرف خاصة، ورمز دخول لكل مشارك تنتهي صلاحيته.",
+            icon: "video",
+          },
+          {
+            title: "تقرير المريض على البريد",
+            body: "توافق أولًا، ثم يُرسل ملخص بلغة مفهومة. انطباعاتك تبقى في ملفك أنت.",
+            icon: "mail",
+          },
+          /*
+           * 🔴 The wording stops where the product does: /t/:id names the
+           * regulator and the month somebody approved it, and says out loud
+           * that we do not rate clinical work. It does not print the licence
+           * number, so this line must not promise one.
+           */
+          {
+            title: "صفحة موثّقة تعرضها على من تشاء",
+            body: "صفحتك على 24Therapy، وعليها اسم الجهة التي راجعنا ترخيصك لديها. ضع رابطها حيث شئت.",
+            icon: "check",
+          },
+        ],
+      },
     ],
   },
   {

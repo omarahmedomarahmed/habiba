@@ -746,6 +746,24 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             body: "Approve, then send a plain-language summary. Impressions stay in your chart.",
             icon: "mail",
           },
+          /*
+           * 🔴 51.9 — the fourth thing built and never mentioned.
+           *
+           * Verification has asked for photo ID, a licence document and a named
+           * regulator since sprint 26, and a human has approved every one. Until
+           * now none of that reached the clinician's public page, so the product
+           * was doing the work and they had nothing to point at.
+           *
+           * The wording stops exactly where the product does: /t/:id names the
+           * regulator and the month somebody approved it, and says out loud that
+           * we do not rate clinical work. It does not print the licence number,
+           * so this line must not promise one.
+           */
+          {
+            title: "A verified page you can show",
+            body: "Your own 24Therapy page, naming the regulator we checked. Link it from anywhere.",
+            icon: "check",
+          },
         ],
       },
       {
