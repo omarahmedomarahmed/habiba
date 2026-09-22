@@ -197,6 +197,17 @@ Candidates from documents only, to be confirmed in code:
    reading is closed: word-boundary match for pronoun markers, plus a control set of these
    sentences in `verify:sprint35r`.
 
+3. **Session recovery is patched for started sessions and open for future ones.**
+   `app/(patient)/sessions/[id]/recovery-actions.ts` is unauthenticated on purpose (the id is the
+   capability). `lib/data/recovery.ts` refuses a started or resolved session (`started_at IS NULL`,
+   `recovery_outcome IS NULL`) but never checks `scheduled_at + NO_SHOW_AFTER_MINUTES < now()`.
+   So an id for a session next week can be cancelled with a full refund, reassigned to any
+   non-deleted user (no verification check on the taker, and the comment at :158 says
+   reassignment grants full read of transcript, note and chart), or marked a no-show against
+   the clinician (`recordNoShow` has no clock at all). The id travels in booking emails
+   (`app/(public)/t/[id]/book/actions.ts:160`). Fix: the due-time condition in the data layer,
+   and a verified-clinician check on the taker.
+
 ## Live-site checks, 2026-09-22 (fetched from 24therapy.app, not read from defaults)
 
 - `robots.txt` serves `Allow: /` with `/join/`, `/dashboard`, `/sessions` disallowed. TAKEOVER s5
