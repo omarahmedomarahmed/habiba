@@ -88,10 +88,18 @@ export function Press({ children, className, ...rest }: HTMLMotionProps<"button"
   );
 }
 
+/**
+ * A whole number with thousands commas, the same on every device. The runtime's
+ * locale is never asked (sprint 12.3), so the server and the phone agree.
+ */
+export function grouped(n: number) {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 /** A number that counts to its value the first time it is seen, and to every new value after. */
 export function Count({
   value,
-  format = (n) => Math.round(n).toLocaleString("en-US"),
+  format = (n) => grouped(n),
   className,
 }: {
   value: number;

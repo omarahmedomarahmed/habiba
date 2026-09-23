@@ -7,7 +7,7 @@ import { Check, LayoutDashboard, Percent, UserMinus, Users, Wallet } from "lucid
 import { cn } from "@/lib/utils";
 
 import { BrowserFrame } from "../_ds/frames";
-import { Count, Press, spring } from "../_ds/motion";
+import { Count, grouped, Press, spring } from "../_ds/motion";
 import { H2, PortalPage, PortalShell, Stat } from "../_ds/portal";
 import { Btn, Card, Chips, Ring, SearchField, Sheet, Toast } from "../_ds/ui";
 
@@ -70,7 +70,7 @@ function Overview({ pot, cover, onTopUp }: { pot: number; cover: number; onTopUp
       <div className="grid gap-4 lg:grid-cols-[auto_1fr_1fr]">
         <Card className="flex items-center gap-5 p-5">
           <Ring value={pot / (pot + spent)} size={120} stroke={12}>
-            <span className="text-[22px] font-bold tabular-nums text-navy-700">${pot.toLocaleString("en-US")}</span>
+            <span className="text-[22px] font-bold tabular-nums text-navy-700">${grouped(pot)}</span>
             <span className="text-[12px] font-semibold text-navy-500">left</span>
           </Ring>
           <div>
@@ -85,7 +85,7 @@ function Overview({ pot, cover, onTopUp }: { pot: number; cover: number; onTopUp
           <Count value={Math.round(spent / 45)} />
         </Stat>
         <Stat label="Spent from the pot" tone="dark" note="Since the benefit began in June">
-          <Count value={spent} format={(n) => `$${Math.round(n).toLocaleString("en-US")}`} />
+          <Count value={spent} format={(n) => `$${grouped(n)}`} />
         </Stat>
       </div>
       <Heatmap />
@@ -306,7 +306,7 @@ function TopUp({ pot, cover, onPaid }: { pot: number; cover: number; onPaid: (n:
   return (
     <div className="relative">
       <Toast show={paid}>
-        <Check className="h-4 w-4 text-brand-300" aria-hidden /> ${n.toLocaleString("en-US")} added to the pot.
+        <Check className="h-4 w-4 text-brand-300" aria-hidden /> ${grouped(n)} added to the pot.
       </Toast>
       <H2 sub="The estimate uses a $75 session. Longer sessions or higher prices mean fewer.">Top up the pot</H2>
       <Card className="max-w-xl p-6">
@@ -332,7 +332,7 @@ function TopUp({ pot, cover, onPaid }: { pot: number; cover: number; onPaid: (n:
           </div>
           <div className="rounded-2xl bg-navy-50 p-4">
             <p className="text-[13px] font-semibold text-navy-500">Pot after</p>
-            <p className="text-[28px] font-bold tabular-nums text-navy-700">${(pot + n).toLocaleString("en-US")}</p>
+            <p className="text-[28px] font-bold tabular-nums text-navy-700">${grouped(pot + n)}</p>
             <p className="text-[12px] text-navy-500">Unused money is refundable</p>
           </div>
         </div>
@@ -346,7 +346,7 @@ function TopUp({ pot, cover, onPaid }: { pot: number; cover: number; onPaid: (n:
           }}
           className="mt-6 w-full"
         >
-          Pay ${n.toLocaleString("en-US")} by bank transfer
+          Pay ${grouped(n)} by bank transfer
         </Btn>
       </Card>
     </div>

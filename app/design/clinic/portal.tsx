@@ -7,7 +7,7 @@ import { Building2, Check, LayoutDashboard, Receipt, UserPlus, Users } from "luc
 import { cn } from "@/lib/utils";
 
 import { BrowserFrame } from "../_ds/frames";
-import { Count, LivePulse, Press, spring } from "../_ds/motion";
+import { Count, grouped, LivePulse, Press, spring } from "../_ds/motion";
 import { H2, PortalPage, PortalShell, Stat } from "../_ds/portal";
 import { Avatar, Btn, Card, Chips, Ring, SearchField, Spark, Toast } from "../_ds/ui";
 
@@ -93,7 +93,7 @@ function Overview({ seats, onTeam, onAdd }: { seats: number; onTeam: () => void;
         </Stat>
         <Stat label="Paid to your clinicians" note="Each is paid directly, you see totals" tone="dark">
           <span className="flex items-end justify-between gap-3">
-            <Count value={5740} format={(n) => `$${Math.round(n).toLocaleString("en-US")}`} />
+            <Count value={5740} format={(n) => `$${grouped(n)}`} />
             <Spark points={[900, 1100, 1300, 1250, 1500, 1640, 1740]} width={110} height={44} />
           </span>
         </Stat>
@@ -139,7 +139,7 @@ function MemberCard({ member, index }: { member: (typeof TEAM)[number]; index: n
       <div className="mt-4 flex items-end justify-between">
         <div>
           <p className="text-[12px] font-semibold text-navy-500">{member.sessions} sessions</p>
-          <p className="text-[20px] font-bold tabular-nums text-navy-700">${member.earned.toLocaleString("en-US")}</p>
+          <p className="text-[20px] font-bold tabular-nums text-navy-700">${grouped(member.earned)}</p>
         </div>
         <Spark points={member.trend} width={90} height={36} fill={false} />
       </div>
@@ -266,7 +266,7 @@ function Add({ seats, onAdded, onBill }: { seats: number; onAdded: () => void; o
                 transition={spring}
                 className="text-[40px] font-bold tabular-nums"
               >
-                ${(next * SEAT_PRICE).toLocaleString("en-US")}
+                ${grouped(next * SEAT_PRICE)}
               </motion.span>
             </AnimatePresence>
             <span className="text-[14px] text-white/65">a month</span>

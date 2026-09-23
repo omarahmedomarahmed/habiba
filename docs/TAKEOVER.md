@@ -721,14 +721,17 @@ undo for any of this.** A snapshot delete is permanent.
 
 ## 10 · Step 5 · The redesign, and `/design` is the deliverable
 
-### What `/design` is today
+### What `/design` was when this was written
 
-`app/(public)/design/`, about 3,300 lines, `noindex`. A UI reference organised by **who is
+The old public design folder, about 3,300 lines, `noindex`. A UI reference organised by **who is
 looking**, with sub-pages and sample screens for patient, company and clinic, and a wireframe
-kit in `components/design/wire.tsx`. Its own header says a gap in an audience's row is a gap
+kit beside it. Its own header says a gap in an audience's row is a gap
 in the product's ability to show itself to that audience.
 
 It grew alongside the product. It is not a design system and it is not a proposal.
+
+On 2026-09-23 all of it was deleted and rebuilt at `app/design/`, one motion system and one
+interactive flow per user type. The record is in `takeover/NEW-TASKS.md`, task 174.
 
 ### What it has to become
 
