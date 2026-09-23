@@ -211,6 +211,35 @@ async function main() {
         Boolean(stored && stored.hash !== issued.token && stored.hash.length === 64),
       );
 
+      /*
+       * 🔴 THE LINK IS FOR ONE NUMBER. The record carries the claimant's; a
+       * stranger holding the forwarded link, signed up with any other number,
+       * is refused, and the signup screen never prints the number to them.
+       */
+      const [claimantRow] = await db
+        .select({ phone: patientAccounts.phone })
+        .from(patientAccounts)
+        .where(eq(patientAccounts.id, claimant))
+        .limit(1);
+      await db.update(people).set({ phone: claimantRow!.phone }).where(eq(people.id, target));
+      const forwardedTo = await newAccount(db, "forwarded");
+      const wrongNumber = await redeemInvite({
+        token: issued.token,
+        accountId: forwardedTo,
+        therapistKeepsAccess: false,
+      });
+      check(
+        "🔴 6.10 a forwarded link, opened by an account with a different number, takes nothing",
+        wrongNumber.ok === false,
+        wrongNumber.ok ? "RECORD HANDED OVER" : wrongNumber.error,
+      );
+      const { readFileSync } = await import("node:fs");
+      const signupPage = readFileSync("app/(patient)/patient/signup/page.tsx", "utf8");
+      check(
+        "🔴 6.10 the signup page does not hand the record's number to the browser",
+        !/invited\??\.phone\s*\?\?|lockedPhone/.test(signupPage),
+      );
+
       const first = await redeemInvite({
         token: issued.token,
         accountId: claimant,

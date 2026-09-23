@@ -16,7 +16,7 @@ import {
 import { log, ref } from "@/lib/logger";
 
 import { applyClaimDecision } from "./grants";
-import { findMatches, redactName } from "./people";
+import { findMatches, normaliseEmail, normalisePhone, redactName } from "./people";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -537,7 +537,7 @@ export async function resolveInvite(token: string): Promise<{
   personId: string;
   redactedName: string;
   inviteId: string;
-  /** 13.4 — pre-filled and locked on signup. E.164 or null. */
+  /** 13.4 — compared at signup and redemption, never shown. E.164 or null. */
   phone: string | null;
   email: string | null;
   /** 13.8 — the only thing a pre-challenge screen may name. */
@@ -575,19 +575,41 @@ export async function resolveInvite(token: string): Promise<{
     inviteId: row.id,
     redactedName: redactName(row.firstName, row.lastName),
     /*
-     * 13.4 — the number the record already holds, so signup can pre-fill and
-     * lock it.
-     *
-     * 🔴 Locked, not merely pre-filled, and the reason is the invariant: this
-     * link was sent *to* that number. Letting the person edit it here would
-     * let whoever received a forwarded link register their own number against
-     * somebody else's record — which is precisely the collision §3b's unique
-     * index exists to prevent, arriving through the one door that bypasses it.
+     * 13.4 — the number the record already holds, for `inviteFits` to compare
+     * against. 🔴 Never rendered: whoever holds the link has proven nothing.
      */
     phone: row.phone,
     email: row.email,
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
   };
+}
+
+export const INVITE_MISMATCH =
+  "This link is for a different phone number. Sign up with the number your therapist has for you, or ask them for a new link.";
+
+/**
+ * 🔴 WHETHER AN ACCOUNT MAY TAKE THE RECORD AN INVITE POINTS AT.
+ *
+ * The signup screen used to print the record's phone number, locked, to
+ * whoever opened the link, and said the server checked it. Nothing did: the
+ * number travelled in a hidden field anybody can edit, and `redeemInvite`
+ * never compared it. So a forwarded link both showed a stranger the patient's
+ * number and let them register any number against the record.
+ *
+ * Now the number is never shown. The person types it, and it must be the one
+ * the record holds. A record with no number but an address is held to the
+ * address; a record with neither has nothing to compare, and the link stays
+ * the whole of the proof (the clinician identified them in the room).
+ */
+export function inviteFits(
+  invite: { phone: string | null; email: string | null },
+  account: { phone: string | null; email: string | null },
+): boolean {
+  const wantPhone = normalisePhone(invite.phone);
+  if (wantPhone) return normalisePhone(account.phone) === wantPhone;
+  const wantEmail = normaliseEmail(invite.email);
+  if (wantEmail) return normaliseEmail(account.email) === wantEmail;
+  return true;
 }
 
 /**
@@ -612,6 +634,16 @@ export async function redeemInvite(input: {
       ok: false,
       error: "That link has expired or has already been used.",
     };
+
+  const [account] = await db
+    .select({ phone: patientAccounts.phone, email: patientAccounts.email })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, input.accountId))
+    .limit(1);
+  if (!account || !inviteFits(resolved, account)) {
+    log.warn("invite refused: account does not carry the invited handle", { person: ref(resolved.personId) });
+    return { ok: false, error: INVITE_MISMATCH };
+  }
 
   let patientsMoved = 0;
   let claimed = false;

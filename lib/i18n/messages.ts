@@ -884,7 +884,7 @@ export const en = {
   "residency.withdraw": "Withdraw that",
   "pidentity.removePhoto": "Remove it",
   "pidentity.photoPrivate": "Not public. Shown to you, and to a therapist you are in a session with.",
-  "pauth.invitePhoneNote": "The number your therapist sent this invite to.",
+  "pauth.invitePhoneNote": "Type the number your therapist has for you. It has to be that one.",
   "pauth.phonePlaceholder": "Phone or WhatsApp",
   "pauth.phoneNote": "This is how you sign in and how your therapist finds you.",
 
@@ -4587,7 +4587,7 @@ export const ar: Record<MessageKey, string> = {
   "residency.withdraw": "اسحب الموافقة",
   "pidentity.removePhoto": "احذفها",
   "pidentity.photoPrivate": "ليست علنية. تظهر لك، ولمعالج أنت في جلسة معه.",
-  "pauth.invitePhoneNote": "الرقم الذي أرسل إليه معالجك هذه الدعوة.",
+  "pauth.invitePhoneNote": "اكتب الرقم الذي لدى معالجك لك. يجب أن يكون هو نفسه.",
   "pauth.phonePlaceholder": "هاتف أو واتساب",
   "pauth.phoneNote": "بهذا تسجّل الدخول، وبه يجدك معالجك.",
 

@@ -119,6 +119,18 @@ export async function patientSignUp(
   }
 
   /*
+   * 🔴 An invite is for one number, checked here rather than trusted from the
+   * form: the screen no longer shows it (`inviteFits`), so this is where a
+   * wrong one is told, before an account exists that cannot redeem the link.
+   */
+  const invited = String(formData.get("inviteToken") ?? "").trim();
+  if (invited) {
+    const { resolveInvite, inviteFits, INVITE_MISMATCH } = await import("@/lib/data/claims");
+    const resolved = await resolveInvite(invited);
+    if (resolved && !inviteFits(resolved, { phone, email })) return { error: INVITE_MISMATCH };
+  }
+
+  /*
    * Both handles checked, and refused with the same sentence.
    *
    * "That email is already registered" tells anybody with a list of addresses

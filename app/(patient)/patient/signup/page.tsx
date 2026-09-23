@@ -16,12 +16,12 @@ export default async function PatientSignupPage({
   const { invite } = await searchParams;
 
   /*
-   * 13.4 — an invite pre-fills the number and **locks** it.
+   * 13.4 — an invite is for the number the record holds.
    *
-   * Locked rather than merely pre-filled: the link was sent to that number, and
-   * letting whoever opens it substitute their own would register a stranger
-   * against somebody else's record — the exact collision §3b's unique index
-   * exists to prevent, arriving through the one door that bypasses it.
+   * 🔴 Asked for, never shown. This page used to print that number, locked, to
+   * whoever opened the link, which told a stranger holding a forwarded link
+   * the patient's phone number. The person types it; `inviteFits` compares it
+   * at signup and again when the link is spent.
    */
   const [invited, { t }] = await Promise.all([
     invite ? resolveInvite(invite) : Promise.resolve(null),
@@ -42,7 +42,7 @@ export default async function PatientSignupPage({
       <PatientAuthForm
         mode="signup"
         inviteToken={invited ? invite! : null}
-        lockedPhone={invited?.phone ?? null}
+        invitePhone={Boolean(invited?.phone)}
       />
     </AuthShell>
   );
