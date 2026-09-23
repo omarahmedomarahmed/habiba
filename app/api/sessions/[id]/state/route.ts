@@ -48,6 +48,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         patientMinimisedAt: sessions.patientMinimisedAt,
         guestName: sessions.guestName,
         noteStatus: sessions.noteStatus,
+        recordingConsent: sessions.recordingConsent,
       })
       .from(sessions)
       .where(
@@ -118,6 +119,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         : null,
       patientName: row.guestName,
       noteStatus: row.noteStatus,
+      /*
+       * Task 123 — the room follows the patient's answer: a yes given on their
+       * own screen turns it on, and a Stop or a no turns it off, within a poll.
+       */
+      recordingConsent: row.recordingConsent,
       nextBooking: nextBooking
         ? { minutes: nextBooking.minutes, startsAt: nextBooking.startsAt.toISOString() }
         : null,

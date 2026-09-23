@@ -20,7 +20,7 @@
  * an open door, and the checks below attempt the write rather than reading the
  * module, because that is the only difference that matters.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 
@@ -30,7 +30,7 @@ async function main() {
   writesTo();
 
   const { controlDb: db } = await import("../lib/db");
-  const { journals, patientClinicalFacts, sessionNotes, sessions, people, users } = await import(
+  const { journals, patientClinicalFacts, sessionNotes, sessions, people, users, transcriptSegments } = await import(
     "../lib/db/schema"
   );
   const { recordFact, JournalInferenceError } = await import("../lib/data/facts");
@@ -98,18 +98,66 @@ async function main() {
     await db
       .select({ id: sessions.id })
       .from(sessions)
-      .where(eq(sessions.recordingConsent, "declined"))
+      .where(
+        and(
+          eq(sessions.recordingConsent, "declined"),
+          sql`NOT EXISTS (SELECT 1 FROM transcript_segments t WHERE t.session_id = ${sessions.id})`,
+        ),
+      )
       .limit(1)
   )[0];
 
   if (declined) {
     const fromDeclined = await noteProvenanceFor(declined.id);
     check(
-      "🔴 47.1 a declined session is always `clinician`",
+      "🔴 47.1 a declined session with nothing captured is always `clinician`",
       fromDeclined.provenance === "clinician" && fromDeclined.offRecordSeconds === null,
       `resolved to ${fromDeclined.provenance}`,
     );
   }
+
+  /*
+   * 🔴 Task 123 — words on file and no standing yes: the patient pressed Stop
+   * part-way (which now withdraws consent), or an in-person session was
+   * captured before the consent gate. "Not recorded, the clinician's own
+   * account" over a note drafted from those words is the lie seen on
+   * production. It is partial, and the time after the last word counts.
+   */
+  const t0 = new Date(Date.now() - 20 * 60_000);
+  const withdrawn = required(
+    (
+      await db
+        .insert(sessions)
+        .values({
+          organizationId: borrow.organizationId,
+          therapistId: borrow.therapistId,
+          status: "completed",
+          recordingConsent: "declined",
+          startedAt: t0,
+          endedAt: new Date(t0.getTime() + 10 * 60_000),
+          feedbackToken: `v47-withdrawn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        })
+        .returning({ id: sessions.id })
+    )[0],
+    "session withdrawn part-way",
+  );
+  await db.insert(transcriptSegments).values(
+    [1, 2].map((sequence) => ({
+      sessionId: withdrawn.id,
+      organizationId: borrow.organizationId,
+      sequence,
+      text: "v47 captured before the stop",
+      startMs: (sequence - 1) * 8000,
+      endMs: sequence * 8000,
+    })),
+  );
+  const fromWithdrawn = await noteProvenanceFor(withdrawn.id);
+  await db.delete(sessions).where(eq(sessions.id, withdrawn.id));
+  check(
+    "🔴 47.1 / task 123 words captured and the yes withdrawn is `partial`, with the rest counted as not recorded",
+    fromWithdrawn.provenance === "partial" && fromWithdrawn.offRecordSeconds === 600 - 16,
+    `${fromWithdrawn.provenance}, ${fromWithdrawn.offRecordSeconds ?? "no"} seconds off record`,
+  );
 
   /*
    * 🔴 The DEFAULT is the honest one, asserted in the database.

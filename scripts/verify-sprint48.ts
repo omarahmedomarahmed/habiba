@@ -305,9 +305,20 @@ async function main() {
 
   check(
     "🔴 48.10 …and stopping does NOT delete what was already captured",
-    /recordingPausedAt: new Date\(\)/.test(stopBody) &&
+    /recordingPausedAt: (new Date\(\)|stoppedAt)/.test(stopBody) &&
       !/delete\(transcriptSegments\)/.test(stopBody),
     "a chart that rewrites itself is worse than one with a gap (47.2 names the gap)",
+  );
+
+  /*
+   * 🔴 Task 123 — and the Stop is a WITHDRAWAL, not the clinician's pause.
+   * It used to set only `recording_paused_at`, which the clinician's Resume
+   * clears, so a clinician could turn the microphone back on over it.
+   */
+  check(
+    "🔴 48.10 …and it withdraws consent, so the clinician's Resume cannot undo it",
+    /recordingConsent: "declined"/.test(stopBody),
+    "the pause alone is the clinician's switch too",
   );
 
   /*

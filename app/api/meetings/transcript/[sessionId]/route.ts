@@ -4,6 +4,7 @@ import { acrossRegions } from "@/lib/db";
 import { sessionSources, sessions } from "@/lib/db/schema";
 import { assertOurBot } from "@/lib/meetings/dispatch";
 import { log, ref } from "@/lib/logger";
+import { mayRecord } from "@/lib/sessions/may-record";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +101,7 @@ export async function POST(
    * the bot to leave, whether or not the provider confirmed. Either means this
    * audio is not ours to process.
    */
-  if (row.recordingConsent !== "granted" || row.recordingPausedAt || row.botLeftAt) {
+  if (!mayRecord(row) || row.botLeftAt) {
     log.info("meeting audio refused, no live consent", { session: ref(sessionId) });
     return NextResponse.json({ ok: true, processed: false });
   }

@@ -12,6 +12,7 @@ import { appendTranscriptSegment } from "@/lib/data/transcript";
 import { recordIngestUse, sourceForIngest } from "@/lib/data/session-sources";
 import { bearerFrom, ingestDecision } from "@/lib/ingest/token";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import { mayRecord } from "@/lib/sessions/may-record";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -65,6 +66,8 @@ export async function POST(
       therapistId: string;
       patientId: string | null;
       transcriptLanguage: string | null;
+      recordingConsent: "granted" | "declined" | null;
+      recordingPausedAt: Date | null;
     } | null = null;
     /** Who to bill the model call to, and whether the copilot may run. */
     let actorUserId: string;
@@ -106,6 +109,8 @@ export async function POST(
           therapistId: sessions.therapistId,
           patientId: sessions.patientId,
           transcriptLanguage: sessions.transcriptLanguage,
+          recordingConsent: sessions.recordingConsent,
+          recordingPausedAt: sessions.recordingPausedAt,
         })
         .from(sessions)
         .where(
@@ -125,6 +130,15 @@ export async function POST(
     }
     if (session.status !== "in_progress") {
       return NextResponse.json({ error: "not_live" }, { status: 409 });
+    }
+
+    /*
+     * 🔴 TASK 123 — no recorded yes, or a pause, and the audio is dropped
+     * before it reaches the model. The same rule the meeting webhook uses
+     * (`mayRecord`); this door is the one that did not ask.
+     */
+    if (!mayRecord(session)) {
+      return NextResponse.json({ error: "not_recording" }, { status: 409 });
     }
 
     const form = await request.formData();
