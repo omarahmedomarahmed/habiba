@@ -74,7 +74,7 @@ async function main() {
    */
   writesTo();
 
-  const { suggestionsFor } = await import("../lib/data/claims");
+  const { findMatches } = await import("../lib/data/people");
   const { answerName, nameHint, MAX_NAME_ATTEMPTS } = await import("../lib/data/challenge");
 
   /* ------------------------------------------------------ 25.11 · C119 */
@@ -158,7 +158,8 @@ async function main() {
      * name and the sentence "a therapist keeps notes for somebody with your
      * phone number" to anybody who signed up with a stranger's number.
      */
-    const raw = await suggestionsFor({ phone: PHONE, email: null });
+    /* The matcher under `suggestionsForAccount`, asked without the proven-handle gate. */
+    const raw = (await findMatches({ phone: PHONE, email: null })).filter((row) => !row.claimed);
 
     check(
       "🔴 25.14 the matcher itself CAN find the record, so the check below is about the gate and not about an empty database",

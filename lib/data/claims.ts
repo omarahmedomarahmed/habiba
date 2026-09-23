@@ -91,7 +91,7 @@ export type ClaimSuggestion = {
  * a suggestion, it is a collision, and offering it would invite a stranger to
  * try to claim it.
  */
-export async function suggestionsFor(input: {
+async function suggestionsFor(input: {
   email?: string | null;
   phone?: string | null;
   /**
