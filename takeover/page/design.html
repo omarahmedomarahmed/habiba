@@ -1,0 +1,55 @@
+<title>Patient App Redesign</title>
+<style>
+:root{--ground:#f4f7f8;--paper:#fff;--ink:#0a2342;--head:#091e39;--muted:#4a5d72;--line:#d9e1e7;--press:#2ec4b6;--amber:#fef3c7}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--ground:#0b1626;--paper:#111f33;--ink:#dfe7f0;--head:#f1f5f9;--muted:#9aabc0;--line:#243650;--amber:#3a2c12}}
+:root[data-theme="dark"]{color-scheme:dark;--ground:#0b1626;--paper:#111f33;--ink:#dfe7f0;--head:#f1f5f9;--muted:#9aabc0;--line:#243650;--amber:#3a2c12}
+body{background:var(--ground);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding-inline:20px;padding-block:36px 80px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.15;color:var(--head);margin:0 0 10px;text-wrap:balance}
+h2{color:var(--head);font-size:24px;margin:0 0 6px}
+section{border-top:1px solid var(--line);padding-top:24px;margin-top:32px}
+.rules{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+.rules li{margin:6px 0}
+.decide{background:var(--amber);border-radius:10px;padding:10px 14px;color:var(--ink)}
+.strip{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.strip img{display:block;max-width:none;height:auto}
+.switch{display:inline-flex;border:1px solid var(--line);border-radius:99px;padding:3px;background:var(--paper);margin:12px 0}
+.switch button{border:0;background:none;color:var(--ink);font:600 15px system-ui;padding:6px 14px;border-radius:99px;cursor:pointer}
+.switch button[aria-pressed=true]{background:var(--head);color:var(--ground)}
+nav a{color:var(--ink);margin-inline-end:12px;font-weight:600}
+.muted{color:var(--muted)}
+:focus-visible{outline:2px solid var(--press);outline-offset:2px}
+</style>
+<div class="wrap">
+<h1>The patient app, redrawn</h1>
+<p>Seven flows, every screen at a phone's 390px width, in English and Arabic. Under each screen: the promise it keeps and what it replaces from the walk. Nothing is built yet. Say yes, no, or change this, flow by flow. Scroll each strip sideways.</p>
+<div class="switch" role="group" aria-label="Language of the screens"><button id="en" aria-pressed="true">English</button><button id="ar" aria-pressed="false">العربية</button></div>
+<div class="rules"><strong>Five rules on every screen</strong><ol>
+<li><strong>SOS lives in the bottom bar</strong>, and every sheet opens above the bar, so nothing can cover it.</li>
+<li><strong>One way to show a price:</strong> session price, what the employer pays, VAT on your share, and the one number you send.</li>
+<li><strong>A next-step bar</strong> above the bottom bar: amber for money owed, teal for a door open.</li>
+<li><strong>An inbox with a door:</strong> a bell with a count in every top bar.</li>
+<li><strong>Readable:</strong> nothing under 14px, nothing pale grey, no teal on anything that is not pressable.</li></ol></div>
+<nav><a href="#f1">1. Start a session now</a><a href="#f2">2. Money</a><a href="#f3">3. Your record</a><a href="#f4">4. Help now</a><a href="#f5">5. Your benefit</a><a href="#f6">6. Inbox</a><a href="#f7">7. Journal</a></nav>
+<section id="f1"><h2>1. Start a session now</h2><p>Opening the app to talking to somebody. Three taps when covered or paid; card adds one; a transfer waits for a person and says so first.</p>
+<div class="strip"><img data-en="design/flow1-en.jpg" data-ar="design/flow1-ar.jpg" src="design/flow1-en.jpg" alt="Start a session now, every screen in order" loading="lazy"></div></section>
+<section id="f2"><h2>2. Money</h2><p>What you owe is on every screen until paid, in one price block everywhere; a refused transfer says why, word for word, and what to do next.</p>
+<div class="strip"><img data-en="design/flow2-en.jpg" data-ar="design/flow2-ar.jpg" src="design/flow2-en.jpg" alt="Money, every screen in order" loading="lazy"></div></section>
+<section id="f3"><h2>3. Your record</h2><p>Summaries under the author's name and credentials, every version kept; anybody asking to read it is shown first.</p><p class="decide">Your call (report decision 3): when you stop a therapist's access, the copilot stops reading your record but still answers from her own session notes. Drawn: say that plainly. Or stop the copilot entirely?</p>
+<div class="strip"><img data-en="design/flow3-en.jpg" data-ar="design/flow3-ar.jpg" src="design/flow3-en.jpg" alt="Your record, every screen in order" loading="lazy"></div></section>
+<section id="f4"><h2>4. Help now</h2><p>SOS is in the bottom bar on every screen; its sheet opens above the bar, even in the middle of paying.</p>
+<div class="strip"><img data-en="design/flow4-en.jpg" data-ar="design/flow4-ar.jpg" src="design/flow4-en.jpg" alt="Help now, every screen in order" loading="lazy"></div></section>
+<section id="f5"><h2>5. Your benefit</h2><p>The employer screen, now reachable from Me: the real 60/40 share, and two plain lists of what the company sees and never sees.</p>
+<div class="strip"><img data-en="design/flow5-en.jpg" data-ar="design/flow5-ar.jpg" src="design/flow5-en.jpg" alt="Your benefit, every screen in order" loading="lazy"></div></section>
+<section id="f6"><h2>6. Inbox</h2><p>Everything sent by email or WhatsApp also lands here, each with the one thing to do about it.</p>
+<div class="strip"><img data-en="design/flow6-en.jpg" data-ar="design/flow6-ar.jpg" src="design/flow6-en.jpg" alt="Inbox, every screen in order" loading="lazy"></div></section>
+<section id="f7"><h2>7. Journal</h2><p>Only you read it, and the one exception is said out loud.</p><p class="decide">Your call (report decision 7): journals are scanned for danger and a therapist alerted. Drawn: say so on the page. Or stop scanning?</p>
+<div class="strip"><img data-en="design/flow7-en.jpg" data-ar="design/flow7-ar.jpg" src="design/flow7-en.jpg" alt="Journal, every screen in order" loading="lazy"></div></section>
+
+<p class="muted" style="margin-top:40px">Not drawn yet: the therapist page for booking later, homework, questionnaires, account and sign-in. They follow your answers on these seven. The session room is drawn with the clinician's workspace.</p>
+</div>
+<script>
+function set(l){document.querySelectorAll('.strip img').forEach(i=>i.src=i.dataset[l]);
+document.getElementById('en').setAttribute('aria-pressed',l==='en');document.getElementById('ar').setAttribute('aria-pressed',l==='ar');}
+document.getElementById('en').onclick=()=>set('en');document.getElementById('ar').onclick=()=>set('ar');
+</script>
