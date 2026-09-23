@@ -1,0 +1,184 @@
+<title>24Therapy Audit and Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{--ground:#f4f7f9;--paper:#fff;--ink:#0a2342;--ink2:#3e546b;--ink3:#61758a;--line:#dde5ec;--line2:#eef2f6;--teal:#15746c;--tealbg:#e3f7f4;--press:#2ec4b6;--amber:#8a5a00;--amberbg:#fff4dc;--red:#a4262c;--redbg:#fdecec;--head:#0a2342;--code:#eef3f7;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#07131f;--paper:#0d1d2e;--ink:#e8f0f6;--ink2:#b9c9d7;--ink3:#8ea3b6;--line:#1f344a;--line2:#16283b;--teal:#5fdccc;--tealbg:#0f2f33;--amber:#f5c46a;--amberbg:#2e2410;--red:#ff9a9f;--redbg:#3a1518;--head:#050d18;--code:#132a40;color-scheme:dark}}
+:root[data-theme="dark"]{--ground:#07131f;--paper:#0d1d2e;--ink:#e8f0f6;--ink2:#b9c9d7;--ink3:#8ea3b6;--line:#1f344a;--line2:#16283b;--teal:#5fdccc;--tealbg:#0f2f33;--amber:#f5c46a;--amberbg:#2e2410;--red:#ff9a9f;--redbg:#3a1518;--head:#050d18;--code:#132a40;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font:15.5px/1.6 "Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;padding-inline:16px;padding-block:0 72px}
+code{font:12.5px/1.4 "IBM Plex Mono",ui-monospace,monospace;background:var(--code);padding:1px 5px;border-radius:5px}
+.wrap{max-width:1100px;margin:0 auto}
+.hero{background:var(--head);color:#fff;margin-inline:-16px;padding:44px 16px 34px}
+.hero .k{font:600 12px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--press);margin:0}
+.hero h1{font-size:clamp(28px,4.2vw,46px);line-height:1.08;margin:12px 0;text-wrap:balance;max-width:24ch}
+.hero p{color:#b8c8d6;max-width:74ch;margin:.5em 0 0}
+.nums{display:flex;flex-wrap:wrap;gap:30px;margin-top:26px}
+.nums b{display:block;font-size:30px;font-variant-numeric:tabular-nums}
+.nums span{color:#9fb3c5;font-size:13px}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px;margin:22px 0 0}
+nav.toc a{color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:13.5px;font-weight:600}
+nav.toc a:focus-visible{outline:2px solid var(--press);outline-offset:2px}
+section{margin-top:40px}
+h2{font-size:26px;letter-spacing:-.01em;margin:0 0 6px;text-wrap:balance}
+h3{font-size:18px;margin:26px 0 8px}
+p.lead{color:var(--ink2);max-width:78ch;margin:.3em 0 1em}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-top:14px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--paper);margin-top:12px}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th{background:var(--line2);text-align:start;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);padding:9px 12px;border-bottom:1px solid var(--line)}
+td{padding:10px 12px;border-top:1px solid var(--line2);vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+.tag{display:inline-block;font:700 11px/1 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:6px}
+.keep{background:var(--tealbg);color:var(--teal)}
+.add{background:#e6eefc;color:#1f4fa3}
+.remove{background:var(--redbg);color:var(--red)}
+.replace{background:var(--amberbg);color:var(--amber)}
+:root[data-theme="dark"] .add{background:#14264a;color:#9cbcff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .add{background:#14264a;color:#9cbcff}}
+ul.tight{margin:.4em 0;padding-inline-start:1.2em}
+ul.tight li{margin:.3em 0}
+.src{font-size:12.5px;color:var(--ink3)}
+.ask{border-inline-start:4px solid var(--amber)}
+.good{border-inline-start:4px solid var(--teal)}
+.bad{border-inline-start:4px solid var(--red)}
+.pill{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--line2);color:var(--ink2)}
+</style>
+
+<div class="hero"><div class="wrap">
+<p class="k">Audit · 23 September 2026 · read from the code, checked against the value statements and research</p>
+<h1>Keep the spine, fix the holes, then redesign around one person at a time</h1>
+<p>I read all six inventories in full (137 pages and surfaces, 649 rows), the 25 value statements, and new research on crisis design, clinical records, AI scribe consent, employer privacy, money operations, patient drop-off, partner APIs and accessibility. The product's principles are right and unusually honest. Its surfaces break those principles in well over a hundred places, most of them small, about twenty five of them serious. Every one is on the fix plan, and the first wave is already being fixed.</p>
+<div class="nums"><div><b>25</b><span>value statements</span></div><div><b>6</b><span>hold on a real screen</span></div><div><b>19</b><span>broken or only partly kept</span></div><div><b>25</b><span>Wave 1 harm fixes in progress</span></div><div><b>4</b><span>decisions only you can make</span></div></div>
+<nav class="toc"><a href="#verdict">Verdict</a><a href="#asks">Your decisions</a><a href="#principles">Principles</a><a href="#patient">Patient</a><a href="#therapist">Therapist</a><a href="#clinic">Clinic</a><a href="#company">Company</a><a href="#partner">Partner</a><a href="#admin">Console</a><a href="#legal">Legal</a><a href="#plan">Fix plan</a></nav>
+</div></div>
+
+<div class="wrap">
+
+<section id="verdict">
+<h2>The verdict, in five lines</h2>
+<div class="grid">
+<div class="card good"><b>What is genuinely good.</b> Consent before recording, a record the patient owns and grants, published prices, a manual rail where nothing moves before a person confirms, audited reads, an honesty check on marketing copy. Competitors do not have most of this. Keep all of it.</div>
+<div class="card bad"><b>What is genuinely broken.</b> Money can be credited without being paid, a signed note can be rewritten, a clinician was silenced in video by my own consent fix, crisis numbers exist for two countries, and several refunds and reports silently do nothing while the screen says they worked.</div>
+<div class="card"><b>The pattern behind most defects.</b> A capability was built, then the screen that reaches it, the notice that tells someone, or the check that guards it was not. 14 working capabilities have no screen; 9 pages have no link to them; dozens of actions check only that someone is signed in.</div>
+<div class="card"><b>The promise problem.</b> 19 of 25 value statements fail or only partly hold on a real screen today, mostly because copy was written for the product as intended. The rule going forward: build it or delete the sentence, never leave both.</div>
+<div class="card"><b>What to do.</b> Fix in four waves (harm, stuck, untrue, missing). Then redesign each portal around the few jobs its person comes to do, using the same design system as the samples you approved.</div>
+</div>
+</section>
+
+<section id="asks">
+<h2>Four decisions only you can make</h2>
+<p class="lead">Everything else I have decided by default, listed in the plan, each reversible. These four touch privacy promises, legal exposure or who holds authority over money.</p>
+<div class="card ask"><b>1. Names on the company people list (your decision 4).</b> E1 and E2 promise a company never learns who uses the benefit. The research found no therapy benefit (Spring, Modern Health, Lyra, Headspace Care) that shows employers the names of people using care: therapy use is itself the sensitive fact. My recommendation: replace the list with a floored count, and a lookup that finds one named person only to end their benefit when they leave. Today it stays as you decided.<div class="src">RESEARCH-2 section 4. Spring Health and Modern Health confidentiality pages; Mozilla Foundation 2022 review.</div></div>
+<div class="card ask"><b>2. The reporting floor for companies.</b> Today any figure is shown once 5 sessions exist. Published norms run from about 5 (survey tools) to 10 (US Medicare, for clinical data, including numbers you can derive by subtraction). For small Egyptian employers I recommend 10, applied to derived figures too, with monthly rather than live refresh.<div class="src">RESEARCH-2 section 4. ResDAC CMS cell suppression; Culture Amp.</div></div>
+<div class="card ask"><b>3. Who may approve payouts and clinician licences.</b> Today staff see those queues and every button refuses them, so out of hours nothing moves and the two-person payout rule needs two founders. Options: staff may approve below a threshold with a second approver above it (the maker-checker norm), or the queues are founder-only and hidden from staff. I will make the screens honest either way; granting authority over money and licences is yours.<div class="src">RESEARCH-2 section 5. NIST AC-5; maker-checker practice.</div></div>
+<div class="card ask"><b>4. Egypt's data protection regulations.</b> Issued 1 November 2025; the grace period ends around 31 October 2026. Health data needs explicit written consent, a licence and an accredited DPO, and sending audio or notes abroad for AI processing needs a separate cross-border licence. This is legal work, not code, but it decides where transcription can run. I recommend a lawyer before launch.<div class="src">RESEARCH-2 section 3. Chambers, Kennedys, Al Tamimi 2025 to 2026.</div></div>
+</section>
+
+<section id="principles">
+<h2>Eight principles for everything that follows</h2>
+<p class="lead">Each comes from a value statement or from the research, and each is checked on every screen of the redesign.</p>
+<div class="tw"><table><thead><tr><th>Principle</th><th>What it means on a screen</th><th>From</th></tr></thead><tbody>
+<tr><td>Help first, always</td><td>One "Help now" control in the same place on every patient screen, video room included, working signed out, unpaid and offline, with numbers for the country the person is in and whether each line is open now. Egypt's 105 is not a 24 hour line, so 123 and 112 always sit beside it.</td><td>P5, WCAG 3.2.6, MHACSAF 2026</td></tr>
+<tr><td>Signed means locked</td><td>A signed note never changes. Corrections are dated addenda under the author's name. The AI draft is marked as a draft on every screen until signed.</td><td>P3, P4, T1, AHIMA, HIPAA 164.526</td></tr>
+<tr><td>Consent is an event, not a sentence</td><td>Two plain toggles (record audio, AI drafts the note), asked before the session and changeable during it. Stored as who, what, when, never written into note text. A no still gets a complete session and a note.</td><td>T2, 2025 AI scribe lawsuits, Upheal</td></tr>
+<tr><td>Money moves once, and says so</td><td>Every money action is idempotent, carries a reason, and above a threshold needs a second person. The console opens on exceptions, not charts.</td><td>A1 to A4, Stripe idempotency, maker-checker</td></tr>
+<tr><td>Nothing only in an email</td><td>Every message the product sends also lands in an in-app inbox that links to the screen it is about.</td><td>P2</td></tr>
+<tr><td>No dead ends</td><td>Every empty, error, expired and waiting state says what happens next and offers the next step, including loading states that keep navigation and SOS.</td><td>Inventory: 30+ dead ends</td></tr>
+<tr><td>Build it or delete the sentence</td><td>No copy describes a feature that does not exist. The honesty check that guards marketing pages is extended to product copy.</td><td>H27, 16 failing value statements</td></tr>
+<tr><td>Arabic is not a translation</td><td>Every string in both languages, one digit system per surface set explicitly (`ar-EG`), phone numbers isolated left to right, WCAG 2.2 AA with 44px touch targets.</td><td>RESEARCH-2 sections 6 and 8</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="patient">
+<h2>Patient app</h2>
+<p class="lead">The spine is right: find someone now or later, a clear price, a consent question, a record the patient owns. What breaks it is that the app does not know who is signed in when they book, and that half its screens are unreachable.</p>
+<div class="tw"><table><thead><tr><th></th><th>What</th><th>Why</th></tr></thead><tbody>
+<tr><td><span class="tag keep">Keep</span></td><td>Radar with filters, therapist page with verification and reliability, consent question before the room, claim and grants, journal, agreed steps, questionnaires, per-version summaries with signer</td><td>Each serves a value statement and works when reached</td></tr>
+<tr><td><span class="tag add">Add</span></td><td>A session screen for every session (join, pay, transfer status, summary with signer, cancel, rebook the same therapist, receipt); an inbox bell; email on the account; a signed-in fast path (no retyping name, saved payment); patient document upload; homework history; in-app support with replies</td><td>Session cards have no actions; P1, P2, P3; research: about 5 taps to a first session, session detail as the hub</td></tr>
+<tr><td><span class="tag remove">Remove</span></td><td>The rating gate in front of the patient's own summary; the consent question repeated on every join once answered; "No account, no card" and "three taps" copy until true; the separate signed-out and signed-in copies of the therapist page</td><td>A patient should not have to rate three things to read their own record</td></tr>
+<tr><td><span class="tag replace">Replace</span></td><td>Browse and radar become one Find with Now and Later; the You page becomes a hub (account, billing, benefit, notices, messages, residency, record, documents); SOS becomes the persistent Help control above every sheet</td><td>Four pages are orphans today; SOS is hidden under the booking sheet</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="therapist">
+<h2>Therapist workspace</h2>
+<p class="lead">The room, the drafted note and the cited copilot are the product's best work. The workspace around them is a list of pages rather than a day, and it treats a clinic seat as if it owned the clinic.</p>
+<div class="tw"><table><thead><tr><th></th><th>What</th><th>Why</th></tr></thead><tbody>
+<tr><td><span class="tag keep">Keep</span></td><td>Room with patient-led consent and off record, live transcript and risk flag, drafted SOAP note with provenance, patient copy released separately, copilot with citations, radar with alarm, caseload with access requests</td><td>T1, T2, T5; nothing like it in the rivals compared</td></tr>
+<tr><td><span class="tag add">Add</span></td><td>A Today agenda; addenda on signed notes; redraft after corrections; risk follow-up (C-SSRS and a safety plan when a flag or PHQ-9 item 9 fires); a notifications inbox; an applicant status page; earnings as one number (held minus owed, T3); 2 step sign-in; search on patients, sessions and unsigned notes</td><td>Research on locking and risk follow-up; T3; inventory gaps</td></tr>
+<tr><td><span class="tag remove">Remove</span></td><td>Clinic billing, seats, plan and records controls from seat clinicians; the second availability editor; "Four fields, then you are in"; "in the format you work in"; "HIPAA BAA included"</td><td>Task 221; copy that is false today</td></tr>
+<tr><td><span class="tag replace">Replace</span></td><td>`/bookings` and the on-call availability become one calendar; `/assistant` becomes a general thread inside the copilot; the dashboard becomes the day, not a set of cards</td><td>Two editors for the same hours; two chat surfaces with different rules</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="clinic">
+<h2>Clinic portal</h2>
+<p class="lead">You decided the practice sees each patient as a first name and last initial, on each clinician's calendar and patient list, and nothing clinical. C2 and C5 now say exactly that. The portal cannot yet do the one money job it promises: one bill priced per seat.</p>
+<div class="tw"><table><thead><tr><th></th><th>What</th><th>Why</th></tr></thead><tbody>
+<tr><td><span class="tag keep">Keep</span></td><td>"This portal will never show you" wall (reworded to your decision), first name and last initial on calendars, earnings per clinician, custom staff roles with scoped clinicians, record system connection, audited exports</td><td>C2, C5</td></tr>
+<tr><td><span class="tag add">Add</span></td><td>Each clinician's patient list, first name and last initial only; a seats page for the admin; seat count that follows joining and leaving; one bill with seat invoices, paid state and pay; staff invites by link, remove, change role, reset password; clinician rows with verification, radar state and price</td><td>C1, C3, C4; the join page promises the practice sees radar and price</td></tr>
+<tr><td><span class="tag remove">Remove</span></td><td>The homepage line "no caseload count on any of them", which a patient list makes false; the unused `reports.read`, `seats.manage`, `clinicians.manage` capabilities until something checks them; "move a patient between your own clinicians"</td><td>Your decision; capabilities nothing enforces are a false sense of control</td></tr>
+<tr><td><span class="tag replace">Replace</span></td><td>The rota becomes the week by clinician; the typed staff password becomes an invite link</td><td>Operators and admins should never know another person's password</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="company">
+<h2>Company portal</h2>
+<p class="lead">The pot, the coverage with a notice window and the price-you-were-shown rule are strong ideas. The portal around them leaks timing, shows a heatmap with no numbers, and has three features that do nothing.</p>
+<div class="tw"><table><thead><tr><th></th><th>What</th><th>Why</th></tr></thead><tbody>
+<tr><td><span class="tag keep">Keep</span></td><td>The pot with published figures, coverage with 30 day notice on reductions, E3 and E4 mechanics, joining code and poster, domain proof, invoices, the "never show you" wall</td><td>E1, E3, E4</td></tr>
+<tr><td><span class="tag add">Add</span></td><td>A statement with real floored numbers and export; low-balance warning; card top-up that actually charges; self-serve users and password reset; first code by the company; identifier setup with a test box; the E5 message to employees when the pot does not pay</td><td>Finance cannot reconcile against a heatmap; task 220</td></tr>
+<tr><td><span class="tag remove">Remove</span></td><td>HR integration tab and public listing (do nothing); the attempts-on-code figure (counts real joiners); the public demo's headcount, per-therapist spend and per-person caps (not built, and per-therapist spend would break the privacy promise); the names list if you agree (decision 1)</td><td>E1 timing and identity leaks</td></tr>
+<tr><td><span class="tag replace">Replace</span></td><td>Weekly heatmap becomes monthly floored bars with values; one alert per booking on an empty pot becomes one alert per period, with no time in it</td><td>Research: monthly, lagged reporting for clinical data</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="partner">
+<h2>Partner portal and API</h2>
+<p class="lead">Consent with an offset, scoped keys and a monthly limit are the right foundation. About half the documented API cannot run in production, and a busy partner's key is permanently killed at the 61st call in a minute.</p>
+<div class="tw"><table><thead><tr><th></th><th>What</th><th>Why</th></tr></thead><tbody>
+<tr><td><span class="tag keep">Keep</span></td><td>Consent first flow with offset, scopes named on keys, hashed keys shown once, sandbox and live, monthly limit with a stop, no payload in webhooks</td><td>`devs.promise1` to `promise3`</td></tr>
+<tr><td><span class="tag add">Add</span></td><td>End-session endpoint; a sessions screen; webhooks with backoff for 3 days, a Failing state, redeliver and test events; key roll with overlap; team and password reset; billing history; an API reference generated from the route files</td><td>Research section 7 (Stripe, GitHub, Standard Webhooks, OpenAPI)</td></tr>
+<tr><td><span class="tag remove">Remove</span></td><td>The record-layer promises (readers, write-back, note delivery, launch, three webhook events) from the docs until a linking path exists; the "embedded widget"; "diarised" and "by stream"</td><td>Unreachable in production today</td></tr>
+<tr><td><span class="tag replace">Replace</span></td><td>Permanent suspension becomes throttling with 429 and Retry-After; billing at consent becomes billing on first audio; the consent sentence inside the draft becomes its own field (being fixed now)</td><td>Research sections 3 and 7</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="admin">
+<h2>Operations console</h2>
+<p class="lead">The guarded confirm, the break-glass investigate page and the audited receipts are exactly what the research recommends. The rest of the console bounces the people it is shown to, and several money states can only be fixed in the database.</p>
+<div class="tw"><table><thead><tr><th></th><th>What</th><th>Why</th></tr></thead><tbody>
+<tr><td><span class="tag keep">Keep</span></td><td>Transfers with guarded confirm and verbatim rejection, receipts streamed through an audited route, break-glass investigate, CMS honesty check, strings with one-at-a-time approval for safety text, mail and video checks</td><td>A1 to A3, A5</td></tr>
+<tr><td><span class="tag add">Add</span></td><td>An exceptions queue as the home (grant failed with retry, paid for a cancelled session, overpayment, unmatched line, abandoned cart); refunds for bank-transfer money; payout "did not arrive"; read and reply to tickets; team management for every portal; licence expiry queue; pot lifecycle; search and paging</td><td>A4; research section 5</td></tr>
+<tr><td><span class="tag remove">Remove</span></td><td>Nav links that bounce the role shown them; operators typing customer passwords; unaudited reads in Total View (being fixed now); one-click destructive acts</td><td>A5; break-glass practice</td></tr>
+<tr><td><span class="tag replace">Replace</span></td><td>One role table that drives both nav and guards; Total View's two keys held by two named people, neither able to reset the other; every destructive act asks a reason the server also checks</td><td>A5; maker-checker</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="legal">
+<h2>Legal and compliance flags</h2>
+<div class="grid">
+<div class="card"><b>AI scribe consent.</b> 2025 to 2026 class actions (Sharp with Abridge, then Sutter and MemorialCare) turned on recording without all-party consent and on consent text written into charts. Our consent is patient-led already; the partner API writes consent text into the draft, which is being removed now.</div>
+<div class="card"><b>Psychotherapy notes.</b> Under HIPAA they are a separate object, excluded from access and exports. If clinicians write private process notes, they need their own place that never reaches exports, employers, partners or the patient view.</div>
+<div class="card"><b>Right to amend.</b> A patient may ask for an amendment; the clinician decides within 60 days and a refusal keeps the patient's statement of disagreement. Today a patient can flag a document but not a diagnosis, and flags cannot be withdrawn.</div>
+<div class="card"><b>"HIPAA BAA included".</b> No BAA exists anywhere in the product. The claim is being removed; offering one is a legal task.</div>
+<div class="card"><b>Accessibility.</b> The US Section 504 deadline moved to 11 May 2027. Building to WCAG 2.2 AA now covers it.</div>
+<div class="card"><b>Crisis numbers.</b> Every number and its hours must be re-verified before launch and kept as configuration an operator can update without a release.</div>
+</div>
+</section>
+
+<section id="plan">
+<h2>The fix plan</h2>
+<p class="lead">Full list with every item in <code>takeover/FIX-PLAN.md</code>. Each fix starts with a test that fails on today's code, so every row is verified before it is changed, and an item that does not reproduce is closed with the reason.</p>
+<div class="tw"><table><thead><tr><th>Wave</th><th>What</th><th>Items</th><th>State</th></tr></thead><tbody>
+<tr><td>1 · Harm</td><td>Money credited without payment, clinic accounts open to any seat, double payouts, signed notes rewritable, silenced clinician, refunds that silently fail, reports never stored, SOS for two countries, no crisis response in questionnaires, unaudited clinical reads, clinic copy that contradicts what it shows, expired licences still cleared, partner consent trimming</td><td>25</td><td><span class="pill">4 agents fixing now; 1 done</span></td></tr>
+<tr><td>2 · Stuck</td><td>Every dead end: the patient login loop, missing email, sessions not reaching the app, orphan pages, applicant limbo, clinic crashes by role, seats and bills, company domain proof, partner throttling and webhooks, console role matrix, tickets nobody can read, stuck money states</td><td>about 60</td><td><span class="pill">next</span></td></tr>
+<tr><td>3 · Untrue</td><td>Every promise that is not built gets built or deleted; every English literal gets Arabic; loading, error and not-found screens everywhere that keep navigation and SOS</td><td>about 50</td><td><span class="pill">after wave 2</span></td></tr>
+<tr><td>4 · Missing</td><td>Card top-ups that charge, patient upload, in-app support, T3 netting, 2 step sign-in, partner linking path, note formats. Built once, in the new design</td><td>about 10</td><td><span class="pill">with the redesign</span></td></tr>
+</tbody></table></div>
+<p class="src">Research: takeover/design/RESEARCH-2.md, with a source link on every finding. Inventory: takeover/inventory/*.md and the published inventory page.</p>
+</section>
+
+</div>

@@ -27,13 +27,15 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | # | Decision | Default taken | Why |
 |---|---|---|---|
 | D1 | Names on the company people list (founder's decision 4) | **Kept as decided.** Recommendation to the founder: replace the list with a floored count and a one-person lookup used only to end a benefit | E1 and E2 are the source of truth and say "never who"; research (RESEARCH-2 section 4) finds no benefit vendor showing enrolled names |
-| D2 | Patient names on the clinic rota | **Removed.** The rota shows clinician, time and state | C2: "Nowhere in the clinic portal ... a patient name, on any screen". No founder decision says otherwise |
+| D2 | Patient names at the clinic | **Founder's decision, 2026-09-23: the clinic sees first name and last initial on each clinician's calendar and patient list.** C2 and C5 rewritten to match | A per-clinician patient list reveals caseload size, so the homepage sentence "no caseload count on any of them" (`lib/content/defaults.ts` and its published CMS row) goes in the same release as the list |
 | D3 | US company card top-up | **Card rail switched off** until a real charge exists (Wave 4 builds Stripe checkout for top-ups) | It credits money nobody paid (task 220) |
 | D4 | Company HR integration tab | **Hidden** until rebuilt | Does nothing, copy describes the reverse, its counter leaks enrolment timing |
 | D5 | Company public listing toggle | **Removed** | Nothing reads it |
 | D6 | Partner record layer (readers, write-back, note delivery, launch, three webhook events) | **Taken out of the docs and the webhook form** until a linking path exists; end-session is built | Unreachable in production; documenting it is S4 |
 | D7 | Note formats | **SOAP only, copy corrected**; formats move to the redesign | `ft.f2` promises a choice that does not exist |
 | D8 | "HIPAA BAA included" | **Claim removed** | No BAA exists; a legal claim we cannot back |
+| D10 | Company reporting floor (`activityFloor`, today 5) | **Unchanged, raised with the founder** | RESEARCH-2 section 4: published norms run from about 5 to 10; 10 recommended, applied to derived figures too |
+| D11 | Egypt data protection law 151/2020 regulations (grace period ends about 31 October 2026) | **Legal work, raised with the founder**, not a code change | Health data needs explicit consent, a licence and a DPO; audio or notes sent abroad for AI need a cross-border licence |
 | D9 | Staff working payouts and verifications | **Buttons shown only to who can press them**; nav and guards made to agree. Whether staff get that authority is the founder's call | Money authority is not mine to grant |
 
 ## Wave 1: harm (S1 and S2). Deploy as soon as green.
@@ -54,7 +56,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | W1-12 | S2 | Bank-transfer money cannot be refunded; the no-show job marks it refunded anyway | Never mark refunded without a refund; a manual refund enters an operator queue as an outbound transfer with ledger reversal | test: manual-rail refund creates queue row, status honest |
 | W1-13 | S2 | Clinician cancels a paid booking: patient not told, not refunded | Cancel takes a reason, notifies the patient in app and by message, and refunds (card) or queues (transfer) | test |
 | W1-14 | S1 | Total View reads (transcript, note, copilot) not audited; record email BCCs the operator | Audit every read with a typed reason; no BCC | test: read writes phi_access row |
-| W1-15 | S1 | Patient names on the clinic rota and its export (D2) | Remove names from rota and CSV | verifier: no patient name column |
+| W1-15 | S1 | Clinic sees patients only as first name and last initial (D2), and every sentence says so | Rota and CSV use `shortenForClinic` everywhere, no full name, phone or email; wall, apply, join and the patient's "what {practice} can see" agree | verifier |
 | W1-16 | S1 | Expired licences stay cleared | Nightly job: expired licence goes off the radar, clinician told, operator queue; renewal re-review | test |
 | W1-17 | S1 | Partner audio before the consent offset is transcribed; withdrawal keeps the transcript | Trim before the offset server side; withdrawal purges | test |
 | W1-18 | S1 | Partner copilot ignores consent state and revocation (dormant only because nothing ends a session) | Consent and revocation checked before any material is read | test |
@@ -63,6 +65,8 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | W1-21 | S1 | Company HR tab counter shows real enrolments in the last 7 days (D4) | Tab hidden | verifier |
 | W1-22 | S2 | Clinic and company records disconnect revokes every connection with no confirm | Admin-only, confirm, revoke the chosen connection | test |
 | W1-23 | S1 | A clinician can edit licence fields after approval with no review | Licence fields editable only through re-verification | test |
+| W1-24 | S1 | Partner note draft has the consent coverage sentence pasted into the clinical text (RESEARCH-2 section 3: consent written into charts by the AI is the pattern behind the 2025 scribe lawsuits) | Consent and coverage stored and returned as their own fields, never inside note text | test |
+| W1-25 | S1 | Egypt's 105 line is reported as not 24/7 (RESEARCH-2 section 1); SOS offers it alone | 123 and 112 always shown with it, emergency number first outside its hours; same on the website samples | test on the line list |
 
 ## Wave 2: stuck (S3). Every dead end gets a way forward.
 
@@ -102,6 +106,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 - W2-C05 Password reset for clinic managers and staff.
 - W2-C06 Records: callback result shown; export matches the visible range.
 - W2-C07 Apply and join pages get a header and a done state that leads somewhere.
+- W2-C08 Each clinician's patient list in the clinic portal, first name and last initial only (D2), with the homepage "no caseload count" sentence removed in the same release.
 
 **Company**
 - W2-S01 Domain mailbox confirm link opens without a portal login.

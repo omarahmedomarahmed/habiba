@@ -164,10 +164,10 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
   {
     id: "C2",
     audience: "clinic",
-    says: "No caseload count on any row.",
-    where: "`/`, the same card. The practice pays them; it does not supervise their patients",
+    says: "The practice sees a patient as a first name and a last initial, and nothing clinical.",
+    where: "The founder's decision of 2026-09-23: the practice sees first name and last initial on each clinician's calendar and patient list",
     proof:
-      "Nowhere in the clinic portal is there a number of patients per clinician, or a patient name, on any screen.",
+      "In the clinic portal a patient appears only as a first name and a last initial, on a clinician's calendar or patient list. No note, transcript, risk, diagnosis, phone or email on any screen.",
   },
   {
     id: "C3",
@@ -189,7 +189,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     audience: "clinic",
     says: "Earnings per clinician, because you pay them.",
     where: "`/`, “One set of books”",
-    proof: "Each clinician's earnings are visible to the practice, and each clinician's patients are not.",
+    proof: "Each clinician's earnings are visible to the practice, and each clinician's patients appear only as a first name and a last initial, with nothing clinical.",
   },
 
   /* ------------------------------------------------------------ company -- */

@@ -106,11 +106,11 @@ Signs in at `/clinic/sign-in`. 1 tester, the person who runs the practice.
 
 **Proved when.** A seat added in the clinic portal puts that clinician on the public radar, with their verification state on the row.
 
-### C2 · No caseload count on any row.
+### C2 · The practice sees a patient as a first name and a last initial, and nothing clinical.
 
-**Where we say it.** `/`, the same card. The practice pays them; it does not supervise their patients
+**Where we say it.** The founder's decision of 2026-09-23: the practice sees first name and last initial on each clinician's calendar and patient list
 
-**Proved when.** Nowhere in the clinic portal is there a number of patients per clinician, or a patient name, on any screen.
+**Proved when.** In the clinic portal a patient appears only as a first name and a last initial, on a clinician's calendar or patient list. No note, transcript, risk, diagnosis, phone or email on any screen.
 
 ### C3 · One bill for the practice, not one per clinician.
 
@@ -128,7 +128,7 @@ Signs in at `/clinic/sign-in`. 1 tester, the person who runs the practice.
 
 **Where we say it.** `/`, “One set of books”
 
-**Proved when.** Each clinician's earnings are visible to the practice, and each clinician's patients are not.
+**Proved when.** Each clinician's earnings are visible to the practice, and each clinician's patients appear only as a first name and a last initial, with nothing clinical.
 
 ## An employer paying for staff therapy
 
