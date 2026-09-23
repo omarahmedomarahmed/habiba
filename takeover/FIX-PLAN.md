@@ -32,7 +32,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | D4 | Company HR integration tab | **Hidden** until rebuilt | Does nothing, copy describes the reverse, its counter leaks enrolment timing |
 | D5 | Company public listing toggle | **Removed** | Nothing reads it |
 | D6 | Partner record layer (readers, write-back, note delivery, launch, three webhook events) | **Taken out of the docs and the webhook form** until a linking path exists; end-session is built | Unreachable in production; documenting it is S4 |
-| D7 | Note formats | **SOAP only, copy corrected**; formats move to the redesign | `ft.f2` promises a choice that does not exist |
+| D7 | Note formats | **Founder's decision, 2026-09-23: any format, all included in the session price, all saved on the patient's history.** Built as W2-F01 right after W1-03 | Makes `ft.f2` "in the format you work in" true |
 | D8 | "HIPAA BAA included" | **Claim removed** | No BAA exists; a legal claim we cannot back |
 | D10 | Company reporting floor (`activityFloor`, today 5) | **Unchanged, raised with the founder** | RESEARCH-2 section 4: published norms run from about 5 to 10; 10 recommended, applied to derived figures too |
 | D11 | Egypt data protection law 151/2020 regulations (grace period ends about 31 October 2026) | **Legal work, raised with the founder**, not a code change | Health data needs explicit consent, a licence and a DPO; audio or notes sent abroad for AI need a cross-border licence |
@@ -87,6 +87,16 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 - W2-P14 Billing lists unpaid and pending sessions, not only paid ones.
 - W2-P15 E5: when the pot does not pay, the pay and join screens say who to ask.
 - W2-P16 Invalid invite link, `/records` expired page and similar dead ends get a way back.
+
+**Note formats (founder's decision, 2026-09-23)**
+- W2-F01 Notes in any format, included in the session price, all on the patient's history:
+  - Formats: SOAP, DAP, BIRP, GIRP, PIE, SIRP, narrative, and the therapist's own templates (named sections, each with a short guide the draft follows). Each format is data (a key, a label, ordered sections), so a new one needs no code.
+  - A default format per therapist in Settings; each session's note is drafted in it, from the transcript, in the session's language, exactly as SOAP is today. "Write it yourself" (no recording) opens the chosen format's empty sections.
+  - "Also write it as..." on the session page drafts the same session in another format. Each format is its own document with the same lifecycle as today's note: draft, signed, then locked with addenda (W1-03).
+  - Included in the price: any number of formats for a session adds nothing to any invoice; the session's one AI line (`sessionLines`) is unchanged. Test: a second and third format leave the invoice lines identical.
+  - Saved on the patient's history: the clinician's patient page lists every note of every session, grouped by session, with format, draft or signed, author and time; the copilot, export, record-system filing (`lib/ehr/file-note.ts`) and partner draft read the signed notes of any format, not only SOAP.
+  - The patient's plain-language copy stays one per session, from whichever note was signed first.
+  - Existing SOAP notes keep working untouched (SOAP becomes one format among the rest).
 
 **Clinician**
 - W2-T01 Support reachable while unverified, and linked from the portal.
