@@ -14,10 +14,10 @@ money; **S3** leaves somebody stuck; **S4** says something untrue.
 |---|---|---|---|
 | 177 | The console password was published in `docs/DEMO-LOGINS.md`, with no second step at sign-in | S1 | Fixed (`68202d5`); production reseeded. Founder to reset own password |
 | 178 | The crisis filter read "he" inside "the" as somebody else and silenced real disclosures | S1 | Fixed with a test that fails without the fix (`dbe66c6`) |
-| 179 | Company overview: live counts beside the floored balance | S1 | **Half fixed** (`23c0936`): all three figures are one published snapshot. Names and per-person dates on `/sponsor/people` wait on the founder's decision |
+| 179 | Company portal: live counts beside the floored balance; per-person check dates and pause | S1 | Fixed (`23c0936`, `496bbf3`). Names kept (founder's decision 4); the per-person date turned out to be the moment each person re-proved employment, not the company's cycle date as its comment claimed, so it went with the pause badge |
 | 180 | Record claim by id with no ownership check; the invite showed the phone number and never checked it | S1 | Fixed (`30c5b34`, `443abc9`). Still open: the invite route asks no questions, and a phone number is typed, not proven, until WhatsApp codes work |
 | 181 | Anyone with a session id could move or refund an unstarted session | S1 | Fixed (`4e269f1`): only once overdue, with the patient waiting |
-| 183 + task 123 | Recording without consent; the patient's Stop could be undone by the clinician | S1 | Fixed (`56e905a`): no recorded yes, no transcript; in-person consent on the clinician's screen; Stop withdraws. Not yet seen in a browser (needs the app secrets to run locally) |
+| 183 + task 123 | Recording without consent; the patient's Stop could be undone by the clinician | S1 | Fixed (`56e905a`, `952f1e6`) and seen working on a local build: nothing captured before the yes, a transcript after it, nothing after a no. A no now leads to "Write the note yourself" instead of a Try again that could never work |
 | - | The contrast check stopped signing in to the company and console portals after 177 | - | Fixed (`13c24c4`), proven against the live site |
 
 ## Privacy and safety
@@ -77,3 +77,12 @@ money; **S3** leaves somebody stuck; **S4** says something untrue.
 | 213 | Scripts that write production outside the allow-list (make a super admin, run any SQL, create real sessions) | S1 | code |
 | 214 | `.walkthrough2/` commits an SQL runner and test passwords (the accounts do not exist on production) | S4 | checked |
 | 215 | Crisis re-delivery runs once a day; the README says every five minutes | S1 | code |
+
+## Found while testing the fixes (2026-09-23)
+
+| # | What | Sev | Source |
+|---|---|---|---|
+| 216 | The note writer sometimes leaves the whole clinical half (SOAP, summary, impressions) empty on the same transcript where another run fills it; the patient's half is always written. Seen twice on a local build with a clinician-only test recording. Needs a real two-voice recording and an eval before anyone calls it a defect or not | S2 | seen, locally |
+| 217 | `verify:sprint48` 48.6 fails whenever the same clinician has another room open on the branch; it passed once the room was ended. A check that depends on unrelated rows | S4 | seen |
+| 218 | Two comments describing protections the code does not have, the pattern the reviewer named: the company roster's "sponsor's cycle date" (C256) and `verify:sprint7` 7.8 counting every recording start. Both fixed; the kind is worth a sweep | S4 | seen |
+
