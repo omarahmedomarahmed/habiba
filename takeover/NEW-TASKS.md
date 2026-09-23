@@ -92,3 +92,16 @@ money; **S3** leaves somebody stuck; **S4** says something untrue.
 | # | What | Sev | Source |
 |---|---|---|---|
 | 219 | A full Postgres connection string, password included, for the Neon branch `simulation-q1` (endpoint `ep-empty-queen-a62vlkkp`) sits in the public history of `docs/SIMULATION-PROMPT.md` and `docs/WALKTHROUGH-PROMPT.md` (commits `0da42112`, `c1d41743`, `0a313033`, `0e23b0d7`, `b300a17d`), and the endpoint was live. Found by the founder. My earlier scan missed it twice over: it only looked for values I already knew, in commits since `main`, and this clone was shallow (124 of 885 commits). The founder is rotating the credential; rotation is the fix, since rewriting public history cannot unpublish it. Every other credential-shaped string in the full history is a placeholder. `takeover/tools/scan-history.py` scans all history for the shape of a credential, with a control that must detect a planted fake first; it needs a full clone | S1 | founder, then scanned |
+
+## Task 174: /design, rebuilt from the ground up (2026-09-23)
+
+Every earlier page, sample, wireframe and mockup under `/design` was deleted, as the founder asked. In
+their place, one motion system (`app/design/_ds/`: rise on enter, spring on press, a sliding pill for
+every selection, count-up figures, a pulse only for things live now) and eight interactive pages:
+the hub, the website homepage (a three.js globe of who is free now), the patient app (seven screens,
+English and Arabic, booking with the price and the consent step), and one flow each for the
+therapist, the clinic, the company, our console and the partner. Research and the rules the samples
+keep: `takeover/design/RESEARCH.md`. Walked at 1440 and 390 wide: no page errors, no sideways scroll.
+
+They are samples, not product: nothing on `/design` reads or writes the database. The path moved out
+of `app/(public)/`, so its exemption in `scripts/_i18n-coverage.ts` moved with it, with the reason.

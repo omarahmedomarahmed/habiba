@@ -63,6 +63,10 @@ const EXEMPT: Array<{ file: string; why: string }> = [
   { file: "components/admin/page-editor", why: "the CMS editor's own chrome, staffed in English" },
   { file: "app/(public)/", why: "CMS-driven: the rows are already published in both languages" },
   { file: "components/public/blocks", why: "renders CMS rows, which carry their own language" },
+  {
+    file: "app/design/",
+    why: "the design samples, noindex and read by the founder, not a patient or a clinician. They sat under app/(public)/ and were exempt by that path; moving them out of the public layout moved the path, not the readership. The patient sample carries its own English and Arabic copy",
+  },
 ];
 
 function exemptFor(file: string): string | null {
