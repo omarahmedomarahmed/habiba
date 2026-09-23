@@ -8,13 +8,10 @@ import { elevated, keyState } from "@/lib/console/gate";
 import {
   auditStream,
   clinicianRoster,
-  conversationFor,
   counts,
   liveSessions,
   peopleByEmail,
   radarNow,
-  sessionDetail,
-  sessionsFor,
   timeline,
 } from "@/lib/console/reads";
 import { wholeBoard } from "@/lib/console/board";
@@ -57,12 +54,14 @@ export default async function Page({
     auditStream(120),
   ]);
 
+  /*
+   * W1-14: a person's sessions and copilot conversation, and a session's
+   * transcript, note and risks, are NOT read here. The screen asks for a reason
+   * first and fetches them through `openPerson` and `openSession`, which write
+   * a `phi_access` row before returning. A read made while rendering is a read
+   * nobody gave a reason for, repeated on every refresh.
+   */
   const person = params.person ? people.find((p) => p.key === params.person) : undefined;
-  const [conversation, personSessions, detail] = await Promise.all([
-    person ? conversationFor(person.patientIds) : Promise.resolve([]),
-    person ? sessionsFor(person.patientIds) : Promise.resolve([]),
-    params.session ? sessionDetail(params.session) : Promise.resolve(null),
-  ]);
 
   return (
     <div className="space-y-6">
@@ -115,25 +114,6 @@ export default async function Page({
         patientIds: p.patientIds,
       }))}
       selectedPerson={person?.key ?? null}
-      conversation={conversation.map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        at: m.createdAt.toISOString(),
-        clinician: [m.therapistFirstName, m.therapistLastName].filter(Boolean).join(" "),
-      }))}
-      personSessions={personSessions.map((s) => ({
-        id: s.id,
-        status: s.status,
-        modality: s.modality,
-        startedAt: s.startedAt?.toISOString() ?? null,
-        durationMinutes: s.durationMinutes,
-        autoEndedReason: s.autoEndedReason,
-        clinician: [s.therapistFirstName, s.therapistLastName].filter(Boolean).join(" "),
-        noteStatus: s.noteStatus,
-        patientStatus: s.patientStatus,
-        summary: s.summary,
-      }))}
       roster={roster.map((r) => ({
         id: r.id,
         name: [r.firstName, r.lastName].filter(Boolean).join(" "),
@@ -152,38 +132,7 @@ export default async function Page({
         who: [a.actorFirstName, a.actorLastName].filter(Boolean).join(" ") || a.actorEmail || "-",
         reason: a.reason,
       }))}
-      detail={
-        detail
-          ? {
-              id: detail.session.id,
-              clinician: [detail.therapistFirstName, detail.therapistLastName]
-                .filter(Boolean)
-                .join(" "),
-              person:
-                [detail.patientFirstName, detail.patientLastName].filter(Boolean).join(" ") ||
-                detail.session.guestName ||
-                "-",
-              startedAt: detail.session.startedAt?.toISOString() ?? null,
-              endedAt: detail.session.endedAt?.toISOString() ?? null,
-              durationMinutes: detail.session.durationMinutes,
-              consent: detail.session.recordingConsent,
-              note: detail.note?.content ?? null,
-              noteStatus: detail.note?.status ?? null,
-              patientStatus: detail.note?.patientStatus ?? null,
-              transcript: detail.transcript.map((t) => ({
-                id: String(t.id),
-                speaker: String(t.speaker),
-                text: String(t.text),
-              })),
-              risks: detail.risks.map((r) => ({
-                id: r.id,
-                level: r.level,
-                detail: r.recommendedAction ?? r.indicators.join(', '),
-                at: r.createdAt.toISOString(),
-              })),
-            }
-          : null
-      }
+      session={params.session ?? null}
     />
     </div>
   );

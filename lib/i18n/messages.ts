@@ -3922,6 +3922,13 @@ export const en = {
   "tcop.liveNow": "This patient is in a session right now",
   "tcop.liveFree": "Questions are free while it runs, and answer from the record as it was when the session started.",
   "tcop.goToRoom": "Open the room",
+
+  // W1D: privacy and the console audit.
+  "atv.reason": "Why are you opening this?",
+  "atv.reasonShort": "At least 10 characters.",
+  "atv.open": "Open",
+  "atv.missing": "Not found.",
+  "atv.sentTo": "Sent to {to}.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7078,6 +7085,13 @@ export const ar: Record<MessageKey, string> = {
   "tcop.liveNow": "هذا المريض في جلسة الآن",
   "tcop.liveFree": "الأسئلة مجانية أثناء الجلسة، وتُجيب من السجل كما كان عند بدايتها.",
   "tcop.goToRoom": "افتح الغرفة",
+
+  // W1D: privacy and the console audit.
+  "atv.reason": "لماذا تفتح هذا؟",
+  "atv.reasonShort": "10 أحرف على الأقل.",
+  "atv.open": "افتح",
+  "atv.missing": "غير موجود.",
+  "atv.sentTo": "أُرسل إلى {to}.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

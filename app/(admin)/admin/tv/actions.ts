@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
 import { relock, requireElevated, setKey, unlock } from "@/lib/console/gate";
+import { readPerson, readSession, REASON_MIN } from "@/lib/console/reads";
 
 export type GateState = { error?: string; ok?: boolean };
 
@@ -28,16 +29,92 @@ export async function close(): Promise<GateState> {
 }
 
 /**
+ * Open one session: transcript, note and risk flags.
+ *
+ * The read happens here rather than in the page, so it happens once, after the
+ * operator has typed why, and `readSession` writes the audit row first.
+ */
+export async function openSession(sessionId: string, reason: string) {
+  const { actor } = await requireElevated();
+  const detail = await readSession(actor, sessionId, reason);
+  if (!detail) return { error: "missing" as const };
+  if ("error" in detail) return detail;
+
+  return {
+    detail: {
+      id: detail.session.id,
+      clinician: [detail.therapistFirstName, detail.therapistLastName].filter(Boolean).join(" "),
+      person:
+        [detail.patientFirstName, detail.patientLastName].filter(Boolean).join(" ") ||
+        detail.session.guestName ||
+        "-",
+      startedAt: detail.session.startedAt?.toISOString() ?? null,
+      endedAt: detail.session.endedAt?.toISOString() ?? null,
+      durationMinutes: detail.session.durationMinutes,
+      consent: detail.session.recordingConsent,
+      note: detail.note?.content ?? null,
+      noteStatus: detail.note?.status ?? null,
+      patientStatus: detail.note?.patientStatus ?? null,
+      transcript: detail.transcript.map((t) => ({
+        id: String(t.id),
+        speaker: String(t.speaker),
+        text: String(t.text),
+      })),
+      risks: detail.risks.map((r) => ({
+        id: r.id,
+        level: r.level,
+        detail: r.recommendedAction ?? r.indicators.join(", "),
+        at: r.createdAt.toISOString(),
+      })),
+    },
+  };
+}
+
+/** Open one person's sessions and copilot conversation, audited per chart. */
+export async function openPerson(patientIds: string[], reason: string) {
+  const { actor } = await requireElevated();
+  const read = await readPerson(actor, patientIds, reason);
+  if ("error" in read) return read;
+
+  return {
+    conversation: read.conversation.map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      at: m.createdAt.toISOString(),
+      clinician: [m.therapistFirstName, m.therapistLastName].filter(Boolean).join(" "),
+    })),
+    sessions: read.sessions.map((s) => ({
+      id: s.id,
+      status: s.status,
+      modality: s.modality,
+      startedAt: s.startedAt?.toISOString() ?? null,
+      durationMinutes: s.durationMinutes,
+      autoEndedReason: s.autoEndedReason,
+      clinician: [s.therapistFirstName, s.therapistLastName].filter(Boolean).join(" "),
+      noteStatus: s.noteStatus,
+      patientStatus: s.patientStatus,
+      summary: s.summary,
+    })),
+  };
+}
+
+/**
  * Send one person their own record.
  *
  * Reuses the existing export path, so the delivery address is the one on the
  * chart and the owning clinician is notified exactly as they are for any other
- * request. The requesting administrator receives a copy of the same message.
+ * request. Nobody else is copied: the operator's inbox is not a place a record
+ * should land, and the audit row says it was sent and why.
  */
 export async function mailRecordToPerson(
   patientId: string,
+  reason: string,
 ): Promise<GateState & { sentTo?: string }> {
   const { actor } = await requireElevated();
+
+  const why = reason.trim();
+  if (why.length < REASON_MIN) return { error: "reason" };
 
   const { requestPatientExport, exportPath } = await import("@/lib/data/export");
   const request = await requestPatientExport(actor, patientId);
@@ -48,7 +125,6 @@ export async function mailRecordToPerson(
   const { sendRecordExport } = await import("@/lib/mail");
   const sent = await sendRecordExport({
     to: request.email,
-    copyTo: actor.email,
     patientName: request.patientName,
     clinicianName: "your clinician",
     url: `${env.appUrl}${exportPath(request.token)}`,
@@ -61,7 +137,8 @@ export async function mailRecordToPerson(
     action: "console.export.person",
     resourceType: "patient",
     resourceId: patientId,
-    reason: `Sent to ${request.email}, copy to ${actor.email}`,
+    patientId,
+    reason: `Sent to ${request.email}, ${why}`,
   });
 
   return sent
