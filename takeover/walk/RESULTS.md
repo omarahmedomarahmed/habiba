@@ -145,3 +145,11 @@ the radar-sheet-over-SOS case inconclusive live and confirmed in code.
 On `growth`: held RR9, the pot refusing a spend past its bound, and the verification approval; partly E4,
 E5; broken the negative-balance wording, C3, C4 (patient lost), the benefit-page privacy copy; C1 and PL7
 untested.
+
+## A4, second half, redone on a fresh `money` seed (04:48 UTC)
+
+| # | Promise | DID | SAW | ROW | Verdict |
+|---|---|---|---|---|---|
+| 9 | A4 (unmatched line) | Operator /admin/transfers, looked only | CIB-TRX-4471902 is listed as an ordinary claim: "Patient, A company, A session, EGP 3,000, settles $60", Confirm and Reject, no proof, no payer name, nothing marking it as unmatched; no separate place for money that arrived with no claim | - | **broken**: an operator cannot tell it is unmatched, which is exactly how the coordinator confirmed it by mistake in position 2 |
+
+Production left on `live` afterwards (`verify:demo -- --scenario=live` PASS), as PROVE-IT requires.
