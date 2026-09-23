@@ -58,3 +58,19 @@ the founder told. No reseed until the founder decides.
 Founder's decision, 2026-09-23: **record it and continue the walk.** Nobody real is affected; it
 goes to the top of the report. The walk resumes with `money` once the screen assessors on `live`
 have finished, so no reseed moves the database under them.
+
+## Position 2 · `money` (seeded 03:53 UTC, `verify:demo` PASS 78)
+
+| # | Promise | DID | SAW | ROW | Verdict |
+|---|---|---|---|---|---|
+| 1 | E1, E2 | Company: /sponsor, /sponsor/people | Roster names "Mariam Demo" and "Omar Ahmad" with per-person "Last checked" dates; overview shows published balance $2,555 beside live "Spent so far $45", "Sessions paid for 6" | - | **broken** (live counts date each session; see the stop condition above) |
+| 2 | E1 | Operator: /admin/sponsors/<id> (no link to it from the sponsor list; opened by id) | Six funded sessions, each "2026-09-23 · Sara Demo · 10% of $75"; no patient named | sponsor 56b91bc0 | **held** for no patient name; date and clinician visible to any staff account (WALL-7) |
+| 3 | CV1 | Mariam booked Thu 14:00 with Dr Sara from /patient/t/<sara> | Profile: "30 minutes, starting now $75" and "One hour $75". Booking sheet asked a signed-in patient first name, email and phone, country defaulting to US; no split shown; "Booked with Sara. We could not send you a confirmation, write this time down" | session b221a909 | **broken**: no price screen with the three numbers before booking; signed-in patient asked who she is |
+| 3 | MONEY-6 | same | DB at booking: session_payment `paid`, coverage 10%, sponsor 750, patient 6750; ledger at booking: cash +7500 "captured by the platform", therapist_payable -6375, platform_revenue -1125, though only 750 came from the pot | ledger 03:57:58 | **broken, seen on production**: full price booked as cash and clinician earnings before the patient paid |
+| 4 | CV2 | Orb "Pay for your session" to /join, then Pay | Join page "Pay $75 and join"; sheet "Send EGP 3,847.50", session 3,750, "Your benefit paid -375", VAT 472.50 | - | **broken**: $75 shown, $76.95 asked |
+| 4 | CV1, CV4 | same | VAT 472.50 = 14% of her 3,375, never of the price, never zero | - | **held** |
+| 5 | - | Company: coverage slider 10 -> 60, Save | "What you cover 60%" | - | - |
+| 6 | E3 | Mariam reloaded the sheet | Still EGP 3,847.50 at 10% | - | **held** |
+| 7 | - | Submitted SPLIT-01 | "We are checking your transfer" | manual_payments 9fe64671 | - |
+| 8 | A2 | Two operator windows pressed Confirm 1 ms apart. **Coordinator error:** the first Confirm on the page belonged to the seeded unmatched line CIB-TRX-4471902, not SPLIT-01, so this confirmed the A4 fixture | Both screens: "Confirmed. They can carry on." | manual_payments 45a5243b confirmed once; exactly one set of legs (cash +6000, therapist_payable -5100, platform_revenue -900); one `transfer.confirm` audit row | **held** on the money; **partly** on the screen (the second window was told "Confirmed", not that it was already done). A4 fixture spent: redo on a fresh seed |
+| 8 | - | Confirm on SPLIT-01 | "Nothing waiting" | ledger 04:01:50: only cash +945 and vat_payable -945 | the patient's 6750 share is never recorded when it arrives, because it was recorded as captured at booking (MONEY-6) |

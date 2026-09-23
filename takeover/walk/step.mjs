@@ -90,6 +90,12 @@ try {
   }
   await page.screenshot({ path: before, fullPage: Boolean(a.full) });
 
+  /* Clicks that open things first, then the fields they reveal, then the final button. */
+  for (const sel of a.selector) {
+    /* A leading "?" makes the click optional: a pop-up that is not always there. */
+    if (sel.startsWith("?")) await page.locator(sel.slice(1)).first().click({ timeout: 2500 }).catch(() => {});
+    else await page.locator(sel).first().click({ timeout: 15000 });
+  }
   for (const pair of a.fill) {
     const at = pair.indexOf("::");
     await page.locator(pair.slice(0, at)).first().fill(pair.slice(at + 2), { timeout: 15000 });
@@ -97,11 +103,6 @@ try {
   for (const pair of a.select) {
     const at = pair.indexOf("::");
     await page.locator(pair.slice(0, at)).first().selectOption({ label: pair.slice(at + 2) }, { timeout: 15000 });
-  }
-  for (const sel of a.selector) {
-    /* A leading "?" makes the click optional: a pop-up that is not always there. */
-    if (sel.startsWith("?")) await page.locator(sel.slice(1)).first().click({ timeout: 2500 }).catch(() => {});
-    else await page.locator(sel).first().click({ timeout: 15000 });
   }
   if (a.click) {
     const exact = page.getByRole("button", { name: a.click, exact: false });
