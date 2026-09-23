@@ -47,7 +47,7 @@
 import { existsSync, readdirSync } from "node:fs";
 
 import { DEFAULT_PAGES } from "../lib/content/defaults";
-import { DEMO_PASSWORD } from "./_demo-cast";
+import { DEMO_PASSWORD, isPrivateLogin, privatePassword } from "./_demo-cast";
 import { routesByPortal } from "./inventory";
 import { LOCALE_COOKIE } from "../lib/i18n/config";
 import { reporter } from "./_verify";
@@ -608,7 +608,17 @@ async function audit(exe: string) {
     await p
       .fill(`input[name="${person.field ?? "email"}"]`, person.email)
       .catch(() => {});
-    await p.fill('input[name="password"]', DEMO_PASSWORD).catch(() => {});
+    /*
+     * The founder's and the console accounts no longer open with the published
+     * password (scripts/_demo-cast.ts PRIVATE_LOGINS). Without the private one
+     * this persona fails its sign-in check below, loudly: dropping it would turn
+     * a red line into a green one that measures nothing.
+     */
+    const password = isPrivateLogin(person.email) ? privatePassword() : DEMO_PASSWORD;
+    if (password === null) {
+      console.log(`  ${person.who}: set DEMO_PRIVATE_PASSWORD to sign in as ${person.email}`);
+    }
+    await p.fill('input[name="password"]', password ?? "").catch(() => {});
     await p.click('form button[type="submit"]').catch(() => {});
     const inside = await p
       .waitForURL((u: URL) => !/sign-in|login/.test(u.pathname), {
