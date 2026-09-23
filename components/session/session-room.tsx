@@ -19,6 +19,7 @@ import {
   setTranscriptLanguage,
 } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
+import { callMicMuted } from "@/lib/sessions/may-record";
 import { sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { cn, formatDuration } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -661,7 +662,14 @@ export function SessionRoom(props: RoomProps) {
                   roomUrl={props.videoRoomUrl}
                   token={props.videoToken}
                   userName={props.therapistName}
-                  micMuted={offRecord}
+                  /*
+                   * 🔴 The call goes quiet only for the clinician's OWN pause.
+                   * `offRecord` is also true while the patient has not said yes
+                   * or has said no, and that must stop the capture, never the
+                   * conversation: a patient who declines recording still has to
+                   * hear their therapist.
+                   */
+                  micMuted={callMicMuted({ offRecord, recordingConsent: consent })}
                   onRemoteAudioTrack={handleRemoteTrack}
                   onPatientPresence={(present) => present && setPatientJoined(true)}
                   onError={setError}

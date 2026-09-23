@@ -20,3 +20,22 @@ export function mayRecord(row: {
 }): boolean {
   return row.recordingConsent === "granted" && row.recordingPausedAt === null;
 }
+
+/**
+ * 🔴 WHETHER THE CLINICIAN'S VOICE LEAVES THE CALL. Not the same question.
+ *
+ * The room's `offRecord` means "nothing is being kept", and it is true for two
+ * different reasons: the clinician pressed Off the record, or the patient has
+ * not said yes (or said no). Only the first is the clinician choosing silence.
+ * Task 123 started the room off record until a yes arrived, and the call's
+ * microphone followed `offRecord`, so in a video session the patient could not
+ * hear their therapist until they agreed to be recorded, and never if they
+ * declined. Recording is a yes; being heard is not something a patient should
+ * have to buy with one.
+ */
+export function callMicMuted(state: {
+  offRecord: boolean;
+  recordingConsent: "granted" | "declined" | null;
+}): boolean {
+  return state.offRecord && state.recordingConsent === "granted";
+}

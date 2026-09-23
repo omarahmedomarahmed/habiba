@@ -306,3 +306,13 @@ test("🔴 task 123: the room's own upload asks mayRecord before any audio reach
   const webhook = readFileSync("app/api/meetings/transcript/[sessionId]/route.ts", "utf8");
   assert.match(webhook, /!mayRecord\(row\)/, "the meeting webhook asks the same rule");
 });
+
+test("the clinician is heard in the call whatever the patient says about recording", async () => {
+  const { callMicMuted } = await import("../lib/sessions/may-record");
+  // Not yet asked, and a no: nothing is kept, and the conversation still happens.
+  assert.equal(callMicMuted({ offRecord: true, recordingConsent: null }), false);
+  assert.equal(callMicMuted({ offRecord: true, recordingConsent: "declined" }), false);
+  // A standing yes and the clinician's own pause: the call goes quiet, as designed.
+  assert.equal(callMicMuted({ offRecord: true, recordingConsent: "granted" }), true);
+  assert.equal(callMicMuted({ offRecord: false, recordingConsent: "granted" }), false);
+});
