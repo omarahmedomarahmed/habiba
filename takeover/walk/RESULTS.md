@@ -54,3 +54,7 @@ count is that person's attendance, and daily reloads date each new session. Scre
 screenshot. Per `docs/PROVE-IT.md` ("a patient's name, session time or attendance appearing
 anywhere in the company portal ... Stop, screenshot, say so immediately") the walk is paused and
 the founder told. No reseed until the founder decides.
+
+Founder's decision, 2026-09-23: **record it and continue the walk.** Nobody real is affected; it
+goes to the top of the report. The walk resumes with `money` once the screen assessors on `live`
+have finished, so no reseed moves the database under them.

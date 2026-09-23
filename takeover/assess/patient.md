@@ -6,9 +6,14 @@ Screenshots: `evidence/assess/assess-patient/NNN-*-after.png` (signed-out pages 
 `evidence/assess-signedout/assess-patient/`). Each page: desktop full, 390px viewport, 390px full,
 in English and then Arabic.
 
-## Orbs at the top, because P5 depends on it
+## 🔴 Money sits on top of SOS: yes, in one place
 
-(Filled in at the end of the walk; see "Orbs" below.)
+**The radar booking sheet covers the SOS orb.** Pressing a therapist on /patient/radar (and "Start a session now" on a therapist page) opens `BookingSheet`, portalled into `document.body` at `z-[100]` (`components/radar/booking-sheet.tsx` 172). The SOS orb is `z-[70]` (`components/patient/sos-orb.tsx` 163). With the sheet open the orb disappears from the screen (evidence/assess/assess-patient/076). In its bookable state that sheet holds the "Held for you · 60s" countdown and the "Pay $75 and start now" button (`booking-sheet.tsx` 55): a payment action, over the crisis button, on the exact flow ("somebody who needed one an hour ago") the SOS comments are written for. P5 ("the SOS button is reachable, on top") is broken there. Every other overlay in the patient app sits under SOS: the session orb and the payment orb at `z-[60]`, the payment popup backdrop at `z-50`, the bottom bar at `z-30`, the language switch at `z-50`. Fix: drop the sheet below 70 or render the orb inside the sheet.
+
+## The two orbs at 390px
+
+- **SOS orb**: red, 56px, fixed at 62% of the viewport height on the end edge (right in English, left in Arabic), draggable and remembered per device, with nothing telling anyone it can be moved. At 390 x 844 it occupies roughly y 495 to 551, x 322 to 378. On first paint it sits on: the second therapist card on home (003); the "Your number" card on account (006); the password field on login (signed-out 002) and the last name field on signup (004); the journal's writing box (030); the "Everyone on shift" tab on the radar (042); the "Start a session now" and "Copy this page's link" buttons on a therapist page (070, 136 in Arabic); the text of a billing card (016); "Back to sign in" on forgot-password (006 signed out). On most other pages it floats in empty space. Its sheet (074) opens in one tap, shows Egypt's 105 with the menu steps for Mariam's +20 number, and has nothing about money in it.
+- **Payment / session orb** (`components/patient/session-orb.tsx`): amber with a banknote when money is owed, teal with a door when a session is ready, 48px, fixed `end-3 bottom-24`, i.e. y about 700 to 748 at 390, just above the bottom bar. It does not overlap the SOS orb in their default places (about 150px apart) and, where it would (SOS dragged low), SOS wins at z 70 over 60. **It never appeared for Mariam**, although she owes 40% of six sessions: it is drawn only for a `scheduled` or `in_progress` session with a join token (`lib/data/patient-view.ts` 208 to 247), so money owed on a completed session raises no orb anywhere. P2's "the session orb on every screen while money is owed" is not kept for her. /pay's minimised payment orb (`components/billing/payment-popup.tsx` 305) takes the identical spot and size in teal, so an owed payment is amber in the app and teal on /pay.
 
 ## Pages
 
@@ -221,3 +226,114 @@ in English and then Arabic.
 
 ### The SOS sheet (opened from the orb on /patient/journal; screenshot 074)
 - Opens in one tap, no network: "Help now. These are phone numbers, not a chat." A red Egypt card "نجدة 105 مصر · Egypt, Press 1 for Arabic, then 1 for mental health", then "Anywhere else, call your local emergency number." It chose Egypt from Mariam's +20 number, correctly. It covers the lower half of the screen and dims the rest, including the language switch. Nothing about money appears in it. This is the one crisis surface that fully keeps P5.
+
+### /patient/login  (screenshots: evidence/assess-signedout/assess-patient/001, 002 English; 007, 008, 009 Arabic. Signed in, it redirects to /patient: evidence/assess/assess-patient/059 to 061)
+- For: signing in by password or by a one-time code. Says so: yes, but the heading is "Your sessions", not "Sign in".
+- Next: fill and "Sign in", or "Send me a code". Two complete sign-in forms stacked (password, then "Sign in with a code instead") with an "or" between them; clear but doubled.
+- Missing: nothing essential. "Forgot your password?" is a plain grey line, not styled as a link.
+- Decoration: the "WHICH ARE YOU?" four-way switch at the top (therapist / patient / company / clinic) and again as "Not what you are?" at the bottom; the navy "A therapist now, or an hour that suits you" card with three ticks; the full marketing footer, whose tagline is the clinician's "Clinical notes, written while you work." (002), wrong audience for a patient sign-in.
+- 390px: **SOS orb covers the right end of the Password field** (002), the very field being typed in; the Sign in button just below stays clear. In Arabic the orb moves to the left and covers the left end of the password field and the start of "تسجيل الدخول" (008).
+- Arabic RTL: mirrored correctly, headings and fields read right to left. Untranslated: footer "Privacy, Terms, Compliance, Security" (008); "SOS" stays Latin (acceptable as a symbol, but it is the only crisis label). Copyright line mixes "24Therapy 2026 ©" order.
+- Promise: P1 starts here for a signed-out patient. P5: the orb is present before sign in.
+- Defects: patient page footer tagline is for clinicians; "Forgot your password?" not styled as a link; SOS on the password field.
+
+### /patient/signup  (screenshots: evidence/assess-signedout/assess-patient/003, 004 English; 010, 011 Arabic)
+- For: creating a patient account. Says so: yes ("Create your account").
+- Next: fill and "Create an account" (not pressed). Clear.
+- Missing: nothing structural.
+- Decoration: same four-way switch, navy card and clinician footer as login.
+- 390px: SOS orb covers the right end of the "Last name (optional)" field (004). The phone number placeholder "Phone or WhatsApp" is clipped to "Phone or Whats/" (004). Country defaults to "United States" while the time zone defaults to Africa/Cairo and the reader is in Cairo (004): the phone country and the time zone disagree on first paint.
+- Arabic RTL: the country list is English only ("Algeria +213 ... United States +1") and the time zone list is raw IANA names (Africa/Abidjan, America/Argentina/La_Rioja ... about 400 rows) in both languages (010 text). Footer legal links untranslated.
+- Promise: P4's first step ("your record becomes yours"). Fine.
+- Defects: US default; raw time zone list; clipped placeholder; SOS on a field.
+
+### /patient/forgot-password  (screenshots: evidence/assess-signedout/assess-patient/005, 006 English; 012, 013 Arabic)
+- For: getting back in with a code. Says so: yes ("Get back into your account").
+- Next: "Send me a code" (not pressed). Clear.
+- Missing: nothing; "Back to sign in" and "Are you a therapist? Reset your practice password" are both there.
+- Decoration: none. Unlike login and signup it has no site header, no audience switch and no footer: the three auth pages are three different shells.
+- 390px: SOS orb covers the right end of "Back to sign in" and the bottom right corner of the card (006).
+- Arabic RTL: fully translated (012 text); orb moves to the left.
+- Promise: none directly.
+- Defects: inconsistent shell against login/signup.
+
+## Arabic pass (390 and desktop, every page above; screenshots 077 to 137, signed-out 007 to 013)
+
+Every page switches to `dir=rtl`, none scrolls sideways, the bottom bar and back arrows mirror correctly, and the SOS orb moves to the left edge (it is placed with `end-3`). The chrome is well translated. What is not:
+
+- /patient (078, 079, 080): "أهلًا يا Mariam" (name in Latin is fine); therapist specialty "Anxiety" under each card while the same category tile below says "القلق"; date "السبت، 19 سبتمبر, 02:22 (Cairo)" with an English comma and "(Cairo)" untranslated; price rendered "$US 75" / "75 US$" depending on line; homework card "Screens down an hour before bed / .Four nights. Pick them now" in English, with the full stop jumping to the start of the line (English content in an RTL box without `dir="auto"`); the six session summaries are English paragraphs, each ending ".problem" on the left (080). The summaries being English is content, but the punctuation flip is a layout bug.
+- /patient/account (082): country list "Egypt / United States" in English; "Cairo" time zone untranslated.
+- /patient/benefit (088, 089): the "Ask" button is English; "جلساتك مدفوعة من Habiba Holdings" repeats the same untrue full cover claim. SOS orb covers the left end of the disabled "فعّل" button and the top of the "what they can see" card (089).
+- /patient/billing (091, 092): fully translated, and so is the false "ميزتك دفعت مقابل هذه الجلسة. لا شيء عليك" ("your benefit paid for this session, you owe nothing"). SOS covers the start of that line in the fourth card (092).
+- /patient/homework (103): all three step titles and details English (seeded content, but there is no Arabic fallback or `dir="auto"`).
+- /patient/journal (106): the entry is English, punctuation flips.
+- /patient/radar (118): chips "Anxiety", "Sleep", "Arabic · English" in English; duration "٣٠ دقيقة" in Arabic Indic digits beside "$75" in Western digits on the same row; SOS sits on the left of the globe, clear of the controls in Arabic.
+- /patient/record (121): "ما تستطيع Nile Practice رؤيته", "NILE PRACTICE" (practice name, acceptable), "Mariam D".
+- /patient/residency (124): **the heading is half English: "Your record is kept in الولايات المتحدة, not مصر"**, an English template with Arabic country names inserted.
+- /patient/sessions (127): same as home (dates, "(Cairo)", "$US 75", English summaries).
+- /patient/summary (130): summary text English (content).
+- /patient/t/[id] (136): **mostly untranslated**: "Available now", "Start a session now", "Copy this page's link", "Turned up to 100% of 7 booked sessions.", "One hour with Sara · $75", "Trauma and grief, Arabic and English", "Arabic, English", "Anxiety, Sleep", "Cairo, Cairo Governorate"; "رخصة موثّقة لدى Egyptian Psychological Association". Price shown as "$US 75" beside "ساعة واحدة". SOS covers the left end of "Start a session now" and "Copy this page's link" (136).
+- Signed out: login/signup footer "Privacy, Terms, Compliance, Security" in English (008); signup country list English and time zones raw IANA (010).
+- Clean in Arabic: assessments, browse, claim, consent, messages, notices, profile, invite, forgot-password.
+
+## P1, counted
+
+Home to the radar: 1 tap (the teal card or the centre button). Radar to a therapist: 2 (the row opens the booking sheet and holds the clinician for 60 s). "Pay $75 and start now": 3, and that press books and pays, so I stopped there. After it comes a payment step (card, or the Egyptian transfer that waits for an operator under A1) before any room, so the honest count is at least 4, and on the transfer rail it is not minutes. From a therapist page reached through Therapists: home > Therapists > category > therapist > Start a session now > pay = 5 or more.
+
+## The five screens most in need of redesign
+
+1. **/patient/billing**: tells a partly covered patient she owes nothing (every card "Covered, nothing for you to pay" while 40% is owed), dates every line by payment date instead of session date, has no back link, and ends with a legend for numbers it does not print. The money screen is where trust breaks first.
+2. **/patient/benefit**: the only screen about the employer, with no door into it, a heading telling an enrolled person to "Activate", a claim of full cover for a partial one, no share, and a "can and cannot see" list that does not say which is which.
+3. **/patient (home)**: a 2700px launcher. Six full summaries that duplicate the Sessions tab, a "rated highest" section with nothing in it, list prices on sessions she did not pay in full, no upcoming session block, no benefit, no notices, and the record links buried at the bottom.
+4. **/patient/radar and its booking sheet**: the sheet covers SOS and puts a pay button over it; opening a profile reserves a real clinician; the globe spends 60% of the phone on two dots; no title; list prices only.
+5. **/patient/t/[id]**: the booking page is 2200px of 60 identical slot buttons, prices the same for 30 and 60 minutes, is the least translated page in Arabic, and has SOS sitting on its main button.
+
+(Close behind: /patient/sessions, which duplicates home and cannot show what is owed; /patient/notices, empty and doorless where P2 should live.)
+
+## Screens with no door (nothing in the app links to them)
+
+- /patient/benefit (only the employer's QR code, `app/(sponsor)/sponsor/code/page.tsx` 53)
+- /patient/notices (the P2 inbox)
+- /patient/messages (check-in on/off)
+- /patient/residency (a consent the product says it asks explicitly)
+- /patient/assessments/[id] is reached only from /patient/assessments when an assignment exists (not seen: none for Mariam)
+- /patient/invite/[token] only from an emailed link (by design)
+- /patient/signup and /patient/forgot-password are linked from login, fine.
+
+## Patterns across the portal
+
+Good:
+- One chrome everywhere: bottom bar, back arrow, language switch in the same corner, the SOS orb on every page including signed-out ones, in both languages.
+- Plain, honest sentences where the product explains itself: journal "Who can open this: Nobody", messages "never given to a machine", summary with author, credential, version and date.
+- The SOS sheet is right: one tap, the reader's own country, the menu steps printed before dialling, no network.
+- RTL mirroring of layout is correct on every page; no page scrolls sideways at 390 in either language.
+
+Bad:
+- **Money says three different things.** Home and Sessions print "$75" per session, Billing says "Covered, nothing for you to pay", Benefit says "paid for by Habiba Holdings", Account says "You pay your therapist, never us", the radar and therapist page print list prices only. Nowhere says "your employer pays 60%, you owe $30".
+- **Tick and cross tables** (consent twice, messages, record) with red crosses, the same red as SOS, for good news.
+- **Empty states that take a whole card or section and offer no next step** (notices, claim, assessments twice, profile, "Rated highest", invite).
+- **One thing, several names**: Your profile / Your own documents / Open your profile; Your whole record / A copy of everything / Get a copy of everything; Sara Demo / Dr Sara Demo.
+- **SOS lands on inputs and primary buttons** on form pages (login, signup, journal, therapist page) because its default height is fixed at 62% regardless of content.
+- **Grey small print**: captions like "Only areas a verified therapist has actually listed. The number is how many." and "This starts now..." in pale grey at 11 to 12px.
+- **Desktop is a phone column in a wide window** with the SOS orb and the language switch pinned to the far edges, 300px away from the content.
+- **User and seed content has no `dir="auto"`**, so English paragraphs in Arabic show their full stop at the start of the line.
+- Hydration error #418 on /patient/messages and /patient/residency; an occasional 502 on a resource load.
+
+## The founder's complaints (TAKEOVER s10), as seen here
+
+- Grey and thin text everywhere: **confirmed** (browse caption, benefit footnote, billing legend, record captions, all 11 to 13px slate grey).
+- Teal reading as green: **confirmed** on the pale pills "You turned the AI on for this session", "Free now" and "Available", which read as green success badges.
+- A price badge reading as part of the price: **partly**: on the therapist page the navy bar "30 minutes, starting now $75" and the line "One hour $75" read as one price for two lengths; no separate badge seen.
+- Radar globe empty with two clinicians: **confirmed** (042, 118): two dots a few pixels wide on Egypt, the rest of a globe that fills 60% of the phone.
+- /for-patients same app four times: not in this portal, not checked.
+- Five heroes on a homepage: not in this portal; the patient home has its own version (radar card, homework card, therapist rail, category tiles, rated section, six summaries, record card, four links).
+- Empty states taking a whole card: **confirmed** (notices, claim, assessments, profile, "Rated highest", invite).
+- Therapist calendar hiding bookings until a day is expanded: clinician side, not seen. The patient booking calendar has the opposite problem: every slot for ten days shown at once.
+- Dead space and contradictory statuses in the session room: room not reachable (no open session). Contradictory statuses **confirmed** elsewhere: radar header "1 therapist on shift" beside "2 free" (076); billing "Covered" beside home "$75".
+- Two overlays in front of a form: **confirmed in kind**: the SOS orb and the language switch both float over login and signup forms, and the booking sheet sits over the SOS orb.
+
+## Not seen, and why
+
+- /patient/assessments/[id]: no assignment exists for Mariam.
+- A valid /patient/invite/[token], /pay/[token], /join/[token] and the room: no open session or invite for Mariam; the orbs and payment popup were read from the code instead.
+- The bookable state of the radar sheet and anything after "Pay ... and start now": pressing it books and pays.
