@@ -13,16 +13,16 @@
   },
   "baseline": {
     "shared": 1575,
-    "patient": 3943,
+    "patient": 3942,
     "public": 5630,
     "clinician": 6484,
-    "sponsor": 1057,
+    "sponsor": 1056,
     "admin": 2942,
     "clinic": 1083,
     "partner": 1410,
     "legal": 1377
   },
-  "measuredOn": "2026-09-21",
+  "measuredOn": "2026-09-23",
   "translated": {
     "comment": "🔴 65.3 — EVERY REMOVED BLOCK, AND WHAT NOW CARRIES THE RULE IT HELD. 'Nothing is deleted, everything is translated': a shorter screen that dropped a disclaimer is a regression, not an improvement. This lived in comments beside each replacement until C205's rule pointed out the obvious: a record only a comment holds is a record no check can read. It is data now, so `verify:sprint65` can assert that every key named here is genuinely gone from both dictionaries and that the component named beside it genuinely exists.",
     "removed": {
