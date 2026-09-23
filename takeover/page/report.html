@@ -437,7 +437,7 @@ otherwise look like a defect to the next person who reads the code:</p>
   copilot conversations and risk flags by name search, and each read is not written down.</li>
 <li><strong>Mail a clinician's full history to any address</strong> typed into a box, with every patient's name
   and email; and the founder is copied on patients' record exports.</li>
-<li><strong>Staff can post any amount to any account</strong> in the books with a five-letter reason.</li>
+<li><strong>The founder account can post any amount to any account</strong> in the books with a five-letter reason: no ceiling and no second person. (Only the super_admin can, <code>app/(admin)/admin/actions.ts:519</code>; corrected after an outside check.)</li>
 <li><strong>The audit log can be deleted</strong>: the demo seed deletes it on production every reseed, and a
   nightly job deletes rows after six years. "Every read is written down" can be undone.</li>
 <li><strong>Scripts that can write production outside the allow-list</strong>: one makes any user a super admin
@@ -500,6 +500,14 @@ otherwise look like a defect to the next person who reads the code:</p>
 <li><strong>The console for the people who run it.</strong> Support cannot open its own console, and several
    staff screens have founder-only buttons. An operator should see, in one list, everybody who is
    stuck and how long they have waited.</li>
+<li><strong>One rule, applied everywhere it belongs.</strong> An outside check pointed out a shape that runs
+   through my own findings: a rule written correctly in one place and missed in its sibling.
+   Consent is checked on the meetings route and not on our own transcribe route; the pot balance
+   is floored and the totals beside it are not; summaries cannot be rewritten and notes can; and
+   my own password fix updated the demo check but not the contrast check, which then quietly
+   stopped signing in as two portals (now fixed). Task 129 was meant to catch this for booking
+   paths. I would widen it: for each rule, list every place it must hold, and fail when one is
+   missing. Point 1 above is the money case of the same idea.</li>
 </ol>
 
 <h2>6. Where Phase 0 stands</h2>
@@ -724,7 +732,7 @@ money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says somet
 </tr>
 <tr>
 <td>196</td>
-<td>Staff can post any amount to any account with a five-letter reason</td>
+<td>The founder account (super_admin only) can post any amount to any account, no ceiling, a five-letter reason</td>
 <td><span class="sev s2">S2</span></td>
 <td>code</td>
 </tr>

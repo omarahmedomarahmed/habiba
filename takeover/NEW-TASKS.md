@@ -41,7 +41,7 @@ money; **S3** leaves somebody stuck; **S4** says something untrue.
 | 193 | Calendar bookings charge the clinician's pounds as dollars; Egyptian VAT is booked to the US company | S2 | code, seen |
 | 194 | Invoice payments write nothing to the books; an overpayment is recorded nowhere; the payer cannot say how much they sent | S2 | seen |
 | 195 | Two simultaneous presses on "Sent" pay a clinician twice in the books | S2 | code |
-| 196 | Staff can post any amount to any account with a five-letter reason | S2 | code |
+| 196 | The founder account (super_admin only) can post any amount to any account, no ceiling, a five-letter reason | S2 | code |
 | 197 | Seat billing does not exist (C3, C4) | S2 | seen |
 | 198 | The earnings page says bills come out of earnings automatically; they do not (T3) | S2 | seen |
 

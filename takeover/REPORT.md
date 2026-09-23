@@ -240,7 +240,7 @@ The 25 promises cover perhaps a third of what the code does. The rest sorts into
   copilot conversations and risk flags by name search, and each read is not written down.
 - **Mail a clinician's full history to any address** typed into a box, with every patient's name
   and email; and the founder is copied on patients' record exports.
-- **Staff can post any amount to any account** in the books with a five-letter reason.
+- **The founder account can post any amount to any account** in the books with a five-letter reason: no ceiling and no second person. (Only the super_admin can, `app/(admin)/admin/actions.ts:519`; corrected after an outside check.)
 - **The audit log can be deleted**: the demo seed deletes it on production every reseed, and a
   nightly job deletes rows after six years. "Every read is written down" can be undone.
 - **Scripts that can write production outside the allow-list**: one makes any user a super admin
@@ -304,6 +304,14 @@ The 25 promises cover perhaps a third of what the code does. The rest sorts into
 7. **The console for the people who run it.** Support cannot open its own console, and several
    staff screens have founder-only buttons. An operator should see, in one list, everybody who is
    stuck and how long they have waited.
+8. **One rule, applied everywhere it belongs.** An outside check pointed out a shape that runs
+   through my own findings: a rule written correctly in one place and missed in its sibling.
+   Consent is checked on the meetings route and not on our own transcribe route; the pot balance
+   is floored and the totals beside it are not; summaries cannot be rewritten and notes can; and
+   my own password fix updated the demo check but not the contrast check, which then quietly
+   stopped signing in as two portals (now fixed). Task 129 was meant to catch this for booking
+   paths. I would widen it: for each rule, list every place it must hold, and fail when one is
+   missing. Point 1 above is the money case of the same idea.
 
 ---
 
