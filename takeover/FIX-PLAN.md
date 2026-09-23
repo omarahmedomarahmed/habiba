@@ -26,7 +26,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 
 | # | Decision | Default taken | Why |
 |---|---|---|---|
-| D1 | Names on the company people list (founder's decision 4) | **Kept as decided.** Recommendation to the founder: replace the list with a floored count and a one-person lookup used only to end a benefit | E1 and E2 are the source of truth and say "never who"; research (RESEARCH-2 section 4) finds no benefit vendor showing enrolled names |
+| D1 | Company sees employees | **Founder's decision, 2026-09-23: companies see their employees' names and control their benefit (end, pause, resume), never their sessions; and see the names of therapists that were paid.** E1 and E2 rewritten | Paid therapists breach C244 by design, so it is built as one sanctioned query: therapist name and total for the period, no dates finer than a month, no specialty, shown only at or above the reporting floor, and the C244 verifiers name it as the single exception rather than being loosened |
 | D2 | Patient names at the clinic | **Founder's decision, 2026-09-23: the clinic sees first name and last initial on each clinician's calendar and patient list.** C2 and C5 rewritten to match | A per-clinician patient list reveals caseload size, so the homepage sentence "no caseload count on any of them" (`lib/content/defaults.ts` and its published CMS row) goes in the same release as the list |
 | D3 | US company card top-up | **Card rail switched off** until a real charge exists (Wave 4 builds Stripe checkout for top-ups) | It credits money nobody paid (task 220) |
 | D4 | Company HR integration tab | **Hidden** until rebuilt | Does nothing, copy describes the reverse, its counter leaks enrolment timing |
@@ -36,7 +36,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | D8 | "HIPAA BAA included" | **Claim removed** | No BAA exists; a legal claim we cannot back |
 | D10 | Company reporting floor (`activityFloor`, today 5) | **Unchanged, raised with the founder** | RESEARCH-2 section 4: published norms run from about 5 to 10; 10 recommended, applied to derived figures too |
 | D11 | Egypt data protection law 151/2020 regulations (grace period ends about 31 October 2026) | **Legal work, raised with the founder**, not a code change | Health data needs explicit consent, a licence and a DPO; audio or notes sent abroad for AI need a cross-border licence |
-| D9 | Staff working payouts and verifications | **Buttons shown only to who can press them**; nav and guards made to agree. Whether staff get that authority is the founder's call | Money authority is not mine to grant |
+| D9 | Staff working payouts and verifications | **Founder's decision, 2026-09-23: staff approve payouts and verifications, not only super_admin.** Four eyes stays: above the two-person threshold a second, different person; nobody acts on a payout they are the payee of or last edited; staff read licence documents through the audited route | Maker-checker norm (RESEARCH-2 section 5) |
 
 ## Wave 1: harm (S1 and S2). Deploy as soon as green.
 
@@ -128,6 +128,8 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 - W2-S07 Verify-cycle screen and job read the same number.
 - W2-S08 Pot expiry enforced, or the promise removed (default: enforced with warning).
 - W2-S09 Enquiry follow-through: staff and applicant notified, duplicates caught, entity by country.
+- W2-S10 Therapists paid (D1): one sanctioned query, therapist name and total for the period, at or above the floor, no dates finer than a month, no specialty; C244 verifiers updated to name this single exception.
+- W2-S11 Control each employee's benefit (D1): end (exists, needs confirm), pause and resume, with the employee told in app; never any session detail.
 
 **Partner**
 - W2-X01 Rate limit throttles instead of permanently suspending a key.
@@ -138,7 +140,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 - W2-X06 Password reset and colleagues; sign-in linked from `/developers`.
 
 **Admin**
-- W2-A01 One role table drives nav and guards; staff land on a page they can use; refusals audited (A5).
+- W2-A01 One role table drives nav and guards; staff land on a page they can use; refusals audited (A5). Staff work payouts and verifications (D9), with the four-eyes rules kept.
 - W2-A02 Support tickets can be read (audited), replied to, and a WhatsApp ticket closed.
 - W2-A03 Transfers exceptions: grant failed (retry), paid for a cancelled session, overpayment, abandoned cart (discard, expiry).
 - W2-A04 A payout marked sent can be marked "did not arrive", reversing the ledger.

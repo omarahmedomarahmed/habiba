@@ -196,10 +196,10 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
   {
     id: "E1",
     audience: "company",
-    says: "What you funded, what has been spent, and how many people used it. Never who they are and never when.",
-    where: "`/`, the company card: “The pot, and what is left in it”",
+    says: "Who is enrolled, what you funded, what has been spent and which therapists were paid. Never who used it and never when.",
+    where: "`/`, the company card: “The pot, and what is left in it”, widened by the founder's decision of 2026-09-23: companies see their employees' names and control their benefit, and see the therapists that were paid, never the sessions",
     proof:
-      "`/sponsor` and `/admin/sponsors/<id>` both list spend without a single patient name, and the balance is a published figure rather than a live one.",
+      "`/sponsor` lists enrolled names with benefit controls and the therapists paid, each as a total for the period at or above the reporting floor, and no screen ties any employee to a therapist, a session or a date. The balance is a published figure rather than a live one.",
   },
   {
     id: "E2",
@@ -207,7 +207,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     says: "The portal has no screen that could show a note, a session time or an attendance list.",
     where: "`/`, “What you will never see”. A fact about the queries rather than a promise",
     proof:
-      "Every screen in the company portal, opened one by one, with nothing clinical on any of them. If a patient name appears anywhere, the walk stops there.",
+      "Every screen in the company portal, opened one by one, with nothing clinical on any of them. An employee's name appears only on the enrolment list; if it appears beside a therapist, a session or a date anywhere, the walk stops there.",
   },
   {
     id: "E3",

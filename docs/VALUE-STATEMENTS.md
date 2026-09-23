@@ -134,17 +134,17 @@ Signs in at `/clinic/sign-in`. 1 tester, the person who runs the practice.
 
 Signs in at `/sponsor/sign-in`. 1 tester, the person who funds the pot.
 
-### E1 · What you funded, what has been spent, and how many people used it. Never who they are and never when.
+### E1 · Who is enrolled, what you funded, what has been spent and which therapists were paid. Never who used it and never when.
 
-**Where we say it.** `/`, the company card: “The pot, and what is left in it”
+**Where we say it.** `/`, the company card: “The pot, and what is left in it”, widened by the founder's decision of 2026-09-23: companies see their employees' names and control their benefit, and see the therapists that were paid, never the sessions
 
-**Proved when.** `/sponsor` and `/admin/sponsors/<id>` both list spend without a single patient name, and the balance is a published figure rather than a live one.
+**Proved when.** `/sponsor` lists enrolled names with benefit controls and the therapists paid, each as a total for the period at or above the reporting floor, and no screen ties any employee to a therapist, a session or a date. The balance is a published figure rather than a live one.
 
 ### E2 · The portal has no screen that could show a note, a session time or an attendance list.
 
 **Where we say it.** `/`, “What you will never see”. A fact about the queries rather than a promise
 
-**Proved when.** Every screen in the company portal, opened one by one, with nothing clinical on any of them. If a patient name appears anywhere, the walk stops there.
+**Proved when.** Every screen in the company portal, opened one by one, with nothing clinical on any of them. An employee's name appears only on the enrolment list; if it appears beside a therapist, a session or a date anywhere, the walk stops there.
 
 ### E3 · A price somebody was shown is a price they are owed.
 
