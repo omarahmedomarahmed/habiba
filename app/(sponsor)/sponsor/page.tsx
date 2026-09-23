@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
 import { Card } from "@/components/ui";
-import { potTotals } from "@/lib/billing/pot";
 import { potTerms } from "@/lib/data/sponsor-admin";
 import { potBalance, roster, weeklySpend } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
@@ -59,12 +58,18 @@ export default async function SponsorOverviewPage() {
    * which means "not enough has happened to report a balance" and is a
    * different fact from zero.
    */
-  const [pot, totals, people, terms] = await Promise.all([
+  const [pot, people, terms] = await Promise.all([
     potBalance(actor.sponsorId),
-    potTotals(actor.sponsorId),
     roster(actor.sponsorId),
     potTerms(actor.sponsorId),
   ]);
+  /*
+   * 🔴 E1 — "Spent so far" and "Sessions paid for" come from the SAME
+   * publication as the balance, never from `potTotals`. Live, they moved by one
+   * session the moment one employee had one, beside a balance floored to stop
+   * exactly that (seen on production, the stop condition of 2026-09-22).
+   */
+  const totals = pot.published;
 
   /*
    * 🔴 C229 — the headcount gate, decided before the series is even fetched.
@@ -101,8 +106,9 @@ export default async function SponsorOverviewPage() {
    * arithmetic one card to the right.
    */
   const weeksLeft = balanceCents !== null && perWeek > 0 ? Math.floor(balanceCents / perWeek) : null;
-  const putIn = balanceCents === null ? null : balanceCents + totals.spentCents;
-  const usedPercent = putIn !== null && putIn > 0 ? Math.round((totals.spentCents / putIn) * 100) : null;
+  const putIn = balanceCents === null || totals === null ? null : balanceCents + totals.spentCents;
+  const usedPercent =
+    putIn !== null && putIn > 0 && totals !== null ? Math.round((totals.spentCents / putIn) * 100) : null;
 
   /*
    * 🔴 THE POT IS A VESSEL WITH A DATE ON IT, NOT THREE TILES AND A PARAGRAPH.
@@ -195,14 +201,14 @@ export default async function SponsorOverviewPage() {
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-500">{t("sponsor.spentTotal")}</p>
             <p className="mt-1 text-xl font-bold tracking-tight tabular-nums text-navy-500">
-              {fmt(totals.spentCents)}
+              {totals === null ? t("sponsor.figureSuppressed") : fmt(totals.spentCents)}
             </p>
           </Card>
 
           <Card className="p-4">
             <p className="text-xs font-medium text-slate-500">{t("sponsor.sessionsTotal")}</p>
             <p className="mt-1 text-xl font-bold tracking-tight tabular-nums text-navy-500">
-              {totals.sessions}
+              {totals === null ? t("sponsor.figureSuppressed") : totals.sessions}
             </p>
           </Card>
         </div>

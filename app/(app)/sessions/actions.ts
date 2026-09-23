@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { generateAndStoreNote } from "@/lib/ai/notes";
 import { audit, auditPhi } from "@/lib/audit";
@@ -33,6 +33,7 @@ import {
   type NoteContent,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { RECORDING_CONSENT_VERSION } from "@/lib/consent";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendSessionInvite } from "@/lib/mail";
 import { finishSession } from "@/lib/session-finish";
@@ -429,6 +430,50 @@ export async function regenerateNote(sessionId: string): Promise<SessionActionSt
   return { ok: true };
 }
 
+/**
+ * 🔴 Task 123 — a note the clinician writes themselves, where there is nothing
+ * for the machine to write from.
+ *
+ * A session the patient declined to have recorded ends with no transcript, and
+ * the page used to say "The note could not be written… try again" beside a
+ * button that could never succeed: a patient's no read as the AI breaking. The
+ * clinician's own account is what every record was before recordings, so this
+ * starts one: an empty draft, badged `clinician`, for them to fill in and sign.
+ */
+export async function startOwnNote(sessionId: string): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const row = await getSession(actor, sessionId);
+  if (!row) return { error: "Session not found." };
+
+  const { EMPTY_NOTE } = await import("@/lib/ai/notes");
+  await db
+    .insert(sessionNotes)
+    .values({
+      sessionId,
+      organizationId: row.session.organizationId,
+      therapistId: row.session.therapistId,
+      patientId: row.session.patientId,
+      content: EMPTY_NOTE,
+      status: "draft",
+      provenance: "clinician",
+    })
+    .onConflictDoNothing({ target: sessionNotes.sessionId });
+
+  await db
+    .update(sessions)
+    .set({ noteStatus: "ready", updatedAt: new Date() })
+    .where(eq(sessions.id, sessionId));
+
+  await auditPhi(actor, "note.update", {
+    resourceType: "note",
+    resourceId: sessionId,
+    patientId: row.session.patientId,
+  });
+
+  revalidatePath(`/sessions/${sessionId}`);
+  return { ok: true };
+}
+
 export async function saveNote(
   sessionId: string,
   content: NoteContent,
@@ -603,6 +648,70 @@ export async function approvePatientNote(sessionId: string): Promise<SessionActi
  */
 
 /**
+ * 🔴 TASK 123 — the in-person answer, given by the patient on the clinician's
+ * screen.
+ *
+ * In person there is no join form, so nobody was ever asked: the room
+ * recorded and transcribed with `recording_consent` NULL. Now the room stays
+ * off record until this is answered (`mayRecord`), and the clinician turns the
+ * screen towards the patient, who presses one of two buttons in their own
+ * words. The first answer stands, except that a no may always follow a yes,
+ * which is `answerConsent`'s rule for the join form.
+ */
+export async function answerInPersonConsent(
+  sessionId: string,
+  consent: "granted" | "declined",
+): Promise<{ ok: boolean; consent: "granted" | "declined" | null }> {
+  const actor = await requireUser();
+  const now = new Date();
+  const [landed] = await db
+    .update(sessions)
+    .set({
+      recordingConsent: consent,
+      recordingConsentAt: now,
+      recordingConsentVersion: RECORDING_CONSENT_VERSION,
+      ...(consent === "granted"
+        ? { recordingPausedAt: null, recordingStartedAt: now }
+        : { recordingPausedAt: now }),
+    })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.organizationId, actor.organizationId),
+        eq(sessions.therapistId, actor.userId),
+        eq(sessions.modality, "in_person"),
+        consent === "granted"
+          ? isNull(sessions.recordingConsent)
+          : sql`${sessions.recordingConsent} IS DISTINCT FROM 'declined'`,
+      ),
+    )
+    .returning({ consent: sessions.recordingConsent });
+
+  if (landed) {
+    await audit({
+      actor,
+      category: "clinical",
+      action: consent === "granted" ? "recording.consent.in_person" : "recording.decline.in_person",
+      resourceType: "session",
+      resourceId: sessionId,
+    });
+  }
+
+  const [row] = await db
+    .select({ consent: sessions.recordingConsent })
+    .from(sessions)
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.organizationId, actor.organizationId),
+        eq(sessions.therapistId, actor.userId),
+      ),
+    )
+    .limit(1);
+  return { ok: Boolean(landed), consent: row?.consent ?? null };
+}
+
+/**
  * Tell the server the microphone stopped, so the patient's screen can say so.
  *
  * Off-record was a purely client-side state: the recorder stopped uploading
@@ -625,6 +734,13 @@ export async function setRecordingPaused(
         eq(sessions.id, sessionId),
         eq(sessions.organizationId, actor.organizationId),
         eq(sessions.therapistId, actor.userId),
+        /*
+         * 🔴 Task 123 — Resume is only a clinician's to press over their OWN
+         * pause. Without a standing yes (never asked, declined, or the
+         * patient's Stop) it clears nothing, so the patient's screen never
+         * says "recording" when `mayRecord` would refuse the audio anyway.
+         */
+        paused ? undefined : eq(sessions.recordingConsent, "granted"),
       ),
     );
 

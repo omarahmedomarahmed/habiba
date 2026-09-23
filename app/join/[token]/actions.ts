@@ -757,10 +757,24 @@ export async function stopRecording(token: string): Promise<{ ok?: boolean; erro
   const { sessions } = await import("@/lib/db/schema");
   const { and, eq, isNull } = await import("drizzle-orm");
 
+  /*
+   * 🔴 Task 123 — the patient's Stop is a withdrawal, not a pause.
+   *
+   * It used to set only `recording_paused_at`, the switch the clinician's
+   * off-record button also sets, and the clinician's Resume clears it. So a
+   * clinician could turn the microphone back on over the patient's own Stop.
+   * Withdrawing consent as well makes `mayRecord` refuse whatever the pause
+   * says, and `turnOnConsent` cannot re-grant once a recording has started.
+   */
+  const stoppedAt = new Date();
   await db
     .update(sessions)
-    .set({ recordingPausedAt: new Date() })
+    .set({ recordingPausedAt: stoppedAt })
     .where(and(eq(sessions.id, session.id), isNull(sessions.recordingPausedAt)));
+  await db
+    .update(sessions)
+    .set({ recordingConsent: "declined", recordingConsentAt: stoppedAt })
+    .where(eq(sessions.id, session.id));
 
   /*
    * 🔴 41.7 — consent revoked mid-session, and the bot LEAVES.

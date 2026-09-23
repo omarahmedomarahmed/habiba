@@ -245,6 +245,7 @@ export default async function SessionDetailPage({
             initialStatus={note?.status ?? "draft"}
             initialPatientStatus={note?.patientStatus ?? "draft"}
             noteStatus={row.session.noteStatus}
+            recordingConsent={row.session.recordingConsent}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
             dateLabel={formatDateTime(row.session.endedAt ?? row.session.scheduledAt ?? row.session.createdAt, actor.timezone, locale)}

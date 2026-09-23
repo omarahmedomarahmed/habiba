@@ -32,13 +32,17 @@ function Submit({ label }: { label: string }) {
 export function PatientAuthForm({
   mode,
   inviteToken = null,
-  lockedPhone = null,
+  invitePhone = false,
 }: {
   mode: "signin" | "signup";
   /** Carried through signup so the claim can be bound to the invited record. */
   inviteToken?: string | null;
-  /** 13.4 — E.164, pre-filled and **not editable**. */
-  lockedPhone?: string | null;
+  /**
+   * The invited record holds a number, and signup must use that one. Never
+   * the number itself: whoever holds a forwarded link has proven nothing, so
+   * they type it and the server compares (`inviteFits`).
+   */
+  invitePhone?: boolean;
 }) {
   const t = useT();
   const action = mode === "signup" ? patientSignUp : patientSignIn;
@@ -47,7 +51,7 @@ export function PatientAuthForm({
   // 11R.12 — a number with no country beside it is one we can never send a
   // verification code to. The locale picks the default; the person picks the
   // answer.
-  const [phone, setPhone] = useState(lockedPhone ?? "");
+  const [phone, setPhone] = useState("");
   const [phoneCountry, setPhoneCountry] = useState(
     () =>
       countryFromLocale(
@@ -95,37 +99,20 @@ export function PatientAuthForm({
         {mode === "signup" ? (
           <>
             <Field label={t("pfield.phone")} htmlFor="phone">
-              {lockedPhone ? (
-                <>
-                  {/*
-                  13.4 — shown, readable, and not editable. A disabled input
-                  submits nothing, so the value travels in a hidden field: the
-                  server checks it against the invite either way.
-                */}
-                  <input type="hidden" name="phone" value={lockedPhone} />
-                  <p className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 font-mono text-sm text-slate-700">
-                    {lockedPhone}
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    {t("pauth.invitePhoneNote")}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <PhoneField
-                    value={phone}
-                    country={phoneCountry}
-                    onValueChange={setPhone}
-                    onCountryChange={setPhoneCountry}
-                    name="phone"
-                    countryName="phoneCountry"
-                    placeholder={t("pauth.phonePlaceholder")}
-                  />
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    {t("pauth.phoneNote")}
-                  </p>
-                </>
-              )}
+              <>
+                <PhoneField
+                  value={phone}
+                  country={phoneCountry}
+                  onValueChange={setPhone}
+                  onCountryChange={setPhoneCountry}
+                  name="phone"
+                  countryName="phoneCountry"
+                  placeholder={t("pauth.phonePlaceholder")}
+                />
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  {t(invitePhone ? "pauth.invitePhoneNote" : "pauth.phoneNote")}
+                </p>
+              </>
             </Field>
 
             {/*
@@ -143,12 +130,14 @@ export function PatientAuthForm({
           rather than leaving somebody to guess whether the form will refuse.
         */}
         <Field
-          label={mode === "signup" ? t("pfield.passwordOptional") : t("pfield.password")}
+          label={
+            mode === "signup"
+              ? t("pfield.passwordOptional")
+              : t("pfield.password")
+          }
           htmlFor="password"
           hint={
-            mode === "signup"
-              ? t("pfield.passwordOptionalHint")
-              : undefined
+            mode === "signup" ? t("pfield.passwordOptionalHint") : undefined
           }
         >
           <Input
@@ -172,7 +161,11 @@ export function PatientAuthForm({
           </p>
         ) : null}
 
-        <Submit label={mode === "signup" ? t("pauth.createAccount") : t("pauth.signIn")} />
+        <Submit
+          label={
+            mode === "signup" ? t("pauth.createAccount") : t("pauth.signIn")
+          }
+        />
       </form>
     </Card>
   );

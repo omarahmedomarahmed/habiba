@@ -48,8 +48,6 @@ const REASON_KEYS: Record<string, MessageKey> = {
 export type RosterRow = {
   enrolmentId: string;
   name: string;
-  lastChecked: string | null;
-  paused: boolean;
 };
 
 export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemove: boolean }) {
@@ -79,16 +77,6 @@ export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemo
         <Card key={person.enrolmentId} className="p-4">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-sm font-semibold text-slate-900">{person.name}</p>
-            {person.paused ? (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                {t("sponsor.pausedLabel")}
-              </span>
-            ) : null}
-            <span className="ms-auto text-xs text-slate-500">
-              {person.lastChecked
-                ? t("sponsor.lastChecked", { date: person.lastChecked })
-                : t("sponsor.notChecked")}
-            </span>
           </div>
 
           {canRemove ? (

@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { RosterList } from "@/components/sponsor/roster-list";
 import { roster } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
-import { formatDate } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 
@@ -25,9 +24,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function SponsorPeoplePage() {
   const actor = await requireSponsor();
-  const { t, locale } = await getI18n();
+  const { t } = await getI18n();
   /* 🔴 37L.9 — "last verified" is a date a person reads, not an identifier. */
-  const day = (at: Date) => formatDate(at, "UTC", locale);
   const settings = await getSettings();
 
   const people = await roster(actor.sponsorId);
@@ -48,17 +46,18 @@ export default async function SponsorPeoplePage() {
           enrolmentId: person.enrolmentId,
           name: person.name,
           /*
-           * 🔴 C256 — the date is the SPONSOR'S cycle date, not the person's.
+           * 🔴 E2 — no per-person date and no per-person pause, on purpose.
            *
-           * `last_verified_at` is anchored on the sponsor's fixed calendar, so
-           * everybody in one organisation carries the same date and it says
-           * nothing about when any individual joined. That is why this column is
-           * safe to render at all, and the reasoning is on the schema column.
+           * This rendered `last_verified_at` under a comment saying it was the
+           * SPONSOR'S cycle date, the same for everybody. It is not: it is
+           * stamped when each person re-proves their employment
+           * (`confirmEnrolmentCode`) or is unpaused, and after a cycle pauses
+           * everybody at once, people re-prove when they next want to use the
+           * benefit. So the date, and the "Paused" badge beside it, told the
+           * company which named employee came back to therapy and when. The
+           * name stays (the founder's decision: "End their benefit" needs it);
+           * nothing about any one person's use of it does.
            */
-          lastChecked: person.lastVerifiedAt
-            ? day(person.lastVerifiedAt)
-            : null,
-          paused: person.paused,
         }))}
       />
 

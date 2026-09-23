@@ -380,7 +380,11 @@ async function main() {
    */
   check(
     "41.7 audio arriving without live consent is refused processing",
-    /recordingConsent !== "granted"/.test(webhook) && /recordingPausedAt/.test(webhook),
+    /* Task 123: the rule now lives in one place, and both doors ask it. */
+    /!mayRecord\(row\)/.test(webhook) &&
+      /recordingConsent === "granted" && row\.recordingPausedAt === null/.test(
+        readSource("lib/sessions/may-record.ts"),
+      ),
     "refusing the audio is under our control; the provider's cooperation is not",
   );
 

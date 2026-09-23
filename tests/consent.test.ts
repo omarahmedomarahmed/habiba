@@ -282,3 +282,27 @@ test("copilot settings no longer carry a gate date at all", async () => {
   assert.equal("gateActiveFrom" in copilot, false);
   assert.equal(copilot.unclaimedPatientCredits, 5);
 });
+
+/* --------------------------------------------------------------- task 123 -- */
+
+import { mayRecord } from "../lib/sessions/may-record";
+import { readFileSync } from "node:fs";
+
+test("🔴 task 123: audio is turned into words only with a standing yes and no pause", () => {
+  const yes = { recordingConsent: "granted" as const, recordingPausedAt: null };
+  assert.equal(mayRecord(yes), true, "control: a yes with no pause records");
+  // In person, nobody was ever asked: NULL. This is the shape that was recorded on production.
+  assert.equal(mayRecord({ recordingConsent: null, recordingPausedAt: null }), false);
+  assert.equal(mayRecord({ recordingConsent: "declined", recordingPausedAt: null }), false);
+  assert.equal(mayRecord({ ...yes, recordingPausedAt: new Date() }), false, "off record is off");
+});
+
+test("🔴 task 123: the room's own upload asks mayRecord before any audio reaches the model", () => {
+  const route = readFileSync("app/api/sessions/[id]/transcribe/route.ts", "utf8");
+  const gate = route.indexOf("if (!mayRecord(session))");
+  const model = route.indexOf("await transcribeChunk(");
+  assert.ok(gate > 0, "the transcribe route does not ask mayRecord");
+  assert.ok(gate < model, "the consent gate must come before the audio is sent to be transcribed");
+  const webhook = readFileSync("app/api/meetings/transcript/[sessionId]/route.ts", "utf8");
+  assert.match(webhook, /!mayRecord\(row\)/, "the meeting webhook asks the same rule");
+});

@@ -15,6 +15,7 @@ import {
   endSession,
   goLive,
   setRecordingPaused,
+  answerInPersonConsent,
   setTranscriptLanguage,
 } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
@@ -100,13 +101,21 @@ export function SessionRoom(props: RoomProps) {
    * mid-session and the clinician needs to be able to act on that; what it no
    * longer is, is the default.
    */
-  const [offRecord, setOffRecord] = useState(props.recordingConsent === "declined");
+  /*
+   * 🔴 Task 123 — the answer, followed live. Null is not yet asked, and the
+   * server refuses audio until it is "granted" (`mayRecord`), so the room
+   * starts off record for anything short of a standing yes rather than
+   * sending chunks that are thrown away.
+   */
+  const [consent, setConsent] = useState(props.recordingConsent);
+  const consentRef = useRef(props.recordingConsent);
+  const [offRecord, setOffRecord] = useState(props.recordingConsent !== "granted");
   /*
    * 🔴 C370 — a ref beside the state, because both recorders are started from
    * callbacks that would otherwise close over whatever `offRecord` was when the
    * callback was created.
    */
-  const offRecordRef = useRef(props.recordingConsent === "declined");
+  const offRecordRef = useRef(props.recordingConsent !== "granted");
   useEffect(() => {
     offRecordRef.current = offRecord;
   }, [offRecord]);
@@ -354,6 +363,21 @@ export function SessionRoom(props: RoomProps) {
   /* --------------------------------------------------- patient poll (video) */
 
   /*
+   * A change of answer, from the poll or from the in-person buttons. A yes
+   * turns the microphone on; a no or a withdrawal turns it off. The
+   * clinician's own off-record pause is left alone while the yes stands.
+   */
+  const applyConsent = useCallback((next: "granted" | "declined" | null) => {
+    if (next === consentRef.current) return;
+    consentRef.current = next;
+    setConsent(next);
+    const muted = next !== "granted";
+    setOffRecord(muted);
+    localRecorder.current?.setMuted(muted);
+    remoteRecorder.current?.setMuted(muted);
+  }, []);
+
+  /*
    * The poll now runs for the whole session, not only while waiting.
    *
    * It used to stop the moment the patient arrived, because the only thing it
@@ -375,7 +399,9 @@ export function SessionRoom(props: RoomProps) {
           status?: string;
           clock?: { endReason?: string | null };
           nextBooking?: { minutes: number; startsAt: string } | null;
+          recordingConsent?: "granted" | "declined" | null;
         };
+        if (data.recordingConsent !== undefined) applyConsent(data.recordingConsent);
         if (data.patientJoined) setPatientJoined(true);
         /* 🔴 76.35 — `?? null` and never `|| null`: zero seconds is away. */
         setPatientAway(data.patientAwaySeconds ?? null);
@@ -394,7 +420,7 @@ export function SessionRoom(props: RoomProps) {
       }
     }, 5000);
     return () => clearInterval(poll);
-  }, [props.modality, props.sessionId, patientJoined, live, router]);
+  }, [props.modality, props.sessionId, patientJoined, live, router, applyConsent]);
 
   /* ---------------------------------------------------------- transitions -- */
 
@@ -436,7 +462,16 @@ export function SessionRoom(props: RoomProps) {
     });
   };
 
+  const answerInPerson = (answer: "granted" | "declined") => {
+    startTransition(async () => {
+      const result = await answerInPersonConsent(props.sessionId, answer);
+      applyConsent(result.consent);
+    });
+  };
+
   const toggleOffRecord = () => {
+    // Resume is the clinician's over their own pause only (task 123).
+    if (offRecord && consentRef.current !== "granted") return;
     const next = !offRecord;
     setOffRecord(next);
     localRecorder.current?.setMuted(next);
@@ -551,15 +586,52 @@ export function SessionRoom(props: RoomProps) {
         be the most obvious thing on the screen — and needs to know it was the
         patient's decision rather than a bug, or they will simply "fix" it.
       */}
-      {props.recordingConsent === "declined" ? (
+      {props.modality === "in_person" && consent === null ? (
+        <div
+          className="border-b border-teal-400/25 bg-teal-400/10 px-4 py-3"
+          data-consent-ask="in-person"
+        >
+          <p className="flex items-start gap-2 text-sm font-semibold text-teal-50">
+            <MicOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            {t("troom.consentAsk", { name: props.patientLabel })}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-teal-100/80">{t("troom.consentHand")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => answerInPerson("granted")}
+              disabled={pending}
+              className="tap-target flex-1 rounded-xl bg-teal-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-60"
+            >
+              {t("troom.consentYes")}
+            </button>
+            <button
+              type="button"
+              onClick={() => answerInPerson("declined")}
+              disabled={pending}
+              className="tap-target flex-1 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {t("troom.consentNo")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {props.modality === "video" && consent === null ? (
+        <p className="flex items-start gap-2 border-b border-white/10 bg-white/5 px-4 py-2.5 text-xs leading-relaxed text-slate-200">
+          <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          {t("troom.consentWaiting", { name: props.patientLabel })}
+        </p>
+      ) : null}
+
+      {consent === "declined" ? (
         <p className="flex items-start gap-2 border-b border-amber-500/25 bg-amber-500/15 px-4 py-2.5 text-xs leading-relaxed text-amber-100">
           <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           <span>
             <strong className="font-semibold">
               {props.patientLabel} asked not to be recorded.
             </strong>{" "}
-            The room is off record and no audio is being kept. Only turn recording on if they tell
-            you, in the session, that they have changed their mind.
+            The room is off record and no audio is being kept, for the rest of this session.
           </span>
         </p>
       ) : null}
@@ -726,11 +798,16 @@ export function SessionRoom(props: RoomProps) {
             live={live}
             paused={offRecord}
             className="min-h-0 flex-1"
-            emptyTitle={live ? t("ttr.listening") : t("troom.readyWhen")}
+            /* Off record is not listening: nothing is being kept (task 123). */
+            emptyTitle={live ? (offRecord ? t("ttr.paused") : t("ttr.listening")) : t("troom.readyWhen")}
             emptyBody={
               live
-                ? t("troom.appearsHere")
-                : t("troom.pressStart")
+                ? offRecord
+                  ? t("troom.nothingKept")
+                  : t("troom.appearsHere")
+                : consent === "declined"
+                  ? t("troom.pressStartNoRecord")
+                  : t("troom.pressStart")
             }
           />
         </div>
@@ -805,14 +882,19 @@ export function SessionRoom(props: RoomProps) {
                 type="button"
                 onClick={toggleOffRecord}
                 aria-pressed={offRecord}
+                disabled={offRecord && consent !== "granted"}
                 className={cn(
                   "tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
                   offRecord
-                    ? "bg-amber-500 text-white"
+                    ? "bg-amber-500 text-white disabled:bg-white/10 disabled:text-slate-400"
                     : "bg-white/10 text-white active:bg-white/20",
                 )}
               >
-                {offRecord ? (
+                {offRecord && consent !== "granted" ? (
+                  <>
+                    <MicOff className="h-4 w-4" aria-hidden /> {t("troom.resumeNeedsYes")}
+                  </>
+                ) : offRecord ? (
                   <>
                     <MicOff className="h-4 w-4" aria-hidden /> {t("troom.resume")}
                   </>
@@ -847,7 +929,11 @@ export function SessionRoom(props: RoomProps) {
           )}
 
           <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">
-            {live ? t("troom.noteOnEnd") : t("troom.consentFirst")}
+            {live
+              ? consent === "declined"
+                ? t("troom.noteOwnOnEnd")
+                : t("troom.noteOnEnd")
+              : t("troom.consentFirst")}
           </p>
         </div>
       </div>

@@ -211,6 +211,35 @@ async function main() {
         Boolean(stored && stored.hash !== issued.token && stored.hash.length === 64),
       );
 
+      /*
+       * 🔴 THE LINK IS FOR ONE NUMBER. The record carries the claimant's; a
+       * stranger holding the forwarded link, signed up with any other number,
+       * is refused, and the signup screen never prints the number to them.
+       */
+      const [claimantRow] = await db
+        .select({ phone: patientAccounts.phone })
+        .from(patientAccounts)
+        .where(eq(patientAccounts.id, claimant))
+        .limit(1);
+      await db.update(people).set({ phone: claimantRow!.phone }).where(eq(people.id, target));
+      const forwardedTo = await newAccount(db, "forwarded");
+      const wrongNumber = await redeemInvite({
+        token: issued.token,
+        accountId: forwardedTo,
+        therapistKeepsAccess: false,
+      });
+      check(
+        "🔴 6.10 a forwarded link, opened by an account with a different number, takes nothing",
+        wrongNumber.ok === false,
+        wrongNumber.ok ? "RECORD HANDED OVER" : wrongNumber.error,
+      );
+      const { readFileSync } = await import("node:fs");
+      const signupPage = readFileSync("app/(patient)/patient/signup/page.tsx", "utf8");
+      check(
+        "🔴 6.10 the signup page does not hand the record's number to the browser",
+        !/invited\??\.phone\s*\?\?|lockedPhone/.test(signupPage),
+      );
+
       const first = await redeemInvite({
         token: issued.token,
         accountId: claimant,
@@ -263,6 +292,23 @@ async function main() {
 
     const matchTarget = await newPerson(db, "match");
     const matchAccount = await newAccount(db, "matcher");
+
+    /*
+     * 🔴 THE ID ALONE IS NOT A MATCH. Before the account proves a handle that
+     * the record carries, starting a claim on the record's id must be refused:
+     * the code would go to the caller's own inbox, so the id would be the whole
+     * of the proof.
+     */
+    const byIdOnly = await startClaim({ personId: matchTarget, accountId: matchAccount, channel: "email" });
+    check("🔴 6.7 a record whose details you have not proven cannot be claimed by its id", byIdOnly.ok === false);
+
+    /* Now make it a real match: the record carries the account's number, proven. */
+    const [matcher] = await db
+      .update(patientAccounts)
+      .set({ phoneVerifiedAt: new Date() })
+      .where(eq(patientAccounts.id, matchAccount))
+      .returning({ phone: patientAccounts.phone });
+    await db.update(people).set({ phone: matcher!.phone }).where(eq(people.id, matchTarget));
 
     const started = await startClaim({
       personId: matchTarget,
@@ -341,12 +387,26 @@ async function main() {
 
       // And it cannot be claimed a second time by anybody.
       const someoneElse = await newAccount(db, "stranger");
+      /*
+       * A genuine match on a proven address, so the only thing left to refuse
+       * this is that the record already has an owner.
+       */
+      const [stranger] = await db
+        .update(patientAccounts)
+        .set({ emailVerifiedAt: new Date() })
+        .where(eq(patientAccounts.id, someoneElse))
+        .returning({ email: patientAccounts.email });
+      await db.update(people).set({ email: stranger!.email }).where(eq(people.id, matchTarget));
       const second = await startClaim({
         personId: matchTarget,
         accountId: someoneElse,
         channel: "email",
       });
-      check("6.7 a claimed record cannot be claimed again", second.ok === false);
+      check(
+        "6.7 a claimed record cannot be claimed again",
+        second.ok === false && /already been claimed/.test(second.error),
+        second.ok ? "STARTED" : second.error,
+      );
     }
 
     /* ---------------------------------------------- 6.4 sessions are patient-side */

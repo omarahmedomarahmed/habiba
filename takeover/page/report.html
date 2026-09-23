@@ -1,0 +1,900 @@
+<title>24Therapy Takeover Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --ground: #f4f7f8;
+  --paper: #ffffff;
+  --ink: #102038;
+  --muted: #56667c;
+  --line: #d9e1e7;
+  --navy: #091e39;
+  --teal: #1a9c90;
+  --teal-soft: #dff4f1;
+  --held: #1d7f55; --held-bg: #e1f3ea;
+  --partly: #9a6412; --partly-bg: #fbf0dc;
+  --broken: #b3372f; --broken-bg: #fbe5e3;
+  --untested: #5f6b7d; --untested-bg: #e9edf2;
+  --stop-bg: #fff3f1; --stop-line: #e9b3ad;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0b1626; --paper: #111f33; --ink: #e5ecf4; --muted: #9aabc0; --line: #243650;
+    --navy: #e5ecf4; --teal: #4fd1c3; --teal-soft: #12353a;
+    --held: #62d19c; --held-bg: #133427; --partly: #f0bb62; --partly-bg: #3a2c12;
+    --broken: #f08a80; --broken-bg: #3d1a18; --untested: #aab6c6; --untested-bg: #1e2b3d;
+    --stop-bg: #2b1616; --stop-line: #6b2f2a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0b1626; --paper: #111f33; --ink: #e5ecf4; --muted: #9aabc0; --line: #243650;
+  --navy: #e5ecf4; --teal: #4fd1c3; --teal-soft: #12353a;
+  --held: #62d19c; --held-bg: #133427; --partly: #f0bb62; --partly-bg: #3a2c12;
+  --broken: #f08a80; --broken-bg: #3d1a18; --untested: #aab6c6; --untested-bg: #1e2b3d;
+  --stop-bg: #2b1616; --stop-line: #6b2f2a;
+}
+body { background: var(--ground); color: var(--ink); font: 17px/1.6 var(--body); }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; }
+header .eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--teal); }
+h1 { font: 700 clamp(30px, 5vw, 44px)/1.1 var(--display); color: var(--navy); margin: 12px 0 10px; text-wrap: balance; }
+header p { color: var(--muted); max-width: 62ch; margin: 0; }
+
+.score { margin: 32px 0 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: grid; gap: 20px; }
+.big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; }
+.big strong { font: 700 56px/1 var(--display); color: var(--navy); font-variant-numeric: tabular-nums; }
+.big span { color: var(--muted); }
+.grid { display: grid; gap: 8px; }
+.row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.grp { width: 112px; font-size: 14px; color: var(--muted); }
+.cell { width: 46px; text-align: center; padding: 6px 0; border-radius: 6px; font: 500 13px/1 var(--mono); }
+.cell.held, .chip.held { background: var(--held-bg); color: var(--held); }
+.cell.partly, .chip.partly { background: var(--partly-bg); color: var(--partly); }
+.cell.broken, .chip.broken { background: var(--broken-bg); color: var(--broken); }
+.cell.untested, .chip.untested { background: var(--untested-bg); color: var(--untested); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 14px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+
+main h2 { font: 700 26px/1.2 var(--display); color: var(--navy); margin: 56px 0 12px; padding-top: 16px; border-top: 1px solid var(--line); text-wrap: balance; }
+main h3 { font: 600 19px/1.3 var(--display); color: var(--navy); margin: 32px 0 8px; }
+main p, main li { max-width: 68ch; }
+main ul, main ol { padding-left: 1.3em; }
+main li { margin: 6px 0; }
+main code { font: 14px var(--mono); background: var(--teal-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+main strong { color: var(--navy); }
+main > h2:first-child { border: 0; background: var(--stop-bg); border-left: 4px solid var(--broken); border-radius: 0 10px 10px 0; padding: 14px 16px; margin-top: 32px; font-size: 22px; }
+.scroll { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 12px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+td:first-child { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+.chip, .sev { display: inline-block; padding: 2px 8px; border-radius: 99px; font: 500 12px/1.5 var(--mono); white-space: nowrap; }
+.sev.s1 { background: var(--broken-bg); color: var(--broken); }
+.sev.s2 { background: var(--partly-bg); color: var(--partly); }
+.sev.s3, .sev.s4 { background: var(--untested-bg); color: var(--untested); }
+a { color: var(--teal); }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+@media (max-width: 480px) { body { font-size: 16px; } .grp { width: 100%; } .big strong { font-size: 44px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Takeover · task 176 · 23 September 2026</div>
+    <h1>What holds, what is broken, and what nobody promised</h1>
+    <p>Written after reading every document and every line of code, walking the live site as the demo cast, and looking at 145 screens in English and Arabic at phone and desktop width. Nothing has been redesigned yet: this comes first.</p>
+  </header>
+
+  <section class="score" aria-label="The 25 promises">
+    <div class="big"><strong>6 of 25</strong><span>promises kept when I walked them: 24%. Counting "partly" as half: 44%.</span></div>
+    <div class="grid"><div class="row"><span class="grp">Patients</span><span class="cell held" title="P1: held">P1</span><span class="cell partly" title="P2: partly">P2</span><span class="cell partly" title="P3: partly">P3</span><span class="cell partly" title="P4: partly">P4</span><span class="cell partly" title="P5: partly">P5</span></div><div class="row"><span class="grp">Therapists</span><span class="cell held" title="T1: held">T1</span><span class="cell held" title="T2: held">T2</span><span class="cell broken" title="T3: broken">T3</span><span class="cell held" title="T4: held">T4</span><span class="cell partly" title="T5: partly">T5</span></div><div class="row"><span class="grp">Clinics</span><span class="cell untested" title="C1: untested">C1</span><span class="cell broken" title="C2: broken">C2</span><span class="cell broken" title="C3: broken">C3</span><span class="cell broken" title="C4: broken">C4</span><span class="cell held" title="C5: held">C5</span></div><div class="row"><span class="grp">Employers</span><span class="cell broken" title="E1: broken">E1</span><span class="cell broken" title="E2: broken">E2</span><span class="cell partly" title="E3: partly">E3</span><span class="cell partly" title="E4: partly">E4</span><span class="cell partly" title="E5: partly">E5</span></div><div class="row"><span class="grp">Our operators</span><span class="cell held" title="A1: held">A1</span><span class="cell partly" title="A2: partly">A2</span><span class="cell partly" title="A3: partly">A3</span><span class="cell broken" title="A4: broken">A4</span><span class="cell broken" title="A5: broken">A5</span></div></div>
+    <div class="legend">
+      <span><i style="background:var(--held)"></i>held 6</span>
+      <span><i style="background:var(--partly)"></i>partly 10</span>
+      <span><i style="background:var(--broken)"></i>broken 8</span>
+      <span><i style="background:var(--untested)"></i>untested 1</span>
+    </div>
+  </section>
+
+  <main><h2>First: the stop condition</h2>
+<p>On the company portal, <code>/sponsor/people</code> shows <strong>"Mariam Demo"</strong> by name with a "Last checked"
+date and an "End their benefit" button, while the sidebar beside it says the portal will never
+show "any individual, ever". The overview page shows live counts ("Sessions paid for 6", "Spent
+so far $270") that go up by one each time somebody books. A name on one page plus a live count
+on another tells a company when a named employee went to therapy.</p>
+<p><code>docs/PROVE-IT.md</code> says to stop the walk if this is ever seen. I stopped and asked you. You
+decided to record it and carry on. Nobody real is affected: the only people on the site are the
+demo cast. It is at the top of this report, as agreed, and at the top of the fix list.</p>
+
+<h2>1. How many of the 25 promises hold</h2>
+<p>I only counted a promise as held if I saw it hold on the live site with my own eyes. If it held
+in one place and failed in another, I counted it as partly. A promise I could not test counts as
+untested, not as held.</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>Promise</th>
+<th>In one line</th>
+<th>Verdict</th>
+<th>What decided it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td>Three taps from opening the app to being in a session</td>
+<td><span class="chip held">held</span></td>
+<td>Three taps: orb, "Yes, you may record", "Go in"</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>Nothing only in an email; the orb shows while money is owed or a door is open</td>
+<td><span class="chip partly">partly</span></td>
+<td>The orb is right everywhere. But the invitation sits on a page nothing links to, and the payment confirmation is not in the app at all</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>Nothing written by the machine reaches you unsigned; the summary names the clinician and their credentials</td>
+<td><span class="chip partly">partly</span></td>
+<td>"Still writing" before signing is right. The signed summary gives no "Dr", no credentials, nothing saying who wrote it</td>
+</tr>
+<tr>
+<td>P4</td>
+<td>One record, every version kept under its author's name; the patient decides who reads it</td>
+<td><span class="chip partly">partly</span></td>
+<td>Versions and authors are right and the share code works. A request from Dr Kareem is waiting in the database and the patient's screen says nobody has asked</td>
+</tr>
+<tr>
+<td>P5</td>
+<td>A crisis path that never depends on money</td>
+<td><span class="chip partly">partly</span></td>
+<td>On the payment page the SOS button sits on top, as it should. In the code, the radar booking sheet sits on top of SOS. I could not open that sheet on the live site to see it</td>
+</tr>
+<tr>
+<td>T1</td>
+<td>A draft note from the transcript before you stand up, marked draft until signed</td>
+<td><span class="chip held">held</span></td>
+<td>Draft within seconds, from what was said</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>Off the record: nothing said in that minute is kept, and the note does not mention it</td>
+<td><span class="chip held">held</span></td>
+<td>Words spoken off the record never appeared in the transcript or the note (the clinician's button; see T2 note below)</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>What you owe comes out of what you earned before a payout</td>
+<td><span class="chip broken">broken</span></td>
+<td>The earnings page says bills are cleared from held earnings automatically, while the bills sat unpaid until paid by transfer</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>The invite link works for a stranger (asks a name) and for a signed-in patient ("Joining as")</td>
+<td><span class="chip held">held</span></td>
+<td>Both seen</td>
+</tr>
+<tr>
+<td>T5</td>
+<td>The copilot answers only the clinician the patient chose, cites its source, and stops when access is taken back</td>
+<td><span class="chip partly">partly</span></td>
+<td>Citations work. Taking access back narrows what it reads within five seconds, but it keeps answering, while <code>/for-patients</code> says it "stops that second". A second clinician in the same practice who was given access gets a "page not found"</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>A seat added is on the radar the same hour</td>
+<td><span class="chip untested">untested</span></td>
+<td>Going live needs a test sound to play, which my test browser cannot do. This is my equipment, not proof of a fault</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>No caseload count and no patient name anywhere in the clinic portal</td>
+<td><span class="chip broken">broken</span></td>
+<td>First name, last initial, time and clinician appear on <code>/clinic</code> and in its download</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>One bill per practice, priced per seat</td>
+<td><span class="chip broken">broken</span></td>
+<td>There is no seat line on any bill; nothing is charged per seat</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>A seat released mid-month: the next bill is lower, the clinician moves to pay as you go, nobody suspended</td>
+<td><span class="chip broken">broken</span></td>
+<td>No seat line to lower, and the released clinician lost his patient ("0 on your caseload")</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>Earnings per clinician visible, patients not</td>
+<td><span class="chip held">held</span></td>
+<td>Per-clinician totals, no patient</td>
+</tr>
+<tr>
+<td>E1</td>
+<td>The company sees funded, spent and how many; never who or when; the balance is published, not live</td>
+<td><span class="chip broken">broken</span></td>
+<td>Live counts beside names with dates (the stop condition)</td>
+</tr>
+<tr>
+<td>E2</td>
+<td>No company screen can show a note, a session time or attendance</td>
+<td><span class="chip broken">broken</span></td>
+<td>Same screens</td>
+</tr>
+<tr>
+<td>E3</td>
+<td>A price somebody was shown is a price they are owed</td>
+<td><span class="chip partly">partly</span></td>
+<td>Changing the company's coverage did not reprice a booked session (held). But the button says "Pay $60" and the sheet asks EGP 3,420, which is $68.40 with VAT</td>
+</tr>
+<tr>
+<td>E4</td>
+<td>Coverage at 0% is not removal</td>
+<td><span class="chip partly">partly</span></td>
+<td>The person stays on the list; nothing tells them what changed</td>
+</tr>
+<tr>
+<td>E5</td>
+<td>An empty pot pays nothing, the ordinary pay link appears, and the patient is told to ask HR</td>
+<td><span class="chip partly">partly</span></td>
+<td>The pot paid nothing and the pay link appeared. "Ask HR" appears nowhere, and the benefit page told an enrolled patient to "activate your benefit"</td>
+</tr>
+<tr>
+<td>A1</td>
+<td>Nothing is granted before a person confirms the money</td>
+<td><span class="chip held">held</span></td>
+<td>The session stayed shut until the operator confirmed</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>Pressing Confirm twice moves the money once</td>
+<td><span class="chip partly">partly</span></td>
+<td>Two presses 1 ms apart moved the money once and wrote one audit row. The second screen said "Confirmed" instead of "already done"</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>A rejection's reason reaches the payer word for word</td>
+<td><span class="chip partly">partly</span></td>
+<td>Word for word, but only on a page the payer has to find alone; nothing is sent. The seeded rejection is attached to nothing, so its payer can never see it</td>
+</tr>
+<tr>
+<td>A4</td>
+<td>Money nobody claimed is work, never silently kept</td>
+<td><span class="chip broken">broken</span></td>
+<td>An overpayment was kept and written down nowhere. A bank line nobody claimed looks exactly like an ordinary claim</td>
+</tr>
+<tr>
+<td>A5</td>
+<td>A role is a list; a refused screen sends you somewhere sensible; the refusal is on the record</td>
+<td><span class="chip broken">broken</span></td>
+<td>The support account was sent to the clinician sign-up screen for every page, including its own home, and nothing recorded the refusals</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The arithmetic.</strong></p>
+<ul>
+<li>Held: P1, T1, T2, T4, C5, A1 = <strong>6</strong></li>
+<li>Partly: P2, P3, P4, P5, T5, E3, E4, E5, A2, A3 = <strong>10</strong></li>
+<li>Broken: T3, C2, C3, C4, E1, E2, A4, A5 = <strong>8</strong></li>
+<li>Untested: C1 = <strong>1</strong></li>
+<li>6 + 10 + 8 + 1 = 25.</li>
+</ul>
+<p>Strictly, <strong>6 of 25 are kept: 24%.</strong> Counting each "partly" as half, (6 + 10 / 2) / 25 = 11 / 25
+= <strong>44%</strong>. Leaving the untested one out, 6 of 24 is 25%. I would quote the 24%.</p>
+<p><strong>About T2.</strong> My first two tries were my mistakes and I threw them out (in one the speech started
+too early; in the other my script pressed the language switch instead of "Off record"). The third
+run held. The patient's own Stop button is a different path and is broken in the code: see
+section 2.</p>
+
+<h2>2. What is broken, and why</h2>
+<p>Ranked by who gets hurt and how badly. "Seen" means I saw it happen on the live site; "code"
+means two readers and I confirmed it in the code but I did not make it happen.</p>
+<h3>Hurts a patient's privacy or safety</h3>
+<ol>
+<li><strong>A named employee's therapy is visible to their employer</strong> (seen, E1 and E2). Why: the
+   company's roster was built as a list of people, and the overview reads live totals
+   (<code>lib/billing/pot.ts:997</code>) while its own comment (<code>app/(sponsor)/sponsor/page.tsx:50-56</code>)
+   explains why the balance must not be live. The patient's benefit page promises the opposite
+   ("Not a date, not a count"), so the patient is also misled.</li>
+<li><strong>Recording without consent</strong> (seen, task 123). In an in-person session nobody is asked, the
+   microphone records and the transcript is made. The note page then says "Not recorded. This is
+   the clinician's own account" over a note drafted from that recording. Also in the code: the
+   patient's own Stop button and a later "no" set a flag that the room never reads, and the
+   transcription route checks neither consent nor that flag. This is the one legal defect.</li>
+<li><strong>A record can be claimed by the wrong person</strong> (seen). The invite link showed the patient's
+   phone number to whoever opened it, asked no questions, and gave the record to an account whose
+   phone was never checked. In the code, the claim takes a person's id from the browser with no
+   check that it belongs to the one claiming it.</li>
+<li><strong>Anyone with a session id can move or refund a session that has not started</strong> (code). The
+   no-show rescue was meant for five minutes after a missed start; it has no time check and no
+   sign-in check.</li>
+<li><strong>The crisis filter silenced real disclosures</strong> (code, fixed on this branch). It read "he"
+   inside words like "the" as somebody else, so "The thought of suicide is on my mind" was
+   treated as about another person. Fixed and tested (commit <code>dbe66c6</code>); not yet on the live
+   site.</li>
+<li><strong>The SOS button can be covered</strong> (code). On the radar booking sheet, the sheet is drawn above
+   the SOS button. The payment page is correct.</li>
+</ol>
+<h3>Hurts somebody's money</h3>
+<ol>
+<li><strong>Full price is booked as cash the moment a session is booked</strong> (seen). The clinician's share
+   is credited before the patient has paid, and shows as "Available now" to withdraw. When the
+   patient's money really arrives, their share is never written down.</li>
+<li><strong>Egyptian pounds are charged as dollars</strong> (code). Sessions booked through the calendar are
+   priced in the clinician's pounds but stored as dollars. And Egyptian VAT is booked to the US
+   company (seen).</li>
+<li><strong>Invoice payments never reach the books</strong> (seen). The operator confirmed EGP 800 against four
+   bills: the bills became paid, and no ledger entry was written. EGP 200 of overpayment is
+   recorded nowhere. The payer has no box to say how much they sent.</li>
+<li><strong>Two simultaneous presses on "Sent" pay a clinician twice in the books</strong> (code). The payout
+    writes the ledger before it checks it has not already been sent.</li>
+<li><strong>"Pay $60" asks for $68.40</strong> (seen). The VAT is added on the sheet and never shown on the
+    button.</li>
+<li><strong>The earnings page promises bills are taken from earnings automatically</strong> (seen, T3). They
+    were not.</li>
+<li><strong>No seat billing exists</strong> (seen, C3 and C4). A practice pays nothing per seat, though the
+    homepage sells it.</li>
+</ol>
+<h3>Leaves somebody stuck</h3>
+<ol>
+<li><strong>A rejected bank transfer is a dead end</strong> (seen, A3 and task 124). Nothing is sent, the orb
+    disappears, a guest never sees the reason, and the operator is told "they have been told why",
+    which is false.</li>
+<li><strong>A bank line nobody claimed looks like any other claim</strong> (seen, A4). This is exactly how I
+    confirmed one by mistake during the walk (recorded in RESULTS, then redone on a fresh seed).</li>
+<li><strong>The support account cannot use its own console</strong> (seen, A5). Every page sends it to the
+    clinician sign-up screen, and the refusals are not written down.</li>
+<li><strong>A clinician released from a practice loses his patients</strong> (seen, C4).</li>
+<li><strong>A second clinician who was given access to a patient cannot use it</strong> (seen, T5): the
+    copilot answers "page not found".</li>
+<li><strong>A request to read a patient's history is invisible to the patient</strong> (seen, P4).</li>
+<li><strong>The console cannot send a patient a new claim link</strong> (seen, task 105).</li>
+</ol>
+<h3>Says something untrue</h3>
+<ol>
+<li>The top-up screen says $100 "covers about 8 sessions"; at the demo's coverage it covers about
+    two.</li>
+<li>A negative pot shows "-$25" and "113%" with no sentence saying what that means.</li>
+<li>The benefit page tells an enrolled employee to "activate your benefit".</li>
+<li>The booking screen asks a signed-in patient for her name, email and phone, and defaults her
+    country to the US.</li>
+<li>A clinician's dashboard showed a colleague's patient's payment ("Session with Sara Demo,
+    EGP 4,275" on Dr Yasmin's screen).</li>
+</ol>
+<h3>Already fixed on this branch, waiting for your go-ahead to deploy</h3>
+<ul>
+<li>The crisis filter (item 5).</li>
+<li><strong>The console password was published.</strong> <code>docs/DEMO-LOGINS.md</code> printed the password that opens
+  the founder's and the staff console accounts, with no second step at sign-in. The seed now gives
+  those three accounts a private password that lives only outside the repository, and the demo
+  check proves the published one no longer opens them (commit <code>68202d5</code>). Production was reseeded
+  with it. <strong>What you need to do:</strong> on the sign-in page for <code>omar@24therapy.app</code> and
+  <code>habiba@24therapy.app</code>, use "Forgot password" and set your own. The staff demo account can stay
+  as it is.</li>
+</ul>
+<p>Also checked: a committed test file (<code>.walkthrough2/people.json</code>) holds passwords for four
+<code>.test</code> accounts. None of those accounts exists on the live site, so they open nothing. The file
+should still go.</p>
+
+<h2>3. What looks broken but is handled elsewhere</h2>
+<p>The second-pass checkers found 30 of these. The ones worth knowing, because each one would
+otherwise look like a defect to the next person who reads the code:</p>
+<ul>
+<li><strong>Confirming a transfer twice</strong> is safe: the confirm only goes through if the row is still
+  waiting (<code>lib/billing/manual.ts:519-528</code>). I saw it hold on the live site (A2).</li>
+<li><strong>The copilot's access check</strong> looks like it trusts a default, but its only caller works out
+  access again for every question (<code>lib/ai/case-copilot.ts</code>, WALL-25, CLIN-19). I saw access
+  narrow within five seconds.</li>
+<li><strong>Suspended clinicians on the radar</strong>: the list that feeds the radar leaves them out
+  (<code>lib/data/discover.ts:112</code>, SESS-12).</li>
+<li><strong>The demo flag on clinicians</strong> is only a label; it opens nothing (SESS-15).</li>
+<li><strong>The payment orb and the SOS button</strong>: every money layer in the patient screens sits under SOS
+  (UX-57), and the patient error page keeps SOS (UX-58). Only the radar sheet breaks this.</li>
+<li><strong>The feedback brief</strong> is blank until the note is signed (UX-59, CLIN-16).</li>
+<li><strong>Reloading the room</strong> brings you back into the same session (SESS-27).</li>
+<li><strong>Break-glass reads in the console</strong> are written to the audit log (WALL-31).</li>
+<li><strong>Routing between the six portals</strong>: each sign-in cookie opens only its own portal (ID-37).</li>
+<li><strong>The seed's wipe</strong> can only delete, never swap a row, so the count check it runs is enough
+  (CHK-19).</li>
+</ul>
+
+<h2>4. What the code does that nobody promised</h2>
+<p>The 25 promises cover perhaps a third of what the code does. The rest sorts into three kinds.</p>
+<h3>Worth selling (built, working, and nobody says so)</h3>
+<ul>
+<li><strong>Every clinical fact traces to its sentence.</strong> A fact about a patient carries the transcript
+  line it came from, and contradictions between sessions are shown side by side.</li>
+<li><strong>Diagnoses only when written word for word</strong>, with the source sentence.</li>
+<li><strong>Per-question timing on PHQ-9 and GAD-7</strong>: the clinician can see a patient spent ninety
+  seconds on the suicide question; the patient sees their own history and never a score band.</li>
+<li><strong>Homework</strong> that shows the clinician the trend and the patient only the next step.</li>
+<li><strong>No-show rescue</strong>: if the clinician does not come, a cheaper replacement now with the
+  difference kept as credit, or a full refund including our fee (once it is locked down, item 4).</li>
+<li><strong>Crisis reading in Arabic, Egyptian dialect and Franco-Arab.</strong></li>
+<li><strong>Egypt's crisis line 105</strong> with its phone menu printed on the button in both languages.</li>
+<li><strong>Money out has four refusals</strong> (more than held, a second request in flight, approving your own,
+  sent without a receipt), two people for any payout, and receipts that cannot be deleted.</li>
+<li><strong>Nothing cancels a session somebody has paid for or joined.</strong></li>
+<li><strong>A caseload spreadsheet import</strong> that refuses to bring clinical columns across.</li>
+<li><strong>Wall QR codes</strong> for a clinic's reception desk; <strong>walk-in clinics</strong> on the radar with
+  directions.</li>
+<li><strong>The clinician alarm</strong> (sound, notifications, flashing tab) when a patient books or waits.</li>
+<li><strong>A public verified page</strong> for each clinician, with the regulator, the month and a reliability
+  score.</li>
+<li><strong>An honest comparison with competitors</strong>, rows we lose included.</li>
+<li><strong>A company joining-code poster</strong> and two-step domain proof.</li>
+<li><strong>A record extract anyone can check is genuine</strong> without learning who it is about.</li>
+<li><strong>Walk-ins land on the caseload</strong>: an in-person session with only a first name makes a chart.</li>
+</ul>
+<h3>A hole (nobody should have it)</h3>
+<ul>
+<li><strong>"Total View" in the console</strong>: the founder account reads any patient's transcripts, notes,
+  copilot conversations and risk flags by name search, and each read is not written down.</li>
+<li><strong>Mail a clinician's full history to any address</strong> typed into a box, with every patient's name
+  and email; and the founder is copied on patients' record exports.</li>
+<li><strong>The founder account can post any amount to any account</strong> in the books with a five-letter reason: no ceiling and no second person. (Only the super_admin can, <code>app/(admin)/admin/actions.ts:519</code>; corrected after an outside check.)</li>
+<li><strong>The audit log can be deleted</strong>: the demo seed deletes it on production every reseed, and a
+  nightly job deletes rows after six years. "Every read is written down" can be undone.</li>
+<li><strong>Scripts that can write production outside the allow-list</strong>: one makes any user a super admin
+  and replaces their password with no audit row; others run any SQL, or create and book real
+  sessions on whatever address they are pointed at.</li>
+<li><strong>Patients' journals and check-in replies are scanned for crisis</strong> and a clinician is alerted,
+  and the journal page is forbidden to say so. It may be right to scan; it is not right to hide it.</li>
+<li><strong>The meeting bot records everybody</strong> in a couples or group call on one person's consent.</li>
+<li><strong>A partner's server can get a full clinician session</strong> on demand, and partner notes count as
+  "approved" with any non-blank text.</li>
+<li><strong>Signed notes can be edited</strong>, released copies included.</li>
+<li><strong>The in-room "report" button says it filed a report and files nothing.</strong></li>
+<li><strong>Any holder of a feedback link can trigger a refund and a suspension.</strong></li>
+<li><strong>Clinic admins type their staff's passwords</strong>, and clinic staff cannot be removed.</li>
+<li><strong>A patient complaint opens the session transcript to our staff</strong>, which no promise tells the
+  patient.</li>
+<li><strong>Partner operators see our whole list of corporate customers.</strong></li>
+</ul>
+<h3>Half built (a door with no room, or a room with no door)</h3>
+<ul>
+<li><strong>The partner platform</strong>: transcripts, notes, memory and copilot sold as a metered API with
+  limits and billing. No promise, no audience, and keys it cannot mint.</li>
+<li><strong>Connecting a practice's records system</strong>: you can connect, but no note is ever filed into it.</li>
+<li><strong>Telling voices apart</strong>: all the logic, no provider, so the voices panel is always empty.</li>
+<li><strong>Check-ins</strong>: sent, never received; stop words by reply do not work; no WhatsApp template.</li>
+<li><strong>Zoom, Meet and Teams transcripts</strong> are accepted and thrown away.</li>
+<li><strong>Patient pages with no link to them</strong>: notices, messages, residency.</li>
+<li><strong>No password reset</strong> for the clinic, company or partner portals.</li>
+<li><strong>WhatsApp codes for phone-only patients</strong> wait on Meta's approval, so they cannot reset a
+  password or prove their number.</li>
+<li><strong>Two availability editors</strong> with different time-zone rules; only one can cancel.</li>
+<li><strong>Support tickets moved to WhatsApp can never be closed.</strong></li>
+<li><strong>Clinic seat billing</strong>: the quote and the proration exist, reachable only from the clinician
+  portal, and nothing bills.</li>
+<li><strong>The stuck register</strong> that would list everybody who is stuck is empty by design until task 163.</li>
+<li><strong>Eighteen kinds of message</strong> go by email only, with no place in the app.</li>
+</ul>
+
+<h2>5. What I would do differently</h2>
+<ol>
+<li><strong>One rule for money, written once.</strong> Money is booked in at least four places, each a little
+   differently (booking, the transfer confirm, invoices, the pot). Items 7 to 11 all come from
+   that. I would make one function that every rail calls, and one check that the books balance
+   after every walk position, not only in the tests.</li>
+<li><strong>Consent as a gate, not a flag.</strong> Today consent is a field that screens read if they remember
+   to. I would make the microphone, the transcription route and the meeting bot all refuse to run
+   without a recorded yes, so forgetting is impossible.</li>
+<li><strong>Promise the company only what the database cannot leak.</strong> A company should get a published,
+   rounded summary on a schedule, never a list of people with dates, and never a live count. I
+   would build the company portal on that summary table alone, so a new screen cannot leak by
+   accident.</li>
+<li><strong>Fewer portals, finished.</strong> The partner platform, the records-system connection, voices and
+   check-ins are each half built. I would hide them until they are whole, and put that effort into
+   the five people who use the product today: patient, clinician, clinic, company, operator.</li>
+<li><strong>Every screen reachable, and every message in the app.</strong> Pages with no link and messages that
+   exist only in an email break P2. A test should fail when a page has no door.</li>
+<li><strong>Tests that walk, not only tests that read.</strong> The gates passed while the walk found eight
+   broken promises. The walk harness in <code>takeover/walk/</code> (a screenshot before and after every
+   click, a shared board, two browsers at once) should become the gate for money and consent.</li>
+<li><strong>The console for the people who run it.</strong> Support cannot open its own console, and several
+   staff screens have founder-only buttons. An operator should see, in one list, everybody who is
+   stuck and how long they have waited.</li>
+<li><strong>One rule, applied everywhere it belongs.</strong> An outside check pointed out a shape that runs
+   through my own findings: a rule written correctly in one place and missed in its sibling.
+   Consent is checked on the meetings route and not on our own transcribe route; the pot balance
+   is floored and the totals beside it are not; summaries cannot be rewritten and notes can; and
+   my own password fix updated the demo check but not the contrast check, which then quietly
+   stopped signing in as two portals (now fixed). Task 129 was meant to catch this for booking
+   paths. I would widen it: for each rule, list every place it must hold, and fail when one is
+   missing. Point 1 above is the money case of the same idea.</li>
+</ol>
+
+<h2>6. Where Phase 0 stands</h2>
+<p>The four defects that hurt a real person (TAKEOVER s11):</p>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>Task</th>
+<th>What</th>
+<th>Where it stands</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>123</td>
+<td>In-person sessions recorded without consent</td>
+<td>Seen on the live site, and wider than written: the patient's Stop and a later "no" do not stop the recording either</td>
+</tr>
+<tr>
+<td>122</td>
+<td>A pop-up over "Go in now" ends in a 3-day ban</td>
+<td>Confirmed in the code, and wider: opening an invite early can get a calendar clinician warned and then suspended</td>
+</tr>
+<tr>
+<td>124</td>
+<td>A rejected transfer is a dead end</td>
+<td>Seen on the live site; the operator is also told something false</td>
+</tr>
+<tr>
+<td>117</td>
+<td>An anonymous session ends with no patient record</td>
+<td>Confirmed in the code</td>
+</tr>
+</tbody>
+</table></div>
+<p>None is fixed yet. They come first after the design samples are approved, or before them if you
+prefer (see decision 1 below).</p>
+
+<h2>7. Decisions only you can make</h2>
+<ol>
+<li><strong>Fix first or design first?</strong> The order you gave is report, then design, then fixes. Items 1
+   to 4 in section 2 hurt a patient's privacy. I would fix those four before the design work, and
+   deploy them once the full checks pass and you say so. Your call.</li>
+<li><strong>The clinic and names (C2).</strong> The homepage promises no patient name in the clinic portal. A
+   practice manager needs to know who is coming to the front desk. Either the promise changes
+   ("first name and time, for the front desk only") or the schedule goes.</li>
+<li><strong>"Stops that second" (T5).</strong> Taking access back cuts the copilot off from the patient's
+   profile at once, but it still answers from the clinician's own session notes. Either the page
+   says that, or the copilot stops answering altogether.</li>
+<li><strong>What the company sees (E1).</strong> Keep a roster of names (needed for "End their benefit"), or
+   move to codes only? Either way the live counts go.</li>
+<li><strong>The pricing copy.</strong> The site says "first session free", "no per-session fee" and "No seat fee"
+   in places, and the homepage sells per-seat billing. They cannot all be true.</li>
+<li><strong>In-person consent.</strong> Who says yes, and where? Options: the patient taps yes on the
+   clinician's screen; or the clinician confirms they asked, and the patient gets a message to
+   agree or withdraw. I would do the first.</li>
+<li><strong>Scanning journals.</strong> Keep scanning and say so on the journal page, or stop scanning.</li>
+</ol>
+
+<h2>8. What comes next</h2>
+<ul>
+<li>The design samples (task 174), portal by portal, the patient app first.</li>
+<li>The tasks nobody knew to ask for: <code>takeover/NEW-TASKS.md</code>.</li>
+<li>Then the fixes, worst first. Nothing goes to the live site until the full checks pass and you
+  say yes.</li>
+</ul><h2 id="new">9. The tasks nobody knew to ask for</h2><p>Kept apart from the 38 inherited tasks (<code>takeover/TASKS.md</code>), as the takeover asked. Each one was
+found while reading, walking or checking, and none is in the inherited list. Numbering starts
+after 176. "Seen" means seen on the live site; "code" means confirmed in the code by two checks.
+Details and file references: <code>takeover/REPORT.md</code> section 2 and <code>takeover/walk/RESULTS.md</code>.</p>
+<p>Severity: <strong>S1</strong> hurts a patient's privacy, safety or legal position; <strong>S2</strong> loses or misstates
+money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says something untrue.</p>
+<h3>Done on this branch, waiting for the full checks and the founder's yes to deploy</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Sev</th>
+<th>State</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>177</td>
+<td>The console password was published in <code>docs/DEMO-LOGINS.md</code>, with no second step at sign-in</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed (<code>68202d5</code>); production reseeded. Founder to reset own password</td>
+</tr>
+<tr>
+<td>178</td>
+<td>The crisis filter read "he" inside "the" as somebody else and silenced real disclosures</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed with a test that fails without the fix (<code>dbe66c6</code>)</td>
+</tr>
+<tr>
+<td>179</td>
+<td>Company overview: live counts beside the floored balance</td>
+<td><span class="sev s1">S1</span></td>
+<td><strong>Half fixed</strong> (<code>23c0936</code>): all three figures are one published snapshot. Names and per-person dates on <code>/sponsor/people</code> wait on the founder's decision</td>
+</tr>
+<tr>
+<td>180</td>
+<td>Record claim by id with no ownership check; the invite showed the phone number and never checked it</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed (<code>30c5b34</code>, <code>443abc9</code>). Still open: the invite route asks no questions, and a phone number is typed, not proven, until WhatsApp codes work</td>
+</tr>
+<tr>
+<td>181</td>
+<td>Anyone with a session id could move or refund an unstarted session</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed (<code>4e269f1</code>): only once overdue, with the patient waiting</td>
+</tr>
+<tr>
+<td>183 + task 123</td>
+<td>Recording without consent; the patient's Stop could be undone by the clinician</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed (<code>56e905a</code>): no recorded yes, no transcript; in-person consent on the clinician's screen; Stop withdraws. Not yet seen in a browser (needs the app secrets to run locally)</td>
+</tr>
+<tr>
+<td>-</td>
+<td>The contrast check stopped signing in to the company and console portals after 177</td>
+<td>-</td>
+<td>Fixed (<code>13c24c4</code>), proven against the live site</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Privacy and safety</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Sev</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>182</td>
+<td>The radar booking sheet is drawn over the SOS button</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>184</td>
+<td>Total View reads any record unaudited; a clinician's full history can be mailed to any address; the founder is copied on patients' exports</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>185</td>
+<td>The audit log can be deleted (the seed on production; the six-year job)</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>186</td>
+<td>Journals and check-in replies are crisis-scanned without telling the patient</td>
+<td><span class="sev s1">S1</span></td>
+<td>code, founder decision</td>
+</tr>
+<tr>
+<td>187</td>
+<td>The meeting bot records everybody in a group call on one person's consent</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>188</td>
+<td>A partner server can get a full clinician session; partner notes "approved" by any text</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>189</td>
+<td>Signed notes and released copies can be edited</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>190</td>
+<td>Any feedback-link holder can trigger a refund and a suspension</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>191</td>
+<td>A clinician's dashboard shows a colleague's patient's payment</td>
+<td><span class="sev s1">S1</span></td>
+<td>seen</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Money</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Sev</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>192</td>
+<td>Full price is booked as cash at booking; the clinician can withdraw it before the session happens; the patient's real payment is never recorded</td>
+<td><span class="sev s2">S2</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>193</td>
+<td>Calendar bookings charge the clinician's pounds as dollars; Egyptian VAT is booked to the US company</td>
+<td><span class="sev s2">S2</span></td>
+<td>code, seen</td>
+</tr>
+<tr>
+<td>194</td>
+<td>Invoice payments write nothing to the books; an overpayment is recorded nowhere; the payer cannot say how much they sent</td>
+<td><span class="sev s2">S2</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>195</td>
+<td>Two simultaneous presses on "Sent" pay a clinician twice in the books</td>
+<td><span class="sev s2">S2</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>196</td>
+<td>The founder account (super_admin only) can post any amount to any account, no ceiling, a five-letter reason</td>
+<td><span class="sev s2">S2</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>197</td>
+<td>Seat billing does not exist (C3, C4)</td>
+<td><span class="sev s2">S2</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>198</td>
+<td>The earnings page says bills come out of earnings automatically; they do not (T3)</td>
+<td><span class="sev s2">S2</span></td>
+<td>seen</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Stuck</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Sev</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>199</td>
+<td>A bank line nobody claimed looks like an ordinary claim</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>200</td>
+<td>Support is sent to the clinician sign-up screen for every console page; refusals not recorded</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>201</td>
+<td>A clinician released from a practice loses his patients</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>202</td>
+<td>A colleague given access gets "page not found" from the copilot</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>203</td>
+<td>A history request is invisible to the patient</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>204</td>
+<td>An enrolled employee is not covered by the company pot</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>205</td>
+<td>Clinic staff cannot be removed and their admin types their passwords; no password reset for clinic, company or partner</td>
+<td><span class="sev s3">S3</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>206</td>
+<td>Patient pages with no link (notices, messages, residency); the payment confirmation is not in the app</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>207</td>
+<td>A device that cannot play a sound cannot go on the radar</td>
+<td><span class="sev s3">S3</span></td>
+<td>seen, founder decision</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Says something untrue</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Sev</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>208</td>
+<td>"Pay $60" asks for $68.40; "$75" shown to a patient whose share differs</td>
+<td><span class="sev s4">S4</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>209</td>
+<td>"$100 covers about 8 sessions" (about two); a negative pot with no sentence</td>
+<td><span class="sev s4">S4</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>210</td>
+<td>The benefit page tells an enrolled employee to activate it, and promises what the company portal breaks</td>
+<td><span class="sev s4">S4</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>211</td>
+<td>"Stops that second" on <code>/for-patients</code> (T5)</td>
+<td><span class="sev s4">S4</span></td>
+<td>seen, founder decision</td>
+</tr>
+<tr>
+<td>212</td>
+<td>The in-room report button says it filed a report and files nothing</td>
+<td><span class="sev s4">S4</span></td>
+<td>code</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Housekeeping</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Sev</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>213</td>
+<td>Scripts that write production outside the allow-list (make a super admin, run any SQL, create real sessions)</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+<tr>
+<td>214</td>
+<td><code>.walkthrough2/</code> commits an SQL runner and test passwords (the accounts do not exist on production)</td>
+<td><span class="sev s4">S4</span></td>
+<td>checked</td>
+</tr>
+<tr>
+<td>215</td>
+<td>Crisis re-delivery runs once a day; the README says every five minutes</td>
+<td><span class="sev s1">S1</span></td>
+<td>code</td>
+</tr>
+</tbody>
+</table></div></main>
+</div>

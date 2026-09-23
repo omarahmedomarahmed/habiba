@@ -6,7 +6,7 @@ import { requirePatient } from "@/lib/patient-auth/guard";
 import {
   rejectClaim,
   startClaim,
-  suggestionsFor,
+  suggestionsForAccount,
   verifyClaim,
   type ClaimSuggestion,
 } from "@/lib/data/claims";
@@ -44,45 +44,8 @@ export type ClaimState = {
 /** Steps 2–4: which records might be theirs, shown redacted. */
 export async function mySuggestions(): Promise<ClaimSuggestion[]> {
   const actor = await requirePatient();
-  const [account] = await db
-    .select({
-      email: patientAccounts.email,
-      phone: patientAccounts.phone,
-      personId: patientAccounts.personId,
-      phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
-      emailVerifiedAt: patientAccounts.emailVerifiedAt,
-    })
-    .from(patientAccounts)
-    .where(eq(patientAccounts.id, actor.accountId))
-    .limit(1);
-
-  if (!account) return [];
-
-  /*
-   * 🔴 25.14 / C121 — nothing is matched on an UNPROVEN handle.
-   *
-   * This matched on whatever number was typed at signup, and the screen then
-   * said "a therapist keeps notes for somebody with your phone number" over a
-   * redacted name. Type a stranger's number, sign up, and learn that they are
-   * in therapy and roughly what they are called. Two initials are something
-   * about a record. `openChallenges` has refused to speak without a proven
-   * handle since sprint 13; this is the screen people actually land on, and it
-   * did not.
-   *
-   * A handle proves itself by receiving a code (`lib/patient-auth/handle.ts`),
-   * and each handle proves only itself: a code that arrived by email does not
-   * make the number true.
-   */
-  const phone = account.phoneVerifiedAt ? account.phone : null;
-  const email = account.emailVerifiedAt ? account.email : null;
-  if (!phone && !email) return [];
-
-  return suggestionsFor({
-    email,
-    phone,
-    /* 22R — never offer somebody their own record as a therapist's. */
-    excludePersonId: account.personId,
-  });
+  /* 25.14 / C121: proven handles only. The rule lives with the write it guards. */
+  return suggestionsForAccount(actor.accountId);
 }
 
 /**

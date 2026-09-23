@@ -201,6 +201,9 @@ export async function sourceForIngest(sessionId: string): Promise<
         therapistId: string;
         patientId: string | null;
         transcriptLanguage: string | null;
+        /* Task 123: the ingest door asks `mayRecord` like every other. */
+        recordingConsent: "granted" | "declined" | null;
+        recordingPausedAt: Date | null;
       };
     }
   | null
@@ -229,6 +232,8 @@ export async function sourceForIngest(sessionId: string): Promise<
         therapistId: sessions.therapistId,
         patientId: sessions.patientId,
         transcriptLanguage: sessions.transcriptLanguage,
+        recordingConsent: sessions.recordingConsent,
+        recordingPausedAt: sessions.recordingPausedAt,
       })
       .from(sessionSources)
       .innerJoin(sessions, eq(sessions.id, sessionSources.sessionId))
@@ -254,6 +259,8 @@ export async function sourceForIngest(sessionId: string): Promise<
       therapistId: row.therapistId,
       patientId: row.patientId,
       transcriptLanguage: row.transcriptLanguage,
+      recordingConsent: row.recordingConsent,
+      recordingPausedAt: row.recordingPausedAt,
     },
   };
 }

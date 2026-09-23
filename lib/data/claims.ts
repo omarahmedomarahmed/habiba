@@ -16,7 +16,7 @@ import {
 import { log, ref } from "@/lib/logger";
 
 import { applyClaimDecision } from "./grants";
-import { findMatches, redactName } from "./people";
+import { findMatches, normaliseEmail, normalisePhone, redactName } from "./people";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -91,7 +91,7 @@ export type ClaimSuggestion = {
  * a suggestion, it is a collision, and offering it would invite a stranger to
  * try to claim it.
  */
-export async function suggestionsFor(input: {
+async function suggestionsFor(input: {
   email?: string | null;
   phone?: string | null;
   /**
@@ -178,6 +178,46 @@ async function bindAccountToPerson(
   return "moved";
 }
 
+/**
+ * The records an account may be offered, and so the only ones it may claim by
+ * matching: unclaimed, matching a phone or email the account has PROVEN, never
+ * the account's own row.
+ *
+ * 🔴 25.14 / C121 — nothing is matched on an UNPROVEN handle. Type a stranger's
+ * number at signup and an unproven match would tell you they are in therapy
+ * and roughly what they are called. A handle proves itself by receiving a code
+ * (`lib/patient-auth/handle.ts`), and each handle proves only itself.
+ *
+ * One function for the screen (`mySuggestions`) and the write (`startClaim`),
+ * so what is shown and what is allowed cannot drift apart again.
+ */
+export async function suggestionsForAccount(accountId: string): Promise<ClaimSuggestion[]> {
+  const [account] = await db
+    .select({
+      email: patientAccounts.email,
+      phone: patientAccounts.phone,
+      personId: patientAccounts.personId,
+      phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
+      emailVerifiedAt: patientAccounts.emailVerifiedAt,
+    })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, accountId))
+    .limit(1);
+  if (!account) return [];
+
+  const phone = account.phoneVerifiedAt ? account.phone : null;
+  const email = account.emailVerifiedAt ? account.email : null;
+  if (!phone && !email) return [];
+
+  /* 22R — never offer somebody their own record as a therapist's. */
+  return suggestionsFor({ email, phone, excludePersonId: account.personId });
+}
+
+async function matchesProvenHandle(accountId: string, personId: string): Promise<boolean> {
+  const offered = await suggestionsForAccount(accountId);
+  return offered.some((s) => s.personId === personId);
+}
+
 /* ------------------------------------------------- step 5: send a code -- */
 
 export type StartResult =
@@ -213,6 +253,24 @@ export async function startClaim(input: {
   if (person.claimedAt !== null) {
     log.warn("claim refused: already claimed", { person: ref(input.personId) });
     return { ok: false, error: "That record has already been claimed." };
+  }
+
+  /*
+   * 🔴 THE PERSON ID CAME FROM THE BROWSER, AND THE CODE GOES TO THE CALLER.
+   *
+   * The screen only ever offers records that match a handle the account has
+   * PROVEN (`mySuggestions`, 25.14 / C121), but this function took whatever id
+   * it was handed and the action mailed the code to the caller's own inbox. So
+   * any signed-in patient who learned a person's id could claim that whole
+   * person, every clinician's record of them, with a code they sent themselves.
+   *
+   * The match route now asks the same question the screen asks, here, so it
+   * holds for every caller. The invite route is not this: its proof is the
+   * one-time token the clinician handed over (`redeemInvite`).
+   */
+  if ((input.route ?? "match") === "match" && !(await matchesProvenHandle(input.accountId, input.personId))) {
+    log.warn("claim refused: not a proven match", { person: ref(input.personId) });
+    return { ok: false, error: "That record does not match a number or address you have confirmed." };
   }
 
   const code = verificationCode();
@@ -479,7 +537,7 @@ export async function resolveInvite(token: string): Promise<{
   personId: string;
   redactedName: string;
   inviteId: string;
-  /** 13.4 — pre-filled and locked on signup. E.164 or null. */
+  /** 13.4 — compared at signup and redemption, never shown. E.164 or null. */
   phone: string | null;
   email: string | null;
   /** 13.8 — the only thing a pre-challenge screen may name. */
@@ -517,19 +575,41 @@ export async function resolveInvite(token: string): Promise<{
     inviteId: row.id,
     redactedName: redactName(row.firstName, row.lastName),
     /*
-     * 13.4 — the number the record already holds, so signup can pre-fill and
-     * lock it.
-     *
-     * 🔴 Locked, not merely pre-filled, and the reason is the invariant: this
-     * link was sent *to* that number. Letting the person edit it here would
-     * let whoever received a forwarded link register their own number against
-     * somebody else's record — which is precisely the collision §3b's unique
-     * index exists to prevent, arriving through the one door that bypasses it.
+     * 13.4 — the number the record already holds, for `inviteFits` to compare
+     * against. 🔴 Never rendered: whoever holds the link has proven nothing.
      */
     phone: row.phone,
     email: row.email,
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
   };
+}
+
+export const INVITE_MISMATCH =
+  "This link is for a different phone number. Sign up with the number your therapist has for you, or ask them for a new link.";
+
+/**
+ * 🔴 WHETHER AN ACCOUNT MAY TAKE THE RECORD AN INVITE POINTS AT.
+ *
+ * The signup screen used to print the record's phone number, locked, to
+ * whoever opened the link, and said the server checked it. Nothing did: the
+ * number travelled in a hidden field anybody can edit, and `redeemInvite`
+ * never compared it. So a forwarded link both showed a stranger the patient's
+ * number and let them register any number against the record.
+ *
+ * Now the number is never shown. The person types it, and it must be the one
+ * the record holds. A record with no number but an address is held to the
+ * address; a record with neither has nothing to compare, and the link stays
+ * the whole of the proof (the clinician identified them in the room).
+ */
+export function inviteFits(
+  invite: { phone: string | null; email: string | null },
+  account: { phone: string | null; email: string | null },
+): boolean {
+  const wantPhone = normalisePhone(invite.phone);
+  if (wantPhone) return normalisePhone(account.phone) === wantPhone;
+  const wantEmail = normaliseEmail(invite.email);
+  if (wantEmail) return normaliseEmail(account.email) === wantEmail;
+  return true;
 }
 
 /**
@@ -554,6 +634,16 @@ export async function redeemInvite(input: {
       ok: false,
       error: "That link has expired or has already been used.",
     };
+
+  const [account] = await db
+    .select({ phone: patientAccounts.phone, email: patientAccounts.email })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, input.accountId))
+    .limit(1);
+  if (!account || !inviteFits(resolved, account)) {
+    log.warn("invite refused: account does not carry the invited handle", { person: ref(resolved.personId) });
+    return { ok: false, error: INVITE_MISMATCH };
+  }
 
   let patientsMoved = 0;
   let claimed = false;

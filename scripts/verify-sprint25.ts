@@ -74,7 +74,7 @@ async function main() {
    */
   writesTo();
 
-  const { suggestionsFor } = await import("../lib/data/claims");
+  const { findMatches } = await import("../lib/data/people");
   const { answerName, nameHint, MAX_NAME_ATTEMPTS } = await import("../lib/data/challenge");
 
   /* ------------------------------------------------------ 25.11 · C119 */
@@ -158,7 +158,8 @@ async function main() {
      * name and the sentence "a therapist keeps notes for somebody with your
      * phone number" to anybody who signed up with a stranger's number.
      */
-    const raw = await suggestionsFor({ phone: PHONE, email: null });
+    /* The matcher under `suggestionsForAccount`, asked without the proven-handle gate. */
+    const raw = (await findMatches({ phone: PHONE, email: null })).filter((row) => !row.claimed);
 
     check(
       "🔴 25.14 the matcher itself CAN find the record, so the check below is about the gate and not about an empty database",
@@ -175,6 +176,20 @@ async function main() {
     check(
       "🔴 25.14 / C121 …and the account's handle is UNPROVEN, which is the state a stranger signs up in",
       unproven[0]?.phoneVerifiedAt === null,
+    );
+
+    /*
+     * 🔴 …and the gate itself, which the two checks above only set up. The
+     * screen and `startClaim` both read `suggestionsForAccount`, so an unproven
+     * number is offered nothing and can start nothing.
+     */
+    const { suggestionsForAccount, startClaim } = await import("../lib/data/claims");
+    const offered = await suggestionsForAccount(accountId!);
+    const started = await startClaim({ personId: personId!, accountId: accountId!, channel: "email" });
+    check(
+      "🔴 25.14 / C121 an unproven number is offered nothing and cannot start a claim by the record's id",
+      !offered.some((row) => row.personId === personId) && !started.ok,
+      `${offered.length} offered, claim ${started.ok ? "STARTED" : "refused"}`,
     );
 
     /* ------------------------------------------------- 25.16 · C114 */

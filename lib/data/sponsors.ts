@@ -240,7 +240,17 @@ export async function getSponsor(sponsorId: string): Promise<Sponsor | null> {
  */
 export async function potBalance(
   sponsorId: string,
-): Promise<{ balanceCents: number | null; overdraftCents: number; expiresAt: Date | null }> {
+): Promise<{
+  balanceCents: number | null;
+  overdraftCents: number;
+  expiresAt: Date | null;
+  /**
+   * 🔴 E1 — the session count and spend that go WITH the published balance,
+   * one snapshot, never the live totals. Null until a balance has been
+   * published, for the reason the balance is.
+   */
+  published: { sessions: number; spentCents: number } | null;
+}> {
   /*
    * 🔴 C377 — THIS FUNCTION DESCRIBED A FLOOR IT DID NOT APPLY, and nothing
    * called it anyway.
@@ -276,7 +286,7 @@ export async function potBalance(
     .where(eq(sponsorPots.sponsorId, sponsorId))
     .limit(1);
 
-  if (!pot) return { balanceCents: null, overdraftCents: 0, expiresAt: null };
+  if (!pot) return { balanceCents: null, overdraftCents: 0, expiresAt: null, published: null };
 
   const settings = await getSettings();
   const floor = settings.sponsor.activityFloor;
@@ -287,7 +297,7 @@ export async function potBalance(
    * counts of "how many sessions came out of this pot" would eventually
    * disagree, and a sponsor able to see both could difference them.
    */
-  const { potTotals } = await import("@/lib/billing/pot");
+  const { potTotals, potSpentThrough } = await import("@/lib/billing/pot");
   const { sessions } = await potTotals(sponsorId);
 
   /*
@@ -315,6 +325,7 @@ export async function potBalance(
       balanceCents: pot.balanceCents,
       overdraftCents: pot.overdraftCents,
       expiresAt: pot.expiresAt,
+      published: { sessions, spentCents: await potSpentThrough(sponsorId, sessions) },
     };
   }
 
@@ -322,6 +333,13 @@ export async function potBalance(
     balanceCents: pot.publishedBalanceCents,
     overdraftCents: pot.overdraftCents,
     expiresAt: pot.expiresAt,
+    published:
+      pot.publishedBalanceCents === null
+        ? null
+        : {
+            sessions: pot.publishedSessions,
+            spentCents: await potSpentThrough(sponsorId, pot.publishedSessions),
+          },
   };
 }
 

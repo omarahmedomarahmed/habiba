@@ -1,0 +1,548 @@
+# Slice 15: scripts (part 4 of 4)
+
+Legend used below for verifier traps: T1 = reads source with comments in (readFileSync on a .ts
+path instead of `readSource`); T2 = no control; T3 = hand typed route list; T4 = truncated
+output; T6 = runs main() on import / argv suffix guard. "Syntax" = asserts a spelling rather than
+a property. "One of N" = reads one file of several that implement the thing. "Wrong medium" =
+looks for the answer where the product does not give it.
+
+## Files
+
+### scripts/verify-sprint48.ts (359 lines)
+- For: sprint 48 gate, the in-room copilot is free, bounded to the record before `startedAt`, and the free window ends with the session clock.
+- Decides / checks:
+  - 48.2 (l.69-130): reads the FIRST `copilot_threads` row (LIMIT 1) and the first session in that org, raw-inserts two `copilot_messages` (one with `sessionId`, one null) and asserts `checkQuota().used` moves only for the null one. Real DB rows, real function. Control present (between-sessions question still counts). Good.
+  - 48.6 (l.145-202): raw-inserts an `in_progress` session for the first patient of that org, asserts `liveSessionForPatient` returns it, ages `startedAt` past `runningMinutes + countdownMinutes + 60` and asserts null. Both halves present. Fragile: if that patient already has a real in-progress session, `fresh?.id === freshId` may pick the other one.
+  - 48.4 (l.217-244): SOURCE regexes on `lib/ai/case-copilot.ts` (`liveSince\?: Date \| null`, `buildPatientContext\(opts\.patientId, before\)`) and `lib/data/journals.ts` (`lt\(journals\.createdAt, opts\.before\)`). Syntax, not property: a rename of the parameter fails it; a bound applied wrongly elsewhere passes. `!/recordingConsent/` on case-copilot.ts only is an absence check with no control and is one of N (context assembly also lives in journals.ts / transcript readers, not scanned).
+  - 48.5 (l.257-283): `troom.ask.bound` key present in ask-panel.tsx, and the English string says "only know what came before" and not "not being recorded". Reads the dictionary (right medium). Prompt carries "TIME BOUND THAT OVERRIDES EVERYTHING BELOW" (syntax).
+  - 48.10 (l.287-324): patient can stop recording: `stopRecording` in patient-room.tsx and exported from app/join/[token]/actions.ts; the body (sliced from that export to END OF FILE, not to the function end) sets `recordingPausedAt: new Date()` and has no `delete(transcriptSegments)`. Because the slice runs to EOF, a later function in the file that deletes segments would fail it (false red), and the positive regex could be satisfied by a later function (false green).
+  - 48.9: chat.tsx polls (`setInterval`, `copilot/live?patient=`, no `WebSocket`).
+  - 48.7 (l.346-354): `indexOf("accessFor(actor, patientId)") < indexOf("checkQuota(actor, found.thread.id)")` in app/(app)/copilot/actions.ts. Ordering by first textual occurrence, syntax-bound.
+- Reads: DB rows (threads, sessions, patients, copilot_messages), source via `readSource` (T1 clean), `lib/i18n/messages` en.
+- Traps: T1 clean. T2: DB halves have controls; source absence checks do not. T3/T4 n/a. T6: bare `void main()` at l.359, fine as long as nothing imports it.
+- Assumes: `required()` fixtures exist (a thread, a session, a patient in the same org). Writes via `writesTo()` so refuses production.
+- Promises: T5 (copilot only while allowed, the 48.7 ordering). Kept as far as a textual order check can say. Checked separately: `app/(app)/copilot/actions.ts:115,150` sets `sessionId` from the server-derived `live?.id`, not client input, so the free path cannot be claimed by a client.
+- Notes: the in-room message is attributed to ANY session in the org (l.71-79), not a live session for that patient; the test proves "a message with a sessionId is not counted", not "a question asked in a live room is not counted". The link from live room to sessionId is `copilot/actions.ts:115`, which this gate does not exercise.
+
+### scripts/verify-sprint49.ts (404 lines)
+- For: sprint 49 gate, AI cost ledger (cost_microcents not cost_cents), patient attribution column, rates in settings, platform bucket, consent rate, revenue split, and the corporate wall (C244).
+- Decides / checks:
+  - C279 (l.63-103): walks `lib/data`, `lib/console`, `lib/billing`, `app` (derived, not hand-typed; `sources.length > 200` is a width control) for `aiRequestLogs.costCents` via `readSource` (T1 clean). Control: at least 3 files read `costMicrocents`. Both halves present. Excludes any file whose path ENDS WITH `client.ts` (l.78): suffix match, so e.g. `lib/partner/api-client.ts` or any `*client.ts` in those roots is silently exempt. Trap T6's suffix shape applied to an exemption.
+  - l.128-150: plants an ai_request_logs row costing 40 units with cost_cents 0 and asserts the columns disagree. Planted, so it is no longer vacuous (C284). Deletes by `model = PLANT`, not in a `finally`.
+  - 49.14a: information_schema says `ai_request_logs.patient_id` is nullable uuid. The detail text claims ON DELETE SET NULL, which is not checked.
+  - 49.14b: settings rates equal `__costing.TOKEN_RATES/AUDIO_RATES` shipped constants (compares to code, not a retyped number). Frozen-at-write asserted by regex on client.ts (syntax).
+  - 49.14c: plants a null-org call, asserts `costByAccount` and `costByPatient` return a `PLATFORM_BUCKET` row and that its cost is at least 75,000. Control present.
+  - 49.4: consent buckets sum to total; percent null only when total 0. Runs over whatever is in the DB (no plant); if total is 0 the arithmetic check is trivially true.
+  - 49.5: revenue fields are `number` typed. Type check only, not a value check.
+  - 49.11: `!/platformFeeCents \+ aiFeeCents|totalRevenue\s*=/` on usage.ts. Absence of one spelling; no control.
+  - 49.13 / C244 (l.339-399): the corporate wall. Reads ONLY `lib/data/usage.ts`, `lib/data/admin.ts`, `lib/data/vault.ts` (hand-typed list of 3). A file fails if it mentions any of `sponsors|sponsorPots|sponsorSeats|enrolments|sponsorDomains` AND any of `sessions|patients|people` anywhere in the file (co-occurrence, not a join). Controls exist but test the regexes against two literal strings, not against the files.
+- Reads: source (readSource), DB rows (planted), settings.
+- Promises: E1/E2 (the wall). See Suspect: the wall check does not read the sponsor portal files at all.
+- Notes: `sponsorSeats` does not exist in `lib/db/schema.ts` (the exports are `sponsors`, `sponsorUsers`, `sponsorAuthSessions`, `sponsorCodes`, `sponsorIdentifierFields`, `sponsorDomains`, `enrolments`, `sponsorPots`, `enrolmentVerifications`, `enrolmentAttestations`); the regex misses `sponsorCodes`, `sponsorIdentifierFields`, `enrolmentVerifications`, `enrolmentAttestations` and any pot ledger table.
+
+### scripts/verify-sprint5.ts (282 lines)
+- For: sprint 5 gate (people/patients backfill): every chart has a person, no two charts at one practice share a person, each chart points at its own person, duplicate emails did not merge different names, `findMatches` suggests only, `assertClaimed` refuses an unclaimed person.
+- Decides / checks: l.63-74 per-practice duplicate query (amended 78.5 for portability); l.82-92 prints (does not check) cross-practice people; l.102-115 name/email pairing via SQL join; l.139-162 per-email dupes; l.170-223 CONTROL plants two people + two charts under one address and asserts 2 people / 2 names; l.227-254 `findMatches` returns no email/phone and `redactName` hides the name; l.258-273 `assertClaimed` throws `UnclaimedError`.
+- Reads: DB rows directly (patients, people). No source reads.
+- Traps: T2: the 5.3 per-practice check has no control of its own (the control plants a DIFFERENT shape: two people at one address, which exercises the name rule, not the GROUP BY organization_id, person_id query at l.63). The l.82 "moved" query is printed, not checked. 5.4 and 5.5 are silently skipped when the DB has no email or no unclaimed person (no "deferred" line, unlike `skipUnless`), so the check count varies by database (the C284 defect other files fixed). T6: bare `main()` at l.282.
+- 🔴 Production guard: it uses `connect()` from `scripts/db.ts` (24 lines, no guard, verified by grep) and never calls `writesTo()`, yet it WRITES (planted `people` and `patients` rows, l.184-199). This is a verifier that can write to production if `DATABASE_URL` points there, contradicting HAZARDS.md:152 "Every verifier that touches the database refuses the production endpoint by name". Cleanup is in a `finally`, but a killed process leaves two fabricated people and charts.
+- Notes: `redactName` check `!r.includes(m.firstName.slice(1))` is vacuously failing for a one-letter first name (`"".includes` is true). Not its own reporter: prints its own summary.
+- Promises: P4 (one person, charts at several practices). The amended check keeps the portability shape legal.
+
+### scripts/verify-sprint50.ts (297 lines)
+- For: sprint 50 gate: a country switched off on the radar hides its clinicians immediately (cache dropped), a clinician with no country is never hidden, the money switch (`getCountrySettings`) is separate.
+- Decides / checks: fixture is the first `therapist_radar` row (l.67), forced online with a fresh heartbeat and an approved verification (l.99-115); control on-board while open (l.157), off when closed (l.168), back when reopened (l.193): both halves plus a re-open control. Null country survives a closed EG (l.216). `getCountrySettings("EG")` non-null while closed (l.230). Source: both payment consumers still call `getCountrySettings(` (l.251-258); radar.ts filters languages on output (regex syntax, l.274-279); route.ts has no `where(`.
+- Reads: real product functions (`listRadar`, `setTaxonomyEnabled`, `closedCodes`, `getCountrySettings`) over real rows; source via readSource.
+- Traps: T1 clean. Controls good on the radar half. The 50.1c "cache dropped" check (l.183) is the conjunction of the two booleans already checked, so it adds no independent evidence (it does prove the cache point only because the reads happen inside the TTL, which the comment says).
+- 🔴 Restore defects (dev data, not product): l.112-114 when the clinician ALREADY had a verification row it is `UPDATE ... SET state = 'approved'` and `restore()` (l.117-133) never puts the old state back. A pending or rejected clinician on the dev branch is silently approved by every run, and trigger 0083 then reflects that onto `users.verification_status`. l.132 `restore()` DELETEs every `taxonomy_entries` row with code EG unconditionally, destroying any operator-authored EG entry that existed before the run.
+- Promises: C1 (radar filter integrity, indirectly).
+
+### scripts/verify-sprint51.ts (705 lines)
+- For: sprint 51 gate, content and design: table reachability, em dash ban, retired "bundle" vocabulary, four capabilities sold in copy, 24/7 not a response time, rating floor, one price per clinician, SOS orb on patient pages outside the group, entry pages carry structure, literal scanner calibration.
+- Decides / checks:
+  - 51.6 `scanReachability()` from `_reachability.ts` (derived) with `NO_SCREEN_BY_DESIGN` allow-list; stale-exemption control (l.58) and known-orphan control `patient_auth_sessions` (l.78). Good both ways.
+  - 37.2 voices panel regex (no model/likely/confidence words); C132 source panel has no `<input|<textarea` and says `onlyOurs`.
+  - 51.8 em/en dash (l.150-192): reads `lib/i18n/messages.ts`, `lib/content/defaults.ts`, `defaults-ar.ts` with raw `readFileSync(file)` (l.165) on `.ts` paths held in a variable, so C205's literal-path detector cannot see it. Intentional (only double-quoted strings are scanned), but single-quoted, backtick and template strings and JSX text are invisible to `hasDash` (l.152-155). Control present (planted strings).
+  - 51.7 radar SQL contains `NOT EXISTS`, `a.status = 'booked'`, `interval '15 minutes'` (syntax); unique index name in schema.ts (syntax, reads the schema FILE not the DB); cron route mentions `bookingsNeedingReminder`, `isQuietHour`, `notify(`; calendar has "day","week","month", `dayKey(`, no `toISOString().slice(0, 10)`; bookings actions pass `patientId: input.patientId`, call `getPatient(`, `accessFor(`, `notify(`, `if (!delivery.sent)`.
+  - 51.4 orb (l.323-401): HAND-TYPED list of 7 patient pages outside `(patient)` (T3 by its own admission, "a judgement"). Checks each file MENTIONS `SosOrb|PatientChrome`, not that it renders it (a mention in an unused import passes). Control: `for-clinics` page does not match. Orb has `tel:` and no `fetch(`/`use server`/`action=`; orb calls `lineForNumber(`.
+  - 51.1 / 51.9 / 51.10: retired words, four "sold" ideas, 24/7 regex, all read `lib/content/defaults.ts`, `defaults-ar.ts` and the dictionary. WRONG MEDIUM for published pages: H28 says a slug with a `content_pages` row is served from that row forever, so these checks prove the fallback file, not what a visitor reads. Controls on each regex are present.
+  - C273 `RATINGS_VISIBLE_AFTER = [1-9]` (syntax). C274 one `session_rate_cents` column in schema.ts and no second geo column (syntax, file not DB).
+  - 51.3 two hand-typed entry pages; predicate "has <Card or rounded-2xl/3xl, or fewer than 3 <p>"; control on a planted string.
+  - 51.11 `literalsIn` both directions.
+- Reads: source (readSource except the dash scan), reachability scanner, no DB, no network.
+- Traps: T1 mostly clean (see dash scan). T3: two hand-typed page lists. No `writesTo`/DB. T6 bare `void main()`.
+- Promises: P5 (orb on patient screens, orb reaches a dialler without network). Partly: the check proves presence of an identifier in source, and says nothing about the orb being ON TOP of the payment orb (P5's "on top").
+
+### scripts/verify-sprint53.ts (1982 lines)
+- For: sprint 53 gate, corporate (sponsors): the wall between payer and person, activity floors, pot as a payment method, DB constraints on identifiers/pots/enrolments, invoice, crisis not gated on money, therapist money surface rendered.
+- Decides / checks (grouped):
+  - C230/C264 (l.94-111): `ROLES` has no sponsor/clinic/partner; `lib/auth/guard.ts` never says "sponsor".
+  - C259/C244 (l.120-200): information_schema: sponsors has no organization_id; organizations has no %sponsor% column; a HAND-TYPED list of 9 clinical/payment tables carries no uuid/text sponsor column or FK to sponsors. Control: the three frozen split columns exist on session_payments. Tables outside the 9 (e.g. ledger_entries, manual_payments, availability bookings, notifications other than patient_notifications) are not scanned.
+  - C231: `patient_notifications` has no sponsor/employer/reason/body/text column.
+  - 53.1 roster (l.232-282): reads `lib/data/sponsors.ts` and slices 1400 CHARACTERS after `export async function roster` (an arbitrary window: a leak on character 1401 passes). Forbidden needles list; control asserts `firstName: people.firstName` and `lastVerifiedAt: enrolments.lastVerifiedAt`; orderBy firstName. Only `sponsors.ts` is read; `sponsor-admin.ts`, `sponsor-integrations.ts`, `sponsor-domains.ts`, the `app/(sponsor)` pages are not (one of N).
+  - C240: no export named hasBooked/sessionCountFor/attendanceFor/lastSeenAt/sessionsByPerson in sponsors.ts (name list).
+  - C228/C229 floors: `date_trunc('week'` present and `'day'` absent in sponsors.ts; `applyActivityFloor` pure function with the planted one-session week suppressed, carried forward (total preserved), ordinary week published, 8 quiet weeks publish one figure. Good both ways.
+  - C226: exactly one pot ledger account; FUNDING_SOURCES = card, pot; no corporate session type; no isCorporate-like flag (name list); funding_source NOT NULL default card (DB).
+  - C243 payer name (l.512-526): every `components/` and `app/` file except `app/pay/` read via readSource for `payerName|payerEmail`. Good.
+  - C244 self-join (l.537-549): uses `source.get(file)`, the RAW `readFileSync` map built at l.79: T1 (comments in). It also looks for the SQL spelling `ledger_entries ... txn_id ... ledger_entries` only in `app/` and `components/`, while queries live in `lib/` and use drizzle's `ledgerEntries`/`txnId`: wrong place and wrong spelling, so it cannot fail on the way the code is written.
+  - Constraints by attempted write on a planted sponsor: C248 specimen hint refused / description accepted; C233 pot without terms refused / with terms accepted; C239 overdraft refused (no control that a within-bound negative is allowed here, but l.1597 later does it); C246 via the REAL `hashIdentifier`/`hashIdentifierGlobal` at two sponsors, refused on the global index (good, rewritten after a vacuous version); C249 two primaries refused / second non-primary allowed; removal reason free text refused (no control that a valid reason is accepted).
+  - Pot money (l.852-980): real `journal()` legs, `ledgerPotBalance`, `potTotals`, `reconcilePots` both directions, shared txn sums to zero, `weeklySpend` finds spend not deposit. Good.
+  - Invoice: `invoiceFor` refuses without legal details, renders with them (settings overridden), refuses another sponsor's txn.
+  - 53.19 source regexes on pot.ts (`isNotNull(enrolments.lastVerifiedAt)` etc.), columns hold no plain identifier, global unique partial index read from pg_indexes, attempts <= 5 constraint both ways.
+  - 53.5 routing: `routeDecision(SPONSOR_APPLY)` passes, /sponsor, /sponsor/people, /sponsor/pot redirect (three hand-typed paths as the control).
+  - C236 default sponsor unlisted and held (DB default).
+  - C240 NeverBar in chrome or desk; 53.9 QR generated server-side.
+  - C229 floor clamp via `parseGroup` with 1 (discriminating) and 25; 53.11 top-up floor a positive setting, clamps 0 and -50; cycle 6 months; ladder floor < ceiling; welcome credit >= floor.
+  - 53.10 crossing CHECK constraint read from pg_constraint; `holdsMoney`/`isCrossBorder` both directions.
+  - C243 pot writer `payerName: null` and `fundingSource: "pot"` (syntax).
+  - notices.ts has no `.delete(` and has `dismissNotice`.
+  - 53.23 / C235 crisis (l.1580-1647): sets the pot balance to 0 and -5000 and compares `lineForNumber()`/`crisisLine()` output. Those are PURE lookups over a compiled table with no database input, so the pot state cannot affect them by construction: the check cannot fail for the reason it names (wrong medium). The real question (does any patient crisis surface read money) is only the source scan of `sos-orb.tsx` at l.1635-1647 (one file of the path; the chrome that places the orb is not scanned for pot reads).
+  - 53.24 renders `PaymentHistory` with a named and a nameless row and asserts they differ, the translated label is present, no corporate word; `recentPayments` takes name from `patients` (slice from function to EOF, same shape as sprint 48).
+  - 53.12 pot exports: anything named withdraw/cashOut/payout/transfer/refund must credit and never debit; exactly one debiter `payFromPot`. Body match `balanceCents}\s*-` is a syntax of a template SQL expression.
+  - 53.2 enrolment strings: English dictionary only (`DICTIONARIES.en`), keys `benefit.*` and `sponsor.codePoster`; the Arabic strings are never swept. Control on a planted sentence.
+- Reads: DB (information_schema, pg_constraint, pg_indexes, planted rows), product functions, rendered markup via `_render`, source (mostly readSource; the raw map at l.79 for the self-join scan).
+- Traps: T1 at l.540. T2 mostly paired. T3 three sponsor paths, nine tables. T6 bare `void main()`.
+- 🔴 Cleanup defect: `restoreInvoice` is initialised `null` at l.53 and only set at l.1023. The `finally` (l.1962-1969) DELETEs the `invoice` row from `platform_settings` whenever `restoreInvoice === null`. Any exception thrown in the try between l.563 and l.1020 (a failed insert, a thrown product function) therefore deletes the operator's real invoicing details on that branch: the exact 76.21 defect the comment says was fixed, surviving on the failure path. (A `required()` miss calls `process.exit` and skips the finally, so only throws trigger it.)
+- Stale: l.1623 detail string says "null for the Egyptian one" while the null reader has been a UK number since C350 (l.1570-1581).
+- Promises: E1, E2 (the wall): partly. Column-level wall on 9 tables and the roster window in one file; the sponsor portal pages and other sponsor data files are not read. C2 not touched. P5: the crisis check is vacuous as noted.
+
+### scripts/verify-sprint54.ts (1069 lines)
+- For: sprint 54 gate, clinics: a clinic is an organisation kind and a sponsor is not; ClinicActor cannot be an Actor; nothing under the clinic tree reaches a clinical module; the clinic wall returns only schedule/clinicians/usage/bills; billing through the ordinary path; usage floor; invitation cannot vouch for a licence; a departing clinician moves to a solo org and the sessions stay.
+- Decides / checks:
+  - C259/54.2 (l.185-259): `ORGANIZATION_KINDS` has clinic and solo; sponsors/organizations have no joining column (DB); `ROLES` has no clinic role and length 4; `CLINIC_ROLES` = admin, viewer (l.216-220, but sprint 63 later adds custom roles, see verify-sprint63); `ClinicActor` type text between `export type ClinicActor` and `function hashToken` has no `organizationId`, `role: Role`, `userId` and has `clinicOrganizationId: string` (syntax slice between two markers).
+  - 54.9 import graph (l.85-150, 278-318): `reachesClinical` walks static `from` and dynamic `import()` specifiers from every file under `app/(clinic)/` and `components/clinic/` (derived by walking), stops at a regex of clinical modules (`lib/ai/`, `lib/data/{facts,diagnoses,journals,summaries,session-risk,memory,copilot,assessments,timeline,documents,patient-view}.ts`). Reads via readSource (T1 clean, so a commented import is not followed). CONTROL plants two files on disk under `components/clinic/` (writes to the repo working tree, removed in finally) and asserts the two-hop path is found. Good. Limits: does not stop at `"use server"` boundaries (H32) and follows `import type`, so it can over-report; the clinical-module list is hand-typed, so a new clinical module (e.g. `lib/data/sessions.ts`, `lib/transcript/*`, `lib/data/notes*.ts`) is not a stop and would not be caught.
+  - l.354-395: `lib/data/clinic.ts` exports none of 8 forbidden names and has the four expected; no bare `.select()`.
+  - C263 (l.401-444): schedule SELECT LIST (1600-char window then text up to the first `})`) has no price/payment/consent/recording/token/noShow/patientId; CONTROL asserts `patients.firstName` and `sessions.scheduledAt` ARE selected.
+  - 54.7/54.8 (l.450-642): plants a clinic org, a therapist user, two completed sessions (raw INSERTs), runs the real `chargeForSession`, asserts an invoice on the clinic org with lines; `clinicBills(principal)` platform fee > 0, platform + ai = total, no session id on the bill; `clinicUsage` floor suppresses the one-session week; the bill's session count is withheld while money is not. Good both ways.
+  - 54.9 rendered (l.655-816): `clinicSchedule` row keys have no price/payment/consent/record/patientId/token/noShow/note/transcript; CONTROL rows equal the planted sessions. Then renders `ClinicChrome` with ADMIN capabilities and CHILDREN BUILT BY THE VERIFIER ITSELF (`<li>${row.patientName} ${row.therapistName} ${row.status}</li>`, l.698-708). The real clinic pages under `app/(clinic)/` are never rendered, so "the clinic portal's rendered markup carries not one clinical word" is a claim about the chrome plus a list the verifier typed. Wrong medium for the property named. English only. Disclaimer lines removed by value with a presence control; planted-word control present.
+  - C267 (l.830-954): `clinician_invitations` has no verif/licen/registration/document/certif column (DB); real `inviteClinician` / `acceptInvitation` refused before `resolveInvitation` stamps terms, accepted after, new user `unverified` in the clinic org; no clinic file writes `verificationStatus: "<not unverified>"` (readSource).
+  - 54.11/C266 (l.968-1041): real `removeClinician` moves the user to a solo org with null clinic_state; old sessions stay with the clinic; a session planted in the new org does not appear on the clinic schedule, the old ones still do.
+- Reads: DB (information_schema, planted rows), real product functions, rendered markup of the chrome, source via readSource, writes two temporary files into the repo.
+- Traps: T1 clean. T2 good pairing. T3: hand-typed clinical-module regex and forbidden-name lists. T6 bare `void main()`.
+- Cleanup: l.1061 `DELETE FROM clinic_managers WHERE email LIKE '%verify54-%' OR email LIKE '%wall-%'` deletes EVERY clinic manager on the branch whose address contains `wall-` (any real address like `a.wall-x@...`), not only this run's. The solo organisation `removeClinician` creates for the departed clinician is not named `verify54-%` (it is created by product code), so it is never deleted: each run leaves one orphan solo organisation behind (suspect, depends on the name `removeClinician` gives it; grep there).
+- 🔴 Promise C2 ("Nowhere in the clinic portal is there ... a patient name, on any screen"): this verifier ENFORCES THE OPPOSITE. Header l.8-9 "a list of patient names with appointment times", and the CONTROL at l.440-444 fails unless the schedule selects `patients.firstName` and `sessions.scheduledAt`. `lib/data/clinic.ts:388-390` returns `patientName` (shortened by `shortenForClinic`, first name plus initial per C327) with `scheduledAt`. So C2 as written in docs/VALUE-STATEMENTS.md is broken by design, and MAP contradiction 1 is settled by the code in README's favour. Also C5 ("each clinician's patients are not [visible]") is contradicted by the same schedule.
+
+### scripts/verify-sprint55.ts (1498 lines)
+- For: sprint 55 gate, the partner (EHR/telehealth) principal and API: no enumeration, no content in webhooks, a partner clinician holds a revocable grant, launch tokens, key minting only in the partner portal, docs page matches routes.
+- Decides / checks:
+  - `functionSource` (l.67-145): extracts a function body by paren then angle then brace counting. Does not handle braces inside strings, template literals or regex literals, but it is better than the other slice-to-EOF helpers in this slice.
+  - 55.1 (l.178-229): guard.ts never mentions sponsor/partner/clinicManager; `PartnerActor` type (regex `\{[^}]*\}`, first closing brace) has no organizationId and has four fields; l.216-221 "the partner is a row in PRINCIPALS, not a branch": compares the count of `if (` in `lib/routing.ts` WITH ITSELF (the same file read twice). TAUTOLOGY: that half can never fail; only the `name: "partner"` regex does any work. /developers not a partner prefix.
+  - C255 employment (l.235-281): every `.limit(n)` in lib/partner/employment.ts is 1, no offset/cursor/array param; exports `verifyEmployment`; constant `THE_DIRECTORY_IS_NEVER_READ = true` exists; sponsor from `key.sponsorId` not the body. The constant check asserts a declaration the author wrote for the verifier: it proves nothing about behaviour (a comment with a type).
+  - C265 (l.294-477): `partner_api_keys_employment_needs_sponsor` constraint text and a refused/accepted write pair (good). Attestation consumption and expiry (l.389-441) are exercised with the VERIFIER'S OWN `UPDATE ... WHERE answered_at IS NULL AND expires_at > now()` (l.408-413, 431-435), not the product's consuming function: proves Postgres semantics of a query the verifier wrote, not that the product's query is that one (wrong medium). Columns of `enrolment_attestations` hold no plaintext. keys.ts writes `suspendedAt: new Date()` and filters `isNull(partnerApiKeys.suspendedAt)` (syntax).
+  - C277 (l.483-658): `A_PARTNER_NEVER_READS_A_CHART = true` exists in lib/partner/api.ts (l.487): again a declared constant, see Suspect about sprint 68 routes. `whoMayRead` body has no name/content/note/transcript and scopes by `organizations.partnerId` and `billingMode, "partner_billed"`; control asserts it selects `email: users.email` (so the partner DOES receive clinicians' emails, scoped to their own clinicians). `writeBackSession` same scope, joins through `patients.personId`, refuses >1 candidate, calls `recordExternalSession`. Webhook enum has grant.revoked/record.claimed and `notifyGrantRevoked`/`notifyRecordClaimed` are mentioned in grants.ts/claims.ts (mention, not call). partner-links revoke, `resolveSubject` filters `isNull(partnerSubjects.revokedAt)`, consent actions emit `subject.unlinked`.
+  - Webhooks (l.664-738): `queueWebhook(input: {...})` signature has no payload/data/body/metadata; delivery table columns hold no content; the first `JSON.stringify({...})` literal in webhooks.ts has exactly event/id/at (first match only: a second stringify elsewhere in the file is unchecked); https CHECK constraint; sealed secret; HMAC over `${timestamp}.${body}`.
+  - 55.7 `recordExternalSession` writes no note/transcript, price 0, payment not_required; constraint includes partner_platform.
+  - 55.8 `deliverableNote` has approvedAt and a status/isNotNull condition and a partner scope (loose regexes: `/partnerSubjects|partnerId/` passes on any mention).
+  - 55.9 launch: `launchClinician` sets no cookie; both launch ends scope to partner and partner_billed; same 404 wording; `redeemLaunch` sets `SESSION_COOKIE`, conditional update on usedAt/expiresAt, `verifiedFlag()` re-check; TTL <= 300s. The "one launch URL opens one session" (l.895-920) is again the verifier's own UPDATE, not `redeemLaunch`. The "stored target is resolved" CONTROL (l.936-943) reads back the single row the verifier inserted itself with the literal `/dashboard`: it cannot fail unless `dashboard` leaves `PARTNER_LAUNCH_TARGETS`; it says nothing about the product's resolution. Also picks `SELECT id FROM users ... LIMIT 1` (any user, not a clinician).
+  - 55.3 keys: no `app/(app)|(clinic)|(patient)` file imports `@/lib/partner/keys` (single spelling of the specifier; a relative import is invisible); partner portal does; actions use `requirePartnerAdmin` and `actor.partnerId`; admin console does not `mintKey`.
+  - 42.1 states; enquiry creates a held partner (1200-char window regex); portal session requires `partners.state, "active"`; keys.ts mentions `partners.state`.
+  - 55.12 /developers: every printed `/api/partner/v1/...` path resolves to a route dir (derived from disk, not hand-typed), floor `>= API_SCOPES.length`; every dictionary `devs.useCaseN` key appears in the page; every v1 route is printed (both directions). Good. l.1169-1173 repeats the use-case check under a different label (duplicate, not a second property).
+  - 55.11 importer: `AN_IMPORT_CARRIES_NO_CLINICAL_TEXT = true` constant, four COLUMNS, `toE164(` with country, `createPatient(actor`, `patientPhonesOnCaseload`.
+  - 55.13 Arabic for new prefixes by splitting messages.ts on `export const ar\b`; dash sweep with planted control.
+  - 55.2 three components contain three keys; partner chrome TABS has no subjects/people/patients; `usePathname() ?? "/partner"`.
+  - Scopes: `API_SCOPES.length === 10 && routeFiles.length === 11` (exact counts, hand-maintained numbers: H47's "a checker holding its own copy of a number"). Disk has 11 v1 routes today (listed by me: consent, copilot, launch, notes/[sessionId], sessions, sessions/[ref]/{media,note,summary,transcript}, subjects/[ref]/{memory,readers}). Every route calls `withKey(` (mention), and `lib/partner/route.ts` returns a response-or-key shape (loose regex).
+  - 76.78 (l.1453-1493): `/integrations` page table rows parsed from source, each must map to a route file exporting that verb. Control present. Runs OUTSIDE the try/finally, after cleanup (fine, no DB).
+- Reads: DB (pg_constraint, information_schema, planted partners/keys/sponsors/attestations/tokens), source via readSource. No rendering.
+- Traps: T1 clean. T2: several controls test the verifier's own SQL or own fixture (see above). T3 none (routes derived). T6 bare `void main()`.
+- Cleanup: finally deletes by `name LIKE 'verify55-%'`; the planted launch token referencing an arbitrary real user is deleted with the partner. OK.
+- Promises: none of the 25 directly (partner has no audience). Privacy priority 1: see Suspect on sprint 68 content routes.
+
+### scripts/verify-sprint56.ts (549 lines)
+- For: sprint 56 gate, assessments (PHQ-9/GAD-7): licensed instrument cannot publish, translated instrument needs a named reviewer, per-answer timings, ownership through `patients.person_id`, a score cannot become a diagnosis or risk fact, the patient's history carries no band.
+- Decides / checks: planted licensed instrument refused by `publishInstrument` AND by the DB constraint (l.81-123); planted translated instrument refused by both, then published once `translationReviewedBy` is set (control, l.183-194); shipped phq9/gad7 are public_domain with attribution > 40 chars and English-only (l.201-228); `recordAnswer` stores 90s, nulls a 45-minute duration, refuses a random person id, an off-scale value and an unknown question, accepts the owner's answer (control); `completeAssignment` refuses a random person and scores 5 after an edit; raw insert of `patient_clinical_facts` with domain diagnosis/risk from an assessment is refused by the DB, a `presentation` fact is accepted (control); `historyForPatient` body (to first `\n}`) has no `bandFor|bands`; `bandFor(19)` is "Moderately severe".
+- Reads: real product functions over planted rows, DB constraints by attempted write, one source slice.
+- Traps: T1 clean. T2 well paired. T6 bare `void main()`.
+- Side effects: l.59 `await seedInstruments()` writes the shipped instruments into whatever DB it runs on and never removes them (intended). Actor is `SELECT ... FROM users LIMIT 1` (any user of any role). The control at l.188 shows `publishInstrument` itself (lib/data/assessments.ts:82-112, read) has NO role check: any Actor passed publishes a clinical instrument. Authorisation must live in every caller (suspect, see Suspect).
+- Stranger tests use `randomUUID()` persons, never a real second person with their own assignment, so "another real patient's id" is not exercised.
+- Promises: none of the 25 directly (instruments are Unclaimed item 7 in MAP).
+
+### scripts/verify-sprint57.ts (527 lines)
+- For: sprint 57 gate, pricing plans, entitlement, Stripe subscription, published claims read from the DB, and the count of scripts allowed to write to production.
+- Decides / checks:
+  - 57.1 (l.65-173): live `settings.pricing.tiers` has exactly one free tier sorted first, two monthly plans with no AI rate and no unlock; "cheapest plan" is `plans[0]` (the first in table order, not the minimum) and must be >= 7,200 cents (a hard-coded number standing for "twice ~$36 cost", H47 shape); `tierForSpend` never returns a paid tier; `settingsProblem` refuses a table with no free door and accepts the live one (constructed offender plus known-good: good); `sessionLines` subscribed gives platform+ai at zero; PAYG refusal costs the platform fee.
+  - 57.2: credits.ts calls `entitledTier(` and mentions `subscriptions.currentPeriodEnd`; `entitledTier` past_due inside/outside period and retired key "growth" falls back (pure function, good); stripe.ts syntax regexes for monthly recurring price from `tier.monthlyCents`, refusal `tier.monthlyCents <= 0`, four webhook `case` labels, upsert on organizationId.
+  - 57.3: PLANS keys are live tiers. l.281-287 "how many subscription rows sit on a retired plan key" is `check(..., true, ...)`: an always-green line counted as a check. It reports, it cannot fail.
+  - 57.6 (l.303-370): reads PUBLISHED `content_pages` rows via `withPublishedContent` (right medium, per H28), deferred with `skipUnless` when no content; four banned claims in English and Arabic absent; control finds "Crisis Radar"; risk-scan honesty; pricing mentions "a month" and never "no subscription".
+  - 57.7 (l.378-519): hand-typed list of 5 writers must contain `writesTo(`; `opened` = every `scripts/*.ts` (top level only) containing `productionIsAllowed:\s*true`, must equal DOORS: age, migrate, seed-demo, settings, simulate-seed, sync-blocks (SIX). Width control: scanned > 60 files. Seed content mode and republish staging bypass regexes. Control: render-check.ts has no `writesTo()`.
+- Reads: DB (settings, subscriptions, published content), pure billing functions, source via readSource. No `writesTo()`, deliberately read-only and meant for production.
+- Traps: T1 clean. T3 n/a. The door count reads only top-level `scripts/*.ts`: `.mts` files (this slice's demo-*.mts) and `scripts/browser/*` are outside it, and it measures the FLAG, not the ability to write: `verify-sprint5.ts` writes through `scripts/db.ts` `connect()` with no `writesTo()` at all and is invisible to this count (H41's "a count only counts what it reads", from another side). T6: `main().catch(...)` at module scope.
+- Stale: HAZARDS.md:231-235 says `writesTo()` lets "four" through and "`verify:sprint57` asserts it is exactly those four"; the code (l.436-473) asserts SIX including seed-demo and sync-blocks. `_verify.ts:206` error text says "not one of the five". Three numbers for one set.
+- Promises: T3 (netting) not touched here. The pricing claims part of H27.
+
+### scripts/verify-sprint59.ts (303 lines)
+- For: sprint 59 gate, rails as gates: radar placement refused in a country with no collection or payout rail or closed by an operator; currencies follow the entity; only implemented collection providers; renewal obligations we own; FX difference account.
+- Decides / checks: pure functions from `lib/settings/defs` and `lib/billing/money` over a constructed country (`radarProblem` refuses no-rail, no-payout, disabled; accepts a normal one and `null`; control pairs present); `collectionCurrencyFor` EG egp, GB/DE usd; `payoutRailFor` EG always manual; `collectionProblem` refuses paymob, accepts stripe; `hasNoRail` both ways; `entitledTier` paid obligation beats a cancelled mirror, due obligation grants nothing. Source syntax: radar.ts calls `radarProblem(` and `getCountries()` not `getCountrySettings(`; dashboard page calls `radarProblem(`; defs.ts derives currency via `CURRENCY_BY_ENTITY[`; plans.ts reads `input.obligation` before `const sub = input.subscription` (text order); obligations.ts has `DUNNING_DAYS_BEFORE`, `lapseOverdue`, `paidWithNoReference`, `invoicesWithNoObligation`, `onConflictDoNothing`, `eq(renewalObligations.state, "due")`; cron route mentions `obligationsDueWithin` before `lapseOverdue`; vault page mentions `reconcileRenewals`; ledger.ts posts `account: "fx_difference"`, `arrivedCents`, `entity: leg.entity`.
+- Reads: no DB, no network. Pure functions and source (readSource).
+- Traps: T1 clean. Controls good on the pure half; the source half is mention-only (a call site in dead code passes). T6 bare `main()`.
+- Notes: `RENEWAL_RAILS` must include `"egypt_gateway"` (l.195). Per TAKEOVER/ORIENTATION there is no gateway in Egypt, only manual transfers; a rail named for a gateway that does not exist is either future work or stale (MAP contradiction 2). The paymob refusal (l.156-160) is consistent with "no Egyptian card processor".
+- Promises: C1 (radar placement refused where we cannot pay the clinician) indirectly; A1 not touched.
+
+### scripts/verify-sprint6.ts (434 lines)
+- For: sprint 6 gate, the patient's claim of their own record: patient account tables, duplicate email refused by the DB, invite route (hash-only token, single use, redacted name, therapist-keeps-access stored as given), match route (code replaces, wrong/stale code refused, claimed record cannot be claimed again), patient sessions table separate from users.
+- Decides / checks: information_schema EXACT column counts per table (patient_accounts 11, patient_auth_sessions 8, person_claims 16, person_invites 9, l.76-90): hand-held numbers that go red on any additive migration (H47 shape) and say nothing about the property. Three index names exist. FK people.claimed_by_account_id -> patient_accounts. Duplicate email refused by attempted insert (no control that a distinct email is accepted, though later inserts are). Real `issueInvite`/`resolveInvite`/`recordAccess`/`redeemInvite`/`revokeInvite`, `startClaim`/`verifyClaim` over planted people/accounts.
+- Reads: DB via `scripts/db.ts` `connect()`, real product functions.
+- Production guard: its OWN inline copy (l.46-58) refusing `ep-wild-lake-a6tgm2r6`, not `writesTo()`. It works, but it is the per-script copy `_verify.ts:143-146` says was centralised, and it is invisible to verify-sprint57's door count (that counts `productionIsAllowed: true`, not guards). Order: prints and checks the host before checking `url` is set.
+- Traps: T2 partial. Skips print "NOT EXERCISED" (good, visible). T6 bare `main()`.
+- Fragility: fixed phone numbers `+201300060001`, `+201300060002`, `+2013000601NN` (l.150, 160, 428): a previous run killed before its `finally` leaves rows holding them, and `patient_accounts_phone_unique` then fails the next run on the fixture rather than on the check. The "therapist" is `SELECT id FROM users ... LIMIT 1`, any role.
+- Promises: P4 (the patient decides who reads: "therapist keeps access" stored as given, defaults off per the comment; the default itself is a UI fact not checked here).
+
+### scripts/verify-sprint60.ts (163 lines)
+- For: sprint 60 gate, employer coverage percentage: frozen onto the payment at booking (C311), increases immediate / decreases wait a notice window, VAT on the patient's share, platform capture, shares sum to gross, the patient is told what the benefit covers without the employer's name.
+- Decides / checks: almost entirely source regexes over `lib/billing/pot.ts`, `lib/billing/connect.ts`, `lib/data/sponsors.ts`, `lib/settings/defs.ts`, `lib/data/sessions.ts` and a MIGRATION FILE `drizzle/0090_coverage_percentage.sql` (l.156: reads the migration text for `coverage_bps % 500 = 0` rather than `pg_constraint`, the medium other gates in this slice call "a claim" as opposed to "the fact"). Pure functions: `coverageNow` switches at the pending date (control), `coverageSplit` at 0% leaves patient paying all, VAT 560 on a 60% covered 10,000 at 14%, and a brute-force sweep that sponsor + patient = gross for 206 prices x 21 steps (good property test).
+- Reads: source, pure functions. No DB (no `writesTo`). No planted booking.
+- Traps: T1 clean. Many checks are SYNTAX (`coverageNow\(pot, new Date\(\)\)`, `coverageBps,\s*\n\s*sponsorShareCents`, `balanceCents\} - \$\{sponsorShare\}`, `sessionMoney\(\{\s*\n?\s*grossCents: gross`): a reformat fails them, a wrong call with the same spelling passes. `setCoverage` body sliced to EOF (l.82). 60.17 reads only `lib/data/sessions.ts` for `coverageBps|sponsorShareCents` (one of N clinical/earnings files). T6 bare `main()`.
+- Promises: E3 ("price shown is price owed; lowering coverage after booking does not reprice"): partly, by spelling only. Nothing here books a session, lowers coverage and reads the split back; the property is inferred from the text of pot.ts and connect.ts. E4 (0% is not removal): partly, the arithmetic and one absence of `removedAt` in `setCoverage`. E1/E2: 60.15 connect.ts has no `sponsorName|organisationName` (one file).
+
+### scripts/verify-sprint61.ts (215 lines)
+- For: sprint 61 gate, proving a company owns a domain (mailbox AND DNS, or a countersigned agreement), the employer lookup is not an oracle, provisional enrolments fund with a claimed cap.
+- Decides / checks: `domainProved` pure function: mailbox alone no, DNS alone no, both yes, agreement yes (good pairs); `domainProblem` names what is missing; migration file text (`drizzle/0091_proving_a_company.sql`) for `agreement_approved_by`, `sponsor_domains_agreement_pair`, `sponsor_domains_domain_unique`, `provisional_sessions_used` (migration text, not the live catalogue); `employerLookup` body (to first `\n}`) has no `if (` and no early return (syntax proxy for "no timing side channel"; a `? :` or `&&` branch or a branch inside a called helper passes); collision message wording; `listedPublicly ... default(false)` in schema.ts; pot.ts `inArray(enrolments.state, ["active", "provisional"])`, conditional increment and `< ${cap}`, `await releaseProvisional()` appears >= 3 times (counting call sites as a proxy for "every failure path gives it back"); `provisionalSessions === 1` default and `max: 10` anywhere in defs.ts (any `max: 10` in the file satisfies it); enrolment.ts calls `domainProved(row)` for `domain_email` and has the refusal sentence.
+- Reads: pure functions and source (readSource). No DB.
+- Traps: T1 clean. Syntax-bound throughout. T6 bare `main()`.
+- Promises: E1 (never who): the lookup-not-an-oracle rule, partly (syntax).
+
+### scripts/verify-sprint62.ts (589 lines)
+- For: sprint 62 gate, clinic seats: the seat ladder is a setting, a seat never costs more than solo, the step is computed on the whole monthly figure, the quote is shown before apply, proration to the day, a release is not refunded, the seat's billable date comes from the joining clinician's own period, the public page derives from settings.
+- Decides / checks: migration text `drizzle/0092_seats.sql` for the column and bound (text, then later confirmed in the live catalogue at l.536-581: both media, good); `seatMonthlyCents` property "one seat = solo, never more per head" with a planted worse ladder control; `settingsProblem` refuses a backwards ladder; step at first boundary (the comment records a previous `x === x` tautology that reported ok for two sprints; now a real equation); banded-ladder control $91; seat-manager.tsx `quoteSeats(` before `saveSeats(` (text order) and `{quote ?` gating; `seatChange` proration mid-month, last evening = 1 day, reduction negative; seats.ts `releasedAt: new Date()` and no word "refund" anywhere; `ownOrganizationId` and period-end-in-past syntax; clinic-admin.ts `takeSeat(` and `joinWithExistingAccount` body (to `\n}\n`, with a length > 800 control) takes the seat before `.update(users)`; C261 refusal sentence; cancel at period end; no stripe import in the first 30 lines of clinic-admin.ts (a later import passes); `releaseSeat(` before the LAST `organizationId: solo.id` (text order); credits.ts `currentTier(organizationId: string)` and `obligationCovering(organizationId, now)`; billing page renders SeatManager and PlanCard; public pricing has SeatLadder, a range input, no price literal, rows from `bands.map(`; the slider does no arithmetic. 62.11 reads `scripts/verify-claims.ts` for `LEGITIMATE_SEAT_FIGURES`, `seatMonthlyCents`, `["en", "ar"]` and the literal label text of its control: a verifier asserting the SPELLING of another verifier.
+- Reads: pure functions, source (readSource), migration file, then the live catalogue (information_schema, pg_indexes, pg_constraint) via `scripts/db.ts` after `writesTo()`.
+- Traps: T1 clean. Mostly syntax/order-of-text for the wiring. Good property tests for the arithmetic. T6 bare `main()`.
+- Promises: C3 (one bill per practice priced per seat): partly, arithmetic proven, the invoice itself not exercised here. C4 ("a seat that leaves mid-month lowers the next bill by exactly one seat, the clinician lands on PAYG, nobody suspended"): partly. Checked: `releaseSeat(` is called before the reparent to solo (text order), a reduction is negative and not refunded. NOT checked: that the next bill is lower by one seat, or that the released clinician keeps working on PAYG.
+
+### scripts/verify-sprint63.ts (689 lines)
+- For: sprint 63 gate, clinic staff (the seventh principal): closed capability vocabulary, custom roles are subsets and never hold seats/membership, refusal in the data layer on the resource, therapist-scoped assistants, shortened patient names, audited reads, principal switch revokes the other session, watermarked audited export.
+- Decides / checks:
+  - Pure: `parseCapabilities` drops unknowns and keeps real ones; `can` false for unknown; no capability name matches note/transcript/record/risk/copilot/journal/diagnos/session./memory (control on four planted names); NEVER_DELEGABLE has seats.manage and clinicians.manage; `roleProblem` refuses superset, seats even from admin, unknown capability; accepts a legitimate role.
+  - Runtime on planted rows (l.160-546): clinic org, two verified therapists (raw INSERT with `verification_status = 'verified'` directly on `users`, bypassing trigger 0083's derivation; whether the trigger allows it is untested here), admin + viewer managers, assignment of the viewer to therapist A, patient "Sarah Mahmoud", one session per therapist. `clinicSchedule` as admin returns `patientName === "Sarah M"` for every row and both sessions (control); as the assistant returns A's and not B's (the acceptance test, same function); with `therapistIds: []` returns nothing; `clinicClinicians` throws for the assistant and returns 2 for the admin. `shortenForClinic` Latin, "van der Berg" -> "Sarah v", Arabic, null surname. Audit row `clinic.schedule.read` category `phi_access` exists. `createRole` two allowed, third refused; DB refuses a role row with seats.manage. `leaveClinicPrincipal` resolves the linked user and revokes clinic sessions, audited `principal.switch`. `exportSchedule` CSV carries requester email and timestamp, "Sarah M" and not "Sarah Mahmoud", the clinician's full name, audited once, refused for a viewer.
+  - Source (l.552-684): clinic session module uses clinicManagers/clinicAuthSessions, guard calls no clinician guard; session.ts has no `userId:` line and no `role: Role`; wall functions take no bare org id and have >= 6 `refuseWithout(`; NEVER_DELEGABLE-vs-role expression in both wall and guard (identical spelling required in two files); `inArray(sessions.therapistId, scope)`; chrome filters TABS; join form lists what the practice will see, rendered twice; patient record page carries `clinicVisibilityFor` and no redirect/blocked/acknowledge; radar card label; clinic earnings page shows withdrawals and cannot request a payout; the wall selects no identifier/accountName/payoutMethod; application columns; migration text for `intended_clinicians text[]`; applications create `clinicState: "held"`.
+- Reads: pure functions, real product functions over planted rows via `scripts/db.ts` after `writesTo()`, source via readSource, one migration file.
+- Traps: T1 clean. Controls well paired on the runtime half. T6 bare `main()`.
+- Cleanup: the finally DELETEs `audit_log` rows written by the planted managers (l.531). Fine on dev; worth knowing the audit log is deletable by a script, so A5's "every read is written down" is a code convention, not an append-only table (no trigger stops this delete, or this cleanup would fail).
+- 🔴 Promise C2: this verifier REQUIRES the clinic to receive patient names: `clinicSchedule` must return "Sarah M" (first name plus last initial, C327) for each appointment, with its time, and the export CSV must contain it. Together with verify-sprint54 l.440-444 and `lib/data/clinic.ts:388-390`, C2's "Nowhere in the clinic portal is there ... a patient name" is false by design. The patient is told (C354 disclosure section on the record page, radar label). Verdict: C2 broken as worded; the product's actual rule is "shortened name plus time, audited, scoped by capability".
+- Promises: C5 ("each clinician's patients are not [visible]"): broken as worded, same reason (the schedule is per clinician with patient short names). A5 (role is a list): the clinic side keeps it (capabilities, refusal on the resource, audited).
+
+### scripts/verify-sprint65.ts (918 lines)
+- For: sprint 65 gate, "show it, do not write it": the visual vocabulary exists and is reused, nothing can hide a disclosure behind an interaction, standing limits are in the portal chrome, every signed-in shell reaches a language switch, no ISO date slice rendered on company/clinic portals, only FlowStrip numbers, neutral icon fallback, the prose ratchet and its allowances, gates include prose/claims/principals/37l, marketing demos import real components, fixtures import nothing, homepage doors, Arabic marketing strings, patient home empty states, radar list view and one grouped query, removed blocks recorded as data.
+- Decides / checks (notable):
+  - 65.4: nine component names exported from `components/visual/primitives.tsx`; importers found by walking `app` and `components` with readSource (fixed from a T1 version, C205): >= 12 files in >= 5 areas.
+  - 65.23: HIDING regex absent from primitives.tsx, with a planted control. Only primitives.tsx is scanned, so a portal page can still put a disclosure in `<details>` or a `title=` (one of N).
+  - 65.12 (l.145-179): chrome renders `<NeverBar` or hands it to the Desk which renders one. The CONTROL at l.171-179 re-evaluates the expression with the desk term replaced by the literal `false`: it only proves that sponsor chrome does not itself contain `<NeverBar`. It does not test the real check expression, which could be edited to `|| true` with this control staying green. Same pattern at l.231-239 for the language switch. These are controls on a hand-copied expression, not on the check.
+  - 75.3 (l.204-221): HAND-TYPED list of seven layouts (therapist, patient, admin, room, partner, sponsor, clinic). A new route group (for example a staff console group, `app/(staff)`, or `app/join`, `app/pay`) is not in it (T3 shape for layouts).
+  - 37L.9: no `toISOString().slice(0, 10)` in sponsor/clinic dirs except lines matching `href=|weekStart:`; planted-line control.
+  - 65.22 FlowStrip numbering position; category grid neutral fallback and prefix match (syntax).
+  - 65.2 ratchet (`evals/prose.json`): baseline <= origin + allowance, allowance exactly used and argued (>= 20 words). Good, reads data.
+  - 65.24 `GATES` list (imported from `_gates.ts`, not grepped) includes four gates; `scripts/gates.ts` loop body has no `break;`/`return;` (anywhere after the loop start to EOF).
+  - 65.17 demos follow imports into `components/demo/*` with a control; patient fold reads `lib/content/defaults.ts` for `demo: "radar"` (defaults, not published rows: H28 wrong medium).
+  - 65.19 fixtures import nothing and mention no db (planted-import control).
+  - 65.15 (l.600-687): homepage doors read from `DEFAULT_PAGES` / `DEFAULT_PAGES_AR` in the DEFAULTS files, not the published `content_pages` row that visitors are served (H28). The CONTROL at l.682-686 `new Set([...demoNames, demoNames[0]]).size !== demoNames.length + 1` is true for every non-empty list (adding an existing element never grows a set past length), so it cannot fail except on an empty list: a tautology labelled CONTROL.
+  - 65.16 three hand-typed audience pages > 500 chars; `for-patients` present in defaults.
+  - 65.21 >= 18 `marketing.*` keys each have Arabic script; the two audience pages call `t("marketing.`.
+  - 65.7/65.8 patient home source regexes (`<ExploreRail`, `<CategoryGrid`, `radarCount()`, empty-state keys within N chars).
+  - 65.6 radar list view keys, `MIN(${availabilitySlots.startsAt})` grouped, same open-hour predicate (syntax).
+  - 65.3 removed dictionary keys are absent from both dictionaries (>= 20 recorded), each replacement file exists or key exists; C364 prose writer spreads the parsed file (syntax) with a planted-writer control.
+- Reads: source (readSource), `evals/prose.json` (readFileSync on JSON, fine), `GATES`, dictionaries, content DEFAULTS.
+- Traps: T1 clean. T2: two literal-`false` controls and one tautological control (above). T3: hand-typed layout and audience-page lists. T6 bare `main()`.
+- Promises: P5 (disclosures never hidden) not directly; P1 (radar) indirectly via the homepage door.
+
+### scripts/verify-sprint66.ts (349 lines)
+- For: sprint 66 gate, `employment:verify` moved from a partner scope to the sponsor's own HR key; C265's four defences inherited; "connected" means a call succeeded; the delivery log names no employee; switching the feature off revokes keys.
+- Decides / checks: `SPONSOR_SCOPES` has employment:verify and length 1, `API_SCOPES` does not; `mintSponsorKey` body (to `\n}\n`, length > 500 control) has no `scopes` in the signature and uses `scopes: [...SPONSOR_SCOPES]`; no `partnerId: input.` anywhere in sponsor-integrations.ts; refusal sentence present; employment.ts `const sponsorId = input.key.sponsorId` and no `sponsorId: string`, mentions `enrolmentAttestations`, conditional update on `answeredAt`; keys.ts `suspendedAt: new Date()`; HR route: first `stampSuccess` after first `"error" in result` (text order); integrations page reads `lastSuccessAt` never `lastUsedAt`; component "connected" expression (exact spelling); `deliveriesFor` body free of identifier/employee/email/name/... (planted-column control); spike is `count(*)::int` and no `select identifier`; `sint.neverBody` in en and ar (> 40 chars) and above `sint.turnOn` in the component (text order). Catalogue: partner_id nullable, last_success_at exists, `partner_api_keys_one_owner` validated and refuses an ownerless key (write). Runtime: planted sponsor with the feature on, real `mintSponsorKey` returns `24t_hr_...`, `integrationFor` shows not connected, `revokeSponsorKey` ok, `setEmploymentVerification(false)` revokes every key and minting is then refused.
+- Reads: source (readSource), dictionaries, catalogue, real product functions over a planted sponsor via `scripts/db.ts` after `writesTo()`.
+- Traps: T1 clean. Runtime half well paired. The C265 "defences" are mention checks (a call site in dead code passes). T6 bare `main()`.
+- Promises: E1/E2 (the HR integration cannot become a roster): partly, by the log select list and count-only spike.
+
+### scripts/verify-sprint67.ts (292 lines)
+- For: sprint 67 gate, the clinic's EHR/FHIR connection: clinic-kind gate with a sentence for solo practices, vendor blocking reasons, "connected" means a successful call, error cleared on success, failure stamps the connection, the writeback log names the approving clinician and status, disconnect names a clinician count, nothing clinical on the page, Arabic keys.
+- Decides / checks: source regexes over `components/ehr/records-panel.tsx`, `lib/data/ehr.ts`, `lib/ehr/file-note.ts`, `lib/i18n/messages.ts` (whole file, either case of one sentence); `VENDORS` each have `mayBeBlocked` > 60 chars; text-order check that `ok: false` appears after `state: "refused"` in file-note.ts; `leftJoin(users, ...)` so a departed clinician's filing stays; `count(distinct ...)`.
+  - 67.8 (l.171-192): `writebacksFor` body tested against `CLINICAL = /\b(content|text|body|soap|summary|transcript|diagnosis|assessment|plan)\b/i`. Word boundaries mean a camelCase or snake_case compound (`noteContent`, `soapText`, `note_content`, `response_body`) does NOT match. The CONTROL at l.188-192 uses `.some(...)` over `["content", "noteText", "soap", "summary"]`, so it passes on "content" while "noteText" is in fact NOT caught; the control hides the blind spot it was meant to expose. The catalogue half (l.274-284) runs the same regex over snake_case column names, where `\b` never fires inside `note_content`, so a content column added under any compound name passes.
+  - 67.8 panel sweep (l.201-215): looks for clinical English words in the panel's SOURCE; the panel renders dictionary keys, so words would arrive through `t()` values or data, not source text (wrong medium; H23 says the same about ternaries).
+  - 67.9 seven new keys exist in en and ar (non-empty).
+  - Catalogue: four new columns exist.
+- Reads: source, VENDORS, dictionaries, catalogue via `scripts/db.ts`. Calls `writesTo()` though it writes nothing.
+- Traps: T1 clean. T2: the `.some` control above. T6 bare `main()`.
+- Promises: none of the 25 (EHR is Unclaimed item 2).
+
+### scripts/verify-sprint68.ts (536 lines)
+- For: sprint 68 gate, the partner platform as "intelligence as a service": every scope has a route and each route guards its own scope; consent coverage sentences; usage limits (zero = unset, stop at limit with a sentence, stopped/sandbox not billable by constraint); unclaimed subject per live ref; alerts once; a partner note needs a named clinician ref, is approved once, and a summary waits for the approval; the partner copilot does not read our tenancy.
+- Decides / checks:
+  - Scopes: HAND-TYPED `PAIRS` map of 10 scopes to routes (l.65-76, deliberately, since a route is not derivable from a scope name); routes derived from disk; each route file contains `"<scope>"` somewhere (mention, not necessarily the `withKey` argument).
+  - `coverageSentence(0|600|null)` wording (right medium: the function that produces the sentence).
+  - Runtime on a planted partner via `scripts/db.ts`: `mayRun` allows with no limit; two `recordConsent` + `openSession` live; `usageFor` 2 of 2; third stopped with a sentence naming "limit it set", "unaffected", "your own platform"; still 2 billable; DB refuses billable stopped and billable sandbox rows; sandbox session runs and is not counted; exactly one unclaimed `partner_subjects` row; `alertApproachingLimits` alerts once then zero (note: it runs over ALL partners in the DB, so a real partner near its limit on the branch would also be alerted, and actually notified if notify is live); `approveNote` refuses a blank clinicianRef, `deliverSummary` refused before approval, approved with `clinicianRef: "C-9"`, second approval refused, summary then delivered; DB refuses approved text with null approver.
+  - Source: platform.ts `mayRun(` before `recordingFrom(` (text order); media route accepts `^audio\/` and takes the boundary from `allowed.session.recordingFromSeconds`; media.ts `language: null`; copilot.ts does not mention `askPatientCopilot|buildPatientContext|journalsFor` (three names, one file); citations resolved against sent refs; continuity uses `noteApprovedText`; keys.ts live needs approval; partner-admin approval names the user and requires documents; 68.12 "no profession in the clinician opt-in" is an OR of two weak conditions (first 600 chars after `partner_clinicians` in a migration OR no profession word in platform.ts), so either half alone passes it; usage alert conditional update; billing through `journal({`, previous month, idempotent by `refType, "partner_month"` (syntax).
+- Reads: disk routes, pure function, real product functions over a planted partner, catalogue constraints by attempted write, source.
+- Traps: T1 clean. T2 runtime half well paired. T3: the PAIRS map is hand-typed but defended (sprint 55 counts the other direction with exact hand-typed numbers). T6 bare `main()`.
+- Notes: the "named clinician" on a partner note is any non-blank string the partner's server sends (`clinicianRef: "C-9"` is accepted, l.364-374). The §7 rule ("content in a chart needs a named clinician who approved that exact text") is therefore a non-empty field on this path, not a verified person. Summaries then go to that platform's patient. See Unclaimed.
+- Promises: P3/T1 analogues for partner patients, not the 25 (partner has no audience). The P3 wording ("carries a clinician's name and credentials") does not hold on the partner path: an opaque ref, no credentials.
+
+### scripts/verify-sprint69.ts (418 lines)
+- For: sprint 69 gate: Egypt's crisis line 105 with its menu in both languages (C350), vault monthly income counts session fees net of settled invoices (C349), a second verification rejection clears the documents (C351), joining a practice moves the verification row (C352).
+- Decides / checks: `CRISIS_LINES.EG.tel === "105"` with en/ar steps; US has no invented menu; GB and `+44` resolve to null (control); an operator-configured line brings no menu; `countriesMissingACrisisLine` no longer lists EG; sos-orb.tsx renders `line.steps` by locale; risk-banner.tsx has >= 2 `<CrisisSteps`. Vault: `monthlyLedger` slice between two export markers contains `platformFeeCents} - `, `settledInvoiceCents`, returns `invoiceCents:`/`sessionFeeCents:`; control that the slice is not the whole file; the vault page prints month figures via one of three spellings and has no `title={...month.collected}` (planted controls). C351 runtime on a planted org, therapist and a super_admin user: first real `decideVerification` reject counts 1 and keeps documents (control), second clears them and returns `documentsCleared`, `missingFrom` then lists three documents, an approval on a fresh row clears nothing (control). Source: `rejectionCount} + 1` in SQL; review component warns before the final no; admin actions email and audit say documents were cleared. C352: `update(therapistVerifications)` within 200 chars sets `organizationId: invitation.organizationId`, and does not set a state (window regex).
+- Reads: pure crisis table, source, catalogue, real product function over planted rows via `scripts/db.ts` after `writesTo()`.
+- Traps: T1 clean. Good runtime pairs. T6 bare `main()`.
+- Cleanup: deletes verifications, users, org by fixture; audit rows `decideVerification` wrote are not deleted (they reference a deleted admin id; harmless if the FK is SET NULL or absent).
+- Promises: P5 (crisis path): the Egyptian number exists and the orb prints the menu before the call; says nothing about "on top of the payment orb".
+
+### scripts/verify-sprint7.ts (478 lines)
+- For: sprint 7 gate, history grants and consent: schema present, one pending request per pair (partial unique index), decisions scoped to the person, 24-hour window, double answer lands once, revoke, the claim's "therapist keeps access" answer creates or withholds a grant, a revoked clinician keeps own transcripts/notes/chat and loses live profile/files/diagnosis, a revoked clinician cannot write a diagnosis, patient decisions audited as the patient, an audit row cannot name both.
+- Decides / checks: `history_grants` has EXACTLY 14 columns (hand-held number, H47); index name; three session columns; `audit_log.actor_account_id` exists. l.95-108 "7.8 historical sessions were NOT backfilled": asserts `COUNT(recording_started_at) === 0` over EVERY session in the database. Any session recorded since sprint 7 stamps that column, so on a database where the product has ever recorded a session this check is red forever while the backfill property it names is still true (it measures the whole table, not the pre-migration rows). Real `decideGrant`/`revokeGrant`/`accessFor`/`applyClaimDecision`/`updatePatient`/`audit` over planted people, accounts and a patient under the first APPROVED clinician (fixed in 78.5 from `LIMIT 1` any user). Skips visibly when no approved clinician exists.
+- Reads: catalogue, real product functions via `scripts/db.ts`.
+- Production guard: its own inline copy (l.35-47) refusing the production endpoint; not `writesTo()`.
+- 🔴 Cleanup defect (l.394, 430): `DELETE FROM patient_accounts WHERE phone LIKE '+2013000%'`. The comment says the block "is reserved for fiction and no real account can be in it, so sweeping it is safe". It is not only this script's: `scripts/seed-capture.ts:90-104` seeds the capture cast's PATIENT ACCOUNTS (Layla, Youssef, Mariam, the accounts the demo films sign in as) at `+201300052001..3`, and verify-sprint6/8/9/13/44 plant accounts in the same block. Running `verify:sprint7` on a branch seeded with the capture cast deletes the cast's patient accounts (and any other verifier's fixtures running concurrently).
+- Traps: T2 mostly paired (refusal then acceptance). T6 bare `main()`.
+- Promises: P4 ("the patient decides who may read the history"): kept by what this exercises: claim-time answer stored and enforced, revocation degrades access, decisions audited as the patient. T5 ("a revoked grant stops [the copilot] on the next question"): partly; this shows `accessFor` flips to `revoked` immediately, not the copilot path.
+
+### scripts/verify-sprint76.ts (232 lines)
+- For: sprint 76.17 gate: starting a session is atomic and alerts the patient exactly once with a join link; the in-app banner cannot cover the SOS orb; the patient's live-session query reads nothing clinical.
+- Decides / checks: source regexes on lib/data/sessions.ts (`eq(sessions.status, "scheduled")`, `.returning({ id: sessions.id })`, `if (started.length === 0) return;`, `await noticeSessionStarted(sessionId)`); started-notice.ts links `/join/${row.joinToken}`, never `/sessions/${`, has a try/catch; `"session.started"` registered in notify and a WhatsApp template; banner has no `fixed ` or `z-[` and sos-orb.tsx has `z-[70]` (planted control both ways). Runtime on planted rows: the atomic transition is the VERIFIER'S OWN two `UPDATE ... WHERE status = 'scheduled'` statements (l.150-159), explicitly not `startSession` (the comment says so): it proves Postgres semantics, and the product's use of that shape is only the source regex; control without the guard both match. Real `liveSessionForPatient` (patient-view) returns `/join/join-<fixture>` while in progress and null after completion (control). The live query slice mentions no sessionNotes/transcript/assessment/soap/summary.
+- Reads: source, real product read function, planted rows via `scripts/db.ts` after `writesTo()`.
+- Traps: T1 clean. T6 bare `main()`.
+- Cleanup: l.223 `DELETE FROM people WHERE first_name = 'Nour' AND last_name = 'Demo' AND id NOT IN (SELECT person_id FROM patients ...)`: deletes EVERY person named Nour Demo on the branch that has no chart, not only this run's (for example an account-only demo person with that name). The patients insert uses the fixed phone `+201000000001`.
+- Promises: P2 ("a session starting appears in the app itself"): partly kept: the patient's live query offers a join door, and the notice is sent through `notify` with a registered kind. P5 ("SOS on top"): partly: this proves the SESSION-STARTED banner is in the page flow and the orb is `z-[70]`; it does not examine `components/patient/session-orb.tsx` (the payment orb P5 names).
+
+### scripts/verify-sprint77.ts (568 lines)
+- For: sprint 77 gate, the public site: no slate-400/500 text on anything a visitor reaches, the live-session hero's copilot and note, clickable phone bottom bars, interactive demos, audience pages open with their console, the patient-app hero, `"use server"` files export only async functions, every mail audience has a preview template, invented names only.
+- Decides / checks: `PUBLIC_DIRS` hand-typed list of 8 directories (the comment records that the first five-directory version passed while the live homepage shipped twelve greys; `components/session` excluded by decision). `greyLines` scanner with planted offender and three exemptions (control good). Demo components syntax (`type Phase = "live" | "writing" | "done"`, `<SessionCopilot key={run}`, `onTab ? ( <button`, `aria-current`, `SELF_FRAMED`, showcase cases, `"use client"` first, `setOffRecord`, approve status, no `line={` and no 988/105 in the risk demo). 77.6: `CONTENT_DEMOS` includes patient-app, hero typed `demo?: ContentDemo;`, blocks.tsx renders it; control length > 10 and no inline union (the comment records the earlier syntax-bound check that went red for an improvement, TRAPS "A check bound to a syntax"). Both DEFAULTS files mention `demo: "patient-app"` >= 2 times (defaults, not published rows: H28). The patient app has no `@/app/` import, `fetch(`, `useRouter|redirect(`.
+  - 77.13: every `"use server"` file under app/lib/components exports only `async function`/`type`/`interface` (derived by walking; planted control both ways). Good. Misses `export default`, `export {`, `export * from` shapes only partially (`export default` would be caught as `default`; `export { x }` would not match `\w+` after a space-brace, so a re-export of a const escapes).
+  - 77.12: five audiences present in lib/mail-previews.ts, each template has a `when:`, the preview script uses `previewMessages()`, the console action `sendEveryTemplate` is super_admin and audited, reachable from settings, groups by audience, is a direct server reference, paced (`pause(150)`, `pause(1_000)`), `maxDuration = 60`. The "CONTROL an audience with no template is reported missing" (l.437-441) only asserts that the string `audience: "regulator"` is absent from the file: it never runs the `missing` computation on a planted list, so it cannot fail for the reason it names.
+  - C127: quoted two-word names and `Dr First Last` must end Demo/Example/Practice; no email domain other than example.com; planted control (two strangers caught).
+- Reads: source (readSource) and one exported constant. No DB, no network.
+- Traps: T1 clean. T4: the grey offenders are cut to `slice(0, 6)` (l.142) and bad exports to `slice(0, 5)` (l.386) with no "N more" line or total in the label: the exact T4 shape. T3: hand-typed directory list, argued. T6: `function main()` called bare.
+- Promises: none of the 25 directly (public-site legibility).
+
+### scripts/verify-sprint8.ts (392 lines)
+- For: sprint 8 gate, patient documents: ordinals unique per person, citations resolve to that person's passage only, re-chunking replaces, flags are scoped and delete nothing, a diagnosis needs its verbatim source sentence, a revoked clinician's copilot gets no documents and the bytes route refuses.
+- Decides / checks: EXACT column counts for four tables (18, 6, 12, 10: H47 hand-held numbers); `person_diagnoses.source_sentence` NOT NULL; three index names. Real `addTextDocument` ordinals 1, 2 and independent per person; `resolveRef` same ref resolves to different documents for two people (the isolation property, good) and a missing ref to null; `writeChunks` replaces; `raiseFlag` by owner ok, on another person's chunk refused, nothing deleted, `documentContext` carries FLAGGED; `verbatimIn` both ways. Consent: claims person A with no grant, `accessFor` is `revoked`, `patientFiles` false; `__documentsForTest(patientId, caps)` returns "" when `liveProfile` false and `[D1:1]` when true (a test-only export living in `lib/ai/case-copilot.ts`); `documentReadDecision` refuses revoked, allows own upload, refuses a stranger.
+- Reads: catalogue, real product functions via `scripts/db.ts`.
+- Production guard: inline copy (l.35-46), not `writesTo()`.
+- Fixtures: "therapist" is `SELECT ... FROM users LIMIT 1` (any role, the 78.5 defect sprint 7 fixed and this file did not); account phone fixed at `+201300080001` (inside the block verify-sprint7 sweeps, and colliding with a leftover from a killed run); patient phone `+201000000008`.
+- Traps: T2 good pairs on isolation and consent. T6 bare `main()`.
+- Promises: T5 ("a revoked grant stops [the copilot] on the next question"): kept for the document half: the copilot's own document assembly returns nothing once `liveProfile` is false, measured through the real function. P4 (the patient decides who reads): kept for documents.
+
+### scripts/verify-sprint9.ts (358 lines)
+- For: sprint 9 gate, memory and homework: one profile per person, no homework row without an assigner, the patient's query returns one next step with no count/rate/streak, closing both outcomes, borrowed item ids refused, the clinician gets the trend with a null rate when nothing closed, answered steps cannot be withdrawn, timeline ordered by when things happened.
+- Decides / checks: EXACT column counts (8, 8, 15); index name; `homework_items WHERE assigned_by_user_id IS NULL` count is 0 across the whole table (amended in 78.5 from "zero homework exists"; still whole-table, so it measures every row ever written, which is the intent). Real `assignStep`, `nextStepFor` (keys exactly detail/dueAt/id/othersWaiting/title: the shape of what the patient receives, right medium), `openStepsFor`, `closeStep` done/skipped/twice/borrowed, `homeworkTrend` 1/1/1 and 0.5, null for nobody, `withdrawStep` open yes / answered no; raw-insert profile and a second refused; `profileFor`, `isStale`, `timelineFor` ordering.
+- Reads: catalogue and real product functions via `scripts/db.ts`.
+- Production guard: inline copy, not `writesTo()`. "Therapist" is `users LIMIT 1` (any role). Account phone fixed `+201300090001` (in verify-sprint7's sweep block).
+- Notes: `assignStep` is called for a freshly created person that has NO chart with this "therapist" and succeeds (l.134-145): `lib/data/homework.ts:244-282` has no relationship check between actor and person (read). See "Looks broken, is handled": the only caller, `app/(app)/patients/[id]/homework/actions.ts:21-38`, gates on `getPatient(actor, patientId)` and `accessFor(...) !== "revoked"` before calling it. `sessionId` in that action is caller input passed straight through (not checked against the patient).
+- Traps: T2 good pairs. T6 bare `main()`.
+- Promises: none of the 25 directly ("trend to the therapist, next action to the patient" is a product rule without a value statement: Unclaimed (a)).
+
+### scripts/verify-synthetic.ts (186 lines)
+- For: gate before committing operator-console screenshots: is every person on this database invented (surname Demo/Example, email at a reserved domain)?
+- Decides / checks: discovers every `last_name` column and every column whose name contains `email` from information_schema (derived, width floor >= 3 and >= 8); for each, `sql.raw` query for surnames not in (Demo, Example) and emails not ILIKE any of `DOMAINS`; control plants a person "Control Okonkwo" at gmail.com and deletes it in a finally, then checks it is gone.
+- Reads: live DB rows (right medium for "this database, at this moment").
+- 🔴 `DOMAINS` (l.52) includes `24therapy.app`, while the comment above it (l.47-51) says every listed domain is reserved by RFC 2606/6761 and "cannot reach a real inbox". 24therapy.app is the company's own domain and does receive mail (VALUE-STATEMENTS lists `omar@24therapy.app` and `habiba@24therapy.app` as real sign-ins, and says only the three example.com addresses cannot receive email). So an address that belongs to a real founder passes as "invented".
+- Coverage gap: names are only looked for in columns called exactly `last_name`. A real name typed into `sessions.guest_name` (read by `lib/data/clinic.ts:390`), a `contact_name`, a `full_name`, a first name, or free text is never scanned, so "every person here is invented" is a claim about one column name.
+- T2: the CONTROL does not run "the same scan": it runs a separate hand-written query over `people` only, with a different domain list of three (example.com, example.invalid, 24therapy.app). A defect in the dynamic `sql.raw` loop (for example a wrong NOT ILIKE join) would leave the control green.
+- T4: each column's offenders are `LIMIT 20` and the report is `slice(0, 8)` with no total of offenders or "N more" line.
+- Traps: T1 n/a. T6 bare `main()`. Calls `writesTo()` (it plants a row), so it refuses production.
+- Promises: none directly; it underwrites the "all accounts are synthetic" premise in MAP, and would FAIL on the demo cast (gmail addresses, non-Demo surnames), which is correct for that database.
+
+### scripts/verify-traps.ts (433 lines)
+- For: the enforcement half of docs/TRAPS.md: each trap T1..T6 has a check here, and the register cannot describe a trap this file does not check.
+- Decides / checks:
+  - T1 (l.74-132, 298-324): asserts `verify-sprint37l2.ts` still contains the C205 label and scan (a verifier checking the SPELLING of another verifier). Its own walk detector `readsSourceRaw` returns false the moment a file mentions `readSource` or `stripCommentsKeepingLines` ANYWHERE (l.90), which is exactly the weakness its own comment (l.56-69) says let verify-csp through. The C205 scan it defers to (verify-sprint37l2.ts:271-276, read) only matches a `readFileSync(` whose argument contains a literal `.ts"`/`.tsx"`. Result, confirmed in this slice: `verify-sprint51.ts:165` (`readFileSync(file, "utf8")` over three .ts files in a loop) and `verify-sprint53.ts:79` (`readFileSync(f, "utf8")` over every source file, used raw at l.540) both read TypeScript with comments in and are invisible to BOTH detectors (each file also imports `readSource`, and neither has a literal path inside the call).
+  - 🔴 The "T1 CONTROL the walk detector fires on a scanner that does not strip" (l.319-324) never makes the detector fire: it asserts `readsSourceRaw("scripts/verify-traps.ts") === false` and that `_surfaces.ts` contains `readFileSync(`. No planted offender is passed to `readsSourceRaw`. The label describes a control that does not exist (T2 inside the T2 gate).
+  - T2 (l.328-335): "has a control" is measured as the word `CONTROL` appearing anywhere in the file, case-insensitive, read RAW (T1): a comment saying "control" counts. Baseline 19 (matches TRAPS.md "19 of 101"; MAP stale 6 notes TAKEOVER/ORIENTATION say 18 of 106). The count scans only `scripts/verify-*.ts`.
+  - T3 (l.177-183, 339-360): an array of three or more string literals that each START WITH "/". Hand-typed lists of page FILES (`"app/(public)/radar/page.tsx"`, verify-sprint51.ts:323-331; the seven layouts in verify-sprint65.ts:204-212; the three audience pages in verify-sprint65.ts:692-696; sprint53's `/sponsor`, `/sponsor/people`, `/sponsor/pot` are passed as separate call arguments, not an array) do not match, so T3 cannot see them. Allow-list `PATHS_BY_DESIGN` has a stale-entry check and a 15-word reason rule (good).
+  - T4 (l.199-204, 364-369): only two hand-typed files, `gates.ts` and `verifiers.ts`, are checked, and a file passes if it contains `and ${` anywhere. The silent truncations in this slice (`verify-sprint77.ts:142` slice(0, 6), `:386` slice(0, 5), `verify-synthetic.ts:100,125` slice(0, 8)) are outside its scope.
+  - T5: verify-csp.ts mentions DAILY-HOSTS.md, `installedVersion()`, `unclassified` (readSource); control on verify-palette.ts. Mention-level.
+  - T6 (l.272-291, 388-408): every `scripts/*.ts` (top level; `.mts` excluded) read via readSource for `process.argv[1]...endsWith`; itself exempt by name; control on the literal shipped line. Good, but only catches that one spelling (a `.includes("prove")` or regex guard passes).
+  - Register (l.417-428): every `### T<n>` heading in docs/TRAPS.md has a `"🔴 T<n> ` label in this file.
+- Reads: other verifiers' source (mostly raw `readFileSync`, deliberately for T2/T3/T4), docs/TRAPS.md.
+- Traps: its own T1 and T2 weaknesses above. T6 bare `main()`.
+- Promises: none; it is the instrument everything else is trusted through, which is why its blind spots matter.
+
+### scripts/walkthrough.ts (890 lines)
+- For: the click-by-click Playwright walkthrough (sprint 52.2/52.3), one screenshot per interaction per portal, in English or Arabic, and a findings list of controls not findable by their visible label, broken steps, slow doors.
+- Decides: `guard()` (l.88-105) refuses production by name AND anything that is not the capture endpoint `ep-little-sky-a6v9sdx4` (two-sided, good). Labels come from the dictionary (`say()` builds exact-match regexes from `lib/i18n/messages`), so the Arabic pass tests the Arabic catalogue (right medium). `control()` tries role/label/text, requires VISIBLE, records a "not-findable" finding when a CSS fallback is needed. `signIn` uses the real form and waits for the URL to leave the door, records > 3s as slow. `routesOnDisk()` derives every non-dynamic `page.tsx` (not hand-typed, good) and `assertEveryRouteIsWalked()` fails a full run if a route is neither walked nor in `NOT_WALKABLE` (two entries with reasons).
+- The flows' itineraries are hand-typed per portal (T3 by construction), defended by the derived route comparison. Sign-ins use the capture cast accounts (layla.demo, test@24therapy.app, manager@, hr@, dev@, admin@example.com) with passwords typed into the source at l.549, 594, 653, 722, 755, 789, 818 (fixture credentials for the capture branch, not the documented demo password; not copied here).
+- 🔴 `tour()` adds a route to `walked` BEFORE `page.goto` and swallows goto errors (l.346-347). "Walked" therefore means "requested", not "rendered": a route that 500s or redirects to a sign-in door counts as walked. Only the optional `expect` text distinguishes, and no itinerary entry passes one.
+- 🔴 `assertEveryRouteIsWalked()` calls `process.exit(1)` (l.429) BEFORE `findings-<locale>.json` is written (l.879-882). A full run that meets one unwalked route loses every finding it collected. Today's disk (listed with find) has routes no flow visits: `/admin/actuals`, `/admin/financial-model`, `/admin/transfers`, `/admin/usage/sessions`, `/for-therapists`, `/design`, `/design/clinic`, `/design/clinic/sample`, `/design/company`, `/design/company/sample`, `/design/patient`, `/design/patient/sample`. So a full run currently exits 1 and writes no findings file. `/admin/transfers` is the screen A1/A4 name, and the walkthrough has never photographed it.
+- Traps: T1 n/a (browser). T4: findings are all printed. T6 bare `void main()`; exports a type only.
+- Promises: P1 (taps) not measured here (it navigates by URL, not by taps); A4's screen never walked.
+
+### scripts/whatsapp-check.ts (96 lines)
+- For: operator tool that sends ONE real WhatsApp template message to a number given on the command line, to prove the Meta wiring.
+- Decides: refuses a non-E.164 argument with the reason (never guesses a country); refuses if `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_NUMBER_ID` are unset; sends `booking.reminder` with two variables; exit code reflects sent.
+- Stale: l.7-9 "Nothing else in the product does that yet": `lib/notify/whatsapp.ts` has a template map used by `notify()` (verify-sprint76.ts:78-81 asserts `"session.started"` is templated there; verify-sprint51.ts:227-232 asserts the reminder cron notifies on WhatsApp). The header also says it sends `session_reminder` while the code sends kind `booking.reminder` (mapping not verified here).
+- Notes: l.25-29 records that until Meta approves the `password_reset_code` authentication template, "a patient with no email address cannot reset their password at all", locking them out of their own clinical record (priority 4: stuck with no way out). Whether that is still pending is a production fact, not checkable here.
+- Traps: none (not a verifier). No DB. Network: sends a real message when run.
+
+### scripts/demo-edit.mts (989 lines)
+- For: composites stills from demo-video/demo-full into a finished marketing film (short, or `DEMO_FILM=tour`) on a canvas in Chromium and records it with MediaRecorder; `DEMO_STILLS` renders chosen frames for review.
+- Decides: nothing in the product. The film's copy is hard-coded in `SHORT` (l.72-204) and `TOUR` (l.214-381) and in the scene functions.
+- 🔴 Claims in the film that the product's own rules forbid or contradict, and no gate reads `.mts`:
+  - l.554-555 title card of the short film: "Talk to a real therapist / in the next sixty seconds." This is the exact response-time promise sprint 57 removed from published pages (`verify-sprint57.ts:316` bans "in the next sixty seconds"; C275/C288; verify-sprint65 65.8 "may not promise a therapist in sixty seconds").
+  - l.735 outro "Care in a minute. Notes for free." contradicts the per-session AI note fee (README/TAKEOVER: "$3 more"; verify-sprint57 `sessionLines` PAYG).
+  - l.361-362 "six dollars a completed session, or ninety-nine a month ... Radar sessions are charged to the patient and paid out through Stripe": a price held in prose (H27) and a Stripe payout claim that is false for Egypt (verify-sprint59: `payoutRailFor("EG")` is always manual; no card processor in Egypt).
+  - l.348 "The patient gets a plain-language summary by email": P2 says nothing the product tells you is only in an email.
+  - l.198 "Crisis language flagged while it is still being said" and l.83 "Every card is a licensed clinician who is online this minute": claims about a probabilistic detector and live state (57.6 required published copy to say the scan can miss).
+  - l.743 "MVP live in production" and "Every frame in this film is the running product."
+  - Many strings contain em dashes (e.g. l.105, 228, 301), which verify:sprint24/51 ban in shipped strings; `.mts` is outside every scanner (verify-sprint57's door count and verify-traps both read `*.ts` only).
+- Notes: the local static server (l.912-923) joins the request path onto OUT without normalising `..` (path traversal on 127.0.0.1 only, dev tool). No DB, no production guard needed (reads local PNGs).
+- Traps: n/a. T6 bare `void main()`.
+
+### scripts/demo-full.mts (636 lines)
+- For: drives the whole product end to end in three browser contexts (clinician, admin, patient) against `DEMO_BASE`, with a synthesised WAV as the microphone, and screenshots every step for the tour film.
+- 🔴 No database or host guard of any kind. The header (l.30-36) says it writes "real rows, in whatever database DEMO_BASE is pointed at, including a clinician who appears on the public radar" and to "Read `--dry-run` output first": there is no `--dry-run` anywhere in the file (stale reference to a flag that does not exist). demo-speech.mts:16-17 describes the database as "shared with production".
+- 🔴 Act 3 (l.268-292) signs in as the seed admin, opens `/admin/verifications`, clicks the demo clinician's row IF it is found (`if (await row.count())`), then clicks the FIRST `^Approve$` button on the page regardless (l.286-290). If the row was not found (renamed, paginated, filtered), it approves whichever applicant is first in the real queue: a clinician approved by a script, with no review, onto the radar. Priority 5/C1 integrity.
+- 🔴 The demo clinician is registered with a real regulator and a plausible licence (l.203-209: country AE, "Dubai Health Authority", a DHA-format number) and then approved and put live on the public radar. The header of `makeDocument` (l.89-96) says "a plausible-looking licence with a real regulator's name on it is not a thing to leave lying in a database": the images carry SPECIMEN, the database fields do not. Cleanup (l.612-621) only takes the clinician offline; the verified account, documents, session, transcript, note, rating and audit rows stay, and are only printed "for cleanup".
+- Personal data in source: l.60 defaults the patient's summary recipient to a real personal gmail address (the summary email of a synthetic session is sent there on every run unless `DEMO_PATIENT_EMAIL` is set). l.57 hard-codes the demo clinician's password (not the documented demo password). Values not copied here.
+- Other: uses `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from the environment; confirms the clinician is on `/api/radar` by `lastName`, which shows the public radar API returns clinicians' last names.
+- Promises touched (as a film): P3 (two signatures, chart then patient summary "Approve and send"), T1 (note from transcript), A1 not shown.
+
+### scripts/demo-speech.mts (200 lines)
+- For: synthesises the two-voice session audio (OpenAI `gpt-4o-mini-tts`, 14 turns about sleep and work stress) into `demo-output/session-audio.wav`, cached unless `DEMO_SPEECH_FORCE`.
+- Decides: refuses a missing or `sk-smoke` key; parses and concatenates WAV chunks with 380ms gaps, refusing mismatched formats.
+- Notes: deliberately not a crisis script "because the crisis path sends alerts and emails, and firing that at a database shared with production to make a nicer video would be a bad trade" (l.15-17): an admission that the demo target database is production-shared. Network call, costs money. The script text contains em dashes (l.32, 52, 68, 91).
+
+### scripts/demo-video.mts (191 lines)
+- For: records the patient's ninety seconds (homepage, language filter, radar, booking sheet, name, join, recording consent, room) with an injected cursor, plus numbered stills, against `DEMO_BASE`.
+- 🔴 Books a REAL session: it clicks the first "Available" clinician on the live board (l.150-152; the comment says it used to name one and the real booking row broke the next run), types "Sam", presses Start now, consents to recording and enters the room. With no host guard, pointed at production it rings and occupies a real clinician. The header (l.22-24) says the fixtures are "the demo clinicians from scripts/demo.ts": the code picks whoever is available, demo or not.
+- 🔴 l.97 `rmSync(OUT, { recursive: true, force: true })` deletes the whole `demo-output/` directory, which also holds `session-audio.wav` (paid TTS, demo-speech) and `full/` (the tour stills from demo-full). demo-edit.mts:4 documents `demo-video && demo-edit`; running demo-video after demo-full destroys the tour's inputs.
+- Traps: n/a. T6 bare `void main()`.
+
+### scripts/icon.mts (161 lines)
+- For: renders the "24" navy tile once at 1024px in Chromium, downsamples to 16/32/48/180/512, writes `app/favicon.ico` (PNG-in-ICO), `app/icon.png`, `app/apple-icon.png`.
+- Decides: nothing in the product. Writes three files into `app/` when run.
+- Notes: comment contains no stale claim found. No DB, no network. T6 bare `void main()`.
+
+Note on the slice-specific focus: `on-production.ts`, `seed-demo.ts`, `verify-demo.ts`, `_value-statements.ts` and the demo cast files are NOT in this slice, so the KEEP list, census logic and verify:demo / verify:prove are not recorded here. verify-sprint57.ts l.436-473 is the only place in this slice that names `seed-demo.ts`: it is one of six scripts allowed through to production, and its comment claims a Neon snapshot first (`br-nameless-dust-a6ae5e4r`), DELETE not TRUNCATE, a before/after count of "fourteen configuration and payroll tables" that throws if one lost a row (a COUNT, which matches MAP suspect 7: a count cannot see a replaced row), and `verify:demo` afterwards.
+
+## Stale
+
+1. HAZARDS.md:231-235 says four scripts may pass `writesTo({ productionIsAllowed: true })` and "`verify:sprint57` asserts it is exactly those four". verify-sprint57.ts:436-473 asserts SIX (age, migrate, seed-demo, settings, simulate-seed, sync-blocks). `_verify.ts:206` prints "not one of the five". Three numbers for one set.
+2. verify-sprint53.ts:1623 detail text says the null crisis reader is "the Egyptian one"; since C350 (l.1570-1581) it is a UK number.
+3. verify-sprint7.ts:95-108 "historical sessions were NOT backfilled" asserts `COUNT(recording_started_at) = 0` over every session ever: true only of a database where no session has been recorded since sprint 7.
+4. verify-sprint7.ts:388-394 comment: the `+2013000` phone block "is reserved for fiction and no real account can be in it, so sweeping it is safe". seed-capture.ts:90-104 seeds the capture cast's patient accounts in that block.
+5. whatsapp-check.ts:7-9 "Nothing else in the product does that yet" (notify now sends WhatsApp templates; see verify-sprint76.ts:78-81).
+6. demo-full.mts:34-36 tells the operator to read `--dry-run` output first; no such flag exists in the file.
+7. demo-video.mts:22-24 says the fixtures are the demo clinicians from `scripts/demo.ts`; the code (l.150) books whoever is "Available".
+8. demo-edit.mts film copy (l.361-362 prices and Stripe payouts; l.554-555 "in the next sixty seconds"; l.735 "Notes for free"; l.348 summary by email) describes pricing and promises the product has since changed or banned.
+9. verify-synthetic.ts:47-52 comment: every listed domain is RFC-reserved and "cannot reach a real inbox"; the list includes `24therapy.app`, the company's real domain.
+10. verify-traps.ts:319-324 labels a check "CONTROL the walk detector fires on a scanner that does not strip"; nothing in it makes the detector fire.
+11. verify-sprint65.ts:682-686 labelled CONTROL (`Set` size of a list plus a repeat) is a tautology for any non-empty list. verify-sprint55.ts:216-221 compares the count of `if (` in lib/routing.ts with itself. verify-sprint57.ts:281-287 is `check(..., true, ...)`. Three checks that print ok and cannot fail.
+12. verify-sprint59.ts:195 requires `RENEWAL_RAILS` to include `egypt_gateway`; TAKEOVER/ORIENTATION say Egypt has no gateway (manual transfers). Either future work or stale naming (MAP contradiction 2).
+13. MAP stale 6 (T2 ratchet 19 of 101 vs 18 of 106): verify-traps.ts:162 `NO_CONTROL_BASELINE = 19`, and its "has a control" test is the raw word CONTROL, so the number measures a spelling.
+
+## Suspect
+
+1. The corporate wall (E1/E2) is checked in this slice only by: verify-sprint49 (three reporting files, name co-occurrence), verify-sprint53 (information_schema on 9 hand-typed tables, a 1400-char window of `roster` in lib/data/sponsors.ts), verify-sprint60/61/66 (syntax). No verifier here reads `lib/data/sponsor-admin.ts`, `sponsor-integrations.ts` select lists beyond `deliveriesFor`, or renders any `app/(sponsor)` page. Whether a sponsor page can reach a session time is for the lib/data and app slices.
+2. `lib/data/assessments.ts:82-112` `publishInstrument` has no role check (verify-sprint56 publishes with `users LIMIT 1`). Every caller must gate; check the admin action that calls it.
+3. verify-sprint54.ts: the solo organisation `removeClinician` creates is not named `verify54-%` and is never cleaned; each run may leave an orphan org (check `lib/data/clinic-admin.ts` removeClinician).
+4. verify-sprint68 `alertApproachingLimits()` runs over ALL partners on the branch; a real partner near its limit gets a real alert when the gate runs.
+5. The partner platform's "named clinician" is any non-blank `clinicianRef` string the partner's server sends (verify-sprint68.ts:364-374 accepts "C-9"). Whether summaries delivered to a partner's patient carry anything like P3's "name and credentials" belongs to lib/partner.
+6. demo-full.mts confirms `/api/radar` returns clinicians' `lastName` publicly (l.361-365). Intended for a public board, but worth confirming what else that payload carries.
+7. walkthrough.ts: `/admin/transfers` (A1, A4) and `/admin/actuals` have never been walked; a full run exits before writing findings.
+8. verify-sprint63.ts:170-183 inserts users with `verification_status = 'verified'` directly. MAP says trigger 0083 derives that column; if the trigger allows a direct write, "derived" is a convention (check drizzle/0083).
+9. verify-sprint60 (E3) and verify-sprint62 (C4) prove the arithmetic and the spelling; no gate in this slice books a session, lowers coverage and reads back the split, or releases a seat and reads the next bill. Both promises rest on other gates or on the walk.
+
+## Broken
+
+Instrument and tooling defects (confident from reading; none of them is a product screen, all of them are things the gates or tools do wrong):
+1. verify-sprint53.ts:53, 1962-1969: `restoreInvoice` starts `null` and is set only at l.1023; on any throw between l.563 and l.1020 the `finally` DELETEs the real `invoice` row from `platform_settings` on that branch. The 76.21 defect survives on the failure path.
+2. verify-sprint7.ts:394: `DELETE FROM patient_accounts WHERE phone LIKE '+2013000%'` deletes the capture cast's patient accounts seeded by seed-capture.ts:90-104 (the accounts demo films and walkthrough.ts:548 sign in as) and any concurrent verifier's fixtures.
+3. verify-sprint50.ts:112-133: an existing verification is forced to `approved` and never restored; `taxonomy_entries` for EG is deleted unconditionally. Every run approves one real (dev) clinician and wipes an operator's EG entry.
+4. verify-sprint5.ts: writes planted people and charts through `scripts/db.ts` `connect()` with no production guard at all (no `writesTo()`, no inline endpoint check), contrary to HAZARDS.md:152.
+5. verify-traps.ts: its T1 detector and the C205 scan it defers to both miss `readFileSync(variable)` in a file that also mentions `readSource`: verify-sprint51.ts:165 and verify-sprint53.ts:79/540 read TypeScript raw and pass both gates. Its T1 "control" cannot fire. Its T3 misses path lists that do not start with "/" (page files, layouts). Its T4 covers two files. The gate that certifies the other gates is itself T1/T2/T3/T4-blind.
+6. verify-sprint67.ts:178-192, 274-284: `\b` word boundaries mean `noteContent`, `soapText`, `note_content` are not caught, and the control uses `.some`, so it passes on "content" while "noteText" is in fact not caught.
+7. walkthrough.ts:429 vs 879: exits 1 before writing findings, and with today's routes on disk a full run always exits there.
+8. demo-full.mts:286-290: approves the first applicant in the real verification queue if the demo row is not found.
+9. demo-video.mts:97: deletes all of `demo-output/`, including demo-speech's paid audio and demo-full's tour stills.
+10. verify-sprint55.ts:216-221, verify-sprint57.ts:281-287, verify-sprint65.ts:682-686: checks that cannot fail (tautology, literal true, set tautology).
+11. verify-sprint77.ts:142, 386 and verify-synthetic.ts:100, 125: truncate offenders with no count (T4), outside verify-traps' two-file T4 scope.
+
+Product-facing, from this slice's reading:
+12. Promise C2 is false by design: the clinic portal receives and exports patient names (first name plus last initial) with appointment times. verify-sprint54.ts:440-444 and verify-sprint63.ts:259-263, 495-501 REQUIRE it; `lib/data/clinic.ts:388-390` returns it. C5 ("each clinician's patients are not [visible]") likewise.
+13. The marketing film (demo-edit.mts:554-555) still says "Talk to a real therapist in the next sixty seconds", the claim verify-sprint57.ts:316 bans from published pages; and "Notes for free" (l.735). If this film has been shown or uploaded, it carries both.
+
+## Looks broken, is handled
+
+1. `lib/data/homework.ts:244-282` `assignStep` writes a task for any person id with no relationship check (verify-sprint9 assigns to a stranger successfully). The only caller `app/(app)/patients/[id]/homework/actions.ts:21-38` gates on `getPatient(actor, patientId)` and `accessFor(...) !== "revoked"` first. (Its `sessionId` input is passed through unchecked.)
+2. `A_PARTNER_NEVER_READS_A_CHART = true` (lib/partner/api.ts:513) beside partner routes named transcript, note, summary, memory, copilot (app/api/partner/v1/*). `app/api/partner/v1/subjects/[ref]/memory/route.ts` reads `sessionMaterial` for the partner's OWN sessions only and says so in its response; verify-sprint68.ts:466-482 asserts the partner copilot does not call our record builders. The routes are the partner's own material, not our tenancy's chart (sprint 68 was confirmed by reading the memory route; the other four were not opened).
+3. `copilot/actions.ts` free in-room questions: `sessionId` is taken from the server-derived live session (`app/(app)/copilot/actions.ts:115,150`), not from client input, so the free path cannot be claimed by a client (verify-sprint48 exercises only the counting half).
+4. verify-sprint6/7/8/9 do not call `writesTo()` but each carries an inline refusal of the production endpoint (sprint 6 l.46-58, 7 l.35-47, 8 l.35-46, 9 l.36-47). Only verify-sprint5 has none (Broken 4).
+
+## Unclaimed
+
+(a) worth selling, nothing advertises it
+- Assessments with per-answer timings (verify-sprint56: 90 seconds on PHQ-9 item 9 is recorded; a score can be cited but never becomes a diagnosis).
+- Homework with the asymmetry rule "trend to the therapist, next action to the patient" (verify-sprint9: the patient's query returns one step and no rate or streak).
+- Documents with per-person citations `[D1:1]` that never resolve across people, and flags that never delete (verify-sprint8).
+- Egypt's crisis line 105 with its menu printed on the button in both languages (verify-sprint69).
+- Invoice to a sponsor that refuses to render without our legal details (verify-sprint53 53.15).
+(b) nobody should have it, a hole
+- Partner notes "approved" by any non-blank string (verify-sprint68.ts:364-374); summaries then go to the partner's patient.
+- demo-full.mts / demo-video.mts: unguarded scripts that create, approve and book real clinicians and sessions on whatever `DEMO_BASE` is, including production.
+- verify-sprint63 cleanup and the retention cron (MAP unclaimed 6) show `audit_log` rows are deletable; A5's "every read is written down" is not append-only.
+(c) half built
+- The partner platform (sprint 68): transcripts, notes, summaries, memory and copilot as a paid API with limits and billing. No value statement, no audience among the 25.
+- WhatsApp password reset for phone-only patients is blocked on a Meta template approval (whatsapp-check.ts:25-29): a lockout from one's own record until then.
+- Clinic staff principal with custom roles (sprint 63): built and gated, unpromised (MAP unclaimed 3).
+
+## Promise evidence
+
+- P1: not measured in this slice (walkthrough navigates by URL, not taps). Cannot tell.
+- P2: verify-sprint76 proves a started session gives the patient an in-app join door (`liveSessionForPatient`) and a notify kind. Partly (session start only). demo-edit film says the summary arrives "by email".
+- P3: product side not in slice. Partner path (verify-sprint68): "named clinician" is an opaque ref. Cannot tell for the main product; partly broken on the partner path.
+- P4: verify-sprint5 (one person, charts at several practices), sprint 6/7 (claim, keeps-access stored, revoke degrades, audited as the patient), sprint 8 (documents withheld when revoked). Kept as far as these exercise.
+- P5: verify-sprint51 (orb on seven hand-typed pages, tel: links, no network), sprint53 (crisis lookup unaffected by pot state: vacuous, pure function), sprint69 (Egypt 105 with menu), sprint76 (session-started banner cannot cover the orb). The payment orb `components/patient/session-orb.tsx` P5 names is not examined by any verifier in this slice. Partly.
+- T1: not in slice (demo-full films it). Cannot tell.
+- T2: not in slice. Cannot tell.
+- T3: not in slice. Cannot tell.
+- T4: not in slice. Cannot tell.
+- T5: verify-sprint48 (access checked before quota, text order), sprint7 (`accessFor` flips to revoked at once), sprint8 (copilot document assembly returns nothing when revoked). Partly kept (documents half measured; transcript and journal halves by syntax).
+- C1: verify-sprint50 (radar filter, closed country), sprint59 (placement refused without a rail). Seat-to-radar timing not checked. Cannot tell.
+- C2: BROKEN as worded. verify-sprint54.ts:440-444 and verify-sprint63.ts:259-263 require patient short names on the clinic schedule and export; lib/data/clinic.ts:388-390.
+- C3: verify-sprint54 (practice billed through the ordinary path, figures add up), sprint62 (seat arithmetic). Partly.
+- C4: verify-sprint62 (release before reparent, reduction negative and not refunded). "Next bill lower by one seat" and "keeps working on PAYG" not checked. Partly.
+- C5: broken as worded ("patients are not [visible]"), same evidence as C2; earnings per clinician not checked here.
+- E1: verify-sprint53 (activity floor with differencing attack, weekly only, carried forward), sprint61 (lookup not an oracle, syntax), sprint66 (HR log names nobody). Partly.
+- E2: verify-sprint49/53 column and window checks; no sponsor page rendered. Partly.
+- E3: verify-sprint60 by syntax only (frozen split read in connect.ts). Partly.
+- E4: verify-sprint60 (0% arithmetic, `setCoverage` has no removedAt). Partly.
+- E5: not in slice. Cannot tell.
+- A1: not in slice (demo films never show a transfer). Cannot tell.
+- A2: not in slice. Cannot tell.
+- A3: verify-sprint69 shows a VERIFICATION rejection reason reaches the clinician's email (not A3's transfer rejection). Cannot tell for A3.
+- A4: `/admin/transfers` never walked (walkthrough.ts). Cannot tell.
+- A5: clinic side kept (verify-sprint63 capabilities, refusal on the resource, audited). Staff console not in slice.
+
+## Coverage
+
+| File | Lines | Status |
+|---|---|---|
+| scripts/verify-sprint48.ts | 359 | read |
+| scripts/verify-sprint49.ts | 404 | read |
+| scripts/verify-sprint5.ts | 282 | read |
+| scripts/verify-sprint50.ts | 297 | read |
+| scripts/verify-sprint51.ts | 705 | read |
+| scripts/verify-sprint53.ts | 1982 | read |
+| scripts/verify-sprint54.ts | 1069 | read |
+| scripts/verify-sprint55.ts | 1498 | read |
+| scripts/verify-sprint56.ts | 549 | read |
+| scripts/verify-sprint57.ts | 527 | read |
+| scripts/verify-sprint59.ts | 303 | read |
+| scripts/verify-sprint6.ts | 434 | read |
+| scripts/verify-sprint60.ts | 163 | read |
+| scripts/verify-sprint61.ts | 215 | read |
+| scripts/verify-sprint62.ts | 589 | read |
+| scripts/verify-sprint63.ts | 689 | read |
+| scripts/verify-sprint65.ts | 918 | read |
+| scripts/verify-sprint66.ts | 349 | read |
+| scripts/verify-sprint67.ts | 292 | read |
+| scripts/verify-sprint68.ts | 536 | read |
+| scripts/verify-sprint69.ts | 418 | read |
+| scripts/verify-sprint7.ts | 478 | read |
+| scripts/verify-sprint76.ts | 232 | read |
+| scripts/verify-sprint77.ts | 568 | read |
+| scripts/verify-sprint8.ts | 392 | read |
+| scripts/verify-sprint9.ts | 358 | read |
+| scripts/verify-synthetic.ts | 186 | read |
+| scripts/verify-traps.ts | 433 | read |
+| scripts/walkthrough.ts | 890 | read |
+| scripts/whatsapp-check.ts | 96 | read |
+| scripts/demo-edit.mts | 989 | read |
+| scripts/demo-full.mts | 636 | read |
+| scripts/demo-speech.mts | 200 | read |
+| scripts/demo-video.mts | 191 | read |
+| scripts/icon.mts | 161 | read |

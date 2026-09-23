@@ -511,33 +511,60 @@ export async function noteProvenanceFor(
   sessionId: string,
 ): Promise<{ provenance: NoteProvenance; offRecordSeconds: number | null }> {
   const [session] = await db
-    .select({ consent: sessions.recordingConsent })
+    .select({
+      consent: sessions.recordingConsent,
+      startedAt: sessions.startedAt,
+      endedAt: sessions.endedAt,
+      recordingStartedAt: sessions.recordingStartedAt,
+    })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .limit(1);
 
-  if (session?.consent !== "granted") {
-    // Declined, withdrawn, or never asked. All three mean the same thing about
-    // the record, and treating them alike is what makes this a rule.
-    return { provenance: "clinician", offRecordSeconds: null };
-  }
-
-  const [segment] = await db
-    .select({ id: transcriptSegments.id })
+  const [captured] = await db
+    .select({ lastEndMs: sql<number | null>`MAX(${transcriptSegments.endMs})` })
     .from(transcriptSegments)
-    .where(eq(transcriptSegments.sessionId, sessionId))
-    .limit(1);
+    .where(eq(transcriptSegments.sessionId, sessionId));
+  const lastEndMs = captured?.lastEndMs === null || captured?.lastEndMs === undefined ? null : Number(captured.lastEndMs);
 
-  // Permission without capture is not a transcript.
-  if (!segment) return { provenance: "clinician", offRecordSeconds: null };
+  // Permission without capture is not a transcript. Nor is no permission.
+  if (lastEndMs === null) return { provenance: "clinician", offRecordSeconds: null };
 
   const gaps = await offRecordGaps(sessionId);
-  if (gaps.length === 0) return { provenance: "transcript", offRecordSeconds: null };
+  const gapSeconds = gaps.reduce((total, gap) => total + gap.seconds, 0);
 
-  return {
-    provenance: "partial",
-    offRecordSeconds: gaps.reduce((total, gap) => total + gap.seconds, 0),
-  };
+  if (session?.consent !== "granted") {
+    /*
+     * 🔴 Task 123 — captured, but the yes is not standing. Either the patient
+     * withdrew part-way (their Stop now withdraws consent, so the clinician
+     * cannot resume past it) or, before the consent gate, an in-person session
+     * was captured with nobody asked. Both have words on file, so "Not
+     * recorded, the clinician's own account" would be false in the flattering
+     * direction C212 forbids. It is partial, and the part after the last word
+     * captured counts as not recorded.
+     */
+    const lengthMs =
+      session?.startedAt && session.endedAt ? session.endedAt.getTime() - session.startedAt.getTime() : null;
+    const tailSeconds = lengthMs === null ? 0 : Math.max(0, Math.round((lengthMs - lastEndMs) / 1000));
+    return { provenance: "partial", offRecordSeconds: gapSeconds + tailSeconds };
+  }
+
+  /*
+   * 🔴 A late start is off record too. In person the room now waits for the
+   * patient's yes (task 123), so "start, then ask" is the common shape, and the
+   * badge said "the whole session was captured" over a note whose first
+   * minutes do not exist. The same one-minute line 7.8's stamp uses, so the
+   * badge and the sentence on the note agree about when it counts.
+   */
+  const { LATE_RECORDING_THRESHOLD_MS } = await import("@/lib/consent");
+  const headMs =
+    session?.startedAt && session.recordingStartedAt
+      ? session.recordingStartedAt.getTime() - session.startedAt.getTime()
+      : 0;
+  const headSeconds = headMs >= LATE_RECORDING_THRESHOLD_MS ? Math.round(headMs / 1000) : 0;
+
+  if (gaps.length === 0 && headSeconds === 0) return { provenance: "transcript", offRecordSeconds: null };
+  return { provenance: "partial", offRecordSeconds: gapSeconds + headSeconds };
 }
 
 /* ------------------------------------------------------------------ bans -- */
