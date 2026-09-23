@@ -430,6 +430,50 @@ export async function regenerateNote(sessionId: string): Promise<SessionActionSt
   return { ok: true };
 }
 
+/**
+ * 🔴 Task 123 — a note the clinician writes themselves, where there is nothing
+ * for the machine to write from.
+ *
+ * A session the patient declined to have recorded ends with no transcript, and
+ * the page used to say "The note could not be written… try again" beside a
+ * button that could never succeed: a patient's no read as the AI breaking. The
+ * clinician's own account is what every record was before recordings, so this
+ * starts one: an empty draft, badged `clinician`, for them to fill in and sign.
+ */
+export async function startOwnNote(sessionId: string): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const row = await getSession(actor, sessionId);
+  if (!row) return { error: "Session not found." };
+
+  const { EMPTY_NOTE } = await import("@/lib/ai/notes");
+  await db
+    .insert(sessionNotes)
+    .values({
+      sessionId,
+      organizationId: row.session.organizationId,
+      therapistId: row.session.therapistId,
+      patientId: row.session.patientId,
+      content: EMPTY_NOTE,
+      status: "draft",
+      provenance: "clinician",
+    })
+    .onConflictDoNothing({ target: sessionNotes.sessionId });
+
+  await db
+    .update(sessions)
+    .set({ noteStatus: "ready", updatedAt: new Date() })
+    .where(eq(sessions.id, sessionId));
+
+  await auditPhi(actor, "note.update", {
+    resourceType: "note",
+    resourceId: sessionId,
+    patientId: row.session.patientId,
+  });
+
+  revalidatePath(`/sessions/${sessionId}`);
+  return { ok: true };
+}
+
 export async function saveNote(
   sessionId: string,
   content: NoteContent,

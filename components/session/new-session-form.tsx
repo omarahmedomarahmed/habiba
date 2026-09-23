@@ -218,7 +218,8 @@ export function NewSessionForm({
       {transcribe ? (
         <div className="mt-3">
           <SeesWhat
-            who={t("portal.new.consentWho")}
+            /* In person there is no second screen: they answer on yours (task 123). */
+            who={t(modality === "in_person" ? "portal.new.consentWhoInPerson" : "portal.new.consentWho")}
             can={[t("portal.new.consentAsked"), t("portal.new.consentStop")]}
             cannot={[t("portal.new.consentCost"), t("portal.new.consentPretend")]}
           />

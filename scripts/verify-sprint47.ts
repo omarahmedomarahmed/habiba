@@ -160,6 +160,47 @@ async function main() {
   );
 
   /*
+   * 🔴 Task 123 — a yes given two minutes into the session: captured from
+   * then on, and the first two minutes are off record on the badge too.
+   */
+  const s0 = new Date(Date.now() - 30 * 60_000);
+  const lateYes = required(
+    (
+      await db
+        .insert(sessions)
+        .values({
+          organizationId: borrow.organizationId,
+          therapistId: borrow.therapistId,
+          status: "completed",
+          recordingConsent: "granted",
+          startedAt: s0,
+          recordingStartedAt: new Date(s0.getTime() + 120_000),
+          endedAt: new Date(s0.getTime() + 10 * 60_000),
+          feedbackToken: `v47-late-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        })
+        .returning({ id: sessions.id })
+    )[0],
+    "session with a late yes",
+  );
+  await db.insert(transcriptSegments).values(
+    [1, 2].map((sequence) => ({
+      sessionId: lateYes.id,
+      organizationId: borrow.organizationId,
+      sequence,
+      text: "v47 after the yes",
+      startMs: (sequence - 1) * 8000,
+      endMs: sequence * 8000,
+    })),
+  );
+  const fromLate = await noteProvenanceFor(lateYes.id);
+  await db.delete(sessions).where(eq(sessions.id, lateYes.id));
+  check(
+    "🔴 47.1 / task 123 a yes two minutes in is `partial`, the first two minutes counted",
+    fromLate.provenance === "partial" && fromLate.offRecordSeconds === 120,
+    `${fromLate.provenance}, ${fromLate.offRecordSeconds ?? "no"} seconds off record`,
+  );
+
+  /*
    * 🔴 The DEFAULT is the honest one, asserted in the database.
    *
    * A note whose origin we cannot establish must not read as a transcript. The

@@ -515,6 +515,7 @@ export async function noteProvenanceFor(
       consent: sessions.recordingConsent,
       startedAt: sessions.startedAt,
       endedAt: sessions.endedAt,
+      recordingStartedAt: sessions.recordingStartedAt,
     })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
@@ -548,8 +549,22 @@ export async function noteProvenanceFor(
     return { provenance: "partial", offRecordSeconds: gapSeconds + tailSeconds };
   }
 
-  if (gaps.length === 0) return { provenance: "transcript", offRecordSeconds: null };
-  return { provenance: "partial", offRecordSeconds: gapSeconds };
+  /*
+   * 🔴 A late start is off record too. In person the room now waits for the
+   * patient's yes (task 123), so "start, then ask" is the common shape, and the
+   * badge said "the whole session was captured" over a note whose first
+   * minutes do not exist. The same one-minute line 7.8's stamp uses, so the
+   * badge and the sentence on the note agree about when it counts.
+   */
+  const { LATE_RECORDING_THRESHOLD_MS } = await import("@/lib/consent");
+  const headMs =
+    session?.startedAt && session.recordingStartedAt
+      ? session.recordingStartedAt.getTime() - session.startedAt.getTime()
+      : 0;
+  const headSeconds = headMs >= LATE_RECORDING_THRESHOLD_MS ? Math.round(headMs / 1000) : 0;
+
+  if (gaps.length === 0 && headSeconds === 0) return { provenance: "transcript", offRecordSeconds: null };
+  return { provenance: "partial", offRecordSeconds: gapSeconds + headSeconds };
 }
 
 /* ------------------------------------------------------------------ bans -- */

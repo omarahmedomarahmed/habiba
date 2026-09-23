@@ -12,6 +12,7 @@ import {
   approvePatientNote,
   regenerateNote,
   saveNote,
+  startOwnNote,
   savePatientNote,
 } from "@/app/(app)/sessions/actions";
 import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
@@ -31,6 +32,8 @@ type Props = {
   /** The patient's copy is signed separately from the chart. */
   initialPatientStatus: "draft" | "approved";
   noteStatus: "none" | "generating" | "ready" | "failed";
+  /** Task 123 — why there may be nothing to write from. */
+  recordingConsent?: "granted" | "declined" | null;
   patientLabel: string;
   patientEmail: string | null;
   dateLabel: string;
@@ -120,24 +123,52 @@ export function NoteReview(props: Props) {
   }
 
   if (props.noteStatus === "failed" || !note) {
+    /*
+     * 🔴 Task 123 — "not recorded" is not "failed". Without a standing yes
+     * nothing was captured on purpose, so "try again" can never succeed; the
+     * clinician writes the note themselves, as every note was before
+     * recordings.
+     */
+    const notRecorded = props.recordingConsent !== "granted";
+    const writeOwn = (
+      <Button
+        variant={notRecorded ? "primary" : "secondary"}
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            await startOwnNote(props.sessionId);
+            router.refresh();
+          })
+        }
+      >
+        <Pencil className="h-4 w-4" aria-hidden /> {t("tnote.writeOwn")}
+      </Button>
+    );
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <p className="text-base font-semibold text-slate-900">{t("tnote.failed")}</p>
-        <p className="max-w-sm text-sm text-slate-500">
-          {t("tnote.failedBody")}
+        <p className="text-base font-semibold text-slate-900">
+          {notRecorded ? t("tnote.notRecorded") : t("tnote.failed")}
         </p>
-        <Button
-          variant="secondary"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              await regenerateNote(props.sessionId);
-              router.refresh();
-            })
-          }
-        >
-          <RefreshCw className="h-4 w-4" aria-hidden /> Try again
-        </Button>
+        <p className="max-w-sm text-sm text-slate-500">
+          {notRecorded ? t("tnote.notRecordedBody", { name: props.patientLabel }) : t("tnote.failedBody")}
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {notRecorded ? null : (
+            <Button
+              variant="secondary"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  await regenerateNote(props.sessionId);
+                  router.refresh();
+                })
+              }
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden /> Try again
+            </Button>
+          )}
+          {writeOwn}
+        </div>
       </Card>
     );
   }

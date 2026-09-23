@@ -798,11 +798,16 @@ export function SessionRoom(props: RoomProps) {
             live={live}
             paused={offRecord}
             className="min-h-0 flex-1"
-            emptyTitle={live ? t("ttr.listening") : t("troom.readyWhen")}
+            /* Off record is not listening: nothing is being kept (task 123). */
+            emptyTitle={live ? (offRecord ? t("ttr.paused") : t("ttr.listening")) : t("troom.readyWhen")}
             emptyBody={
               live
-                ? t("troom.appearsHere")
-                : t("troom.pressStart")
+                ? offRecord
+                  ? t("troom.nothingKept")
+                  : t("troom.appearsHere")
+                : consent === "declined"
+                  ? t("troom.pressStartNoRecord")
+                  : t("troom.pressStart")
             }
           />
         </div>
@@ -881,7 +886,7 @@ export function SessionRoom(props: RoomProps) {
                 className={cn(
                   "tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
                   offRecord
-                    ? "bg-amber-500 text-white"
+                    ? "bg-amber-500 text-white disabled:bg-white/10 disabled:text-slate-400"
                     : "bg-white/10 text-white active:bg-white/20",
                 )}
               >
@@ -924,7 +929,11 @@ export function SessionRoom(props: RoomProps) {
           )}
 
           <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">
-            {live ? t("troom.noteOnEnd") : t("troom.consentFirst")}
+            {live
+              ? consent === "declined"
+                ? t("troom.noteOwnOnEnd")
+                : t("troom.noteOnEnd")
+              : t("troom.consentFirst")}
           </p>
         </div>
       </div>
