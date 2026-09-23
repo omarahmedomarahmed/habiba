@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lte, notInArray, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -53,6 +53,35 @@ const db = dbFor(pinnedToDefaultRegion("lib/data/recovery.ts", "not routed yet: 
 
 /** How long somebody waits before we call it. 14.1 / 14.2. */
 export const NO_SHOW_AFTER_MINUTES = 5;
+
+/**
+ * 🔴 WHETHER THERE IS A NO-SHOW TO RECOVER FROM AT ALL, asked by every path.
+ *
+ * The session id is the capability, and `started_at IS NULL` was the only
+ * condition the three paths shared. That is true of every session booked for
+ * next week, so anybody holding an id could refund it, hand it (and its chart)
+ * to another clinician, or stamp a no-show on the clinician's public
+ * reliability score, days before it was due. The join page only SHOWS the
+ * rescue after the scheduled time; nothing on the server asked.
+ *
+ * Due means: a scheduled time at least `NO_SHOW_AFTER_MINUTES` ago, the patient
+ * actually in the waiting room, nobody started, and not already cancelled or
+ * finished. One rule, here, so the offer and both writes cannot drift apart
+ * again.
+ */
+export function recoveryDue(
+  row: {
+    scheduledAt: Date | null;
+    startedAt: Date | null;
+    patientJoinedAt: Date | null;
+    status: string;
+  },
+  now: Date = new Date(),
+): boolean {
+  if (!row.scheduledAt || row.startedAt || !row.patientJoinedAt) return false;
+  if (row.status === "cancelled" || row.status === "completed") return false;
+  return now.getTime() - row.scheduledAt.getTime() >= NO_SHOW_AFTER_MINUTES * 60_000;
+}
 
 /** 14.6 — a patient's credit lasts as long as a therapist's. */
 export const CREDIT_MONTHS = 12;
@@ -142,6 +171,8 @@ export async function reassignSession(input: {
       personId: patients.personId,
       status: sessions.status,
       startedAt: sessions.startedAt,
+      scheduledAt: sessions.scheduledAt,
+      patientJoinedAt: sessions.patientJoinedAt,
       outcome: sessions.recoveryOutcome,
       organizationId: sessions.organizationId,
     })
@@ -177,6 +208,9 @@ export async function reassignSession(input: {
   }
   if (row.outcome) {
     return { ok: false, error: "That session has already been resolved." };
+  }
+  if (!recoveryDue(row, now)) {
+    return { ok: false, error: "That session is not overdue, so there is nothing to recover from yet." };
   }
 
   if (row.therapistId === input.toUserId) {
@@ -298,11 +332,17 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
         eq(sessions.id, input.sessionId),
         isNull(sessions.recoveryOutcome),
         isNull(sessions.startedAt),
+        // `recoveryDue`, in SQL, so the check and the write are one statement.
+        isNotNull(sessions.patientJoinedAt),
+        notInArray(sessions.status, ["cancelled", "completed"]),
+        lte(sessions.scheduledAt, new Date(now.getTime() - NO_SHOW_AFTER_MINUTES * 60_000)),
       ),
     )
     .returning({ id: sessions.id, priceCents: sessions.priceCents });
 
-  if (!marked) return { ok: false, error: "That session has already been resolved." };
+  if (!marked) {
+    return { ok: false, error: "That session is not overdue or has already been resolved." };
+  }
 
   if (marked.priceCents > 0) {
     const { sessionPayments } = await import("@/lib/db/schema");

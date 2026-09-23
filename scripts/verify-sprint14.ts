@@ -176,6 +176,8 @@ async function main() {
         feedbackToken: "verify14-token",
         priceCents: 3000,
         scheduledAt: new Date(Date.now() - 60 * 60_000),
+        // In the waiting room: recovery is for somebody who is actually there.
+        patientJoinedAt: new Date(Date.now() - 59 * 60_000),
       })
       .returning({ id: sessions.id });
     if (session) made.push(session.id);
@@ -277,6 +279,13 @@ async function main() {
         guestName: "verify14",
         feedbackToken: "verify14-token-2",
         priceCents: 3000,
+        /*
+         * Overdue and waiting, so the ONLY reason left to refuse is the price.
+         * Without these the write is refused as "not overdue" and this check
+         * passes while testing nothing.
+         */
+        scheduledAt: new Date(Date.now() - 60 * 60_000),
+        patientJoinedAt: new Date(Date.now() - 59 * 60_000),
       })
       .returning({ id: sessions.id });
     if (second) made.push(second.id);
@@ -284,8 +293,79 @@ async function main() {
     const overpriced = await reassignSession({ sessionId: second!.id, toUserId: cheaper!.id });
     check(
       "🔴 14.3 the price ceiling is re-checked at the write, not only in the list",
-      !overpriced.ok,
+      !overpriced.ok && /charges more/.test(overpriced.error),
       overpriced.ok ? "ACCEPTED, a let-down patient could be charged more" : overpriced.error,
+    );
+
+    /*
+     * 🔴 THE SESSION ID IS A CAPABILITY ONLY ONCE THE SESSION IS OVERDUE.
+     *
+     * Before this, `started_at IS NULL` was the only condition, which every
+     * session booked for next week meets: anybody holding an id could refund
+     * it, move it (and its chart) to another clinician, or stamp a no-show on
+     * the clinician's public score, days early. The cheap replacement is back
+     * at $20 so only the clock can refuse.
+     */
+    await db.update(users).set({ sessionRateCents: 2000 }).where(eq(users.id, cheaper!.id));
+    const { refundNoShow, recoveryDue } = await import("../lib/data/recovery");
+    const early = async (label: string, values: { scheduledAt: Date | null; patientJoinedAt: Date | null }) => {
+      const [row] = await db
+        .insert(sessions)
+        .values({
+          organizationId: absent!.organizationId,
+          therapistId: absent!.id,
+          patientId: patient!.id,
+          status: "scheduled",
+          modality: "video",
+          guestName: `verify14 ${label}`,
+          feedbackToken: `verify14-token-${label}`,
+          priceCents: 3000,
+          ...values,
+        })
+        .returning({ id: sessions.id });
+      if (row) made.push(row.id);
+      return row!.id;
+    };
+    const tomorrow = await early("tomorrow", {
+      scheduledAt: new Date(Date.now() + 24 * 60 * 60_000),
+      patientJoinedAt: new Date(),
+    });
+    const nobodyCame = await early("nobody", {
+      scheduledAt: new Date(Date.now() - 60 * 60_000),
+      patientJoinedAt: null,
+    });
+    const justStarted = await early("grace", {
+      scheduledAt: new Date(Date.now() - 2 * 60_000),
+      patientJoinedAt: new Date(Date.now() - 3 * 60_000),
+    });
+    for (const [label, id] of [
+      ["a session booked for tomorrow", tomorrow],
+      ["a session nobody is waiting in", nobodyCame],
+      ["a session two minutes late, inside the grace period", justStarted],
+    ] as const) {
+      const moveEarly = await reassignSession({ sessionId: id, toUserId: cheaper!.id });
+      const refundEarly = await refundNoShow({ sessionId: id });
+      const [still] = await db
+        .select({ status: sessions.status, therapistId: sessions.therapistId, outcome: sessions.recoveryOutcome })
+        .from(sessions)
+        .where(eq(sessions.id, id))
+        .limit(1);
+      check(
+        `🔴 14.2 ${label} cannot be moved or refunded by its id`,
+        !moveEarly.ok && !refundEarly.ok && still?.status === "scheduled" &&
+          still?.therapistId === absent!.id && still?.outcome === null,
+        `move ${moveEarly.ok ? "ACCEPTED" : "refused"}, refund ${refundEarly.ok ? "ACCEPTED" : "refused"}, now ${still?.status}`,
+      );
+    }
+    /* Control: the rule says yes to exactly the case the feature exists for. */
+    check(
+      "14.2 control: overdue by five minutes with the patient waiting IS due",
+      recoveryDue({
+        scheduledAt: new Date(Date.now() - 5 * 60_000 - 1000),
+        startedAt: null,
+        patientJoinedAt: new Date(Date.now() - 6 * 60_000),
+        status: "scheduled",
+      }),
     );
 
     /* ------------------------------------------------------ 14.7 the score */

@@ -10,6 +10,7 @@ import {
   recordNoShow,
   refundNoShow,
   reassignSession,
+  recoveryDue,
   replacementsFor,
   type Replacement,
 } from "@/lib/data/recovery";
@@ -62,6 +63,9 @@ export async function offerReplacements(sessionId: string): Promise<RecoveryView
       therapistId: sessions.therapistId,
       priceCents: sessions.priceCents,
       startedAt: sessions.startedAt,
+      scheduledAt: sessions.scheduledAt,
+      patientJoinedAt: sessions.patientJoinedAt,
+      status: sessions.status,
       outcome: sessions.recoveryOutcome,
     })
     .from(sessions)
@@ -75,6 +79,13 @@ export async function offerReplacements(sessionId: string): Promise<RecoveryView
   if (row.outcome) {
     return { state: "done", outcome: row.outcome === "reassigned" ? "reassigned" : "refunded" };
   }
+
+  /*
+   * 🔴 Not due, nothing recorded. `recordNoShow` below lands on the clinician's
+   * public reliability score, so an id alone must not be able to write it
+   * before the session was even meant to begin.
+   */
+  if (!recoveryDue(row)) return { state: "waiting" };
 
   await recordNoShow(sessionId);
 
