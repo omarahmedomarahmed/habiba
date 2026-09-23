@@ -264,6 +264,23 @@ async function main() {
     const matchTarget = await newPerson(db, "match");
     const matchAccount = await newAccount(db, "matcher");
 
+    /*
+     * 🔴 THE ID ALONE IS NOT A MATCH. Before the account proves a handle that
+     * the record carries, starting a claim on the record's id must be refused:
+     * the code would go to the caller's own inbox, so the id would be the whole
+     * of the proof.
+     */
+    const byIdOnly = await startClaim({ personId: matchTarget, accountId: matchAccount, channel: "email" });
+    check("🔴 6.7 a record whose details you have not proven cannot be claimed by its id", byIdOnly.ok === false);
+
+    /* Now make it a real match: the record carries the account's number, proven. */
+    const [matcher] = await db
+      .update(patientAccounts)
+      .set({ phoneVerifiedAt: new Date() })
+      .where(eq(patientAccounts.id, matchAccount))
+      .returning({ phone: patientAccounts.phone });
+    await db.update(people).set({ phone: matcher!.phone }).where(eq(people.id, matchTarget));
+
     const started = await startClaim({
       personId: matchTarget,
       accountId: matchAccount,
@@ -341,12 +358,26 @@ async function main() {
 
       // And it cannot be claimed a second time by anybody.
       const someoneElse = await newAccount(db, "stranger");
+      /*
+       * A genuine match on a proven address, so the only thing left to refuse
+       * this is that the record already has an owner.
+       */
+      const [stranger] = await db
+        .update(patientAccounts)
+        .set({ emailVerifiedAt: new Date() })
+        .where(eq(patientAccounts.id, someoneElse))
+        .returning({ email: patientAccounts.email });
+      await db.update(people).set({ email: stranger!.email }).where(eq(people.id, matchTarget));
       const second = await startClaim({
         personId: matchTarget,
         accountId: someoneElse,
         channel: "email",
       });
-      check("6.7 a claimed record cannot be claimed again", second.ok === false);
+      check(
+        "6.7 a claimed record cannot be claimed again",
+        second.ok === false && /already been claimed/.test(second.error),
+        second.ok ? "STARTED" : second.error,
+      );
     }
 
     /* ---------------------------------------------- 6.4 sessions are patient-side */

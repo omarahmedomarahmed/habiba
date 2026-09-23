@@ -178,6 +178,46 @@ async function bindAccountToPerson(
   return "moved";
 }
 
+/**
+ * The records an account may be offered, and so the only ones it may claim by
+ * matching: unclaimed, matching a phone or email the account has PROVEN, never
+ * the account's own row.
+ *
+ * 🔴 25.14 / C121 — nothing is matched on an UNPROVEN handle. Type a stranger's
+ * number at signup and an unproven match would tell you they are in therapy
+ * and roughly what they are called. A handle proves itself by receiving a code
+ * (`lib/patient-auth/handle.ts`), and each handle proves only itself.
+ *
+ * One function for the screen (`mySuggestions`) and the write (`startClaim`),
+ * so what is shown and what is allowed cannot drift apart again.
+ */
+export async function suggestionsForAccount(accountId: string): Promise<ClaimSuggestion[]> {
+  const [account] = await db
+    .select({
+      email: patientAccounts.email,
+      phone: patientAccounts.phone,
+      personId: patientAccounts.personId,
+      phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
+      emailVerifiedAt: patientAccounts.emailVerifiedAt,
+    })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, accountId))
+    .limit(1);
+  if (!account) return [];
+
+  const phone = account.phoneVerifiedAt ? account.phone : null;
+  const email = account.emailVerifiedAt ? account.email : null;
+  if (!phone && !email) return [];
+
+  /* 22R — never offer somebody their own record as a therapist's. */
+  return suggestionsFor({ email, phone, excludePersonId: account.personId });
+}
+
+async function matchesProvenHandle(accountId: string, personId: string): Promise<boolean> {
+  const offered = await suggestionsForAccount(accountId);
+  return offered.some((s) => s.personId === personId);
+}
+
 /* ------------------------------------------------- step 5: send a code -- */
 
 export type StartResult =
@@ -213,6 +253,24 @@ export async function startClaim(input: {
   if (person.claimedAt !== null) {
     log.warn("claim refused: already claimed", { person: ref(input.personId) });
     return { ok: false, error: "That record has already been claimed." };
+  }
+
+  /*
+   * 🔴 THE PERSON ID CAME FROM THE BROWSER, AND THE CODE GOES TO THE CALLER.
+   *
+   * The screen only ever offers records that match a handle the account has
+   * PROVEN (`mySuggestions`, 25.14 / C121), but this function took whatever id
+   * it was handed and the action mailed the code to the caller's own inbox. So
+   * any signed-in patient who learned a person's id could claim that whole
+   * person, every clinician's record of them, with a code they sent themselves.
+   *
+   * The match route now asks the same question the screen asks, here, so it
+   * holds for every caller. The invite route is not this: its proof is the
+   * one-time token the clinician handed over (`redeemInvite`).
+   */
+  if ((input.route ?? "match") === "match" && !(await matchesProvenHandle(input.accountId, input.personId))) {
+    log.warn("claim refused: not a proven match", { person: ref(input.personId) });
+    return { ok: false, error: "That record does not match a number or address you have confirmed." };
   }
 
   const code = verificationCode();
