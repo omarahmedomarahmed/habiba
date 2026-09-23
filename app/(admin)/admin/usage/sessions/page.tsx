@@ -142,7 +142,7 @@ export default async function SessionCostsPage({
                         the ceiling actually costs.
                       */}
                       {row.durationMinutes === null ? (
-                        <span className="text-slate-300">-</span>
+                        <span className="text-slate-500">-</span>
                       ) : row.durationMinutes >= 50 ? (
                         <Badge tone="amber">{row.durationMinutes}</Badge>
                       ) : (
@@ -155,10 +155,10 @@ export default async function SessionCostsPage({
                       {formatMicrocents(row.costMicrocents)}
                     </Td>
                     <Td align="end">
-                      {row.grossCents ? <Money cents={row.grossCents} /> : <span className="text-slate-300">-</span>}
+                      {row.grossCents ? <Money cents={row.grossCents} /> : <span className="text-slate-500">-</span>}
                     </Td>
                     <Td align="end" className="font-medium text-brand-700">
-                      {row.feeCents ? <Money cents={row.feeCents} /> : <span className="text-slate-300">-</span>}
+                      {row.feeCents ? <Money cents={row.feeCents} /> : <span className="text-slate-500">-</span>}
                     </Td>
                   </tr>
                 );

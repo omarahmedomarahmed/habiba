@@ -147,7 +147,7 @@ export default async function AdminUsagePage() {
                     {Number(row.errors) > 0 ? (
                       <Badge tone="red">{Number(row.errors)}</Badge>
                     ) : (
-                      <span className="text-slate-300">-</span>
+                      <span className="text-slate-500">-</span>
                     )}
                   </Td>
                   <Td align="end" className="font-medium">
