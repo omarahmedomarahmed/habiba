@@ -86,3 +86,9 @@ money; **S3** leaves somebody stuck; **S4** says something untrue.
 | 217 | `verify:sprint48` 48.6 fails whenever the same clinician has another room open on the branch; it passed once the room was ended. A check that depends on unrelated rows | S4 | seen |
 | 218 | Two comments describing protections the code does not have, the pattern the reviewer named: the company roster's "sponsor's cycle date" (C256) and `verify:sprint7` 7.8 counting every recording start. Both fixed; the kind is worth a sweep | S4 | seen |
 
+
+## Found after the deploys (2026-09-23)
+
+| # | What | Sev | Source |
+|---|---|---|---|
+| 219 | A full Postgres connection string, password included, for the Neon branch `simulation-q1` (endpoint `ep-empty-queen-a62vlkkp`) sits in the public history of `docs/SIMULATION-PROMPT.md` and `docs/WALKTHROUGH-PROMPT.md` (commits `0da42112`, `c1d41743`, `0a313033`, `0e23b0d7`, `b300a17d`), and the endpoint was live. Found by the founder. My earlier scan missed it twice over: it only looked for values I already knew, in commits since `main`, and this clone was shallow (124 of 885 commits). The founder is rotating the credential; rotation is the fix, since rewriting public history cannot unpublish it. Every other credential-shaped string in the full history is a placeholder. `takeover/tools/scan-history.py` scans all history for the shape of a credential, with a control that must detect a planted fake first; it needs a full clone | S1 | founder, then scanned |
