@@ -8,22 +8,23 @@ Details and file references: `takeover/REPORT.md` section 2 and `takeover/walk/R
 Severity: **S1** hurts a patient's privacy, safety or legal position; **S2** loses or misstates
 money; **S3** leaves somebody stuck; **S4** says something untrue.
 
-## Done on this branch, waiting to deploy
+## Done on this branch, waiting for the full checks and the founder's yes to deploy
 
 | # | What | Sev | State |
 |---|---|---|---|
 | 177 | The console password was published in `docs/DEMO-LOGINS.md`, with no second step at sign-in | S1 | Fixed (`68202d5`); production reseeded. Founder to reset own password |
 | 178 | The crisis filter read "he" inside "the" as somebody else and silenced real disclosures | S1 | Fixed with a test that fails without the fix (`dbe66c6`) |
+| 179 | Company overview: live counts beside the floored balance | S1 | **Half fixed** (`23c0936`): all three figures are one published snapshot. Names and per-person dates on `/sponsor/people` wait on the founder's decision |
+| 180 | Record claim by id with no ownership check; the invite showed the phone number and never checked it | S1 | Fixed (`30c5b34`, `443abc9`). Still open: the invite route asks no questions, and a phone number is typed, not proven, until WhatsApp codes work |
+| 181 | Anyone with a session id could move or refund an unstarted session | S1 | Fixed (`4e269f1`): only once overdue, with the patient waiting |
+| 183 + task 123 | Recording without consent; the patient's Stop could be undone by the clinician | S1 | Fixed (`56e905a`): no recorded yes, no transcript; in-person consent on the clinician's screen; Stop withdraws. Not yet seen in a browser (needs the app secrets to run locally) |
+| - | The contrast check stopped signing in to the company and console portals after 177 | - | Fixed (`13c24c4`), proven against the live site |
 
 ## Privacy and safety
 
 | # | What | Sev | Source |
 |---|---|---|---|
-| 179 | The company portal names employees with dates beside live counts (the stop condition) | S1 | seen |
-| 180 | A record can be claimed with no questions, by an unverified account, and the invite shows the phone number to whoever opens it; the claim has no ownership check | S1 | seen, code |
-| 181 | Anyone with a session id can move or refund an unstarted session (no time or sign-in check) | S1 | code |
 | 182 | The radar booking sheet is drawn over the SOS button | S1 | code |
-| 183 | The patient's Stop and a later "no" do not stop recording; transcription checks neither (wider than task 123) | S1 | code |
 | 184 | Total View reads any record unaudited; a clinician's full history can be mailed to any address; the founder is copied on patients' exports | S1 | code |
 | 185 | The audit log can be deleted (the seed on production; the six-year job) | S1 | code |
 | 186 | Journals and check-in replies are crisis-scanned without telling the patient | S1 | code, founder decision |

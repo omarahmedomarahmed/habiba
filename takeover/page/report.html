@@ -579,7 +579,7 @@ after 176. "Seen" means seen on the live site; "code" means confirmed in the cod
 Details and file references: <code>takeover/REPORT.md</code> section 2 and <code>takeover/walk/RESULTS.md</code>.</p>
 <p>Severity: <strong>S1</strong> hurts a patient's privacy, safety or legal position; <strong>S2</strong> loses or misstates
 money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says something untrue.</p>
-<h3>Done on this branch, waiting to deploy</h3>
+<h3>Done on this branch, waiting for the full checks and the founder's yes to deploy</h3>
 <div class="scroll"><table>
 <thead>
 <tr>
@@ -602,6 +602,36 @@ money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says somet
 <td><span class="sev s1">S1</span></td>
 <td>Fixed with a test that fails without the fix (<code>dbe66c6</code>)</td>
 </tr>
+<tr>
+<td>179</td>
+<td>Company overview: live counts beside the floored balance</td>
+<td><span class="sev s1">S1</span></td>
+<td><strong>Half fixed</strong> (<code>23c0936</code>): all three figures are one published snapshot. Names and per-person dates on <code>/sponsor/people</code> wait on the founder's decision</td>
+</tr>
+<tr>
+<td>180</td>
+<td>Record claim by id with no ownership check; the invite showed the phone number and never checked it</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed (<code>30c5b34</code>, <code>443abc9</code>). Still open: the invite route asks no questions, and a phone number is typed, not proven, until WhatsApp codes work</td>
+</tr>
+<tr>
+<td>181</td>
+<td>Anyone with a session id could move or refund an unstarted session</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed (<code>4e269f1</code>): only once overdue, with the patient waiting</td>
+</tr>
+<tr>
+<td>183 + task 123</td>
+<td>Recording without consent; the patient's Stop could be undone by the clinician</td>
+<td><span class="sev s1">S1</span></td>
+<td>Fixed (<code>56e905a</code>): no recorded yes, no transcript; in-person consent on the clinician's screen; Stop withdraws. Not yet seen in a browser (needs the app secrets to run locally)</td>
+</tr>
+<tr>
+<td>-</td>
+<td>The contrast check stopped signing in to the company and console portals after 177</td>
+<td>-</td>
+<td>Fixed (<code>13c24c4</code>), proven against the live site</td>
+</tr>
 </tbody>
 </table></div>
 <h3>Privacy and safety</h3>
@@ -616,32 +646,8 @@ money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says somet
 </thead>
 <tbody>
 <tr>
-<td>179</td>
-<td>The company portal names employees with dates beside live counts (the stop condition)</td>
-<td><span class="sev s1">S1</span></td>
-<td>seen</td>
-</tr>
-<tr>
-<td>180</td>
-<td>A record can be claimed with no questions, by an unverified account, and the invite shows the phone number to whoever opens it; the claim has no ownership check</td>
-<td><span class="sev s1">S1</span></td>
-<td>seen, code</td>
-</tr>
-<tr>
-<td>181</td>
-<td>Anyone with a session id can move or refund an unstarted session (no time or sign-in check)</td>
-<td><span class="sev s1">S1</span></td>
-<td>code</td>
-</tr>
-<tr>
 <td>182</td>
 <td>The radar booking sheet is drawn over the SOS button</td>
-<td><span class="sev s1">S1</span></td>
-<td>code</td>
-</tr>
-<tr>
-<td>183</td>
-<td>The patient's Stop and a later "no" do not stop recording; transcription checks neither (wider than task 123)</td>
 <td><span class="sev s1">S1</span></td>
 <td>code</td>
 </tr>
