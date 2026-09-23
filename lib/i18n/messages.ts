@@ -1552,6 +1552,7 @@ export const en = {
   /* 53.25 — the four figures, and every one of them a ledger query (53.27). */
   "sponsor.spentTotal": "Spent so far",
   "sponsor.sessionsTotal": "Sessions paid for",
+  "sponsor.figureSuppressed": "Not enough activity to report yet",
   "sponsor.expires": "Expires {date}",
   "sponsor.noPot": "Your pot is not open yet. We open it with you, with the terms agreed.",
   "sponsor.week": "Week of {date}",
@@ -5097,6 +5098,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.apply.sentBody": "حسابك مفتوح ولا شيء مفعّل. ونتفق على الشروط في المكالمة، قبل أي حركة مال.",
   "sponsor.spentTotal": "ما أُنفق حتى الآن",
   "sponsor.sessionsTotal": "جلسات مدفوعة",
+  "sponsor.figureSuppressed": "لا يوجد نشاط كافٍ للعرض بعد",
   "sponsor.expires": "تنتهي في {date}",
   "sponsor.noPot": "محفظتكم لم تُفتح بعد. نفتحها معكم بعد الاتفاق على الشروط.",
   "sponsor.week": "أسبوع {date}",

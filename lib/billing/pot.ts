@@ -1015,6 +1015,35 @@ export async function potTotals(
   return { spentCents: row?.cents ?? 0, sessions: row?.sessions ?? 0 };
 }
 
+/**
+ * 🔴 E1 — what was spent across the first `sessions` pot spends, in the order
+ * they happened. The spend that goes with a PUBLISHED session count.
+ *
+ * The company overview printed `potTotals` live beside the floored balance,
+ * so "Sessions paid for" went up by one and "Spent so far" by one price the
+ * moment one employee had one session: the differencing attack the balance's
+ * floor exists to stop, printed twice beside it (seen on production,
+ * `takeover/walk/RESULTS.md`). The count is published in floor-sized steps by
+ * `potBalance`; this is the money that belongs to that count, and it moves
+ * only when the count does.
+ */
+export async function potSpentThrough(sponsorId: string, sessions: number): Promise<number> {
+  if (sessions <= 0) return 0;
+  const result = await controlDb.execute<{ cents: number | null }>(sql`
+    SELECT COALESCE(SUM(amount_cents), 0)::int AS cents FROM (
+      SELECT ${ledgerEntries.amountCents} AS amount_cents
+      FROM ${ledgerEntries}
+      WHERE ${ledgerEntries.account} = 'sponsor_pot'
+        AND ${ledgerEntries.refType} = 'sponsor'
+        AND ${ledgerEntries.refId} = ${sponsorId}
+        AND ${ledgerEntries.amountCents} > 0
+      ORDER BY ${ledgerEntries.createdAt}, ${ledgerEntries.id}
+      LIMIT ${sessions}
+    ) first_n
+  `);
+  return Number(result.rows[0]?.cents ?? 0);
+}
+
 async function potRow(sponsorId: string) {
   const [pot] = await controlDb
     .select({

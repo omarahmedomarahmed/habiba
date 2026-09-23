@@ -674,7 +674,27 @@ test("settings refuse a platform fee of zero", () => {
  * C229's floor existed as a comment on a function nothing called, whose body
  * applied no floor. The rule is tested here, over the pure arithmetic, because
  * the failure it prevents is a subtraction rather than a query.
+ *
+ * 🔴 E1 — and this docblock had no test under it. The walk then found the
+ * overview printing live "Sessions paid for" and "Spent so far" beside the
+ * floored balance, so one session moved two figures at once (the stop
+ * condition of 2026-09-22). Every company figure is now one publication.
  */
+test("🔴 E1 the company overview prints no live total, only the published snapshot", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("app/(sponsor)/sponsor/page.tsx", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(page, /potTotals|ledgerPotBalance/, "a live total is on the company overview");
+  assert.match(page, /const totals = pot\.published;/, "the figures must come from the balance's own publication");
+
+  const sponsors = readFileSync("lib/data/sponsors.ts", "utf8");
+  const body = sponsors.slice(sponsors.indexOf("export async function potBalance"));
+  // The spend is the spend of the PUBLISHED count, in both branches.
+  assert.match(body, /potSpentThrough\(sponsorId, sessions\)/);
+  assert.match(body, /potSpentThrough\(sponsorId, pot\.publishedSessions\)/);
+  // Control: the floor that decides when the count moves is still there.
+  assert.match(body, /sessions - pot\.publishedSessions >= floor/);
+});
+
 /**
  * 🔴 C380 — every figure on one charge is in ONE currency.
  *
