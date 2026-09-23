@@ -17,7 +17,6 @@ type View = "overview" | "keys" | "hooks";
 const DEMO_KEY = "t24_demo_EXAMPLE_ONLY_not_a_real_key";
 
 export function PartnerPortal() {
-  const [view, setView] = useState<View>("overview");
   return (
     <PortalPage
       eyebrow="Partners · the API portal"
@@ -25,25 +24,33 @@ export function PartnerPortal() {
       body="A partner sees their calls, makes a key that is shown exactly once, and watches webhook deliveries land in real time, with a retry on anything that failed."
       tryThis={["Make a key", "Copy it", "Filter failed deliveries", "Retry one"]}
     >
-      <BrowserFrame url="24therapy.app/partner">
-        <PortalShell
-          product="Partners"
-          active={view}
-          onNav={setView}
-          user="Wellbeing Demo Inc"
-          role="Developer"
-          nav={[
-            { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "keys", label: "Keys", icon: <KeyRound className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "hooks", label: "Webhooks", icon: <Webhook className="h-[18px] w-[18px]" aria-hidden />, badge: "1" },
-          ]}
-        >
-          {view === "overview" && <Overview />}
-          {view === "keys" && <Keys />}
-          {view === "hooks" && <Hooks />}
-        </PortalShell>
-      </BrowserFrame>
+      <PartnerDemo />
     </PortalPage>
+  );
+}
+
+/** The window alone, so the website can show the same flow inside its product demo. */
+export function PartnerDemo() {
+  const [view, setView] = useState<View>("overview");
+  return (
+    <BrowserFrame url="24therapy.app/partner">
+      <PortalShell
+        product="Partners"
+        active={view}
+        onNav={setView}
+        user="Wellbeing Demo Inc"
+        role="Developer"
+        nav={[
+          { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "keys", label: "Keys", icon: <KeyRound className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "hooks", label: "Webhooks", icon: <Webhook className="h-[18px] w-[18px]" aria-hidden />, badge: "1" },
+        ]}
+      >
+        {view === "overview" && <Overview />}
+        {view === "keys" && <Keys />}
+        {view === "hooks" && <Hooks />}
+      </PortalShell>
+    </BrowserFrame>
   );
 }
 
@@ -87,9 +94,9 @@ function Overview() {
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {[
-            ["POST /v1/bookings", "41%"],
-            ["GET /v1/therapists", "38%"],
-            ["GET /v1/sessions/:id", "21%"],
+            ["POST /v1/sessions", "41%"],
+            ["GET /v1/sessions/:ref/note", "38%"],
+            ["POST /v1/consent", "21%"],
           ].map(([path, share]) => (
             <div key={path} className="rounded-2xl bg-navy-50 px-4 py-3">
               <p className="font-mono text-[13px] font-semibold text-navy-700">{path}</p>
@@ -182,13 +189,13 @@ function KeyRow({ name, hint, used }: { name: string; hint: string; used: string
 
 type Delivery = { id: number; event: string; status: number; ms: number; at: string };
 
-const EVENTS = ["booking.created", "session.started", "session.ended", "booking.cancelled", "note.released"];
+const EVENTS = ["session.recorded", "note.ready", "summary.ready", "consent.changed", "transcript.ready"];
 
 function Hooks() {
   const [items, setItems] = useState<Delivery[]>([
-    { id: 3, event: "session.ended", status: 500, ms: 3012, at: "18:04:11" },
-    { id: 2, event: "session.started", status: 200, ms: 74, at: "18:03:40" },
-    { id: 1, event: "booking.created", status: 200, ms: 91, at: "18:01:02" },
+    { id: 3, event: "note.ready", status: 500, ms: 3012, at: "18:04:11" },
+    { id: 2, event: "session.recorded", status: 200, ms: 74, at: "18:03:40" },
+    { id: 1, event: "consent.changed", status: 200, ms: 91, at: "18:01:02" },
   ]);
   const [filter, setFilter] = useState<"all" | "ok" | "failed">("all");
   const [retrying, setRetrying] = useState<number | null>(null);

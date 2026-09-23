@@ -1,0 +1,10 @@
+Earth textures for the /design website sample. All are NASA imagery, public domain.
+
+day.jpg     NASA Visible Earth, Blue Marble Next Generation, December 2004, topography and bathymetry
+            https://visibleearth.nasa.gov/images/73909
+night.jpg   NASA Earth Observatory, Black Marble 2012 (VIIRS day/night band), land, ocean and ice
+            https://visibleearth.nasa.gov/images/79765
+clouds.jpg  NASA Visible Earth, cloud combined 2048
+            https://visibleearth.nasa.gov/images/57747
+
+Each was downscaled to 2048 x 1024 for the web.

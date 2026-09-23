@@ -42,7 +42,6 @@ const COPILOT = [
 ];
 
 export function TherapistWorkspace() {
-  const [view, setView] = useState<View>("today");
   return (
     <PortalPage
       eyebrow="Therapists · the workspace"
@@ -50,25 +49,33 @@ export function TherapistWorkspace() {
       body="Go in to the waiting session, watch the transcript and the copilot work beside you, go off the record and back, end it, and sign the note that was drafted from what was actually said."
       tryThis={["Go in", "Off the record", "End session", "Sign the note"]}
     >
-      <BrowserFrame url="24therapy.app/dashboard">
-        <PortalShell
-          product="Practice"
-          active={view}
-          onNav={setView}
-          user="Dr Omar Abdelgawad"
-          role="Psychotherapist"
-          nav={[
-            { id: "today", label: "Today", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "session", label: "Live session", icon: <Mic className="h-[18px] w-[18px]" aria-hidden />, badge: "1" },
-            { id: "note", label: "Notes", icon: <ClipboardPen className="h-[18px] w-[18px]" aria-hidden />, badge: "1" },
-          ]}
-        >
-          {view === "today" && <Today onGoIn={() => setView("session")} />}
-          {view === "session" && <Session onEnd={() => setView("note")} />}
-          {view === "note" && <Note />}
-        </PortalShell>
-      </BrowserFrame>
+      <TherapistDemo />
     </PortalPage>
+  );
+}
+
+/** The window alone, so the website can show the same flow inside its product demo. */
+export function TherapistDemo() {
+  const [view, setView] = useState<View>("today");
+  return (
+    <BrowserFrame url="24therapy.app/dashboard">
+      <PortalShell
+        product="Practice"
+        active={view}
+        onNav={setView}
+        user="Dr Omar Abdelgawad"
+        role="Psychotherapist"
+        nav={[
+          { id: "today", label: "Today", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "session", label: "Live session", icon: <Mic className="h-[18px] w-[18px]" aria-hidden />, badge: "1" },
+          { id: "note", label: "Notes", icon: <ClipboardPen className="h-[18px] w-[18px]" aria-hidden />, badge: "1" },
+        ]}
+      >
+        {view === "today" && <Today onGoIn={() => setView("session")} />}
+        {view === "session" && <Session onEnd={() => setView("note")} />}
+        {view === "note" && <Note />}
+      </PortalShell>
+    </BrowserFrame>
   );
 }
 

@@ -69,19 +69,22 @@ export function DesignNav({ dark = false }: { dark?: boolean }) {
  * real phone the bezel goes and the app takes the screen, so the sample can be
  * used the way a patient would use it.
  */
-export function PhoneFrame({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
+export function PhoneFrame({ children, dark = false, embedded = false }: { children: ReactNode; dark?: boolean; embedded?: boolean }) {
+  // Embedded (inside a website section) the bezel stays at every width, and the parent scales it.
+  const b = (cls: string) => (embedded ? cls.replace(/\bsm:/g, "") : cls);
   return (
-    <div className="mx-auto w-full sm:w-auto">
-      <div className="relative mx-auto sm:rounded-[56px] sm:bg-navy-900 sm:p-3 sm:shadow-[0_40px_120px_-30px_rgba(3,11,23,0.65),inset_0_0_0_2px_rgba(255,255,255,0.08)]">
+    <div className={b("mx-auto w-full sm:w-auto")}>
+      <div className={b("relative mx-auto sm:rounded-[56px] sm:bg-navy-900 sm:p-3 sm:shadow-[0_40px_120px_-30px_rgba(3,11,23,0.65),inset_0_0_0_2px_rgba(255,255,255,0.08)]")}>
         <div
           className={cn(
-            "relative flex h-[100dvh] w-full flex-col overflow-hidden sm:h-[844px] sm:w-[390px] sm:rounded-[46px]",
+            embedded ? "relative flex h-[844px] w-[390px] flex-col overflow-hidden rounded-[46px]" : "relative flex h-[100dvh] w-full flex-col overflow-hidden sm:h-[844px] sm:w-[390px] sm:rounded-[46px]",
             dark ? "bg-navy-900" : "bg-navy-50",
           )}
         >
           <div
             className={cn(
-              "relative z-50 hidden h-12 shrink-0 items-center justify-between px-7 text-[14px] font-semibold sm:flex",
+              "relative z-50 h-12 shrink-0 items-center justify-between px-7 text-[14px] font-semibold",
+              embedded ? "flex" : "hidden sm:flex",
               dark ? "text-white" : "text-navy-700",
             )}
           >

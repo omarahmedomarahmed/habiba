@@ -1,18 +1,20 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRef, useState } from "react";
-import { AnimatePresence, motion, useScroll, useSpring, useTransform } from "motion/react";
+import { motion, useScroll, useSpring, useTransform } from "motion/react";
 import {
   ArrowRight,
+  ArrowUpRight,
   Building2,
   CalendarCheck2,
+  Code2,
   FileLock2,
   HeartHandshake,
   LifeBuoy,
   Mic,
   PenLine,
-  Phone,
   ShieldCheck,
   Sparkles,
   Stethoscope,
@@ -20,110 +22,118 @@ import {
   Users,
 } from "lucide-react";
 
-import { DesignNav } from "../_ds/frames";
-import { Count, LivePulse, Rise } from "../_ds/motion";
-import { Avatar, Btn, Chips, Glow } from "../_ds/ui";
+import { Count, LivePulse, Rise, spring } from "../_ds/motion";
+import { Avatar, Btn, Glow } from "../_ds/ui";
+import { CrisisStrip, Dark, Eyebrow, Lede, SiteFooter, SiteNav, Title } from "./_site/chrome";
+import { Bento, Comparison, CtaBand, Faq, Marquee, Pricing, ProductDemo } from "./_site/sections";
 
-const Globe = dynamic(() => import("./globe"), {
+const Earth = dynamic(() => import("./earth"), {
   ssr: false,
-  loading: () => <div className="h-full w-full rounded-full bg-[radial-gradient(circle,rgba(46,196,182,0.25),transparent_65%)]" />,
+  loading: () => <div className="h-full w-full rounded-full bg-[radial-gradient(circle,rgba(46,196,182,0.18),transparent_62%)]" />,
 });
 
-type Audience = "you" | "therapists" | "clinics" | "companies";
-
-const AUDIENCES: Record<Audience, { title: string; body: string; points: string[]; cta: string; icon: typeof UserRound }> = {
-  you: {
-    title: "Talk to a verified therapist in minutes, or book for later.",
-    body: "See who is free right now, what it costs you after any cover, and go in. Your record is yours: you decide who reads it.",
-    points: ["Three taps from opening the app to the room", "The price on the button is the price you pay", "SOS on every screen, one tap away"],
-    cta: "Find someone now",
-    icon: UserRound,
-  },
-  therapists: {
-    title: "Your notes, drafted from the session. You sign them.",
-    body: "A draft note is ready before you stand up. Nothing reaches a patient until you have read and signed it.",
-    points: ["A draft note within seconds of ending", "Off the record means nothing in that minute is kept", "Your earnings, and what you owe, in one place"],
-    cta: "Join as a therapist",
-    icon: Stethoscope,
-  },
-  clinics: {
-    title: "One bill for the practice. No patient names, ever.",
-    body: "Add a clinician and they are on the radar the same hour. See earnings per clinician, never who they saw.",
-    points: ["One bill, priced per seat", "A seat released mid-month lowers the next bill", "Earnings per clinician, patients never"],
-    cta: "Set up your practice",
-    icon: Building2,
-  },
-  companies: {
-    title: "Pay for your people's therapy without ever knowing who went.",
-    body: "Fund a budget, choose how much of each session you cover, and see the total. Never who, when, or what was said.",
-    points: ["A balance published in steps, never live", "Coverage at 0% is not removal", "An empty budget never blocks anyone"],
-    cta: "Offer it to your team",
-    icon: Users,
-  },
-};
-
 export function Homepage() {
-  const [audience, setAudience] = useState<Audience>("you");
-  const current = AUDIENCES[audience];
-
   return (
     <div className="bg-white">
-      <DesignNav dark />
+      <SiteNav />
+      <Hero />
+      <Marquee
+        items={[
+          "Verified therapists, free now or later",
+          "Arabic and English, right to left",
+          "The price on the button is the price you pay",
+          "Recording only with a yes",
+          "Your record is yours",
+          "Your employer never sees who went",
+          "SOS on every screen",
+        ]}
+      />
+      <Audiences />
+      <ProductDemo />
+      <HowItWorks />
+      <Bento />
+      <PriceTruth />
+      <Pricing />
+      <Comparison />
+      <Promises />
+      <Faq />
+      <CtaBand
+        title="Someone could be free for you right now."
+        body="Open the radar and see who, in your language, at the price you will pay."
+        primary="Find someone now"
+        secondary="I am a therapist"
+      />
+      <CrisisStrip />
+      <SiteFooter />
+    </div>
+  );
+}
 
-      {/* Hero: the radar, and the one thing somebody who is struggling came to do. */}
-      <section className="relative overflow-hidden bg-navy-900">
-        <Glow className="-left-48 top-10 h-[560px] w-[560px] opacity-70" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-6 px-5 pb-10 pt-12 lg:grid-cols-[1.05fr_1fr] lg:pb-20 lg:pt-20">
-          <div>
+function Hero() {
+  const ref = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const y = useTransform(scrollYProgress, [0, 1], [0, 160]);
+  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.25]);
+  const fade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+
+  return (
+    <Dark className="min-h-[100svh]">
+      <section ref={ref} className="relative">
+        <Glow className="-left-48 top-24 h-[560px] w-[560px] opacity-60" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-4 px-5 pb-16 pt-28 lg:min-h-[100svh] lg:grid-cols-[1fr_1.1fr] lg:pt-16">
+          <motion.div style={{ opacity: fade }} className="relative z-10">
             <motion.p
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="inline-flex items-center gap-2 rounded-full bg-white/8 px-3 py-1.5 text-[14px] font-semibold text-white ring-1 ring-white/12"
             >
-              <LivePulse /> <Count value={2} /> therapists free right now
+              <LivePulse /> <Count value={7} /> therapists free right now
             </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.06 }}
-              className="mt-6 text-balance text-[44px] font-bold leading-[1.02] tracking-tight text-white sm:text-[64px]"
-            >
-              Therapy that starts <span className="relative whitespace-nowrap text-brand-400">when you need it<Underline /></span>.
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.14 }}
-              className="mt-6 max-w-xl text-pretty text-[18px] leading-relaxed text-white/75"
-            >
-              Verified therapists, in Arabic and English, free now or when it suits you. You see the price you pay before
-              you press anything, and your record stays yours.
+            <h1 className="mt-6 text-balance text-[42px] font-bold leading-[1.0] tracking-tight text-white sm:text-[72px]">
+              {["Therapy", "that", "starts"].map((word, i) => (
+                <motion.span key={word} className="me-[0.25em] inline-block" initial={{ opacity: 0, y: 30, filter: "blur(8px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ ...spring, delay: 0.05 + i * 0.07 }}>
+                  {word}
+                </motion.span>
+              ))}
+              <br />
+              <motion.span className="relative inline-block text-brand-400 sm:whitespace-nowrap" initial={{ opacity: 0, y: 30, filter: "blur(8px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ ...spring, delay: 0.3 }}>
+                when you need it<span className="text-white">.</span>
+                <Underline />
+              </motion.span>
+            </h1>
+            <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="mt-7 max-w-xl text-pretty text-[18px] leading-relaxed text-white/70">
+              Verified therapists, in Arabic and English, free now or when it suits you. You see the price you pay before you press anything, and your record stays yours.
             </motion.p>
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.22 }}
-              className="mt-8 flex flex-wrap gap-3"
-            >
+            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }} className="mt-9 flex flex-wrap gap-3">
               <Btn className="h-14 px-7 text-[16px]">
                 See who is free now <ArrowRight className="h-4 w-4" aria-hidden />
               </Btn>
-              <Btn kind="light" className="h-14 px-7 text-[16px]">
-                How it works
-              </Btn>
+              <a href="#demo">
+                <Btn kind="light" className="h-14 px-7 text-[16px]">
+                  Try the product
+                </Btn>
+              </a>
             </motion.div>
-          </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="mt-10 flex items-center gap-4">
+              <div className="flex -space-x-3">
+                {["Dr Sara Demo", "Dr Karim Demo", "Mona Demo", "Nour Demo"].map((n) => (
+                  <Avatar key={n} name={n} size={38} ring />
+                ))}
+              </div>
+              <p className="text-[14px] text-white/65">Verified therapists only, in Arabic and English.</p>
+            </motion.div>
+          </motion.div>
 
-          <div className="relative mx-auto aspect-square w-full max-w-[560px]">
-            <Globe className="absolute inset-0" />
-            <FloatCard className="left-0 top-[12%]" delay={0.5}>
+          <motion.div style={{ y, scale }} className="relative mx-auto aspect-square w-full max-w-[680px] lg:-me-24">
+            <Earth className="absolute inset-0" />
+            <FloatCard className="left-0 top-[14%]" delay={1.1}>
               <Avatar name="Dr Sara Demo" size={40} live />
               <div>
                 <p className="text-[14px] font-bold text-navy-700">Dr Sara Demo</p>
-                <p className="text-[13px] text-navy-500">Free now · Arabic, English</p>
+                <p className="text-[13px] text-navy-500">Free now · Cairo · Arabic, English</p>
               </div>
             </FloatCard>
-            <FloatCard className="bottom-[14%] right-0" delay={0.7}>
+            <FloatCard className="bottom-[16%] right-2" delay={1.3}>
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                 <ShieldCheck className="h-5 w-5" aria-hidden />
               </span>
@@ -132,134 +142,18 @@ export function Homepage() {
                 <p className="text-[13px] text-navy-500">after your employer&apos;s 60%</p>
               </div>
             </FloatCard>
-          </div>
+            <p className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 text-[12px] font-semibold text-white/40">Drag to turn the planet</p>
+          </motion.div>
         </div>
       </section>
-
-      {/* One page, four people: the switch changes the promise, not the page. */}
-      <section className="mx-auto max-w-6xl px-5 py-20">
-        <Rise className="text-center">
-          <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-brand-700">Who it is for</p>
-          <h2 className="mx-auto mt-3 max-w-2xl text-balance text-[34px] font-bold leading-tight text-navy-700 sm:text-[42px]">
-            The same product, the promise that matters to you.
-          </h2>
-        </Rise>
-        <div className="mt-8 flex justify-center">
-          <Chips
-            value={audience}
-            onChange={setAudience}
-            options={[
-              { id: "you", label: "For you", icon: <UserRound className="h-4 w-4" aria-hidden /> },
-              { id: "therapists", label: "Therapists", icon: <Stethoscope className="h-4 w-4" aria-hidden /> },
-              { id: "clinics", label: "Clinics", icon: <Building2 className="h-4 w-4" aria-hidden /> },
-              { id: "companies", label: "Companies", icon: <Users className="h-4 w-4" aria-hidden /> },
-            ]}
-          />
-        </div>
-        <div className="relative mt-8 min-h-[330px]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={audience}
-              initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
-              transition={{ duration: 0.35 }}
-              className="grid items-center gap-8 rounded-[32px] bg-navy-50 p-6 sm:p-10 lg:grid-cols-[1.2fr_1fr]"
-            >
-              <div>
-                <current.icon className="h-8 w-8 text-brand-600" aria-hidden />
-                <h3 className="mt-4 text-balance text-[28px] font-bold leading-tight text-navy-700">{current.title}</h3>
-                <p className="mt-3 text-[17px] leading-relaxed text-navy-500">{current.body}</p>
-                <Btn kind="dark" className="mt-6">
-                  {current.cta} <ArrowRight className="h-4 w-4" aria-hidden />
-                </Btn>
-              </div>
-              <ul className="space-y-3">
-                {current.points.map((point, index) => (
-                  <motion.li
-                    key={point}
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + index * 0.08 }}
-                    className="flex items-center gap-3 rounded-2xl bg-white p-4 text-[16px] font-semibold text-navy-700 shadow-sm ring-1 ring-navy-100"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-navy-700">
-                      {index + 1}
-                    </span>
-                    {point}
-                  </motion.li>
-                ))}
-              </ul>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </section>
-
-      <HowItWorks />
-      <PriceTruth />
-
-      {/* The four promises, each one a thing the product does rather than a claim. */}
-      <section className="bg-navy-900 py-20">
-        <div className="mx-auto max-w-6xl px-5">
-          <Rise>
-            <h2 className="max-w-2xl text-balance text-[34px] font-bold leading-tight text-white sm:text-[42px]">
-              Four things we will never do.
-            </h2>
-          </Rise>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: FileLock2, title: "Show your record without asking you", body: "Every reader is somebody you said yes to, and you can take it back." },
-              { icon: PenLine, title: "Send you anything unsigned", body: "A machine drafts, a named therapist reads and signs, then you see it." },
-              { icon: HeartHandshake, title: "Tell your employer who went", body: "A company sees a total, published in steps. Never who, when or what." },
-              { icon: LifeBuoy, title: "Put money in front of help", body: "SOS is on every screen and nothing covers it, including a payment." },
-            ].map((promise, index) => (
-              <Rise key={promise.title} delay={index * 0.06}>
-                <motion.div whileHover={{ y: -6 }} className="h-full rounded-3xl bg-white/5 p-6 ring-1 ring-white/10">
-                  <promise.icon className="h-7 w-7 text-brand-400" aria-hidden />
-                  <p className="mt-5 text-[18px] font-bold text-white">{promise.title}</p>
-                  <p className="mt-2 text-[15px] leading-relaxed text-white/70">{promise.body}</p>
-                </motion.div>
-              </Rise>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-red-600">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-5 py-6 text-white">
-          <Phone className="h-6 w-6" aria-hidden />
-          <p className="flex-1 text-[17px] font-semibold">
-            If you are in danger right now, do not wait for a session. In Egypt call <span className="font-bold">105</span>, press 1
-            for Arabic, then 1. For an ambulance, <span className="font-bold">123</span>.
-          </p>
-        </div>
-      </section>
-
-      <footer className="bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-10 text-[14px] text-navy-500">
-          <p className="text-[20px] font-black text-navy-700">
-            24<span className="text-brand-600">T</span>
-          </p>
-          <p>Privacy · Terms · Security · العربية</p>
-        </div>
-      </footer>
-    </div>
+    </Dark>
   );
 }
 
 function Underline() {
   return (
     <motion.svg viewBox="0 0 300 20" className="absolute -bottom-2 left-0 h-3 w-full" preserveAspectRatio="none" aria-hidden>
-      <motion.path
-        d="M2 14 C 80 4, 200 4, 298 12"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="5"
-        strokeLinecap="round"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.9, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      />
+      <motion.path d="M2 14 C 80 4, 200 4, 298 12" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.9, delay: 0.7, ease: [0.22, 1, 0.36, 1] }} />
     </motion.svg>
   );
 }
@@ -270,14 +164,59 @@ function FloatCard({ children, className, delay }: { children: React.ReactNode; 
       initial={{ opacity: 0, scale: 0.9, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: [0, -8, 0] }}
       transition={{ opacity: { delay }, scale: { delay }, y: { delay: delay + 0.4, duration: 5, repeat: Infinity, ease: "easeInOut" } }}
-      className={`absolute z-10 flex items-center gap-3 rounded-2xl bg-white/95 p-3 pe-5 shadow-2xl backdrop-blur ${className}`}
+      className={`absolute z-10 hidden items-center gap-3 rounded-2xl bg-white/95 p-3 pe-5 shadow-2xl backdrop-blur sm:flex ${className}`}
     >
       {children}
     </motion.div>
   );
 }
 
-/** Three steps with a line that fills as you scroll through them. */
+const AUDIENCE_CARDS = [
+  { href: "/design/website/patients", icon: UserRound, label: "For you", line: "Talk to someone in minutes, or book for later.", tone: "dark" },
+  { href: "/design/website/therapists", icon: Stethoscope, label: "Therapists", line: "Your note, drafted from the session. You sign it.", tone: "light" },
+  { href: "/design/website/clinics", icon: Building2, label: "Clinics", line: "One bill for the practice, never a patient's name.", tone: "light" },
+  { href: "/design/website/companies", icon: Users, label: "Companies", line: "Pay for your people's therapy without knowing who went.", tone: "light" },
+  { href: "/design/website/partners", icon: Code2, label: "Partners", line: "Put sessions, notes and the radar inside your product.", tone: "dark" },
+] as const;
+
+function Audiences() {
+  return (
+    <section className="bg-navy-50 py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <Eyebrow>Who it is for</Eyebrow>
+        <Title>One product. Five people, each with a page of their own.</Title>
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          {AUDIENCE_CARDS.map((card, i) => (
+            <motion.div
+              key={card.href}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ ...spring, delay: i * 0.06 }}
+              className={i < 2 ? "lg:col-span-3" : "lg:col-span-2"}
+            >
+              <Link
+                href={card.href}
+                className={`group relative flex h-full min-h-[220px] flex-col overflow-hidden rounded-[28px] p-7 transition-transform duration-300 hover:-translate-y-1.5 ${
+                  card.tone === "dark" ? "bg-navy-900 text-white" : "bg-white text-navy-700 ring-1 ring-navy-100"
+                }`}
+              >
+                {card.tone === "dark" ? <Glow className="-right-20 -top-20 h-56 w-56 opacity-50 transition-opacity group-hover:opacity-90" /> : null}
+                <card.icon className={`relative h-8 w-8 ${card.tone === "dark" ? "text-brand-400" : "text-brand-700"}`} aria-hidden />
+                <p className="relative mt-auto pt-10 text-[14px] font-bold uppercase tracking-[0.16em] opacity-60">{card.label}</p>
+                <p className="relative mt-2 text-[24px] font-bold leading-tight">{card.line}</p>
+                <span className={`absolute end-6 top-6 flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-300 group-hover:rotate-45 ${card.tone === "dark" ? "bg-white/10" : "bg-navy-50"}`}>
+                  <ArrowUpRight className="h-5 w-5" aria-hidden />
+                </span>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function HowItWorks() {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 75%", "end 55%"] });
@@ -287,25 +226,29 @@ function HowItWorks() {
     { icon: Sparkles, title: "See who is free now", body: "Verified therapists, their languages, and the price after any cover. Nobody is held until you press Start." },
     { icon: CalendarCheck2, title: "Start, or pick a time", body: "Pay by card and you are in within seconds. A transfer is checked by a person, and the screen says so first." },
     { icon: Mic, title: "Say yes or no to recording", body: "Yes, and a draft note is written from the session. No, and nothing is recorded. The session goes ahead either way." },
+    { icon: FileLock2, title: "Keep what was said", body: "A summary in plain words, signed by your therapist, in your record. You decide who else may read it." },
   ];
   return (
-    <section className="bg-navy-50 py-20">
-      <div className="mx-auto max-w-4xl px-5">
-        <Rise>
-          <h2 className="text-balance text-[34px] font-bold leading-tight text-navy-700 sm:text-[42px]">From opening the app to talking.</h2>
-        </Rise>
-        <div ref={ref} className="relative mt-12 ps-12">
+    <section className="bg-white py-24">
+      <div className="mx-auto grid max-w-6xl gap-12 px-5 lg:grid-cols-[1fr_1.2fr]">
+        <div className="lg:sticky lg:top-28 lg:self-start">
+          <Eyebrow>How it works</Eyebrow>
+          <Title>From opening the app to talking.</Title>
+          <Lede>Four steps. The line fills as you read.</Lede>
+        </div>
+        <div ref={ref} className="relative ps-14">
           <div className="absolute bottom-2 start-[18px] top-2 w-1 rounded-full bg-navy-100">
             <motion.div className="w-full rounded-full bg-brand-500" style={{ height }} />
           </div>
-          <div className="space-y-10">
+          <div className="space-y-14">
             {steps.map((step, index) => (
               <Rise key={step.title} delay={index * 0.05}>
                 <div className="relative">
-                  <span className="absolute -start-12 top-0 flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-700 shadow ring-1 ring-navy-100">
+                  <span className="absolute -start-14 top-0 flex h-10 w-10 items-center justify-center rounded-full bg-navy-900 text-brand-300 shadow">
                     <step.icon className="h-5 w-5" aria-hidden />
                   </span>
-                  <p className="text-[22px] font-bold text-navy-700">{step.title}</p>
+                  <p className="text-[13px] font-bold text-brand-700">Step {index + 1}</p>
+                  <p className="mt-1 text-[24px] font-bold text-navy-700">{step.title}</p>
                   <p className="mt-2 max-w-xl text-[17px] leading-relaxed text-navy-500">{step.body}</p>
                 </div>
               </Rise>
@@ -317,7 +260,6 @@ function HowItWorks() {
   );
 }
 
-/** Slide the employer's cover and watch every figure move to the truth. */
 function PriceTruth() {
   const [cover, setCover] = useState(60);
   const price = 75;
@@ -327,38 +269,25 @@ function PriceTruth() {
   const total = share + vat;
   const money = (n: number) => `$${n.toFixed(2)}`;
   return (
-    <section className="mx-auto max-w-6xl px-5 py-20">
-      <div className="grid items-center gap-10 lg:grid-cols-2">
+    <Dark className="py-24">
+      <Glow className="-left-32 bottom-0 h-[420px] w-[420px] opacity-40" />
+      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 lg:grid-cols-2">
         <Rise>
-          <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-brand-700">The price you pay</p>
-          <h2 className="mt-3 text-balance text-[34px] font-bold leading-tight text-navy-700 sm:text-[42px]">
-            The number on the button is the number you send.
-          </h2>
-          <p className="mt-4 text-[17px] leading-relaxed text-navy-500">
-            Every price shows the session, what your employer covers, VAT on your share, and the one amount you pay. The same
-            block, everywhere it appears.
-          </p>
+          <Eyebrow dark>The price you pay</Eyebrow>
+          <Title dark>The number on the button is the number you send.</Title>
+          <Lede dark>Every price shows the session, what your employer covers, VAT on your share, and the one amount you pay. The same block, everywhere it appears.</Lede>
           <label className="mt-8 block">
-            <span className="flex justify-between text-[15px] font-semibold text-navy-700">
+            <span className="flex justify-between text-[15px] font-semibold text-white">
               Your employer covers <span className="tabular-nums">{cover}%</span>
             </span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={10}
-              value={cover}
-              onChange={(event) => setCover(Number(event.target.value))}
-              className="mt-3 h-2 w-full cursor-pointer accent-[var(--color-brand-500)]"
-              aria-label="Employer cover"
-            />
+            <input type="range" min={0} max={100} step={10} value={cover} onChange={(e) => setCover(Number(e.target.value))} className="mt-3 h-2 w-full cursor-pointer accent-[var(--color-brand-500)]" aria-label="Employer cover" />
           </label>
         </Rise>
         <Rise delay={0.1}>
-          <div className="rounded-[32px] bg-white p-6 shadow-[0_30px_80px_-40px_rgba(10,35,66,0.35)] ring-1 ring-navy-100">
+          <div className="rounded-[32px] bg-white p-7 text-navy-700 shadow-[0_40px_100px_-30px_rgba(46,196,182,0.45)]">
             {[
               ["One hour with Dr Sara Demo", money(price)],
-              [`Your employer pays ${cover}%`, `−${money(covered)}`],
+              [`Your employer pays ${cover}%`, `-${money(covered)}`],
               ["VAT 14% on your share", money(vat)],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between border-b border-navy-100 py-3.5 text-[16px] text-navy-600">
@@ -369,14 +298,50 @@ function PriceTruth() {
               </div>
             ))}
             <div className="flex items-baseline justify-between pt-5">
-              <span className="text-[18px] font-bold text-navy-700">You pay</span>
-              <motion.span key={total} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-[40px] font-bold tabular-nums text-navy-700">
+              <span className="text-[18px] font-bold">You pay</span>
+              <motion.span key={total} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-[44px] font-bold tabular-nums">
                 {money(total)}
               </motion.span>
             </div>
             <Btn className="mt-5 w-full">Start and pay {money(total)}</Btn>
           </div>
         </Rise>
+      </div>
+    </Dark>
+  );
+}
+
+function Promises() {
+  const items = [
+    { icon: FileLock2, title: "Show your record without asking you", body: "Every reader is somebody you said yes to, and you can take it back." },
+    { icon: PenLine, title: "Send you anything unsigned", body: "A machine drafts, a named therapist reads and signs, then you see it." },
+    { icon: HeartHandshake, title: "Tell your employer who went", body: "A company sees a total, published in steps. Never who, when or what." },
+    { icon: LifeBuoy, title: "Put money in front of help", body: "SOS is on every screen and nothing covers it, including a payment." },
+  ];
+  return (
+    <section className="bg-navy-50 py-24">
+      <div className="mx-auto max-w-7xl px-5">
+        <Eyebrow>Promises</Eyebrow>
+        <Title>Four things we will never do.</Title>
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((item, i) => (
+            <motion.div
+              key={item.title}
+              initial={{ opacity: 0, y: 24, rotate: -1 }}
+              whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+              viewport={{ once: true }}
+              transition={{ ...spring, delay: i * 0.07 }}
+              whileHover={{ y: -8 }}
+              className="rounded-[28px] bg-white p-7 ring-1 ring-navy-100 shadow-[0_20px_50px_-40px_rgba(10,35,66,0.5)]"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-900 text-brand-300">
+                <item.icon className="h-6 w-6" aria-hidden />
+              </span>
+              <p className="mt-6 text-[19px] font-bold text-navy-700">{item.title}</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-navy-500">{item.body}</p>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </section>
   );

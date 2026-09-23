@@ -30,6 +30,20 @@ const LABEL: Record<Kind, string> = { transfer: "Transfers", licence: "Licences"
 type Entry = { at: string; who: string; what: string };
 
 export function ConsolePortal() {
+  return (
+    <PortalPage
+      eyebrow="Our console · operations"
+      title="Everything that is stuck, oldest first."
+      body="Nothing sits in the console without a clock on it. Match a bank transfer against the booking it pays for, confirm it once, reject with a reason, and see every action written down."
+      tryThis={["Filter by kind", "Match the transfer", "Confirm twice", "Reject without a reason"]}
+    >
+      <ConsoleDemo />
+    </PortalPage>
+  );
+}
+
+/** The window alone, so the website can show the same flow inside its product demo. */
+export function ConsoleDemo() {
   const [view, setView] = useState<View>("stuck");
   const [audit, setAudit] = useState<Entry[]>([
     { at: "18:02", who: "Omar (ops)", what: "Confirmed transfer T-2288 against booking 8830" },
@@ -38,31 +52,24 @@ export function ConsolePortal() {
   ]);
   const log = (what: string) => setAudit((a) => [{ at: "now", who: "You (ops)", what }, ...a]);
   return (
-    <PortalPage
-      eyebrow="Our console · operations"
-      title="Everything that is stuck, oldest first."
-      body="Nothing sits in the console without a clock on it. Match a bank transfer against the booking it pays for, confirm it once, reject with a reason, and see every action written down."
-      tryThis={["Filter by kind", "Match the transfer", "Confirm twice", "Reject without a reason"]}
-    >
-      <BrowserFrame url="24therapy.app/admin">
-        <PortalShell
-          product="Console"
-          active={view}
-          onNav={setView}
-          user="You"
-          role="Operations"
-          nav={[
-            { id: "stuck", label: "Stuck", icon: <Inbox className="h-[18px] w-[18px]" aria-hidden />, badge: String(CASES.length) },
-            { id: "transfer", label: "Match a transfer", icon: <ArrowLeftRight className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "audit", label: "Audit trail", icon: <History className="h-[18px] w-[18px]" aria-hidden /> },
-          ]}
-        >
-          {view === "stuck" && <Stuck onOpen={() => setView("transfer")} />}
-          {view === "transfer" && <Transfer log={log} />}
-          {view === "audit" && <Audit entries={audit} />}
-        </PortalShell>
-      </BrowserFrame>
-    </PortalPage>
+    <BrowserFrame url="24therapy.app/admin">
+      <PortalShell
+        product="Console"
+        active={view}
+        onNav={setView}
+        user="You"
+        role="Operations"
+        nav={[
+          { id: "stuck", label: "Stuck", icon: <Inbox className="h-[18px] w-[18px]" aria-hidden />, badge: String(CASES.length) },
+          { id: "transfer", label: "Match a transfer", icon: <ArrowLeftRight className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "audit", label: "Audit trail", icon: <History className="h-[18px] w-[18px]" aria-hidden /> },
+        ]}
+      >
+        {view === "stuck" && <Stuck onOpen={() => setView("transfer")} />}
+        {view === "transfer" && <Transfer log={log} />}
+        {view === "audit" && <Audit entries={audit} />}
+      </PortalShell>
+    </BrowserFrame>
   );
 }
 

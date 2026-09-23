@@ -23,11 +23,10 @@ const TEAM: Array<{ name: string; role: string; status: Status; sessions: number
   { name: "Hana Demo", role: "Counsellor", status: "away", sessions: 9, earned: 410, trend: [1, 2, 2, 3, 2, 3, 3] },
 ];
 
-const SEAT_PRICE = 29;
+// lib/settings/defs.ts seatBands: $72 a clinician from two seats up (one seat is the $80 solo price).
+const SEAT_PRICE = 72;
 
 export function ClinicPortal() {
-  const [view, setView] = useState<View>("overview");
-  const [seats, setSeats] = useState(6);
   return (
     <PortalPage
       eyebrow="Clinics · the owner's portal"
@@ -35,35 +34,44 @@ export function ClinicPortal() {
       body="See who is in a session right now, what each clinician earned, and add a colleague with the price of the seat shown before you commit. No patient names reach the clinic owner, ever."
       tryThis={["Filter the team", "Add a clinician", "Open the bill"]}
     >
-      <BrowserFrame url="24therapy.app/clinic">
-        <PortalShell
-          product="Clinic"
-          active={view}
-          onNav={setView}
-          user="Nile Minds Clinic"
-          role="Owner"
-          nav={[
-            { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "team", label: "Team", icon: <Users className="h-[18px] w-[18px]" aria-hidden />, badge: String(seats) },
-            { id: "add", label: "Add a clinician", icon: <UserPlus className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "bill", label: "Bill", icon: <Receipt className="h-[18px] w-[18px]" aria-hidden /> },
-          ]}
-        >
-          {view === "overview" && <Overview seats={seats} onTeam={() => setView("team")} onAdd={() => setView("add")} />}
-          {view === "team" && <Team />}
-          {view === "add" && (
-            <Add
-              seats={seats}
-              onAdded={() => {
-                setSeats((n) => n + 1);
-              }}
-              onBill={() => setView("bill")}
-            />
-          )}
-          {view === "bill" && <Bill seats={seats} />}
-        </PortalShell>
-      </BrowserFrame>
+      <ClinicDemo />
     </PortalPage>
+  );
+}
+
+/** The window alone, so the website can show the same flow inside its product demo. */
+export function ClinicDemo() {
+  const [view, setView] = useState<View>("overview");
+  const [seats, setSeats] = useState(6);
+  return (
+    <BrowserFrame url="24therapy.app/clinic">
+      <PortalShell
+        product="Clinic"
+        active={view}
+        onNav={setView}
+        user="Nile Minds Clinic"
+        role="Owner"
+        nav={[
+          { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "team", label: "Team", icon: <Users className="h-[18px] w-[18px]" aria-hidden />, badge: String(seats) },
+          { id: "add", label: "Add a clinician", icon: <UserPlus className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "bill", label: "Bill", icon: <Receipt className="h-[18px] w-[18px]" aria-hidden /> },
+        ]}
+      >
+        {view === "overview" && <Overview seats={seats} onTeam={() => setView("team")} onAdd={() => setView("add")} />}
+        {view === "team" && <Team />}
+        {view === "add" && (
+          <Add
+            seats={seats}
+            onAdded={() => {
+              setSeats((n) => n + 1);
+            }}
+            onBill={() => setView("bill")}
+          />
+        )}
+        {view === "bill" && <Bill seats={seats} />}
+      </PortalShell>
+    </BrowserFrame>
   );
 }
 

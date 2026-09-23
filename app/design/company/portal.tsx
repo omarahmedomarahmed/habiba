@@ -27,9 +27,6 @@ const USE = [
 const PEOPLE = ["Ahmed Demo", "Dina Demo", "Farah Demo", "Hassan Demo", "Ibrahim Demo", "Jana Demo", "Khaled Demo", "Lina Demo", "Maged Demo", "Rana Demo"];
 
 export function CompanyPortal() {
-  const [view, setView] = useState<View>("overview");
-  const [cover, setCover] = useState(60);
-  const [pot, setPot] = useState(1840);
   return (
     <PortalPage
       eyebrow="Companies · the benefit portal"
@@ -37,27 +34,37 @@ export function CompanyPortal() {
       body="Set how much of each session the company covers, watch what it would cost before you save, top up the pot, and see use by team only where a team is big enough that nobody can be picked out."
       tryThis={["Drag the cover", "Touch a hidden cell", "Top up"]}
     >
-      <BrowserFrame url="24therapy.app/sponsor">
-        <PortalShell
-          product="Benefit"
-          active={view}
-          onNav={setView}
-          user="Acme Demo Ltd"
-          role="HR admin"
-          nav={[
-            { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "cover", label: "Cover", icon: <Percent className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "people", label: "People", icon: <Users className="h-[18px] w-[18px]" aria-hidden /> },
-            { id: "topup", label: "Top up", icon: <Wallet className="h-[18px] w-[18px]" aria-hidden /> },
-          ]}
-        >
-          {view === "overview" && <Overview pot={pot} cover={cover} onTopUp={() => setView("topup")} />}
-          {view === "cover" && <Cover cover={cover} onSave={setCover} />}
-          {view === "people" && <People />}
-          {view === "topup" && <TopUp pot={pot} cover={cover} onPaid={(n) => setPot((p) => p + n)} />}
-        </PortalShell>
-      </BrowserFrame>
+      <CompanyDemo />
     </PortalPage>
+  );
+}
+
+/** The window alone, so the website can show the same flow inside its product demo. */
+export function CompanyDemo() {
+  const [view, setView] = useState<View>("overview");
+  const [cover, setCover] = useState(60);
+  const [pot, setPot] = useState(1840);
+  return (
+    <BrowserFrame url="24therapy.app/sponsor">
+      <PortalShell
+        product="Benefit"
+        active={view}
+        onNav={setView}
+        user="Acme Demo Ltd"
+        role="HR admin"
+        nav={[
+          { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "cover", label: "Cover", icon: <Percent className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "people", label: "People", icon: <Users className="h-[18px] w-[18px]" aria-hidden /> },
+          { id: "topup", label: "Top up", icon: <Wallet className="h-[18px] w-[18px]" aria-hidden /> },
+        ]}
+      >
+        {view === "overview" && <Overview pot={pot} cover={cover} onTopUp={() => setView("topup")} />}
+        {view === "cover" && <Cover cover={cover} onSave={setCover} />}
+        {view === "people" && <People />}
+        {view === "topup" && <TopUp pot={pot} cover={cover} onPaid={(n) => setPot((p) => p + n)} />}
+      </PortalShell>
+    </BrowserFrame>
   );
 }
 
