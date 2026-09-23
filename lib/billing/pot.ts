@@ -818,13 +818,24 @@ export async function refundToPot(input: {
  * policy and no expiry cannot hold money — the database refuses it — so this
  * refuses the top-up with the reason rather than letting the insert fail with a
  * constraint name.
+ *
+ * 🔴 W1-01 — ONLY AFTER A CONFIRMED CHARGE. This used to journal cash as
+ * received on nothing but a form post, so the card rail credited money nobody
+ * paid. It now asks the processor whether the named charge succeeded for this
+ * sponsor and this amount, and refuses otherwise. No screen calls it today: the
+ * card rail is off until a checkout exists to produce that charge.
  */
 export async function topUpPot(input: {
   sponsorId: string;
   amountCents: number;
   /** Who authorised it, for the audit. A sponsor user id, never an `Actor`. */
   bySponsorUserId: string | null;
+  /** The processor's record that the money arrived. Required, never optional. */
+  confirmedCharge: { paymentIntentId: string };
 }): Promise<{ ok?: true; error?: string }> {
+  const intentId = input.confirmedCharge?.paymentIntentId?.trim();
+  if (!intentId) return { error: "There is no confirmed payment for this top-up." };
+
   const settings = await getSettings();
 
   const [sponsor] = await controlDb
@@ -896,6 +907,21 @@ export async function topUpPot(input: {
     vatBps,
   });
 
+  /*
+   * 🔴 The charge must have succeeded, for exactly what we credit against, and
+   * for this sponsor. One charge credits once: its id is on the cash leg.
+   */
+  const memo = `Card payment ${intentId}`.slice(0, 200);
+  if (!(await chargeSucceeded(intentId, charged, input.sponsorId))) {
+    return { error: "There is no confirmed payment for this top-up." };
+  }
+  const [already] = await controlDb
+    .select({ id: ledgerEntries.id })
+    .from(ledgerEntries)
+    .where(and(eq(ledgerEntries.account, "cash"), eq(ledgerEntries.memo, memo)))
+    .limit(1);
+  if (already) return { error: "That payment has already been added to the pot." };
+
   await journal({
     kind: "pot_topup",
     refType: "sponsor",
@@ -905,7 +931,7 @@ export async function topUpPot(input: {
         account: "cash",
         /* 🔴 What we CHARGED, which is the credit plus the tax on it. */
         amountCents: charged,
-        memo: "A sponsor topped up their pot",
+        memo,
       },
       {
         account: "vat_payable",
@@ -932,6 +958,30 @@ export async function topUpPot(input: {
 
   log.info("pot topped up", { sponsor: ref(input.sponsorId) });
   return { ok: true };
+}
+
+/** Asked of the processor, never of the browser. Any doubt is a no. */
+async function chargeSucceeded(
+  paymentIntentId: string,
+  amountCents: number,
+  sponsorId: string,
+): Promise<boolean> {
+  const { getStripe } = await import("./stripe");
+  const client = getStripe();
+  if (!client) return false;
+
+  try {
+    const intent = await client.paymentIntents.retrieve(paymentIntentId);
+    return (
+      intent.status === "succeeded" &&
+      intent.currency === "usd" &&
+      intent.amount_received === amountCents &&
+      intent.metadata?.sponsorId === sponsorId
+    );
+  } catch (error) {
+    log.warn("pot charge not confirmed", { reason: safeErrorMessage(error) });
+    return false;
+  }
 }
 
 /**

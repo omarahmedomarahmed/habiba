@@ -99,8 +99,8 @@ export default async function SponsorPotPage() {
    * and a number that renders one way on the server and another in the browser
    * is a transfer for the wrong amount.
    *
-   * Built only on the transfer rail. The card path takes a typed amount through
-   * `TopUpForm` and is unchanged.
+   * Built only on the transfer rail. The card path is off (W1-01): `TopUpForm`
+   * shows the terms and says to ask us.
    */
   const ladder = needsTransfer
     ? await potTopUpLadder({

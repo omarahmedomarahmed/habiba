@@ -3922,6 +3922,10 @@ export const en = {
   "tcop.liveNow": "This patient is in a session right now",
   "tcop.liveFree": "Questions are free while it runs, and answer from the record as it was when the session started.",
   "tcop.goToRoom": "Open the room",
+
+  // W1A
+  "w1a.potCardOff": "Card payment is not open yet. Ask us and we will send bank transfer details.",
+  "w1a.potAskUs": "Ask us",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7078,6 +7082,10 @@ export const ar: Record<MessageKey, string> = {
   "tcop.liveNow": "هذا المريض في جلسة الآن",
   "tcop.liveFree": "الأسئلة مجانية أثناء الجلسة، وتُجيب من السجل كما كان عند بدايتها.",
   "tcop.goToRoom": "افتح الغرفة",
+
+  // W1A
+  "w1a.potCardOff": "الدفع بالبطاقة غير متاح بعد. تواصلوا معنا وسنرسل لكم بيانات التحويل البنكي.",
+  "w1a.potAskUs": "تواصلوا معنا",
 };
 
 export const DICTIONARIES = { en, ar } as const;
