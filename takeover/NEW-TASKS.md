@@ -8,7 +8,7 @@ Details and file references: `takeover/REPORT.md` section 2 and `takeover/walk/R
 Severity: **S1** hurts a patient's privacy, safety or legal position; **S2** loses or misstates
 money; **S3** leaves somebody stuck; **S4** says something untrue.
 
-## Done on this branch, waiting for the full checks and the founder's yes to deploy
+## Live on 24therapy.app since 2026-09-23 (deploy 1 `1a9a2e1`: 177, 178; deploy 2 `f5b7378`: the rest), full checks 35 of 35
 
 | # | What | Sev | State |
 |---|---|---|---|

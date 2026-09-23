@@ -579,7 +579,7 @@ after 176. "Seen" means seen on the live site; "code" means confirmed in the cod
 Details and file references: <code>takeover/REPORT.md</code> section 2 and <code>takeover/walk/RESULTS.md</code>.</p>
 <p>Severity: <strong>S1</strong> hurts a patient's privacy, safety or legal position; <strong>S2</strong> loses or misstates
 money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says something untrue.</p>
-<h3>Done on this branch, waiting for the full checks and the founder's yes to deploy</h3>
+<h3>Live on 24therapy.app since 2026-09-23 (deploy 1 <code>1a9a2e1</code>: 177, 178; deploy 2 <code>f5b7378</code>: the rest), full checks 35 of 35</h3>
 <div class="scroll"><table>
 <thead>
 <tr>
@@ -604,9 +604,9 @@ money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says somet
 </tr>
 <tr>
 <td>179</td>
-<td>Company overview: live counts beside the floored balance</td>
+<td>Company portal: live counts beside the floored balance; per-person check dates and pause</td>
 <td><span class="sev s1">S1</span></td>
-<td><strong>Half fixed</strong> (<code>23c0936</code>): all three figures are one published snapshot. Names and per-person dates on <code>/sponsor/people</code> wait on the founder's decision</td>
+<td>Fixed (<code>23c0936</code>, <code>496bbf3</code>). Names kept (founder's decision 4); the per-person date turned out to be the moment each person re-proved employment, not the company's cycle date as its comment claimed, so it went with the pause badge</td>
 </tr>
 <tr>
 <td>180</td>
@@ -624,7 +624,7 @@ money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says somet
 <td>183 + task 123</td>
 <td>Recording without consent; the patient's Stop could be undone by the clinician</td>
 <td><span class="sev s1">S1</span></td>
-<td>Fixed (<code>56e905a</code>): no recorded yes, no transcript; in-person consent on the clinician's screen; Stop withdraws. Not yet seen in a browser (needs the app secrets to run locally)</td>
+<td>Fixed (<code>56e905a</code>, <code>952f1e6</code>) and seen working on a local build: nothing captured before the yes, a transcript after it, nothing after a no. A no now leads to "Write the note yourself" instead of a Try again that could never work</td>
 </tr>
 <tr>
 <td>-</td>
@@ -894,6 +894,37 @@ money; <strong>S3</strong> leaves somebody stuck; <strong>S4</strong> says somet
 <td>Crisis re-delivery runs once a day; the README says every five minutes</td>
 <td><span class="sev s1">S1</span></td>
 <td>code</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Found while testing the fixes (2026-09-23)</h3>
+<div class="scroll"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Sev</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>216</td>
+<td>The note writer sometimes leaves the whole clinical half (SOAP, summary, impressions) empty on the same transcript where another run fills it; the patient's half is always written. Seen twice on a local build with a clinician-only test recording. Needs a real two-voice recording and an eval before anyone calls it a defect or not</td>
+<td><span class="sev s2">S2</span></td>
+<td>seen, locally</td>
+</tr>
+<tr>
+<td>217</td>
+<td><code>verify:sprint48</code> 48.6 fails whenever the same clinician has another room open on the branch; it passed once the room was ended. A check that depends on unrelated rows</td>
+<td><span class="sev s4">S4</span></td>
+<td>seen</td>
+</tr>
+<tr>
+<td>218</td>
+<td>Two comments describing protections the code does not have, the pattern the reviewer named: the company roster's "sponsor's cycle date" (C256) and <code>verify:sprint7</code> 7.8 counting every recording start. Both fixed; the kind is worth a sweep</td>
+<td><span class="sev s4">S4</span></td>
+<td>seen</td>
 </tr>
 </tbody>
 </table></div></main>
