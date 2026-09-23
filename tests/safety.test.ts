@@ -695,6 +695,19 @@ test("🔴 E1 the company overview prints no live total, only the published snap
   assert.match(body, /sessions - pot\.publishedSessions >= floor/);
 });
 
+test("🔴 E2 the company's people list carries a name per person and nothing about their use of it", async () => {
+  const { readFileSync } = await import("node:fs");
+  const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "");
+  const page = strip(readFileSync("app/(sponsor)/sponsor/people/page.tsx", "utf8"));
+  const list = strip(readFileSync("components/sponsor/roster-list.tsx", "utf8"));
+  // Re-proving employment happens when somebody next wants the benefit, so the
+  // date and the pause say who came back to therapy and when.
+  assert.doesNotMatch(page, /lastVerifiedAt|paused/, "the page hands a per-person check date or pause to the list");
+  assert.doesNotMatch(list, /lastChecked|paused/, "the list renders a per-person check date or pause");
+  // Control: the name is still there, because "End their benefit" needs it.
+  assert.match(list, /person\.name/);
+});
+
 /**
  * 🔴 C380 — every figure on one charge is in ONE currency.
  *
