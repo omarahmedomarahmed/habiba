@@ -123,3 +123,25 @@ number shown to the link holder.
 
 On `crisis`: held P5 on the payment page; partly Dr Yasmin's wait; broken A3/task 124, A5, task 105;
 the radar-sheet-over-SOS case inconclusive live and confirmed in code.
+
+## Position 5 · `growth` (seeded 04:30 UTC, `verify:demo` PASS 78)
+
+| # | Promise | DID | SAW | ROW | Verdict |
+|---|---|---|---|---|---|
+| 0 | - | Company sign-in | First attempt "Something went wrong. The page could not be displayed."; second worked | - | intermittent, not reproduced |
+| 1 | E5 | Company /sponsor, /sponsor/pot | "-$25", "You have used 113% of what you have put in", under a green "Your pot top-up... Paid"; no sentence saying what a negative balance means or that the next booking will not be covered; "We do not publish a figure for a period with very little activity" directly under live "Sessions paid for 5" | pot -2500 | **broken** by PROVE-IT's own test (a minus sign and no sentence) |
+| 2 | E5, CV9 | Mariam booked Dr Sara against the empty pot | "Booked with Sara... We could not send you a confirmation"; pay sheet "Send EGP 4,275" (full price + VAT); no mention of employer or HR anywhere; /patient/benefit says "Activate your benefit. Enter the code your employer gave you" to an enrolled patient | session 0d43c1c0, no pot payment, pot stays -2500 | **partly**: pot takes nothing and the ordinary link is offered; "ask HR" absent; benefit page misleads |
+| 3-4 | E4 | Company coverage slider to 0, Save | "Changing to 0% on 23 Oct 2026. Anybody who has already booked keeps the percentage they agreed to."; roster keeps Mariam | - | **partly**: kept on the list, nothing says removed; "owes the whole price" not observable for 30 days |
+| 4 | privacy copy | Mariam /patient/benefit | "Your sessions are paid for by Habiba Holdings" and "Activate your benefit" on one screen; "That you are on the list. The date beside it is the same for everybody." and "Whether you booked, when... Not a date, not a count." | - | **broken**: the patient is promised what the company portal breaks (per-person dates, live counts) |
+| 5-6 | - | Company top-up: "Send at least $100", "HOW MUCH TO ADD $100, EGP 5,000, Covers about 8 sessions at your coverage rate"; reference TOPUP-01; operator Confirm | pot -2500 -> 7500 | manual_payments TOPUP-01 confirmed | held; the "8 sessions" estimate is about 4x wrong at 60% of $75 (about 2) |
+| 7 | PL7, C3 | Clinic /clinic/people | Dr Yasmin already on the practice ("Verification in progress"); no seat control, no quote anywhere; bill "6 sessions, platform fee $0.00, AI fee $0.00, total $0.00", no seat line | - | **untestable as written, and C3 broken**: nothing per seat exists |
+| 8 | - | Operator /admin/verifications, Approve on Dr Yasmin (submitted 14 Aug, about 40 days, promise 2 working days, nothing flags the age) | "Nothing waiting" | - | held; the queue has no clock |
+| 9 | C1 | Yasmin signed in (dashboard unlocked, her payment bar shows "Session with Sara Demo, EGP 4,275", a colleague's patient's payment); "Go on the radar", then "Turn the alarm on and go live" | Hangs at "Turning it on..." waiting for a test ring that never finishes in a headless browser; public radar "Nobody... on shift" | - | **untested (environment)**; design question: a device that cannot play sound cannot go on the radar |
+| 10 | C4 | Clinic "Remove from the practice" on Dr Kareem (confirm text: "They move to their own practice now, and any meeting account they connected here is disconnected."), confirmed | Kareem gone from the list | - | - |
+| 11 | C4 | Kareem signed in | Not suspended; billing "Pay as you go, Yours"; **/patients "0 on your caseload. No patients yet."** | Kareem's new solo org has 0 patients; Nadia still at Nile Practice | **broken**: he loses his patient on release |
+| 12 | C3, C4 | Clinic /clinic/bills after release | No seat line before or after | - | **broken** (MONEY-8, seen) |
+| 13 | RR9 | Pot topped to $75; Omar Ahmad (on the roster) booked: **not funded** by the pot; Mariam booked once (pot $75 -> $30); then Mariam in two browsers confirmed Thu 16:00 and 17:00 19 ms apart | Both screens "Booked with Sara" | 17:00 funded 4500; 16:00 no pot payment; pot -1500, inside the 5000 bound | **held**; the unfunded booker is told nothing different; an enrolled employee not covered is a separate defect |
+
+On `growth`: held RR9, the pot refusing a spend past its bound, and the verification approval; partly E4,
+E5; broken the negative-balance wording, C3, C4 (patient lost), the benefit-page privacy copy; C1 and PL7
+untested.
