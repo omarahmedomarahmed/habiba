@@ -85,3 +85,25 @@ have finished, so no reseed moves the database under them.
 
 On `money`: held CV1, CV4, E3, RA9, CV12, A2 (money); partly A2 (screen), A3; broken E1, CV2, A4
 (overpayment), T3, MONEY-6; A4 (unmatched line) untested because of the coordinator's error.
+
+## Position 3 · `continuity` (seeded 04:08 UTC, `verify:demo` PASS 78)
+
+| # | Promise | DID | SAW | ROW | Verdict |
+|---|---|---|---|---|---|
+| 1 | P4 | Tarek /patient/summary | "Dr Sara Demo, Clinical psychologist, Version 2" and "Dr Omar Abdelgawad, Psychotherapist, Version 1", first unchanged; neither names the practice | - | **held** (practice not shown) |
+| 2 | stale / hidden | Tarek /patient/consent | "Nobody has asked to read your history"; Kareem "Expired, Cannot read". PROVE-IT says a request from Kareem is waiting. DB: Kareem's seeded request exists (`requested`, shape `summary`) and the patient screen does not show it | history_grants | **broken**: a pending request the patient cannot see; PROVE-IT step 2 stale against the seed |
+| 2 | P4 | Tarek made a code (RP8-8FT), Kareem entered it at /connect ("Tarek has been asked"), Tarek saw "Asked on 23 Sept... Yes for 24 hours / Yes until I change my mind / No thanks", granted | grant `granted`, `open` | history_grants | **held** (the code route works; dates shown as raw ISO "2026-10-23") |
+| 3 | T5 | Kareem opened the copilot on Tarek | 404 "We could not find that page": Tarek's record at Nile Practice belongs to Sara, and the copilot opens only a clinician's own charts | patient d2fe1979 | **broken as walked**: no screen where a second clinician in the same practice can use a grant |
+| 3 | T5 | Deviation: Sara (who holds her own grant) asked "What seems to trigger his sleep trouble?" | Answer about middle-insomnia and anticipatory review anxiety with [S1:4] [S1:5] linked to "18 Sept 2026 0:24 / 0:32" | - | **held** (citations attached) |
+| 4-5 | T5 | Tarek pressed "Stop their access" on Sara; Sara reopened the copilot and asked again, timed | Within 4.7s: "This person has not granted you access to their profile... not their live profile, their files, or their current diagnosis". The copilot still answered: "The transcripts do not cover that. No source, treat with care" from her own sessions | grant revoked 04:14:42 | **partly**: scope narrowed at once; the copilot does not stop, while `/for-patients` says "Take it back and it stops that second" |
+| 6 | P4 | - | Not walked as written (Sara was the one revoked in the deviation); Kareem's open grant untouched | - | untested as written |
+| 7 | C2, C5 | Clinic screens | Covered by the clinic assessment on `live`: first name plus last initial with times and clinician on /clinic and the CSV; earnings per clinician present | - | C2 **broken** as worded, C5 **held** |
+| 8 | - | Dr Omar, Laila's chart, "Create an invite link" then "Issue a new one" (link shown once, "We store only a fingerprint") | link captured | - | - |
+| 9 | claim | Stranger opened the link signed out | "Omar Abdelgawad has invited you to take ownership of the record they keep for you. Create an account or sign in." | - | - |
+| 9 | privacy | Create an account | Sign-up shows "Phone +201000000002. The number your therapist sent this invite to." to whoever holds the link | - | **broken**: record data shown before any handle is proven (README safety invariant 5) |
+| 9 | claim | Signed up (first name, a password, no code sent anywhere) | Straight to "Take ownership of your record. L•••• D••• keeps notes under this name... This is me, claim it". **No questions.** Pressed it: "That record is yours now" | people.claimed_at 04:19:07; account phone +201000000002 **phone_verified_at NULL**, email NULL | **broken**: PROVE-IT's "two questions before letting anybody in" never asked; a record owned by an unverified account |
+| 10 | - | Operator finding Laila stuck | Not possible: the stranger got in at step 9 | - | untested |
+
+On `continuity`: held P4 (versions, the code route), T5 citations, C5; partly T5 revoke; broken the hidden
+pending request, the Kareem copilot path, C2, claim identity (no questions, unverified owner) and the phone
+number shown to the link holder.
