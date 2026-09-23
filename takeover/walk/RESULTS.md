@@ -107,3 +107,19 @@ On `money`: held CV1, CV4, E3, RA9, CV12, A2 (money); partly A2 (screen), A3; br
 On `continuity`: held P4 (versions, the code route), T5 citations, C5; partly T5 revoke; broken the hidden
 pending request, the Kareem copilot path, C2, claim identity (no questions, unverified owner) and the phone
 number shown to the link holder.
+
+## Position 4 · `crisis` (seeded 04:20 UTC, `verify:demo` PASS 80)
+
+| # | Promise | DID | SAW | ROW | Verdict |
+|---|---|---|---|---|---|
+| 0 | A5 | Support (`staff.demo`) signed in at /staff/sign-in | Landed on `/onboarding`, the clinician "Verify your practice" screen | audit: `auth signin` only | defect (ID-8, seen) |
+| 2 | P5 | Patient A: orb, /pay/<token> with EGP 3,420 on screen; checked the element under the SOS orb's centre, tapped it | The SOS orb itself is on top (z 70); "Help now. These are phone numbers, not a chat... 105, Egypt, press 1 for Arabic, then 1 for mental health", `tel:105`, above the payment details | - | **held** on the payment page |
+| 2 | P5 | /patient/radar booking sheet | Headless: crash page without WebGL ("Something went wrong... The SOS button still works"); with WebGL, Dr Omar appeared for ~1 minute then dropped while his on-call page stayed open, so no sheet could be opened | - | **inconclusive live**; two verifiers found in code the sheet (z 100) above SOS (z 70), UX-26, CLIN-38. Stop-condition level if true |
+| 3 | A3, task 124 | Mariam looked on /patient, sessions, notices, benefit, billing, account | No trace of a rejection anywhere, no orb | manual_payments 67663f75 rejected, reason verbatim stored, **ref_id NULL** | **broken**: never told. The seeded rejection is attached to nothing, so the only surface that shows reasons (the sheet for the same item) can never show it; PROVE-IT calls it "the most favourable form", it is the one form that is invisible |
+| 4 | A3 | Operator: transfers, vault, support, overview | No mention of the rejection, no "seen", no "tell them again", no age | - | **no** to all three of PROVE-IT's questions |
+| 5 | lifecycle | Dr Yasmin /onboarding | "Somebody is checking your documents, usually within a working day. Sessions unlock when you are approved." | - | **partly**: says what and how long, but LIFECYCLES promises 2 working days, and she can do nothing meanwhile |
+| 6 | A5 | Support opened /admin/actuals, /admin/benefits, /admin/radar, /admin/tv, /admin/errors, /admin | All to `/onboarding` ("Finish verification"), errors to `/dashboard`; even `/admin` (support's own home) bounces. Allowed pages (/admin/transfers, support, verifications, payouts) open only by typed URL | audit_log for staff.demo: `auth signin` only | **broken**: redirected to the wrong product, refusals not recorded, support has no door into its own console |
+| 7 | task 105 | Operator /admin/support, ticket SUP-DEMO-01 from Laila | Actions: Take it on, Waiting on them, Extend once, Moved to WhatsApp, "Close and send the link"; that link is a support-reply page plus a six-digit code (`lib/data/support.ts` closeTicket), not a claim link | - | **confirmed**: the console cannot give her a new claim link |
+
+On `crisis`: held P5 on the payment page; partly Dr Yasmin's wait; broken A3/task 124, A5, task 105;
+the radar-sheet-over-SOS case inconclusive live and confirmed in code.
