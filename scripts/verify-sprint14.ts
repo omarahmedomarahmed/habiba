@@ -368,6 +368,69 @@ async function main() {
       }),
     );
 
+    /*
+     * 🔴 W1-07 — THE ACTIONS ASK FOR PROOF, NOT AN ID.
+     *
+     * `takeRefund(sessionId)` refunded any overdue session for whoever held its
+     * id. The proof now is the patient's own join link, or a signed-in patient
+     * whose person owns the session. Planted with no contact details, so the
+     * control's apology has nobody to reach.
+     */
+    const { takeRefund, takeReplacement } = await import(
+      "../app/(patient)/sessions/[id]/recovery-actions"
+    );
+    const plantOverdue = async (joinToken: string) => {
+      const [row] = await db
+        .insert(sessions)
+        .values({
+          organizationId: absent!.organizationId,
+          therapistId: absent!.id,
+          status: "scheduled",
+          modality: "video",
+          guestName: "verify14 w107",
+          joinToken,
+          feedbackToken: `${joinToken}-rate`,
+          priceCents: 0,
+          scheduledAt: new Date(Date.now() - 60 * 60_000),
+          patientJoinedAt: new Date(Date.now() - 59 * 60_000),
+        })
+        .returning({ id: sessions.id });
+      if (row) made.push(row.id);
+      return row!;
+    };
+    const overdue = await plantOverdue(`verify14-join-a-${Date.now()}`);
+    const joinToken = `verify14-join-b-${Date.now()}`;
+    const withLink = await plantOverdue(joinToken);
+    const byIdRefund = await (takeRefund as (proof: unknown) => Promise<unknown>)(overdue!.id).catch(
+      (error: Error) => ({ error: error.message }),
+    );
+    const byIdMove = await (
+      takeReplacement as (proof: unknown, userId: string) => Promise<unknown>
+    )(overdue!.id, cheaper!.id).catch((error: Error) => ({ error: error.message }));
+    const [untouched] = await db
+      .select({ status: sessions.status, therapistId: sessions.therapistId })
+      .from(sessions)
+      .where(eq(sessions.id, overdue!.id))
+      .limit(1);
+    check(
+      "🔴 W1-07 an overdue session cannot be refunded or moved by its bare id",
+      untouched?.status === "scheduled" && untouched?.therapistId === absent!.id,
+      `refund ${JSON.stringify(byIdRefund)}, move ${JSON.stringify(byIdMove)}, now ${untouched?.status}`,
+    );
+    const byToken = await takeRefund({ token: joinToken }).catch((error: Error) => ({
+      error: error.message,
+    }));
+    const [refundedRow] = await db
+      .select({ outcome: sessions.recoveryOutcome })
+      .from(sessions)
+      .where(eq(sessions.id, withLink.id))
+      .limit(1);
+    check(
+      "W1-07 control: the same session IS refunded with the patient's join link",
+      refundedRow?.outcome === "refunded",
+      JSON.stringify(byToken),
+    );
+
     /* ------------------------------------------------------ 14.7 the score */
 
     const score = await reliabilityFor(absent!.id);

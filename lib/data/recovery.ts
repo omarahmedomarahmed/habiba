@@ -297,10 +297,11 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
    * 🔴 THE THERAPIST MUST ACTUALLY HAVE FAILED TO APPEAR, AND UNTIL THIS SPRINT
    * NOTHING CHECKED IT.
    *
-   * The caller is unauthenticated on purpose: somebody who booked from a public
-   * profile has no account, and the moment their therapist does not turn up is
-   * the worst possible moment to ask them to make one. The session id is the
-   * capability, exactly as it is for the join link.
+   * The caller has no account on purpose: somebody who booked from a public
+   * profile has none, and the moment their therapist does not turn up is the
+   * worst possible moment to ask them to make one. W1-07: the action now asks
+   * for their join link (or a signed-in patient who owns the session) and
+   * hands this function the id only once that is proved.
    *
    * That argument only holds while the id can do **one** thing. The WHERE below
    * used to be `id = X AND recovery_outcome IS NULL`, which is every scheduled,

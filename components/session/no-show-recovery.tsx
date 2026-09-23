@@ -33,11 +33,12 @@ import { localeTag } from "@/lib/i18n/config";
  * back with an apology. Never a spinner and a shrug.
  */
 export function NoShowRecovery({
-  sessionId,
+  token,
   startedAt,
   waitMinutes,
 }: {
-  sessionId: string;
+  /** 🔴 W1-07 — the patient's own join link is the proof, never the session id. */
+  token: string;
   /** Non-null once the therapist joined — this component then never appears. */
   startedAt: string | null;
   /** How long they have been here. Server-computed, so the clock is one clock. */
@@ -64,13 +65,13 @@ export function NoShowRecovery({
   useEffect(() => {
     if (startedAt || waitMinutes < 5 || view.state !== "waiting") return;
     let live = true;
-    void offerReplacements(sessionId).then((next) => {
+    void offerReplacements({ token }).then((next) => {
       if (live) setView(next);
     });
     return () => {
       live = false;
     };
-  }, [sessionId, startedAt, waitMinutes, view.state]);
+  }, [token, startedAt, waitMinutes, view.state]);
 
   if (startedAt) return null;
 
@@ -118,7 +119,7 @@ export function NoShowRecovery({
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const next = await takeRefund(sessionId);
+              const next = await takeRefund({ token });
               if ("error" in next) setError(next.error);
               else setView(next);
             })
@@ -154,7 +155,7 @@ export function NoShowRecovery({
               onClick={() =>
                 startTransition(async () => {
                   setError(null);
-                  const next = await takeReplacement(sessionId, person.userId);
+                  const next = await takeReplacement({ token }, person.userId);
                   if ("error" in next) setError(next.error);
                   else setView(next);
                 })
@@ -180,7 +181,7 @@ export function NoShowRecovery({
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            const next = await takeRefund(sessionId);
+            const next = await takeRefund({ token });
             if ("error" in next) setError(next.error);
             else setView(next);
           })

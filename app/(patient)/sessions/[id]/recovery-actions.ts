@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -17,6 +17,7 @@ import {
 import { notify } from "@/lib/notify";
 import { env } from "@/lib/env";
 import { callerKey, consume } from "@/lib/rate-limit";
+import { getPatientActor } from "@/lib/patient-auth/session";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -32,13 +33,58 @@ const db = dbFor(pinnedToDefaultRegion("app/(patient)/sessions/[id]/recovery-act
 /**
  * The patient's side of a no-show. PLAN.md 14.2–14.6.
  *
- * ## Unauthenticated, on purpose
+ * ## 🔴 W1-07 — proof of being the patient, not an id
  *
  * Somebody who booked from a public profile has no account, and the moment
  * their therapist fails to appear is the worst possible moment to ask them to
- * make one. The session id is the capability, exactly as it is for the join
- * link — and the actions below can only ever act on the session that id names.
+ * make one. So the proof is the capability they already hold: their own join
+ * link. A signed-in patient may instead name the session, and it must belong
+ * to their person.
+ *
+ * These took a bare session id, and an id is not a secret: it is in the
+ * clinician's URLs, emails and exports. Anybody holding one could refund or
+ * reassign an overdue session. The id alone now proves nothing.
  */
+export type RecoveryProof = { token: string } | { sessionId: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The session the caller has proved is theirs, or null. Anything else sent is refused. */
+async function provenSessionId(proof: unknown): Promise<string | null> {
+  if (!proof || typeof proof !== "object") return null;
+
+  const token = (proof as { token?: unknown }).token;
+  if (typeof token === "string" && token.length > 0) {
+    const [row] = await db
+      .select({ id: sessions.id, expiresAt: sessions.joinTokenExpiresAt })
+      .from(sessions)
+      .where(eq(sessions.joinToken, token))
+      .limit(1);
+    if (!row || (row.expiresAt && row.expiresAt < new Date())) return null;
+    return row.id;
+  }
+
+  const sessionId = (proof as { sessionId?: unknown }).sessionId;
+  if (typeof sessionId === "string" && UUID.test(sessionId)) {
+    const actor = await getPatientActor();
+    if (!actor) return null;
+    const [row] = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .innerJoin(patients, eq(patients.id, sessions.patientId))
+      .where(and(eq(sessions.id, sessionId), eq(patients.personId, actor.personId)))
+      .limit(1);
+    return row?.id ?? null;
+  }
+
+  return null;
+}
+
+/** The refusal, in the reader's language. */
+async function notYours(): Promise<{ error: string }> {
+  const { getI18n } = await import("@/lib/i18n/server");
+  return { error: (await getI18n()).t("tshow.notYours") };
+}
 
 export type RecoveryView =
   | { state: "waiting" }
@@ -53,9 +99,12 @@ export type RecoveryView =
  * because the commonest outcome is that they close the tab — and a let-down
  * that leaves no trace is one nobody can be held to.
  */
-export async function offerReplacements(sessionId: string): Promise<RecoveryView> {
+export async function offerReplacements(proof: RecoveryProof): Promise<RecoveryView> {
   const throttle = await consume(await callerKey("recovery"), 20, 60 * 60);
   if (!throttle.allowed) return { state: "waiting" };
+
+  const sessionId = await provenSessionId(proof);
+  if (!sessionId) return { state: "none" };
 
   const [row] = await db
     .select({
@@ -105,9 +154,12 @@ export async function offerReplacements(sessionId: string): Promise<RecoveryView
 
 /** They picked somebody. 14.5. */
 export async function takeReplacement(
-  sessionId: string,
+  proof: RecoveryProof,
   userId: string,
 ): Promise<RecoveryView | { error: string }> {
+  const sessionId = await provenSessionId(proof);
+  if (!sessionId || typeof userId !== "string" || !UUID.test(userId)) return notYours();
+
   const result = await reassignSession({ sessionId, toUserId: userId });
   if (!result.ok) return { error: result.error };
 
@@ -149,7 +201,10 @@ export async function takeReplacement(
 }
 
 /** Nobody suitable, or they would rather not. 14.4. */
-export async function takeRefund(sessionId: string): Promise<RecoveryView | { error: string }> {
+export async function takeRefund(proof: RecoveryProof): Promise<RecoveryView | { error: string }> {
+  const sessionId = await provenSessionId(proof);
+  if (!sessionId) return notYours();
+
   const result = await refundNoShow({ sessionId });
   if (!result.ok) return { error: result.error };
 

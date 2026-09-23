@@ -3060,7 +3060,7 @@ export const en = {
   "tshow.nobodyBody": "No other therapist is online. Our failure, not yours: take your money back.",
   "tshow.refund": "Refund me in full",
   "tshow.someoneElse": "Somebody else can see you now",
-  "tshow.someoneElseBody": "Your therapist has not joined. These are online now, and none costs more than you paid.",
+  "tshow.someoneElseBody": "These are online now, and none costs more than you paid.",
   "tshow.noneRefund": "None of these, refund me instead",
   "tclock.timeUp": "Time is up.",
   "tclock.timeUpBody": "To keep going, end this session and send them a link to a new one.",
@@ -3922,6 +3922,9 @@ export const en = {
   "tcop.liveNow": "This patient is in a session right now",
   "tcop.liveFree": "Questions are free while it runs, and answer from the record as it was when the session started.",
   "tcop.goToRoom": "Open the room",
+
+  // W1C
+  "tshow.notYours": "This link cannot do that.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -6381,7 +6384,7 @@ export const ar: Record<MessageKey, string> = {
   "tshow.nobodyBody": "لا يوجد معالج آخر متاح. هذا تقصيرنا لا تقصيرك: استرد أموالك.",
   "tshow.refund": "استرد لي المبلغ كاملًا",
   "tshow.someoneElse": "يستطيع شخص آخر استقبالك الآن",
-  "tshow.someoneElseBody": "لم ينضم معالجك. هؤلاء متاحون الآن، ولا أحد منهم أغلى مما دفعت.",
+  "tshow.someoneElseBody": "هؤلاء متاحون الآن، ولا أحد منهم أغلى مما دفعت.",
   "tshow.noneRefund": "لا أريد أيًّا منهم، استرد لي المبلغ",
   "tclock.timeUp": "انتهى الوقت.",
   "tclock.timeUpBody": "للمتابعة، أنهِ هذه الجلسة وأرسل له رابطًا لجلسة جديدة.",
@@ -7078,6 +7081,9 @@ export const ar: Record<MessageKey, string> = {
   "tcop.liveNow": "هذا المريض في جلسة الآن",
   "tcop.liveFree": "الأسئلة مجانية أثناء الجلسة، وتُجيب من السجل كما كان عند بدايتها.",
   "tcop.goToRoom": "افتح الغرفة",
+
+  // W1C
+  "tshow.notYours": "لا يستطيع هذا الرابط فعل ذلك.",
 };
 
 export const DICTIONARIES = { en, ar } as const;
