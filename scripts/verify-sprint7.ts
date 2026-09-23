@@ -92,19 +92,34 @@ async function main() {
      * beginning" for sessions where that may be false — which is the exact
      * claim the column exists to stop a note making.
      */
+    /*
+     * 🔴 WHAT A BACKFILL LOOKS LIKE, not "no session has a start".
+     *
+     * This counted every session with a recording start and wanted zero, which
+     * is true only of a database where no patient has ever said yes: a yes
+     * stamps the start (`answerConsent`, `answerInPersonConsent`). It passed
+     * for as long as nobody consented on the branch, and went red the first
+     * time somebody did. A guessed start has no consent moment behind it, so
+     * that is the shape counted, and a start stamped with its yes is fine.
+     */
     const [old] = await db
-      .execute<{ total: number; stamped: number }>(
+      .execute<{ total: number; stamped: number; guessed: number }>(
         sql`
       SELECT COUNT(*)::int AS total,
-             COUNT(recording_started_at)::int AS stamped
+             COUNT(recording_started_at)::int AS stamped,
+             COUNT(*) FILTER (
+               WHERE recording_started_at IS NOT NULL
+                 -- A yes later withdrawn (the patient's Stop) keeps its moment.
+                 AND recording_consent_at IS NULL
+             )::int AS guessed
         FROM sessions
     `,
       )
       .then((r) => r.rows);
     check(
-      "7.8 historical sessions were NOT backfilled with a guessed start",
-      old?.stamped === 0,
-      `${old?.stamped} of ${old?.total} sessions carry a recording start`,
+      "7.8 no session carries a recording start without the yes that started it (no guessed backfill)",
+      old?.guessed === 0,
+      `${old?.guessed} without a yes; ${old?.stamped} of ${old?.total} sessions carry a start`,
     );
 
     /* ------------------------------------------- 7.3 one live request, enforced */
