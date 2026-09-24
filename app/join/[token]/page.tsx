@@ -165,8 +165,15 @@ export default async function JoinPage({
      * It is not in the `(patient)` route group, because a join link has to work
      * for somebody who has never signed in, so it takes the chrome directly.
      * `live` locks the Session tab and makes every other destination ask first.
+     *
+     * 🔴 P14: ONLY WHILE THE SESSION IS ACTUALLY RUNNING. It was passed on every
+     * render, so a link for next Tuesday, or one still waiting to be paid,
+     * asked "leave the session?" on every tap of the bar and dimmed the SOS
+     * orb, on a screen where there was no session to leave. `in_progress` is
+     * the state `startSession` writes when the clinician opens the room, and
+     * the one `readSessionClock` calls live.
      */
-    <Shell live={{ href: `/join/${token}` }}>
+    <Shell live={session.status === "in_progress" ? { href: `/join/${token}` } : null}>
       <JoinFlow
         feedbackToken={await feedbackTokenForJoin(token)}
         therapist={{

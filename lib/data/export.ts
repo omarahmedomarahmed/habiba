@@ -2,7 +2,7 @@ import "server-only";
 
 import { egpMinorFor, formatDisplay } from "@/lib/money/convert";
 import { createHash, randomBytes } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { audit, auditPhi } from "@/lib/audit";
 import { log, safeErrorMessage } from "@/lib/logger";
@@ -322,17 +322,9 @@ async function buildExport(
       lastName: patients.lastName,
       email: patients.email,
       phone: patients.phone,
-      clinical: patients.clinical,
       createdAt: patients.createdAt,
-      organizationId: patients.organizationId,
-      therapistFirst: users.firstName,
-      therapistLast: users.lastName,
-      therapistEmail: users.email,
-      practiceName: organizations.name,
     })
     .from(patients)
-    .leftJoin(users, eq(users.id, patients.therapistId))
-    .leftJoin(organizations, eq(organizations.id, patients.organizationId))
     .where(eq(patients.id, patientId))
     .limit(1);
 
@@ -348,15 +340,37 @@ async function buildExport(
    *
    * Falls back to the single row when there is no person yet, which is a
    * record created before sprint 5 rather than an error.
+   *
+   * 🔴 P11: AND EVERY CHART'S OWN CONTENTS, NOT ONLY ITS SESSIONS.
+   *
+   * The sessions already came from every chart, but the working diagnoses,
+   * medications, goals, chart notes and the clinician's name were read off the
+   * one row the link was minted against, which for a patient's own request is
+   * the most recently created. Somebody who saw two therapists got both sets
+   * of sessions under the name of one, and the other chart was missing from
+   * their record.
+   *
+   * So the charts are read here, each with who kept it, and the same list
+   * decides which sessions come with them. Oldest first, because a record is
+   * read in the order it happened.
    */
-  const chartIds = extra.personId
-    ? (
-        await db
-          .select({ id: patients.id })
-          .from(patients)
-          .where(eq(patients.personId, extra.personId))
-      ).map((row) => row.id)
-    : [patientId];
+  const charts = await db
+    .select({
+      id: patients.id,
+      clinical: patients.clinical,
+      createdAt: patients.createdAt,
+      therapistFirst: users.firstName,
+      therapistLast: users.lastName,
+      therapistEmail: users.email,
+      practiceName: organizations.name,
+    })
+    .from(patients)
+    .leftJoin(users, eq(users.id, patients.therapistId))
+    .leftJoin(organizations, eq(organizations.id, patients.organizationId))
+    .where(extra.personId ? eq(patients.personId, extra.personId) : eq(patients.id, patientId))
+    .orderBy(asc(patients.createdAt));
+
+  const chartIds = charts.map((chart) => chart.id);
 
   const rows = await db
     .select({
@@ -574,17 +588,22 @@ async function buildExport(
       name: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
       email: patient.email,
       phone: patient.phone,
-      recordOpened: patient.createdAt,
-      diagnoses: patient.clinical?.diagnoses ?? [],
-      medications: patient.clinical?.medications ?? [],
-      goals: patient.clinical?.goals ?? [],
-      clinicianNotes: patient.clinical?.notes ?? null,
+      /* The first chart anybody opened for them, not the latest. */
+      recordOpened: charts[0]?.createdAt ?? patient.createdAt,
     },
-    clinician: {
-      name: [patient.therapistFirst, patient.therapistLast].filter(Boolean).join(" ") || null,
-      email: patient.therapistEmail,
-      practice: patient.practiceName,
-    },
+    /* 🔴 P11: one entry per chart, each with the clinician who kept it. */
+    charts: charts.map((chart) => ({
+      recordOpened: chart.createdAt,
+      clinician: {
+        name: [chart.therapistFirst, chart.therapistLast].filter(Boolean).join(" ") || null,
+        email: chart.therapistEmail,
+        practice: chart.practiceName,
+      },
+      diagnoses: chart.clinical?.diagnoses ?? [],
+      medications: chart.clinical?.medications ?? [],
+      goals: chart.clinical?.goals ?? [],
+      clinicianNotes: chart.clinical?.notes ?? null,
+    })),
     sessions: rows.map((row) => ({
       id: row.id,
       date: row.endedAt ?? row.startedAt ?? row.createdAt,
@@ -926,38 +945,51 @@ export function renderExportHtml(
       <dt>Email</dt><dd>${esc(record.patient.email ?? "-")}</dd>
       <dt>Phone</dt><dd>${esc(record.patient.phone ?? "-")}</dd>
       <dt>Record opened</dt><dd>${when(record.patient.recordOpened)}</dd>
-      <dt>Clinician</dt><dd>${esc(record.clinician.name ?? "-")}${
-        record.clinician.email ? ` · ${esc(record.clinician.email)}` : ""
+    </dl>
+  </section>
+
+  ${record.charts
+    .map(
+      (chart) => `<section>
+    <h2>With ${esc(chart.clinician.name ?? "a clinician")}${
+      chart.clinician.practice ? ` · ${esc(chart.clinician.practice)}` : ""
+    }</h2>
+    <dl>
+      <dt>Chart opened</dt><dd>${when(chart.recordOpened)}</dd>
+      <dt>Clinician</dt><dd>${esc(chart.clinician.name ?? "-")}${
+        chart.clinician.email ? ` · ${esc(chart.clinician.email)}` : ""
       }</dd>
     </dl>
     ${
-      record.patient.diagnoses.length
-        ? `<h4>Working diagnoses</h4><ul>${record.patient.diagnoses
+      chart.diagnoses.length
+        ? `<h4>Working diagnoses</h4><ul>${chart.diagnoses
             .map((d) => `<li>${esc(d)}</li>`)
             .join("")}</ul>`
         : ""
     }
     ${
-      record.patient.medications.length
-        ? `<h4>Medications on file</h4><ul>${record.patient.medications
+      chart.medications.length
+        ? `<h4>Medications on file</h4><ul>${chart.medications
             .map((m) => `<li>${esc(m)}</li>`)
             .join("")}</ul>`
         : ""
     }
     ${
-      record.patient.goals.length
-        ? `<h4>Goals</h4><ul>${record.patient.goals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>`
+      chart.goals.length
+        ? `<h4>Goals</h4><ul>${chart.goals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>`
         : ""
     }
     ${
-      record.patient.clinicianNotes
-        ? `<h4>Clinician's chart notes</h4><p>${esc(record.patient.clinicianNotes).replaceAll(
+      chart.clinicianNotes
+        ? `<h4>Clinician's chart notes</h4><p>${esc(chart.clinicianNotes).replaceAll(
             "\n",
             "<br>",
           )}</p>`
         : ""
     }
-  </section>
+  </section>`,
+    )
+    .join("")}
 
   <section>
     <h2>Sessions, ${record.sessions.length}</h2>
@@ -1153,11 +1185,22 @@ export async function requestOwnExport(input: {
     };
   }
 
-  // One live link at a time, for the same reason as the clinician's version.
+  /*
+   * One live link at a time, for the same reason as the clinician's version.
+   *
+   * 🔴 P11: per PERSON, because the extract is now the person's whole record
+   * whichever chart it was minted against. Revoking by chart alone left an
+   * earlier link alive once a newer chart became the latest.
+   */
   await db
     .update(dataExports)
     .set({ revokedAt: new Date() })
-    .where(and(eq(dataExports.patientId, chart.id), isNull(dataExports.revokedAt)));
+    .where(
+      and(
+        or(eq(dataExports.patientId, chart.id), eq(dataExports.personId, input.personId)),
+        isNull(dataExports.revokedAt),
+      ),
+    );
 
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + EXPORT_TTL_HOURS * 60 * 60 * 1000);

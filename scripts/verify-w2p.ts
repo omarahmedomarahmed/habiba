@@ -12,7 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 
-import { reporter, writesTo } from "./_verify";
+import { readSource, reporter, writesTo } from "./_verify";
 import { connect } from "./db";
 
 const { check, finish } = reporter();
@@ -109,6 +109,34 @@ async function main() {
       "the stranger path is unchanged",
     );
 
+    /*
+     * 🔴 P13: THE RECEIPT ADDRESS THE JOIN FORM ASKS FOR IS KEPT.
+     *
+     * `submitJoin` read it and threw it away, so a guest was promised a
+     * receipt nothing could send. It lands on `guest_email`, which the
+     * transfer rail's payment notice reads, and never over one already there.
+     */
+    const receipt = await joinable("receipt");
+    await joinByToken(receipt.token, "Laila", null, ` Receipt.${fixture}@Example.com `);
+    const kept = await one<{ email: string | null }>(sql`
+      SELECT guest_email AS email FROM sessions WHERE id = ${receipt.id}`);
+    check(
+      "🔴 P13 the receipt address a guest types on the join form is stored on the session",
+      kept.email === `receipt.${fixture}@example.com`,
+      String(kept.email),
+    );
+    const known = await joinable("known");
+    await db.execute(sql`
+      UPDATE sessions SET guest_email = ${`invited.${fixture}@example.com`} WHERE id = ${known.id}`);
+    await joinByToken(known.token, "Laila", null, `other.${fixture}@example.com`);
+    const unchanged = await one<{ email: string | null }>(sql`
+      SELECT guest_email AS email FROM sessions WHERE id = ${known.id}`);
+    check(
+      "P13 CONTROL: an address the clinician sent the link to is not replaced by the form",
+      unchanged.email === `invited.${fixture}@example.com`,
+      String(unchanged.email),
+    );
+
     const mine = await joinable("mine");
     await joinByToken(mine.token, "Laila", person.id);
     const minePerson = await personOf(mine.id);
@@ -191,6 +219,33 @@ async function main() {
       "🔴 W2-P06 an unpaid session's card opens the payment, a submitted transfer's says it is being checked",
       doorOf(owed.id) === "pay" && doorOf(checking.id) === "checking" && doorOf(mine.id) === "join",
       `owed=${doorOf(owed.id)}, transfer=${doorOf(checking.id)}, free=${doorOf(mine.id)}`,
+    );
+
+    /*
+     * 🔴 P12: A SESSION WITH TWO NOTES IS STILL ONE CARD.
+     *
+     * Since W2-F01 a session can hold a note per format, and `sessionDoors`
+     * joined them on the session id alone, so it listed the session once per
+     * note, and the billing page asked for the same money twice.
+     */
+    const note = JSON.stringify({ subjective: "P12", objective: "", assessment: "", plan: "" });
+    await db.execute(sql`
+      INSERT INTO session_notes (session_id, organization_id, therapist_id, content, format, is_primary)
+      VALUES (${owed.id}, ${org.id}, ${therapist.id}, ${note}::jsonb, 'soap', true),
+             (${owed.id}, ${org.id}, ${therapist.id}, ${note}::jsonb, 'dap', false)`);
+    const withNotes = await sessionDoors(person.id);
+    const owedCards = withNotes.filter((row) => row.sessionId === owed.id).length;
+    const notesOnIt = await one<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM session_notes WHERE session_id = ${owed.id}`);
+    check(
+      "🔴 P12 a session holding two notes is listed once, not once per note",
+      owedCards === 1,
+      `${owedCards} card(s) for it`,
+    );
+    check(
+      "P12 CONTROL: …and it really does hold two notes, so the join had two to repeat",
+      notesOnIt.n === 2,
+      `${notesOnIt.n} note(s)`,
     );
 
     /* ================================================================ */
@@ -382,6 +437,32 @@ async function main() {
       `ok=${refused.ok}, files=${files2.retired}`,
     );
 
+    /*
+     * 🔴 P15: A PRESS THAT CONNECTED NOTHING SAYS SO.
+     *
+     * The action threw both answers away and redirected to `/patient` either
+     * way, so a throttled or refused press looked exactly like joining. Read
+     * from the source, because the action needs a signed-in cookie; what it
+     * holds is that the redirect sits behind BOTH refusals, and the button is
+     * a form with somewhere to show them.
+     */
+    const connectSource = readSource("app/j/[code]/actions.ts");
+    const refusalsFirst =
+      /if \(!verdict\.allowed\) return \{ error: "join\.tooManyAttempts" \}/.test(connectSource) &&
+      /if \(!connected\.ok\) return \{ error: "pcode\.connectFailed" \}/.test(connectSource) &&
+      connectSource.indexOf("connectFailed") < connectSource.indexOf('redirect("/patient")');
+    check(
+      "🔴 P15 a throttled or refused wall-code press returns an error the page shows, not a redirect",
+      refusalsFirst &&
+        /useActionState\(connectToTherapist/.test(readSource("components/patient/connect-code-form.tsx")) &&
+        /<ConnectCodeForm/.test(readSource("app/j/[code]/page.tsx")),
+      refusalsFirst ? "both refusals come back as a sentence" : "a refusal still falls through",
+    );
+    check(
+      "P15 CONTROL: …and a press that did connect still goes on to the app",
+      /redirect\("\/patient"\)/.test(connectSource),
+    );
+
     /* ================================================================ */
     /*  W2-P15 · E5: A BENEFIT THAT DID NOT PAY SAYS WHO TO ASK          */
     /* ================================================================ */
@@ -404,7 +485,78 @@ async function main() {
       nothingOwed === null,
       String(nothingOwed),
     );
+
+    /* ================================================================ */
+    /*  P20 · A PAYER REACHES WHAT THEY PAID FOR AFTER THE LINK'S CLOCK  */
+    /* ================================================================ */
+
+    const { resolveJoinToken } = await import("../lib/data/sessions");
+    const expired = async (label: string, paymentStatus: "pending" | "paid") =>
+      one<{ id: string; token: string }>(sql`
+        INSERT INTO sessions (organization_id, therapist_id, status, modality, feedback_token,
+                              join_token, join_token_expires_at, price_cents, payment_status,
+                              session_type)
+        VALUES (${org.id}, ${therapist.id}, 'scheduled', 'video', ${`fb-p20-${label}-${fixture}`},
+                ${`jt-p20-${label}-${fixture}`}, now() - interval '1 hour', 2000, ${paymentStatus},
+                'radar')
+        RETURNING id, join_token AS token`);
+    const lapsedUnpaid = await expired("unpaid", "pending");
+    const lapsedPaid = await expired("paid", "paid");
+    const lapsedDeclared = await expired("declared", "pending");
+    await db.execute(sql`
+      INSERT INTO manual_payments (purpose, ref_id, amount_cents, settles_cents, payer_kind,
+                                   organization_id, state, reference, submitted_at)
+      VALUES ('session', ${lapsedDeclared.id}, 100000, 2000, 'session', ${org.id}, 'submitted',
+              ${`ref-p20-${fixture}`}, now())`);
+    const [unpaidOpens, paidOpens, declaredOpens] = await Promise.all([
+      resolveJoinToken(lapsedUnpaid.token),
+      resolveJoinToken(lapsedPaid.token),
+      resolveJoinToken(lapsedDeclared.token),
+    ]);
+    check(
+      "🔴 P20 a lapsed radar link still opens for somebody who paid, or declared a transfer",
+      paidOpens?.id === lapsedPaid.id && declaredOpens?.id === lapsedDeclared.id,
+      `paid=${paidOpens ? "opens" : "404"}, declared=${declaredOpens ? "opens" : "404"}`,
+    );
+    check(
+      "P20 CONTROL: …and a lapsed link nobody paid for is as dead as it was",
+      unpaidOpens === null,
+      unpaidOpens ? "AN UNPAID EXPIRED LINK OPENED" : "404",
+    );
+
+    /* ================================================================ */
+    /*  P17 · THE PATIENT SEES WHAT SHARE THEIR COMPANY PAYS             */
+    /* ================================================================ */
+
+    const { myBenefits } = await import("../lib/data/enrolment");
+    const noPot = (await myBenefits(person.id)).find((row) => row.enrolmentId === paused.id);
+    check(
+      "P17 CONTROL: a benefit with no pot behind it states no percentage, not 0%",
+      noPot !== undefined && noPot.coverageBps === null,
+      String(noPot?.coverageBps),
+    );
+    /* 50% on the books, lowered to 30% by a notice window that has already run. */
+    await db.execute(sql`
+      INSERT INTO sponsor_pots (sponsor_id, balance_cents, refund_policy, expires_at, coverage_bps,
+                                pending_coverage_bps, pending_coverage_from)
+      VALUES (${sponsor.id}, 777700, 'refundable less what was spent', now() + interval '1 year',
+              5000, 3000, now() - interval '1 day')`);
+    const covered = (await myBenefits(person.id)).find((row) => row.enrolmentId === paused.id);
+    check(
+      "🔴 P17 the patient's benefit says the share of each session their company pays today",
+      covered?.coverageBps === 3000,
+      `${covered?.coverageBps} bps`,
+    );
+    check(
+      "🔴 P17 …and nothing about the company's balance reaches the patient's view",
+      covered !== undefined &&
+        !JSON.stringify(covered).includes("777700") &&
+        !Object.keys(covered).some((key) => /balance|overdraft/i.test(key)),
+      Object.keys(covered ?? {}).join(", "),
+    );
   } finally {
+    await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id IN
+      (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`})`);
     await db.execute(sql`DELETE FROM therapist_codes WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM therapist_verifications WHERE organization_id IN
@@ -426,6 +578,7 @@ async function main() {
       (SELECT id FROM patient_accounts WHERE person_id IN
         (SELECT id FROM people WHERE email LIKE ${`%${fixture}@example.com`}))`);
     await db.execute(sql`DELETE FROM manual_payments WHERE reference = ${`ref-${fixture}`}`);
+    await db.execute(sql`DELETE FROM manual_payments WHERE reference = ${`ref-p20-${fixture}`}`);
     await db.execute(sql`DELETE FROM availability_slots WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id IN

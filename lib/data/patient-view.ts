@@ -398,7 +398,16 @@ export async function sessionDoors(personId: string): Promise<SessionDoorRow[]> 
     .from(sessions)
     .innerJoin(patients, eq(patients.id, sessions.patientId))
     .innerJoin(users, eq(users.id, sessions.therapistId))
-    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    /*
+     * 🔴 P12: the PRIMARY note only, the same condition `sessionsForPatient`
+     * above joins on. A session can hold several notes since W2-F01, and a
+     * bare join on the session id listed it once per note, each copy with its
+     * own door and, on the billing page, its own amount owed.
+     */
+    .leftJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessions.id), eq(sessionNotes.isPrimary, true)),
+    )
     .where(and(eq(patients.personId, personId), isNull(patients.deletedAt)))
     .orderBy(desc(sql`COALESCE(${sessions.scheduledAt}, ${sessions.createdAt})`))
     .limit(200);

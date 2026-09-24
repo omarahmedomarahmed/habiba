@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AskAboutEmployer, BenefitForm } from "@/components/patient/benefit-form";
 import { PatientBack } from "@/components/patient/back";
 import { myBenefits } from "@/lib/data/enrolment";
+import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
@@ -31,9 +32,18 @@ export default async function BenefitPage({
   const actor = await requirePatient();
   /* 🔴 W2-P08: the sponsor's QR carries the code, and sign-in now keeps it (W2-P02). */
   const { code } = await searchParams;
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
 
   const benefits = await myBenefits(actor.personId);
+  /*
+   * 🔴 P17: formatted here, on the server, in the reader's numerals. C84 keeps
+   * `Intl` out of a client component, and this is the figure somebody reads
+   * to work out what they will still pay.
+   */
+  const percent = new Intl.NumberFormat(localeTag(locale), {
+    style: "percent",
+    maximumFractionDigits: 1,
+  });
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
@@ -60,6 +70,9 @@ export default async function BenefitPage({
           held: benefit.state === "paused",
           /* 🔴 53.19 — proof, not a pattern. `payFromPot` requires this too. */
           verified: benefit.lastVerifiedAt !== null,
+          /* P17: their company's share of each session. Never the pot's balance. */
+          coverage:
+            benefit.coverageBps === null ? null : percent.format(benefit.coverageBps / 10_000),
         }))}
       />
 

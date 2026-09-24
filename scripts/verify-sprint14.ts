@@ -175,6 +175,11 @@ async function main() {
         guestName: "verify14",
         feedbackToken: "verify14-token",
         priceCents: 3000,
+        /*
+         * 🔴 P3: PAID, so this is the session whose price must NOT move. An
+         * uncharged one takes the replacement's price, proved below.
+         */
+        paymentStatus: "paid",
         scheduledAt: new Date(Date.now() - 60 * 60_000),
         // In the waiting room: recovery is for somebody who is actually there.
         patientJoinedAt: new Date(Date.now() - 59 * 60_000),
@@ -229,6 +234,70 @@ async function main() {
       "🔴 14.6 no credit is promised that nothing would ever spend",
       credit === undefined && moved.ok && moved.outcome === "reassigned" && moved.creditCents === 0,
       `${credit?.amount ?? 0} cents of credit`,
+    );
+
+    const [paidAfter] = await db
+      .select({ price: sessions.priceCents })
+      .from(sessions)
+      .where(eq(sessions.id, session!.id))
+      .limit(1);
+    check(
+      "P3 CONTROL: a session already paid keeps the price that money was taken at",
+      paidAfter?.price === 3000,
+      `price ${paidAfter?.price}`,
+    );
+
+    /*
+     * 🔴 P3: NOTHING TAKEN YET, SO THE DIFFERENCE IS NEVER CHARGED.
+     *
+     * No settled payment, no checkout or benefit split carrying the old price
+     * and no transfer in flight: the replacement's rate becomes the price, so
+     * the patient is asked for what the clinician who stepped in charges.
+     */
+    const [uncharged] = await db
+      .insert(sessions)
+      .values({
+        organizationId: absent!.organizationId,
+        therapistId: absent!.id,
+        patientId: patient!.id,
+        status: "scheduled",
+        modality: "video",
+        guestName: "verify14 uncharged",
+        feedbackToken: "verify14-token-uncharged",
+        priceCents: 3000,
+        paymentStatus: "pending",
+        scheduledAt: new Date(Date.now() - 60 * 60_000),
+        patientJoinedAt: new Date(Date.now() - 59 * 60_000),
+      })
+      .returning({ id: sessions.id });
+    if (uncharged) made.push(uncharged.id);
+
+    const movedUncharged = await reassignSession({
+      sessionId: uncharged!.id,
+      toUserId: cheaper!.id,
+    });
+    const [unchargedAfter] = await db
+      .select({
+        price: sessions.priceCents,
+        status: sessions.paymentStatus,
+        therapistId: sessions.therapistId,
+      })
+      .from(sessions)
+      .where(eq(sessions.id, uncharged!.id))
+      .limit(1);
+    const [unchargedCredit] = await db
+      .select({ amount: patientCredits.amountCents })
+      .from(patientCredits)
+      .where(eq(patientCredits.personId, person!.id))
+      .limit(1);
+    check(
+      "🔴 P3 an uncharged session takes the replacement's price, and no credit is written",
+      movedUncharged.ok &&
+        unchargedAfter?.therapistId === cheaper!.id &&
+        unchargedAfter?.price === 2000 &&
+        unchargedAfter?.status === "pending" &&
+        unchargedCredit === undefined,
+      `price ${unchargedAfter?.price}, ${unchargedAfter?.status}, credit ${unchargedCredit?.amount ?? 0}`,
     );
 
     // Money owed is never negative and never over-spent — the database says so.

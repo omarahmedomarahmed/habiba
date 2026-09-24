@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
@@ -96,7 +96,6 @@ export default async function PatientBillingPage() {
         id: patientCredits.id,
         amount: patientCredits.amountCents,
         spent: patientCredits.spentCents,
-        reason: patientCredits.reason,
         expiresAt: patientCredits.expiresAt,
       })
       .from(patientCredits)
@@ -106,7 +105,9 @@ export default async function PatientBillingPage() {
           gt(patientCredits.expiresAt, new Date()),
           sql`${patientCredits.spentCents} < ${patientCredits.amountCents}`,
         ),
-      ),
+      )
+      /* Soonest first, so the one date printed is the earliest that lapses. */
+      .orderBy(asc(patientCredits.expiresAt)),
   ]);
 
   const creditCents = credits.reduce((sum, c) => sum + (c.amount - c.spent), 0);
@@ -138,9 +139,25 @@ export default async function PatientBillingPage() {
           <p className="text-sm font-semibold text-brand-900">
             <Money cents={creditCents} /> {t("pbill.inCredit")}
           </p>
+          {/*
+            🔴 P3: WHAT IS TRUE OF IT, AND NOTHING MORE.
+
+            This promised the credit came off a next session, first
+            automatically and then "tell us when you book", and nothing in the
+            product has ever spent a `patient_credits` row: no pay screen reads
+            one, no grant consumes one and no operator screen lists one.
+            `reassignSession` no longer writes them, so what a patient can
+            still see here is an old row, and what is true of it is that we owe
+            it and it stays on their account until it lapses.
+
+            The words are a dictionary key rather than the row's `reason`,
+            which is English stored for an operator and was printed as is to an
+            Arabic reader. Every row was written with that same reason.
+          */}
           <p className="mt-1 text-xs leading-relaxed text-brand-800">
-            {credits[0]?.reason} Tell us when you book and we take it off, until{" "}
-            {formatDate(credits[0]?.expiresAt ?? null, actor.timezone, locale)}.
+            {t("pbill.creditBody", {
+              date: formatDate(credits[0]?.expiresAt ?? null, actor.timezone, locale),
+            })}
           </p>
         </Card>
       ) : null}
@@ -207,8 +224,13 @@ export default async function PatientBillingPage() {
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {formatDate(row.at, actor.timezone, locale)}
+                  {/* 🔴 P3: in the reader's language, like every other line on this page. */}
                   {row.presented !== null && row.rateMicro
-                    ? ` · charged at ${(row.rateMicro / 1_000_000).toFixed(2)} ${(row.presentedCurrency ?? "").toUpperCase()} to the ${(row.currency ?? "usd").toUpperCase()}`
+                    ? ` · ${t("pbill.chargedAt", {
+                        rate: (row.rateMicro / 1_000_000).toFixed(2),
+                        from: (row.presentedCurrency ?? "").toUpperCase(),
+                        to: (row.currency ?? "usd").toUpperCase(),
+                      })}`
                     : ""}
                 </p>
 

@@ -59,6 +59,11 @@ export type Benefit = {
   verified: boolean;
   /** 🔴 W2-P08: a work address gets a new code; an ID number is proof itself. */
   kind: "domain_email" | "id_number" | string;
+  /**
+   * 🔴 P17: "50%", formatted on the server. How much of each session their
+   * company pays, and nothing about the company's balance. Null with no pot.
+   */
+  coverage: string | null;
 };
 
 export function BenefitForm({
@@ -138,6 +143,11 @@ export function BenefitForm({
                 /* W2-S11: the organisation paused it; a code cannot restart it. */
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
                   {t("benefit.heldBody")}
+                </p>
+              ) : benefit.verified && benefit.coverage ? (
+                /* 🔴 P17: what it pays, so the rest of a session is not a surprise. */
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {t("benefit.covers", { percent: benefit.coverage })}
                 </p>
               ) : null}
 

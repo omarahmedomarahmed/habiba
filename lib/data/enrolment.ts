@@ -13,9 +13,11 @@ import {
   patientNotifications,
   sponsorCodes,
   sponsorIdentifierFields,
+  sponsorPots,
   sponsors,
   type IdentifierKind,
 } from "@/lib/db/schema";
+import { coverageNow } from "@/lib/settings/defs";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
@@ -582,7 +584,7 @@ export async function setPrimarySponsor(
  * `lib/data/sponsors.ts` and is deliberately narrower.
  */
 export async function myBenefits(personId: string) {
-  return controlDb
+  const rows = await controlDb
     .select({
       enrolmentId: enrolments.id,
       sponsorName: sponsors.name,
@@ -594,9 +596,37 @@ export async function myBenefits(personId: string) {
       identifierKind: enrolments.identifierKind,
       /* W2-S11: `paused` here is the organisation's pause, not C247's. */
       state: enrolments.state,
+      /*
+       * 🔴 P17: THE PERCENTAGE, AND ONLY THE PERCENTAGE, OF THE POT.
+       *
+       * A patient was told they had a benefit and never how much of a session
+       * it pays, so the first they learned of a 50% cover was a bill for the
+       * other half. The share is a term of their own benefit, which this view
+       * may state. The balance is the company's and stays off it (C229): no
+       * balance column is selected here, so no screen built on this can show one.
+       */
+      coverageBps: sponsorPots.coverageBps,
+      pendingCoverageBps: sponsorPots.pendingCoverageBps,
+      pendingCoverageFrom: sponsorPots.pendingCoverageFrom,
     })
     .from(enrolments)
     .innerJoin(sponsors, eq(sponsors.id, enrolments.sponsorId))
+    .leftJoin(sponsorPots, eq(sponsorPots.sponsorId, sponsors.id))
     .where(and(eq(enrolments.personId, personId), isNull(enrolments.removedAt)))
     .orderBy(sql`${enrolments.isPrimary} DESC`);
+
+  const now = new Date();
+  return rows.map(({ coverageBps, pendingCoverageBps, pendingCoverageFrom, ...row }) => ({
+    ...row,
+    /*
+     * What applies today, read the way `payFromPot` reads it, so the figure on
+     * the screen is the one the next booking is split at. Null with no pot,
+     * because a benefit with nothing behind it covers nothing yet, which is a
+     * different statement from covering 0%.
+     */
+    coverageBps:
+      coverageBps === null
+        ? null
+        : coverageNow({ coverageBps, pendingCoverageBps, pendingCoverageFrom }, now),
+  }));
 }
