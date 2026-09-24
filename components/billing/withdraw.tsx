@@ -63,6 +63,12 @@ const STATUS: Record<PayoutStatus, { label: MessageKey; blurb: MessageKey; icon:
   sent: { label: "twd.statusSent", blurb: "twd.statusSentBody", icon: Send },
   confirmed: { label: "twd.statusArrived", blurb: "twd.statusArrivedBody", icon: CheckCircle2 },
   rejected: { label: "twd.statusRejected", blurb: "twd.statusRejectedBody", icon: XCircle },
+  /*
+   * W2-A04: sent and never arrived. "Not processed" is true of it, the reason
+   * below says what happened, and the held balance above already has the
+   * money back, so it needs no sentence of its own.
+   */
+  returned: { label: "twd.statusRejected", blurb: "twd.statusRejectedBody", icon: XCircle },
 };
 
 function Saving({ label }: { label: string }) {

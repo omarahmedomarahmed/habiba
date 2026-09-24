@@ -256,6 +256,50 @@ async function main() {
       `status ${stamped.rows[0]?.status ?? "gone"}, receipt ${stamped.rows[0]?.proof_url ? "on the row" : "MISSING"}`,
     );
 
+    /*
+     * 🔴 W2-A04 (needs 0140): IT DID NOT ARRIVE. Two presses at once, like the
+     * send above: one move wins, one reversal posts, and the clinician is
+     * owed the whole $100 again.
+     */
+    const { markPayoutReturned } = await import("../lib/billing/payouts");
+    const noWhy = await markPayoutReturned({ requestId, actorUserId: approverId!, reason: " " });
+    check(
+      "🔴 W2-A04 'did not arrive' with no reason is refused",
+      Boolean(noWhy.error),
+      noWhy.error ?? "reversed with nothing for the clinician to read",
+    );
+
+    const returned = await Promise.all(
+      [0, 1].map(() =>
+        markPayoutReturned({
+          requestId,
+          actorUserId: approverId!,
+          reason: "The wallet provider bounced the transfer.",
+        }),
+      ),
+    );
+    const reversals = await db.execute<{ txns: string }>(sql`
+      SELECT COUNT(DISTINCT txn_id)::text AS txns
+        FROM ledger_entries
+       WHERE txn_kind = 'manual_payout_returned' AND ref_id = ${requestId}`);
+    check(
+      "🔴 W2-A04 two concurrent 'did not arrive' presses reverse the ledger ONCE",
+      Number(reversals.rows[0]?.txns ?? 0) === 1 && returned.filter((r) => r.ok).length === 1,
+      `${reversals.rows[0]?.txns ?? 0} reversals, ${returned.filter((r) => r.ok).length} calls reported success`,
+    );
+
+    const owedAgain = await db.execute<{ cents: string }>(sql`
+      SELECT COALESCE(-SUM(amount_cents), 0)::text AS cents
+        FROM ledger_entries
+       WHERE account = 'therapist_payable' AND user_id = ${therapistId}`);
+    const back = await db.execute<{ status: string }>(sql`
+      SELECT status FROM payout_requests WHERE id = ${requestId}`);
+    check(
+      "🔴 W2-A04 …and the clinician is owed the whole $100 again, on a row that says returned",
+      Number(owedAgain.rows[0]?.cents ?? 0) === 10_000 && back.rows[0]?.status === "returned",
+      `$${(Number(owedAgain.rows[0]?.cents ?? 0) / 100).toFixed(2)} owed, status ${back.rows[0]?.status ?? "gone"}`,
+    );
+
     /* ------------------------------------------------ a rejection needs why */
 
     const noReason = await rejectPayout({

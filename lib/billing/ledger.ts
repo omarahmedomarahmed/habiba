@@ -752,6 +752,51 @@ export async function postManualPayout(input: {
 }
 
 /**
+ * 🔴 W2-A04: the exact mirror of `postManualPayout`, for a transfer that never
+ * arrived. The cash is back in the entity's account and we owe the clinician
+ * again, so the held balance they can withdraw comes back to what it was.
+ *
+ * Its own kind rather than a second `manual_payout`, so `traceHeld`'s
+ * duplicate-payout check keeps meaning "paid twice".
+ */
+export async function postManualPayoutReturned(input: {
+  requestId: string;
+  organizationId: string;
+  therapistId: string;
+  amountCents: number;
+  entity: Entity;
+  actorUserId: string;
+  txnId: string;
+  executor: LedgerExecutor;
+}): Promise<string> {
+  return journal({
+    txnId: input.txnId,
+    executor: input.executor,
+    kind: "manual_payout_returned",
+    refType: "payout_request",
+    refId: input.requestId,
+    createdBy: input.actorUserId,
+    legs: [
+      {
+        account: "therapist_payable",
+        amountCents: -input.amountCents,
+        organizationId: input.organizationId,
+        userId: input.therapistId,
+        entity: input.entity,
+        memo: "Manual payout did not arrive",
+      },
+      {
+        account: "cash",
+        amountCents: input.amountCents,
+        organizationId: input.organizationId,
+        entity: input.entity,
+        memo: "Manual payout did not arrive",
+      },
+    ],
+  });
+}
+
+/**
  * Money moved between the two entities. 16.9.
  *
  * 🔴 **Never an accounting side effect.** The two cross-border crossings of

@@ -9,6 +9,7 @@ import {
   approvePayout,
   claimPayout,
   confirmPayout,
+  markPayoutReturned,
   markPayoutSent,
   rejectPayout,
 } from "@/lib/billing/payouts";
@@ -140,6 +141,31 @@ export async function reject(_prev: QueueState, formData: FormData): Promise<Que
     action: "payout.rejected",
     resourceType: "payout_request",
     resourceId: requestId,
+  });
+  revalidatePath("/admin/payouts");
+  return { ok: true };
+}
+
+/**
+ * 🔴 W2-A04: the transfer was made and never arrived. The ledger reversal and
+ * the once-only rule live in `markPayoutReturned`; the reason is required and
+ * the clinician reads it.
+ */
+export async function didNotArrive(_prev: QueueState, formData: FormData): Promise<QueueState> {
+  const actor = await requireStaff();
+  const requestId = String(formData.get("requestId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+
+  const result = await markPayoutReturned({ requestId, actorUserId: actor.userId, reason });
+  if (result.error) return { error: await say(result.error) };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "payout.returned",
+    resourceType: "payout_request",
+    resourceId: requestId,
+    reason: reason.trim(),
   });
   revalidatePath("/admin/payouts");
   return { ok: true };

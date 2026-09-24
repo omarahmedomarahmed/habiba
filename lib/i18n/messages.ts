@@ -4025,6 +4025,8 @@ export const en = {
   "aaccess.ownVerification": "Not your own.",
   "aaccess.notYours": "Not your role's page. Recorded.",
   "aaccess.back": "Your work",
+  "apayout.reason": "Reason the clinician reads",
+  "apayout.returned": "Did not arrive",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7284,6 +7286,8 @@ export const ar: Record<MessageKey, string> = {
   "aaccess.ownVerification": "ليس طلبك أنت.",
   "aaccess.notYours": "هذه الصفحة ليست لدورك. سُجّل ذلك.",
   "aaccess.back": "عملك",
+  "apayout.reason": "السبب الذي سيقرؤه المعالج",
+  "apayout.returned": "لم يصل",
 };
 
 export const DICTIONARIES = { en, ar } as const;

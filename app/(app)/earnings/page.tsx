@@ -170,7 +170,8 @@ export default async function EarningsPage() {
                     ? formatDate(row.approvedAt, actor.timezone, locale)
                     : null,
               proofUrl: row.proofUrl,
-              rejectedReason: row.rejectedReason,
+              // W2-A04: a payout that did not arrive shows why, like a refusal.
+              rejectedReason: row.rejectedReason ?? row.returnedReason,
               accountName: row.accountName,
             }))}
           />

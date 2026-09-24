@@ -22,7 +22,12 @@ import { getSettings } from "@/lib/settings";
 
 import { fourEyesProblem } from "./four-eyes";
 import { quoteFor } from "./fx";
-import { heldForTherapist, postManualPayout, type LedgerExecutor } from "./ledger";
+import {
+  heldForTherapist,
+  postManualPayout,
+  postManualPayoutReturned,
+  type LedgerExecutor,
+} from "./ledger";
 import { convert, payoutCurrencyFor } from "./money";
 
 /*
@@ -477,6 +482,77 @@ export async function confirmPayout(input: {
     note: "Arrival confirmed",
     set: { confirmedAt: new Date() },
   });
+}
+
+/**
+ * 🔴 W2-A04: the transfer was made and it did not arrive (bounced, wrong
+ * wallet, the clinician says nothing came). Migration 0140.
+ *
+ * Only "Confirm arrival" was offered for a sent payout and `rejectPayout`
+ * refuses one, so the books said the clinician had been paid and nothing in
+ * the product could say otherwise. The money is ours again and owed to them.
+ *
+ * The same guarded-move-then-post as "Mark sent" (W1-04): the status is in
+ * the WHERE, the reversal rides on the won move inside its transaction, so two
+ * presses reverse the ledger once. The reason is mandatory and is what the
+ * clinician reads.
+ */
+export async function markPayoutReturned(input: {
+  requestId: string;
+  actorUserId: string;
+  reason: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const reason = input.reason.trim();
+  if (reason.length < 5) return { error: "Say why, so the clinician knows what to fix." };
+
+  const row = await requestRow(input.requestId);
+  if (!row) return { error: "That request no longer exists." };
+  if (row.status !== "sent") return { error: "That request has already moved on. Reload the queue." };
+  const refused = await fourEyes(row, input.actorUserId, false);
+  if (refused) return refused;
+
+  const txnId = crypto.randomUUID();
+  const moved = await move({
+    requestId: input.requestId,
+    from: ["sent"],
+    to: "returned",
+    actorUserId: input.actorUserId,
+    note: reason,
+    set: { returnedAt: new Date(), returnedReason: reason, returnedLedgerTxnId: txnId },
+    alsoPost: (tx) =>
+      postManualPayoutReturned({
+        requestId: row.id,
+        organizationId: row.organizationId,
+        therapistId: row.therapistId,
+        amountCents: row.amountCents,
+        entity: row.entity,
+        actorUserId: input.actorUserId,
+        txnId,
+        executor: tx,
+      }),
+  });
+  if (moved.error) return moved;
+
+  const [payee] = await db
+    .select({ email: users.email, profile: users.profile, timezone: users.timezone })
+    .from(users)
+    .where(eq(users.id, row.therapistId))
+    .limit(1);
+
+  await notify(
+    {
+      email: payee?.email ?? null,
+      phone: payee?.profile?.phone ?? null,
+      timezone: payee?.timezone ?? null,
+    },
+    {
+      kind: "payout.returned",
+      subject: "Your withdrawal did not arrive",
+      body: `${reason} The money is back in your balance, so you can ask for it again.`,
+    },
+  );
+
+  return { ok: true };
 }
 
 /**

@@ -2508,6 +2508,11 @@ export const LEDGER_TXN_KINDS = [
   "adjustment",
   /** 16.2 — a manual EGP payout left the Egyptian entity's bank account. */
   "manual_payout",
+  /**
+   * W2-A04: that payout never arrived, and the money is back with us and
+   * owed to the clinician again. No CHECK on `txn_kind`, so no migration.
+   */
+  "manual_payout_returned",
   /** 16.9 — money moved between the two entities, explicitly and audited. */
   "entity_transfer",
   /** C69 / 17.1 — a session fee netted against what we already hold. */
@@ -5154,6 +5159,8 @@ export const PAYOUT_STATUSES = [
   "sent",
   "confirmed",
   "rejected",
+  /** W2-A04 (0140): sent, and it did not arrive. The ledger post is reversed. */
+  "returned",
 ] as const;
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number];
 
@@ -5222,6 +5229,14 @@ export const payoutRequests = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     rejectedReason: text("rejected_reason"),
+    /*
+     * 🔴 W2-A04 (0140): a sent payout that never arrived. When, why, and the
+     * transaction that put the money back on the books; the CHECK
+     * `payout_requests_returned_was_sent` refuses the state without all three.
+     */
+    returnedAt: timestamp("returned_at", { withTimezone: true }),
+    returnedReason: text("returned_reason"),
+    returnedLedgerTxnId: uuid("returned_ledger_txn_id"),
 
     /** 16.3c — the transfer screenshot the therapist can see. */
     proofUrl: text("proof_url"),
