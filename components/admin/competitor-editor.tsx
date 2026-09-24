@@ -61,7 +61,7 @@ export function CompetitorEditor({
 
   return (
     <div className="space-y-4">
-      <Field label="Checked on" htmlFor="checked-on" hint="The day somebody last read every rival's site. Printed under the table, so move it whenever you correct a line.">
+      <Field label="Checked on" htmlFor="checked-on" hint="The day somebody last read every rival's site.">
         <Input
           id="checked-on"
           value={block.checkedOn ?? ""}

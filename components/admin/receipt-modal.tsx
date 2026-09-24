@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Money } from "@/components/ui/money";
+import { MIN_REASON } from "@/lib/admin/reason";
 
 /**
  * 🔴 76.57 — THE EVIDENCE, FULL SIZE, WITH THE DECISION IN THE SAME FRAME.
@@ -258,7 +259,7 @@ export function ReceiptModal({
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  disabled={pending || reason.trim().length < 5}
+                  disabled={pending || reason.trim().length < MIN_REASON}
                   onClick={() => onReject(reason.trim())}
                   className="h-10 rounded-xl bg-rose-600 px-4 text-sm font-semibold text-white disabled:opacity-40"
                 >

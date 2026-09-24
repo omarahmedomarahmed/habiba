@@ -13,6 +13,8 @@ import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 
+import { fourEyesProblem } from "./four-eyes";
+
 const db = controlDb;
 
 /**
@@ -131,15 +133,23 @@ export async function markRefundSent(input: {
     .where(eq(refundRequests.id, input.requestId))
     .limit(1);
   if (!row || row.status !== "owed") return { error: "arefund.errMoved" };
-  if (row.requestedByUserId === input.senderUserId) return { error: "arefund.errTwo" };
 
+  /*
+   * W2-A01 / D9: the payout queue's rule, asked of the same function. The
+   * person who opened the refund is its "editor": they named what is owed and
+   * may not also be the one who sends it.
+   */
   const settings = await getSettings();
-  if (
-    row.amountCents > settings.payouts.twoPersonThresholdCents &&
-    (!row.ownerUserId || row.ownerUserId === input.senderUserId)
-  ) {
-    return { error: "arefund.errTwo" };
-  }
+  const problem = fourEyesProblem({
+    actorUserId: input.senderUserId,
+    payeeUserId: null,
+    editorUserId: row.requestedByUserId,
+    amountCents: row.amountCents,
+    thresholdCents: settings.payouts.twoPersonThresholdCents,
+    ownerUserId: row.ownerUserId,
+    movesMoney: true,
+  });
+  if (problem) return { error: "arefund.errTwo" };
 
   const txnId = crypto.randomUUID();
   const now = new Date();

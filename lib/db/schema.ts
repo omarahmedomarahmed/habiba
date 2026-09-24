@@ -461,6 +461,41 @@ export const authTokens = pgTable(
   (t) => [uniqueIndex("auth_tokens_hash_unique").on(t.tokenHash)],
 );
 
+/**
+ * 🔴 W2-A06 (0141): the four kinds of account an operator creates, and the
+ * table each lives in. Closed, and the CHECK agrees.
+ */
+export const ACCOUNT_AUDIENCES = ["staff", "sponsor", "clinic", "partner"] as const;
+export type AccountAudience = (typeof ACCOUNT_AUDIENCES)[number];
+
+/**
+ * 🔴 W2-A06 (0141): an invitation, or a reset, by link. Nobody types a
+ * customer's password.
+ *
+ * One table for four account tables, so `accountId` has no foreign key and
+ * `audience` names the table. `lib/auth/account-links.ts` is the only writer
+ * and the only reader, and redeeming a link is the only thing that sets a
+ * password from it.
+ */
+export const accountLinks = pgTable(
+  "account_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    audience: text("audience").$type<AccountAudience>().notNull(),
+    accountId: uuid("account_id").notNull(),
+    purpose: text("purpose").$type<"invite" | "reset">().notNull().default("invite"),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("account_links_hash_unique").on(t.tokenHash),
+    index("account_links_account_idx").on(t.audience, t.accountId),
+  ],
+);
+
 // ------------------------------------------------------------ verification ---
 
 export const VERIFICATION_STATES = ["draft", "submitted", "approved", "rejected"] as const;
@@ -2572,6 +2607,11 @@ export const LEDGER_TXN_KINDS = [
   "adjustment",
   /** 16.2 — a manual EGP payout left the Egyptian entity's bank account. */
   "manual_payout",
+  /**
+   * W2-A04: that payout never arrived, and the money is back with us and
+   * owed to the clinician again. No CHECK on `txn_kind`, so no migration.
+   */
+  "manual_payout_returned",
   /** 16.9 — money moved between the two entities, explicitly and audited. */
   "entity_transfer",
   /** C69 / 17.1 — a session fee netted against what we already hold. */
@@ -5218,6 +5258,8 @@ export const PAYOUT_STATUSES = [
   "sent",
   "confirmed",
   "rejected",
+  /** W2-A04 (0140): sent, and it did not arrive. The ledger post is reversed. */
+  "returned",
 ] as const;
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number];
 
@@ -5286,6 +5328,14 @@ export const payoutRequests = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     rejectedReason: text("rejected_reason"),
+    /*
+     * 🔴 W2-A04 (0140): a sent payout that never arrived. When, why, and the
+     * transaction that put the money back on the books; the CHECK
+     * `payout_requests_returned_was_sent` refuses the state without all three.
+     */
+    returnedAt: timestamp("returned_at", { withTimezone: true }),
+    returnedReason: text("returned_reason"),
+    returnedLedgerTxnId: uuid("returned_ledger_txn_id"),
 
     /** 16.3c — the transfer screenshot the therapist can see. */
     proofUrl: text("proof_url"),
@@ -9278,11 +9328,30 @@ export const manualPayments = pgTable(
     /** 🔴 A rejection carries its reason. The CHECK in 0102 enforces it. */
     rejectReason: text("reject_reason"),
 
+    /*
+     * 🔴 W2-A03 (0142): confirmed money that did not do its job, raised where
+     * it used to be a log line: the grant threw, the thing it paid for could
+     * not take it, or it was more than the bill. Resolved with a sentence and
+     * a name, which the CHECK requires.
+     */
+    exception: text("exception").$type<ManualPaymentException>(),
+    exceptionDetail: text("exception_detail"),
+    exceptionAt: timestamp("exception_at", { withTimezone: true }),
+    exceptionResolvedAt: timestamp("exception_resolved_at", { withTimezone: true }),
+    exceptionResolvedBy: uuid("exception_resolved_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    exceptionResolution: text("exception_resolution"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("manual_payments_payer_idx").on(t.userId, t.patientAccountId, t.sponsorId, t.createdAt),
   ],
 );
+
+/** W2-A03 (0142): the three ways confirmed money can need a person. */
+export const MANUAL_PAYMENT_EXCEPTIONS = ["grant_failed", "not_payable", "overpaid"] as const;
+export type ManualPaymentException = (typeof MANUAL_PAYMENT_EXCEPTIONS)[number];
 
 export type ManualPayment = typeof manualPayments.$inferSelect;

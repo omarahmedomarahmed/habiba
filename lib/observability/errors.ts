@@ -3,7 +3,9 @@
  */
 import "server-only";
 
-import { desc, lt, sql } from "drizzle-orm";
+import { desc, eq, ilike, lt, or, sql } from "drizzle-orm";
+
+import { likePattern } from "@/lib/admin/paging";
 
 import { controlDb as db} from "@/lib/db";
 import { errorEvents } from "@/lib/db/schema";
@@ -164,7 +166,12 @@ export async function recordError(input: {
 }
 
 /** Newest first, grouped by fingerprint, for the admin console. */
-export async function recentErrors(limit = 100) {
+export async function recentErrors(
+  limit = 100,
+  /** 🔴 W2-A09: a page further back, and a search over the route and the message. */
+  opts: { offset?: number; q?: string | null } = {},
+) {
+  const pattern = opts.q ? likePattern(opts.q) : null;
   return db
     .select({
       id: errorEvents.id,
@@ -178,8 +185,10 @@ export async function recentErrors(limit = 100) {
       createdAt: errorEvents.createdAt,
     })
     .from(errorEvents)
+    .where(pattern ? or(ilike(errorEvents.route, pattern), ilike(errorEvents.message, pattern), eq(errorEvents.digest, opts.q!)) : undefined)
     .orderBy(desc(errorEvents.createdAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(opts.offset ?? 0);
 }
 
 /** Thirty days. Long enough to notice a pattern, short enough to stay small. */

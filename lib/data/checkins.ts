@@ -114,7 +114,11 @@ export async function candidates(limit = 500): Promise<Candidate[]> {
  * against the halt threshold is false, so the channel would keep running on an empty database, and
  * that is the wrong direction to be wrong in.
  */
-export async function muteRate(): Promise<{ rate: number; muted: number; reachable: number }> {
+export async function muteRate(
+  /** 🔴 W2-A08: `settings.checkins.measuredSince`. Mutes before it were about an older cadence. */
+  since: string | null = null,
+): Promise<{ rate: number; muted: number; reachable: number }> {
+  const from = since ? new Date(since) : new Date(0);
   const [row] = (
     await controlDb.execute(sql`
     SELECT
@@ -122,7 +126,8 @@ export async function muteRate(): Promise<{ rate: number; muted: number; reachab
       count(m.id)::int AS muted
       FROM people p
       JOIN patient_accounts a ON a.person_id = p.id AND a.deleted_at IS NULL
-      LEFT JOIN checkin_mutes m ON m.person_id = p.id AND m.unmuted_at IS NULL
+      LEFT JOIN checkin_mutes m
+        ON m.person_id = p.id AND m.unmuted_at IS NULL AND m.muted_at >= ${from.toISOString()}::timestamptz
      WHERE (a.email IS NOT NULL OR a.phone IS NOT NULL)`)
   ).rows as { reachable: number; muted: number }[];
 

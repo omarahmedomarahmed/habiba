@@ -7,6 +7,8 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { BACK_OFFICE_ROLES, therapistVerifications } from "@/lib/db/schema";
 
+import { mayReadIdentity } from "./identity-rule";
+
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
  *
@@ -43,11 +45,12 @@ const db = dbFor(pinnedToDefaultRegion("lib/documents/identity-access.ts", "not 
  *
  *   - **The clinician it is about.** They uploaded it and must be able to see
  *     which file they sent, or the onboarding screen cannot tell them.
- *   - **A super admin**, because reviewing these is the entire verification
+ *   - **The back office**, because reviewing these is the entire verification
  *     process and refusing it would mean no clinician could ever be approved.
+ *     🔴 W2-A01 / D9: this was the super admin alone until the founder opened
+ *     verification to staff. Every read still goes through the audited route.
  *
- * Not a manager, not a colleague in the same organisation, not a staff member
- * on the support queue. Organisation membership is the wrong boundary here:
+ * Not a colleague in the same organisation. Organisation membership is the wrong boundary here:
  * a passport is not practice data, and 20.9 already draws the line that the
  * back office does not touch clinical material. This draws the same line
  * around identity material, in the other direction.
@@ -138,10 +141,7 @@ export async function identityReadDecision(input: {
 
   if (!row?.storedUrl) return { allowed: false };
 
-  const isOwner = row.ownerUserId === input.actor.userId;
-  const isAdmin = input.actor.role === "super_admin";
-
-  if (!isOwner && !isAdmin) return { allowed: false };
+  if (!mayReadIdentity(input.actor, row.ownerUserId)) return { allowed: false };
 
   return {
     allowed: true,

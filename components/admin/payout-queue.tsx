@@ -7,6 +7,7 @@ import { AlertTriangle, ShieldAlert, UserCheck } from "lucide-react";
 import {
   approve,
   confirm,
+  didNotArrive,
   markSent,
   reject,
   takeOn,
@@ -17,6 +18,7 @@ import { Money } from "@/components/ui/money";
 // 19.4 — an English-only surface, so the English shorthand, named as such.
 import { formatMoney, formatUsd } from "@/lib/billing/plans";
 import type { PayoutStatus } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: QueueState = {};
 
@@ -169,13 +171,16 @@ function ManualRow({ row }: { row: QueueRow }) {
   const [sentState, sentAction] = useActionState(markSent, INITIAL);
   const [confirmState, confirmAction] = useActionState(confirm, INITIAL);
   const [rejectState, rejectAction] = useActionState(reject, INITIAL);
+  const [returnState, returnAction] = useActionState(didNotArrive, INITIAL);
+  const t = useT();
 
   const error =
     claimState.error ??
     approveState.error ??
     sentState.error ??
     confirmState.error ??
-    rejectState.error;
+    rejectState.error ??
+    returnState.error;
 
   return (
     <li>
@@ -258,18 +263,22 @@ function ManualRow({ row }: { row: QueueRow }) {
             </form>
           ) : null}
 
-          {row.status !== "sent" ? (
-            <form action={rejectAction} className="flex items-end gap-2">
-              <input type="hidden" name="requestId" value={row.id} />
-              <Input
-                name="reason"
-                placeholder="Reason the clinician reads"
-                required
-                className="h-8 w-64 text-xs"
-              />
-              <Go label="Reject" tone="quiet" />
-            </form>
-          ) : null}
+          {/*
+            🔴 W2-A04: a sent payout that bounced or never came used to have
+            only "Confirm arrival". This reverses the ledger once and puts the
+            money back in the clinician's balance, with the reason they read.
+          */}
+          <form action={row.status === "sent" ? returnAction : rejectAction} className="flex items-end gap-2">
+            <input type="hidden" name="requestId" value={row.id} />
+            <Input
+              name="reason"
+              placeholder={t("apayout.reason")}
+              required
+              minLength={5}
+              className="h-8 w-64 text-xs"
+            />
+            <Go label={row.status === "sent" ? t("apayout.returned") : "Reject"} tone="quiet" />
+          </form>
         </div>
       </Card>
     </li>

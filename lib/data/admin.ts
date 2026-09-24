@@ -1,6 +1,8 @@
 import "server-only";
 
-import { and, count, desc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
+
+import { likePattern } from "@/lib/admin/paging";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -190,14 +192,42 @@ export async function setVerification(
  * putting it on this screen would make the compliance tool itself a source of
  * casual PHI exposure.
  */
-export async function listAuditLog(opts: { category?: string; limit?: number } = {}) {
-  const base = db
+export async function listAuditLog(
+  opts: {
+    category?: string;
+    limit?: number;
+    /** 🔴 W2-A09: the page, and a search over action, reason, resource and who did it. */
+    offset?: number;
+    q?: string | null;
+  } = {},
+) {
+  const pattern = opts.q ? likePattern(opts.q) : null;
+  const where = and(
+    opts.category ? eq(auditLog.category, opts.category as never) : undefined,
+    pattern
+      ? or(
+          ilike(auditLog.action, pattern),
+          ilike(auditLog.reason, pattern),
+          ilike(auditLog.resourceKey, pattern),
+          ilike(users.email, pattern),
+          ilike(sponsorUsers.email, pattern),
+          ilike(clinicManagers.email, pattern),
+          sql`${auditLog.resourceId}::text = ${opts.q}`,
+          sql`${auditLog.patientId}::text = ${opts.q}`,
+        )
+      : undefined,
+  );
+
+  return db
     .select({
       id: auditLog.id,
       category: auditLog.category,
       action: auditLog.action,
       resourceType: auditLog.resourceType,
       resourceId: auditLog.resourceId,
+      /* W2-A09: the reason was written on every row and shown on none. */
+      reason: auditLog.reason,
+      resourceKey: auditLog.resourceKey,
       patientId: auditLog.patientId,
       createdAt: auditLog.createdAt,
       ipAddress: auditLog.ipAddress,
@@ -225,13 +255,10 @@ export async function listAuditLog(opts: { category?: string; limit?: number } =
     .leftJoin(sponsorUsers, eq(sponsorUsers.id, auditLog.actorSponsorUserId))
     .leftJoin(clinicManagers, eq(clinicManagers.id, auditLog.actorClinicManagerId))
     .leftJoin(organizations, eq(organizations.id, auditLog.organizationId))
+    .where(where)
     .orderBy(desc(auditLog.createdAt))
-    .limit(opts.limit ?? 100);
-
-  if (opts.category) {
-    return base.where(eq(auditLog.category, opts.category as never));
-  }
-  return base;
+    .limit(opts.limit ?? 100)
+    .offset(opts.offset ?? 0);
 }
 
 /* ------------------------------------------------- one clinician, in full -- */

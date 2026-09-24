@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
+import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import {
   createSponsorUser,
@@ -14,6 +16,18 @@ import {
 import { ENTITIES, SPONSOR_STATES, type Entity, type SponsorState } from "@/lib/db/schema";
 
 export type AdminSponsorState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
+ * (`lib/admin/reason.ts`), the same number the confirm step enables at, said
+ * in the reader's language.
+ */
+async function reasonRefused(reason: unknown): Promise<string | null> {
+  const problem = reasonProblem(reason);
+  if (!problem) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(problem);
+}
 
 /**
  * Admin's side of the corporate account. PLAN.md 53.6, C233, C237.
@@ -30,10 +44,14 @@ export type AdminSponsorState = { error?: string; ok?: boolean };
 export async function activate(
   sponsorId: string,
   state: string,
+  reason: string,
 ): Promise<AdminSponsorState> {
   const actor = await requireRole("super_admin");
 
   if (!SPONSOR_STATES.includes(state as SponsorState)) return { error: "Not a state." };
+  // W2-A05: suspending or closing a company's account is theirs to be told about.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   await setSponsorState(sponsorId, state as SponsorState);
 
@@ -43,6 +61,7 @@ export async function activate(
     action: `sponsor.${state}`,
     resourceType: "sponsor",
     resourceId: sponsorId,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/sponsors");
@@ -126,7 +145,10 @@ export async function openTheirPot(
   return { ok: true };
 }
 
-/** 53.6 — the first portal user, with a password an operator sets on the call. */
+/**
+ * 53.6: the first portal user. 🔴 W2-A06: invited by an emailed link, never a
+ * password the operator types (`lib/auth/account-links.ts`).
+ */
 export async function addPortalUser(
   _prev: AdminSponsorState,
   formData: FormData,
@@ -140,11 +162,16 @@ export async function addPortalUser(
     sponsorId,
     email: String(formData.get("email") ?? ""),
     name: String(formData.get("name") ?? "") || null,
-    password: String(formData.get("password") ?? ""),
     role: role === "admin" ? "admin" : "viewer",
   });
 
-  if (result.error) return { error: result.error };
+  if (result.error || !result.id) return { error: result.error };
+  await emailAccountLink({
+    audience: "sponsor",
+    accountId: result.id,
+    email: result.email!,
+    createdByUserId: actor.userId,
+  });
 
   await audit({
     actor,
@@ -159,8 +186,11 @@ export async function addPortalUser(
 }
 
 /** 53.9 — mint or rotate their joining code from our side too. */
-export async function mintCode(sponsorId: string): Promise<AdminSponsorState> {
+export async function mintCode(sponsorId: string, reason: string): Promise<AdminSponsorState> {
   const actor = await requireRole("super_admin");
+  // W2-A05: rotating kills the old code for anybody halfway through signing up.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   await rotateCode(sponsorId);
 
@@ -170,6 +200,7 @@ export async function mintCode(sponsorId: string): Promise<AdminSponsorState> {
     action: "sponsor.code_rotated",
     resourceType: "sponsor",
     resourceId: sponsorId,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/sponsors");

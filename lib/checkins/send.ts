@@ -41,7 +41,7 @@ export type SweepResult = {
 
 export async function sweepCheckins(limit = 200): Promise<SweepResult> {
   const settings = await getSettings();
-  const rate = await muteRate();
+  const rate = await muteRate(settings.checkins.measuredSince);
 
   const skipped: Record<Skip, number> = {
     channel_off: 0,

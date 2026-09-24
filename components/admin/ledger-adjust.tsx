@@ -1,5 +1,6 @@
 "use client";
 
+import { MIN_REASON } from "@/lib/admin/reason";
 import { useState, useTransition } from "react";
 
 import { adjustLedger } from "@/app/(admin)/admin/actions";
@@ -56,7 +57,7 @@ export function LedgerAdjust({
     organizationId !== "" &&
     Number.isFinite(cents) &&
     cents !== 0 &&
-    reason.trim().length >= 8;
+    reason.trim().length >= MIN_REASON;
 
   return (
     <Card className="p-4">

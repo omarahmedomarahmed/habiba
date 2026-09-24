@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { AlertTriangle, Clock, MessageSquare, PauseCircle, UserCheck } from "lucide-react";
 
@@ -8,11 +8,15 @@ import {
   close,
   extend,
   moveToWhatsapp,
+  openTicket,
+  reply,
   takeTicket,
   waitOnThem,
+  type OpenedTicket,
   type SupportState,
 } from "@/app/(admin)/admin/support/actions";
 import { Badge, Button, Card, Input, Textarea } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 const INITIAL: SupportState = {};
 
@@ -174,9 +178,22 @@ function TicketCard({ row }: { row: TicketRow }) {
   const [extendState, extendAction] = useActionState(extend, INITIAL);
   const [moveState, moveAction] = useActionState(moveToWhatsapp, INITIAL);
   const [closeState, closeAction] = useActionState(close, INITIAL);
+  const [replyState, replyAction] = useActionState(reply, INITIAL);
+  const t = useT();
+  /*
+   * 🔴 W2-A02: the audited read, on a button. `openTicket` existed and nothing
+   * called it, so nobody on the queue could read what anybody wrote.
+   */
+  const [opened, setOpened] = useState<OpenedTicket | null>(null);
+  const [opening, startOpening] = useTransition();
 
   const error =
-    takeState.error ?? waitState.error ?? extendState.error ?? moveState.error ?? closeState.error;
+    takeState.error ??
+    waitState.error ??
+    extendState.error ??
+    moveState.error ??
+    closeState.error ??
+    replyState.error;
   const note = moveState.note ?? closeState.note;
 
   return (
@@ -223,8 +240,32 @@ function TicketCard({ row }: { row: TicketRow }) {
         </div>
 
         <p className="mt-2 text-xs text-slate-500">
-          Arrived {row.createdAtLabel}. Open it to read what they wrote. That read is logged.
+          Arrived {row.createdAtLabel}. Reading it is logged.
         </p>
+
+        {opened ? (
+          <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-800">
+            <p className="whitespace-pre-wrap">{opened.message}</p>
+            {opened.events
+              .filter((event) => event.note)
+              .map((event, index) => (
+                <p key={index} className="text-xs text-slate-500">
+                  {event.at} · {event.kind} · {event.note}
+                </p>
+              ))}
+          </div>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="mt-2"
+            disabled={opening}
+            onClick={() => startOpening(async () => setOpened(await openTicket(row.id)))}
+          >
+            {t("asupport.open")}
+          </Button>
+        )}
 
         {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
         {note ? <p className="mt-2 text-sm text-brand-700">{note}</p> : null}
@@ -271,14 +312,30 @@ function TicketCard({ row }: { row: TicketRow }) {
           ) : null}
         </div>
 
+        {/* 🔴 W2-A02: a reply that does not close, behind the same link and code. */}
+        <form action={replyAction} className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+          <input type="hidden" name="ticketId" value={row.id} />
+          <Textarea name="reply" rows={2} placeholder={t("asupport.replyHint")} required minLength={10} />
+          <Go label={t("asupport.reply")} quiet />
+        </form>
+
         <form action={closeAction} className="mt-3 space-y-2 border-t border-slate-100 pt-3">
           <input type="hidden" name="ticketId" value={row.id} />
-          <Textarea
-            name="summary"
-            rows={2}
-            placeholder="What was done. They will read this on a page that authenticates, never in an email."
-            required
-          />
+          <Textarea name="summary" rows={2} placeholder={t("asupport.replyHint")} required minLength={10} />
+          {/*
+            🔴 W2-A02: a ticket moved to WhatsApp could never close, because the
+            CHECK wants what was agreed there and nothing wrote it. It is
+            written here, at the close.
+          */}
+          {row.movedToWhatsapp ? (
+            <Textarea
+              name="whatsappSummary"
+              rows={2}
+              placeholder={t("asupport.whatsapp")}
+              required
+              minLength={20}
+            />
+          ) : null}
           <Go label="Close and send the link" />
         </form>
       </Card>

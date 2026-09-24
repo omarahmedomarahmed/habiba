@@ -167,12 +167,19 @@ const payout: Machine = {
       kind: "dead-end",
       exit: "the reason is shown and a corrected request can be made",
     },
+    /* W2-A04: the ledger post is reversed, so the money can be asked for again. */
+    returned: {
+      screen: "/earnings",
+      kind: "dead-end",
+      exit: "the reason is shown, the balance is back, and a new request can be made",
+    },
   },
   transitions: [
     { from: "requested", to: "approved", trigger: "staff approves", by: "staff" },
     { from: "requested", to: "rejected", trigger: "staff rejects with a reason", by: "staff" },
     { from: "approved", to: "sent", trigger: "staff marks the transfer made", by: "staff" },
     { from: "sent", to: "confirmed", trigger: "the clinician confirms receipt", by: "clinician" },
+    { from: "sent", to: "returned", trigger: "staff mark that it did not arrive", by: "staff" },
   ],
 };
 

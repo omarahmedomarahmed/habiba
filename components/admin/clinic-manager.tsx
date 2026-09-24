@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
 import { addManager, setRegion, setState } from "@/app/(admin)/admin/clinics/actions";
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { CLINIC_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
@@ -128,16 +129,14 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
           </dl>
 
           <div className="flex flex-wrap gap-2">
+            {/* W2-A05: a confirm and a reason, and a refusal is shown rather than voided. */}
             {CLINIC_STATES.filter((state) => state !== clinic.clinicState).map((state) => (
-              <button
+              <ConfirmWithReason
                 key={state}
-                type="button"
+                label={state}
                 disabled={pending}
-                onClick={() => startTransition(async () => void (await setState(clinic.id, state)))}
-                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-              >
-                {state}
-              </button>
+                onConfirm={(reason) => setState(clinic.id, state, reason)}
+              />
             ))}
           </div>
 
@@ -182,9 +181,6 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
               </Field>
               <Field label={t("aclinic.name")} htmlFor={`cm-name-${clinic.id}`}>
                 <Input id={`cm-name-${clinic.id}`} name="name" />
-              </Field>
-              <Field label={t("aclinic.password")} htmlFor={`cm-pw-${clinic.id}`}>
-                <Input id={`cm-pw-${clinic.id}`} name="password" type="text" required />
               </Field>
               <div className="flex gap-4 text-xs text-slate-700">
                 <label className="flex items-center gap-2">

@@ -11,6 +11,7 @@ import {
   extendTicket,
   movedToWhatsapp,
   readTicket,
+  replyToTicket,
 } from "@/lib/data/support";
 
 export type SupportState = { error?: string; ok?: boolean; note?: string };
@@ -42,10 +43,54 @@ export async function takeTicket(_prev: SupportState, formData: FormData): Promi
   return { ok: true };
 }
 
-/** Open one, in full. This is the audited read — see `readTicket`. */
-export async function openTicket(ticketId: string) {
+export type OpenedTicket = {
+  message: string;
+  events: { kind: string; note: string | null; at: string }[];
+};
+
+/**
+ * Open one, in full. This is the audited read (`readTicket` writes the
+ * `phi_access` row before returning anything).
+ *
+ * 🔴 W2-A02: this existed and nothing called it, so the card said "open it to
+ * read what they wrote" over no way to. It returns what somebody wrote and
+ * what was done, and nothing else: the row also carries the sender's access
+ * token and code hash, which have no business in a browser.
+ */
+export async function openTicket(ticketId: string): Promise<OpenedTicket | null> {
   const actor = await requireStaff();
-  return readTicket({ ticketId, actor });
+  const opened = await readTicket({ ticketId, actor });
+  if (!opened) return null;
+  return {
+    message: opened.ticket.message,
+    events: opened.events.map((event) => ({
+      kind: event.kind,
+      note: event.note,
+      at: event.createdAt.toISOString().slice(0, 16).replace("T", " ") + " UTC",
+    })),
+  };
+}
+
+/** 🔴 W2-A02: answer without closing, behind the same link and code as the close. */
+export async function reply(_prev: SupportState, formData: FormData): Promise<SupportState> {
+  const actor = await requireStaff();
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const result = await replyToTicket({
+    ticketId,
+    actorUserId: actor.userId,
+    reply: String(formData.get("reply") ?? ""),
+  });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "ticket.replied",
+    resourceType: "support_ticket",
+    resourceId: ticketId,
+  });
+  revalidatePath("/admin/support");
+  return { ok: true };
 }
 
 export async function waitOnThem(_prev: SupportState, formData: FormData): Promise<SupportState> {
@@ -56,6 +101,14 @@ export async function waitOnThem(_prev: SupportState, formData: FormData): Promi
     note: String(formData.get("note") ?? ""),
   });
   if (result.error) return { error: result.error };
+  // W2-A02: on the record like taking a ticket on and closing one.
+  await audit({
+    actor,
+    category: "admin",
+    action: "ticket.waiting",
+    resourceType: "support_ticket",
+    resourceId: String(formData.get("ticketId") ?? ""),
+  });
   revalidatePath("/admin/support");
   return { ok: true };
 }
@@ -68,6 +121,14 @@ export async function extend(_prev: SupportState, formData: FormData): Promise<S
     reason: String(formData.get("reason") ?? ""),
   });
   if (result.error) return { error: result.error };
+  // W2-A02: on the record like taking a ticket on and closing one.
+  await audit({
+    actor,
+    category: "admin",
+    action: "ticket.extended",
+    resourceType: "support_ticket",
+    resourceId: String(formData.get("ticketId") ?? ""),
+  });
   revalidatePath("/admin/support");
   return { ok: true };
 }
@@ -82,6 +143,14 @@ export async function moveToWhatsapp(
     actorUserId: actor.userId,
   });
   if (result.error) return { error: result.error };
+  // W2-A02: on the record like taking a ticket on and closing one.
+  await audit({
+    actor,
+    category: "admin",
+    action: "ticket.moved_to_whatsapp",
+    resourceType: "support_ticket",
+    resourceId: String(formData.get("ticketId") ?? ""),
+  });
   revalidatePath("/admin/support");
   return { ok: true, note: "Recorded. Bring a written summary back before closing it." };
 }
@@ -101,6 +170,7 @@ export async function close(_prev: SupportState, formData: FormData): Promise<Su
     ticketId,
     actorUserId: actor.userId,
     summary: String(formData.get("summary") ?? ""),
+    whatsappSummary: String(formData.get("whatsappSummary") ?? ""),
   });
   if (result.error) return { error: result.error };
 

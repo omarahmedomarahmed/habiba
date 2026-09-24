@@ -5,20 +5,29 @@ import { and, asc, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
+  BACK_OFFICE_ROLES,
   payoutMethods,
   payoutRequestEvents,
   payoutRequests,
   users,
   type Entity,
   type PayoutMethod,
+  type PayoutRequest,
   type PayoutStatus,
 } from "@/lib/db/schema";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 
+import { fourEyesProblem } from "./four-eyes";
 import { quoteFor } from "./fx";
-import { heldForTherapist, postManualPayout, type LedgerExecutor } from "./ledger";
+import {
+  heldForTherapist,
+  postManualPayout,
+  postManualPayoutReturned,
+  type LedgerExecutor,
+} from "./ledger";
 import { convert, payoutCurrencyFor } from "./money";
 
 /*
@@ -296,6 +305,42 @@ async function move(input: {
 }
 
 /**
+ * 🔴 W2-A01 / D9: every act on a payout asks the four-eyes questions, not
+ * only approval. Staff work this queue now, so "the payee or the last editor
+ * takes it on, sends it or confirms it" is a thing a team member could do,
+ * and `fourEyesProblem` is the same rule the refund queue asks.
+ *
+ * Returns a dictionary key as the error; the action says it in the reader's
+ * language.
+ */
+async function fourEyes(
+  row: Pick<PayoutRequest, "therapistId" | "detailsEditedByUserId" | "amountCents" | "ownerUserId">,
+  actorUserId: string,
+  movesMoney: boolean,
+): Promise<{ error: MessageKey } | null> {
+  const settings = await getSettings();
+  const problem = fourEyesProblem({
+    actorUserId,
+    payeeUserId: row.therapistId,
+    editorUserId: row.detailsEditedByUserId,
+    amountCents: row.amountCents,
+    thresholdCents: settings.payouts.twoPersonThresholdCents,
+    ownerUserId: row.ownerUserId,
+    movesMoney,
+  });
+  if (!problem) return null;
+  return {
+    error:
+      problem === "payee" ? "aaccess.fourPayee" : problem === "editor" ? "aaccess.fourEditor" : "arefund.errTwo",
+  };
+}
+
+async function requestRow(requestId: string): Promise<PayoutRequest | null> {
+  const [row] = await db.select().from(payoutRequests).where(eq(payoutRequests.id, requestId)).limit(1);
+  return row ?? null;
+}
+
+/**
  * 🔴 16.3d / C74 — approval, and who is allowed to give it.
  *
  * Three refusals, in the order they are worth explaining:
@@ -323,26 +368,9 @@ export async function approvePayout(input: {
   if (!row) return { error: "That request no longer exists." };
   if (row.status !== "requested") return { error: "That request is not waiting for approval." };
 
-  if (row.therapistId === input.approverUserId) {
-    return { error: "A clinician cannot approve their own payout." };
-  }
-  if (row.detailsEditedByUserId && row.detailsEditedByUserId === input.approverUserId) {
-    return {
-      error:
-        "You last edited these payout details, so somebody else has to approve sending money to them.",
-    };
-  }
-
-  const settings = await getSettings();
-  if (
-    row.amountCents > settings.payouts.twoPersonThresholdCents &&
-    (!row.ownerUserId || row.ownerUserId === input.approverUserId)
-  ) {
-    return {
-      error:
-        "Above the two-person threshold a different member of staff must take ownership before this can be approved.",
-    };
-  }
+  // Approval is the act that lets money leave, so the threshold rule is asked here.
+  const refused = await fourEyes(row, input.approverUserId, true);
+  if (refused) return refused;
 
   return move({
     requestId: input.requestId,
@@ -378,6 +406,8 @@ export async function markPayoutSent(input: {
 
   if (!row) return { error: "That request no longer exists." };
   if (row.status !== "approved") return { error: "Only an approved payout can be sent." };
+  const refused = await fourEyes(row, input.senderUserId, false);
+  if (refused) return refused;
 
   const txnId = crypto.randomUUID();
   const moved = await move({
@@ -439,6 +469,11 @@ export async function confirmPayout(input: {
   requestId: string;
   actorUserId: string | null;
 }): Promise<{ ok?: boolean; error?: string }> {
+  const row = await requestRow(input.requestId);
+  if (!row) return { error: "That request no longer exists." };
+  const refused = input.actorUserId ? await fourEyes(row, input.actorUserId, false) : null;
+  if (refused) return refused;
+
   return move({
     requestId: input.requestId,
     from: ["sent"],
@@ -447,6 +482,77 @@ export async function confirmPayout(input: {
     note: "Arrival confirmed",
     set: { confirmedAt: new Date() },
   });
+}
+
+/**
+ * 🔴 W2-A04: the transfer was made and it did not arrive (bounced, wrong
+ * wallet, the clinician says nothing came). Migration 0140.
+ *
+ * Only "Confirm arrival" was offered for a sent payout and `rejectPayout`
+ * refuses one, so the books said the clinician had been paid and nothing in
+ * the product could say otherwise. The money is ours again and owed to them.
+ *
+ * The same guarded-move-then-post as "Mark sent" (W1-04): the status is in
+ * the WHERE, the reversal rides on the won move inside its transaction, so two
+ * presses reverse the ledger once. The reason is mandatory and is what the
+ * clinician reads.
+ */
+export async function markPayoutReturned(input: {
+  requestId: string;
+  actorUserId: string;
+  reason: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const reason = input.reason.trim();
+  if (reason.length < 5) return { error: "Say why, so the clinician knows what to fix." };
+
+  const row = await requestRow(input.requestId);
+  if (!row) return { error: "That request no longer exists." };
+  if (row.status !== "sent") return { error: "That request has already moved on. Reload the queue." };
+  const refused = await fourEyes(row, input.actorUserId, false);
+  if (refused) return refused;
+
+  const txnId = crypto.randomUUID();
+  const moved = await move({
+    requestId: input.requestId,
+    from: ["sent"],
+    to: "returned",
+    actorUserId: input.actorUserId,
+    note: reason,
+    set: { returnedAt: new Date(), returnedReason: reason, returnedLedgerTxnId: txnId },
+    alsoPost: (tx) =>
+      postManualPayoutReturned({
+        requestId: row.id,
+        organizationId: row.organizationId,
+        therapistId: row.therapistId,
+        amountCents: row.amountCents,
+        entity: row.entity,
+        actorUserId: input.actorUserId,
+        txnId,
+        executor: tx,
+      }),
+  });
+  if (moved.error) return moved;
+
+  const [payee] = await db
+    .select({ email: users.email, profile: users.profile, timezone: users.timezone })
+    .from(users)
+    .where(eq(users.id, row.therapistId))
+    .limit(1);
+
+  await notify(
+    {
+      email: payee?.email ?? null,
+      phone: payee?.profile?.phone ?? null,
+      timezone: payee?.timezone ?? null,
+    },
+    {
+      kind: "payout.returned",
+      subject: "Your withdrawal did not arrive",
+      body: `${reason} The money is back in your balance, so you can ask for it again.`,
+    },
+  );
+
+  return { ok: true };
 }
 
 /**
@@ -463,6 +569,11 @@ export async function rejectPayout(input: {
 }): Promise<{ ok?: boolean; error?: string }> {
   const reason = input.reason.trim();
   if (reason.length < 5) return { error: "Say why, so the clinician knows what to fix." };
+
+  const current = await requestRow(input.requestId);
+  if (!current) return { error: "That request no longer exists." };
+  const refused = await fourEyes(current, input.actorUserId, false);
+  if (refused) return refused;
 
   const result = await move({
     requestId: input.requestId,
@@ -499,6 +610,16 @@ export async function claimPayout(input: {
   requestId: string;
   ownerUserId: string;
 }): Promise<{ ok?: boolean; error?: string }> {
+  /*
+   * W2-A01: taking a request on is what makes somebody the "different
+   * person" above the threshold, so the payee and the last editor may not be
+   * it.
+   */
+  const row = await requestRow(input.requestId);
+  if (!row) return { error: "That request is no longer open." };
+  const refused = await fourEyes(row, input.ownerUserId, false);
+  if (refused) return refused;
+
   const updated = await db
     .update(payoutRequests)
     .set({ ownerUserId: input.ownerUserId, updatedAt: new Date() })
@@ -640,7 +761,8 @@ export async function alertAgedPayouts(): Promise<{ alerted: number }> {
     const staff = await db
       .select({ email: users.email, profile: users.profile, timezone: users.timezone })
       .from(users)
-      .where(eq(users.role, "super_admin"))
+      // W2-A01 / D9: staff work this queue now, so the alarm reaches them too.
+      .where(inArray(users.role, [...BACK_OFFICE_ROLES]))
       .limit(10);
 
     for (const person of staff) {

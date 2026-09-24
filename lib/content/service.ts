@@ -389,11 +389,94 @@ export async function publishedSlugs(): Promise<
   }));
 }
 
-/** Admin view: every page, drafts included. */
+/**
+ * 🔴 W2-A07: A DRAFT OF A LIVE PAGE IS A SECOND ROW, AND THE LIVE ONE STAYS UP.
+ *
+ * "Save draft" wrote `status = 'draft'` onto the one row a page has, and
+ * `readPage` returns null for a draft row, so saving work in progress on a
+ * published page took it off the site until somebody pressed Publish.
+ *
+ * The draft of a published page is kept beside it under a private-use locale
+ * (`en-x-draft`), the same device as the `-x-staging` rows: no reader path asks
+ * for it (`readPage` asks for the reader's locale or `en`), it carries no
+ * navigation label, so the nav and footer skip it, and the admin list folds it
+ * into its page. Publishing writes it over the live row and removes it.
+ */
+export const DRAFT_SUFFIX = "-x-draft";
+
+export function isDraftLocale(locale: string): boolean {
+  return locale.endsWith(DRAFT_SUFFIX);
+}
+
+export async function saveContentPage(input: {
+  pageId: string;
+  title: string;
+  description: string | null;
+  status: "draft" | "published";
+  blocks: ContentBlock[];
+  userId: string;
+}): Promise<{ slug: string; kept: "live" | "draft" | "published" } | null> {
+  const [current] = await db.select().from(contentPages).where(eq(contentPages.id, input.pageId)).limit(1);
+  if (!current || isDraftLocale(current.locale)) return null;
+
+  const now = new Date();
+  const content = {
+    title: input.title,
+    description: input.description,
+    blocks: input.blocks,
+    updatedBy: input.userId,
+    updatedAt: now,
+  };
+
+  if (input.status === "draft" && current.status === "published") {
+    await db
+      .insert(contentPages)
+      .values({
+        ...content,
+        slug: current.slug,
+        locale: `${current.locale}${DRAFT_SUFFIX}`,
+        status: "draft",
+        layout: current.layout,
+        navLabel: null,
+        navOrder: null,
+      })
+      .onConflictDoUpdate({ target: [contentPages.slug, contentPages.locale], set: content });
+    return { slug: current.slug, kept: "live" };
+  }
+
+  await db
+    .update(contentPages)
+    .set({
+      ...content,
+      status: input.status,
+      publishedAt: input.status === "published" ? now : null,
+    })
+    .where(eq(contentPages.id, input.pageId));
+
+  // Published: whatever draft sat beside it is now the live page.
+  await db
+    .delete(contentPages)
+    .where(and(eq(contentPages.slug, current.slug), eq(contentPages.locale, `${current.locale}${DRAFT_SUFFIX}`)));
+
+  return { slug: current.slug, kept: input.status === "published" ? "published" : "draft" };
+}
+
+/** The draft waiting beside a live page, for the editor to open instead of the live words. */
+export async function draftBeside(page: { slug: string; locale: string }) {
+  const [row] = await db
+    .select()
+    .from(contentPages)
+    .where(and(eq(contentPages.slug, page.slug), eq(contentPages.locale, `${page.locale}${DRAFT_SUFFIX}`)))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Admin view: every page, drafts included, with a live page's draft folded into it. */
 export async function listAllPages() {
   return db
     .select()
     .from(contentPages)
+    .where(notLike(contentPages.locale, `%${DRAFT_SUFFIX}`))
     .orderBy(asc(contentPages.navOrder), asc(contentPages.slug));
 }
 

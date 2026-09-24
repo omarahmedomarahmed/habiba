@@ -94,6 +94,24 @@ async function grantSession(payment: ManualPayment): Promise<void> {
       paymentId: payment.id,
       sessionId: payment.refId,
     });
+    /*
+     * 🔴 W2-A03: a session already paid is a second run, which is fine. Any
+     * other state (cancelled while the transfer was checked, refunded, gone)
+     * means the money bought nothing, and that is a decision for a person.
+     */
+    const [now] = await db
+      .select({ status: sessions.status, paymentStatus: sessions.paymentStatus })
+      .from(sessions)
+      .where(eq(sessions.id, payment.refId))
+      .limit(1);
+    if (now?.paymentStatus !== "paid") {
+      const { flagException } = await import("./rail-exceptions");
+      await flagException(
+        payment.id,
+        "not_payable",
+        `session ${now?.status ?? "gone"}, payment ${now?.paymentStatus ?? "none"}`,
+      );
+    }
     return;
   }
 
@@ -356,6 +374,9 @@ async function grantSession(payment: ManualPayment): Promise<void> {
       paymentId: payment.id,
       sessionId: payment.refId,
     });
+    // W2-A03: paid twice, once another way. The transfer is ours and bought nothing.
+    const { flagException } = await import("./rail-exceptions");
+    await flagException(payment.id, "not_payable", "the session was already paid another way");
     return;
   }
 
@@ -460,6 +481,9 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
       organizationId: payment.refId,
       settlesCents: payment.settlesCents,
     });
+    // W2-A03: the money is ours and settled nothing. A person decides where it goes.
+    const { flagException } = await import("./rail-exceptions");
+    await flagException(payment.id, "not_payable", "nothing was due when it was confirmed");
     return;
   }
 
@@ -475,6 +499,9 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
       settledCount: settled.length,
       remainingCents: remaining,
     });
+    // W2-A03 / A4: an overpayment is on /admin/transfers as work, with the difference.
+    const { flagException } = await import("./rail-exceptions");
+    await flagException(payment.id, "overpaid", `$${(remaining / 100).toFixed(2)} over the bill`);
   }
 
   /*

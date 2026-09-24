@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -166,21 +167,29 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
               )}
             </p>
 
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  const result = partner.approvedAt
-                    ? await withdrawProduction(partner.id)
-                    : await approveProduction(partner.id);
-                  setError(result.error ?? null);
-                })
-              }
-              className="tap-target mt-2 h-9 rounded-xl bg-slate-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
-            >
-              {partner.approvedAt ? "Withdraw approval" : "Approve for production"}
-            </button>
+            {partner.approvedAt ? (
+              <div className="mt-2">
+                {/* W2-A05: withdrawing is confirmed, with the reason on the record. */}
+                <ConfirmWithReason
+                  label="Withdraw approval"
+                  onConfirm={(reason) => withdrawProduction(partner.id, reason)}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const result = await approveProduction(partner.id);
+                    setError(result.error ?? null);
+                  })
+                }
+                className="tap-target mt-2 h-9 rounded-xl bg-slate-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                Approve for production
+              </button>
+            )}
 
             {/* 🔴 What withdrawing does NOT do, said beside the button that does it. */}
             {/* 🔴 A refusal is shown. `approveForProduction` refuses without documents. */}
@@ -199,18 +208,14 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {/* W2-A05: a confirm and a reason, and a refusal is shown rather than voided. */}
             {PARTNER_STATES.filter((state) => state !== partner.state).map((state) => (
-              <button
+              <ConfirmWithReason
                 key={state}
-                type="button"
+                label={state}
                 disabled={pending}
-                onClick={() =>
-                  startTransition(async () => void (await setState(partner.id, state)))
-                }
-                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-              >
-                {state}
-              </button>
+                onConfirm={(reason) => setState(partner.id, state, reason)}
+              />
             ))}
           </div>
 
@@ -229,9 +234,6 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
               </Field>
               <Field label={t("apartner.name")} htmlFor={`pu-name-${partner.id}`}>
                 <Input id={`pu-name-${partner.id}`} name="name" />
-              </Field>
-              <Field label={t("apartner.password")} htmlFor={`pu-pw-${partner.id}`}>
-                <Input id={`pu-pw-${partner.id}`} name="password" type="text" required />
               </Field>
               <div className="flex flex-wrap gap-4 text-xs text-slate-700">
                 <label className="flex items-center gap-2">

@@ -15,6 +15,60 @@ import {
 } from "@/lib/db/schema";
 import { HEARTBEAT_STALE_MS } from "@/lib/data/radar";
 
+/**
+ * 🔴 W2-A10: take a clinician off the board, and never strand the patient who
+ * was booking them.
+ *
+ * This used to be one UPDATE clearing `pendingSessionId` and `reservedBy`, so a
+ * patient halfway through booking kept watching a screen that waited for a
+ * clinician we had removed. A booking in flight (`pending` on the board, the
+ * session still `scheduled`) is now cancelled in a guarded move and the
+ * patient is told through the clinician-cancel path, worded as ours, with any
+ * payment refunded or queued exactly as a clinician's cancellation would be.
+ * A session already under way (`in_session`) is left alone: nobody is
+ * mid-booking, and ending a live session is not what this button is for.
+ */
+export async function forceOffline(input: {
+  therapistUserId: string;
+  adminUserId: string;
+}): Promise<{ cancelledSessionId: string | null }> {
+  const [before] = await db
+    .select({ status: therapistRadar.status, pendingSessionId: therapistRadar.pendingSessionId })
+    .from(therapistRadar)
+    .where(eq(therapistRadar.userId, input.therapistUserId))
+    .limit(1);
+
+  await db
+    .update(therapistRadar)
+    .set({ status: "offline", pendingSessionId: null, pendingUntil: null, reservedBy: null })
+    .where(eq(therapistRadar.userId, input.therapistUserId));
+
+  const sessionId = before?.status === "pending" ? before.pendingSessionId : null;
+  if (!sessionId) return { cancelledSessionId: null };
+
+  const cancelled = await db
+    .update(sessions)
+    .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.therapistId, input.therapistUserId),
+        eq(sessions.status, "scheduled"),
+      ),
+    )
+    .returning({ id: sessions.id });
+  if (cancelled.length === 0) return { cancelledSessionId: null };
+
+  const { afterClinicianCancel } = await import("@/lib/data/clinician-cancel");
+  await afterClinicianCancel({
+    actorUserId: input.adminUserId,
+    sessionId,
+    reason: "taken off the board by 24Therapy",
+    byUs: true,
+  });
+  return { cancelledSessionId: sessionId };
+}
+
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
  *

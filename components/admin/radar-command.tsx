@@ -1,5 +1,9 @@
 "use client";
 
+import { PAGE_SIZE } from "@/lib/admin/paging";
+import { useT } from "@/lib/i18n/client";
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
+import { MIN_REASON } from "@/lib/admin/reason";
 import dynamicImport from "next/dynamic";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -69,6 +73,9 @@ export function RadarCommand({
   const [only, setOnly] = useState<"all" | "live" | "suspended" | "flagged">("all");
   const [selected, setSelected] = useState<CommandRow | null>(null);
   const [beat, setBeat] = useState(0);
+  /* 🔴 W2-A09: the table had no paging; every clinician on the board was one list. */
+  const [page, setPage] = useState(1);
+  const say = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +119,11 @@ export function RadarCommand({
       );
     });
   }, [view.rows, query, country, language, only]);
+
+  // A new filter starts at the first page; a refresh keeps the page you are on.
+  useEffect(() => setPage(1), [query, country, language, only]);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const shown = rows.slice((Math.min(page, pages) - 1) * PAGE_SIZE, Math.min(page, pages) * PAGE_SIZE);
 
   /* The globe speaks RadarEntry. Everything clinical is absent from both. */
   const entries: RadarEntry[] = useMemo(
@@ -289,7 +301,7 @@ export function RadarCommand({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
+              {shown.map((row) => (
                 <tr key={row.userId} className={cn(row.suspendedUntil && "bg-red-50/50")}>
                   <Td>
                     <button
@@ -350,6 +362,19 @@ export function RadarCommand({
             </tbody>
           </table>
         </div>
+        {pages > 1 ? (
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-4 py-2">
+            <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              {say("apage.newer")}
+            </Button>
+            <span className="self-center text-xs text-slate-500">
+              {Math.min(page, pages)} / {pages}
+            </span>
+            <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
+              {say("apage.older")}
+            </Button>
+          </div>
+        ) : null}
       </Card>
 
       {selected ? <Detail zone={zone} row={selected} onClose={() => setSelected(null)} /> : null}
@@ -449,44 +474,47 @@ function Controls({ row }: { row: CommandRow }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * 🔴 W2-A10: the reason is the clinician's to read, so it is required. A
+   * blank field used to send "Administrator action", which passed the server's
+   * four-character check and was emailed as the reason.
+   */
   const act = (hours: number) =>
     startTransition(async () => {
       setError(null);
-      const result = await setRadarSuspension(row.userId, hours, reason || "Administrator action");
+      const result = await setRadarSuspension(row.userId, hours, reason);
       if (result.error) setError(result.error);
       else setOpen(false);
     });
 
   if (row.suspendedUntil) {
     return (
-      <Button
-        size="sm"
-        variant="secondary"
-        disabled={pending}
-        onClick={() => act(0)}
-      >
-        <Undo2 className="h-3 w-3" aria-hidden />
-        Release
-      </Button>
+      <ConfirmWithReason
+        label={
+          <>
+            <Undo2 className="h-3 w-3" aria-hidden />
+            Release
+          </>
+        }
+        onConfirm={(why) => setRadarSuspension(row.userId, 0, why)}
+      />
     );
   }
 
   if (!open) {
     return (
       <div className="flex gap-1">
-        <button
-          type="button"
+        {/*
+          🔴 W2-A10: taking somebody off the board mid-booking cancels that
+          booking and tells the patient, so it asks first and says why on the
+          record. It used to drop them silently and ignore the result.
+        */}
+        <ConfirmWithReason
+          label={<PowerOff className="h-3.5 w-3.5" aria-label="Take them off the board now, without a ban" />}
+          variant="secondary"
           disabled={pending || row.status === "offline"}
-          onClick={() =>
-            startTransition(async () => {
-              await forceRadarOffline(row.userId);
-            })
-          }
-          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
-          title="Take them off the board now, without a ban"
-        >
-          <PowerOff className="h-3.5 w-3.5" aria-hidden />
-        </button>
+          onConfirm={(why) => forceRadarOffline(row.userId, why)}
+        />
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -513,9 +541,14 @@ function Controls({ row }: { row: CommandRow }) {
         className="h-8 text-xs"
       />
       <div className="flex flex-wrap gap-1">
-        <Ban24 label="24h" hours={24} act={act} pending={pending} />
-        <Ban24 label="3 days" hours={72} act={act} pending={pending} />
-        <Ban24 label="Until released" hours={24 * 3650} act={act} pending={pending} />
+        <Ban24 label="24h" hours={24} act={act} pending={pending || reason.trim().length < MIN_REASON} />
+        <Ban24 label="3 days" hours={72} act={act} pending={pending || reason.trim().length < MIN_REASON} />
+        <Ban24
+          label="Until released"
+          hours={24 * 3650}
+          act={act}
+          pending={pending || reason.trim().length < MIN_REASON}
+        />
         <button
           type="button"
           onClick={() => setOpen(false)}

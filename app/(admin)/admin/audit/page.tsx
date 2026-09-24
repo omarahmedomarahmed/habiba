@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { Badge, Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
+import { ListControls } from "@/components/admin/list-controls";
+import { pageOf, paging, searchTerm } from "@/lib/admin/paging";
 import { listAuditLog } from "@/lib/data/admin";
 import { formatDateTime } from "@/lib/utils";
 
@@ -14,19 +16,22 @@ const CATEGORIES = ["phi_access", "auth", "admin", "billing", "break_glass"] as 
 export default async function AdminAuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; page?: string }>;
 }) {
   const actor = await requireRole("super_admin");
-  const { category } = await searchParams;
-  const entries = await listAuditLog({ category, limit: 200 });
+  const params = await searchParams;
+  const { category } = params;
+  // W2-A09: searched and paged, rather than the newest 200 and nothing past them.
+  const q = searchTerm(params.q);
+  const { page, offset, fetch } = paging(params);
+  const { rows: entries, hasMore } = pageOf(await listAuditLog({ category, q, offset, limit: fetch }));
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audit log</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Append-only. Patients appear as references, never names: a compliance tool must not be a
-          way to browse charts.
+          Append-only. Patients appear as references, never names.
         </p>
       </div>
 
@@ -44,6 +49,8 @@ export default async function AdminAuditPage({
           </FilterChip>
         ))}
       </div>
+
+      <ListControls base="/admin/audit" params={{ category }} q={q} page={page} hasMore={hasMore} />
 
       <Card className="divide-y divide-slate-100">
         {entries.map((entry) => (
@@ -80,6 +87,14 @@ export default async function AdminAuditPage({
               <span className="font-mono text-xs text-slate-500">
                 patient {entry.patientId.slice(0, 8)}…
               </span>
+            ) : null}
+            {entry.resourceType ? (
+              <span className="font-mono text-xs text-slate-400">
+                {entry.resourceType} {entry.resourceKey ?? entry.resourceId?.slice(0, 8) ?? ""}
+              </span>
+            ) : null}
+            {entry.reason ? (
+              <span className="w-full text-xs text-slate-600">{entry.reason.slice(0, 240)}</span>
             ) : null}
           </div>
         ))}

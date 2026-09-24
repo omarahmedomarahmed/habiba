@@ -16,9 +16,10 @@ export default async function AdminTherapistsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Clinicians</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          A signal, not a gate: an unverified clinician can still record sessions.
-        </p>
+        {/*
+          W2-A01: "A signal, not a gate: an unverified clinician can still
+          record sessions" was false. `startNewSession` calls `requireVerified`.
+        */}
       </div>
 
       <Card className="divide-y divide-slate-100">

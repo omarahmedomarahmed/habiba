@@ -1,5 +1,7 @@
 "use client";
 
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
+import { useT } from "@/lib/i18n/client";
 import { useMemo, useState, useTransition } from "react";
 import { Plus, Search, Trash2 } from "lucide-react";
 
@@ -35,6 +37,7 @@ export function TaxonomyEditor({
   emptyWarning: string;
 }) {
   const [, startTransition] = useTransition();
+  const t = useT();
   const [state, setState] = useState(rows);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
@@ -51,16 +54,18 @@ export function TaxonomyEditor({
 
   const on = state.filter((row) => row.enabled).length;
 
-  const toggle = (row: TaxonomyRow) => {
+  /*
+   * W2-A05: switching a country off takes its clinicians off the radar, and
+   * deleting a language takes it off every filter, so a chip press only asks.
+   * The act happens with a reason, and the chip changes when the server says so.
+   */
+  const [asking, setAsking] = useState<{ row: TaxonomyRow; act: "toggle" | "remove" } | null>(null);
+
+  const toggle = async (row: TaxonomyRow, reason: string) => {
     const next = !row.enabled;
-    setState((s) => s.map((r) => (r.code === row.code ? { ...r, enabled: next } : r)));
-    startTransition(async () => {
-      const result = await setTaxonomyState(kind, row.code, next);
-      if (result.error) {
-        setError(result.error);
-        setState((s) => s.map((r) => (r.code === row.code ? { ...r, enabled: !next } : r)));
-      }
-    });
+    const result = await setTaxonomyState(kind, row.code, next, reason);
+    if (!result.error) setState((s) => s.map((r) => (r.code === row.code ? { ...r, enabled: next } : r)));
+    return result;
   };
 
   const add = () =>
@@ -81,15 +86,11 @@ export function TaxonomyEditor({
       setDraft("");
     });
 
-  const remove = (row: TaxonomyRow) =>
-    startTransition(async () => {
-      setState((s) => s.filter((r) => r.code !== row.code));
-      const result = await removeTaxonomy(kind, row.code);
-      if (result.error) {
-        setError(result.error);
-        setState((s) => [...s, row].sort((a, b) => a.label.localeCompare(b.label)));
-      }
-    });
+  const remove = async (row: TaxonomyRow, reason: string) => {
+    const result = await removeTaxonomy(kind, row.code, reason);
+    if (!result.error) setState((s) => s.filter((r) => r.code !== row.code));
+    return result;
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -133,12 +134,28 @@ export function TaxonomyEditor({
         </p>
       ) : null}
 
+      {asking ? (
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-2.5 text-xs text-slate-700">
+          <span className="font-semibold">{asking.row.label}</span>
+          <ConfirmWithReason
+            key={`${asking.act}-${asking.row.code}`}
+            startOpen
+            variant={asking.act === "remove" || asking.row.enabled ? "danger" : "primary"}
+            label={t(asking.act === "remove" ? "aconfirm.delete" : asking.row.enabled ? "aconfirm.off" : "aconfirm.on")}
+            onConfirm={(reason) =>
+              asking.act === "remove" ? remove(asking.row, reason) : toggle(asking.row, reason)
+            }
+            onCancel={() => setAsking(null)}
+          />
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-1.5 p-3">
         {visible.map((row) => (
           <span key={row.code} className="inline-flex">
             <button
               type="button"
-              onClick={() => toggle(row)}
+              onClick={() => setAsking({ row, act: "toggle" })}
               aria-pressed={row.enabled}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
@@ -154,7 +171,7 @@ export function TaxonomyEditor({
             {row.custom ? (
               <button
                 type="button"
-                onClick={() => remove(row)}
+                onClick={() => setAsking({ row, act: "remove" })}
                 aria-label={`Delete ${row.label}`}
                 className={cn(
                   "-ms-px inline-flex items-center rounded-e-full border px-2 text-slate-300 hover:text-red-600",

@@ -224,7 +224,7 @@ export async function addCapital(
 
 export async function removeCapital(
   actor: Actor,
-  input: { id: string },
+  input: { id: string; why?: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   mustBeFounder(actor);
 
@@ -245,7 +245,7 @@ export async function removeCapital(
     resourceType: "capital_contribution",
     resourceId: input.id,
     /* Both figures, so a deletion can be read back as what it removed. */
-    reason: `${String(row.amountCents)} cents from ${row.source} on ${String(row.receivedOn)}`,
+    reason: `${String(row.amountCents)} cents from ${row.source} on ${String(row.receivedOn)}${input.why ? `, ${input.why}` : ""}`,
   });
 
   return { ok: true };

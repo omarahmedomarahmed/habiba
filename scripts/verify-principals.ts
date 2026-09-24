@@ -157,8 +157,15 @@ const SCOPE: Record<string, Scope> = {
    * 🔴 W1-13: a clinician cancelling their own booked session. Clinical
    * because it reads the patient's contact details to tell them, and the
    * clinician's only because it acts on their own appointment.
+   *
+   * 🔴 W2-A10: and the back office's, for one act. Taking a clinician off the
+   * radar mid-booking (`forceOffline` in `radar-admin`) cancels that booking,
+   * and the patient has to be told and refunded exactly as a clinician's own
+   * cancellation would. The alternative was the defect: the booking dropped
+   * silently and the patient left waiting. It reads the patient's contact to
+   * send the message and returns nothing clinical to the console.
    */
-  "clinician-cancel": { who: ["clinician"], clinical: true },
+  "clinician-cancel": { who: ["clinician", "admin"], clinical: true },
   /*
    * 🔴 W1-02: whether an organisation is a solo practice or a clinic, so a
    * seat clinician cannot run the clinic's account. It reads one column of

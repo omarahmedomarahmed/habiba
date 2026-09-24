@@ -6,7 +6,9 @@ import { ArrowLeft, EyeOff, ShieldAlert } from "lucide-react";
 import { Card } from "@/components/ui";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
+import { MIN_REASON, reasonProblem, reasonText } from "@/lib/admin/reason";
 import { investigate } from "@/lib/data/radar-admin";
+import { getI18n } from "@/lib/i18n/server";
 import { formatDate, formatDuration } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Investigation", robots: { index: false } };
@@ -29,11 +31,45 @@ export const dynamic = "force-dynamic";
  */
 export default async function InvestigatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ why?: string }>;
 }) {
   const actor = await requireRole("super_admin");
   const { id } = await params;
+  const { why } = await searchParams;
+  const { t } = await getI18n();
+
+  /*
+   * 🔴 W2-A10: the reader says why before a word renders, and the reason is
+   * in the break-glass row. Any report used to open the whole transcript on
+   * a click, with only the report's id standing for a reason nobody typed.
+   */
+  if (reasonProblem(why)) {
+    return (
+      <form method="get" className="mx-auto mt-6 max-w-md space-y-3">
+        <Card className="space-y-3 border-amber-200 bg-amber-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+            <ShieldAlert className="h-4 w-4" aria-hidden />
+            You are reading a therapy transcript
+          </p>
+          <input
+            name="why"
+            required
+            minLength={MIN_REASON}
+            defaultValue={why ?? ""}
+            placeholder={t("aconfirm.why")}
+            aria-label={t("aconfirm.why")}
+            className="h-10 w-full rounded-lg border border-amber-200 bg-white px-3 text-sm"
+          />
+          <button type="submit" className="h-10 rounded-xl bg-navy-500 px-4 text-sm font-semibold text-white">
+            {t("common.continue")}
+          </button>
+        </Card>
+      </form>
+    );
+  }
 
   const found = await investigate(id);
   if (!found) notFound();
@@ -47,7 +83,7 @@ export default async function InvestigatePage({
     resourceType: "session",
     resourceId: report.sessionId,
     patientId: report.patientId,
-    reason: `Report ${report.id}, ${report.kind}`,
+    reason: `Report ${report.id}, ${report.kind}: ${reasonText(why!)}`,
   });
 
   return (
@@ -66,8 +102,7 @@ export default async function InvestigatePage({
           You are reading a therapy transcript
         </p>
         <p className="mt-1 text-sm leading-relaxed text-amber-800">
-          Audited against your name, with the report that justified it. The only session you can
-          open from here.
+          Audited against your name and your reason.
         </p>
       </Card>
 

@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { PageEditor } from "@/components/admin/page-editor";
 import { requireRole } from "@/lib/auth/guard";
-import { getPageById } from "@/lib/content/service";
+import { draftBeside, getPageById } from "@/lib/content/service";
 
 export const metadata: Metadata = { title: "Edit page", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -16,6 +16,9 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
 
   const page = await getPageById(id);
   if (!page) notFound();
+  // W2-A07: a live page with a draft waiting opens at the draft, and saving it again keeps the page up.
+  const draft = page.status === "published" ? await draftBeside(page) : null;
+  const shown = draft ?? page;
 
   return (
     <div className="space-y-4">
@@ -31,10 +34,10 @@ export default async function EditContentPage({ params }: { params: Promise<{ id
         pageId={page.id}
         slug={page.slug}
         initial={{
-          title: page.title,
-          description: page.description ?? "",
-          status: page.status,
-          blocks: page.blocks,
+          title: shown.title,
+          description: shown.description ?? "",
+          status: draft ? "draft" : page.status,
+          blocks: shown.blocks,
         }}
       />
     </div>

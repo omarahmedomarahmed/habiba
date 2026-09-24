@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNotNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, ne, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
@@ -295,6 +295,12 @@ export async function decideVerification(opts: {
       and(
         eq(therapistVerifications.id, opts.verificationId),
         eq(therapistVerifications.state, "submitted"),
+        /*
+         * 🔴 W2-A01 / D9: staff decide verifications now, and a staff member
+         * can hold a clinician account. Nobody approves their own licence,
+         * the same rule as nobody approving their own payout.
+         */
+        ne(therapistVerifications.userId, opts.adminUserId),
       ),
     )
     .returning({
@@ -385,6 +391,8 @@ async function decideRecheck(
     eq(therapistVerifications.id, opts.verificationId),
     eq(therapistVerifications.state, "approved"),
     isNotNull(therapistVerifications.recheckSubmittedAt),
+    // W2-A01 / D9: nobody decides their own licence change either.
+    ne(therapistVerifications.userId, opts.adminUserId),
   );
   const [row] = await db.select().from(therapistVerifications).where(waiting).limit(1);
   if (!row) return null;

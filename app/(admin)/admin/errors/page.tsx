@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { Badge, Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
+import { ListControls } from "@/components/admin/list-controls";
+import { PAGE_SIZE, paging, searchTerm } from "@/lib/admin/paging";
 import { ERROR_RETENTION_DAYS, recentErrors } from "@/lib/observability/errors";
 import { formatDateTime } from "@/lib/utils";
 
@@ -20,9 +22,19 @@ export const dynamic = "force-dynamic";
  * throws once per request and an ungrouped list of four thousand identical
  * entries is the same as no list.
  */
-export default async function AdminErrorsPage() {
+export default async function AdminErrorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
   const actor = await requireRole("super_admin");
-  const rows = await recentErrors(200);
+  // W2-A09: searched and paged by occurrence; the groups below are over this page.
+  const params = await searchParams;
+  const q = searchTerm(params.q);
+  const { page, offset } = paging(params);
+  const fetched = await recentErrors(PAGE_SIZE * 4 + 1, { offset: offset * 4, q });
+  const hasMore = fetched.length > PAGE_SIZE * 4;
+  const rows = fetched.slice(0, PAGE_SIZE * 4);
 
   const groups = new Map<string, { rows: typeof rows; first: Date; last: Date }>();
   for (const row of rows) {
@@ -42,10 +54,12 @@ export default async function AdminErrorsPage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Errors</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
           Server errors from the last {ERROR_RETENTION_DAYS} days, newest first. Paths have their
-          identifiers removed and messages have addresses stripped. This is a debugging tool and
-          must not become another way to read a chart. Repeats within ten minutes are recorded once.
+          identifiers removed and messages have addresses stripped. Repeats within ten minutes are
+          recorded once.
         </p>
       </div>
+
+      <ListControls base="/admin/errors" params={{}} q={q} page={page} hasMore={hasMore} />
 
       {groups.size === 0 ? (
         <Card className="p-8 text-center">
@@ -77,8 +91,7 @@ export default async function AdminErrorsPage() {
 
             {latest.digest ? (
               <p className="mt-1 text-xs text-slate-500">
-                Digest <code className="font-mono">{latest.digest}</code>. The code a clinician
-                sees, so a support message quoting it lands here.
+                Digest <code className="font-mono">{latest.digest}</code>.
               </p>
             ) : null}
 

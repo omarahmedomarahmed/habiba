@@ -159,6 +159,8 @@ export type Message = {
     /** 16.2 — the manual payout rail, which a person works by hand. */
     | "payout.sent"
     | "payout.rejected"
+    /** W2-A04: a sent payout that did not arrive; the money is back in their balance. */
+    | "payout.returned"
     /** 🔴 16.3b — the ageing alert. A dashboard at 3am is not an alert. */
     | "payout.overdue"
     /** 🔴 W1-16: a clinician's licence ran out, or will within 30 days. */

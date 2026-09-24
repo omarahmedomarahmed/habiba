@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  *   1. **Who is asking.** `getActor()`, and nothing else: there is no patient
  *      case here, because a patient has no business with a clinician's
  *      passport and inventing a branch for them would be inventing a door.
- *   2. **May they read it now.** The owning clinician, or a super admin. That
+ *   2. **May they read it now.** The owning clinician, or the back office (D9). That
  *      is the whole list, and it lives in `identity-access.ts` so the
  *      local-disk route cannot answer differently.
  *   3. **Audited.** Before the bytes, never after. A read that streams and

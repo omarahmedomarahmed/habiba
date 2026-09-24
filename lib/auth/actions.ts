@@ -280,7 +280,13 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
    * gate below is not theirs to pass: they go to the console.
    */
   if (backOffice) {
-    const wantedByStaff = next.startsWith("/admin") ? next : "/admin";
+    /*
+     * 🔴 W2-A01: a page this role can open. Everyone used to land on
+     * `/admin`, which is the owner's, so a staff sign-in bounced out of the
+     * console on its first screen.
+     */
+    const { landingFor, mayOpen } = await import("@/lib/admin/access");
+    const wantedByStaff = next.startsWith("/admin") && mayOpen(user.role, next) ? next : landingFor(user.role);
     redirect(wantedByStaff);
   }
 

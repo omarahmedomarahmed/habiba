@@ -261,10 +261,28 @@ async function main() {
       ),
     );
 
-    await db
-      .update(supportTickets)
-      .set({ whatsappSummary: "Agreed on WhatsApp that they would send the reference by Friday." })
-      .where(eq(supportTickets.id, ticketRow!.id));
+    /*
+     * 🔴 W2-A02: the summary comes back THROUGH THE PRODUCT. This check used
+     * to write `whatsappSummary` straight to the table, because nothing in the
+     * product could, which is the defect: a ticket moved to WhatsApp could
+     * never be closed from the console. It now goes in with the close.
+     */
+    const { replyToTicket } = await import("../lib/data/support");
+    const replied = await replyToTicket({
+      ticketId: ticketRow!.id,
+      actorUserId: staff[0]!.id,
+      reply: "Which session was it? The date is enough.",
+    });
+    const [afterReply] = await db
+      .select({ status: supportTickets.status, token: supportTickets.accessToken })
+      .from(supportTickets)
+      .where(eq(supportTickets.id, ticketRow!.id))
+      .limit(1);
+    check(
+      "🔴 W2-A02 a reply that does not close waits on them, behind a link",
+      replied.ok === true && afterReply?.status === "waiting_on_them" && Boolean(afterReply?.token),
+      replied.error ?? `status ${afterReply?.status}`,
+    );
 
     /* --------------------------------- 🔴 20.22 · the close, and the link */
 
@@ -272,6 +290,7 @@ async function main() {
       ticketId: ticketRow!.id,
       actorUserId: staff[0]!.id,
       summary: "Confirmed the record was theirs and sent them the claim link.",
+      whatsappSummary: "Agreed on WhatsApp that they would send the reference by Friday.",
     });
     check("20.22 …and closes once it has", closed.ok === true, closed.error ?? "");
 
@@ -307,7 +326,7 @@ async function main() {
     check(
       "🔴 20.22 the email carries a link and a code, never the correspondence",
       closeBody.includes("body:") &&
-        !/body:[^}]*\$\{(summary|ticket\.message|ticket\.topic)\}/.test(closeBody),
+        !/body:[^}]*\$\{(summary|reply|ticket\.message|ticket\.topic)\}/.test(closeBody),
       "no ticket content is interpolated into the notification body",
     );
 

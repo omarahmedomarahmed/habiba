@@ -275,31 +275,37 @@ export async function setSponsorEntity(
   return { ok: true };
 }
 
-/** 53.6 — the first portal user, created by an admin with a password they set. */
+/**
+ * 53.6: the first portal user, created by an operator.
+ *
+ * 🔴 W2-A06: with NO password. The operator used to type one in clear; now
+ * the account has none until its owner sets it from the emailed link
+ * (`lib/auth/account-links.ts`), and the sign-in refuses a null hash.
+ */
 export async function createSponsorUser(input: {
   sponsorId: string;
   email: string;
   name: string | null;
-  password: string;
   role: "admin" | "viewer";
-}): Promise<{ ok?: true; error?: string }> {
+}): Promise<{ ok?: true; error?: string; id?: string; email?: string }> {
   const email = input.email.trim().toLowerCase();
   if (!email.includes("@")) return { error: "That email address does not look right." };
-  if (input.password.length < 12) return { error: "Use at least twelve characters." };
 
   try {
-    await controlDb.insert(sponsorUsers).values({
-      sponsorId: input.sponsorId,
-      email,
-      name: input.name?.trim().slice(0, 120) || null,
-      passwordHash: await hashPassword(input.password),
-      role: input.role,
-    });
+    const [row] = await controlDb
+      .insert(sponsorUsers)
+      .values({
+        sponsorId: input.sponsorId,
+        email,
+        name: input.name?.trim().slice(0, 120) || null,
+        passwordHash: null,
+        role: input.role,
+      })
+      .returning({ id: sponsorUsers.id });
+    return { ok: true, id: row?.id, email };
   } catch {
     return { error: "There is already an account with that email address." };
   }
-
-  return { ok: true };
 }
 
 /**

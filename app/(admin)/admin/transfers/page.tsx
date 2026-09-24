@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 
 import { formatMoney } from "@/lib/billing/plans";
 import { OpenCarts } from "@/components/admin/open-carts";
+import { RailExceptions } from "@/components/admin/rail-exceptions";
 import { TransferQueue } from "@/components/admin/transfer-queue";
 import { PageHeader } from "@/components/ui";
+import { ListControls } from "@/components/admin/list-controls";
+import { mayOpen } from "@/lib/admin/access";
+import { pageOf, paging, searchTerm } from "@/lib/admin/paging";
 import { requireStaff } from "@/lib/auth/guard";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { openCarts, queue } from "@/lib/billing/manual";
+import { openExceptions } from "@/lib/billing/rail-exceptions";
 import { controlDb as db } from "@/lib/db";
 import { patientAccounts, sponsors, users } from "@/lib/db/schema";
 
@@ -31,10 +36,23 @@ export const dynamic = "force-dynamic";
  * whenever the queue is busier than the people working it. Every queue in this
  * product is oldest first for the same reason.
  */
-export default async function TransfersPage() {
-  await requireStaff();
+export default async function TransfersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
+  const actor = await requireStaff();
+  // W2-A09: the queue is searched by reference or amount, and paged.
+  const params = await searchParams;
+  const q = searchTerm(params.q);
+  const { page, offset, fetch } = paging(params);
 
-  const [rows, carts] = await Promise.all([queue(), openCarts()]);
+  const [fetched, carts, exceptions] = await Promise.all([
+    queue({ q, offset, limit: fetch }),
+    openCarts(),
+    openExceptions(),
+  ]);
+  const { rows, hasMore } = pageOf(fetched);
 
   /*
    * 🔴 The payer's NAME, resolved here, because a queue of uuids is a queue
@@ -49,7 +67,7 @@ export default async function TransfersPage() {
    * same payers behind them, and two sets of three queries would be six round
    * trips to answer one screen.
    */
-  const everyRow = [...rows, ...carts];
+  const everyRow = [...rows, ...carts, ...exceptions];
   const userIds = everyRow.map((r) => r.userId).filter((x): x is string => Boolean(x));
   const patientIds = everyRow
     .map((r) => r.patientAccountId)
@@ -146,10 +164,15 @@ export default async function TransfersPage() {
    * before a crisis session would be the wrong trade.
    */
   const profileFor = (row: (typeof rows)[number]): string | null => {
-    if (row.sponsorId) return `/admin/sponsors/${row.sponsorId}`;
-    if (row.userId) return `/admin/therapists/${row.userId}`;
-    if (row.patientAccountId) return `/admin/patients/${row.patientAccountId}`;
-    return null;
+    const href = row.sponsorId
+      ? `/admin/sponsors/${row.sponsorId}`
+      : row.userId
+        ? `/admin/therapists/${row.userId}`
+        : row.patientAccountId
+          ? `/admin/patients/${row.patientAccountId}`
+          : null;
+    // W2-A01: a clinician's page is the owner's, so staff get the name without a link that bounces.
+    return href && mayOpen(actor.role, href) ? href : null;
   };
 
   const nameFor = (row: (typeof rows)[number]): string => {
@@ -176,6 +199,8 @@ export default async function TransfersPage() {
         people waiting on us; this is a reference an operator opens when a bank
         line will not match anything in it.
       */}
+      <ListControls base="/admin/transfers" params={{}} q={q} page={page} hasMore={hasMore} />
+
       <TransferQueue
         rows={rows.map((r) => ({
           id: r.id,
@@ -210,6 +235,19 @@ export default async function TransfersPage() {
           profileHref: profileFor(r),
           /* 🔴 76.16 — what the payer said it covers. Absent on older rows. */
           lines: r.lineItems ?? [],
+        }))}
+      />
+
+      {/* 🔴 W2-A03 / A4: money we hold that somebody has to decide about. */}
+      <RailExceptions
+        rows={exceptions.map((e) => ({
+          id: e.id,
+          payer: nameFor(e),
+          what: e.purpose,
+          settlesCents: e.settlesCents,
+          kind: e.exception!,
+          detail: e.exceptionDetail,
+          raisedAt: e.exceptionAt?.toISOString() ?? null,
         }))}
       />
 

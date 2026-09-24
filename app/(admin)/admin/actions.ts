@@ -3,12 +3,13 @@
 import { after } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 
-import { CMS_TAG } from "@/lib/content/service";
+import { CMS_TAG, saveContentPage } from "@/lib/content/service";
 import { honestyMessage, honestyProblemsIn } from "@/lib/content/honesty";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth/guard";
+import { requireRole, requireStaff } from "@/lib/auth/guard";
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/data/admin";
@@ -19,6 +20,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   contentPages,
   invoices,
+  therapistVerifications,
   users,
   LEDGER_ACCOUNTS,
   TAXONOMY_KINDS,
@@ -42,8 +44,26 @@ const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/actions.ts", "not rout
 
 export type AdminActionState = { error?: string; ok?: boolean };
 
-export async function suspendUser(userId: string, suspend: boolean): Promise<AdminActionState> {
+/**
+ * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
+ * (`lib/admin/reason.ts`), the same number the confirm step enables at, said
+ * in the reader's language.
+ */
+async function reasonRefused(reason: unknown): Promise<string | null> {
+  const problem = reasonProblem(reason);
+  if (!problem) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(problem);
+}
+
+export async function suspendUser(
+  userId: string,
+  suspend: boolean,
+  reason: string,
+): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
   await setUserStatus(userId, suspend ? "suspended" : "active");
   await audit({
     actor,
@@ -51,6 +71,7 @@ export async function suspendUser(userId: string, suspend: boolean): Promise<Adm
     action: suspend ? "user.suspend" : "user.reinstate",
     resourceType: "user",
     resourceId: userId,
+    reason: reasonText(reason),
   });
   revalidatePath("/admin/therapists");
   return { ok: true };
@@ -59,8 +80,11 @@ export async function suspendUser(userId: string, suspend: boolean): Promise<Adm
 export async function verifyUser(
   userId: string,
   status: "verified" | "rejected" | "pending",
+  reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
   await setVerification(userId, status, actor.userId);
   await audit({
     actor,
@@ -68,6 +92,7 @@ export async function verifyUser(
     action: `user.verification.${status}`,
     resourceType: "user",
     resourceId: userId,
+    reason: reasonText(reason),
   });
   revalidatePath("/admin/therapists");
   revalidatePath("/admin/verifications");
@@ -110,19 +135,21 @@ export async function savePage(
   const dishonest = honestyProblemsIn(input.title.trim() || "this page", blocks);
   if (dishonest.length > 0) return { error: honestyMessage(dishonest[0]!) };
 
-  const [page] = await db
-    .update(contentPages)
-    .set({
-      title: input.title.trim(),
-      description: input.description.trim() || null,
-      status: input.status,
-      blocks,
-      publishedAt: input.status === "published" ? new Date() : null,
-      updatedBy: actor.userId,
-      updatedAt: new Date(),
-    })
-    .where(eq(contentPages.id, pageId))
-    .returning({ slug: contentPages.slug });
+  /*
+   * 🔴 W2-A07: a draft of a live page is kept beside it and the live page
+   * stays up (`saveContentPage`). This wrote the draft status onto the live
+   * row, and `readPage` returns null for a draft, so the public page was gone
+   * until somebody pressed Publish.
+   */
+  const page = await saveContentPage({
+    pageId,
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    status: input.status,
+    blocks,
+    userId: actor.userId,
+  });
+  if (!page) return { error: "That page no longer exists." };
 
   await audit({
     actor,
@@ -130,6 +157,7 @@ export async function savePage(
     action: "content.save",
     resourceType: "content_page",
     resourceId: pageId,
+    reason: page.kept === "live" ? "draft saved beside the live page" : page.kept,
   });
 
   /*
@@ -157,6 +185,8 @@ export async function applyInvoiceDiscount(
   reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const result = await discountInvoice({
     invoiceId,
@@ -291,7 +321,27 @@ export async function decideTherapistVerification(
   approve: boolean,
   note: string,
 ): Promise<AdminActionState> {
-  const actor = await requireRole("super_admin");
+  /*
+   * 🔴 W2-A01 / D9: staff decide verifications, not only the founder. The
+   * reviewer reads the documents through the audited route, and nobody
+   * decides their own (`decideVerification` refuses it in its WHERE).
+   */
+  const actor = await requireStaff();
+
+  const [own] = await db
+    .select({ id: therapistVerifications.id })
+    .from(therapistVerifications)
+    .where(
+      and(
+        eq(therapistVerifications.id, verificationId),
+        eq(therapistVerifications.userId, actor.userId),
+      ),
+    )
+    .limit(1);
+  if (own) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("aaccess.ownVerification") };
+  }
 
   const trimmed = note.trim();
   if (!approve && !trimmed) {
@@ -393,8 +443,9 @@ export async function editInvoice(
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
 
-  const trimmedReason = reason.trim();
-  if (!trimmedReason) return { error: "Say why, this ends up in the audit log." };
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+  const trimmedReason = reasonText(reason);
 
   const [invoice] = await db
     .select()
@@ -498,8 +549,11 @@ export async function refundPatient(
  */
 export async function releaseTherapistEarnings(
   therapistId: string,
+  reason: string,
 ): Promise<AdminActionState & { movedCents?: number }> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const { releaseHeldEarnings } = await import("@/lib/billing/connect");
   const result = await releaseHeldEarnings(therapistId, { adminUserId: actor.userId });
@@ -512,7 +566,7 @@ export async function releaseTherapistEarnings(
     action: "earnings.release",
     resourceType: "user",
     resourceId: therapistId,
-    reason: `Released ${result.movedCents} cents`,
+    reason: `Released ${result.movedCents} cents, ${reasonText(reason)}`,
   });
 
   revalidatePath("/admin/vault");
@@ -535,6 +589,9 @@ export async function adjustLedger(input: {
   reason: string;
 }): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  // W2-A05: the screen asked for a sentence and the server never checked one.
+  const refused = await reasonRefused(input.reason);
+  if (refused) return { error: refused };
 
   if (!LEDGER_ACCOUNTS.includes(input.account)) return { error: "Unknown account." };
 
@@ -562,8 +619,12 @@ export async function applyUpcomingDiscount(
   reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  // W2-A05: no reason and no amount check, and it overwrote any existing credit silently.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+  if (!Number.isInteger(discountCents) || discountCents <= 0) return { error: "Enter a whole number of cents above zero." };
 
-  await setUpcomingDiscount({ organizationId, discountCents, reason });
+  await setUpcomingDiscount({ organizationId, discountCents, reason: reasonText(reason) });
 
   await audit({
     actor,
@@ -645,9 +706,13 @@ export async function setTaxonomyState(
   kind: TaxonomyKind,
   code: string,
   enabled: boolean,
+  reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
   if (!TAXONOMY_KINDS.includes(kind)) return { error: "Unknown list." };
+  // W2-A05: switching a country off takes its clinicians off the radar.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const { setTaxonomyEnabled } = await import("@/lib/data/taxonomy");
   await setTaxonomyEnabled(kind, code, enabled, actor.userId);
@@ -658,6 +723,7 @@ export async function setTaxonomyState(
     action: enabled ? "taxonomy.enable" : "taxonomy.disable",
     resourceType: "taxonomy",
     resourceId: `${kind}:${code}`,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/taxonomy");
@@ -686,9 +752,15 @@ export async function addTaxonomy(kind: TaxonomyKind, label: string): Promise<Ad
   return { ok: true };
 }
 
-export async function removeTaxonomy(kind: TaxonomyKind, code: string): Promise<AdminActionState> {
+export async function removeTaxonomy(
+  kind: TaxonomyKind,
+  code: string,
+  reason: string,
+): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
   if (!TAXONOMY_KINDS.includes(kind)) return { error: "Unknown list." };
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const { removeTaxonomyEntry } = await import("@/lib/data/taxonomy");
   await removeTaxonomyEntry(kind, code);
@@ -699,6 +771,7 @@ export async function removeTaxonomy(kind: TaxonomyKind, code: string): Promise<
     action: "taxonomy.remove",
     resourceType: "taxonomy",
     resourceId: `${kind}:${code}`,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/taxonomy");
@@ -727,6 +800,10 @@ export async function setRadarSuspension(
 
   const { suspendFromRadar, releaseFromRadarBan } = await import("@/lib/data/feedback");
 
+  // 🔴 W2-A10: a ban and a release both carry a reason, at the length the screen asks for.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+
   if (hours <= 0) {
     await releaseFromRadarBan(therapistUserId);
     await audit({
@@ -735,11 +812,10 @@ export async function setRadarSuspension(
       action: "radar.release",
       resourceType: "user",
       resourceId: therapistUserId,
-      reason: reason.trim().slice(0, 200) || "Released",
+      reason: reasonText(reason),
     });
   } else {
-    const note = reason.trim();
-    if (note.length < 4) return { error: "Give a reason. The clinician is shown it." };
+    const note = reasonText(reason);
     await suspendFromRadar(therapistUserId, hours, note);
     await audit({
       actor,
@@ -771,15 +847,25 @@ export async function setRadarSuspension(
   return { ok: true };
 }
 
-/** Force someone offline without a ban — the polite version, for a mistake. */
-export async function forceRadarOffline(therapistUserId: string): Promise<AdminActionState> {
+/**
+ * Force someone offline without a ban: the polite version, for a mistake.
+ *
+ * 🔴 W2-A10: it used to clear `pendingSessionId` and `reservedBy`, which
+ * dropped a patient in the middle of booking this clinician with nothing to
+ * tell them; their screen went on waiting for somebody who had been taken off
+ * the board. Now a booking in flight is cancelled and the patient is told
+ * (`forceOffline`), and the operator's reason is on the record.
+ */
+export async function forceRadarOffline(
+  therapistUserId: string,
+  reason: string,
+): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
-  const { therapistRadar } = await import("@/lib/db/schema");
-  await db
-    .update(therapistRadar)
-    .set({ status: "offline", pendingSessionId: null, pendingUntil: null, reservedBy: null })
-    .where(eq(therapistRadar.userId, therapistUserId));
+  const { forceOffline } = await import("@/lib/data/radar-admin");
+  const { cancelledSessionId } = await forceOffline({ therapistUserId, adminUserId: actor.userId });
 
   await audit({
     actor,
@@ -787,6 +873,7 @@ export async function forceRadarOffline(therapistUserId: string): Promise<AdminA
     action: "radar.force_offline",
     resourceType: "user",
     resourceId: therapistUserId,
+    reason: `${reasonText(reason)}${cancelledSessionId ? `, booking ${cancelledSessionId} cancelled and the patient told` : ""}`,
   });
 
   revalidatePath("/admin/radar");

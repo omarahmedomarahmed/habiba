@@ -33,11 +33,17 @@ export async function afterClinicianCancel(input: {
   actorUserId: string;
   sessionId: string;
   reason: string;
+  /**
+   * 🔴 W2-A10: WE cancelled it, by taking the clinician off the board. The
+   * patient is told that, not "your clinician cancelled", and the operator's
+   * reason stays on our record rather than in their message.
+   */
+  byUs?: boolean;
 }): Promise<{ outcome: ClinicianCancelOutcome }> {
   // 🔴 W1-28b (0124): the reason lives on the session; the notice points at it (C231).
   await controlDb
     .update(sessions)
-    .set({ cancelledReason: input.reason.slice(0, 300) })
+    .set({ cancelledReason: input.byUs ? null : input.reason.slice(0, 300) })
     .where(eq(sessions.id, input.sessionId));
 
   const [payment] = await controlDb
@@ -103,11 +109,15 @@ export async function afterClinicianCancel(input: {
       {
         kind: "booking.cancelled",
         // 🔴 W1-28b: and in the app. The notice points at the session, whose reason it shows.
-        notice: { kind: "session_cancelled", key: "w1a.cancelledByClinician", sessionId: input.sessionId },
+        notice: {
+          kind: "session_cancelled",
+          key: input.byUs ? "w2a.cancelledByUs" : "w1a.cancelledByClinician",
+          sessionId: input.sessionId,
+        },
         subject: en["w1a.noShowCancelled"],
         body: [
-          en["w1a.cancelledByClinician"],
-          en["w1a.cancelReasonGiven"].replace("{reason}", input.reason),
+          input.byUs ? en["w2a.cancelledByUs"] : en["w1a.cancelledByClinician"],
+          input.byUs ? "" : en["w1a.cancelReasonGiven"].replace("{reason}", input.reason),
           moneyLine,
         ]
           .filter(Boolean)

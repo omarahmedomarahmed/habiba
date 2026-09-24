@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
+import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import {
   approveForProduction,
@@ -13,6 +15,18 @@ import {
 import { PARTNER_STATES, type PartnerState } from "@/lib/db/schema";
 
 export type AdminPartnerState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
+ * (`lib/admin/reason.ts`), the same number the confirm step enables at, said
+ * in the reader's language.
+ */
+async function reasonRefused(reason: unknown): Promise<string | null> {
+  const problem = reasonProblem(reason);
+  if (!problem) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(problem);
+}
 
 /**
  * Admin's side of a partner. PLAN.md 42.1, 55.2, 55.3, C265.
@@ -35,10 +49,16 @@ export type AdminPartnerState = { error?: string; ok?: boolean };
  * portal, behind their own cookie, and 55.3 stays true by construction rather than by an
  * operator remembering.
  */
-export async function setState(partnerId: string, state: string): Promise<AdminPartnerState> {
+export async function setState(
+  partnerId: string,
+  state: string,
+  reason: string,
+): Promise<AdminPartnerState> {
   const actor = await requireRole("super_admin");
 
   if (!PARTNER_STATES.includes(state as PartnerState)) return { error: "Not a state." };
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const result = await setPartnerState(partnerId, state as PartnerState);
   if (result.error) return { error: result.error };
@@ -49,6 +69,7 @@ export async function setState(partnerId: string, state: string): Promise<AdminP
     action: `partner.${state}`,
     resourceType: "partner",
     resourceId: partnerId,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/partners");
@@ -69,11 +90,17 @@ export async function addUser(
     partnerId,
     email: String(formData.get("email") ?? ""),
     name: String(formData.get("name") ?? "") || null,
-    password: String(formData.get("password") ?? ""),
     role: role === "admin" ? "admin" : "developer",
   });
 
-  if (result.error) return { error: result.error };
+  if (result.error || !result.id) return { error: result.error };
+  // 🔴 W2-A06: invited by an emailed link, never a password the operator types.
+  await emailAccountLink({
+    audience: "partner",
+    accountId: result.id,
+    email: result.email!,
+    createdByUserId: actor.userId,
+  });
 
   await audit({
     actor,
@@ -122,8 +149,13 @@ export async function approveProduction(partnerId: string): Promise<AdminPartner
  * commercial dispute with a platform must never arrive in somebody's session. That is
  * `revoke`, a separate and deliberate act, for when it must.
  */
-export async function withdrawProduction(partnerId: string): Promise<AdminPartnerState> {
+export async function withdrawProduction(
+  partnerId: string,
+  reason: string,
+): Promise<AdminPartnerState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   await withdrawApproval(partnerId);
 
@@ -133,7 +165,7 @@ export async function withdrawProduction(partnerId: string): Promise<AdminPartne
     action: "partner.approval_withdrawn",
     resourceType: "partner",
     resourceId: partnerId,
-    reason: "no new live keys; the keys they hold are untouched",
+    reason: `no new live keys; the keys they hold are untouched. ${reasonText(reason)}`,
   });
 
   revalidatePath("/admin/partners");

@@ -1,5 +1,7 @@
 "use client";
 
+import { MIN_REASON } from "@/lib/admin/reason";
+import { useT } from "@/lib/i18n/client";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -182,6 +184,7 @@ export function BankEditor({
 
 function CapitalRowView({ row }: { row: CapitalRow }) {
   const [state, action] = useActionState<PayrollActionState, FormData>(removeCapitalAction, {});
+  const t = useT();
 
   return (
     <tr className="border-b border-slate-100">
@@ -192,8 +195,17 @@ function CapitalRowView({ row }: { row: CapitalRow }) {
       </td>
       <td className="py-2 ps-6 text-slate-500">{row.note ?? ""}</td>
       <td className="py-2 text-end">
-        <form action={action}>
+        {/* W2-A05: a hard delete asks for a reason at the length the server checks. */}
+        <form action={action} className="flex items-center justify-end gap-1">
           <input type="hidden" name="id" value={row.id} />
+          <Input
+            name="reason"
+            required
+            minLength={MIN_REASON}
+            placeholder={t("aconfirm.why")}
+            aria-label={t("aconfirm.why")}
+            className="w-48"
+          />
           <SubmitButton label="Remove" />
         </form>
         {state.error && <p className="text-xs text-rose-700">{state.error}</p>}

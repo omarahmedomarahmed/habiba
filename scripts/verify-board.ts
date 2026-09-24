@@ -110,7 +110,8 @@ async function main() {
 
   check(
     "🔴 …and every refresh action is behind the same guard as the page",
-    (actions.match(/await requireManager\(\)/g) ?? []).length >= SECTIONS.length + 1,
+    // W2-A01: the page is the owner's (lib/admin/access.ts), so its actions are too.
+    (actions.match(/await requireRole\("super_admin"\)/g) ?? []).length >= SECTIONS.length + 1,
     "an action reachable without the page is an action somebody calls directly",
   );
 

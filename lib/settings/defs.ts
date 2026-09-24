@@ -481,6 +481,14 @@ export type PlatformSettings = {
      * the cadence is wrong and continuing to send is choosing to be wrong at everybody.
      */
     muteRateHalt: number;
+    /**
+     * 🔴 W2-A08: where the mute rate is measured from. Null is "every mute
+     * still standing", which is how the channel was built. An operator who has
+     * changed the cadence resumes a halted channel by measuring from that
+     * moment: the people who muted the old cadence stay muted, and the new one
+     * is judged on its own mutes rather than halted forever by the last one's.
+     */
+    measuredSince: string | null;
   };
 };
 
@@ -684,6 +692,7 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     quietToHour: 9,
     /* One in five. Past that the channel halts rather than reporting. */
     muteRateHalt: 0.2,
+    measuredSince: null,
   },
 };
 
@@ -1261,6 +1270,30 @@ export function parseGroup<G extends SettingsGroup>(
         /* W2-S10: anything but the one word `live` is the safe default. */
         ledgerPublishing: v.ledgerPublishing === "live" ? "live" : "weekly",
       } as PlatformSettings[G];
+
+    /*
+     * 🔴 W2-A08: THIS GROUP HAD NO CASE, SO EVERY STORED VALUE WAS IGNORED.
+     *
+     * It fell through to `default`, which returns the shipped defaults, so
+     * even a row somebody wrote by hand could not turn the channel on, change
+     * its cadence or move the halt. The page said "every number is yours to
+     * change" over numbers nothing read. Bounded like the rest: never more
+     * often than six-hourly (the ceiling the founder named, and the same floor
+     * `lib/checkins/policy.ts` keeps), hours inside a day, and a halt between
+     * one per cent and all of them.
+     */
+    case "checkins": {
+      const halt = typeof v.muteRateHalt === "number" && Number.isFinite(v.muteRateHalt) ? v.muteRateHalt : NaN;
+      const since = typeof v.measuredSince === "string" ? new Date(v.measuredSince) : null;
+      return {
+        enabled: typeof v.enabled === "boolean" ? v.enabled : d.checkins.enabled,
+        everyHours: int(v.everyHours, d.checkins.everyHours, { min: 6, max: 24 * 14 }),
+        quietFromHour: int(v.quietFromHour, d.checkins.quietFromHour, { min: 0, max: 23 }),
+        quietToHour: int(v.quietToHour, d.checkins.quietToHour, { min: 0, max: 23 }),
+        muteRateHalt: halt >= 0.01 && halt <= 1 ? halt : d.checkins.muteRateHalt,
+        measuredSince: since && !Number.isNaN(since.getTime()) ? since.toISOString() : null,
+      } as PlatformSettings[G];
+    }
 
     default:
       return d[group];

@@ -496,6 +496,12 @@ export async function closeTicket(input: {
   ticketId: string;
   actorUserId: string;
   summary: string;
+  /**
+   * 🔴 W2-A02: what was agreed on WhatsApp, written at the close. The CHECK
+   * refuses closing a moved ticket without it, and nothing in the product
+   * used to write it, so a ticket moved to WhatsApp could never be closed.
+   */
+  whatsappSummary?: string;
 }): Promise<{ ok?: boolean; error?: string; link?: string }> {
   const summary = input.summary.trim();
   if (summary.length < 10) return { error: "Say what was done, for the record and for them." };
@@ -509,15 +515,15 @@ export async function closeTicket(input: {
   if (!ticket) return { error: "That ticket no longer exists." };
   if (ticket.status === "closed") return { error: "That ticket is already closed." };
 
-  if (ticket.movedToWhatsappAt && (ticket.whatsappSummary ?? "").trim().length < 20) {
+  const whatsapp = (input.whatsappSummary ?? "").trim() || (ticket.whatsappSummary ?? "").trim();
+  if (ticket.movedToWhatsappAt && whatsapp.length < 20) {
     return {
       error:
         "This one moved to WhatsApp. Write up what was agreed there before closing it, a conversation we cannot see is not a record.",
     };
   }
 
-  const token = randomBytes(24).toString("base64url");
-  const code = String(Math.floor(100_000 + Math.random() * 900_000));
+  const { token, code, set } = await freshAccess();
 
   await db
     .update(supportTickets)
@@ -525,9 +531,8 @@ export async function closeTicket(input: {
       status: "closed",
       closedAt: new Date(),
       closedByUserId: input.actorUserId,
-      accessToken: token,
-      accessCodeHash: await hashCode(code),
-      accessCodeExpiresAt: new Date(Date.now() + 7 * 86_400_000),
+      ...set,
+      ...(ticket.movedToWhatsappAt ? { whatsappSummary: whatsapp.slice(0, 4000) } : {}),
       updatedAt: new Date(),
     })
     .where(eq(supportTickets.id, input.ticketId));
@@ -557,6 +562,72 @@ export async function closeTicket(input: {
   );
 
   return { ok: true, link };
+}
+
+/** A link token and a code for the sender's page, and the columns that hold them. */
+async function freshAccess() {
+  const token = randomBytes(24).toString("base64url");
+  const code = String(Math.floor(100_000 + Math.random() * 900_000));
+  return {
+    token,
+    code,
+    set: {
+      accessToken: token,
+      accessCodeHash: await hashCode(code),
+      accessCodeExpiresAt: new Date(Date.now() + 7 * 86_400_000),
+    },
+  };
+}
+
+/**
+ * 🔴 W2-A02: answer without closing. The only reply the console had was the
+ * close summary, so a question back ("which session was it?") could not be
+ * asked in the product at all.
+ *
+ * The same rule as the close: the reply stays here, and the person gets a
+ * link and a code, never a word of it in an email. The ticket then waits on
+ * them, so the clock stops (20.20), and `replyReceived` restarts it.
+ */
+export async function replyToTicket(input: {
+  ticketId: string;
+  actorUserId: string;
+  reply: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const reply = input.reply.trim();
+  if (reply.length < 10) return { error: "Say what was done, for the record and for them." };
+
+  const [ticket] = await db
+    .select()
+    .from(supportTickets)
+    .where(eq(supportTickets.id, input.ticketId))
+    .limit(1);
+  if (!ticket) return { error: "That ticket no longer exists." };
+  if (ticket.status === "closed") return { error: "That ticket is already closed." };
+
+  const { token, code, set } = await freshAccess();
+  await db
+    .update(supportTickets)
+    .set({ ...set, status: "waiting_on_them", waitingSince: new Date(), updatedAt: new Date() })
+    .where(eq(supportTickets.id, input.ticketId));
+
+  await db.insert(supportTicketEvents).values({
+    ticketId: input.ticketId,
+    kind: "replied",
+    actorUserId: input.actorUserId,
+    note: reply.slice(0, 4000),
+  });
+
+  const link = `${env.appUrl}/support/${token}`;
+  await notify(
+    { email: ticket.email, phone: ticket.phone, timezone: null },
+    {
+      kind: "support.closed",
+      subject: "Your message to 24Therapy",
+      body: `We have answered your message (reference ${ticket.reference}). Open ${link} and enter the code ${code} to read the reply and anything attached to it. The code lasts seven days.`,
+      link: { label: "Read the reply", url: link },
+    },
+  );
+  return { ok: true };
 }
 
 /**

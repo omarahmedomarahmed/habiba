@@ -1,5 +1,6 @@
 "use client";
 
+import { MIN_REASON } from "@/lib/admin/reason";
 import { useState, useTransition } from "react";
 import { Percent } from "lucide-react";
 
@@ -122,7 +123,7 @@ export function VaultInvoiceRow(props: {
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              disabled={pending}
+              disabled={pending || reason.trim().length < MIN_REASON}
               onClick={() =>
                 run(
                   () =>
@@ -149,7 +150,7 @@ export function VaultInvoiceRow(props: {
             <Button
               size="sm"
               variant="secondary"
-              disabled={pending}
+              disabled={pending || reason.trim().length < MIN_REASON}
               onClick={() =>
                 run(
                   () =>

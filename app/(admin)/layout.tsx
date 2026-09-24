@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Users,
+  UserCog,
   Vault,
   Gauge,
   TriangleAlert,
@@ -27,6 +28,7 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { landingFor, mayOpen } from "@/lib/admin/access";
 import { requireStaff } from "@/lib/auth/guard";
 import { getI18n } from "@/lib/i18n/server";
 import { openChanges } from "@/lib/data/phone-change";
@@ -48,16 +50,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
    */
   const actor = await requireStaff();
   /*
-   * 🔴 ONE keyed label in a nav of fifteen literals, and that is deliberate.
-   *
-   * The console's other labels predate sprint 45 and the ratchet counts 294 of
-   * them. This one is new, and the rule from 45 on is that a new string is a
-   * MessageKey. So the ratchet does not rise on this sprint's account, and the
-   * inconsistency is the debt becoming visible rather than a new one.
+   * W2-A01: every nav label is a MessageKey now. The nav became a list the
+   * role table filters, and a label moved into that list would have left the
+   * prose and i18n ratchets' sight while still being read, so they were keyed
+   * rather than hidden.
    */
   const { t } = await getI18n();
-  const isManager = actor.role === "manager" || actor.role === "super_admin";
-  const isOwner = actor.role === "super_admin";
 
   const [waiting, reports, tickets, changes, transfers] = await Promise.all([
     pendingReviewCount(),
@@ -67,13 +65,84 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     waitingCount(),
   ]);
 
+  /*
+   * 🔴 W2-A01 / A5: the nav is the role table, filtered. It used to decide
+   * who saw each link with two booleans of its own while each page decided who
+   * got in with its own guard, and six links were shown to roles the page then
+   * bounced. `lib/admin/access.ts` is the one list, and
+   * `tests/admin-access.test.ts` fails when a page's guard disagrees with it.
+   */
+  const nav: NavItem[] = [
+    { href: "/admin", icon: LayoutDashboard, label: t("anav.overview") },
+    /* 🔴 20.18 / 20.24: two support queues, never one list. */
+    { href: "/admin/support", icon: LifeBuoy, label: t("anav.support"), count: tickets.open + tickets.waiting },
+    { href: "/admin/numbers", icon: PhoneCall, label: t("anav.numbers"), count: changes },
+    { href: "/admin/therapists", icon: Users, label: t("anav.clinicians") },
+    { href: "/admin/verifications", icon: ShieldCheck, label: t("anav.verifications"), count: waiting },
+    { href: "/admin/radar", icon: Radio, label: t("anav.radar"), count: reports, urgent: true },
+    { href: "/admin/payouts", icon: Banknote, label: t("anav.payouts") },
+    /*
+     * 🔴 73.2: THE BADGE IS NOT DECORATION. Every number in it is a person
+     * on a spinner, and several of them are waiting to join a therapy
+     * session. Red rather than the muted style the other counts use,
+     * because this queue is worked by the minute and the others are not.
+     */
+    { href: "/admin/transfers", icon: ArrowLeftRight, label: t("anav.transfers"), count: transfers, urgent: true },
+    { href: "/admin/ratings", icon: Star, label: t("anav.ratings") },
+    { href: "/admin/vault", icon: Vault, label: t("anav.vault") },
+    /*
+     * 53.6: the owner's, like every other money door. Activating a sponsor
+     * opens a corporate account and opening a pot commits us to refund terms.
+     */
+    { href: "/admin/sponsors", icon: Building2, label: t("asponsor.nav") },
+    /*
+     * 🔴 C247: the pause is "a real and unfair outcome" and must be
+     * "reversible by us in one step". A door beside the sponsors one,
+     * because it is the same authority: lifting a pause restarts an
+     * employer's funding without the proof the cycle exists to collect.
+     */
+    { href: "/admin/benefits", icon: PauseCircle, label: t("anav.benefits") },
+    /*
+     * 54.3: activating a clinic opens an organisation that will hold
+     * clinical records, a strictly larger act than activating a sponsor.
+     */
+    { href: "/admin/clinics", icon: Hospital, label: t("aclinic.nav") },
+    /*
+     * 55.2: activating a partner lets them hold a key, and an employment key
+     * is an identity oracle pointed at our own patients (C265).
+     */
+    { href: "/admin/partners", icon: Plug, label: t("apartner.nav") },
+    /* 44.1: C97: the mute rate beside the threshold that halts the channel. */
+    { href: "/admin/checkins", icon: HeartPulse, label: t("acheckin.nav") },
+    { href: "/admin/taxonomy", icon: Globe2, label: t("anav.taxonomy") },
+    { href: "/admin/announce", icon: Megaphone, label: t("anav.announce") },
+    { href: "/admin/content", icon: FileEdit, label: t("anav.content") },
+    { href: "/admin/settings", icon: SlidersHorizontal, label: t("anav.settings") },
+    /* W2-A06: who can open the console, invited by link. */
+    { href: "/admin/team", icon: UserCog, label: t("anav.team") },
+    { href: "/admin/strings", icon: Languages, label: t("anav.strings") },
+    { href: "/admin/audit", icon: ScrollText, label: t("anav.audit") },
+    /*
+     * 🔴 58.3: two pages that existed, worked, and were reachable only by
+     * typing the URL. `verify:reachable` found both on its first run.
+     */
+    { href: "/admin/usage", icon: Gauge, label: t("anav.usage") },
+    { href: "/admin/errors", icon: TriangleAlert, label: t("anav.errors") },
+    /*
+     * 🔴 76.53: the company's own result and payroll are a board pack. The
+     * 24/7 team works queues.
+     */
+    { href: "/admin/financial-model", icon: LineChart, label: t("anav.model") },
+    { href: "/admin/actuals", icon: Wallet, label: t("anav.actuals") },
+  ];
+
   return (
     <div className="min-h-dvh">
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       <LanguageCorner />
       <header className="border-b border-slate-200 bg-navy-500">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <Link href="/admin" className="text-[15px] font-bold tracking-tight text-white">
+          <Link href={landingFor(actor.role)} className="text-[15px] font-bold tracking-tight text-white">
             24Therapy <span className="font-normal text-white/50">admin</span>
           </Link>
           <Link href="/dashboard" className="text-xs font-medium text-white/70 hover:text-white">
@@ -95,147 +164,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           items would push the page down instead.
         */}
         <nav aria-label="Admin" className="no-scrollbar mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 pb-2 sm:px-5 lg:flex-wrap lg:overflow-x-visible">
-          <AdminLink href="/admin" icon={LayoutDashboard}>Overview</AdminLink>
-
-          {/* 🔴 20.18 / 20.24 — two support queues, never one list. */}
-          <AdminLink href="/admin/support" icon={LifeBuoy}>
-            Support
-            {tickets.open + tickets.waiting > 0 ? (
-              <span className="ms-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-navy-600">
-                {tickets.open + tickets.waiting}
-              </span>
-            ) : null}
-          </AdminLink>
-
-          <AdminLink href="/admin/numbers" icon={PhoneCall}>
-            Numbers
-            {changes > 0 ? (
-              <span className="ms-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-navy-600">
-                {changes}
-              </span>
-            ) : null}
-          </AdminLink>
-
-          {isOwner ? (
-            <AdminLink href="/admin/therapists" icon={Users}>Clinicians</AdminLink>
-          ) : null}
-          <AdminLink href="/admin/verifications" icon={ShieldCheck}>
-            Verifications
-            {waiting > 0 ? (
-              <span className="ms-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-navy-600">
-                {waiting}
-              </span>
-            ) : null}
-          </AdminLink>
-          <AdminLink href="/admin/radar" icon={Radio}>
-            Radar control
-            {reports > 0 ? (
-              <span className="ms-1 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
-                {reports}
-              </span>
-            ) : null}
-          </AdminLink>
-          <AdminLink href="/admin/payouts" icon={Banknote}>Payouts</AdminLink>
-          {/*
-            🔴 73.2 — THE BADGE IS NOT DECORATION. Every number in it is a person
-            on a spinner, and several of them are waiting to join a therapy
-            session. Red rather than the muted style the other counts use,
-            because this queue is worked by the minute and the others are not.
-          */}
-          <AdminLink href="/admin/transfers" icon={ArrowLeftRight}>
-            Transfers
-            {transfers > 0 ? (
-              <span className="ms-1 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
-                {transfers}
-              </span>
-            ) : null}
-          </AdminLink>
-
-          {/*
-            20.8 — the money, the lists and the settings are the owner's, and
-            the performance overview is a manager's. A staff member is not
-            shown a link that would bounce them: a door that opens for nobody
-            is a door people keep trying.
-          */}
-          {isManager ? <AdminLink href="/admin/ratings" icon={Star}>Ratings</AdminLink> : null}
-          {isOwner ? <AdminLink href="/admin/vault" icon={Vault}>Vault</AdminLink> : null}
-          {/*
-            53.6 — the owner's, like every other money door. Activating a sponsor
-            opens a corporate account and opening a pot commits us to refund terms.
-          */}
-          {isOwner ? <AdminLink href="/admin/sponsors" icon={Building2}>{t("asponsor.nav")}</AdminLink> : null}
-          {/*
-            🔴 C247 — the pause is "a real and unfair outcome" and must be
-            "reversible by us in one step". A door beside the sponsors one,
-            because it is the same authority: lifting a pause restarts an
-            employer's funding without the proof the cycle exists to collect.
-
-            Separate from that screen on purpose. The sponsors page refuses to
-            render who is enrolled; this is a short work queue ordered by who
-            has waited longest, which is a different object.
-          */}
-          {isOwner ? <AdminLink href="/admin/benefits" icon={PauseCircle}>Paused benefits</AdminLink> : null}
-          {/*
-            54.3 — the owner's too. Activating a clinic opens an organisation that will
-            hold clinical records, which is a strictly larger act than activating a
-            sponsor: a sponsor's tenancy contains nothing and this one contains charts.
-          */}
-          {isOwner ? <AdminLink href="/admin/clinics" icon={Hospital}>{t("aclinic.nav")}</AdminLink> : null}
-          {/*
-            55.2 — the owner's. Activating a partner lets them hold a key, and an employment
-            key is an identity oracle pointed at our own patients (C265). Nothing on that
-            screen mints one: they do that in their own portal, where the scope is chosen by
-            the person who will build against it.
-          */}
-          {isOwner ? <AdminLink href="/admin/partners" icon={Plug}>{t("apartner.nav")}</AdminLink> : null}
-          {/*
-            44.1 — the owner's. C97's ruling was to ship the cadence with an admin-controlled rate
-            and MEASURE THE MUTE RATE, and this is where that number lives beside the threshold that
-            halts the channel. Not a clinical screen: six counts and nobody's words.
-          */}
-          {isOwner ? <AdminLink href="/admin/checkins" icon={HeartPulse}>{t("acheckin.nav")}</AdminLink> : null}
-          {isOwner ? <AdminLink href="/admin/taxonomy" icon={Globe2}>Radar lists</AdminLink> : null}
-          {isOwner ? <AdminLink href="/admin/announce" icon={Megaphone}>Announce</AdminLink> : null}
-          {isOwner ? <AdminLink href="/admin/content" icon={FileEdit}>Site content</AdminLink> : null}
-          {isOwner ? <AdminLink href="/admin/settings" icon={SlidersHorizontal}>Settings</AdminLink> : null}
-          {isOwner ? <AdminLink href="/admin/strings" icon={Languages}>Strings</AdminLink> : null}
-          {isManager ? <AdminLink href="/admin/audit" icon={ScrollText}>Audit log</AdminLink> : null}
-          {/*
-            🔴 58.3 — two pages that existed, worked, and were reachable only by
-            typing the URL. `verify:reachable` found both on its first run.
-
-            `/admin/usage` carries the figure its own header calls "the figure
-            that decides the business", cost per session. `/admin/errors` exists
-            because, in its own words, "until this page there was nowhere at all
-            to answer" what is broken and for how long. A page nobody can reach
-            is not a half-built feature, it is a built one nobody is using.
-          */}
-          {isManager ? <AdminLink href="/admin/usage" icon={Gauge}>Usage and cost</AdminLink> : null}
-          {isManager ? <AdminLink href="/admin/errors" icon={TriangleAlert}>Errors</AdminLink> : null}
-          {/*
-            🔴 Sprint 71. Linked, because a page reachable only by typing its
-            URL is the defect `verify:reachable` exists to catch, and this one
-            is the reason the simulation measures what it measures.
-          */}
-          {/*
-            🔴 76.53 — `isOwner`, NOT `isManager`, and the line above used to
-            be the second kind.
-
-            Both pages call `requireRole("super_admin")`, which REDIRECTS. So a
-            manager was shown a link that bounced them to the dashboard with no
-            explanation, which reads as the product being broken rather than as
-            a door that is not theirs. `verify:reachable` catches a page nothing
-            links to; nothing catches a link nobody who can see it may follow.
-
-            The company's own result and the company's own payroll are a board
-            pack. The 24/7 team works queues.
-          */}
-          {isOwner ? (
-            <AdminLink href="/admin/financial-model" icon={LineChart}>Financial model</AdminLink>
-          ) : null}
-          {isOwner ? (
-            <AdminLink href="/admin/actuals" icon={Wallet}>Actuals</AdminLink>
-          ) : null}
+          {nav
+            .filter((item) => mayOpen(actor.role, item.href))
+            .map((item) => (
+              <AdminLink key={item.href} href={item.href} icon={item.icon}>
+                {item.label}
+                {item.count ? (
+                  <span
+                    className={
+                      item.urgent
+                        ? "ms-1 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white"
+                        : "ms-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-navy-600"
+                    }
+                  >
+                    {item.count}
+                  </span>
+                ) : null}
+              </AdminLink>
+            ))}
         </nav>
       </header>
 
@@ -243,6 +189,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     </div>
   );
 }
+
+type NavItem = {
+  href: string;
+  icon: typeof Users;
+  label: React.ReactNode;
+  count?: number;
+  /** Red rather than amber: a queue worked by the minute. */
+  urgent?: boolean;
+};
 
 function AdminLink({
   href,
