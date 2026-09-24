@@ -36,6 +36,35 @@ export async function signInPartner(
   redirect("/partner");
 }
 
+export type ResetState = { error?: string; sent?: boolean };
+
+/**
+ * 🔴 W2-X06: ASK FOR A RESET LINK. Limited on the way in, like sign-in, and the
+ * answer is the same whether or not the address has an account.
+ */
+export async function requestReset(_prev: ResetState, formData: FormData): Promise<ResetState> {
+  const throttle = await consume(await callerKey("partner-reset"), 5, 15 * 60);
+  if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+
+  const { requestPartnerReset } = await import("@/lib/partner/team");
+  await requestPartnerReset(String(formData.get("email") ?? ""));
+  return { sent: true };
+}
+
+/** 🔴 W2-X06: CHOOSE A PASSWORD from a signed link: a reset, or a colleague's first. */
+export async function choosePassword(_prev: ResetState, formData: FormData): Promise<ResetState> {
+  const throttle = await consume(await callerKey("partner-reset"), 5, 15 * 60);
+  if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+
+  const { setPartnerPassword } = await import("@/lib/partner/team");
+  const result = await setPartnerPassword(
+    String(formData.get("token") ?? ""),
+    String(formData.get("password") ?? ""),
+  );
+  if (result.error) return { error: result.error };
+  redirect("/partner/sign-in");
+}
+
 export async function signOutPartner(): Promise<void> {
   await revokePartnerSession();
   redirect("/partner/sign-in");

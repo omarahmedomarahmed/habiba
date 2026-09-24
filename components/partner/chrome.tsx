@@ -34,6 +34,8 @@ const TABS: { href: string; key: MessageKey }[] = [
   { href: "/partner/deliveries", key: "dev.nav.deliveries" },
   /* 🔴 68.15 — the limit they set, what they have spent, and the projection. */
   { href: "/partner/usage", key: "dev.nav.usage" },
+  /* 🔴 W2-X06: colleagues, so a team stops sharing one login. */
+  { href: "/partner/team", key: "dev.nav.team" },
   { href: "/developers", key: "dev.nav.docs" },
 ];
 

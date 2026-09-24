@@ -30,8 +30,9 @@ import { log, ref } from "@/lib/logger";
  * whether identifiers are employed somewhere, which is the whole harm three enrolment
  * designs were spent removing.
  *
- * `devs.keysNote` says so on the public page in as many words: *there is no self-serve
- * key*. This file is why that sentence is true.
+ * `devs.keysNote` used to say *there is no self-serve key*, which stopped being true when
+ * 68.20 let an approved account's admin mint sandbox keys; W2-X06 cut the sentence. What
+ * this file keeps true is the step before: no ACCOUNT is self-serve.
  */
 
 /**

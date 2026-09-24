@@ -64,9 +64,20 @@ async function main() {
    */
   const hookHost = `https://hooks.${fixture}.example.com`;
   const endpoint = { status: 500, calls: [] as { delivery: string | null; body: string }[] };
+  /*
+   * And the mail provider: a key so the product sends, and every send caught here
+   * rather than leaving the machine, so a password link can be read back.
+   */
+  process.env.RESEND_API_KEY = "re_verify_w2x";
+  const mail: { to: string; html: string }[] = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.startsWith("https://api.resend.com")) {
+      const sent = JSON.parse(String(init?.body ?? "{}")) as { to?: string | string[]; html?: string };
+      mail.push({ to: [sent.to].flat().join(","), html: sent.html ?? "" });
+      return Response.json({ id: "caught" });
+    }
     if (!url.startsWith(hookHost)) return realFetch(input, init);
     const headers = new Headers(init?.headers);
     endpoint.calls.push({ delivery: headers.get("x-24t-delivery"), body: String(init?.body) });
@@ -429,6 +440,115 @@ async function main() {
     );
 
     /* ================================================================ */
+    /*  W2-X06 · PASSWORD RESET, COLLEAGUES, SIGN-IN LINKED              */
+    /* ================================================================ */
+
+    const team = await import("../lib/partner/team").catch(() => null);
+    const { hashPassword } = await import("../lib/auth/password");
+    const { checkPartnerPassword } = await import("../lib/data/partner-admin");
+    const admin = await one<{ id: string }>(sql`
+      INSERT INTO partner_users (partner_id, email, name, password_hash, role)
+      VALUES (${partner.id}, ${`admin.${fixture}@example.com`}, 'Mona Admin',
+              ${await hashPassword("the-first-password-1")}, 'admin')
+      RETURNING id`);
+    const linkIn = (to: string) => {
+      const found = [...mail].reverse().find((m) => m.to === to);
+      const match = found?.html.match(/\/partner\/reset\?token=([^"&\s]+)/);
+      return match ? decodeURIComponent(match[1]!) : null;
+    };
+
+    const colleague = `dev.${fixture}@example.com`;
+    const invited = team
+      ? await team.inviteColleague({
+          partnerId: partner.id,
+          email: colleague,
+          name: "Karim Dev",
+          role: "developer",
+          byPartnerUserId: admin.id,
+        })
+      : { error: "no team module" };
+    const inviteToken = linkIn(colleague);
+    const tooShort = team && inviteToken ? await team.setPartnerPassword(inviteToken, "short") : null;
+    const chosen = team && inviteToken ? await team.setPartnerPassword(inviteToken, "karims-own-password") : null;
+    const reused = team && inviteToken ? await team.setPartnerPassword(inviteToken, "somebody-elses-pass") : null;
+    const karim = await checkPartnerPassword(colleague, "karims-own-password");
+    check(
+      "🔴 W2-X06 an admin adds a colleague, who chooses their own password from the emailed link and signs in",
+      Boolean(invited.ok) && Boolean(inviteToken) && Boolean(tooShort?.error) && Boolean(chosen?.ok) &&
+        Boolean(karim.partnerUserId),
+      `${invited.error ?? "invited"}, link ${inviteToken ? "sent" : "missing"}, sign-in ${karim.partnerUserId ? "works" : karim.error}`,
+    );
+    check(
+      "🔴 W2-X06 …and the link works once: the same link cannot set a second password",
+      Boolean(reused?.error) && Boolean((await checkPartnerPassword(colleague, "karims-own-password")).partnerUserId),
+      reused?.error ?? "reused",
+    );
+
+    const adminEmail = `admin.${fixture}@example.com`;
+    const before = mail.length;
+    if (team) await team.requestPartnerReset(`nobody.${fixture}@example.com`);
+    const unknownSent = mail.length - before;
+    if (team) await team.requestPartnerReset(adminEmail);
+    const resetToken = linkIn(adminEmail);
+    await db.execute(sql`
+      INSERT INTO partner_auth_sessions (partner_user_id, token_hash, absolute_expires_at)
+      VALUES (${admin.id}, ${`w2x-${fixture}`}, now() + interval '1 hour')`);
+    const tampered = team && resetToken
+      ? await team.setPartnerPassword(resetToken.replace(/\.(\d+)\./, (_m, n: string) => `.${Number(n) + 1}.`), "tampered-password-1")
+      : null;
+    const reset = team && resetToken ? await team.setPartnerPassword(resetToken, "the-second-password-2") : null;
+    const session = await one<{ revoked: Date | null }>(sql`
+      SELECT revoked_at AS revoked FROM partner_auth_sessions WHERE token_hash = ${`w2x-${fixture}`}`);
+    const oldWorks = Boolean((await checkPartnerPassword(adminEmail, "the-first-password-1")).partnerUserId);
+    const newWorks = Boolean((await checkPartnerPassword(adminEmail, "the-second-password-2")).partnerUserId);
+    check(
+      "🔴 W2-X06 a forgotten password is reset from an emailed link, and every session on the old one ends",
+      Boolean(reset?.ok) && !oldWorks && newWorks && session.revoked !== null,
+      `reset ${reset?.ok ? "ok" : reset?.error ?? "no link"}, old ${oldWorks}, new ${newWorks}, session revoked ${session.revoked !== null}`,
+    );
+    check(
+      "W2-X06 …an address with no account gets the same answer and no mail, and a changed link is refused",
+      unknownSent === 0 && Boolean(tampered?.error),
+      `${unknownSent} sent to nobody, tampered: ${tampered?.error ?? "accepted"}`,
+    );
+
+    const self = team
+      ? await team.removeColleague({ partnerId: partner.id, userId: admin.id, byPartnerUserId: admin.id })
+      : { error: "" };
+    const lastAdmin = team
+      ? await team.removeColleague({ partnerId: partner.id, userId: admin.id, byPartnerUserId: karim.partnerUserId ?? admin.id })
+      : { error: "" };
+    const removed = team && karim.partnerUserId
+      ? await team.removeColleague({ partnerId: partner.id, userId: karim.partnerUserId, byPartnerUserId: admin.id })
+      : { error: "no colleague" };
+    const karimAfter = await checkPartnerPassword(colleague, "karims-own-password");
+    const teamAudit = await one<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM audit_log
+       WHERE action IN ('partner.user.invite', 'partner.user.remove')
+         AND reason LIKE ${`partner ${partner.id}%`}`);
+    check(
+      "🔴 W2-X06 an admin removes a colleague, who can no longer sign in; not themselves, never the last admin; both audited",
+      Boolean(removed.ok) && !karimAfter.partnerUserId && Boolean(self.error) && Boolean(lastAdmin.error) &&
+        teamAudit.n === 2,
+      `removed ${removed.ok ?? removed.error}, self ${self.error}, last admin ${lastAdmin.error}, audit ${teamAudit.n}`,
+    );
+
+    const signIn = readSource("app/(partner)/partner/sign-in/page.tsx");
+    const developers = readSource("app/(public)/developers/page.tsx");
+    const routing = readSource("lib/routing.ts");
+    check(
+      "🔴 W2-X06 sign-in links to the reset, /developers links to sign-in, and both password pages are open routes",
+      /href=\{PARTNER_FORGOT\}/.test(signIn) && /href=\{PARTNER_SIGN_IN\}/.test(developers) &&
+        /openRoutes: \[PARTNER_APPLY, PARTNER_FORGOT, PARTNER_RESET\]/.test(routing),
+      "a locked-out developer, and one arriving from the docs, both have a door",
+    );
+    check(
+      "W2-X06 …and the team is a tab in the portal",
+      /"\/partner\/team"/.test(readSource("components/partner/chrome.tsx")),
+      "a page nobody can find is the same as no page",
+    );
+
+    /* ================================================================ */
     /*  W2-X03 · WEBHOOKS: HOURLY, BACKOFF, FAILED, REDELIVER, TEST      */
     /* ================================================================ */
 
@@ -567,7 +687,11 @@ async function main() {
     await db.execute(sql`DELETE FROM partner_subjects WHERE external_ref LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM partner_clinicians WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
-    /* The key audit rows name the partner in `reason` (W2-X04), so they go by it. */
+    await db.execute(sql`DELETE FROM partner_auth_sessions WHERE partner_user_id IN
+      (SELECT u.id FROM partner_users u JOIN partners p ON p.id = u.partner_id WHERE p.slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM partner_users WHERE partner_id IN
+      (SELECT id FROM partners WHERE slug = ${fixture})`);
+    /* The key and team audit rows name the partner in `reason`, so they go by it. */
     await db.execute(sql`DELETE FROM audit_log WHERE reason LIKE
       'partner ' || (SELECT id::text FROM partners WHERE slug = ${fixture}) || '%'`);
     await db.execute(sql`DELETE FROM partner_api_keys WHERE partner_id IN

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { PARTNER_LAUNCH_TARGETS } from "@/lib/partner/launch";
-import { PARTNER_APPLY } from "@/lib/routing";
+import { PARTNER_APPLY, PARTNER_SIGN_IN } from "@/lib/routing";
 
 export const metadata: Metadata = {
   title: "Developers",
@@ -272,12 +272,19 @@ GET /api/partner/v1/subjects/<ref>/memory
         <p className="mt-2 text-sm leading-relaxed text-amber-900/90">{t("devs.rateNote")}</p>
       </Card>
 
-      <p className="mt-10">
+      <p className="mt-10 flex flex-wrap items-center gap-4">
         <Link
           href={PARTNER_APPLY}
           className="inline-flex h-12 items-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800"
         >
           {t("devs.getStarted")}
+        </Link>
+        {/* 🔴 W2-X06: the portal's own door, which nothing on the site linked to. */}
+        <Link
+          href={PARTNER_SIGN_IN}
+          className="tap-target text-sm font-semibold text-brand-700 hover:text-brand-800"
+        >
+          {t("dev.signIn")}
         </Link>
       </p>
     </main>
