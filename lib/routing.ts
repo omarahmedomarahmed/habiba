@@ -156,6 +156,16 @@ export const PARTNER_APPLY = "/partner/apply";
 export const SPONSOR_APPLY = "/sponsor/apply";
 
 /**
+ * 🔴 W2-S01 — the domain mailbox link, opened by an IT contact with no login.
+ *
+ * `confirmDomainMailbox` is authorised by the HMAC in the link (C318), and the
+ * page carries no guard for that reason. Until this was listed the router sent
+ * that contact to the sponsor sign-in, so the proof could only be completed by
+ * somebody who already had a portal login. Only the confirm path is open.
+ */
+export const SPONSOR_DOMAIN_CONFIRM = "/sponsor/domains/confirm";
+
+/**
  * 🔴 C264 — THE SIX PRINCIPALS, AS A TABLE. Rewritten once, in sprint 53.
  *
  * ## Why a table and not five more `if` blocks
@@ -296,7 +306,7 @@ export const PRINCIPALS: Principal[] = [
     home: "/sponsor",
     authRoutes: [SPONSOR_SIGN_IN],
     /* 53.5 — the enquiry form, which cannot sit behind the sign-in it precedes. */
-    openRoutes: [SPONSOR_APPLY],
+    openRoutes: [SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM],
   },
   {
     name: "clinic",
