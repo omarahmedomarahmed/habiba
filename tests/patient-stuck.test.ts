@@ -281,6 +281,32 @@ test("W2-P15 E5: the pay and join screens say who to ask when the benefit did no
   assert.match(code("components/patient/benefit-note.tsx"), /t\("pay\.askBenefit", \{ name: shortfall\.sponsorName \}\)/);
 });
 
+/* ----------------------------------------------------------------- W2-P16 -- */
+
+test("W2-P16 the dead ends have a way back", () => {
+  const invite = code("app/(patient)/patient/invite/[token]/page.tsx");
+  const invalid = invite.slice(invite.indexOf("if (!invite)"), invite.indexOf("if (!patient)"));
+  assert.match(invalid, /<Link/, "an invalid invite link was a card with nothing on it");
+
+  const records = code("app/records/[token]/route.ts");
+  assert.doesNotMatch(records, /Ask your therapist to send it again/, "the patient can ask for it themselves");
+  assert.match(records, /href="\/patient\/record"/);
+
+  const join = code("app/join/[token]/page.tsx");
+  const dead = join.slice(join.indexOf("room.linkDead"), join.indexOf("room.linkDead") + 1200);
+  assert.match(dead, /href="\/radar"/);
+
+  assert.match(code("app/feedback/[token]/page.tsx"), /href="\/patient\/summary"/);
+  assert.match(code("components/assessments/patient-questionnaire.tsx"), /href="\/patient"/);
+  for (const flow of ["components/patient/invite-flow.tsx", "components/patient/claim-flow.tsx"]) {
+    assert.match(
+      code(flow),
+      /href="\/patient\/sessions"[^]*?pclaim\.goToSessions/,
+      `${flow}: "Go to my sessions" went Home`,
+    );
+  }
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

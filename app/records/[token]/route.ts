@@ -50,8 +50,8 @@ function gone(): NextResponse {
     <h1 style="font-size:20px;margin:0 0 10px;">This link is no longer active</h1>
     <p style="color:#475569;margin:0 0 6px;">Links to a personal record expire after three days,
       and asking for a new copy replaces any older link.</p>
-    <p style="color:#475569;margin:0;">Ask your therapist to send it again and a fresh one
-      will arrive at the same address.</p>
+    <p style="color:#475569;margin:0 0 20px;">You can ask for a fresh one yourself.</p>
+    <a href="/patient/record" style="display:inline-block;background:#0f172a;color:#fff;border-radius:12px;padding:10px 18px;text-decoration:none;font-weight:600;">Your record</a>
   </div>
 </div></body></html>`,
     {

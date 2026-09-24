@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { JoinFlow } from "@/components/join/join-flow";
@@ -85,6 +86,26 @@ export default async function JoinPage({
       <Shell>
         <h1 className="text-xl font-bold text-slate-900">{t("room.linkDead")}</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("room.linkDeadBody")}</p>
+        {/*
+          🔴 W2-P16: a dead link with nowhere to go. Somebody who needs a
+          session now gets the radar; somebody signed in, their own sessions.
+        */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/radar"
+            className="inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+          >
+            {t("tab.radar")}
+          </Link>
+          {(await optionalPatient()) ? (
+            <Link
+              href="/patient/sessions"
+              className="inline-flex h-11 items-center rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
+            >
+              {t("psessions.title")}
+            </Link>
+          ) : null}
+        </div>
       </Shell>
     );
   }

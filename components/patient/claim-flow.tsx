@@ -76,7 +76,8 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {keepsAccess ? t("pclaim.doneKept") : t("pclaim.doneDropped")}
         </p>
-        <Link href="/patient" className="mt-4 block">
+        {/* W2-P16: the label says sessions, so the link goes there. */}
+        <Link href="/patient/sessions" className="mt-4 block">
           <Button full>{t("pclaim.goToSessions")}</Button>
         </Link>
       </Card>

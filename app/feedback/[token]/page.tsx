@@ -42,7 +42,19 @@ export default async function FeedbackPage({
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
             {t("feedback.expiredBody")}
           </p>
-          <Link href="/" className="mt-4 inline-flex items-center">
+          {/*
+            🔴 W2-P16: the link expires; a signed-in patient's summary does not.
+            It is on their own summary page, so that is where this goes.
+          */}
+          {signedIn ? (
+            <Link
+              href="/patient/summary"
+              className="mt-4 inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+            >
+              {t("home.summary")}
+            </Link>
+          ) : null}
+          <Link href="/" className="mt-4 flex items-center justify-center">
             <Logo ink="navy" height={22} />
           </Link>
         </Card>
