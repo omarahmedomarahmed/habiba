@@ -1855,7 +1855,7 @@ export const en = {
   "nf.body": "The link may be old, or the page has moved.",
   "nf.back": "Back to home",
   "feedback.seeTitle": "Do you want to see this yourself?",
-  "feedback.seeBody": "Your therapist keeps this record anyway. An account lets you choose who reads it.",
+  "feedback.seeBody": "Your therapist keeps this record either way. An account changes who can read it.",
   "feedback.makeMine": "Make it mine",
   /* ---------------------------------------------------- the Egyptian rail -- */
   /*
@@ -5704,7 +5704,7 @@ export const ar: Record<MessageKey, string> = {
   "nf.body": "قد يكون الرابط قديمًا، أو تكون الصفحة قد انتقلت.",
   "nf.back": "العودة إلى الرئيسية",
   "feedback.seeTitle": "تريد أن ترى هذا بنفسك؟",
-  "feedback.seeBody": "يحتفظ معالجك بهذا السجل في كل الأحوال. والحساب يتيح لك اختيار من يقرؤه.",
+  "feedback.seeBody": "يحتفظ معالجك بهذا السجل في الحالتين. والحساب يغيّر من يقرؤه.",
   "feedback.makeMine": "اجعله ملكي",
   "transfer.checking": "نراجع التحويل الآن",
   "transfer.checkingBody": "عادة دقائق قليلة.",

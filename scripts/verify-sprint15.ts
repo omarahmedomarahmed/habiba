@@ -214,11 +214,17 @@ async function main() {
      * only once the copy is released. `verify:w1b` plants a clinical addendum
      * with a sentinel and asserts it never reaches this query.
      */
+    /*
+     * 🔴 `cancelled` (P9) and `owedCents` (P6), from the 2026-09-24 checkup: a
+     * boolean and an integer, so neither can hold a sentence. The patient's
+     * list showed a cancelled session as booked and the list price instead of
+     * what they owe after their benefit, and these two are that fix.
+     */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
       keys ===
-        "at,brief,briefAddenda,briefPending,group,id,modality,paymentStatus,priceCents,priceCurrency," +
+        "at,brief,briefAddenda,briefPending,cancelled,group,id,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
           "provenance,therapistName",
       keys,
     );

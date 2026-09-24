@@ -167,7 +167,7 @@ test("W2-P14 billing lists what is still open, not only what was paid", () => {
   const billing = code("app/(patient)/patient/billing/page.tsx");
   assert.match(billing, /sessionDoors\(/);
   assert.match(billing, /kind === "pay" \|\| row\.door\?\.kind === "checking"/);
-  assert.match(billing, /patientOwesFor\(/, "the amount is what they owe after their benefit");
+  assert.match(billing, /patientOwes(For|Total)\(/, "the amount is what they owe after their benefit");
 });
 
 /* ----------------------------------------------------------------- W2-P07 -- */
@@ -265,7 +265,9 @@ test("W2-P12 a radar with nobody on it offers the first bookable hours", () => {
 test("W2-P13 the wall code reaches signup, and a signed-in reader can act on it", () => {
   const page = code("app/j/[code]/page.tsx");
   assert.match(page, /<PatientAuthForm mode="signup" wallCode=\{code\} \/>/, "the code was never passed to signup");
-  assert.match(page, /action=\{connectToTherapist\}/, "a signed-in reader was told to create an account");
+  /* P15 moved the form into a component that shows the error it returns. */
+  assert.match(page, /<ConnectCodeForm code=\{code\} \/>/, "a signed-in reader was told to create an account");
+  assert.match(code("components/patient/connect-code-form.tsx"), /useActionState\(connectToTherapist/);
   assert.match(code("lib/patient-auth/actions.ts"), /connectByCode\(wallCode, created\.personId\)/);
   assert.match(code("app/j/[code]/actions.ts"), /connectByCode\(String\(formData\.get\("code"\) \?\? ""\), actor\.personId\)/);
 });
@@ -316,7 +318,7 @@ test("W2-P04 every self-booking door hands the signed-in person to the data laye
   assert.match(code("app/(public)/t/[id]/book/actions.ts"), /personId: signedIn\?\.personId/);
   assert.match(
     code("app/join/[token]/actions.ts"),
-    /joinByToken\(token, name, \(await optionalPatient\(\)\)\?\.personId/,
+    /joinByToken\(\s*token,\s*name,\s*\(await optionalPatient\(\)\)\?\.personId/,
   );
   /* From the cookie, never from the form: no door reads a person id a caller typed. */
   for (const file of [

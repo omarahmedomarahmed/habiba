@@ -182,7 +182,8 @@ async function main() {
 
   check(
     "🔴 62.3 the quote states BOTH figures: what is owed now and what the month becomes",
-    /toMonthlyLabel/.test(manager) && /proratedLabel/.test(manager),
+    /* A label string before 27 (money in EGP), a `<Money>` figure since: both are the figure. */
+    /toMonthly(Label|Cents)/.test(manager) && /prorated(Label|Cents)/.test(manager),
     "one prorated figure says what somebody is charged and nothing about what they agreed to",
   );
 

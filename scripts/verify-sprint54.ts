@@ -1013,6 +1013,24 @@ async function main() {
       view ? `invited to ${view.clinicName}` : "not resolved",
     );
 
+    /*
+     * 🔴 T4: a practice with no free seat cannot take a clinician in, since the
+     * 2026-09-24 checkup. The fixture practice has none, so the refusal is
+     * checked first, and then one seat is bought for the acceptance below.
+     */
+    const seatless = await acceptInvitation({
+      token,
+      password: "correct horse battery",
+      firstName: "Invited",
+      lastName: "Clinician",
+    });
+    check(
+      "🔴 T4 a practice with no free seat cannot accept a clinician, however the invitation was sent",
+      seatless.error !== undefined && /seat/i.test(seatless.error),
+      seatless.error ?? "accepted with no seat",
+    );
+    await db.execute(sql`UPDATE organizations SET seats = seats + 1 WHERE id = ${org.id}`);
+
     const accepted = await acceptInvitation({
       token,
       password: "correct horse battery",
