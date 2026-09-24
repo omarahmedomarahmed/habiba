@@ -373,7 +373,12 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
   // leaves one of them half-initialised at module scope.
   if (session.metadata?.kind === "session_payment" && session.payment_status === "paid") {
     const { settleSessionPayment } = await import("./connect");
-    await settleSessionPayment({ id: session.id, paymentIntentId });
+    const capture = session.metadata?.capture;
+    await settleSessionPayment({
+      id: session.id,
+      paymentIntentId,
+      capture: capture === "platform" || capture === "destination" ? capture : undefined,
+    });
   }
 
   if (session.metadata?.kind === "credit_purchase" && session.payment_status === "paid") {

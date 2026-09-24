@@ -8,6 +8,7 @@ import {
   cancelRefundAction,
   confirmRefundAction,
   markRefundSentAction,
+  returnPotShareAction,
   takeOnRefund,
   type RefundState,
 } from "@/app/(admin)/admin/payouts/refund-actions";
@@ -29,7 +30,7 @@ export type RefundQueueItem = {
   currency: string;
   payeeName: string | null;
   status: string;
-  why: "no_show" | "clinician_cancel" | "other";
+  why: "no_show" | "clinician_cancel" | "pot_share" | "other";
   owned: boolean;
   needsTwoPeople: boolean;
   openedLabel: string;
@@ -76,7 +77,9 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
   const [sentState, sentAction] = useActionState(markRefundSentAction, INITIAL);
   const [confirmState, confirmAction] = useActionState(confirmRefundAction, INITIAL);
   const [cancelState, cancelAction] = useActionState(cancelRefundAction, INITIAL);
-  const error = claimState.error ?? sentState.error ?? confirmState.error ?? cancelState.error;
+  const [potState, potAction] = useActionState(returnPotShareAction, INITIAL);
+  const error =
+    claimState.error ?? sentState.error ?? confirmState.error ?? cancelState.error ?? potState.error;
 
   return (
     <li className="rounded-xl border border-slate-200 p-3">
@@ -87,7 +90,15 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
         <span className="text-sm text-slate-700">{row.payeeName ?? ""}</span>
         <Badge>{row.status}</Badge>
         {row.why !== "other" ? (
-          <Badge>{t(row.why === "no_show" ? "arefund.whyNoShow" : "arefund.whyCancel")}</Badge>
+          <Badge>
+            {t(
+              row.why === "no_show"
+                ? "arefund.whyNoShow"
+                : row.why === "pot_share"
+                  ? "arefund.whyPot"
+                  : "arefund.whyCancel",
+            )}
+          </Badge>
         ) : null}
         {row.needsTwoPeople ? (
           <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700">
@@ -109,7 +120,14 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
           </form>
         ) : null}
 
-        {row.status === "owed" ? (
+        {row.status === "owed" && row.why === "pot_share" ? (
+          <form action={potAction}>
+            <input type="hidden" name="requestId" value={row.id} />
+            <Go label={t("arefund.returnPot")} />
+          </form>
+        ) : null}
+
+        {row.status === "owed" && row.why !== "pot_share" ? (
           <form action={sentAction} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="requestId" value={row.id} />
             <Input name="method" placeholder={t("arefund.method")} required className="h-8 w-28 text-xs" />

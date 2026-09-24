@@ -1,11 +1,41 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 import { sessionPayments, sessions } from "@/lib/db/schema";
 
 import type { PaymentLine } from "./manual";
+
+/**
+ * 🔴 W2-M01 / W2-M03: THE PATIENT'S MONEY ARRIVED, AND THE SESSION STILL WANTS IT.
+ *
+ * The one claim both rails make when the patient's own money lands, whole or
+ * the share left after their benefit: `payment_status` from `pending` to
+ * `paid`, and only if the session is still worth paying for. `pending` alone
+ * was not that question. A refund sets the session back to `pending`, and a
+ * cancelled session stays `pending`, so a transfer confirmed after either
+ * marked a refunded or cancelled session paid and posted money against it.
+ *
+ * True only for the call that made the move, so what follows it runs once.
+ */
+export async function claimSessionPaid(sessionId: string): Promise<boolean> {
+  const moved = await db
+    .update(sessions)
+    .set({ paymentStatus: "paid", updatedAt: new Date() })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.paymentStatus, "pending"),
+        ne(sessions.status, "cancelled"),
+        sql`NOT EXISTS (SELECT 1 FROM ${sessionPayments}
+                         WHERE ${sessionPayments.sessionId} = ${sessionId}
+                           AND ${sessionPayments.status} = 'refunded')`,
+      ),
+    )
+    .returning({ id: sessions.id });
+  return moved.length > 0;
+}
 
 /**
  * 🔴 76.27 — WHAT A PATIENT STILL OWES, AFTER THEIR BENEFIT HAS PAID ITS HALF.
@@ -70,7 +100,13 @@ export async function patientOwesFor(sessionId: string): Promise<SessionOwed> {
     .where(eq(sessionPayments.sessionId, sessionId))
     .limit(1);
 
-  if (!split || split.patientShareCents === null) {
+  /*
+   * 🔴 W2-M02: ONLY A POT ROW CARRIES A SPLIT. A card checkout writes its row
+   * before the patient pays, with both shares left at their default of zero,
+   * so reading its share said a patient who closed the Stripe page owed
+   * nothing, and every screen asking them for money showed zero.
+   */
+  if (!split || split.fundingSource !== "pot" || split.patientShareCents === null) {
     return { grossCents: priceCents, coveredCents: 0, priceCents };
   }
 

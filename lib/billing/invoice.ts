@@ -237,6 +237,12 @@ async function countryVatBps(entity: string): Promise<number> {
  */
 export async function topUpHistory(
   sponsorId: string,
+  /**
+   * The pot alert's baseline is the last money put in, credit or paid: a pot
+   * funded by its welcome credit alone must still be warned when it runs low.
+   * Only the invoice list leaves credits out (W2-A11).
+   */
+  opts: { includeCredits?: boolean } = {},
 ): Promise<{ txnId: string; at: Date; amountCents: number; position: number }[]> {
   const rows = await controlDb
     .select({
@@ -281,7 +287,7 @@ export async function topUpHistory(
   /* Absolute value: the liability leg is negative. See the note in `invoiceFor`. */
   return Promise.all(
     rows
-      .filter((row) => paid.has(row.txnId))
+      .filter((row) => opts.includeCredits || paid.has(row.txnId))
       .map(async (row) => ({
         txnId: row.txnId,
         at: row.at,

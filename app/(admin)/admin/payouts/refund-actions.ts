@@ -9,6 +9,7 @@ import {
   claimRefund,
   confirmRefund,
   markRefundSent,
+  returnPotShare,
 } from "@/lib/billing/refunds";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -74,4 +75,11 @@ export async function cancelRefundAction(_prev: RefundState, formData: FormData)
   const requestId = String(formData.get("requestId") ?? "");
   const reason = String(formData.get("reason") ?? "");
   return done(actor, requestId, "refund.cancelled", await cancelRefund({ requestId, reason }), reason.trim());
+}
+
+/** W2-M05: the company's share back into its pot; the refund then finishes itself. */
+export async function returnPotShareAction(_prev: RefundState, formData: FormData): Promise<RefundState> {
+  const actor = await requireStaff();
+  const requestId = String(formData.get("requestId") ?? "");
+  return done(actor, requestId, "refund.pot_returned", await returnPotShare({ requestId, actorUserId: actor.userId }));
 }

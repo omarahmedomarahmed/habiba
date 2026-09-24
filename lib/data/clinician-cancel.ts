@@ -82,7 +82,11 @@ export async function afterClinicianCancel(input: {
        * money and none of theirs, and "the full amount is on its way back" to
        * somebody who paid nothing is untrue.
        */
-      outcome = result.toPayerCents === 0 ? "notified" : "refunded";
+      outcome = result.queuedCents
+        ? "refund_owed" // W2-M04: their transfer-paid share is on the refund queue
+        : result.toPayerCents === 0
+          ? "notified"
+          : "refunded";
     }
   }
 

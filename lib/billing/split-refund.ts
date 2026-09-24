@@ -91,6 +91,76 @@ export function refundOwedCents(payment: FrozenSplit & {
 }
 
 /**
+ * 🔴 W2-M06: the most the refund queue may send back for one row.
+ *
+ * The same answer `refundOwedCents` gives when the queue row is opened, asked
+ * again when it is sent, because rows opened before W2-S12 carry the whole
+ * price plus VAT for a pot row and the money leaves on this step. A pot row
+ * owes its employee their share and its VAT only if they paid it; a
+ * `pot_share` row (W2-M05) is the company's share, returned to the pot by the
+ * same step, and nothing to the employee.
+ */
+export const POT_SHARE_REFUND = "pot_share";
+
+export function refundCeilingCents(payment: FrozenSplit & {
+  fundingSource: "card" | "pot";
+  vatCents: number;
+  /** The queue row's reason code. */
+  reason: string;
+  /** Whether the employee's share arrived (a pot row only). */
+  employeePaid: boolean;
+}): number {
+  if (payment.fundingSource !== "pot") return refundOwedCents(payment);
+  if (payment.reason === POT_SHARE_REFUND) return sharesOf(payment).potCents;
+  return payment.employeePaid ? refundOwedCents(payment) : 0;
+}
+
+/** One funding leg of a session's money: what it paid, our fee on it, the clinician's part. */
+export type FundingLeg = { grossCents: number; feeCents: number; netCents: number };
+
+/**
+ * 🔴 W2-M01: OUR FEE AND THE CLINICIAN'S NET, ONCE, ON THE FULL PRICE, IN TWO LEGS.
+ *
+ * C313 is unchanged: a partly covered session is not a cheaper session, so the
+ * fee is computed once on the whole price (`platformFeeCents` on the row) and
+ * the clinician's net is the rest. What W2-M01 changes is WHEN each part is
+ * booked. The pot's leg is booked at booking, because its money is in hand; the
+ * employee's leg when their money arrives, because until then it has not:
+ *
+ *   - `payFromPot` used to book the whole price, so the ledger held the
+ *     employee's share as cash, and the clinician's net on it as held earnings
+ *     that could be paid out, before the employee had paid anything
+ *   - the card checkout then charged the employee an application fee of the
+ *     WHOLE fee out of a charge for their share alone (at 95% cover a $150 fee
+ *     out of a $5 charge, which Stripe refuses) and sent the clinician the
+ *     rest directly, on top of the held net for the same money
+ *
+ * The fee is split by the shares, the pot's part rounded and the employee's the
+ * remainder, so the two legs always sum to the frozen fee and each leg's fee and
+ * net sum to that leg's money. A pot row from before 0090 carries no shares and
+ * the pot paid all of it (`sharesOf`), so it is one leg.
+ */
+export function fundingLegs(payment: FrozenSplit & { platformFeeCents: number }): {
+  pot: FundingLeg;
+  employee: FundingLeg;
+} {
+  const { potCents, employeeCents } = sharesOf(payment);
+  const total = potCents + employeeCents;
+  const fee = Math.min(total, Math.max(0, payment.platformFeeCents));
+  const employeeFee =
+    total > 0 ? Math.min(employeeCents, fee - Math.round((fee * potCents) / total)) : 0;
+  const potFee = fee - employeeFee;
+  return {
+    pot: { grossCents: potCents, feeCents: potFee, netCents: potCents - potFee },
+    employee: {
+      grossCents: employeeCents,
+      feeCents: employeeFee,
+      netCents: employeeCents - employeeFee,
+    },
+  };
+}
+
+/**
  * 🔴 W2-S10: the company's money entry, for a session or for its refund.
  *
  * One function for both, so a refund is the session's entry with its sign

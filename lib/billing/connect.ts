@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -19,6 +19,7 @@ import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/
 import { collectionProblem, vatOn } from "@/lib/settings/defs";
 import { collectionCurrencyFor, collectionRailFor } from "./money";
 import { quoteFor } from "./fx";
+import { fundingLegs } from "./split-refund";
 import { getStripe } from "./stripe";
 
 /*
@@ -618,7 +619,13 @@ export async function createSessionPaymentCheckout(opts: {
   // oldest first, never more than the net.
   let settlement = 0;
   const settledIds: string[] = [];
-  if (row.autoSettle) {
+  /*
+   * W2-M01: never out of a covered session's charge. The employee pays their
+   * share, our fee on it is part of that share, and the clinician's part of it
+   * is small and split across two legs; clearing a bill against it would take
+   * from money that is not all this charge's.
+   */
+  if (row.autoSettle && !covered) {
     const outstanding = await db
       .select()
       .from(invoices)
@@ -663,7 +670,22 @@ export async function createSessionPaymentCheckout(opts: {
    * of does not reconcile, and 16.6's whole design is that the rate on a
    * transaction is photographed once.
    */
-  const applicationFee = convertAtRate(cut + settlement, quote.rateMicro);
+  /*
+   * 🔴 W2-M01: on a covered session, the fee on the EMPLOYEE'S leg only. The
+   * whole fee out of a charge for their share alone (a $150 fee out of a $5
+   * charge at 95% cover) is refused by Stripe, and where it was not, it took
+   * the pot's part of our fee a second time.
+   */
+  const coveredFee = covered
+    ? fundingLegs({
+        grossCents: gross,
+        coverageBps: covered.coverageBps ?? 0,
+        sponsorShareCents: covered.sponsorShareCents,
+        patientShareCents: covered.patientShareCents,
+        platformFeeCents: cut,
+      }).employee.feeCents
+    : null;
+  const applicationFee = convertAtRate(coveredFee ?? cut + settlement, quote.rateMicro);
 
   try {
     const checkout = await client.checkout.sessions.create({
@@ -761,16 +783,12 @@ export async function createSessionPaymentCheckout(opts: {
     // Recorded before the patient is sent anywhere. A payment that completes
     // while we have no row for it is unreconcilable, and the webhook may well
     // arrive before the browser comes back.
-    await db
-      .insert(sessionPayments)
-      .values({
-        organizationId: row.session.organizationId,
-        therapistId: row.therapistId,
+    if (covered) {
+      const recorded = await recordCoveredCheckout({
         sessionId: opts.sessionId,
-        payerName: opts.payerName.slice(0, 80),
-        payerEmail: opts.payerEmail?.trim().toLowerCase() || null,
-        grossCents: gross,
-        currency: "usd",
+        checkoutId: checkout.id,
+        payerName: opts.payerName,
+        payerEmail: opts.payerEmail ?? null,
         vatCents: patientVatCents,
         vatBps: country.vatBps,
         payerCountry: country.code,
@@ -778,44 +796,30 @@ export async function createSessionPaymentCheckout(opts: {
         presentedCurrency: collectionCurrency,
         fxRateMicro: quote.rateMicro,
         fxQuotedAt: quote.quotedAt,
-        platformFeeCents: applicationFee,
-        platformFeeBps: feeBps,
-        settledInvoiceCents: settlement,
-        therapistNetCents: gross - applicationFee,
-        capture,
-        status: "pending",
-        stripeCheckoutSessionId: checkout.id,
-      })
-      .onConflictDoUpdate({
-        target: sessionPayments.sessionId,
-        // An abandoned checkout must be replaceable, but a paid one must not.
-        setWhere: eq(sessionPayments.status, "pending"),
-        set: {
-          payerName: opts.payerName.slice(0, 80),
-          payerEmail: opts.payerEmail?.trim().toLowerCase() || null,
-          grossCents: gross,
-          currency: "usd",
-          vatCents: patientVatCents,
-          vatBps: country.vatBps,
-          payerCountry: country.code,
-          presentedCents: presentedTotalCents,
-          presentedCurrency: collectionCurrency,
-          fxRateMicro: quote.rateMicro,
-          fxQuotedAt: quote.quotedAt,
-          platformFeeCents: applicationFee,
-          platformFeeBps: feeBps,
-          settledInvoiceCents: settlement,
-          therapistNetCents: gross - applicationFee,
-          capture,
-          stripeCheckoutSessionId: checkout.id,
-          createdAt: new Date(),
-        },
       });
+      if (!recorded) return { error: "This session is already paid." };
+      return { url: checkout.url };
+    }
 
-    await db
-      .update(sessions)
-      .set({ paymentStatus: "pending", updatedAt: new Date() })
-      .where(eq(sessions.id, opts.sessionId));
+    await recordSessionCheckout({
+      organizationId: row.session.organizationId,
+      therapistId: row.therapistId,
+      sessionId: opts.sessionId,
+      payerName: opts.payerName,
+      payerEmail: opts.payerEmail ?? null,
+      grossCents: gross,
+      vatCents: patientVatCents,
+      vatBps: country.vatBps,
+      payerCountry: country.code,
+      presentedCents: presentedTotalCents,
+      presentedCurrency: collectionCurrency,
+      fxRateMicro: quote.rateMicro,
+      fxQuotedAt: quote.quotedAt,
+      applicationFeeCents: applicationFee,
+      feeBps,
+      settledInvoiceCents: settlement,
+      checkoutId: checkout.id,
+    });
 
     // Tag the invoices so the existing settle-on-paid path clears them when the
     // charge lands, exactly as it does for a therapist-initiated batch.
@@ -837,13 +841,148 @@ export async function createSessionPaymentCheckout(opts: {
 }
 
 /**
+ * The row a card checkout writes before the patient is sent to Stripe. Split
+ * out of `createSessionPaymentCheckout` (W2-M01) so the part that needs no
+ * Stripe can be run against the database by `verify:w2m`.
+ */
+export async function recordSessionCheckout(input: {
+  organizationId: string;
+  therapistId: string;
+  sessionId: string;
+  payerName: string;
+  payerEmail: string | null;
+  grossCents: number;
+  vatCents: number;
+  vatBps: number;
+  payerCountry: string;
+  presentedCents: number;
+  presentedCurrency: string;
+  fxRateMicro: number;
+  fxQuotedAt: Date;
+  applicationFeeCents: number;
+  feeBps: number;
+  settledInvoiceCents: number;
+  checkoutId: string;
+}): Promise<void> {
+  const capture = "destination" as const;
+  await db
+    .insert(sessionPayments)
+    .values({
+      organizationId: input.organizationId,
+      therapistId: input.therapistId,
+      sessionId: input.sessionId,
+      payerName: input.payerName.slice(0, 80),
+      payerEmail: input.payerEmail?.trim().toLowerCase() || null,
+      grossCents: input.grossCents,
+      currency: "usd",
+      vatCents: input.vatCents,
+      vatBps: input.vatBps,
+      payerCountry: input.payerCountry,
+      presentedCents: input.presentedCents,
+      presentedCurrency: input.presentedCurrency,
+      fxRateMicro: input.fxRateMicro,
+      fxQuotedAt: input.fxQuotedAt,
+      platformFeeCents: input.applicationFeeCents,
+      platformFeeBps: input.feeBps,
+      settledInvoiceCents: input.settledInvoiceCents,
+      therapistNetCents: input.grossCents - input.applicationFeeCents,
+      capture,
+      status: "pending",
+      stripeCheckoutSessionId: input.checkoutId,
+    })
+    .onConflictDoUpdate({
+      target: sessionPayments.sessionId,
+      // An abandoned checkout must be replaceable, but a paid one must not.
+      setWhere: eq(sessionPayments.status, "pending"),
+      set: {
+        payerName: input.payerName.slice(0, 80),
+        payerEmail: input.payerEmail?.trim().toLowerCase() || null,
+        grossCents: input.grossCents,
+        currency: "usd",
+        vatCents: input.vatCents,
+        vatBps: input.vatBps,
+        payerCountry: input.payerCountry,
+        presentedCents: input.presentedCents,
+        presentedCurrency: input.presentedCurrency,
+        fxRateMicro: input.fxRateMicro,
+        fxQuotedAt: input.fxQuotedAt,
+        platformFeeCents: input.applicationFeeCents,
+        platformFeeBps: input.feeBps,
+        settledInvoiceCents: input.settledInvoiceCents,
+        therapistNetCents: input.grossCents - input.applicationFeeCents,
+        capture,
+        stripeCheckoutSessionId: input.checkoutId,
+        createdAt: new Date(),
+      },
+    });
+
+  await db
+    .update(sessions)
+    .set({ paymentStatus: "pending", updatedAt: new Date() })
+    .where(eq(sessions.id, input.sessionId));
+}
+
+/**
+ * 🔴 W2-M01: an employee's checkout for their share, written onto the pot's row.
+ *
+ * `session_payments` is one row per session, and on a covered session the pot
+ * wrote it at booking. The card checkout used to upsert a pending row, which a
+ * `paid` pot row refused, so the checkout was never recorded and its payment
+ * could never settle. Written here only while no intent has settled on the row
+ * (an abandoned checkout is replaced, a paid share is not), with the patient's
+ * own VAT and presented figures; the frozen split and the fee are untouched.
+ */
+export async function recordCoveredCheckout(input: {
+  sessionId: string;
+  checkoutId: string;
+  payerName: string;
+  payerEmail: string | null;
+  vatCents: number;
+  vatBps: number;
+  payerCountry: string;
+  presentedCents: number;
+  presentedCurrency: string;
+  fxRateMicro: number;
+  fxQuotedAt: Date;
+}): Promise<boolean> {
+  const updated = await db
+    .update(sessionPayments)
+    .set({
+      stripeCheckoutSessionId: input.checkoutId,
+      payerName: input.payerName.slice(0, 80),
+      payerEmail: input.payerEmail?.trim().toLowerCase() || null,
+      vatCents: input.vatCents,
+      vatBps: input.vatBps,
+      payerCountry: input.payerCountry,
+      presentedCents: input.presentedCents,
+      presentedCurrency: input.presentedCurrency,
+      fxRateMicro: input.fxRateMicro,
+      fxQuotedAt: input.fxQuotedAt,
+    })
+    .where(
+      and(
+        eq(sessionPayments.sessionId, input.sessionId),
+        eq(sessionPayments.fundingSource, "pot"),
+        eq(sessionPayments.status, "paid"),
+        isNull(sessionPayments.stripePaymentIntentId),
+      ),
+    )
+    .returning({ id: sessionPayments.id });
+  return updated.length > 0;
+}
+
+/**
  * Mark a session payment settled. Called from both the webhook and the
  * redirect-confirm path, and safe to run twice.
  */
 export async function settleSessionPayment(checkout: {
   id: string;
   paymentIntentId: string | null;
+  /** From the checkout's own metadata: how the charge was taken (W2-M01). */
+  capture?: "destination" | "platform";
 }): Promise<void> {
+  await settleCoveredShare(checkout);
+
   const paid = await db
     .update(sessionPayments)
     .set({
@@ -894,6 +1033,70 @@ export async function settleSessionPayment(checkout: {
     // A radar booking becomes real at the moment the money clears, not at the
     // moment someone pressed Book. Imported lazily to keep the billing layer
     // from depending on the radar at module scope.
+    const { markInSession } = await import("@/lib/data/radar");
+    await markInSession(row.sessionId);
+  }
+}
+
+/**
+ * 🔴 W2-M01: THE EMPLOYEE'S CARD SHARE OF A PARTLY COVERED SESSION.
+ *
+ * The pot wrote this session's one payment row at booking, already `paid`, so
+ * the pending-row update in `settleSessionPayment` matched nothing: the
+ * employee was charged, and the session stayed unpaid with nothing on the
+ * books. Their checkout is written onto the pot row instead
+ * (`recordCoveredCheckout`), and this is its settlement.
+ *
+ * The claim is the intent id, written only where none is: one caller wins,
+ * however often the webhook and the redirect both arrive. Then the session is
+ * claimed paid (never a cancelled or refunded one, W2-M03), and only then is
+ * the employee's leg booked. A charge that arrives for a session that no longer
+ * wants it goes straight back to them.
+ */
+async function settleCoveredShare(checkout: {
+  id: string;
+  paymentIntentId: string | null;
+  capture?: "destination" | "platform";
+}): Promise<void> {
+  if (!checkout.paymentIntentId) return;
+  const claimed = await db
+    .update(sessionPayments)
+    .set({ stripePaymentIntentId: checkout.paymentIntentId })
+    .where(
+      and(
+        eq(sessionPayments.stripeCheckoutSessionId, checkout.id),
+        eq(sessionPayments.fundingSource, "pot"),
+        isNull(sessionPayments.stripePaymentIntentId),
+      ),
+    )
+    .returning();
+
+  for (const row of claimed) {
+    const capture = checkout.capture ?? "destination";
+    const { claimSessionPaid } = await import("./session-owed");
+    if (!(await claimSessionPaid(row.sessionId))) {
+      log.error("an employee's share arrived for a session that no longer wants it; refunding", {
+        payment: ref(row.id),
+      });
+      const client = getStripe();
+      try {
+        await client?.refunds.create({
+          payment_intent: checkout.paymentIntentId,
+          ...(capture === "destination" ? { reverse_transfer: true, refund_application_fee: true } : {}),
+          metadata: { reason: "session no longer payable" },
+        });
+      } catch (error) {
+        log.error("could not return a share for an unpayable session", {
+          payment: ref(row.id),
+          reason: safeErrorMessage(error),
+        });
+      }
+      continue;
+    }
+
+    const { bookEmployeeShare } = await import("./employee-share");
+    await bookEmployeeShare({ paymentId: row.id, capture, vatCents: row.vatCents });
+    await recordPaymentMethod(row.id, checkout.paymentIntentId);
     const { markInSession } = await import("@/lib/data/radar");
     await markInSession(row.sessionId);
   }
@@ -965,6 +1168,8 @@ export async function refundSessionPayment(opts: {
 }): Promise<{
   ok?: boolean;
   error?: string;
+  /** W2-M04: an employee's transfer-paid share, now owed on the refund queue. */
+  queuedCents?: number;
   /**
    * W2-S12: what went back to the person who paid, in cents. Zero when the
    * pot paid all of it or their share was never paid, so a caller does not
@@ -1108,10 +1313,20 @@ export async function refundSessionPayment(opts: {
 async function refundSplit(
   payment: typeof sessionPayments.$inferSelect,
   opts: { reason: string; adminUserId: string | null; why?: string },
-): Promise<{ ok?: boolean; error?: string; toPayerCents?: number }> {
+): Promise<{ ok?: boolean; error?: string; toPayerCents?: number; queuedCents?: number }> {
   const { refundToPot } = await import("./pot");
   const pot = await refundToPot({ paymentId: payment.id, reason: opts.reason });
-  if (pot.error) return { error: pot.error };
+  if (pot.error) {
+    /* 🔴 W2-M05: the company's share becomes somebody's job, never a log line. */
+    const { openRefundRequest } = await import("./refunds");
+    const { POT_SHARE_REFUND } = await import("./split-refund");
+    await openRefundRequest({
+      sessionPaymentId: payment.id,
+      requestedByUserId: opts.adminUserId,
+      reason: POT_SHARE_REFUND,
+    });
+    return { error: pot.error };
+  }
 
   const { employeeHalfOf, openRefundRequest } = await import("./refunds");
   const employee = await employeeHalfOf(payment);
@@ -1122,21 +1337,29 @@ async function refundSplit(
       requestedByUserId: opts.adminUserId,
       reason: opts.why ?? "admin",
     });
-    return {
-      error:
-        "The company's share is back in its pot. The employee paid their share by transfer, so it is owed to them on the refund queue.",
-    };
+    /*
+     * 🔴 W2-M04: a success, not an error. The company's share is back and the
+     * employee's is on the queue, which is the whole of this refund for now;
+     * answering with an error skipped the caller's audit row for money that did
+     * move.
+     */
+    return { ok: true, queuedCents: employee.cents, toPayerCents: 0 };
   }
 
   if (employee.rail === "card") {
     const client = getStripe();
     if (!client) return { error: "Payments are not configured on this deployment." };
     try {
+      /*
+       * W2-M01: their share is a destination charge when the clinician's
+       * account could take one, and a held charge otherwise. Pulling back a
+       * transfer that never happened is refused by Stripe, so ask the charge.
+       */
+      const intent = await client.paymentIntents.retrieve(payment.stripePaymentIntentId!);
+      const destination = Boolean(intent.transfer_data?.destination);
       await client.refunds.create({
         payment_intent: payment.stripePaymentIntentId!,
-        /* Their share was a destination charge, like every patient charge (1.8). */
-        reverse_transfer: true,
-        refund_application_fee: true,
+        ...(destination ? { reverse_transfer: true, refund_application_fee: true } : {}),
         metadata: {
           reason: opts.reason.slice(0, 200),
           refundedBy: opts.adminUserId ?? "automatic",
@@ -1159,18 +1382,15 @@ async function refundSplit(
   /* Somebody else finished it between our read and now: their books, not ours. */
   if (!refunded) return { ok: true, toPayerCents: 0 };
 
-  const { postSessionRefund } = await import("./ledger");
-  await postSessionRefund({
-    id: payment.id,
-    organizationId: payment.organizationId,
-    therapistId: payment.therapistId,
-    capture: payment.capture,
-    grossCents: payment.grossCents,
-    vatCents: payment.vatCents,
-    platformFeeCents: payment.platformFeeCents,
-    settledInvoiceCents: payment.settledInvoiceCents,
-    therapistNetCents: payment.therapistNetCents,
-  });
+  /*
+   * 🔴 W2-M01: exactly what is on the books for this payment, backwards. The
+   * pot's leg always; the employee's leg if it arrived (all of it when held,
+   * our fee alone when it went to the clinician directly); the VAT; or, for a
+   * row booked whole before W2-M01, the whole. A reversal figured from the row
+   * assumed one posting of the full price, which is no longer what is there.
+   */
+  const { postReversalOf } = await import("./ledger");
+  await postReversalOf({ paymentId: payment.id, createdBy: opts.adminUserId });
 
   await db
     .update(sessions)

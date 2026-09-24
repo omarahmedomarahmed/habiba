@@ -1604,7 +1604,7 @@ export const en = {
   /* 55.2 — the operator's side of a partner. Held until somebody has had the call. */
   "apartner.nav": "Partners",
   "apartner.title": "Partners and integrators",
-  "apartner.body": "A partner sits outside clinical tenancy and owns no organisation. Activating one lets them hold a key: nothing happens before the call.",
+  "apartner.body": "A partner sits outside clinical tenancy and owns no organisation. Activating one lets them hold a key.",
   "apartner.none": "No integrator enquiries yet.",
   "apartner.contact": "Contact",
   "apartner.intent": "What they say they want to build",
@@ -2236,7 +2236,7 @@ export const en = {
   "acheckin.title": "Check-ins",
   "acheckin.body": "A scheduled message asking how somebody is. Every number is yours to change; watch the mute rate.",
   "acheckin.rate": "The mute rate",
-  "acheckin.rateBody": "{muted} of {reachable} reachable people muted these. Above {halt} the channel stops for everybody: continuing is choosing to be wrong.",
+  "acheckin.rateBody": "{muted} of {reachable} reachable people muted these. Above {halt} the channel stops for everybody.",
   "acheckin.halted": "The channel is halted: enough people muted that it stopped itself.",
   "acheckin.sent": "{count} sent",
   "acheckin.delivered": "{count} delivered",
@@ -4205,6 +4205,9 @@ export const en = {
   "apage.older": "Older",
   // W2R refunds
   "arefund.errPot": "Company share not returned.",
+  "arefund.errOverpaid": "More than they paid.",
+  "arefund.whyPot": "Company share",
+  "arefund.returnPot": "Return to pot",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5414,7 +5417,7 @@ export const ar: Record<MessageKey, string> = {
   "aclinic.cannotVerify": "التوثيق ملك المعالج، هنا أيضًا. لا شيء على هذه الشاشة يُكمل توثيقًا.",
   "apartner.nav": "الشركاء",
   "apartner.title": "الشركاء والمنصات المتكاملة",
-  "apartner.body": "الشريك خارج النطاق السريري تمامًا ولا يملك أي منظمة. تفعيله يتيح له حمل مفتاح، فلا شيء هنا يحدث قبل الاتصال.",
+  "apartner.body": "الشريك خارج النطاق السريري تمامًا ولا يملك أي منظمة. تفعيله يتيح له حمل مفتاح.",
   "apartner.none": "لا طلبات تكامل بعد.",
   "apartner.contact": "جهة الاتصال",
   "apartner.intent": "ما يقولون إنهم يريدون بناءه",
@@ -5896,7 +5899,7 @@ export const ar: Record<MessageKey, string> = {
   "acheckin.title": "رسائل الاطمئنان",
   "acheckin.body": "رسالة قصيرة تسأل عن حال الشخص، على جدول. كان التواتر مطلبًا وكان الحكم المرافق له أن نتحقق منه لا أن نفترضه، فكل رقم هنا لك أن تغيّره، ومعدل الإيقاف هو ما يجب مراقبته.",
   "acheckin.rate": "معدل الإيقاف",
-  "acheckin.rateBody": "{muted} من {reachable} ممن يمكن مراسلتهم أوقفوا هذه الرسائل. وفوق {halt} تتوقف القناة عن الإرسال للجميع، لأن الاستمرار عندها اختيار للخطأ مع الكل.",
+  "acheckin.rateBody": "{muted} من {reachable} ممن يمكن مراسلتهم أوقفوا هذه الرسائل. وفوق {halt} تتوقف القناة عن الإرسال للجميع.",
   "acheckin.halted": "القناة متوقفة. أوقفها عدد كافٍ من الناس فتوقفت من نفسها.",
   "acheckin.sent": "أُرسلت {count}",
   "acheckin.delivered": "وصلت {count}",
@@ -7645,6 +7648,9 @@ export const ar: Record<MessageKey, string> = {
   "apage.older": "الأقدم",
   // W2R refunds
   "arefund.errPot": "لم تُرَدّ حصة الشركة بعد.",
+  "arefund.errOverpaid": "أكثر مما دفعوه.",
+  "arefund.whyPot": "حصة الشركة",
+  "arefund.returnPot": "أعِدها إلى الرصيد",
 };
 
 export const DICTIONARIES = { en, ar } as const;

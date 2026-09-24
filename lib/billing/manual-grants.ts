@@ -78,13 +78,15 @@ export async function grantFor(payment: ManualPayment): Promise<void> {
 async function grantSession(payment: ManualPayment): Promise<void> {
   if (!payment.refId) throw new Error("A session payment with no session");
 
-  const updated = await db
-    .update(sessions)
-    .set({ paymentStatus: "paid" })
-    .where(and(eq(sessions.id, payment.refId), eq(sessions.paymentStatus, "pending")))
-    .returning({ id: sessions.id });
-
-  if (updated.length === 0) {
+  /*
+   * 🔴 W2-M03: `pending` alone was not the question. A refund sets a session
+   * back to `pending` and a cancelled one stays there, so a transfer confirmed
+   * after either marked a refunded or cancelled session paid and posted money
+   * against it. `claimSessionPaid` asks all three, and is the same claim the
+   * card share settles through.
+   */
+  const { claimSessionPaid } = await import("./session-owed");
+  if (!(await claimSessionPaid(payment.refId))) {
     /*
      * Not an error. Either it was already paid (a second run, which is fine) or
      * the session moved on while the transfer was being checked, which an
@@ -268,29 +270,15 @@ async function grantSession(payment: ManualPayment): Promise<void> {
           vatBps: Math.round((vatCents * 10_000) / Math.max(1, patientShareCents)),
         })
         .where(eq(sessionPayments.id, priorPayment.id));
-
-      const { journal } = await import("./ledger");
-      await journal({
-        kind: "session_payment",
-        refType: "session_payment",
-        refId: priorPayment.id,
-        legs: [
-          {
-            account: "cash",
-            amountCents: vatCents,
-            organizationId: row.organizationId,
-            memo: "VAT on the patient's share of a sponsored session",
-          },
-          {
-            /* Negative because a liability rises with a negative amount. */
-            account: "vat_payable",
-            amountCents: -vatCents,
-            organizationId: row.organizationId,
-            memo: "VAT collected from the patient, owed to the tax authority",
-          },
-        ],
-      });
     }
+
+    /*
+     * 🔴 W2-M01: the employee's leg, and their VAT, on our books now that the
+     * money is in our account. `payFromPot` books only the pot's leg; a row it
+     * booked whole before W2-M01 gets only the VAT (`bookEmployeeShare`).
+     */
+    const { bookEmployeeShare } = await import("./employee-share");
+    await bookEmployeeShare({ paymentId: priorPayment.id, capture: "platform", vatCents });
 
     log.info("manual session payment settled a sponsored session's patient share", {
       paymentId: payment.id,

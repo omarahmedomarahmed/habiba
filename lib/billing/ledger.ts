@@ -541,6 +541,93 @@ export async function postSessionRefund(payment: {
   });
 }
 
+/** An executor that can read the legs it is about to reverse, inside the caller's transaction. */
+export type LedgerReader = Pick<typeof db, "insert" | "select">;
+
+/**
+ * 🔴 W2-M01: what one payment's own postings hold, account by account.
+ *
+ * Every leg `postSessionPayment` and `postSessionRefund` write for a payment
+ * carries `ref_type = 'session_payment'` and its id. A pot row now books in up
+ * to three steps (the pot's leg at booking, a correction for a row booked whole
+ * before W2-M01, the employee's leg when it arrives), so "what is on the books
+ * for this session" is a sum, not a figure on the row.
+ */
+async function bookedLegs(paymentId: string, executor: LedgerReader = db) {
+  return executor
+    .select({
+      account: ledgerEntries.account,
+      organizationId: ledgerEntries.organizationId,
+      userId: ledgerEntries.userId,
+      entity: ledgerEntries.entity,
+      totalCents: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int`,
+    })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.refType, "session_payment"),
+        eq(ledgerEntries.refId, paymentId),
+        sql`${ledgerEntries.txnKind} IN ('session_payment', 'session_refund')`,
+      ),
+    )
+    .groupBy(
+      ledgerEntries.account,
+      ledgerEntries.organizationId,
+      ledgerEntries.userId,
+      ledgerEntries.entity,
+    );
+}
+
+export async function bookedFor(
+  paymentId: string,
+  executor?: LedgerReader,
+): Promise<Partial<Record<LedgerAccount, number>>> {
+  const out: Partial<Record<LedgerAccount, number>> = {};
+  for (const row of await bookedLegs(paymentId, executor)) {
+    out[row.account] = (out[row.account] ?? 0) + Number(row.totalCents);
+  }
+  return out;
+}
+
+/**
+ * 🔴 W2-M01: a pot-funded payment refunded, as exactly what its books hold, backwards.
+ *
+ * `postSessionRefund` reverses a figure computed from the row, which was right
+ * while one posting carried the whole session. A pot row's books are the pot's
+ * leg, maybe the employee's leg (by transfer on our books; by card only our fee,
+ * because the clinician was paid their part directly), and for a row booked
+ * whole before W2-M01 the correction. Negating what is there is right for all
+ * of them, balances because every posting it negates balanced, and posts
+ * nothing a second time because afterwards there is nothing there.
+ */
+export async function postReversalOf(input: {
+  paymentId: string;
+  txnId?: string;
+  executor?: LedgerReader;
+  createdBy?: string | null;
+}): Promise<void> {
+  const legs: Leg[] = (await bookedLegs(input.paymentId, input.executor))
+    .filter((row) => Number(row.totalCents) !== 0)
+    .map((row) => ({
+      account: row.account,
+      amountCents: -Number(row.totalCents),
+      organizationId: row.organizationId,
+      userId: row.userId,
+      entity: row.entity,
+      memo: "Reversed: the session was refunded",
+    }));
+
+  await journal({
+    kind: "session_refund",
+    refType: "session_payment",
+    refId: input.paymentId,
+    legs,
+    txnId: input.txnId,
+    executor: input.executor,
+    createdBy: input.createdBy ?? null,
+  });
+}
+
 /** 24Therapy billed a clinician. */
 export async function postInvoiceRaised(invoice: {
   id: string;

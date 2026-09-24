@@ -98,7 +98,7 @@ export async function alertPots(): Promise<{ alerted: number }> {
   for (const pot of pots) {
     if (await warnExpiry(pot)) alerted += 1;
 
-    const [last] = await topUpHistory(pot.sponsorId);
+    const [last] = await topUpHistory(pot.sponsorId, { includeCredits: true });
     const kind = potAlertFor(pot.balanceCents, last?.amountCents ?? 0);
     if (!kind) continue;
 

@@ -118,7 +118,11 @@ export async function reportSession(input: {
           adminUserId: filed.therapistId,
           why: "no_show",
         });
-        refundNote = refund.error ? `NOT refunded (${refund.error}), refund owed` : "refunded";
+        refundNote = refund.error
+          ? `NOT refunded (${refund.error}), refund owed`
+          : refund.queuedCents
+            ? "company share returned; the employee's share is on the refund queue"
+            : "refunded";
       } catch {
         /* Already refunded, or payments are not configured here. */
         refundNote = "NOT refunded, refund owed";

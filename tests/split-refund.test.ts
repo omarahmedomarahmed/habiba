@@ -3,7 +3,9 @@ import { test } from "node:test";
 
 import { readSource } from "../scripts/_verify";
 import {
+  fundingLegs,
   moneyEntryFigures,
+  refundCeilingCents,
   refundOwedCents,
   splitRefundPlan,
 } from "../lib/billing/split-refund";
@@ -118,4 +120,56 @@ test("W2-S12 a pot refund does not wait on Stripe being configured", () => {
     body.indexOf('fundingSource === "pot"') < body.indexOf("Payments are not configured"),
     "the pot branch comes before the Stripe check",
   );
+});
+
+/* ---------------------------------------------- W2-M01: the two funding legs -- */
+
+
+test("W2-M01 the fee is split by the shares and the two legs sum to the frozen fee", () => {
+  for (const [gross, bps, fee] of [
+    [10_000, 5_000, 1_500],
+    [2_000, 9_500, 300],
+    [3_333, 3_333, 499],
+    [100, 10_000, 15],
+  ] as const) {
+    const pot = Math.round((gross * bps) / 10_000);
+    const legs = fundingLegs({
+      grossCents: gross,
+      coverageBps: bps,
+      sponsorShareCents: pot,
+      patientShareCents: gross - pot,
+      platformFeeCents: fee,
+    });
+    assert.equal(legs.pot.feeCents + legs.employee.feeCents, fee);
+    assert.equal(legs.pot.grossCents + legs.employee.grossCents, gross);
+    assert.equal(legs.pot.feeCents + legs.pot.netCents, legs.pot.grossCents);
+    assert.equal(legs.employee.feeCents + legs.employee.netCents, legs.employee.grossCents);
+    assert.ok(legs.employee.feeCents <= legs.employee.grossCents);
+  }
+});
+
+test("W2-M01 at 95% cover the employee's charge carries only its own fee, never the whole", () => {
+  const legs = fundingLegs({
+    grossCents: 10_000,
+    coverageBps: 9_500,
+    sponsorShareCents: 9_500,
+    patientShareCents: 500,
+    platformFeeCents: 1_500,
+  });
+  assert.equal(legs.employee.feeCents, 75);
+  assert.ok(legs.employee.feeCents < legs.employee.grossCents);
+});
+
+test("W2-M06 a pot row's queue ceiling is what the employee paid, and nothing if they paid nothing", () => {
+  const row = {
+    grossCents: 10_000,
+    coverageBps: 5_000,
+    sponsorShareCents: 5_000,
+    patientShareCents: 5_000,
+    fundingSource: "pot" as const,
+    vatCents: 0,
+  };
+  assert.equal(refundCeilingCents({ ...row, reason: "no_show", employeePaid: true }), 5_000);
+  assert.equal(refundCeilingCents({ ...row, reason: "no_show", employeePaid: false }), 0);
+  assert.equal(refundCeilingCents({ ...row, reason: "pot_share", employeePaid: false }), 5_000);
 });

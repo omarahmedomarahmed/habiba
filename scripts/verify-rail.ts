@@ -122,8 +122,11 @@ async function main() {
    */
   check(
     "🔴 a confirmed session payment flips the same column the join gate reads",
-    /paymentStatus: "paid"/.test(grants) &&
-      /eq\(sessions\.paymentStatus, "pending"\)/.test(grants),
+    // W2-M03: the flip is the shared claim both rails use, `claimSessionPaid`.
+    ((/paymentStatus: "paid"/.test(grants) && /eq\(sessions\.paymentStatus, "pending"\)/.test(grants)) ||
+      (/claimSessionPaid\(/.test(grants) &&
+        /paymentStatus: "paid"/.test(readSource("lib/billing/session-owed.ts")) &&
+        /eq\(sessions\.paymentStatus, "pending"\)/.test(readSource("lib/billing/session-owed.ts")))),
     "no second flag, so there is nothing for it to disagree with",
   );
 

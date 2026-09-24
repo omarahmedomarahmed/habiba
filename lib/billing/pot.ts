@@ -21,7 +21,7 @@ import { coverageNow, coverageSplit, vatOn } from "@/lib/settings/defs";
 
 import { journal } from "./ledger";
 import { crossingFor, payoutRailFor } from "./money";
-import { moneyEntryFigures, sharesOf } from "./split-refund";
+import { fundingLegs, moneyEntryFigures, sharesOf } from "./split-refund";
 
 /**
  * The corporate pot. PLAN.md 53.10 to 53.16, 53.21, C226, C232, C239, C244.
@@ -725,13 +725,28 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     ],
   });
 
+  /*
+   * 🔴 W2-M01: THE POT'S LEG ONLY. The fee and the net are computed once, on
+   * the full price, and stored on the row (C313); what is BOOKED now is the part
+   * of them the pot's money pays for. The employee's part is booked when their
+   * money arrives (`bookEmployeeShare`), by card or by transfer. Booking the
+   * whole price here put their share in our cash, and its net in the
+   * clinician's held earnings, before anybody had paid it.
+   */
+  const { pot: potLeg } = fundingLegs({
+    grossCents: gross,
+    coverageBps,
+    sponsorShareCents: sponsorShare,
+    patientShareCents: gross - sponsorShare,
+    platformFeeCents: money.platformCutCents,
+  });
   const { postSessionPayment } = await import("./ledger");
   await postSessionPayment({
     id: payment.id,
     organizationId: row.organizationId,
     therapistId: row.therapistId,
     capture: "platform",
-    grossCents: gross,
+    grossCents: potLeg.grossCents,
     /*
      * 🔴 ZERO, and C241 is the reason rather than an oversight. VAT is charged
      * on the TOP-UP, in the entity that holds the pot, and a pot-funded
@@ -740,9 +755,9 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
      * charge the employer twice.
      */
     vatCents: 0,
-    platformFeeCents: money.platformCutCents,
+    platformFeeCents: potLeg.feeCents,
     settledInvoiceCents: 0,
-    therapistNetCents: money.therapistNetCents,
+    therapistNetCents: potLeg.netCents,
     /*
      * 🔴 W2-S12: THE SAME txn, which the comment above always said and the call
      * never did. Without it `refundToPot` could not find the pot a session was

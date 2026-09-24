@@ -16,7 +16,9 @@ import { getSettings } from "@/lib/settings";
 
 import { fourEyesProblem } from "./four-eyes";
 import {
+  POT_SHARE_REFUND,
   refundOwedCents,
+  sharesOf,
   splitRefundPlan,
   type EmployeeHalf,
   type FrozenSplit,
@@ -119,10 +121,17 @@ export async function openRefundRequest(input: {
    * so an operator would have sent an employee the company's money too, or
    * refunded a share nobody paid. The company's share goes back to its pot.
    */
+  /*
+   * 🔴 W2-M05: a `pot_share` row is the COMPANY's share, opened when its return
+   * to the pot failed. It pays nobody: `returnPotShare` retries the return and
+   * then finishes the refund, so the money cannot sit in a log line.
+   */
   const amountCents =
-    payment.fundingSource === "pot"
-      ? (await employeeHalfOf(payment)).cents
-      : refundOwedCents(payment);
+    input.reason === POT_SHARE_REFUND
+      ? sharesOf({ ...payment, coverageBps: payment.coverageBps ?? 0 }).potCents
+      : payment.fundingSource === "pot"
+        ? (await employeeHalfOf(payment)).cents
+        : refundOwedCents(payment);
   if (amountCents <= 0) return { error: "arefund.errPaid" };
 
   const [row] = await db
@@ -155,6 +164,72 @@ export async function openRefundRequest(input: {
     )
     .limit(1);
   return live ? { ok: true, id: live.id } : { error: "arefund.errMoved" };
+}
+
+/**
+ * 🔴 W2-M05: the company's share, back in its pot, from the queue.
+ *
+ * Opened when `refundToPot` failed during a refund, which used to leave the
+ * money in a log line. No money leaves us, so there is no receipt: the proof is
+ * the pot credit itself. The row closes first, then the rest of the refund runs
+ * again (`refundToPot` is once-only, so it returns nothing twice) and settles
+ * the employee's half by its own rail.
+ */
+export async function returnPotShare(input: {
+  requestId: string;
+  actorUserId: string;
+}): Promise<Result> {
+  const [row] = await db
+    .select()
+    .from(refundRequests)
+    .where(eq(refundRequests.id, input.requestId))
+    .limit(1);
+  if (!row || row.status !== "owed" || row.reason !== POT_SHARE_REFUND) {
+    return { error: "arefund.errMoved" };
+  }
+  if (row.requestedByUserId === input.actorUserId) return { error: "arefund.errTwo" };
+
+  const { refundToPot } = await import("./pot");
+  const pot = await refundToPot({
+    paymentId: row.sessionPaymentId,
+    reason: "Company share returned from the refund queue",
+  });
+  if (pot.error) {
+    log.error("company share still not returned", { payment: ref(row.sessionPaymentId), reason: pot.error });
+    return { error: "arefund.errPot" };
+  }
+
+  const now = new Date();
+  const moved = await db
+    .update(refundRequests)
+    .set({
+      status: "confirmed",
+      sentByUserId: input.actorUserId,
+      sentAt: now,
+      confirmedAt: now,
+      proofUrl: `pot:${row.sessionPaymentId}`,
+      ledgerTxnId: crypto.randomUUID(),
+      payeeMethod: "pot",
+      updatedAt: now,
+    })
+    .where(and(eq(refundRequests.id, row.id), eq(refundRequests.status, "owed")))
+    .returning({ id: refundRequests.id });
+  if (moved.length === 0) return { error: "arefund.errMoved" };
+
+  const { refundSessionPayment } = await import("./connect");
+  const rest = await refundSessionPayment({
+    paymentId: row.sessionPaymentId,
+    reason: "Company share returned; finishing the refund",
+    adminUserId: input.actorUserId,
+    why: "admin",
+  });
+  if (rest.error) {
+    log.error("company share returned, the rest of the refund did not finish", {
+      payment: ref(row.sessionPaymentId),
+      reason: rest.error,
+    });
+  }
+  return { ok: true };
 }
 
 /** A named owner. Above the two-person threshold, the sender must be somebody else. */
@@ -193,6 +268,8 @@ export async function markRefundSent(input: {
     .where(eq(refundRequests.id, input.requestId))
     .limit(1);
   if (!row || row.status !== "owed") return { error: "arefund.errMoved" };
+  /* W2-M05: the company's share goes back to its pot (`returnPotShare`), never by transfer. */
+  if (row.reason === POT_SHARE_REFUND) return { error: "arefund.errMoved" };
 
   /*
    * W2-A01 / D9: the payout queue's rule, asked of the same function. The
@@ -220,10 +297,35 @@ export async function markRefundSent(input: {
    * it; `refundToPot` returns a share at most once.
    */
   const [held] = await db
-    .select({ fundingSource: sessionPayments.fundingSource, status: sessionPayments.status })
+    .select()
     .from(sessionPayments)
     .where(eq(sessionPayments.id, row.sessionPaymentId))
     .limit(1);
+
+  /*
+   * 🔴 W2-M06: never more than the payer paid. Rows queued for a pot payment
+   * before W2-S12 carry the whole price plus VAT, which would send an employee
+   * the company's money too, and this is the step where money leaves. The
+   * ceiling is asked of the same arithmetic that opens a row today.
+   */
+  if (held) {
+    const ceiling =
+      held.fundingSource === "pot"
+        ? (await employeeHalfOf({
+            ...held,
+            coverageBps: held.coverageBps ?? 0,
+          })).cents
+        : refundOwedCents({ ...held, coverageBps: held.coverageBps ?? 0 });
+    if (row.amountCents > ceiling) {
+      log.error("refund not sent: the queued amount is more than the payer paid", {
+        request: ref(row.id),
+        queued: row.amountCents,
+        ceiling,
+      });
+      return { error: "arefund.errOverpaid" };
+    }
+  }
+
   if (held?.fundingSource === "pot" && held.status === "paid") {
     const { refundToPot } = await import("./pot");
     const pot = await refundToPot({ paymentId: row.sessionPaymentId, reason: row.reason });
@@ -272,21 +374,31 @@ export async function markRefundSent(input: {
       // Refunded some other way already: nothing here may post a second reversal.
       if (!payment) throw new PaymentNotHeld();
 
-      const { postSessionRefund } = await import("./ledger");
-      await postSessionRefund({
-        id: payment.id,
-        organizationId: payment.organizationId,
-        therapistId: payment.therapistId,
-        capture: payment.capture,
-        grossCents: payment.grossCents,
-        vatCents: payment.vatCents,
-        platformFeeCents: payment.platformFeeCents,
-        settledInvoiceCents: payment.settledInvoiceCents,
-        therapistNetCents: payment.therapistNetCents,
-        txnId,
-        executor: tx,
-        createdBy: input.senderUserId,
-      });
+      const { postReversalOf, postSessionRefund } = await import("./ledger");
+      if (payment.fundingSource === "pot") {
+        /* W2-M01: a pot row's books are its legs, not one posting of the price. */
+        await postReversalOf({
+          paymentId: payment.id,
+          txnId,
+          executor: tx,
+          createdBy: input.senderUserId,
+        });
+      } else {
+        await postSessionRefund({
+          id: payment.id,
+          organizationId: payment.organizationId,
+          therapistId: payment.therapistId,
+          capture: payment.capture,
+          grossCents: payment.grossCents,
+          vatCents: payment.vatCents,
+          platformFeeCents: payment.platformFeeCents,
+          settledInvoiceCents: payment.settledInvoiceCents,
+          therapistNetCents: payment.therapistNetCents,
+          txnId,
+          executor: tx,
+          createdBy: input.senderUserId,
+        });
+      }
 
       // The same two session writes the card path makes, now true here too.
       await tx

@@ -136,7 +136,10 @@ export default async function PayoutsPage() {
             currency: row.currency,
             payeeName: row.payeeName,
             status: row.status,
-            why: row.reason === "no_show" || row.reason === "clinician_cancel" ? row.reason : "other",
+            why:
+              row.reason === "no_show" || row.reason === "clinician_cancel" || row.reason === "pot_share"
+                ? row.reason
+                : "other",
             owned: row.owned,
             needsTwoPeople: row.needsTwoPeople,
             openedLabel: formatDate(row.createdAt, actor.timezone, "en"),

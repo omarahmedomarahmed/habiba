@@ -473,6 +473,8 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
    * the company its money back and returned none of theirs: that is a
    * cancellation, and "you have been refunded" would be untrue.
    */
+  /* W2-M04: their transfer-paid share is on the refund queue, which is owed, not sent. */
+  if (result.queuedCents) return { ok: true, outcome: "refund_owed" };
   const outcome = result.toPayerCents === 0 ? "cancelled" : "refunded";
   await db
     .update(sessions)

@@ -900,8 +900,10 @@ async function splitRefunds(db: Db) {
     );
     check(
       "W2-S12 …the employee's 50 is on the refund queue, and the payment is NOT called refunded while we hold it",
-      Boolean(r3.error) &&
-        Boolean(again3.error) &&
+      // W2-M04: queuing their share is the refund's success for now, not an error.
+      Boolean(r3.ok) &&
+        r3.queuedCents === 5_000 &&
+        Boolean(again3.ok) &&
         queued.length === 1 &&
         Number(queued[0]!.amount_cents) === 5_000 &&
         queued[0]!.status === "owed" &&
@@ -993,6 +995,272 @@ async function splitRefunds(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-M · the employee's share, booked when it arrives, and the gaps  */
+/* ================================================================== */
+
+/*
+ * The pot books its own leg at booking and the employee's leg is booked when
+ * their money arrives (W2-M01). Card is settled here without Stripe: the
+ * checkout is written onto the pot row and settled by id, which is exactly
+ * what the webhook and the redirect do. Each case checks the books move by the
+ * leg and nothing else, and that a reversal puts every account back.
+ */
+async function moneyGaps(db: Db) {
+  const world = await plantWorld(db, "gaps");
+  const sessionIds: string[] = [];
+  try {
+    const { payFromPot } = await import("../lib/billing/pot");
+    const { recordCoveredCheckout, settleSessionPayment, refundSessionPayment } = await import(
+      "../lib/billing/connect"
+    );
+    const { patientOwesFor } = await import("../lib/billing/session-owed");
+    const { fundingLegs } = await import("../lib/billing/split-refund");
+    const { postReversalOf } = await import("../lib/billing/ledger");
+
+    const balance = async () =>
+      Number(
+        (
+          (await db.execute(sql`SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${world.sponsorId}`))
+            .rows[0] as { balance_cents: number }
+        ).balance_cents,
+      );
+    const books = async () => {
+      const rows = (
+        await db.execute(sql`
+          SELECT account, COALESCE(SUM(amount_cents), 0)::int AS total FROM ledger_entries
+           WHERE organization_id = ${world.orgId}
+              OR (ref_type = 'sponsor' AND ref_id = ${world.sponsorId})
+           GROUP BY account`)
+      ).rows as { account: string; total: number }[];
+      return Object.fromEntries(rows.map((row) => [row.account, Number(row.total)])) as Record<string, number>;
+    };
+    const moved = (before: Record<string, number>, after: Record<string, number>) =>
+      Object.fromEntries(
+        Object.entries(after)
+          .map(([account, total]) => [account, total - (before[account] ?? 0)] as const)
+          .filter(([, delta]) => delta !== 0),
+      );
+    const unbalanced = async () =>
+      (
+        await db.execute(sql`
+          SELECT txn_id FROM ledger_entries
+           WHERE organization_id = ${world.orgId} OR (ref_type = 'sponsor' AND ref_id = ${world.sponsorId})
+           GROUP BY txn_id HAVING SUM(amount_cents) <> 0`)
+      ).rows.length;
+    const payment = async (sessionId: string) =>
+      (
+        await db.execute(sql`
+          SELECT sp.*, s.payment_status AS session_status FROM session_payments sp
+            JOIN sessions s ON s.id = sp.session_id WHERE sp.session_id = ${sessionId}`)
+      ).rows[0] as Record<string, unknown>;
+    const cover = (bps: number) =>
+      db.execute(sql`UPDATE sponsor_pots SET coverage_bps = ${bps} WHERE sponsor_id = ${world.sponsorId}`);
+
+    /* M01. Half covered: the pot's leg alone is booked at booking. */
+    await cover(5_000);
+    const nadia = await world.cast("Nadia", 10_000);
+    sessionIds.push(nadia.sessionId);
+    const before = await books();
+    await payFromPot(nadia.sessionId);
+    const row = await payment(nadia.sessionId);
+    const legs = fundingLegs({
+      grossCents: 10_000,
+      coverageBps: 5_000,
+      sponsorShareCents: Number(row.sponsor_share_cents),
+      patientShareCents: Number(row.patient_share_cents),
+      platformFeeCents: Number(row.platform_fee_cents),
+    });
+    const atBooking = moved(before, await books());
+    check(
+      "🔴 W2-M01 a half covered session books the pot's leg at booking, not the employee's unpaid half",
+      (atBooking.therapist_payable ?? 0) === -legs.pot.netCents &&
+        (atBooking.platform_revenue ?? 0) === -legs.pot.feeCents &&
+        legs.pot.feeCents + legs.employee.feeCents === Number(row.platform_fee_cents),
+      JSON.stringify({ atBooking, legs }),
+    );
+
+    /* M01. Their share by card: the checkout is recorded on the pot row and settles once. */
+    const checkoutId = `cs_test_${fixture}_nadia`;
+    const recorded = await recordCoveredCheckout({
+      sessionId: nadia.sessionId,
+      checkoutId,
+      payerName: "Nadia Example",
+      payerEmail: "nadia@example.com",
+      vatCents: 0,
+      vatBps: 0,
+      payerCountry: "US",
+      presentedCents: 5_000,
+      presentedCurrency: "usd",
+      fxRateMicro: 1_000_000,
+      fxQuotedAt: new Date(),
+    });
+    const beforeCard = await books();
+    await settleSessionPayment({ id: checkoutId, paymentIntentId: `pi_test_${fixture}_nadia`, capture: "destination" });
+    await settleSessionPayment({ id: checkoutId, paymentIntentId: `pi_test_${fixture}_nadia`, capture: "destination" });
+    const card = moved(beforeCard, await books());
+    const paidRow = await payment(nadia.sessionId);
+    check(
+      "🔴 W2-M01 the employee's card share is recorded on the pot row, and the session is paid",
+      recorded && paidRow.session_status === "paid" && paidRow.stripe_payment_intent_id === `pi_test_${fixture}_nadia`,
+      JSON.stringify({ recorded, session: paidRow.session_status }),
+    );
+    check(
+      "🔴 W2-M01 …it books our fee on THEIR share alone, once, and nothing held for the clinician (Stripe paid them)",
+      (card.platform_revenue ?? 0) === -legs.employee.feeCents &&
+        (card.cash ?? 0) === legs.employee.feeCents &&
+        (card.therapist_payable ?? 0) === 0 &&
+        (await unbalanced()) === 0,
+      JSON.stringify({ card, employeeFee: legs.employee.feeCents }),
+    );
+    const again = await recordCoveredCheckout({
+      sessionId: nadia.sessionId,
+      checkoutId: `${checkoutId}_2`,
+      payerName: "Nadia Example",
+      payerEmail: null,
+      vatCents: 0,
+      vatBps: 0,
+      payerCountry: "US",
+      presentedCents: 5_000,
+      presentedCurrency: "usd",
+      fxRateMicro: 1_000_000,
+      fxQuotedAt: new Date(),
+    });
+    check("W2-M01 …and a paid share cannot be checked out again", again === false, String(again));
+    await postReversalOf({ paymentId: String(paidRow.id) });
+    await db.execute(sql`UPDATE session_payments SET status = 'refunded' WHERE id = ${String(paidRow.id)}`);
+    check(
+      "W2-M01 a reversal of everything booked for the payment puts every account back",
+      Object.keys(moved(before, await books())).filter((a) => a !== "sponsor_pot" && a !== "cash").length === 0 &&
+        (await unbalanced()) === 0,
+      JSON.stringify(moved(before, await books())),
+    );
+
+    /* M02. An abandoned card checkout on an uncovered session still owes the price. */
+    await cover(0);
+    const tarek = await world.book((await world.cast("Tarek", 10_000)).patientId, 3_000);
+    sessionIds.push(tarek);
+    await db.execute(sql`
+      INSERT INTO session_payments (organization_id, therapist_id, session_id, gross_cents, currency,
+                                    platform_fee_cents, therapist_net_cents, capture, status,
+                                    stripe_checkout_session_id)
+      VALUES (${world.orgId}, ${world.therapistId}, ${tarek}, 3000, 'usd', 450, 2550, 'destination',
+              'pending', ${`cs_test_${fixture}_tarek`})`);
+    const owes = await patientOwesFor(tarek);
+    check(
+      "W2-M02 a patient who closed the card page still owes the price, not zero",
+      owes.grossCents === 3_000,
+      JSON.stringify(owes),
+    );
+
+    /* M03. A transfer confirmed after the session was refunded buys nothing. */
+    await cover(5_000);
+    const sara = await world.cast("Sara", 10_000);
+    sessionIds.push(sara.sessionId);
+    await payFromPot(sara.sessionId);
+    const saraRow = await payment(sara.sessionId);
+    await refundSessionPayment({ paymentId: String(saraRow.id), reason: "W2-M03 first", adminUserId: null });
+    const beforeLate = await books();
+    const [late] = (
+      await db.execute(sql`
+        INSERT INTO manual_payments (purpose, ref_id, amount_cents, currency, settles_cents,
+                                     payer_kind, organization_id, state, decided_at)
+        VALUES ('session', ${sara.sessionId}, 5000, 'USD', 5000, 'session', ${world.orgId}, 'confirmed', now())
+        RETURNING *`)
+    ).rows as Record<string, unknown>[];
+    const { grantFor } = await import("../lib/billing/manual-grants");
+    await grantFor({
+      ...(late as object),
+      refId: sara.sessionId,
+      purpose: "session",
+      settlesCents: 5000,
+      decidedAt: new Date(),
+      id: String(late!.id),
+    } as Parameters<typeof grantFor>[0]);
+    const lateRow = await payment(sara.sessionId);
+    const flagged = (
+      await db.execute(sql`SELECT exception FROM manual_payments WHERE id = ${String(late!.id)}`)
+    ).rows[0] as { exception: string | null };
+    check(
+      "🔴 W2-M03 a transfer confirmed after the refund leaves the session unpaid, posts nothing, and asks a person",
+      lateRow.session_status !== "paid" &&
+        Object.keys(moved(beforeLate, await books())).length === 0 &&
+        flagged.exception === "not_payable",
+      JSON.stringify({ session: lateRow.session_status, flagged, moved: moved(beforeLate, await books()) }),
+    );
+
+    /* M05. The company's share on the queue, returned by a person, finishes the refund. */
+    const karim = await world.cast("Karim", 10_000);
+    sessionIds.push(karim.sessionId);
+    const start = await balance();
+    const beforeKarim = await books();
+    await payFromPot(karim.sessionId);
+    const karimRow = await payment(karim.sessionId);
+    const { openRefundRequest, returnPotShare, markRefundSent } = await import("../lib/billing/refunds");
+    const opened = await openRefundRequest({
+      sessionPaymentId: String(karimRow.id),
+      requestedByUserId: null,
+      reason: "pot_share",
+    });
+    const viaBank = await markRefundSent({
+      requestId: opened.id ?? "",
+      senderUserId: world.therapistId,
+      proofUrl: "https://example.com/proof",
+      method: "bank",
+      identifier: "EG00 0000",
+      accountName: "Nobody Example",
+    });
+    const returned = await returnPotShare({ requestId: opened.id ?? "", actorUserId: world.therapistId });
+    const karimAfter = await payment(karim.sessionId);
+    check(
+      "🔴 W2-M05 the company's share is a queue row a person returns to the pot, never a bank transfer, and the refund finishes",
+      Boolean(opened.ok) &&
+        viaBank.error === "arefund.errMoved" &&
+        Boolean(returned.ok) &&
+        (await balance()) === start &&
+        karimAfter.status === "refunded" &&
+        Object.keys(moved(beforeKarim, await books())).length === 0 &&
+        (await unbalanced()) === 0,
+      JSON.stringify({ opened, viaBank, returned, status: karimAfter.status, moved: moved(beforeKarim, await books()) }),
+    );
+
+    /* M06. A queue row from before W2-S12, for the whole price, cannot overpay. */
+    const layla = await world.cast("Layla", 10_000);
+    sessionIds.push(layla.sessionId);
+    await payFromPot(layla.sessionId);
+    const laylaRow = await payment(layla.sessionId);
+    const [stale] = (
+      await db.execute(sql`
+        INSERT INTO refund_requests (session_payment_id, organization_id, amount_cents, currency, reason)
+        VALUES (${String(laylaRow.id)}, ${world.orgId}, 10000, 'usd', 'no_show') RETURNING id`)
+    ).rows as { id: string }[];
+    const over = await markRefundSent({
+      requestId: stale!.id,
+      senderUserId: world.therapistId,
+      proofUrl: "https://example.com/proof",
+      method: "bank",
+      identifier: "EG00 0000",
+      accountName: "Layla Example",
+    });
+    const laylaAfter = await payment(layla.sessionId);
+    check(
+      "🔴 W2-M06 a stale queue row asking for the whole price is refused before any money leaves",
+      over.error === "arefund.errOverpaid" && laylaAfter.status === "paid",
+      JSON.stringify({ over, status: laylaAfter.status }),
+    );
+  } finally {
+    for (const id of sessionIds) {
+      await db.execute(sql`DELETE FROM refund_requests WHERE session_payment_id IN
+        (SELECT id FROM session_payments WHERE session_id = ${id})`);
+      await db.execute(sql`DELETE FROM manual_payments WHERE ref_id = ${id}`);
+    }
+    await db.execute(sql`DELETE FROM sponsor_money_entries WHERE sponsor_id = ${world.sponsorId}`).catch(
+      () => undefined,
+    );
+    await world.drop();
+  }
+}
+
 async function main() {
   writesTo();
 
@@ -1006,6 +1274,7 @@ async function main() {
     await pauseResume(db);
     await moneyLedger(db);
     await splitRefunds(db);
+    await moneyGaps(db);
   } finally {
     await pool.end();
   }
