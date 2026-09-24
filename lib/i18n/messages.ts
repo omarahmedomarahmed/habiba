@@ -1076,7 +1076,7 @@ export const en = {
   "room.whereSummary": "Where shall we send your summary?",
   "room.emailPlaceholder": "you@example.com",
   "room.sentToUs": "Sent to 24Therapy",
-  "room.sentToUsBody": "Someone will read this today. It did not go to your therapist.",
+  "room.sentToUsBody": "Someone will read this today.",
   "room.tellUsTitle": "Tell us what is happening",
   "room.tellUsBody": "This goes straight to 24Therapy. Your therapist does not see it.",
   "room.tellUsPlaceholder": "What is happening right now.",
@@ -3928,6 +3928,7 @@ export const en = {
   "prating.noShowIntro": "We refund you if the record shows they never joined.",
   "prating.noShowRefunded": "Refunded. It reaches your card in a few days.",
   "prating.noShowReview": "We cannot confirm it yet. A person checks before any refund.",
+  "room.notSent": "Not sent. Please try again.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -4747,7 +4748,7 @@ export const ar: Record<MessageKey, string> = {
   "room.whereSummary": "إلى أين نرسل ملخصك؟",
   "room.emailPlaceholder": "you@example.com",
   "room.sentToUs": "أُرسلت إلى 24Therapy",
-  "room.sentToUsBody": "سيقرأها أحدنا اليوم. ولم تصل إلى معالجك.",
+  "room.sentToUsBody": "سيقرأها أحدنا اليوم.",
   "room.tellUsTitle": "أخبرنا بما يحدث",
   "room.tellUsBody": "هذا يصل إلى 24Therapy مباشرة. ولا يراه معالجك.",
   "room.tellUsPlaceholder": "ما الذي يحدث الآن.",
@@ -7090,6 +7091,7 @@ export const ar: Record<MessageKey, string> = {
   "prating.noShowIntro": "نرد لك المبلغ إن أظهر السجل أنه لم ينضم.",
   "prating.noShowRefunded": "تم رد المبلغ. يصل إلى بطاقتك خلال أيام.",
   "prating.noShowReview": "لا يمكننا تأكيد ذلك بعد. يراجعه شخص قبل أي استرداد.",
+  "room.notSent": "لم تُرسل. حاول مرة أخرى من فضلك.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

@@ -14,9 +14,8 @@ import {
   Star,
 } from "lucide-react";
 
-import { rateOnArrival, setSessionMinimised, stopRecording } from "@/app/join/[token]/actions";
+import { rateOnArrival, reportFromRoom, setSessionMinimised, stopRecording } from "@/app/join/[token]/actions";
 import { ConsentControls } from "@/components/join/consent-controls";
-import { reportSession } from "@/app/feedback/[token]/actions";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn, initials } from "@/lib/utils";
@@ -685,6 +684,7 @@ function TroubleBox({ token }: { token: string }) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState("");
   const [sent, setSent] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (sent) {
@@ -723,6 +723,11 @@ function TroubleBox({ token }: { token: string }) {
         onChange={(event) => setDetail(event.target.value)}
         placeholder={t("room.tellUsPlaceholder")}
       />
+      {failed ? (
+        <p role="alert" className="text-xs text-red-700">
+          {t("room.notSent")}
+        </p>
+      ) : null}
       <div className="flex gap-2">
         <Button
           size="sm"
@@ -730,8 +735,15 @@ function TroubleBox({ token }: { token: string }) {
           disabled={pending || detail.trim().length < 10}
           onClick={() =>
             startTransition(async () => {
-              await reportSession({ token, kind: "abuse", detail, email: "" });
-              setSent(true);
+              /*
+               * 🔴 W1-11 — "Sent" only when it was. This used to ignore the
+               * result and say "Sent to 24Therapy" over a refusal.
+               */
+              const result = await reportFromRoom({ token, detail }).catch(() => ({
+                ok: false,
+              }));
+              setFailed(!result.ok);
+              if (result.ok) setSent(true);
             })
           }
         >

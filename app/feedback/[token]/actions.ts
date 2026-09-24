@@ -71,7 +71,14 @@ export async function reportSession(input: {
     "@/lib/data/feedback"
   );
 
-  const filed = await fileReport(input);
+  // Field by field: a caller cannot pick which link its token is checked against.
+  const filed = await fileReport({
+    token: input.token,
+    kind: input.kind,
+    detail: input.detail,
+    email: input.email,
+    via: "feedback",
+  });
   if (filed.error) return { error: filed.error };
 
   if (input.kind === "no_show" && filed.sessionId && filed.therapistId) {

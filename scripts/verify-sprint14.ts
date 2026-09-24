@@ -496,6 +496,45 @@ async function main() {
       JSON.stringify(claim),
     );
 
+    /*
+     * 🔴 W1-11 — THE ROOM'S "SOMETHING IS WRONG" BOX STORED NOTHING.
+     *
+     * It passed the JOIN token to an action that looks up the FEEDBACK token,
+     * ignored the refusal, and told the patient "Sent to 24Therapy". The room
+     * now has its own action; this plants a live session, reports from it by
+     * its join link, and reads the queue.
+     */
+    const roomToken = `verify14-room-${Date.now()}`;
+    const live = await plantOverdue(roomToken);
+    const joinActions = (await import("../app/join/[token]/actions")) as Record<string, unknown>;
+    const reportFromRoom = joinActions.reportFromRoom as
+      | ((input: { token: string; detail: string }) => Promise<{ ok?: boolean; error?: string }>)
+      | undefined;
+    const fromRoom = reportFromRoom
+      ? await reportFromRoom({ token: roomToken, detail: "verify14 the clinician said something wrong" })
+      : { error: "no reportFromRoom action" };
+    await releaseHold(await callerKey("report"));
+    const [stored] = await db
+      .select({ status: sessionReports.status, detail: sessionReports.detail })
+      .from(sessionReports)
+      .where(eq(sessionReports.sessionId, live.id))
+      .limit(1);
+    check(
+      "🔴 W1-11 a report from inside the room, by its join link, lands in the report queue",
+      Boolean(fromRoom.ok) && stored?.status === "open" && Boolean(stored?.detail?.includes("verify14")),
+      JSON.stringify(fromRoom),
+    );
+    const bogus = reportFromRoom
+      ? await reportFromRoom({ token: `${roomToken}-nope`, detail: "verify14 a report with a dead link" })
+      : { error: "no reportFromRoom action" };
+    await releaseHold(await callerKey("report"));
+    check("W1-11 …and a dead link comes back as an error, not as sent", Boolean(bogus.error) && !bogus.ok);
+    const room = readSource("components/join/patient-room.tsx");
+    check(
+      "🔴 W1-11 the room calls its own action and reads the result",
+      room.includes("reportFromRoom(") && !/reportSession\(/.test(room),
+    );
+
     /* ------------------------------------------------------ 14.7 the score */
 
     const score = await reliabilityFor(absent!.id);

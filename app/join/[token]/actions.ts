@@ -5,7 +5,7 @@ import { callerKey, consume } from "@/lib/rate-limit";
 import { capSeconds, type ClockStage } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
 import { createMeetingToken, roomUrlWithToken } from "@/lib/video";
-import { log } from "@/lib/logger";
+import { log, ref } from "@/lib/logger";
 
 /** Generous for a real patient; a hard ceiling on automated abuse. */
 const JOINS_PER_WINDOW = 10;
@@ -860,5 +860,35 @@ export async function setSessionMinimised(
     .set({ patientMinimisedAt: minimised ? new Date() : null })
     .where(and(eq(sessions.id, session.id), eq(sessions.status, "in_progress")));
 
+  return { ok: true };
+}
+
+/**
+ * 🔴 W1-11 — "Something is wrong, tell 24Therapy", from inside the room.
+ *
+ * The box used to call the feedback page's `reportSession` with the JOIN
+ * token, which looks up the feedback token, so every report was refused and
+ * the screen said "Sent to 24Therapy" anyway. This resolves the session by the
+ * link the patient is actually holding and files into the same report queue
+ * an operator reads. The caller shows whatever comes back, error included.
+ */
+export async function reportFromRoom(input: {
+  token: string;
+  detail: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const attempt = await consume(await callerKey("report"), 10, 600);
+  if (!attempt.allowed) return { error: "Too many reports from this connection." };
+
+  const { fileReport } = await import("@/lib/data/feedback");
+  const filed = await fileReport({
+    token: String(input.token ?? ""),
+    kind: "abuse",
+    detail: String(input.detail ?? ""),
+    email: "",
+    via: "join",
+  });
+  if (filed.error) return { error: filed.error };
+
+  log.info("report filed from the room", { session: ref(filed.sessionId) });
   return { ok: true };
 }
