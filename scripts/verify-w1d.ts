@@ -19,7 +19,7 @@ const fixture = `w1d-${Date.now().toString(36)}`;
 
 /** The body of one exported function, comments already stripped. */
 function bodyOf(source: string, name: string): string {
-  const start = source.search(new RegExp(`export (async )?function ${name}\\b`));
+  const start = source.search(new RegExp(`(export )?(async )?function ${name}\\b`));
   if (start === -1) return "";
   const end = source.indexOf("\n}\n", start);
   return end === -1 ? source.slice(start) : source.slice(start, end);
@@ -392,6 +392,105 @@ async function csvFormulas(db: ReturnType<typeof connect>["db"]) {
   );
 }
 
+/* ================================================================== */
+/*  W1-20 · one pot alert per period, from the daily job, never "when" */
+/* ================================================================== */
+
+async function potAlerts(db: ReturnType<typeof connect>["db"]) {
+  const pot = readSource("lib/billing/pot.ts");
+  const cron = readSource("app/api/cron/[job]/route.ts");
+
+  check(
+    "W1-20 a booking that hits an empty pot sends nothing, so no email marks the moment",
+    !/alertSponsorPotEmpty|pot-alerts/.test(bodyOf(pot, "payFromPot")),
+    "payFromPot",
+  );
+  check(
+    "W1-20 the daily billing job sends the pot alerts",
+    /alertPots\(\)/.test(cron),
+    "app/api/cron/[job]/route.ts",
+  );
+
+  const alerts = (await import("../lib/billing/pot-alerts")) as Record<string, unknown>;
+  const alertPots = alerts.alertPots as (() => Promise<{ alerted: number }>) | undefined;
+  const words = bodyOf(readSource("lib/billing/pot-alerts.ts"), "potAlertMessage");
+  if (!alertPots || !words) {
+    check("W1-20 at most one alert per pot per period, and a low-balance warning first", false, "no daily sweep exists");
+    return;
+  }
+
+  check(
+    "W1-20 the alert carries no time of day and names nobody but the company",
+    !/\d{1,2}:\d{2}|today|this morning|just now|someone|somebody|\$\{(?!sponsorName)/i.test(words),
+    "potAlertMessage interpolates the company name and nothing else",
+  );
+
+  const started = new Date();
+  const name = `W1D Pot ${fixture}`;
+  const [sp] = (
+    await db.execute(sql`
+      INSERT INTO sponsors (name, kind, entity, currency, state)
+      VALUES (${name}, 'company', 'us', 'USD', 'active') RETURNING id`)
+  ).rows as { id: string }[];
+  const sponsorId = required(sp, "a sponsor").id;
+  await db.execute(sql`
+    INSERT INTO sponsor_users (sponsor_id, email, role)
+    VALUES (${sponsorId}, ${`hr-${fixture}@example.com`}, 'admin')`);
+
+  try {
+    const { openPot } = await import("../lib/data/sponsor-admin");
+    await openPot({
+      sponsorId,
+      refundPolicy: "Unused balance is refunded within 30 days of written notice.",
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      overdraftCents: 0,
+      welcomeCreditCents: 10_000,
+    });
+
+    const sent = async (kind: string) =>
+      Number(
+        (
+          (
+            await db.execute(sql`
+              SELECT count(*)::int AS n FROM audit_log
+               WHERE action = ${`sponsor.pot_alert.${kind}`}
+                 AND resource_id = (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`)
+          ).rows[0] as { n: number }
+        ).n,
+      );
+
+    await alertPots();
+    check("W1-20 CONTROL a full pot is not alerted", (await sent("low")) + (await sent("empty")) === 0);
+
+    await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 1000 WHERE sponsor_id = ${sponsorId}`);
+    await alertPots();
+    await alertPots();
+    check(
+      "W1-20 a pot below a fifth of its last top up is warned, once",
+      (await sent("low")) === 1 && (await sent("empty")) === 0,
+      `${await sent("low")} low, ${await sent("empty")} empty`,
+    );
+
+    await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 0 WHERE sponsor_id = ${sponsorId}`);
+    await alertPots();
+    await alertPots();
+    check(
+      "W1-20 an empty pot is alerted once per period, however many days it stays empty",
+      (await sent("empty")) === 1,
+      `${await sent("empty")} empty alert(s) over two runs`,
+    );
+  } finally {
+    await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+      (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
+    await db.execute(sql`DELETE FROM delivery_attempts
+      WHERE kind IN ('sponsor.pot_empty', 'sponsor.pot_low') AND created_at >= ${started}`);
+    await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM sponsor_users WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsorId}`);
+  }
+}
+
 async function main() {
   await stubModules();
   writesTo();
@@ -401,6 +500,7 @@ async function main() {
     await totalView(db);
     await clinicNames(db);
     await csvFormulas(db);
+    await potAlerts(db);
   } finally {
     await db.execute(sql`DELETE FROM audit_log WHERE actor_user_id IN
       (SELECT id FROM users WHERE email LIKE ${`%${fixture}%`})`);

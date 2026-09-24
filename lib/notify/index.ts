@@ -229,6 +229,8 @@ export type Message = {
      * one person who could fix it in a minute found out when somebody complained.
      */
     | "sponsor.pot_empty"
+    /** W1-20: the same admins, warned once when the pot is low, before it is empty. */
+    | "sponsor.pot_low"
     /**
      * 🔴 76.14 — THE TWO MOMENTS A PAYER ON THE EGYPTIAN RAIL HEARS FROM US.
      *
