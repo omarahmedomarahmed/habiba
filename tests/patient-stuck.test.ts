@@ -206,6 +206,24 @@ test("W2-P09 notices, messages, residency and benefit are reachable, and the bel
   }
 });
 
+/* ----------------------------------------------------------------- W2-P10 -- */
+
+test("W2-P10 the summary is on the page before any rating, and a rating needs no address", async () => {
+  const { ratingReady } = await import("../lib/feedback-options");
+  const rated = { therapistStars: 4, sessionStars: 5, serviceStars: 0, ratedApp: true, email: "" };
+  assert.equal(ratingReady(rated), true, "an address was the price of sending a rating");
+  assert.equal(ratingReady({ ...rated, email: "not an address" }), false);
+  assert.equal(ratingReady({ ...rated, therapistStars: 0 }), false, "the rating itself is unchanged");
+
+  const form = code("components/feedback/rating-form.tsx");
+  const formBranch = form.slice(form.indexOf("const ready = "));
+  assert.ok(
+    formBranch.indexOf("{summary}") >= 0 && formBranch.indexOf("{summary}") < formBranch.indexOf("<Stars"),
+    "the summary must render above the rating, not after it",
+  );
+  assert.match(code("app/feedback/[token]/actions.ts"), /input\.email\.trim\(\) \? await releaseBrief/);
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

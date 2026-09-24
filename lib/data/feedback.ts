@@ -207,9 +207,14 @@ export async function submitFeedback(
   if (!row) return { error: "This link is no longer valid." };
 
   const stars = (value: number) => Math.min(5, Math.max(1, Math.round(value)));
-  const email = input.email.trim().toLowerCase();
-  if (!email || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
-    return { error: "We need an email address to send your summary to." };
+  /*
+   * 🔴 W2-P10: optional. The summary is on the patient's screen without it, so
+   * an address is only ever where they asked a copy to go, and a rating given
+   * without one is kept like any other.
+   */
+  const email = input.email.trim().toLowerCase() || null;
+  if (email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
+    return { error: "That does not look like an email address." };
   }
 
   const inserted = await db
@@ -252,7 +257,8 @@ export async function submitFeedback(
         therapistTags: input.therapistTags.slice(0, 10),
         serviceTags: input.serviceTags.slice(0, 10),
         comment: input.comment.trim().slice(0, 2000) || null,
-        patientEmail: email,
+        /* An address given on arrival is not erased by a rating given without one. */
+        ...(email ? { patientEmail: email } : {}),
       },
     })
     .returning({ id: sessionFeedback.id });
@@ -266,16 +272,18 @@ export async function submitFeedback(
    * bookings, which is why it is written here and not asked for at booking
    * time, when nobody in crisis wants to fill in a form.
    */
-  if (row.patientId) {
+  if (email && row.patientId) {
     await db
       .update(patients)
       .set({ email, updatedAt: new Date() })
       .where(and(eq(patients.id, row.patientId), isNull(patients.email)));
   }
-  await db
-    .update(sessions)
-    .set({ guestEmail: email })
-    .where(and(eq(sessions.id, row.id), isNull(sessions.guestEmail)));
+  if (email) {
+    await db
+      .update(sessions)
+      .set({ guestEmail: email })
+      .where(and(eq(sessions.id, row.id), isNull(sessions.guestEmail)));
+  }
 
   if (inserted.length === 0) log.info("duplicate feedback ignored");
   return { ok: true };

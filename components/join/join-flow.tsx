@@ -202,10 +202,9 @@ export function JoinFlow({
 
   if (ended) {
     /*
-     * Straight on to the rating, because this is the only moment it will ever
-     * be filled in. Somebody who closes this page and reads a "how did we do?"
-     * email tomorrow is gone — and their summary is behind the form, so the
-     * two things people want at this exact second are the same thing.
+     * Straight on to the summary page, where the rating waits beside it and is
+     * optional. 🔴 W2-P10: it used to say the summary came after the rating,
+     * which made a patient's own summary the price of rating their therapist.
      */
     return (
       <Card className="p-6 text-center">

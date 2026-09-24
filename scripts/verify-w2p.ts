@@ -273,7 +273,53 @@ async function main() {
       again2.ok && !restarted.paused,
       `ok=${again2.ok}, paused=${restarted.paused}`,
     );
+
+    /* ================================================================ */
+    /*  W2-P10 · THE SUMMARY IS NOT HELD BEHIND A RATING OR AN ADDRESS   */
+    /* ================================================================ */
+
+    const { feedbackContext, submitFeedback } = await import("../lib/data/feedback");
+    const rated = await one<{ id: string }>(sql`
+      INSERT INTO sessions (organization_id, therapist_id, status, modality, feedback_token, ended_at)
+      VALUES (${org.id}, ${therapist.id}, 'completed', 'video', ${`fb-rated-${fixture}`}, now())
+      RETURNING id`);
+    await db.execute(sql`
+      INSERT INTO session_notes (session_id, organization_id, therapist_id, content, status,
+                                 patient_status, patient_approved_at, patient_approved_by)
+      VALUES (${rated.id}, ${org.id}, ${therapist.id},
+              ${JSON.stringify({ summary: "", patientBrief: "What you worked on today" })}::jsonb,
+              'approved', 'approved', now(), ${therapist.id})`);
+
+    const unrated = await feedbackContext(`fb-rated-${fixture}`);
+    check(
+      "🔴 W2-P10 a signed summary is there for a patient who has rated nothing",
+      unrated?.done === false && unrated?.brief === "What you worked on today",
+      `done=${unrated?.done}, brief=${unrated?.brief ? "present" : "absent"}`,
+    );
+
+    const noAddress = await submitFeedback({
+      token: `fb-rated-${fixture}`,
+      therapistStars: 4,
+      sessionStars: 5,
+      serviceStars: 4,
+      therapistTags: [],
+      serviceTags: [],
+      comment: "",
+      email: "",
+    });
+    const stored = await one<{ email: string | null; stars: number | null }>(sql`
+      SELECT patient_email AS email, therapist_stars AS stars FROM session_feedback
+       WHERE session_id = ${rated.id}`);
+    check(
+      "🔴 W2-P10 a rating with no address is kept, and no address is invented for it",
+      noAddress.ok === true && stored?.stars === 4 && stored.email === null,
+      noAddress.error ?? `stars=${stored?.stars}, email=${stored?.email}`,
+    );
   } finally {
+    await db.execute(sql`DELETE FROM session_feedback WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM session_notes WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM enrolment_verifications WHERE enrolment_id IN
       (SELECT id FROM enrolments WHERE sponsor_id IN
         (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`}))`);
