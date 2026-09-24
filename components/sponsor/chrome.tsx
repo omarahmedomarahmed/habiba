@@ -81,7 +81,12 @@ export function SponsorChrome({
       bare={bare}
       home="/sponsor"
       name={sponsorName}
-      badge={role === "viewer" ? t("sponsor.nav.overview") : null}
+      /*
+       * 🔴 C20: the ROLE, which is what a badge beside the name says. It read
+       * "Overview", the first tab's label, so a viewer was never told they
+       * could only look. The team screen's own word for it, in both languages.
+       */
+      badge={role === "viewer" ? t("sponsor.roleViewer") : null}
       sections={TABS.map((tab) => ({
         href: tab.href,
         label: t(tab.key),

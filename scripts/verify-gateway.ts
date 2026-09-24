@@ -20,6 +20,14 @@
  */
 process.env.EGYPT_GATEWAY = "fake";
 process.env.EGYPT_PAYOUTS = "fake";
+/*
+ * 🔴 C23: the simulator has no built-in secret, so the run brings its own,
+ * fresh each time, which is also what proves nothing depends on a constant.
+ */
+process.env.EGYPT_GATEWAY_HMAC = `verify-gw-${randomBytes(24).toString("hex")}`;
+process.env.EGYPT_PAYOUTS_HMAC = `verify-po-${randomBytes(24).toString("hex")}`;
+
+import { randomBytes } from "node:crypto";
 
 import { sql } from "drizzle-orm";
 
@@ -127,13 +135,15 @@ async function main() {
       route: (r: Request) => Promise<Response>,
       kind: "collection" | "payouts",
       body: object,
-      forge = false,
+      forge: boolean | ((rawBody: string) => string) = false,
     ) => {
       const rawBody = JSON.stringify(body);
+      const header =
+        typeof forge === "function" ? forge(rawBody) : forge ? "0".repeat(64) : signFake(kind, rawBody);
       const res = await route(
         new Request("http://localhost/callback", {
           method: "POST",
-          headers: { [SIGNATURE_HEADER]: forge ? "0".repeat(64) : signFake(kind, rawBody) },
+          headers: { [SIGNATURE_HEADER]: header },
           body: rawBody,
         }),
       );
@@ -176,8 +186,48 @@ async function main() {
       JSON.stringify({ forged, wrong, status: await status(s1.sessionId) }),
     );
 
+    /*
+     * 🔴 C23: the simulator's callbacks could be forged on any deployment that
+     * was not live, with a secret printed in the source, and replayed for ever.
+     * Signed over a time with the environment's secret now: the old public
+     * constant, a correct signature ten minutes old, and anything at all with
+     * no secret set are each refused.
+     */
+    const { env: liveEnv } = await import("../lib/env");
+    const { createHmac } = await import("node:crypto");
+    const publicConstant = await deliver(gatewayRoute, "collection", paid(a1!), (raw) =>
+      createHmac("sha256", "fake-gateway-development-secret").update(raw).digest("hex"),
+    );
+    const stale = await deliver(gatewayRoute, "collection", paid(a1!), (raw) =>
+      signFake("collection", raw, new Date(Date.now() - 10 * 60 * 1000)),
+    );
+    const heldSecret = liveEnv.egyptGatewayHmac;
+    Object.assign(liveEnv, { egyptGatewayHmac: "" });
+    const { collectionGateway: gatewayNow } = await import("../lib/billing/gateway");
+    const unconfigured = gatewayNow();
+    const noSecret = await deliver(gatewayRoute, "collection", paid(a1!), () => `t=${Math.floor(Date.now() / 1000)},v1=${"0".repeat(64)}`);
+    let signedWithout = "signed";
+    try {
+      signFake("collection", "{}");
+    } catch {
+      signedWithout = "refused";
+    }
+    Object.assign(liveEnv, { egyptGatewayHmac: heldSecret });
+    check(
+      "🔴 C23 the old public secret, a stale signature and a deployment with no secret are each refused, and nothing moves",
+      publicConstant === 400 && stale === 400 && noSecret === 404 && unconfigured === null &&
+        signedWithout === "refused" && (await status(s1.sessionId)) === "pending" &&
+        Object.keys(moved(before1, await books())).length === 0,
+      JSON.stringify({ publicConstant, stale, noSecret, unconfigured: unconfigured?.name ?? null, signedWithout }),
+    );
+
     const event1 = paid(a1!);
     const first = await deliver(gatewayRoute, "collection", event1);
+    check(
+      "C23 CONTROL …and the same event signed now with the environment's secret is taken",
+      first === 200,
+      JSON.stringify({ first }),
+    );
     const again = await deliver(gatewayRoute, "collection", event1);
     const booked1 = moved(before1, await books());
     check(

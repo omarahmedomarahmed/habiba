@@ -703,14 +703,16 @@ async function main() {
 
     /*
      * 🔴 THE BODY, EXERCISED. `deliverPending` builds a literal; this asserts the literal has
-     * exactly three keys, by reading the object it constructs.
+     * exactly four keys, by reading the object it constructs. C17 added the fourth: the
+     * partner's own reference for a subject, a string their system gave us, so our
+     * internal subject id is something they can match (verify:w2x sends one).
      */
     const bodyLiteral =
       webhooks.match(/JSON\.stringify\(\{[\s\S]*?\}\)/)?.[0]?.replace(/\s+/g, "") ?? "";
 
     check(
-      "🔴 55.10 / 42.4 the delivery body is a literal with exactly three fields in it",
-      /^JSON\.stringify\(\{event:[^,]+,id:[^,]+,at:[^,]+,?\}\)$/.test(bodyLiteral),
+      "🔴 55.10 / 42.4 / C17 the delivery body is a literal with exactly four fields in it: event, id, their ref, when",
+      /^JSON\.stringify\(\{event:[^,]+,id:[^,]+,ref:theirRef,at:[^,]+,?\}\)$/.test(bodyLiteral),
       bodyLiteral || "no literal found",
     );
 

@@ -7,7 +7,9 @@ import { and, eq, sql } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { sponsorDomains } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import { log } from "@/lib/logger";
+import { log, safeErrorMessage } from "@/lib/logger";
+
+import { isAdminMailbox, type AdminMailbox } from "@/lib/sponsor/domain-mailboxes";
 
 /**
  * Proving a company is a company. PLAN.md 61.1 to 61.6, C318, C319, C348, C349.
@@ -71,11 +73,68 @@ export function domainProblem(row: {
   return `${row.domain}: somebody at that domain answered our code. We still need the DNS record published, which proves whoever runs the domain agreed to it.`;
 }
 
+/**
+ * 🔴 C18: three sends per domain an hour, the first included. Keyed on the
+ * DOMAIN, not the caller, because the cost lands on a third party's inbox: two
+ * admins, or one with two browsers, share the budget. The window and the
+ * shape match the other codes this product mails (`patient:email-code`).
+ */
+const PROOF_SENDS_PER_HOUR = 3;
+
+export type ProofSend = { sent: string } | { error: "wait" | "failed" | "missing" | "proved" };
+
+/**
+ * Mail the confirm link for one of this company's domains to one admin mailbox.
+ * Scoped in the WHERE through the company, so a borrowed domain id sends
+ * nothing; refused once the mailbox half is proved, since there is nothing left
+ * for the link to do.
+ */
+export async function sendDomainProof(input: {
+  sponsorId: string;
+  domainId: string;
+  mailbox: AdminMailbox;
+}): Promise<ProofSend> {
+  if (!isAdminMailbox(input.mailbox)) return { error: "missing" };
+  const [row] = await controlDb
+    .select({ domain: sponsorDomains.domain, mailboxProvedAt: sponsorDomains.mailboxProvedAt })
+    .from(sponsorDomains)
+    .where(and(eq(sponsorDomains.id, input.domainId), eq(sponsorDomains.sponsorId, input.sponsorId)))
+    .limit(1);
+  if (!row) return { error: "missing" };
+  if (row.mailboxProvedAt) return { error: "proved" };
+
+  const { consume, subjectKey } = await import("@/lib/rate-limit");
+  const verdict = await consume(subjectKey("sponsor-domain-proof", input.domainId), PROOF_SENDS_PER_HOUR, 60 * 60);
+  if (!verdict.allowed) return { error: "wait" };
+
+  const address = `${input.mailbox}@${row.domain}`;
+  const { notify } = await import("@/lib/notify");
+  const link = `${env.appUrl}/sponsor/domains/confirm/${input.domainId}?t=${mailboxToken(input.domainId)}`;
+  const delivery = await notify(
+    { email: address, phone: null },
+    {
+      kind: "sponsor.domain_confirm",
+      subject: `Confirm ${row.domain} for your organisation's mental health cover`,
+      /*
+       * 🔴 NOT ONE WORD ABOUT THERAPY FOR ANY INDIVIDUAL. This lands in a
+       * shared mailbox read by whoever runs IT. It says an organisation
+       * asked, and it names no person, because 53.2's rule about enrolment
+       * strings applies with more force to a message nobody chose to get.
+       */
+      body: `Somebody at your organisation asked us to set up mental health cover for your people. Confirming this address is one of two checks we do before any joining code works. It commits you to nothing.`,
+      link: { label: "Confirm this domain", url: link },
+    },
+  );
+  return delivery.sent ? { sent: address } : { error: "failed" };
+}
+
 /** Add a domain to a sponsor, with the token IT will be asked to publish. */
 export async function addDomain(input: {
   sponsorId: string;
   domain: string;
-}): Promise<{ id?: string; token?: string; error?: string }> {
+  /** C18: where the first proof goes. `postmaster` when the form sends none. */
+  mailbox?: AdminMailbox;
+}): Promise<{ id?: string; token?: string; error?: string; sent?: string }> {
   const domain = input.domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 
   /*
@@ -89,46 +148,12 @@ export async function addDomain(input: {
 
   const token = `24t-verify=${randomBytes(16).toString("base64url")}`;
 
+  let created: { id: string } | undefined;
   try {
-    const [created] = await controlDb
+    [created] = await controlDb
       .insert(sponsorDomains)
       .values({ sponsorId: input.sponsorId, domain, dnsToken: token })
       .returning({ id: sponsorDomains.id });
-
-    /*
-     * 🔴 61.4 / C320 — THE CODE GOES OUT HERE OR THE PROOF NEVER STARTS.
-     *
-     * Setup is not complete until a code has been received, and a code nobody
-     * sent is a setup that stays unfinished with nothing saying why. Sent to
-     * the ADMIN addresses a domain is required to carry, because we have no
-     * other address at a domain we have just been told about and asking the
-     * sponsor to name one would let them name their own.
-     *
-     * Best effort: a mail provider having a bad afternoon must not lose the
-     * domain row, and the operator can resend from their own screen.
-     */
-    if (created) {
-      const { notify } = await import("@/lib/notify");
-      const link = `${env.appUrl}/sponsor/domains/confirm/${created.id}?t=${mailboxToken(created.id)}`;
-
-      await notify(
-        { email: `postmaster@${domain}`, phone: null },
-        {
-          kind: "sponsor.domain_confirm",
-          subject: `Confirm ${domain} for your organisation's mental health cover`,
-          /*
-           * 🔴 NOT ONE WORD ABOUT THERAPY FOR ANY INDIVIDUAL. This lands in a
-           * shared mailbox read by whoever runs IT. It says an organisation
-           * asked, and it names no person, because 53.2's rule about enrolment
-           * strings applies with more force to a message nobody chose to get.
-           */
-          body: `Somebody at your organisation asked us to set up mental health cover for your people. Confirming this address is one of two checks we do before any joining code works. It commits you to nothing.`,
-          link: { label: "Confirm this domain", url: link },
-        },
-      );
-    }
-
-    return { id: created?.id, token };
   } catch {
     /*
      * 🔴 ONE MESSAGE, and it names no other customer.
@@ -144,6 +169,36 @@ export async function addDomain(input: {
         "We cannot add that domain here. If your organisation already has an account, talk to whoever set it up.",
     };
   }
+  if (!created) return { error: "We cannot add that domain here." };
+
+  /*
+   * 🔴 61.4 / C320: THE CODE GOES OUT HERE OR THE PROOF NEVER STARTS.
+   *
+   * Setup is not complete until a code has been received, and a code nobody
+   * sent is a setup that stays unfinished with nothing saying why. Sent to an
+   * ADMIN address a domain is expected to carry (C18: the company picks which,
+   * from `ADMIN_MAILBOXES`), because we have no other address at a domain we
+   * have just been told about and asking the sponsor to name one would let
+   * them name their own.
+   *
+   * Best effort, and outside the insert's try (a mail throw used to be read as
+   * "we cannot add that domain" for a row that was added): a mail provider
+   * having a bad afternoon must not lose the domain row, and the company can
+   * send again from its domains screen (`sendDomainProof`).
+   */
+  let sent: string | undefined;
+  try {
+    const proof = await sendDomainProof({
+      sponsorId: input.sponsorId,
+      domainId: created.id,
+      mailbox: isAdminMailbox(input.mailbox) ? input.mailbox : "postmaster",
+    });
+    if ("sent" in proof) sent = proof.sent;
+  } catch (error) {
+    log.warn("domain proof not sent", { reason: safeErrorMessage(error) });
+  }
+
+  return { id: created.id, token, sent };
 }
 
 /** Every domain on this account, proved or not, for their own setup screen. */
@@ -177,11 +232,11 @@ export async function domainsFor(sponsorId: string) {
  * cannot be minted outside this process. Single use comes from
  * `markMailboxProved` being guarded on the column already being null.
  *
- * 🔴 NOT EXPORTED. `mailboxTokenMatches` is the public surface and `addDomain`
- * is the only thing that mints one. A token generator reachable from outside is
- * a token generator somebody calls to build a second link with different
- * assumptions, and this repository has the same note on `foldArabizi` for the
- * same reason.
+ * 🔴 NOT EXPORTED. `mailboxTokenMatches` is the public surface and
+ * `sendDomainProof` is the only thing that mints one. A token generator
+ * reachable from outside is a token generator somebody calls to build a
+ * second link with different assumptions, and this repository has the same
+ * note on `foldArabizi` for the same reason.
  */
 function mailboxToken(domainId: string): string {
   return createHmac("sha256", env.authSecret).update(`domain-mailbox:${domainId}`).digest("hex");

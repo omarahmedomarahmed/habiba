@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull, like, notLike, or } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
-import { etaDocuments, manualPayments, sponsors, type EtaDocument } from "@/lib/db/schema";
+import { etaDocuments, manualPayments, potReturns, sponsors, type EtaDocument } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 
@@ -107,6 +107,70 @@ export async function openReturnCreditNote(input: {
   if (!row) return null;
   await advanceDocument(row.id);
   return row;
+}
+
+/**
+ * 🔴 C12a: THE CREDIT NOTE FOR ONE SENT RETURN, FROM THE RETURN ROW ITSELF.
+ *
+ * `sendPotReturn` opens the note after its transaction commits, so a throw
+ * between the two (the database blinking, a deploy) left a return that
+ * happened with no credit note, logged once and rebuilt by nothing. Both the
+ * send and the hourly job now come through here, so the note is built from
+ * what the row says whichever of them gets there first, and the insert is
+ * `onConflictDoNothing` on the return's internal id, so the second is a no-op.
+ *
+ * Only a SENT return of a company the Egyptian entity bills: ETA is the
+ * Egyptian Tax Authority, and a note for anyone else would wait on tax
+ * details that company is never asked for.
+ */
+export async function openCreditNoteForReturn(returnId: string): Promise<Opened> {
+  const [row] = await db
+    .select({
+      sponsorId: potReturns.sponsorId,
+      netCents: potReturns.netCents,
+      vatCents: potReturns.vatCents,
+      egpMinor: potReturns.egpMinor,
+    })
+    .from(potReturns)
+    .innerJoin(sponsors, eq(sponsors.id, potReturns.sponsorId))
+    .where(and(eq(potReturns.id, returnId), eq(potReturns.state, "sent"), eq(sponsors.entity, "eg")))
+    .limit(1);
+  if (!row) return null;
+  /* The pounds that left, split between credit and VAT as the ledger split the cents. */
+  const vatMinor = Math.round((row.egpMinor * row.vatCents) / Math.max(1, row.netCents + row.vatCents));
+  return openReturnCreditNote({ returnId, sponsorId: row.sponsorId, netMinor: row.egpMinor - vatMinor, vatMinor });
+}
+
+/**
+ * 🔴 C12a: every sent Egyptian return with no credit note gets one. Oldest
+ * first and bounded, like the documents below; a return whose note cannot be
+ * opened is logged and tried again next hour.
+ */
+async function openMissingReturnCreditNotes(): Promise<number> {
+  const missing = await db
+    .select({ id: potReturns.id })
+    .from(potReturns)
+    .innerJoin(sponsors, eq(sponsors.id, potReturns.sponsorId))
+    .leftJoin(
+      etaDocuments,
+      and(
+        eq(etaDocuments.purpose, "pot_return"),
+        eq(etaDocuments.kind, "credit_note"),
+        eq(etaDocuments.refId, potReturns.id),
+      ),
+    )
+    .where(and(eq(potReturns.state, "sent"), eq(sponsors.entity, "eg"), isNull(etaDocuments.id)))
+    .orderBy(asc(potReturns.decidedAt))
+    .limit(50);
+  let opened = 0;
+  for (const r of missing) {
+    try {
+      if (await openCreditNoteForReturn(r.id)) opened += 1;
+    } catch (error) {
+      log.error("return credit note failed", { return: ref(r.id), reason: safeErrorMessage(error) });
+    }
+  }
+  return opened;
 }
 
 async function wait(id: string, waitingFor: string, error: string | null = null): Promise<void> {
@@ -330,9 +394,11 @@ async function pollDocument(id: string): Promise<EtaDocument["state"]> {
  * The hourly job: every waiting document tried again, every submitted one asked
  * about. Oldest first, so an invoice goes before the credit note that names it.
  * A document set aside for a person is left alone unless a person asks
- * (`review`), and then it starts its count again.
+ * (`review`), and then it starts its count again. First it opens any credit
+ * note a sent return is missing (C12a), so the loop below takes it too.
  */
-export async function advanceEtaDocuments(opts: { review?: boolean } = {}): Promise<{ advanced: number }> {
+export async function advanceEtaDocuments(opts: { review?: boolean } = {}): Promise<{ advanced: number; rebuilt: number }> {
+  const rebuilt = await openMissingReturnCreditNotes();
   if (opts.review) {
     await db
       .update(etaDocuments)
@@ -360,7 +426,7 @@ export async function advanceEtaDocuments(opts: { review?: boolean } = {}): Prom
       log.error("ETA advance failed", { document: ref(doc.id), reason: safeErrorMessage(error) });
     }
   }
-  return { advanced };
+  return { advanced, rebuilt };
 }
 
 /** When a company saves its tax details, what was waiting for them goes. */

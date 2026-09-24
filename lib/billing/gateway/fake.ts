@@ -19,29 +19,67 @@ import type {
  * (`/dev/gateway/[ref]`) where a person presses Pay or Decline, and it answers
  * by POSTING A SIGNED CALLBACK to the same route a real gateway will call, so
  * the signature check, the idempotent claim and the books are exercised exactly
- * as they will be. Its signing secret is `EGYPT_GATEWAY_HMAC` when set and a
- * development constant otherwise, which is harmless because `index.ts` refuses
- * the simulator on the live deployment.
+ * as they will be.
+ *
+ * 🔴 C23: SIGNED WITH A SECRET FROM THE ENVIRONMENT, OVER A TIME. It fell back
+ * to a constant printed in this file when `EGYPT_GATEWAY_HMAC` was unset, and
+ * signed the body alone. "Only off the live deployment" is not "only on a
+ * laptop": a preview or staging deployment with the simulator on took a
+ * "paid" callback anybody could sign from the public source, and replayed one
+ * for ever. Now there is no constant: without `EGYPT_GATEWAY_HMAC` (or
+ * `EGYPT_PAYOUTS_HMAC`) the simulator is not configured (`index.ts` says so and
+ * hands out no adapter), nothing signs, and nothing verifies. The header is
+ * `t=<unix seconds>,v1=<hex HMAC of "t.body">`, the construction our own
+ * webhooks use, and a time more than five minutes from now is refused.
  *
  * Its own record of what happened lives in memory, which is what a status read
  * asks. A cold start forgets it and a status read then says "pending", which is
  * also what a real gateway says about a checkout nobody has finished.
  */
 
-const DEV_SECRET = "fake-gateway-development-secret";
 export const SIGNATURE_HEADER = "x-gateway-signature";
+/** How far a callback's signed time may be from ours, either way. */
+const TOLERANCE_SECONDS = 5 * 60;
 
-function secret(kind: "collection" | "payouts"): string {
-  return (kind === "collection" ? env.egyptGatewayHmac : env.egyptPayoutsHmac) || DEV_SECRET;
+type Kind = "collection" | "payouts";
+
+function secret(kind: Kind): string {
+  return kind === "collection" ? env.egyptGatewayHmac : env.egyptPayoutsHmac;
 }
 
-export function signFake(kind: "collection" | "payouts", rawBody: string): string {
-  return createHmac("sha256", secret(kind)).update(rawBody).digest("hex");
+/** Whether this side of the simulator has a secret to sign and verify with. */
+export function fakeSecretSet(kind: Kind): boolean {
+  return secret(kind).length > 0;
 }
 
-function verified(kind: "collection" | "payouts", rawBody: string, headers: Headers): boolean {
-  const given = headers.get(SIGNATURE_HEADER) ?? "";
-  const expected = signFake(kind, rawBody);
+/**
+ * The header value for a callback. Throws with no secret: a simulator that
+ * cannot sign has nothing to say, and a silent default is the defect C23 fixed.
+ */
+export function signFake(kind: Kind, rawBody: string, at: Date = new Date()): string {
+  const key = secret(kind);
+  if (!key) {
+    throw new Error(
+      `The payment simulator has no signing secret: set ${kind === "collection" ? "EGYPT_GATEWAY_HMAC" : "EGYPT_PAYOUTS_HMAC"}.`,
+    );
+  }
+  const t = Math.floor(at.getTime() / 1000);
+  return `t=${t},v1=${createHmac("sha256", key).update(`${t}.${rawBody}`).digest("hex")}`;
+}
+
+function verified(kind: Kind, rawBody: string, headers: Headers): boolean {
+  const key = secret(kind);
+  if (!key) return false;
+  const parts = new Map(
+    (headers.get(SIGNATURE_HEADER) ?? "").split(",").map((part) => {
+      const at = part.indexOf("=");
+      return [part.slice(0, at).trim(), part.slice(at + 1).trim()] as const;
+    }),
+  );
+  const t = Number(parts.get("t"));
+  const given = parts.get("v1") ?? "";
+  if (!Number.isInteger(t) || Math.abs(Date.now() / 1000 - t) > TOLERANCE_SECONDS) return false;
+  const expected = createHmac("sha256", key).update(`${t}.${rawBody}`).digest("hex");
   if (given.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }

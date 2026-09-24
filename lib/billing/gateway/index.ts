@@ -2,7 +2,7 @@ import "server-only";
 
 import { env } from "@/lib/env";
 
-import { FAKE_GATEWAY, FAKE_PAYOUTS } from "./fake";
+import { FAKE_GATEWAY, FAKE_PAYOUTS, fakeSecretSet } from "./fake";
 import type { CollectionGateway, PayoutProvider } from "./types";
 
 /**
@@ -29,7 +29,9 @@ export function whatTheGatewayNeeds(): string[] {
     ];
   }
   if (name === "fake") {
-    return env.liveDeployment ? ["The simulator is switched on here, and it never takes real payments."] : [];
+    if (env.liveDeployment) return ["The simulator is switched on here, and it never takes real payments."];
+    /* 🔴 C23: no built-in secret any more, so a simulator without one is not configured. */
+    return fakeSecretSet("collection") ? [] : ["The simulator's callback signing secret in EGYPT_GATEWAY_HMAC."];
   }
   const needs: string[] = [];
   if (!ADAPTERS[name]?.collection) needs.push(`This build has no adapter for the gateway "${name}".`);
@@ -46,7 +48,8 @@ export function whatPayoutsNeed(): string[] {
     return ["A payouts provider contract, named in EGYPT_PAYOUTS once its adapter is written."];
   }
   if (name === "fake") {
-    return env.liveDeployment ? ["The simulator is switched on here, and it never sends real money."] : [];
+    if (env.liveDeployment) return ["The simulator is switched on here, and it never sends real money."];
+    return fakeSecretSet("payouts") ? [] : ["The simulator's callback signing secret in EGYPT_PAYOUTS_HMAC."];
   }
   const needs: string[] = [];
   if (!ADAPTERS[name]?.payouts) needs.push(`This build has no adapter for the payouts provider "${name}".`);

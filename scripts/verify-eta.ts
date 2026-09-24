@@ -13,7 +13,8 @@
  *   returns     four eyes, the pot and the ledger fall together, the spend
  *               does not move, the credit note names the invoice; more than
  *               the pot, and a second open request, refused; a credit note
- *               larger than what was invoiced waits
+ *               larger than what was invoiced waits; a note that never
+ *               opened is opened by the hourly job, once (C12a)
  *   readiness   the simulator refused on the live deployment; preprod asks
  *               for its credentials
  */
@@ -54,6 +55,9 @@ async function main() {
   const other = await one<{ id: string }>(db, sql`
     INSERT INTO sponsors (name, kind, entity, currency, state)
     VALUES (${`ETA Other Co ${fixture}`}, 'company', 'eg', 'EGP', 'active') RETURNING id`);
+  const usCo = await one<{ id: string }>(db, sql`
+    INSERT INTO sponsors (name, kind, entity, currency, state)
+    VALUES (${`ETA US Co ${fixture}`}, 'company', 'us', 'USD', 'active') RETURNING id`);
 
   try {
     const { openCart } = await import("../lib/billing/cart");
@@ -332,6 +336,44 @@ async function main() {
       JSON.stringify(waitingNote),
     );
 
+    /*
+     * 🔴 C12a: a return that was sent but whose credit note never opened (the
+     * open threw after the send committed) is rebuilt by the hourly job, from
+     * the row, once. Planted as the send leaves it, without the note.
+     */
+    const lost = await one<{ id: string }>(db, sql`
+      INSERT INTO pot_returns (sponsor_id, net_cents, vat_cents, egp_minor, state, reason, bank_reference, requested_by, decided_by, txn_id, decided_at)
+      VALUES (${sponsor.id}, 1000, 140, 11400, 'sent', 'C12a lost note', ${`CIB-C12a-${fixture}`}, ${opA.id}, ${opB.id}, gen_random_uuid(), now())
+      RETURNING id`);
+    const usLost = await one<{ id: string }>(db, sql`
+      INSERT INTO pot_returns (sponsor_id, net_cents, vat_cents, egp_minor, state, reason, bank_reference, requested_by, decided_by, txn_id, decided_at)
+      VALUES (${usCo.id}, 1000, 0, 1000, 'sent', 'C12a US company', ${`CIB-C12a-US-${fixture}`}, ${opA.id}, ${opB.id}, gen_random_uuid(), now())
+      RETURNING id`);
+    const notesFor = async (returnId: string) =>
+      (await db.execute(sql`
+        SELECT internal_id, net_minor, vat_minor, total_minor FROM eta_documents
+         WHERE purpose = 'pot_return' AND kind = 'credit_note' AND ref_id = ${returnId}`)).rows as {
+        internal_id: string; net_minor: number; vat_minor: number; total_minor: number;
+      }[];
+    const beforeRebuild = await notesFor(lost.id);
+    const rebuiltRun = await advanceEtaDocuments();
+    const rebuiltNotes = await notesFor(lost.id);
+    await advanceEtaDocuments();
+    const afterSecondRun = await notesFor(lost.id);
+    const usNotes = await notesFor(usLost.id);
+    check(
+      "🔴 C12a a sent return with no credit note gets one from the hourly job, in the pounds that left, split as the ledger split them",
+      beforeRebuild.length === 0 && rebuiltRun.rebuilt >= 1 && rebuiltNotes.length === 1 &&
+        rebuiltNotes[0].internal_id === `RETURN-${lost.id.slice(0, 8).toUpperCase()}` &&
+        Number(rebuiltNotes[0].total_minor) === 11_400 && Number(rebuiltNotes[0].vat_minor) === 1_400,
+      JSON.stringify({ beforeRebuild, rebuiltRun, rebuiltNotes }),
+    );
+    check(
+      "C12a CONTROL the next run opens no second note for it, and a US company's sent return gets no ETA note at all",
+      afterSecondRun.length === 1 && usNotes.length === 0,
+      JSON.stringify({ afterSecondRun, usNotes }),
+    );
+
     const listed = await documentsFor(sponsor.id);
     const otherListed = await documentsFor(other.id);
     check(
@@ -353,7 +395,7 @@ async function main() {
   } finally {
     Object.assign(env, { etaMode: saved.mode, etaSigner: saved.signer, liveDeployment: saved.live, etaClientId: saved.id });
     await writeSettingsGroup({ group: "invoice", value: invoiceBefore, updatedBy: opA.id }).catch(() => undefined);
-    for (const s of [sponsor.id, other.id]) {
+    for (const s of [sponsor.id, other.id, usCo.id]) {
       await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id = ${s} AND kind = 'credit_note'`);
       await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id = ${s}`);
       await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id = ${s}`);

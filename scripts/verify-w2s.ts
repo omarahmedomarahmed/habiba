@@ -184,6 +184,38 @@ async function balanceAfterTopUp(db: Db) {
         after.balanceCents === 15_000,
         `published ${String(after.balanceCents)}, live 12000: the hidden spend stays hidden`,
       );
+
+      /*
+       * 🔴 C21: a pot that has never published, with a return sent out of it,
+       * then a top-up. The first figure is every credit LESS the return; a spend
+       * on the pot still does not enter it (that would be the differencing leak).
+       * Legs planted balanced, as `journal` would write them.
+       */
+      const leg = (kind: string, account: string, cents: number, txn: string) => sql`
+        INSERT INTO ledger_entries (txn_id, txn_kind, account, amount_cents, ref_type, ref_id, memo, entity)
+        VALUES (${txn}::uuid, ${kind}, ${account}, ${cents}, 'sponsor', ${sponsorId}, ${`C21 ${fixture}`}, 'us')`;
+      const pair = async (kind: string, potCents: number) => {
+        const txn = crypto.randomUUID();
+        await db.execute(leg(kind, "sponsor_pot", potCents, txn));
+        await db.execute(leg(kind, "cash", -potCents, txn));
+      };
+      await db.execute(sql`UPDATE sponsor_pots SET published_balance_cents = NULL WHERE sponsor_id = ${sponsorId}`);
+      await pair("pot_return", 3_000);
+      await pair("session_payment", 2_000);
+      await pair("pot_topup", -5_000);
+      await publishTopUp(sponsorId, 5_000);
+      const first = await db.execute(sql`SELECT published_balance_cents AS p FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
+      const published = Number((first.rows[0] as { p: number | null } | undefined)?.p);
+      check(
+        "🔴 C21 the first published balance after a return is every credit less what was sent back",
+        published === 10_000 + 5_000 - 3_000,
+        `published ${published}; credits 15000, returned 3000`,
+      );
+      check(
+        "C21 CONTROL …and a session spent from the pot is still not in it, so nothing can be differenced",
+        published !== 10_000 + 5_000 - 3_000 - 2_000,
+        `published ${published}`,
+      );
     }
 
     const grants = readSource("lib/billing/manual-grants.ts");
@@ -1273,11 +1305,105 @@ async function moneyGaps(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  C18 · the domain proof: an admin mailbox the company picks, again  */
+/*  C19 · the portal's own loading and error screens                   */
+/*  C20 · a viewer's badge says Viewer                                 */
+/* ================================================================== */
+
+async function domainProofAndChrome(db: Db) {
+  const sponsorId = await plantSponsor(db, "domain");
+  const otherId = await plantSponsor(db, "domain-other");
+  const domain = `${fixture}.example.com`;
+  const { env } = await import("../lib/env");
+  const { subjectKey } = await import("../lib/rate-limit");
+  const heldKey = env.resendApiKey;
+  const realFetch = globalThis.fetch;
+  const mail: string[] = [];
+  let domainId = "";
+  try {
+    const [row] = (
+      await db.execute(sql`
+        INSERT INTO sponsor_domains (sponsor_id, domain, dns_token)
+        VALUES (${sponsorId}, ${domain}, ${`24t-verify=${fixture}`}) RETURNING id`)
+    ).rows as { id: string }[];
+    domainId = required(row, "a domain").id;
+
+    /* The mail provider, caught here: a key so the product sends, nothing leaves. */
+    Object.assign(env, { resendApiKey: "re_verify_w2s" });
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.startsWith("https://api.resend.com")) return realFetch(input, init);
+      const sent = JSON.parse(String(init?.body ?? "{}")) as { to?: string | string[] };
+      mail.push([sent.to].flat().join(","));
+      return Response.json({ id: "caught" });
+    }) as typeof fetch;
+
+    const { sendDomainProof } = await import("../lib/data/sponsor-domains");
+    const picked = await sendDomainProof({ sponsorId, domainId, mailbox: "webmaster" });
+    const typed = await sendDomainProof({ sponsorId, domainId, mailbox: "ceo" as "admin" });
+    const borrowed = await sendDomainProof({ sponsorId: otherId, domainId, mailbox: "admin" });
+    const second = await sendDomainProof({ sponsorId, domainId, mailbox: "hostmaster" });
+    const third = await sendDomainProof({ sponsorId, domainId, mailbox: "admin" });
+    const fourth = await sendDomainProof({ sponsorId, domainId, mailbox: "postmaster" });
+    check(
+      "🔴 C18 the proof goes to the admin mailbox the company picks, and can be sent again",
+      "sent" in picked && picked.sent === `webmaster@${domain}` && mail.includes(`webmaster@${domain}`) &&
+        "sent" in second && "sent" in third,
+      JSON.stringify({ picked, second, third, mail }),
+    );
+    check(
+      "🔴 C18 …never to an address outside the admin names or for another company's domain, and three times a domain an hour",
+      "error" in typed && typed.error === "missing" && "error" in borrowed && borrowed.error === "missing" &&
+        "error" in fourth && fourth.error === "wait" && mail.length === 3 &&
+        !mail.some((to) => to.startsWith("ceo@")),
+      JSON.stringify({ typed, borrowed, fourth, mail }),
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+    Object.assign(env, { resendApiKey: heldKey });
+    if (domainId) {
+      await db.execute(sql`DELETE FROM rate_limits WHERE key = ${subjectKey("sponsor-domain-proof", domainId)}`);
+    }
+    await db.execute(sql`DELETE FROM sponsor_domains WHERE sponsor_id = ${sponsorId}`);
+    await dropSponsor(db, sponsorId);
+    await dropSponsor(db, otherId);
+  }
+
+  const chrome = readSource("components/sponsor/chrome.tsx");
+  check(
+    "🔴 C20 a viewer's badge says Viewer, the role, not the Overview tab's label",
+    /badge=\{role === "viewer" \? t\("sponsor\.roleViewer"\)/.test(chrome) && !/badge=[^\n]*nav\.overview/.test(chrome),
+    "the badge beside the company's name",
+  );
+  check(
+    "C20 CONTROL …and the Overview tab keeps its own label",
+    /href: "\/sponsor", key: "sponsor\.nav\.overview"/.test(chrome),
+    "the tab list",
+  );
+
+  const { en, ar } = await import("../lib/i18n/messages");
+  const boundaries = ["app/(sponsor)/error.tsx", "app/(partner)/error.tsx"].map((file) => readSource(file));
+  const loaders = ["app/(sponsor)/loading.tsx", "app/(partner)/loading.tsx"].map((file) => readSource(file));
+  check(
+    "🔴 C19 both desk portals have their own error screen: a client boundary with a retry, in the reader's language",
+    boundaries.every((src) => /^"use client"/.test(src.trim()) && /onClick=\{reset\}/.test(src) && /t\("(sponsor|dev)\.retry"\)/.test(src)) &&
+      Boolean(en["sponsor.retry"] && ar["sponsor.retry"] && en["dev.retry"] && ar["dev.retry"]),
+    "app/(sponsor)/error.tsx, app/(partner)/error.tsx",
+  );
+  check(
+    "C19 CONTROL …and a loading screen each, so a click on the rail answers at once",
+    loaders.every((src) => /DeskLoading/.test(src)),
+    "app/(sponsor)/loading.tsx, app/(partner)/loading.tsx",
+  );
+}
+
 async function main() {
   writesTo();
 
   const { pool, db } = connect();
   try {
+    await domainProofAndChrome(db);
     await balanceAfterTopUp(db);
     await firstCode(db);
     await enquiry(db);

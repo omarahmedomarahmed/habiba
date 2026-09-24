@@ -19,7 +19,8 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
  * posts the top-up in reverse (cash out, the pot's liability and the VAT owed
  * both down). The published balance falls by the same credit: the company
  * knows the figure, so it is not a differencing leak. The ETA credit note
- * follows outside the transaction and never undoes a return that happened.
+ * (Egyptian companies only) follows outside the transaction and never undoes
+ * a return that happened; if it fails, the hourly ETA job opens it.
  */
 
 export type ReturnResult = { ok: true; id: string } | { error: string };
@@ -122,18 +123,17 @@ export async function sendPotReturn(input: { id: string; sentBy: string; bankRef
   }
   if (!sent) return { error: "Not sent." };
 
-  /* The credit note, in the pounds that left, split as the ledger split them. */
+  /*
+   * The credit note, in the pounds that left, split as the ledger split them.
+   * 🔴 C12a: built from the committed row, so a throw here is not the end of
+   * it: the hourly `advanceEtaDocuments` opens the note for any sent return
+   * that has none, through the same function.
+   */
   try {
-    const { openReturnCreditNote } = await import("./eta/issue");
-    const egpVat = Math.round((sent.egpMinor * sent.vatCents) / Math.max(1, sent.netCents + sent.vatCents));
-    await openReturnCreditNote({
-      returnId: input.id,
-      sponsorId: sent.sponsorId,
-      netMinor: sent.egpMinor - egpVat,
-      vatMinor: egpVat,
-    });
+    const { openCreditNoteForReturn } = await import("./eta/issue");
+    await openCreditNoteForReturn(input.id);
   } catch (error) {
-    log.error("return credit note failed", { return: ref(input.id), reason: safeErrorMessage(error) });
+    log.error("return credit note failed, the hourly job opens it", { return: ref(input.id), reason: safeErrorMessage(error) });
   }
   return { ok: true, id: input.id };
 }

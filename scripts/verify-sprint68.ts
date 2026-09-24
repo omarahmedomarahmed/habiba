@@ -420,7 +420,97 @@ async function main() {
       dbRefusedHalfApproval,
       "a partner's server is not a clinician, and no header or field makes it one",
     );
+
+    /* ================================================================ */
+    /*  C15 · billed in the month it became billable, once, on its own    */
+    /*        account, and shown as billed                                */
+    /* ================================================================ */
+
+    /*
+     * In 2099, so no other partner in this database has a session in the months
+     * the bill walks, and `billAllPartners` posts for this fixture alone.
+     */
+    const at = (month: number, day: number, hour: number, minute = 0) =>
+      new Date(Date.UTC(2099, month, day, hour, minute));
+    const { billFirstAudio: bill } = await import("../lib/partner/platform");
+    const { billAllPartners, closedMonthBill } = await import("../lib/partner/billing");
+    const { getSettings } = await import("../lib/settings");
+
+    const late = await openSession({
+      partnerId: partner.id,
+      environment: "live",
+      externalSessionRef: `${fixture}-C15-LATE`,
+      externalSubjectRef: `${fixture}-P1`,
+      now: at(0, 31, 23, 50),
+    });
+    const inJan = await openSession({
+      partnerId: partner.id,
+      environment: "live",
+      externalSessionRef: `${fixture}-C15-JAN`,
+      externalSubjectRef: `${fixture}-P1`,
+      now: at(0, 10, 9),
+    });
+    await bill(inJan.id, at(0, 15, 9));
+    /* Opened on 31 January, first heard on 1 February. */
+    await bill(late.id, at(1, 1, 0, 10));
+
+    const jan = at(0, 1, 0);
+    const feb = at(1, 1, 0);
+    const legsFor = async () =>
+      (await db.execute(sql`
+        SELECT account, amount_cents FROM ledger_entries
+         WHERE ref_type = 'partner_month' AND ref_id = ${partner.id}`)).rows as { account: string; amount_cents: number }[];
+
+    const tooSoon = await billAllPartners(at(1, 1, 0, 30));
+    const janPostedEarly = (await closedMonthBill({ partnerId: partner.id, periodStart: jan }))?.posted;
+    await billAllPartners(at(1, 1, 3, 5));
+    await billAllPartners(at(2, 1, 3, 5));
+    const janBill = await closedMonthBill({ partnerId: partner.id, periodStart: jan });
+    const febBill = await closedMonthBill({ partnerId: partner.id, periodStart: feb });
+    const legs = await legsFor();
+    const price = (await getSettings()).pricing.partnerSessionCents;
+
+    check(
+      "🔴 C15 a session opened on the 31st and first heard on the 1st is billed once, in the month it was heard; not in the hour the month closed",
+      tooSoon.billed === 0 && janPostedEarly === false &&
+        janBill?.posted === true && janBill.sessions === 1 &&
+        febBill?.posted === true && febBill.sessions === 1,
+      JSON.stringify({ tooSoon, janPostedEarly, janBill, febBill }),
+    );
+    check(
+      "🔴 C15 the bill is owed by the partner, on `partner_receivable`, never on what clinicians owe us",
+      legs.length === 4 &&
+        legs.filter((l) => l.account === "partner_receivable").reduce((n, l) => n + Number(l.amount_cents), 0) === 2 * price &&
+        !legs.some((l) => l.account === "therapist_receivable") &&
+        legs.reduce((n, l) => n + Number(l.amount_cents), 0) === 0,
+      JSON.stringify({ legs, price }),
+    );
+
+    const rerun = await billAllPartners(at(2, 1, 3, 5));
+    check(
+      "C15 CONTROL the same closed month run again posts nothing: two legs a month, still",
+      rerun.billed === 0 && (await legsFor()).length === 4,
+      JSON.stringify(rerun),
+    );
+
+    /*
+     * The page reads the posted figure, not today's arithmetic: a planted
+     * difference in the ledger (both legs, still balanced) shows on the bill,
+     * where the month re-priced today would say one session at today's price.
+     */
+    await db.execute(sql`
+      UPDATE ledger_entries SET amount_cents = amount_cents + (CASE WHEN account = 'partner_receivable' THEN 7 ELSE -7 END)
+       WHERE ref_type = 'partner_month' AND ref_id = ${partner.id}
+         AND memo LIKE ${"%2099-01"}`);
+    const shown = await closedMonthBill({ partnerId: partner.id, periodStart: jan });
+    check(
+      "🔴 C15 a closed, posted month shows what the ledger billed, not the month re-priced today",
+      shown?.posted === true && shown.sessions === 1 && shown.totalCents === price + 7,
+      JSON.stringify({ shown, price }),
+    );
   } finally {
+    await db.execute(sql`DELETE FROM ledger_entries WHERE ref_type = 'partner_month' AND ref_id IN
+      (SELECT id FROM partners WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM partner_subjects WHERE external_ref LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM partner_sessions WHERE external_session_ref LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM partner_consents WHERE external_session_ref LIKE ${`%${fixture}%`}`);

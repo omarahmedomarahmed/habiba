@@ -291,6 +291,8 @@ export async function trialBalance() {
      */
     fxDifferenceCents: zero(byAccount.fx_difference ?? 0),
     owedByTherapistsCents: zero(byAccount.therapist_receivable ?? 0),
+    /* 🔴 C15: partner platforms' monthly bills, apart from what clinicians owe. */
+    owedByPartnersCents: zero(byAccount.partner_receivable ?? 0),
     revenueCents: zero(-(byAccount.platform_revenue ?? 0)),
     expenseCents: zero(byAccount.platform_expense ?? 0),
     /**

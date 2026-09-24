@@ -1277,8 +1277,17 @@ export async function topUpPot(input: {
  * is added to what was already published, and the spend waits for the floor.
  *
  * A pot that has never published starts from every credit it has ever had
- * (`pot_topup` legs only, this one included), which is its balance before any
- * reported session. Called after the journal, so that sum can see this credit.
+ * (`pot_topup` legs, this one included) LESS every return sent out of it
+ * (`pot_return` legs), which is its balance before any reported session.
+ * Called after the journal, so that sum can see this credit.
+ *
+ * 🔴 C21: the returns were left out. A return sent while nothing was published
+ * leaves the published figure null (`sendPotReturn`), so the first top-up after
+ * it published every credit ever paid in as though the returned money were
+ * still there: the company read a balance higher than its pot by exactly what
+ * we had sent back. A return is the company's own money going back to it, a
+ * figure it already knows, so subtracting it names no session and differences
+ * nothing. Spends (`session_payment` legs) stay out, as before.
  */
 export async function publishTopUp(sponsorId: string, creditCents: number): Promise<void> {
   const credit = Math.max(0, Math.round(creditCents));
@@ -1288,12 +1297,12 @@ export async function publishTopUp(sponsorId: string, creditCents: number): Prom
     UPDATE sponsor_pots
        SET published_balance_cents = CASE
              WHEN published_balance_cents IS NULL THEN (
-               SELECT COALESCE(-SUM(l.amount_cents), 0)::int
+               SELECT GREATEST(0, COALESCE(-SUM(l.amount_cents), 0))::int
                  FROM ledger_entries l
                 WHERE l.account = 'sponsor_pot'
                   AND l.ref_type = 'sponsor'
                   AND l.ref_id = ${sponsorId}
-                  AND l.txn_kind = 'pot_topup')
+                  AND l.txn_kind IN ('pot_topup', 'pot_return'))
              ELSE published_balance_cents + ${credit}
            END,
            updated_at = now()

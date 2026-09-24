@@ -1,12 +1,16 @@
 import "server-only";
 
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
+
+import { and, eq, sql } from "drizzle-orm";
 
 import { journal } from "@/lib/billing/ledger";
 import { controlDb } from "@/lib/db";
-import { partnerSessions, partners } from "@/lib/db/schema";
+import { ledgerEntries, partnerSessions, partners } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
+
+import { billableBetween } from "./usage";
 
 /**
  * The monthly bill. PLAN.md 68.14, 68.19.
@@ -30,6 +34,14 @@ import { getSettings } from "@/lib/settings";
  * is decided once, when the session opens, by the same function that decides whether
  * to do the work at all: the bill and the meter cannot disagree because they are the
  * same column.
+ *
+ * ## 🔴 C15: IN THE MONTH IT BECAME BILLABLE, ONCE
+ *
+ * A session is billable from its first audio (`billFirstAudio`), which stamps
+ * `startedAt` in the same UPDATE. Counting by `createdAt` lost every session
+ * opened in one month and first heard after that month's bill was posted. The
+ * meter, the limit and this bill all count through `billableBetween`, and a
+ * stamp is written once, so each billable session falls in exactly one month.
  */
 
 function periodOf(now: Date): Date {
@@ -56,8 +68,13 @@ export type PartnerBill = {
  * The price is a setting, like every other price in this product, so a reprice is a
  * settings write rather than a deploy and `verify:claims` can compare it to whatever
  * the public page says.
+ *
+ * 🔴 C15: NOT EXPORTED. A screen reads a month through `closedMonthBill`, which
+ * answers from the ledger once the month is posted; this is the preview it falls
+ * back to and the count the cron posts. Exported, it is what the usage page
+ * called, and a reprice rewrote every bill already sent.
  */
-export async function billFor(input: {
+async function billFor(input: {
   partnerId: string;
   periodStart: Date;
 }): Promise<PartnerBill | null> {
@@ -84,9 +101,7 @@ export async function billFor(input: {
         eq(partnerSessions.partnerId, input.partnerId),
         /* 🔴 LIVE ONLY. A sandbox row can never be billable, and a CHECK says so. */
         eq(partnerSessions.environment, "live"),
-        eq(partnerSessions.billable, true),
-        gte(partnerSessions.createdAt, input.periodStart),
-        lt(partnerSessions.createdAt, periodEnd),
+        billableBetween(input.periodStart, periodEnd),
       ),
     );
 
@@ -104,17 +119,36 @@ export async function billFor(input: {
 }
 
 /**
+ * 🔴 C15: ONE MONTH'S BILL HAS ONE TRANSACTION ID, derived from the partner and
+ * the month. `ledger_entries.ref_id` is a uuid, and the bill used to write
+ * `<partner>:<YYYY-MM>` into it, which Postgres refuses: the idempotency read
+ * threw before anything posted, so no partner was ever billed. The partner is
+ * the `refId` now, and the month lives in the transaction id, so asking the
+ * ledger "was this month posted" is one indexed read and needs no new column.
+ */
+function billTxnId(partnerId: string, periodStart: Date): string {
+  const hex = createHash("sha256")
+    .update(`partner_month:${partnerId}:${periodStart.toISOString().slice(0, 7)}`)
+    .digest("hex");
+  /* Shaped as an RFC 4122 name-based uuid (version 5 bits, variant 10). */
+  const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
  * 🔴 68.19 — POST THE MONTH. Called by the cron, after the month has closed.
  *
- * Two legs, balanced: what they owe us, and the revenue it represents. The same shape
- * `postSessionPayment` uses, because a partner's bill is not a different kind of
- * money from a therapist's fee and inventing a third account for it would be a third
- * thing to reconcile.
+ * Two legs, balanced: what they owe us, and the revenue it represents.
  *
- * 🔴 IDEMPOTENT ON THE PERIOD, through `refType`/`refId`. A cron that runs twice
- * against a closed month must not bill twice, and the check is a read of the ledger
- * rather than a flag on the partner: the ledger is the record, so asking it is asking
- * the thing that decides.
+ * 🔴 C15: `partner_receivable`, NOT `therapist_receivable`. The bill was posted
+ * to the account for what clinicians owe us, so the clinicians' figure carried
+ * money a company owed and a partner's payment would have settled against it.
+ *
+ * 🔴 IDEMPOTENT ON THE PERIOD, through the month's transaction id. A cron that runs
+ * twice against a closed month must not bill twice, and the check is a read of the
+ * ledger rather than a flag on the partner: the ledger is the record, so asking it is
+ * asking the thing that decides. The read and the post share one transaction under
+ * an advisory lock on that id, so two crons overlapping cannot both read "not yet".
  */
 /*
  * 🔴 NOT EXPORTED. `billAllPartners` is the only caller and the only thing that knows
@@ -128,44 +162,85 @@ async function postMonthlyBill(input: {
   const bill = await billFor(input);
   if (!bill || bill.sessions === 0) return { posted: false, totalCents: 0 };
 
-  const refId = `${input.partnerId}:${input.periodStart.toISOString().slice(0, 7)}`;
+  const txnId = billTxnId(input.partnerId, input.periodStart);
+  const memo = `${bill.partnerName}: ${bill.sessions} sessions, ${bill.periodStart.toISOString().slice(0, 7)}`;
 
-  const { ledgerEntries } = await import("@/lib/db/schema");
-  const [already] = await controlDb
-    .select({ id: ledgerEntries.id })
+  const posted = await controlDb.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`partner_month:${txnId}`}))`);
+    const [already] = await tx
+      .select({ id: ledgerEntries.id })
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.refType, "partner_month"), eq(ledgerEntries.txnId, txnId)))
+      .limit(1);
+    if (already) return false;
+
+    await journal({
+      kind: "invoice_raised",
+      refType: "partner_month",
+      refId: input.partnerId,
+      txnId,
+      executor: tx,
+      legs: [
+        { account: "partner_receivable", amountCents: bill.totalCents, memo },
+        { account: "platform_revenue", amountCents: -bill.totalCents, memo },
+      ],
+    });
+    return true;
+  });
+
+  if (posted) {
+    log.info("partner month billed", {
+      partner: ref(input.partnerId),
+      sessions: bill.sessions,
+    });
+  }
+
+  return { posted, totalCents: bill.totalCents };
+}
+
+/**
+ * 🔴 C15: A CLOSED MONTH, AS IT WAS BILLED. The usage page showed last month
+ * through `billFor`, at today's price, so a reprice rewrote a bill already
+ * sent. Once the month is posted the total is the ledger's, and the per-session
+ * figure is that total over the sessions it counted (stable: a stamp is written
+ * once and the month is closed). Before it is posted, the preview, marked so.
+ */
+export async function closedMonthBill(input: {
+  partnerId: string;
+  periodStart: Date;
+}): Promise<(PartnerBill & { posted: boolean }) | null> {
+  const preview = await billFor(input);
+  if (!preview) return null;
+
+  const [ledger] = await controlDb
+    .select({
+      legs: sql<number>`count(*)::int`,
+      totalCents: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int`,
+    })
     .from(ledgerEntries)
     .where(
-      and(eq(ledgerEntries.refType, "partner_month"), eq(ledgerEntries.refId, refId)),
-    )
-    .limit(1);
+      and(
+        eq(ledgerEntries.txnId, billTxnId(input.partnerId, input.periodStart)),
+        eq(ledgerEntries.account, "partner_receivable"),
+      ),
+    );
+  if (!ledger || Number(ledger.legs) === 0) return { ...preview, posted: false };
 
-  if (already) return { posted: false, totalCents: bill.totalCents };
-
-  await journal({
-    kind: "invoice_raised",
-    refType: "partner_month",
-    refId,
-    legs: [
-      {
-        account: "therapist_receivable",
-        amountCents: bill.totalCents,
-        memo: `${bill.partnerName}: ${bill.sessions} sessions`,
-      },
-      {
-        account: "platform_revenue",
-        amountCents: -bill.totalCents,
-        memo: `${bill.partnerName}: ${bill.sessions} sessions`,
-      },
-    ],
-  });
-
-  log.info("partner month billed", {
-    partner: ref(input.partnerId),
-    sessions: bill.sessions,
-  });
-
-  return { posted: true, totalCents: bill.totalCents };
+  const totalCents = Number(ledger.totalCents);
+  return {
+    ...preview,
+    totalCents,
+    perSessionCents: preview.sessions > 0 ? Math.round(totalCents / preview.sessions) : 0,
+    posted: true,
+  };
 }
+
+/**
+ * 🔴 C15: an hour after a month closes before it is billed. A first audio stamped
+ * at 23:59:59 commits a moment later; a bill posted in that moment would miss it,
+ * and the month is never posted again. The cron runs at 03:05 UTC, well past it.
+ */
+const SETTLE_MS = 60 * 60 * 1000;
 
 /** Every partner's closed month, for the cron to walk. */
 export async function billAllPartners(now = new Date()): Promise<{ billed: number }> {
@@ -175,7 +250,7 @@ export async function billAllPartners(now = new Date()): Promise<{ billed: numbe
    * once for a partial month and never for the rest: both are wrong and the second
    * is wrong in our favour, which is the worse of the two.
    */
-  const current = periodOf(now);
+  const current = periodOf(new Date(now.getTime() - SETTLE_MS));
   const periodStart = new Date(
     Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - 1, 1),
   );
