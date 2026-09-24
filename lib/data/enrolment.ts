@@ -305,17 +305,23 @@ export async function enrol(input: {
   if (!lookup.ok) return { ok: false, error: lookup.error };
 
   /*
-   * 🔴 Counted here, after the code resolves, and deliberately not before.
+   * 🔴 Counted after the code resolves, and deliberately not before.
    *
    * A spike on a LIVE code is a fact about that organisation's poster, which is what
    * the sponsor needs to see. Invented codes that resolve to nothing are a fact
    * about us and belong in the limiter above, not on a customer's screen.
+   *
+   * 🔴 W1-21: AND ONLY A REFUSAL IS COUNTED. This used to count every attempt,
+   * successes included, so "3 attempts this week" on `/sponsor/code` was mostly
+   * three of their staff joining, read against a roster that grew by three. A
+   * spike worth warning about is guessing, and a guess is a refusal.
    */
-  await consume(
-    subjectKey("enrol-code", input.code.trim().toUpperCase()),
-    SPIKE_NEVER_REFUSES,
-    SPIKE_WINDOW_SECONDS,
-  );
+  const countRefusal = () =>
+    consume(
+      subjectKey("enrol-code", input.code.trim().toUpperCase()),
+      SPIKE_NEVER_REFUSES,
+      SPIKE_WINDOW_SECONDS,
+    );
 
   const fields = await controlDb
     .select({
@@ -336,6 +342,7 @@ export async function enrol(input: {
      * over their shoulder is an outing risk; and telling somebody which part
      * failed is a hint to whoever is guessing.
      */
+    await countRefusal();
     return {
       ok: false,
       error:
@@ -372,6 +379,7 @@ export async function enrol(input: {
 
     if (!proved) {
       log.warn("enrolment refused: domain not proved", { kind: crossed.kind });
+      await countRefusal();
       return {
         ok: false,
         error:
@@ -446,6 +454,7 @@ export async function enrol(input: {
      * that they guessed a real one, which is the single most useful thing we
      * could hand them.
      */
+    await countRefusal();
     return {
       ok: false,
       error: "That could not be activated. Check with whoever shared the code.",

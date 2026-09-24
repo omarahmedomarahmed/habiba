@@ -151,7 +151,8 @@ async function main() {
   check(
     "🔴 66.7 …and the page's indicator reads lastSuccessAt, never lastUsedAt",
     (() => {
-      const page = readSource("app/(sponsor)/sponsor/integrations/page.tsx");
+      /* W1-21: the page is out of reach and its code kept here, unchanged. */
+      const page = readSource("app/(sponsor)/sponsor/integrations/hidden.tsx");
       return /lastSuccessAt/.test(page) && !/lastUsedAt/.test(page);
     })(),
     "lastUsedAt is stamped by the limiter on calls that then fail",

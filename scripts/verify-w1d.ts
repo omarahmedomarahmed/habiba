@@ -491,6 +491,90 @@ async function potAlerts(db: ReturnType<typeof connect>["db"]) {
   }
 }
 
+/* ================================================================== */
+/*  W1-21 · no company screen counts real enrolments over a week       */
+/* ================================================================== */
+
+async function companyCounters(db: ReturnType<typeof connect>["db"]) {
+  const chrome = readSource("components/sponsor/chrome.tsx");
+  check(
+    "W1-21 the Integrations tab is not in the company nav",
+    !chrome.includes('"/sponsor/integrations"'),
+    "components/sponsor/chrome.tsx",
+  );
+
+  const page = readSource("app/(sponsor)/sponsor/integrations/page.tsx");
+  check(
+    "W1-21 /sponsor/integrations sends the reader to /sponsor",
+    /redirect\("\/sponsor"\)/.test(page) && !/failedAttemptsFor/.test(page),
+    "app/(sponsor)/sponsor/integrations/page.tsx",
+  );
+
+  const { readdirSync, statSync } = await import("node:fs");
+  const walk = (dir: string): string[] =>
+    readdirSync(dir).flatMap((entry) => {
+      const path = `${dir}/${entry}`;
+      return statSync(path).isDirectory() ? walk(path) : /\.tsx?$/.test(entry) ? [path] : [];
+    });
+  const routes = walk("app/(sponsor)").filter((file) => /\/(page|layout)\.tsx$/.test(file));
+  const showing = routes.filter((file) => readSource(file).includes("failedAttemptsFor"));
+  check(
+    "W1-21 no company page shows failedAttemptsFor",
+    routes.length > 5 && showing.length === 0,
+    showing.join(", ") || `${routes.length} company routes read`,
+  );
+
+  /* The code page's count, through the real enrolment, success then failure. */
+  const code = `W1D${Date.now().toString(36).toUpperCase()}`;
+  const [sp] = (
+    await db.execute(sql`
+      INSERT INTO sponsors (name, kind, entity, currency, state)
+      VALUES (${`W1D Code ${fixture}`}, 'company', 'us', 'USD', 'active') RETURNING id`)
+  ).rows as { id: string }[];
+  const sponsorId = required(sp, "a sponsor").id;
+  const [pe] = (
+    await db.execute(sql`
+      INSERT INTO people (first_name, last_name, region) VALUES ('Em', 'Ployee', 'us') RETURNING id`)
+  ).rows as { id: string }[];
+  const personId = required(pe, "a person").id;
+
+  const { subjectKey, callerKey } = await import("../lib/rate-limit");
+  try {
+    await db.execute(sql`INSERT INTO sponsor_codes (sponsor_id, code) VALUES (${sponsorId}, ${code})`);
+    await db.execute(sql`
+      INSERT INTO sponsor_identifier_fields (sponsor_id, kind, pattern, shape_hint)
+      VALUES (${sponsorId}, 'id_number', '[0-9]{6}', 'six digits')`);
+
+    const { enrol } = await import("../lib/data/enrolment");
+    const { attemptsOnCode } = await import("../lib/data/sponsors");
+
+    const joined = await enrol({ personId, code, identifier: `${Date.now() % 1_000_000}`.padStart(6, "0") });
+    const afterSuccess = await attemptsOnCode(code);
+    check(
+      "W1-21 a successful enrolment is not counted as an attempt on the code",
+      joined.ok && afterSuccess === 0,
+      `${joined.ok ? "enrolled" : "not enrolled"}, count ${afterSuccess}`,
+    );
+
+    await enrol({ personId, code, identifier: "not six digits" });
+    check(
+      "W1-21 CONTROL …and a failed attempt is",
+      (await attemptsOnCode(code)) === afterSuccess + 1,
+      `count ${await attemptsOnCode(code)}`,
+    );
+  } finally {
+    await db.execute(sql`DELETE FROM rate_limits WHERE key IN
+      (${subjectKey("enrol-code", code)}, ${await callerKey(`enrol:${code}`)})`);
+    await db.execute(sql`DELETE FROM enrolment_attestations WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM patient_notifications WHERE person_id = ${personId}`);
+    await db.execute(sql`DELETE FROM sponsor_identifier_fields WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM sponsor_codes WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM people WHERE id = ${personId}`);
+  }
+}
+
 async function main() {
   await stubModules();
   writesTo();
@@ -501,6 +585,7 @@ async function main() {
     await clinicNames(db);
     await csvFormulas(db);
     await potAlerts(db);
+    await companyCounters(db);
   } finally {
     await db.execute(sql`DELETE FROM audit_log WHERE actor_user_id IN
       (SELECT id FROM users WHERE email LIKE ${`%${fixture}%`})`);

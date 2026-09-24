@@ -36,7 +36,16 @@ const { check, finish } = reporter();
  * forgotten; a stale exemption is a rule nobody is checking any more, and the
  * second is worse because it reads as coverage.
  */
-const ACTIONS_BY_DESIGN: Record<string, string> = {};
+const ACTIONS_BY_DESIGN: Record<string, string> = {
+  /*
+   * W1-21: reported by this gate after the company Integrations page was taken
+   * out of reach (FIX-PLAN D4), not written from memory (H34).
+   */
+  "app/(sponsor)/sponsor/integrations/actions.ts#mintHrKey":
+    "Hidden with the company Integrations page until it is rebuilt (FIX-PLAN D4): its counter showed real joiners by the week. The page is kept in `hidden.tsx`; route it again and this entry goes stale and fails.",
+  "app/(sponsor)/sponsor/integrations/actions.ts#revokeHrKey":
+    "Hidden with the company Integrations page until it is rebuilt (FIX-PLAN D4). Nothing can mint a key while the page is out of reach, so there is nothing to revoke from it either. Route the page again and this entry goes stale and fails.",
+};
 
 /*
  * 🔴 THIS LIST WAS WRITTEN FROM MEMORY AND FOUR OF ITS FIVE ENTRIES WERE WRONG.
