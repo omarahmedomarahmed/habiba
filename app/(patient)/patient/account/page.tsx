@@ -150,6 +150,30 @@ export default async function PatientAccountPage() {
         </Card>
       </Link>
 
+      {/*
+        🔴 W2-P09: four pages that existed and that nothing linked to. Each is
+        named by its own page title, so the words are ones the patient meets
+        again when they arrive.
+      */}
+      <Card className="divide-y divide-slate-100 p-0">
+        {(
+          [
+            ["/patient/notices", "pnotice.title"],
+            ["/patient/messages", "checkin.settingsTitle"],
+            ["/patient/benefit", "benefit.title"],
+            ["/patient/residency", "residency.title"],
+          ] as const
+        ).map(([href, label]) => (
+          <Link
+            key={href}
+            href={href}
+            className="block px-4 py-3.5 text-sm font-semibold text-slate-900 active:bg-slate-50"
+          >
+            {t(label)}
+          </Link>
+        ))}
+      </Card>
+
       <Link href="/patient/profile">
         <Card className="p-4 active:bg-slate-50">
           <span className="block text-sm font-semibold text-slate-900">{t("paccount.ownDocuments")}</span>

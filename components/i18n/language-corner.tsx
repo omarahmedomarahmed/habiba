@@ -31,12 +31,14 @@ import { LanguageSwitch } from "@/components/i18n/language-switch";
  * on its own because it is positioned with `end` rather than `right`, and it
  * carries the safe-area inset so it clears a notch.
  */
-export function LanguageCorner() {
+export function LanguageCorner({ beside = null }: { beside?: React.ReactNode } = {}) {
   return (
     <div
-      className="pointer-events-none fixed top-0 end-0 z-50 p-2"
+      className="pointer-events-none fixed top-0 end-0 z-50 flex items-center gap-2 p-2"
       style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}
     >
+      {/* W2-P09: the patient's notice bell shares the corner rather than covering a Back link. */}
+      {beside ? <div className="pointer-events-auto">{beside}</div> : null}
       <div className="pointer-events-auto rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur">
         <LanguageSwitch />
       </div>

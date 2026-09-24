@@ -192,6 +192,20 @@ test("W2-P08 the benefit page reads the QR's code, and a paused benefit has a fi
   assert.match(code("app/(patient)/patient/benefit/actions.ts"), /personId: actor\.personId, enrolmentId, identifier/);
 });
 
+/* ----------------------------------------------------------------- W2-P09 -- */
+
+test("W2-P09 notices, messages, residency and benefit are reachable, and the bell counts", () => {
+  const layout = code("app/(patient)/layout.tsx");
+  assert.match(layout, /undismissedCount\(actor\.personId\)/, "the unread count was called by nothing");
+  assert.match(layout, /<NoticeBell/);
+  assert.match(code("components/patient/notice-bell.tsx"), /href="\/patient\/notices"/);
+
+  const you = code("app/(patient)/patient/account/page.tsx");
+  for (const page of ["/patient/notices", "/patient/messages", "/patient/residency", "/patient/benefit"]) {
+    assert.match(you, new RegExp(`"${page}"`), `${page} is linked from nowhere`);
+  }
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {
