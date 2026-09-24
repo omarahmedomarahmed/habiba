@@ -2976,7 +2976,7 @@ export const en = {
   "tcop.listening": "Listening, press Stop and I will type it out for you to check.",
   "tcop.left": "{count} left",
   "tcop.ask": "Ask",
-  "tcop.citeNote": "Every answer cites its moment; a citation with no matching line is dropped. It can still be wrong.",
+  "tcop.citeNote": "Every answer cites its moment; a citation with no matching line is dropped. It can be wrong.",
   "tcop.readAloud": "Read aloud",
   "tcop.voiceSettings": "Voice settings",
   "tcop.voice": "Voice",
@@ -3948,7 +3948,7 @@ export const en = {
    * ago.
    */
   "tcop.liveNow": "This patient is in a session right now",
-  "tcop.liveFree": "Free while it runs, answering from the record as it stood at the start.",
+  "tcop.liveFree": "Free while it runs, answering from the record as it stood at start.",
   "tcop.goToRoom": "Open the room",
 
   // W1D: privacy and the console audit.
