@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 
 import { accept, joinWithAccount } from "@/app/(clinic)/clinic/join/[token]/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
@@ -108,10 +109,17 @@ export function ClinicJoinForm({
   const [existingState, existingAction] = useActionState(joinWithAccount, {});
   const [existing, setExisting] = useState(false);
 
+  /*
+   * 🔴 W2-T08: the actions sign them in and go to their dashboard, so this is
+   * seen only if that redirect is lost. It still leads somewhere.
+   */
   if (state.ok || existingState.ok) {
     return (
       <Card className="p-5">
         <p className="text-sm font-semibold text-slate-900">{t("clinic.join.done")}</p>
+        <Link href="/onboarding" className="mt-3 inline-flex text-sm font-semibold text-brand-700">
+          {t("portal.nav.finishVerification")}
+        </Link>
       </Card>
     );
   }

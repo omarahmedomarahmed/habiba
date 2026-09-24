@@ -380,7 +380,7 @@ export async function acceptInvitation(input: {
   password: string;
   firstName: string;
   lastName: string;
-}): Promise<{ ok?: true; error?: string }> {
+}): Promise<{ ok?: true; userId?: string; error?: string }> {
   if (input.password.length < 12) return { error: "Use at least twelve characters." };
   if (!input.firstName.trim()) return { error: "Tell us your first name." };
 
@@ -472,7 +472,7 @@ export async function acceptInvitation(input: {
   });
 
   log.info("clinician accepted a clinic invitation");
-  return { ok: true };
+  return { ok: true, userId: createdUserId };
 }
 
 /**
@@ -507,7 +507,7 @@ export async function joinWithExistingAccount(input: {
   token: string;
   email: string;
   password: string;
-}): Promise<{ ok?: true; cancelSubscriptionFor?: string; error?: string }> {
+}): Promise<{ ok?: true; userId?: string; cancelSubscriptionFor?: string; error?: string }> {
   const [invitation] = await controlDb
     .select({
       id: clinicianInvitations.id,
@@ -643,7 +643,7 @@ export async function joinWithExistingAccount(input: {
    * network call to a gateway, and a gateway having a bad afternoon must not
    * roll back a person's seat, so it happens after this returns and on its own.
    */
-  return { ok: true, cancelSubscriptionFor: existing.organizationId };
+  return { ok: true, userId: existing.id, cancelSubscriptionFor: existing.organizationId };
 }
 
 /**

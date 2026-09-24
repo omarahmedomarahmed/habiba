@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
+import { QuietAuthShell } from "@/components/auth/auth-shell";
 import { ClinicJoinForm } from "@/components/clinic/join-form";
-import { Card } from "@/components/ui";
 import { resolveInvitation } from "@/lib/data/clinic-admin";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -37,31 +37,28 @@ export default async function ClinicJoinPage({
 
   const invitation = await resolveInvitation(token);
 
+  /* 🔴 W2-C07: inside the site's header and footer, like every other door. */
   if (!invitation) {
     return (
-      <div className="mx-auto max-w-md py-8">
-        <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("clinic.join.expired")}</p>
-        </Card>
-      </div>
+      <QuietAuthShell>
+        <p className="text-sm leading-relaxed text-slate-600">{t("clinic.join.expired")}</p>
+      </QuietAuthShell>
     );
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4 py-4">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">
-        {t("clinic.join.title", { name: invitation.clinicName })}
-      </h1>
+    <QuietAuthShell title={t("clinic.join.title", { name: invitation.clinicName })}>
+      <div className="flex flex-col gap-4">
+        <ClinicJoinForm
+          token={token}
+          clinicName={invitation.clinicName}
+          firstName={invitation.firstName}
+          lastName={invitation.lastName}
+        />
 
-      <ClinicJoinForm
-        token={token}
-        clinicName={invitation.clinicName}
-        firstName={invitation.firstName}
-        lastName={invitation.lastName}
-      />
-
-      {/* 🔴 C267 — they verify themselves, and the practice cannot do it for them. */}
-      <p className="text-xs leading-relaxed text-slate-500">{t("clinic.cannotVerify")}</p>
-    </div>
+        {/* 🔴 C267 — they verify themselves, and the practice cannot do it for them. */}
+        <p className="text-xs leading-relaxed text-slate-500">{t("clinic.cannotVerify")}</p>
+      </div>
+    </QuietAuthShell>
   );
 }

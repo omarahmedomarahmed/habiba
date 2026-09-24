@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 
 import { apply } from "@/app/(clinic)/clinic/apply/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
@@ -35,6 +36,10 @@ export function ClinicApplyForm() {
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           {t("clinic.apply.sentBody")}
         </p>
+        {/* 🔴 W2-C07: a way on from "we will call you". */}
+        <Link href="/for-clinics" className="mt-3 inline-flex text-sm font-semibold text-brand-700">
+          {t("nav.forClinics")}
+        </Link>
       </Card>
     );
   }

@@ -123,6 +123,20 @@ export const CLINIC_APPLY = "/clinic/apply";
 export const CLINIC_JOIN = "/clinic/join";
 
 /**
+ * 🔴 W2-C07: the clinic's DOORS, which render inside the site's own header
+ * and footer rather than the portal's rail. The sign-in was the only one, so
+ * the enquiry and the invited clinician's screen had no logo, no way back and
+ * no language switch.
+ */
+export function isClinicDoor(path: string): boolean {
+  return (
+    path === CLINIC_SIGN_IN ||
+    path === CLINIC_APPLY ||
+    path.startsWith(`${CLINIC_JOIN}/`)
+  );
+}
+
+/**
  * 🔴 55.1 / C264 — the sixth principal, and the router is unchanged for it.
  *
  * This is the payoff C264 was written for: sprint 53 rewrote `routeDecision` once for
