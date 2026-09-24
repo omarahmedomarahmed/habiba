@@ -2619,7 +2619,7 @@ export const en = {
   "tauth.termsWord": "terms",
   "tauth.privacyWord": "privacy policy",
   "tauth.checkInbox": "Check your inbox",
-  "tauth.checkInboxBody": "If an account exists there, a reset link is on its way. It works once, for an hour.",
+  "tauth.checkInboxBody": "If an account exists, a reset link is on its way. It works once, for an hour.",
   "tauth.backToSignIn": "Back to sign in",
   "tauth.resetTitle": "Reset your password",
   "tauth.resetBody": "We will email you a link.",
@@ -2644,7 +2644,7 @@ export const en = {
   "tset.changePassword": "Change password",
   "tset.signOutBody": "This signs you out here. Changing your password signs you out everywhere.",
   "tset.zone": "Your time zone",
-  "tset.zoneBody": "Your hours are read in this zone, and no reminder goes out in the night here.",
+  "tset.zoneBody": "Your hours are read in this zone, and no reminder goes out at night here.",
   "tset.zoneLabel": "Time zone",
   "tset.zoneNow": "It is {time} in {place} right now.",
   "tset.zoneNotSaved": "We have not saved one yet. Your browser says {zone}.",
@@ -2685,7 +2685,7 @@ export const en = {
   "tpay.fee": "24Therapy fee ({percent}%)",
   /* 🔴 76.34 — the Egyptian rail's own version of this screen. */
   "tpay.regionUnsaved": "The screen already matches. Press Save to keep it.",
-  "tpay.egRail": "We collect by bank transfer here and pay you by hand. No card setup to do.",
+  "tpay.egRail": "We collect by bank transfer here and pay you by hand. No card setup.",
   "tpay.egHolding": "We are holding {amount} for you, and we send it by hand.",
   "tpay.egMethod": "How you would like to be paid",
   "tpay.egMethodNone": "Nothing set yet. Tell us where to send your earnings.",
@@ -2887,7 +2887,7 @@ export const en = {
   "tpres.armTitle": "Turn on your alarm",
   "tpres.blockedBody": "Sound is off for this site. Open the padlock, set {sound} to {allow}, and reload.",
   "tpres.allowWord": "Allow",
-  "tpres.armBody": "Browsers stay silent until you say otherwise. One tap and we can ring you anywhere here.",
+  "tpres.armBody": "Browsers stay silent until you allow it. One tap and we can ring you.",
   "tpres.forced": "Someone is booking you right now and you cannot hear it.",
   "tpres.willFix": "I will fix it in my browser",
   "tpres.notNow": "Not now",
@@ -3039,7 +3039,7 @@ export const en = {
   "tnote.approveAndSend": "Approve and send",
   "tnote.sentTitle": "Their summary has been sent",
   "tnote.releasedTitle": "Their summary is released",
-  "tnote.sentBody": "{email} gets exactly what is above, never the clinical note, once they rate the session.",
+  "tnote.sentBody": "{email} gets what is above, never the clinical note, once they rate the session.",
   "tnote.releasedBody": "Your patient receives what is above, never the clinical note.",
   "tnote.nothingSent": "Nothing sent yet.",
   "tnote.beforeNext": "Before we next meet",
@@ -3130,7 +3130,7 @@ export const en = {
   "tled.intoStripe": "Into your Stripe account",
   "tled.heldForYou": "Held for you",
   "tled.date": "Date",
-  "tled.directNote": "Paid into your own Stripe account. We never held this, and Stripe pays out on its own schedule.",
+  "tled.directNote": "Paid into your own Stripe account. We never held it; Stripe pays out on its own schedule.",
   "tled.heldNote": "Stripe had not verified you when this was paid. It moves automatically.",
   "tearn.waiting": "{amount} is waiting for you",
   "tearn.waitingBody": "Your patients have paid. We hold your share until Stripe verifies you.",
@@ -3184,7 +3184,7 @@ export const en = {
   "twd.updatedOn": "updated {date}",
   "twd.receipt": "See the transfer receipt",
   "tph.none": "No patient payments yet",
-  "tph.noneBody": "Set a price on a session link or on the radar and payments appear here.",
+  "tph.noneBody": "Price a session link or your radar and payments appear here.",
   "tph.heldUntil": "Held until payouts open",
   "tph.billsSettled": "{amount} of your bills settled",
   "tph.receipt": "Receipt",
@@ -3253,7 +3253,7 @@ export const en = {
   "tattr.unsure": "Not sure",
   "tattr.guessed": "worked out from the words",
   "tattr.fromVoice": "from a separated voice, named above",
-  "tattr.oneMic": "One microphone heard you both. Where a line holds two people we leave it unnamed rather than guess. You were there, so you can say.",
+  "tattr.oneMic": "One microphone heard you both. Where a line holds two people we leave it unnamed. You were there, so you can say.",
   "tcon.theirCode": "Their code",
   "tcon.asking2": "Asking…",
   "tcon.askThem": "Ask them",
@@ -3505,7 +3505,7 @@ export const en = {
   "tdoc.save": "Save",
   "tdx.title": "Diagnoses in the documents",
   "tdx.blurb": "Only what a document states in words. Never inferred from symptoms.",
-  "tdx.none": "Nothing yet. Add a letter or a report, and any diagnosis in it is offered for confirmation.",
+  "tdx.none": "Nothing yet. Add a letter or report; any diagnosis in it is offered for confirmation.",
   "tdx.reading": "Reading…",
   "tdx.readDocuments": "Read documents",
   "tdx.confirmed": "Confirmed",
@@ -3515,7 +3515,7 @@ export const en = {
   "tdl.reading": "Reading…",
   "tdl.readAloud": "Read aloud",
   "tdl.flag": "Flag",
-  "tdl.flagNote": "This marks the document. It does not change or remove it: a record stays as it was written.",
+  "tdl.flagNote": "This marks the document. It does not change or remove it.",
   "tdl.newTab":
     "This file opens in a new tab. Everything you open is recorded against your name.",
   "tdl.notMine": "Not about me",
@@ -3556,7 +3556,7 @@ export const en = {
   "tdl.newTabNote":
     "This file opens in a new tab. Everything you open is recorded against your name.",
   "tsup.reference": "Reference {ref}",
-  "tsup.picksUp": "A named person answers within {hours} hours. You get a link to read the reply, never an email.",
+  "tsup.picksUp": "A named person answers within {hours} hours. You get a link to the reply, never an email.",
   "tsup.about": "What is this about?",
   "tsup.topicBilling": "Billing, credit, invoices, what I was charged",
   "tsup.topicSession": "A session that went wrong",
@@ -3654,7 +3654,7 @@ export const en = {
   "tver.doc.hint.idFront": "A clear photo. All four corners visible, no glare over the text.",
   "tver.doc.hint.idBack": "Skip this if you uploaded a passport page.",
   "tver.doc.hint.licence": "Whatever your regulator issues, a card, a licence, a registration certificate.",
-  "tver.doc.hint.headshot": "This one is public: it appears on your radar profile. Plain background, your face clearly visible.",
+  "tver.doc.hint.headshot": "Public: it appears on your radar profile. Plain background, face clearly visible.",
 
   /*
    * 45.6 / C207 — the copilot's prompt templates, label and prompt split.
@@ -3748,7 +3748,7 @@ export const en = {
   "tplan.confirmDownTitle": "Move to pay as you go?",
   "tplan.confirmCost": "{amount} a month, from today.",
   "tplan.confirmDownCost": "{amount} a session, nothing monthly.",
-  "tplan.confirmMeter": "No per-session fee, and no amount riding on whether a patient agrees to be recorded.",
+  "tplan.confirmMeter": "No per-session fee, and nothing riding on whether a patient agrees to be recorded.",
   "tplan.confirmDownMeter": "The AI fee comes back, charged only when a patient agrees to be recorded.",
   "tplan.confirmCancel": "Cancel any time. The month you paid for runs to its end.",
   "tplan.confirmTransfer": "We add it to your bill and open the transfer details. It starts when the money lands.",
@@ -3919,7 +3919,7 @@ export const en = {
    * ago.
    */
   "tcop.liveNow": "This patient is in a session right now",
-  "tcop.liveFree": "Questions are free while it runs, and answer from the record as it was when the session started.",
+  "tcop.liveFree": "Questions are free while it runs, and answer from the record as it stood at the start.",
   "tcop.goToRoom": "Open the room",
 
   // W1B
@@ -3935,6 +3935,11 @@ export const en = {
   "psessions.addedLater": "Added by {name}",
   "troom.pauseFailed": "Still recording. Try again.",
   "troom.resumeFailed": "Still off record. Try again.",
+  "tlic.expiredTitle": "Licence expired",
+  "tlic.expiredBody": "Expired {date}. Off the radar, no new bookings, until we check a renewal. Booked sessions stay.",
+  "tlic.expiringTitle": "Licence expires soon",
+  "tlic.expiringBody": "Expires {date}. Send the renewal to stay listed.",
+  "tlic.update": "Update licence",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -6222,7 +6227,7 @@ export const ar: Record<MessageKey, string> = {
   "tpres.armTitle": "فعّل تنبيهك",
   "tpres.blockedBody": "الصوت مغلق لهذا الموقع. افتح القفل، واضبط {sound} على {allow}، ثم أعد التحميل.",
   "tpres.allowWord": "السماح",
-  "tpres.armBody": "تبقى المتصفحات صامتة حتى تأذن. ضغطة واحدة ونستطيع تنبيهك في أي مكان بالبوابة.",
+  "tpres.armBody": "تبقى المتصفحات صامتة حتى تأذن. ضغطة واحدة ونستطيع تنبيهك.",
   "tpres.forced": "شخص يحجز معك الآن وأنت لا تسمع ذلك.",
   "tpres.willFix": "سأصلح ذلك في متصفحي",
   "tpres.notNow": "ليس الآن",
@@ -6837,7 +6842,7 @@ export const ar: Record<MessageKey, string> = {
   "tdl.reading": "جارٍ القراءة…",
   "tdl.readAloud": "اقرأ بصوت",
   "tdl.flag": "علّم",
-  "tdl.flagNote": "هذا يضع علامة على المستند. ولا يغيّره ولا يزيله: فالسجل يبقى كما كُتب.",
+  "tdl.flagNote": "هذا يضع علامة على المستند. ولا يغيّره ولا يزيله.",
   "tdl.newTab": "يُفتح هذا الملف في تبويب جديد. وكل ما تفتحه يُسجَّل باسمك.",
   "tdl.notMine": "ليس عني",
   "tdl.thisIs": "هذا {reason}",
@@ -7104,6 +7109,11 @@ export const ar: Record<MessageKey, string> = {
   "psessions.addedLater": "أضافه {name}",
   "troom.pauseFailed": "ما زال التسجيل جاريًا. حاول مجددًا.",
   "troom.resumeFailed": "ما زال التسجيل متوقفًا. حاول مجددًا.",
+  "tlic.expiredTitle": "انتهى الترخيص",
+  "tlic.expiredBody": "انتهى في {date}. أنت خارج الرادار ولا حجوزات جديدة حتى نراجع التجديد. الجلسات المحجوزة باقية.",
+  "tlic.expiringTitle": "ينتهي الترخيص قريبًا",
+  "tlic.expiringBody": "ينتهي في {date}. أرسل التجديد لتبقى ظاهرًا.",
+  "tlic.update": "حدّث الترخيص",
 };
 
 export const DICTIONARIES = { en, ar } as const;

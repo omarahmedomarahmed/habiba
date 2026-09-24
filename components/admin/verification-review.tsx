@@ -5,6 +5,7 @@ import { Check, ExternalLink, X } from "lucide-react";
 
 import { decideTherapistVerification } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * One applicant, with their documents on screen.
@@ -22,6 +23,8 @@ export function VerificationReview(props: {
   licenseBody: string | null;
   licenseNumber: string | null;
   licenseExpiry: string | null;
+  /** W1-16: back in the queue because the licence ran out. */
+  licenceExpired?: boolean;
   specialties: string[];
   languages: string[];
   documents: { label: string; url: string | null }[];
@@ -35,6 +38,7 @@ export function VerificationReview(props: {
   /** The count at which a rejection removes the documents. */
   finalAt: number;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +56,10 @@ export function VerificationReview(props: {
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{props.name}</p>
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+            {props.name}
+            {props.licenceExpired ? <Badge tone="amber">{t("tlic.expiredTitle")}</Badge> : null}
+          </p>
           <p className="truncate text-xs text-slate-500">
             {props.email}
             {props.organizationName ? ` · ${props.organizationName}` : ""}

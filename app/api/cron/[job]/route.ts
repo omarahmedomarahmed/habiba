@@ -41,7 +41,8 @@ export const maxDuration = 300;
  *
  *   crisis     03:00  retries crisis alerts whose notification failed, sweeps
  *                     the radar, closes rooms a patient walked away from, and
- *                     tells patients whose summary is written and unclaimed.
+ *                     tells patients whose summary is written and unclaimed,
+ *                     and takes clinicians with an expired licence off (W1-16).
  *                     SAFETY-RELEVANT.
  *   billing    03:05  charges completed sessions that produced no charge row,
  *                     which happens when a Stripe webhook is lost.
@@ -159,6 +160,14 @@ const JOBS = {
     const { sweepOverrunSessions } = await import("@/lib/data/sessions");
     const overrun = await sweepOverrunSessions();
 
+    /*
+     * 🔴 W1-16: licences that ran out, and those about to. Here, once a day,
+     * for the reason at the top of this file, and because who is on the radar
+     * is exactly this job's business. Also a named job below, by hand.
+     */
+    const { sweepLicences } = await import("@/lib/data/licence-expiry");
+    const licences = await sweepLicences();
+
     return {
       delivered,
       released: swept.released,
@@ -168,7 +177,18 @@ const JOBS = {
       suspended: left.suspended,
       reminded: unrated.reminded,
       overrunEnded: overrun.ended,
+      licencesExpired: licences.expired,
+      licencesWarned: licences.warned,
     };
+  },
+
+  /**
+   * W1-16: the licence sweep, reachable by hand like `radar`. Scheduled
+   * inside `crisis`, so it costs no wake of its own.
+   */
+  async licences() {
+    const { sweepLicences } = await import("@/lib/data/licence-expiry");
+    return sweepLicences();
   },
 
   /** Charge completed sessions that somehow produced no charge row. */

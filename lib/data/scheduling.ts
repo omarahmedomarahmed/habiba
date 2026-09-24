@@ -43,6 +43,22 @@ const db = dbFor(pinnedToDefaultRegion("lib/data/scheduling.ts", "not routed yet
  * anywhere in this module.
  */
 
+/**
+ * 🔴 W1-16: an hour is bookable only while its clinician is cleared.
+ *
+ * Hours were checked for being open and nothing else, so a clinician whose
+ * licence ran out (or whose approval was withdrawn) kept every hour they had
+ * already published, bookable from their public page. Asked of the approved
+ * `therapist_verifications` row, the same source `lib/data/verified.ts` uses.
+ */
+function clinicianCleared() {
+  return sql`EXISTS (
+    SELECT 1 FROM therapist_verifications v
+     WHERE v.user_id = ${availabilitySlots.therapistUserId}
+       AND v.state = 'approved'
+  )`;
+}
+
 /* ------------------------------------------------------------- publishing -- */
 
 export type PublishResult =
@@ -202,6 +218,7 @@ export async function openHours(therapistUserId: string, days = 21): Promise<Pub
     .where(
       and(
         eq(availabilitySlots.therapistUserId, therapistUserId),
+        clinicianCleared(),
         gt(availabilitySlots.startsAt, now),
         lt(availabilitySlots.startsAt, until),
         or(
@@ -340,6 +357,7 @@ export async function holdSlot(slotId: string): Promise<HoldResult> {
       and(
         eq(availabilitySlots.id, slotId),
         gt(availabilitySlots.startsAt, now),
+        clinicianCleared(),
         or(
           eq(availabilitySlots.status, "open"),
           and(eq(availabilitySlots.status, "held"), lt(availabilitySlots.heldUntil, now)),

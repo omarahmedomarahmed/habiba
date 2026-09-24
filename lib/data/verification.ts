@@ -180,6 +180,8 @@ export async function reviewQueue(state: "submitted" | "approved" | "rejected" =
       licenseBody: therapistVerifications.licenseBody,
       licenseNumber: therapistVerifications.licenseNumber,
       licenseExpiry: therapistVerifications.licenseExpiry,
+      /* W1-16: set when the sweep sent an approved clinician back for re-review. */
+      licenseExpiredAt: therapistVerifications.licenseExpiredAt,
       specialties: therapistVerifications.specialties,
       languages: therapistVerifications.languages,
       idFrontUrl: therapistVerifications.idFrontUrl,
@@ -257,6 +259,11 @@ export async function decideVerification(opts: {
       rejectionCount: opts.approve
         ? sql`${therapistVerifications.rejectionCount}`
         : sql`${therapistVerifications.rejectionCount} + 1`,
+      /*
+       * 🔴 W1-16: an approval is a fresh look at the licence, so the sweep's
+       * two stamps start again. A rejection leaves them, as evidence.
+       */
+      ...(opts.approve ? { licenseExpiredAt: null, licenseExpiryWarnedAt: null } : {}),
       updatedAt: now,
     })
     .where(

@@ -491,6 +491,13 @@ export const therapistVerifications = pgTable(
     licenseBody: text("license_body"),
     licenseNumber: text("license_number"),
     licenseExpiry: text("license_expiry"),
+    /**
+     * 🔴 W1-16: written by `sweepLicences`. When the licence ran out and the
+     * clinician went back to `submitted` for re-review, and when the 30 day
+     * warning went. Both cleared by an approval.
+     */
+    licenseExpiredAt: timestamp("license_expired_at", { withTimezone: true }),
+    licenseExpiryWarnedAt: timestamp("license_expiry_warned_at", { withTimezone: true }),
     specialties: jsonb("specialties").$type<string[]>().default([]).notNull(),
     languages: jsonb("languages").$type<string[]>().default([]).notNull(),
 

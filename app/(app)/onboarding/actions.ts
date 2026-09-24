@@ -54,7 +54,8 @@ export async function saveVerificationDetails(
   await ensureVerification(actor);
 
   const current = await getVerification(actor.userId);
-  if (current?.state === "submitted") {
+  // 🔴 W1-16: an expired licence is back in review, and the renewal goes here.
+  if (current?.state === "submitted" && !current.licenseExpiredAt) {
     return { error: "This is already with us for review, you cannot change it right now." };
   }
 
@@ -114,7 +115,7 @@ export async function uploadVerificationDocument(
   if (!throttle.allowed) return { error: "Too many uploads just now. Wait a moment." };
 
   const current = await ensureVerification(actor);
-  if (current.state === "submitted") {
+  if (current.state === "submitted" && !current.licenseExpiredAt) {
     return { error: "This is already with us for review, you cannot change it right now." };
   }
 

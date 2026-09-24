@@ -141,6 +141,9 @@ export type Message = {
     | "payout.rejected"
     /** 🔴 16.3b — the ageing alert. A dashboard at 3am is not an alert. */
     | "payout.overdue"
+    /** 🔴 W1-16: a clinician's licence ran out, or will within 30 days. */
+    | "licence.expired"
+    | "licence.expiring"
     /**
      * 🔴 20.22 — a closed support ticket.
      *

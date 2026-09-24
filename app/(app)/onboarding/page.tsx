@@ -153,6 +153,7 @@ export default async function OnboardingPage() {
           specialtyOptions={specialtyOptions.map((o) => ({ code: o.code, label: o.label }))}
           requirements={overrides}
           uploadsEnabled={uploadsConfigured()}
+          renewing={verification.state === "submitted" && Boolean(verification.licenseExpiredAt)}
         />
       </div>
     </div>

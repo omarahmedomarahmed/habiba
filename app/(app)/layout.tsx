@@ -24,6 +24,7 @@ import { redirect } from "next/navigation";
 
 import { getRadarProfile } from "@/lib/data/radar";
 import { isCleared, practiceState } from "@/lib/data/verification";
+import { licenceNotice } from "@/lib/data/licence-expiry";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { clinicManagers, users } from "@/lib/db/schema";
@@ -76,7 +77,7 @@ export default async function AppLayout({
     localeTag(locale),
   );
 
-  const [radar, [me], state] = await Promise.all([
+  const [radar, [me], state, licence] = await Promise.all([
     getRadarProfile(actor.userId),
     db
       .select({
@@ -88,6 +89,8 @@ export default async function AppLayout({
       .where(eq(users.id, actor.userId))
       .limit(1),
     practiceState(actor.userId),
+    /* 🔴 W1-16: an expired or expiring licence, said on every screen. */
+    licenceNotice(actor.userId, actor.organizationId),
   ]);
 
   /*
@@ -286,6 +289,24 @@ export default async function AppLayout({
             paymentId={pending.paymentId}
             storageKey={pending.storageKey}
           />
+        ) : null}
+        {licence ? (
+          <div
+            role="status"
+            className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:mx-6"
+          >
+            <p className="text-sm font-semibold text-amber-900">
+              {t(licence.kind === "expired" ? "tlic.expiredTitle" : "tlic.expiringTitle")}
+            </p>
+            <p className="mt-0.5 text-sm text-amber-800">
+              {t(licence.kind === "expired" ? "tlic.expiredBody" : "tlic.expiringBody", {
+                date: licence.date,
+              })}{" "}
+              <Link href="/onboarding" className="font-semibold underline underline-offset-2">
+                {t("tlic.update")}
+              </Link>
+            </p>
+          </div>
         ) : null}
         {/* Content gets bottom padding on mobile so the nav never covers a control. */}
         <div className="pb-24 lg:pb-8">{children}</div>

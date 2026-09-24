@@ -210,6 +210,123 @@ async function main() {
       !payload.includes(CLINICAL_ONLY),
       payload.includes(CLINICAL_ONLY) ? "A CLINICAL ADDENDUM LEAKED" : "absent",
     );
+
+    /* ================================================================ */
+    /*  W1-16 · AN EXPIRED LICENCE STOPS CLEARING ANYBODY                */
+    /* ================================================================ */
+
+    const clinician = async (name: string, expiry: string) => {
+      const user = await one<{ id: string }>(sql`
+        INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash)
+        VALUES (${org.id}, ${`${name}.${fixture}@example.com`}, ${name}, 'Demo', 'therapist', 'x')
+        RETURNING id`);
+      await db.execute(sql`
+        INSERT INTO therapist_verifications (user_id, organization_id, state, submitted_at,
+                                             reviewed_at, license_body, license_number,
+                                             license_expiry)
+        VALUES (${user.id}, ${org.id}, 'approved', now(), now(), 'Demo Board', 'X-1', ${expiry})`);
+      await db.execute(sql`
+        INSERT INTO therapist_radar (user_id, organization_id, status)
+        VALUES (${user.id}, ${org.id}, 'online')`);
+      return user;
+    };
+
+    const day = 86_400_000;
+    const iso = (at: number) => new Date(at).toISOString().slice(0, 10);
+    const lapsed = await clinician("lapsed", iso(Date.now() - 2 * day));
+    const soon = await clinician("soon", iso(Date.now() + 10 * day));
+    const fine = await clinician("fine", iso(Date.now() + 200 * day));
+
+    const slot = await one<{ id: string }>(sql`
+      INSERT INTO availability_slots (therapist_user_id, organization_id, starts_at, duration_minutes)
+      VALUES (${lapsed.id}, ${org.id}, date_trunc('hour', now()) + interval '2 days', 60)
+      RETURNING id`);
+    const booked = await one<{ id: string }>(sql`
+      INSERT INTO sessions (organization_id, therapist_id, status, modality, feedback_token,
+                            scheduled_at)
+      VALUES (${org.id}, ${lapsed.id}, 'scheduled', 'video', ${`fb3-${fixture}`},
+              now() + interval '3 days')
+      RETURNING id`);
+
+    const warnedAt = async () =>
+      (
+        await one<{ at: string | null }>(sql`
+          SELECT to_jsonb(v)->>'license_expiry_warned_at' AS at
+            FROM therapist_verifications v WHERE v.user_id = ${soon.id}`)
+      ).at;
+    let firstWarning: string | null = null;
+    let secondWarning: string | null = null;
+    try {
+      const { sweepLicences } = await import("../lib/data/licence-expiry" as string);
+      await sweepLicences(new Date());
+      firstWarning = await warnedAt();
+      await sweepLicences(new Date(Date.now() + 60_000));
+      secondWarning = await warnedAt();
+    } catch (error) {
+      console.log(`  --    no licence sweep: ${(error as Error).message.split("\n")[0]}`);
+    }
+
+    const standing = async (userId: string) =>
+      one<{ state: string; expired: boolean; warned: boolean; radar: string; status: string }>(sql`
+        SELECT v.state, to_jsonb(v)->>'license_expired_at' IS NOT NULL AS expired,
+               to_jsonb(v)->>'license_expiry_warned_at' IS NOT NULL AS warned,
+               r.status AS radar, u.verification_status AS status
+          FROM therapist_verifications v
+          JOIN users u ON u.id = v.user_id
+          LEFT JOIN therapist_radar r ON r.user_id = v.user_id
+         WHERE v.user_id = ${userId}`);
+
+    const lapsedNow = await standing(lapsed.id);
+    check(
+      "🔴 W1-16 an approved clinician whose licence expired is no longer cleared, and is in the re-review queue",
+      lapsedNow.state === "submitted" && lapsedNow.expired && lapsedNow.status !== "verified",
+      JSON.stringify(lapsedNow),
+    );
+    check(
+      "🔴 W1-16 …and is off the radar",
+      lapsedNow.radar === "offline",
+      `radar ${lapsedNow.radar}`,
+    );
+
+    const { holdSlot, openHours } = await import("../lib/data/scheduling");
+    const hours = await openHours(lapsed.id, 7);
+    const hold = await holdSlot(slot.id);
+    check(
+      "🔴 W1-16 …and cannot be newly booked: the hour is neither listed nor holdable",
+      !hold.ok && hours.length === 0,
+      `hold ok=${hold.ok}, ${hours.length} open hours`,
+    );
+
+    const keptSession = await one<{ status: string }>(sql`
+      SELECT status FROM sessions WHERE id = ${booked.id}`);
+    check(
+      "W1-16 …and a session already booked is NOT cancelled automatically",
+      keptSession.status === "scheduled",
+      keptSession.status,
+    );
+
+    const { reviewQueue } = await import("../lib/data/verification");
+    const queue = await reviewQueue("submitted");
+    const inQueue = queue.find((row) => row.userId === lapsed.id);
+    check(
+      "🔴 W1-16 the operator's queue shows them, marked expired",
+      Boolean(inQueue) && Boolean((inQueue as { licenseExpiredAt?: Date | null })?.licenseExpiredAt),
+      inQueue ? "queued" : "not in the queue",
+    );
+
+    const soonNow = await standing(soon.id);
+    const fineNow = await standing(fine.id);
+    check(
+      "🔴 W1-16 a licence expiring within 30 days is warned once, and stays cleared",
+      soonNow.state === "approved" && soonNow.warned && firstWarning !== null &&
+        firstWarning === secondWarning,
+      `${JSON.stringify(soonNow)}, warned at ${firstWarning}, then ${secondWarning}`,
+    );
+    check(
+      "W1-16 a licence well in date is left alone",
+      fineNow.state === "approved" && !fineNow.warned && fineNow.radar === "online",
+      JSON.stringify(fineNow),
+    );
   } finally {
     await db.execute(sql`DELETE FROM sessions WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);

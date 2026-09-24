@@ -286,6 +286,8 @@ const SCOPE: Record<string, Scope> = {
   "therapist-codes": { who: ["clinician", "admin"] },
   vault: { who: ["admin"] },
   verification: { who: ["clinician", "admin"] },
+  /* W1-16: a clinician's own licence standing, and the daily sweep (cron). */
+  "licence-expiry": { who: ["clinician", "admin"] },
   verified: { who: ["clinician", "admin", "clinic", "partner"] },
   timeline: { who: ["clinician", "admin"], clinical: true },
   transcript: { who: ["clinician", "admin"], clinical: true },
