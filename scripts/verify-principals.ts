@@ -142,6 +142,18 @@ const SCOPE: Record<string, Scope> = {
   notices: { who: ["patient", "admin"], clinical: true },
   notifications: { who: ["clinician", "patient", "admin"], clinical: true },
   recovery: { who: ["patient", "admin"], clinical: true },
+  /*
+   * 🔴 W1-13: a clinician cancelling their own booked session. Clinical
+   * because it reads the patient's contact details to tell them, and the
+   * clinician's only because it acts on their own appointment.
+   */
+  "clinician-cancel": { who: ["clinician"], clinical: true },
+  /*
+   * 🔴 W1-02: whether an organisation is a solo practice or a clinic, so a
+   * seat clinician cannot run the clinic's account. It reads one column of
+   * the actor's own organisation and nothing about any patient.
+   */
+  "org-kind": { who: ["clinician"] },
   "name-match": { who: ["clinician", "admin"], clinical: true },
   "phone-change": { who: ["patient", "admin"], clinical: true },
   /*

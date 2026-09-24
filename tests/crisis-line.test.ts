@@ -176,11 +176,19 @@ test("W1-09 control: a country we can place and hold no line for gets the senten
 });
 
 /* W1-29: the page that replaces everything on a crash still carries help (P5). */
-test("the global error page carries always-open numbers", async () => {
+test("the global error page carries always-open numbers, from the one table", async () => {
   const { readFileSync } = await import("node:fs");
   const page = readFileSync(process.env.GLOBAL_ERROR_FILE ?? "app/global-error.tsx", "utf8");
-  for (const tel of ["tel:123", "tel:112", "tel:988"]) {
-    assert.ok(page.includes(tel), `global-error.tsx dials ${tel}`);
+  // It renders the table rather than typing numbers of its own (C184).
+  assert.ok(page.includes("LAST_RESORT_HELP.countries.map"), "global-error.tsx renders LAST_RESORT_HELP");
+  assert.ok(page.includes("LAST_RESORT_HELP.elsewhere"), "and the local emergency number rule");
+
+  const { LAST_RESORT_HELP } = await import("../lib/crisis/line");
+  const lines = LAST_RESORT_HELP.countries.flatMap((country) => [...country.lines]);
+  for (const tel of ["123", "112", "988"]) {
+    const line = lines.find((l) => l.tel === tel);
+    assert.ok(line, `the crash page offers ${tel}`);
+    assert.equal(line!.hours, "always", `${tel} is a line that answers at any time`);
   }
-  assert.ok(page.includes("local emergency number"));
+  assert.ok(!lines.some((l) => l.tel === "105"), "no line with office hours on a page that cannot say so");
 });

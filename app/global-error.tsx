@@ -1,5 +1,7 @@
 "use client";
 
+import { LAST_RESORT_HELP } from "@/lib/crisis/line";
+
 /**
  * Last-resort error boundary. It replaces the root layout, so it has to ship
  * its own <html>/<body>.
@@ -60,15 +62,25 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
             role="note"
             style={{ marginTop: "1.5rem", padding: "0.875rem 1rem", borderRadius: "0.75rem", background: "#dc2626", color: "#fff", fontSize: "0.875rem", textAlign: "start" }}
           >
-            <p style={{ margin: 0, fontWeight: 700 }}>In danger now? · في خطر الآن؟</p>
-            <p style={{ margin: "0.375rem 0 0" }}>
-              Egypt · مصر: <a href="tel:123" style={{ color: "#fff", fontWeight: 700 }}>123</a>{" "}
-              · <a href="tel:112" style={{ color: "#fff", fontWeight: 700 }}>112</a>
+            <p style={{ margin: 0, fontWeight: 700 }}>
+              {LAST_RESORT_HELP.title.en} · <span lang="ar">{LAST_RESORT_HELP.title.ar}</span>
             </p>
+            {LAST_RESORT_HELP.countries.map((country) => (
+              <p key={country.name.en} style={{ margin: "0.375rem 0 0" }}>
+                {country.name.en} · <span lang="ar">{country.name.ar}</span>:{" "}
+                {country.lines.map((line, index) => (
+                  <span key={line.tel}>
+                    {index > 0 ? " · " : null}
+                    <a href={`tel:${line.tel}`} style={{ color: "#fff", fontWeight: 700 }}>
+                      {line.label}
+                    </a>
+                  </span>
+                ))}
+              </p>
+            ))}
             <p style={{ margin: "0.25rem 0 0" }}>
-              United States: <a href="tel:988" style={{ color: "#fff", fontWeight: 700 }}>988</a>
+              {LAST_RESORT_HELP.elsewhere.en} <span lang="ar">{LAST_RESORT_HELP.elsewhere.ar}</span>
             </p>
-            <p style={{ margin: "0.25rem 0 0" }}>Anywhere else: your local emergency number.</p>
           </div>
         </div>
       </body>

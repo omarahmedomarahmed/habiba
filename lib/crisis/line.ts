@@ -304,3 +304,20 @@ export function countryForNumber(e164: string | null | undefined): string | null
   if (!line) return null;
   return Object.keys(CRISIS_LINES).find((country) => CRISIS_LINES[country]!.tel === line.tel) ?? null;
 }
+
+/**
+ * 🔴 W1-29: what the crash page shows, when nothing else can load.
+ *
+ * `app/global-error.tsx` replaces the whole document, translations included, so
+ * it cannot use the SOS orb or the dictionary. It reads its numbers from this
+ * table like everything else (C184) and its words from here, in both languages.
+ * Always-open numbers only: Egypt's emergency lines and the US lifeline.
+ */
+export const LAST_RESORT_HELP = {
+  title: { en: "In danger now?", ar: "في خطر الآن؟" },
+  countries: [
+    { name: { en: "Egypt", ar: "مصر" }, lines: EMERGENCY_LINES.EG ?? [] },
+    { name: { en: "United States", ar: "الولايات المتحدة" }, lines: [CRISIS_LINES.US!] },
+  ],
+  elsewhere: { en: "Anywhere else: your local emergency number.", ar: "في أي مكان آخر: رقم الطوارئ المحلي." },
+} as const;
