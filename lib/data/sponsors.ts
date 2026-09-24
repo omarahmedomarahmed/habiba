@@ -86,6 +86,12 @@ export type RosterEntry = {
   lastVerifiedAt: Date | null;
   /** Whether their funding is paused. C247 — they were not reached. */
   paused: boolean;
+  /**
+   * 🔴 W2-S11 — paused BY THIS COMPANY, which is its own act and so its own to
+   * see and to undo. A re-verification pause (`paused`) is not: the page never
+   * renders that one (E2), because it is stamped when one person comes back.
+   */
+  heldByYou: boolean;
 };
 
 export async function roster(sponsorId: string): Promise<RosterEntry[]> {
@@ -103,6 +109,12 @@ export async function roster(sponsorId: string): Promise<RosterEntry[]> {
       lastName: people.lastName,
       lastVerifiedAt: enrolments.lastVerifiedAt,
       pausedAt: enrolments.pausedAt,
+      /*
+       * W2-S11 — a boolean, never the state itself: `provisional` is somebody
+       * who enrolled in the last few days, which is the join date by another
+       * name.
+       */
+      heldByYou: sql<boolean>`${enrolments.state} = 'paused'`,
     })
     .from(enrolments)
     .innerJoin(people, eq(people.id, enrolments.personId))
@@ -123,6 +135,7 @@ export async function roster(sponsorId: string): Promise<RosterEntry[]> {
     name: `${row.firstName} ${row.lastName ?? ""}`.trim(),
     lastVerifiedAt: row.lastVerifiedAt,
     paused: row.pausedAt !== null,
+    heldByYou: row.heldByYou === true,
   }));
 }
 
@@ -457,6 +470,92 @@ export async function removeFromRoster(input: {
   });
 
   log.info("enrolment removed", { reason: input.reason });
+  return { ok: true };
+}
+
+/**
+ * 🔴 W2-S11 / D1 — PAUSE AND RESUME ONE PERSON'S BENEFIT, and they are told.
+ *
+ * The founder's decision: a company controls its employees' benefit (end,
+ * pause, resume) and never sees their sessions. Pausing stops the funding and
+ * nothing else, like C234's removal without the finality: the badge, the record
+ * and the place on the list stay, and `payFromPot` funds only `active` and
+ * `provisional`, so a paused person is offered the ordinary pay link.
+ *
+ * 🔴 `state = 'paused'`, NOT `paused_at`. `paused_at` is C247's re-verification
+ * pause, lifted by the person proving themselves again. Sharing it would let a
+ * company's resume lift a pause that was never theirs, and would show the
+ * company a pause that tells it when one named person came back (E2).
+ *
+ * Only an `active` enrolment is paused: resuming writes `active`, and a
+ * `provisional` one paused and resumed would skip its allowance (C350).
+ *
+ * 🔴 The notices name NO EMPLOYER and NO REASON (C231 amended), exactly as
+ * removal's does. The company's act is audited by the caller.
+ */
+export async function pauseBenefit(input: {
+  sponsorId: string;
+  enrolmentId: string;
+}): Promise<{ ok?: true; error?: string }> {
+  const [row] = await controlDb
+    .update(enrolments)
+    .set({ state: "paused", updatedAt: new Date() })
+    .where(
+      and(
+        eq(enrolments.id, input.enrolmentId),
+        /* Scoped to the company doing it. A borrowed id pauses nobody. */
+        eq(enrolments.sponsorId, input.sponsorId),
+        eq(enrolments.state, "active"),
+        isNull(enrolments.removedAt),
+      ),
+    )
+    .returning({ personId: enrolments.personId });
+
+  if (!row) return { error: "That benefit cannot be paused now." };
+
+  await controlDb.insert(patientNotifications).values({
+    personId: row.personId,
+    kind: "benefit_paused",
+    /* The words the benefit page already uses for a paused benefit. */
+    messageKey: "benefit.paused",
+  });
+
+  log.info("benefit paused by the sponsor");
+  return { ok: true };
+}
+
+export async function resumeBenefit(input: {
+  sponsorId: string;
+  enrolmentId: string;
+}): Promise<{ ok?: true; error?: string }> {
+  const [row] = await controlDb
+    .update(enrolments)
+    .set({ state: "active", updatedAt: new Date() })
+    .where(
+      and(
+        eq(enrolments.id, input.enrolmentId),
+        eq(enrolments.sponsorId, input.sponsorId),
+        /*
+         * Only the company's own pause. `paused_at` is not touched: a
+         * re-verification pause is the person's to lift, and `payFromPot` keeps
+         * refusing while it stands.
+         */
+        eq(enrolments.state, "paused"),
+        isNull(enrolments.removedAt),
+      ),
+    )
+    .returning({ personId: enrolments.personId });
+
+  if (!row) return { error: "That benefit is not paused by you." };
+
+  await controlDb.insert(patientNotifications).values({
+    personId: row.personId,
+    /* The benefit starting again, which is what the person experiences. */
+    kind: "benefit_started",
+    messageKey: "pnotice.benefitResumed",
+  });
+
+  log.info("benefit resumed by the sponsor");
   return { ok: true };
 }
 

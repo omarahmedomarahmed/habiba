@@ -525,6 +525,8 @@ export async function myBenefits(personId: string) {
       isPrimary: enrolments.isPrimary,
       pausedAt: enrolments.pausedAt,
       lastVerifiedAt: enrolments.lastVerifiedAt,
+      /* W2-S11 — `paused` here is the organisation's pause, not C247's. */
+      state: enrolments.state,
     })
     .from(enrolments)
     .innerJoin(sponsors, eq(sponsors.id, enrolments.sponsorId))

@@ -2,11 +2,17 @@
 
 import { useState, useTransition } from "react";
 
-import { endBenefit } from "@/app/(sponsor)/sponsor/people/actions";
+import {
+  endBenefit,
+  pauseTheirBenefit,
+  resumeTheirBenefit,
+} from "@/app/(sponsor)/sponsor/people/actions";
 import { Card } from "@/components/ui";
 import { REMOVAL_REASONS } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+
+import { ConfirmAct } from "./confirm-act";
 
 /**
  * The roster. PLAN.md 53.17b, 53.22, C227, C234, C240, C244.
@@ -48,6 +54,8 @@ const REASON_KEYS: Record<string, MessageKey> = {
 export type RosterRow = {
   enrolmentId: string;
   name: string;
+  /** W2-S11 — paused by this company. Never a re-verification pause (E2). */
+  held: boolean;
 };
 
 export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemove: boolean }) {
@@ -99,6 +107,28 @@ export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemo
         <Card key={person.enrolmentId} className="p-4">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-sm font-semibold text-slate-900">{person.name}</p>
+            {person.held ? (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-900">
+                {t("sponsor.pausedLabel")}
+              </span>
+            ) : null}
+            {/*
+              W2-S11 — pause and resume, beside end. The person is told in the
+              app, with no employer and no reason; the record is untouched.
+            */}
+            {canRemove && openFor !== person.enrolmentId ? (
+              <ConfirmAct
+                className="ms-auto"
+                label={person.held ? t("sponsor.resume") : t("sponsor.pause")}
+                body={person.held ? t("sponsor.resumeBody") : t("sponsor.pauseBody")}
+                done={person.held ? t("sponsor.resumed") : t("sponsor.pausedLabel")}
+                act={() =>
+                  person.held
+                    ? resumeTheirBenefit(person.enrolmentId)
+                    : pauseTheirBenefit(person.enrolmentId)
+                }
+              />
+            ) : null}
           </div>
 
           {canRemove ? (

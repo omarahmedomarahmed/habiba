@@ -1373,7 +1373,7 @@ export const en = {
    * seen using it.
    */
   "benefit.title": "Activate your benefit",
-  "benefit.body": "Enter the code your employer or university gave you. Your sessions are then paid for.",
+  "benefit.body": "Enter the code your employer or university gave you.",
   "benefit.codeLabel": "The code from your organisation",
   "benefit.activate": "Activate",
   "benefit.activating": "Activating…",
@@ -1391,15 +1391,15 @@ export const en = {
   "benefit.ifRemoved": "Only the payment changes. Your record and your history stay as they are.",
   /* 🔴 C250 — said on the screen, because somebody will ask. */
   "benefit.startsNow": "This starts now. Sessions you have already paid for stay as they are.",
-  "benefit.active": "Your sessions are paid for by {name}",
+  "benefit.active": "Your benefit from {name}",
   "benefit.paused": "Your benefit is paused",
-  "benefit.pausedBody": "We could not reach you to confirm you are still eligible. One message fixes it.",
+  "benefit.pausedBody": "Confirm you are still eligible to restart it.",
   "benefit.choosePrimary": "Which one pays",
   "benefit.choosePrimaryBody": "Choose which list pays. Neither organisation is told about the other.",
   "benefit.makePrimary": "Use this one",
   "benefit.primary": "Paying for your sessions",
   /* 🔴 C231 — the patient's own log. No employer named, no reason. */
-  "pnotice.benefitStarted": "Your sessions are now paid for.",
+  "pnotice.benefitStarted": "Your benefit has started.",
   /*
    * 🔴 79.1 — the four things the app never told a patient.
    *
@@ -1442,7 +1442,7 @@ export const en = {
   "sponsor.reason.graduated": "They have graduated",
   "sponsor.reason.ended": "The benefit has ended",
   "sponsor.reason.administrative": "An administrative correction",
-  "sponsor.removeConfirm": "Their funding and badge end now. Their record and history are untouched, and we do not tell them why.",
+  "sponsor.removeConfirm": "Their funding and badge end now. Their record is untouched, and they are not told why.",
   /*
    * 🔴 C377 — "not enough activity to report" is NOT "the pot is empty".
    *
@@ -1456,7 +1456,7 @@ export const en = {
   /* 🔴 C228 / C229 — the sentence a client asking for a daily chart reads. */
   "sponsor.whyWeekly": "Weekly is the finest we show. A day's spend can identify a person; a week cannot.",
   "sponsor.suppressed": "Not enough activity to report yet",
-  "sponsor.suppressedBody": "We do not publish a figure for a period with very little activity: a small number can identify somebody.",
+  "sponsor.suppressedBody": "A figure for a quiet period could identify somebody, so we hold it back.",
   /* 🔴 C240 — on their own screen, so nobody buys this expecting otherwise. */
   /*
    * 🔴 65.12 / 65.3 — `sponsor.noAttendance` became these four.
@@ -1495,7 +1495,7 @@ export const en = {
   "sint.pickSystem": "Which HR system",
   "sint.turnOn": "Turn it on",
   "sint.turnOff": "Turn it off",
-  "sint.offRevokes": "Turning it off revokes every key on this account at once. Turning it back on means generating a new one.",
+  "sint.offRevokes": "Turning it off revokes every key at once.",
   "sint.connected": "Connected",
   "sint.notConnected": "Not connected yet",
   "sint.lastAnswered": "Your system last answered a question at {when}.",
@@ -1561,7 +1561,7 @@ export const en = {
   "sponsor.codePrint": "Print this",
   /* 🔴 53.19 — a NUMBER, never a name and never an identifier that was tried. */
   "sponsor.attempts": "{count} refused attempts on this code in the last seven days.",
-  "sponsor.attemptsHigh": "More than we would expect. Somebody may be guessing your code. Replacing it costs only reprinting.",
+  "sponsor.attemptsHigh": "More than expected. Somebody may be guessing your code; replacing it costs a reprint.",
   "sponsor.codePoster": "Activate your benefit at {url} with the code {code}.",
   "sponsor.topUpBody": "The minimum is {min}. It can only be spent on sessions here, and cannot be taken back out as cash.",
   "sponsor.expiresOn": "Unspent money expires on {date}.",
@@ -1673,7 +1673,7 @@ export const en = {
   "sponsor.inv.notYet": "We cannot issue this document yet.",
   "sponsor.inv.notYetBody": "Ask us for it and we will send it to you.",
   /* 🔴 53.12 — on the document as well as on the screen that took the money. */
-  "sponsor.inv.spendableOnly": "A balance spendable on sessions here. It cannot be withdrawn as cash, and your agreed refund and expiry terms apply.",
+  "sponsor.inv.spendableOnly": "Spendable on sessions here, not withdrawable as cash. Your agreed refund and expiry terms apply.",
   "sponsor.settingsTitle": "How people join",
   "sponsor.identifierTitle": "What you ask people for",
   "sponsor.identifierBody": "One or two things, from a fixed list. Never a national identifier, and never anything about health.",
@@ -4027,6 +4027,13 @@ export const en = {
   "sponsor.resetMailBody": "The link works for an hour.",
   "sponsor.inviteMailSubject": "{org} invited you to its 24Therapy account",
   "sponsor.inviteMailBody": "Set your password within a week to sign in.",
+  "sponsor.pause": "Pause",
+  "sponsor.pauseBody": "Sessions stop being covered until you resume. They are told, with no reason.",
+  "sponsor.resume": "Resume",
+  "sponsor.resumeBody": "Their sessions are covered again, and they are told.",
+  "sponsor.resumed": "Resumed.",
+  "pnotice.benefitResumed": "Your benefit is back on.",
+  "benefit.heldBody": "Your organisation paused it. Sessions are not covered until it resumes.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5073,7 +5080,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.voices.saving": "جارٍ الحفظ…",
   "portal.nav.bookings": "التقويم",
   "benefit.title": "فعّل ميزتك",
-  "benefit.body": "أدخل الرمز الذي أعطته لك جهة عملك أو جامعتك. عندها تُدفع جلساتك.",
+  "benefit.body": "أدخل الرمز الذي أعطته لك جهة عملك أو جامعتك.",
   "benefit.codeLabel": "الرمز من جهتك",
   "benefit.activate": "فعّل",
   "benefit.activating": "جارٍ التفعيل…",
@@ -5085,14 +5092,14 @@ export const ar: Record<MessageKey, string> = {
   "benefit.theyNeverSee": "هل حجزت، ومتى، ومع من. لا تاريخًا ولا عددًا.",
   "benefit.ifRemoved": "الدفع وحده يتغير. ويبقى سجلك وتاريخك كما هما.",
   "benefit.startsNow": "يبدأ هذا الآن. والجلسات التي دفعت ثمنها بالفعل تبقى كما هي.",
-  "benefit.active": "جلساتك مدفوعة من {name}",
+  "benefit.active": "ميزتك من {name}",
   "benefit.paused": "ميزتك متوقفة مؤقتًا",
-  "benefit.pausedBody": "لم نستطع الوصول إليك للتأكد من استمرار أهليتك. رسالة واحدة تحل الأمر.",
+  "benefit.pausedBody": "أكّد أنك ما زلت مؤهلًا لإعادة تشغيلها.",
   "benefit.choosePrimary": "أي واحدة تدفع",
   "benefit.choosePrimaryBody": "اختر أي قائمة تدفع. ولا تُخبَر أي جهة عن الأخرى.",
   "benefit.makePrimary": "استخدم هذه",
   "benefit.primary": "تدفع لجلساتك",
-  "pnotice.benefitStarted": "جلساتك مدفوعة الآن.",
+  "pnotice.benefitStarted": "بدأت ميزتك.",
   /* 🔴 79.1 — see the English block for why the wording carries no reason. */
   "pnotice.sessionInvited": "دعاك معالجك إلى جلسة.",
   "pnotice.sessionStarted": "بدأت جلستك. الباب مفتوح.",
@@ -5127,13 +5134,13 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.reason.graduated": "تخرّجوا",
   "sponsor.reason.ended": "انتهت الميزة",
   "sponsor.reason.administrative": "تصحيح إداري",
-  "sponsor.removeConfirm": "ينتهي تمويله وشارته الآن. ويبقى سجله وتاريخه كما هما، ولا نخبره بالسبب.",
+  "sponsor.removeConfirm": "ينتهي تمويله وشارته الآن. ويبقى سجله كما هو، ولا يُخبَر بالسبب.",
   "sponsor.balanceSuppressed": "لا يوجد نشاط كافٍ لعرض رصيد بعد",
   "sponsor.balance": "المتبقي في محفظتك",
   "sponsor.spendTitle": "ما أُنفق، أسبوعًا بأسبوع",
   "sponsor.whyWeekly": "الأسبوع أدق ما نعرضه على الإطلاق. فإنفاق يوم واحد قد يدل على شخص، والأسبوع لا.",
   "sponsor.suppressed": "النشاط لا يكفي للتقرير بعد",
-  "sponsor.suppressedBody": "لا ننشر رقمًا لفترة نشاطها ضئيل: فالعدد الصغير قد يدل على شخص بعينه.",
+  "sponsor.suppressedBody": "رقم فترة هادئة قد يدل على شخص بعينه، فنحجبه.",
   "sponsor.ofLastTopUp": "من {amount} أُضيفت آخر مرة",
   "sponsor.neverLabel": "لن تعرض لك هذه البوابة أبدًا",
   "sponsor.neverIndividual": "أي فرد بعينه",
@@ -5155,7 +5162,7 @@ export const ar: Record<MessageKey, string> = {
   "sint.pickSystem": "أي نظام موارد بشرية",
   "sint.turnOn": "شغّله",
   "sint.turnOff": "أوقفه",
-  "sint.offRevokes": "إيقافه يلغي كل مفاتيح هذا الحساب فورًا. وإعادته تعني توليد مفتاح جديد.",
+  "sint.offRevokes": "إيقافه يلغي كل المفاتيح فورًا.",
   "sint.connected": "متصل",
   "sint.notConnected": "غير متصل بعد",
   "sint.lastAnswered": "آخر مرة أجاب فيها نظامكم سؤالًا: {when}.",
@@ -5216,7 +5223,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.codeRotateBody": "يتوقف الرمز القديم فورًا. ومن انضم بالفعل يبقى منضمًا.",
   "sponsor.codePrint": "اطبع هذا",
   "sponsor.attempts": "{count} محاولة مرفوضة على هذا الرمز في الأيام السبعة الماضية.",
-  "sponsor.attemptsHigh": "أكثر مما نتوقع. ربما يخمّن أحدهم رمزك. واستبداله لا يكلف سوى إعادة الطباعة.",
+  "sponsor.attemptsHigh": "أكثر من المتوقع. ربما يخمّن أحدهم رمزك؛ واستبداله يكلف إعادة طباعة فقط.",
   "sponsor.codePoster": "فعّل ميزتك على {url} بالرمز {code}.",
   "sponsor.topUpBody": "الحد الأدنى {min}. ولا يُنفَق إلا على جلسات هنا، ولا يُسترد نقدًا.",
   "sponsor.expiresOn": "ينتهي المبلغ غير المنفق في {date}.",
@@ -5302,7 +5309,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.inv.paid": "مدفوع",
   "sponsor.inv.notYet": "لا يمكننا إصدار هذه الوثيقة بعد.",
   "sponsor.inv.notYetBody": "اطلبها منا وسنرسلها إليك.",
-  "sponsor.inv.spendableOnly": "رصيد يُنفَق على الجلسات هنا. لا يُسحب نقدًا، وتسري شروط الاسترداد والانتهاء المتفق عليها.",
+  "sponsor.inv.spendableOnly": "يُنفَق على الجلسات هنا ولا يُسحب نقدًا. وتسري شروط الاسترداد والانتهاء المتفق عليها.",
   "sponsor.settingsTitle": "كيف ينضم الناس",
   "sponsor.identifierTitle": "ما تطلبونه من الناس",
   "sponsor.identifierBody": "شيء أو اثنان من قائمة ثابتة. لا معرّف قومي أبدًا، ولا أي شيء عن الصحة.",
@@ -7289,6 +7296,13 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.resetMailBody": "يعمل الرابط لمدة ساعة.",
   "sponsor.inviteMailSubject": "دعتك {org} إلى حسابها على 24Therapy",
   "sponsor.inviteMailBody": "عيّن كلمة المرور خلال أسبوع لتسجيل الدخول.",
+  "sponsor.pause": "أوقف مؤقتًا",
+  "sponsor.pauseBody": "تتوقف تغطية الجلسات حتى تستأنفوا. ويُبلَّغ الشخص دون ذكر سبب.",
+  "sponsor.resume": "استأنف",
+  "sponsor.resumeBody": "تُغطّى جلساته مجددًا، ويُبلَّغ بذلك.",
+  "sponsor.resumed": "استؤنفت.",
+  "pnotice.benefitResumed": "عادت ميزتك.",
+  "benefit.heldBody": "أوقفتها جهتك مؤقتًا. لا تُغطّى الجلسات حتى تُستأنف.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

@@ -521,6 +521,91 @@ async function companyLogins(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-S11 · the company pauses and resumes a benefit, and says so     */
+/* ================================================================== */
+
+async function pauseResume(db: Db) {
+  const world = await plantWorld(db, "pause");
+  try {
+    const sponsorsModule = (await import("../lib/data/sponsors")) as Record<string, unknown>;
+    type Act = (input: { sponsorId: string; enrolmentId: string }) => Promise<{ ok?: true; error?: string }>;
+    const pauseBenefit = sponsorsModule.pauseBenefit as Act | undefined;
+    const resumeBenefit = sponsorsModule.resumeBenefit as Act | undefined;
+    if (!pauseBenefit || !resumeBenefit) {
+      check("W2-S11 a company can pause and resume one person's benefit", false, "no pauseBenefit / resumeBenefit");
+      return;
+    }
+    const { payFromPot } = await import("../lib/billing/pot");
+    const { roster } = await import("../lib/data/sponsors");
+
+    const nour = await world.cast("Nour");
+    const paused = await pauseBenefit({ sponsorId: world.sponsorId, enrolmentId: nour.enrolmentId });
+    const refused = await payFromPot(nour.sessionId);
+    const listed = (await roster(world.sponsorId)).find((row) => row.enrolmentId === nour.enrolmentId) as
+      | (Record<string, unknown> & { enrolmentId: string })
+      | undefined;
+    check(
+      "W2-S11 a paused benefit pays for nothing, and the company sees its own pause on the list",
+      Boolean(paused.ok) && !refused.paid && listed?.heldByYou === true,
+      JSON.stringify({ paused, refused, held: listed?.heldByYou }),
+    );
+
+    const notices = async () =>
+      (
+        await db.execute(sql`
+          SELECT kind, message_key FROM patient_notifications
+           WHERE person_id = ${nour.personId} ORDER BY created_at`)
+      ).rows as { kind: string; message_key: string }[];
+    const afterPause = await notices();
+    check(
+      "W2-S11 the employee is told in the app, and the notice names no employer",
+      afterPause.some((row) => row.kind === "benefit_paused" && row.message_key === "benefit.paused"),
+      JSON.stringify(afterPause),
+    );
+
+    const resumed = await resumeBenefit({ sponsorId: world.sponsorId, enrolmentId: nour.enrolmentId });
+    const later = await world.book(nour.patientId);
+    const paid = await payFromPot(later);
+    const afterResume = await notices();
+    check(
+      "W2-S11 resuming pays again, and they are told",
+      Boolean(resumed.ok) &&
+        paid.paid &&
+        afterResume.some((row) => row.message_key === "pnotice.benefitResumed"),
+      JSON.stringify({ resumed, paid: paid.paid, notices: afterResume.length }),
+    );
+
+    /*
+     * A re-verification pause is not the company's to see or to lift. Planted
+     * under the company's own pause: resuming lifts the company's and leaves
+     * the person's, which still stops the funding.
+     */
+    await pauseBenefit({ sponsorId: world.sponsorId, enrolmentId: nour.enrolmentId });
+    await db.execute(sql`UPDATE enrolments SET paused_at = now() WHERE id = ${nour.enrolmentId}`);
+    const lifted = await resumeBenefit({ sponsorId: world.sponsorId, enrolmentId: nour.enrolmentId });
+    const verifying = (await roster(world.sponsorId)).find(
+      (row) => row.enrolmentId === nour.enrolmentId,
+    ) as (Record<string, unknown> & { enrolmentId: string }) | undefined;
+    const stillRefused = await payFromPot(await world.book(nour.patientId));
+    check(
+      "W2-S11 CONTROL resuming lifts only the company's pause: a re-verification pause stays, unseen",
+      Boolean(lifted.ok) && verifying?.heldByYou === false && !stillRefused.paid,
+      JSON.stringify({ lifted, held: verifying?.heldByYou, paid: stillRefused.paid }),
+    );
+
+    const other = await plantSponsor(db, "pause-other");
+    try {
+      const borrowed = await pauseBenefit({ sponsorId: other, enrolmentId: nour.enrolmentId });
+      check("W2-S11 CONTROL another company cannot pause this person", Boolean(borrowed.error));
+    } finally {
+      await dropSponsor(db, other);
+    }
+  } finally {
+    await world.drop();
+  }
+}
+
 async function main() {
   writesTo();
 
@@ -531,6 +616,7 @@ async function main() {
     await enquiry(db);
     await potExpiry(db);
     await companyLogins(db);
+    await pauseResume(db);
   } finally {
     await pool.end();
   }
