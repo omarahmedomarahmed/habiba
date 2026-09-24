@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 
+import { startMockOpenAi } from "../tests/mock-openai";
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
 
@@ -19,8 +20,37 @@ const { check, finish } = reporter();
 
 const fixture = `w1b${Date.now().toString(36)}`;
 
+/** A WAV of silence: 16 kHz, mono, 16-bit, so one second is 32,000 bytes. */
+function silentWav(seconds: number): Buffer {
+  const data = 32_000 * seconds;
+  const out = Buffer.alloc(44 + data);
+  out.write("RIFF", 0);
+  out.writeUInt32LE(36 + data, 4);
+  out.write("WAVE", 8);
+  out.write("fmt ", 12);
+  out.writeUInt32LE(16, 16);
+  out.writeUInt16LE(1, 20);
+  out.writeUInt16LE(1, 22);
+  out.writeUInt32LE(16_000, 24);
+  out.writeUInt32LE(32_000, 28);
+  out.writeUInt16LE(2, 32);
+  out.writeUInt16LE(16, 34);
+  out.write("data", 36);
+  out.writeUInt32LE(data, 40);
+  return out;
+}
+
 async function main() {
   writesTo();
+
+  /*
+   * The partner routes transcribe and draft, so they are pointed at the same
+   * stand-in the e2e suite uses, which records what it was sent. Set before any
+   * product module is imported, because the client reads it once.
+   */
+  const mock = startMockOpenAi(4319);
+  process.env.OPENAI_BASE_URL = "http://127.0.0.1:4319/v1";
+  process.env.OPENAI_API_KEY ||= "sk-mock";
 
   const { db, pool } = connect();
 
@@ -442,7 +472,108 @@ async function main() {
       fineNow.state === "approved" && !fineNow.warned && fineNow.radar === "online",
       JSON.stringify(fineNow),
     );
+    /* ================================================================ */
+    /*  PARTNER FIXTURE · a partner, a key, and their routes              */
+    /* ================================================================ */
+
+    const partner = await one<{ id: string }>(sql`
+      INSERT INTO partners (name, slug, state) VALUES (${fixture}, ${fixture}, 'active')
+      RETURNING id`);
+    const { mintKey } = await import("../lib/partner/keys");
+    const minted = await mintKey({
+      partnerId: partner.id,
+      label: "wave 1B",
+      environment: "sandbox",
+      sponsorId: null,
+      scopes: ["consent:write", "session:media", "transcript:read", "note:review",
+        "copilot:chat", "memory:read"],
+    });
+    const bearer = { authorization: `Bearer ${minted.key?.raw}` };
+    const base = "http://localhost/api/partner/v1";
+
+    const consentRoute = await import("../app/api/partner/v1/consent/route");
+    const mediaRoute = await import("../app/api/partner/v1/sessions/[ref]/media/route");
+    const consent = (session: string, subject: string, state: string, offset: number) =>
+      consentRoute.POST(
+        new Request(`${base}/consent`, {
+          method: "POST",
+          headers: { ...bearer, "content-type": "application/json" },
+          body: JSON.stringify({
+            session,
+            subject,
+            state,
+            answered_at: new Date().toISOString(),
+            offset_seconds: offset,
+          }),
+        }),
+      );
+    const media = (ref: string, audio: Buffer, type: string, headers: Record<string, string> = {}) =>
+      mediaRoute.POST(
+        new Request(`${base}/sessions/${ref}/media`, {
+          method: "POST",
+          headers: { ...bearer, "content-type": type, ...headers },
+          body: audio,
+        }),
+        { params: Promise.resolve({ ref }) },
+      );
+
+    /* ================================================================ */
+    /*  W1-17 · NOTHING BEFORE THE CONSENT OFFSET IS TRANSCRIBED         */
+    /* ================================================================ */
+
+    const late = `${fixture}-late`;
+    await consent(late, `${fixture}-P1`, "given", 5);
+    const before = mock.state.transcriptionRequests.length;
+    const wav = await media(late, silentWav(10), "audio/wav");
+    const sent = mock.state.transcriptionRequests.slice(before);
+    const sentBytes = sent.reduce((sum, request) => sum + request.bytes, 0);
+    check(
+      "🔴 W1-17 a WAV from a session consented 5 s in: only the 5 s after the offset reach the transcriber",
+      wav.status === 200 && sent.length === 1 && sentBytes < 32_000 * 6 && sentBytes > 32_000 * 4,
+      `status ${wav.status}, ${sent.length} request(s), ${sentBytes} bytes sent of a ${32_000 * 10} byte recording`,
+    );
+
+    const whole = `${fixture}-whole`;
+    await consent(whole, `${fixture}-P1`, "given", 5);
+    const beforeWebm = mock.state.transcriptionRequests.length;
+    const webm = await media(whole, Buffer.alloc(4_000, 1), "audio/webm");
+    check(
+      "🔴 W1-17 audio we cannot cut, reaching back before the offset, is refused rather than transcribed",
+      webm.status === 422 && mock.state.transcriptionRequests.length === beforeWebm,
+      `status ${webm.status}, ${mock.state.transcriptionRequests.length - beforeWebm} sent`,
+    );
+    const afterOffset = await media(whole, Buffer.alloc(4_000, 1), "audio/webm", {
+      "x-audio-start-seconds": "5",
+    });
+    check(
+      "W1-17 …and the same audio, declared to start at the offset, is taken",
+      afterOffset.status === 200,
+      `status ${afterOffset.status}`,
+    );
+
+    await db.execute(sql`
+      UPDATE partner_sessions SET note_draft = 'A draft note', summary_text = 'A summary'
+       WHERE partner_id = ${partner.id} AND external_session_ref = ${late}`);
+    await consent(late, `${fixture}-P1`, "withdrawn", 0);
+    const purged = await one<{ transcript: string | null; draft: string | null; summary: string | null }>(sql`
+      SELECT transcript_text AS transcript, note_draft AS draft, summary_text AS summary
+        FROM partner_sessions
+       WHERE partner_id = ${partner.id} AND external_session_ref = ${late}`);
+    check(
+      "🔴 W1-17 a withdrawal purges the stored transcript, draft and summary",
+      purged.transcript === null && purged.draft === null && purged.summary === null,
+      JSON.stringify(purged),
+    );
   } finally {
+    mock.server.close();
+    await db.execute(sql`DELETE FROM partner_sessions WHERE external_session_ref LIKE ${`%${fixture}%`}`);
+    await db.execute(sql`DELETE FROM partner_consents WHERE external_session_ref LIKE ${`%${fixture}%`}`);
+    await db.execute(sql`DELETE FROM partner_subjects WHERE external_ref LIKE ${`%${fixture}%`}`);
+    await db.execute(sql`DELETE FROM partner_clinicians WHERE partner_id IN
+      (SELECT id FROM partners WHERE slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM partner_api_keys WHERE partner_id IN
+      (SELECT id FROM partners WHERE slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM partners WHERE slug = ${fixture}`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM patients WHERE organization_id IN

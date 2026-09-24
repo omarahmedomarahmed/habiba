@@ -128,6 +128,15 @@ export async function POST(request: Request) {
     externalSubjectRef: subject,
   });
 
+  /*
+   * 🔴 W1-17: a withdrawal purges what the consent produced. It used to stop new
+   * reading and keep the transcript, the draft and the summary for ever.
+   */
+  if (state === "withdrawn") {
+    const { purgeSessionMaterial } = await import("@/lib/partner/media");
+    await purgeSessionMaterial({ partnerId: guard.key.partnerId, externalSessionRef: session });
+  }
+
   return NextResponse.json({
     recording_from_seconds: opened.recordingFromSeconds,
     coverage: opened.coverage,
