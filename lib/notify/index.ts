@@ -245,6 +245,8 @@ export type Message = {
     | "sponsor.pot_empty"
     /** W1-20: the same admins, warned once when the pot is low, before it is empty. */
     | "sponsor.pot_low"
+    /** W2-S08: the same admins, thirty days before the pot stops paying. */
+    | "sponsor.pot_expiring"
     /**
      * 🔴 76.14 — THE TWO MOMENTS A PAYER ON THE EGYPTIAN RAIL HEARS FROM US.
      *

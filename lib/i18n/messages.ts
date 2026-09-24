@@ -4011,6 +4011,9 @@ export const en = {
   "sponsor.apply.elsewhere": "Elsewhere",
   "sponsor.apply.mailSubject": "We have your enquiry",
   "sponsor.apply.mailBody": "We will call {contact} about {name}. Nothing is set up before that call.",
+  "sponsor.expiredOn": "Expired {date}. It no longer pays for sessions.",
+  "sponsor.expiryMailSubject": "Your fund expires {date}",
+  "sponsor.expiryMailBody": "{name}'s fund stops paying for sessions on {date}. Talk to us to extend it.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7257,6 +7260,9 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.apply.elsewhere": "مكان آخر",
   "sponsor.apply.mailSubject": "وصلنا طلبكم",
   "sponsor.apply.mailBody": "سنتصل بـ{contact} بخصوص {name}. لا يُجهَّز شيء قبل هذه المكالمة.",
+  "sponsor.expiredOn": "انتهت في {date}. لم تعد تدفع عن الجلسات.",
+  "sponsor.expiryMailSubject": "تنتهي صلاحية صندوق العلاج لديكم في {date}",
+  "sponsor.expiryMailBody": "يتوقف صندوق {name} عن الدفع عن الجلسات في {date}. تحدثوا إلينا قبل ذلك لتمديده.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

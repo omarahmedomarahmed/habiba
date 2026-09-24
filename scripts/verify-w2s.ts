@@ -45,6 +45,93 @@ async function dropSponsor(db: Db, sponsorId: string) {
 
 const YEAR = 365 * 24 * 60 * 60 * 1000;
 
+/**
+ * A practice, a clinician, and a company with a funded pot, for the items that
+ * need real sessions paid from a pot. `cast` makes one enrolled employee with
+ * one pending session; `drop` removes everything, in dependency order.
+ */
+async function plantWorld(db: Db, label: string) {
+  const tag = `${fixture}-${label}`;
+  const one = async <T>(text: ReturnType<typeof sql>): Promise<T> =>
+    required((await db.execute(text)).rows[0] as T | undefined, "a planted row");
+
+  const org = await one<{ id: string }>(sql`
+    INSERT INTO organizations (name, region, slug)
+    VALUES ('W2S Demo Practice', 'eg', ${tag}) RETURNING id`);
+  const therapist = await one<{ id: string }>(sql`
+    INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash)
+    VALUES (${org.id}, ${`hala.${tag}@example.com`}, 'Hala', 'Demo', 'therapist', 'x')
+    RETURNING id`);
+  const sponsorId = await plantSponsor(db, label);
+
+  const { openPot } = await import("../lib/data/sponsor-admin");
+  await openPot({
+    sponsorId,
+    refundPolicy: "Unused balance is refunded within 30 days of written notice.",
+    expiresAt: new Date(Date.now() + YEAR),
+    overdraftCents: 0,
+    welcomeCreditCents: 0,
+  });
+  await db.execute(sql`
+    UPDATE sponsor_pots SET balance_cents = 100000, coverage_bps = 6000
+     WHERE sponsor_id = ${sponsorId}`);
+
+  let n = 0;
+  const cast = async (first: string, priceCents = 2000) => {
+    n += 1;
+    const person = await one<{ id: string }>(sql`
+      INSERT INTO people (first_name, last_name, region)
+      VALUES (${first}, 'Demo', 'eg') RETURNING id`);
+    const patient = await one<{ id: string }>(sql`
+      INSERT INTO patients (organization_id, person_id, first_name, last_name, email, source)
+      VALUES (${org.id}, ${person.id}, ${first}, 'Demo', ${`${first.toLowerCase()}${n}.${tag}@example.com`}, 'self')
+      RETURNING id`);
+    const enrolment = await one<{ id: string }>(sql`
+      INSERT INTO enrolments (sponsor_id, person_id, state, is_primary, identifier_hash,
+                              identifier_kind, last_verified_at)
+      VALUES (${sponsorId}, ${person.id}, 'active', true, ${`${first}${n}-${tag}`},
+              'domain_email', now())
+      RETURNING id`);
+    const session = await book(patient.id, priceCents);
+    return { personId: person.id, patientId: patient.id, enrolmentId: enrolment.id, sessionId: session };
+  };
+
+  const book = async (patientId: string, priceCents = 2000) => {
+    n += 1;
+    const session = await one<{ id: string }>(sql`
+      INSERT INTO sessions (organization_id, therapist_id, patient_id, status, modality,
+                            join_token, feedback_token, price_cents, payment_status, scheduled_at)
+      VALUES (${org.id}, ${therapist.id}, ${patientId}, 'scheduled', 'video',
+              ${`join-${n}-${tag}`}, ${`fb-${n}-${tag}`}, ${priceCents}, 'pending',
+              now() + interval '2 hours')
+      RETURNING id`);
+    return session.id;
+  };
+
+  const drop = async () => {
+    await db.execute(sql`DELETE FROM ledger_entries WHERE organization_id = ${org.id}`);
+    await db.execute(sql`DELETE FROM session_payments WHERE organization_id = ${org.id}`);
+    await db.execute(sql`DELETE FROM patient_notifications WHERE person_id IN
+      (SELECT person_id FROM patients WHERE organization_id = ${org.id})`);
+    await db.execute(sql`DELETE FROM sessions WHERE organization_id = ${org.id}`);
+    await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+      (SELECT id FROM enrolments WHERE sponsor_id = ${sponsorId})`);
+    await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsorId}`);
+    const people = (
+      await db.execute(sql`SELECT person_id FROM patients WHERE organization_id = ${org.id}`)
+    ).rows as { person_id: string }[];
+    await db.execute(sql`DELETE FROM patients WHERE organization_id = ${org.id}`);
+    for (const row of people) {
+      await db.execute(sql`DELETE FROM people WHERE id = ${row.person_id}`);
+    }
+    await dropSponsor(db, sponsorId);
+    await db.execute(sql`DELETE FROM users WHERE organization_id = ${org.id}`);
+    await db.execute(sql`DELETE FROM organizations WHERE id = ${org.id}`);
+  };
+
+  return { sponsorId, orgId: org.id, therapistId: therapist.id, cast, book, drop };
+}
+
 /* ================================================================== */
 /*  W2-S02 · the balance is republished on every top-up                */
 /* ================================================================== */
@@ -219,6 +306,73 @@ async function enquiry(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-S08 · a pot expires on its date, and is warned before it does   */
+/* ================================================================== */
+
+async function potExpiry(db: Db) {
+  const started = new Date();
+  const world = await plantWorld(db, "expiry");
+  try {
+    const { payFromPot } = await import("../lib/billing/pot");
+    const balance = async () =>
+      Number(
+        (
+          (
+            await db.execute(sql`
+              SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${world.sponsorId}`)
+          ).rows[0] as { balance_cents: number }
+        ).balance_cents,
+      );
+
+    /* The control first: a pot inside its date pays. */
+    const live = await world.cast("Nour");
+    const paid = await payFromPot(live.sessionId);
+    check("W2-S08 CONTROL a pot inside its date pays", paid.paid, JSON.stringify(paid));
+
+    await db.execute(sql`
+      UPDATE sponsor_pots SET expires_at = now() - interval '1 day'
+       WHERE sponsor_id = ${world.sponsorId}`);
+    const before = await balance();
+    const late = await world.book(live.patientId);
+    const refused = await payFromPot(late);
+    check(
+      "W2-S08 an expired pot pays for nothing, and says why",
+      !refused.paid && refused.reason === ("expired" as string) && (await balance()) === before,
+      JSON.stringify(refused),
+    );
+
+    /* The warning: once, before the date, however many days the job runs. */
+    const alerts = (await import("../lib/billing/pot-alerts")) as {
+      alertPots: () => Promise<{ alerted: number }>;
+    };
+    await db.execute(sql`
+      UPDATE sponsor_pots SET expires_at = now() + interval '10 days'
+       WHERE sponsor_id = ${world.sponsorId}`);
+    await alerts.alertPots();
+    await alerts.alertPots();
+    const warned = Number(
+      (
+        (
+          await db.execute(sql`
+            SELECT count(*)::int AS n FROM audit_log
+             WHERE action = 'sponsor.pot_alert.expiring'
+               AND resource_id = (SELECT id FROM sponsor_pots WHERE sponsor_id = ${world.sponsorId})`)
+        ).rows[0] as { n: number }
+      ).n,
+    );
+    check(
+      "W2-S08 a pot expiring within 30 days is warned once, before it expires",
+      warned === 1,
+      `${warned} warnings over two runs`,
+    );
+  } finally {
+    await db.execute(sql`DELETE FROM delivery_attempts
+      WHERE kind LIKE 'sponsor.pot_%' AND created_at >= ${started}`);
+    await world.drop();
+  }
+}
+
 async function main() {
   writesTo();
 
@@ -227,6 +381,7 @@ async function main() {
     await balanceAfterTopUp(db);
     await firstCode(db);
     await enquiry(db);
+    await potExpiry(db);
   } finally {
     await pool.end();
   }

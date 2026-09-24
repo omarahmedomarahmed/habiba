@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
 import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
 import { Card } from "@/components/ui";
 import { potTerms } from "@/lib/data/sponsor-admin";
@@ -139,8 +140,20 @@ export default async function SponsorOverviewPage() {
         ? t("sponsor.planUnknown")
         : t("sponsor.budgetBody", { percent: usedPercent });
 
+  /* W2-S08 — the pot stops paying on its date; say so before, and after. */
+  const expiry = expiryState(terms?.expiresAt ?? null);
+
   return (
     <div className="space-y-4">
+      {expiry && terms?.expiresAt ? (
+        <ExpiryNotice
+          text={
+            expiry === "expired"
+              ? t("sponsor.expiredOn", { date: formatDate(terms.expiresAt, "UTC", locale) })
+              : t("sponsor.expiresOn", { date: formatDate(terms.expiresAt, "UTC", locale) })
+          }
+        />
+      ) : null}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card className="p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">

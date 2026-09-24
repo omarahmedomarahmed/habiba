@@ -155,11 +155,16 @@ const NO_POT = {
   coverageBps: 0,
   pendingCoverageBps: null,
   pendingCoverageFrom: null,
+  expiresAt: null,
 } as const;
 
 export type PotSpend =
   | { paid: true; sponsorId: string; amountCents: number }
-  | { paid: false; reason: "no_benefit" | "no_pot" | "insufficient" | "nothing_to_pay" };
+  | {
+      paid: false;
+      /** W2-S08 — `expired`: the pot's expiry date has passed, so it pays for nothing. */
+      reason: "no_benefit" | "no_pot" | "insufficient" | "nothing_to_pay" | "expired";
+    };
 
 /**
  * 🔴 53.21 — POT FIRST, ALWAYS. A badged patient never pays out of pocket
@@ -404,6 +409,25 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       })
       .where(eq(enrolments.id, benefit.enrolmentId));
   };
+
+  /*
+   * 🔴 W2-S08 — UNSPENT MONEY EXPIRES ON ITS DATE, AND NOW IT DOES.
+   *
+   * The pot page, the top-up form and every invoice say "Unspent money expires
+   * on {date}", and no code read the date: an expired pot paid for sessions for
+   * ever. It stops here, at booking, the same place an empty pot stops, so the
+   * employee is offered the ordinary pay link. The company is warned by
+   * `alertPots` thirty days before, and on its own pot page.
+   *
+   * Nothing is written off. What happens to an expired balance is the refund
+   * policy agreed when the pot opened (C233), which is a person's decision and
+   * not this function's.
+   */
+  if (pot.expiresAt && pot.expiresAt.getTime() <= Date.now()) {
+    log.info("pot has expired and funds nothing", { session: ref(sessionId) });
+    await releaseProvisional();
+    return { paid: false, reason: "expired" };
+  }
 
   if (pot.balanceCents + pot.overdraftCents < sponsorShare) {
     log.info("pot cannot fund this booking", { session: ref(sessionId) });
@@ -1119,6 +1143,8 @@ async function potRow(sponsorId: string) {
   const [pot] = await controlDb
     .select({
       potId: sponsorPots.id,
+      /* W2-S08 — read at booking, so an expired pot funds nothing. */
+      expiresAt: sponsorPots.expiresAt,
       balanceCents: sponsorPots.balanceCents,
       overdraftCents: sponsorPots.overdraftCents,
       /* 🔴 60.1 / C311 — what this employer covers, and any pending change. */
