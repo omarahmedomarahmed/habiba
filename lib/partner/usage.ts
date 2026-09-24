@@ -1,9 +1,10 @@
 import "server-only";
 
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { partnerLimits, partnerSessions, partners } from "@/lib/db/schema";
+import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
 
 /**
@@ -33,6 +34,25 @@ import { log, ref } from "@/lib/logger";
 /** The billing period a moment falls in. Calendar months, in UTC. */
 function periodOf(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+/**
+ * 🔴 W2-X05: MOVE A LIMIT ROW INTO THIS PERIOD, clearing what belonged to the last.
+ *
+ * Both alert stamps and the stop are facts about one month. Conditional on the row
+ * being in an earlier period, so it runs once per partner per month however often
+ * it is called, and a stamp written this month is never cleared by it.
+ */
+async function rollPeriod(periodStart: Date, partnerId?: string): Promise<void> {
+  await controlDb
+    .update(partnerLimits)
+    .set({ alerted80At: null, alerted90At: null, stoppedAt: null, periodStart })
+    .where(
+      and(
+        lt(partnerLimits.periodStart, periodStart),
+        partnerId ? eq(partnerLimits.partnerId, partnerId) : undefined,
+      ),
+    );
 }
 
 export type PartnerUsage = {
@@ -202,6 +222,15 @@ export async function mayRun(input: {
 export async function alertApproachingLimits(now = new Date()): Promise<{ alerted: number }> {
   const periodStart = periodOf(now);
 
+  /*
+   * 🔴 W2-X05: A NEW MONTH CLEARS LAST MONTH'S STAMPS, FOR EVERY PARTNER, FIRST.
+   *
+   * The stamps were cleared only when somebody saved a limit, so an account that
+   * crossed 80% in its first month was never warned again. They belong to a period,
+   * and the period rolls here, before any stamp is read.
+   */
+  await rollPeriod(periodStart);
+
   const rows = await controlDb
     .select({
       partnerId: partnerLimits.partnerId,
@@ -258,7 +287,8 @@ export async function alertApproachingLimits(now = new Date()): Promise<{ alerte
          * all. The same rule the sponsor's domain confirmation follows.
          */
         body: `You have used ${usage.used} of the ${usage.limit} sessions this account allows this month, and are on course for about ${usage.projected}. At the limit your own platform keeps working exactly as it does now, and our transcription, notes, summaries and copilot stop until you raise it.`,
-        link: { label: "Raise the limit", url: "/partner/usage" },
+        /* 🔴 W2-X05: absolute: an email or a WhatsApp message has no host to resolve against. */
+        link: { label: "Raise the limit", url: `${env.appUrl}/partner/usage` },
       },
     );
 
@@ -276,6 +306,8 @@ export async function alertApproachingLimits(now = new Date()): Promise<{ alerte
  * question support has to answer without recomputing a month of counts.
  */
 export async function markStopped(partnerId: string, now = new Date()): Promise<void> {
+  /* W2-X05: last month's stop is not this month's, so the period rolls first. */
+  await rollPeriod(periodOf(now), partnerId);
   await controlDb
     .update(partnerLimits)
     .set({ stoppedAt: now, updatedAt: now })

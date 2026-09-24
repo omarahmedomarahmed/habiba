@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
@@ -43,20 +43,26 @@ import { consume, subjectKey } from "@/lib/rate-limit";
  * the same question and leaving it implicit is how somebody later replaces the lookup
  * with a scan.
  *
- * ## 🔴 AND AN ABNORMAL RATE SUSPENDS THE KEY (C265)
+ * ## 🔴 AN ABNORMAL RATE SUSPENDS A SPONSOR'S KEY (C265), AND THROTTLES A PARTNER'S
  *
  * *An abnormal rate suspends the key rather than alerting somebody to read a chart
- * later.* So the limiter does not merely refuse the call: it writes `suspended_at` and a
- * reason, and every subsequent call fails on the WHERE clause until a human clears it.
- * A rate limit that only slows an attacker down is a rate limit that lets them keep
- * going at the permitted speed, and against an identity oracle that is still an oracle.
+ * later.* That is C265's defence for the one identity oracle this table holds, the
+ * sponsor's `employment:verify` key: the limiter writes `suspended_at` and a reason, and
+ * every subsequent call fails on the WHERE clause until a human clears it. A rate limit
+ * that only slows an attacker down lets them keep going at the permitted speed, and
+ * against an oracle that is still an oracle.
+ *
+ * 🔴 W2-X01: a PARTNER's key is not an oracle, and suspending it for a burst stopped
+ * transcription in rooms that were open, until an operator noticed. So it gets a 429
+ * with `Retry-After` and works again once the caller slows down (RESEARCH-2 section 7:
+ * throttle, never suspend; only a human suspends a partner).
  */
 
 /** A prefix a developer can recognise, and an environment they cannot confuse. */
 const PREFIX = { sandbox: "24t_sk_test_", live: "24t_sk_live_" } as const;
 
-/** C265's hard limit. Per key, per minute, and crossing it suspends. */
-const CALLS_PER_MINUTE = 60;
+/** Per key, per minute. Crossing it suspends a sponsor's key (C265), throttles a partner's. */
+export const CALLS_PER_MINUTE = 60;
 
 function hashKey(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -83,6 +89,8 @@ export async function mintKey(input: {
   scopes: string[];
   environment: ApiEnvironment;
   sponsorId: string | null;
+  /** W2-X04: who pressed the button, for the audit row. */
+  byPartnerUserId?: string | null;
 }): Promise<{ key?: MintedKey; error?: string }> {
   const scopes = input.scopes.filter((scope): scope is ApiScope =>
     (API_SCOPES as readonly string[]).includes(scope),
@@ -155,7 +163,34 @@ export async function mintKey(input: {
   if (!created) return { error: "That key could not be created." };
 
   log.info("api key minted", { partner: ref(input.partnerId), environment: input.environment });
+  await auditKey("partner.key.mint", created.id, input.partnerId, input.byPartnerUserId, input.environment);
   return { key: { raw, prefix: created.prefix, id: created.id } };
+}
+
+/**
+ * 🔴 W2-X04: EVERY MINT, ROLL AND REVOKE LEAVES A ROW. `devs.promise4` says every
+ * call is recorded with the key that made it; the key's own life was not.
+ *
+ * A partner user is not an `Actor` and has no column of their own in `audit_log`,
+ * so the row names the key as its resource and the partner and person in the
+ * reason (H6: descriptive text goes in `reason`, never in the uuid column).
+ */
+async function auditKey(
+  action: string,
+  keyId: string,
+  partnerId: string,
+  byPartnerUserId: string | null | undefined,
+  detail: string,
+): Promise<void> {
+  const { audit } = await import("@/lib/audit");
+  await audit({
+    actor: null,
+    category: "admin",
+    action,
+    resourceType: "partner_api_key",
+    resourceId: keyId,
+    reason: `partner ${partnerId}, ${detail}${byPartnerUserId ? `, by partner user ${byPartnerUserId}` : ""}`,
+  });
 }
 
 /**
@@ -192,7 +227,12 @@ export type AuthedKey = {
   sponsorId: string | null;
 };
 
-export type KeyFailure = { status: 401 | 403 | 429; error: string };
+export type KeyFailure = {
+  status: 401 | 403 | 429;
+  error: string;
+  /** W2-X01: on a throttle, seconds until the window rolls over, for `Retry-After`. */
+  retryAfter?: number;
+};
 
 /**
  * 🔴 Authenticate a call, rate-limit it, and suspend the key if the rate is abnormal.
@@ -261,7 +301,8 @@ export async function authenticateKey(
     .where(
       and(
         eq(partnerApiKeys.keyHash, hash),
-        isNull(partnerApiKeys.revokedAt),
+        /* 🔴 W2-X04: a rolled key answers until the end of its overlap, then never. */
+        or(isNull(partnerApiKeys.revokedAt), gt(partnerApiKeys.revokedAt, sql`now()`)),
         /* 🔴 C265 — a suspended key is dead in the WHERE clause, not in a branch. */
         isNull(partnerApiKeys.suspendedAt),
       ),
@@ -307,15 +348,39 @@ export async function authenticateKey(
     return { failure: { status: 401, error: "That key is not valid." } };
   }
 
+  const throttle = await consume(subjectKey("api-key", row.keyId), CALLS_PER_MINUTE, 60);
+
   /*
-   * 🔴 C265 — THE RATE LIMIT SUSPENDS RATHER THAN REFUSING.
+   * 🔴 W2-X01: A PARTNER'S KEY IS THROTTLED, NEVER SUSPENDED.
+   *
+   * A burst from a partner is a retry loop or a busy afternoon, not somebody probing
+   * an oracle: no partner scope answers "does this person exist". Suspending the key
+   * stopped every open room on their platform until an operator cleared it by hand.
+   * So the surplus call gets a 429 and the second it may retry, and the key works
+   * again once the window rolls over. The warning is the ops alert: a human decides
+   * whether a partner is abusing us, and only a human suspends one.
+   */
+  if (!throttle.allowed && row.partnerIdColumn) {
+    /* Never more than the window: `retryAfter` compares two clocks (see `consume`). */
+    const wait = Math.min(60, Math.max(1, throttle.retryAfter));
+    log.warn("api key throttled", { partner: ref(row.partnerId) });
+    return {
+      failure: {
+        status: 429,
+        error: `More than ${CALLS_PER_MINUTE} calls in a minute on this key. Wait ${wait} seconds and retry.`,
+        retryAfter: wait,
+      },
+    };
+  }
+
+  /*
+   * 🔴 C265: FOR A SPONSOR'S KEY THE RATE LIMIT SUSPENDS RATHER THAN REFUSING.
    *
    * Crossing the limit writes `suspended_at` and a reason, so the key is dead until a
    * human clears it. A limiter that only refuses the surplus call lets an attacker
    * continue at the permitted speed for ever, and against an identity oracle that is
    * still an oracle: sixty guesses a minute is thirty-one million a year.
    */
-  const throttle = await consume(subjectKey("api-key", row.keyId), CALLS_PER_MINUTE, 60);
   if (!throttle.allowed) {
     await controlDb
       .update(partnerApiKeys)
@@ -389,6 +454,12 @@ export async function keysFor(partnerId: string) {
       suspendedAt: partnerApiKeys.suspendedAt,
       suspendedReason: partnerApiKeys.suspendedReason,
       revokedAt: partnerApiKeys.revokedAt,
+      /*
+       * 🔴 W2-X04: STOPPED, by the database's clock, which is the clock
+       * `authenticateKey` asks. A rolled key has a `revokedAt` in the future and is
+       * still working until then.
+       */
+      stopped: sql<boolean>`(${partnerApiKeys.revokedAt} IS NOT NULL AND ${partnerApiKeys.revokedAt} <= now())`,
       createdAt: partnerApiKeys.createdAt,
     })
     .from(partnerApiKeys)
@@ -397,19 +468,102 @@ export async function keysFor(partnerId: string) {
     .orderBy(partnerApiKeys.createdAt);
 }
 
-/** 🔴 Rotatable, which in practice means revoke and mint. There is no edit. */
-export async function revokeKey(partnerId: string, keyId: string): Promise<{ ok: true }> {
-  await controlDb
+/** A key that still answers: never revoked, or rolled and inside its overlap. */
+const stillWorking = () =>
+  or(isNull(partnerApiKeys.revokedAt), gt(partnerApiKeys.revokedAt, sql`now()`));
+
+/**
+ * Revoke a key: it stops working now, including a rolled key inside its overlap.
+ *
+ * 🔴 W2-X04: audited, and confirmed on the screen before it is called.
+ */
+export async function revokeKey(
+  partnerId: string,
+  keyId: string,
+  byPartnerUserId?: string | null,
+): Promise<{ ok: boolean }> {
+  const revoked = await controlDb
     .update(partnerApiKeys)
-    .set({ revokedAt: new Date() })
+    .set({ revokedAt: sql`now()` })
     .where(
       and(
         eq(partnerApiKeys.id, keyId),
         /* Scoped in the WHERE. A borrowed key id revokes nothing. */
         eq(partnerApiKeys.partnerId, partnerId),
-        isNull(partnerApiKeys.revokedAt),
+        stillWorking(),
       ),
-    );
+    )
+    .returning({ id: partnerApiKeys.id });
 
+  if (revoked.length === 0) return { ok: false };
+  await auditKey("partner.key.revoke", keyId, partnerId, byPartnerUserId, "revoked now");
   return { ok: true };
+}
+
+/** W2-X04: how long a rolled key keeps working. Stripe's default overlap is seven days. */
+export const ROLL_OVERLAP_HOURS = [0, 24, 24 * 7] as const;
+
+/**
+ * 🔴 W2-X04: ROLL A KEY: a new one with the same label, scopes and environment, and
+ * an end for the old one.
+ *
+ * "Rotatable" used to mean revoke and mint, which cut every call the old key made at
+ * the moment the new one appeared. A roll lets the partner's servers move across:
+ * the old key works until the overlap they chose runs out (RESEARCH-2 section 7).
+ * The new key goes through `mintKey`, so a live key still needs a live approval.
+ */
+export async function rotateKey(input: {
+  partnerId: string;
+  keyId: string;
+  overlapHours: number;
+  byPartnerUserId?: string | null;
+}): Promise<{ key?: MintedKey; error?: string }> {
+  const overlap = (ROLL_OVERLAP_HOURS as readonly number[]).includes(input.overlapHours)
+    ? input.overlapHours
+    : 0;
+
+  const [old] = await controlDb
+    .select({
+      label: partnerApiKeys.label,
+      scopes: partnerApiKeys.scopes,
+      environment: partnerApiKeys.environment,
+      sponsorId: partnerApiKeys.sponsorId,
+    })
+    .from(partnerApiKeys)
+    .where(
+      and(
+        eq(partnerApiKeys.id, input.keyId),
+        eq(partnerApiKeys.partnerId, input.partnerId),
+        stillWorking(),
+      ),
+    )
+    .limit(1);
+  if (!old) return { error: "That key has already stopped working." };
+
+  const minted = await mintKey({
+    partnerId: input.partnerId,
+    label: old.label,
+    scopes: old.scopes,
+    environment: old.environment,
+    sponsorId: old.sponsorId,
+    byPartnerUserId: input.byPartnerUserId,
+  });
+  if (!minted.key) return minted;
+
+  /* The old key's end, never later than an end it already had. */
+  await controlDb
+    .update(partnerApiKeys)
+    .set({
+      revokedAt: sql`LEAST(COALESCE(${partnerApiKeys.revokedAt}, 'infinity'::timestamptz), now() + make_interval(hours => ${overlap}::int))`,
+    })
+    .where(and(eq(partnerApiKeys.id, input.keyId), eq(partnerApiKeys.partnerId, input.partnerId)));
+
+  await auditKey(
+    "partner.key.rotate",
+    input.keyId,
+    input.partnerId,
+    input.byPartnerUserId,
+    `replaced by ${minted.key.id}, old key works ${overlap} more hours`,
+  );
+  return minted;
 }

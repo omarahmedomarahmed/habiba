@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { requirePartnerAdmin } from "@/lib/partner-auth/guard";
-import { disableWebhook, registerWebhook } from "@/lib/partner/webhooks";
+import {
+  disableWebhook,
+  redeliver,
+  registerWebhook,
+  sendTestEvent,
+} from "@/lib/partner/webhooks";
 import type { WebhookEvent } from "@/lib/db/schema";
 
 export type WebhookState = { error?: string; secret?: string };
@@ -35,6 +40,34 @@ export async function addWebhook(_prev: WebhookState, formData: FormData): Promi
   /* 🔴 Shown once. Only the sealed form is stored, and `registerWebhook` refuses to store
      a secret at all on a deployment with no key rather than writing one in clear. */
   return { secret: result.webhook.secret };
+}
+
+/** What a try came back with, for the button that asked. W2-X03. */
+export type TryResult = { ok?: boolean; status?: number | null; error?: string | null };
+
+/**
+ * 🔴 W2-X03: SEND A TEST EVENT, and show what their endpoint answered.
+ *
+ * An admin act, because it sends a signed request to their production endpoint. The
+ * webhook id is checked against the actor's partner inside `sendTestEvent`.
+ */
+export async function sendTest(webhookId: string): Promise<TryResult> {
+  const actor = await requirePartnerAdmin();
+  const result = await sendTestEvent({ partnerId: actor.partnerId, webhookId });
+  if (!result) return { error: "That endpoint is disabled or no longer yours." };
+  revalidatePath("/partner/webhooks");
+  revalidatePath("/partner/deliveries");
+  return result;
+}
+
+/** 🔴 W2-X03: REDELIVER one delivery now, by hand. Same scoping, same answer. */
+export async function redeliverOne(deliveryId: string): Promise<TryResult> {
+  const actor = await requirePartnerAdmin();
+  const result = await redeliver({ partnerId: actor.partnerId, deliveryId });
+  if (!result) return { error: "That endpoint is disabled or no longer yours." };
+  revalidatePath("/partner/deliveries");
+  revalidatePath("/partner/webhooks");
+  return result;
 }
 
 export async function disable(formData: FormData): Promise<void> {

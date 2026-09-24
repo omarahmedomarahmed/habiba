@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 import { callerKey, consume } from "@/lib/rate-limit";
 
-import { authenticateKey, type AuthedKey } from "./keys";
+import { authenticateKey, CALLS_PER_MINUTE, type AuthedKey } from "./keys";
 import type { ApiScope } from "@/lib/db/schema";
 
 /**
@@ -18,7 +18,7 @@ import type { ApiScope } from "@/lib/db/schema";
  *      protects the KEY's budget, so an attacker with no key at all would otherwise burn
  *      unlimited lookups for free.
  *   2. The key, resolved, verified in constant time, and refused if suspended.
- *   3. The per-key rate limit, which SUSPENDS on breach rather than refusing (C265).
+ *   3. The per-key rate limit, which answers 429 with `Retry-After` (W2-X01).
  *   4. The scope this route needs.
  *
  * 🔴 And it returns a `NextResponse` for every failure, so a handler cannot accidentally
@@ -57,17 +57,31 @@ export async function withKey(
   const throttle = await consume(await callerKey("partner-api"), 240, 60);
   if (!throttle.allowed) {
     return {
-      response: NextResponse.json({ error: "Too many requests." }, { status: 429 }),
+      response: NextResponse.json(
+        { error: "Too many requests." },
+        { status: 429, headers: { "Retry-After": String(throttle.retryAfter) } },
+      ),
     };
   }
 
   const authed = await authenticateKey(request.headers.get("authorization"), scope);
 
   if ("failure" in authed) {
+    /*
+     * 🔴 W2-X01: A 429 SAYS WHEN TO COME BACK. Without `Retry-After` a client can
+     * only guess, and the guess a retry loop makes is "immediately".
+     */
+    const retry = authed.failure.retryAfter;
     return {
       response: NextResponse.json(
         { error: authed.failure.error },
-        { status: authed.failure.status },
+        {
+          status: authed.failure.status,
+          headers:
+            retry !== undefined
+              ? { "Retry-After": String(retry), "RateLimit-Policy": `${CALLS_PER_MINUTE};w=60` }
+              : undefined,
+        },
       ),
     };
   }

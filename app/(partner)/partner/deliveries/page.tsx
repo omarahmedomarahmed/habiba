@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { redeliverOne } from "@/app/(partner)/partner/webhooks/actions";
+import { TryButton } from "@/components/partner/try-button";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
@@ -26,7 +28,7 @@ export const dynamic = "force-dynamic";
  * time, which is worse than a roster.
  *
  * A `requirePartner` rather than an admin guard, because this is the screen a developer
- * needs most and it changes nothing.
+ * needs most. Its one act, Redeliver (W2-X03), is an admin's, checked in the action.
  */
 export default async function PartnerDeliveriesPage() {
   const actor = await requirePartner();
@@ -53,15 +55,33 @@ export default async function PartnerDeliveriesPage() {
                   <code className="font-mono text-xs font-semibold text-slate-900">
                     {delivery.event}
                   </code>
+                  {/*
+                   * 🔴 W2-X03: THREE STATES, AND "PENDING" NO LONGER MEANS "GAVE UP".
+                   * A delivery that used every try says Failed, and one still being
+                   * tried says when the next try is.
+                   */}
                   <span
                     className={
                       delivery.deliveredAt
                         ? "text-xs font-semibold text-brand-700"
-                        : "text-xs font-semibold text-amber-700"
+                        : delivery.failedAt
+                          ? "text-xs font-semibold text-red-600"
+                          : "text-xs font-semibold text-amber-700"
                     }
                   >
-                    {delivery.deliveredAt ? t("dev.delivered") : t("dev.pending")}
+                    {delivery.deliveredAt
+                      ? t("dev.delivered")
+                      : delivery.failedAt
+                        ? t("dev.failed")
+                        : t("dev.pending")}
                   </span>
+                  {!delivery.deliveredAt && !delivery.failedAt && delivery.nextAttemptAt ? (
+                    <span className="text-xs text-slate-500">
+                      {t("dev.nextTry", {
+                        time: formatDateTime(delivery.nextAttemptAt, "UTC", locale),
+                      })}
+                    </span>
+                  ) : null}
                   {delivery.lastStatus !== null ? (
                     <span className="font-mono text-xs text-slate-500">{delivery.lastStatus}</span>
                   ) : null}
@@ -84,6 +104,11 @@ export default async function PartnerDeliveriesPage() {
 
                 {delivery.lastError ? (
                   <p className="mt-1 text-xs text-red-600">{delivery.lastError}</p>
+                ) : null}
+
+                {/* 🔴 W2-X03: one try now, by hand. An admin act: it sends a signed request. */}
+                {actor.role === "admin" && !delivery.endpointDisabled ? (
+                  <TryButton action={redeliverOne} id={delivery.id} labelKey="dev.redeliver" />
                 ) : null}
               </Card>
             </li>

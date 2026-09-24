@@ -363,6 +363,24 @@ export async function sendPasswordReset(opts: { to: string; url: string }): Prom
 }
 
 /**
+ * W2-X06: a colleague added to a partner's developer account chooses their own
+ * password from this link. Nobody else ever types it, operators included.
+ */
+export async function sendPartnerInvite(opts: {
+  to: string;
+  url: string;
+  partnerName: string;
+}): Promise<boolean> {
+  const html = layout(
+    "Your developer account",
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">You were added to ${esc(opts.partnerName)}'s developer account</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">Choose a password to sign in. This link works once and expires in seven days.</p>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Choose a password</a>`,
+  );
+  return send({ to: opts.to, subject: "Your 24Therapy developer account", html });
+}
+
+/**
  * A claim verification code. §3 step 5.
  *
  * Deliberately says nothing about who holds the record or which clinician

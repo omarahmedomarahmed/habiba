@@ -139,6 +139,9 @@ export const PARTNER_COOKIE = "24t_partner";
 export const PARTNER_SIGN_IN = "/partner/sign-in";
 export const PARTNER_PREFIXES = ["/partner"];
 export const PARTNER_APPLY = "/partner/apply";
+/** W2-X06: asking for a reset link, and the page a reset or an invitation lands on. */
+export const PARTNER_FORGOT = "/partner/forgot";
+export const PARTNER_RESET = "/partner/reset";
 
 /**
  * 🔴 53.5 — the one door inside `/sponsor` that is open to a stranger.
@@ -323,7 +326,8 @@ export const PRINCIPALS: Principal[] = [
     home: "/partner",
     authRoutes: [PARTNER_SIGN_IN],
     /* 55.2 — the enquiry, which cannot sit behind the sign-in it precedes. */
-    openRoutes: [PARTNER_APPLY],
+    /* W2-X06: and the two password pages, which a locked-out person must reach. */
+    openRoutes: [PARTNER_APPLY, PARTNER_FORGOT, PARTNER_RESET],
   },
 ];
 

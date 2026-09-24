@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { createKey, revoke } from "@/app/(partner)/partner/actions";
+import { createKey, revoke, rotate } from "@/app/(partner)/partner/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { API_SCOPES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
@@ -18,13 +18,12 @@ import { useT } from "@/lib/i18n/client";
  * the one immediately after the POST that made it, and the sentence beside it says so
  * rather than leaving a developer to discover it by reloading.
  *
- * ## 🔴 C265's SENTENCE IS ON THE FORM, BESIDE THE CHECKBOX IT IS ABOUT
+ * ## 🔴 NO EMPLOYMENT SENTENCE, because no partner key can hold that scope
  *
- * *An employment key has to name the one organisation it may ask about... An abnormal call
- * rate suspends the key rather than slowing it down.* On the form, because the person who
- * needs to know that a burst suspends rather than throttles is the engineer deciding how to
- * retry, at the moment they are choosing the scope. In a contract it is a clause; here it
- * is a design constraint they will build around.
+ * `employment:verify` moved to the sponsor's own portal in sprint 66, and with it the
+ * rule that a burst suspends the key (C265). A partner's key is throttled with a 429 and
+ * `Retry-After` instead (W2-X01), which `devs.rateNote` says on the docs page. The two
+ * orphan strings that described the old form were deleted with this comment.
  *
  * ## 🔴 AND A SUSPENSION SAYS WHY
  *
@@ -43,7 +42,10 @@ export type KeyRow = {
   lastUsed: string | null;
   suspendedReason: string | null;
   suspended: boolean;
+  /** Stopped working: revoked, or rolled and past its overlap. */
   revoked: boolean;
+  /** W2-X04: a rolled key inside its overlap, and when it stops. */
+  stopsAt: string | null;
 };
 
 function Submit({ label }: { label: string }) {
@@ -66,7 +68,15 @@ export function KeyList({
 }) {
   const t = useT();
   const [state, formAction] = useActionState(createKey, {});
+  const [rolled, rotateAction] = useActionState(rotate, {});
   const [open, setOpen] = useState(false);
+  /* W2-X04: the one row showing a confirm step, and which one. */
+  const [asking, setAsking] = useState<{ id: string; act: "revoke" | "rotate" } | null>(null);
+  const revealed = rolled.raw ? rolled : state;
+  /* A roll that worked closes its step; the new key is in the card above. */
+  useEffect(() => {
+    if (rolled.raw) setAsking(null);
+  }, [rolled.raw]);
   /*
    * 🔴 Whether the sponsor picker is shown follows the CHECKBOX rather than a submit
    * failure. `mintKey` refuses an employment key with no sponsor and the database refuses
@@ -76,11 +86,11 @@ export function KeyList({
 
   return (
     <div className="flex flex-col gap-4">
-      {state.raw ? (
+      {revealed.raw ? (
         <Card className="border-brand-200 bg-brand-50 p-5">
-          <p className="text-sm font-semibold text-slate-900">{state.prefix}</p>
+          <p className="text-sm font-semibold text-slate-900">{revealed.prefix}</p>
           <code className="mt-2 block break-all rounded-xl bg-white p-3 font-mono text-xs text-slate-900 ring-1 ring-brand-200">
-            {state.raw}
+            {revealed.raw}
           </code>
           <p className="mt-2 text-xs leading-relaxed text-slate-600">{t("dev.keyOnce")}</p>
         </Card>
@@ -128,15 +138,90 @@ export function KeyList({
                   <p className="mt-1 text-xs text-red-600">{key.suspendedReason}</p>
                 ) : null}
 
-                {canMint && !key.revoked ? (
-                  <form action={revoke} className="mt-3">
-                    <input type="hidden" name="keyId" value={key.id} />
+                {key.stopsAt ? (
+                  <p className="mt-1 text-xs font-semibold text-amber-700">
+                    {t("dev.stopsAt", { date: key.stopsAt })}
+                  </p>
+                ) : null}
+
+                {/*
+                 * 🔴 W2-X04: REVOKE ASKS FIRST, AND ROLL SAYS HOW LONG THE OLD KEY LIVES.
+                 * Revoke was one tap that stopped a production integration with no
+                 * question asked. Both acts now open a step on this row with a Cancel.
+                 */}
+                {canMint && !key.revoked && asking?.id !== key.id ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {key.stopsAt ? null : (
+                      <button
+                        type="button"
+                        onClick={() => setAsking({ id: key.id, act: "rotate" })}
+                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        {t("dev.rotate")}
+                      </button>
+                    )}
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={() => setAsking({ id: key.id, act: "revoke" })}
                       className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
                     >
                       {t("dev.revoke")}
                     </button>
+                  </div>
+                ) : null}
+
+                {canMint && asking?.id === key.id && asking.act === "revoke" ? (
+                  <form action={revoke} className="mt-3 space-y-2">
+                    <input type="hidden" name="keyId" value={key.id} />
+                    <p className="text-xs text-slate-700">{t("dev.revokeConfirm")}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        {t("dev.revokeYes")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAsking(null)}
+                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        {t("dev.cancel")}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {canMint && asking?.id === key.id && asking.act === "rotate" ? (
+                  <form action={rotateAction} className="mt-3 space-y-2">
+                    <input type="hidden" name="keyId" value={key.id} />
+                    <Field label={t("dev.overlap")} htmlFor={`overlap-${key.id}`}>
+                      <select
+                        id={`overlap-${key.id}`}
+                        name="overlapHours"
+                        defaultValue={String(24 * 7)}
+                        className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900"
+                      >
+                        <option value={String(24 * 7)}>{t("dev.overlapWeek")}</option>
+                        <option value="24">{t("dev.overlapDay")}</option>
+                        <option value="0">{t("dev.overlapNow")}</option>
+                      </select>
+                    </Field>
+                    {rolled.error ? (
+                      <p role="alert" className="text-xs text-red-600">
+                        {rolled.error}
+                      </p>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      <Submit label={t("dev.rotate")} />
+                      <button
+                        type="button"
+                        onClick={() => setAsking(null)}
+                        className="tap-target h-11 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        {t("dev.cancel")}
+                      </button>
+                    </div>
                   </form>
                 ) : null}
               </Card>

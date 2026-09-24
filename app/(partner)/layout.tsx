@@ -3,7 +3,7 @@ import { getPartnerActor } from "@/lib/partner-auth/session";
 import { headers } from "next/headers";
 
 import { LanguageCorner } from "@/components/i18n/language-corner";
-import { PARTNER_SIGN_IN } from "@/lib/routing";
+import { PARTNER_FORGOT, PARTNER_RESET, PARTNER_SIGN_IN } from "@/lib/routing";
 
 /**
  * The partner developer shell. PLAN.md 55.2, 55.3, C264.
@@ -41,7 +41,10 @@ export default async function PartnerLayout({ children }: { children: React.Reac
    * unchanged. `LanguageCorner` goes with it, because the site header already
    * carries the switch and two of them in one corner is what 75.3 was fixing.
    */
-  const door = (head.get("x-pathname") ?? "") === PARTNER_SIGN_IN;
+  /* W2-X06: the two password pages are doors too, with the site's own chrome. */
+  const door = [PARTNER_SIGN_IN, PARTNER_FORGOT, PARTNER_RESET].includes(
+    head.get("x-pathname") ?? "",
+  );
 
   return (
     <PartnerChrome bare={door} nav={actor !== null} partnerName={actor?.partnerName ?? null}>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { QuietAuthShell } from "@/components/auth/auth-shell";
 import { PartnerSignInForm } from "@/components/partner/sign-in-form";
 import { getI18n } from "@/lib/i18n/server";
-import { PARTNER_APPLY } from "@/lib/routing";
+import { PARTNER_APPLY, PARTNER_FORGOT } from "@/lib/routing";
 
 export const metadata: Metadata = { title: "Your developer account", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -28,6 +28,12 @@ export default async function PartnerSignInPage() {
   return (
     <QuietAuthShell title={t("dev.signInTitle")}>
       <PartnerSignInForm />
+      {/* 🔴 W2-X06: there was no way back in for a developer who forgot their password. */}
+      <p className="mt-4 text-sm">
+        <Link href={PARTNER_FORGOT} className="font-semibold text-brand-700 hover:text-brand-800">
+          {t("dev.forgot")}
+        </Link>
+      </p>
       <p className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-600">
         <Link href={PARTNER_APPLY} className="font-semibold text-brand-700 hover:text-brand-800">
           {t("dev.apply.title")}

@@ -302,18 +302,10 @@ const JOBS = {
     }
 
     /*
-     * 🔴 42.4 / 55.10 — the webhook queue, drained here.
-     *
-     * Beside the other sweeps for the reason at the top of this file: a job that wakes on
-     * its own costs a whole idle timeout, and this one is cheap.
-     *
-     * 🔴 Queued rather than sent at the moment the thing happened, so a partner's dead
-     * endpoint cannot hold up a session ending or a note being approved. What crosses the
-     * wire is an event and an id, so a delivery sitting in the queue for an hour leaks
-     * nothing while it waits.
+     * 🔴 W2-X03: the webhook queue USED to be drained here, once a day, so a
+     * delivery could be a day late and its retries a day apart. It moved to
+     * `reminders`, the hourly wake, below.
      */
-    const { deliverPending } = await import("@/lib/partner/webhooks");
-    const hooks = await deliverPending();
 
     /*
      * 🔴 68.16 — THE 80% AND 90% ALERTS, beside the other money work.
@@ -386,8 +378,6 @@ const JOBS = {
       renewalsLapsed: lapsed.lapsed,
       renewalsPaidNoReference: renewalDrift.paidWithNoReference.length,
       renewalsInvoiceNoObligation: renewalDrift.invoicesWithNoObligation.length,
-      webhooksSent: hooks.sent,
-      webhooksFailed: hooks.failed,
       /* 🔴 68.16 / 68.19 — the partner limit alerts and the closed month. */
       partnerLimitAlerts: limits.alerted,
       partnerMonthsBilled: partnerBills.billed,
@@ -620,6 +610,23 @@ const JOBS = {
       if (delivery.sent) releasesTold += 1;
     }
 
+    /*
+     * 🔴 42.4 / 55.10 / W2-X03: THE WEBHOOK QUEUE, drained on this wake.
+     *
+     * Hourly because a partner waits on a delivery, and on THIS job because it is
+     * already the hourly wake: a schedule of its own would buy a second set of wakes
+     * for a query that finds nothing on most hours (the note at the top of this file).
+     * Each failure waits longer, over about three days (`lib/partner/retry.ts`), so
+     * an hour is the finest the schedule needs.
+     *
+     * 🔴 Queued rather than sent at the moment the thing happened, so a partner's dead
+     * endpoint cannot hold up a session ending or a note being approved. What crosses the
+     * wire is an event and an id, so a delivery sitting in the queue for an hour leaks
+     * nothing while it waits.
+     */
+    const { deliverPending } = await import("@/lib/partner/webhooks");
+    const hooks = await deliverPending();
+
     return {
       remindersDue: due.length,
       remindersSent: sent,
@@ -627,7 +634,16 @@ const JOBS = {
       heldForMorning,
       released: released.length,
       releasesTold,
+      webhooksSent: hooks.sent,
+      webhooksRetrying: hooks.failed,
+      webhooksFailed: hooks.gaveUp,
     };
+  },
+
+  /** W2-X03: the webhook queue, reachable by hand. Scheduled inside `reminders`. */
+  async webhooks() {
+    const { deliverPending } = await import("@/lib/partner/webhooks");
+    return deliverPending();
   },
 
   async extract() {

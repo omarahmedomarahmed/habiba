@@ -3,7 +3,8 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { addWebhook, disable } from "@/app/(partner)/partner/webhooks/actions";
+import { addWebhook, disable, sendTest } from "@/app/(partner)/partner/webhooks/actions";
+import { TryButton } from "@/components/partner/try-button";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { WEBHOOK_EVENTS } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
@@ -31,6 +32,8 @@ export type WebhookRow = {
   url: string;
   events: string[];
   disabled: boolean;
+  /** W2-X03: its latest finished delivery failed, and nothing has reached it since. */
+  failing: boolean;
 };
 
 function Submit({ label }: { label: string }) {
@@ -71,6 +74,13 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
                 <p className="mt-1 font-mono text-xs text-slate-500">{hook.events.join(", ")}</p>
                 {hook.disabled ? (
                   <p className="mt-1 text-xs font-semibold text-slate-500">{t("dev.revoked")}</p>
+                ) : hook.failing ? (
+                  <p className="mt-1 text-xs font-semibold text-red-600">{t("dev.failing")}</p>
+                ) : null}
+
+                {/* 🔴 W2-X03: a signed `ping`, and what their endpoint answered. */}
+                {canEdit && !hook.disabled ? (
+                  <TryButton action={sendTest} id={hook.id} labelKey="dev.sendTest" />
                 ) : null}
 
                 {canEdit && !hook.disabled ? (

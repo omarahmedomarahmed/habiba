@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { PARTNER_LAUNCH_TARGETS } from "@/lib/partner/launch";
-import { PARTNER_APPLY } from "@/lib/routing";
+import { PARTNER_APPLY, PARTNER_SIGN_IN } from "@/lib/routing";
 
 export const metadata: Metadata = {
   title: "Developers",
@@ -201,12 +201,18 @@ GET /api/partner/v1/notes/<sessionId>
         A therapist asks about a patient between sessions and before them. Putting
         them in the numbered list above would say they belong at a step, and the
         thing an integrator would then build is a copilot that appears once.
+
+        🔴 W2-X02: the end call leads the example, because both read only sessions
+        their platform has said are over, and without it they read nothing.
       */}
       <Card className="mt-6 border-slate-200 p-5">
         <p className="font-semibold text-slate-900">{t("devs.copilot")}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.copilotBody")}</p>
         <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
-{`PUT /api/partner/v1/copilot
+{`POST /api/partner/v1/sessions/<ref>/end
+200 { "session": "S-1024", "ended_at": "..." }
+
+PUT /api/partner/v1/copilot
 { "clinician": "C-9", "enabled": true }
 
 POST /api/partner/v1/copilot
@@ -266,12 +272,19 @@ GET /api/partner/v1/subjects/<ref>/memory
         <p className="mt-2 text-sm leading-relaxed text-amber-900/90">{t("devs.rateNote")}</p>
       </Card>
 
-      <p className="mt-10">
+      <p className="mt-10 flex flex-wrap items-center gap-4">
         <Link
           href={PARTNER_APPLY}
           className="inline-flex h-12 items-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800"
         >
           {t("devs.getStarted")}
+        </Link>
+        {/* 🔴 W2-X06: the portal's own door, which nothing on the site linked to. */}
+        <Link
+          href={PARTNER_SIGN_IN}
+          className="tap-target text-sm font-semibold text-brand-700 hover:text-brand-800"
+        >
+          {t("dev.signIn")}
         </Link>
       </p>
     </main>

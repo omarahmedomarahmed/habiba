@@ -1363,10 +1363,16 @@ async function main() {
      * `verify:sprint68` asserts the PAIRING rather than the counts, which is the
      * stronger half; this one catches the drift a pairing check cannot, which is a
      * route added with no scope behind it.
+     *
+     * 🔴 W2-X02, 2026-09-24: TWELVE routes. `sessions/[ref]/end` holds
+     * `session:media`, the scope of the key that sent the audio, because a scope
+     * of its own could not be used without that one. It still has a scope behind
+     * it, which is what this count guards; the count stays exact so the next
+     * route has to be argued here too.
      */
     check(
       "🔴 55.6-55.8 / 68.24 one scope per use case, and a route for each",
-      API_SCOPES.length === 10 && routeFiles.length === 11,
+      API_SCOPES.length === 10 && routeFiles.length === 12,
       `${API_SCOPES.length} scopes, ${routeFiles.length} routes`,
     );
 
