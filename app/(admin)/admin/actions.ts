@@ -8,7 +8,7 @@ import { honestyMessage, honestyProblemsIn } from "@/lib/content/honesty";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth/guard";
+import { requireRole, requireStaff } from "@/lib/auth/guard";
 import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/data/admin";
@@ -19,6 +19,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   contentPages,
   invoices,
+  therapistVerifications,
   users,
   LEDGER_ACCOUNTS,
   TAXONOMY_KINDS,
@@ -291,7 +292,27 @@ export async function decideTherapistVerification(
   approve: boolean,
   note: string,
 ): Promise<AdminActionState> {
-  const actor = await requireRole("super_admin");
+  /*
+   * 🔴 W2-A01 / D9: staff decide verifications, not only the founder. The
+   * reviewer reads the documents through the audited route, and nobody
+   * decides their own (`decideVerification` refuses it in its WHERE).
+   */
+  const actor = await requireStaff();
+
+  const [own] = await db
+    .select({ id: therapistVerifications.id })
+    .from(therapistVerifications)
+    .where(
+      and(
+        eq(therapistVerifications.id, verificationId),
+        eq(therapistVerifications.userId, actor.userId),
+      ),
+    )
+    .limit(1);
+  if (own) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("aaccess.ownVerification") };
+  }
 
   const trimmed = note.trim();
   if (!approve && !trimmed) {

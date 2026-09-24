@@ -25,8 +25,7 @@ export default async function AdminAuditPage({
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audit log</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Append-only. Patients appear as references, never names: a compliance tool must not be a
-          way to browse charts.
+          Append-only. Patients appear as references, never names.
         </p>
       </div>
 

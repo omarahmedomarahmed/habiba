@@ -205,6 +205,7 @@
     "test:off-record": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/off-record.test.ts",
     "test:org-authority": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/org-authority.test.ts",
     "test:partner-wav": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/partner-wav.test.ts",
+    "test:admin-access": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/admin-access.test.ts",
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",

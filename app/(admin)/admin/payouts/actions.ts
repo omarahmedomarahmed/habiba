@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
+import type { MessageKey } from "@/lib/i18n/messages";
 import {
   approvePayout,
   claimPayout,
@@ -15,7 +16,23 @@ import {
 export type QueueState = { error?: string; ok?: boolean };
 
 /**
+ * W2-A01: the four-eyes refusals come back as dictionary keys, so the reader
+ * gets them in their language; the older refusals are still sentences.
+ */
+async function say(error: string): Promise<string> {
+  const { en } = await import("@/lib/i18n/messages");
+  if (!(error in en)) return error;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(error as MessageKey);
+}
+
+/**
  * The 24/7 team's four buttons. PLAN.md 16.2, 16.3a–d.
+ *
+ * 🔴 W2-A01 / D9: staff, not only the founder. The page was staff's and every
+ * button was `super_admin`, so staff saw a queue they could not work and the
+ * two-person rule needed two founders awake. The four-eyes rules that make
+ * this safe are asked of every act in `lib/billing/payouts.ts`.
  *
  * Every one of them is audited and every one of them names the person, because
  * a manual money process with no attribution is a manual money process nobody
@@ -24,11 +41,11 @@ export type QueueState = { error?: string; ok?: boolean };
  */
 
 export async function takeOn(_prev: QueueState, formData: FormData): Promise<QueueState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const requestId = String(formData.get("requestId") ?? "");
 
   const result = await claimPayout({ requestId, ownerUserId: actor.userId });
-  if (result.error) return { error: result.error };
+  if (result.error) return { error: await say(result.error) };
 
   await audit({
     actor,
@@ -42,11 +59,11 @@ export async function takeOn(_prev: QueueState, formData: FormData): Promise<Que
 }
 
 export async function approve(_prev: QueueState, formData: FormData): Promise<QueueState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const requestId = String(formData.get("requestId") ?? "");
 
   const result = await approvePayout({ requestId, approverUserId: actor.userId });
-  if (result.error) return { error: result.error };
+  if (result.error) return { error: await say(result.error) };
 
   await audit({
     actor,
@@ -67,7 +84,7 @@ export async function approve(_prev: QueueState, formData: FormData): Promise<Qu
  * here and by `markPayoutSent`.
  */
 export async function markSent(_prev: QueueState, formData: FormData): Promise<QueueState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const requestId = String(formData.get("requestId") ?? "");
 
   const result = await markPayoutSent({
@@ -75,7 +92,7 @@ export async function markSent(_prev: QueueState, formData: FormData): Promise<Q
     senderUserId: actor.userId,
     proofUrl: String(formData.get("proofUrl") ?? ""),
   });
-  if (result.error) return { error: result.error };
+  if (result.error) return { error: await say(result.error) };
 
   await audit({
     actor,
@@ -89,11 +106,11 @@ export async function markSent(_prev: QueueState, formData: FormData): Promise<Q
 }
 
 export async function confirm(_prev: QueueState, formData: FormData): Promise<QueueState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const requestId = String(formData.get("requestId") ?? "");
 
   const result = await confirmPayout({ requestId, actorUserId: actor.userId });
-  if (result.error) return { error: result.error };
+  if (result.error) return { error: await say(result.error) };
 
   await audit({
     actor,
@@ -107,7 +124,7 @@ export async function confirm(_prev: QueueState, formData: FormData): Promise<Qu
 }
 
 export async function reject(_prev: QueueState, formData: FormData): Promise<QueueState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const requestId = String(formData.get("requestId") ?? "");
 
   const result = await rejectPayout({
@@ -115,7 +132,7 @@ export async function reject(_prev: QueueState, formData: FormData): Promise<Que
     actorUserId: actor.userId,
     reason: String(formData.get("reason") ?? ""),
   });
-  if (result.error) return { error: result.error };
+  if (result.error) return { error: await say(result.error) };
 
   await audit({
     actor,

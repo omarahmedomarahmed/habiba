@@ -74,8 +74,34 @@ async function bounceToLogin(): Promise<never> {
  */
 export async function requireRole(...allowed: Role[]): Promise<Actor> {
   const actor = await requireUser();
-  if (!allowed.includes(actor.role)) redirect("/dashboard");
+  if (!allowed.includes(actor.role)) await refuse(actor, allowed);
   return actor;
+}
+
+/**
+ * 🔴 W2-A01 / A5: "a role is a list, not a rank, and every read is written
+ * down", and a refusal is part of that record.
+ *
+ * This used to be a bare redirect to `/dashboard`, which wrote nothing and,
+ * for a back office account, bounced on to `/onboarding`: a staff member who
+ * followed a link the nav showed them landed on a clinician's setup screen
+ * with no word about why. Now the refusal is an audit row naming the role, the
+ * path and the list it was not on, and somebody from the back office is sent
+ * to `/admin/not-yours` inside the console, with a way back to their work.
+ */
+async function refuse(actor: Actor, allowed: Role[]): Promise<never> {
+  const hdrs = await headers();
+  const path = hdrs.get("x-pathname") ?? hdrs.get("x-invoke-path") ?? "";
+  const { audit } = await import("@/lib/audit");
+  await audit({
+    actor,
+    category: "auth",
+    action: "access.refused",
+    resourceType: "route",
+    reason: `${actor.role} at ${path.slice(0, 200) || "an action"}, needs ${allowed.join(" or ")}`,
+  });
+  const { refusalDestination } = await import("@/lib/admin/access");
+  redirect(refusalDestination(actor.role, path));
 }
 
 /**
@@ -108,7 +134,18 @@ export async function requireUserApi(): Promise<Actor> {
 
 export async function requireRoleApi(...allowed: Role[]): Promise<Actor> {
   const actor = await requireUserApi();
-  if (!allowed.includes(actor.role)) throw new AuthorizationError("Insufficient role");
+  if (!allowed.includes(actor.role)) {
+    // W2-A01: on the record like the page refusal above, then a 401 rather than a redirect.
+    const { audit } = await import("@/lib/audit");
+    await audit({
+      actor,
+      category: "auth",
+      action: "access.refused",
+      resourceType: "route",
+      reason: `${actor.role} at an API route, needs ${allowed.join(" or ")}`,
+    });
+    throw new AuthorizationError("Insufficient role");
+  }
   return actor;
 }
 

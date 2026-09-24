@@ -1,6 +1,6 @@
 "use server";
 
-import { requireManager } from "@/lib/auth/guard";
+import { requireRole } from "@/lib/auth/guard";
 import {
   activityBoard,
   aiBoard,
@@ -32,57 +32,57 @@ import {
  * in it. The clinic roster changes twice a month. Forcing them to refresh
  * together means either the queue is stale or the roster is thrashing.
  *
- * Every one of these is `requireManager()`, the same guard as the page: an
+ * Every one of these is `requireRole("super_admin")`, the same guard as the page (W2-A01: the page admitted managers and then bounced them at the owner-only key gate, so both now say owner): an
  * action reachable without the page is an action somebody can call directly.
  */
 export type Section = keyof WholeBoard;
 
 export async function refreshAll(): Promise<WholeBoard> {
-  await requireManager();
+  await requireRole("super_admin");
   return wholeBoard();
 }
 
 export async function refreshMoney() {
-  await requireManager();
+  await requireRole("super_admin");
   return moneyBoard();
 }
 
 export async function refreshCompanies() {
-  await requireManager();
+  await requireRole("super_admin");
   return companiesBoard();
 }
 
 export async function refreshClinics() {
-  await requireManager();
+  await requireRole("super_admin");
   return clinicsBoard();
 }
 
 export async function refreshTherapists() {
-  await requireManager();
+  await requireRole("super_admin");
   return therapistsBoard();
 }
 
 export async function refreshSessions() {
-  await requireManager();
+  await requireRole("super_admin");
   return sessionsBoard();
 }
 
 export async function refreshAi() {
-  await requireManager();
+  await requireRole("super_admin");
   return aiBoard();
 }
 
 export async function refreshPayments() {
-  await requireManager();
+  await requireRole("super_admin");
   return paymentsBoard();
 }
 
 export async function refreshPatients() {
-  await requireManager();
+  await requireRole("super_admin");
   return patientsBoard();
 }
 
 export async function refreshActivity() {
-  await requireManager();
+  await requireRole("super_admin");
   return activityBoard();
 }

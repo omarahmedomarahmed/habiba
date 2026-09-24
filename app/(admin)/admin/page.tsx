@@ -84,10 +84,10 @@ export default async function AdminOverviewPage() {
               </dd>
             </div>
           </dl>
-          <p className="mt-4 text-xs leading-relaxed text-slate-500">
-            From this database, not Stripe. Stripe is the ledger of record; this is an operational
-            view.
-          </p>
+          {/*
+            W2-A01: "Stripe is the ledger of record" was cut. The manual rail
+            has no Stripe at all, and `ledger_entries` is the ledger.
+          */}
         </Card>
       </div>
     </div>

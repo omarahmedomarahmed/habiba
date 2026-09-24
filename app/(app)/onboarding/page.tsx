@@ -7,6 +7,7 @@ import { LicenceChangeForm } from "@/components/onboarding/licence-change-form";
 import { licenceChangeView } from "@/lib/data/licence-change";
 import { Card } from "@/components/ui";
 import { SeesWhat } from "@/components/visual/primitives";
+import { isBackOffice, landingFor } from "@/lib/admin/access";
 import { requireUser } from "@/lib/auth/guard";
 import {
   documentRequirements,
@@ -26,8 +27,12 @@ export default async function OnboardingPage() {
   const { t } = await getI18n();
   const actor = await requireUser();
 
-  // An operator has no licence to upload and no queue to wait in.
-  if (actor.role === "super_admin") redirect("/admin");
+  /*
+   * An operator has no licence to upload and no queue to wait in. W2-A01: any
+   * back office role, to a page it can open; staff used to be sent to `/admin`
+   * from here, or kept here, on a clinician's setup screen.
+   */
+  if (isBackOffice(actor.role)) redirect(landingFor(actor.role));
 
   const [verification, countryOptions, languageOptions, specialtyOptions] = await Promise.all([
     ensureVerification(actor),

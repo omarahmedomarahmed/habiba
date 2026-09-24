@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/billing/plans";
 import { OpenCarts } from "@/components/admin/open-carts";
 import { TransferQueue } from "@/components/admin/transfer-queue";
 import { PageHeader } from "@/components/ui";
+import { mayOpen } from "@/lib/admin/access";
 import { requireStaff } from "@/lib/auth/guard";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -32,7 +33,7 @@ export const dynamic = "force-dynamic";
  * product is oldest first for the same reason.
  */
 export default async function TransfersPage() {
-  await requireStaff();
+  const actor = await requireStaff();
 
   const [rows, carts] = await Promise.all([queue(), openCarts()]);
 
@@ -146,10 +147,15 @@ export default async function TransfersPage() {
    * before a crisis session would be the wrong trade.
    */
   const profileFor = (row: (typeof rows)[number]): string | null => {
-    if (row.sponsorId) return `/admin/sponsors/${row.sponsorId}`;
-    if (row.userId) return `/admin/therapists/${row.userId}`;
-    if (row.patientAccountId) return `/admin/patients/${row.patientAccountId}`;
-    return null;
+    const href = row.sponsorId
+      ? `/admin/sponsors/${row.sponsorId}`
+      : row.userId
+        ? `/admin/therapists/${row.userId}`
+        : row.patientAccountId
+          ? `/admin/patients/${row.patientAccountId}`
+          : null;
+    // W2-A01: a clinician's page is the owner's, so staff get the name without a link that bounces.
+    return href && mayOpen(actor.role, href) ? href : null;
   };
 
   const nameFor = (row: (typeof rows)[number]): string => {
