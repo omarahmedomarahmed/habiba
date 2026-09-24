@@ -13,6 +13,8 @@ import { confirmCheckout } from "@/lib/billing/stripe";
 import { feedbackContext, feedbackTokenForJoin } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
+import { benefitShortfall } from "@/lib/billing/pot";
+import { BenefitNote } from "@/components/patient/benefit-note";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patients, therapistRadar, users } from "@/lib/db/schema";
@@ -210,6 +212,8 @@ export default async function JoinPage({
         recoveryFrom={
           session.scheduledAt && !session.startedAt ? session.scheduledAt.toISOString() : null
         }
+        /* 🔴 W2-P15 / E5: a benefit that did not pay says who to ask, beside the price. */
+        benefitNote={<BenefitNote shortfall={await benefitShortfall(session.id)} />}
       />
       {/*
         `NoShowRecovery` was built in sprint 14 and rendered nowhere, found by a

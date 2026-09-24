@@ -162,6 +162,75 @@ export type PotSpend =
   | { paid: false; reason: "no_benefit" | "no_pot" | "insufficient" | "nothing_to_pay" };
 
 /**
+ * 🔴 W2-P15 / E5: WHY THE BENEFIT DID NOT PAY, for the screen that asks for money.
+ *
+ * E5 is "when the pot runs out the patient is told to ask HR, not shown a
+ * payment error". `payFromPot` returns its reason and every caller discarded
+ * it, so a covered employee met an ordinary price with nothing saying their
+ * benefit had not paid or who could fix it.
+ *
+ * Read fresh rather than carried from the booking, because the pay and join
+ * screens are opened later and by a different request. Null whenever there is
+ * nothing to say: a session with nothing owed, somebody with no benefit, or a
+ * pot that paid its share (the split is already on the screen). Otherwise:
+ *
+ *   paused       the re-verification went unanswered; the fix is theirs
+ *   unconfirmed  the work address code was never answered; theirs too
+ *   unfunded     the benefit is live and paid nothing: ask the organisation
+ *
+ * The organisation is named to its own employee on their own screen, as the
+ * benefit page already does. Never in a notice (C231), and never to anybody else.
+ */
+export async function benefitShortfall(
+  sessionId: string,
+): Promise<{ sponsorName: string; state: "paused" | "unconfirmed" | "unfunded" } | null> {
+  const [row] = await controlDb
+    .select({
+      priceCents: sessions.priceCents,
+      paymentStatus: sessions.paymentStatus,
+      personId: patients.personId,
+    })
+    .from(sessions)
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  if (!row?.personId || row.priceCents <= 0 || row.paymentStatus !== "pending") return null;
+
+  const [benefit] = await controlDb
+    .select({
+      sponsorName: sponsors.name,
+      pausedAt: enrolments.pausedAt,
+      lastVerifiedAt: enrolments.lastVerifiedAt,
+    })
+    .from(enrolments)
+    .innerJoin(sponsors, eq(sponsors.id, enrolments.sponsorId))
+    .where(
+      and(
+        eq(enrolments.personId, row.personId),
+        eq(enrolments.isPrimary, true),
+        isNull(enrolments.removedAt),
+        eq(sponsors.state, "active"),
+      ),
+    )
+    .limit(1);
+  if (!benefit) return null;
+
+  const [split] = await controlDb
+    .select({ sponsorShareCents: sessionPayments.sponsorShareCents })
+    .from(sessionPayments)
+    .where(eq(sessionPayments.sessionId, sessionId))
+    .limit(1);
+  if ((split?.sponsorShareCents ?? 0) > 0) return null;
+
+  const state = benefit.pausedAt
+    ? "paused"
+    : benefit.lastVerifiedAt === null
+      ? "unconfirmed"
+      : "unfunded";
+  return { sponsorName: benefit.sponsorName, state };
+}
+
+/**
  * 🔴 53.21 — POT FIRST, ALWAYS. A badged patient never pays out of pocket
  * while their sponsor's pot has money in it.
  *

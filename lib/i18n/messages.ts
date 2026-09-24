@@ -4005,6 +4005,7 @@ export const en = {
   "pnumber.changed": "Number changed.",
   "prating.send": "Send",
   "pcode.connect": "Join them",
+  "pay.askBenefit": "{name} did not cover this. Ask whoever runs your benefit there.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7244,6 +7245,7 @@ export const ar: Record<MessageKey, string> = {
   "pnumber.changed": "تغيّر الرقم.",
   "prating.send": "أرسل",
   "pcode.connect": "انضم إليه",
+  "pay.askBenefit": "لم تغطِّ {name} هذه الجلسة. اسأل المسؤول عن مزاياك هناك.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

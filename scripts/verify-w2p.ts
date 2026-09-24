@@ -381,6 +381,29 @@ async function main() {
       !refused.ok && files2.retired === 0,
       `ok=${refused.ok}, files=${files2.retired}`,
     );
+
+    /* ================================================================ */
+    /*  W2-P15 · E5: A BENEFIT THAT DID NOT PAY SAYS WHO TO ASK          */
+    /* ================================================================ */
+
+    const { benefitShortfall } = await import("../lib/billing/pot");
+    /* `paused` was restarted by W2-P08 above, so this person has a live benefit. */
+    const unfunded = await benefitShortfall(owed.id);
+    await db.execute(sql`UPDATE enrolments SET paused_at = now() WHERE id = ${paused.id}`);
+    const pausedNow = await benefitShortfall(owed.id);
+    const nothingOwed = await benefitShortfall(mine.id);
+    check(
+      "🔴 W2-P15 an unpaid session of a covered employee names who to ask, and a paused benefit says so",
+      unfunded?.state === "unfunded" &&
+        unfunded.sponsorName === `W2P Demo Foundry ${fixture}` &&
+        pausedNow?.state === "paused",
+      `live=${unfunded?.state}, paused=${pausedNow?.state}`,
+    );
+    check(
+      "W2-P15 CONTROL …and a session with nothing owed says nothing",
+      nothingOwed === null,
+      String(nothingOwed),
+    );
   } finally {
     await db.execute(sql`DELETE FROM therapist_codes WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);

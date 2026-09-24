@@ -270,6 +270,17 @@ test("W2-P13 the wall code reaches signup, and a signed-in reader can act on it"
   assert.match(code("app/j/[code]/actions.ts"), /connectByCode\(String\(formData\.get\("code"\) \?\? ""\), actor\.personId\)/);
 });
 
+/* ----------------------------------------------------------------- W2-P15 -- */
+
+test("W2-P15 E5: the pay and join screens say who to ask when the benefit did not pay", () => {
+  const pay = code("app/pay/[token]/page.tsx");
+  assert.match(pay, /benefitShortfall\(session\.id\)/);
+  assert.equal((pay.match(/<BenefitNote shortfall=\{shortfall\} \/>/g) ?? []).length, 2, "both rails");
+  assert.match(code("app/join/[token]/page.tsx"), /benefitNote=\{<BenefitNote shortfall=\{await benefitShortfall\(session\.id\)\} \/>\}/);
+  assert.match(code("components/join/join-flow.tsx"), /\{owes \? benefitNote : null\}/);
+  assert.match(code("components/patient/benefit-note.tsx"), /t\("pay\.askBenefit", \{ name: shortfall\.sponsorName \}\)/);
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

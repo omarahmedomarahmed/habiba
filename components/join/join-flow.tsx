@@ -60,7 +60,10 @@ export function JoinFlow({
   initialConsent,
   knownName,
   recoveryFrom = null,
+  benefitNote = null,
 }: {
+  /** 🔴 W2-P15 / E5: rendered on the server, shown beside the price when one is owed. */
+  benefitNote?: React.ReactNode;
   /**
    * 🔴 W2-P11: the booked instant of a session nobody has started, for
    * `NoShowRecovery`, which renders inside the room as well as before it.
@@ -283,6 +286,7 @@ export function JoinFlow({
           <span className="text-2xl font-bold tracking-tight"><Money cents={priceCents} /></span>
         </div>
       ) : null}
+      {owes ? benefitNote : null}
 
       {cancelled ? (
         <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">

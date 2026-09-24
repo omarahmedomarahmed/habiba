@@ -10,6 +10,8 @@ import {
   sessionTransferMoney,
 } from "@/lib/billing/manual-entry";
 import { patientOwesFor, sessionLines } from "@/lib/billing/session-owed";
+import { benefitShortfall } from "@/lib/billing/pot";
+import { BenefitNote } from "@/components/patient/benefit-note";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
@@ -142,6 +144,8 @@ export default async function PayPage({
    * nobody.
    */
   const owed = await patientOwesFor(session.id);
+  /* 🔴 W2-P15 / E5: if a benefit should have paid and did not, who to ask. */
+  const shortfall = await benefitShortfall(session.id);
 
   const money = await sessionTransferMoney({
     organizationId: session.organizationId,
@@ -199,6 +203,7 @@ export default async function PayPage({
               </p>
             ) : null}
           </div>
+          <BenefitNote shortfall={shortfall} />
           {/*
             🔴 76.4 — THE POPUP, OPEN ON ARRIVAL, because this person followed
             a link whose entire purpose was to pay. Everywhere else it opens on
@@ -261,6 +266,11 @@ export default async function PayPage({
     */}
     <SosOrbServer country={sosCountry} />
     <LanguageCorner />
+    {shortfall ? (
+      <div className="mx-auto max-w-md px-4 pt-8">
+        <BenefitNote shortfall={shortfall} />
+      </div>
+    ) : null}
     <PayFlow
       locale={tag}
       token={token}
