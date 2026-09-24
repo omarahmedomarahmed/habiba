@@ -45,6 +45,27 @@ test("W2-S03 the poster prints without the portal around it", () => {
   assert.match(bar, /print:hidden/, "the pending payment bar prints with the poster");
 });
 
+/* ------------------------------------------------------------ W2-S07 -- */
+
+test("W2-S07 the verify-cycle screen and the pause job read the same number", () => {
+  /*
+   * Both screens print `settings.sponsor.verifyCycleMonths` (six); the job read
+   * `sponsors.verify_cycle_months`, a column defaulting to three that nothing
+   * writes. So a company was told six months and paused its people at three.
+   */
+  const job = readSource("lib/data/enrolment-verify.ts");
+  const pause = job.slice(job.indexOf("export async function pauseUnverified"));
+  assert.doesNotMatch(pause, /sponsors\.verifyCycleMonths/, "the job reads the column");
+  assert.match(pause, /settings\.sponsor\.verifyCycleMonths/, "the job does not read the setting");
+
+  for (const page of [
+    "app/(sponsor)/sponsor/people/page.tsx",
+    "app/(sponsor)/sponsor/settings/page.tsx",
+  ]) {
+    assert.match(readSource(page), /settings\.sponsor\.verifyCycleMonths/, page);
+  }
+});
+
 /* ------------------------------------------------------------ W2-S04 -- */
 
 test("W2-S04 ending a benefit takes a reason, then a final confirm, and can be cancelled", () => {

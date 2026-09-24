@@ -14,6 +14,7 @@ import {
   sponsors,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
+import { getSettings } from "@/lib/settings";
 import { notify } from "@/lib/notify";
 import { callerKey, consume } from "@/lib/rate-limit";
 
@@ -233,17 +234,28 @@ export async function confirmEnrolmentCode(input: {
  */
 export async function pauseUnverified(now = new Date()): Promise<{ paused: number }> {
   /*
+   * 🔴 W2-S07 — THE SAME NUMBER THE COMPANY IS SHOWN.
+   *
+   * Both sponsor screens print `settings.sponsor.verifyCycleMonths` (six), and
+   * this read `sponsors.verify_cycle_months`, a column that defaults to three
+   * and that nothing writes. A company told "every six months" had its people
+   * paused at three. The setting is the one number now; the column is unread.
+   */
+  const settings = await getSettings();
+  const months = settings.sponsor.verifyCycleMonths;
+
+  /*
    * The sponsors whose window has come round, computed in SQL from their own
-   * column so a person's own dates are never part of the decision.
+   * start date so a person's own dates are never part of the decision.
    */
   const due = await controlDb
-    .select({ id: sponsors.id, months: sponsors.verifyCycleMonths })
+    .select({ id: sponsors.id })
     .from(sponsors)
     .where(
       and(
         eq(sponsors.state, "active"),
         sql`${sponsors.verifyCycleStartedAt} IS NOT NULL`,
-        sql`${sponsors.verifyCycleStartedAt} + make_interval(months => ${sponsors.verifyCycleMonths}) <= ${now.toISOString()}`,
+        sql`${sponsors.verifyCycleStartedAt} + make_interval(months => ${months}) <= ${now.toISOString()}`,
       ),
     );
 
@@ -267,7 +279,7 @@ export async function pauseUnverified(now = new Date()): Promise<{ paused: numbe
            */
           or(
             isNull(enrolments.lastVerifiedAt),
-            sql`${enrolments.lastVerifiedAt} + make_interval(months => ${sponsor.months}) <= ${now.toISOString()}`,
+            sql`${enrolments.lastVerifiedAt} + make_interval(months => ${months}) <= ${now.toISOString()}`,
           ),
         ),
       )
