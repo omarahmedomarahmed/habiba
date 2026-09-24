@@ -220,6 +220,80 @@ async function main() {
       proration?.description ?? "none",
     );
 
+    /* ------------------------------------ 0160 · the next month renews itself */
+
+    const { raiseManualRenewals, setManualRenewal } = await import("../lib/billing/service");
+    const { currentSeatBill } = await import("../lib/billing/seats");
+    const now = new Date();
+    await db.delete(invoices).where(and(eq(invoices.organizationId, orgId), eq(invoices.kind, "subscription")));
+    await db.delete(renewalObligations).where(eq(renewalObligations.organizationId, orgId));
+    const paidEnd = new Date(now.getTime() + 5 * 86_400_000);
+    await db.insert(renewalObligations).values({
+      organizationId: orgId,
+      plan: TIER,
+      amountCents: price,
+      currency: "usd",
+      periodStart: new Date(now.getTime() - 25 * 86_400_000),
+      periodEnd: paidEnd,
+      dueAt: new Date(now.getTime() - 25 * 86_400_000),
+      state: "paid",
+      paidAt: new Date(now.getTime() - 25 * 86_400_000),
+      settledVia: "manual",
+      settledRef: "verify-0160",
+    });
+    const seatBill = await currentSeatBill(orgId);
+    const expected = seatBill.seats > 0 ? seatBill.monthlyCents : price;
+
+    const firstRun = await raiseManualRenewals(now, orgId);
+    const secondRun = await raiseManualRenewals(now, orgId);
+    const raisedMonths = await db
+      .select({ state: renewalObligations.state, amountCents: renewalObligations.amountCents, periodStart: renewalObligations.periodStart })
+      .from(renewalObligations)
+      .where(and(eq(renewalObligations.organizationId, orgId), eq(renewalObligations.state, "due")));
+    const nextBill = await db
+      .select({ amountCents: invoices.amountCents, status: invoices.status })
+      .from(invoices)
+      .where(and(eq(invoices.organizationId, orgId), eq(invoices.kind, "subscription")));
+    check(
+      "🔴 0160 a paid month ending within a week raises the next one, once, at today's price (seats when it has them)",
+      firstRun.raised === 1 && secondRun.raised === 0 && raisedMonths.length === 1 &&
+        raisedMonths[0]!.amountCents === expected && +raisedMonths[0]!.periodStart === +paidEnd &&
+        nextBill.length === 1 && nextBill[0]!.status === "due" && nextBill[0]!.amountCents === expected,
+      JSON.stringify({ firstRun, secondRun, raisedMonths, nextBill, expected }),
+    );
+
+    await setManualRenewal(orgId, false, now);
+    const afterCancel = await db
+      .select({ state: renewalObligations.state })
+      .from(renewalObligations)
+      .where(and(eq(renewalObligations.organizationId, orgId), eq(renewalObligations.state, "due")));
+    const billAfterCancel = await db
+      .select({ status: invoices.status })
+      .from(invoices)
+      .where(and(eq(invoices.organizationId, orgId), eq(invoices.kind, "subscription")));
+    const cancelledRun = await raiseManualRenewals(now, orgId);
+    check(
+      "🔴 0160 Cancel on the transfer rail voids the month raised and its bill, and nothing is raised again",
+      afterCancel.length === 0 && billAfterCancel.every((b) => b.status === "void") && cancelledRun.raised === 0,
+      JSON.stringify({ afterCancel, billAfterCancel, cancelledRun }),
+    );
+
+    await setManualRenewal(orgId, true, now);
+    const resumedRun = await raiseManualRenewals(now, orgId);
+    check(
+      "0160 CONTROL …and Resume raises it again, so the refusal above was Cancel's",
+      resumedRun.raised === 1,
+      JSON.stringify(resumedRun),
+    );
+
+    const later = new Date(now.getTime() - 40 * 86_400_000);
+    const farRun = await raiseManualRenewals(later, orgId);
+    check(
+      "0160 CONTROL a paid month with weeks still to run raises nothing yet",
+      farRun.raised === 0,
+      JSON.stringify(farRun),
+    );
+
     /*
      * 🔴 CONTROL. Every assertion above is about a row appearing; this one
      * watches the same query find nothing, so a check that passes because it

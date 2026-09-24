@@ -110,6 +110,9 @@ async function startSubscription(tierKey: string): Promise<BillingActionState> {
 export async function cancelPlan(): Promise<BillingActionState> {
   const { actor, refused } = await requireOrgAccount();
   if (refused) return { error: refused };
+  /* 🔴 0160: on the transfer rail, Cancel stops the next month; it was a silent no-op. */
+  const { setManualRenewal } = await import("@/lib/billing/service");
+  await setManualRenewal(actor.organizationId, false);
   await cancelSubscription(actor.organizationId);
   revalidatePath("/billing");
   return {};
@@ -119,7 +122,9 @@ export async function cancelPlan(): Promise<BillingActionState> {
 export async function resumePlan(): Promise<BillingActionState> {
   const { actor, refused } = await requireOrgAccount();
   if (refused) return { error: refused };
-  const ok = await resumeSubscription(actor.organizationId);
+  const { setManualRenewal } = await import("@/lib/billing/service");
+  const manual = await setManualRenewal(actor.organizationId, true);
+  const ok = (await resumeSubscription(actor.organizationId)) || manual;
   revalidatePath("/billing");
   return ok ? {} : { error: "That plan has already ended. Subscribing again starts a new month." };
 }

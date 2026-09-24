@@ -109,6 +109,17 @@ export default async function BillingPage({
    */
   const needsTransfer = await organizationNeedsTransfer(actor.organizationId);
   /*
+   * 🔴 0160 — on the transfer rail the plan's dates come from the paid month in
+   * force and whether it renews, not from a Stripe mirror that has no row here.
+   */
+  const railMonth = needsTransfer
+    ? await (async () => {
+        const { obligationCovering } = await import("@/lib/billing/obligations");
+        const month = await obligationCovering(actor.organizationId, new Date());
+        return month?.state === "paid" ? month : null;
+      })()
+    : null;
+  /*
    * 🔴 76.16 — the unpaid invoices, so a clinician can choose among them, and
    * the LINES this transfer would carry if they chose nothing, which is all of
    * them. Both come off one query so the list and the total cannot disagree.
@@ -209,14 +220,22 @@ export default async function BillingPage({
              * in words, so the two can never be read as each other.
              */
             renewsOn={
-              summary.subscription.currentPeriodEnd && !summary.subscription.cancelAtPeriodEnd
-                ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
-                : null
+              railMonth
+                ? railMonth.autoRenew
+                  ? formatDate(railMonth.periodEnd, actor.timezone, locale)
+                  : null
+                : summary.subscription.currentPeriodEnd && !summary.subscription.cancelAtPeriodEnd
+                  ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
+                  : null
             }
             endsOn={
-              summary.subscription.currentPeriodEnd && summary.subscription.cancelAtPeriodEnd
-                ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
-                : null
+              railMonth
+                ? railMonth.autoRenew
+                  ? null
+                  : formatDate(railMonth.periodEnd, actor.timezone, locale)
+                : summary.subscription.currentPeriodEnd && summary.subscription.cancelAtPeriodEnd
+                  ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
+                  : null
             }
             /*
              * 🔴 76.34 — WHICH RAIL, so the confirmation can say what happens next.

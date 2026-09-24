@@ -302,6 +302,10 @@ const JOBS = {
      * other way round would lapse an obligation on the morning of its due date
      * and then send a reminder about it, which is worse than saying nothing.
      */
+    /* 🔴 0160 — the next month on the transfer rail, raised before the reminders read it. */
+    const { raiseManualRenewals } = await import("@/lib/billing/service");
+    const renewals = await step(failed, "raiseManualRenewals", () => raiseManualRenewals());
+
     const { obligationsDueWithin, lapseOverdue, DUNNING_DAYS_BEFORE } = await import(
       "@/lib/billing/obligations"
     );
@@ -408,6 +412,7 @@ const JOBS = {
       potsOutOfBalance: potDrift?.length,
       potAlerts: potAlerts?.alerted,
       ledgerTold: ledgerTold?.told,
+      renewalsRaised: renewals?.raised,
       renewalsDueSoon: dueSoon?.length,
       renewalsLapsed: lapsed?.lapsed,
       renewalsPaidNoReference: renewalDrift?.paidWithNoReference.length,

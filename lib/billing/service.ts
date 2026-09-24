@@ -938,6 +938,168 @@ export async function subscribeByTransfer(input: {
 }
 
 /**
+ * 🔴 0160 — THE NEXT MONTH, RAISED FROM A PAID ONE, ON THE TRANSFER RAIL.
+ *
+ * Stripe renewed a subscription by itself; nothing renewed one here. An
+ * Egyptian plan was billed once, when somebody pressed Subscribe, and a
+ * clinic's seats only when the count changed, so every practice's second
+ * month was free (live walkthrough). This runs in the daily billing job:
+ *
+ *   - a PAID month ending within `RENEW_DAYS_BEFORE`, whose `auto_renew` is on,
+ *     with nothing raised from its end yet, raises the next month: a `due`
+ *     obligation and a `due` subscription invoice, due the day the paid month
+ *     ends. The reminders (`obligationsDueWithin`) and the lapse after the due
+ *     date are the ones a first month already has.
+ *   - the price is today's: the plan's monthly figure, or the seat price at the
+ *     practice's current seat count when it has seats.
+ *   - only on the transfer rail. A practice with a Stripe subscription renews
+ *     through Stripe, and raising a month here would bill it twice.
+ *
+ * Idempotent: `renewal_obligations_period_unique` refuses a second row for the
+ * same period, and a period that starts where the paid one ends is the same
+ * period however many times the job asks.
+ */
+export const RENEW_DAYS_BEFORE = 7;
+
+export async function raiseManualRenewals(
+  now = new Date(),
+  /** One practice only: how a verifier asks without billing everybody else. */
+  onlyOrganizationId?: string,
+): Promise<{ raised: number }> {
+  const { renewalObligations, subscriptions } = await import("@/lib/db/schema");
+  const horizon = new Date(now.getTime() + RENEW_DAYS_BEFORE * 86_400_000);
+  const ending = await db
+    .select({
+      organizationId: renewalObligations.organizationId,
+      plan: renewalObligations.plan,
+      periodEnd: renewalObligations.periodEnd,
+    })
+    .from(renewalObligations)
+    .where(
+      and(
+        eq(renewalObligations.state, "paid"),
+        eq(renewalObligations.autoRenew, true),
+        onlyOrganizationId ? eq(renewalObligations.organizationId, onlyOrganizationId) : undefined,
+        sql`${renewalObligations.periodEnd} <= ${horizon}`,
+        /* A month that ended long ago was let go; renewal does not reach back. */
+        sql`${renewalObligations.periodEnd} > ${new Date(now.getTime() - 3 * 86_400_000)}`,
+        sql`NOT EXISTS (
+          SELECT 1 FROM ${renewalObligations} AS nxt
+           WHERE nxt.organization_id = ${renewalObligations.organizationId}
+             AND nxt.period_start >= ${renewalObligations.periodEnd} - interval '1 hour'
+             AND nxt.state <> 'void')`,
+      ),
+    )
+    .limit(200);
+
+  const settings = await getSettings();
+  const { organizationNeedsTransfer } = await import("./manual-entry");
+  const { currentSeatBill } = await import("./seats");
+  const { raiseObligation } = await import("./obligations");
+  let raised = 0;
+
+  for (const month of ending) {
+    try {
+      if (!(await organizationNeedsTransfer(month.organizationId))) continue;
+      const [stripeSub] = await db
+        .select({ id: subscriptions.stripeSubscriptionId, status: subscriptions.status })
+        .from(subscriptions)
+        .where(eq(subscriptions.organizationId, month.organizationId))
+        .limit(1);
+      if (stripeSub?.id && stripeSub.status !== "cancelled") continue;
+
+      const tier = settings.pricing.tiers.find((t) => t.key === month.plan && t.monthlyCents > 0);
+      if (!tier) continue;
+      const seats = await currentSeatBill(month.organizationId);
+      const amountCents = seats.seats > 0 ? seats.monthlyCents : tier.monthlyCents;
+      if (amountCents <= 0) continue;
+
+      const periodStart = month.periodEnd;
+      const periodEnd = new Date(periodStart);
+      periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+
+      const obligation = await raiseObligation({
+        organizationId: month.organizationId,
+        plan: tier.key,
+        amountCents,
+        currency: "usd",
+        periodStart,
+        periodEnd,
+        dueAt: periodStart,
+      });
+      if (!obligation.id) continue;
+
+      await raiseInvoice({
+        organizationId: month.organizationId,
+        kind: "subscription",
+        amountCents,
+        status: "due",
+        description: seats.seats > 0 ? `${tier.name}, ${seats.seats} seats, monthly` : `${tier.name}, monthly`,
+        periodStart,
+        periodEnd,
+      });
+      raised += 1;
+    } catch (error) {
+      log.error("renewal not raised", { organization: ref(month.organizationId), reason: safeErrorMessage(error) });
+    }
+  }
+
+  if (raised > 0) log.info("manual renewals raised", { raised });
+  return { raised };
+}
+
+/**
+ * 🔴 0160 — Cancel and Resume on the transfer rail. Cancel turns renewal off
+ * on the month in force and voids a next month raised but not paid, with its
+ * invoice; the plan runs to the end of what was paid. Resume turns it back on,
+ * and the next daily run raises the month if it is due.
+ */
+export async function setManualRenewal(organizationId: string, renew: boolean, now = new Date()): Promise<boolean> {
+  const { renewalObligations } = await import("@/lib/db/schema");
+  const { obligationCovering } = await import("./obligations");
+  const current = await obligationCovering(organizationId, now);
+  if (!current || current.state !== "paid") return false;
+
+  await db
+    .update(renewalObligations)
+    .set({ autoRenew: renew, updatedAt: new Date() })
+    .where(
+      and(
+        eq(renewalObligations.organizationId, organizationId),
+        eq(renewalObligations.periodStart, current.periodStart),
+      ),
+    );
+
+  if (!renew) {
+    const voided = await db
+      .update(renewalObligations)
+      .set({ state: "void", updatedAt: new Date() })
+      .where(
+        and(
+          eq(renewalObligations.organizationId, organizationId),
+          eq(renewalObligations.state, "due"),
+          sql`${renewalObligations.periodStart} >= ${current.periodEnd}`,
+        ),
+      )
+      .returning({ periodStart: renewalObligations.periodStart });
+    for (const month of voided) {
+      await db
+        .update(invoices)
+        .set({ status: "void" })
+        .where(
+          and(
+            eq(invoices.organizationId, organizationId),
+            eq(invoices.kind, "subscription"),
+            eq(invoices.status, "due"),
+            eq(invoices.periodStart, month.periodStart),
+          ),
+        );
+    }
+  }
+  return true;
+}
+
+/**
  * 🔴 74.3 — THE OTHER HALF: a confirmed transfer starts the plan.
  *
  * Called from `grantSubscription` once the invoices are settled. Guarded on

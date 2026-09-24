@@ -2055,6 +2055,11 @@ export const renewalObligations = pgTable(
      * which is what lets a reconciler find an obligation with no transaction
      * and a transaction with no obligation (59.15).
      */
+    /**
+     * 🔴 0160 — whether the month after this one is raised. Cancel on the
+     * transfer rail turns it off; Resume turns it back on.
+     */
+    autoRenew: boolean("auto_renew").notNull().default(true),
     settledVia: text("settled_via").$type<RenewalRail>(),
     settledRef: text("settled_ref"),
 

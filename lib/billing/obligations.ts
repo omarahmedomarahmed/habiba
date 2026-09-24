@@ -150,6 +150,8 @@ export async function obligationCovering(
   state: RenewalState;
   periodStart: Date;
   periodEnd: Date;
+  /** 0160 — whether the month after this one will be raised. */
+  autoRenew: boolean;
 } | null> {
   const [row] = await controlDb
     .select({
@@ -157,6 +159,7 @@ export async function obligationCovering(
       state: renewalObligations.state,
       periodStart: renewalObligations.periodStart,
       periodEnd: renewalObligations.periodEnd,
+      autoRenew: renewalObligations.autoRenew,
     })
     .from(renewalObligations)
     .where(
