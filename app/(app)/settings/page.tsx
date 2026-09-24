@@ -15,7 +15,8 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { AssistantPrefsSettings } from "@/components/assistant/prefs-settings";
 import { assistantPrefs } from "@/lib/ai/assistant";
-import { practiceState } from "@/lib/data/verification";
+import { getVerification, practiceState } from "@/lib/data/verification";
+import { licenceLocked } from "@/lib/data/licence-change";
 import { invoices, organizations, users } from "@/lib/db/schema";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -64,6 +65,9 @@ export default async function SettingsPage({
     assistantPrefs(actor.userId),
     practiceState(actor.userId),
   ]);
+
+  /* 🔴 W1-23: licence fields are read-only once verification is submitted. */
+  const locked = licenceLocked(await getVerification(actor.userId));
 
   /*
    * 🔴 74.6 — the practice's own row: what kind it is, and where it bills from.
@@ -151,6 +155,7 @@ export default async function SettingsPage({
           </Card>
 
           <ProfileForm
+            licenceLocked={locked}
             initial={{
               firstName: user?.firstName ?? "",
               lastName: user?.lastName ?? "",

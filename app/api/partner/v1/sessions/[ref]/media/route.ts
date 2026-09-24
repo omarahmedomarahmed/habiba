@@ -69,10 +69,15 @@ export async function POST(
    *
    * A partner could otherwise post audio claiming it starts at minute ten while
    * sending the whole session, and the note would cover a period nobody agreed to.
-   * The number comes from OUR consent log, and audio before it is the partner's
-   * problem to trim: we tell them where the boundary is and transcribe from there.
+   * The number comes from OUR consent log. 🔴 W1-17: and audio before it is cut
+   * HERE, not left for the partner: see `ingestPartnerAudio`.
    */
   const from = allowed.session.recordingFromSeconds ?? 0;
+  const startHeader = request.headers.get("x-audio-start-seconds");
+  const start = startHeader === null ? 0 : Number(startHeader);
+  if (!Number.isFinite(start) || start < 0) {
+    return fail("X-Audio-Start-Seconds must be a number of seconds from the session's start.", 400);
+  }
 
   const { ingestPartnerAudio } = await import("@/lib/partner/media");
   const result = await ingestPartnerAudio({
@@ -80,14 +85,17 @@ export async function POST(
     audio: Buffer.from(audio),
     contentType: type,
     fromSeconds: from,
+    startSeconds: start,
   });
 
-  if (result.error) return fail(result.error, 400);
+  if (result.error) return fail(result.error, result.status ?? 400);
 
   return NextResponse.json({
     accepted_bytes: audio.byteLength,
     /* 🔴 Said back, so an integration can assert it agrees with what it sent. */
     recording_from_seconds: from,
+    /* W1-17: how much of this piece was before the boundary, and not kept. */
+    dropped_seconds: result.droppedSeconds ?? 0,
     transcript_ready: result.ready,
   });
 }

@@ -69,8 +69,14 @@ export function VerificationForm({
   specialtyOptions,
   uploadsEnabled,
   requirements,
+  renewing = false,
 }: {
   state: "draft" | "submitted" | "approved" | "rejected";
+  /**
+   * 🔴 W1-16: back in review because the licence ran out. The form stays
+   * open so the renewal can be entered, where a plain submission is locked.
+   */
+  renewing?: boolean;
   /**
    * 20.4 / 20.5 — what an administrator has configured per country: which
    * regulators to offer, and what to call the documents we ask for. A country
@@ -150,9 +156,9 @@ export function VerificationForm({
     url: documents.find((doc) => doc.key === requirement.key)?.url ?? null,
   }));
 
-  const locked = state === "submitted" || state === "approved";
+  const locked = (state === "submitted" && !renewing) || state === "approved";
 
-  if (state === "submitted") {
+  if (state === "submitted" && !renewing) {
     return (
       <Card className="p-6 text-center">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">

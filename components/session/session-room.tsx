@@ -21,6 +21,7 @@ import {
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { callMicMuted } from "@/lib/sessions/may-record";
 import { sessionClock, type ClockLimits } from "@/lib/session-clock";
+import { pressOffRecord } from "@/lib/sessions/off-record";
 import { cn, formatDuration } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { AskPanel } from "@/components/session/ask-panel";
@@ -117,6 +118,8 @@ export function SessionRoom(props: RoomProps) {
    * callback was created.
    */
   const offRecordRef = useRef(props.recordingConsent !== "granted");
+  /* W1-06: an off-record press waiting on the server. */
+  const [pausing, setPausing] = useState(false);
   useEffect(() => {
     offRecordRef.current = offRecord;
   }, [offRecord]);
@@ -470,16 +473,25 @@ export function SessionRoom(props: RoomProps) {
     });
   };
 
-  const toggleOffRecord = () => {
-    // Resume is the clinician's over their own pause only (task 123).
-    if (offRecord && consentRef.current !== "granted") return;
-    const next = !offRecord;
-    setOffRecord(next);
-    localRecorder.current?.setMuted(next);
-    remoteRecorder.current?.setMuted(next);
-    // Fire and forget: the patient's indicator is allowed to lag a poll behind,
-    // and a failed write must never stop the clinician pausing the microphone.
-    void setRecordingPaused(props.sessionId, next);
+  /*
+   * 🔴 W1-06: the press waits for the server, and a failure is put back and
+   * said out loud. `pressOffRecord` carries which direction is optimistic.
+   */
+  const toggleOffRecord = async () => {
+    if (pausing) return;
+    setPausing(true);
+    setError(null);
+    const was = offRecord;
+    const outcome = await pressOffRecord(was, consentRef.current, {
+      apply: (off) => {
+        setOffRecord(off);
+        localRecorder.current?.setMuted(off);
+        remoteRecorder.current?.setMuted(off);
+      },
+      write: (paused) => setRecordingPaused(props.sessionId, paused),
+    });
+    if (outcome.failed) setError(t(was ? "troom.resumeFailed" : "troom.pauseFailed"));
+    setPausing(false);
   };
 
   const copyJoinLink = async () => {
@@ -888,9 +900,10 @@ export function SessionRoom(props: RoomProps) {
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
-                onClick={toggleOffRecord}
+                onClick={() => void toggleOffRecord()}
                 aria-pressed={offRecord}
-                disabled={offRecord && consent !== "granted"}
+                aria-busy={pausing}
+                disabled={pausing || (offRecord && consent !== "granted")}
                 className={cn(
                   "tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
                   offRecord

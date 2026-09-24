@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { transcribeAudio } from "@/lib/ai/transcribe";
 import { controlDb } from "@/lib/db";
@@ -29,11 +29,18 @@ import { log } from "@/lib/logger";
  * while claiming it starts at minute ten, and the note would cover a period nobody
  * agreed to.
  *
- * We cannot verify that the bytes they sent actually begin at that offset, and
- * pretending otherwise would be worse than saying so: what we can do is record the
- * boundary WE were told about by the patient, put it in the coverage sentence on
- * every surface, and make the discrepancy something a partner has to lie about
- * explicitly rather than something they can drift into.
+ * 🔴 W1-17: and it is ENFORCED, not only recorded. It used to be passed in and
+ * ignored, so audio from before the patient said yes was transcribed and stored.
+ * `startSeconds` is where this piece sits in the session (the
+ * `X-Audio-Start-Seconds` header, 0 when absent, which is the safe reading: it
+ * cuts more, never less). Then, before anything reaches the transcriber:
+ *
+ *   a WAV (PCM)   cut exactly at the boundary (`dropWavStart`); a piece wholly
+ *                 before it is accepted and nothing of it is kept.
+ *   anything else we cannot cut it (no audio tools here, and the model returns
+ *                 no timestamps to drop by), so a piece that reaches back before
+ *                 the boundary is REFUSED, and one that starts at or after it is
+ *                 taken whole.
  */
 
 export async function ingestPartnerAudio(input: {
@@ -41,7 +48,28 @@ export async function ingestPartnerAudio(input: {
   audio: Buffer;
   contentType: string;
   fromSeconds: number;
-}): Promise<{ ready?: boolean; error?: string }> {
+  /** Where this piece starts in the session, in seconds. */
+  startSeconds?: number;
+}): Promise<{ ready?: boolean; error?: string; status?: number; droppedSeconds?: number }> {
+  const start = Math.max(0, input.startSeconds ?? 0);
+  const before = Math.max(0, input.fromSeconds - start);
+  let audio = input.audio;
+
+  if (before > 0) {
+    const { dropWavStart, isWavType, wavInfo } = await import("./wav");
+    const info = isWavType(input.contentType) ? wavInfo(audio) : null;
+    if (!info) {
+      return {
+        status: 422,
+        error:
+          "This audio starts before the patient consented, and we can only cut WAV. Send audio/wav, or only the audio from recording_from_seconds with X-Audio-Start-Seconds.",
+      };
+    }
+    const kept = dropWavStart(audio, before);
+    if (!kept) return { ready: false, droppedSeconds: info.durationSeconds };
+    audio = kept;
+  }
+
   let text: string;
 
   try {
@@ -52,9 +80,9 @@ export async function ingestPartnerAudio(input: {
        * bytes that happened to share an allocation, which is both a wrong transcript
        * and a small data leak between requests.
        */
-      audio: input.audio.buffer.slice(
-        input.audio.byteOffset,
-        input.audio.byteOffset + input.audio.byteLength,
+      audio: audio.buffer.slice(
+        audio.byteOffset,
+        audio.byteOffset + audio.byteLength,
       ) as ArrayBuffer,
       mimeType: input.contentType,
       /*
@@ -94,7 +122,37 @@ export async function ingestPartnerAudio(input: {
     })
     .where(eq(partnerSessions.id, input.partnerSessionId));
 
-  return { ready: text.trim().length > 0 };
+  return { ready: text.trim().length > 0, droppedSeconds: before };
+}
+
+/**
+ * 🔴 W1-17: a withdrawal takes back what the consent let us keep.
+ *
+ * The consent log is append only and says the withdrawal happened; this is the
+ * material that was made under the consent: the transcript, the draft and the
+ * summary. An approved note is the partner clinician's signed record and stays
+ * theirs. Only when the session's effective answer is now no, so a withdrawal
+ * that arrives before a later yes does not wipe a consented session.
+ */
+export async function purgeSessionMaterial(input: {
+  partnerId: string;
+  externalSessionRef: string;
+}): Promise<{ purged: boolean }> {
+  const { recordingFrom } = await import("./consent");
+  if ((await recordingFrom(input)) !== null) return { purged: false };
+
+  const rows = await controlDb
+    .update(partnerSessions)
+    .set({ transcriptText: null, noteDraft: null, summaryText: null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(partnerSessions.partnerId, input.partnerId),
+        eq(partnerSessions.externalSessionRef, input.externalSessionRef),
+      ),
+    )
+    .returning({ id: partnerSessions.id });
+  if (rows.length > 0) log.info("partner session material purged on withdrawal");
+  return { purged: rows.length > 0 };
 }
 
 /** The transcript so far, for the read route. Null when nothing has arrived. */

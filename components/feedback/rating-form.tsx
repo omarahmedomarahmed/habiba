@@ -35,6 +35,7 @@ export function RatingForm({
   briefSteps,
   briefNext,
   briefLanguage,
+  briefAddenda = [],
   notePending,
   emailed,
   alreadyDone,
@@ -50,6 +51,8 @@ export function RatingForm({
   briefSteps: string[];
   briefNext: string;
   briefLanguage: string;
+  /** W1-03: added by their clinician after releasing the brief, oldest first. */
+  briefAddenda?: { by: string; at: string; body: string }[];
   notePending: boolean;
   /** A copy actually reached their inbox — do not claim one otherwise. */
   emailed: boolean;
@@ -160,6 +163,21 @@ export function RatingForm({
               next={briefNext}
               rtl={rtl}
             />
+            {briefAddenda.map((line, index) => (
+              <div key={index} className="mt-3 rounded-xl bg-slate-50 p-3">
+                <p className="text-xs text-slate-500">
+                  {t("psessions.addedLater", { name: line.by })} ·{" "}
+                  {formatCalendarDate(
+                    new Date(line.at),
+                    resolveZone(detected, therapistTimezone).name,
+                    dateTag(locale),
+                  )}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                  {line.body}
+                </p>
+              </div>
+            ))}
             <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
               {t("prating.writtenForYou")}
             </p>

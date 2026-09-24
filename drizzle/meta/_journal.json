@@ -813,6 +813,34 @@
       "when": 1789966001000,
       "tag": "0115_the_notice_the_database_refused",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1789966002000,
+      "tag": "0116_a_signed_note_keeps_its_words",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1789966003000,
+      "tag": "0117_a_licence_that_runs_out",
+      "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1789966004000,
+      "tag": "0118_a_licence_change_is_reviewed",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1789966005000,
+      "tag": "0119_coverage_beside_the_note",
+      "breakpoints": true
     }
   ]
 }

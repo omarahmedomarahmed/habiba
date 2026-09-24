@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, avg, count, desc, eq, gt, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, avg, count, desc, eq, gt, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
+  noteAddenda,
   patients,
   sessionFeedback,
   sessionNotes,
@@ -62,6 +63,8 @@ export type FeedbackContext = {
   briefNext: string;
   /** Null while the clinician has not finished writing it up. */
   notePending: boolean;
+  /** 🔴 W1-03: patient addenda to the released copy, oldest first. */
+  briefAddenda: { by: string; at: string; body: string }[];
   /**
    * Whether a copy actually reached their inbox.
    *
@@ -140,6 +143,15 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
    */
   const signed = row.noteStatus === "approved";
 
+  /* 🔴 W1-03: only `patient` addenda, and only once the copy is released. */
+  const addenda = signed
+    ? await db
+        .select({ by: noteAddenda.authorName, at: noteAddenda.createdAt, body: noteAddenda.body })
+        .from(noteAddenda)
+        .where(and(eq(noteAddenda.sessionId, row.sessionId), eq(noteAddenda.kind, "patient")))
+        .orderBy(asc(noteAddenda.createdAt))
+    : [];
+
   return {
     sessionId: row.sessionId,
     therapistFirstName: row.therapistFirst,
@@ -157,6 +169,7 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     briefNext: signed ? (row.noteContent?.patientNext ?? "") : "",
     briefLanguage: row.noteLanguage ?? "en",
     notePending: !signed,
+    briefAddenda: addenda.map((line) => ({ ...line, at: line.at.toISOString() })),
     // Set only by `markBriefSent`, which only runs after the provider accepted
     // the message. A refused send leaves it null and the page says nothing
     // about an inbox.

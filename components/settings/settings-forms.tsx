@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 
 import { changePassword, signOut, type ActionState } from "@/lib/auth/actions";
 import { updateProfile, type SettingsState } from "@/app/(app)/settings/actions";
@@ -31,7 +32,13 @@ function Submit({ label }: { label: string }) {
  */
 export function ProfileForm({
   initial,
+  licenceLocked = false,
 }: {
+  /**
+   * 🔴 W1-23: verification is submitted or approved, so the four licence
+   * fields are read-only here and change through review on /onboarding.
+   */
+  licenceLocked?: boolean;
   initial: {
     firstName: string;
     lastName: string;
@@ -76,15 +83,16 @@ export function ProfileForm({
               name="credentials"
               placeholder={t("tset.credentialsPlaceholder")}
               defaultValue={initial.credentials}
+              readOnly={licenceLocked}
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("tset.licenceType")} htmlFor="licenseType">
-              <Input id="licenseType" name="licenseType" defaultValue={initial.licenseType} />
+              <Input id="licenseType" name="licenseType" defaultValue={initial.licenseType} readOnly={licenceLocked} />
             </Field>
             <Field label={t("tset.licenceState")} htmlFor="licenseState">
-              <Input id="licenseState" name="licenseState" defaultValue={initial.licenseState} />
+              <Input id="licenseState" name="licenseState" defaultValue={initial.licenseState} readOnly={licenceLocked} />
             </Field>
           </div>
 
@@ -93,8 +101,17 @@ export function ProfileForm({
             htmlFor="licenseNumber"
             hint={t("tset.licenceNumberHint")}
           >
-            <Input id="licenseNumber" name="licenseNumber" defaultValue={initial.licenseNumber} />
+            <Input id="licenseNumber" name="licenseNumber" defaultValue={initial.licenseNumber} readOnly={licenceLocked} />
           </Field>
+
+          {licenceLocked ? (
+            <p className="text-sm text-slate-600">
+              {t("tlic.lockedHint")}{" "}
+              <Link href="/onboarding" className="font-semibold text-brand-700">
+                {t("tlic.change")}
+              </Link>
+            </p>
+          ) : null}
 
           <Submit label={t("tset.saveDetails")} />
         </form>

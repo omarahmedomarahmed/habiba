@@ -41,35 +41,24 @@ export async function updateProfile(
   const firstName = String(formData.get("firstName") ?? "").trim();
   if (!firstName) return { error: "First name is required." };
 
-  const [existing] = await db
-    .select({ profile: users.profile })
-    .from(users)
-    .where(eq(users.id, actor.userId))
-    .limit(1);
-
   // Explicit field list, merged over what is already there. The old settings
   // handler wrote whatever the form sent straight into the row, which is how
   // the string "3-5 years" ended up going into an integer column — and because
   // the resulting error aborted the whole UPDATE, both onboarding and settings
   // silently saved nothing. Merging matters too: this form does not carry the
   // copilot voice preference, and replacing the object outright would erase it.
-  const profile: TherapistProfile = {
-    ...(existing?.profile ?? {}),
-    credentials: String(formData.get("credentials") ?? "").trim() || undefined,
-    licenseType: String(formData.get("licenseType") ?? "").trim() || undefined,
-    licenseNumber: String(formData.get("licenseNumber") ?? "").trim() || undefined,
-    licenseState: String(formData.get("licenseState") ?? "").trim() || undefined,
-  };
-
-  await db
-    .update(users)
-    .set({
-      firstName,
-      lastName: String(formData.get("lastName") ?? "").trim(),
-      profile,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, actor.userId));
+  //
+  // 🔴 W1-23: once verification is submitted or approved, the four licence
+  // fields are not written here at all; a change goes through review.
+  const { writeProfile } = await import("@/lib/data/licence-change");
+  await writeProfile(actor, {
+    firstName,
+    lastName: String(formData.get("lastName") ?? ""),
+    credentials: String(formData.get("credentials") ?? ""),
+    licenseType: String(formData.get("licenseType") ?? ""),
+    licenseNumber: String(formData.get("licenseNumber") ?? ""),
+    licenseState: String(formData.get("licenseState") ?? ""),
+  });
 
   await audit({
     actor,

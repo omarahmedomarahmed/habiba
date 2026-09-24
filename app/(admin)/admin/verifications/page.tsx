@@ -115,6 +115,8 @@ export default async function VerificationsPage({
               licenseBody={row.licenseBody}
               licenseNumber={row.licenseNumber}
               licenseExpiry={row.licenseExpiry}
+              licenceExpired={Boolean(row.licenseExpiredAt)}
+              pendingChange={row.recheckSubmittedAt ? (row.pendingLicence ?? {}) : null}
               specialties={row.specialties}
               languages={row.languages}
               /*

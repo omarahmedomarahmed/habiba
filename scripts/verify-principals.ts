@@ -83,6 +83,12 @@ const SCOPE: Record<string, Scope> = {
   "session-risk": { who: ["clinician", "admin"], clinical: true },
   "session-sources": { who: ["clinician", "admin"], clinical: true },
   "session-voices": { who: ["clinician", "admin"], clinical: true },
+  /*
+   * 🔴 W1-03: the lock on a signed note and its addenda. The clinician's
+   * only: a patient reads their own released addenda through `patient-view`
+   * and `feedback`, never through this module.
+   */
+  "note-record": { who: ["clinician"], clinical: true },
   copilot: { who: ["clinician"], clinical: true },
   /*
    * 🔴 76.39 — the same thread as `copilot`, assembled for the two surfaces
@@ -280,6 +286,10 @@ const SCOPE: Record<string, Scope> = {
   "therapist-codes": { who: ["clinician", "admin"] },
   vault: { who: ["admin"] },
   verification: { who: ["clinician", "admin"] },
+  /* W1-16: a clinician's own licence standing, and the daily sweep (cron). */
+  "licence-expiry": { who: ["clinician", "admin"] },
+  /* W1-23: a clinician's own licence change, held for an operator. */
+  "licence-change": { who: ["clinician", "admin"] },
   verified: { who: ["clinician", "admin", "clinic", "partner"] },
   timeline: { who: ["clinician", "admin"], clinical: true },
   transcript: { who: ["clinician", "admin"], clinical: true },

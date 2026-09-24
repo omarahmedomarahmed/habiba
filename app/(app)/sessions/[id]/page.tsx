@@ -18,6 +18,7 @@ import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
 import { sourceFor } from "@/lib/data/session-sources";
 import { namesForUsers, voicesFor } from "@/lib/data/session-voices";
 import { latestSummary } from "@/lib/data/summaries";
+import { addendaFor } from "@/lib/data/note-record";
 import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
@@ -64,6 +65,27 @@ export default async function SessionDetailPage({
   const previousSummary = summaryPersonId ? await latestSummary(summaryPersonId) : null;
 
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
+
+  /*
+   * 🔴 W1-03 / P4: what was added after signing, under the note, in order.
+   * The note was scoped to this clinician by `getNote` above.
+   */
+  const addendumScope = {
+    patientId: row.session.patientId,
+    organizationId: row.session.organizationId,
+  };
+  const noteIds = note ? [note.id] : [];
+  const [clinicalAddenda, patientAddenda] = await Promise.all([
+    addendaFor(noteIds, "clinical", addendumScope),
+    addendaFor(noteIds, "patient", addendumScope),
+  ]);
+  const addendumLines = (found: Awaited<ReturnType<typeof addendaFor>>) =>
+    (note ? (found.get(note.id) ?? []) : []).map((line) => ({
+      id: line.id,
+      by: line.authorName,
+      when: formatDateTime(line.createdAt, actor.timezone, locale),
+      body: line.body,
+    }));
 
   /*
    * 51.6 / 37R.21 / 37R.22 / C179 — the two tables that had a migration, a
@@ -250,6 +272,8 @@ export default async function SessionDetailPage({
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
             dateLabel={formatDateTime(row.session.endedAt ?? row.session.scheduledAt ?? row.session.createdAt, actor.timezone, locale)}
             reportSent={Boolean(row.session.reportSentAt)}
+            clinicalAddenda={addendumLines(clinicalAddenda)}
+            patientAddenda={addendumLines(patientAddenda)}
           />
           </>
         )}

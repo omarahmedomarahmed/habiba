@@ -5,6 +5,19 @@ import { Check, ExternalLink, X } from "lucide-react";
 
 import { decideTherapistVerification } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
+
+/** W1-23: the words the forms already use for each licence field. */
+const CHANGE_LABELS: Record<string, MessageKey> = {
+  country: "tver.country",
+  licenseBody: "tver.regulator",
+  licenseNumber: "tver.licenceNumber",
+  licenseExpiry: "tver.licenceExpiry",
+  credentials: "tset.credentials",
+  licenseType: "tset.licenceType",
+  licenseState: "tset.licenceState",
+};
 
 /**
  * One applicant, with their documents on screen.
@@ -22,6 +35,10 @@ export function VerificationReview(props: {
   licenseBody: string | null;
   licenseNumber: string | null;
   licenseExpiry: string | null;
+  /** W1-16: back in the queue because the licence ran out. */
+  licenceExpired?: boolean;
+  /** W1-23: a licence change an approved clinician asked for. */
+  pendingChange?: Record<string, string | null> | null;
   specialties: string[];
   languages: string[];
   documents: { label: string; url: string | null }[];
@@ -35,6 +52,7 @@ export function VerificationReview(props: {
   /** The count at which a rejection removes the documents. */
   finalAt: number;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +70,10 @@ export function VerificationReview(props: {
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{props.name}</p>
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+            {props.name}
+            {props.licenceExpired ? <Badge tone="amber">{t("tlic.expiredTitle")}</Badge> : null}
+          </p>
           <p className="truncate text-xs text-slate-500">
             {props.email}
             {props.organizationName ? ` · ${props.organizationName}` : ""}
@@ -74,6 +95,17 @@ export function VerificationReview(props: {
         <Row label="Languages">{props.languages.join(", ") || "-"}</Row>
         <Row label="Works with">{props.specialties.join(", ") || "-"}</Row>
       </dl>
+
+      {props.pendingChange ? (
+        <dl className="grid gap-x-6 gap-y-2 border-t border-amber-100 bg-amber-50 px-4 py-3 text-sm sm:grid-cols-2">
+          <p className="font-semibold text-amber-900 sm:col-span-2">{t("tlic.change")}</p>
+          {Object.entries(props.pendingChange).map(([key, value]) => (
+            <Row key={key} label={CHANGE_LABELS[key] ? t(CHANGE_LABELS[key]) : key}>
+              {value ?? "-"}
+            </Row>
+          ))}
+        </dl>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2 px-4 pb-3 sm:grid-cols-4">
         {props.documents.map((doc) => (
@@ -117,7 +149,7 @@ export function VerificationReview(props: {
         Shown as a state rather than a warning inside a tooltip, because the
         whole point is that it is read without being sought.
       */}
-      {props.documentsCleared ? (
+      {props.pendingChange ? null : props.documentsCleared ? (
         <p className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-xs text-slate-600">
           Turned down {props.rejectionCount} times. Documents not kept.
         </p>

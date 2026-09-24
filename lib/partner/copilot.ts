@@ -1,10 +1,10 @@
 import "server-only";
 
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { MODELS, openai } from "@/lib/ai/client";
 import { controlDb } from "@/lib/db";
-import { partnerSessions } from "@/lib/db/schema";
+import { partnerConsents, partnerSessions, partnerSubjects } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 
 /**
@@ -136,6 +136,63 @@ export async function askPartnerCopilot(input: {
 }
 
 /**
+ * 🔴 W1-18: WHETHER THIS PERSON'S SESSIONS MAY BE READ AT ALL, asked first.
+ *
+ * Copilot and memory read session material and asked neither the consent log
+ * nor whether the person had unlinked. They were harmless only because nothing
+ * writes `ended_at`, and the end-session call that will (W2-X02) would have
+ * opened them. So both routes ask this before anything else, and
+ * `sessionMaterial` applies the same two rules again in its own WHERE, so a
+ * third caller cannot skip them.
+ *
+ *   unlinked   the person revoked this partner's link (`partner_subjects`,
+ *              C277). Nothing about them is read on this partner's behalf.
+ *   withdrawn  their most recent answer, on any session, is no.
+ */
+export async function subjectRefusal(input: {
+  partnerId: string;
+  externalSubjectRef: string;
+}): Promise<{ status: 403; error: string } | null> {
+  const [revoked] = await controlDb
+    .select({ id: partnerSubjects.id })
+    .from(partnerSubjects)
+    .where(
+      and(
+        eq(partnerSubjects.partnerId, input.partnerId),
+        eq(partnerSubjects.externalRef, input.externalSubjectRef),
+        isNotNull(partnerSubjects.revokedAt),
+      ),
+    )
+    .limit(1);
+  if (revoked) {
+    return {
+      status: 403,
+      error: "This person has unlinked from your platform, so nothing about them is read for it.",
+    };
+  }
+
+  const [latest] = await controlDb
+    .select({ state: partnerConsents.state })
+    .from(partnerConsents)
+    .where(
+      and(
+        eq(partnerConsents.partnerId, input.partnerId),
+        eq(partnerConsents.externalSubjectRef, input.externalSubjectRef),
+      ),
+    )
+    .orderBy(desc(partnerConsents.answeredAt), desc(partnerConsents.createdAt))
+    .limit(1);
+  if (latest?.state === "withdrawn") {
+    return {
+      status: 403,
+      error: "This person has withdrawn their consent, so their sessions are not read.",
+    };
+  }
+
+  return null;
+}
+
+/**
  * 🔴 68.8 — THE MEMORY LAYER, WHICH IS THIS QUERY AND NOT A SECOND STORE.
  *
  * The approved note first, then the transcript. A note is what a clinician stood
@@ -165,6 +222,24 @@ export async function sessionMaterial(input: {
         eq(partnerSessions.partnerId, input.partnerId),
         eq(partnerSessions.externalSubjectRef, input.externalSubjectRef),
         isNotNull(partnerSessions.endedAt),
+        /*
+         * 🔴 W1-18: the session's own latest answer is still yes, and the
+         * person has not unlinked. The same rules as `subjectRefusal`, held
+         * here too so no caller can read around them.
+         */
+        sql`(
+          SELECT c.state FROM partner_consents c
+           WHERE c.partner_id = ${partnerSessions.partnerId}
+             AND c.external_session_ref = ${partnerSessions.externalSessionRef}
+           ORDER BY c.answered_at DESC, c.created_at DESC
+           LIMIT 1
+        ) = 'given'`,
+        sql`NOT EXISTS (
+          SELECT 1 FROM partner_subjects s
+           WHERE s.partner_id = ${partnerSessions.partnerId}
+             AND s.external_ref = ${partnerSessions.externalSubjectRef}
+             AND s.revoked_at IS NOT NULL
+        )`,
       ),
     )
     .orderBy(desc(partnerSessions.endedAt))

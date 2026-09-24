@@ -1,10 +1,17 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
-import { patients, sessionNotes, sessions, users, type NoteProvenance } from "@/lib/db/schema";
+import {
+  noteAddenda,
+  patients,
+  sessionNotes,
+  sessions,
+  users,
+  type NoteProvenance,
+} from "@/lib/db/schema";
 
 
 
@@ -68,6 +75,12 @@ export type PatientSession = {
   brief: string | null;
   briefPending: boolean;
   /**
+   * 🔴 W1-03 / P4: what their clinician added to the brief after releasing
+   * it, oldest first. Only `kind = 'patient'` rows, which are written TO them
+   * like the brief; a clinical addendum is never selected here.
+   */
+  briefAddenda: { by: string; at: Date; body: string }[];
+  /**
    * 🔴 47.4 — which of their own sessions were transcribed.
    *
    * Null when there is no note yet. It is their record and it was their choice
@@ -126,6 +139,21 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
 
   const now = Date.now();
 
+  /* 🔴 W1-03: patient addenda only, for released copies only. */
+  const released = rows.filter((row) => row.patientStatus === "approved").map((row) => row.id);
+  const addenda = released.length
+    ? await db
+        .select({
+          sessionId: noteAddenda.sessionId,
+          by: noteAddenda.authorName,
+          at: noteAddenda.createdAt,
+          body: noteAddenda.body,
+        })
+        .from(noteAddenda)
+        .where(and(inArray(noteAddenda.sessionId, released), eq(noteAddenda.kind, "patient")))
+        .orderBy(asc(noteAddenda.createdAt))
+    : [];
+
   return rows.map((row) => {
     const at = row.scheduledAt ?? row.endedAt ?? row.startedAt ?? row.createdAt;
     const signed = row.patientStatus === "approved";
@@ -147,6 +175,11 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       paymentStatus: row.paymentStatus,
       brief: signed ? row.brief : null,
       briefPending: !signed && at.getTime() < now,
+      briefAddenda: signed
+        ? addenda
+            .filter((line) => line.sessionId === row.id)
+            .map(({ by, at: when, body }) => ({ by, at: when, body }))
+        : [],
     };
   });
 }
