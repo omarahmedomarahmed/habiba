@@ -260,14 +260,21 @@ export function isUndeletable(url: string | null | undefined): boolean {
 
 /** Remove a stored file. Used when a document is replaced. */
 export async function deleteDocument(url: string | null | undefined): Promise<void> {
-  if (!url || !uploadsConfigured()) return;
+  if (!url) return;
 
+  /*
+   * 🔴 W1-31: the rule before the configuration. This checked `uploadsConfigured()`
+   * first and returned, so wherever storage was not configured a receipt delete
+   * returned quietly instead of refusing, and the rule held only by accident.
+   */
   if (isUndeletable(url)) {
     throw new Error(
       "uploads: a transfer receipt cannot be deleted. It is the only evidence that " +
         "payment was ever made, and there is no processor to reconcile against.",
     );
   }
+
+  if (!uploadsConfigured()) return;
 
   if (url.startsWith(LOCAL_PREFIX)) {
     try {

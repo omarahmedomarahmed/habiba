@@ -204,3 +204,10 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 | W1-18 | fixed cedbf710 |
 | W1-24 | fixed 7c0a0a29 (0119) |
 | W1-29 | fixed 8a3861a5, 391a8473 |
+| W1-27 | fixed de9109e6 (0120) |
+| W1-28 | fixed fc598552 (0121 refund queue), a80e1ce5 (0122 notice) |
+| W1-12 | complete: honesty a5c890c7, queue fc598552 |
+| W1-13 | complete: 3935ce80, notice a80e1ce5 |
+| W1-26 | fixed c7987c21 |
+| W1-30 | fixed 173f5e3b (0123) |
+| W1-31 | fixed (receipt guard before the storage check) |
