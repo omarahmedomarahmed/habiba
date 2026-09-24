@@ -346,6 +346,12 @@ export const users = pgTable(
      */
     autoSettleFromEarnings: boolean("auto_settle_from_earnings").notNull().default(true),
 
+    /**
+     * 🔴 W2-F01 / D7: the format this clinician's notes are drafted in. A
+     * built-in key or `tpl:<id>`; one that no longer resolves is SOAP.
+     */
+    noteFormat: text("note_format").notNull().default("soap"),
+
     failedLoginCount: integer("failed_login_count").notNull().default(0),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
@@ -1030,8 +1036,21 @@ export type SoapNote = {
   plan: string;
 };
 
+/**
+ * 🔴 W2-F01: one section of a note written in a format other than SOAP. The
+ * heading is stored with the text, so a note keeps its own shape even after
+ * the template it was written from is renamed or deleted.
+ */
+export type NoteSection = { key: string; label: string; text: string };
+
 export type NoteContent = {
   soap: SoapNote;
+  /**
+   * 🔴 W2-F01 / D7: every format except SOAP writes here, in the format's
+   * order. Absent on a SOAP note, which reads `soap` exactly as it always has.
+   * See `lib/notes/formats.ts`.
+   */
+  sections?: NoteSection[];
   summary: string;
   /**
    * What the patient is allowed to read.
@@ -1208,14 +1227,59 @@ export const sessionNotes = pgTable(
     /** 47.2 — only meaningful on `partial`. Null everywhere else. */
     offRecordSeconds: integer("off_record_seconds"),
 
+    /**
+     * 🔴 W2-F01 / D7: the format this note is written in. A built-in key
+     * (`soap`, `dap`, ...) or `tpl:<id>` for a clinician's own template. One
+     * note per format per session; every note before formats is `soap`.
+     * Fixed once written: migration 0128's trigger refuses a change.
+     */
+    format: text("format").notNull().default("soap"),
+    /**
+     * 🔴 W2-F01: the note that stands for the session. It carries the patient's
+     * one plain-language copy and is the note a one-row view of a session reads
+     * (the notice, the rating form, the console). The first note of a session is
+     * primary; an "also write it as" note is not. If another format is signed
+     * before it and its copy is not yet released, the flag moves to the signed
+     * one: the copy comes from whichever note was signed first.
+     */
+    isPrimary: boolean("is_primary").notNull().default(true),
+
     model: text("model"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("session_notes_session_unique").on(t.sessionId),
+    /* 🔴 W2-F01 / 0128: one note per format, not one per session. */
+    uniqueIndex("session_notes_session_format_unique").on(t.sessionId, t.format),
+    uniqueIndex("session_notes_one_primary").on(t.sessionId).where(sql`is_primary`),
+    uniqueIndex("session_notes_one_patient_copy")
+      .on(t.sessionId)
+      .where(sql`patient_status = 'approved'`),
     index("session_notes_therapist_idx").on(t.therapistId, t.createdAt),
   ],
+);
+
+/**
+ * 🔴 W2-F01 / D7: a clinician's own note format. Named sections, each with a
+ * short guide the draft follows, stored as data so a new format needs no code.
+ * Archived rather than deleted: a note written from it keeps its own headings.
+ */
+export const noteTemplates = pgTable(
+  "note_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    sections: jsonb("sections").$type<{ key: string; label: string; guide: string }[]>().notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("note_templates_user").on(t.userId, t.createdAt)],
 );
 
 /**

@@ -14,7 +14,9 @@ import { Badge, Button, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { personIdForPatient } from "@/lib/data/people";
-import { getNote, getSession, getTranscript } from "@/lib/data/sessions";
+import { getNotes, getSession, getTranscript } from "@/lib/data/sessions";
+import { NoteFormats } from "@/components/session/note-formats";
+import { canRedraft, noteView } from "@/lib/notes/formats";
 import { sourceFor } from "@/lib/data/session-sources";
 import { namesForUsers, voicesFor } from "@/lib/data/session-voices";
 import { latestSummary } from "@/lib/data/summaries";
@@ -31,18 +33,22 @@ export const dynamic = "force-dynamic";
 
 export default async function SessionDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  /** W2-F01: which of the session's notes is on screen. */
+  searchParams: Promise<{ note?: string }>;
 }) {
   const { locale, t } = await getI18n();
   const actor = await requireUser();
   const { id } = await params;
+  const { note: wanted } = await searchParams;
 
   const row = await getSession(actor, id);
   if (!row) notFound();
 
-  const [note, transcript] = await Promise.all([
-    getNote(actor, id),
+  const [notes, transcript] = await Promise.all([
+    getNotes(actor, id),
     getTranscript(actor, id),
     // Opening the session is the action the alert was asking for, so the alert
     // has done its job and stops shouting.
@@ -67,20 +73,54 @@ export default async function SessionDetailPage({
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
 
   /*
+   * 🔴 W2-F01 / D7: one note per format. The primary carries the patient's one
+   * copy; the note on screen is the one asked for, or the primary.
+   */
+  const primary = notes.find((n) => n.isPrimary) ?? notes[0] ?? null;
+  const note = notes.find((n) => n.id === wanted) ?? primary;
+  const { formatsFor, templateLabels } = await import("@/lib/data/note-formats");
+  const [{ formats }, ownLabels] = await Promise.all([
+    formatsFor(actor.organizationId, actor.userId),
+    templateLabels(actor.organizationId, notes.map((n) => n.format)),
+  ]);
+  const choiceOf = (key: string) => {
+    const known = formats.find((f) => f.key === key);
+    return {
+      key,
+      label: ownLabels.get(key) ?? known?.label ?? key,
+      labelKey: known?.labelKey ?? null,
+    };
+  };
+
+  /*
+   * 🔴 W2-T03: whether a note is being written is decided once, here. A
+   * cancelled session will never have one; a job that died stops spinning.
+   */
+  const view = noteView({
+    sessionStatus: row.session.status,
+    noteStatus: row.session.noteStatus,
+    hasNote: Boolean(note?.content),
+    updatedAt: row.session.updatedAt,
+    now: new Date(),
+  });
+
+  /*
    * 🔴 W1-03 / P4: what was added after signing, under the note, in order.
-   * The note was scoped to this clinician by `getNote` above.
+   * The notes were scoped to this clinician by `getNotes` above.
    */
   const addendumScope = {
     patientId: row.session.patientId,
     organizationId: row.session.organizationId,
   };
-  const noteIds = note ? [note.id] : [];
   const [clinicalAddenda, patientAddenda] = await Promise.all([
-    addendaFor(noteIds, "clinical", addendumScope),
-    addendaFor(noteIds, "patient", addendumScope),
+    addendaFor(note ? [note.id] : [], "clinical", addendumScope),
+    addendaFor(primary ? [primary.id] : [], "patient", addendumScope),
   ]);
-  const addendumLines = (found: Awaited<ReturnType<typeof addendaFor>>) =>
-    (note ? (found.get(note.id) ?? []) : []).map((line) => ({
+  const addendumLines = (
+    found: Awaited<ReturnType<typeof addendaFor>>,
+    of: { id: string } | null,
+  ) =>
+    (of ? (found.get(of.id) ?? []) : []).map((line) => ({
       id: line.id,
       by: line.authorName,
       when: formatDateTime(line.createdAt, actor.timezone, locale),
@@ -225,10 +265,12 @@ export default async function SessionDetailPage({
             editors and loses its two approve buttons, because two ways to
             approve the same document is the fatigue the ruling is about.
           */}
+          {view !== "none" ? (
           <SessionApproval
             sessionId={id}
+            noteId={note?.id ?? null}
             clinicalSigned={note?.status === "approved"}
-            patientReleased={note?.patientStatus === "approved"}
+            patientReleased={primary?.patientStatus === "approved"}
             hasNote={Boolean(note?.content)}
             canSummarise={summaryPersonId !== null}
             previousSummary={
@@ -243,6 +285,22 @@ export default async function SessionDetailPage({
             }
             patientLabel={patientLabel}
           />
+          ) : null}
+
+          {notes.length > 0 && row.session.status === "completed" ? (
+            <NoteFormats
+              sessionId={id}
+              selectedId={note?.id ?? null}
+              notes={notes.map((n) => ({
+                ...choiceOf(n.format),
+                id: n.id,
+                signed: n.status === "approved",
+              }))}
+              options={formats
+                .filter((f) => !notes.some((n) => n.format === f.key))
+                .map((f) => choiceOf(f.key))}
+            />
+          ) : null}
 
           {/*
             🔴 47.3 — above the note, not beside it.
@@ -258,22 +316,44 @@ export default async function SessionDetailPage({
           ) : null}
 
           <NoteReview
+            key={note?.id ?? "none"}
             approvals={false}
             sessionId={id}
+            noteId={note?.id ?? null}
+            formatKey={note?.format ?? "soap"}
+            view={view}
+            canRedraft={
+              Boolean(note) &&
+              (note?.isPrimary ? note.patientStatus === "draft" : true) &&
+              canRedraft({
+                status: note?.status ?? "draft",
+                recordingConsent: row.session.recordingConsent,
+                hasTranscript: transcript.length > 0,
+              })
+            }
+            initialCopy={
+              primary?.content
+                ? {
+                    patientBrief: primary.content.patientBrief,
+                    patientSteps: primary.content.patientSteps,
+                    patientNext: primary.content.patientNext,
+                  }
+                : null
+            }
             initialNote={note?.content ?? null}
             language={note?.language ?? "en"}
             languageLabel={NOTE_LANGUAGES[note?.language ?? "en"] ?? "Original"}
             contentEn={note?.contentEn ?? null}
             initialStatus={note?.status ?? "draft"}
-            initialPatientStatus={note?.patientStatus ?? "draft"}
+            initialPatientStatus={primary?.patientStatus ?? "draft"}
             noteStatus={row.session.noteStatus}
             recordingConsent={row.session.recordingConsent}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
             dateLabel={formatDateTime(row.session.endedAt ?? row.session.scheduledAt ?? row.session.createdAt, actor.timezone, locale)}
             reportSent={Boolean(row.session.reportSentAt)}
-            clinicalAddenda={addendumLines(clinicalAddenda)}
-            patientAddenda={addendumLines(patientAddenda)}
+            clinicalAddenda={addendumLines(clinicalAddenda, note)}
+            patientAddenda={addendumLines(patientAddenda, primary)}
           />
           </>
         )}

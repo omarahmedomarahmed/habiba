@@ -123,7 +123,11 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.therapistId))
-    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    /* W2-F01: the patient's one copy is on the session's primary note. */
+    .leftJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessions.id), eq(sessionNotes.isPrimary, true)),
+    )
     .leftJoin(sessionFeedback, eq(sessionFeedback.sessionId, sessions.id))
     .where(eq(sessions.feedbackToken, token))
     .limit(1);
@@ -686,7 +690,11 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
     .innerJoin(sessions, eq(sessions.id, sessionFeedback.sessionId))
     .innerJoin(users, eq(users.id, sessionFeedback.therapistId))
     .leftJoin(patients, eq(patients.id, sessions.patientId))
-    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessionFeedback.sessionId))
+    /* W2-F01: the patient's one copy is on the session's primary note. */
+    .leftJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessionFeedback.sessionId), eq(sessionNotes.isPrimary, true)),
+    )
     .where(eq(sessionFeedback.sessionId, sessionId))
     .limit(1);
 

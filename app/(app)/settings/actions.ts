@@ -135,6 +135,44 @@ export async function saveTimezone(zone: string): Promise<SettingsState> {
   return { ok: true };
 }
 
+/* ------------------------------------------------ W2-F01 · note formats -- */
+
+/**
+ * 🔴 W2-F01 / D7: the format this clinician's notes are drafted in. Every new
+ * session's note and every "write it yourself" opens in it.
+ */
+export async function saveNoteFormat(key: string): Promise<SettingsState> {
+  const actor = await requireUser();
+  const { setDefaultFormat } = await import("@/lib/data/note-formats");
+  if (!(await setDefaultFormat(actor, key))) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("common.somethingWrong") };
+  }
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+/** A clinician's own format: named sections, each with a guide the draft follows. */
+export async function addNoteTemplate(label: string, sections: string): Promise<SettingsState> {
+  const actor = await requireUser();
+  const { createTemplate } = await import("@/lib/data/note-formats");
+  const created = await createTemplate(actor, { label, sections });
+  if (!created.ok) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("tnf.needs") };
+  }
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function removeNoteTemplate(id: string): Promise<SettingsState> {
+  const actor = await requireUser();
+  const { archiveTemplate } = await import("@/lib/data/note-formats");
+  await archiveTemplate(actor, id);
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
 /* ------------------------------------------------------- payouts (Connect) -- */
 
 /** Send the therapist to Stripe to onboard, or back to finish what they left. */

@@ -206,13 +206,15 @@
     "test:org-authority": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/org-authority.test.ts",
     "test:partner-wav": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/partner-wav.test.ts",
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
+    "test:note-formats": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/note-formats.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
     "verify:notices": "node --import tsx scripts/verify-notices.ts",
     "prove": "node --import tsx scripts/prove.ts",
     "verify:prove": "node --import tsx scripts/verify-prove.ts",
     "audit:csp-enforced": "node --env-file-if-exists=.env.local --import tsx scripts/audit-csp-enforced.ts",
-    "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts"
+    "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts",
+    "verify:w2f": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2f.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

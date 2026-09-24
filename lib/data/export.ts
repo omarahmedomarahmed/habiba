@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { audit, auditPhi } from "@/lib/audit";
 import { log, safeErrorMessage } from "@/lib/logger";
@@ -16,6 +16,7 @@ import {
   EXPORT_TTL_HOURS,
   organizations,
   patients,
+  noteTemplates,
   riskAssessments,
   sessionNotes,
   therapistVerifications,
@@ -26,6 +27,7 @@ import {
   RTL_LANGUAGES,
   type NoteContent,
 } from "@/lib/db/schema";
+import { builtInFormat, noteSections } from "@/lib/notes/formats";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -381,7 +383,11 @@ async function buildExport(
       riskAction: riskAssessments.recommendedAction,
     })
     .from(sessions)
-    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    /* W2-F01: the primary note here; the session's other signed notes are read below. */
+    .leftJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessions.id), eq(sessionNotes.isPrimary, true)),
+    )
     .leftJoin(riskAssessments, eq(riskAssessments.sessionId, sessions.id))
     .where(inArray(sessions.patientId, chartIds.length > 0 ? chartIds : [patientId]))
     .orderBy(desc(sessions.createdAt))
@@ -422,6 +428,55 @@ async function buildExport(
   }
 
   /*
+   * 🔴 W2-F01 / D7: a session's other notes, one per format, all on the
+   * record. Signed ones only, for C372's reason below: a draft is not the
+   * record. A template's name is read from its row, archived or not.
+   */
+  type OtherNote = {
+    sessionId: string;
+    format: string;
+    templateLabel: string | null;
+    content: NoteContent;
+    contentEn: NoteContent | null;
+    language: string;
+    approvedAt: Date | null;
+    approvedBy: string | null;
+  };
+  const otherNotes = new Map<string, OtherNote[]>();
+  if (rows.length > 0) {
+    const others = await db
+      .select({
+        sessionId: sessionNotes.sessionId,
+        format: sessionNotes.format,
+        templateLabel: noteTemplates.label,
+        content: sessionNotes.content,
+        contentEn: sessionNotes.contentEn,
+        language: sessionNotes.language,
+        approvedAt: sessionNotes.approvedAt,
+        approvedBy: sessionNotes.approvedBy,
+      })
+      .from(sessionNotes)
+      .leftJoin(noteTemplates, sql`${sessionNotes.format} = 'tpl:' || ${noteTemplates.id}::text`)
+      .where(
+        and(
+          inArray(
+            sessionNotes.sessionId,
+            rows.map((row) => row.id),
+          ),
+          eq(sessionNotes.isPrimary, false),
+          eq(sessionNotes.status, "approved"),
+          isNotNull(sessionNotes.approvedAt),
+        ),
+      )
+      .orderBy(asc(sessionNotes.approvedAt));
+    for (const other of others) {
+      const list = otherNotes.get(other.sessionId) ?? [];
+      list.push(other);
+      otherNotes.set(other.sessionId, list);
+    }
+  }
+
+  /*
    * 🔴 26.9 / C127 — who signed each note, with their licence.
    *
    * A note in an extract that says only "signed on 4 March" is a note nobody
@@ -434,7 +489,10 @@ async function buildExport(
    */
   const signerIds = [
     ...new Set(
-      rows.flatMap((row) => [row.noteApprovedBy, row.sessionTherapistId].filter(Boolean)),
+      [
+        ...rows.flatMap((row) => [row.noteApprovedBy, row.sessionTherapistId]),
+        ...[...otherNotes.values()].flat().map((other) => other.approvedBy),
+      ].filter(Boolean),
     ),
   ] as string[];
 
@@ -571,6 +629,15 @@ async function buildExport(
       /* C127 — the person who stands behind this note, and their licence. */
       signedBy: row.noteApprovedBy ? (signerOf.get(row.noteApprovedBy) ?? null) : null,
       seenBy: row.sessionTherapistId ? (signerOf.get(row.sessionTherapistId) ?? null) : null,
+      /* W2-F01: the session's other signed notes, one per format. */
+      otherNotes: (otherNotes.get(row.id) ?? []).map((other) => ({
+        format: other.templateLabel ?? builtInFormat(other.format)?.label ?? other.format,
+        note: other.content,
+        noteEnglish: other.contentEn,
+        noteLanguage: other.language,
+        noteSigned: other.approvedAt,
+        signedBy: other.approvedBy ? (signerOf.get(other.approvedBy) ?? null) : null,
+      })),
       riskLevel: row.riskLevel ?? null,
       riskAction: row.riskAction ?? null,
       transcript: transcripts.get(row.id) ?? [],
@@ -618,10 +685,8 @@ function noteSection(note: NoteContent, language: string): string {
 
   return [
     part("Summary", note.summary),
-    part("Subjective", note.soap?.subjective ?? ""),
-    part("Objective", note.soap?.objective ?? ""),
-    part("Assessment", note.soap?.assessment ?? ""),
-    part("Plan", note.soap?.plan ?? ""),
+    /* W2-F01: the note's own sections, whatever its format; SOAP as it was. */
+    ...noteSections(note).map((section) => part(section.label, section.text)),
     part("Observations", note.observations),
     part("Impressions", note.impressions),
     list("Recommendations", note.recommendations ?? []),
@@ -698,8 +763,20 @@ export function renderExportHtml(
                      )}</div></details>`
                    : ""
                }`
-            : `<p class="muted">No note was written for this session.</p>`
+            : session.otherNotes.length === 0
+              ? `<p class="muted">No note was written for this session.</p>`
+              : ""
         }
+        ${session.otherNotes
+          .map(
+            (other) => `<div class="note">
+              <p class="lang">${esc(other.format)}${
+                other.noteSigned ? ` · signed ${when(other.noteSigned)}` : ""
+              }${other.signedBy ? ` · ${esc(other.signedBy.name)}` : ""}</p>
+              ${noteSection(other.note, other.noteLanguage)}
+            </div>`,
+          )
+          .join("")}
         ${transcript}
       </article>`;
     })
@@ -998,7 +1075,8 @@ export async function verifyExtract(code: string): Promise<VerificationResult> {
   return {
     known: true,
     issuedAt: row.createdAt,
-    sessions: counted.length,
+    /* W2-F01: a session with three formats is one session and up to three signed notes. */
+    sessions: new Set(counted.map((entry) => entry.sessionId)).size,
     signedNotes: counted.filter((entry) => entry.noteStatus === "approved").length,
     summaryVersions,
   };

@@ -17,13 +17,27 @@ import {
   savePatientNote,
 } from "@/app/(app)/sessions/actions";
 import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
+import { sectionLabelKey, type NoteView } from "@/lib/notes/formats";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
 type Props = {
   sessionId: string;
+  /** W2-F01: which of the session's notes this is; null before one exists. */
+  noteId: string | null;
+  /** W2-F01: its format, for the headings. */
+  formatKey: string;
   initialNote: NoteContent | null;
+  /**
+   * W2-F01: the session's one patient copy, from its primary note. The same
+   * whichever format is on screen.
+   */
+  initialCopy: PatientCopy | null;
+  /** W2-T03: what the note area shows, decided by `noteView`. */
+  view: NoteView;
+  /** W2-T04: a draft with a transcript behind it can be written again. */
+  canRedraft: boolean;
   /** ISO 639-1 of the language the session was held in. */
   language: string;
   languageLabel: string;
@@ -58,6 +72,8 @@ type Props = {
 /** Formatted on the server, in the reader's zone. */
 export type AddendumLine = { id: string; by: string; when: string; body: string };
 
+export type PatientCopy = Pick<NoteContent, "patientBrief" | "patientSteps" | "patientNext">;
+
 /**
  * Two documents, two signatures.
  *
@@ -77,6 +93,7 @@ export function NoteReview(props: Props) {
   const [pending, startTransition] = useTransition();
 
   const [note, setNote] = useState<NoteContent | null>(props.initialNote);
+  const [copy, setCopy] = useState<PatientCopy | null>(props.initialCopy);
   const [status, setStatus] = useState(props.initialStatus);
   const [patientStatus, setPatientStatus] = useState(props.initialPatientStatus);
   const [tab, setTab] = useState<"clinical" | "patient">("clinical");
@@ -106,18 +123,25 @@ export function NoteReview(props: Props) {
    * lands, so the total is a handful of requests.
    */
   useEffect(() => {
-    if (props.noteStatus !== "generating") return;
+    if (props.view !== "writing") return;
     const poll = setInterval(() => router.refresh(), 3000);
     return () => clearInterval(poll);
-  }, [props.noteStatus, router]);
+  }, [props.view, router]);
 
   useEffect(() => {
     setNote(props.initialNote);
+    setCopy(props.initialCopy);
     setStatus(props.initialStatus);
     setPatientStatus(props.initialPatientStatus);
-  }, [props.initialNote, props.initialStatus, props.initialPatientStatus]);
+  }, [props.initialNote, props.initialCopy, props.initialStatus, props.initialPatientStatus]);
 
-  if (props.noteStatus === "generating" || (!note && props.noteStatus !== "failed")) {
+  /*
+   * 🔴 W2-T03: "Writing your note" only while a job is really writing one. A
+   * cancelled session shows nothing, and a job that died offers a way on.
+   */
+  if (props.view === "none") return null;
+
+  if (props.view === "writing") {
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
         <Sparkles className="h-6 w-6 animate-pulse text-brand-700" aria-hidden />
@@ -129,7 +153,7 @@ export function NoteReview(props: Props) {
     );
   }
 
-  if (props.noteStatus === "failed" || !note) {
+  if (props.view === "failed" || !note) {
     /*
      * 🔴 Task 123 — "not recorded" is not "failed". Without a standing yes
      * nothing was captured on purpose, so "try again" can never succeed; the
@@ -171,7 +195,7 @@ export function NoteReview(props: Props) {
                 })
               }
             >
-              <RefreshCw className="h-4 w-4" aria-hidden /> Try again
+              <RefreshCw className="h-4 w-4" aria-hidden /> {t("tnote.tryAgain")}
             </Button>
           )}
           {writeOwn}
@@ -183,16 +207,25 @@ export function NoteReview(props: Props) {
   const update = (patch: Partial<NoteContent>) => setNote({ ...note, ...patch });
   const updateSoap = (patch: Partial<NoteContent["soap"]>) =>
     setNote({ ...note, soap: { ...note.soap, ...patch } });
+  /* W2-F01: one section of a note in another format. */
+  const updateSection = (key: string, text: string) =>
+    setNote({
+      ...note,
+      sections: (note.sections ?? []).map((s) => (s.key === key ? { ...s, text } : s)),
+    });
+  const updateCopy = (patch: Partial<PatientCopy>) =>
+    setCopy({ patientBrief: "", patientSteps: [], patientNext: "", ...copy, ...patch });
 
   // Older notes predate these fields; treat a missing one as empty rather than
   // letting `.map` throw inside a clinician's workflow.
-  const steps = note.patientSteps ?? [];
-  const patientNext = note.patientNext ?? "";
+  const brief = copy?.patientBrief ?? "";
+  const steps = copy?.patientSteps ?? [];
+  const patientNext = copy?.patientNext ?? "";
 
   const handleSave = () =>
     startTransition(async () => {
       setError(null);
-      const result = await saveNote(props.sessionId, note);
+      const result = await saveNote(props.sessionId, note, props.noteId);
       if (result.error) setError(result.error);
       else {
         setEditing(false);
@@ -203,8 +236,8 @@ export function NoteReview(props: Props) {
   const handleApprove = () =>
     startTransition(async () => {
       setError(null);
-      if (editing) await saveNote(props.sessionId, note);
-      const result = await approveNote(props.sessionId);
+      if (editing) await saveNote(props.sessionId, note, props.noteId);
+      const result = await approveNote(props.sessionId, props.noteId);
       if (result.error) setError(result.error);
       else {
         setStatus("approved");
@@ -221,7 +254,7 @@ export function NoteReview(props: Props) {
     startTransition(async () => {
       setError(null);
       const result = await savePatientNote(props.sessionId, {
-        patientBrief: note.patientBrief,
+        patientBrief: brief,
         patientSteps: steps,
         patientNext,
       });
@@ -237,7 +270,7 @@ export function NoteReview(props: Props) {
       setError(null);
       if (editingBrief) {
         const saved = await savePatientNote(props.sessionId, {
-          patientBrief: note.patientBrief,
+          patientBrief: brief,
           patientSteps: steps,
           patientNext,
         });
@@ -334,16 +367,35 @@ export function NoteReview(props: Props) {
                   onChange={(e) => update({ summary: e.target.value })}
                 />
               </Field>
-              {(["subjective", "objective", "assessment", "plan"] as const).map((key) => (
-                <Field key={key} label={t(SOAP_LABELS[key])} htmlFor={key}>
-                  <Textarea
-                    id={key}
-                    rows={4}
-                    value={note.soap[key]}
-                    onChange={(e) => updateSoap({ [key]: e.target.value })}
-                  />
-                </Field>
-              ))}
+              {/* W2-F01: a note in another format edits its own sections. */}
+              {note.sections?.length
+                ? note.sections.map((section) => {
+                    const labelKey = sectionLabelKey(props.formatKey, section.key);
+                    return (
+                      <Field
+                        key={section.key}
+                        label={labelKey ? t(labelKey) : section.label}
+                        htmlFor={`section-${section.key}`}
+                      >
+                        <Textarea
+                          id={`section-${section.key}`}
+                          rows={4}
+                          value={section.text}
+                          onChange={(e) => updateSection(section.key, e.target.value)}
+                        />
+                      </Field>
+                    );
+                  })
+                : (["subjective", "objective", "assessment", "plan"] as const).map((key) => (
+                    <Field key={key} label={t(SOAP_LABELS[key])} htmlFor={key}>
+                      <Textarea
+                        id={key}
+                        rows={4}
+                        value={note.soap[key]}
+                        onChange={(e) => updateSoap({ [key]: e.target.value })}
+                      />
+                    </Field>
+                  ))}
               <Field label={t("tnote.followUp")} htmlFor="followUp">
                 <Input
                   id="followUp"
@@ -373,6 +425,7 @@ export function NoteReview(props: Props) {
                 status={status}
                 patientLabel={props.patientLabel}
                 dateLabel={props.dateLabel}
+                formatKey={props.formatKey}
               />
             </div>
           )}
@@ -387,6 +440,7 @@ export function NoteReview(props: Props) {
           {status === "approved" && !showEnglish ? (
             <Addenda
               sessionId={props.sessionId}
+              noteId={props.noteId}
               kind="clinical"
               lines={props.clinicalAddenda ?? []}
               onAdded={() => {
@@ -401,6 +455,29 @@ export function NoteReview(props: Props) {
               <Button variant="secondary" full onClick={() => setEditing(true)}>
                 <Pencil className="h-4 w-4" aria-hidden /> {t("tnote.edit")}
               </Button>
+
+              {/*
+                🔴 W2-T04: written again from the transcript, after a voice or a
+                line was put right. It was offered only after a failure, so a
+                correction never reached the note.
+              */}
+              {props.canRedraft ? (
+                <Button
+                  variant="secondary"
+                  full
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      setError(null);
+                      const result = await regenerateNote(props.sessionId, props.noteId);
+                      if (result.error) setError(result.error);
+                      router.refresh();
+                    })
+                  }
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden /> {t("tnf.redraft")}
+                </Button>
+              ) : null}
 
               {status === "draft" && props.approvals !== false ? (
                 <Button full onClick={handleApprove} disabled={pending}>
@@ -430,14 +507,14 @@ export function NoteReview(props: Props) {
                 <Textarea
                   id="patientBrief"
                   rows={7}
-                  value={note.patientBrief}
-                  onChange={(e) => update({ patientBrief: e.target.value })}
+                  value={brief}
+                  onChange={(e) => updateCopy({ patientBrief: e.target.value })}
                 />
               </Field>
 
               <StepEditor
                 steps={steps}
-                onChange={(next) => update({ patientSteps: next })}
+                onChange={(next) => updateCopy({ patientSteps: next })}
                 disabled={pending}
               />
 
@@ -445,7 +522,7 @@ export function NoteReview(props: Props) {
                 <Input
                   id="patientNext"
                   value={patientNext}
-                  onChange={(e) => update({ patientNext: e.target.value })}
+                  onChange={(e) => updateCopy({ patientNext: e.target.value })}
                 />
               </Field>
 
@@ -488,7 +565,7 @@ export function NoteReview(props: Props) {
 
               <PatientBriefCard
                 className="pt-4"
-                brief={note.patientBrief}
+                brief={brief}
                 steps={steps}
                 next={patientNext}
                 rtl={rtl}
@@ -568,11 +645,14 @@ export function NoteReview(props: Props) {
  */
 function Addenda({
   sessionId,
+  noteId = null,
   kind,
   lines,
   onAdded,
 }: {
   sessionId: string;
+  /** W2-F01: the note a clinical addendum amends. The copy's is the session's. */
+  noteId?: string | null;
   kind: "clinical" | "patient";
   lines: AddendumLine[];
   onAdded: () => void;
@@ -586,7 +666,7 @@ function Addenda({
   const save = () =>
     startTransition(async () => {
       setError(null);
-      const result = await addNoteAddendum(sessionId, kind, body);
+      const result = await addNoteAddendum(sessionId, kind, body, noteId);
       if (result.error) setError(result.error);
       else {
         setBody("");

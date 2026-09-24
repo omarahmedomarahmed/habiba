@@ -13,6 +13,7 @@ import {
   type NoteContent,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
+import { noteSections } from "@/lib/notes/formats";
 
 import { fileDocumentReference } from "./fhir";
 import { liveConnection } from "@/lib/data/ehr";
@@ -48,22 +49,17 @@ import { liveConnection } from "@/lib/data/ehr";
  * show rather than silence.
  */
 
-/** The note as a chart reads it. Plain text, because a chart is read by people in a hurry. */
+/**
+ * The note as a chart reads it. Plain text, because a chart is read by people in a hurry.
+ *
+ * 🔴 W2-F01 / D7: any format files, under its own headings in its own order. A SOAP note
+ * reads its four fields exactly as before; the filing is by note id, so each signed format
+ * of a session is its own DocumentReference.
+ */
 export function noteAsText(content: NoteContent): string {
-  const soap = content.soap;
-  return [
-    "Subjective",
-    soap.subjective.trim(),
-    "",
-    "Objective",
-    soap.objective.trim(),
-    "",
-    "Assessment",
-    soap.assessment.trim(),
-    "",
-    "Plan",
-    soap.plan.trim(),
-  ].join("\n");
+  return noteSections(content)
+    .map((section) => `${section.label}\n${section.text.trim()}`)
+    .join("\n\n");
 }
 
 export type FileResult =

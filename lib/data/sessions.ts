@@ -710,14 +710,47 @@ export async function nextSequence(sessionId: string): Promise<number> {
 
 // -------------------------------------------------------------------- notes ---
 
-export async function getNote(actor: Actor, sessionId: string) {
-  const [row] = await db
+/**
+ * 🔴 W2-F01 / D7: every note of a session, one per format. The primary first
+ * (the session's own note, which carries the patient's copy), then the others
+ * in the order they were written.
+ */
+export async function getNotes(actor: Actor, sessionId: string) {
+  const rows = await db
     .select({ note: sessionNotes })
     .from(sessionNotes)
     .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
     .where(and(scope(actor), eq(sessionNotes.sessionId, sessionId)))
-    .limit(1);
-  return row?.note ?? null;
+    .orderBy(desc(sessionNotes.isPrimary), asc(sessionNotes.createdAt));
+  return rows.map((row) => row.note);
+}
+
+/**
+ * 🔴 W2-F01: every note of these sessions, for the patient's history: format,
+ * draft or signed, who wrote or signed it, and when. The text is not read here.
+ */
+export async function notesForSessions(actor: Actor, sessionIds: string[]) {
+  if (sessionIds.length === 0) return [];
+  return db
+    .select({
+      id: sessionNotes.id,
+      sessionId: sessionNotes.sessionId,
+      format: sessionNotes.format,
+      status: sessionNotes.status,
+      isPrimary: sessionNotes.isPrimary,
+      createdAt: sessionNotes.createdAt,
+      approvedAt: sessionNotes.approvedAt,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
+    })
+    .from(sessionNotes)
+    .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
+    .innerJoin(
+      users,
+      eq(users.id, sql`coalesce(${sessionNotes.approvedBy}, ${sessionNotes.therapistId})`),
+    )
+    .where(and(scope(actor), inArray(sessionNotes.sessionId, sessionIds)))
+    .orderBy(desc(sessionNotes.isPrimary), asc(sessionNotes.createdAt));
 }
 
 export async function listRecentNotes(actor: Actor, limit = 50) {
@@ -730,6 +763,9 @@ export async function listRecentNotes(actor: Actor, limit = 50) {
       provenance: sessionNotes.provenance,
       offRecordSeconds: sessionNotes.offRecordSeconds,
       patientStatus: sessionNotes.patientStatus,
+      /* W2-F01: which document of the session this is. */
+      format: sessionNotes.format,
+      isPrimary: sessionNotes.isPrimary,
       createdAt: sessionNotes.createdAt,
       content: sessionNotes.content,
       patientFirstName: patients.firstName,
@@ -761,7 +797,14 @@ export async function countOpenDrafts(actor: Actor): Promise<number> {
     .where(
       and(
         scope(actor),
-        or(eq(sessionNotes.status, "draft"), eq(sessionNotes.patientStatus, "draft")),
+        /*
+         * 🔴 W2-F01: the patient's copy is the primary note's alone, so another
+         * format's unused copy fields are nobody's work.
+         */
+        or(
+          eq(sessionNotes.status, "draft"),
+          and(eq(sessionNotes.isPrimary, true), eq(sessionNotes.patientStatus, "draft")),
+        ),
       ),
     );
   return row?.count ?? 0;

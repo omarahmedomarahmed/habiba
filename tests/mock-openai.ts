@@ -117,6 +117,21 @@ export function startMockOpenAi(port: number): { server: Server; state: MockStat
           return;
         }
 
+        /*
+         * W2-F01: a note in another format asks for "sections" by key. The
+         * answer names each key, so a test can see the right text in the right
+         * section rather than an empty note that proves nothing.
+         */
+        const asked = /\\"sections\\": \{ ([^}]*) \}/.exec(text)?.[1];
+        const sections = asked
+          ? Object.fromEntries(
+              [...asked.matchAll(/\\"([a-z0-9]+)\\": string/g)].map((m) => [
+                m[1],
+                `The ${m[1]} of this session, from the transcript.`,
+              ]),
+            )
+          : null;
+
         res.writeHead(200, { "content-type": "application/json" });
         res.end(
           JSON.stringify({
@@ -124,7 +139,14 @@ export function startMockOpenAi(port: number): { server: Server; state: MockStat
             object: "chat.completion",
             model,
             choices: [
-              { index: 0, message: { role: "assistant", content: JSON.stringify(NOTE) }, finish_reason: "stop" },
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify(sections ? { ...NOTE, soap: undefined, sections } : NOTE),
+                },
+                finish_reason: "stop",
+              },
             ],
             usage: { prompt_tokens: 1200, completion_tokens: 400, total_tokens: 1600 },
           }),

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { NOTE_LANGUAGES, type NoteContent } from "@/lib/db/schema";
+import { isSoap, type NoteFormat } from "@/lib/notes/formats";
 
 import { MODELS, openai, parseJson } from "./client";
 
@@ -73,6 +74,38 @@ Respond with a single JSON object with exactly these keys:
   "patientNext": string
 }`;
 
+const SOAP_SCHEMA_LINE =
+  '  "soap": { "subjective": string, "objective": string, "assessment": string, "plan": string },';
+const SCHEMA_AT = "Respond with a single JSON object";
+
+/**
+ * 🔴 W2-F01 / D7: the prompt for a format.
+ *
+ * SOAP gets `SYSTEM_PROMPT` byte for byte, so every SOAP note and every eval
+ * that measures one is exactly what it was. Any other format is the same
+ * prompt with one schema line swapped for its sections and a block naming each
+ * section's guide, placed BEFORE the schema (H2: an instruction after the
+ * schema loses). The language rule, the patient's copy and the background rule
+ * are the same words for every format.
+ */
+function systemPromptFor(format: NoteFormat | undefined): string {
+  if (!format || isSoap(format)) return SYSTEM_PROMPT;
+  const keys = format.sections.map((section) => `"${section.key}": string`).join(", ");
+  const guides = format.sections
+    .map((section) => `- "${section.key}" (${section.label}): ${section.guide || section.label}`)
+    .join("\n");
+  const block = `NOTE FORMAT
+The clinician writes this note as ${format.label}. Put the clinical record in "sections", one key per section below, each following its guide. Leave a section empty rather than invent content for it.
+${guides}
+Where a rule above names "assessment", use the section of this format that carries the clinician's assessment or evaluation, or the last section if none does.
+
+`;
+  return SYSTEM_PROMPT.replace(SOAP_SCHEMA_LINE, `  "sections": { ${keys} },`).replace(
+    SCHEMA_AT,
+    `${block}${SCHEMA_AT}`,
+  );
+}
+
 /**
  * 🔴 The model call, with no database on either side of it. PLAN.md 32.1.
  *
@@ -89,6 +122,8 @@ Respond with a single JSON object with exactly these keys:
 export async function noteFromTranscript(input: {
   context: string;
   transcript: string;
+  /** W2-F01: the format to draft in. Absent is SOAP, as every caller was. */
+  format?: NoteFormat;
 }): Promise<{
   content: NoteContent;
   language: string;
@@ -103,7 +138,7 @@ export async function noteFromTranscript(input: {
     response_format: { type: "json_object" },
     max_tokens: 3000,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPromptFor(input.format) },
       {
         role: "user",
         content: `${input.context ? `Context:\n${input.context}\n\n` : ""}Transcript:\n${input.transcript}`,
@@ -117,7 +152,7 @@ export async function noteFromTranscript(input: {
     "note-generation",
   );
 
-  const content = normaliseNote(raw);
+  const content = normaliseNote(raw, input.format);
 
   return {
     content,
@@ -145,6 +180,7 @@ function noteWords(note: NoteContent): string {
     ...note.talkingPoints,
     ...note.recommendations,
     ...note.patientSteps,
+    ...(note.sections ?? []).map((section) => section.text),
   ].join(" ");
 }
 
@@ -172,7 +208,7 @@ export function normaliseLanguage(raw: unknown, text?: string): string {
  * that returns a string where an array was asked for should produce a slightly
  * wrong note, not a runtime crash inside a clinician's workflow.
  */
-export function normaliseNote(raw: Record<string, unknown>): NoteContent {
+export function normaliseNote(raw: Record<string, unknown>, format?: NoteFormat): NoteContent {
   const asString = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
   const asArray = (v: unknown): string[] => {
     if (Array.isArray(v)) return v.map(asString).filter(Boolean);
@@ -182,13 +218,41 @@ export function normaliseNote(raw: Record<string, unknown>): NoteContent {
 
   const soap = (raw.soap ?? {}) as Record<string, unknown>;
 
+  /*
+   * 🔴 W2-F01: another format's sections, in the format's order and under its
+   * own headings. The model answers with an object keyed by section; a
+   * translation answers with the array it was sent. Either way only the TEXT
+   * is taken, so a model can never rewrite a heading.
+   */
+  const sectionText = (key: string): string => {
+    const given = raw.sections;
+    if (Array.isArray(given)) {
+      const hit = given.find((s) => (s as { key?: unknown } | null)?.key === key) as
+        | { text?: unknown }
+        | undefined;
+      return asString(hit?.text);
+    }
+    return asString(((given ?? {}) as Record<string, unknown>)[key]);
+  };
+  const sections =
+    format && !isSoap(format)
+      ? format.sections.map((section) => ({
+          key: section.key,
+          label: section.label,
+          text: sectionText(section.key),
+        }))
+      : undefined;
+
   return {
-    soap: {
-      subjective: asString(soap.subjective),
-      objective: asString(soap.objective),
-      assessment: asString(soap.assessment),
-      plan: asString(soap.plan),
-    },
+    soap: sections
+      ? { subjective: "", objective: "", assessment: "", plan: "" }
+      : {
+          subjective: asString(soap.subjective),
+          objective: asString(soap.objective),
+          assessment: asString(soap.assessment),
+          plan: asString(soap.plan),
+        },
+    ...(sections ? { sections } : {}),
     summary: asString(raw.summary),
     talkingPoints: asArray(raw.talkingPoints),
     observations: asString(raw.observations),

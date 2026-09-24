@@ -876,6 +876,20 @@
       "when": 1789966010000,
       "tag": "0124_the_reason_lives_on_the_session",
       "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1789966014000,
+      "tag": "0128_a_note_in_any_format",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1789966015000,
+      "tag": "0129_one_session_many_notes",
+      "breakpoints": true
     }
   ]
 }

@@ -83,7 +83,7 @@ const PATIENT = "Jordan";
  *
  * So the interaction is now: tick "Sign the clinical note", then press the publish button. Two steps
  * rather than one, and that is deliberate friction in front of something the product itself says has
- * no undo — *"Released. There is no unsending, which is why it was its own decision."*
+ * no undo: *"Released. There is no unsending."*
  *
  * Rewritten rather than deleted. A deleted test is a rule nobody notices going; a rewritten one is
  * the rule restated in current vocabulary.

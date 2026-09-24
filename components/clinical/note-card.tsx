@@ -3,6 +3,7 @@
 import { Check, FileText, Sparkles } from "lucide-react";
 
 import type { NoteContent } from "@/lib/db/schema";
+import { sectionLabelKey } from "@/lib/notes/formats";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 
@@ -19,6 +20,7 @@ export function NoteCard({
   dateLabel,
   className,
   compact = false,
+  formatKey = "soap",
 }: {
   note: NoteContent;
   status?: "draft" | "approved" | "generating";
@@ -26,15 +28,28 @@ export function NoteCard({
   dateLabel?: string;
   className?: string;
   compact?: boolean;
+  /** W2-F01: which format's headings to translate. A template's are its own. */
+  formatKey?: string;
 }) {
   const t = useT();
 
-  const sections: { key: string; label: string; body: string }[] = [
-    { key: "s", label: t("tnote.subjective"), body: note.soap.subjective },
-    { key: "o", label: t("tnote.objective"), body: note.soap.objective },
-    { key: "a", label: t("tnote.assessment"), body: note.soap.assessment },
-    { key: "p", label: t("tnote.plan"), body: note.soap.plan },
-  ];
+  /*
+   * 🔴 W2-F01 / D7: a note in another format shows its own sections, in its
+   * order, each marked with its heading's first letter as SOAP's are. A SOAP
+   * note has no `sections` and renders exactly as it did.
+   */
+  const sections: { key: string; label: string; body: string }[] = note.sections?.length
+    ? note.sections.map((section) => {
+        const labelKey = sectionLabelKey(formatKey, section.key);
+        const label = labelKey ? t(labelKey) : section.label;
+        return { key: `${section.key}:${label.charAt(0)}`, label, body: section.text };
+      })
+    : [
+        { key: "s", label: t("tnote.subjective"), body: note.soap.subjective },
+        { key: "o", label: t("tnote.objective"), body: note.soap.objective },
+        { key: "a", label: t("tnote.assessment"), body: note.soap.assessment },
+        { key: "p", label: t("tnote.plan"), body: note.soap.plan },
+      ];
 
   return (
     <div className={cn("rounded-2xl border border-slate-200 bg-white", className)}>
@@ -95,7 +110,7 @@ export function NoteCard({
                   aria-hidden
                   className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-navy-500 text-[11px] font-bold text-white"
                 >
-                  {section.key.toUpperCase()}
+                  {(section.key.split(":").pop() ?? "").toUpperCase()}
                 </span>
                 <p className="text-[11px] font-bold tracking-wider text-navy-500 uppercase">
                   {section.label}

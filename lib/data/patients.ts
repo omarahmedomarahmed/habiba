@@ -157,7 +157,11 @@ export async function getPatientHistory(actor: Actor, patientId: string) {
       noteOffRecordSeconds: sessionNotes.offRecordSeconds,
     })
     .from(sessions)
-    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    /* W2-F01: the session's primary note; one row per session, as before. */
+    .leftJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessions.id), eq(sessionNotes.isPrimary, true)),
+    )
     .where(eq(sessions.patientId, patientId))
     .orderBy(desc(sessions.createdAt))
     .limit(50);

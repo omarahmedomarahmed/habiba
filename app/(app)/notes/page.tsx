@@ -8,6 +8,7 @@ import { listRecentNotes } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { NoteBadge } from "@/components/sessions/status-badge";
+import { builtInFormat } from "@/lib/notes/formats";
 
 export const metadata: Metadata = { title: "Notes", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -15,7 +16,23 @@ export const dynamic = "force-dynamic";
 export default async function NotesPage() {
   const { locale, t } = await getI18n();
   const actor = await requireUser();
-  const notes = await listRecentNotes(actor);
+  const rows = await listRecentNotes(actor);
+  /*
+   * 🔴 W2-F01: a session has a note per format and one patient copy, on its
+   * primary note. Another format's copy fields are nobody's to approve, so they
+   * never count as waiting.
+   */
+  const notes = rows.map((n) => ({
+    ...n,
+    patientStatus: n.isPrimary ? n.patientStatus : ("approved" as const),
+  }));
+  const { templateLabels } = await import("@/lib/data/note-formats");
+  const ownLabels = await templateLabels(actor.organizationId, notes.map((n) => n.format));
+  const formatName = (key: string) => {
+    const known = builtInFormat(key);
+    return ownLabels.get(key) ?? (known?.labelKey ? t(known.labelKey) : (known?.label ?? ""));
+  };
+  const several = new Set(notes.filter((n) => !n.isPrimary).map((n) => n.sessionId));
   /*
    * Two things can be outstanding on one note, and the one with a person
    * waiting on it is the patient's summary. A list that counted only unsigned
@@ -57,7 +74,7 @@ export default async function NotesPage() {
             {notes.map((note) => (
               <li key={note.id}>
                 <Link
-                  href={`/sessions/${note.sessionId}`}
+                  href={`/sessions/${note.sessionId}?note=${note.id}`}
                   className="block rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:bg-slate-50"
                 >
                   <div className="flex items-center gap-3">
@@ -69,6 +86,7 @@ export default async function NotesPage() {
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">
                         {relativeDay(note.sessionEndedAt ?? note.createdAt, actor.timezone, locale, t)}
+                        {several.has(note.sessionId) ? ` · ${formatName(note.format)}` : ""}
                       </p>
                     </div>
                     <NoteBadge status={note.status} patientStatus={note.patientStatus} />
