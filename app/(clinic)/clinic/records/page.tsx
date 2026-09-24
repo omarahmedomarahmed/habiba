@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { RecordsPanel } from "@/components/ehr/records-panel";
-import { requireClinic } from "@/lib/clinic-auth/guard";
+import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { connectionsFor, filersOn, writebacksFor } from "@/lib/data/ehr";
 import { features } from "@/lib/env";
 import { whatIsMissing } from "@/lib/ehr/owner";
@@ -21,7 +21,11 @@ export const dynamic = "force-dynamic";
  * who had not read the first. What differs is one sentence, chosen by `isClinic`.
  */
 export default async function ClinicRecordsPage() {
-  const actor = await requireClinic();
+  /*
+   * 🔴 W2-C01: the capability its tab asks for. It was `requireClinic`, so
+   * any staff member reached clinician names and raw vendor errors here.
+   */
+  const actor = await requireClinicCapability("team.manage");
   const { locale } = await getI18n();
 
   const [connections, filings, filers] = await Promise.all([

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ClinicPeopleList } from "@/components/clinic/people-list";
 import { seatsFor } from "@/lib/billing/seats";
-import { requireClinic } from "@/lib/clinic-auth/guard";
+import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicClinicians, clinicInvitations } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
  * because a hidden control is a control somebody reaches with a form post.
  */
 export default async function ClinicPeoplePage() {
-  const actor = await requireClinic();
+  /* 🔴 W2-C01: by name, so a typed URL redirects instead of throwing. */
+  const actor = await requireClinicCapability("people.read");
 
   const { locale } = await getI18n();
 

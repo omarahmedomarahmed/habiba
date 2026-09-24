@@ -54,7 +54,12 @@ const GUARDS: Record<string, string[]> = {
   clinician: ["requireUser", "requireVerified", "requireUserApi"],
   admin: ["requireRole", "requireStaff", "requireManager", "requireRoleApi"],
   patient: ["requirePatient"],
-  clinic: ["requireClinic", "requireClinicAdmin"],
+  /*
+   * W2-C01: `requireClinicCapability` is `requireClinic` plus a capability,
+   * and every clinic page now signs in through it. Unlisted, a page guarded
+   * MORE narrowly than before read as unguarded.
+   */
+  clinic: ["requireClinic", "requireClinicAdmin", "requireClinicCapability"],
   sponsor: ["requireSponsor", "requireSponsorAdmin"],
   partner: ["requirePartner", "requirePartnerAdmin"],
 };

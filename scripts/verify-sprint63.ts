@@ -323,6 +323,53 @@ async function main() {
     );
 
     /* ================================================================ */
+    /*  W2-C01 · usage is scoped like the schedule it sits under          */
+    /* ================================================================ */
+
+    /*
+     * 🔴 `reports.read` is therapist-scoped (THERAPIST_SCOPED), and
+     * `clinicUsage` summed the whole practice for anybody holding it. Five
+     * billed sessions for B, above the activity floor, and none for A: an
+     * assistant assigned to A must see no spend of B's.
+     */
+    const billed: string[] = [];
+    for (const nth of [0, 1, 2, 3, 4]) {
+      const [row] = (
+        await db.execute(sql`
+          INSERT INTO sessions (organization_id, therapist_id, status, modality, scheduled_at,
+                                feedback_token, price_cents)
+          VALUES (${clinic.id}, ${therapistB.id}, 'completed', 'video', now(),
+                  ${`${fixture}-usage-${nth}`}, 5000)
+          RETURNING id`)
+      ).rows as { id: string }[];
+      const id = required(row, "a billed session").id;
+      billed.push(id);
+      await db.execute(sql`
+        INSERT INTO invoices (organization_id, kind, session_id, amount_cents, status, description)
+        VALUES (${clinic.id}, 'session', ${id}, 400, 'due', 'verify63 usage')`);
+    }
+
+    const { clinicUsage } = await import("../lib/data/clinic");
+    const adminUsage = await clinicUsage(adminPrincipal);
+    const scopedUsage = await clinicUsage({
+      ...assistantPrincipal,
+      capabilities: ["schedule.read", "reports.read"],
+    });
+
+    check(
+      "🔴 CONTROL W2-C01 the admin's usage has B's five sessions in it, so the fixture bills",
+      adminUsage.some((week) => (week.sessions ?? 0) >= billed.length),
+      adminUsage.map((week) => String(week.sessions)).join(", ") || "no weeks",
+    );
+
+    check(
+      "🔴 W2-C01 usage is scoped: an assistant assigned to A sees none of B's spend",
+      scopedUsage.every((week) => !week.spendCents),
+      scopedUsage.map((week) => `${String(week.sessions)} for ${String(week.spendCents)}`).join(", ") ||
+        "no weeks, which is right: A billed nothing",
+    );
+
+    /* ================================================================ */
     /*  63.12 · C327 · first name plus last initial, and it is audited   */
     /* ================================================================ */
 

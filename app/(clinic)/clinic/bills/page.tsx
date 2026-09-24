@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { Card } from "@/components/ui";
-import { requireClinic } from "@/lib/clinic-auth/guard";
+import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicBills } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
@@ -37,7 +37,8 @@ export const dynamic = "force-dynamic";
  * That is C226's rule holding in a second place: one billing system, not two.
  */
 export default async function ClinicBillsPage() {
-  const actor = await requireClinic();
+  /* 🔴 W2-C01: by name, so a typed URL redirects instead of throwing. */
+  const actor = await requireClinicCapability("bills.read");
   const { t, locale } = await getI18n();
 
   const bills = await clinicBills(actor);

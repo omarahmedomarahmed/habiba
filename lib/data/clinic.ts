@@ -587,13 +587,32 @@ export async function clinicUsage(actor: ClinicPrincipal): Promise<ClinicUsageWe
    * breakdown is precisely what C262 rules out, so there is no `group by therapist_id`
    * here and no argument that would produce one.
    */
+  /*
+   * 🔴 W2-C01 — AND SCOPED LIKE THE SCHEDULE, in the WHERE.
+   *
+   * `reports.read` is in THERAPIST_SCOPED, and this summed the whole practice
+   * for anybody holding it: an assistant assigned to one clinician read every
+   * clinician's spend. Null is the admin; an empty list is nobody, which is
+   * the direction it must point. Bound parameters, never text (H7).
+   */
+  const scope = scopeToAssigned(actor, "reports.read");
+
   const rows = await controlDb.execute(sql`
     SELECT date_trunc('week', i.issued_at) AS week_start,
            COUNT(DISTINCT i.session_id)::int AS sessions,
            SUM(i.amount_cents - i.discount_cents)::int AS spend_cents
       FROM invoices i
+      JOIN sessions s ON s.id = i.session_id
      WHERE i.organization_id = ${actor.clinicOrganizationId}
        AND i.session_id IS NOT NULL
+       ${scope === null
+         ? sql``
+         : scope.length === 0
+           ? sql`AND false`
+           : sql`AND s.therapist_id IN (${sql.join(
+               scope.map((id) => sql`${id}`),
+               sql`, `,
+             )})`}
      GROUP BY 1
      ORDER BY 1 ASC`);
 
