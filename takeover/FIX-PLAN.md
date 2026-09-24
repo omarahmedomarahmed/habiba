@@ -170,7 +170,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 
 Stripe checkout for company top-ups (D3), patient document upload, homework history,
 in-app support with replies, earnings netting held minus owed (T3), two-step sign-in for
-clinicians and the console, the partner linking path (D6), note formats (D7). Each is built in
+clinicians and the console, the partner linking path (D6). Each is built in
 the new design rather than twice.
 
 ## Status
@@ -213,3 +213,14 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 | W1-31 | fixed (receipt guard before the storage check) |
 | Gates | run 4: 6 of 35 red, all from the wave's own seams (principals, suites, boundary, rail, C231, C205, C264) plus two stale fixtures (sprint 11, sprint 18 C17); fixed 25a10d3d, af36ee6f, ab04bdec, a6e51b56 |
 | **Wave 1** | **live 634f4810** (2026-09-24, dpl_HQNTnegfjeyekXY86JVt5Gxhv5Za): all 35 gates green, migrations 0116 to 0124 on production first (journal 125 = ledger 125, every CHECK validated), new commits scanned for credentials (0, control detected) |
+| W2-P01 to P16 | fixed (merge 47cc8c75; commits d9b3a49c to 20fdf0b1); tests/patient-stuck, verify:w2p |
+| W2-F01, T03, T04 | fixed f1ef2612 (0128, 0129); test:note-formats, verify:w2f |
+| W2-T01, T02, T05 to T08, C01 to C08 | fixed 3b3de133 to de90fd33 (0131); verify:w2c, sprint54, sprint63 |
+| W2-C08 content | Arabic default fixed cacc562f; published rows via content:sync home howItWorks at deploy |
+| W2-S01 to S11 | fixed 2909d124 to a34efee0 (0134); verify:w2s, test:company-portal |
+| W2-S10 floor | a8c551ea: entries published only in batches that clear activityFloor, dated by span |
+| W2-S12 | split-session refunds (pot credited the full price; employee share): in progress |
+| W2-X01 to X06 | fixed 2380c20a to 8370e554 (0138, 0139); verify:w2x |
+| W2-A01 to A11 | fixed a264fb7e to 49194b93 (0140 to 0142) |
+| S1 found in Wave 2 | ac4e4e02, 3d3c1ed3: the patient's email and rating page never carry the clinician's summary |
+| Earnings | bd402d6e: a sent payout no longer subtracted twice from "available" |
