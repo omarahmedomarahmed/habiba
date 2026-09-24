@@ -49,8 +49,9 @@ const db = dbFor(pinnedToDefaultRegion("lib/data/recovery.ts", "not routed yet: 
  * 14.3. A patient who paid for a $30 session is not offered a $60 clinician
  * and asked for the difference: they have already been let down once, and
  * "your therapist did not turn up, that will be another thirty dollars" is the
- * product charging somebody for its own failure. Cheaper is fine and the
- * difference comes back as credit (14.6).
+ * product charging somebody for its own failure. Cheaper is fine, and when
+ * nothing has been charged yet the patient is simply asked for the cheaper
+ * price (14.6, P3 in `reassignSession`).
  */
 
 /** How long somebody waits before we call it. 14.1 / 14.2. */
@@ -217,9 +218,9 @@ export type RecoveryResult =
  * score (14.7) has something to count and the patient's booking, payment and
  * history stay on one row.
  *
- * The difference in price comes back as patient credit rather than a card
- * refund: refunding ten dollars costs more in fees than it returns, and the
- * patient is far more likely to want another session than ten dollars.
+ * No patient credit is written for a difference in price (P3, below): when
+ * nothing has been charged the price follows the replacement, and when money
+ * has already moved the payment follows the replacement instead.
  */
 export async function reassignSession(input: {
   sessionId: string;
@@ -303,6 +304,40 @@ export async function reassignSession(input: {
   }
 
   /*
+   * 🔴 P3: THE DIFFERENCE IS REFUNDED IN ITS SIMPLEST FORM WHEN NOTHING HAS BEEN
+   * TAKEN YET: IT IS NEVER CHARGED.
+   *
+   * The credit this used to write was never spent by anything, and paying the
+   * difference back after the fact needs a partial refund that neither the
+   * card path nor the refund queue has. But a patient who has not paid yet
+   * does not need anything given back. The price follows the clinician, so the
+   * pay page, the card checkout and the transfer all quote the replacement's
+   * rate, and the replacement is paid on what they charge.
+   *
+   * "Nothing taken" is asked inside the UPDATE, because a payment that
+   * appears between the read above and this write carries the old price:
+   *
+   *   - `payment_status <> 'paid'`: no settled payment
+   *   - no `session_payments` row: no card checkout opened and no benefit
+   *     split frozen at booking, both of which were priced at the old figure
+   *   - no live `manual_payments` row: no transfer quoted or declared
+   *
+   * Otherwise the price stays, and the payment follows the replacement below.
+   * A free replacement also stops asking for payment at all.
+   */
+  const unchargedSql = sql`(
+    ${sessions.paymentStatus} <> 'paid'
+    AND NOT EXISTS (
+      SELECT 1 FROM session_payments sp WHERE sp.session_id = ${input.sessionId}
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM manual_payments mp
+       WHERE mp.purpose = 'session' AND mp.ref_id = ${input.sessionId}
+         AND mp.state IN ('awaiting_proof', 'submitted')
+    )
+  )`;
+
+  /*
    * Conditional on the therapist not having changed, so two operators pressing
    * "reassign" at the same moment produce one move rather than two.
    */
@@ -314,10 +349,14 @@ export async function reassignSession(input: {
       reassignedFromUserId: row.therapistId,
       reassignedAt: now,
       recoveryOutcome: "reassigned",
+      priceCents: sql<number>`CASE WHEN ${unchargedSql} THEN ${rate} ELSE ${sessions.priceCents} END`,
+      paymentStatus: sql<
+        "not_required" | "pending" | "paid"
+      >`CASE WHEN ${unchargedSql} AND ${rate} <= 0 THEN 'not_required' ELSE ${sessions.paymentStatus} END`,
       updatedAt: now,
     })
     .where(and(eq(sessions.id, input.sessionId), eq(sessions.therapistId, row.therapistId)))
-    .returning({ id: sessions.id });
+    .returning({ id: sessions.id, priceCents: sessions.priceCents });
 
   if (!moved) return { ok: false, error: "Somebody else already moved that session." };
 
@@ -330,8 +369,9 @@ export async function reassignSession(input: {
    * other in one balanced transaction.
    *
    * 🔴 AND NO CREDIT. A credit for the difference was promised "off your next
-   * session automatically" and nothing ever spent it. The patient pays what
-   * they agreed to, and the clinician who helped them earns it.
+   * session automatically" and nothing ever spent it. Where money had already
+   * moved, the patient pays what they agreed to and the clinician who helped
+   * them earns it; where it had not, the price already moved above (P3).
    */
   const [paid] = await db
     .select({ id: sessionPayments.id, net: sessionPayments.therapistNetCents, therapistId: sessionPayments.therapistId, organizationId: sessionPayments.organizationId })
@@ -357,7 +397,10 @@ export async function reassignSession(input: {
     }
   }
 
-  log.info("session reassigned", { session: ref(input.sessionId) });
+  log.info("session reassigned", {
+    session: ref(input.sessionId),
+    repriced: moved.priceCents !== row.priceCents,
+  });
 
   return { ok: true, outcome: "reassigned", creditCents: 0 };
 }

@@ -173,7 +173,13 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
 
   /* 🔴 W2-P04: a signed-in patient joins as themselves, never as a new stranger. */
   const { optionalPatient } = await import("@/lib/patient-auth/guard");
-  const sessionId = await joinByToken(token, name, (await optionalPatient())?.personId ?? null);
+  /* 🔴 P13: and the receipt address the form asked for is kept, not dropped. */
+  const sessionId = await joinByToken(
+    token,
+    name,
+    (await optionalPatient())?.personId ?? null,
+    email || null,
+  );
   if (!sessionId) {
     return { error: "This link is no longer valid. Ask your therapist for a new one." };
   }

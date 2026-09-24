@@ -7,8 +7,10 @@ import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
+import { qualified } from "@/lib/db/qualified";
 import {
   availabilitySlots,
+  manualPayments,
   organizations,
   patients,
   sessionNotes,
@@ -939,13 +941,40 @@ export async function resolveJoinToken(token: string) {
        */
       recordingConsent: sessions.recordingConsent,
       profileShareConsent: sessions.profileShareConsent,
+      /*
+       * 🔴 P20: a transfer the payer has DECLARED (sent, with a reference or a
+       * receipt) and an operator has not decided yet. Read with the row so the
+       * expiry below can tell somebody waiting on us from an abandoned link.
+       */
+      transferDeclared: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${manualPayments}
+         WHERE ${manualPayments.purpose} = 'session'
+           AND ${manualPayments.refId} = ${qualified(sessions.id)}
+           AND ${manualPayments.state} = 'submitted')`,
     })
     .from(sessions)
     .where(and(eq(sessions.joinToken, token), isNull(sessions.endedAt)))
     .limit(1);
 
   if (!row) return null;
-  if (row.expiresAt && row.expiresAt < new Date()) return null;
+
+  /*
+   * 🔴 P20: THE CLOCK ON A LINK IS FOR A LINK NOBODY HAS PAID FOR.
+   *
+   * A radar link lives three hours (`createRadarSession`), which is right for
+   * somebody who books and walks away. It was also applied to somebody who
+   * paid, or declared a transfer that an operator confirmed four hours later:
+   * the confirmation flipped the session to paid and `/pay` answered it with
+   * a 404, so the one person who had done everything asked of them could not
+   * reach what they paid for.
+   *
+   * So money settled, or declared and waiting on us, holds the link open. An
+   * unpaid expired link is exactly as dead as before, and so is any link
+   * whose session has ended, been cancelled or completed (below): this lifts
+   * the clock, never the state.
+   */
+  const committed = row.paymentStatus === "paid" || Boolean(row.transferDeclared);
+  if (row.expiresAt && row.expiresAt < new Date() && !committed) return null;
   if (row.status === "cancelled" || row.status === "completed") return null;
   return row;
 }
@@ -956,13 +985,32 @@ export async function resolveJoinToken(token: string) {
  * 🔴 W2-P04: `personId` is the signed-in patient's, from their session cookie.
  * With it, a session with no patient yet is attached to that person's own file
  * with this clinician rather than to a new stranger with their first name.
+ *
+ * 🔴 P13: `receiptEmail` is the address the join form asks for "for your
+ * receipt". It was read and thrown away, so a guest who typed it was never
+ * sent one. It goes on `guest_email`, which is the column the transfer rail's
+ * payment notice already reads for a guest (`lib/billing/payment-notices.ts`),
+ * and only when the session has none: an address the clinician entered when
+ * they sent the link is not replaced by whatever arrives on a form.
  */
-export async function joinByToken(token: string, displayName: string, personId: string | null = null) {
+export async function joinByToken(
+  token: string,
+  displayName: string,
+  personId: string | null = null,
+  receiptEmail: string | null = null,
+) {
   const target = await resolveJoinToken(token);
   if (!target) return null;
 
   const name = displayName.trim().slice(0, 80);
   if (!name) return null;
+
+  /*
+   * The browser's `type="email"` already refuses a malformed address, so one
+   * that fails this arrived by a hand-built post and is simply not stored.
+   */
+  const email = receiptEmail?.trim().toLowerCase().slice(0, 254) || null;
+  const storedEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 
   /* Outside the transaction, for the reason `ensurePersonForPatient` is below. */
   const own =
@@ -997,6 +1045,10 @@ export async function joinByToken(token: string, displayName: string, personId: 
         // COALESCE semantics: never overwrite an existing link.
         patientId: target.patientId ?? patientId,
         guestName: name,
+        /* P13: the receipt address, never over one already on the session. */
+        ...(storedEmail
+          ? { guestEmail: sql<string>`COALESCE(${sessions.guestEmail}, ${storedEmail})` }
+          : {}),
         patientJoinedAt: new Date(),
         updatedAt: new Date(),
       })

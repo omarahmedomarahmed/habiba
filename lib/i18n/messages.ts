@@ -543,7 +543,7 @@ export const en = {
   "home.nobodyListed": "No therapist is listed yet",
   "home.claimedTitle": "That record is yours now",
   "home.claimedKept": "They can still see your profile. Change it under who can read your history.",
-  "home.claimedDropped": "They keep their notes and no longer see your live profile. Reversible any time.",
+  "home.claimedDropped": "They keep their notes but no longer see your live profile. Reversible.",
   "home.askedTitle": "Somebody asked to read your history",
   "home.askedOne": "A therapist has asked. You decide, and you can change your mind later.",
   "home.askedMany": "{count} therapists have asked. You decide, and you can change your mind later.",
@@ -599,7 +599,7 @@ export const en = {
   "psessions.upcoming": "Upcoming",
   "psessions.past": "Past",
   "psessions.none": "No sessions yet",
-  "psessions.noneBody": "When you book one, or find somebody on the radar, it appears here.",
+  "psessions.noneBody": "Sessions you book, or find on the radar, appear here.",
   "psessions.radarGroup": "When you needed someone",
   "psessions.radarGroupBody": "Sessions you found on the radar, without booking.",
   "psessions.free": "Free",
@@ -619,7 +619,7 @@ export const en = {
   "journal.title": "Your journal",
   "journal.body": "Whatever you want to keep between sessions. Shown to nobody unless you choose.",
   "journal.whoCanOpen": "Who can open this",
-  "journal.nobody": "Nobody. No therapist has access to your history, so this stays with you.",
+  "journal.nobody": "Nobody. No therapist can see your history, so this stays with you.",
   "journal.readers": "These therapists can read your journal: {names}.",
   "journal.placeholder": "Today…",
   "journal.save": "Save this",
@@ -673,7 +673,7 @@ export const en = {
   "pbilling.noneBody": "Sessions you pay for appear here, fully broken down.",
   /* 🔴 53.21 — a covered session, named without naming an employer (C227, C243). */
   "pbilling.covered": "Covered",
-  "pbilling.coveredBody": "Your benefit paid for this one. There is nothing for you to pay.",
+  "pbilling.coveredBody": "Your benefit paid for this one. You owe nothing.",
   "pbilling.youPaidLabel": "You paid",
   "pbilling.youPaidBody": "The headline figure, in your currency, at the rate quoted then.",
   "pbilling.theyGetLabel": "Your therapist is paid",
@@ -706,7 +706,7 @@ export const en = {
   /* ---------------------------------------------------------------- invite */
   "pinvite.title": "Your therapist sent you this",
   "pinvite.body": "{name} has invited you to take ownership of the record they keep for you.",
-  "pinvite.signedOut": "Create an account or sign in, and we will bring you straight back here.",
+  "pinvite.signedOut": "Create an account or sign in, and we bring you back here.",
   "pinvite.create": "Create an account",
   "pinvite.signIn": "Sign in",
   "pinvite.takeTitle": "Take ownership of your record",
@@ -727,8 +727,7 @@ export const en = {
 
   /* ----------------------------------------- 🔴 when a page fails, in their language */
   "error.title": "Something went wrong at our end",
-  "error.body":
-    "Nothing you did caused this, and nothing you sent is lost. Try again. The SOS button still works.",
+  "error.body": "Not your fault, and nothing you sent is lost. The SOS button still works.",
   "error.retry": "Try again",
 
   /* ------------------------------------------------ 🔴 consent, the patient's */
@@ -840,8 +839,8 @@ export const en = {
   "pclaim.noneAsk": "Ask your therapist for an invite link. One tap connects that exact record.",
   "pclaim.skip": "Skip for now",
   "pclaim.doneTitle": "That record is yours now",
-  "pclaim.doneKept": "Your therapist can still see your profile. You can change that at any time.",
-  "pclaim.doneDropped": "They keep their notes and no longer see your live profile. Reversible any time.",
+  "pclaim.doneKept": "Your therapist can still see your profile. Change that any time.",
+  "pclaim.doneDropped": "They keep their notes but no longer see your live profile. Reversible.",
   "pclaim.goToSessions": "Go to my sessions",
   "pclaim.checkWhatsapp": "Check WhatsApp",
   "pclaim.checkEmail": "Check your email",
@@ -876,7 +875,7 @@ export const en = {
   "pclaim.typeName": "As you gave it to them. We will not show it to you.",
   "pclaim.firstName": "First name",
   "pcode.title": "Enter your code",
-  "pcode.body": "If that number or address has an account, a six-digit code is on its way.",
+  "pcode.body": "If that number or address has an account, a six-digit code is coming.",
   "pcode.channelDown": "WhatsApp codes are not switched on yet. Sign in with your password instead.",
   "pcode.useCode": "Sign in with a code instead",
   "pcode.useCodeBody": "No password needed. We send a code to whichever you signed up with.",
@@ -929,7 +928,7 @@ export const en = {
   "common.stop": "Stop",
 
   "pban.sendRequest": "Send request",
-  "pask.waiting": "Waiting. They have been told, and they can see it on their own screen.",
+  "pask.waiting": "Waiting. They have been told and can see it on their screen.",
   "pask.added": "They added what they hold. It is in your profile.",
   "pask.askThem": "Ask them",
   "pnum.askToChange": "Ask to change it",
@@ -975,6 +974,9 @@ export const en = {
     "I am preparing for our session on Thursday and would like to see your history.",
 
   "pbill.inCredit": "in credit",
+  /* 🔴 P3: what is true of an old credit row. Nothing spends one, so nothing here says it does. */
+  "pbill.creditBody": "We owe you this: your replacement clinician charged less. Kept for you until {date}.",
+  "pbill.chargedAt": "at {rate} {from} per {to}",
   "pbill.therapistFee": "Your therapist's fee",
   "pbill.vat": "VAT, paid to the government",
   "pbill.platformShare": "24Therapy's share of the fee",
@@ -1020,7 +1022,7 @@ export const en = {
   "pexport.hasNotes": "Every note your therapists signed",
   "pexport.hasSummaries": "Every version of your summary",
   "pexport.hasYours": "What you wrote yourself",
-  "pexport.delivery": "Emailed to {email} and nowhere else. No password, and the link dies after three days.",
+  "pexport.delivery": "Emailed only to {email}. No password, and the link dies after three days.",
   "pexport.onItsWay": "On its way to {email}. Nobody here read it.",
   "pexport.button": "Email me my record",
   "pexport.preparing": "Putting it together…",
@@ -1033,7 +1035,7 @@ export const en = {
   "pcode.expires": "It expires in fifteen minutes.",
   "consent.whichTherapist": "Which therapist",
   "preset.changed": "Password changed",
-  "preset.changedBody": "You have been signed out everywhere else. Sign in with your new password.",
+  "preset.changedBody": "Signed out everywhere else. Sign in with your new password.",
   "preset.tellUs": "tell us",
   "preset.channelDownLead": "WhatsApp codes are not switched on yet, so one may not arrive. If you are stuck,",
   "preset.channelDownTail": "and a person will get you back in.",
@@ -1082,7 +1084,7 @@ export const en = {
   "room.tellUsBody": "This goes straight to 24Therapy. Your therapist does not see it.",
   "room.tellUsPlaceholder": "What is happening right now.",
   "psteps.none": "Nothing to do right now",
-  "psteps.noneBody": "When you and your therapist agree on something to try, it appears here.",
+  "psteps.noneBody": "Things you and your therapist agree to try appear here.",
   "psteps.anythingToSay": "Anything you want to say about it? You do not have to.",
   "psteps.didThis": "I did this",
   "psteps.couldNot": "I could not do this one",
@@ -1390,7 +1392,7 @@ export const en = {
   "benefit.theyNeverSee": "Which sessions are yours, who you saw, or the day.",
   "benefit.ifRemoved": "Only the payment changes. Your record and your history stay as they are.",
   /* 🔴 C250 — said on the screen, because somebody will ask. */
-  "benefit.startsNow": "This starts now. Sessions you have already paid for stay as they are.",
+  "benefit.startsNow": "This starts now. Sessions already paid for stay as they are.",
   "benefit.active": "Your benefit from {name}",
   "benefit.paused": "Your benefit is paused",
   "benefit.pausedBody": "Confirm you are still eligible to restart it.",
@@ -4074,6 +4076,8 @@ export const en = {
   "pnumber.changed": "Number changed.",
   "prating.send": "Send",
   "pcode.connect": "Join them",
+  /* 🔴 P15: a press that connected nothing says so rather than redirecting. */
+  "pcode.connectFailed": "Not connected. Ask the desk for a current code.",
   "pay.askBenefit": "{name} did not cover this. Ask whoever runs your benefit there.",
   // W2C clinician and clinic
   "tw2.publicPage": "Your public page",
@@ -4156,6 +4160,8 @@ export const en = {
   "sponsor.resumed": "Resumed.",
   "pnotice.benefitResumed": "Your benefit is back on.",
   "benefit.heldBody": "Your organisation paused it. Sessions are not covered until it resumes.",
+  /* 🔴 P17: the share of each session it pays. Never the company's balance. */
+  "benefit.covers": "Covers {percent} of each session.",
   "sponsor.nav.ledger": "Money",
   "sponsor.ledgerBody": "Each session your pot paid for, with no names and no therapists.",
   "sponsor.ledgerWeekly": "Published weekly, never one alone.",
@@ -4807,8 +4813,7 @@ export const ar: Record<MessageKey, string> = {
     "في أي مكان آخر، اتصل برقم الطوارئ في بلدك. الاتصال مجاني من أي هاتف، ويعمل بلا رصيد وبلا شريحة.",
 
   "error.title": "حدث خطأ من جانبنا",
-  "error.body":
-    "لم يتسبب أي شيء فعلته في هذا، ولم يُفقد أي شيء أرسلته. حاول مرة أخرى. زر الاستغاثة أدناه ما زال يعمل.",
+  "error.body": "ليس خطأك، ولم يُفقد أي شيء أرسلته. زر الاستغاثة أدناه ما زال يعمل.",
   "error.retry": "حاول مرة أخرى",
 
   /* --------------------------------------------------- 🔴 الإذن، من جهة المريض */
@@ -5008,6 +5013,8 @@ export const ar: Record<MessageKey, string> = {
   "pban.example": "أستعد لجلستنا يوم الخميس وأود الاطلاع على تاريخك.",
 
   "pbill.inCredit": "رصيد لك",
+  "pbill.creditBody": "نحن مدينون لك بهذا المبلغ: المعالج البديل كان أقل سعرًا. نحفظه لك حتى {date}.",
+  "pbill.chargedAt": "بسعر {rate} {from} لكل {to}",
   "pbill.therapistFee": "أتعاب معالجك",
   "pbill.vat": "ضريبة القيمة المضافة، تُدفع للدولة",
   "pbill.platformShare": "حصة 24Therapy من الأتعاب",
@@ -7571,6 +7578,7 @@ export const ar: Record<MessageKey, string> = {
   "pnumber.changed": "تغيّر الرقم.",
   "prating.send": "أرسل",
   "pcode.connect": "انضم إليه",
+  "pcode.connectFailed": "لم يتم الربط. اطلب رمزًا حاليًا من الاستقبال.",
   "pay.askBenefit": "لم تغطِّ {name} هذه الجلسة. اسأل المسؤول عن مزاياك هناك.",
   // W2C clinician and clinic
   "tw2.publicPage": "صفحتك العامة",
@@ -7651,6 +7659,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.resumed": "استؤنفت.",
   "pnotice.benefitResumed": "عادت ميزتك.",
   "benefit.heldBody": "أوقفتها جهتك مؤقتًا. لا تُغطّى الجلسات حتى تُستأنف.",
+  "benefit.covers": "تغطي {percent} من كل جلسة.",
   "sponsor.nav.ledger": "المال",
   "sponsor.ledgerBody": "كل جلسة دفعتها محفظتكم، بلا أسماء وبلا معالجين.",
   "sponsor.ledgerWeekly": "تُنشر أسبوعيًا، ولا تظهر أي منها وحدها.",

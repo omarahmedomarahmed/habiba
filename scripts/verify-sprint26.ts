@@ -348,12 +348,18 @@ async function main() {
         email: null,
         phone: null,
         recordOpened: new Date(),
-        diagnoses: [],
-        medications: [],
-        goals: [],
-        clinicianNotes: null,
       },
-      clinician: { name: null, email: null, practice: null },
+      /* P11: one entry per chart, each with the clinician who kept it. */
+      charts: [
+        {
+          recordOpened: new Date(),
+          clinician: { name: null, email: null, practice: null },
+          diagnoses: [],
+          medications: [],
+          goals: [],
+          clinicianNotes: null,
+        },
+      ],
       sessions: [],
     } as never,
     "/x.json",
@@ -389,6 +395,96 @@ async function main() {
     /chartIds/.test(exportSource) && /inArray\(sessions\.patientId/.test(exportSource),
     "somebody who changed practice gets their whole record, not half of it",
   );
+
+  /*
+   * 🔴 P11: EVERY CHART'S CONTENTS, PROVED ON A BUILT EXTRACT.
+   *
+   * The source check above held while the extract carried the diagnoses,
+   * medications, goals and clinician of ONE chart, the latest, under both
+   * clinicians' sessions. So this plants a person with two charts under two
+   * clinicians and a stranger with a third, mints a link against the newer
+   * chart, and opens it the way `/records/[token]` does.
+   */
+  {
+    const { openExport } = await import("../lib/data/export");
+    const { createHash, randomBytes } = await import("node:crypto");
+    const clinicians = await db
+      .select({ id: users.id, organizationId: users.organizationId, firstName: users.firstName })
+      .from(users)
+      .where(eq(users.role, "therapist"))
+      .limit(2);
+    const [older, newer = older] = clinicians;
+    let owner: string | null = null;
+    let stranger: string | null = null;
+    try {
+      const [person] = await db
+        .insert(people)
+        .values({ firstName: `${TAG}-p11`, phone: "+201555000126" })
+        .returning({ id: people.id });
+      owner = person!.id;
+      const [other] = await db
+        .insert(people)
+        .values({ firstName: `${TAG}-p11-stranger`, phone: "+201555000127" })
+        .returning({ id: people.id });
+      stranger = other!.id;
+
+      const chart = (by: typeof older, personId: string, diagnosis: string, at: Date) =>
+        db
+          .insert(patients)
+          .values({
+            organizationId: by!.organizationId,
+            therapistId: by!.id,
+            firstName: `${TAG}-p11`,
+            personId,
+            phone: personId === owner ? "+201555000126" : "+201555000127",
+            source: "therapist",
+            clinical: { diagnoses: [diagnosis], goals: [`${diagnosis} goal`] },
+            createdAt: at,
+          })
+          .returning({ id: patients.id });
+
+      await chart(older, owner, "P11-first-chart", new Date(Date.now() - 86_400_000));
+      const [latest] = await chart(newer, owner, "P11-second-chart", new Date());
+      await chart(older, stranger, "P11-someone-else", new Date());
+
+      const token = randomBytes(32).toString("base64url");
+      await db.insert(dataExports).values({
+        organizationId: newer!.organizationId,
+        patientId: latest!.id,
+        personId: owner,
+        tokenHash: createHash("sha256").update(token).digest("hex"),
+        deliveredTo: "p11@example.com",
+        expiresAt: new Date(Date.now() + 3_600_000),
+      });
+
+      const record = await openExport(token);
+      const diagnoses = (record?.charts ?? []).flatMap((entry) => entry.diagnoses);
+      const html = record ? renderExportHtml(record, "/x.json") : "";
+
+      check(
+        "🔴 P11 the extract carries EVERY chart of the person, oldest first, each with its clinician",
+        record?.charts.length === 2 &&
+          diagnoses.join(",") === "P11-first-chart,P11-second-chart" &&
+          html.includes("P11-first-chart") &&
+          html.includes("P11-second-chart goal"),
+        `${record?.charts.length ?? 0} chart(s): ${diagnoses.join(", ") || "none"}`,
+      );
+      check(
+        "P11 CONTROL: another person's chart is not in it",
+        record !== null && !diagnoses.includes("P11-someone-else") && !html.includes("P11-someone-else"),
+        record ? "only this person's charts" : "the extract did not open",
+      );
+    } finally {
+      for (const id of [owner, stranger]) {
+        if (!id) continue;
+        await db.execute(
+          sql`DELETE FROM data_exports WHERE patient_id IN (SELECT id FROM patients WHERE person_id = ${id})`,
+        );
+        await db.execute(sql`DELETE FROM patients WHERE person_id = ${id}`);
+        await db.execute(sql`DELETE FROM people WHERE id = ${id}`);
+      }
+    }
+  }
 
   /* ------------------------------------------------- 26.10 · C128 */
 

@@ -2,14 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PatientAuthForm } from "@/components/patient/auth-form";
+import { ConnectCodeForm } from "@/components/patient/connect-code-form";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrbServer } from "@/components/patient/sos-orb-server";
 import { resolveCode } from "@/lib/data/therapist-codes";
 import { optionalPatient } from "@/lib/patient-auth/guard";
-
-import { connectToTherapist } from "./actions";
 
 export const metadata: Metadata = {
   title: "Join 24Therapy",
@@ -75,15 +74,8 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
             is what "You are joining" said and nothing did.
           */}
           {reader ? (
-            <form action={connectToTherapist}>
-              <input type="hidden" name="code" value={code} />
-              <button
-                type="submit"
-                className="h-12 w-full rounded-2xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
-              >
-                {t("pcode.connect")}
-              </button>
-            </form>
+            /* 🔴 P15: a press that connected nothing now says so here. */
+            <ConnectCodeForm code={code} />
           ) : (
             <>
               <div>

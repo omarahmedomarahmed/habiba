@@ -500,8 +500,60 @@ async function main() {
     "🔴 25.4 / C129 a live session locks the session tab and asks before leaving",
     /liveSession/.test(readSource("components/patient/bottom-nav.tsx")) &&
       /t\("tab\.leaveTitle"\)/.test(readSource("components/patient/bottom-nav.tsx")) &&
-      /live={{ href: `\/join\//.test(readSource("app/join/[token]/page.tsx")),
+      /live=\{[^}]*\{ href: `\/join\//.test(stripComments(readSource("app/join/[token]/page.tsx"))),
     "the bar stays, the session is current, and leaving is a question",
+  );
+
+  /*
+   * 🔴 P14: and only a RUNNING session is live. The flag was passed on every
+   * render, so a link for next week or one still waiting to be paid asked
+   * "leave the session?" on every tap of the bar and dimmed the SOS orb.
+   */
+  const joinPage = stripComments(readSource("app/join/[token]/page.tsx"));
+  check(
+    "🔴 P14 the join page is live only while the session is in progress",
+    /live=\{session\.status === "in_progress" \? \{ href: `\/join\/\$\{token\}` \} : null\}/.test(
+      joinPage,
+    ),
+    "a future or unpaid link has no session to leave",
+  );
+  /*
+   * 🔴 P19: THE THREE PATIENT SEGMENTS EACH HAVE A LOADING STATE AND A
+   * BOUNDARY, and the boundary is the one with the orb in the reader's language.
+   * `/pay` and `/join` sit outside `(patient)`, so a throw there reached the
+   * global page: English, and no SOS orb.
+   */
+  const { existsSync } = await import("node:fs");
+  const segments = ["app/(patient)", "app/pay", "app/join"];
+  const missing = segments.flatMap((dir) =>
+    ["loading.tsx", "error.tsx"]
+      .map((file) => `${dir}/${file}`)
+      .filter(
+        (file) =>
+          !existsSync(file) ||
+          (file.endsWith("error.tsx") && !/<RouteError\b/.test(readSource(file))) ||
+          (file.endsWith("loading.tsx") && !/<RouteLoading\b/.test(readSource(file))),
+      ),
+  );
+  const routeError = stripComments(readSource("components/patient/route-error.tsx"));
+  check(
+    "🔴 P19 the patient app, /pay and /join each have a loading skeleton and an error boundary",
+    missing.length === 0 &&
+      /<SosOrb\s*\/>/.test(routeError) &&
+      /t\("error\.retry"\)/.test(routeError) &&
+      /onClick=\{reset\}/.test(routeError),
+    missing.join(", ") || "all six, and the boundary keeps the orb and retries",
+  );
+  check(
+    "P19 CONTROL: the boundary prints no English of its own, every word is a dictionary key",
+    !/>\s*[A-Z][a-z]+[^<{]*</.test(routeError),
+    "a reader in Arabic gets Arabic",
+  );
+
+  check(
+    "P14 CONTROL: no other Shell on the page is handed a live session unconditionally",
+    !/live=\{\{/.test(joinPage),
+    "the only live flag is the conditional one",
   );
 
   /* --------------------------------------------------- 25.7 · C115 · the photo */
