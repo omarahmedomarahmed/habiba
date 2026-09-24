@@ -1851,7 +1851,8 @@ async function main() {
      */
     check(
       "🔴 CONTROL the rendered markup carries TRANSLATED text, not only the props",
-      named.includes("Held until payouts open"),
+      /* The dictionary's words, not a copy of them: the label changed in the live walkthrough. */
+      named.includes((await import("../lib/i18n/messages")).DICTIONARIES.en["tph.heldUntil"]),
       "a surface whose t() returned nothing would pass the absence check below for free",
     );
 
