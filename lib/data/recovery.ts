@@ -1,12 +1,14 @@
 import "server-only";
 
-import { and, asc, eq, isNotNull, isNull, lte, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
+  organizations,
   patientCredits,
   patients,
+  sessionPayments,
   sessions,
   therapistRadar,
   users,
@@ -169,6 +171,7 @@ export async function replacementsFor(input: {
     })
     .from(therapistRadar)
     .innerJoin(users, eq(users.id, therapistRadar.userId))
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
       and(
         eq(therapistRadar.status, "online"),
@@ -176,8 +179,13 @@ export async function replacementsFor(input: {
         sql`${users.id} <> ${input.excludeUserId}`,
         // 🔴 14.3 — equal or lower. Never "and pay the difference".
         lte(users.sessionRateCents, input.paidCents),
-        // A clinician cannot take a payment without somewhere for it to go.
-        eq(users.chargesEnabled, true),
+        /*
+         * A clinician cannot take a payment without somewhere for it to go:
+         * a Stripe account, or, in Egypt, the manual payout every Egyptian
+         * clinician is paid through. This read Stripe alone, so in Egypt the
+         * offer was always empty.
+         */
+        or(eq(users.chargesEnabled, true), eq(organizations.region, "eg")),
         isNull(therapistRadar.suspendedUntil),
       ),
     )
@@ -313,27 +321,45 @@ export async function reassignSession(input: {
 
   if (!moved) return { ok: false, error: "Somebody else already moved that session." };
 
-  const difference = Math.max(0, row.priceCents - rate);
-
-  if (difference > 0 && row.personId) {
-    const expiresAt = new Date(now);
-    expiresAt.setMonth(expiresAt.getMonth() + CREDIT_MONTHS);
-
-    await db.insert(patientCredits).values({
-      personId: row.personId,
-      amountCents: difference,
-      fromSessionId: input.sessionId,
-      reason: "Your therapist did not join, and the person who stepped in charges less.",
-      expiresAt,
-    });
+  /*
+   * 🔴 THE MONEY FOLLOWS THE PERSON WHO HELD THE SESSION.
+   *
+   * The payment and what we owe for it stayed with the clinician who did not
+   * join, so the one who stepped in was never paid and the absent one was.
+   * The payment moves, and the ledger moves what we owe from one to the
+   * other in one balanced transaction.
+   *
+   * 🔴 AND NO CREDIT. A credit for the difference was promised "off your next
+   * session automatically" and nothing ever spent it. The patient pays what
+   * they agreed to, and the clinician who helped them earns it.
+   */
+  const [paid] = await db
+    .select({ id: sessionPayments.id, net: sessionPayments.therapistNetCents, therapistId: sessionPayments.therapistId, organizationId: sessionPayments.organizationId })
+    .from(sessionPayments)
+    .where(and(eq(sessionPayments.sessionId, input.sessionId), eq(sessionPayments.status, "paid")))
+    .limit(1);
+  if (paid) {
+    await db
+      .update(sessionPayments)
+      .set({ therapistId: input.toUserId, organizationId: replacement.organizationId })
+      .where(eq(sessionPayments.id, paid.id));
+    if (paid.net > 0 && paid.therapistId && paid.therapistId !== input.toUserId) {
+      const { journal } = await import("@/lib/billing/ledger");
+      await journal({
+        kind: "adjustment",
+        refType: "session_payment",
+        refId: paid.id,
+        legs: [
+          { account: "therapist_payable", amountCents: paid.net, organizationId: paid.organizationId, userId: paid.therapistId, memo: "Session held by another clinician" },
+          { account: "therapist_payable", amountCents: -paid.net, organizationId: replacement.organizationId, userId: input.toUserId, memo: "Held a session another clinician missed" },
+        ],
+      });
+    }
   }
 
-  log.info("session reassigned", {
-    session: ref(input.sessionId),
-    creditCents: difference,
-  });
+  log.info("session reassigned", { session: ref(input.sessionId) });
 
-  return { ok: true, outcome: "reassigned", creditCents: difference };
+  return { ok: true, outcome: "reassigned", creditCents: 0 };
 }
 
 /**

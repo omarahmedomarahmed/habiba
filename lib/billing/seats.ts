@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { clinicSeats, organizations, subscriptions } from "@/lib/db/schema";
@@ -98,6 +98,14 @@ export async function applySeatChange(input: {
 }): Promise<{ ok?: true; error?: string }> {
   const wanted = Math.max(0, Math.floor(input.toSeats));
   if (wanted > 500) return { error: "That is more seats than we can bill on one account." };
+  /*
+   * 🔴 NEVER BELOW THE PEOPLE IN THEM. This let a clinic drop to one seat, or
+   * none, with four clinicians seated, and book the difference as credit.
+   */
+  const occupied = (await seatsFor(input.organizationId)).length;
+  if (wanted < occupied) {
+    return { error: `${occupied} clinicians hold seats. Remove somebody first, then reduce the seats.` };
+  }
 
   /*
    * 🔴 QUOTED BEFORE THE WRITE, because after it `fromSeats` is `toSeats` and
@@ -178,6 +186,16 @@ export async function applySeatChange(input: {
  * their own period closes, so the clinic sees two numbers and a date rather
  * than one number that is wrong for three weeks.
  */
+/** Whether a clinic has a paid seat nobody holds. */
+export async function hasFreeSeat(organizationId: string): Promise<boolean> {
+  const [org] = await controlDb
+    .select({ seats: organizations.seats })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId))
+    .limit(1);
+  return (org?.seats ?? 0) > (await seatsFor(organizationId)).length;
+}
+
 export async function seatsFor(organizationId: string) {
   return controlDb
     .select({
@@ -279,15 +297,19 @@ export async function takeSeat(input: {
   const ends = sub?.currentPeriodEnd ?? null;
   const billableFrom = ends && ends.getTime() > now.getTime() ? ends : now;
 
-  const [created] = await controlDb
-    .insert(clinicSeats)
-    .values({
-      organizationId: input.organizationId,
-      userId: input.userId,
-      billableFrom,
-    })
-    .onConflictDoNothing()
-    .returning({ id: clinicSeats.id });
+  /*
+   * 🔴 ONLY INTO A SEAT THE CLINIC HAS PAID FOR. The count is asked in the
+   * same statement as the insert, so two acceptances at once cannot both
+   * take the last one.
+   */
+  const created = await controlDb.execute(sql`
+    INSERT INTO clinic_seats (organization_id, user_id, billable_from)
+    SELECT ${input.organizationId}, ${input.userId}, ${billableFrom.toISOString()}::timestamptz
+     WHERE (SELECT seats FROM organizations WHERE id = ${input.organizationId})
+           > (SELECT count(*) FROM clinic_seats WHERE organization_id = ${input.organizationId} AND released_at IS NULL)
+    ON CONFLICT DO NOTHING
+    RETURNING id`);
+  const seatId = (created.rows[0] as { id: string } | undefined)?.id ?? null;
 
-  return { seatId: created?.id ?? null, billableFrom };
+  return { seatId, billableFrom };
 }

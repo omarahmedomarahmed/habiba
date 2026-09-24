@@ -516,6 +516,12 @@ export async function confirmPayment(input: {
   paymentId: string;
   byUserId: string;
   onConfirmed?: (payment: ManualPayment) => Promise<void>;
+  /**
+   * 🔴 The figures the operator was looking at. A payer may re-declare while a
+   * row is still submitted; confirming then credits only if it still says
+   * what the operator matched against the bank line.
+   */
+  expected?: { amountCents: number; settlesCents: number };
 }): Promise<Decision> {
   /*
    * 🔴 78.6 — `decided_at` IS THE DATABASE'S CLOCK, NOT THIS PROCESS'S, AND A
@@ -551,12 +557,23 @@ export async function confirmPayment(input: {
     .update(manualPayments)
     .set({ state: "confirmed", decidedAt: sql`now()`, decidedBy: input.byUserId })
     .where(
-      and(eq(manualPayments.id, input.paymentId), eq(manualPayments.state, "submitted")),
+      and(
+        eq(manualPayments.id, input.paymentId),
+        eq(manualPayments.state, "submitted"),
+        input.expected ? eq(manualPayments.amountCents, input.expected.amountCents) : undefined,
+        input.expected ? eq(manualPayments.settlesCents, input.expected.settlesCents) : undefined,
+      ),
     )
     .returning();
 
   const payment = decided[0];
-  if (!payment) return { error: "That payment is not waiting for a decision." };
+  if (!payment) {
+    return {
+      error: input.expected
+        ? "It changed or was decided while you looked. Reload the queue and check the amount again."
+        : "That payment is not waiting for a decision.",
+    };
+  }
 
   if (input.onConfirmed) {
     try {

@@ -46,6 +46,10 @@ async function main() {
   const staffA = await one<{ id: string }>(db, sql`
     INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash)
     VALUES (${org.id}, ${`ops.a.${fixture}@example.com`}, 'Ops', 'A', 'staff', 'x') RETURNING id`);
+  /* 🔴 Four eyes on every payout: B approves, A sends. */
+  const staffB = await one<{ id: string }>(db, sql`
+    INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash)
+    VALUES (${org.id}, ${`ops.b.${fixture}@example.com`}, 'Ops', 'B', 'staff', 'x') RETURNING id`);
   const sponsor = await one<{ id: string }>(db, sql`
     INSERT INTO sponsors (name, kind, entity, currency, state)
     VALUES (${`GW Co ${fixture}`}, 'company', 'us', 'USD', 'active') RETURNING id`);
@@ -285,7 +289,7 @@ async function main() {
     const { requestPayout, approvePayout, sendViaProvider, markPayoutSent } = await import("../lib/billing/payouts");
     const asked = await requestPayout({ therapistId: therapist.id, organizationId: org.id, amountCents: 5_000 });
     const requestId = asked.id ?? "";
-    await approvePayout({ requestId, approverUserId: staffA.id });
+    await approvePayout({ requestId, approverUserId: staffB.id });
 
     const byPayee = await sendViaProvider({ requestId, senderUserId: therapist.id });
     const firstSend = await sendViaProvider({ requestId, senderUserId: staffA.id });

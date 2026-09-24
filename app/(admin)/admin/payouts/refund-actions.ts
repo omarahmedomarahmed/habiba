@@ -61,6 +61,10 @@ export async function markRefundSentAction(_prev: RefundState, formData: FormDat
     identifier: String(formData.get("identifier") ?? ""),
     accountName: String(formData.get("accountName") ?? ""),
   });
+  /* 0152 — the first of two people: where it goes is recorded, nothing is sent. */
+  if (result.error === "arefund.destinationSaved") {
+    return done(actor, requestId, "refund.destination_saved", { ok: true });
+  }
   return done(actor, requestId, "refund.sent", result);
 }
 

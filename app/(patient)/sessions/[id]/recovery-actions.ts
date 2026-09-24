@@ -194,6 +194,20 @@ export async function takeReplacement(
   const sessionId = await provenSessionId(proof);
   if (!sessionId || typeof userId !== "string" || !UUID.test(userId)) return notYours();
 
+  /*
+   * 🔴 ONLY SOMEBODY WE OFFERED. The id came from the browser, and anyone with
+   * the join link could hand the session to any account: an admin, an offline
+   * clinician, somebody who does not practise.
+   */
+  const [held] = await db
+    .select({ priceCents: sessions.priceCents, therapistId: sessions.therapistId })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  if (!held) return notYours();
+  const offered = await replacementsFor({ sessionId, paidCents: held.priceCents, excludeUserId: held.therapistId });
+  if (!offered.some((r) => r.userId === userId)) return { error: "That clinician is no longer available. Choose again." };
+
   const result = await reassignSession({ sessionId, toUserId: userId });
   if (!result.ok) return { error: result.error };
 

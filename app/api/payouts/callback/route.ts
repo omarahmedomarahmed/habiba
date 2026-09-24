@@ -25,6 +25,8 @@ export async function POST(request: Request) {
 
   try {
     const result = await applyPayoutEvent(provider.name, event);
+    /* A send we could not book is answered as a failure, so the provider retries it. */
+    if (result.applied === "unapplied") return NextResponse.json({ error: "retry" }, { status: 409 });
     return NextResponse.json({ received: true, applied: result.applied });
   } catch (error) {
     log.error("payouts callback failed", { reason: safeErrorMessage(error) });

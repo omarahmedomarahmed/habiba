@@ -138,8 +138,8 @@ async function main() {
    */
   check(
     "🔴 a pot top-up cannot be applied twice",
-    /NOT EXISTS[\s\S]{0,300}manual_payments/.test(grants),
-    "the credit is conditional on this payment not already having been applied",
+    /SET granted_at = now\(\)[\s\S]{0,120}granted_at IS NULL/.test(grants) && /db\.transaction\(/.test(grants),
+    "0153: the credit is claimed on the payment, in one transaction with the pot and the ledger",
   );
 
   check(
@@ -1561,9 +1561,9 @@ async function main() {
    * or this check is defending a line that moved.
    */
   check(
-    "🔴 CONTROL …and the guard it protects is still that comparison",
-    /p\.decided_at < sponsor_pots\.updated_at/.test(grants),
-    "the scan above is about this line and nothing else",
+    "🔴 CONTROL …and no guard compares two clocks any more (0153)",
+    !/decided_at < sponsor_pots\.updated_at/.test(grants),
+    "the claim replaced the comparison this scan used to defend",
   );
 
   /* ================================================================== */

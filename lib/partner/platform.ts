@@ -47,6 +47,30 @@ export type OpenedSession = {
   coverage: string;
 };
 
+/**
+ * 🔴 A REFERENCE BELONGS TO ONE ENVIRONMENT. A session row is unique on the
+ * partner and its reference alone, so a sandbox key naming a live session's
+ * reference would otherwise record consent on it, end it, or purge it. Every
+ * route that writes by reference asks this first.
+ */
+export async function otherEnvironment(input: {
+  partnerId: string;
+  externalSessionRef: string;
+  environment: string;
+}): Promise<boolean> {
+  const [row] = await controlDb
+    .select({ environment: partnerSessions.environment })
+    .from(partnerSessions)
+    .where(
+      and(
+        eq(partnerSessions.partnerId, input.partnerId),
+        eq(partnerSessions.externalSessionRef, input.externalSessionRef.slice(0, 200)),
+      ),
+    )
+    .limit(1);
+  return Boolean(row && row.environment !== input.environment);
+}
+
 export async function openSession(input: {
   partnerId: string;
   environment: "sandbox" | "live";
@@ -204,6 +228,7 @@ export type PartnerSessionRow = {
 async function sessionFor(input: {
   partnerId: string;
   externalSessionRef: string;
+  environment: string;
 }): Promise<PartnerSessionRow | null> {
   const [row] = await controlDb
     .select({
@@ -220,6 +245,12 @@ async function sessionFor(input: {
       and(
         eq(partnerSessions.partnerId, input.partnerId),
         eq(partnerSessions.externalSessionRef, input.externalSessionRef),
+        /*
+         * 🔴 A key reaches only its own environment's sessions. A sandbox key
+         * is self-serve, unlimited and never billed; answering it about a
+         * live session gave real notes away free to a developer's laptop.
+         */
+        eq(partnerSessions.environment, input.environment as "sandbox" | "live"),
       ),
     )
     .limit(1);
@@ -240,6 +271,8 @@ async function sessionFor(input: {
 export async function mayAnswer(input: {
   partnerId: string;
   externalSessionRef: string;
+  /** The calling key's environment. Required, so no route can forget it. */
+  environment: string;
 }): Promise<
   | { ok: true; session: PartnerSessionRow }
   | { ok: false; status: 403 | 404 | 409; error: string }
@@ -339,6 +372,7 @@ export async function billFirstAudio(sessionId: string): Promise<void> {
 export async function endSession(input: {
   partnerId: string;
   externalSessionRef: string;
+  environment: string;
   now?: Date;
 }): Promise<{ endedAt: Date } | null> {
   const now = input.now ?? new Date();
@@ -350,6 +384,7 @@ export async function endSession(input: {
       and(
         eq(partnerSessions.partnerId, input.partnerId),
         eq(partnerSessions.externalSessionRef, input.externalSessionRef),
+        eq(partnerSessions.environment, input.environment as "sandbox" | "live"),
       ),
     )
     .returning({ endedAt: partnerSessions.endedAt });

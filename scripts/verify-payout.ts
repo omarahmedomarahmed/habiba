@@ -59,6 +59,7 @@ async function main() {
   let orgId: string | null = null;
   let therapistId: string | null = null;
   let approverId: string | null = null;
+  let senderId: string | null = null;
 
   try {
     const { requestPayout, approvePayout, markPayoutSent, rejectPayout } = await import(
@@ -94,6 +95,12 @@ async function main() {
       VALUES (${orgId}, 'payout.approver@example.com', ${hash}, 'Approver', 'Example', 'super_admin')
       RETURNING id`);
     approverId = staff.rows[0]!.id;
+    /* 🔴 Four eyes on every payout: a second person sends what the first approved. */
+    const sender = await db.execute<{ id: string }>(sql`
+      INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role)
+      VALUES (${orgId}, 'payout.sender@example.com', ${hash}, 'Sender', 'Example', 'super_admin')
+      RETURNING id`);
+    senderId = sender.rows[0]!.id;
 
     /*
      * $100 of held earnings, as a credit to `therapist_payable`, which is how
@@ -175,7 +182,7 @@ async function main() {
 
     const noProof = await markPayoutSent({
       requestId,
-      senderUserId: approverId,
+      senderUserId: senderId!,
       proofUrl: "",
     });
 
@@ -205,7 +212,7 @@ async function main() {
       [0, 1].map(() =>
         markPayoutSent({
           requestId,
-          senderUserId: approverId!,
+          senderUserId: senderId!,
           proofUrl: "/api/uploads/receipt/verify/payout-proof.png",
         }),
       ),

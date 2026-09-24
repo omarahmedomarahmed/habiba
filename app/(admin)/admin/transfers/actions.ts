@@ -19,12 +19,16 @@ import { grantFor } from "@/lib/billing/manual-grants";
  */
 export type TransferState = { error?: string; ok?: string };
 
-export async function confirm(paymentId: string): Promise<TransferState> {
+export async function confirm(
+  paymentId: string,
+  expected?: { amountCents: number; settlesCents: number },
+): Promise<TransferState> {
   const actor = await requireStaff();
 
   const result = await confirmPayment({
     paymentId,
     byUserId: actor.userId,
+    expected,
     /*
      * 🔴 What a confirmation UNLOCKS lives in its own module. `lib/billing/manual.ts`
      * owns the queue and knows nothing about sessions, invoices or pots, which is

@@ -711,14 +711,46 @@ export async function setCoverage(input: {
     return { error: "Coverage is a whole percentage in steps of five, from 0 to 100." };
   }
 
-  const [pot] = await controlDb
-    .select({ id: sponsorPots.id, coverageBps: sponsorPots.coverageBps })
+  const [row] = await controlDb
+    .select({
+      id: sponsorPots.id,
+      coverageBps: sponsorPots.coverageBps,
+      pendingCoverageBps: sponsorPots.pendingCoverageBps,
+      pendingCoverageFrom: sponsorPots.pendingCoverageFrom,
+    })
     .from(sponsorPots)
     .where(eq(sponsorPots.sponsorId, input.sponsorId))
     .limit(1);
 
-  if (!pot) return { error: "This account has no pot yet. We open it with you, with the terms agreed." };
-  if (pot.coverageBps === wanted) return { ok: true };
+  if (!row) return { error: "This account has no pot yet. We open it with you, with the terms agreed." };
+
+  /*
+   * 🔴 COMPARED WITH WHAT IS IN FORCE, NOT WITH A STALE COLUMN.
+   *
+   * A reduction that had fallen due was read by `coverageNow` and never
+   * written back, so 100 -> 50 (in force) -> 80 was treated as a cut from 100,
+   * scheduled a month out, and cleared the 50: the pot paid 100% meanwhile.
+   * A due change is folded in first; choosing the figure in force again
+   * cancels a scheduled cut rather than doing nothing.
+   */
+  const { coverageNow } = await import("@/lib/settings/defs");
+  const live = coverageNow(row, new Date());
+  const pot = { id: row.id, coverageBps: live };
+  if (live !== row.coverageBps) {
+    await controlDb
+      .update(sponsorPots)
+      .set({ coverageBps: live, pendingCoverageBps: null, pendingCoverageFrom: null, updatedAt: new Date() })
+      .where(eq(sponsorPots.id, row.id));
+  }
+  if (live === wanted) {
+    if (row.pendingCoverageBps !== null && live === row.coverageBps) {
+      await controlDb
+        .update(sponsorPots)
+        .set({ pendingCoverageBps: null, pendingCoverageFrom: null, updatedAt: new Date() })
+        .where(eq(sponsorPots.id, row.id));
+    }
+    return { ok: true };
+  }
 
   /*
    * 🔴 THE ASYMMETRY, C344, in four lines and with the reason beside them.
@@ -782,5 +814,10 @@ export async function coverageFor(sponsorId: string): Promise<{
     .where(eq(sponsorPots.sponsorId, sponsorId))
     .limit(1);
 
-  return pot ?? null;
+  if (!pot) return null;
+  /* A change that has fallen due is the figure in force, with nothing pending. */
+  if (pot.pendingCoverageBps !== null && pot.pendingCoverageFrom !== null && pot.pendingCoverageFrom.getTime() <= Date.now()) {
+    return { coverageBps: pot.pendingCoverageBps, pendingCoverageBps: null, pendingCoverageFrom: null };
+  }
+  return pot;
 }

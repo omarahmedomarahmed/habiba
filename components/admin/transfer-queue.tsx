@@ -251,7 +251,7 @@ function TransferRow({
             disabled={pending}
             onClick={() =>
               start(async () => {
-                onDone(await confirm(row.id));
+                onDone(await confirm(row.id, { amountCents: row.amountCents, settlesCents: row.settlesCents }));
               })
             }
             className="h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 active:bg-brand-600 disabled:opacity-40"
@@ -326,7 +326,7 @@ function TransferRow({
           }}
           onConfirm={() =>
             start(async () => {
-              const result = await confirm(row.id);
+              const result = await confirm(row.id, { amountCents: row.amountCents, settlesCents: row.settlesCents });
               /*
                * 🔴 THE MODAL STAYS OPEN ON A FAILURE, and closes on a success.
                *

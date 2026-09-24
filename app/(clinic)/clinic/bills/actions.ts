@@ -59,3 +59,120 @@ export async function payClinicBills(): Promise<PayState> {
 
   redirect(result.url);
 }
+
+/* ======================================================= the Egyptian rail == */
+
+/**
+ * 🔴 0150: AN EGYPTIAN PRACTICE PAYS ITS BILL BY TRANSFER, FROM ITS OWN PORTAL.
+ *
+ * The same sheet and the same four steps as a solo clinician's bill
+ * (`app/(app)/billing/actions.ts`), with the PRACTICE as the payer. Admin
+ * only, like every act that spends the practice's money; the invoices and
+ * the amount are read here, never taken from the form.
+ */
+export type ClinicTransferState = { error?: string; ok?: boolean };
+
+function cleanIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) return [];
+  return ids.filter((id): id is string => typeof id === "string" && id.length <= 64).slice(0, 200);
+}
+
+export async function quoteClinicInvoices(invoiceIds: string[]): Promise<{
+  amountLabel: string;
+  lines: { label: string; amountLabel: string }[];
+  totalCents: number;
+}> {
+  const actor = await requireClinicAdmin();
+  const { billLines } = await import("@/lib/billing/bill-lines");
+  const chosen = await billLines(actor.clinicOrganizationId, cleanIds(invoiceIds));
+  const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
+  const { formatDisplay } = await import("@/lib/money/convert");
+  const { localeTag } = await import("@/lib/i18n/config");
+  const { getI18n } = await import("@/lib/i18n/server");
+  const [rateMicro, { locale }] = await Promise.all([egpRateMicro(), getI18n()]);
+  const egp = (cents: number) => formatDisplay(egpMinorFor(cents, rateMicro), "EGP", localeTag(locale));
+  return {
+    amountLabel: egp(chosen.totalCents),
+    lines: chosen.lines.map((line) => ({ label: line.label, amountLabel: egp(line.cents) })),
+    totalCents: chosen.totalCents,
+  };
+}
+
+export async function openClinicBillPayment(invoiceIds: string[] = []): Promise<void> {
+  const actor = await requireClinicAdmin();
+  const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  if (!(await organizationNeedsTransfer(actor.clinicOrganizationId))) return;
+  const { billLines } = await import("@/lib/billing/bill-lines");
+  const chosen = await billLines(actor.clinicOrganizationId, cleanIds(invoiceIds));
+  if (chosen.totalCents <= 0) return;
+  const { openCart } = await import("@/lib/billing/cart");
+  const { egpMinorFor, egpRateMicro } = await import("@/lib/billing/manual");
+  await openCart({
+    purpose: "subscription",
+    refId: actor.clinicOrganizationId,
+    amountCents: egpMinorFor(chosen.totalCents, await egpRateMicro()),
+    settlesCents: chosen.totalCents,
+    lineItems: chosen.lines,
+    payer: { kind: "organization", organizationId: actor.clinicOrganizationId },
+  });
+}
+
+export async function cancelClinicBillPayment(): Promise<void> {
+  const actor = await requireClinicAdmin();
+  const { cancelCart } = await import("@/lib/billing/cart");
+  await cancelCart({ kind: "organization", organizationId: actor.clinicOrganizationId });
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/clinic/bills");
+}
+
+export async function declareClinicBillTransfer(
+  _prev: ClinicTransferState,
+  formData: FormData,
+): Promise<ClinicTransferState> {
+  const actor = await requireClinicAdmin();
+  const { declarePaid, organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  if (!(await organizationNeedsTransfer(actor.clinicOrganizationId))) {
+    return { error: "Your practice pays by card. Reload the page." };
+  }
+  const { billingSummary } = await import("@/lib/billing/service");
+  const summary = await billingSummary(actor.clinicOrganizationId);
+  if (summary.outstandingCents <= 0) return { error: "Nothing is outstanding." };
+
+  const { livePaymentFor } = await import("@/lib/billing/manual");
+  const open = await livePaymentFor("subscription", actor.clinicOrganizationId);
+  const settlesCents = open?.settlesCents ?? summary.outstandingCents;
+
+  const reference = String(formData.get("reference") ?? "").trim();
+  const proof = formData.get("proof");
+  let proofUrl: string | null = null;
+  if (proof instanceof File && proof.size > 0) {
+    const { uploadDocument } = await import("@/lib/uploads");
+    const stored = await uploadDocument({ kind: "receipt", userId: actor.clinicManagerId, label: "clinic-bill", file: proof });
+    if (stored.error) return { error: stored.error };
+    proofUrl = stored.url ?? null;
+  }
+
+  const result = await declarePaid({
+    purpose: "subscription",
+    refId: actor.clinicOrganizationId,
+    settlesCents,
+    lineItems: open?.lineItems ?? null,
+    payer: { kind: "organization", organizationId: actor.clinicOrganizationId },
+    reference,
+    proofUrl,
+  });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "billing",
+    action: "clinic.bills.transfer_declared",
+    resourceType: "organization",
+    resourceId: actor.clinicOrganizationId,
+    reason: `settles ${settlesCents} cents, reference ${reference || "none"}`,
+  });
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/clinic/bills");
+  return { ok: true };
+}

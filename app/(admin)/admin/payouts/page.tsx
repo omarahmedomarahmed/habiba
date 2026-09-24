@@ -163,6 +163,8 @@ export default async function PayoutsPage() {
             needsTwoPeople: row.needsTwoPeople,
             openedLabel: formatDate(row.createdAt, actor.timezone, "en"),
             proofUrl: row.proofUrl,
+            destination: row.destination,
+            destinationByMe: row.destinationSetBy === actor.userId,
           }))}
         />
       </div>

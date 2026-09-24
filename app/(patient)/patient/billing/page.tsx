@@ -137,7 +137,7 @@ export default async function PatientBillingPage() {
             <Money cents={creditCents} /> {t("pbill.inCredit")}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-brand-800">
-            {credits[0]?.reason} It comes off your next session automatically, and it lasts until{" "}
+            {credits[0]?.reason} Tell us when you book and we take it off, until{" "}
             {formatDate(credits[0]?.expiresAt ?? null, actor.timezone, locale)}.
           </p>
         </Card>

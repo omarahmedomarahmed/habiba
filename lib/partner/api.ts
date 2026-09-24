@@ -87,6 +87,8 @@ export async function whoMayRead(input: {
   key: PartnerKey;
   externalRef: string;
 }): Promise<{ clinicians: { email: string; verified: boolean }[] } | ApiFailure> {
+  /* 🔴 Real records answer live keys only; a sandbox key is self-serve. */
+  if (input.key.environment !== "live") return { error: "Use your live key for records.", status: 403 };
   const subject = await resolveSubject(input.key.partnerId, input.externalRef);
   if (!subject) return { error: "No such subject.", status: 404 };
   if (!subject.personId) return { clinicians: [] };
@@ -185,6 +187,8 @@ export async function writeBackSession(input: {
   /** Their own id for the meeting, which is the idempotency key. Required. */
   externalMeetingId: string;
 }): Promise<{ sessionId: string } | ApiFailure> {
+  /* 🔴 Real records answer live keys only; a sandbox key is self-serve. */
+  if (input.key.environment !== "live") return { error: "Use your live key for records.", status: 403 };
   const subject = await resolveSubject(input.key.partnerId, input.externalRef);
   if (!subject?.personId) return { error: "No such subject.", status: 404 };
 
@@ -349,6 +353,8 @@ export async function deliverableNote(input: {
   key: PartnerKey;
   sessionId: string;
 }): Promise<{ content: unknown; approvedAt: string; language: string } | ApiFailure> {
+  /* 🔴 Real records answer live keys only; a sandbox key is self-serve. */
+  if (input.key.environment !== "live") return { error: "Use your live key for records.", status: 403 };
   const [note] = await controlDb
     .select({
       content: sessionNotes.content,

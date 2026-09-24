@@ -7,6 +7,8 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   earningsTransfers,
   ledgerEntries,
+  organizations,
+  sponsors,
   users,
   type Entity,
   type LedgerAccount,
@@ -61,7 +63,7 @@ export class UnbalancedTransaction extends Error {
 }
 
 /** Anything that can insert: the pool, or a transaction opened on it. */
-export type LedgerExecutor = Pick<typeof db, "insert">;
+export type LedgerExecutor = Pick<typeof db, "insert" | "select">;
 
 /**
  * Post one balanced transaction.
@@ -80,9 +82,39 @@ export async function journal(input: {
   txnId?: string;
   /** A transaction to post inside, so the legs commit with the caller's other writes. */
   executor?: LedgerExecutor;
+  /** Which entity's books, when the caller knows. Otherwise resolved below. */
+  entity?: Entity;
 }): Promise<string> {
   const legs = input.legs.filter((leg) => leg.amountCents !== 0);
   if (legs.length === 0) return "";
+
+  /*
+   * 🔴 ONE ENTITY PER TRANSACTION, AND IT IS THE ONE THE MONEY IS IN.
+   *
+   * Every leg used to default to `us`, so Egyptian money came in on the US
+   * books and went out (manual payouts post `eg`) on the Egyptian ones: the
+   * first payout left Egyptian cash negative and the payouts screen said the
+   * books do not balance, for ever. Now a leg without its own entity takes
+   * the transaction's: the caller's, else the practice's region, else the
+   * company's entity, else `us`. A leg that names its own (an entity
+   * transfer) keeps it.
+   */
+  /*
+   * 🔴 A transaction posted in parts (a pot spend, then its session payment,
+   * under one id) is ONE entity's: the one its first part landed in, which is
+   * where the pot's money sits. Resolving each part on its own split a single
+   * transaction across two books whenever a company and a practice differed.
+   */
+  const reader = input.executor ?? db;
+  const earlier = input.txnId
+    ? await reader
+        .select({ entity: ledgerEntries.entity })
+        .from(ledgerEntries)
+        .where(eq(ledgerEntries.txnId, input.txnId))
+        .limit(1)
+    : [];
+  const txnEntity =
+    input.entity ?? earlier[0]?.entity ?? (await entityFor(legs, input.refType ?? null, input.refId ?? null, reader));
 
   const delta = legs.reduce((total, leg) => total + leg.amountCents, 0);
   if (delta !== 0) throw new UnbalancedTransaction(input.kind, delta);
@@ -97,7 +129,7 @@ export async function journal(input: {
       organizationId: leg.organizationId ?? null,
       userId: leg.userId ?? null,
       amountCents: leg.amountCents,
-      entity: leg.entity ?? "us",
+      entity: leg.entity ?? txnEntity,
       refType: input.refType ?? null,
       refId: input.refId ?? null,
       memo: leg.memo,
@@ -106,6 +138,33 @@ export async function journal(input: {
   );
 
   return txnId;
+}
+
+/*
+ * 🔴 Read through the caller's transaction when there is one. The pool has one
+ * connection and a transaction holds it, so a lookup on the outer handle from
+ * inside one waits for ever.
+ */
+async function entityFor(
+  legs: Leg[],
+  refType: string | null,
+  refId: string | null,
+  reader: Pick<typeof db, "select">,
+): Promise<Entity> {
+  const org = legs.find((leg) => leg.organizationId)?.organizationId;
+  if (org) {
+    const [row] = await reader
+      .select({ region: organizations.region })
+      .from(organizations)
+      .where(eq(organizations.id, org))
+      .limit(1);
+    return row?.region === "eg" ? "eg" : "us";
+  }
+  if (refType === "sponsor" && refId) {
+    const [row] = await reader.select({ entity: sponsors.entity }).from(sponsors).where(eq(sponsors.id, refId)).limit(1);
+    return row?.entity === "eg" ? "eg" : "us";
+  }
+  return "us";
 }
 
 /* ------------------------------------------------------------- balances -- */
@@ -674,8 +733,8 @@ export async function postInvoiceSettledFromHeld(input: {
   });
 }
 
-/** A clinician paid a bill by card. */
-export async function postInvoicePaidByCard(input: {
+/** A clinician or practice paid a bill, by card or by transfer. */
+export async function postInvoicePaid(input: {
   invoiceId: string;
   organizationId: string;
   amountCents: number;

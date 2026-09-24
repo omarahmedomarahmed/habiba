@@ -535,6 +535,15 @@ async function main() {
     const noShow = await refundSessionPayment({ paymentId: eman.id, reason: "no-show", adminUserId: null, why: "no_show" });
     const queued = await one<{ id: string }>(sql`
       SELECT id FROM refund_requests WHERE session_payment_id = ${eman.id} AND status = 'owed'`, "the no-show's queued share");
+    /* 0152: one person records where it goes, a second sends it. */
+    await markRefundSent({
+      requestId: queued.id,
+      senderUserId: operator.id,
+      proofUrl: "https://example.com/proof/eman",
+      method: "instapay",
+      identifier: "eman@instapay",
+      accountName: "Eman Demo",
+    });
     const sent = await markRefundSent({
       requestId: queued.id,
       senderUserId: staff.id,
@@ -551,6 +560,15 @@ async function main() {
     const hebaRefund = await refundSessionPayment({ paymentId: heba.id, reason: "admin", adminUserId: operator.id, why: "admin" });
     const hebaQueued = await one<{ id: string }>(sql`
       SELECT id FROM refund_requests WHERE session_payment_id = ${heba.id} AND status = 'owed'`, "the transfer refund's queue row");
+    /* 0152: one person records where it goes, a second sends it. */
+    await markRefundSent({
+      requestId: hebaQueued.id,
+      senderUserId: operator.id,
+      proofUrl: "https://example.com/proof/heba",
+      method: "instapay",
+      identifier: "heba@instapay",
+      accountName: "Heba Demo",
+    });
     const hebaSent = await markRefundSent({
       requestId: hebaQueued.id,
       senderUserId: staff.id,

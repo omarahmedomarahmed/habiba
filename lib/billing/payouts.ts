@@ -16,7 +16,7 @@ import {
   type PayoutStatus,
 } from "@/lib/db/schema";
 import type { MessageKey } from "@/lib/i18n/messages";
-import { log, ref } from "@/lib/logger";
+import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 
@@ -265,6 +265,8 @@ async function move(input: {
   set?: Record<string, unknown>;
   /** Runs in the same transaction, and only for the call that won the move. */
   alsoPost?: (tx: LedgerExecutor) => Promise<unknown>;
+  /** Only when the provider is not mid-send: money in flight is not rejected. */
+  notWhileSending?: boolean;
 }): Promise<{ ok?: boolean; error?: string }> {
   /*
    * The status is part of the WHERE, so two people pressing the same button
@@ -280,6 +282,9 @@ async function move(input: {
         and(
           eq(payoutRequests.id, input.requestId),
           inArray(payoutRequests.status, input.from),
+          input.notWhileSending
+            ? sql`(${payoutRequests.providerState} IS NULL OR ${payoutRequests.providerState} NOT IN ('sending', 'sent'))`
+            : undefined,
         ),
       )
       .returning({ id: payoutRequests.id });
@@ -413,6 +418,14 @@ export async function markPayoutSent(input: {
   if (row.providerState === "sending") return { error: "A payouts provider is sending this one." };
   const refused = await fourEyes(row, input.senderUserId, false);
   if (refused) return refused;
+  /*
+   * 🔴 FOUR EYES ON EVERY PAYOUT, the founders' rule: whoever approved it does
+   * not also send it. Below the threshold one person approved, sent and
+   * confirmed alone, and most Egyptian payouts are below it.
+   */
+  if (row.approvedByUserId && row.approvedByUserId === input.senderUserId) {
+    return { error: "You approved this one. A second person sends it." };
+  }
 
   return recordSent(row, input.senderUserId, proof, "Transfer made");
 }
@@ -514,6 +527,10 @@ export async function sendViaProvider(input: {
   }
   const refused = await fourEyes(row, input.senderUserId, false);
   if (refused) return refused;
+  /* 🔴 Four eyes on every payout: the approver does not also send it. */
+  if (row.approvedByUserId && row.approvedByUserId === input.senderUserId) {
+    return { error: "You approved this one. A second person sends it." };
+  }
 
   const placeholder = `claim:${row.id}:${crypto.randomUUID()}`;
   const [claimed] = await db
@@ -537,15 +554,27 @@ export async function sendViaProvider(input: {
   if (!claimed) return { error: "That request has already moved on. Reload the queue." };
 
   const { env } = await import("@/lib/env");
-  const sent = await provider.send({
-    reference: row.id,
-    amountMinor: row.payoutAmountMinor,
-    currency: "egp",
-    method: row.method as (typeof PROVIDER_METHODS)[number],
-    identifier: row.identifier,
-    accountName: row.accountName,
-    callbackUrl: `${env.appUrl}/api/payouts/callback`,
-  });
+  /*
+   * 🔴 A THROW IS NOT A SILENCE. It used to leave the row `sending` for ever,
+   * with neither Send nor Mark sent on screen. It is recorded as failed with
+   * a sentence saying to check with the provider first: the request id is the
+   * provider's idempotency key, so a second send of the same one is refused
+   * there if the first did land.
+   */
+  const sent = await provider
+    .send({
+      reference: row.id,
+      amountMinor: row.payoutAmountMinor,
+      currency: "egp",
+      method: row.method as (typeof PROVIDER_METHODS)[number],
+      identifier: row.identifier,
+      accountName: row.accountName,
+      callbackUrl: `${env.appUrl}/api/payouts/callback`,
+    })
+    .catch((error: unknown) => ({
+      ok: false as const,
+      reason: `no answer from the provider (${safeErrorMessage(error)}); check with them before sending again`,
+    }));
   if (!sent.ok) {
     await db
       .update(payoutRequests)
@@ -576,13 +605,22 @@ export async function sendViaProvider(input: {
 export async function applyPayoutEvent(
   providerName: string,
   event: { providerRef: string; reference: string; outcome: "sent" | "failed" | "pending"; failure: string | null },
-): Promise<{ applied: "sent" | "failed" | "ignored" }> {
+): Promise<{ applied: "sent" | "failed" | "ignored" | "unapplied" }> {
+  /*
+   * 🔴 By OUR reference, which the provider was given before it answered.
+   * Matching on its own ref missed a callback that beat the save of that ref;
+   * a ref that is already saved must still agree.
+   */
+  if (!/^[0-9a-f-]{36}$/i.test(event.reference)) return { applied: "ignored" };
   const [row] = await db
     .select()
     .from(payoutRequests)
-    .where(and(eq(payoutRequests.provider, providerName), eq(payoutRequests.providerRef, event.providerRef)))
+    .where(and(eq(payoutRequests.provider, providerName), eq(payoutRequests.id, event.reference)))
     .limit(1);
-  if (!row || row.id !== event.reference) return { applied: "ignored" };
+  if (!row) return { applied: "ignored" };
+  if (row.providerRef && !row.providerRef.startsWith("claim:") && row.providerRef !== event.providerRef) {
+    return { applied: "ignored" };
+  }
 
   if (event.outcome === "failed") {
     const [failed] = await db
@@ -592,7 +630,19 @@ export async function applyPayoutEvent(
       .returning({ id: payoutRequests.id });
     return { applied: failed ? "failed" : "ignored" };
   }
-  if (event.outcome !== "sent" || row.providerState !== "sending") return { applied: "ignored" };
+  if (event.outcome !== "sent") return { applied: "ignored" };
+  if (row.providerState !== "sending") {
+    /*
+     * 🔴 A "sent" we cannot apply is money that left with nothing booked. It
+     * is raised loudly, and the caller answers an error so the provider
+     * retries rather than dropping it.
+     */
+    if (row.providerState !== "sent") {
+      log.error("provider says a payout was sent that is not being sent", { request: ref(row.id), state: row.providerState ?? "none", status: row.status });
+      return { applied: "unapplied" };
+    }
+    return { applied: "ignored" };
+  }
 
   const sender = row.providerSenderUserId ?? row.approvedByUserId;
   if (!sender) {
@@ -715,11 +765,20 @@ export async function rejectPayout(input: {
   if (!current) return { error: "That request no longer exists." };
   const refused = await fourEyes(current, input.actorUserId, false);
   if (refused) return refused;
+  /*
+   * 🔴 NOT WHILE THE PROVIDER IS SENDING IT. A reject here used to win, the
+   * provider's "sent" was then ignored with a 200, the money had left, the
+   * ledger never posted and the balance was there to withdraw twice.
+   */
+  if (current.providerState === "sending" || current.providerState === "sent") {
+    return { error: "The payouts provider is sending this. Wait for its answer." };
+  }
 
   const result = await move({
     requestId: input.requestId,
     from: ["requested", "approved"],
     to: "rejected",
+    notWhileSending: true,
     actorUserId: input.actorUserId,
     note: reason,
     set: { rejectedReason: reason },
@@ -768,6 +827,8 @@ export async function claimPayout(input: {
       and(
         eq(payoutRequests.id, input.requestId),
         inArray(payoutRequests.status, ["requested", "approved"]),
+        /* Taking it on does not take it from somebody who already has. */
+        sql`(${payoutRequests.ownerUserId} IS NULL OR ${payoutRequests.ownerUserId} = ${input.ownerUserId})`,
       ),
     )
     .returning({ id: payoutRequests.id });

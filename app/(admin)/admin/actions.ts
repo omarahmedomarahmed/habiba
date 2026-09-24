@@ -42,7 +42,7 @@ import { sendTherapistMessage } from "@/lib/mail";
 const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export type AdminActionState = { error?: string; ok?: boolean };
+export type AdminActionState = { error?: string; ok?: boolean; proposed?: boolean };
 
 /**
  * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
@@ -357,6 +357,19 @@ export async function decideTherapistVerification(
 
   if (!decided) {
     return { error: "Somebody already reviewed this one." };
+  }
+  /* 🔴 0154 — recorded, not decided: a second reviewer confirms it. */
+  if (decided.proposed) {
+    await audit({
+      actor,
+      category: "admin",
+      action: approve ? "verification.propose_approve" : "verification.propose_reject",
+      resourceType: "verification",
+      resourceId: verificationId,
+      reason: trimmed || (approve ? "approve" : "reject"),
+    });
+    revalidatePath("/admin/verifications");
+    return { ok: true, proposed: true };
   }
 
   await audit({

@@ -56,14 +56,14 @@ export function VerificationReview(props: {
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<"approved" | "rejected" | null>(null);
+  const [done, setDone] = useState<"approved" | "rejected" | "proposed" | null>(null);
 
   const decide = (approve: boolean) =>
     startTransition(async () => {
       setError(null);
       const result = await decideTherapistVerification(props.id, approve, note);
       if (result.error) setError(result.error);
-      else setDone(approve ? "approved" : "rejected");
+      else setDone(result.proposed ? "proposed" : approve ? "approved" : "rejected");
     });
 
   return (
@@ -81,7 +81,9 @@ export function VerificationReview(props: {
           </p>
         </div>
         {done ? (
-          <Badge tone={done === "approved" ? "green" : "red"}>{done}</Badge>
+          <Badge tone={done === "approved" ? "green" : done === "proposed" ? "amber" : "red"}>
+            {done === "proposed" ? "recorded: a second reviewer confirms" : done}
+          </Badge>
         ) : (
           <Badge tone="slate">{props.countryLabel}</Badge>
         )}

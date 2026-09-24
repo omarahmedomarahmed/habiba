@@ -261,8 +261,48 @@ export async function decideVerification(opts: {
   documentsCleared: boolean;
   /** W1-23: this decided a licence change on an approved clinician. */
   recheck?: boolean;
+  /** 🔴 0154: recorded as a proposal; a different reviewer confirms it. */
+  proposed?: boolean;
 } | null> {
   const now = new Date();
+
+  /*
+   * 🔴 0154 — FOUR EYES. With no proposal, one by this same reviewer, or one
+   * that says the opposite, this reviewer's word is recorded as the proposal
+   * and nothing is decided. A different reviewer saying the same applies it.
+   */
+  const [current] = await db
+    .select({
+      userId: therapistVerifications.userId,
+      rejectionCount: therapistVerifications.rejectionCount,
+      proposedApprove: therapistVerifications.proposedApprove,
+      proposedBy: therapistVerifications.proposedBy,
+    })
+    .from(therapistVerifications)
+    .where(
+      and(
+        eq(therapistVerifications.id, opts.verificationId),
+        ne(therapistVerifications.userId, opts.adminUserId),
+        sql`(${therapistVerifications.state} = 'submitted' OR ${therapistVerifications.recheckSubmittedAt} IS NOT NULL)`,
+      ),
+    )
+    .limit(1);
+  if (!current) return null;
+  const confirms =
+    current.proposedBy !== null && current.proposedBy !== opts.adminUserId && current.proposedApprove === opts.approve;
+  if (!confirms) {
+    await db
+      .update(therapistVerifications)
+      .set({
+        proposedApprove: opts.approve,
+        proposedBy: opts.adminUserId,
+        proposedNote: opts.note.trim() || null,
+        proposedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(therapistVerifications.id, opts.verificationId));
+    return { userId: current.userId, rejectionCount: current.rejectionCount, documentsCleared: false, proposed: true };
+  }
 
   const [row] = await db
     .update(therapistVerifications)
@@ -289,6 +329,10 @@ export async function decideVerification(opts: {
       // W1-23: a change asked for before the licence lapsed is decided with it.
       pendingLicence: null,
       recheckSubmittedAt: null,
+      proposedApprove: null,
+      proposedBy: null,
+      proposedNote: null,
+      proposedAt: null,
       updatedAt: now,
     })
     .where(
@@ -415,6 +459,10 @@ async function decideRecheck(
       ...checked,
       pendingLicence: null,
       recheckSubmittedAt: null,
+      proposedApprove: null,
+      proposedBy: null,
+      proposedNote: null,
+      proposedAt: null,
       reviewedAt: now,
       reviewedBy: opts.adminUserId,
       reviewNote: opts.note.trim() || null,

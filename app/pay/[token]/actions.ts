@@ -365,6 +365,14 @@ export async function payByCard(token: string): Promise<void> {
     return;
   }
 
+  /* 🔴 Asked here as well as on the screen: a declared transfer means no card as well. */
+  const { livePaymentFor } = await import("@/lib/billing/manual");
+  const declared = await livePaymentFor("session", session.id);
+  if (declared && declared.state !== "awaiting_proof") {
+    redirect(`/pay/${token}`);
+    return;
+  }
+
   const { createGatewaySessionCheckout } = await import("@/lib/billing/gateway/session");
   const result = await createGatewaySessionCheckout({
     sessionId: session.id,

@@ -11,7 +11,7 @@ import {
 import {
   heldForTherapist,
   journal,
-  postInvoicePaidByCard,
+  postInvoicePaid,
   postInvoiceRaised,
   postInvoiceSettledFromHeld,
   postInvoiceWrittenOff,
@@ -331,7 +331,7 @@ test("a bill paid by card is cash in, not revenue twice", async () => {
     amountCents: 600,
     description: "Third session",
   });
-  await postInvoicePaidByCard({
+  await postInvoicePaid({
     invoiceId: third!.id,
     organizationId,
     amountCents: 600,

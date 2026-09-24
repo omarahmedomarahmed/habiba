@@ -918,6 +918,12 @@ async function splitRefunds(db: Db) {
     );
 
     const { markRefundSent } = await import("../lib/billing/refunds");
+    /* 0152: somebody other than the sender recorded where it goes. */
+    await db.execute(sql`
+      UPDATE refund_requests
+         SET payee_method = 'bank', payee_identifier = 'EG00 0000', payee_account_name = 'Omar Demo',
+             payee_set_by_user_id = (SELECT id FROM users WHERE id <> ${world.therapistId} ORDER BY created_at LIMIT 1)
+       WHERE id = ${queued[0]?.id ?? "00000000-0000-0000-0000-000000000000"}`);
     const sent = await markRefundSent({
       requestId: queued[0]?.id ?? "00000000-0000-0000-0000-000000000000",
       senderUserId: world.therapistId,

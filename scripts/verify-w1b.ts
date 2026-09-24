@@ -430,8 +430,17 @@ async function main() {
     const { requestLicenceChange } = await import("../lib/data/licence-change");
     await requestLicenceChange(changerActor as never, { credentials: "MSc, checked" });
     const { decideVerification } = await import("../lib/data/verification");
+    const reviewer = await one<{ id: string }>(sql`
+      INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash)
+      VALUES (${org.id}, ${`reviewer.${fixture}@example.com`}, 'Second', 'Reviewer', 'staff', 'x')
+      RETURNING id`);
+    /* 🔴 0154: one reviewer proposes, a second one who agrees decides. */
+    const decideTwice = async (o: Parameters<typeof decideVerification>[0]) => {
+      await decideVerification(o);
+      return decideVerification({ ...o, adminUserId: reviewer.id });
+    };
     const vid = recheckQueue.find((row) => row.userId === changer.id)?.id ?? "";
-    const decided = await decideVerification({
+    const decided = await decideTwice({
       verificationId: vid,
       approve: true,
       note: "",
@@ -456,7 +465,7 @@ async function main() {
     );
 
     await requestLicenceChange(changerActor as never, { licenseNumber: "Z-3" });
-    await decideVerification({ verificationId: vid, approve: false, note: "Unreadable", adminUserId: therapist.id });
+    await decideTwice({ verificationId: vid, approve: false, note: "Unreadable", adminUserId: therapist.id });
     const afterRejection = await one<{ state: string; number: string; pending: string | null }>(sql`
       SELECT v.state, v.license_number AS number, to_jsonb(v)->>'pending_licence' AS pending
         FROM therapist_verifications v WHERE v.user_id = ${changer.id}`);

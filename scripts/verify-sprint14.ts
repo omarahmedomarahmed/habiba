@@ -215,23 +215,21 @@ async function main() {
       `now ${after?.therapistId?.slice(0, 8)}, from ${after?.from?.slice(0, 8)}`,
     );
 
+    /*
+     * 🔴 The credit this promised ("off your next session automatically") was
+     * never spent by anything, so none is issued now: the patient pays what
+     * they agreed and the clinician who held the session earns it.
+     */
     const [credit] = await db
-      .select({ amount: patientCredits.amountCents, expires: patientCredits.expiresAt })
+      .select({ amount: patientCredits.amountCents })
       .from(patientCredits)
       .where(eq(patientCredits.personId, person!.id))
       .limit(1);
     check(
-      "🔴 14.6 the difference becomes patient credit, $30 paid, $20 charged, $10 back",
-      credit?.amount === 1000,
-      `${credit?.amount ?? 0} cents`,
+      "🔴 14.6 no credit is promised that nothing would ever spend",
+      credit === undefined && moved.ok && moved.outcome === "reassigned" && moved.creditCents === 0,
+      `${credit?.amount ?? 0} cents of credit`,
     );
-
-    const months =
-      credit?.expires
-        ? (credit.expires.getFullYear() - new Date().getFullYear()) * 12 +
-          (credit.expires.getMonth() - new Date().getMonth())
-        : 0;
-    check("14.6 …and it expires in twelve months", months === 12, `${months} months`);
 
     // Money owed is never negative and never over-spent — the database says so.
     check(

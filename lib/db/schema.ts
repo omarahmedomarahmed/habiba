@@ -543,6 +543,11 @@ export const therapistVerifications = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
 
+    /** 🔴 0154 — the first reviewer's word, applied only by a second reviewer who agrees. */
+    proposedApprove: boolean("proposed_approve"),
+    proposedBy: uuid("proposed_by").references(() => users.id, { onDelete: "set null" }),
+    proposedNote: text("proposed_note"),
+    proposedAt: timestamp("proposed_at", { withTimezone: true }),
     state: text("state").$type<VerificationState>().notNull().default("draft"),
 
     /** ISO-3166 alpha-2. Drives which documents we ask for. */
@@ -5448,6 +5453,8 @@ export const refundRequests = pgTable(
     payeeMethod: text("payee_method"),
     payeeIdentifier: text("payee_identifier"),
     payeeAccountName: text("payee_account_name"),
+    /** 🔴 0152 — who recorded where it goes; never the one who sends it. */
+    payeeSetByUserId: uuid("payee_set_by_user_id").references(() => users.id, { onDelete: "set null" }),
 
     status: text("status").$type<RefundRequestStatus>().notNull().default("owed"),
     /** Why it is owed. Money facts only, never clinical. */
@@ -9443,6 +9450,8 @@ export const manualPayments = pgTable(
     }),
     sponsorId: uuid("sponsor_id").references(() => sponsors.id, { onDelete: "set null" }),
 
+    /** 🔴 0153 — when the grant claimed this payment. Set once, in the grant's transaction. */
+    grantedAt: timestamp("granted_at", { withTimezone: true }),
     organizationId: uuid("organization_id").references(() => organizations.id, {
       onDelete: "set null",
     }),

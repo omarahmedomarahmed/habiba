@@ -46,11 +46,9 @@
  * Everything it makes is deleted in a `finally`, and `writesTo()` refuses
  * production by name.
  */
-import { readFileSync } from "node:fs";
-
 import { sql } from "drizzle-orm";
 
-import { reporter, writesTo } from "./_verify";
+import { readSource, reporter, writesTo } from "./_verify";
 import { connect } from "./db";
 
 const { check, finish } = reporter();
@@ -740,7 +738,7 @@ async function main() {
     const moved = await one<{ usd: number; egp: number }>(sql`
       SELECT session_rate_cents AS usd, rate_egp_minor AS egp FROM users WHERE id = ${therapist.id}`);
     await rederiveEgpRates(await (await import("../lib/billing/manual")).egpRateMicro());
-    const sessionsSource = readFileSync("lib/data/sessions.ts", "utf8");
+    const sessionsSource = readSource("lib/data/sessions.ts");
     check(
       "🔴 0149 when the pound moves, a therapist's 1,000 EGP stays 1,000 EGP and the dollars every payment reads follow it",
       Number(moved.usd) === 2_500 && Number(moved.egp) === 100_000,

@@ -42,6 +42,7 @@ export async function POST(
   const allowed = await mayAnswer({
     partnerId: guard.key.partnerId,
     externalSessionRef: ref,
+    environment: guard.key.environment,
   });
   if (!allowed.ok) return fail(allowed.error, allowed.status);
 

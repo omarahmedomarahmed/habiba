@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { consentHistory, recordConsent } from "@/lib/partner/consent";
-import { openSession } from "@/lib/partner/platform";
+import { openSession, otherEnvironment } from "@/lib/partner/platform";
 import { fail, withKey } from "@/lib/partner/route";
 
 export const runtime = "nodejs";
@@ -101,6 +101,11 @@ export async function POST(request: Request) {
   const answered = new Date(answeredAt);
   if (Number.isNaN(answered.getTime())) return fail("answered_at is not a time.", 400);
 
+  /* 🔴 A sandbox key never writes to a live session's consent, or the reverse. */
+  if (await otherEnvironment({ partnerId: guard.key.partnerId, externalSessionRef: session, environment: guard.key.environment })) {
+    return fail("That session reference belongs to the other environment. Use its key.", 409);
+  }
+
   const recorded = await recordConsent({
     partnerId: guard.key.partnerId,
     externalSessionRef: session,
@@ -159,6 +164,9 @@ export async function GET(request: Request) {
   const session = new URL(request.url).searchParams.get("session");
   if (!session) return fail("Send ?session=", 400);
 
+  if (await otherEnvironment({ partnerId: guard.key.partnerId, externalSessionRef: session, environment: guard.key.environment })) {
+    return fail("We have no session with that reference.", 404);
+  }
   const history = await consentHistory({
     partnerId: guard.key.partnerId,
     externalSessionRef: session,

@@ -107,7 +107,7 @@ async function main() {
     const planted = await db
       .insert(users)
       .values(
-        Array.from({ length: 3 }, (_, index) => ({
+        Array.from({ length: 4 }, (_, index) => ({
           organizationId: org!.id,
           email: `${TAG}-${index}-${Date.now()}@example.test`,
           passwordHash: "x".repeat(60),
@@ -118,7 +118,8 @@ async function main() {
       )
       .returning({ id: users.id });
 
-    const [payee, alice, bob] = planted as [{ id: string }, { id: string }, { id: string }];
+    /* 🔴 Carol sends: four eyes on every payout means the approver (Bob) does not. */
+    const [payee, alice, bob, carol] = planted as [{ id: string }, { id: string }, { id: string }, { id: string }];
 
     /* ------------------------------------------------ 16.9 · the entity */
 
@@ -352,7 +353,7 @@ async function main() {
 
     const noProof = await markPayoutSent({
       requestId: request!.id,
-      senderUserId: bob.id,
+      senderUserId: carol.id,
       proofUrl: "",
     });
     check(
@@ -363,7 +364,7 @@ async function main() {
 
     const sent = await markPayoutSent({
       requestId: request!.id,
-      senderUserId: bob.id,
+      senderUserId: carol.id,
       proofUrl: `https://example.test/${TAG}.png`,
     });
     check("16.2 the transfer is recorded as sent", sent.ok === true, sent.error ?? "");

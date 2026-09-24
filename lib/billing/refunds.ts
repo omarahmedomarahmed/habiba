@@ -262,9 +262,7 @@ export async function markRefundSent(input: {
   const identifier = input.identifier.trim();
   const accountName = input.accountName.trim();
   const method = input.method.trim();
-  if (proof.length < 5 || identifier.length < 3 || accountName.length < 3 || !method) {
-    return { error: "arefund.errProof" };
-  }
+  const destinationTyped = identifier.length >= 3 && accountName.length >= 3 && Boolean(method);
 
   const [row] = await db
     .select()
@@ -275,31 +273,6 @@ export async function markRefundSent(input: {
   /* W2-M05: the company's share goes back to its pot (`returnPotShare`), never by transfer. */
   if (row.reason === POT_SHARE_REFUND) return { error: "arefund.errMoved" };
 
-  /*
-   * W2-A01 / D9: the payout queue's rule, asked of the same function. The
-   * person who opened the refund is its "editor": they named what is owed and
-   * may not also be the one who sends it.
-   */
-  const settings = await getSettings();
-  const problem = fourEyesProblem({
-    actorUserId: input.senderUserId,
-    payeeUserId: null,
-    editorUserId: row.requestedByUserId,
-    amountCents: row.amountCents,
-    thresholdCents: settings.payouts.twoPersonThresholdCents,
-    ownerUserId: row.ownerUserId,
-    movesMoney: true,
-  });
-  if (problem) return { error: "arefund.errTwo" };
-
-  /*
-   * 🔴 W2-S12: a pot-funded payment is called refunded only once the company
-   * has its share back too. `refundSplit` returned it before it queued the
-   * employee's half, so this is normally nothing; a row queued before W2-S12,
-   * or one whose pot return failed, gets it here or is refused. Before the
-   * transaction, because the pool has one connection and the transaction holds
-   * it; `refundToPot` returns a share at most once.
-   */
   const [held] = await db
     .select()
     .from(sessionPayments)
@@ -330,6 +303,61 @@ export async function markRefundSent(input: {
     }
   }
 
+  /*
+   * 🔴 0152 — WHERE THE MONEY GOES IS ONE PERSON'S WORD, SENDING IT ANOTHER'S.
+   *
+   * With no destination on record yet, this records the one typed and sends
+   * nothing. With one on record, only a different person sends, and to the
+   * recorded destination, whatever was typed this time. At any amount: the
+   * threshold below is about how much, this is about where.
+   */
+  if (!row.payeeIdentifier || !row.payeeSetByUserId) {
+    if (!destinationTyped) return { error: "arefund.errProof" };
+    await db
+      .update(refundRequests)
+      .set({
+        payeeMethod: method,
+        payeeIdentifier: identifier,
+        payeeAccountName: accountName,
+        payeeSetByUserId: input.senderUserId,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(refundRequests.id, input.requestId), eq(refundRequests.status, "owed")));
+    return { error: "arefund.destinationSaved" };
+  }
+  if (row.payeeSetByUserId === input.senderUserId) return { error: "arefund.errTwo" };
+  if (proof.length < 5) return { error: "arefund.errProof" };
+  const destination = {
+    method: row.payeeMethod ?? method,
+    identifier: row.payeeIdentifier,
+    accountName: row.payeeAccountName ?? accountName,
+  };
+
+  /*
+   * W2-A01 / D9: the payout queue's rule, asked of the same function. The
+   * person who opened the refund is its "editor": they named what is owed and
+   * may not also be the one who sends it.
+   */
+  const settings = await getSettings();
+  const problem = fourEyesProblem({
+    actorUserId: input.senderUserId,
+    payeeUserId: null,
+    editorUserId: row.requestedByUserId,
+    amountCents: row.amountCents,
+    thresholdCents: settings.payouts.twoPersonThresholdCents,
+    ownerUserId: row.ownerUserId,
+    movesMoney: true,
+  });
+  if (problem) return { error: "arefund.errTwo" };
+
+  /*
+   * 🔴 W2-S12: a pot-funded payment is called refunded only once the company
+   * has its share back too. `refundSplit` returned it before it queued the
+   * employee's half, so this is normally nothing; a row queued before W2-S12,
+   * or one whose pot return failed, gets it here or is refused. Before the
+   * transaction, because the pool has one connection and the transaction holds
+   * it; `refundToPot` returns a share at most once.
+   */
   if (held?.fundingSource === "pot" && held.status === "paid") {
     const { refundToPot } = await import("./pot");
     const pot = await refundToPot({ paymentId: row.sessionPaymentId, reason: row.reason });
@@ -359,9 +387,9 @@ export async function markRefundSent(input: {
           sentAt: now,
           proofUrl: proof,
           ledgerTxnId: txnId,
-          payeeMethod: method,
-          payeeIdentifier: identifier,
-          payeeAccountName: accountName,
+          payeeMethod: destination.method,
+          payeeIdentifier: destination.identifier,
+          payeeAccountName: destination.accountName,
           updatedAt: now,
         })
         .where(and(eq(refundRequests.id, input.requestId), eq(refundRequests.status, "owed")))
@@ -457,6 +485,9 @@ export type RefundQueueRow = {
   needsTwoPeople: boolean;
   createdAt: Date;
   proofUrl: string | null;
+  /** 0152 — where it goes, once somebody has said, and who said it. */
+  destination: string | null;
+  destinationSetBy: string | null;
 };
 
 /** Open work, oldest first. Money facts only: no session content, no clinician notes. */
@@ -479,5 +510,9 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
     needsTwoPeople: row.amountCents > settings.payouts.twoPersonThresholdCents,
     createdAt: row.createdAt,
     proofUrl: row.proofUrl,
+    destination: row.payeeIdentifier
+      ? [row.payeeMethod, row.payeeIdentifier, row.payeeAccountName].filter(Boolean).join(" · ")
+      : null,
+    destinationSetBy: row.payeeSetByUserId,
   }));
 }

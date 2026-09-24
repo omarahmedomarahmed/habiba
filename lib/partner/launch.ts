@@ -122,6 +122,15 @@ export async function launchClinician(input: {
    * partner which therapists are in the product, which is a directory answered one email at a
    * time, and refusing to build a directory is most of this sprint.
    */
+  /*
+   * 🔴 A SANDBOX KEY SIGNS NOBODY IN. It is self-serve and needs no approval,
+   * and a launch is a working session as a real clinician on their real
+   * caseload. Only a live key, which an operator approved, may do that.
+   */
+  if (input.key.environment !== "live") {
+    return { error: "A sandbox key cannot sign a clinician in. Use your live key.", status: 403 };
+  }
+
   const [clinician] = await controlDb
     .select({ id: users.id, verified: verifiedFlag() })
     .from(users)

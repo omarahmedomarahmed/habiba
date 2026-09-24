@@ -340,7 +340,7 @@ async function raiseInvoice(input: {
    * chase.
    */
   if (created && input.amountCents > 0 && input.postToLedger !== false) {
-    const { postInvoiceRaised, postInvoicePaidByCard } = await import("./ledger");
+    const { postInvoiceRaised, postInvoicePaid } = await import("./ledger");
     await postInvoiceRaised({
       id: created.id,
       organizationId: input.organizationId,
@@ -350,7 +350,7 @@ async function raiseInvoice(input: {
     // A subscription invoice is written already paid, so the receivable it just
     // created is cleared in the same breath.
     if (input.status === "paid") {
-      await postInvoicePaidByCard({
+      await postInvoicePaid({
         invoiceId: created.id,
         organizationId: input.organizationId,
         amountCents: input.amountCents,
@@ -411,7 +411,7 @@ export async function recordCreditPurchaseInvoice(opts: {
   }
 
   if (created) {
-    const { postInvoiceRaised, postInvoicePaidByCard, postInvoiceWrittenOff } = await import(
+    const { postInvoiceRaised, postInvoicePaid, postInvoiceWrittenOff } = await import(
       "./ledger"
     );
     const description = opts.description ?? "Unlimited, monthly subscription";
@@ -433,7 +433,7 @@ export async function recordCreditPurchaseInvoice(opts: {
         adminUserId: null,
       });
     }
-    await postInvoicePaidByCard({
+    await postInvoicePaid({
       invoiceId: created.id,
       organizationId: opts.organizationId,
       amountCents: opts.amountCents - discount,

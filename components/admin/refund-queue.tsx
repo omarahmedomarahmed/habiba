@@ -35,6 +35,9 @@ export type RefundQueueItem = {
   needsTwoPeople: boolean;
   openedLabel: string;
   proofUrl: string | null;
+  /** 0152 — recorded by one person, sent by another. */
+  destination: string | null;
+  destinationByMe: boolean;
 };
 
 function Go({ label, quiet }: { label: string; quiet?: boolean }) {
@@ -128,14 +131,28 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
         ) : null}
 
         {row.status === "owed" && row.why !== "pot_share" ? (
-          <form action={sentAction} className="flex flex-wrap items-end gap-2">
-            <input type="hidden" name="requestId" value={row.id} />
-            <Input name="method" placeholder={t("arefund.method")} required className="h-8 w-28 text-xs" />
-            <Input name="identifier" placeholder={t("arefund.identifier")} required className="h-8 w-40 text-xs" />
-            <Input name="accountName" placeholder={t("arefund.accountName")} required className="h-8 w-40 text-xs" />
-            <Input name="proofUrl" placeholder={t("arefund.proof")} required className="h-8 w-48 text-xs" />
-            <Go label={t("arefund.markSent")} />
-          </form>
+          row.destination ? (
+            <form action={sentAction} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="requestId" value={row.id} />
+              <span className="text-xs text-slate-600">{row.destination}</span>
+              {row.destinationByMe ? (
+                <span className="text-xs text-amber-700">{t("arefund.errTwo")}</span>
+              ) : (
+                <>
+                  <Input name="proofUrl" placeholder={t("arefund.proof")} required className="h-8 w-48 text-xs" />
+                  <Go label={t("arefund.markSent")} />
+                </>
+              )}
+            </form>
+          ) : (
+            <form action={sentAction} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="requestId" value={row.id} />
+              <Input name="method" placeholder={t("arefund.method")} required className="h-8 w-28 text-xs" />
+              <Input name="identifier" placeholder={t("arefund.identifier")} required className="h-8 w-40 text-xs" />
+              <Input name="accountName" placeholder={t("arefund.accountName")} required className="h-8 w-40 text-xs" />
+              <Go label={t("arefund.saveDestination")} />
+            </form>
+          )
         ) : null}
 
         {row.status === "sent" ? (

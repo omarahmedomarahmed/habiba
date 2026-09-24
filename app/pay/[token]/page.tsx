@@ -201,7 +201,11 @@ export default async function PayPage({
   });
 
   const { railIsReady } = await import("@/lib/billing/egypt");
-  const cardReady = railIsReady();
+  /*
+   * 🔴 NOT BOTH. Once a transfer is declared the card button goes: a patient
+   * who paid by card as well would have paid twice.
+   */
+  const cardReady = railIsReady() && rail.live.state !== "submitted";
 
   if (rail.needed) {
     return (

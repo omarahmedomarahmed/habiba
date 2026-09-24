@@ -461,7 +461,7 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
       )
       .returning();
 
-    const { postInvoicePaidByCard } = await import("./ledger");
+    const { postInvoicePaid } = await import("./ledger");
     for (const invoice of settled) {
       /*
        * A session payment's settlement is already on the books.
@@ -472,7 +472,7 @@ async function applyCheckoutOutcome(session: Stripe.Checkout.Session): Promise<v
        * twice and quietly manufacture cash.
        */
       if (session.metadata?.kind === "session_payment") continue;
-      await postInvoicePaidByCard({
+      await postInvoicePaid({
         invoiceId: invoice.id,
         organizationId: invoice.organizationId,
         amountCents: payableCents(invoice),

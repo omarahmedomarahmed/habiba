@@ -36,7 +36,11 @@ export async function POST(
 
   const { ref } = await params;
 
-  const ended = await endSession({ partnerId: guard.key.partnerId, externalSessionRef: ref });
+  const ended = await endSession({
+    partnerId: guard.key.partnerId,
+    externalSessionRef: ref,
+    environment: guard.key.environment,
+  });
   if (!ended) return fail("We have no session with that reference.", 404);
 
   return NextResponse.json({ session: ref, ended_at: ended.endedAt.toISOString() });

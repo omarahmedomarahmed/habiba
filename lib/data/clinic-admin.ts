@@ -417,6 +417,16 @@ export async function acceptInvitation(input: {
     return { error: "Open the invitation link again before accepting." };
   }
 
+  /*
+   * 🔴 A SEAT FIRST. The clinic buys one when it invites somebody with none
+   * free; an invitation opened after the seats were reduced finds none, and
+   * is told so rather than seated for free.
+   */
+  const { hasFreeSeat } = await import("@/lib/billing/seats");
+  if (!(await hasFreeSeat(invitation.organizationId))) {
+    return { error: "This practice has no free seat for you yet. Ask them to add one, then open the invitation again." };
+  }
+
   let createdUserId: string | null = null;
 
   try {
@@ -582,6 +592,16 @@ export async function joinWithExistingAccount(input: {
   }
 
   /* Claimed first, so two taps cannot move one person twice. */
+  /*
+   * 🔴 A SEAT FIRST. The clinic buys one when it invites somebody with none
+   * free; an invitation opened after the seats were reduced finds none, and
+   * is told so rather than seated for free.
+   */
+  const { hasFreeSeat } = await import("@/lib/billing/seats");
+  if (!(await hasFreeSeat(invitation.organizationId))) {
+    return { error: "This practice has no free seat for you yet. Ask them to add one, then open the invitation again." };
+  }
+
   const [claimed] = await controlDb
     .update(clinicianInvitations)
     .set({ state: "accepted", acceptedAt: new Date(), acceptedUserId: existing.id })

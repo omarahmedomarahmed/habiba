@@ -106,13 +106,20 @@ async function grantSession(payment: ManualPayment): Promise<void> {
       .from(sessions)
       .where(eq(sessions.id, payment.refId))
       .limit(1);
+    const { flagException } = await import("./rail-exceptions");
     if (now?.paymentStatus !== "paid") {
-      const { flagException } = await import("./rail-exceptions");
       await flagException(
         payment.id,
         "not_payable",
         `session ${now?.status ?? "gone"}, payment ${now?.paymentStatus ?? "none"}`,
       );
+    } else {
+      /*
+       * 🔴 PAID TWICE. The session was already paid, by card or by another
+       * transfer, and this money arrived as well. It used to be absorbed as a
+       * harmless repeat; it is somebody's money to give back.
+       */
+      await flagException(payment.id, "overpaid", "the session was already paid another way: refund this transfer");
     }
     return;
   }
@@ -454,6 +461,18 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
     if (updated.length > 0) {
       remaining -= payable;
       settled.push(invoice.id);
+      /*
+       * 🔴 AND THE BOOKS. This marked invoices paid and posted nothing, so
+       * cash was understated and "owed by therapists" overstated by every
+       * bill ever paid by transfer. Cash in, the receivable cleared.
+       */
+      const { postInvoicePaid } = await import("./ledger");
+      await postInvoicePaid({
+        invoiceId: invoice.id,
+        organizationId: payment.refId,
+        amountCents: payable,
+        memo: "Bill paid by bank transfer",
+      });
     }
   }
 
@@ -595,66 +614,52 @@ async function grantPotTopUp(payment: ManualPayment): Promise<void> {
   const vat = payment.settlesCents - net;
 
   /*
-   * One statement, so the read and the write cannot be separated by another
-   * confirmation of the same payment landing between them.
+   * 🔴 0153 — ONE TRANSACTION: CLAIM, CREDIT, POST.
    *
-   * 🔴 IT RUNS BEFORE THE JOURNAL, and that order is the idempotency. This is
-   * the only guard against a second Confirm, so a double press has to be
-   * refused HERE, before any leg is posted. `topUpPot` journals first because
-   * its caller is a Stripe webhook with its own replay guard; this one has
-   * none, and two sets of legs for one transfer is a set of books nothing can
-   * reconcile afterwards.
+   * The claim is the idempotency: `granted_at` is set only while it is null,
+   * so a second Confirm or a Retry after success finds nothing to claim, and
+   * a failure anywhere below rolls the claim back so Retry can try again.
+   * The old guard compared two clocks and could refuse a first credit.
    */
-  const result = await db.execute(sql`
-    UPDATE sponsor_pots
-       SET balance_cents = balance_cents + ${net},
-           updated_at = now()
-     WHERE sponsor_id = ${payment.sponsorId}
-       AND NOT EXISTS (
-         SELECT 1 FROM manual_payments p
-          WHERE p.id = ${payment.id}
-            AND p.state = 'confirmed'
-            AND p.decided_at < sponsor_pots.updated_at
-       )
-    RETURNING sponsor_pots.id`);
+  const credited = await db.transaction(async (tx) => {
+    const claimed = await tx.execute(sql`
+      UPDATE manual_payments SET granted_at = now()
+       WHERE id = ${payment.id} AND granted_at IS NULL
+      RETURNING id`);
+    if (claimed.rows.length === 0) return "already";
 
-  if (result.rows.length === 0) {
-    log.warn("manual pot top-up confirmed but the pot was not credited", {
-      paymentId: payment.id,
-      sponsorId: payment.sponsorId,
-      why: "either there is no pot, or this payment had already been applied",
+    const pot = await tx.execute(sql`
+      UPDATE sponsor_pots
+         SET balance_cents = balance_cents + ${net},
+             updated_at = now()
+       WHERE sponsor_id = ${payment.sponsorId}
+      RETURNING sponsor_pots.id`);
+    if (pot.rows.length === 0) throw new Error("This company has no pot to credit.");
+
+    /*
+     * The same three legs `topUpPot` posts, with the same signs, so
+     * `reconcilePots` and `ledgerPotBalance` read one rail exactly as they
+     * read the other.
+     */
+    await journal({
+      kind: "pot_topup",
+      refType: "sponsor",
+      refId: payment.sponsorId,
+      executor: tx,
+      entity: sponsor?.entity === "eg" ? "eg" : "us",
+      legs: [
+        { account: "cash", amountCents: payment.settlesCents, memo: "A sponsor topped up their pot by bank transfer" },
+        { account: "vat_payable", amountCents: -vat, memo: "VAT on the top-up, owed to the tax authority" },
+        { account: "sponsor_pot", amountCents: -net, memo: "Held for this sponsor until a session spends it" },
+      ],
     });
-    throw new Error("The pot was not credited. Check it before confirming again.");
-  }
-
-  /*
-   * The same three legs `topUpPot` posts, with the same signs, so
-   * `reconcilePots` and `ledgerPotBalance` read one rail exactly as they read
-   * the other. Cash is an asset and rises positive; the pot and the tax are
-   * both somebody else's money and rise negative.
-   */
-  await journal({
-    kind: "pot_topup",
-    refType: "sponsor",
-    refId: payment.sponsorId,
-    legs: [
-      {
-        account: "cash",
-        amountCents: payment.settlesCents,
-        memo: "A sponsor topped up their pot by bank transfer",
-      },
-      {
-        account: "vat_payable",
-        amountCents: -vat,
-        memo: "VAT on the top-up, owed to the tax authority",
-      },
-      {
-        account: "sponsor_pot",
-        amountCents: -net,
-        memo: "Held for this sponsor until a session spends it",
-      },
-    ],
+    return "credited";
   });
+
+  if (credited === "already") {
+    log.warn("manual pot top-up already credited", { paymentId: payment.id, sponsorId: payment.sponsorId });
+    return;
+  }
 
   /* W2-S02: published at once, after the legs so a first publication sees them. */
   const { publishTopUp } = await import("./pot");

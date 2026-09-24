@@ -235,6 +235,21 @@ async function main() {
       ).rows[0],
       "fixture operator",
     );
+    const admin2 = required(
+      (
+        await db.execute<{ id: string }>(sql`
+          INSERT INTO users (organization_id, email, password_hash, role, first_name, last_name)
+          VALUES (${org.id}, ${`${fixture}-op2@example.com`}, 'x', 'super_admin', 'Second', 'Example')
+          RETURNING id`)
+      ).rows[0],
+      "second fixture operator",
+    );
+    /* 🔴 0154: one reviewer proposes, a second one who agrees decides. */
+    const decideTwice = async (o: Parameters<typeof decideVerification>[0]) => {
+      const proposal = await decideVerification({ ...o, adminUserId: admin.id });
+      if (!proposal?.proposed) throw new Error("a single reviewer decided alone");
+      return decideVerification({ ...o, adminUserId: admin2.id });
+    };
 
     /*
      * The documents are recorded as paths rather than blob URLs so that
@@ -281,7 +296,7 @@ async function main() {
     );
 
     const first = await submit();
-    await decideVerification({
+    await decideTwice({
       verificationId: first.id,
       approve: false,
       note: "The licence photograph is cut off.",
@@ -302,7 +317,7 @@ async function main() {
     );
 
     const second = await submit();
-    const decided = await decideVerification({
+    const decided = await decideTwice({
       verificationId: second.id,
       approve: false,
       note: "The name on the licence is not the name on the account.",
@@ -342,7 +357,7 @@ async function main() {
     /* The approval half, on a fresh row: an approval clears nothing, ever. */
     await db.execute(sql`DELETE FROM therapist_verifications WHERE user_id = ${user.id}`);
     const third = await submit();
-    await decideVerification({
+    await decideTwice({
       verificationId: third.id,
       approve: true,
       note: "",

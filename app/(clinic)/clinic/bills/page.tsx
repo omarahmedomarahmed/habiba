@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 
 import { PayClinicBills } from "@/components/clinic/pay-bills";
+import { BillPicker } from "@/components/billing/bill-picker";
+import {
+  cancelClinicBillPayment,
+  declareClinicBillTransfer,
+  openClinicBillPayment,
+  quoteClinicInvoices,
+} from "./actions";
 import { Card } from "@/components/ui";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicBills, clinicSeatBills } from "@/lib/data/clinic";
@@ -70,6 +77,38 @@ export default async function ClinicBillsPage({
   const money = (cents: number) => <Money cents={cents} />;
 
   /*
+   * 🔴 0150 — AN EGYPTIAN PRACTICE PAYS BY TRANSFER, HERE. The same sheet a
+   * solo clinician's bill uses, with the practice as the payer, drawn only
+   * for the admin and only when something is owed.
+   */
+  const { manualEntry, organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  const needsTransfer = await organizationNeedsTransfer(actor.clinicOrganizationId);
+  const transfer =
+    needsTransfer && actor.role === "admin" && dueCents > 0
+      ? await (async () => {
+          const { billLines } = await import("@/lib/billing/bill-lines");
+          const { getDueInvoices, billingSummary } = await import("@/lib/billing/service");
+          const { localeTag } = await import("@/lib/i18n/config");
+          const [bill, due, summary] = await Promise.all([
+            billLines(actor.clinicOrganizationId, []),
+            getDueInvoices(actor.clinicOrganizationId),
+            billingSummary(actor.clinicOrganizationId),
+          ]);
+          const rail = await manualEntry({
+            audience: "clinic",
+            purpose: "subscription",
+            refId: actor.clinicOrganizationId,
+            payer: { kind: "organization", organizationId: actor.clinicOrganizationId },
+            needed: summary.outstandingCents > 0,
+            settlesCents: summary.outstandingCents,
+            lines: bill.lines,
+            locale: localeTag(locale),
+          });
+          return { rail, due };
+        })()
+      : null;
+
+  /*
    * 🔴 `formatDate`, not `Intl`, and 37L.9 caught the first draft.
    *
    * The helper gives a day as well as a month, which is more than a billing period needs
@@ -131,8 +170,33 @@ export default async function ClinicBillsPage({
           <p className="text-sm font-semibold text-slate-900">
             {rich(t("clinic.dueNow", { amount: slot(0) }), [money(dueCents)])}
           </p>
-          {actor.role === "admin" ? <PayClinicBills amountCents={dueCents} /> : null}
+          {actor.role === "admin" && !needsTransfer ? <PayClinicBills amountCents={dueCents} /> : null}
         </Card>
+      ) : null}
+      {transfer ? (
+        <BillPicker
+          storageKey={actor.clinicOrganizationId}
+          onOpen={openClinicBillPayment}
+          quote={quoteClinicInvoices}
+          invoices={transfer.due.map((invoice) => ({
+            id: invoice.id,
+            description: invoice.description,
+            cents: invoice.amountCents - invoice.discountCents,
+            issuedAt: formatDate(invoice.issuedAt, "UTC", locale),
+          }))}
+          subject={{
+            viewerName: actor.email,
+            orgName: actor.clinicName,
+            what: t("transfer.subjectBill"),
+            payerType: "clinic",
+          }}
+          details={transfer.rail.details}
+          amountLabel={transfer.rail.amountLabel}
+          lines={transfer.rail.lines}
+          live={transfer.rail.live}
+          action={declareClinicBillTransfer}
+          onCancel={cancelClinicBillPayment}
+        />
       ) : null}
 
       {/* 🔴 W2-C03 / C3: the seat invoices, which no clinic screen showed. */}
