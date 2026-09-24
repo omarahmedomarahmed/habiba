@@ -59,7 +59,7 @@ export async function revoke(formData: FormData): Promise<void> {
 }
 
 /**
- * 🔴 W2-X04 — ROLL A KEY. The new raw key comes back once, exactly as a new key
+ * 🔴 W2-X04: ROLL A KEY. The new raw key comes back once, exactly as a new key
  * does, and the old one keeps working for the overlap chosen on the form.
  */
 export async function rotate(_prev: KeyState, formData: FormData): Promise<KeyState> {

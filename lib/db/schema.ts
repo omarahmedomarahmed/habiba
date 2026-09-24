@@ -7993,7 +7993,7 @@ export const partnerApiKeys = pgTable(
     suspendedReason: text("suspended_reason"),
 
     /**
-     * 🔴 W2-X04 — WHEN THE KEY STOPS WORKING, WHICH MAY BE IN THE FUTURE.
+     * 🔴 W2-X04: WHEN THE KEY STOPS WORKING, WHICH MAY BE IN THE FUTURE.
      *
      * A revoke writes now. A roll writes the end of the overlap the partner chose
      * (now, a day, seven days), so the old key keeps answering while their servers
@@ -8044,7 +8044,7 @@ export const WEBHOOK_EVENTS = [
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 /**
- * 🔴 W2-X03 — THE TEST EVENT, AND IT IS NOT IN THE LIST ABOVE ON PURPOSE.
+ * 🔴 W2-X03: THE TEST EVENT, AND IT IS NOT IN THE LIST ABOVE ON PURPOSE.
  *
  * Nobody subscribes to it: it is sent once, to one endpoint, when its owner presses
  * "Send a test event", so they can check their signature code before a real event
@@ -8095,12 +8095,12 @@ export const partnerWebhookDeliveries = pgTable(
     lastError: text("last_error"),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     /**
-     * 🔴 W2-X03 / 0138 — WHEN THE NEXT TRY IS DUE. Null once it is delivered or
+     * 🔴 W2-X03 / 0138: WHEN THE NEXT TRY IS DUE. Null once it is delivered or
      * failed. Each failure pushes it further out (`lib/partner/retry.ts`).
      */
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow(),
     /**
-     * 🔴 W2-X03 / 0138 — THE LAST TRY FAILED AND NO MORE ARE COMING. It used to say
+     * 🔴 W2-X03 / 0138: THE LAST TRY FAILED AND NO MORE ARE COMING. It used to say
      * "Pending" for ever. A CHECK keeps it and `delivered_at` from both being set.
      */
     failedAt: timestamp("failed_at", { withTimezone: true }),

@@ -168,7 +168,7 @@ export async function mintKey(input: {
 }
 
 /**
- * 🔴 W2-X04 — EVERY MINT, ROLL AND REVOKE LEAVES A ROW. `devs.promise4` says every
+ * 🔴 W2-X04: EVERY MINT, ROLL AND REVOKE LEAVES A ROW. `devs.promise4` says every
  * call is recorded with the key that made it; the key's own life was not.
  *
  * A partner user is not an `Actor` and has no column of their own in `audit_log`,
@@ -301,7 +301,7 @@ export async function authenticateKey(
     .where(
       and(
         eq(partnerApiKeys.keyHash, hash),
-        /* 🔴 W2-X04 — a rolled key answers until the end of its overlap, then never. */
+        /* 🔴 W2-X04: a rolled key answers until the end of its overlap, then never. */
         or(isNull(partnerApiKeys.revokedAt), gt(partnerApiKeys.revokedAt, sql`now()`)),
         /* 🔴 C265 — a suspended key is dead in the WHERE clause, not in a branch. */
         isNull(partnerApiKeys.suspendedAt),
@@ -351,7 +351,7 @@ export async function authenticateKey(
   const throttle = await consume(subjectKey("api-key", row.keyId), CALLS_PER_MINUTE, 60);
 
   /*
-   * 🔴 W2-X01 — A PARTNER'S KEY IS THROTTLED, NEVER SUSPENDED.
+   * 🔴 W2-X01: A PARTNER'S KEY IS THROTTLED, NEVER SUSPENDED.
    *
    * A burst from a partner is a retry loop or a busy afternoon, not somebody probing
    * an oracle: no partner scope answers "does this person exist". Suspending the key
@@ -374,7 +374,7 @@ export async function authenticateKey(
   }
 
   /*
-   * 🔴 C265 — FOR A SPONSOR'S KEY THE RATE LIMIT SUSPENDS RATHER THAN REFUSING.
+   * 🔴 C265: FOR A SPONSOR'S KEY THE RATE LIMIT SUSPENDS RATHER THAN REFUSING.
    *
    * Crossing the limit writes `suspended_at` and a reason, so the key is dead until a
    * human clears it. A limiter that only refuses the surplus call lets an attacker
@@ -455,7 +455,7 @@ export async function keysFor(partnerId: string) {
       suspendedReason: partnerApiKeys.suspendedReason,
       revokedAt: partnerApiKeys.revokedAt,
       /*
-       * 🔴 W2-X04 — STOPPED, by the database's clock, which is the clock
+       * 🔴 W2-X04: STOPPED, by the database's clock, which is the clock
        * `authenticateKey` asks. A rolled key has a `revokedAt` in the future and is
        * still working until then.
        */
@@ -475,7 +475,7 @@ const stillWorking = () =>
 /**
  * Revoke a key: it stops working now, including a rolled key inside its overlap.
  *
- * 🔴 W2-X04 — audited, and confirmed on the screen before it is called.
+ * 🔴 W2-X04: audited, and confirmed on the screen before it is called.
  */
 export async function revokeKey(
   partnerId: string,
@@ -504,7 +504,7 @@ export async function revokeKey(
 export const ROLL_OVERLAP_HOURS = [0, 24, 24 * 7] as const;
 
 /**
- * 🔴 W2-X04 — ROLL A KEY: a new one with the same label, scopes and environment, and
+ * 🔴 W2-X04: ROLL A KEY: a new one with the same label, scopes and environment, and
  * an end for the old one.
  *
  * "Rotatable" used to mean revoke and mint, which cut every call the old key made at

@@ -145,7 +145,7 @@ export function KeyList({
                 ) : null}
 
                 {/*
-                 * 🔴 W2-X04 — REVOKE ASKS FIRST, AND ROLL SAYS HOW LONG THE OLD KEY LIVES.
+                 * 🔴 W2-X04: REVOKE ASKS FIRST, AND ROLL SAYS HOW LONG THE OLD KEY LIVES.
                  * Revoke was one tap that stopped a production integration with no
                  * question asked. Both acts now open a step on this row with a Cancel.
                  */}

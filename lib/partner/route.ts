@@ -68,7 +68,7 @@ export async function withKey(
 
   if ("failure" in authed) {
     /*
-     * 🔴 W2-X01 — A 429 SAYS WHEN TO COME BACK. Without `Retry-After` a client can
+     * 🔴 W2-X01: A 429 SAYS WHEN TO COME BACK. Without `Retry-After` a client can
      * only guess, and the guess a retry loop makes is "immediately".
      */
     const retry = authed.failure.retryAfter;

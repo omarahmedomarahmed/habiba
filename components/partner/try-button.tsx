@@ -7,7 +7,7 @@ import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
- * 🔴 W2-X03 — ONE TRY, AND WHAT THEIR ENDPOINT SAID, beside the button that asked.
+ * 🔴 W2-X03: ONE TRY, AND WHAT THEIR ENDPOINT SAID, beside the button that asked.
  *
  * Used for "Send a test event" on an endpoint and "Redeliver" on a delivery. The
  * answer is the HTTP status or the network error, which is what a developer

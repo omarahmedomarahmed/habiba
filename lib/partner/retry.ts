@@ -1,5 +1,5 @@
 /**
- * 🔴 W2-X03 — WHEN A FAILED WEBHOOK IS TRIED AGAIN, AND WHEN WE STOP.
+ * 🔴 W2-X03: WHEN A FAILED WEBHOOK IS TRIED AGAIN, AND WHEN WE STOP.
  *
  * Pure, and outside `webhooks.ts`, so the schedule can be asserted without a
  * database. RESEARCH-2 section 7: exponential backoff over about three days, the

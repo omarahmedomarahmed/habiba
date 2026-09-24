@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 W2-X02 — POST /api/partner/v1/sessions/[ref]/end
+ * 🔴 W2-X02: POST /api/partner/v1/sessions/[ref]/end
  *
  * *The session is over.* Their platform knows when a session ends and we do not:
  * the room is theirs. Until this call the session is live, its transcript may

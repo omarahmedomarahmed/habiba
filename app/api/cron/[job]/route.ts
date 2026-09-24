@@ -611,7 +611,7 @@ const JOBS = {
     }
 
     /*
-     * 🔴 42.4 / 55.10 / W2-X03 — THE WEBHOOK QUEUE, drained on this wake.
+     * 🔴 42.4 / 55.10 / W2-X03: THE WEBHOOK QUEUE, drained on this wake.
      *
      * Hourly because a partner waits on a delivery, and on THIS job because it is
      * already the hourly wake: a schedule of its own would buy a second set of wakes

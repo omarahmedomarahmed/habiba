@@ -58,7 +58,7 @@ export default async function PartnerKeysPage() {
           lastUsed: key.lastUsedAt ? formatDate(key.lastUsedAt, "UTC", locale) : null,
           suspendedReason: key.suspendedReason,
           suspended: key.suspendedAt !== null,
-          /* 🔴 W2-X04 — stopped by the database's clock; a rolled key works until then. */
+          /* 🔴 W2-X04: stopped by the database's clock; a rolled key works until then. */
           revoked: key.stopped,
           stopsAt:
             !key.stopped && key.revokedAt ? formatDateTime(key.revokedAt, "UTC", locale) : null,

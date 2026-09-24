@@ -56,7 +56,7 @@ export default async function PartnerDeliveriesPage() {
                     {delivery.event}
                   </code>
                   {/*
-                   * 🔴 W2-X03 — THREE STATES, AND "PENDING" NO LONGER MEANS "GAVE UP".
+                   * 🔴 W2-X03: THREE STATES, AND "PENDING" NO LONGER MEANS "GAVE UP".
                    * A delivery that used every try says Failed, and one still being
                    * tried says when the next try is.
                    */}
@@ -106,7 +106,7 @@ export default async function PartnerDeliveriesPage() {
                   <p className="mt-1 text-xs text-red-600">{delivery.lastError}</p>
                 ) : null}
 
-                {/* 🔴 W2-X03 — one try now, by hand. An admin act: it sends a signed request. */}
+                {/* 🔴 W2-X03: one try now, by hand. An admin act: it sends a signed request. */}
                 {actor.role === "admin" && !delivery.endpointDisabled ? (
                   <TryButton action={redeliverOne} id={delivery.id} labelKey="dev.redeliver" />
                 ) : null}

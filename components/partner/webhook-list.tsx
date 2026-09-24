@@ -78,7 +78,7 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
                   <p className="mt-1 text-xs font-semibold text-red-600">{t("dev.failing")}</p>
                 ) : null}
 
-                {/* 🔴 W2-X03 — a signed `ping`, and what their endpoint answered. */}
+                {/* 🔴 W2-X03: a signed `ping`, and what their endpoint answered. */}
                 {canEdit && !hook.disabled ? (
                   <TryButton action={sendTest} id={hook.id} labelKey="dev.sendTest" />
                 ) : null}

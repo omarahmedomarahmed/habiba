@@ -46,7 +46,7 @@ export async function addWebhook(_prev: WebhookState, formData: FormData): Promi
 export type TryResult = { ok?: boolean; status?: number | null; error?: string | null };
 
 /**
- * 🔴 W2-X03 — SEND A TEST EVENT, and show what their endpoint answered.
+ * 🔴 W2-X03: SEND A TEST EVENT, and show what their endpoint answered.
  *
  * An admin act, because it sends a signed request to their production endpoint. The
  * webhook id is checked against the actor's partner inside `sendTestEvent`.
@@ -60,7 +60,7 @@ export async function sendTest(webhookId: string): Promise<TryResult> {
   return result;
 }
 
-/** 🔴 W2-X03 — REDELIVER one delivery now, by hand. Same scoping, same answer. */
+/** 🔴 W2-X03: REDELIVER one delivery now, by hand. Same scoping, same answer. */
 export async function redeliverOne(deliveryId: string): Promise<TryResult> {
   const actor = await requirePartnerAdmin();
   const result = await redeliver({ partnerId: actor.partnerId, deliveryId });

@@ -380,7 +380,7 @@ export async function deliverPending(
 }
 
 /**
- * 🔴 W2-X03 — REDELIVER, BY HAND, NOW. One try, and the result shown on the spot.
+ * 🔴 W2-X03: REDELIVER, BY HAND, NOW. One try, and the result shown on the spot.
  *
  * For a partner whose endpoint was down or whose own side lost what it received. A
  * failure leaves a failed delivery failed and a pending one on its schedule: a button
@@ -433,7 +433,7 @@ export async function redeliver(input: {
 }
 
 /**
- * 🔴 W2-X03 — SEND A TEST EVENT to one endpoint, now, and say what happened.
+ * 🔴 W2-X03: SEND A TEST EVENT to one endpoint, now, and say what happened.
  *
  * `ping`, with a null id: the same three fields and the same signature as a real
  * delivery, so a partner can prove their verification code before a real event
@@ -518,7 +518,7 @@ export async function webhooksFor(partnerId: string) {
       disabledAt: partnerWebhooks.disabledAt,
       createdAt: partnerWebhooks.createdAt,
       /*
-       * 🔴 W2-X03 — FAILING: its latest finished delivery failed and nothing has
+       * 🔴 W2-X03: FAILING: its latest finished delivery failed and nothing has
        * reached it since. Read from the deliveries rather than stored, so it clears
        * itself the moment a redelivery or a test event gets through.
        */

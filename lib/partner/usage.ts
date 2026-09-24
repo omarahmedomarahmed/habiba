@@ -37,7 +37,7 @@ function periodOf(now: Date): Date {
 }
 
 /**
- * 🔴 W2-X05 — MOVE A LIMIT ROW INTO THIS PERIOD, clearing what belonged to the last.
+ * 🔴 W2-X05: MOVE A LIMIT ROW INTO THIS PERIOD, clearing what belonged to the last.
  *
  * Both alert stamps and the stop are facts about one month. Conditional on the row
  * being in an earlier period, so it runs once per partner per month however often
@@ -223,7 +223,7 @@ export async function alertApproachingLimits(now = new Date()): Promise<{ alerte
   const periodStart = periodOf(now);
 
   /*
-   * 🔴 W2-X05 — A NEW MONTH CLEARS LAST MONTH'S STAMPS, FOR EVERY PARTNER, FIRST.
+   * 🔴 W2-X05: A NEW MONTH CLEARS LAST MONTH'S STAMPS, FOR EVERY PARTNER, FIRST.
    *
    * The stamps were cleared only when somebody saved a limit, so an account that
    * crossed 80% in its first month was never warned again. They belong to a period,
@@ -287,7 +287,7 @@ export async function alertApproachingLimits(now = new Date()): Promise<{ alerte
          * all. The same rule the sponsor's domain confirmation follows.
          */
         body: `You have used ${usage.used} of the ${usage.limit} sessions this account allows this month, and are on course for about ${usage.projected}. At the limit your own platform keeps working exactly as it does now, and our transcription, notes, summaries and copilot stop until you raise it.`,
-        /* 🔴 W2-X05 — absolute: an email or a WhatsApp message has no host to resolve against. */
+        /* 🔴 W2-X05: absolute: an email or a WhatsApp message has no host to resolve against. */
         link: { label: "Raise the limit", url: `${env.appUrl}/partner/usage` },
       },
     );

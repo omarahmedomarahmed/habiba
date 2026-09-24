@@ -275,7 +275,7 @@ export async function mayAnswer(input: {
 }
 
 /**
- * 🔴 W2-X05 — MAY THIS SESSION'S FIRST AUDIO BE BILLED? Asked before it is transcribed.
+ * 🔴 W2-X05: MAY THIS SESSION'S FIRST AUDIO BE BILLED? Asked before it is transcribed.
  *
  * Billing moved from consent to the first audio, so the limit is asked here too: a
  * session opened under the limit whose audio arrives after other sessions used the
@@ -304,7 +304,7 @@ export async function mayBillFirstAudio(input: {
 }
 
 /**
- * 🔴 W2-X05 — THE SESSION IS BILLED, ONCE, when audio from it has been transcribed.
+ * 🔴 W2-X05: THE SESSION IS BILLED, ONCE, when audio from it has been transcribed.
  *
  * Conditional on `billable = false`, so a second piece of audio, a retry or two
  * pieces racing each other bill it once. Live only and never a stopped session:
@@ -325,7 +325,7 @@ export async function billFirstAudio(sessionId: string): Promise<void> {
 }
 
 /**
- * 🔴 W2-X02 — THEIR PLATFORM SAYS THE SESSION IS OVER, AND ONLY THEN IS IT MATERIAL.
+ * 🔴 W2-X02: THEIR PLATFORM SAYS THE SESSION IS OVER, AND ONLY THEN IS IT MATERIAL.
  *
  * The copilot and the memory read ENDED sessions (C211's bound: a live transcript
  * is still arriving). Nothing wrote `ended_at`, so both answered "no completed
