@@ -270,6 +270,12 @@ export default async function TransfersPage({
            */
           proofKind: proofKindOf(r.proofUrl),
           submittedAt: r.submittedAt?.toISOString() ?? null,
+          /*
+           * The wait, counted HERE: counted in the client component it was a
+           * different minute on the server pass and in the browser, and React
+           * threw #418 on the live queue (walkthrough).
+           */
+          waitedMinutes: r.submittedAt ? Math.round((Date.now() - r.submittedAt.getTime()) / 60000) : null,
           payer: nameFor(r),
           payerType: typeFor(r),
           profileHref: profileFor(r),

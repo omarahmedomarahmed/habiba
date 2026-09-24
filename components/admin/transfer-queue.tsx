@@ -54,6 +54,8 @@ type Row = {
    */
   proofKind: "image" | "pdf" | null;
   submittedAt: string | null;
+  /** Minutes since it was submitted, counted on the server so both renders agree. */
+  waitedMinutes?: number | null;
   payer: string;
   /**
    * 🔴 76.11 — WHICH KIND OF PAYER, so one queue can be worked four ways.
@@ -179,9 +181,7 @@ function TransferRow({
   const [modalError, setModalError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const waited = row.submittedAt
-    ? Math.round((Date.now() - new Date(row.submittedAt).getTime()) / 60000)
-    : null;
+  const waited = row.waitedMinutes ?? null;
 
   return (
     <Card className="p-4">
