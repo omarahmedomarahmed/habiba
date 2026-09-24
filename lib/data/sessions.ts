@@ -211,6 +211,16 @@ export async function createSession(
   let patientId = input.patientId ?? null;
 
   /*
+   * 🔴 A patient id from a form is a claim, not a fact. It has to be a chart
+   * this clinician may open (the same gate every patient screen uses), or
+   * the session, its room and its AI notes would load somebody else's file.
+   */
+  if (patientId) {
+    const { getPatient } = await import("@/lib/data/patients");
+    if (!(await getPatient(actor, patientId))) return null;
+  }
+
+  /*
    * An in-person session with a typed name creates the chart immediately, so the clinician never
    * has to "add a patient" as a separate step.
    *

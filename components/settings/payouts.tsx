@@ -466,9 +466,9 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <SplitBar
               parts={[
-                { label: <>{t("tpay.youKeep")} <Money cents={keep} /></>, value: keep, kind: "keep" },
+                { label: <>{t("tpay.youKeep")} <Money cents={keep} currency={currency} /></>, value: keep, kind: "keep" },
                 {
-                  label: <>{t("tpay.fee", { percent: (state.feeBps / 100).toFixed(0) })} <Money cents={cut} /></>,
+                  label: <>{t("tpay.fee", { percent: (state.feeBps / 100).toFixed(0) })} <Money cents={cut} currency={currency} /></>,
                   value: cut,
                   kind: "fee",
                 },

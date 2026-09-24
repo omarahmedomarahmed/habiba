@@ -81,7 +81,9 @@ export type Payer =
    * wrong trade. The session in `refId` is the identification: it carries the
    * therapist, the price, the time and the token they held.
    */
-  | { kind: "session"; organizationId?: string | null };
+  | { kind: "session"; organizationId?: string | null }
+  /** 🔴 0150 — a practice paying its own bill, from the clinic portal. */
+  | { kind: "organization"; organizationId: string };
 
 function payerColumns(payer: Payer) {
   switch (payer.kind) {
@@ -108,6 +110,14 @@ function payerColumns(payer: Payer) {
         patientAccountId: null,
         sponsorId: payer.sponsorId,
         organizationId: null,
+      };
+    case "organization":
+      return {
+        payerKind: "organization" as const,
+        userId: null,
+        patientAccountId: null,
+        sponsorId: null,
+        organizationId: payer.organizationId,
       };
     case "session":
       return {
@@ -450,11 +460,13 @@ export async function paymentsFor(payer: Payer): Promise<ManualPayment[]> {
   if (cols.payerKind === "session") return [];
 
   const who =
-    cols.userId !== null
-      ? eq(manualPayments.userId, cols.userId)
-      : cols.patientAccountId !== null
-        ? eq(manualPayments.patientAccountId, cols.patientAccountId)
-        : eq(manualPayments.sponsorId, cols.sponsorId!);
+    cols.payerKind === "organization"
+      ? and(eq(manualPayments.payerKind, "organization"), eq(manualPayments.organizationId, cols.organizationId!))
+      : cols.userId !== null
+        ? eq(manualPayments.userId, cols.userId)
+        : cols.patientAccountId !== null
+          ? eq(manualPayments.patientAccountId, cols.patientAccountId)
+          : eq(manualPayments.sponsorId, cols.sponsorId!);
 
   return db
     .select()

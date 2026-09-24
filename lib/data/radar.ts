@@ -1226,10 +1226,29 @@ export async function sweepRadar(): Promise<{
     .set({ status: "cancelled", joinToken: null, joinTokenExpiresAt: null, updatedAt: now })
     .where(
       and(
+        /*
+         * 🔴 ONLY AN ABANDONED RADAR CHECKOUT, and only with no money moving.
+         *
+         * This matched every unpaid scheduled session, so a calendar booking
+         * for next week was cancelled within the hour, its link killed, and
+         * a company's pot share taken at booking was never put back. A radar
+         * session is a session starting now; anything booked ahead is not
+         * abandoned. And a session somebody is paying for is not abandoned
+         * either: a declared transfer, a card attempt in the last hour, or a
+         * pot share already booked all keep it.
+         */
+        eq(sessions.sessionType, "radar"),
         eq(sessions.status, "scheduled"),
         eq(sessions.paymentStatus, "pending"),
         isNull(sessions.patientJoinedAt),
         lt(sessions.createdAt, new Date(now.getTime() - CLAIM_MINUTES * 60_000)),
+        sql`NOT EXISTS (SELECT 1 FROM manual_payments m
+                         WHERE m.purpose = 'session' AND m.ref_id = ${qualified(sessions.id)}
+                           AND m.state IN ('awaiting_proof', 'submitted', 'confirmed'))`,
+        sql`NOT EXISTS (SELECT 1 FROM gateway_payments g
+                         WHERE g.ref_id = ${qualified(sessions.id)}
+                           AND (g.state = 'paid' OR g.created_at > now() - interval '1 hour'))`,
+        sql`NOT EXISTS (SELECT 1 FROM session_payments sp WHERE sp.session_id = ${qualified(sessions.id)})`,
       ),
     )
     .returning({ id: sessions.id });

@@ -14,7 +14,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { openCarts, queue } from "@/lib/billing/manual";
 import { openExceptions } from "@/lib/billing/rail-exceptions";
 import { controlDb as db } from "@/lib/db";
-import { patientAccounts, sponsors, users } from "@/lib/db/schema";
+import { organizations, patientAccounts, sponsors, users } from "@/lib/db/schema";
 
 export const metadata: Metadata = { title: "Transfers", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -73,6 +73,17 @@ export default async function TransfersPage({
     .map((r) => r.patientAccountId)
     .filter((x): x is string => Boolean(x));
   const sponsorIds = everyRow.map((r) => r.sponsorId).filter((x): x is string => Boolean(x));
+  /* 0150 — a practice paying its own bill carries only its organisation. */
+  const practiceIds = everyRow
+    .filter((r) => r.payerKind === "organization" && r.organizationId)
+    .map((r) => r.organizationId as string);
+  const practices =
+    practiceIds.length > 0
+      ? await db
+          .select({ id: organizations.id, name: organizations.name })
+          .from(organizations)
+          .where(inArray(organizations.id, practiceIds))
+      : [];
 
   /*
    * ⚠️ 76.11 — THESE THREE HAD NO `WHERE` AND READ THE WHOLE TABLE.
@@ -150,6 +161,7 @@ export default async function TransfersPage({
 
   const typeFor = (row: (typeof rows)[number]): "patient" | "therapist" | "clinic" | "company" => {
     if (row.sponsorId) return "company";
+    if (row.payerKind === "organization") return "clinic";
     if (row.userId) {
       const u = people.find((p) => p.id === row.userId);
       return clinicianCount(u?.organizationId ?? null) > 1 ? "clinic" : "therapist";
@@ -176,6 +188,9 @@ export default async function TransfersPage({
   };
 
   const nameFor = (row: (typeof rows)[number]): string => {
+    if (row.payerKind === "organization") {
+      return practices.find((p) => p.id === row.organizationId)?.name ?? "A practice";
+    }
     if (row.userId) {
       const u = people.find((p) => p.id === row.userId);
       return u ? `${u.firstName} ${u.lastName}` : "A clinician";

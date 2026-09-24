@@ -80,7 +80,9 @@ export async function openCart(input: {
         ? eq(manualPayments.userId, input.payer.userId)
         : input.payer.kind === "patient"
           ? eq(manualPayments.patientAccountId, input.payer.patientAccountId)
-          : null;
+          : input.payer.kind === "organization"
+            ? and(eq(manualPayments.payerKind, "organization"), eq(manualPayments.organizationId, input.payer.organizationId))
+            : null;
 
   /*
    * A guest paying for a session has no account at all, which is the entire
@@ -175,7 +177,9 @@ export async function cancelCart(
         ? eq(manualPayments.userId, who.userId)
         : who.kind === "patient"
           ? eq(manualPayments.patientAccountId, who.patientAccountId)
-          : /*
+          : who.kind === "organization"
+            ? and(eq(manualPayments.payerKind, "organization"), eq(manualPayments.organizationId, who.organizationId))
+            : /*
              * 🔴 A GUEST IS IDENTIFIED BY THE SESSION THEY HOLD A LINK TO.
              *
              * They have no account at all, which is the whole point of the

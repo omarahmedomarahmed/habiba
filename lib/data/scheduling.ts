@@ -477,6 +477,13 @@ export async function bookSlot(input: {
    * is used or made (`patientRowForPerson`), so the hour is on their app.
    */
   personId?: string | null;
+  /**
+   * 🔴 The clinician doing the booking, whenever `patientId` is given. The
+   * hour must be theirs: an hour id is public (profile pages list them), and
+   * without this a clinician could put their own patient into another
+   * practice's hour and hand that practice the patient's file.
+   */
+  bookedBy?: string | null;
 }): Promise<BookResult> {
   const now = new Date();
 
@@ -499,6 +506,9 @@ export async function bookSlot(input: {
     .limit(1);
 
   if (!slot) return { ok: false, error: "That time is no longer on the calendar." };
+  if (input.patientId && slot.therapistUserId !== input.bookedBy) {
+    return { ok: false, error: "That time is no longer on the calendar." };
+  }
   if (slot.startsAt.getTime() <= now.getTime()) {
     return { ok: false, error: "That time has already passed." };
   }

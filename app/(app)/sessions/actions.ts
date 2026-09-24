@@ -208,6 +208,7 @@ export async function startNewSession(
       guestPhone: guestPhone || undefined,
       priceCents,
     });
+    if (!session) return { error: "That patient is not in your practice." };
     sessionId = session.id;
     if (!patientId && session.patientId) newPatientId = session.patientId;
 

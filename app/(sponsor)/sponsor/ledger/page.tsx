@@ -123,7 +123,7 @@ export default async function SponsorLedgerPage({
                 <span className="text-slate-900">
                   {m.spendCents === null
                     ? t("sponsor.figureSuppressed")
-                    : `${money(m.spendCents)} · ${m.sessions ?? 0}`}
+                    : <>{money(m.spendCents)} · {m.sessions ?? 0}</>}
                 </span>
               </li>
             ))}

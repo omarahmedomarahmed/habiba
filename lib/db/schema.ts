@@ -9433,7 +9433,7 @@ export const manualPayments = pgTable(
      * contradicted them — `verify:sprint43` caught it the first time it ran.
      */
     payerKind: text("payer_kind")
-      .$type<"user" | "patient" | "sponsor" | "session">()
+      .$type<"user" | "patient" | "sponsor" | "session" | "organization">()
       .notNull(),
 
     /** 🔴 AT MOST one of these three, and it must match `payerKind`. 0103. */

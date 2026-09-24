@@ -100,6 +100,7 @@ export async function invitePatient(input: {
   const booked = await bookSlot({
     slotId: input.slotId,
     patientId: input.patientId,
+    bookedBy: actor.userId,
     patientName: name,
     patientEmail: patient.email,
     patientPhone: patient.phone,
