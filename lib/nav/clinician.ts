@@ -1,4 +1,5 @@
 import {
+  Bell,
   CalendarClock,
   CalendarDays,
   CreditCard,
@@ -50,7 +51,15 @@ export type Destination = {
  * 🔴 W2-T01: and support, because an applicant waiting on review is the person
  * with the most questions and was the one person who could not ask them.
  */
-export const OPEN_TO_UNVERIFIED = ["/onboarding", "/settings", "/billing", "/earnings", "/support"];
+export const OPEN_TO_UNVERIFIED = [
+  "/onboarding",
+  "/settings",
+  "/billing",
+  "/earnings",
+  "/support",
+  /* 🔴 W2-T06: a billing notice reaches an applicant too. */
+  "/notifications",
+];
 
 const CLEARED: readonly Destination[] = [
   { href: "/dashboard", label: "portal.nav.home", icon: Home, primary: true },
@@ -87,6 +96,8 @@ const CLEARED: readonly Destination[] = [
 
 /* Reachable before and after approval, in this order, on both screens. */
 const ALWAYS: readonly Destination[] = [
+  /* 🔴 W2-T06: every notice we write for them, of every kind. */
+  { href: "/notifications", label: "tw2.notifications", icon: Bell },
   { href: "/earnings", label: "portal.nav.earnings", icon: Wallet, hint: "portal.nav.hintEarnings" },
   { href: "/billing", label: "portal.nav.billing", icon: CreditCard, hint: "portal.nav.hintBilling" },
   { href: "/settings", label: "portal.nav.settings", icon: Settings, hint: "portal.nav.hintSettings" },

@@ -28,11 +28,48 @@ const db = dbFor(pinnedToDefaultRegion("lib/data/notifications.ts", "not routed 
  * defeats the entire point of having one for crisis language.
  */
 
-export async function unreadNotifications(actor: Actor, limit = 5) {
+export async function unreadNotifications(
+  actor: Actor,
+  limit = 5,
+  /*
+   * 🔴 W2-T06: asked by kind, in the WHERE. The dashboard fetched the three
+   * newest unread rows and filtered for crisis afterwards, so three newer
+   * rows of any other kind hid an unread risk alert entirely.
+   */
+  kind?: "crisis" | "billing" | "system",
+) {
   return db
     .select()
     .from(notifications)
-    .where(and(eq(notifications.userId, actor.userId), isNull(notifications.readAt)))
+    .where(
+      and(
+        eq(notifications.userId, actor.userId),
+        isNull(notifications.readAt),
+        ...(kind ? [eq(notifications.kind, kind)] : []),
+      ),
+    )
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
+}
+
+/**
+ * 🔴 W2-T06: every kind, read and unread, newest first. The list page reads
+ * this; before it there was no screen at all for anything that was not a
+ * crisis alert.
+ */
+export async function recentNotifications(actor: Actor, limit = 50) {
+  return db
+    .select({
+      id: notifications.id,
+      kind: notifications.kind,
+      title: notifications.title,
+      body: notifications.body,
+      actionUrl: notifications.actionUrl,
+      readAt: notifications.readAt,
+      createdAt: notifications.createdAt,
+    })
+    .from(notifications)
+    .where(eq(notifications.userId, actor.userId))
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
 }

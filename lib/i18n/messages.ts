@@ -1287,7 +1287,7 @@ export const en = {
   "portal.status.approved": "Approved",
   "portal.dash.hello": "Hello, {name}",
   "portal.dash.start": "Start a session",
-  "portal.dash.startBlurb": "In person or video, recording begins straight away",
+  "portal.dash.startBlurb": "In person or video",
   "portal.dash.review": "Review the session",
   "portal.dash.reviewApprove": "Review and approve",
   "portal.dash.recent": "Recent sessions",
@@ -4000,6 +4000,9 @@ export const en = {
   "arefund.errReason": "Say why.",
   // W2C clinician and clinic
   "tw2.publicPage": "Your public page",
+  "tw2.notifications": "Notifications",
+  "tw2.markAllRead": "Mark all read",
+  "tw2.open": "Open",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -4996,7 +4999,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.status.approved": "معتمدة",
   "portal.dash.hello": "مرحبًا، {name}",
   "portal.dash.start": "ابدأ جلسة",
-  "portal.dash.startBlurb": "حضوريًا أو بالفيديو، ويبدأ التسجيل فورًا",
+  "portal.dash.startBlurb": "حضوريًا أو بالفيديو",
   "portal.dash.review": "راجع الجلسة",
   "portal.dash.reviewApprove": "راجِع واعتمِد",
   "portal.dash.recent": "جلسات حديثة",
@@ -7234,6 +7237,9 @@ export const ar: Record<MessageKey, string> = {
   "arefund.errReason": "اذكر السبب.",
   // W2C clinician and clinic
   "tw2.publicPage": "صفحتك العامة",
+  "tw2.notifications": "الإشعارات",
+  "tw2.markAllRead": "علّمها كلها مقروءة",
+  "tw2.open": "افتح",
 };
 
 export const DICTIONARIES = { en, ar } as const;

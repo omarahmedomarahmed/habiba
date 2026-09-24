@@ -40,6 +40,8 @@ export const PROTECTED_PREFIXES = [
   "/dashboard",
   "/earnings",
   "/notes",
+  /* 🔴 W2-T06: the clinician's notifications list. */
+  "/notifications",
   "/on-call",
   "/onboarding",
   "/patients",
