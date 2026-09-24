@@ -9,6 +9,7 @@ import { bookSlot, publishHours, withdrawHour } from "@/lib/data/scheduling";
 import { env } from "@/lib/env";
 import { notify } from "@/lib/notify";
 import { formatWhenWithCaveat, resolveZone } from "@/lib/scheduling/tz";
+import { patientSessionLink } from "@/lib/sessions/patient-link";
 import { fullName } from "@/lib/utils";
 
 export type BookingState = { error?: string; ok?: boolean; message?: string };
@@ -124,7 +125,8 @@ export async function invitePatient(input: {
       kind: "booking.confirmed",
       subject: `A session with ${therapist}`,
       body: `${therapist} has kept ${when} for you.\n\nIf that does not work, tell them as early as you can and the hour goes back on their calendar for somebody else.`,
-      link: { label: "Open your session", url: `${env.appUrl}/sessions/${booked.sessionId}` },
+      /* 🔴 W2-P05: to the PATIENT, so their own door, never this app's session page. */
+      link: patientSessionLink(env.appUrl, booked.joinToken),
       variables: [therapist, when],
     },
   );

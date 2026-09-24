@@ -101,6 +101,25 @@ test("W2-P03 signup and the account both take an address, and a record only goes
   assert.match(code("app/(patient)/patient/record/actions.ts"), /emailVerified \? actor\.email : null/);
 });
 
+/* ----------------------------------------------------------------- W2-P05 -- */
+
+test("W2-P05 what a patient is sent about their booking opens their own session, not a clinician's page", async () => {
+  const { patientSessionUrl, patientSessionLink } = await import("../lib/sessions/patient-link");
+  assert.equal(patientSessionUrl("https://app.example.com", "tok"), "https://app.example.com/join/tok");
+  assert.equal(patientSessionLink("https://app.example.com", null), null, "no token, no dead link");
+
+  /* The three messages that reach a patient about a booked hour. */
+  for (const file of [
+    "app/(public)/t/[id]/book/actions.ts",
+    "app/(app)/bookings/actions.ts",
+    "app/api/cron/[job]/route.ts",
+  ]) {
+    const source = code(file);
+    assert.doesNotMatch(source, /"Open your session", url: `\$\{env\.appUrl\}\/sessions\//, file);
+    assert.match(source, /patientSessionLink\(env\.appUrl, \w+\.joinToken\)/, file);
+  }
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

@@ -374,6 +374,8 @@ export type BookResult =
   | {
       ok: true;
       sessionId: string;
+      /** 🔴 W2-P05: the patient's own way in, for the confirmation's link. */
+      joinToken: string | null;
       startsAt: Date;
       therapistName: string;
       /** For the confirmation's zone fallback. 11R.3. */
@@ -524,7 +526,7 @@ export async function bookSlot(input: {
       priceCents: slot.sessionRateCents ?? 0,
       paymentStatus: (slot.sessionRateCents ?? 0) > 0 ? "pending" : "not_required",
     })
-    .returning({ id: sessions.id });
+    .returning({ id: sessions.id, joinToken: sessions.joinToken });
 
   if (!created) return { ok: false, error: "That booking could not be saved. Try again." };
 
@@ -581,6 +583,7 @@ export async function bookSlot(input: {
   return {
     ok: true,
     sessionId: created.id,
+    joinToken: created.joinToken,
     startsAt: slot.startsAt,
     therapistName: [slot.therapistFirstName, slot.therapistLastName].filter(Boolean).join(" "),
     therapistTimezone: slot.therapistTimezone,
@@ -879,6 +882,8 @@ export async function bookingsNeedingReminder(fromHours = 20, toHours = 24) {
       slotId: availabilitySlots.id,
       startsAt: availabilitySlots.startsAt,
       sessionId: availabilitySlots.sessionId,
+      /* W2-P05: the patient's own door, for the reminder's link. */
+      joinToken: sessions.joinToken,
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
       therapistTimezone: users.timezone,
@@ -920,6 +925,8 @@ export async function sameDayNeedingReminder() {
       slotId: availabilitySlots.id,
       startsAt: availabilitySlots.startsAt,
       sessionId: availabilitySlots.sessionId,
+      /* W2-P05: the patient's own door, for the reminder's link. */
+      joinToken: sessions.joinToken,
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
       therapistTimezone: users.timezone,

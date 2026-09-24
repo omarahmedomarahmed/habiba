@@ -11,6 +11,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { auditLog } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
+import { patientSessionLink } from "@/lib/sessions/patient-link";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -566,9 +567,8 @@ const JOBS = {
           kind: "booking.reminder",
           subject: `Your session with ${therapist}`,
           body: `A reminder that your session with ${therapist} is ${when}.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.`,
-          link: booking.sessionId
-            ? { label: "Open your session", url: `${env.appUrl}/sessions/${booking.sessionId}` }
-            : null,
+          /* 🔴 W2-P05: the patient's own door, not the clinician's session page. */
+          link: patientSessionLink(env.appUrl, booking.joinToken),
           variables: [therapist, when],
         },
       );

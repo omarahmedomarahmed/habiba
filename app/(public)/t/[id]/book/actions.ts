@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { optionalPatient } from "@/lib/patient-auth/guard";
+import { patientSessionLink } from "@/lib/sessions/patient-link";
 
 export type BookState = {
   error?: string;
@@ -166,7 +167,8 @@ export async function book(input: {
       kind: "booking.confirmed",
       subject: `Your session with ${result.therapistName}`,
       body: `Your session with ${result.therapistName} is booked for ${when}.\n\nJoin from the link below a few minutes before. If you need to cancel, tell your therapist as early as you can.`,
-      link: { label: "Open your session", url: `${env.appUrl}/sessions/${result.sessionId}` },
+      /* 🔴 W2-P05: their own door, not the clinician's session page. */
+      link: patientSessionLink(env.appUrl, result.joinToken),
       variables: [result.therapistName, when],
     },
   );
