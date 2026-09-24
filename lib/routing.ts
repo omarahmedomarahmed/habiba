@@ -83,7 +83,26 @@ export const PATIENT_AUTH_ROUTES = [
  * verifier could have found it: the route exists, the page renders, the token
  * resolves, and every check about all three passes.
  */
-export const PATIENT_OPEN_ROUTES = ["/patient/invite"];
+export const PATIENT_OPEN_ROUTES = ["/patient/invite", "/patient/session-expired"];
+
+/**
+ * 🔴 W2-P01 — where `requirePatient` sends somebody it cannot resolve.
+ *
+ * The clinician's loop, repeated on the patient side: a cookie outlives its
+ * session (four hours idle, seven days of `maxAge`), `requirePatient` sent the
+ * holder to `/patient/login`, and the rule above sends a cookie holder at their
+ * own door back to `/patient`. Nothing in that cycle can delete the cookie,
+ * because a Server Component cannot write one.
+ *
+ * So a cookie holder goes to `/patient/session-expired`, a route handler that
+ * can delete it, and it is an open route so the cookie it is there to clear is
+ * never bounced away from it. Pure, so the whole chain is a test.
+ */
+export function patientBounce(hasCookie: boolean, path: string): string {
+  const next = path.startsWith("/") && !path.startsWith("//") ? path : "";
+  const query = next ? `?next=${encodeURIComponent(next)}` : "";
+  return hasCookie ? `/patient/session-expired${query}` : `/patient/login${query}`;
+}
 
 /** 21R.1 / C94 — where an unauthenticated caller at an admin route is sent. */
 export const STAFF_SIGN_IN = "/staff/sign-in";
