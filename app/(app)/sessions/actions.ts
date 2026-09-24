@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
-import { generateAndStoreNote } from "@/lib/ai/notes";
+import { draftNoteInFormat, generateAndStoreNote } from "@/lib/ai/notes";
+import { emptyContent } from "@/lib/notes/formats";
 import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { priceProblem } from "@/lib/billing/connect";
@@ -16,8 +17,10 @@ import { normalisePhone, personIdForPatient } from "@/lib/data/people";
 import { publishSummary } from "@/lib/data/summaries";
 import {
   addAddendum,
+  releasePatientCopy,
   saveClinicalNote,
   savePatientCopy,
+  signNote,
   type NoteRefusal,
 } from "@/lib/data/note-record";
 import { getI18n } from "@/lib/i18n/server";
@@ -432,11 +435,32 @@ export async function abandonSession(
   redirect("/sessions");
 }
 
-/** Retry a failed generation without ending the session again. */
-export async function regenerateNote(sessionId: string): Promise<SessionActionState> {
+/**
+ * Retry a failed generation without ending the session again, or (W2-T04)
+ * redraft a draft after the voices or the lines were put right.
+ *
+ * The session's own note runs as it always has, after the response, with the
+ * page polling. 🔴 W2-F01: another format's note is redrafted in place, awaited,
+ * so the rest of the session's notes stay on screen while it is written.
+ */
+export async function regenerateNote(
+  sessionId: string,
+  noteId?: string | null,
+): Promise<SessionActionState> {
   const actor = await requireUser();
   const row = await getSession(actor, sessionId);
   if (!row) return { error: "Session not found." };
+
+  if (noteId) {
+    const [note] = await db
+      .select({ format: sessionNotes.format, isPrimary: sessionNotes.isPrimary })
+      .from(sessionNotes)
+      .where(and(eq(sessionNotes.id, noteId), eq(sessionNotes.sessionId, sessionId)))
+      .limit(1);
+    if (note && !note.isPrimary) {
+      return draftIn(actor, row, note.format);
+    }
+  }
 
   await db
     .update(sessions)
@@ -472,7 +496,13 @@ export async function startOwnNote(sessionId: string): Promise<SessionActionStat
   const row = await getSession(actor, sessionId);
   if (!row) return { error: "Session not found." };
 
-  const { EMPTY_NOTE } = await import("@/lib/ai/notes");
+  /*
+   * 🔴 W2-F01 / D7: the empty sections of the clinician's own format. A
+   * session that already has a note keeps it: `ON CONFLICT DO NOTHING` covers
+   * both the format and the one-primary index.
+   */
+  const { formatsFor } = await import("@/lib/data/note-formats");
+  const { defaultFormat } = await formatsFor(row.session.organizationId, row.session.therapistId);
   await db
     .insert(sessionNotes)
     .values({
@@ -480,11 +510,12 @@ export async function startOwnNote(sessionId: string): Promise<SessionActionStat
       organizationId: row.session.organizationId,
       therapistId: row.session.therapistId,
       patientId: row.session.patientId,
-      content: EMPTY_NOTE,
+      content: emptyContent(defaultFormat),
       status: "draft",
       provenance: "clinician",
+      format: defaultFormat.key,
     })
-    .onConflictDoNothing({ target: sessionNotes.sessionId });
+    .onConflictDoNothing();
 
   await db
     .update(sessions)
@@ -501,12 +532,76 @@ export async function startOwnNote(sessionId: string): Promise<SessionActionStat
   return { ok: true };
 }
 
+/**
+ * 🔴 W2-F01 / D7: "Also write it as...". The same session in another format,
+ * its own document with its own signature. Included in the session price: it
+ * writes a note and nothing that bills (see `draftNoteInFormat`).
+ *
+ * A format the session already has is opened, never redrafted from here: a
+ * clinician's edits to a draft are not written over by a menu.
+ */
+export async function alsoWriteNote(
+  sessionId: string,
+  formatKey: string,
+): Promise<SessionActionState & { noteId?: string }> {
+  const actor = await requireUser();
+  const row = await getSession(actor, sessionId);
+  if (!row) return { error: "Session not found." };
+  if (row.session.status !== "completed") return { error: "Session not found." };
+
+  const { formatFor } = await import("@/lib/data/note-formats");
+  const format = await formatFor(actor.organizationId, actor.userId, formatKey);
+
+  const [existing] = await db
+    .select({ id: sessionNotes.id })
+    .from(sessionNotes)
+    .where(and(eq(sessionNotes.sessionId, sessionId), eq(sessionNotes.format, format.key)))
+    .limit(1);
+  if (existing) return { ok: true, noteId: existing.id };
+
+  return draftIn(actor, row, format.key);
+}
+
+/** Draft (or redraft) one of the session's other formats, awaited. */
+async function draftIn(
+  actor: Awaited<ReturnType<typeof requireUser>>,
+  row: NonNullable<Awaited<ReturnType<typeof getSession>>>,
+  formatKey: string,
+): Promise<SessionActionState & { noteId?: string }> {
+  const { formatFor } = await import("@/lib/data/note-formats");
+  const format = await formatFor(row.session.organizationId, row.session.therapistId, formatKey);
+  try {
+    const { noteId } = await draftNoteInFormat({
+      sessionId: row.session.id,
+      organizationId: row.session.organizationId,
+      therapistId: row.session.therapistId,
+      patientId: row.session.patientId,
+      format,
+    });
+    await auditPhi(actor, "note.update", {
+      resourceType: "note",
+      resourceId: row.session.id,
+      patientId: row.session.patientId,
+    });
+    revalidatePath(`/sessions/${row.session.id}`);
+    return { ok: true, noteId: noteId ?? undefined };
+  } catch (error) {
+    log.warn("note in another format failed", {
+      session: ref(row.session.id),
+      reason: safeErrorMessage(error),
+    });
+    const { t } = await getI18n();
+    return { error: t("tnote.failed") };
+  }
+}
+
 export async function saveNote(
   sessionId: string,
   content: NoteContent,
+  noteId?: string | null,
 ): Promise<SessionActionState> {
   const actor = await requireUser();
-  const result = await saveClinicalNote(actor, sessionId, content);
+  const result = await saveClinicalNote(actor, sessionId, content, noteId);
   if (!result.ok) return { error: await refusalText(result.reason, "clinical") };
 
   revalidatePath(`/sessions/${sessionId}`);
@@ -534,10 +629,11 @@ export async function addNoteAddendum(
   sessionId: string,
   kind: NoteAddendumKind,
   body: string,
+  noteId?: string | null,
 ): Promise<SessionActionState> {
   const actor = await requireUser();
   const which = kind === "patient" ? "patient" : "clinical";
-  const result = await addAddendum(actor, sessionId, which, body);
+  const result = await addAddendum(actor, sessionId, which, body, noteId);
   if (!result.ok) return { error: await refusalText(result.reason, which) };
 
   revalidatePath(`/sessions/${sessionId}`);
@@ -552,21 +648,14 @@ export async function addNoteAddendum(
  * clinician stands behind. Releasing the patient's copy is a separate decision
  * with a separate button; see `approvePatientNote`.
  */
-export async function approveNote(sessionId: string): Promise<SessionActionState> {
+export async function approveNote(
+  sessionId: string,
+  noteId?: string | null,
+): Promise<SessionActionState> {
   const actor = await requireUser();
-  const row = await getSession(actor, sessionId);
-  if (!row) return { error: "Session not found." };
-
-  await db
-    .update(sessionNotes)
-    .set({ status: "approved", approvedAt: new Date(), approvedBy: actor.userId })
-    .where(eq(sessionNotes.sessionId, sessionId));
-
-  await auditPhi(actor, "note.approve", {
-    resourceType: "note",
-    resourceId: sessionId,
-    patientId: row.session.patientId,
-  });
+  /* 🔴 W2-F01: the note named, in this session, or the session's own. */
+  const result = await signNote(actor, sessionId, noteId);
+  if (!result.ok) return { error: await refusalText(result.reason, "clinical") };
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
@@ -612,23 +701,9 @@ export async function savePatientNote(
  */
 export async function approvePatientNote(sessionId: string): Promise<SessionActionState> {
   const actor = await requireUser();
-  const row = await getSession(actor, sessionId);
-  if (!row) return { error: "Session not found." };
-
-  await db
-    .update(sessionNotes)
-    .set({
-      patientStatus: "approved",
-      patientApprovedAt: new Date(),
-      patientApprovedBy: actor.userId,
-    })
-    .where(eq(sessionNotes.sessionId, sessionId));
-
-  await auditPhi(actor, "note.patient.approve", {
-    resourceType: "note",
-    resourceId: sessionId,
-    patientId: row.session.patientId,
-  });
+  /* 🔴 W2-F01: one copy per session, on its primary note, whatever the formats. */
+  const result = await releasePatientCopy(actor, sessionId);
+  if (!result.ok) return { error: await refusalText(result.reason, "patient") };
 
   after(async () => {
     try {
@@ -879,6 +954,8 @@ export type ApprovalChoice = {
 export async function approveSession(
   sessionId: string,
   choice: ApprovalChoice,
+  /** W2-F01: the note on screen. Absent is the session's own. */
+  noteId?: string | null,
 ): Promise<SessionActionState> {
   const actor = await requireUser();
   const row = await getSession(actor, sessionId);
@@ -893,7 +970,7 @@ export async function approveSession(
   };
 
   if (choice.clinical) {
-    const result = await approveNote(sessionId);
+    const result = await approveNote(sessionId, noteId);
     if (result.error) return result;
     done.push("chart signed");
   }

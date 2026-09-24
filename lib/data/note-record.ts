@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -13,6 +13,7 @@ import {
   type NoteContent,
 } from "@/lib/db/schema";
 import { getSession } from "@/lib/data/sessions";
+import { mergeSectionText } from "@/lib/notes/formats";
 import { fullName } from "@/lib/utils";
 
 /**
@@ -32,10 +33,9 @@ import { fullName } from "@/lib/utils";
  * ## Keyed to the note, not the session
  *
  * The three writes below (`writeClinical`, `writePatient`, `appendAddendum`)
- * take a NOTE id, because a session will soon carry one note per format, each
- * signed on its own. The session-level functions under them resolve today's
- * one note and are what the actions call. The three stay unexported until a
- * second format calls them, so `verify:reachable` counts no dead export.
+ * take a NOTE id, because a session carries one note per format (W2-F01), each
+ * signed on its own. The session-level functions under them resolve the note
+ * the action names, inside the session, or the session's primary note.
  *
  * Routed on the patient, then the organisation (C154), like every clinical row.
  */
@@ -164,17 +164,33 @@ async function appendAddendum(
 
 /* ------------------------------------- what the actions call, by session -- */
 
-/** The session, scoped to the actor, and its one note today. */
-async function noteOf(actor: Actor, sessionId: string) {
+/**
+ * The session, scoped to the actor, and one of its notes.
+ *
+ * 🔴 W2-F01: a session carries one note per format. `noteId` names which; it
+ * is only ever matched INSIDE this session, so an id from another session
+ * resolves to nothing. Without one, the session's primary note: the one that
+ * carries the patient's copy, and the only note a session had before formats.
+ */
+async function noteOf(actor: Actor, sessionId: string, noteId?: string | null) {
   const row = await getSession(actor, sessionId);
   if (!row) return null;
   const db = dbFor(await regionFor(row.session.patientId, row.session.organizationId));
   const [note] = await db
-    .select({ id: sessionNotes.id })
+    .select({
+      id: sessionNotes.id,
+      isPrimary: sessionNotes.isPrimary,
+      content: sessionNotes.content,
+    })
     .from(sessionNotes)
-    .where(eq(sessionNotes.sessionId, sessionId))
+    .where(
+      and(
+        eq(sessionNotes.sessionId, sessionId),
+        noteId ? eq(sessionNotes.id, noteId) : eq(sessionNotes.isPrimary, true),
+      ),
+    )
     .limit(1);
-  return { row, db, noteId: note?.id ?? null };
+  return { row, db, noteId: note?.id ?? null, note: note ?? null };
 }
 
 /** Edit the clinical note. A draft only: a signed note is refused. */
@@ -182,12 +198,22 @@ export async function saveClinicalNote(
   actor: Actor,
   sessionId: string,
   content: NoteContent,
+  noteId?: string | null,
 ): Promise<NoteWriteResult> {
-  const found = await noteOf(actor, sessionId);
+  const found = await noteOf(actor, sessionId, noteId);
   if (!found) return { ok: false, reason: "not_found" };
-  if (!found.noteId) return { ok: false, reason: "no_note" };
+  if (!found.noteId || !found.note) return { ok: false, reason: "no_note" };
 
-  const result = await writeClinical(found.db, found.noteId, content);
+  /*
+   * 🔴 W2-F01: a note in a format keeps its sections' keys and headings; the
+   * edit changes their text. A SOAP note stores none, and still stores none.
+   */
+  const stored = found.note.content?.sections;
+  const sent: NoteContent = { ...content };
+  if (stored?.length) sent.sections = mergeSectionText(stored, content.sections);
+  else delete sent.sections;
+
+  const result = await writeClinical(found.db, found.noteId, sent);
   if (!result.ok) return result;
 
   await auditPhi(actor, "note.update", {
@@ -223,15 +249,19 @@ export async function savePatientCopy(
   return result;
 }
 
-/** Add an addendum to this session's note, as the actor. */
+/**
+ * Add an addendum to one of this session's notes, as the actor. A `patient`
+ * addendum always goes on the note that carries the patient's copy.
+ */
 export async function addAddendum(
   actor: Actor,
   sessionId: string,
   kind: NoteAddendumKind,
   body: string,
+  noteId?: string | null,
 ): Promise<NoteWriteResult> {
   if (!body.trim()) return { ok: false, reason: "empty" };
-  const found = await noteOf(actor, sessionId);
+  const found = await noteOf(actor, sessionId, kind === "clinical" ? noteId : null);
   if (!found) return { ok: false, reason: "not_found" };
   if (!found.noteId) return { ok: false, reason: "no_note" };
 
@@ -250,6 +280,84 @@ export async function addAddendum(
     patientId: found.row.session.patientId,
   });
   return result;
+}
+
+/**
+ * Sign one of the session's notes.
+ *
+ * 🔴 W2-F01: the patient's plain-language copy stays one per session, from
+ * whichever note was signed FIRST. So when the first signature lands on a note
+ * other than the primary, and the primary's copy has not gone to anybody, the
+ * primary flag moves to the signed note and its copy becomes the one the
+ * patient will be offered. A released copy never moves: it is somebody's now.
+ * One transaction, because `session_notes_one_primary` allows no moment with
+ * two primaries and a session must never be left with none.
+ */
+export async function signNote(
+  actor: Actor,
+  sessionId: string,
+  noteId?: string | null,
+): Promise<NoteWriteResult> {
+  const found = await noteOf(actor, sessionId, noteId);
+  if (!found) return { ok: false, reason: "not_found" };
+  if (!found.noteId || !found.note) return { ok: false, reason: "no_note" };
+  const target = found.noteId;
+  const wasPrimary = found.note.isPrimary;
+
+  await found.db.transaction(async (tx) => {
+    const signed = await tx
+      .update(sessionNotes)
+      .set({ status: "approved", approvedAt: new Date(), approvedBy: actor.userId })
+      .where(and(eq(sessionNotes.id, target), eq(sessionNotes.status, "draft")))
+      .returning({ id: sessionNotes.id });
+    if (signed.length === 0 || wasPrimary) return;
+
+    const others = await tx
+      .select({
+        id: sessionNotes.id,
+        isPrimary: sessionNotes.isPrimary,
+        status: sessionNotes.status,
+        patientStatus: sessionNotes.patientStatus,
+      })
+      .from(sessionNotes)
+      .where(and(eq(sessionNotes.sessionId, sessionId), ne(sessionNotes.id, target)));
+    const primary = others.find((note) => note.isPrimary);
+    const signedBefore = others.some((note) => note.status === "approved");
+    if (!primary || signedBefore || primary.patientStatus !== "draft") return;
+
+    await tx.update(sessionNotes).set({ isPrimary: false }).where(eq(sessionNotes.id, primary.id));
+    await tx.update(sessionNotes).set({ isPrimary: true }).where(eq(sessionNotes.id, target));
+  });
+
+  await auditPhi(actor, "note.approve", {
+    resourceType: "note",
+    resourceId: sessionId,
+    patientId: found.row.session.patientId,
+  });
+  return { ok: true };
+}
+
+/** Release the patient's copy: the session's one, on its primary note. */
+export async function releasePatientCopy(actor: Actor, sessionId: string): Promise<NoteWriteResult> {
+  const found = await noteOf(actor, sessionId);
+  if (!found) return { ok: false, reason: "not_found" };
+  if (!found.noteId) return { ok: false, reason: "no_note" };
+
+  await found.db
+    .update(sessionNotes)
+    .set({
+      patientStatus: "approved",
+      patientApprovedAt: new Date(),
+      patientApprovedBy: actor.userId,
+    })
+    .where(and(eq(sessionNotes.id, found.noteId), eq(sessionNotes.patientStatus, "draft")));
+
+  await auditPhi(actor, "note.patient.approve", {
+    resourceType: "note",
+    resourceId: sessionId,
+    patientId: found.row.session.patientId,
+  });
+  return { ok: true };
 }
 
 /* ------------------------------------------------------------ reading -- */

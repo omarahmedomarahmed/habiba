@@ -325,7 +325,8 @@ export async function draftedStepsFor(
   const [note] = await db
     .select({ content: sessionNotes.content })
     .from(sessionNotes)
-    .where(eq(sessionNotes.sessionId, sessionId))
+    /* W2-F01: the steps are the patient's copy, which is the primary note's. */
+    .where(and(eq(sessionNotes.sessionId, sessionId), eq(sessionNotes.isPrimary, true)))
     .limit(1);
 
   const drafted = note?.content?.patientSteps ?? [];

@@ -132,7 +132,11 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
     .from(sessions)
     .innerJoin(patients, eq(patients.id, sessions.patientId))
     .innerJoin(users, eq(users.id, sessions.therapistId))
-    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    /* W2-F01: the patient's one copy is on the session's primary note. */
+    .leftJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessions.id), eq(sessionNotes.isPrimary, true)),
+    )
     .where(and(eq(patients.personId, personId), isNull(patients.deletedAt)))
     .orderBy(desc(sql`COALESCE(${sessions.scheduledAt}, ${sessions.createdAt})`))
     .limit(200);

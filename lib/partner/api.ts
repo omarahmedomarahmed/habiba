@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { controlDb } from "@/lib/db";
@@ -390,6 +390,12 @@ export async function deliverableNote(input: {
         eq(partnerSubjects.partnerId, input.key.partnerId),
       ),
     )
+    /*
+     * 🔴 W2-F01: a session can carry a signed note per format. The one
+     * delivered is the first signed, which is also where the patient's copy
+     * comes from, so the partner's chart and the patient agree.
+     */
+    .orderBy(asc(sessionNotes.approvedAt), desc(sessionNotes.isPrimary))
     .limit(1);
 
   if (!note?.approvedAt) {

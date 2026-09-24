@@ -16,6 +16,7 @@ import {
   type Citation,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import { sectionsText } from "@/lib/notes/formats";
 import { MODELS, logUsage, openai, parseJson } from "./client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -283,11 +284,23 @@ async function buildPatientContext(
     const sessionNumber = i + 1;
     const date = session.endedAt ?? session.createdAt;
 
-    const [note] = await db
-      .select({ content: sessionNotes.content })
+    /*
+     * 🔴 W2-F01 / D7: every note of the session, one per format. The summary is
+     * the primary note's, as it always was; a SIGNED note of any format adds
+     * its sections, because a clinician who charts in DAP should find the
+     * copilot has read their chart and not only a SOAP one.
+     */
+    const sessionNoteRows = await db
+      .select({
+        content: sessionNotes.content,
+        isPrimary: sessionNotes.isPrimary,
+        status: sessionNotes.status,
+      })
       .from(sessionNotes)
       .where(eq(sessionNotes.sessionId, session.id))
-      .limit(1);
+      .orderBy(desc(sessionNotes.isPrimary), asc(sessionNotes.createdAt));
+    const note = sessionNoteRows.find((row) => row.isPrimary) ?? sessionNoteRows[0];
+    const signedNotes = sessionNoteRows.filter((row) => row.status === "approved");
 
     const segments = await db
       .select()
@@ -304,6 +317,10 @@ async function buildPatientContext(
 
     if (note?.content?.summary) {
       parts.push(`Note summary: ${note.content.summary}`);
+    }
+    for (const signed of signedNotes) {
+      const text = sectionsText(signed.content);
+      if (text) parts.push(`Signed note:\n${text}`);
     }
 
     for (const segment of segments) {

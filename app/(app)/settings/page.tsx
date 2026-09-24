@@ -6,6 +6,8 @@ import { PayoutSettings } from "@/components/settings/payouts";
 import { SettingsNav, SettingsSection } from "@/components/settings/section";
 import { PasswordForm, ProfileForm } from "@/components/settings/settings-forms";
 import { TimezoneSettings } from "@/components/settings/timezone-settings";
+import { NoteFormatSettings } from "@/components/settings/note-format-settings";
+import { formatsFor } from "@/lib/data/note-formats";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { getSettings } from "@/lib/settings";
@@ -99,6 +101,7 @@ export default async function SettingsPage({
   ];
 
   const held = await heldForTherapist(actor.userId);
+  const noteFormats = await formatsFor(actor.organizationId, actor.userId);
 
   /*
    * 🔴 76.34 — how they would like to be paid, for the manual rail's half of
@@ -265,6 +268,17 @@ export default async function SettingsPage({
               voice: prefs.voice,
               voiceSpeed: prefs.voiceSpeed,
             }}
+          />
+
+          {/* 🔴 W2-F01 / D7: the format every note is drafted in, and their own. */}
+          <NoteFormatSettings
+            current={noteFormats.defaultFormat.key}
+            formats={noteFormats.formats.map((f) => ({
+              key: f.key,
+              label: f.label,
+              labelKey: f.labelKey ?? null,
+            }))}
+            templates={noteFormats.templates.map((row) => ({ id: row.id, label: row.label }))}
           />
         </SettingsSection>
 

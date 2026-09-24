@@ -10,6 +10,7 @@ import "server-only";
  */
 import { noteFromTranscript } from "@/lib/ai/note-writer";
 import { log } from "@/lib/logger";
+import { sectionsText } from "@/lib/notes/formats";
 
 /**
  * The draft, written with the same pipeline ours is. PLAN.md 68.6.
@@ -52,17 +53,12 @@ export async function writeSessionNote(transcript: string): Promise<string | nul
      * SOAP headings in plain text is the format every clinical system on earth can
      * already accept.
      */
-    const sections = [
-      ["Subjective", content.soap.subjective],
-      ["Objective", content.soap.objective],
-      ["Assessment", content.soap.assessment],
-      ["Plan", content.soap.plan],
-    ] as const;
-
-    return sections
-      .filter(([, body]) => typeof body === "string" && body.trim().length > 0)
-      .map(([heading, body]) => `${heading}\n${String(body).trim()}`)
-      .join("\n\n");
+    /*
+     * 🔴 W2-F01: flattened by the one reader every chart outside ours uses, so
+     * a note in any format lands with its own headings. The draft is SOAP, as
+     * it always was: a partner's clinician has no format setting with us.
+     */
+    return sectionsText(content);
   } catch {
     /*
      * Null rather than a throw. The route renders the transcript and an empty draft,

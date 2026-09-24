@@ -15,6 +15,7 @@ import {
   type NoteContent,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import { emptyContent, type NoteFormat } from "@/lib/notes/formats";
 import { MODELS, logUsage, openai, parseJson } from "./client";
 /*
  * 🔴 58.6 / C336 — THE PURE GENERATOR MOVED OUT, and the reason is the matrix.
@@ -46,18 +47,10 @@ export { noteFromTranscript, normaliseLanguage, normaliseNote };
 const db = dbFor(pinnedToDefaultRegion("lib/ai/notes.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-const EMPTY_NOTE: NoteContent = {
-  soap: { subjective: "", objective: "", assessment: "", plan: "" },
-  summary: "",
-  talkingPoints: [],
-  observations: "",
-  impressions: "",
-  recommendations: [],
-  followUp: "",
-  patientBrief: "",
-  patientSteps: [],
-  patientNext: "",
-};
+/*
+ * W2-F01: the empty note that "write it yourself" opens is now per format,
+ * `emptyContent` in `lib/notes/formats.ts`. SOAP's is what this file held.
+ */
 
 
 /**
@@ -179,6 +172,8 @@ export async function generateNoteContent(opts: {
   userId: string;
   /** 49.14a — who the note is about, for cost by patient. Null on a guest session. */
   patientId: string | null;
+  /** W2-F01: the format to draft in. Absent is SOAP. */
+  format?: NoteFormat;
 }): Promise<{ content: NoteContent; language: string; contentEn: NoteContent | null; model: string }> {
   const started = Date.now();
   const { context, transcript } = await buildContext(opts.sessionId);
@@ -186,7 +181,7 @@ export async function generateNoteContent(opts: {
   if (transcript.trim().length < 80) throw new EmptyTranscriptError();
 
   try {
-    const generated = await noteFromTranscript({ context, transcript });
+    const generated = await noteFromTranscript({ context, transcript, format: opts.format });
 
     await logUsage({
       organizationId: opts.organizationId,
@@ -208,7 +203,7 @@ export async function generateNoteContent(opts: {
     const contentEn =
       language === "en"
         ? null
-        : await translateNote({ content, from: language, ...opts }).catch((error) => {
+        : await translateNote({ content, from: language, ...opts }).catch((error: unknown) => {
             // The note is the deliverable. A failed translation is a missing
             // convenience, not a failed session.
             log.warn("note translation failed", {
@@ -271,6 +266,7 @@ async function translateNote(opts: {
   sessionId: string;
   organizationId: string;
   userId: string;
+  format?: NoteFormat;
 }): Promise<NoteContent | null> {
   const started = Date.now();
 
@@ -306,7 +302,8 @@ async function translateNote(opts: {
     "note-translation",
   );
 
-  const translated = normaliseNote(raw);
+  /* W2-F01: the headings are the format's own; only the text is translated. */
+  const translated = normaliseNote(raw, opts.format);
   return isNoteEmpty(translated) ? null : translated;
 }
 
@@ -317,6 +314,7 @@ export function isNoteEmpty(content: NoteContent): boolean {
     !content.soap.objective &&
     !content.soap.assessment &&
     !content.soap.plan &&
+    !(content.sections ?? []).some((section) => section.text) &&
     !content.summary
   );
 }
@@ -337,6 +335,14 @@ export async function generateAndStoreNote(opts: {
   patientId: string | null;
 }): Promise<void> {
   try {
+    /*
+     * 🔴 W2-F01 / D7: the session's note is drafted in the clinician's format.
+     * A session that already has its note (a retry, a redraft) keeps that
+     * note's format, so this rewrites the same document rather than starting
+     * a second one beside it.
+     */
+    const format = await primaryFormatFor(opts);
+
     /*
      * Attribute the turns before writing anything from them.
      *
@@ -361,6 +367,7 @@ export async function generateAndStoreNote(opts: {
       sessionId: opts.sessionId,
       organizationId: opts.organizationId,
       userId: opts.therapistId,
+      format,
     });
 
     /*
@@ -406,9 +413,10 @@ export async function generateAndStoreNote(opts: {
         model,
         provenance: origin.provenance,
         offRecordSeconds: origin.offRecordSeconds,
+        format: format.key,
       })
       .onConflictDoUpdate({
-        target: sessionNotes.sessionId,
+        target: [sessionNotes.sessionId, sessionNotes.format],
         set: {
           content,
           language,
@@ -488,4 +496,110 @@ export async function generateAndStoreNote(opts: {
   }
 }
 
-export { EMPTY_NOTE };
+/**
+ * 🔴 W2-F01: the format of the session's own note. The note it already has, if
+ * any, so a retry rewrites that document; otherwise the clinician's default.
+ */
+async function primaryFormatFor(opts: {
+  sessionId: string;
+  organizationId: string;
+  therapistId: string;
+}): Promise<NoteFormat> {
+  const [existing] = await db
+    .select({ format: sessionNotes.format })
+    .from(sessionNotes)
+    .where(and(eq(sessionNotes.sessionId, opts.sessionId), eq(sessionNotes.isPrimary, true)))
+    .limit(1);
+  const { formatFor, formatsFor } = await import("@/lib/data/note-formats");
+  if (existing) return formatFor(opts.organizationId, opts.therapistId, existing.format);
+  return (await formatsFor(opts.organizationId, opts.therapistId)).defaultFormat;
+}
+
+/**
+ * 🔴 W2-F01 / D7: "Also write it as...". The same session, drafted in another
+ * format, as its own document with the same lifecycle: draft, signed, then
+ * locked with addenda.
+ *
+ * Included in the session price. This writes a note and a usage row for our own
+ * cost accounting, and nothing that raises or changes an invoice: a session's
+ * lines are priced from consent and tier (`sessionLines`) when it ends, and
+ * the number of formats is not an input to them. `verify:w2f` holds that with
+ * a second and a third format on one session.
+ *
+ * Awaited by the action rather than run after the response, because the
+ * clinician asked for it and is looking at the button. A session with nothing
+ * to write from (no recording) gets the format's empty sections, which is
+ * "write it yourself" in that format. The same call redrafts a draft (W2-T04):
+ * a signed note is never touched (W1-03).
+ */
+export async function draftNoteInFormat(opts: {
+  sessionId: string;
+  organizationId: string;
+  therapistId: string;
+  patientId: string | null;
+  format: NoteFormat;
+}): Promise<{ noteId: string | null }> {
+  const { format } = opts;
+  const { transcript } = await buildContext(opts.sessionId);
+  const recorded = transcript.trim().length >= 80;
+
+  const drafted = recorded
+    ? await generateNoteContent({
+        sessionId: opts.sessionId,
+        organizationId: opts.organizationId,
+        userId: opts.therapistId,
+        patientId: opts.patientId,
+        format,
+      })
+    : { content: emptyContent(format), language: "en", contentEn: null, model: null };
+  const origin = recorded
+    ? await noteProvenanceFor(opts.sessionId)
+    : { provenance: "clinician" as const, offRecordSeconds: null };
+
+  const [primary] = await db
+    .select({ id: sessionNotes.id })
+    .from(sessionNotes)
+    .where(and(eq(sessionNotes.sessionId, opts.sessionId), eq(sessionNotes.isPrimary, true)))
+    .limit(1);
+
+  const [written] = await db
+    .insert(sessionNotes)
+    .values({
+      sessionId: opts.sessionId,
+      organizationId: opts.organizationId,
+      therapistId: opts.therapistId,
+      patientId: opts.patientId,
+      content: drafted.content,
+      language: drafted.language,
+      contentEn: drafted.contentEn,
+      status: "draft",
+      model: drafted.model,
+      provenance: origin.provenance,
+      offRecordSeconds: origin.offRecordSeconds,
+      format: format.key,
+      isPrimary: !primary,
+    })
+    .onConflictDoUpdate({
+      target: [sessionNotes.sessionId, sessionNotes.format],
+      set: {
+        content: drafted.content,
+        language: drafted.language,
+        contentEn: drafted.contentEn,
+        model: drafted.model,
+        provenance: origin.provenance,
+        offRecordSeconds: origin.offRecordSeconds,
+        updatedAt: new Date(),
+      },
+      /* 🔴 W1-03: never over a signed chart or a released copy. */
+      setWhere: and(eq(sessionNotes.status, "draft"), eq(sessionNotes.patientStatus, "draft")),
+    })
+    .returning({ id: sessionNotes.id });
+
+  if (written) return { noteId: written.id };
+  const [kept] = await db
+    .select({ id: sessionNotes.id })
+    .from(sessionNotes)
+    .where(and(eq(sessionNotes.sessionId, opts.sessionId), eq(sessionNotes.format, format.key)))
+    .limit(1);
+  return { noteId: kept?.id ?? null };
+}

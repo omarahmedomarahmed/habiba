@@ -1,0 +1,11 @@
+-- W2-F01: the index that said a session has one note goes.
+--
+-- Apart from 0128 because the deployment running when 0128 lands still writes
+-- a note with `ON CONFLICT (session_id)`, which needs exactly this index. Apply
+-- it with the release that writes `ON CONFLICT (session_id, format)`: a note the
+-- old code tries to write in the minutes between is marked failed, and "Try
+-- again" on the session page writes it.
+--
+-- `session_notes_session_format_unique` and `session_notes_one_primary` (0128)
+-- hold what this held for every note that exists: one SOAP note, primary.
+DROP INDEX IF EXISTS "session_notes_session_unique";

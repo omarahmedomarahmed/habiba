@@ -38,6 +38,8 @@ import { useT } from "@/lib/i18n/client";
 
 type Props = {
   sessionId: string;
+  /** W2-F01: the note on screen, which "sign" signs. The copy is the session's. */
+  noteId?: string | null;
   /** Already signed, already released: shown as done rather than offered again. */
   clinicalSigned: boolean;
   patientReleased: boolean;
@@ -156,7 +158,7 @@ export function SessionApproval(props: Props) {
               clinical: clinical && !props.clinicalSigned,
               patient: patient && !props.patientReleased,
               summary: summary.trim() ? summary : null,
-            });
+            }, props.noteId);
             setFeedback(result);
             if (!result.error) {
               setSummary("");

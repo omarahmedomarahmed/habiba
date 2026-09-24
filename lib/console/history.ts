@@ -8,7 +8,7 @@
  */
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 import { patients, sessionNotes, sessions, users } from "@/lib/db/schema";
@@ -70,7 +70,11 @@ export async function buildClinicianHistory(therapistId: string): Promise<{
     })
     .from(sessions)
     .leftJoin(patients, eq(patients.id, sessions.patientId))
-    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    /* W2-F01: the session's primary note; one row per session, as before. */
+    .leftJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessions.id), eq(sessionNotes.isPrimary, true)),
+    )
     .where(eq(sessions.therapistId, therapistId))
     .orderBy(desc(sessions.createdAt))
     .limit(5000);

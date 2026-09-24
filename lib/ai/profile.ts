@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -175,7 +175,8 @@ async function gather(personId: string): Promise<Material> {
       const [note] = await db
         .select({ content: sessionNotes.content })
         .from(sessionNotes)
-        .where(eq(sessionNotes.sessionId, session.id))
+        /* W2-F01: the session's own note, one of several formats. */
+        .where(and(eq(sessionNotes.sessionId, session.id), eq(sessionNotes.isPrimary, true)))
         .limit(1);
 
       const segments = await db

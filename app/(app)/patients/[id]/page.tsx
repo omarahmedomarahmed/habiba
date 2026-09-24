@@ -21,7 +21,9 @@ import { accessFor } from "@/lib/data/grants";
 import { getPatient, getPatientHistory } from "@/lib/data/patients";
 import { hasAvatar, personIdForPatient } from "@/lib/data/people";
 import { PatientAvatar } from "@/components/patient/avatar";
-import { formatDate, fullName, relativeDay } from "@/lib/utils";
+import { formatDate, formatDateTime, fullName, relativeDay } from "@/lib/utils";
+import { notesForSessions } from "@/lib/data/sessions";
+import { builtInFormat } from "@/lib/notes/formats";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
 import { NoteOrigin } from "@/components/notes/provenance";
@@ -71,6 +73,22 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   if (!patient) notFound();
 
   const history = await getPatientHistory(actor, id);
+
+  /*
+   * 🔴 W2-F01 / D7: every note of every session, grouped under its session:
+   * format, draft or signed, who wrote or signed it, and when. Scoped to this
+   * clinician by `notesForSessions`, like the history above.
+   */
+  const allNotes = await notesForSessions(
+    actor,
+    history.map((session) => session.id),
+  );
+  const { templateLabels } = await import("@/lib/data/note-formats");
+  const ownLabels = await templateLabels(actor.organizationId, allNotes.map((n) => n.format));
+  const formatName = (key: string) => {
+    const known = builtInFormat(key);
+    return ownLabels.get(key) ?? (known?.labelKey ? t(known.labelKey) : (known?.label ?? ""));
+  };
 
   /*
    * A patient created before sprint 5's backfill, or by a route that has not
@@ -396,6 +414,29 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                     ) : null}
                     <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
                   </Link>
+                  {allNotes.some((n) => n.sessionId === session.id) ? (
+                    <ul className="space-y-1 px-4 pb-3">
+                      {allNotes
+                        .filter((n) => n.sessionId === session.id)
+                        .map((n) => (
+                          <li key={n.id}>
+                            <Link
+                              href={`/sessions/${session.id}?note=${n.id}`}
+                              className="flex flex-wrap items-center gap-x-2 text-xs text-slate-600 hover:text-slate-900"
+                            >
+                              <span className="font-semibold text-slate-800">{formatName(n.format)}</span>
+                              <span className={n.status === "approved" ? "text-emerald-700" : "text-amber-700"}>
+                                {n.status === "approved" ? t("tnote.stateSigned") : t("tnote.stateDraft")}
+                              </span>
+                              <span>
+                                {fullName(n.authorFirstName, n.authorLastName)} ·{" "}
+                                {formatDateTime(n.approvedAt ?? n.createdAt, actor.timezone, locale)}
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : null}
                 </li>
               ))}
             </ul>

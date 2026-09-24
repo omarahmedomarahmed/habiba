@@ -89,6 +89,12 @@ const SCOPE: Record<string, Scope> = {
    * and `feedback`, never through this module.
    */
   "note-record": { who: ["clinician"], clinical: true },
+  /*
+   * 🔴 W2-F01 / D7: a clinician's note formats and their default. Their own
+   * way of writing, not a record about anybody, so not clinical; reached
+   * from settings and from the note writer that drafts in it.
+   */
+  "note-formats": { who: ["clinician"] },
   copilot: { who: ["clinician"], clinical: true },
   /*
    * 🔴 76.39 — the same thread as `copilot`, assembled for the two surfaces
