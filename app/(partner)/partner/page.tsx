@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { KeyList } from "@/components/partner/key-list";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
-import { sponsorChoices } from "@/lib/data/partner-admin";
 import { keysFor } from "@/lib/partner/keys";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
@@ -32,14 +31,11 @@ export default async function PartnerKeysPage() {
   const actor = await requirePartner();
   const { t, locale } = await getI18n();
 
-  const [keys, sponsors] = await Promise.all([
-    keysFor(actor.partnerId),
-    /*
-     * 🔴 Only fetched for an admin, because only an admin sees the form it feeds. A
-     * developer's page does not read a list of our sponsors at all.
-     */
-    actor.role === "admin" ? sponsorChoices() : Promise.resolve([]),
-  ]);
+  /*
+   * 🔴 C5: no list of our companies. The picker it fed served a scope that moved
+   * to the company's own portal, and every partner admin could read every name.
+   */
+  const keys = await keysFor(actor.partnerId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,7 +59,6 @@ export default async function PartnerKeysPage() {
           stopsAt:
             !key.stopped && key.revokedAt ? formatDateTime(key.revokedAt, "UTC", locale) : null,
         }))}
-        sponsors={sponsors}
         canMint={actor.role === "admin"}
       />
     </div>

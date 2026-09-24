@@ -305,12 +305,21 @@ export async function signNote(
   const target = found.noteId;
   const wasPrimary = found.note.isPrimary;
 
+  let firstSignature = false;
   await found.db.transaction(async (tx) => {
     const signed = await tx
       .update(sessionNotes)
       .set({ status: "approved", approvedAt: new Date(), approvedBy: actor.userId })
       .where(and(eq(sessionNotes.id, target), eq(sessionNotes.status, "draft")))
       .returning({ id: sessionNotes.id });
+    if (signed.length > 0) {
+      /* The session's first signed note, whichever format: one event per session. */
+      const approved = await tx
+        .select({ id: sessionNotes.id })
+        .from(sessionNotes)
+        .where(and(eq(sessionNotes.sessionId, sessionId), eq(sessionNotes.status, "approved")));
+      firstSignature = approved.length === 1;
+    }
     if (signed.length === 0 || wasPrimary) return;
 
     const others = await tx
@@ -335,6 +344,11 @@ export async function signNote(
     resourceId: sessionId,
     patientId: found.row.session.patientId,
   });
+  /* 🔴 C6: a partner's clinician signed, so the partner may collect it. */
+  if (firstSignature) {
+    const { notifySessionEvent } = await import("@/lib/partner/webhooks");
+    await notifySessionEvent(sessionId, "note.approved");
+  }
   return { ok: true };
 }
 

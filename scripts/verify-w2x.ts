@@ -579,6 +579,45 @@ async function main() {
     await skipUnless(hasColumns.n === 2, "migration 0138", "the retry columns are not on this database yet", async () => {
       const webhooks = await import("../lib/partner/webhooks");
       const { MAX_ATTEMPTS, RETRY_MINUTES } = await import("../lib/partner/retry");
+      /*
+       * 🔴 C16: the fixture host is an example.com name that resolves nowhere, so
+       * a resolver stands in: the fixture's name answers with a public address,
+       * one named `inside` answers with a private one, and anything else asks DNS.
+       */
+      const net = await import("../lib/net/public-url");
+      const realLookup = net.resolver.lookup;
+      net.resolver.lookup = async (host: string) =>
+        host === new URL(hookHost).hostname
+          ? [{ address: "93.184.215.14", family: 4 }]
+          : host === `inside.${fixture}.example.com`
+            ? [{ address: "10.0.0.7", family: 4 }]
+            : realLookup(host);
+      const literal = await webhooks.registerWebhook({
+        partnerId: partner.id,
+        url: "https://169.254.169.254/latest",
+        events: ["session.completed"],
+      });
+      check("🔴 C16 a webhook at a private address is refused when it is saved", Boolean(literal.error) && !literal.webhook, literal.error ?? "saved");
+      const inside = await webhooks.registerWebhook({
+        partnerId: partner.id,
+        url: `https://inside.${fixture}.example.com/in`,
+        events: ["record.claimed"],
+      });
+      check("C16 CONTROL a public-looking name is saved, the check at saving reads the address only", Boolean(inside.webhook), inside.error ?? "");
+      if (inside.webhook) {
+        await webhooks.queueWebhook({ partnerId: partner.id, event: "record.claimed", subjectId: null });
+        const before = endpoint.calls.length;
+        await webhooks.deliverPending();
+        const tried = await one<{ error: string | null; status: number | null }>(sql`
+          SELECT last_error AS error, last_status AS status FROM partner_webhook_deliveries
+           WHERE webhook_id = ${inside.webhook.id} AND event = 'record.claimed'`);
+        check(
+          "🔴 C16 …and a name that resolves inside is never called when it is sent",
+          endpoint.calls.length === before && /public address/.test(tried?.error ?? ""),
+          tried?.error ?? "no row",
+        );
+        await webhooks.disableWebhook(partner.id, inside.webhook.id);
+      }
       const registered = await webhooks.registerWebhook({
         partnerId: partner.id,
         url: `${hookHost}/in`,

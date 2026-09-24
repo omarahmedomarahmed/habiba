@@ -9,6 +9,7 @@ import { purgeExpiredLimits } from "@/lib/rate-limit";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { auditLog } from "@/lib/db/schema";
+import { bearerMatches } from "@/lib/auth/shared-secret";
 import { env } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
 import { patientSessionLink } from "@/lib/sessions/patient-link";
@@ -119,6 +120,24 @@ export const maxDuration = 300;
  * one. That is a project setting ("Scale to zero after"), not code, and it is
  * worth strictly more than any schedule written here.
  */
+/**
+ * 🔴 C14 — ONE STEP OF A CHAIN, CAUGHT.
+ *
+ * The daily billing job is fifteen pieces of unrelated money work in a row, and
+ * a throw in the first stopped the other fourteen, the tax documents and the
+ * partner bills among them, every day until somebody read a log. Each step is
+ * caught and named; the job answers with the ones that failed.
+ */
+async function step<T>(failed: string[], name: string, run: () => Promise<T>): Promise<T | null> {
+  try {
+    return await run();
+  } catch (error) {
+    failed.push(name);
+    log.error("cron step failed", { step: name, reason: safeErrorMessage(error) });
+    return null;
+  }
+}
+
 const JOBS = {
   /**
    * Re-deliver crisis alerts that were persisted but whose notification failed.
@@ -194,7 +213,9 @@ const JOBS = {
 
   /** Charge completed sessions that somehow produced no charge row. */
   async billing() {
-    const reconciled = await reconcileMissingCharges();
+    /* 🔴 C14: each step on its own, so one that throws does not stop the rest. */
+    const failed: string[] = [];
+    const reconciled = await step(failed, "reconcileMissingCharges", () => reconcileMissingCharges());
 
     /*
      * And send out anything we are still holding for a clinician Stripe has
@@ -207,7 +228,7 @@ const JOBS = {
      * acceptable reason for it to sit here.
      */
     const { releaseAllHeldEarnings } = await import("@/lib/billing/connect");
-    const released = await releaseAllHeldEarnings();
+    const released = await step(failed, "releaseAllHeldEarnings", () => releaseAllHeldEarnings());
 
     /*
      * 🔴 16.3b — the ageing payout alert.
@@ -219,7 +240,7 @@ const JOBS = {
      * nobody has open at 3am is not an alert.
      */
     const { alertAgedPayouts } = await import("@/lib/billing/payouts");
-    const aged = await alertAgedPayouts();
+    const aged = await step(failed, "alertAgedPayouts", () => alertAgedPayouts());
 
     /*
      * 🔴 53.19b / C247 — the re-verification cycle, and it is here rather than on
@@ -237,7 +258,7 @@ const JOBS = {
      * it in one statement.
      */
     const { pauseUnverified } = await import("@/lib/data/enrolment-verify");
-    const reverified = await pauseUnverified();
+    const reverified = await step(failed, "pauseUnverified", () => pauseUnverified());
 
     /*
      * 🔴 53.16 / C232 — the pot half of the daily reconciliation, counted here.
@@ -248,9 +269,9 @@ const JOBS = {
      * a log an operator greps when a customer asks why a figure moved.
      */
     const { reconcilePots } = await import("@/lib/billing/pot");
-    const potDrift = await reconcilePots();
-    if (potDrift.length > 0) {
-      log.warn("pot balances disagree with the ledger", { pots: potDrift.length });
+    const potDrift = await step(failed, "reconcilePots", () => reconcilePots());
+    if ((potDrift?.length ?? 0) > 0) {
+      log.warn("pot balances disagree with the ledger", { pots: potDrift?.length });
     }
 
     /*
@@ -259,7 +280,7 @@ const JOBS = {
      * A daily email says nothing about when anybody booked.
      */
     const { alertPots } = await import("@/lib/billing/pot-alerts");
-    const potAlerts = await alertPots();
+    const potAlerts = await step(failed, "alertPots", () => alertPots());
 
     /*
      * W2-S10: every enrolled person is told, in the app, that their company
@@ -267,7 +288,7 @@ const JOBS = {
      * sessions enters that view. `payFromPot` checks the timestamp this sets.
      */
     const { tellEnrolledAboutLedger } = await import("@/lib/data/enrolment-verify");
-    const ledgerTold = await tellEnrolledAboutLedger();
+    const ledgerTold = await step(failed, "tellEnrolledAboutLedger", () => tellEnrolledAboutLedger());
 
     /*
      * 🔴 59.16 / 59.13 — DUNNING, AND THE LAPSE THAT FOLLOWS IT.
@@ -284,10 +305,10 @@ const JOBS = {
     const { obligationsDueWithin, lapseOverdue, DUNNING_DAYS_BEFORE } = await import(
       "@/lib/billing/obligations"
     );
-    const dueSoon = await obligationsDueWithin(Math.max(...DUNNING_DAYS_BEFORE));
-    const lapsed = await lapseOverdue();
-    if (lapsed.lapsed > 0) {
-      log.warn("renewal obligations lapsed", { count: lapsed.lapsed });
+    const dueSoon = await step(failed, "obligationsDueWithin", () => obligationsDueWithin(Math.max(...DUNNING_DAYS_BEFORE)));
+    const lapsed = await step(failed, "lapseOverdue", () => lapseOverdue());
+    if ((lapsed?.lapsed ?? 0) > 0) {
+      log.warn("renewal obligations lapsed", { count: lapsed?.lapsed });
     }
 
     /*
@@ -299,14 +320,14 @@ const JOBS = {
      * about. The second produces a support ticket rather than a variance.
      */
     const { reconcileRenewals } = await import("@/lib/billing/obligations");
-    const renewalDrift = await reconcileRenewals();
+    const renewalDrift = await step(failed, "reconcileRenewals", () => reconcileRenewals());
     if (
-      renewalDrift.paidWithNoReference.length > 0 ||
-      renewalDrift.invoicesWithNoObligation.length > 0
+      (renewalDrift?.paidWithNoReference.length ?? 0) > 0 ||
+      (renewalDrift?.invoicesWithNoObligation.length ?? 0) > 0
     ) {
       log.warn("renewals do not reconcile", {
-        paidWithNoReference: renewalDrift.paidWithNoReference.length,
-        invoicesWithNoObligation: renewalDrift.invoicesWithNoObligation.length,
+        paidWithNoReference: renewalDrift?.paidWithNoReference.length,
+        invoicesWithNoObligation: renewalDrift?.invoicesWithNoObligation.length,
       });
     }
 
@@ -329,7 +350,7 @@ const JOBS = {
      * missed.
      */
     const { alertApproachingLimits } = await import("@/lib/partner/usage");
-    const limits = await alertApproachingLimits();
+    const limits = await step(failed, "alertApproachingLimits", () => alertApproachingLimits());
 
     /*
      * 🔴 68.19 — THE MONTHLY BILL, from real usage, on the same ledger.
@@ -339,7 +360,7 @@ const JOBS = {
      * the record, so asking it is asking the thing that decides.
      */
     const { billAllPartners } = await import("@/lib/partner/billing");
-    const partnerBills = await billAllPartners();
+    const partnerBills = await step(failed, "billAllPartners", () => billAllPartners());
 
     /*
      * 🔴 42.3 / 55.9 — the expired launch tokens, swept.
@@ -357,7 +378,7 @@ const JOBS = {
      * this morning still has a row to look at.
      */
     const { sweepExpiredLaunches } = await import("@/lib/partner/launch");
-    const launchesSwept = await sweepExpiredLaunches();
+    const launchesSwept = await step(failed, "sweepExpiredLaunches", () => sweepExpiredLaunches());
 
     /*
      * 🔴 44.1 / C97 — the check-ins, swept here.
@@ -373,40 +394,34 @@ const JOBS = {
      * rate" needs the denominator visible and a job that logged only its sends would hide it.
      */
     const { sweepCheckins } = await import("@/lib/checkins/send");
-    const checkins = await sweepCheckins();
+    const checkins = await step(failed, "sweepCheckins", () => sweepCheckins());
 
-    /*
-     * 🔴 0147 — every tax document still waiting is tried again, and every one
-     * with the Tax Authority is asked about. Idempotent: ETA refuses an
-     * internal id twice, and the move out of `waiting` is conditional.
-     */
-    const { advanceEtaDocuments } = await import("@/lib/billing/eta/issue");
-    const eta = await advanceEtaDocuments();
+    /* 🔴 C14: the tax documents moved to `reminders`, the hourly wake. */
 
     return {
-      etaAdvanced: eta.advanced,
+      failedSteps: failed.join(",") || undefined,
       reconciled,
-      released: released.released,
-      centsMoved: released.centsMoved,
-      payoutsAlerted: aged.alerted,
-      benefitsPaused: reverified.paused,
-      potsOutOfBalance: potDrift.length,
-      potAlerts: potAlerts.alerted,
-      ledgerTold: ledgerTold.told,
-      renewalsDueSoon: dueSoon.length,
-      renewalsLapsed: lapsed.lapsed,
-      renewalsPaidNoReference: renewalDrift.paidWithNoReference.length,
-      renewalsInvoiceNoObligation: renewalDrift.invoicesWithNoObligation.length,
+      released: released?.released,
+      centsMoved: released?.centsMoved,
+      payoutsAlerted: aged?.alerted,
+      benefitsPaused: reverified?.paused,
+      potsOutOfBalance: potDrift?.length,
+      potAlerts: potAlerts?.alerted,
+      ledgerTold: ledgerTold?.told,
+      renewalsDueSoon: dueSoon?.length,
+      renewalsLapsed: lapsed?.lapsed,
+      renewalsPaidNoReference: renewalDrift?.paidWithNoReference.length,
+      renewalsInvoiceNoObligation: renewalDrift?.invoicesWithNoObligation.length,
       /* 🔴 68.16 / 68.19 — the partner limit alerts and the closed month. */
-      partnerLimitAlerts: limits.alerted,
-      partnerMonthsBilled: partnerBills.billed,
+      partnerLimitAlerts: limits?.alerted,
+      partnerMonthsBilled: partnerBills?.billed,
       launchTokensSwept: launchesSwept,
-      checkinsSent: checkins.sent,
-      checkinsMuteRate: Math.round(checkins.muteRate * 100) / 100,
-      checkinsSkippedQuiet: checkins.skipped.quiet_hours,
-      checkinsSkippedMuted: checkins.skipped.muted,
-      checkinsSkippedTooSoon: checkins.skipped.too_soon,
-      checkinsHalted: checkins.skipped.mute_rate_halt,
+      checkinsSent: checkins?.sent,
+      checkinsMuteRate: checkins ? Math.round(checkins.muteRate * 100) / 100 : undefined,
+      checkinsSkippedQuiet: checkins?.skipped.quiet_hours,
+      checkinsSkippedMuted: checkins?.skipped.muted,
+      checkinsSkippedTooSoon: checkins?.skipped.too_soon,
+      checkinsHalted: checkins?.skipped.mute_rate_halt,
     };
   },
 
@@ -646,18 +661,31 @@ const JOBS = {
      * nothing while it waits.
      */
     const { deliverPending } = await import("@/lib/partner/webhooks");
-    const hooks = await deliverPending();
+    const failed: string[] = [];
+    const hooks = await step(failed, "deliverPending", () => deliverPending());
+
+    /*
+     * 🔴 0147 / C14 — every tax document still waiting is tried again, and every
+     * one with the Tax Authority is asked about. Hourly, as the job describes
+     * itself: a company waiting on an invoice should not wait for 3am.
+     * Idempotent: ETA refuses an internal id twice, and the move out of
+     * `waiting` is conditional.
+     */
+    const { advanceEtaDocuments } = await import("@/lib/billing/eta/issue");
+    const eta = await step(failed, "advanceEtaDocuments", () => advanceEtaDocuments());
 
     return {
+      failedSteps: failed.join(",") || undefined,
+      etaAdvanced: eta?.advanced,
       remindersDue: due.length,
       remindersSent: sent,
       unreachable,
       heldForMorning,
       released: released.length,
       releasesTold,
-      webhooksSent: hooks.sent,
-      webhooksRetrying: hooks.failed,
-      webhooksFailed: hooks.gaveUp,
+      webhooksSent: hooks?.sent,
+      webhooksRetrying: hooks?.failed,
+      webhooksFailed: hooks?.gaveUp,
     };
   },
 
@@ -679,16 +707,11 @@ type JobName = keyof typeof JOBS;
 export async function GET(request: Request, { params }: { params: Promise<{ job: string }> }) {
   const { job } = await params;
 
-  const provided =
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    new URL(request.url).searchParams.get("secret") ??
-    "";
-
-  if (!env.cronSecret || provided !== env.cronSecret) {
+  if (!bearerMatches(request, env.cronSecret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  if (!(job in JOBS)) {
+  if (!Object.hasOwn(JOBS, job)) {
     return NextResponse.json({ error: "unknown_job" }, { status: 404 });
   }
 

@@ -10,7 +10,6 @@ import {
   partnerApiKeys,
   partnerUsers,
   partners,
-  sponsors,
   type PartnerRole,
   type PartnerState,
 } from "@/lib/db/schema";
@@ -249,22 +248,6 @@ export async function keyCountFor(partnerId: string): Promise<number> {
     .where(and(eq(partnerApiKeys.partnerId, partnerId), isNull(partnerApiKeys.revokedAt)));
 
   return row?.count ?? 0;
-}
-
-/**
- * 🔴 C265 — the sponsors a key may be pointed at, for the one dropdown that needs them.
- *
- * An employment key must name exactly one organisation, so the form that mints one has
- * to offer a choice. Name and id only: a sponsor's pot balance, roster size and spend are
- * none of a partner operator's business, and this list is read on the partner's own
- * screen.
- */
-export async function sponsorChoices() {
-  return controlDb
-    .select({ id: sponsors.id, name: sponsors.name })
-    .from(sponsors)
-    .where(eq(sponsors.state, "active"))
-    .orderBy(sponsors.name);
 }
 
 /**

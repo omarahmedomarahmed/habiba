@@ -12,11 +12,14 @@ import {
   partnerSubjects,
   partnerWebhookDeliveries,
   partnerWebhooks,
+  patients,
+  sessions,
   users,
   WEBHOOK_TEST_EVENT,
   type WebhookEvent,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import { publicHttpsProblem, resolvesPublic } from "@/lib/net/public-url";
 
 import { retryWaitMinutes } from "./retry";
 
@@ -61,7 +64,9 @@ export async function registerWebhook(input: {
   events: WebhookEvent[];
 }): Promise<{ webhook?: NewWebhook; error?: string }> {
   const url = input.url.trim();
-  if (!url.startsWith("https://")) return { error: "The endpoint has to be https." };
+  /* 🔴 C16: https, and on the public internet. `attempt` checks the name again. */
+  const problem = publicHttpsProblem(url);
+  if (problem) return { error: problem };
   if (input.events.length === 0) return { error: "Choose at least one event." };
 
   if (!secretsConfigured()) {
@@ -194,6 +199,52 @@ export async function notifyGrantRevoked(input: {
 }
 
 /**
+ * 🔴 C6 — `session.completed` AND `note.approved`, WHICH WERE NEVER SENT.
+ *
+ * Both were subscribable and `GET /v1/notes/[sessionId]` says the webhook is
+ * what tells a partner there is a note to collect. Nothing queued either.
+ *
+ * The id is OUR session id, the one that route takes. Scoped as narrowly as
+ * `notifyGrantRevoked`: only the partner whose own clinician held the session,
+ * and only while that partner's link to the patient stands. Never throws: a
+ * webhook is a courtesy to the partner and must not undo what happened.
+ */
+export async function notifySessionEvent(
+  sessionId: string,
+  event: "session.completed" | "note.approved",
+): Promise<{ queued: number }> {
+  try {
+    const rows = await controlDb
+      .select({ partnerId: organizations.partnerId })
+      .from(sessions)
+      .innerJoin(users, eq(users.id, sessions.therapistId))
+      .innerJoin(organizations, eq(organizations.id, users.organizationId))
+      .innerJoin(patients, eq(patients.id, sessions.patientId))
+      .innerJoin(
+        partnerSubjects,
+        and(
+          eq(partnerSubjects.partnerId, organizations.partnerId),
+          eq(partnerSubjects.personId, patients.personId),
+        ),
+      )
+      .where(
+        and(
+          eq(sessions.id, sessionId),
+          eq(organizations.billingMode, "partner_billed"),
+          isNull(partnerSubjects.revokedAt),
+        ),
+      )
+      .limit(1);
+    const partnerId = rows[0]?.partnerId;
+    if (!partnerId) return { queued: 0 };
+    return await queueWebhook({ partnerId, event, subjectId: sessionId });
+  } catch (error) {
+    log.error("session webhook not queued", { session: ref(sessionId), event, reason: safeErrorMessage(error) });
+    return { queued: 0 };
+  }
+}
+
+/**
  * 🔴 The record was claimed, and every platform holding a live link is told.
  *
  * Broader than the one above, deliberately. A claim changes this person's standing
@@ -247,6 +298,9 @@ async function attempt(delivery: {
   });
 
   try {
+    if (!(await resolvesPublic(delivery.url))) {
+      return { ok: false, status: null, error: "The endpoint does not resolve to a public address." };
+    }
     const timestamp = Math.floor(Date.now() / 1000);
     const secret = decryptSecret(delivery.secretSealed);
     /*
@@ -268,6 +322,8 @@ async function attempt(delivery: {
         "x-24t-delivery": delivery.id,
       },
       body,
+      /* 🔴 C16: a redirect is a second address nobody checked. It counts as a failure. */
+      redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
 

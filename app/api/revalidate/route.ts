@@ -2,6 +2,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { CACHE_VERSION, CMS_TAG } from "@/lib/content/service";
+import { bearerMatches } from "@/lib/auth/shared-secret";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 
@@ -47,14 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not_configured" }, { status: 503 });
   }
 
-  const provided =
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    new URL(request.url).searchParams.get("secret") ??
-    "";
-
-  // Length-independent comparison is overkill for a shared secret sent in a
-  // header, but the cost is one function call and the habit is worth keeping.
-  if (provided.length !== secret.length || provided !== secret) {
+  if (!bearerMatches(request, secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

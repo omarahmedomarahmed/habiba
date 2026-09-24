@@ -25,19 +25,13 @@ export type KeyState = { error?: string; raw?: string; prefix?: string };
 export async function createKey(_prev: KeyState, formData: FormData): Promise<KeyState> {
   const actor = await requirePartnerAdmin();
 
-  const sponsorId = String(formData.get("sponsorId") ?? "").trim();
-
   const result = await mintKey({
     partnerId: actor.partnerId,
     label: String(formData.get("label") ?? ""),
     scopes: formData.getAll("scopes").map(String),
     environment: String(formData.get("environment") ?? "sandbox") as ApiEnvironment,
-    /*
-     * 🔴 C265 — empty means none, not "all of them". `mintKey` refuses
-     * `employment:verify` without one, and `partner_api_keys_employment_needs_sponsor`
-     * refuses it again in the database.
-     */
-    sponsorId: sponsorId || null,
+    /* 🔴 C5: a partner key names no company; that scope is the company's own. */
+    sponsorId: null,
     byPartnerUserId: actor.partnerUserId,
   });
 

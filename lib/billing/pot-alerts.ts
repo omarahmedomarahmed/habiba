@@ -3,6 +3,8 @@ import "server-only";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
+import { potBalance } from "@/lib/data/sponsors";
+import { env } from "@/lib/env";
 import { controlDb } from "@/lib/db";
 import { auditLog, sponsorPots, sponsorUsers, sponsors } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
@@ -98,8 +100,23 @@ export async function alertPots(): Promise<{ alerted: number }> {
   for (const pot of pots) {
     if (await warnExpiry(pot)) alerted += 1;
 
+    /*
+     * 🔴 C7: the PUBLISHED balance, the one their pot page shows. The live one
+     * crosses the line the day one session happens, and in a small company an
+     * email that arrives that morning says somebody went.
+     *
+     * Empty stays live: cover has stopped and people are being asked to pay,
+     * and an empty pot funds no more sessions, so its published figure would
+     * never move to say so.
+     */
+    const { balanceCents: published } = await potBalance(pot.sponsorId);
     const [last] = await topUpHistory(pot.sponsorId, { includeCredits: true });
-    const kind = potAlertFor(pot.balanceCents, last?.amountCents ?? 0);
+    const kind =
+      pot.balanceCents <= 0
+        ? "empty"
+        : published === null
+          ? null
+          : potAlertFor(Math.max(1, published), last?.amountCents ?? 0);
     if (!kind) continue;
 
     const action = `sponsor.pot_alert.${kind}`;
@@ -228,7 +245,7 @@ async function tellAdmins(
       { email: admin.email, phone: null, timezone: null },
       {
         ...message,
-        link: { label: kind === "expiring" ? "Open your pot" : "Top up the fund", url: "/sponsor/pot" },
+        link: { label: kind === "expiring" ? "Open your pot" : "Top up the fund", url: `${env.appUrl}/sponsor/pot` },
         variables: ["24Therapy", name],
       },
     );

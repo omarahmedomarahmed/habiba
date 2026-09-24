@@ -500,7 +500,20 @@ async function potAlerts(db: ReturnType<typeof connect>["db"]) {
     await alertPots();
     check("W1-20 CONTROL a full pot is not alerted", (await sent("low")) + (await sent("empty")) === 0);
 
-    await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 1000 WHERE sponsor_id = ${sponsorId}`);
+    /*
+     * 🔴 C7: the live balance crossing the line is not enough. The warning reads
+     * the balance the company's own page shows, so its arrival dates nobody's
+     * session.
+     */
+    await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 1000, published_balance_cents = 10000 WHERE sponsor_id = ${sponsorId}`);
+    await alertPots();
+    check(
+      "🔴 C7 a pot whose LIVE balance fell, and whose published one has not, is not warned",
+      (await sent("low")) === 0,
+      `${await sent("low")} low`,
+    );
+
+    await db.execute(sql`UPDATE sponsor_pots SET published_balance_cents = 1000 WHERE sponsor_id = ${sponsorId}`);
     await alertPots();
     await alertPots();
     check(

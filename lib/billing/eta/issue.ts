@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, like, notLike, or } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 import { etaDocuments, manualPayments, sponsors, type EtaDocument } from "@/lib/db/schema";
@@ -161,6 +161,24 @@ async function advanceDocument(id: string): Promise<EtaDocument["state"]> {
       .from(etaDocuments)
       .where(and(eq(etaDocuments.sponsorId, doc.sponsorId), eq(etaDocuments.kind, "invoice"), eq(etaDocuments.state, "valid")))
       .orderBy(desc(etaDocuments.createdAt));
+    /*
+     * 🔴 C12: what is still creditable, not what was ever invoiced. Each return
+     * used to measure itself against every valid invoice, so a second return
+     * could credit money the first had already taken back. Every other credit
+     * note that stands or may stand counts against the total first.
+     */
+    const credited = await db
+      .select({ totalMinor: etaDocuments.totalMinor })
+      .from(etaDocuments)
+      .where(
+        and(
+          eq(etaDocuments.sponsorId, doc.sponsorId),
+          eq(etaDocuments.kind, "credit_note"),
+          inArray(etaDocuments.state, ["submitted", "valid"]),
+        ),
+      );
+    const invoiced = issued.reduce((sum, invoice) => sum + (invoice.etaUuid ? invoice.totalMinor : 0), 0);
+    const alreadyCredited = credited.reduce((sum, note) => sum + note.totalMinor, 0);
     references = [];
     let covered = 0;
     for (const invoice of issued) {
@@ -169,8 +187,13 @@ async function advanceDocument(id: string): Promise<EtaDocument["state"]> {
       references.push(invoice.etaUuid);
       covered += invoice.totalMinor;
     }
-    if (covered < doc.totalMinor) {
-      await wait(id, "the invoices it credits to be issued first");
+    if (covered < doc.totalMinor || invoiced - alreadyCredited < doc.totalMinor) {
+      await wait(
+        id,
+        covered < doc.totalMinor
+          ? "the invoices it credits to be issued first"
+          : "the invoices it credits to cover it beside earlier credit notes",
+      );
       return "waiting";
     }
   }
@@ -223,9 +246,20 @@ async function advanceDocument(id: string): Promise<EtaDocument["state"]> {
   const accepted = submitted.accepted.find((a) => a.internalId === doc.internalId);
   if (!accepted) {
     const rejected = submitted.rejected.find((r) => r.internalId === doc.internalId);
+    /*
+     * 🔴 C11: refused on validation, so the same document would be refused
+     * every hour for ever. It waits for a person, who fixes what ETA named and
+     * presses retry in settings.
+     */
     await db
       .update(etaDocuments)
-      .set({ error: (rejected?.error ?? "rejected").slice(0, 500), documentText: text, attempts: doc.attempts + 1, updatedAt: new Date() })
+      .set({
+        error: (rejected?.error ?? "rejected").slice(0, 500),
+        waitingFor: `${FOR_REVIEW} ETA refused it`,
+        documentText: text,
+        attempts: doc.attempts + 1,
+        updatedAt: new Date(),
+      })
       .where(eq(etaDocuments.id, id));
     log.error("ETA rejected a document", { document: ref(id), error: rejected?.error ?? "rejected" });
     return "waiting";
@@ -249,12 +283,23 @@ async function advanceDocument(id: string): Promise<EtaDocument["state"]> {
   return pollDocument(id);
 }
 
+/** A document waiting on this is skipped by the hourly job until a person retries it. */
+const FOR_REVIEW = "review:";
+/** Two days of hourly tries at a signer or ETA that keeps failing, then a person. */
+const MAX_TRIES = 48;
+
 async function bumpAttempts(id: string, error: string): Promise<void> {
   log.error("ETA document not submitted", { document: ref(id), error });
   const [doc] = await db.select({ attempts: etaDocuments.attempts }).from(etaDocuments).where(eq(etaDocuments.id, id)).limit(1);
+  const attempts = (doc?.attempts ?? 0) + 1;
   await db
     .update(etaDocuments)
-    .set({ error: error.slice(0, 500), attempts: (doc?.attempts ?? 0) + 1, updatedAt: new Date() })
+    .set({
+      error: error.slice(0, 500),
+      attempts,
+      ...(attempts >= MAX_TRIES ? { waitingFor: `${FOR_REVIEW} ${MAX_TRIES} tries failed` } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(etaDocuments.id, id));
 }
 
@@ -281,12 +326,29 @@ async function pollDocument(id: string): Promise<EtaDocument["state"]> {
   return next;
 }
 
-/** The hourly job: every waiting document tried again, every submitted one asked about. */
-export async function advanceEtaDocuments(): Promise<{ advanced: number }> {
+/**
+ * The hourly job: every waiting document tried again, every submitted one asked
+ * about. Oldest first, so an invoice goes before the credit note that names it.
+ * A document set aside for a person is left alone unless a person asks
+ * (`review`), and then it starts its count again.
+ */
+export async function advanceEtaDocuments(opts: { review?: boolean } = {}): Promise<{ advanced: number }> {
+  if (opts.review) {
+    await db
+      .update(etaDocuments)
+      .set({ waitingFor: null, attempts: 0, updatedAt: new Date() })
+      .where(and(eq(etaDocuments.state, "waiting"), like(etaDocuments.waitingFor, `${FOR_REVIEW}%`)));
+  }
   const open = await db
     .select({ id: etaDocuments.id, state: etaDocuments.state })
     .from(etaDocuments)
-    .where(inArray(etaDocuments.state, ["waiting", "submitted"]))
+    .where(
+      and(
+        inArray(etaDocuments.state, ["waiting", "submitted"]),
+        or(isNull(etaDocuments.waitingFor), notLike(etaDocuments.waitingFor, `${FOR_REVIEW}%`)),
+      ),
+    )
+    .orderBy(asc(etaDocuments.createdAt))
     .limit(200);
   let advanced = 0;
   for (const doc of open) {
@@ -306,7 +368,8 @@ export async function advanceForCompany(sponsorId: string): Promise<void> {
   const waiting = await db
     .select({ id: etaDocuments.id })
     .from(etaDocuments)
-    .where(and(eq(etaDocuments.sponsorId, sponsorId), eq(etaDocuments.state, "waiting")));
+    .where(and(eq(etaDocuments.sponsorId, sponsorId), eq(etaDocuments.state, "waiting")))
+    .orderBy(asc(etaDocuments.createdAt));
   for (const doc of waiting) await advanceDocument(doc.id);
 }
 

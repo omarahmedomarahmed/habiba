@@ -535,7 +535,8 @@ export async function saveEgyptIssuer(
 export async function retryEtaDocuments(): Promise<void> {
   const actor = await requireRole("super_admin");
   const { advanceEtaDocuments } = await import("@/lib/billing/eta/issue");
-  const { advanced } = await advanceEtaDocuments();
+  /* 🔴 C11: a person pressing retry is the review a refused document waits for. */
+  const { advanced } = await advanceEtaDocuments({ review: true });
   await audit({
     actor,
     category: "admin",

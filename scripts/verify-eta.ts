@@ -235,6 +235,34 @@ async function main() {
       JSON.stringify(accepted),
     );
 
+    /* -------------------------------------------- C11: refused, then a person */
+    const parked = await one<{ id: string }>(db, sql`
+      INSERT INTO eta_documents (kind, purpose, ref_id, sponsor_id, internal_id, net_minor, vat_minor, total_minor)
+      VALUES ('invoice', 'pot_topup', gen_random_uuid(), ${sponsor.id}, ${`HONEST-${fixture}`}, 10000, 1400, 11400)
+      RETURNING id`);
+    const parkedRow = () =>
+      one<{ state: string; waiting_for: string | null; attempts: number; updated_at: Date }>(db, sql`
+        SELECT state, waiting_for, attempts, updated_at FROM eta_documents WHERE id = ${parked.id}`);
+    await advanceEtaDocuments();
+    const refused = await parkedRow();
+    await advanceEtaDocuments();
+    await advanceEtaDocuments();
+    const leftAlone = await parkedRow();
+    await advanceEtaDocuments({ review: true });
+    const retried = await parkedRow();
+    check(
+      "🔴 C11 a document ETA refuses is set aside for a person, not sent again every hour",
+      refused.state === "waiting" && (refused.waiting_for ?? "").startsWith("review:") &&
+        leftAlone.attempts === refused.attempts && +new Date(leftAlone.updated_at) === +new Date(refused.updated_at),
+      JSON.stringify({ refused, leftAlone }),
+    );
+    check(
+      "C11 CONTROL …and a person pressing retry sends it again",
+      +new Date(retried.updated_at) > +new Date(leftAlone.updated_at) && (retried.waiting_for ?? "").startsWith("review:"),
+      JSON.stringify(retried),
+    );
+    await db.execute(sql`DELETE FROM eta_documents WHERE id = ${parked.id}`);
+
     /* ------------------------------------------------------------- a return */
     const potBefore = Number((await one<{ b: number }>(db, sql`SELECT balance_cents AS b FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`)).b);
     const spentBefore = (await potTotals(sponsor.id)).spentCents;
@@ -279,6 +307,19 @@ async function main() {
       "🔴 0148 the return's credit note is issued and names the invoice it corrects",
       note?.state === "valid" && noteText.documentType === "C" && (noteText.references ?? []).includes(invoice.eta_uuid ?? "-"),
       JSON.stringify({ note, references: noteText.references }),
+    );
+
+    /*
+     * 🔴 C12: a second return that fits inside the invoice on its own, and not
+     * beside the first one's credit note, waits too.
+     */
+    const second = await requestPotReturn({ sponsorId: sponsor.id, netCents: 1_000, egpMinor: Number(invoice.total_minor), reason: "A second return", requestedBy: opA.id });
+    if ("ok" in second) await sendPotReturn({ id: second.id, sentBy: opB.id, bankReference: `CIB-C12-${fixture}` });
+    const secondNote = (await docs()).find((d) => d.kind === "credit_note" && d.total_minor === Number(invoice.total_minor));
+    check(
+      "🔴 C12 a return the invoices cover only if the earlier credit note is forgotten waits instead of crediting twice",
+      "ok" in second && secondNote?.state === "waiting" && (secondNote.waiting_for ?? "").includes("invoices it credits"),
+      JSON.stringify({ second, secondNote }),
     );
 
     /* A credit note larger than everything invoiced waits instead of being refused by ETA. */

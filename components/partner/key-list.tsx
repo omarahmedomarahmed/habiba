@@ -59,11 +59,9 @@ function Submit({ label }: { label: string }) {
 
 export function KeyList({
   keys,
-  sponsors,
   canMint,
 }: {
   keys: KeyRow[];
-  sponsors: { id: string; name: string }[];
   canMint: boolean;
 }) {
   const t = useT();
@@ -77,12 +75,6 @@ export function KeyList({
   useEffect(() => {
     if (rolled.raw) setAsking(null);
   }, [rolled.raw]);
-  /*
-   * 🔴 Whether the sponsor picker is shown follows the CHECKBOX rather than a submit
-   * failure. `mintKey` refuses an employment key with no sponsor and the database refuses
-   * it again, so this is a courtesy: the point is that the requirement is visible while the
-   * choice is being made, not reported afterwards.
-   */
 
   return (
     <div className="flex flex-col gap-4">

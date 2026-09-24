@@ -579,6 +579,9 @@ export async function autoEndSession(
   if (!row) return { ended: false };
 
   log.info("session auto-ended", { session: ref(sessionId), reason });
+  /* 🔴 C6: a partner's clinician's session ended; the partner is told. */
+  const { notifySessionEvent } = await import("@/lib/partner/webhooks");
+  await notifySessionEvent(sessionId, "session.completed");
   return { ended: true, ...row };
 }
 
@@ -689,6 +692,9 @@ export async function completeSession(actor: Actor, sessionId: string) {
     resourceId: sessionId,
     patientId: current.patientId,
   });
+  /* 🔴 C6: see `autoEndSession`. */
+  const { notifySessionEvent } = await import("@/lib/partner/webhooks");
+  await notifySessionEvent(sessionId, "session.completed");
 
   return { alreadyCompleted: false, patientId: current.patientId };
 }
