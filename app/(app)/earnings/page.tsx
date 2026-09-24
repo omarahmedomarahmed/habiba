@@ -7,6 +7,7 @@ import { PaymentHistory } from "@/components/billing/payment-history";
 import { Withdraw } from "@/components/billing/withdraw";
 import { Card, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
+import { availableToWithdraw } from "@/lib/billing/available";
 import {
   accountBalance,
   earningsSummary,
@@ -50,22 +51,15 @@ export default async function EarningsPage() {
       getSettings(),
     ]);
 
-  /*
-   * 🔴 16.10 — "available" excludes money already on its way.
-   *
-   * Held is what the ledger says we owe them. Requested and sent are the parts
-   * of it that are somewhere in the queue. Available is what is left, and it
-   * is the only figure with a button next to it: showing a balance that
-   * includes money halfway out of the door invites a second request for money
-   * that is already gone.
-   */
+  // Shown as figures beside the balance. Only the first is subtracted from it.
   const requestedCents = requests
     .filter((r) => r.status === "requested" || r.status === "approved")
     .reduce((total, r) => total + r.amountCents, 0);
   const sentCents = requests
     .filter((r) => r.status === "sent")
     .reduce((total, r) => total + r.amountCents, 0);
-  const availableCents = Math.max(0, held - requestedCents - sentCents);
+  // 🔴 16.10: requested and approved only; a sent payout already left `held`.
+  const availableCents = availableToWithdraw(held, requests);
 
   /*
    * 🔴 76.34 — does this practice bill on the manual rail. The same question
