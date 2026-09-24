@@ -31,7 +31,7 @@ export default async function ClinicPeoplePage() {
     /* 🔴 62.6 / C355 — which seats are live and which are waiting for a period. */
     seatsFor(actor.clinicOrganizationId),
     /*
-     * 🔴 W2-C08 / D2 — each clinician's patients, first name and last initial,
+     * 🔴 W2-C08 / D2: each clinician's patients, first name and last initial,
      * for a principal who may read those names at all (`schedule.read`, scoped).
      */
     can(actor.capabilities, "schedule.read")
@@ -41,7 +41,7 @@ export default async function ClinicPeoplePage() {
   const patientsOf = new Map(lists.map((row) => [row.therapistId, row.names]));
 
   /*
-   * 🔴 W2-C02 / C4 — WHAT INVITING OR REMOVING DOES TO THE SEAT BILL, BEFORE THE CLICK.
+   * 🔴 W2-C02 / C4: WHAT INVITING OR REMOVING DOES TO THE SEAT BILL, BEFORE THE CLICK.
    *
    * Bought seats (`organizations.seats`, what the bill is priced on) against
    * filled seats plus live invitations. An invitation with no free seat buys

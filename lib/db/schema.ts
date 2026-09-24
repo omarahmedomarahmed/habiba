@@ -7587,7 +7587,7 @@ export const clinicAuthSessions = pgTable(
 );
 
 /**
- * 🔴 W2-C04 / W2-C05 (0131) — A CLINIC MANAGER SETS THEIR OWN PASSWORD, BY LINK.
+ * 🔴 W2-C04 / W2-C05 (0131): A CLINIC MANAGER SETS THEIR OWN PASSWORD, BY LINK.
  *
  * `invite`: a staff member added by the clinic admin. Their row is created
  * with no password, which `checkClinicPassword` refuses, and this link is how

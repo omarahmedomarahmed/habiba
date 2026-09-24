@@ -1,5 +1,5 @@
 /**
- * 🔴 W2-C06 — THE CLINIC'S WEEK, computed once for the screen and its export.
+ * 🔴 W2-C06: THE CLINIC'S WEEK, computed once for the screen and its export.
  *
  * Monday-anchored in UTC rather than in the reader's zone: a practice manager
  * and a clinician in different cities must be looking at the same seven rows

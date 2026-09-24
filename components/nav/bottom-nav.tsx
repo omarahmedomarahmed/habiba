@@ -134,7 +134,7 @@ export function BottomNav({
             ))}
 
             {/*
-              🔴 63.2 / C352 — THE SWITCHER, and only for a human who has both.
+              🔴 63.2 / C352: THE SWITCHER, and only for a human who has both.
               It was desktop-only, so a practice owner on a phone could not
               reach their practice at all. Same action, same handover.
             */}

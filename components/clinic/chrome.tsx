@@ -41,7 +41,7 @@ const TABS: { href: string; key: MessageKey; needs: ClinicCapability }[] = [
   { href: "/clinic/people", key: "clinic.nav.people", needs: "people.read" },
   { href: "/clinic/bills", key: "clinic.nav.bills", needs: "bills.read" },
   /*
-   * 🔴 W2-C02 — the seats, which had no screen in this portal at all. Never
+   * 🔴 W2-C02: the seats, which had no screen in this portal at all. Never
    * delegable, so only the admin ever holds `seats.manage`.
    */
   { href: "/clinic/seats", key: "clinic.nav.seats", needs: "seats.manage" },

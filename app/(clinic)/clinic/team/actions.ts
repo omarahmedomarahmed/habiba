@@ -23,7 +23,7 @@ import { callerKey, consume } from "@/lib/rate-limit";
 export type TeamState = { error?: string; ok?: boolean; link?: string };
 
 /**
- * 🔴 W2-C04 — THE INVITATION LINK, SENT AND SHOWN, the clinician invitation's
+ * 🔴 W2-C04: THE INVITATION LINK, SENT AND SHOWN, the clinician invitation's
  * shape (`people/actions.ts:invite`).
  *
  * Shown to the admin as well as emailed because our mail domain is not
@@ -178,7 +178,7 @@ export async function inviteStaff(_prev: TeamState, formData: FormData): Promise
 }
 
 /**
- * 🔴 W2-C04 — A NEW LINK for somebody who has not used theirs. The old one
+ * 🔴 W2-C04: A NEW LINK for somebody who has not used theirs. The old one
  * stops working (`issueClinicToken` supersedes it), so a link forwarded to the
  * wrong person can be taken back by sending another.
  */
@@ -208,7 +208,7 @@ export async function reinviteStaff(clinicManagerId: string): Promise<TeamState>
 }
 
 /**
- * 🔴 W2-C04 — REMOVE A STAFF MEMBER. The admin's, like adding one: somebody
+ * 🔴 W2-C04: REMOVE A STAFF MEMBER. The admin's, like adding one: somebody
  * leaving the practice must lose their access the same minute, and before
  * this there was no way to do it short of asking us.
  */
@@ -235,7 +235,7 @@ export async function removeStaff(clinicManagerId: string): Promise<TeamState> {
   return { ok: true };
 }
 
-/** 🔴 W2-C04 — A DIFFERENT ROLE for a staff member. A permission write, audited as one. */
+/** 🔴 W2-C04: A DIFFERENT ROLE for a staff member. A permission write, audited as one. */
 export async function changeStaffRole(clinicManagerId: string, roleId: string): Promise<TeamState> {
   const actor = await requireClinicAdmin();
 
@@ -260,7 +260,7 @@ export async function changeStaffRole(clinicManagerId: string, roleId: string): 
   return { ok: true };
 }
 
-/** 🔴 W2-C04 — SIGN A STAFF MEMBER OUT EVERYWHERE. A lost phone, a shared desk. */
+/** 🔴 W2-C04: SIGN A STAFF MEMBER OUT EVERYWHERE. A lost phone, a shared desk. */
 export async function signOutStaff(clinicManagerId: string): Promise<TeamState> {
   const actor = await requireClinicAdmin();
 

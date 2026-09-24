@@ -407,7 +407,7 @@ export async function clinicSchedule(input: {
 }
 
 /**
- * 🔴 W2-C08 / D2 — EACH CLINICIAN'S PATIENTS, AS A FIRST NAME AND A LAST INITIAL.
+ * 🔴 W2-C08 / D2: EACH CLINICIAN'S PATIENTS, AS A FIRST NAME AND A LAST INITIAL.
  *
  * The founder's decision of 2026-09-23: the practice sees first name and last
  * initial on each clinician's calendar AND patient list. C2 and C5 say so, the
@@ -653,7 +653,7 @@ export async function clinicUsage(actor: ClinicPrincipal): Promise<ClinicUsageWe
    * here and no argument that would produce one.
    */
   /*
-   * 🔴 W2-C01 — AND SCOPED LIKE THE SCHEDULE, in the WHERE.
+   * 🔴 W2-C01: AND SCOPED LIKE THE SCHEDULE, in the WHERE.
    *
    * `reports.read` is in THERAPIST_SCOPED, and this summed the whole practice
    * for anybody holding it: an assistant assigned to one clinician read every
@@ -751,7 +751,7 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
    * a SQL string and neither can a reader who trusts one.
    */
   /*
-   * 🔴 W2-C03 — THE LINES ARE SUMMED PER INVOICE FIRST, then joined.
+   * 🔴 W2-C03: THE LINES ARE SUMMED PER INVOICE FIRST, then joined.
    *
    * This joined `invoice_lines` straight onto `invoices` and summed the
    * invoice amount, so an invoice with a platform line and an AI line was
@@ -808,7 +808,7 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
 }
 
 /**
- * 🔴 W2-C03 / C3 — THE SEAT INVOICES, which the bills page never showed.
+ * 🔴 W2-C03 / C3: THE SEAT INVOICES, which the bills page never showed.
  *
  * `clinicBills` reads session invoices only (`session_id IS NOT NULL`), so
  * a seat change's proration invoice (`billSeatProration`, kind

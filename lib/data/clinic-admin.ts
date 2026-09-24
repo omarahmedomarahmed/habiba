@@ -785,7 +785,7 @@ export async function removeClinician(input: {
     .where(eq(users.id, input.userId));
 
   /*
-   * 🔴 W2-T05 — AND THEY CAN GO ON WORKING, WHICH C266 PROMISED AND NOTHING DID.
+   * 🔴 W2-T05: AND THEY CAN GO ON WORKING, WHICH C266 PROMISED AND NOTHING DID.
    *
    * Three things `signUp` and `joinWithExistingAccount` each do and this did
    * not, so the practice of one was a practice in name only:

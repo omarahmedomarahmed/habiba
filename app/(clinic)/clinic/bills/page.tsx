@@ -123,7 +123,7 @@ export default async function ClinicBillsPage({
       ) : null}
 
       {/*
-        🔴 W2-C03 — WHAT IS OWED, AND THE WAY TO PAY IT.
+        🔴 W2-C03: WHAT IS OWED, AND THE WAY TO PAY IT.
 
         Nothing in this portal could pay, and nothing said whether a month was
         settled. The button is the admin's: paying spends the practice's money.
@@ -137,7 +137,7 @@ export default async function ClinicBillsPage({
         </Card>
       ) : null}
 
-      {/* 🔴 W2-C03 / C3 — the seat invoices, which no clinic screen showed. */}
+      {/* 🔴 W2-C03 / C3: the seat invoices, which no clinic screen showed. */}
       {seatBills.length > 0 ? (
         <Card className="p-5">
           <p className="text-sm font-semibold text-slate-900">{t("clinic.nav.seats")}</p>

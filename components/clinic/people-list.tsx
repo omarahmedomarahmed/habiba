@@ -142,7 +142,7 @@ export function ClinicPeopleList({
                   </p>
                 ) : null}
 
-                {/* 🔴 W2-C08 / D2 — names only, and not links: there is nowhere for one to go. */}
+                {/* 🔴 W2-C08 / D2: names only, and not links: there is nowhere for one to go. */}
                 {person.patients && person.patients.length > 0 ? (
                   <details className="mt-1">
                     <summary className="cursor-pointer text-xs font-semibold text-slate-600">
@@ -161,7 +161,7 @@ export function ClinicPeopleList({
                       <p className="text-xs leading-relaxed text-slate-600">
                         {t("clinic.removeConfirm")}
                       </p>
-                      {/* 🔴 W2-C02 / C4 — and the bill after it, when a seat comes free. */}
+                      {/* 🔴 W2-C02 / C4: and the bill after it, when a seat comes free. */}
                       {seatRelease ? (
                         <p className="mt-1 text-xs font-medium text-slate-700">
                           {t("clinic.seatReleases", { monthly: seatRelease.monthlyLabel })}
@@ -253,7 +253,7 @@ export function ClinicPeopleList({
             </Field>
 
             {/*
-              🔴 W2-C02 — no free seat, so this invitation buys one. The figure
+              🔴 W2-C02: no free seat, so this invitation buys one. The figure
               is the server's, stated before the button, and the count it was
               quoted against goes with the form so a moved count is refused.
             */}

@@ -10,7 +10,7 @@ import { clinicAuthTokens, clinicManagers, organizations } from "@/lib/db/schema
 import { log, ref } from "@/lib/logger";
 
 /**
- * 🔴 W2-C04 / W2-C05 — A CLINIC MANAGER SETS THEIR OWN PASSWORD, BY LINK.
+ * 🔴 W2-C04 / W2-C05: A CLINIC MANAGER SETS THEIR OWN PASSWORD, BY LINK.
  *
  * Two ways in, one mechanism:
  *

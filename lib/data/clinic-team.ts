@@ -316,7 +316,7 @@ export async function addStaff(input: {
 }
 
 /**
- * 🔴 W2-C04 — ONE OF THIS PRACTICE'S STAFF, and never its owner.
+ * 🔴 W2-C04: ONE OF THIS PRACTICE'S STAFF, and never its owner.
  *
  * Every lifecycle act below goes through this: the row must be this
  * practice's, live, and a `viewer`. The built-in admin is ours to create and
@@ -358,7 +358,7 @@ export async function invitedStaff(clinicOrganizationId: string, clinicManagerId
 }
 
 /**
- * 🔴 W2-C04 — REMOVE A STAFF MEMBER. Soft, like a role: the row stays for the
+ * 🔴 W2-C04: REMOVE A STAFF MEMBER. Soft, like a role: the row stays for the
  * audit trail that names it, the assignments go, every session ends now and
  * the address is free to be used again (the unique index is on live rows).
  */
@@ -383,7 +383,7 @@ export async function removeStaff(input: {
 }
 
 /**
- * 🔴 W2-C04 — GIVE A STAFF MEMBER A DIFFERENT ROLE. One of this practice's own
+ * 🔴 W2-C04: GIVE A STAFF MEMBER A DIFFERENT ROLE. One of this practice's own
  * roles, never another clinic's. `getClinicActor` reads capabilities from the
  * role on every request, so the change reaches a live session on its next page.
  */
@@ -415,7 +415,7 @@ export async function changeStaffRole(input: {
   return { ok: true };
 }
 
-/** 🔴 W2-C04 — SIGN A STAFF MEMBER OUT EVERYWHERE, now. Their account stays. */
+/** 🔴 W2-C04: SIGN A STAFF MEMBER OUT EVERYWHERE, now. Their account stays. */
 export async function signOutStaff(input: {
   clinicOrganizationId: string;
   clinicManagerId: string;

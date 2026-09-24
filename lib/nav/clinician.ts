@@ -65,7 +65,7 @@ const CLEARED: readonly Destination[] = [
   { href: "/dashboard", label: "portal.nav.home", icon: Home, primary: true },
   { href: "/sessions", label: "portal.nav.sessions", icon: CalendarDays, primary: true },
   /*
-   * 51.7 — the calendar, beside the sessions it fills. Separate from /sessions
+   * 51.7: the calendar, beside the sessions it fills. Separate from /sessions
    * on purpose: that page is what HAS happened and what is about to, this one
    * is the hours nobody has taken yet.
    */
@@ -89,7 +89,7 @@ const CLEARED: readonly Destination[] = [
     icon: Sparkles,
     hint: "portal.nav.hintAssistant",
   },
-  /* 27.2 / 27.7 — the two things a patient starts and a clinician answers. */
+  /* 27.2 / 27.7: the two things a patient starts and a clinician answers. */
   { href: "/connect", label: "portal.nav.connect", icon: KeyRound, hint: "portal.nav.hintConnect" },
   { href: "/on-call", label: "portal.nav.crisisRadar", icon: Radio, hint: "portal.nav.hintRadar" },
 ];

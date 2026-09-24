@@ -257,7 +257,7 @@ export function ClinicTeam({
               </div>
 
               {/*
-                🔴 W2-C04 — THE LIFECYCLE, for staff and never for the owner.
+                🔴 W2-C04: THE LIFECYCLE, for staff and never for the owner.
                 A role, a way to end their sessions, a new link while they have
                 not used theirs, and removal behind a second press. Each action
                 refuses the practice's admin on the server as well.
@@ -395,7 +395,7 @@ export function ClinicTeam({
 }
 
 /**
- * 🔴 W2-C04 — the link, as the clinician invitation shows it. It lets its
+ * 🔴 W2-C04: the link, as the clinician invitation shows it. It lets its
  * holder choose their own password once; the admin passes it on and types
  * nothing.
  */

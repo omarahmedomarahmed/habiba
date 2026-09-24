@@ -45,7 +45,7 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
   const link = `${env.appUrl}${CLINIC_JOIN}/${result.token}`;
 
   /*
-   * 🔴 W2-C02 — THE SEAT THIS INVITATION NEEDS, BOUGHT AS QUOTED.
+   * 🔴 W2-C02: THE SEAT THIS INVITATION NEEDS, BOUGHT AS QUOTED.
    *
    * The form carries the count it was quoted against only when there was no
    * free seat. `applySeatChange` refuses if that count has moved, and raises
@@ -161,7 +161,7 @@ export async function remove(
   if (result.error) return { error: result.error };
 
   /*
-   * 🔴 W2-T05 — AND THEY ARE TOLD, by email as well as in their app.
+   * 🔴 W2-T05: AND THEY ARE TOLD, by email as well as in their app.
    *
    * Best effort, like the invitation: the in-app notice `removeClinician`
    * wrote is the one that cannot fail to arrive. Nothing about any patient;
@@ -196,7 +196,7 @@ export async function remove(
   });
 
   /*
-   * 🔴 W2-C02 / C4 — AND THE SEAT GOES WITH THEM.
+   * 🔴 W2-C02 / C4: AND THE SEAT GOES WITH THEM.
    *
    * `removeClinician` released their `clinic_seats` row and left
    * `organizations.seats`, which prices the bill, where it was: C4's "the
