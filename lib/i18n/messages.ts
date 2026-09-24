@@ -4033,6 +4033,10 @@ export const en = {
   "ateam.reactivate": "Reactivate",
   "ateam.confirmOff": "Signs them out now.",
   "ateam.errNotChangeable": "Not changeable here.",
+  "asupport.open": "Read what they wrote",
+  "asupport.reply": "Reply",
+  "asupport.replyHint": "What was done. They read it on a page that authenticates, never in an email.",
+  "asupport.whatsapp": "What was agreed on WhatsApp",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7300,6 +7304,10 @@ export const ar: Record<MessageKey, string> = {
   "ateam.reactivate": "أعد التفعيل",
   "ateam.confirmOff": "يخرجهم فورًا.",
   "ateam.errNotChangeable": "لا يمكن تغييره هنا.",
+  "asupport.open": "اقرأ ما كتبوه",
+  "asupport.reply": "ردّ",
+  "asupport.replyHint": "ما الذي تم. يقرؤونه في صفحة تتحقق من هويتهم، لا في بريد إلكتروني أبدًا.",
+  "asupport.whatsapp": "ما اتُّفق عليه على واتساب",
 };
 
 export const DICTIONARIES = { en, ar } as const;

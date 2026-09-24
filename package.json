@@ -209,6 +209,7 @@
     "test:payout-return": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/payout-return.test.ts",
     "test:account-links": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/account-links.test.ts",
     "test:account-links-db": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/account-links-db.test.ts",
+    "test:support-console": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/support-console.test.ts",
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
