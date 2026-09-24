@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { savePatient } from "@/app/(app)/patients/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { PhoneField } from "@/components/forms/phone-field";
-import { countryFromE164, countryFromLocale } from "@/lib/phone/e164";
+import { countryFromE164, readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
 type Initial = {
@@ -44,9 +44,7 @@ export function PatientEditor({
       /* 37R.25 — the number decides the label. A record holding +20 showed
          "United States" beside it because the selector only ever asked the
          browser. */
-      countryFromE164(initial.phone) ??
-      countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ??
-      "EG",
+      countryFromE164(initial.phone) ?? readerCountry(),
   );
 
   const set = <K extends keyof Initial>(key: K, value: Initial[K]) =>

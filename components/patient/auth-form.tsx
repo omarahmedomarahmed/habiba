@@ -7,7 +7,7 @@ import { patientSignIn, patientSignUp } from "@/lib/patient-auth/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { PhoneField } from "@/components/forms/phone-field";
 import { TimezoneField } from "@/components/forms/timezone-field";
-import { countryFromLocale } from "@/lib/phone/e164";
+import { readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
@@ -59,10 +59,7 @@ export function PatientAuthForm({
   // answer.
   const [phone, setPhone] = useState("");
   const [phoneCountry, setPhoneCountry] = useState(
-    () =>
-      countryFromLocale(
-        typeof navigator === "undefined" ? null : navigator.language,
-      ) ?? "EG",
+    () => readerCountry(),
   );
 
   return (

@@ -183,3 +183,35 @@ export function countryFromLocale(locale: string | null | undefined): string | n
   if (locale.toLowerCase().startsWith("ar")) return "EG";
   return null;
 }
+
+/**
+ * The zones of the countries above, one or two each. A zone says where the
+ * reader IS; a browser language says what they read, and much of Egypt reads
+ * `en-US`, which put "United States +1" in front of a Cairo patient.
+ */
+const ZONE_COUNTRY: Record<string, string> = {
+  "Africa/Cairo": "EG", "Asia/Riyadh": "SA", "Asia/Dubai": "AE", "Asia/Kuwait": "KW",
+  "Asia/Qatar": "QA", "Asia/Bahrain": "BH", "Asia/Muscat": "OM", "Asia/Amman": "JO",
+  "Asia/Beirut": "LB", "Asia/Baghdad": "IQ", "Africa/Casablanca": "MA", "Africa/Algiers": "DZ",
+  "Africa/Tunis": "TN", "Africa/Tripoli": "LY", "Africa/Khartoum": "SD", "Asia/Gaza": "PS",
+  "Asia/Hebron": "PS", "Europe/Istanbul": "TR", "Europe/London": "GB", "Europe/Berlin": "DE",
+  "Europe/Paris": "FR", "Europe/Rome": "IT", "Europe/Amsterdam": "NL", "Europe/Stockholm": "SE",
+  "Australia/Sydney": "AU", "Australia/Melbourne": "AU", "America/Toronto": "CA",
+  "America/New_York": "US", "America/Chicago": "US", "America/Denver": "US", "America/Los_Angeles": "US",
+};
+
+/**
+ * The country a phone field starts on: the reader's zone, then their browser's
+ * language, then Egypt, which is where this product is. Browser-only; a server
+ * render gets Egypt and the field settles on hydration.
+ */
+export function readerCountry(): string {
+  if (typeof navigator === "undefined") return "EG";
+  let zone: string | undefined;
+  try {
+    zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    zone = undefined;
+  }
+  return (zone ? ZONE_COUNTRY[zone] : undefined) ?? countryFromLocale(navigator.language) ?? "EG";
+}

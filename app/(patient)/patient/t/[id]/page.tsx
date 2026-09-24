@@ -23,7 +23,7 @@ export default async function PatientTherapistPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePatient();
+  const actor = await requirePatient();
 
   const { id } = await params;
   if (!(await publicProfile(id))) notFound();
@@ -40,7 +40,10 @@ export default async function PatientTherapistPage({
   return (
     <div className="mx-auto w-full max-w-md px-4 pt-6">
       <PatientBack />
-      <TherapistPageBody id={id} />
+      <TherapistPageBody
+        id={id}
+        booker={{ firstName: actor.firstName, email: actor.email, phone: actor.phone }}
+      />
     </div>
   );
 }

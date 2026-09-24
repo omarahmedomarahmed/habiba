@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { requestSignInCode, signInWithCode } from "@/lib/patient-auth/code-signin";
 import { Button, Card, Field, Input } from "@/components/ui";
-import { countryFromLocale } from "@/lib/phone/e164";
+import { readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -34,8 +34,7 @@ export function CodeSignInForm({ next = null }: { next?: string | null }) {
   const t = useT();
   const router = useRouter();
   const [country] = useState(
-    () =>
-      countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
+    () => readerCountry(),
   );
   const [handle, setHandle] = useState("");
 

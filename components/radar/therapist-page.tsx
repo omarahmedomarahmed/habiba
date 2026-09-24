@@ -24,7 +24,14 @@ import { Money } from "@/components/ui/money";
  * The alternative was a second copy of the page. A second copy is where the
  * reliability rule quietly stops applying to one of them.
  */
-export async function TherapistPageBody({ id }: { id: string }) {
+export async function TherapistPageBody({
+  id,
+  booker = null,
+}: {
+  id: string;
+  /** The signed-in patient, from the patient app's page; null on the public one. */
+  booker?: { firstName: string; email: string | null; phone: string | null } | null;
+}) {
   const profile = await publicProfile(id);
   if (!profile) return null;
 
@@ -137,6 +144,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
           therapistName={profile.firstName}
           therapistTimezone={profile.timezone}
           rateLabel={profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : "Free"}
+          booker={booker}
         />
       </div>
     </>

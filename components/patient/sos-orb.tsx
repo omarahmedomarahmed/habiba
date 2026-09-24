@@ -95,7 +95,12 @@ export function SosOrb({
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"start" | "end">("end");
-  const [top, setTop] = useState(0.62);
+  /*
+   * Just above the bottom bar by default. At 0.62 it rested on the booking
+   * form's phone field on a phone (live walkthrough), where a tap meant for
+   * the field opened the sheet. Low on the screen, content scrolls past it.
+   */
+  const [top, setTop] = useState(0.82);
   const dragging = useRef(false);
 
   /* Remembered per device, so it stays where somebody put it. */

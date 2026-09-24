@@ -8,7 +8,7 @@ import { Card } from "@/components/ui";
 import { byDayIn, formatTime, formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { PhoneField } from "@/components/forms/phone-field";
-import { countryFromLocale } from "@/lib/phone/e164";
+import { countryFromE164, readerCountry } from "@/lib/phone/e164";
 import { useLocale, useT } from "@/lib/i18n/client";
 
 /**
@@ -33,21 +33,30 @@ export function BookingCalendar({
   therapistName,
   therapistTimezone,
   rateLabel,
+  booker,
 }: {
   slots: { id: string; startsAt: string }[];
   therapistName: string;
   /** The zone the first render uses, before the browser answers. 12.3 / C84. */
   therapistTimezone: string | null;
   rateLabel: React.ReactNode;
+  /**
+   * A signed-in patient's own details, so the form is already filled in.
+   * The walkthrough found a signed-in patient asked to type their name,
+   * email and number again to book. The server still takes the person from
+   * the cookie (W2-P04); this only saves the typing.
+   */
+  booker?: { firstName: string; email: string | null; phone: string | null } | null;
 }) {
   const t = useT();
   const locale = useLocale();
   const [picked, setPicked] = useState<{ id: string; startsAt: string } | null>(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(booker?.firstName ?? "");
+  const [email, setEmail] = useState(booker?.email ?? "");
+  /* An E.164 number is taken as given by `toE164`, so the country beside it is only a label. */
+  const [phone, setPhone] = useState(booker?.phone ?? "");
   const [phoneCountry, setPhoneCountry] = useState(
-    () => countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
+    () => countryFromE164(booker?.phone ?? null) ?? readerCountry(),
   );
   const [note, setNote] = useState("");
   const [done, setDone] = useState<{ when: string; sent: boolean } | null>(null);

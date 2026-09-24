@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { completePatientReset, requestPatientReset } from "@/lib/patient-auth/reset";
 import { Button, Card, Field, Input } from "@/components/ui";
-import { countryFromLocale } from "@/lib/phone/e164";
+import { readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -39,8 +39,7 @@ function Submit({ label }: { label: string }) {
 export function PatientResetForm() {
   const t = useT();
   const [country] = useState(
-    () =>
-      countryFromLocale(typeof navigator === "undefined" ? null : navigator.language) ?? "EG",
+    () => readerCountry(),
   );
 
   const [asked, request] = useActionState(requestPatientReset, {});
