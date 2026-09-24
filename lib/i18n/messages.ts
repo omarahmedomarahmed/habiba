@@ -670,7 +670,7 @@ export const en = {
 
   /* --------------------------------------------------------------- billing */
   "pbilling.title": "Billing",
-  "pbilling.body": "What you paid, and exactly where it went.",
+  "pbilling.body": "What you paid, and where it went.",
   "pbilling.none": "Nothing paid yet",
   "pbilling.noneBody": "Sessions you pay for appear here, fully broken down.",
   /* 🔴 53.21 — a covered session, named without naming an employer (C227, C243). */
