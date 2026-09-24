@@ -9143,11 +9143,30 @@ export const manualPayments = pgTable(
     /** 🔴 A rejection carries its reason. The CHECK in 0102 enforces it. */
     rejectReason: text("reject_reason"),
 
+    /*
+     * 🔴 W2-A03 (0142): confirmed money that did not do its job, raised where
+     * it used to be a log line: the grant threw, the thing it paid for could
+     * not take it, or it was more than the bill. Resolved with a sentence and
+     * a name, which the CHECK requires.
+     */
+    exception: text("exception").$type<ManualPaymentException>(),
+    exceptionDetail: text("exception_detail"),
+    exceptionAt: timestamp("exception_at", { withTimezone: true }),
+    exceptionResolvedAt: timestamp("exception_resolved_at", { withTimezone: true }),
+    exceptionResolvedBy: uuid("exception_resolved_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    exceptionResolution: text("exception_resolution"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("manual_payments_payer_idx").on(t.userId, t.patientAccountId, t.sponsorId, t.createdAt),
   ],
 );
+
+/** W2-A03 (0142): the three ways confirmed money can need a person. */
+export const MANUAL_PAYMENT_EXCEPTIONS = ["grant_failed", "not_payable", "overpaid"] as const;
+export type ManualPaymentException = (typeof MANUAL_PAYMENT_EXCEPTIONS)[number];
 
 export type ManualPayment = typeof manualPayments.$inferSelect;

@@ -541,7 +541,13 @@ export async function confirmPayment(input: {
         purpose: payment.purpose,
         error: String(error),
       });
-      return { error: "The payment was recorded but the account was not updated. Tell an engineer." };
+      /*
+       * 🔴 W2-A03: and on the screen, as work with a Retry. "Tell an engineer"
+       * was the whole of it before, and nothing listed or re-ran the grant.
+       */
+      const { flagException } = await import("./rail-exceptions");
+      await flagException(payment.id, "grant_failed", String(error));
+      return { error: "The payment was recorded but the account was not updated. It is under Needs a decision." };
     }
   }
 

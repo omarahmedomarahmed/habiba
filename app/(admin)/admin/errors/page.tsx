@@ -77,8 +77,7 @@ export default async function AdminErrorsPage() {
 
             {latest.digest ? (
               <p className="mt-1 text-xs text-slate-500">
-                Digest <code className="font-mono">{latest.digest}</code>. The code a clinician
-                sees, so a support message quoting it lands here.
+                Digest <code className="font-mono">{latest.digest}</code>.
               </p>
             ) : null}
 

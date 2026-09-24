@@ -363,6 +363,42 @@ async function main() {
   );
 
   /*
+   * 🔴 W2-A03: THE EXCEPTION ACTIONS, NAMED THE SAME WAY, in their own file.
+   *
+   * Money that arrived and did not do its job (the grant threw, the session
+   * was cancelled meanwhile, the bill was overpaid) and open carts nobody
+   * submitted. Three acts, and each earns its place for a stated reason:
+   *
+   *   retryException           re-runs the grant a confirmation ALREADY ran,
+   *                            claimed in a guarded WHERE so it runs once; it
+   *                            cannot confirm a claim or change an amount
+   *   resolveTransferException writes down what a person did, with a sentence
+   *   discardOpenCart          deletes an `awaiting_proof` row only, which
+   *                            carries no money and no claim
+   *
+   * A fourth export here goes red exactly like one in `actions.ts`.
+   */
+  const exceptionActions = readSource("app/(admin)/admin/transfers/exception-actions.ts");
+  const exceptionExports = [...exceptionActions.matchAll(/export async function (\w+)/g)].map((m) => m[1]!);
+  const EXCEPTION_ACTIONS = ["retryException", "resolveTransferException", "discardOpenCart"];
+  check(
+    "🔴 W2-A03 the exception acts are retry, resolve and discard, each staff and audited, and nothing else",
+    exceptionExports.length === EXCEPTION_ACTIONS.length &&
+      EXCEPTION_ACTIONS.every((name) => {
+        const body = exceptionActions.slice(exceptionActions.indexOf(`function ${name}`));
+        return /await requireStaff\(\)/.test(body.slice(0, 400)) && /await audit\(/.test(body.slice(0, 1200));
+      }),
+    exceptionExports.join(", "),
+  );
+  const railExceptions = readSource("lib/billing/rail-exceptions.ts");
+  check(
+    "🔴 W2-A03 a retry is claimed in the WHERE, and a discard can only remove an open cart",
+    /eq\(manualPayments\.exception, "grant_failed"\)/.test(railExceptions) &&
+      /eq\(manualPayments\.id, paymentId\), eq\(manualPayments\.state, "awaiting_proof"\)/.test(railExceptions),
+    "two Retry presses run the grant once, and a submitted claim can never be discarded",
+  );
+
+  /*
    * 🔴 AND THE THREE PROPERTIES THAT MAKE THE THIRD ONE SAFE.
    *
    * Without all three it is a button for inventing payments.

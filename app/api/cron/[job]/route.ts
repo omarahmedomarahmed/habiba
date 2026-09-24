@@ -446,7 +446,10 @@ const JOBS = {
     // table in the database.
     const { purgeOldErrors } = await import("@/lib/observability/errors");
     const errorsPurged = await purgeOldErrors();
-    return { auditPurged: purged.length, sessionsPurged, limitsPurged, errorsPurged };
+    // W2-A03: open carts nobody submitted expire, and stop locking the bank details.
+    const { expireOpenCarts } = await import("@/lib/billing/rail-exceptions");
+    const cartsExpired = await expireOpenCarts();
+    return { auditPurged: purged.length, sessionsPurged, limitsPurged, errorsPurged, cartsExpired };
   },
 
   /**

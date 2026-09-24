@@ -26,8 +26,7 @@ function Unlock() {
         </span>
         <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">Total View</p>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">
-          Both keys are required. Everything past this point is read-only and every read is
-          recorded.
+          Both keys are required. Every read is recorded.
         </p>
 
         {error ? (

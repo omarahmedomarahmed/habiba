@@ -4037,6 +4037,16 @@ export const en = {
   "asupport.reply": "Reply",
   "asupport.replyHint": "What was done. They read it on a page that authenticates, never in an email.",
   "asupport.whatsapp": "What was agreed on WhatsApp",
+  "arail.title": "Needs a decision",
+  "arail.grantFailed": "Not applied",
+  "arail.notPayable": "Bought nothing",
+  "arail.overpaid": "Overpaid",
+  "arail.retry": "Retry",
+  "arail.note": "What you did",
+  "arail.resolve": "Done",
+  "arail.discard": "Discard",
+  "arail.errStillFailing": "Still failing.",
+  "arail.errNote": "Say what you did.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7308,6 +7318,16 @@ export const ar: Record<MessageKey, string> = {
   "asupport.reply": "ردّ",
   "asupport.replyHint": "ما الذي تم. يقرؤونه في صفحة تتحقق من هويتهم، لا في بريد إلكتروني أبدًا.",
   "asupport.whatsapp": "ما اتُّفق عليه على واتساب",
+  "arail.title": "يحتاج إلى قرار",
+  "arail.grantFailed": "لم يُطبَّق",
+  "arail.notPayable": "لم يشترِ شيئًا",
+  "arail.overpaid": "دفع أكثر",
+  "arail.retry": "أعد المحاولة",
+  "arail.note": "ما فعلته",
+  "arail.resolve": "تم",
+  "arail.discard": "تجاهل",
+  "arail.errStillFailing": "ما زال يفشل.",
+  "arail.errNote": "اذكر ما فعلته.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

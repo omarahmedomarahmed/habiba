@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { formatMoney } from "@/lib/billing/plans";
 import { OpenCarts } from "@/components/admin/open-carts";
+import { RailExceptions } from "@/components/admin/rail-exceptions";
 import { TransferQueue } from "@/components/admin/transfer-queue";
 import { PageHeader } from "@/components/ui";
 import { mayOpen } from "@/lib/admin/access";
@@ -9,6 +10,7 @@ import { requireStaff } from "@/lib/auth/guard";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { openCarts, queue } from "@/lib/billing/manual";
+import { openExceptions } from "@/lib/billing/rail-exceptions";
 import { controlDb as db } from "@/lib/db";
 import { patientAccounts, sponsors, users } from "@/lib/db/schema";
 
@@ -35,7 +37,7 @@ export const dynamic = "force-dynamic";
 export default async function TransfersPage() {
   const actor = await requireStaff();
 
-  const [rows, carts] = await Promise.all([queue(), openCarts()]);
+  const [rows, carts, exceptions] = await Promise.all([queue(), openCarts(), openExceptions()]);
 
   /*
    * 🔴 The payer's NAME, resolved here, because a queue of uuids is a queue
@@ -50,7 +52,7 @@ export default async function TransfersPage() {
    * same payers behind them, and two sets of three queries would be six round
    * trips to answer one screen.
    */
-  const everyRow = [...rows, ...carts];
+  const everyRow = [...rows, ...carts, ...exceptions];
   const userIds = everyRow.map((r) => r.userId).filter((x): x is string => Boolean(x));
   const patientIds = everyRow
     .map((r) => r.patientAccountId)
@@ -216,6 +218,19 @@ export default async function TransfersPage() {
           profileHref: profileFor(r),
           /* 🔴 76.16 — what the payer said it covers. Absent on older rows. */
           lines: r.lineItems ?? [],
+        }))}
+      />
+
+      {/* 🔴 W2-A03 / A4: money we hold that somebody has to decide about. */}
+      <RailExceptions
+        rows={exceptions.map((e) => ({
+          id: e.id,
+          payer: nameFor(e),
+          what: e.purpose,
+          settlesCents: e.settlesCents,
+          kind: e.exception!,
+          detail: e.exceptionDetail,
+          raisedAt: e.exceptionAt?.toISOString() ?? null,
         }))}
       />
 

@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 
 import { confirmUnclaimed } from "@/app/(admin)/admin/transfers/actions";
+import { discardOpenCart } from "@/app/(admin)/admin/transfers/exception-actions";
+import { useT } from "@/lib/i18n/client";
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 
@@ -95,6 +97,7 @@ function CartItem({
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
+  const t = useT();
 
   return (
     <div className="px-4 py-3">
@@ -154,13 +157,33 @@ function CartItem({
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="mt-2 text-xs font-medium text-slate-500 underline"
-        >
-          I have this in the bank
-        </button>
+        <div className="mt-2 flex gap-4">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="text-xs font-medium text-slate-500 underline"
+          >
+            I have this in the bank
+          </button>
+          {/*
+            🔴 W2-A03: an abandoned cart can be thrown away. It carries no money
+            and no claim, and every open one locks the bank details. They also
+            expire on their own after `CART_EXPIRY_DAYS`.
+          */}
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const result = await discardOpenCart(row.id);
+                onDone(result.error ? { error: result.error } : {});
+              })
+            }
+            className="text-xs font-medium text-slate-500 underline"
+          >
+            {t("arail.discard")}
+          </button>
+        </div>
       )}
     </div>
   );

@@ -890,6 +890,13 @@
       "when": 1789966027000,
       "tag": "0141_an_invitation_not_a_password",
       "breakpoints": true
+    },
+    {
+      "idx": 142,
+      "version": "7",
+      "when": 1789966028000,
+      "tag": "0142_money_that_needs_a_decision",
+      "breakpoints": true
     }
   ]
 }
