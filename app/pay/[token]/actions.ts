@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { quoteFor } from "@/lib/billing/fx";
@@ -358,9 +357,13 @@ export async function openSessionPayment(token: string): Promise<void> {
  * come back to this page with the transfer still there.
  */
 export async function payByCard(token: string): Promise<void> {
+  /* Imported here: this file is also loaded by verifiers outside Next, where it cannot be. */
+  const { redirect } = await import("next/navigation");
   const session = await resolveJoinToken(token);
-  if (!session) redirect(`/pay/${token}`);
-  if (!(await organizationNeedsTransfer(session.organizationId))) redirect(`/pay/${token}`);
+  if (!session || !(await organizationNeedsTransfer(session.organizationId))) {
+    redirect(`/pay/${token}`);
+    return;
+  }
 
   const { createGatewaySessionCheckout } = await import("@/lib/billing/gateway/session");
   const result = await createGatewaySessionCheckout({

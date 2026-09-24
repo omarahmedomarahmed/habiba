@@ -121,7 +121,7 @@ export async function reportSession(input: {
         refundNote = refund.error
           ? `NOT refunded (${refund.error}), refund owed`
           : refund.queuedCents
-            ? "company share returned; the employee's share is on the refund queue"
+            ? "owed on the refund queue (paid by transfer)"
             : "refunded";
       } catch {
         /* Already refunded, or payments are not configured here. */

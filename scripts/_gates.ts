@@ -95,6 +95,16 @@ export const GATES = [
    * contracts are. Run on the simulator, through the real callback routes, so
    * the day an adapter is written nothing else has to change and this proves it.
    */
+  /*
+   * 🔴 One month of money for a whole cast, then every book against every
+   * other: pot, company ledger, held earnings, revenue, VAT. The defects no
+   * single rail's verifier can see are the ones where two of them disagree.
+   */
+  {
+    name: "month",
+    script: "verify:month",
+    why: "and a month of money on every rail leaves every book agreeing with every other",
+  },
   {
     name: "gateway",
     script: "verify:gateway",

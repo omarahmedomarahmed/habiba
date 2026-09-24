@@ -1226,12 +1226,26 @@ export async function refundSessionPayment(opts: {
     return { ok: true, toPayerCents: viaGateway.usdCents };
   }
 
+  /*
+   * 🔴 No card charge and no gateway attempt: the money came by bank transfer
+   * (W1-12). There is nothing to reverse by API, so a person sends it back from
+   * the refund queue, and the payment stays `paid` while we hold it. This used
+   * to answer "no Stripe charge" to an admin, which queued nothing: only the
+   * automatic paths opened a queue row, so an operator's own refund was stuck.
+   */
+  if (!payment.stripePaymentIntentId) {
+    const { openRefundRequest } = await import("./refunds");
+    const queued = await openRefundRequest({
+      sessionPaymentId: payment.id,
+      requestedByUserId: opts.adminUserId,
+      reason: opts.why ?? "admin",
+    });
+    if (queued.error) return { error: "That payment could not be queued for a refund." };
+    return { ok: true, queuedCents: payment.grossCents + Math.max(0, payment.vatCents), toPayerCents: 0 };
+  }
+
   const client = getStripe();
   if (!client) return { error: "Payments are not configured on this deployment." };
-
-  if (!payment.stripePaymentIntentId) {
-    return { error: "That payment has no Stripe charge to refund." };
-  }
 
   try {
     await client.refunds.create({
