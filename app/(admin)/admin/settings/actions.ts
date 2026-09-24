@@ -465,3 +465,81 @@ export async function saveTransferFields(
  * `app/(admin)/admin/team/actions.ts`, where it invites by link instead of
  * taking a password the owner typed.
  */
+
+/**
+ * 🔴 0147: the Egyptian entity as an issuer, for its paper invoices and its
+ * ETA ones. Read first, then overlay (C366): the US row and anything this form
+ * does not name stay as they were. Saving retries what was waiting on it.
+ */
+export async function saveEgyptIssuer(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const actor = await requireRole("super_admin");
+  const field = (name: string, max: number) => String(formData.get(name) ?? "").trim().slice(0, max);
+  const legalName = field("legalName", 200);
+  const taxId = field("taxId", 80).replace(/[\s-]/g, "");
+  const eta = {
+    activityCode: field("activityCode", 10),
+    branchId: field("branchId", 10) || "0",
+    governate: field("governate", 100),
+    regionCity: field("regionCity", 100),
+    street: field("street", 200),
+    buildingNumber: field("buildingNumber", 100),
+    itemCode: field("itemCode", 100),
+  };
+  if (!legalName) return { error: "Enter the registered name." };
+  if (!/^\d{9}$/.test(taxId)) return { error: "The tax registration number is 9 digits." };
+  if (!/^\d{4}$/.test(eta.activityCode)) return { error: "The activity code is the 4 digits on the tax card." };
+  if (!eta.itemCode) return { error: "Enter the EGS item code registered with ETA." };
+  if (!eta.governate || !eta.regionCity || !eta.street || !eta.buildingNumber) {
+    return { error: "Fill in every address field." };
+  }
+
+  const existing = await getSettings();
+  const others = existing.invoice.entities.filter((e) => e.entity !== "eg");
+  const eg = existing.invoice.entities.find((e) => e.entity === "eg");
+  const value = {
+    ...existing.invoice,
+    entities: [
+      ...others,
+      {
+        entity: "eg",
+        numberPrefix: eg?.numberPrefix ?? "EG",
+        legalName,
+        taxId,
+        address: `${eta.buildingNumber} ${eta.street}, ${eta.regionCity}, ${eta.governate}, Egypt`,
+        eta,
+      },
+    ],
+  };
+  await writeSettingsGroup({ group: "invoice", value, updatedBy: actor.userId });
+  await audit({
+    actor,
+    category: "admin",
+    action: "settings.invoice",
+    resourceType: "platform_settings",
+    resourceId: "invoice",
+    reason: "egypt issuer",
+  });
+  const { advanceEtaDocuments } = await import("@/lib/billing/eta/issue");
+  await advanceEtaDocuments();
+  revalidatePath("/admin/settings");
+  return { ok: "Saved." };
+}
+
+/** 🔴 0147: try every waiting tax document again, now. */
+export async function retryEtaDocuments(): Promise<void> {
+  const actor = await requireRole("super_admin");
+  const { advanceEtaDocuments } = await import("@/lib/billing/eta/issue");
+  const { advanced } = await advanceEtaDocuments();
+  await audit({
+    actor,
+    category: "admin",
+    action: "eta.retry",
+    resourceType: "eta_documents",
+    resourceId: "all",
+    reason: `advanced=${advanced}`,
+  });
+  revalidatePath("/admin/settings");
+}

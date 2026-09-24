@@ -206,3 +206,51 @@ export async function mintCode(sponsorId: string, reason: string): Promise<Admin
   revalidatePath("/admin/sponsors");
   return { ok: true };
 }
+
+/**
+ * 🔴 0148: money back out of a pot. One operator asks, a second one sends
+ * after making the transfer, and the database refuses the same person twice.
+ */
+export async function askPotReturn(_prev: AdminSponsorState, formData: FormData): Promise<AdminSponsorState> {
+  const actor = await requireRole("super_admin");
+  const sponsorId = String(formData.get("sponsorId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+  const { requestPotReturn } = await import("@/lib/billing/pot-return");
+  const result = await requestPotReturn({
+    sponsorId,
+    netCents: Math.round(Number(String(formData.get("credit") ?? "")) * 100),
+    egpMinor: Math.round(Number(String(formData.get("egp") ?? "")) * 100),
+    reason: reasonText(reason),
+    requestedBy: actor.userId,
+  });
+  if ("error" in result) return { error: result.error };
+  await audit({ actor, category: "admin", action: "sponsor.pot_return_asked", resourceType: "sponsor", resourceId: sponsorId });
+  revalidatePath(`/admin/sponsors/${sponsorId}`);
+  return { ok: true };
+}
+
+export async function sendAskedReturn(_prev: AdminSponsorState, formData: FormData): Promise<AdminSponsorState> {
+  const actor = await requireRole("super_admin");
+  const id = String(formData.get("returnId") ?? "");
+  const sponsorId = String(formData.get("sponsorId") ?? "");
+  const { sendPotReturn } = await import("@/lib/billing/pot-return");
+  const result = await sendPotReturn({ id, sentBy: actor.userId, bankReference: String(formData.get("reference") ?? "") });
+  if ("error" in result) return { error: result.error };
+  await audit({ actor, category: "admin", action: "sponsor.pot_return_sent", resourceType: "sponsor", resourceId: sponsorId });
+  revalidatePath(`/admin/sponsors/${sponsorId}`);
+  return { ok: true };
+}
+
+export async function cancelAskedReturn(_prev: AdminSponsorState, formData: FormData): Promise<AdminSponsorState> {
+  const actor = await requireRole("super_admin");
+  const id = String(formData.get("returnId") ?? "");
+  const sponsorId = String(formData.get("sponsorId") ?? "");
+  const { cancelPotReturn } = await import("@/lib/billing/pot-return");
+  const result = await cancelPotReturn(id, actor.userId);
+  if ("error" in result) return { error: result.error };
+  await audit({ actor, category: "admin", action: "sponsor.pot_return_cancelled", resourceType: "sponsor", resourceId: sponsorId });
+  revalidatePath(`/admin/sponsors/${sponsorId}`);
+  return { ok: true };
+}

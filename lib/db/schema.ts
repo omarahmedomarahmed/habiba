@@ -152,7 +152,8 @@ export const organizations = pgTable(
      * settings and payouts; a patient's chart is routed on the PATIENT (C154),
      * because an Egyptian person seeing an American clinician is ordinary here.
      */
-    region: text("region").$type<Region>().notNull().default("us"),
+    /* 0146: Egypt by default for new practices (founder, 2026-09-24). */
+    region: text("region").$type<Region>().notNull().default("eg"),
 
     /**
      * 🔴 54.1 / C259 — A CLINIC IS THIS ROW. See the sprint 54 block at the end of
@@ -2630,6 +2631,12 @@ export const LEDGER_TXN_KINDS = [
    * a whole verifier check dead while it read green.
    */
   "pot_topup",
+  /**
+   * 🔴 0148 — money back out of a pot to the company, by transfer. Cash out,
+   * the pot's liability and the VAT owed both fall. Not a spend: every reader
+   * of positive `sponsor_pot` legs as sessions excludes this kind.
+   */
+  "pot_return",
 ] as const;
 export type LedgerTxnKind = (typeof LEDGER_TXN_KINDS)[number];
 
@@ -5517,6 +5524,65 @@ export const gatewayPayments = pgTable(
 
 export type GatewayPayment = typeof gatewayPayments.$inferSelect;
 
+/** 0147: the structured address ETA requires for an issuer or a business receiver. */
+export type EtaAddress = {
+  country: string;
+  governate: string;
+  regionCity: string;
+  street: string;
+  buildingNumber: string;
+  postalCode?: string;
+};
+
+export type EtaDocumentState = "waiting" | "submitted" | "valid" | "invalid" | "cancelled";
+
+/**
+ * 🔴 0147: every document we issue to the Egyptian Tax Authority.
+ *
+ *   waiting    built, not yet accepted: the company's tax details, our
+ *              configuration, or a failed submission; `waiting_for` says which
+ *   submitted  ETA accepted it for validation and gave it a uuid
+ *   valid      ETA validated it; the company can download the official copy
+ *   invalid    ETA's validation refused it; a person reads `error`
+ *   cancelled  withdrawn within ETA's window
+ */
+export const etaDocuments = pgTable(
+  "eta_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").$type<"invoice" | "credit_note">().notNull(),
+    purpose: text("purpose").$type<"pot_topup" | "pot_return">().notNull(),
+    refId: uuid("ref_id").notNull(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "restrict" }),
+    originalId: uuid("original_id"),
+    internalId: text("internal_id").notNull(),
+    netMinor: integer("net_minor").notNull(),
+    vatMinor: integer("vat_minor").notNull(),
+    totalMinor: integer("total_minor").notNull(),
+    state: text("state").$type<EtaDocumentState>().notNull().default("waiting"),
+    waitingFor: text("waiting_for"),
+    documentText: text("document_text"),
+    submissionUuid: text("submission_uuid"),
+    etaUuid: text("eta_uuid"),
+    etaLongId: text("eta_long_id"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    validatedAt: timestamp("validated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("eta_documents_internal_id_unique").on(t.internalId),
+    uniqueIndex("eta_documents_one_per_ref").on(t.purpose, t.refId, t.kind),
+    index("eta_documents_open_idx").on(t.state).where(sql`state IN ('waiting', 'submitted')`),
+  ],
+);
+
+export type EtaDocument = typeof etaDocuments.$inferSelect;
+
 /* ----------------------------------------------- §3d · support tickets -- */
 
 /**
@@ -6832,10 +6898,20 @@ export const sponsors = pgTable(
      * university funds the Egyptian entity in EGP, a US company funds the US
      * entity in USD.
      */
-    entity: text("entity").$type<Entity>().notNull(),
+    /* 0146: the Egyptian entity by default. */
+    entity: text("entity").$type<Entity>().notNull().default("eg"),
     currency: text("currency").notNull(),
 
     /* 53.5 — the contact, for the call that happens before anything else. */
+    /*
+     * 0147: what an ETA e-invoice to a business needs (receiver type B): the
+     * registered legal name, the 9-digit tax registration number, and the
+     * structured address. Entered by the company's admin; an invoice for a
+     * top-up waits for them rather than going out without.
+     */
+    legalName: text("legal_name"),
+    taxRegistrationNumber: text("tax_registration_number"),
+    taxAddress: jsonb("tax_address").$type<EtaAddress>(),
     contactName: text("contact_name"),
     contactEmail: text("contact_email"),
     contactPhone: text("contact_phone"),
@@ -9422,3 +9498,38 @@ export const MANUAL_PAYMENT_EXCEPTIONS = ["grant_failed", "not_payable", "overpa
 export type ManualPaymentException = (typeof MANUAL_PAYMENT_EXCEPTIONS)[number];
 
 export type ManualPayment = typeof manualPayments.$inferSelect;
+
+/**
+ * 🔴 0148 — money back out of a company's pot, asked by one person and sent by
+ * another. The database refuses the same person twice and a sent row without
+ * its bank reference and ledger transaction.
+ */
+export const POT_RETURN_STATES = ["requested", "sent", "cancelled"] as const;
+export type PotReturnState = (typeof POT_RETURN_STATES)[number];
+
+export const potReturns = pgTable(
+  "pot_returns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "restrict" }),
+    netCents: integer("net_cents").notNull(),
+    vatCents: integer("vat_cents").notNull(),
+    /** The pounds sent back, which is what the credit note says. */
+    egpMinor: integer("egp_minor").notNull(),
+    state: text("state").$type<PotReturnState>().notNull().default("requested"),
+    reason: text("reason").notNull(),
+    bankReference: text("bank_reference"),
+    requestedBy: uuid("requested_by").notNull(),
+    decidedBy: uuid("decided_by"),
+    txnId: uuid("txn_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("pot_returns_sponsor").on(t.sponsorId, t.createdAt),
+    uniqueIndex("pot_returns_one_open").on(t.sponsorId).where(sql`state = 'requested'`),
+  ],
+);
+export type PotReturn = typeof potReturns.$inferSelect;

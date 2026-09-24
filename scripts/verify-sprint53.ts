@@ -2071,6 +2071,9 @@ async function main() {
       (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
     await db.execute(sql`DELETE FROM sponsor_identifier_fields WHERE sponsor_id IN
       (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name LIKE 'verify53%')`);
     await db.execute(sql`DELETE FROM sponsors WHERE name LIKE 'verify53%'`);
   }
 

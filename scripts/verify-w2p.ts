@@ -418,6 +418,9 @@ async function main() {
         (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`}))`);
     await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id IN
       (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`})`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`})`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`})`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`})`);
     await db.execute(sql`DELETE FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`}`);
     await db.execute(sql`DELETE FROM phone_change_requests WHERE patient_account_id IN
       (SELECT id FROM patient_accounts WHERE person_id IN

@@ -254,6 +254,9 @@ async function main() {
       sql`DELETE FROM organizations WHERE slug IN ('demo-clinic', 'demo-health-clinicians')`,
       sql`DELETE FROM partner_users WHERE email LIKE '%@example.com'`,
       sql`DELETE FROM partners WHERE slug = 'demo-health'`,
+      sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Demo Holdings')`,
+      sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Demo Holdings')`,
+      sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Demo Holdings')`,
       sql`DELETE FROM sponsors WHERE name = 'Demo Holdings'`,
     ]) {
       await db.execute(statement);

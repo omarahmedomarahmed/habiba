@@ -953,6 +953,27 @@
       "when": 1789966031000,
       "tag": "0145_a_gateway_that_plugs_in",
       "breakpoints": true
+    },
+    {
+      "idx": 146,
+      "version": "7",
+      "when": 1789966032000,
+      "tag": "0146_egypt_by_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1789966033000,
+      "tag": "0147_a_tax_invoice_for_every_top_up",
+      "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1789966034000,
+      "tag": "0148_money_back_from_a_pot",
+      "breakpoints": true
     }
   ]
 }

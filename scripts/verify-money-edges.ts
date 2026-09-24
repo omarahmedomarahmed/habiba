@@ -743,6 +743,9 @@ async function main() {
     await db.execute(sql`DELETE FROM enrolments WHERE identifier_hash LIKE ${`%-${fixture}`}`);
     await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id IN
       (SELECT id FROM sponsors WHERE name = 'Edge Demo Foundry')`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Edge Demo Foundry')`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Edge Demo Foundry')`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Edge Demo Foundry')`);
     await db.execute(sql`DELETE FROM sponsors WHERE name = 'Edge Demo Foundry'`);
     await db.execute(sql`DELETE FROM people WHERE id IN
       (SELECT person_id FROM patients WHERE email LIKE ${`%${fixture}%`})`);

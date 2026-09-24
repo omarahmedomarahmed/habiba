@@ -180,10 +180,8 @@ export async function egpRateMicro(): Promise<number> {
   return settings.payouts.egpRateMicro;
 }
 
-/** USD cents to piastres. 2,000 at 50 pounds is 100,000, which is 1,000 EGP. */
-export function egpMinorFor(usdCents: number, rateMicro: number): number {
-  return Math.round((usdCents * rateMicro) / 1_000_000);
-}
+/** USD cents to piastres, the one conversion the screens share (`lib/money/convert.ts`). */
+export { egpMinorFor } from "@/lib/money/convert";
 
 /* ---------------------------------------------------------- raising a row -- */
 

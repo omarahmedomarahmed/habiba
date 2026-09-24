@@ -647,6 +647,7 @@ export async function weeklySpend(
       FROM ledger_entries l
      WHERE l.account = 'sponsor_pot'
        AND l.amount_cents > 0
+       AND l.txn_kind <> 'pot_return'
        AND l.ref_type = 'sponsor'
        AND l.ref_id = ${sponsorId}
      GROUP BY 1

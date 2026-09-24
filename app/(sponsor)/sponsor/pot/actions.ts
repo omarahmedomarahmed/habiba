@@ -272,3 +272,29 @@ export async function openPotPayment(creditCents: number): Promise<void> {
     payer: { kind: "sponsor", sponsorId: actor.sponsorId },
   });
 }
+
+export type TaxState = { ok?: boolean; error?: string };
+
+/**
+ * 🔴 0147: the company's tax details, for the ETA invoice on each top-up. An
+ * admin's act; what was waiting for them is issued on save.
+ */
+export async function saveTaxDetails(_prev: TaxState, formData: FormData): Promise<TaxState> {
+  const actor = await requireSponsorAdmin();
+  const { saveCompanyTaxDetails } = await import("@/lib/billing/eta/company");
+  const result = await saveCompanyTaxDetails({
+    sponsorId: actor.sponsorId,
+    legalName: String(formData.get("legalName") ?? ""),
+    taxRegistrationNumber: String(formData.get("rin") ?? ""),
+    governate: String(formData.get("governate") ?? ""),
+    regionCity: String(formData.get("city") ?? ""),
+    street: String(formData.get("street") ?? ""),
+    buildingNumber: String(formData.get("building") ?? ""),
+  });
+  if ("error" in result) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t(result.error) };
+  }
+  revalidatePath("/sponsor/pot");
+  return { ok: true };
+}

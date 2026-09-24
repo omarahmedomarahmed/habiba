@@ -151,7 +151,7 @@ async function main() {
     await db.execute(sql`DELETE FROM rate_limits WHERE key = ${bucket}`);
     const recovered = await history(`${fixture}-rate`);
     check(
-      "🔴 W2-X01 once the caller slows down, the same key answers again",
+      "🔴 W2-X01 CONTROL once the caller slows down, the same key answers again, so the 429 above is the limit and not a broken key",
       recovered.status === 200,
       `status ${recovered.status}`,
     );

@@ -1004,6 +1004,8 @@ async function potSpendOf(
         eq(ledgerEntries.account, "sponsor_pot"),
         eq(ledgerEntries.refType, "sponsor"),
         sql`${ledgerEntries.amountCents} > 0`,
+        /* 0148: money sent back to the company is not a session. */
+        sql`${ledgerEntries.txnKind} <> 'pot_return'`,
         inArray(
           ledgerEntries.txnId,
           tx
@@ -1039,6 +1041,7 @@ async function potSpendOf(
         eq(ledgerEntries.account, "sponsor_pot"),
         eq(ledgerEntries.refType, "sponsor"),
         eq(ledgerEntries.amountCents, sharesOf(payment).potCents),
+        sql`${ledgerEntries.txnKind} <> 'pot_return'`,
         inArray(
           ledgerEntries.refId,
           tx
@@ -1396,6 +1399,8 @@ export async function potTotals(
         eq(ledgerEntries.refType, "sponsor"),
         eq(ledgerEntries.refId, sponsorId),
         sql`${ledgerEntries.amountCents} > 0`,
+        /* 0148: money sent back to the company is not a session. */
+        sql`${ledgerEntries.txnKind} <> 'pot_return'`,
       ),
     );
 
@@ -1424,6 +1429,7 @@ export async function potSpentThrough(sponsorId: string, sessions: number): Prom
         AND ${ledgerEntries.refType} = 'sponsor'
         AND ${ledgerEntries.refId} = ${sponsorId}
         AND ${ledgerEntries.amountCents} > 0
+        AND ${ledgerEntries.txnKind} <> 'pot_return'
       ORDER BY ${ledgerEntries.createdAt}, ${ledgerEntries.id}
       LIMIT ${sessions}
     ) first_n

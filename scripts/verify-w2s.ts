@@ -40,6 +40,9 @@ async function dropSponsor(db: Db, sponsorId: string) {
   await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
   await db.execute(sql`DELETE FROM sponsor_codes WHERE sponsor_id = ${sponsorId}`);
   await db.execute(sql`DELETE FROM sponsor_users WHERE sponsor_id = ${sponsorId}`);
+  await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
+  await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
+  await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
   await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsorId}`);
 }
 
@@ -302,6 +305,9 @@ async function enquiry(db: Db) {
   } finally {
     await db.execute(sql`DELETE FROM delivery_attempts
       WHERE kind IN ('sponsor.enquiry', 'sponsor.enquiry_received') AND created_at >= ${started}`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE lower(contact_email) = ${email})`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE lower(contact_email) = ${email})`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE lower(contact_email) = ${email})`);
     await db.execute(sql`DELETE FROM sponsors WHERE lower(contact_email) = ${email}`);
   }
 }

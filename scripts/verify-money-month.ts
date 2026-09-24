@@ -165,8 +165,8 @@ async function checkBooks(
  * own API. Skipped, and said so, where the environment has no Stripe key.
  */
 async function usMonth(db: Db) {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    console.log("  --   the US month is skipped: no Stripe key in this environment");
+  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_ENABLED !== "true") {
+    console.log("  --   the US month is skipped: Stripe is switched off (Egypt only, 2026-09-24)");
     return;
   }
   const Stripe = (await import("stripe")).default;
@@ -357,6 +357,9 @@ async function usMonth(db: Db) {
       sql`DELETE FROM patients WHERE organization_id = ${org.id}`,
       sql`DELETE FROM audit_log WHERE resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsor.id})`,
       sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`,
+      sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
+      sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
+      sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
       sql`DELETE FROM sponsors WHERE id = ${sponsor.id}`,
       sql`DELETE FROM users WHERE organization_id = ${org.id}`,
       sql`DELETE FROM organizations WHERE id = ${org.id}`,
@@ -618,6 +621,9 @@ async function main() {
       sql`DELETE FROM patients WHERE organization_id = ${org.id}`,
       sql`DELETE FROM audit_log WHERE resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsor.id})`,
       sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`,
+      sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
+      sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
+      sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
       sql`DELETE FROM sponsors WHERE id = ${sponsor.id}`,
       sql`DELETE FROM users WHERE organization_id = ${org.id}`,
       sql`DELETE FROM organizations WHERE id = ${org.id}`,

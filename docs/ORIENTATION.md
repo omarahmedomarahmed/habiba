@@ -141,7 +141,7 @@ which is real cash leaving rather than a discount.
 
 ## 7 · What this codebase believes about checking things
 
-You will find **38 gates** and **107 `verify:` scripts**, and they are unusual enough to
+You will find **39 gates** and **107 `verify:` scripts**, and they are unusual enough to
 explain. The two lists overlap: `npm run verifiers` derives its own list at runtime as every
 `verify:` script no gate already runs, so no number here can go stale against it.
 

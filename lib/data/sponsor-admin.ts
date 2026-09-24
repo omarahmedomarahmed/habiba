@@ -78,7 +78,12 @@ export async function applyToSponsor(input: {
   if (!contactEmail.includes("@")) return { error: "That email address does not look right." };
   if (!contactPhone) return { error: "We need a phone number to call you on." };
 
-  const entity: Entity = (input.country ?? "").trim().toUpperCase() === "EG" ? "eg" : "us";
+  /*
+   * Egypt only, for now (founder, 2026-09-24): no US customers soon, and Stripe
+   * is switched off, so every company is billed by the Egyptian entity whatever
+   * it typed. The country is still kept as they gave it.
+   */
+  const entity: Entity = "eg";
 
   /*
    * 🔴 W2-S09: the applicant is told, every time, at the address they gave.

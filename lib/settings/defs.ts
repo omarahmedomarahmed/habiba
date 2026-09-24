@@ -347,6 +347,21 @@ export type PlatformSettings = {
       taxId: string;
       /** Prefixed to the sequence, so two entities never collide on a number. */
       numberPrefix: string;
+      /**
+       * 🔴 0147: what the Egyptian Tax Authority needs of the issuer, for the
+       * Egyptian entity. The activity code is the one on its tax card, the
+       * address is structured the way ETA reads it, and the item code is the
+       * EGS code we register for "wellbeing credit".
+       */
+      eta?: {
+        activityCode: string;
+        branchId: string;
+        governate: string;
+        regionCity: string;
+        street: string;
+        buildingNumber: string;
+        itemCode: string;
+      };
     }[];
   };
   sponsor: {
@@ -1168,6 +1183,22 @@ export function parseGroup<G extends SettingsGroup>(
                 address: str(row.address, "").slice(0, 500),
                 taxId: str(row.taxId, "").slice(0, 80),
                 numberPrefix: str(row.numberPrefix, entity.toUpperCase()).slice(0, 8),
+                ...(row.eta && typeof row.eta === "object"
+                  ? {
+                      eta: (() => {
+                        const e = record(row.eta);
+                        return {
+                          activityCode: str(e.activityCode, "").slice(0, 10),
+                          branchId: str(e.branchId, "0").slice(0, 10),
+                          governate: str(e.governate, "").slice(0, 100),
+                          regionCity: str(e.regionCity, "").slice(0, 100),
+                          street: str(e.street, "").slice(0, 200),
+                          buildingNumber: str(e.buildingNumber, "").slice(0, 100),
+                          itemCode: str(e.itemCode, "").slice(0, 100),
+                        };
+                      })(),
+                    }
+                  : {}),
               };
             })
             .filter((row): row is NonNullable<typeof row> => row !== null)

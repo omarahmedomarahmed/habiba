@@ -340,6 +340,9 @@ async function main() {
     await db.execute(sql`DELETE FROM partner_api_keys WHERE sponsor_id IN
       (SELECT id FROM sponsors WHERE name = ${fixture})`);
     await db.execute(sql`DELETE FROM partner_api_keys WHERE label = ${fixture}`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE name = ${fixture})`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = ${fixture})`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = ${fixture})`);
     await db.execute(sql`DELETE FROM sponsors WHERE name = ${fixture}`);
     await pool.end();
   }

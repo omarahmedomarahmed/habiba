@@ -149,7 +149,7 @@ would actually have stopped the run — the rate limiter — is fixed in the pro
 holding both directions, and the one that would have quietly ruined the money evidence — the
 region — is now stated as an ordering rule rather than a clause.
 
-All 38 gates pass.
+All 39 gates pass.
 
 🔴 **Until 76.61 they could not be run twice from one build, and that is worth its own
 paragraph.** Two of them fought over `.next`: `renders` needs `next build` output and `served`

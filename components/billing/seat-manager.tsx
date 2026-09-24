@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 
+import { useT } from "@/lib/i18n/client";
+
 import { Button, Card } from "@/components/ui";
 
 export type SeatState = { error?: string; ok?: boolean };
@@ -59,6 +61,7 @@ export function SeatManager({
   const [quote, setQuote] = useState<SeatQuote | null>(null);
   const [state, setState] = useState<SeatState>({});
   const [pending, start] = useTransition();
+  const t = useT();
 
   const ask = (next: number) => {
     setWanted(next);
@@ -75,11 +78,11 @@ export function SeatManager({
 
   return (
     <Card className="p-5">
-      <h2 className="text-sm font-semibold text-slate-900">Seats</h2>
+      <h2 className="text-sm font-semibold text-slate-900">{t("seats.title")}</h2>
       <p className="mt-1 text-sm text-slate-600">
         {seats === 0
-          ? "You are on your own plan. Add seats to bring colleagues onto one account."
-          : `${seats} ${seats === 1 ? "seat" : "seats"}, ${monthlyLabel} a month.`}
+          ? t("seats.solo")
+          : t("seats.now", { count: seats, monthly: monthlyLabel })}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -90,7 +93,7 @@ export function SeatManager({
           value={wanted}
           onChange={(event) => ask(Number(event.target.value))}
           className="h-2 w-full max-w-xs cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-700"
-          aria-label="Number of seats"
+          aria-label={t("seats.slider")}
         />
         <span className="text-2xl font-bold tabular-nums text-slate-900">{wanted}</span>
       </div>
@@ -104,25 +107,15 @@ export function SeatManager({
       {quote ? (
         <div className="mt-4 rounded-xl bg-slate-50 p-4">
           <p className="text-sm text-slate-700">
-            {quote.toSeats} {quote.toSeats === 1 ? "seat" : "seats"} costs{" "}
-            <strong className="font-semibold text-slate-900">{quote.toMonthlyLabel}</strong> a
-            month, up from {quote.fromMonthlyLabel}.
+            {t("seats.quote", { count: quote.toSeats, to: quote.toMonthlyLabel, from: quote.fromMonthlyLabel })}
           </p>
           <p className="mt-1 text-sm text-slate-700">
             {quote.proratedCents > 0 ? (
-              <>
-                You pay{" "}
-                <strong className="font-semibold text-slate-900">{quote.proratedLabel}</strong>{" "}
-                now for the {quote.daysRemaining}{" "}
-                {quote.daysRemaining === 1 ? "day" : "days"} left in this month.
-              </>
+              t("seats.payNow", { amount: quote.proratedLabel, days: quote.daysRemaining })
             ) : quote.proratedCents < 0 ? (
-              <>
-                Removing seats does not refund this month. Your colleagues keep everything
-                until it ends, and the smaller bill starts at renewal.
-              </>
+              t("seats.noRefund")
             ) : (
-              <>Nothing to pay now. The new figure starts at renewal.</>
+              t("seats.nothingNow")
             )}
           </p>
         </div>
@@ -132,7 +125,7 @@ export function SeatManager({
         <p className="mt-3 text-sm font-semibold text-red-700">{state.error}</p>
       ) : null}
       {state.ok ? (
-        <p className="mt-3 text-sm font-semibold text-brand-700">Saved.</p>
+        <p className="mt-3 text-sm font-semibold text-brand-700">{t("common.saved")}</p>
       ) : null}
 
       {quote ? (
@@ -148,7 +141,7 @@ export function SeatManager({
             });
           }}
         >
-          {pending ? "Saving…" : `Change to ${quote.toSeats} seats`}
+          {pending ? t("common.saving") : t("seats.change", { count: quote.toSeats })}
         </Button>
       ) : null}
     </Card>

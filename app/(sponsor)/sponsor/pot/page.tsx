@@ -4,7 +4,10 @@ import Link from "next/link";
 import { CoverageForm } from "@/components/sponsor/coverage-form";
 import { declarePotTransfer, openPotPayment } from "./actions";
 import { PaymentPopup } from "@/components/billing/payment-popup";
+import { TaxDetails } from "@/components/sponsor/tax-details";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
+import { companyTaxDetails } from "@/lib/billing/eta/company";
+import { documentsFor } from "@/lib/billing/eta/issue";
 import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { localeTag } from "@/lib/i18n/config";
 import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
@@ -80,13 +83,22 @@ export default async function SponsorPotPage() {
     locale: localeTag(locale),
   });
 
-  const [pot, terms, history, coverage] = await Promise.all([
+  const [pot, terms, history, coverage, tax, etaDocs] = await Promise.all([
     potBalance(actor.sponsorId),
     potTerms(actor.sponsorId),
     topUpHistory(actor.sponsorId),
     /* 🔴 60.1 / C311 — the live percentage and any pending change, separately. */
     coverageFor(actor.sponsorId),
+    /* 🔴 0147 — what ETA needs to invoice them, and what it has issued. */
+    companyTaxDetails(actor.sponsorId),
+    documentsFor(actor.sponsorId),
   ]);
+  const egp = (minor: number) =>
+    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
+      style: "currency",
+      currency: "EGP",
+      maximumFractionDigits: 2,
+    }).format(minor / 100);
 
   /* 65.12 — the meter's denominator, and it is the figure the sponsor last authorised. */
   const lastTopUpCents = history[0]?.amountCents ?? 0;
@@ -281,6 +293,43 @@ export default async function SponsorPotPage() {
             ))}
           </ul>
         </Card>
+      ) : null}
+
+      {/*
+        🔴 0147 — THE TAX AUTHORITY'S DOCUMENTS, one per top-up and one per
+        return. The PDF is the Authority's own, fetched when asked for. A
+        document waiting on the company says so, next to the form that ends
+        the wait.
+      */}
+      {etaDocs.length > 0 ? (
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-900">{t("sponsor.eta.title")}</p>
+          <ul className="mt-2 space-y-1">
+            {etaDocs.map((doc) => (
+              <li key={doc.id} className="flex items-baseline justify-between gap-3 py-1 text-sm text-slate-700">
+                <span>
+                  {t(doc.kind === "invoice" ? "sponsor.eta.invoice" : "sponsor.eta.creditNote")} · {day(doc.createdAt)}
+                </span>
+                <span className="tabular-nums">{egp(doc.totalMinor)}</span>
+                {doc.state === "valid" ? (
+                  <a href={`/sponsor/pot/eta/${doc.id}`} className="text-brand-700 hover:underline">
+                    {t("sponsor.eta.valid")}
+                  </a>
+                ) : (
+                  <span className="text-xs text-slate-500">
+                    {doc.state === "waiting"
+                      ? t(doc.waitingFor?.startsWith("company") ? "sponsor.eta.waitingYou" : "sponsor.eta.waiting")
+                      : t(`sponsor.eta.${doc.state}`)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {actor.role === "admin" && tax.entity === "eg" ? (
+        <TaxDetails legalName={tax.legalName} rin={tax.rin} address={tax.address} />
       ) : null}
     </div>
   );

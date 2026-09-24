@@ -12,17 +12,17 @@
     "legal": 1377
   },
   "baseline": {
-    "shared": 1575,
-    "patient": 3942,
-    "public": 5630,
-    "clinician": 6484,
+    "shared": 1516,
+    "patient": 3938,
+    "public": 5622,
+    "clinician": 6547,
     "sponsor": 1056,
-    "admin": 2942,
-    "clinic": 1083,
-    "partner": 1410,
+    "admin": 2935,
+    "clinic": 1080,
+    "partner": 1404,
     "legal": 1377
   },
-  "measuredOn": "2026-09-23",
+  "measuredOn": "2026-09-24",
   "translated": {
     "comment": "🔴 65.3 — EVERY REMOVED BLOCK, AND WHAT NOW CARRIES THE RULE IT HELD. 'Nothing is deleted, everything is translated': a shorter screen that dropped a disclaimer is a regression, not an improvement. This lived in comments beside each replacement until C205's rule pointed out the obvious: a record only a comment holds is a record no check can read. It is data now, so `verify:sprint65` can assert that every key named here is genuinely gone from both dictionaries and that the component named beside it genuinely exists.",
     "removed": {
@@ -97,5 +97,6 @@
   "sprint79b": "51.9 — the language filter got its own item on /for-patients, in both languages, and the sub-clause it had been hiding in inside the radar caption came out. Net 3 words down, which is the point: a capability that was never sold is now sold, and the page did not get longer to do it.",
   "sprint79c": "51.9's verified page. The rise is recorded as an ALLOWANCE under sinceOrigin rather than as a bare baseline raise, which is what 65.2 asks for and what the first attempt at this got wrong: raising `baseline` alone left it above `origin + allowance` and the gate refused it, correctly. public 1531 -> 1547 and shared 225 -> 254, each argued in its own entry. The origins are untouched, so every percentage on this file still measures against what sprint 65 measured.",
   "sprint79d": "79.1 raised the patient portal 3899 -> 3927, and it is 28 words: four notice strings. \"Your therapist has invited you to a session.\" \"Your session has started. The door is open.\" \"Your payment is confirmed.\" \"A clinician has asked to see your record.\" They are the entire content of four notifications the app never gave anybody, and each is already the shortest honest statement of its fact. There is nothing in them to cut and nothing in the portal worth cutting to fund them: the patient app sits 17 per cent BELOW its origin of 4719, which is the direction 65.2 was written to push, and this rise does not come close to it. The thing the ratchet exists to stop is a wall of text; four sentences that tell a person something exists are the opposite of that. Found the expensive way: a clinician invited a patient on production and the patient app said nothing at all.",
-  "sprint79e": "79.2 and 79.3 raised the patient portal 3927 -> 3943, and it is 16 words in four labels. `join.joiningAs` replaces the name FIELD for somebody we already know, so that screen got shorter for them and this file counts the dictionary rather than the screen. The other three are the session orb: pay, open, join now. They are control labels and aria labels, not prose, and each is already the shortest thing that can be said. Both changes exist because a founder tested the flow on production: the join link asked a signed-in patient to type their own first name, and after paying, the app held no record of the payment and no door into the session. The patient app is 16 per cent below its origin of 4719 and this rise does not approach it."
+  "sprint79e": "79.2 and 79.3 raised the patient portal 3927 -> 3943, and it is 16 words in four labels. `join.joiningAs` replaces the name FIELD for somebody we already know, so that screen got shorter for them and this file counts the dictionary rather than the screen. The other three are the session orb: pay, open, join now. They are control labels and aria labels, not prose, and each is already the shortest thing that can be said. Both changes exist because a founder tested the flow on production: the join link asked a signed-in patient to type their own first name, and after paying, the app held no record of the payment and no door into the session. The patient app is 16 per cent below its origin of 4719 and this rise does not approach it.",
+  "seatsKeyed": "clinician 6484 to 6547 is a MOVE, not new prose: the seat manager's sentences were English JSX (counted under shared) and are now `seats.` keys in both languages on the clinician's billing page. shared fell 1575 to 1516 in the same commit, so the product lost words overall."
 }

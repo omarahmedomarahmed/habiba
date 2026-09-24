@@ -19,6 +19,10 @@ import { tractionMetrics } from "@/lib/data/vault";
 import { getCountries, getSettings } from "@/lib/settings";
 import { hasNoRail } from "@/lib/settings/defs";
 import { whatPayoutsNeed, whatTheGatewayNeeds } from "@/lib/billing/gateway";
+import { whatEtaNeeds } from "@/lib/billing/eta";
+import { documentsNeedingAttention } from "@/lib/billing/eta/issue";
+import { EtaIssuerEditor } from "@/components/admin/eta-issuer-editor";
+import { retryEtaDocuments } from "./actions";
 import { countriesMissingACrisisLine } from "@/lib/crisis/line";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
@@ -63,6 +67,9 @@ export default async function SettingsPage() {
   /* 🔴 64.1 — what the Egyptian rail is waiting for, which is paperwork not code. */
   const gatewayNeeds = whatTheGatewayNeeds();
   const payoutsNeed = whatPayoutsNeed();
+  const etaNeeds = whatEtaNeeds();
+  const etaStuck = await documentsNeedingAttention();
+  const egIssuer = settings.invoice.entities.find((e) => e.entity === "eg");
 
   /*
    * 🔴 21R.8 / C98 / 0088 — WHERE A PERSON IN CRISIS GETS A SENTENCE, NOT A NUMBER.
@@ -192,6 +199,41 @@ export default async function SettingsPage() {
       <SessionEditor {...settings.session} />
       <CopilotEditor {...settings.copilot} />
       <PayoutsEditor {...settings.payouts} />
+
+      {/*
+        🔴 0147 — E-INVOICING: what ETA still needs, who we are to it, and
+        every document that waits or was refused, with a retry.
+      */}
+      <Card className="p-4">
+        <p className="text-sm font-semibold text-slate-900">Egyptian e-invoices</p>
+        {etaNeeds.length > 0 ? (
+          <ul className="mt-1 space-y-1 text-sm text-amber-900">
+            {etaNeeds.map((need) => (
+              <li key={need}>{need}</li>
+            ))}
+          </ul>
+        ) : null}
+        <EtaIssuerEditor
+          legalName={egIssuer?.legalName ?? ""}
+          taxId={egIssuer?.taxId ?? ""}
+          eta={egIssuer?.eta ?? {}}
+        />
+        {etaStuck.length > 0 ? (
+          <form action={retryEtaDocuments} className="mt-4 space-y-2">
+            <ul className="space-y-1 text-sm text-slate-700">
+              {etaStuck.map((doc) => (
+                <li key={doc.id}>
+                  <span className="font-mono">{doc.internalId}</span> {doc.state}:{" "}
+                  {doc.error ?? doc.waitingFor}
+                </li>
+              ))}
+            </ul>
+            <button type="submit" className="text-sm font-medium text-brand-700 hover:underline">
+              Try again
+            </button>
+          </form>
+        ) : null}
+      </Card>
       {/* W2-A06: the team card moved to /admin/team, with a list and invitations by link. */}
       {/*
         🔴 73.11 — beside the gateway key, because it is the same decision:

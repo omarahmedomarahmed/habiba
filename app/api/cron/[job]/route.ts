@@ -375,7 +375,16 @@ const JOBS = {
     const { sweepCheckins } = await import("@/lib/checkins/send");
     const checkins = await sweepCheckins();
 
+    /*
+     * 🔴 0147 — every tax document still waiting is tried again, and every one
+     * with the Tax Authority is asked about. Idempotent: ETA refuses an
+     * internal id twice, and the move out of `waiting` is conditional.
+     */
+    const { advanceEtaDocuments } = await import("@/lib/billing/eta/issue");
+    const eta = await advanceEtaDocuments();
+
     return {
+      etaAdvanced: eta.advanced,
       reconciled,
       released: released.released,
       centsMoved: released.centsMoved,

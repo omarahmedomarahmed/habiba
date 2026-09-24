@@ -12,6 +12,8 @@ import { ledgerPotBalance } from "@/lib/billing/pot";
 import { controlDb as db } from "@/lib/db";
 import { manualPayments, sponsorPots, sponsors } from "@/lib/db/schema";
 import { potTerms } from "@/lib/data/sponsor-admin";
+import { potReturnsFor } from "@/lib/billing/pot-return";
+import { PotReturns } from "@/components/admin/pot-returns";
 
 export const metadata: Metadata = { title: "Company", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -94,6 +96,8 @@ export default async function SponsorProfilePage({
     potTrace(id),
     potSpendAgrees(id),
   ]);
+  const returns = await potReturnsFor(id);
+  const asked = returns.find((r) => r.state === "requested");
 
   /*
    * 🔴 THE TWO BALANCES, SIDE BY SIDE, because they are maintained by different
@@ -177,6 +181,28 @@ export default async function SponsorProfilePage({
           <p className="text-sm font-semibold text-amber-900">No terms agreed</p>
         </Card>
       )}
+
+      {terms?.refundPolicy ? (
+        <PotReturns
+          sponsorId={id}
+          open={
+            asked
+              ? {
+                  id: asked.id,
+                  creditLabel: formatMoney(asked.netCents, "USD", "en-US"),
+                  egpLabel: formatMoney(asked.egpMinor, "EGP", "en-US"),
+                  reason: asked.reason,
+                }
+              : null
+          }
+          history={returns
+            .filter((r) => r.state !== "requested")
+            .map((r) => ({
+              id: r.id,
+              line: `${r.createdAt.toISOString().slice(0, 10)} ${r.state} ${formatMoney(r.egpMinor, "EGP", "en-US")}${r.bankReference ? ` · ${r.bankReference}` : ""}`,
+            }))}
+        />
+      ) : null}
 
       <section className="space-y-2">
         <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">Transfers</h2>

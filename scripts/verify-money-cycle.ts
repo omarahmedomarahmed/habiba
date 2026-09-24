@@ -412,6 +412,9 @@ async function main() {
     await db.execute(sql`DELETE FROM sessions WHERE join_token = ${`join-${fixture}`}`);
     await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id IN
       (SELECT id FROM sponsors WHERE name = 'Cycle Demo Foundry')`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Cycle Demo Foundry')`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Cycle Demo Foundry')`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Cycle Demo Foundry')`);
     await db.execute(sql`DELETE FROM sponsors WHERE name = 'Cycle Demo Foundry'`);
     await db.execute(sql`DELETE FROM patients WHERE email LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM people WHERE id IN

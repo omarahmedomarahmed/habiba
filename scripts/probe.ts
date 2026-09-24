@@ -1442,6 +1442,9 @@ async function sweep(db: ReturnType<typeof connect>["db"]): Promise<void> {
     DELETE FROM audit_log WHERE actor_user_id IN (SELECT id FROM users WHERE email LIKE ${like})`);
   await db.execute(sql`DELETE FROM patient_accounts WHERE email LIKE ${like}`);
   await db.execute(sql`DELETE FROM users WHERE email LIKE ${like}`);
+  await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE contact_email LIKE ${like} OR name LIKE ${`%${SURNAME}%`})`);
+  await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE contact_email LIKE ${like} OR name LIKE ${`%${SURNAME}%`})`);
+  await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE contact_email LIKE ${like} OR name LIKE ${`%${SURNAME}%`})`);
   await db.execute(sql`DELETE FROM sponsors WHERE contact_email LIKE ${like} OR name LIKE ${`%${SURNAME}%`}`);
   await db.execute(sql`DELETE FROM organizations WHERE name LIKE ${`%${SURNAME}%`} OR contact_email LIKE ${like}`);
 }

@@ -330,6 +330,19 @@ export const env = {
   egyptPayouts: (process.env.EGYPT_PAYOUTS || "").trim().toLowerCase(),
   egyptPayoutsKey: process.env.EGYPT_PAYOUTS_KEY || "",
   egyptPayoutsHmac: process.env.EGYPT_PAYOUTS_HMAC || "",
+  /*
+   * 🔴 0147: Egyptian e-invoicing. `ETA_MODE` is empty (off), `fake` (the
+   * simulator, never on the live deployment), `preprod` (the Authority's test
+   * environment) or `prod`. The client id and secret are the ERP system's,
+   * from the taxpayer's ETA profile. The signer holds the eSeal: `fake`, or
+   * `remote` with the signing service's address and shared secret.
+   */
+  etaMode: (process.env.ETA_MODE || "").trim().toLowerCase(),
+  etaClientId: process.env.ETA_CLIENT_ID || "",
+  etaClientSecret: process.env.ETA_CLIENT_SECRET || "",
+  etaSigner: (process.env.ETA_SIGNER || "").trim().toLowerCase(),
+  etaSignerUrl: process.env.ETA_SIGNER_URL || "",
+  etaSignerToken: process.env.ETA_SIGNER_TOKEN || "",
   /**
    * The deployment real people use. Not `isProduction`, which is also true of
    * `next start` on a laptop; a simulator is refused only where it could take
@@ -383,8 +396,13 @@ export const features = {
   get video() {
     return Boolean(env.dailyApiKey);
   },
+  /*
+   * Stripe, and only when switched on by name (founder, 2026-09-24: Egypt
+   * only, no US customers soon). A key alone no longer turns on a card rail
+   * nobody launches with; `STRIPE_ENABLED=true` and a key do.
+   */
   get billing() {
-    return Boolean(env.stripeSecretKey);
+    return Boolean(env.stripeSecretKey) && process.env.STRIPE_ENABLED === "true";
   },
   get email() {
     return Boolean(env.resendApiKey);

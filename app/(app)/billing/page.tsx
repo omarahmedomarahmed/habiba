@@ -152,7 +152,7 @@ export default async function BillingPage({
           </p>
         ) : null}
 
-        {!features.billing ? (
+        {!features.billing && !needsTransfer ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
             {t("portal.billing.noPayments")}
           </p>

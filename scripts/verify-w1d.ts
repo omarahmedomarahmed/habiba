@@ -525,6 +525,9 @@ async function potAlerts(db: ReturnType<typeof connect>["db"]) {
     await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
     await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
     await db.execute(sql`DELETE FROM sponsor_users WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsorId}`);
   }
 }
@@ -608,6 +611,9 @@ async function companyCounters(db: ReturnType<typeof connect>["db"]) {
     await db.execute(sql`DELETE FROM patient_notifications WHERE person_id = ${personId}`);
     await db.execute(sql`DELETE FROM sponsor_identifier_fields WHERE sponsor_id = ${sponsorId}`);
     await db.execute(sql`DELETE FROM sponsor_codes WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsorId}`);
     await db.execute(sql`DELETE FROM people WHERE id = ${personId}`);
   }

@@ -74,7 +74,7 @@ export default async function EarningsPage() {
       <PageHeader title={t("portal.earnings.title")} subtitle={t("portal.earnings.subtitle")} />
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
-        {!features.billing ? (
+        {!features.billing && !needsTransfer ? (
           <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
             {t("portal.earnings.noPayments")}
           </p>

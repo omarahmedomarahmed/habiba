@@ -72,18 +72,8 @@ export function SponsorApplyForm() {
           </div>
         </fieldset>
 
-        {/* W2-S09: the country decides which of our two entities bills them. */}
-        <Field label={t("sponsor.apply.country")} htmlFor="apply-country">
-          <select
-            id="apply-country"
-            name="country"
-            defaultValue="EG"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-          >
-            <option value="EG">{t("sponsor.apply.egypt")}</option>
-            <option value="US">{t("sponsor.apply.elsewhere")}</option>
-          </select>
-        </Field>
+        {/* Egypt only for now: the Egyptian entity bills every company (and issues the ETA e-invoice). */}
+        <input type="hidden" name="country" value="EG" />
 
         <Field label={t("sponsor.apply.contact")} htmlFor="apply-contact">
           <Input id="apply-contact" name="contactName" required />

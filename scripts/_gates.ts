@@ -111,6 +111,11 @@ export const GATES = [
     why: "and an Egyptian card payment and payout go end to end on the simulator",
   },
   {
+    name: "eta",
+    script: "verify:eta",
+    why: "and every company top-up gets a tax invoice and every return a credit note, on the ETA simulator",
+  },
+  {
     name: "qualified",
     script: "verify:qualified",
     why: "and every outer column inside a subquery names its table",

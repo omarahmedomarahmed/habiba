@@ -177,7 +177,7 @@ async function main() {
     const again = await deliver(gatewayRoute, "collection", event1);
     const booked1 = moved(before1, await books());
     check(
-      "🔴 64.1 a signed 'paid' settles the session once, however often it is said",
+      "🔴 64.1 CONTROL a signed 'paid' settles the session once, however often it is said, so the forged refusal above is not a blanket one",
       first === 200 && again === 200 && (await status(s1.sessionId)) === "paid" &&
         (await attempt(s1.sessionId))!.state === "paid",
       JSON.stringify({ first, again }),
@@ -362,6 +362,9 @@ async function main() {
     await db.execute(sql`DELETE FROM patients WHERE organization_id = ${org.id}`);
     for (const p of people) await db.execute(sql`DELETE FROM people WHERE id = ${p.person_id}`);
     await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`);
+    await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`);
+    await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`);
     await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsor.id}`);
     await db.execute(sql`DELETE FROM audit_log WHERE actor_user_id IN (SELECT id FROM users WHERE organization_id = ${org.id})`).catch(() => undefined);
     await db.execute(sql`DELETE FROM users WHERE organization_id = ${org.id}`);

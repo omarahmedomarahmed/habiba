@@ -1843,6 +1843,8 @@ async function main() {
      * we removed is the outcome this check exists to prevent, not this.
      */
     ["lib/data/radar-admin.ts", "an operator removing a clinician mid-booking; refunded through clinician-cancel"],
+    /* 0147: the state sent to the Tax Authority when a tax document is withdrawn. No session. */
+    ["lib/billing/eta/client.ts", "cancels a tax document at the Tax Authority, never a session"],
   ]);
 
   const cancellers = everySource.filter((file) =>

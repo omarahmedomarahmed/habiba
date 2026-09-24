@@ -667,6 +667,25 @@ async function grantPotTopUp(payment: ManualPayment): Promise<void> {
     netCents: net,
     vatCents: vat,
   });
+
+  /*
+   * 🔴 0147 / C241: THE TAX INVOICE, for the pounds that arrived, split as the
+   * ledger split them. Opened here and advanced as far as it can go; it never
+   * fails the top-up, because the money is in and the pot is credited whatever
+   * the Tax Authority is doing. What cannot go yet waits, and says why.
+   */
+  if (sponsor?.entity === "eg") {
+    try {
+      const { openTopUpInvoice } = await import("./eta/issue");
+      await openTopUpInvoice({
+        paymentId: payment.id,
+        sponsorId: payment.sponsorId,
+        netShare: { net, settles: payment.settlesCents },
+      });
+    } catch (error) {
+      log.error("top-up invoice not opened", { paymentId: payment.id, reason: String(error).slice(0, 200) });
+    }
+  }
 }
 
 /** Re-export so a caller needs one import rather than two. */

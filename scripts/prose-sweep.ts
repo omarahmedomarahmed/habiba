@@ -125,6 +125,8 @@ const PORTALS: Record<string, readonly string[]> = {
    * hiding work in the wrong column twice over.
    */
   clinician: [
+    /* The seat manager, on the clinician's own billing page (`app/(app)/billing`). */
+    "seats",
     "portal",
     "import",
     "note",
