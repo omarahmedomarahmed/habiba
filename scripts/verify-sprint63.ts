@@ -691,7 +691,8 @@ async function main() {
   const joinForm = readSource("components/clinic/join-form.tsx");
   check(
     "🔴 63.9 / C328 the acceptance screen ENUMERATES what the practice will see",
-    /clinic\.join\.sees\.calendar/.test(joinForm) &&
+    /* W2-C08: the calendar line is now the calendar AND patient list line. */
+    /clinic\.join\.sees\.patients/.test(joinForm) &&
       /clinic\.join\.sees\.earnings/.test(joinForm) &&
       /clinic\.join\.never\.notes/.test(joinForm),
     "the colleague has to understand that before, not after",
