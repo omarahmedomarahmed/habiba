@@ -38,6 +38,15 @@ export type CartRow = {
   payer: string;
   payerType: "patient" | "therapist" | "clinic" | "company";
   what: string;
+  /**
+   * 🔴 A15: what the payer was ASKED to send, in their own currency, written
+   * out by the page (the transfer queue's rule, C84). This is the figure on
+   * the bank line an operator is holding, so it leads. It used to be
+   * `<Money cents={settlesCents} />`, the dollars converted back at today's
+   * rate, which stops matching the bank line the day the rate moves.
+   */
+  amountLabel: string;
+  /** What it settles in dollars, beside the bank figure and never instead of it. */
   settlesCents: number;
   openedAt: string | null;
 };
@@ -110,8 +119,11 @@ function CartItem({
             {row.payerType} · opened {row.openedAt?.slice(0, 10) ?? "recently"}
           </p>
         </div>
-        <p className="shrink-0 text-sm font-semibold text-slate-900">
-          <Money cents={row.settlesCents} />
+        <p className="shrink-0 text-end text-sm font-semibold text-slate-900">
+          {row.amountLabel}
+          <span className="block text-xs font-normal text-slate-500">
+            <Money cents={row.settlesCents} />
+          </span>
         </p>
       </div>
 

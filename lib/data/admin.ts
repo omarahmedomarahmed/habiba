@@ -481,6 +481,33 @@ export async function aiUsageByDay(days = 14) {
 }
 
 /**
+ * 🔴 A12: every clinician, with their practice, for the same picker.
+ *
+ * Deleted and suspended clinicians are kept, unlike the organisations above:
+ * a clinician who left can still be owed money, and correcting what we hold
+ * for them is exactly when somebody opens the escape hatch.
+ */
+export async function adjustableClinicians(): Promise<
+  { id: string; name: string; organizationId: string }[]
+> {
+  const rows = await db
+    .select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      organizationId: users.organizationId,
+    })
+    .from(users)
+    .where(eq(users.role, "therapist"))
+    .orderBy(users.firstName, users.lastName);
+  return rows.map((row) => ({
+    id: row.id,
+    name: `${row.firstName} ${row.lastName}`.trim(),
+    organizationId: row.organizationId,
+  }));
+}
+
+/**
  * Every organisation, for a picker. 58.1.
  *
  * Added with `LedgerAdjust`, which is the escape hatch's screen. Deleted rows

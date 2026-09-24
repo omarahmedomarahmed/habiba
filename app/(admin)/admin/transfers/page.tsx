@@ -207,7 +207,7 @@ export default async function TransfersPage({
     <div className="space-y-5">
       <PageHeader
         title="Transfers"
-        subtitle="Sent by bank transfer, waiting to be checked."
+        subtitle="Bank transfers waiting to be checked."
       />
       {/*
         🔴 76.15 — under the queue, collapsed, and never above it. The queue is
@@ -258,6 +258,7 @@ export default async function TransfersPage({
           id: e.id,
           payer: nameFor(e),
           what: e.purpose,
+          amountLabel: formatMoney(e.amountCents, e.currency.toUpperCase(), "en-US"),
           settlesCents: e.settlesCents,
           kind: e.exception!,
           detail: e.exceptionDetail,
@@ -271,6 +272,7 @@ export default async function TransfersPage({
           payer: nameFor(c),
           payerType: typeFor(c),
           what: c.purpose,
+          amountLabel: formatMoney(c.amountCents, c.currency.toUpperCase(), "en-US"),
           settlesCents: c.settlesCents,
           openedAt: c.createdAt?.toISOString() ?? null,
         }))}

@@ -84,6 +84,17 @@ test("the nav is filtered through the table, not through booleans of its own", a
   // Fails closed: a path with no row, or no role, is nobody's.
   assert.equal(mayOpen("super_admin", "/admin/nowhere"), false);
   assert.equal(mayOpen(null, "/admin/payouts"), false);
+
+  /*
+   * 🔴 A17: Total View had a row and a guard and no link, so it was reached by
+   * typing the address. It is in the nav now, and the table still keeps it
+   * from everybody but the owners its elevation gate admits.
+   */
+  assert.ok(hrefs.includes("/admin/tv"), "Total View has a door in the nav");
+  assert.equal(mayOpen("super_admin", "/admin/tv"), true);
+  for (const role of ["staff", "manager"] as const) {
+    assert.equal(mayOpen(role, "/admin/tv"), false, `CONTROL: ${role} is not shown Total View`);
+  }
 });
 
 test("a staff sign-in lands on a page staff can open", async () => {
@@ -177,4 +188,18 @@ test("D9: four eyes, the same rule for payouts and refunds", async () => {
     const body = refunds.slice(refunds.indexOf(`export async function ${fn}(`));
     assert.match(body.slice(0, body.indexOf("\n}\n")), /fourEyesProblem\(/, `${fn} keeps its own rule`);
   }
+});
+
+/*
+ * 🔴 A18: a throw on a console page used to reach `app/global-error.tsx`,
+ * which replaces the root layout and takes the nav with it, and a slow page
+ * showed nothing at all until every query came back.
+ */
+test("🔴 A18 the console has its own error and loading boundaries, inside its layout", () => {
+  const error = readFileSync("app/(admin)/error.tsx", "utf8");
+  assert.match(error, /^"use client";/, "an error boundary is a client component or Next refuses it");
+  assert.match(error, /onClick=\{reset\}/, "it offers the retry");
+  assert.match(read("app/(admin)/loading.tsx"), /export default/);
+  // CONTROL: the global boundary is still the last resort for the layout itself.
+  assert.match(read("app/global-error.tsx"), /onClick=\{reset\}/);
 });

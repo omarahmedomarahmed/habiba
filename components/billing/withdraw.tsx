@@ -12,6 +12,7 @@ import {
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { useMoneyDisplay } from "@/components/money/display";
+import { isReceiptLink } from "@/lib/billing/transfer-receipt";
 import { egpMinorFor } from "@/lib/money/convert";
 // 19.4 — an English-only surface, so the English shorthand, named as such.
 import type { PayoutStatus } from "@/lib/db/schema";
@@ -230,7 +231,13 @@ export function Withdraw({
                   {row.rejectedReason ? (
                     <p className="mt-1 text-xs text-rose-600">{row.rejectedReason}</p>
                   ) : null}
-                  {row.proofUrl ? (
+                  {/*
+                    🔴 A19: "Mark sent" takes the bank's reference as well as a
+                    link, and a reference rendered as `href` is a link to a
+                    page that does not exist. So a link opens and a reference
+                    is printed for the clinician to quote to their bank.
+                  */}
+                  {row.proofUrl && isReceiptLink(row.proofUrl) ? (
                     <a
                       href={row.proofUrl}
                       target="_blank"
@@ -239,6 +246,10 @@ export function Withdraw({
                     >
                       {t("twd.receipt")}
                     </a>
+                  ) : row.proofUrl ? (
+                    <p className="mt-1 text-xs text-slate-600">
+                      {t("twd.reference", { ref: row.proofUrl })}
+                    </p>
                   ) : null}
                 </li>
               );

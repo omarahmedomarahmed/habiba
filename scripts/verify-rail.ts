@@ -489,6 +489,42 @@ async function main() {
   );
 
   /*
+   * 🔴 A14: THE PAYOUTS AUDIT ROW NAMES WHAT CHANGED, OLD AND NEW.
+   *
+   * It recorded netting and spread only, so moving the four-eyes threshold or
+   * the pound rate left a row that could not say so. Asked of the function the
+   * action calls, with real before and after objects, and then of the action,
+   * so the helper cannot be correct and unused.
+   */
+  const { payoutSettingsChanges } = await import("../lib/settings/payout-changes");
+  const { SETTINGS_DEFAULTS } = await import("../lib/settings/defs");
+  const before = SETTINGS_DEFAULTS.payouts;
+  const moved = payoutSettingsChanges(before, {
+    ...before,
+    twoPersonThresholdCents: before.twoPersonThresholdCents + 100_000,
+    egpRateMicro: before.egpRateMicro + 1_500_000,
+  });
+  check(
+    "🔴 A14 the payouts audit row records the four-eyes threshold and the pound rate, old and new",
+    moved.includes(`twoPersonThresholdCents ${before.twoPersonThresholdCents} to ${before.twoPersonThresholdCents + 100_000}`) &&
+      moved.includes(`egpRateMicro ${before.egpRateMicro} to ${before.egpRateMicro + 1_500_000}`) &&
+      /reason: payoutSettingsChanges\(existing\.payouts, value\)/.test(settingsActions),
+    moved,
+  );
+  const untouched = payoutSettingsChanges(before, {
+    ...before,
+    // A planted bank line: the one group key this form must never report.
+    transferFields: [
+      { key: "planted", label: "Planted", value: "000", hint: "", position: 0 },
+    ] as unknown as typeof before.transferFields,
+  });
+  check(
+    "🔴 A14 CONTROL a save that changed none of the form's fields says so, and the bank details it does not own stay out",
+    untouched === "no field changed",
+    untouched,
+  );
+
+  /*
    * 🔴 THE LOCK IS A REFUSAL, NOT A WARNING, and it names the number blocking.
    *
    * Editing the account number while people are mid-transfer sends real payments
