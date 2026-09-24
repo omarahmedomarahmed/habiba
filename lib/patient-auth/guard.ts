@@ -22,7 +22,7 @@ export async function requirePatient(): Promise<PatientActor> {
   const actor = await getPatientActor();
   if (!actor) {
     /*
-     * 🔴 W2-P01 — never straight to the door while a cookie is still held.
+     * 🔴 W2-P01: never straight to the door while a cookie is still held.
      * Middleware sends a cookie holder at `/patient/login` back to `/patient`,
      * which lands here again, forever. `patientBounce` says why.
      */

@@ -4,6 +4,7 @@ import { contentSecurityPolicy, cspHeaderName, isVideoRoom } from "@/lib/securit
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
 import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
+  bounceNext,
   CLINIC_COOKIE,
   PARTNER_COOKIE,
   PATIENT_COOKIE,
@@ -101,7 +102,8 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = decision.to;
     url.search = "";
-    if (decision.keepNext) url.searchParams.set("next", pathname);
+    // W2-P02: the query travels too, or the sponsor QR's `?code=` is lost.
+    if (decision.keepNext) url.searchParams.set("next", bounceNext(pathname, request.nextUrl.search));
     return NextResponse.redirect(url);
   }
 

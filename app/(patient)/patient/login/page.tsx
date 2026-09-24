@@ -5,6 +5,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { CodeSignInForm } from "@/components/patient/code-signin-form";
 import { PatientAuthForm } from "@/components/patient/auth-form";
 import { getI18n } from "@/lib/i18n/server";
+import { patientLanding } from "@/lib/routing";
 
 export const metadata: Metadata = { title: "Sign in", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -24,8 +25,14 @@ export const dynamic = "force-dynamic";
  * reset that exists and is not linked is a reset nobody has, which is how this
  * one went eight sprints unnoticed.
  */
-export default async function PatientLoginPage() {
+export default async function PatientLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const { t } = await getI18n();
+  /* 🔴 W2-P02: carried by both forms, checked again by `patientLanding` on the server. */
+  const next = patientLanding((await searchParams).next);
 
   return (
     <AuthShell
@@ -37,7 +44,7 @@ export default async function PatientLoginPage() {
       points={[t("auth.patient.p1"), t("auth.patient.p2"), t("auth.patient.p3")]}
     >
       <div className="space-y-4">
-        <PatientAuthForm mode="signin" />
+        <PatientAuthForm mode="signin" next={next} />
         <p className="text-sm text-slate-600">
           <Link href="/patient/forgot-password" className="hover:text-navy-500">
             {t("pauth.forgot")}
@@ -57,7 +64,7 @@ export default async function PatientLoginPage() {
         and a page that offered the code route only to those accounts would be
         answering, to anybody holding a number, whether it belongs to a guest.
       */}
-      <CodeSignInForm />
+      <CodeSignInForm next={next} />
     </AuthShell>
   );
 }

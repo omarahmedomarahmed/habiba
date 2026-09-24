@@ -86,7 +86,7 @@ export const PATIENT_AUTH_ROUTES = [
 export const PATIENT_OPEN_ROUTES = ["/patient/invite", "/patient/session-expired"];
 
 /**
- * 🔴 W2-P01 — where `requirePatient` sends somebody it cannot resolve.
+ * 🔴 W2-P01: where `requirePatient` sends somebody it cannot resolve.
  *
  * The clinician's loop, repeated on the patient side: a cookie outlives its
  * session (four hours idle, seven days of `maxAge`), `requirePatient` sent the
@@ -98,6 +98,36 @@ export const PATIENT_OPEN_ROUTES = ["/patient/invite", "/patient/session-expired
  * can delete it, and it is an open route so the cookie it is there to clear is
  * never bounced away from it. Pure, so the whole chain is a test.
  */
+/**
+ * 🔴 W2-P02: where a patient goes after signing in, from the `next` they carried.
+ *
+ * Both sign-in forms went to `/patient` whatever `next` said, so the invite
+ * page's promise ("we will bring you straight back here") was false for "Sign
+ * in", and the sponsor's QR lost its code. A path on this origin that a patient
+ * can use comes back as given; anything else, including an absolute URL, a
+ * door, or a clinician's page, is Home.
+ */
+const PATIENT_LANDINGS = ["/patient", "/join", "/pay", "/feedback", "/j"];
+
+export function patientLanding(next: unknown): string {
+  const home = "/patient";
+  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//")) return home;
+  if (next.includes("\\")) return home;
+  const path = next.split(/[?#]/)[0]!;
+  if (PATIENT_AUTH_ROUTES.includes(path) || isUnder(path, "/patient/session-expired")) return home;
+  return PATIENT_LANDINGS.some((prefix) => isUnder(path, prefix)) ? next : home;
+}
+
+/**
+ * 🔴 W2-P02 / W2-P08: the `next` a bounce carries keeps its query.
+ *
+ * The sponsor's QR is `/patient/benefit?code=`, and the bounce kept only the
+ * path, so the code was gone by the time the person had signed in.
+ */
+export function bounceNext(pathname: string, search: string): string {
+  return search && search !== "?" ? `${pathname}${search}` : pathname;
+}
+
 export function patientBounce(hasCookie: boolean, path: string): string {
   const next = path.startsWith("/") && !path.startsWith("//") ? path : "";
   const query = next ? `?next=${encodeURIComponent(next)}` : "";

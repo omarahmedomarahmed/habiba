@@ -33,8 +33,11 @@ export function PatientAuthForm({
   mode,
   inviteToken = null,
   invitePhone = false,
+  next = null,
 }: {
   mode: "signin" | "signup";
+  /** 🔴 W2-P02: where sign-in returns them to. */
+  next?: string | null;
   /** Carried through signup so the claim can be bound to the invited record. */
   inviteToken?: string | null;
   /**
@@ -65,6 +68,7 @@ export function PatientAuthForm({
         {inviteToken ? (
           <input type="hidden" name="inviteToken" value={inviteToken} />
         ) : null}
+        {next ? <input type="hidden" name="next" value={next} /> : null}
 
         {mode === "signup" ? (
           <>

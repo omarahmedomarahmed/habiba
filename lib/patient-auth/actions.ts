@@ -12,6 +12,7 @@ import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { usable } from "@/lib/scheduling/tz";
 import { log } from "@/lib/logger";
 import { callerKey, consume } from "@/lib/rate-limit";
+import { patientLanding } from "@/lib/routing";
 
 import { createPatientSession, destroyPatientSession } from "./session";
 
@@ -294,7 +295,8 @@ export async function patientSignIn(
   if (!account || !ok) return { error: "That does not match an account. Check and try again." };
 
   await createPatientSession(account.id);
-  redirect("/patient");
+  /* 🔴 W2-P02: back to the invite, the benefit code or the room they came from. */
+  redirect(patientLanding(formData.get("next")));
 }
 
 export async function patientSignOut(): Promise<void> {

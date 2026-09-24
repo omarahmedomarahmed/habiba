@@ -6,7 +6,7 @@ import { destroyPatientSession } from "@/lib/patient-auth/session";
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 W2-P01 — the patient's graceful end of an expired session.
+ * 🔴 W2-P01: the patient's graceful end of an expired session.
  *
  * The same loop `app/session-expired/route.ts` ended for clinicians: the
  * cookie outlives the session, middleware sends a cookie holder at

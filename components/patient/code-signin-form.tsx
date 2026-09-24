@@ -30,7 +30,7 @@ function Submit({ label }: { label: string }) {
   );
 }
 
-export function CodeSignInForm() {
+export function CodeSignInForm({ next = null }: { next?: string | null }) {
   const t = useT();
   const router = useRouter();
   const [country] = useState(
@@ -43,7 +43,8 @@ export function CodeSignInForm() {
   const [entered, confirm] = useActionState(signInWithCode, {});
 
   if (entered.sent) {
-    router.replace("/patient");
+    /* 🔴 W2-P02: the server checked it; Home only when there is nothing to go back to. */
+    router.replace(entered.next ?? "/patient");
   }
 
   if (asked.sent) {
@@ -68,6 +69,7 @@ export function CodeSignInForm() {
         <form action={confirm} className="space-y-4">
           <input type="hidden" name="handle" value={handle} />
           <input type="hidden" name="handleCountry" value={country} />
+          {next ? <input type="hidden" name="next" value={next} /> : null}
 
           <Field label={t("pfield.sixDigitCode")} htmlFor="code">
             <Input

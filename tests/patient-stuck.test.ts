@@ -54,3 +54,36 @@ test("W2-P01 a patient whose session died is signed out, not looped", async () =
   assert.match(handler, /expired/);
   assert.match(code("lib/patient-auth/guard.ts"), /patientBounce\(/);
 });
+
+/* ----------------------------------------------------------------- W2-P02 -- */
+
+test("W2-P02 sign-in returns a patient to where they were going, on both forms", async () => {
+  const { patientLanding, bounceNext } = await import("../lib/routing");
+
+  assert.equal(patientLanding("/patient/invite/abc123"), "/patient/invite/abc123");
+  assert.equal(patientLanding("/patient/benefit?code=ABCD1234"), "/patient/benefit?code=ABCD1234");
+  assert.equal(patientLanding("/join/tok"), "/join/tok");
+  /* Never off the origin, never back to a door, never into a clinician's page. */
+  assert.equal(patientLanding("//evil.example.com"), "/patient");
+  assert.equal(patientLanding("https://evil.example.com"), "/patient");
+  assert.equal(patientLanding("/\\evil.example.com"), "/patient");
+  assert.equal(patientLanding("/patient/login"), "/patient");
+  assert.equal(patientLanding("/patient/session-expired?next=/patient"), "/patient");
+  assert.equal(patientLanding("/dashboard"), "/patient");
+  assert.equal(patientLanding(null), "/patient");
+
+  /* The sponsor QR is `/patient/benefit?code=`, and the bounce kept only the path. */
+  assert.equal(bounceNext("/patient/benefit", "?code=ABCD1234"), "/patient/benefit?code=ABCD1234");
+  assert.equal(bounceNext("/patient", ""), "/patient");
+  assert.match(code("middleware.ts"), /bounceNext\(/);
+
+  const signIn = code("lib/patient-auth/actions.ts");
+  const start = signIn.indexOf("export async function patientSignIn(");
+  const body = signIn.slice(start, signIn.indexOf("export async function patientSignOut("));
+  assert.match(body, /redirect\(patientLanding\(/, "the password form lands on Home whatever next says");
+  assert.doesNotMatch(body, /redirect\("\/patient"\)/);
+
+  assert.match(code("lib/patient-auth/code-signin.ts"), /patientLanding\(/, "the code form ignores next");
+  assert.doesNotMatch(code("components/patient/code-signin-form.tsx"), /router\.replace\("\/patient"\)/);
+  assert.match(code("app/(patient)/patient/login/page.tsx"), /next=\{/);
+});
