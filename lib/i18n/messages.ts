@@ -3927,6 +3927,9 @@ export const en = {
   "w1a.potCardOff": "Card payment is not open yet. Ask us and we will send bank transfer details.",
   "w1a.potAskUs": "Ask us",
   "w1a.clinicRunsAccount": "Your clinic's account is run from the clinic portal.",
+  "w1a.disconnectConfirm": "Disconnect this record system?",
+  "w1a.disconnectYes": "Yes, disconnect",
+  "w1a.recordsAdminOnly": "Only the clinic admin can connect or disconnect a record system.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7088,6 +7091,9 @@ export const ar: Record<MessageKey, string> = {
   "w1a.potCardOff": "الدفع بالبطاقة غير متاح بعد. تواصلوا معنا وسنرسل لكم بيانات التحويل البنكي.",
   "w1a.potAskUs": "تواصلوا معنا",
   "w1a.clinicRunsAccount": "يُدار حساب عيادتكم من بوابة العيادة.",
+  "w1a.disconnectConfirm": "هل تريد فصل نظام السجلات هذا؟",
+  "w1a.disconnectYes": "نعم، افصله",
+  "w1a.recordsAdminOnly": "مسؤول العيادة وحده يمكنه ربط نظام السجلات أو فصله.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

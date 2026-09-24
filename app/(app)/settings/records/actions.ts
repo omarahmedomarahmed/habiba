@@ -69,14 +69,16 @@ export async function begin(_prev: { error?: string }, formData: FormData): Prom
   );
 }
 
-export async function disconnect(): Promise<void> {
+export async function disconnect(formData: FormData): Promise<void> {
   const { actor, refused } = await requireOrgAccount();
   if (refused) return;
   /*
-   * 🔴 No connection id from the form, deliberately. There is at most one live connection per
-   * organisation per vendor (`ehr_connections_live_unique`), so "disconnect" is unambiguous, and an
-   * id in the body would be an id somebody could change.
+   * 🔴 W1-22 — the connection that was chosen. One live connection per organisation per VENDOR
+   * still allows two vendors, so "disconnect" without an id revoked both. The id is pinned to
+   * this organisation inside `revokeConnectionsFor`, so changing it reaches nothing else.
    */
-  await revokeConnectionsFor(actor.organizationId, null, "disconnected by the practice");
+  const connectionId = String(formData.get("connectionId") ?? "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(connectionId)) return;
+  await revokeConnectionsFor(actor.organizationId, null, "disconnected by the practice", connectionId);
   revalidatePath("/settings/records");
 }

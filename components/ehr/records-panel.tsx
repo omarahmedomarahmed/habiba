@@ -115,6 +115,8 @@ export function RecordsPanel({
   const t = useT();
   const [state, beginAction] = useActionState(actions.begin, {});
   const [open, setOpen] = useState(false);
+  /* 🔴 W1-22 — the connection somebody pressed Disconnect on, asked about before it goes. */
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const live = connections.filter((c) => c.revokedAt === null);
 
@@ -192,15 +194,22 @@ export function RecordsPanel({
                   </p>
                 ) : null}
 
-                {canManage ? (
+                {canManage && confirming !== connection.id ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(connection.id)}
+                    className="tap-target mt-3 h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    {t("records.disconnect")}
+                  </button>
+                ) : null}
+
+                {canManage && confirming === connection.id ? (
                   <form action={actions.disconnect} className="mt-3">
                     <input type="hidden" name="connectionId" value={connection.id} />
-                    <button
-                      type="submit"
-                      className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
-                    >
-                      {t("records.disconnect")}
-                    </button>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {t("w1a.disconnectConfirm")}
+                    </p>
 
                     {/*
                       🔴 67.7 — WHAT STOPS FILING, AS A NUMBER, BEFORE THE PRESS.
@@ -215,6 +224,22 @@ export function RecordsPanel({
                         ? t("records.disconnectCount", { count: filers })
                         : t("records.disconnectNone")}
                     </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        {t("w1a.disconnectYes")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirming(null)}
+                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        {t("common.cancel")}
+                      </button>
+                    </div>
                   </form>
                 ) : null}
               </Card>
@@ -237,7 +262,9 @@ export function RecordsPanel({
 
       {!canManage ? (
         <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("w1a.clinicRunsAccount")}</p>
+          <p className="text-sm leading-relaxed text-slate-600">
+            {isClinic ? t("w1a.recordsAdminOnly") : t("w1a.clinicRunsAccount")}
+          </p>
         </Card>
       ) : !configured ? (
         /*
