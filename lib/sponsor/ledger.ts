@@ -27,6 +27,12 @@ export type LedgerEntry = {
   employeeCents: number;
   /** Random at insert. The order within a batch, so row order carries no time. */
   shuffle: number;
+  /**
+   * The last week of the batch this entry was published in, when that batch
+   * spans more than one week (`batchToFloor`). The entry is somewhere in
+   * `weekStart` to `weekEnd`, and nothing says where.
+   */
+  weekEnd?: string;
 };
 
 export type LedgerPublishing = "weekly" | "live";
@@ -49,6 +55,38 @@ export function lastPublishedWeek(mode: LedgerPublishing, now: Date): string {
   const thisWeek = weekStartOf(now);
   if (mode === "live") return thisWeek;
   return new Date(Date.parse(`${thisWeek}T00:00:00Z`) - 7 * DAY_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * 🔴 THE FLOOR ON THE ENTRIES THEMSELVES, not only on what is summed from them.
+ *
+ * Listing entries one by one undoes a floor that only guards aggregates: at a
+ * company of eight, a week holding one entry is one person, and the company
+ * knows who was out that afternoon. So weeks are gathered, oldest first, into
+ * batches of at least `floor` entries (C229's number). A batch is published
+ * only once it clears the floor, every entry in it dated by the batch's span,
+ * never its own week; the quiet weeks still gathering are not shown at all.
+ * Every entry the founder asked for is still there (D1); what goes is the one
+ * that stands alone.
+ */
+export function batchToFloor(entries: LedgerEntry[], floor: number): LedgerEntry[] {
+  const byWeek = new Map<string, LedgerEntry[]>();
+  for (const entry of entries) {
+    byWeek.set(entry.weekStart, [...(byWeek.get(entry.weekStart) ?? []), entry]);
+  }
+  const published: LedgerEntry[] = [];
+  let batch: LedgerEntry[] = [];
+  let first: string | null = null;
+  for (const week of [...byWeek.keys()].sort()) {
+    first ??= week;
+    batch.push(...byWeek.get(week)!);
+    if (batch.length < Math.max(1, floor)) continue;
+    const span = first === week ? {} : { weekEnd: week };
+    for (const entry of batch) published.push({ ...entry, weekStart: first, ...span });
+    batch = [];
+    first = null;
+  }
+  return published;
 }
 
 /* ------------------------------------------------------ filters and sorting -- */
@@ -263,7 +301,8 @@ export function ledgerCsvRows(
     ...entries.map((entry) => {
       const sign = entry.kind === "refund" ? -1 : 1;
       return [
-        entry.weekStart,
+        // An ISO 8601 interval when the batch spans weeks (`batchToFloor`).
+        entry.weekEnd ? `${entry.weekStart}/${entry.weekEnd}` : entry.weekStart,
         kindLabel(entry.kind),
         entry.priceCents / 100,
         entry.coverageBps / 100,

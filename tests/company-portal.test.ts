@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { readSource } from "../scripts/_verify";
+import { batchToFloor as batchLedger, type LedgerEntry as Entry } from "../lib/sponsor/ledger";
 
 /**
  * Wave 2, the company portal: the dead ends a company met with no way forward.
@@ -262,4 +263,42 @@ test("W2-S04 replace code, remove field and revoke key each get Cancel and a suc
   const confirm = readSource("components/sponsor/confirm-act.tsx");
   assert.match(confirm, /t\("sponsor\.cancel"\)/, "the confirm has no Cancel");
   assert.match(confirm, /done/, "the confirm never reports success");
+});
+
+/* ------------------------------------------ W2-S10: no entry stands alone -- */
+
+
+function entryIn(weekStart: string, shuffle: number): Entry {
+  return { kind: "session", weekStart, priceCents: 5000, coverageBps: 10000, coveredCents: 5000, employeeCents: 0, shuffle };
+}
+
+test("W2-S10 a week holding one entry is never shown on its own", () => {
+  // One session in the first week, none after: at a small company that is a person.
+  assert.deepEqual(batchLedger([entryIn("2026-08-03", 1)], 5), []);
+});
+
+test("W2-S10 quiet weeks gather into one batch, dated by its span, once it clears the floor", () => {
+  const entries = [
+    entryIn("2026-08-03", 1),
+    entryIn("2026-08-10", 2),
+    entryIn("2026-08-10", 3),
+    entryIn("2026-08-17", 4),
+    entryIn("2026-08-17", 5),
+    // The next batch has only one so far, and waits.
+    entryIn("2026-08-24", 6),
+  ];
+  const shown = batchLedger(entries, 5);
+  assert.equal(shown.length, 5);
+  for (const entry of shown) {
+    assert.equal(entry.weekStart, "2026-08-03");
+    assert.equal(entry.weekEnd, "2026-08-17");
+  }
+  assert.ok(!shown.some((entry) => entry.shuffle === 6));
+});
+
+test("W2-S10 a week that clears the floor by itself keeps its own week", () => {
+  const week = Array.from({ length: 5 }, (_, i) => entryIn("2026-08-03", i));
+  const shown = batchLedger(week, 5);
+  assert.equal(shown.length, 5);
+  assert.ok(shown.every((entry) => entry.weekStart === "2026-08-03" && entry.weekEnd === undefined));
 });

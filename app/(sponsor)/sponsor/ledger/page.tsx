@@ -225,6 +225,7 @@ export default async function SponsorLedgerPage({
                   <tr key={i} className="border-b border-slate-100">
                     <td className="px-4 py-2 text-slate-600">
                       {week(row.weekStart)}
+                      {row.weekEnd ? ` → ${week(row.weekEnd)}` : ""}
                       {row.kind === "refund" ? ` · ${t("sponsor.ledgerRefund")}` : ""}
                     </td>
                     <td className="px-4 py-2">{money(row.priceCents)}</td>

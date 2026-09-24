@@ -5,7 +5,7 @@ import { and, eq, lte } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { sponsorMoneyEntries } from "@/lib/db/schema";
 import { getSettings } from "@/lib/settings";
-import { lastPublishedWeek, type LedgerEntry } from "@/lib/sponsor/ledger";
+import { batchToFloor, lastPublishedWeek, type LedgerEntry } from "@/lib/sponsor/ledger";
 
 /**
  * 🔴 W2-S10 / FIX-PLAN D1: THE COMPANY'S MONEY VIEW. C244'S ONE EXCEPTION.
@@ -28,6 +28,8 @@ import { lastPublishedWeek, type LedgerEntry } from "@/lib/sponsor/ledger";
  * `sponsor.ledgerPublishing` decides the newest week returned: `weekly` (the
  * default) returns only weeks that have ended, so a week's entries appear
  * together the Monday after; `live` returns this week's as they are paid.
+ * Either way the weeks are then gathered into batches of at least the
+ * reporting floor (`batchToFloor`), so no entry is ever shown alone.
  */
 export async function publishedLedger(
   sponsorId: string,
@@ -54,5 +56,9 @@ export async function publishedLedger(
     )
     .limit(20_000);
 
-  return { entries: rows, through, publishing };
+  return {
+    entries: batchToFloor(rows, settings.sponsor.activityFloor),
+    through,
+    publishing,
+  };
 }
