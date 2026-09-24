@@ -62,8 +62,8 @@ export function LedgerAdjust({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">Adjust the books by hand</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
-        The escape hatch. A balanced pair, never an edited balance. Audited with your name and
-        your reason.
+        A balanced pair, never an edited balance. Audited with your name and
+        reason.
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -100,7 +100,7 @@ export function LedgerAdjust({
         <Field
           label="Amount ($)"
           htmlFor="adj-amount"
-          hint="Negative is allowed. The balancing leg is posted for you."
+          hint="Negative is fine. We post the balancing leg."
         >
           <Input
             id="adj-amount"

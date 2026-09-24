@@ -53,6 +53,13 @@ export async function afterClinicianCancel(input: {
         reason: result.error,
       });
       outcome = "refund_owed";
+      // 🔴 W1-28a: the refund owed is a row on the operators' refund queue.
+      const { openRefundRequest } = await import("@/lib/billing/refunds");
+      await openRefundRequest({
+        sessionPaymentId: payment.id,
+        requestedByUserId: input.actorUserId,
+        reason: "clinician_cancel",
+      });
     } else {
       outcome = "refunded";
     }

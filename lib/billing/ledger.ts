@@ -478,6 +478,10 @@ export async function postSessionRefund(payment: {
   platformFeeCents: number;
   settledInvoiceCents: number;
   therapistNetCents: number;
+  /** W1-28a: the manual refund queue posts inside its own "sent" move. */
+  txnId?: string;
+  executor?: LedgerExecutor;
+  createdBy?: string | null;
 }): Promise<void> {
   const org = payment.organizationId;
   const user = payment.therapistId;
@@ -523,6 +527,9 @@ export async function postSessionRefund(payment: {
     refType: "session_payment",
     refId: payment.id,
     legs,
+    txnId: payment.txnId,
+    executor: payment.executor,
+    createdBy: payment.createdBy ?? null,
   });
 }
 

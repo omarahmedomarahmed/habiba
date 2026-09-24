@@ -67,8 +67,8 @@ export function OpenCarts({ rows }: { rows: CartRow[] }) {
               arriving here is holding an unmatched bank line and is looking for
               a reason to press a button.
             */}
-            Opening a payment only means somebody read our account number. Match a bank line
-            you already have, never invent one.
+            Opening a payment only means somebody read our account number. Match a real bank
+            line.
           </p>
 
           {msg.error ? <p className="px-1 text-sm text-rose-600">{msg.error}</p> : null}

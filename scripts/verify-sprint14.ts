@@ -435,6 +435,196 @@ async function main() {
     );
 
     /*
+     * 🔴 W1-28a: A REFUND OWED IS A ROW SOMEBODY WORKS.
+     *
+     * Both paths above said "refund owed" and stopped. Now each opens a row on
+     * the refund queue, one live row per payment, and the queue's "sent" posts
+     * the ledger reversal exactly once, with proof, four eyes above the payout
+     * threshold. Operators are planted, never found.
+     */
+    const refundRow = async (sessionId: string) =>
+      (
+        await db.execute<{
+          id: string;
+          status: string;
+          amount_cents: number;
+          requested_by_user_id: string | null;
+          payment_status: string;
+          ledger_txn_id: string | null;
+        }>(sql`
+          SELECT r.id, r.status, r.amount_cents, r.requested_by_user_id::text AS requested_by_user_id,
+                 p.status AS payment_status, r.ledger_txn_id::text AS ledger_txn_id
+            FROM refund_requests r JOIN session_payments p ON p.id = r.session_payment_id
+           WHERE p.session_id = ${sessionId}
+           ORDER BY r.created_at`)
+      ).rows;
+    const noShowRefund = await refundRow(byTransfer).catch(() => []);
+    check(
+      "🔴 W1-28a the no-show's refund owed is a row on the refund queue",
+      noShowRefund.length === 1 && noShowRefund[0]!.status === "owed" &&
+        noShowRefund[0]!.amount_cents === 3000 && noShowRefund[0]!.requested_by_user_id === null,
+      JSON.stringify(noShowRefund),
+    );
+    const cancelRefundRows = await refundRow(booked).catch(() => []);
+    check(
+      "🔴 W1-28a the clinician's cancellation refund owed is a row too, naming who cancelled",
+      cancelRefundRows.length === 1 && cancelRefundRows[0]!.status === "owed" &&
+        cancelRefundRows[0]!.requested_by_user_id === absent!.id,
+      JSON.stringify(cancelRefundRows),
+    );
+
+    if (noShowRefund.length === 1 && cancelRefundRows.length === 1) {
+      const refunds = await import("../lib/billing/refunds");
+      const operators = await db
+        .insert(users)
+        .values(
+          [0, 1].map((index) => ({
+            organizationId,
+            email: `verify14-staff-${index}-${Date.now()}@example.com`,
+            passwordHash: "x".repeat(60),
+            firstName: "verify14",
+            lastName: `staff ${index}`,
+            role: "staff" as const,
+          })),
+        )
+        .returning({ id: users.id });
+      const [opA, opB] = operators;
+      const [again] = [
+        await refunds.openRefundRequest({
+          sessionPaymentId: (
+            await db.execute<{ id: string }>(sql`
+              SELECT id FROM session_payments WHERE session_id = ${byTransfer}`)
+          ).rows[0]!.id,
+          requestedByUserId: null,
+          reason: "no_show",
+        }),
+      ];
+      check(
+        "W1-28a a second 'refund owed' for the same payment lands on the same live row",
+        again?.id === noShowRefund[0]!.id && (await refundRow(byTransfer)).length === 1,
+        JSON.stringify(again),
+      );
+
+      const noProof = await refunds.markRefundSent({
+        requestId: noShowRefund[0]!.id,
+        senderUserId: opA!.id,
+        proofUrl: "",
+        method: "instapay",
+        identifier: "verify14@instapay",
+        accountName: "Verify Fourteen",
+      });
+      check(
+        "🔴 W1-28a sent needs the receipt, and without it nothing moves",
+        Boolean(noProof.error) && (await refundRow(byTransfer))[0]!.status === "owed",
+        JSON.stringify(noProof),
+      );
+      let dbRefusedSent = false;
+      try {
+        await db.execute(sql`UPDATE refund_requests SET status = 'sent' WHERE id = ${noShowRefund[0]!.id}`);
+      } catch {
+        dbRefusedSent = true;
+      }
+      check(
+        "🔴 W1-28a the database refuses 'sent' without the proof and the ledger transaction",
+        dbRefusedSent && (await refundRow(byTransfer))[0]!.status === "owed",
+        dbRefusedSent ? "refused" : "ACCEPTED",
+      );
+
+      const sendAs = (operator: string) =>
+        refunds.markRefundSent({
+          requestId: noShowRefund[0]!.id,
+          senderUserId: operator,
+          proofUrl: "https://example.com/receipt-verify14.png",
+          method: "instapay",
+          identifier: "verify14@instapay",
+          accountName: "Verify Fourteen",
+        });
+      const both = await Promise.all([sendAs(opA!.id), sendAs(opB!.id)]);
+      const afterSent = (await refundRow(byTransfer))[0]!;
+      const reversals = await db.execute<{ txns: number }>(sql`
+        SELECT count(DISTINCT txn_id)::int AS txns FROM ledger_entries
+         WHERE txn_kind = 'session_refund'
+           AND ref_id = (SELECT id FROM session_payments WHERE session_id = ${byTransfer})`);
+      const [sentSession] = await db
+        .select({ outcome: sessions.recoveryOutcome })
+        .from(sessions)
+        .where(eq(sessions.id, byTransfer))
+        .limit(1);
+      check(
+        "🔴 W1-28a two operators pressing 'sent' together: one move, one ledger reversal",
+        both.filter((result) => result.ok).length === 1 && afterSent.status === "sent" &&
+          reversals.rows[0]?.txns === 1 && Boolean(afterSent.ledger_txn_id),
+        `${both.map((result) => result.ok ? "ok" : result.error).join(", ")}, ${reversals.rows[0]?.txns} reversal(s)`,
+      );
+      check(
+        "W1-28a …and the payment and the patient's session now say refunded",
+        afterSent.payment_status === "refunded" && sentSession?.outcome === "refunded",
+        `payment ${afterSent.payment_status}, session ${sentSession?.outcome}`,
+      );
+      const confirmed = await refunds.confirmRefund({ requestId: noShowRefund[0]!.id });
+      const lateCancel = await refunds.cancelRefund({ requestId: noShowRefund[0]!.id, reason: "changed our mind" });
+      check(
+        "W1-28a arrival is confirmed, and a refund that has left cannot be cancelled",
+        Boolean(confirmed.ok) && Boolean(lateCancel.error) &&
+          (await refundRow(byTransfer))[0]!.status === "confirmed",
+        `${JSON.stringify(confirmed)} ${JSON.stringify(lateCancel)}`,
+      );
+
+      const shortReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "no" });
+      const withReason = await refunds.cancelRefund({
+        requestId: cancelRefundRows[0]!.id,
+        reason: "The patient took a credit instead",
+      });
+      check(
+        "W1-28a cancelling needs a reason, and then it is cancelled",
+        Boolean(shortReason.error) && Boolean(withReason.ok) &&
+          (await refundRow(booked))[0]!.status === "cancelled",
+        `${JSON.stringify(shortReason)} ${JSON.stringify(withReason)}`,
+      );
+
+      /* Four eyes: above the threshold, whoever took it on does not also send it. */
+      const { getSettings } = await import("../lib/settings");
+      const threshold = (await getSettings()).payouts.twoPersonThresholdCents;
+      const big = await early("four-eyes", {
+        scheduledAt: new Date(Date.now() - 60 * 60_000),
+        patientJoinedAt: new Date(Date.now() - 59 * 60_000),
+      });
+      const bigPayment = await db.execute<{ id: string }>(sql`
+        INSERT INTO session_payments (organization_id, therapist_id, session_id, gross_cents,
+                                      platform_fee_cents, therapist_net_cents, capture, status, paid_at)
+        VALUES (${absent!.organizationId}, ${absent!.id}, ${big}, ${threshold + 100}, 0, ${threshold + 100},
+                'platform', 'paid', now())
+        RETURNING id`);
+      const bigRequest = await refunds.openRefundRequest({
+        sessionPaymentId: bigPayment.rows[0]!.id,
+        requestedByUserId: null,
+        reason: "no_show",
+      });
+      await refunds.claimRefund({ requestId: bigRequest.id!, ownerUserId: opA!.id });
+      const sameHands = await refunds.markRefundSent({
+        requestId: bigRequest.id!,
+        senderUserId: opA!.id,
+        proofUrl: "https://example.com/receipt-verify14-big.png",
+        method: "instapay",
+        identifier: "verify14@instapay",
+        accountName: "Verify Fourteen",
+      });
+      const secondHands = await refunds.markRefundSent({
+        requestId: bigRequest.id!,
+        senderUserId: opB!.id,
+        proofUrl: "https://example.com/receipt-verify14-big.png",
+        method: "instapay",
+        identifier: "verify14@instapay",
+        accountName: "Verify Fourteen",
+      });
+      check(
+        "🔴 W1-28a above the two-person threshold, the one who took it on cannot also send it",
+        Boolean(sameHands.error) && Boolean(secondHands.ok),
+        `same person ${JSON.stringify(sameHands)}, second person ${JSON.stringify(secondHands)}`,
+      );
+    }
+
+    /*
      * 🔴 W1-07: THE ACTIONS ASK FOR PROOF, NOT AN ID.
      *
      * `takeRefund(sessionId)` refunded any overdue session for whoever held its
@@ -643,6 +833,15 @@ async function main() {
     await db.delete(patientCredits).where(
       sql`${patientCredits.personId} IN (SELECT id FROM people WHERE phone LIKE '+2014000%')`,
     );
+    /* W1-28a: the reversals this run posted, then its queue rows (they hold the payments). */
+    const planted = sql`(SELECT p.id FROM session_payments p JOIN sessions s ON s.id = p.session_id
+                          WHERE s.guest_name LIKE 'verify14%')`;
+    await db
+      .execute(sql`DELETE FROM ledger_entries WHERE txn_kind = 'session_refund' AND ref_id IN ${planted}`)
+      .catch(() => undefined);
+    await db
+      .execute(sql`DELETE FROM refund_requests WHERE session_payment_id IN ${planted}`)
+      .catch(() => undefined);
     await db.delete(sessions).where(like(sessions.guestName, "verify14%"));
     await db.delete(patients).where(like(patients.firstName, "verify14%"));
     await db.delete(people).where(like(people.firstName, "verify14%"));

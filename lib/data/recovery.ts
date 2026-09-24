@@ -456,6 +456,13 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
       session: ref(input.sessionId),
       reason: result.error,
     });
+    // 🔴 W1-28a: and the promise becomes somebody's job on the refund queue.
+    const { openRefundRequest } = await import("@/lib/billing/refunds");
+    await openRefundRequest({
+      sessionPaymentId: payment.id,
+      requestedByUserId: null,
+      reason: "no_show",
+    });
     return { ok: true, outcome: "refund_owed" };
   }
 

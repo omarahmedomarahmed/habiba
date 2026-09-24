@@ -104,7 +104,7 @@ export function PayoutQueue({
       {tab === "manual" ? (
         manual.length === 0 ? (
           <Card className="p-5 text-sm text-slate-500">
-            Nothing waiting. Every withdrawal has been dealt with.
+            Nothing waiting.
           </Card>
         ) : (
           <ul className="space-y-3">
@@ -116,7 +116,7 @@ export function PayoutQueue({
       ) : (
         <Card className="p-4">
           <p className="text-sm text-slate-500">
-            Stripe Connect payouts. These have already happened. This is a record, not a task.
+            Stripe Connect payouts: a record, not a task.
           </p>
           <ul className="mt-3 divide-y divide-slate-100">
             {automated.map((row) => (
@@ -243,7 +243,7 @@ function ManualRow({ row }: { row: QueueRow }) {
               <input type="hidden" name="requestId" value={row.id} />
               <Input
                 name="proofUrl"
-                placeholder="Link to the transfer screenshot"
+                placeholder="Transfer receipt"
                 required
                 className="h-8 w-64 text-xs"
               />
@@ -263,7 +263,7 @@ function ManualRow({ row }: { row: QueueRow }) {
               <input type="hidden" name="requestId" value={row.id} />
               <Input
                 name="reason"
-                placeholder="Why not. The clinician reads this"
+                placeholder="Reason the clinician reads"
                 required
                 className="h-8 w-64 text-xs"
               />
