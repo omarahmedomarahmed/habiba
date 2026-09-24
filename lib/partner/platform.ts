@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { partnerClinicians, partnerSessions } from "@/lib/db/schema";
@@ -168,6 +168,8 @@ export type PartnerSessionRow = {
   recordingFromSeconds: number | null;
   stoppedReason: string | null;
   personId: string | null;
+  /** W2-X02: when their platform said the session was over. Null while it runs. */
+  endedAt: Date | null;
 };
 
 /*
@@ -186,6 +188,7 @@ async function sessionFor(input: {
       recordingFromSeconds: partnerSessions.recordingFromSeconds,
       stoppedReason: partnerSessions.stoppedReason,
       personId: partnerSessions.personId,
+      endedAt: partnerSessions.endedAt,
     })
     .from(partnerSessions)
     .where(
@@ -244,6 +247,39 @@ export async function mayAnswer(input: {
   }
 
   return { ok: true, session };
+}
+
+/**
+ * 🔴 W2-X02 — THEIR PLATFORM SAYS THE SESSION IS OVER, AND ONLY THEN IS IT MATERIAL.
+ *
+ * The copilot and the memory read ENDED sessions (C211's bound: a live transcript
+ * is still arriving). Nothing wrote `ended_at`, so both answered "no completed
+ * sessions" for every patient on every platform. This is the one writer.
+ *
+ * Idempotent: a second call keeps the first time, because a retry must not move
+ * the moment a session ended. No consent is asked: ending opens nothing, and the
+ * readers apply consent and revocation themselves (W1-18). Audio after this is
+ * refused, so the material the copilot reads cannot grow behind it.
+ */
+export async function endSession(input: {
+  partnerId: string;
+  externalSessionRef: string;
+  now?: Date;
+}): Promise<{ endedAt: Date } | null> {
+  const now = input.now ?? new Date();
+
+  const [row] = await controlDb
+    .update(partnerSessions)
+    .set({ endedAt: sql`COALESCE(${partnerSessions.endedAt}, ${now.toISOString()}::timestamptz)`, updatedAt: now })
+    .where(
+      and(
+        eq(partnerSessions.partnerId, input.partnerId),
+        eq(partnerSessions.externalSessionRef, input.externalSessionRef),
+      ),
+    )
+    .returning({ endedAt: partnerSessions.endedAt });
+
+  return row?.endedAt ? { endedAt: row.endedAt } : null;
 }
 
 /**

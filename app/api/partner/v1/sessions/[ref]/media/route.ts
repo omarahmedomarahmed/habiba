@@ -45,6 +45,15 @@ export async function POST(
   });
   if (!allowed.ok) return fail(allowed.error, allowed.status);
 
+  /*
+   * 🔴 W2-X02: an ended session takes no more audio. The copilot and the memory
+   * read it from the moment it ended, and material growing behind that read would
+   * be a session that is over and still being recorded.
+   */
+  if (allowed.session.endedAt) {
+    return fail("This session has ended, so it takes no more audio.", 409);
+  }
+
   const type = request.headers.get("content-type") ?? "";
   if (!/^audio\//.test(type)) {
     return fail(

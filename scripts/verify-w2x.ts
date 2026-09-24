@@ -20,6 +20,26 @@ const { check, finish } = reporter();
 
 const fixture = `w2x${Date.now().toString(36)}`;
 
+/** A WAV of silence: 16 kHz, mono, 16-bit, so one second is 32,000 bytes. */
+function silentWav(seconds: number): Buffer {
+  const data = 32_000 * seconds;
+  const out = Buffer.alloc(44 + data);
+  out.write("RIFF", 0);
+  out.writeUInt32LE(36 + data, 4);
+  out.write("WAVE", 8);
+  out.write("fmt ", 12);
+  out.writeUInt32LE(16, 16);
+  out.writeUInt16LE(1, 20);
+  out.writeUInt16LE(1, 22);
+  out.writeUInt32LE(16_000, 24);
+  out.writeUInt32LE(32_000, 28);
+  out.writeUInt16LE(2, 32);
+  out.writeUInt16LE(16, 34);
+  out.write("data", 36);
+  out.writeUInt32LE(data, 40);
+  return out;
+}
+
 async function main() {
   writesTo();
 
@@ -99,6 +119,102 @@ async function main() {
       recovered.status === 200,
       `status ${recovered.status}`,
     );
+
+    /* ================================================================ */
+    /*  W2-X02 · AN END-SESSION CALL, SO COPILOT AND MEMORY HAVE MATERIAL */
+    /* ================================================================ */
+
+    const mediaRoute = await import("../app/api/partner/v1/sessions/[ref]/media/route");
+    const memoryRoute = await import("../app/api/partner/v1/subjects/[ref]/memory/route");
+    const copilotRoute = await import("../app/api/partner/v1/copilot/route");
+    const endRoute = await import("../app/api/partner/v1/sessions/[ref]/end/route").catch(
+      () => null,
+    );
+    const consent = (session: string, subject: string) =>
+      consentRoute.POST(
+        new Request(`${base}/consent`, {
+          method: "POST",
+          headers: { ...bearer, "content-type": "application/json" },
+          body: JSON.stringify({
+            session,
+            subject,
+            state: "given",
+            answered_at: new Date().toISOString(),
+            offset_seconds: 0,
+          }),
+        }),
+      );
+    const media = (ref: string) =>
+      mediaRoute.POST(
+        new Request(`${base}/sessions/${ref}/media`, {
+          method: "POST",
+          headers: { ...bearer, "content-type": "audio/wav" },
+          body: silentWav(1),
+        }),
+        { params: Promise.resolve({ ref }) },
+      );
+    const end = async (ref: string) =>
+      endRoute
+        ? endRoute.POST(new Request(`${base}/sessions/${ref}/end`, { method: "POST", headers: bearer }), {
+            params: Promise.resolve({ ref }),
+          })
+        : null;
+    const remember = async (subject: string) => {
+      const response = await memoryRoute.GET(
+        new Request(`${base}/subjects/${subject}/memory`, { headers: bearer }),
+        { params: Promise.resolve({ ref: subject }) },
+      );
+      return ((await response.json()) as { sessions?: unknown[] }).sessions?.length ?? 0;
+    };
+
+    const ended = `${fixture}-e1`;
+    const endedSubject = `${fixture}-P1`;
+    await consent(ended, endedSubject);
+    const heard = await media(ended);
+    const beforeEnd = await remember(endedSubject);
+    const endResponse = await end(ended);
+    const endBody = endResponse
+      ? ((await endResponse.json()) as { ended_at?: string })
+      : {};
+    const afterEnd = await remember(endedSubject);
+    check(
+      "🔴 W2-X02 ending a session makes it material: memory had none while it ran, one after",
+      heard.status === 200 && beforeEnd === 0 && endResponse?.status === 200 &&
+        Boolean(endBody.ended_at) && afterEnd === 1,
+      `media ${heard.status}, before ${beforeEnd}, end ${endResponse?.status ?? "no route"}, after ${afterEnd}`,
+    );
+
+    const { enableClinician } = await import("../lib/partner/platform");
+    await enableClinician({ partnerId: partner.id, externalClinicianRef: `${fixture}-C1`, enabled: true });
+    const asked = await copilotRoute.POST(
+      new Request(`${base}/copilot`, {
+        method: "POST",
+        headers: { ...bearer, "content-type": "application/json" },
+        body: JSON.stringify({
+          subject: endedSubject,
+          clinician: `${fixture}-C1`,
+          question: "What did we cover?",
+        }),
+      }),
+    );
+    const answer = ((await asked.json()) as { answer?: string }).answer ?? "";
+    check(
+      "🔴 W2-X02 …and the copilot answers from it, rather than 'no completed sessions'",
+      asked.status === 200 && answer.length > 0 && !/no completed sessions/i.test(answer),
+      answer.slice(0, 80),
+    );
+
+    const again = await end(ended);
+    const againBody = again ? ((await again.json()) as { ended_at?: string }) : {};
+    const lateAudio = await media(ended);
+    check(
+      "W2-X02 ending twice keeps the first time, and audio after the end is refused",
+      againBody.ended_at === endBody.ended_at && lateAudio.status === 409,
+      `${againBody.ended_at} vs ${endBody.ended_at}, late audio ${lateAudio.status}`,
+    );
+
+    const nobody = await end(`${fixture}-none`);
+    check("W2-X02 an unknown session is a 404", nobody?.status === 404, `${nobody?.status}`);
   } finally {
     mock.server.close();
     for (const bucket of buckets) await db.execute(sql`DELETE FROM rate_limits WHERE key = ${bucket}`);

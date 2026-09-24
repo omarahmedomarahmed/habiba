@@ -201,12 +201,18 @@ GET /api/partner/v1/notes/<sessionId>
         A therapist asks about a patient between sessions and before them. Putting
         them in the numbered list above would say they belong at a step, and the
         thing an integrator would then build is a copilot that appears once.
+
+        🔴 W2-X02: the end call leads the example, because both read only sessions
+        their platform has said are over, and without it they read nothing.
       */}
       <Card className="mt-6 border-slate-200 p-5">
         <p className="font-semibold text-slate-900">{t("devs.copilot")}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.copilotBody")}</p>
         <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
-{`PUT /api/partner/v1/copilot
+{`POST /api/partner/v1/sessions/<ref>/end
+200 { "session": "S-1024", "ended_at": "..." }
+
+PUT /api/partner/v1/copilot
 { "clinician": "C-9", "enabled": true }
 
 POST /api/partner/v1/copilot
