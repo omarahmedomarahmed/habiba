@@ -412,6 +412,12 @@ export async function bookSlot(input: {
    * `getPatient` gate does.
    */
   patientId?: string | null;
+  /**
+   * 🔴 W2-P04: the SIGNED-IN patient booking for themselves, from their
+   * session cookie and never from the form. Their own file with this clinician
+   * is used or made (`patientRowForPerson`), so the hour is on their app.
+   */
+  personId?: string | null;
 }): Promise<BookResult> {
   const now = new Date();
 
@@ -446,8 +452,21 @@ export async function bookSlot(input: {
    * clinician's caseload only — never across organisations, which is the
    * merge C39 measured going wrong.
    */
+  const own =
+    !input.patientId && input.personId
+      ? await (await import("./people")).patientRowForPerson({
+          organizationId: slot.organizationId,
+          therapistId: slot.therapistUserId,
+          personId: input.personId,
+          email: input.patientEmail ?? null,
+          phone: input.patientPhone ?? null,
+          timezone: input.patientTimezone ?? null,
+        })
+      : null;
+
   const patientId =
     input.patientId ??
+    own ??
     (await findOrCreatePatient({
       organizationId: slot.organizationId,
       therapistId: slot.therapistUserId,

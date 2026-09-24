@@ -839,16 +839,32 @@ export async function resolveJoinToken(token: string) {
   return row;
 }
 
-/** Records the patient's chosen name against the session and marks them joined. */
-export async function joinByToken(token: string, displayName: string) {
+/**
+ * Records the patient's chosen name against the session and marks them joined.
+ *
+ * 🔴 W2-P04: `personId` is the signed-in patient's, from their session cookie.
+ * With it, a session with no patient yet is attached to that person's own file
+ * with this clinician rather than to a new stranger with their first name.
+ */
+export async function joinByToken(token: string, displayName: string, personId: string | null = null) {
   const target = await resolveJoinToken(token);
   if (!target) return null;
 
   const name = displayName.trim().slice(0, 80);
   if (!name) return null;
 
+  /* Outside the transaction, for the reason `ensurePersonForPatient` is below. */
+  const own =
+    !target.patientId && personId
+      ? await (await import("./people")).patientRowForPerson({
+          organizationId: target.organizationId,
+          therapistId: target.therapistId,
+          personId,
+        })
+      : null;
+
   await db.transaction(async (tx) => {
-    let patientId = target.patientId;
+    let patientId = target.patientId ?? own;
 
     if (!patientId) {
       const [created] = await tx

@@ -100,3 +100,24 @@ test("W2-P03 signup and the account both take an address, and a record only goes
   assert.match(code("app/(patient)/patient/account/actions.ts"), /confirmEmailCode\(/);
   assert.match(code("app/(patient)/patient/record/actions.ts"), /emailVerified \? actor\.email : null/);
 });
+
+/* ----------------------------------------------------------------- W2-P04 -- */
+
+test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {
+  const radar = code("app/(public)/radar/actions.ts");
+  assert.match(radar, /optionalPatient\(\)/);
+  assert.match(radar, /patientRowForPerson\(/, "radar sessions belonged to a new stranger");
+  assert.match(code("app/(public)/t/[id]/book/actions.ts"), /personId: signedIn\?\.personId/);
+  assert.match(
+    code("app/join/[token]/actions.ts"),
+    /joinByToken\(token, name, \(await optionalPatient\(\)\)\?\.personId/,
+  );
+  /* From the cookie, never from the form: no door reads a person id a caller typed. */
+  for (const file of [
+    "app/(public)/radar/actions.ts",
+    "app/(public)/t/[id]/book/actions.ts",
+    "app/join/[token]/actions.ts",
+  ]) {
+    assert.doesNotMatch(code(file), /formData\.get\("personId"\)|input\.personId/);
+  }
+});

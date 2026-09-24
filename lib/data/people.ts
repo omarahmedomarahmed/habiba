@@ -285,6 +285,73 @@ export async function ensurePersonForPatient(patientId: string): Promise<string 
   return linked?.personId ?? patient.personId ?? created.id;
 }
 
+/**
+ * 🔴 W2-P04 / task 223: the clinician's file for a SIGNED-IN person, found or made.
+ *
+ * `bookFromRadar`, `book` and `joinByToken` each made a new `patients` row
+ * and `ensurePersonForPatient` gave it a new person, so a session a signed-in
+ * patient booked for themselves belonged to a stranger with their first name
+ * and never reached their own app: not the sessions list, not the orb, not
+ * billing, not the summary. The only bridge was a claim, which needs a proved
+ * handle.
+ *
+ * Here the person is proved already, by their session cookie, so the row is
+ * linked to it at birth. No address matching (C39's merge): the caller passes
+ * the person from `optionalPatient()`, never from a form. One file per person
+ * per clinician, reused on the next booking. Contact details are copied only
+ * onto a new row and only when the caller has them from the booking form, so a
+ * clinician learns what the patient typed to them and nothing from the account.
+ *
+ * It grants nothing. Reading history across clinicians is a grant, and a grant
+ * is the patient's act (`lib/data/grants.ts`).
+ */
+export async function patientRowForPerson(input: {
+  organizationId: string;
+  therapistId: string;
+  personId: string;
+  email?: string | null;
+  phone?: string | null;
+  timezone?: string | null;
+}): Promise<string | null> {
+  const [existing] = await db
+    .select({ id: patients.id })
+    .from(patients)
+    .where(
+      and(
+        eq(patients.organizationId, input.organizationId),
+        eq(patients.therapistId, input.therapistId),
+        eq(patients.personId, input.personId),
+        isNull(patients.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (existing) return existing.id;
+
+  const [person] = await db
+    .select({ firstName: people.firstName, lastName: people.lastName })
+    .from(people)
+    .where(eq(people.id, input.personId))
+    .limit(1);
+  if (!person) return null;
+
+  const [created] = await db
+    .insert(patients)
+    .values({
+      organizationId: input.organizationId,
+      therapistId: input.therapistId,
+      personId: input.personId,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      email: normaliseEmail(input.email),
+      phone: input.phone?.trim() || null,
+      timezone: input.timezone ?? null,
+      source: "join_link",
+    })
+    .returning({ id: patients.id });
+
+  return created?.id ?? null;
+}
+
 /** Remember where somebody pays from (C36 / 4.3). Their preference, on them. */
 export async function savePaymentPreference(input: {
   personId: string;

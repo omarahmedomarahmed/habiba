@@ -80,13 +80,101 @@ async function main() {
       proved.ok && after.email === address && after.verified,
       `email=${after.email}, verified=${after.verified}`,
     );
+
+    /* ================================================================ */
+    /*  W2-P04 · A SESSION A SIGNED-IN PATIENT BOOKS IS THEIRS           */
+    /* ================================================================ */
+
+    const personOf = async (sessionId: string) =>
+      one<{ person: string | null }>(sql`
+        SELECT p.person_id AS person FROM sessions s
+          LEFT JOIN patients p ON p.id = s.patient_id WHERE s.id = ${sessionId}`);
+
+    const joinable = async (label: string) =>
+      one<{ id: string; token: string }>(sql`
+        INSERT INTO sessions (organization_id, therapist_id, status, modality, feedback_token,
+                              join_token, join_token_expires_at, session_type)
+        VALUES (${org.id}, ${therapist.id}, 'scheduled', 'video', ${`fb-${label}-${fixture}`},
+                ${`jt-${label}-${fixture}`}, now() + interval '3 hours', 'radar')
+        RETURNING id, join_token AS token`);
+
+    const { joinByToken } = await import("../lib/data/sessions");
+
+    const stranger = await joinable("stranger");
+    await joinByToken(stranger.token, "Laila");
+    const strangerPerson = await personOf(stranger.id);
+    check(
+      "W2-P04 CONTROL a guest with no account still gets a person of their own",
+      strangerPerson.person !== null && strangerPerson.person !== person.id,
+      "the stranger path is unchanged",
+    );
+
+    const mine = await joinable("mine");
+    await joinByToken(mine.token, "Laila", person.id);
+    const minePerson = await personOf(mine.id);
+    check(
+      "🔴 W2-P04 a signed-in patient joining a link is attached to THEIR person, not a new one",
+      minePerson.person === person.id,
+      `session person ${minePerson.person === person.id ? "is theirs" : "is a stranger"}`,
+    );
+
+    const again = await joinable("again");
+    await joinByToken(again.token, "Laila", person.id);
+    const files = await one<{ n: number }>(sql`
+      SELECT COUNT(*)::int AS n FROM patients
+       WHERE person_id = ${person.id} AND therapist_id = ${therapist.id}`);
+    check(
+      "W2-P04 the second booking with the same clinician reuses their file",
+      files.n === 1,
+      `${files.n} files`,
+    );
+
+    const slot = await one<{ id: string }>(sql`
+      INSERT INTO availability_slots (therapist_user_id, organization_id, starts_at, status)
+      VALUES (${therapist.id}, ${org.id}, date_trunc('hour', now()) + interval '3 days', 'open')
+      RETURNING id`);
+    const { bookSlot } = await import("../lib/data/scheduling");
+    const booked = await bookSlot({
+      slotId: slot.id,
+      patientName: "Laila",
+      patientEmail: `typed.${fixture}@example.com`,
+      personId: person.id,
+      accountId: account.id,
+    });
+    const bookedPerson = booked.ok ? await personOf(booked.sessionId) : { person: null };
+    check(
+      "🔴 W2-P04 an hour a signed-in patient books from a profile is on their own person",
+      booked.ok && bookedPerson.person === person.id,
+      booked.ok ? `person ${bookedPerson.person === person.id ? "is theirs" : "is a stranger"}` : booked.error,
+    );
+
+    const { sessionsForPatient } = await import("../lib/data/patient-view");
+    const listed = await sessionsForPatient(person.id);
+    check(
+      "W2-P04 …and all three appear on their own sessions list",
+      [mine.id, again.id, booked.ok ? booked.sessionId : ""].every((id) =>
+        listed.some((row) => row.id === id),
+      ),
+      `${listed.length} on the list`,
+    );
   } finally {
+    await db.execute(sql`DELETE FROM availability_slots WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
+    /* The people a guest join made have no address to find them by, only their file. */
+    const { rows: made } = await db.execute(sql`
+      SELECT DISTINCT person_id AS id FROM patients WHERE person_id IS NOT NULL AND organization_id IN
+        (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM patients WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM patient_accounts WHERE person_id IN
       (SELECT id FROM people WHERE email LIKE ${`%${fixture}@example.com`})`);
+    for (const row of made as { id: string }[]) {
+      /* Only a person no account owns: nothing outside this fixture is touched. */
+      await db.execute(sql`DELETE FROM people WHERE id = ${row.id} AND NOT EXISTS
+        (SELECT 1 FROM patient_accounts WHERE person_id = ${row.id})`);
+    }
     await db.execute(sql`DELETE FROM people WHERE email LIKE ${`%${fixture}@example.com`}`);
     await db.execute(sql`DELETE FROM users WHERE email LIKE ${`%${fixture}@example.com`}`);
     await db.execute(sql`DELETE FROM organizations WHERE slug = ${fixture}`);

@@ -7,6 +7,7 @@ import { notify } from "@/lib/notify";
 import { env } from "@/lib/env";
 import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
+import { optionalPatient } from "@/lib/patient-auth/guard";
 
 export type BookState = {
   error?: string;
@@ -118,6 +119,12 @@ export async function book(input: {
   const held = await holdSlot(input.slotId);
   if (!held.ok) return { error: held.error };
 
+  /*
+   * 🔴 W2-P04: a signed-in patient books as themselves, so the hour lands on
+   * their own app and they can cancel it there. From the cookie, never the form.
+   */
+  const signedIn = await optionalPatient();
+
   const result = await bookSlot({
     slotId: input.slotId,
     patientName: name,
@@ -125,6 +132,8 @@ export async function book(input: {
     patientPhone: phone,
     patientTimezone: input.timezone ?? null,
     note: input.note?.trim() || null,
+    personId: signedIn?.personId ?? null,
+    accountId: signedIn?.accountId ?? null,
   });
 
   if (!result.ok) return { error: result.error };
