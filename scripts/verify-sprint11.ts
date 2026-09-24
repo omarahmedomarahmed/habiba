@@ -198,7 +198,11 @@ async function main() {
 
     const [therapist] = await db
       .execute<{ id: string; org: string }>(
-        sql`SELECT id, organization_id AS org FROM users WHERE deleted_at IS NULL LIMIT 1`,
+        // W1-16: only an approved clinician's hours are offered, so the race
+        // below needs one; an unapproved fixture fails 11.3 for the rule itself.
+        sql`SELECT u.id, u.organization_id AS org FROM users u
+              JOIN therapist_verifications v ON v.user_id = u.id AND v.state = 'approved'
+             WHERE u.deleted_at IS NULL LIMIT 1`,
       )
       .then((r) => r.rows);
 

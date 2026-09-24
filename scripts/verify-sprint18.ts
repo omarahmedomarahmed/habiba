@@ -409,48 +409,52 @@ async function main() {
     .values({ name: "Verify18 Costs", slug: `verify18-cost-${Date.now()}` })
     .returning({ id: schema.organizations.id });
 
+  /*
+   * Measured as the DIFFERENCE the planted calls make, not as a total over the
+   * whole table: on a database whose other rows happen to round to the same
+   * total ("vault 9¢ · rounded 9¢"), comparing totals failed on a coincidence.
+   * Thirty calls of 0.9¢ are 27¢ of real cost and 0¢ in the rounded column,
+   * which no per-kind rounding elsewhere can hide.
+   */
+  const vault = await import("../lib/data/vault");
+  const vaultSum = async () =>
+    (await vault.costByKind(3650)).reduce((total, row) => total + row.costCents, 0);
+  const roundedSum = async () => {
+    const { rows } = (await db.execute(
+      sql`SELECT COALESCE(SUM(cost_cents), 0)::int AS cents FROM ai_request_logs`,
+    )) as unknown as { rows: { cents: number }[] };
+    return rows[0]?.cents ?? 0;
+  };
+  const vaultBefore = await vaultSum();
+  const roundedBefore = await roundedSum();
+
   try {
     await db.insert(schema.aiRequestLogs).values(
-      // 0.4¢, 0.3¢ and 0.25¢ — every one of them rounds to zero on write.
-      [400, 300, 250].map((microcents) => ({
+      // 0.9¢ each, thirty times: every one of them rounds to zero on write.
+      Array.from({ length: 30 }, () => ({
         organizationId: costOrg!.id,
         kind: "note" as const,
         model: "verify18-model",
         // 🔴 The defect in one row: real cost, recorded as nothing.
         costCents: 0,
-        costMicrocents: microcents,
+        costMicrocents: 900,
         status: "success" as const,
       })),
     );
 
-    const { rows: cost } = (await db.execute(sql`
-      SELECT ROUND(SUM(cost_microcents) / 1000.0)::int AS exact_cents,
-             SUM(cost_cents)::int AS rounded_cents,
-             COUNT(*) FILTER (WHERE cost_cents = 0 AND cost_microcents > 0)::int AS lost_rows
-      FROM ai_request_logs
-    `)) as unknown as {
-      rows: { exact_cents: number; rounded_cents: number; lost_rows: number }[];
-    };
-
-    const vault = await import("../lib/data/vault");
-    const kinds = await vault.costByKind(3650);
-    const vaultTotal = kinds.reduce((total, row) => total + row.costCents, 0);
-    /* Per displayed row, so the tolerance grows with the number of rows. */
-    const tolerance = Math.max(1, kinds.length);
+    const vaultAdded = (await vaultSum()) - vaultBefore;
+    const roundedAdded = (await roundedSum()) - roundedBefore;
 
     /*
-     * The tolerance is one cent, and it is a real one rather than slack: the
-     * vault rounds **per kind** because each kind is a row somebody reads, so
-     * five rows can round to a cent more or less than the single exact total.
-     * Rounding once per displayed figure is the rule; rounding once per
-     * *stored row*, which is what `cost_cents` did, is the bug.
+     * One cent of tolerance: the vault rounds per kind, because each kind is a
+     * row somebody reads, so the "note" row can move by 26 or 28 rather than 27
+     * depending on what it already held. Rounding once per displayed figure is
+     * the rule; rounding once per stored row, which `cost_cents` did, is the bug.
      */
     check(
       "🔴 C17 the vault's cost figures are summed from MICROCENTS, not from the rounded column",
-      Math.abs(vaultTotal - (cost[0]?.exact_cents ?? 0)) <= tolerance &&
-        (cost[0]?.lost_rows ?? 0) >= 3 &&
-        vaultTotal !== cost[0]?.rounded_cents,
-      `vault ${vaultTotal}¢ · exact ${cost[0]?.exact_cents}¢ · the old rounded column ${cost[0]?.rounded_cents}¢ over ${cost[0]?.lost_rows} sub-cent calls`,
+      Math.abs(vaultAdded - 27) <= 1 && roundedAdded === 0,
+      `30 calls of 0.9¢ added ${vaultAdded}¢ to the vault and ${roundedAdded}¢ to the old rounded column`,
     );
   } finally {
     await db.execute(
