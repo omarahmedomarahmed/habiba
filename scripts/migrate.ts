@@ -59,7 +59,17 @@ async function main() {
    */
   writesTo({ productionIsAllowed: true });
 
-  const { pool, db } = connect();
+  /*
+   * 🔴 H52: THE LOCK NEEDS ONE SERVER SESSION, AND THE POOLER DOES NOT GIVE ONE.
+   *
+   * Neon's `-pooler` endpoint is PgBouncer in transaction mode: each statement
+   * may run on a different server connection. `pg_advisory_lock` is held by a
+   * SESSION, so the unlock below ran on another backend and the lock stayed on
+   * an idle one, and the next run on that database refused with "Another
+   * migration is already running". The direct endpoint is the same database
+   * without the pooler, so the lock and the unlock meet.
+   */
+  const { pool, db } = connect(directEndpoint(process.env.DATABASE_URL));
 
   const locked = await pool.query<{ locked: boolean }>(
     "SELECT pg_try_advisory_lock($1) AS locked",
@@ -122,3 +132,15 @@ async function main() {
 }
 
 main();
+
+/** The same Neon database without PgBouncer: `ep-x-pooler.region...` becomes `ep-x.region...`. */
+function directEndpoint(url: string | undefined): string | undefined {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.hostname = parsed.hostname.replace(/-pooler(?=\.)/, "");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
