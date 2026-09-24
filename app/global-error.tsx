@@ -27,7 +27,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
         <div style={{ textAlign: "center", maxWidth: "24rem" }}>
           <h1 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>Something went wrong</h1>
           <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#64748b" }}>
-            The page could not be displayed. Nothing you were working on has been lost.
+            The page could not be displayed. Nothing was lost.
           </p>
           <button
             onClick={reset}
@@ -50,6 +50,26 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
           >
             Try again
           </button>
+          {/*
+            🔴 W1-29: help does not wait for the page to come back (P5).
+            Numbers only, inline, because nothing else loads here: the
+            always-open lines for the two launch countries, then the rule
+            that is true from any phone.
+          */}
+          <div
+            role="note"
+            style={{ marginTop: "1.5rem", padding: "0.875rem 1rem", borderRadius: "0.75rem", background: "#dc2626", color: "#fff", fontSize: "0.875rem", textAlign: "start" }}
+          >
+            <p style={{ margin: 0, fontWeight: 700 }}>In danger now? · في خطر الآن؟</p>
+            <p style={{ margin: "0.375rem 0 0" }}>
+              Egypt · مصر: <a href="tel:123" style={{ color: "#fff", fontWeight: 700 }}>123</a>{" "}
+              · <a href="tel:112" style={{ color: "#fff", fontWeight: 700 }}>112</a>
+            </p>
+            <p style={{ margin: "0.25rem 0 0" }}>
+              United States: <a href="tel:988" style={{ color: "#fff", fontWeight: 700 }}>988</a>
+            </p>
+            <p style={{ margin: "0.25rem 0 0" }}>Anywhere else: your local emergency number.</p>
+          </div>
         </div>
       </body>
     </html>

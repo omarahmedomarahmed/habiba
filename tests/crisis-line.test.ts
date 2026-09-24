@@ -174,3 +174,13 @@ test("W1-09 control: a country we can place and hold no line for gets the senten
   assert.deepEqual(sosLinesFor({ country: "GB", countries: COUNTRIES, now: MONDAY_NOON }), []);
   assert.deepEqual(sosLinesFor({ phone: "+447700900000", countries: COUNTRIES, now: MONDAY_NOON }), []);
 });
+
+/* W1-29: the page that replaces everything on a crash still carries help (P5). */
+test("the global error page carries always-open numbers", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(process.env.GLOBAL_ERROR_FILE ?? "app/global-error.tsx", "utf8");
+  for (const tel of ["tel:123", "tel:112", "tel:988"]) {
+    assert.ok(page.includes(tel), `global-error.tsx dials ${tel}`);
+  }
+  assert.ok(page.includes("local emergency number"));
+});
