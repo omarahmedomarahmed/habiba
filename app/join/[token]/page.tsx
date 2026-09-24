@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { JoinFlow } from "@/components/join/join-flow";
 import { PatientChrome } from "@/components/patient/chrome";
 import { optionalPatient } from "@/lib/patient-auth/guard";
-import { NoShowRecovery } from "@/components/session/no-show-recovery";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { Logo } from "@/components/brand/logo";
 import { crisisCountryFor } from "@/lib/crisis/line";
@@ -200,30 +199,23 @@ export default async function JoinPage({
           recording: session.recordingConsent,
           profileShare: session.profileShareConsent,
         }}
+        /*
+          🔴 Sprint 14's recovery, on the screen where the waiting happens, and
+          🔴 W2-P11 inside the room as well as before it. It was rendered here,
+          below the flow, where the room's fixed full-screen layer covered it
+          the moment the patient went in, and it was handed a wait computed
+          once, so a room opened before the five minutes never offered anybody.
+          The booked instant goes in; the component keeps the clock.
+        */
+        recoveryFrom={
+          session.scheduledAt && !session.startedAt ? session.scheduledAt.toISOString() : null
+        }
       />
-
       {/*
-        🔴 Sprint 14's recovery, on the screen where the waiting happens.
-        --------------------------------------------------------------
-        `NoShowRecovery` was built in sprint 14 and rendered **nowhere** — the
-        same defect as `InvoiceList` in sprint 12, found the same way, by a
-        type error asking who passes the new locale. A component nobody
-        renders is a feature nobody has.
-
-        It appears only once there is something to recover from: a session with
-        a scheduled time that has passed and a clinician who has not started.
-        The five-minute rule and the offer itself live in `lib/data/recovery.ts`
-        — this decides whether the patient is in a position to need them.
+        `NoShowRecovery` was built in sprint 14 and rendered nowhere, found by a
+        type error asking who passes the new locale. A component nobody renders
+        is a feature nobody has. `JoinFlow` renders it now, in both places.
       */}
-      {session.scheduledAt && !session.startedAt && session.scheduledAt < new Date() ? (
-        <div className="mx-auto w-full max-w-md px-4 pb-8">
-          <NoShowRecovery
-            token={token}
-            startedAt={null}
-            waitMinutes={Math.floor((Date.now() - session.scheduledAt.getTime()) / 60_000)}
-          />
-        </div>
-      ) : null}
     </Shell>
   );
 }

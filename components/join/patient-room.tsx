@@ -53,7 +53,14 @@ export function PatientRoom({
   consent,
   startedAt,
   clock,
+  recovery = null,
 }: {
+  /**
+   * 🔴 W2-P11: somebody else, or their money back, when the clinician has not
+   * come. It lived below the join flow, under this room's full-screen layer,
+   * so a patient waiting inside the room never saw it.
+   */
+  recovery?: React.ReactNode;
   token: string;
   therapist: Therapist;
   videoUrl: string | null;
@@ -251,6 +258,8 @@ export function PatientRoom({
 
         {/* ------------------------------------------------------- the panel */}
         <aside className="space-y-3">
+          {/* 🔴 W2-P11: first, because it is the only thing here that changes what happens next. */}
+          {!live ? recovery : null}
           {/*
             Loudest thing in the panel, and first.
             --------------------------------------

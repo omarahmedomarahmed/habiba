@@ -19,6 +19,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn } from "@/lib/utils";
 import { PatientRoom, type Therapist } from "@/components/join/patient-room";
+import { NoShowRecovery } from "@/components/session/no-show-recovery";
 
 const INITIAL: JoinState = {};
 
@@ -58,7 +59,13 @@ export function JoinFlow({
   cancelled,
   initialConsent,
   knownName,
+  recoveryFrom = null,
 }: {
+  /**
+   * 🔴 W2-P11: the booked instant of a session nobody has started, for
+   * `NoShowRecovery`, which renders inside the room as well as before it.
+   */
+  recoveryFrom?: string | null;
   therapist: Therapist;
   token: string;
   /** Separate from `token`: the rating link outlives the room key. */
@@ -252,6 +259,11 @@ export function JoinFlow({
         consent={consent}
         startedAt={startedAt}
         clock={clock}
+        recovery={
+          recoveryFrom ? (
+            <NoShowRecovery token={token} scheduledAt={recoveryFrom} startedAt={startedAt} />
+          ) : null
+        }
       />
     );
   }
@@ -340,6 +352,11 @@ export function JoinFlow({
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         {owes ? t("join.privateNotePaid") : t("join.privateNote")}
       </p>
+
+      {/* 🔴 W2-P11: before they go in too, for somebody waiting on the form. */}
+      {recoveryFrom ? (
+        <NoShowRecovery token={token} scheduledAt={recoveryFrom} startedAt={startedAt} />
+      ) : null}
     </form>
   );
 }

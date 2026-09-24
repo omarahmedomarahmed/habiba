@@ -224,6 +224,32 @@ test("W2-P10 the summary is on the page before any rating, and a rating needs no
   assert.match(code("app/feedback/[token]/actions.ts"), /input\.email\.trim\(\) \? await releaseBrief/);
 });
 
+/* ----------------------------------------------------------------- W2-P11 -- */
+
+test("W2-P11 no-show recovery keeps counting, asks again, and is inside the room", async () => {
+  const { minutesWaiting, shouldAsk, RECHECK_MS } = await import("../lib/sessions/waiting");
+  const booked = "2026-09-24T10:00:00Z";
+  const at = (minutes: number) => Date.parse(booked) + minutes * 60_000;
+
+  /* Opened at minute three: the old component was told "3" and never heard otherwise. */
+  assert.equal(minutesWaiting(booked, at(3)), 3);
+  assert.equal(minutesWaiting(booked, at(6)), 6, "the clock has to keep counting in the browser");
+
+  const waiting = { started: false, state: "waiting" as const, lastAskedAt: null };
+  assert.equal(shouldAsk({ ...waiting, waited: 3, now: at(3) }), false);
+  assert.equal(shouldAsk({ ...waiting, waited: 5, now: at(5) }), true);
+  /* Nobody free at five: asked again later, not never. */
+  const none = { waited: 8, started: false, state: "none" as const, lastAskedAt: at(5) };
+  assert.equal(shouldAsk({ ...none, now: at(5) + RECHECK_MS - 1 }), false);
+  assert.equal(shouldAsk({ ...none, now: at(5) + RECHECK_MS }), true);
+  assert.equal(shouldAsk({ ...none, started: true, now: at(20) }), false, "the clinician came");
+  assert.equal(shouldAsk({ ...none, state: "done", now: at(20) }), false);
+
+  assert.match(code("components/join/patient-room.tsx"), /\{!live \? recovery : null\}/);
+  assert.match(code("components/join/join-flow.tsx"), /recovery=\{/);
+  assert.doesNotMatch(code("components/session/no-show-recovery.tsx"), /waitMinutes: number/);
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

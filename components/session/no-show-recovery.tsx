@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Clock, HeartHandshake } from "lucide-react";
 
 import {
@@ -14,6 +14,7 @@ import { Money } from "@/components/ui/money";
 import { formatMoney } from "@/lib/billing/plans";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { localeTag } from "@/lib/i18n/config";
+import { minutesWaiting, shouldAsk } from "@/lib/sessions/waiting";
 
 /**
  * What a patient sees while nobody is joining. PLAN.md 14.1–14.4.
@@ -35,16 +36,29 @@ import { localeTag } from "@/lib/i18n/config";
 export function NoShowRecovery({
   token,
   startedAt,
-  waitMinutes,
+  scheduledAt,
 }: {
   /** 🔴 W1-07: the patient's own join link is the proof, never the session id. */
   token: string;
   /** Non-null once the therapist joined — this component then never appears. */
   startedAt: string | null;
-  /** How long they have been here. Server-computed, so the clock is one clock. */
-  waitMinutes: number;
+  /**
+   * 🔴 W2-P11: the booked instant, not a wait computed once at render. That
+   * number never grew, so a room opened at minute three waited for ever.
+   */
+  scheduledAt: string;
 }) {
   const [view, setView] = useState<RecoveryView>({ state: "waiting" });
+  const [now, setNow] = useState(() => Date.now());
+  const [lastAskedAt, setLastAskedAt] = useState<number | null>(null);
+  const waitMinutes = minutesWaiting(scheduledAt, now);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
   /*
@@ -62,16 +76,30 @@ export function NoShowRecovery({
    * first is how somebody gets offered a replacement half a second after their
    * therapist finally appears.
    */
+  /*
+   * 🔴 W2-P11: and it keeps counting, and asks again. A clock that ticks, so
+   * the five-minute line is crossed while they sit here, and a fresh ask every
+   * few minutes while nobody has been offered, so a clinician who comes on
+   * shift at minute seven is offered too. `shouldAsk` holds the rule.
+   */
   useEffect(() => {
-    if (startedAt || waitMinutes < 5 || view.state !== "waiting") return;
-    let live = true;
+    if (startedAt) return;
+    const tick = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(tick);
+  }, [startedAt]);
+
+  useEffect(() => {
+    if (
+      !shouldAsk({ waited: waitMinutes, started: Boolean(startedAt), state: view.state, lastAskedAt, now })
+    ) {
+      return;
+    }
+    /* The stamp re-runs this effect, so the answer is kept by mount, not by run. */
+    setLastAskedAt(now);
     void offerReplacements({ token }).then((next) => {
-      if (live) setView(next);
+      if (mounted.current) setView(next);
     });
-    return () => {
-      live = false;
-    };
-  }, [token, startedAt, waitMinutes, view.state]);
+  }, [token, startedAt, waitMinutes, view.state, lastAskedAt, now]);
 
   if (startedAt) return null;
 
