@@ -4052,6 +4052,7 @@ export const en = {
   "aconfirm.delete": "Delete",
   "aconfirm.off": "Off",
   "aconfirm.on": "On",
+  "w2a.cancelledByUs": "We cancelled your booking: your clinician is no longer available.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7338,6 +7339,7 @@ export const ar: Record<MessageKey, string> = {
   "aconfirm.delete": "احذف",
   "aconfirm.off": "أوقف",
   "aconfirm.on": "شغّل",
+  "w2a.cancelledByUs": "ألغينا حجزك لأن معالجك لم يعد متاحًا.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

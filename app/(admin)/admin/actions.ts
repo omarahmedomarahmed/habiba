@@ -797,6 +797,10 @@ export async function setRadarSuspension(
 
   const { suspendFromRadar, releaseFromRadarBan } = await import("@/lib/data/feedback");
 
+  // 🔴 W2-A10: a ban and a release both carry a reason, at the length the screen asks for.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+
   if (hours <= 0) {
     await releaseFromRadarBan(therapistUserId);
     await audit({
@@ -805,11 +809,10 @@ export async function setRadarSuspension(
       action: "radar.release",
       resourceType: "user",
       resourceId: therapistUserId,
-      reason: reason.trim().slice(0, 200) || "Released",
+      reason: reasonText(reason),
     });
   } else {
-    const note = reason.trim();
-    if (note.length < 4) return { error: "Give a reason. The clinician is shown it." };
+    const note = reasonText(reason);
     await suspendFromRadar(therapistUserId, hours, note);
     await audit({
       actor,
@@ -841,15 +844,25 @@ export async function setRadarSuspension(
   return { ok: true };
 }
 
-/** Force someone offline without a ban — the polite version, for a mistake. */
-export async function forceRadarOffline(therapistUserId: string): Promise<AdminActionState> {
+/**
+ * Force someone offline without a ban: the polite version, for a mistake.
+ *
+ * 🔴 W2-A10: it used to clear `pendingSessionId` and `reservedBy`, which
+ * dropped a patient in the middle of booking this clinician with nothing to
+ * tell them; their screen went on waiting for somebody who had been taken off
+ * the board. Now a booking in flight is cancelled and the patient is told
+ * (`forceOffline`), and the operator's reason is on the record.
+ */
+export async function forceRadarOffline(
+  therapistUserId: string,
+  reason: string,
+): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
-  const { therapistRadar } = await import("@/lib/db/schema");
-  await db
-    .update(therapistRadar)
-    .set({ status: "offline", pendingSessionId: null, pendingUntil: null, reservedBy: null })
-    .where(eq(therapistRadar.userId, therapistUserId));
+  const { forceOffline } = await import("@/lib/data/radar-admin");
+  const { cancelledSessionId } = await forceOffline({ therapistUserId, adminUserId: actor.userId });
 
   await audit({
     actor,
@@ -857,6 +870,7 @@ export async function forceRadarOffline(therapistUserId: string): Promise<AdminA
     action: "radar.force_offline",
     resourceType: "user",
     resourceId: therapistUserId,
+    reason: `${reasonText(reason)}${cancelledSessionId ? `, booking ${cancelledSessionId} cancelled and the patient told` : ""}`,
   });
 
   revalidatePath("/admin/radar");

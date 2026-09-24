@@ -1,5 +1,7 @@
 "use client";
 
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
+import { MIN_REASON } from "@/lib/admin/reason";
 import dynamicImport from "next/dynamic";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -449,44 +451,47 @@ function Controls({ row }: { row: CommandRow }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * 🔴 W2-A10: the reason is the clinician's to read, so it is required. A
+   * blank field used to send "Administrator action", which passed the server's
+   * four-character check and was emailed as the reason.
+   */
   const act = (hours: number) =>
     startTransition(async () => {
       setError(null);
-      const result = await setRadarSuspension(row.userId, hours, reason || "Administrator action");
+      const result = await setRadarSuspension(row.userId, hours, reason);
       if (result.error) setError(result.error);
       else setOpen(false);
     });
 
   if (row.suspendedUntil) {
     return (
-      <Button
-        size="sm"
-        variant="secondary"
-        disabled={pending}
-        onClick={() => act(0)}
-      >
-        <Undo2 className="h-3 w-3" aria-hidden />
-        Release
-      </Button>
+      <ConfirmWithReason
+        label={
+          <>
+            <Undo2 className="h-3 w-3" aria-hidden />
+            Release
+          </>
+        }
+        onConfirm={(why) => setRadarSuspension(row.userId, 0, why)}
+      />
     );
   }
 
   if (!open) {
     return (
       <div className="flex gap-1">
-        <button
-          type="button"
+        {/*
+          🔴 W2-A10: taking somebody off the board mid-booking cancels that
+          booking and tells the patient, so it asks first and says why on the
+          record. It used to drop them silently and ignore the result.
+        */}
+        <ConfirmWithReason
+          label={<PowerOff className="h-3.5 w-3.5" aria-label="Take them off the board now, without a ban" />}
+          variant="secondary"
           disabled={pending || row.status === "offline"}
-          onClick={() =>
-            startTransition(async () => {
-              await forceRadarOffline(row.userId);
-            })
-          }
-          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
-          title="Take them off the board now, without a ban"
-        >
-          <PowerOff className="h-3.5 w-3.5" aria-hidden />
-        </button>
+          onConfirm={(why) => forceRadarOffline(row.userId, why)}
+        />
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -513,9 +518,14 @@ function Controls({ row }: { row: CommandRow }) {
         className="h-8 text-xs"
       />
       <div className="flex flex-wrap gap-1">
-        <Ban24 label="24h" hours={24} act={act} pending={pending} />
-        <Ban24 label="3 days" hours={72} act={act} pending={pending} />
-        <Ban24 label="Until released" hours={24 * 3650} act={act} pending={pending} />
+        <Ban24 label="24h" hours={24} act={act} pending={pending || reason.trim().length < MIN_REASON} />
+        <Ban24 label="3 days" hours={72} act={act} pending={pending || reason.trim().length < MIN_REASON} />
+        <Ban24
+          label="Until released"
+          hours={24 * 3650}
+          act={act}
+          pending={pending || reason.trim().length < MIN_REASON}
+        />
         <button
           type="button"
           onClick={() => setOpen(false)}
