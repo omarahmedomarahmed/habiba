@@ -678,9 +678,10 @@ async function main() {
       `balance/legs ${beforeFree} then ${afterFree}; ${free.error ?? "no charge ACCEPTED"}; ${unconfirmed.error ?? "unconfirmed charge ACCEPTED"}`,
     );
 
-    const { readFileSync } = await import("node:fs");
-    const potActions = readFileSync("app/(sponsor)/sponsor/pot/actions.ts", "utf8");
-    const stripeSource = readFileSync("lib/billing/stripe.ts", "utf8");
+    // Comments stripped (C205): a sentence saying the action no longer calls
+    // `topUpPot(` must not read as a call to it.
+    const potActions = readSource("app/(sponsor)/sponsor/pot/actions.ts");
+    const stripeSource = readSource("lib/billing/stripe.ts");
 
     check(
       "🔴 W1-01 no sponsor action reaches `topUpPot`; only the Stripe webhook does",
