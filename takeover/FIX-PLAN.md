@@ -26,7 +26,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 
 | # | Decision | Default taken | Why |
 |---|---|---|---|
-| D1 | Company sees employees | **Founder's decision, 2026-09-23: companies see their employees' names and control their benefit (end, pause, resume), never their sessions; and see the names of therapists that were paid.** E1 and E2 rewritten | Paid therapists breach C244 by design, so it is built as one sanctioned query: therapist name and total for the period, no dates finer than a month, no specialty, shown only at or above the reporting floor, and the C244 verifiers name it as the single exception rather than being loosened |
+| D1 | Company sees employees and money | **Founder's decisions, 2026-09-23 and 24:** companies see their employees' names and control their benefit (end, pause, resume), never their sessions. **No therapist names.** They see every session's money entry: price, coverage %, covered amount, employee's share, with analytics, filters, sorting and export, and no names | Timing guard by default: entries published in weekly batches, dated by week, because a live entry at a small company can identify the person and enrolled employees were told "not a date". An operator setting can make it live. Enrolled employees are told before the ledger applies to them, and the benefit page's promise is rewritten to match |
 | D2 | Patient names at the clinic | **Founder's decision, 2026-09-23: the clinic sees first name and last initial on each clinician's calendar and patient list.** C2 and C5 rewritten to match | A per-clinician patient list reveals caseload size, so the homepage sentence "no caseload count on any of them" (`lib/content/defaults.ts` and its published CMS row) goes in the same release as the list |
 | D3 | US company card top-up | **Card rail switched off** until a real charge exists (Wave 4 builds Stripe checkout for top-ups) | It credits money nobody paid (task 220) |
 | D4 | Company HR integration tab | **Hidden** until rebuilt | Does nothing, copy describes the reverse, its counter leaks enrolment timing |
@@ -128,7 +128,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 - W2-S07 Verify-cycle screen and job read the same number.
 - W2-S08 Pot expiry enforced, or the promise removed (default: enforced with warning).
 - W2-S09 Enquiry follow-through: staff and applicant notified, duplicates caught, entity by country.
-- W2-S10 Therapists paid (D1): one sanctioned query, therapist name and total for the period, at or above the floor, no dates finer than a month, no specialty; C244 verifiers updated to name this single exception.
+- W2-S10 Company money ledger (D1): one entry per pot-funded session with price, coverage %, covered amount and employee's share; no employee, no therapist, no specialty; published in batches (setting, default weekly, shuffled within the batch, dated by week); analytics (spend and sessions by month, average price, coverage mix, employee share, top-ups, burn and runway); filters (period, coverage, amount), sorting, CSV export with formula escaping; the reporting floor on every aggregate. The C244 verifiers are updated to name this one sanctioned money view, not loosened. Enrolled employees get an in-app notice and the benefit page's "what they see" rewritten before it applies to them.
 - W2-S11 Control each employee's benefit (D1): end (exists, needs confirm), pause and resume, with the employee told in app; never any session detail.
 
 **Partner**

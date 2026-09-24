@@ -134,11 +134,11 @@ Signs in at `/clinic/sign-in`. 1 tester, the person who runs the practice.
 
 Signs in at `/sponsor/sign-in`. 1 tester, the person who funds the pot.
 
-### E1 · Who is enrolled, what you funded, what has been spent and which therapists were paid. Never who used it and never when.
+### E1 · Who is enrolled, what you funded, and every session's money: its price, your cover, your share and your employee's share. Never who, never which therapist, never the day.
 
-**Where we say it.** `/`, the company card: “The pot, and what is left in it”, widened by the founder's decision of 2026-09-23: companies see their employees' names and control their benefit, and see the therapists that were paid, never the sessions
+**Where we say it.** `/`, the company card: “The pot, and what is left in it”, widened by the founder's decisions of 2026-09-23 and 2026-09-24: companies see their employees' names and control their benefit, and see each session's money with no name and no therapist
 
-**Proved when.** `/sponsor` lists enrolled names with benefit controls and the therapists paid, each as a total for the period at or above the reporting floor, and no screen ties any employee to a therapist, a session or a date. The balance is a published figure rather than a live one.
+**Proved when.** `/sponsor` lists enrolled names with benefit controls, and a ledger of session money entries (price, cover %, covered amount, employee's share) with analytics, filters, sorting and export, carrying no employee, no therapist and no date finer than the publishing batch. The balance is a published figure rather than a live one.
 
 ### E2 · The portal has no screen that could show a note, a session time or an attendance list.
 

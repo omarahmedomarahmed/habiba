@@ -196,10 +196,10 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
   {
     id: "E1",
     audience: "company",
-    says: "Who is enrolled, what you funded, what has been spent and which therapists were paid. Never who used it and never when.",
-    where: "`/`, the company card: “The pot, and what is left in it”, widened by the founder's decision of 2026-09-23: companies see their employees' names and control their benefit, and see the therapists that were paid, never the sessions",
+    says: "Who is enrolled, what you funded, and every session's money: its price, your cover, your share and your employee's share. Never who, never which therapist, never the day.",
+    where: "`/`, the company card: “The pot, and what is left in it”, widened by the founder's decisions of 2026-09-23 and 2026-09-24: companies see their employees' names and control their benefit, and see each session's money with no name and no therapist",
     proof:
-      "`/sponsor` lists enrolled names with benefit controls and the therapists paid, each as a total for the period at or above the reporting floor, and no screen ties any employee to a therapist, a session or a date. The balance is a published figure rather than a live one.",
+      "`/sponsor` lists enrolled names with benefit controls, and a ledger of session money entries (price, cover %, covered amount, employee's share) with analytics, filters, sorting and export, carrying no employee, no therapist and no date finer than the publishing batch. The balance is a published figure rather than a live one.",
   },
   {
     id: "E2",
