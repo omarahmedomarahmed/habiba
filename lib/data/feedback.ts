@@ -169,7 +169,8 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     // rating creates the row long before the session is over.
     done: row.therapistStars !== null,
     ratedApp: Boolean(row.arrivedAt),
-    brief: signed ? (row.noteContent?.patientBrief ?? row.noteContent?.summary ?? null) : null,
+    // Never the clinician's `summary` in its place: see `patientCopyText`.
+    brief: signed ? patientCopyText(row.noteContent) : null,
     briefSteps: signed ? (row.noteContent?.patientSteps ?? []) : [],
     briefNext: signed ? (row.noteContent?.patientNext ?? "") : "",
     briefLanguage: row.noteLanguage ?? "en",

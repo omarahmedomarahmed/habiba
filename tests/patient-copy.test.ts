@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { patientCopyText } from "../lib/clinical/patient-copy";
@@ -21,4 +22,13 @@ test("an empty patient copy sends nothing, never the clinician's summary", () =>
   assert.equal(patientCopyText({ patientBrief: "   ", summary: "Low mood." }), null);
   assert.equal(patientCopyText({ summary: "Low mood." }), null);
   assert.equal(patientCopyText(null), null);
+});
+
+test("the feedback module reads the patient's copy only through patientCopyText", () => {
+  // Both the email and the rating page once fell back to `summary`, one with
+  // `||` and one with `??`. Neither may come back in any spelling.
+  const source = readFileSync(new URL("../lib/data/feedback.ts", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*$/gm, "");
+  assert.doesNotMatch(source, /(?:content|noteContent)\?\.summary/);
 });
