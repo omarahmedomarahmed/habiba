@@ -50,18 +50,19 @@ export async function rateSession(input: {
 /**
  * Something went wrong, and it is not a star rating.
  *
- * A no-show refunds the patient and suspends the clinician from the radar
- * without waiting for anyone to read it, because the patient paid for a
- * session that did not happen and making them wait for office hours to get
- * their money back is the wrong answer to our own failure. Everything else
- * goes to a human.
+ * 🔴 W1-08 — a no-show refunds the patient and suspends the clinician without
+ * waiting for anyone ONLY when the session's own record shows the clinician
+ * never joined (`noShowProven`). That case is our failure and the patient
+ * should not wait for office hours. A claim the record does not back stays
+ * open in the admin report queue for a person to decide, and the patient is
+ * told so. Everything else goes to a human too.
  */
 export async function reportSession(input: {
   token: string;
   kind: "no_show" | "abuse" | "other";
   detail: string;
   email: string;
-}): Promise<FeedbackState> {
+}): Promise<FeedbackState & { noShow?: "refunded" | "review" }> {
   const { callerKey, consume } = await import("@/lib/rate-limit");
   const attempt = await consume(await callerKey("report"), 10, 600);
   if (!attempt.allowed) return { error: "Too many reports from this connection." };
@@ -74,6 +75,10 @@ export async function reportSession(input: {
   if (filed.error) return { error: filed.error };
 
   if (input.kind === "no_show" && filed.sessionId && filed.therapistId) {
+    const { noShowFacts, noShowProven } = await import("@/lib/data/recovery");
+    const facts = await noShowFacts(filed.sessionId);
+    if (!facts || !noShowProven(facts)) return { ok: true, noShow: "review" };
+
     const { refundSessionPayment } = await import("@/lib/billing/connect");
     /*
    * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
@@ -132,9 +137,11 @@ export async function reportSession(input: {
         to: therapist.email,
         firstName: therapist.firstName,
         subject: "You have been taken off the Crisis Radar",
-        body: `A patient reported that you did not join a session they had booked and paid for. They have been refunded, and you are off the radar for ${penalty.label}.\n\nIf this is wrong, reply to this email and we will look at it, the session record shows whether anyone joined the room.\n\nGoing on the radar means being ready to take a session within a minute. If you cannot be, switch yourself off; there is no penalty for being unavailable, only for being unavailable while advertised.\n\n- ${fullName(therapist.firstName, therapist.lastName, "")}`.trim(),
+        body: `A patient reported that you did not join a session they had booked and paid for, and the session record shows you did not start it. They have been refunded, and you are off the radar for ${penalty.label}.\n\nIf this is wrong, reply to this email and we will look at it.\n\nGoing on the radar means being ready to take a session within a minute. If you cannot be, switch yourself off; there is no penalty for being unavailable, only for being unavailable while advertised.\n\n- ${fullName(therapist.firstName, therapist.lastName, "")}`.trim(),
       });
     }
+
+    return { ok: true, noShow: "refunded" };
   }
 
   return { ok: true };

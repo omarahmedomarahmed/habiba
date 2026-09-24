@@ -1325,3 +1325,39 @@ test("identifiers never reach the error log", async () => {
   assert.equal(scrubPath("/admin/radar"), "/admin/radar");
   assert.equal(scrubPath("/"), "/");
 });
+
+/* ------------------------------------------------------ W1-08 no-show claims */
+
+/**
+ * 🔴 W1-08 — a patient's "they never joined" refunds and suspends on its own
+ * only when the session's record agrees. Both branches, and each way the
+ * record can disagree.
+ */
+test("a no-show claim is proven only by a record showing the clinician never joined", async () => {
+  const { noShowProven } = await import("../lib/data/recovery");
+  const now = new Date("2026-09-23T12:00:00Z");
+  const missed = {
+    scheduledAt: new Date("2026-09-23T11:30:00Z"),
+    startedAt: null,
+    recordingStartedAt: null,
+    status: "scheduled",
+    modality: "video",
+    recoveryOutcome: null,
+    externalMeeting: false,
+  };
+
+  assert.equal(noShowProven(missed, now), true, "never started, due half an hour ago");
+
+  for (const [label, row] of [
+    ["the clinician started the session", { ...missed, startedAt: new Date("2026-09-23T11:31:00Z"), status: "completed" }],
+    ["the recording started", { ...missed, recordingStartedAt: new Date("2026-09-23T11:32:00Z") }],
+    ["it is not due yet", { ...missed, scheduledAt: new Date("2026-09-23T11:58:00Z") }],
+    ["it has no scheduled time", { ...missed, scheduledAt: null }],
+    ["it was held in person", { ...missed, modality: "in_person" }],
+    ["it was held in a meeting we cannot see into", { ...missed, externalMeeting: true }],
+    ["it was already cancelled", { ...missed, status: "cancelled" }],
+    ["it was already refunded by the recovery flow", { ...missed, recoveryOutcome: "refunded" }],
+  ] as const) {
+    assert.equal(noShowProven(row, now), false, `${label}: a person decides`);
+  }
+});

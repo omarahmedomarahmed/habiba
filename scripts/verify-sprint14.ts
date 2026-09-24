@@ -431,6 +431,71 @@ async function main() {
       JSON.stringify(byToken),
     );
 
+    /*
+     * 🔴 W1-08 — A CLAIM IS NOT A PROOF.
+     *
+     * "They never joined" refunded the patient and took the clinician off the
+     * radar on the report alone. Here the room's own record says the clinician
+     * DID start the session, so the claim must wait in the admin queue and the
+     * clinician must stay on the board. Planted clinician, never a found one.
+     */
+    const { reportSession } = await import("../app/feedback/[token]/actions");
+    const [claimed] = await db
+      .insert(users)
+      .values({
+        organizationId,
+        email: `verify14-w108-${Date.now()}@example.com`,
+        passwordHash: "x".repeat(60),
+        firstName: "verify14",
+        lastName: "w108",
+        role: "therapist" as const,
+      })
+      .returning({ id: users.id });
+    await db
+      .insert(therapistRadar)
+      .values({ userId: claimed!.id, organizationId, status: "online" });
+    const claimToken = `verify14-w108-${Date.now()}`;
+    const [attended] = await db
+      .insert(sessions)
+      .values({
+        organizationId,
+        therapistId: claimed!.id,
+        status: "completed",
+        modality: "video",
+        guestName: "verify14 w108",
+        feedbackToken: claimToken,
+        priceCents: 3000,
+        scheduledAt: new Date(Date.now() - 90 * 60_000),
+        startedAt: new Date(Date.now() - 89 * 60_000),
+        endedAt: new Date(Date.now() - 40 * 60_000),
+      })
+      .returning({ id: sessions.id });
+    if (attended) made.push(attended.id);
+    const claim = await reportSession({ token: claimToken, kind: "no_show", detail: "", email: "" });
+    const { releaseHold, callerKey } = await import("../lib/rate-limit");
+    await releaseHold(await callerKey("report"));
+    const [radarAfter] = await db
+      .select({ suspendedUntil: therapistRadar.suspendedUntil })
+      .from(therapistRadar)
+      .where(eq(therapistRadar.userId, claimed!.id))
+      .limit(1);
+    const { sessionReports } = await import("../lib/db/schema");
+    const [queued] = await db
+      .select({ status: sessionReports.status, kind: sessionReports.kind })
+      .from(sessionReports)
+      .where(eq(sessionReports.sessionId, attended!.id))
+      .limit(1);
+    check(
+      "🔴 W1-08 a no-show claim against a session the clinician started is queued, not actioned",
+      queued?.kind === "no_show" && queued?.status === "open" && !radarAfter?.suspendedUntil,
+      `report ${queued?.status ?? "missing"}, radar ${radarAfter?.suspendedUntil ? "SUSPENDED" : "untouched"}, ${JSON.stringify(claim)}`,
+    );
+    check(
+      "W1-08 …and the patient is told a person will decide",
+      "noShow" in claim && claim.noShow === "review",
+      JSON.stringify(claim),
+    );
+
     /* ------------------------------------------------------ 14.7 the score */
 
     const score = await reliabilityFor(absent!.id);

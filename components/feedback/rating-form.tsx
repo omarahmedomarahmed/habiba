@@ -461,10 +461,17 @@ function ReportBox({
         setError(result.error);
         return;
       }
+      /*
+       * 🔴 W1-08 — what actually happened, never what we hoped. A claim the
+       * session record does not back waits for a person, and the patient is
+       * told that rather than promised a refund.
+       */
       setReported(
-        reporting === "no_show"
-          ? "Your payment has been refunded and this therapist is off the radar while we look into it. The refund reaches your card in a few days."
-          : "This has gone straight to 24Therapy, not to your therapist. Someone will read it today and will contact you if you left an address.",
+        reporting !== "no_show"
+          ? "This has gone straight to 24Therapy, not to your therapist. Someone will read it today and will contact you if you left an address."
+          : result.noShow === "refunded"
+            ? t("prating.noShowRefunded")
+            : t("prating.noShowReview"),
       );
       setReporting(null);
     });
@@ -476,7 +483,7 @@ function ReportBox({
       </p>
       <p className="text-xs leading-relaxed text-slate-500">
         {reporting === "no_show"
-          ? "We refund you straight away and take them off the radar. No need to explain."
+          ? t("prating.noShowIntro")
           : "This goes to 24Therapy, not to your therapist. Nobody at their practice sees it. If it concerns what was said or done during the session, say so. We can look at the session record, including any period the recording was paused."}
       </p>
 
@@ -506,7 +513,7 @@ function ReportBox({
 
       <div className="flex gap-2">
         <Button variant="danger" disabled={pending} onClick={send}>
-          {pending ? "Sending…" : reporting === "no_show" ? "Refund me" : "Send to 24Therapy"}
+          {pending ? "Sending…" : "Send to 24Therapy"}
         </Button>
         <Button variant="secondary" onClick={() => setReporting(null)}>
           {t("common.cancel")}

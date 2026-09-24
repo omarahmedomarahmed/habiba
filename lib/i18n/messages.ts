@@ -630,7 +630,7 @@ export const en = {
   "psummary.title": "Your clinical summary",
   "psummary.body": "Your therapists write it, version by version, each under its author's name.",
   "psummary.none": "Nothing has been written yet.",
-  "psummary.noneBody": "A therapist adds a version when a session ends. Theirs to write, yours to keep.",
+  "psummary.noneBody": "Your therapist adds one when a session ends.",
   "psummary.version": "Version {n} · {date}",
 
   /* ---------------------------------------------------------- whole record */
@@ -1190,22 +1190,22 @@ export const en = {
   "radar.inSession": "In session",
   "radar.heldForYou": "Held for you",
   "prating.yourSession": "Your session",
-  "prating.summaryOnWay": "Your summary is below, and a copy is on its way to your inbox.",
+  "prating.summaryOnWay": "Your summary is below. A copy is on its way.",
   "prating.stillWriting": "{name} is still writing it up. It arrives by email once approved.",
-  "prating.keepLink": "Your summary is below. Keep this link to come back to it.",
+  "prating.keepLink": "Keep this link to come back to your summary.",
   "prating.yourSummary": "Your summary",
-  "prating.writtenForYou": "Written for you. Your therapist keeps a separate clinical note.",
+  "prating.writtenForYou": "Written for you. Their clinical note is separate.",
   "prating.oneMinute": "One minute, and your summary is yours",
   "prating.andSession": "And the session itself?",
   "prating.andApp": "And 24Therapy itself?",
   "prating.andAppBody": "Finding someone, connecting, the app.",
   "prating.anythingElse": "Anything else?",
   "prating.optional": "Optional",
-  "prating.noName": "Your therapist sees this without your name on it.",
+  "prating.noName": "Your therapist sees this without your name.",
   "prating.commentPlaceholder": "What helped, what did not.",
   "prating.whereSummary": "Where shall we send your summary?",
-  "prating.summaryBody": "Where we send your summary. Used for this session and nothing else.",
-  "prating.ratingsAndEmail": "The ratings and an email address, and it is yours.",
+  "prating.summaryBody": "Used for this session and nothing else.",
+  "prating.ratingsAndEmail": "Ratings and an email, and it is yours.",
   "prating.reported": "Reported",
   "prating.neverJoined": "They never joined, I want my money back",
   "prating.reportSomething": "Report something that happened in this session",
@@ -1975,7 +1975,7 @@ export const en = {
   "prating.rateTherapist": "Rate your therapist",
   "prating.rateSession": "Rate the session",
   "prating.rateService": "Rate the service",
-  "prating.blurb": "Rate the session and say where to send the summary. It keeps good therapists visible.",
+  "prating.blurb": "Rate it, and say where to send the summary.",
   "pcode.youAreJoining": "You are joining",
   "pcode.createAccount": "Create your account",
   "pcode.signIn": "Sign in",
@@ -3925,6 +3925,9 @@ export const en = {
 
   // W1C
   "tshow.notYours": "This link cannot do that.",
+  "prating.noShowIntro": "We refund you if the record shows they never joined.",
+  "prating.noShowRefunded": "Refunded. It reaches your card in a few days.",
+  "prating.noShowReview": "We cannot confirm it yet. A person checks before any refund.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -4371,7 +4374,7 @@ export const ar: Record<MessageKey, string> = {
   "psummary.title": "ملخصك السريري",
   "psummary.body": "يكتبه معالجوك نسخةً بعد نسخة، كل واحدة باسم كاتبها.",
   "psummary.none": "لم يُكتب شيء بعد.",
-  "psummary.noneBody": "يضيف المعالج نسخة عند انتهاء الجلسة. هو يكتبها وأنت تحتفظ بها.",
+  "psummary.noneBody": "يضيفه معالجك عند انتهاء الجلسة.",
   "psummary.version": "النسخة {n} · {date}",
 
   /* --------------------------------------------------------- السجل كاملًا */
@@ -4838,9 +4841,9 @@ export const ar: Record<MessageKey, string> = {
   "radar.inSession": "في جلسة",
   "radar.heldForYou": "محجوز لك",
   "prating.yourSession": "جلستك",
-  "prating.summaryOnWay": "ملخصك بالأسفل، ونسخة منه في طريقها إلى بريدك.",
+  "prating.summaryOnWay": "ملخصك بالأسفل. ونسخة منه في الطريق.",
   "prating.stillWriting": "ما زال {name} يكتبه. ويصلك بالبريد فور اعتماده.",
-  "prating.keepLink": "ملخصك بالأسفل. احتفظ بهذا الرابط للعودة إليه.",
+  "prating.keepLink": "احتفظ بهذا الرابط للعودة إلى ملخصك.",
   "prating.yourSummary": "ملخصك",
   "prating.writtenForYou": "مكتوب لك أنت. ويحتفظ معالجك بملاحظة سريرية منفصلة.",
   "prating.oneMinute": "دقيقة واحدة، ويصبح ملخصك لك",
@@ -4852,7 +4855,7 @@ export const ar: Record<MessageKey, string> = {
   "prating.noName": "يرى معالجك هذا بلا اسمك عليه.",
   "prating.commentPlaceholder": "ما الذي ساعد، وما الذي لم يساعد.",
   "prating.whereSummary": "إلى أين نرسل ملخصك؟",
-  "prating.summaryBody": "إلى هنا نرسل ملخصك. يُستخدم لهذه الجلسة ولا شيء غيرها.",
+  "prating.summaryBody": "يُستخدم لهذه الجلسة ولا شيء غيرها.",
   "prating.ratingsAndEmail": "التقييمات وعنوان بريد، ويصبح الملخص لك.",
   "prating.reported": "تم الإبلاغ",
   "prating.neverJoined": "لم يحضر، وأريد استرداد أموالي",
@@ -5418,7 +5421,7 @@ export const ar: Record<MessageKey, string> = {
   "prating.rateTherapist": "قيّم معالجك",
   "prating.rateSession": "قيّم الجلسة",
   "prating.rateService": "قيّم الخدمة",
-  "prating.blurb": "قيّم الجلسة وأخبرنا أين نرسل الملخص. هذا ما يُبقي المعالجين الجيدين ظاهرين.",
+  "prating.blurb": "قيّم الجلسة، وأخبرنا أين نرسل الملخص.",
   "pcode.youAreJoining": "أنت تنضم إلى",
   "pcode.createAccount": "أنشئ حسابك",
   "pcode.signIn": "تسجيل الدخول",
@@ -7084,6 +7087,9 @@ export const ar: Record<MessageKey, string> = {
 
   // W1C
   "tshow.notYours": "لا يستطيع هذا الرابط فعل ذلك.",
+  "prating.noShowIntro": "نرد لك المبلغ إن أظهر السجل أنه لم ينضم.",
+  "prating.noShowRefunded": "تم رد المبلغ. يصل إلى بطاقتك خلال أيام.",
+  "prating.noShowReview": "لا يمكننا تأكيد ذلك بعد. يراجعه شخص قبل أي استرداد.",
 };
 
 export const DICTIONARIES = { en, ar } as const;
