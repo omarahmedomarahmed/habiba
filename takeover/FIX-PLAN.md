@@ -66,6 +66,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | W1-22 | S2 | Clinic and company records disconnect revokes every connection with no confirm | Admin-only, confirm, revoke the chosen connection | test |
 | W1-23 | S1 | A clinician can edit licence fields after approval with no review | Licence fields editable only through re-verification | test |
 | W1-24 | S1 | Partner note draft has the consent coverage sentence pasted into the clinical text (RESEARCH-2 section 3: consent written into charts by the AI is the pattern behind the 2025 scribe lawsuits) | Consent and coverage stored and returned as their own fields, never inside note text | test |
+| W1-26 | S1 | Total View timeline shows 140-character copilot message previews and risk text without a reason (found by W1D) | Previews removed from the timeline; clinical text only through the audited reads | test |
 | W1-25 | S1 | Egypt's 105 line is reported as not 24/7 (RESEARCH-2 section 1); SOS offers it alone | 123 and 112 always shown with it, emergency number first outside its hours; same on the website samples | test on the line list |
 
 ## Wave 2: stuck (S3). Every dead end gets a way forward.
@@ -174,3 +175,8 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 | ID | Status |
 |---|---|
 | W1-05 | fixed da98d4a, not yet live |
+| W1-14 | fixed 89298749 |
+| W1-15 | fixed 599de67d (per founder's D2) |
+| W1-19 | fixed 633364f5 |
+| W1-20 | fixed 00805ba4 |
+| W1-21 | fixed d9fc09b4 |
