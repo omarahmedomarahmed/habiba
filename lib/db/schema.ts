@@ -8035,6 +8035,15 @@ export const WEBHOOK_EVENTS = [
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
+/**
+ * 🔴 W2-X03 — THE TEST EVENT, AND IT IS NOT IN THE LIST ABOVE ON PURPOSE.
+ *
+ * Nobody subscribes to it: it is sent once, to one endpoint, when its owner presses
+ * "Send a test event", so they can check their signature code before a real event
+ * depends on it. The same three fields as every delivery, with a null id.
+ */
+export const WEBHOOK_TEST_EVENT = "ping";
+
 export const partnerWebhooks = pgTable(
   "partner_webhooks",
   {
@@ -8061,7 +8070,8 @@ export const partnerWebhookDeliveries = pgTable(
       .notNull()
       .references(() => partnerWebhooks.id, { onDelete: "cascade" }),
 
-    event: text("event").$type<WebhookEvent>().notNull(),
+    /** W2-X03 / 0138: `ping` is the test event a partner sends themselves. */
+    event: text("event").$type<WebhookEvent | typeof WEBHOOK_TEST_EVENT>().notNull(),
     /**
      * 🔴 AN ID, AND THE ID IS OURS.
      *
@@ -8076,6 +8086,16 @@ export const partnerWebhookDeliveries = pgTable(
     lastStatus: integer("last_status"),
     lastError: text("last_error"),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    /**
+     * 🔴 W2-X03 / 0138 — WHEN THE NEXT TRY IS DUE. Null once it is delivered or
+     * failed. Each failure pushes it further out (`lib/partner/retry.ts`).
+     */
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow(),
+    /**
+     * 🔴 W2-X03 / 0138 — THE LAST TRY FAILED AND NO MORE ARE COMING. It used to say
+     * "Pending" for ever. A CHECK keeps it and `delivered_at` from both being set.
+     */
+    failedAt: timestamp("failed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
@@ -8083,6 +8103,9 @@ export const partnerWebhookDeliveries = pgTable(
     index("partner_webhook_deliveries_pending_idx")
       .on(t.createdAt)
       .where(sql`delivered_at IS NULL`),
+    index("partner_webhook_deliveries_due_idx")
+      .on(t.nextAttemptAt)
+      .where(sql`delivered_at IS NULL AND failed_at IS NULL`),
   ],
 );
 

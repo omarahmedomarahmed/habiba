@@ -31,6 +31,7 @@ export default async function PartnerWebhooksPage() {
           url: hook.url,
           events: hook.events,
           disabled: hook.disabledAt !== null,
+          failing: hook.failing,
         }))}
         canEdit={actor.role === "admin"}
       />

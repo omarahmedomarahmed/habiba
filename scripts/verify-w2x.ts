@@ -10,15 +10,21 @@
  * Everything it makes is deleted in a `finally`, and `writesTo()` refuses
  * production by name.
  */
+import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+
 import { sql } from "drizzle-orm";
 
 import { startMockOpenAi } from "../tests/mock-openai";
-import { reporter, writesTo } from "./_verify";
+import { readSource, reporter, writesTo } from "./_verify";
 import { connect } from "./db";
 
-const { check, finish } = reporter();
+const { check, finish, skipUnless } = reporter();
 
 const fixture = `w2x${Date.now().toString(36)}`;
+
+/** A uuid nobody holds, for the borrowed-id checks. */
+const randomUuid = () => crypto.randomUUID();
 
 /** A WAV of silence: 16 kHz, mono, 16-bit, so one second is 32,000 bytes. */
 function silentWav(seconds: number): Buffer {
@@ -47,6 +53,25 @@ async function main() {
   const mock = startMockOpenAi(4321);
   process.env.OPENAI_BASE_URL = "http://127.0.0.1:4321/v1";
   process.env.OPENAI_API_KEY ||= "sk-mock";
+  /* Webhook secrets are sealed, and a developer's .env.local may have no key. */
+  process.env.TOKEN_ENCRYPTION_KEY ||= randomBytes(32).toString("base64");
+
+  /*
+   * 🔴 THE PARTNER'S ENDPOINT, STANDING IN FOR THE INTERNET. Webhooks are sent with
+   * the global fetch, so the fixture's own host answers from here with whatever
+   * status the check sets, and records what it was sent. Every other URL goes out
+   * as it would from the cron.
+   */
+  const hookHost = `https://hooks.${fixture}.example.com`;
+  const endpoint = { status: 500, calls: [] as { delivery: string | null; body: string }[] };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith(hookHost)) return realFetch(input, init);
+    const headers = new Headers(init?.headers);
+    endpoint.calls.push({ delivery: headers.get("x-24t-delivery"), body: String(init?.body) });
+    return new Response(null, { status: endpoint.status });
+  }) as typeof fetch;
 
   const { db, pool } = connect();
 
@@ -215,6 +240,138 @@ async function main() {
 
     const nobody = await end(`${fixture}-none`);
     check("W2-X02 an unknown session is a 404", nobody?.status === 404, `${nobody?.status}`);
+
+    /* ================================================================ */
+    /*  W2-X03 · WEBHOOKS: HOURLY, BACKOFF, FAILED, REDELIVER, TEST      */
+    /* ================================================================ */
+
+    /*
+     * The queue was drained inside the daily `billing` job. It must be drained on
+     * the hourly wake, and that wake must still be the only hourly one (the cron
+     * route's header: jobs share wakes because a wake is what costs).
+     */
+    const cron = readSource("app/api/cron/[job]/route.ts");
+    const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as {
+      crons: { path: string; schedule: string }[];
+    };
+    const hourly = vercel.crons.filter((c) => /^\d+ \* \* \* \*$/.test(c.schedule));
+    const remindersBody = cron.slice(cron.indexOf("async reminders()"), cron.indexOf("async webhooks()"));
+    const billingBody = cron.slice(cron.indexOf("async billing()"), cron.indexOf("async radar()"));
+    check(
+      "🔴 W2-X03 the webhook queue drains on the hourly wake, not inside the daily billing job",
+      hourly.length === 1 && hourly[0]!.path === "/api/cron/reminders" &&
+        /deliverPending\(/.test(remindersBody) && !/deliverPending\(/.test(billingBody),
+      `hourly: ${hourly.map((c) => c.path).join(", ")}`,
+    );
+
+    const hasColumns = await one<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM information_schema.columns
+       WHERE table_name = 'partner_webhook_deliveries'
+         AND column_name IN ('next_attempt_at', 'failed_at')`);
+
+    await skipUnless(hasColumns.n === 2, "migration 0138", "the retry columns are not on this database yet", async () => {
+      const webhooks = await import("../lib/partner/webhooks");
+      const { MAX_ATTEMPTS, RETRY_MINUTES } = await import("../lib/partner/retry");
+      const registered = await webhooks.registerWebhook({
+        partnerId: partner.id,
+        url: `${hookHost}/in`,
+        events: ["session.completed"],
+      });
+      const hookId = registered.webhook!.id;
+      await webhooks.queueWebhook({ partnerId: partner.id, event: "session.completed", subjectId: null });
+      const row = () =>
+        one<{ id: string; attempts: number; next: Date | null; failed: Date | null; delivered: Date | null; wait: number | null }>(sql`
+          SELECT id, attempts, next_attempt_at AS next, failed_at AS failed, delivered_at AS delivered,
+                 EXTRACT(EPOCH FROM next_attempt_at - now()) / 60 AS wait
+            FROM partner_webhook_deliveries WHERE webhook_id = ${hookId} AND event = 'session.completed'`);
+      /* Time passes by moving the schedule back to now, not by moving the clock. */
+      const makeDue = (id: string) =>
+        db.execute(sql`UPDATE partner_webhook_deliveries SET next_attempt_at = now() - interval '1 second' WHERE id = ${id}`);
+
+      endpoint.status = 500;
+      await webhooks.deliverPending();
+      const first = await row();
+      check(
+        "🔴 W2-X03 a failed delivery is tried again in minutes, not tomorrow",
+        first.attempts === 1 && first.failed === null && Number(first.wait) > 3 && Number(first.wait) < 7,
+        `attempts ${first.attempts}, next try in ${Number(first.wait).toFixed(1)} min`,
+      );
+
+      await webhooks.deliverPending();
+      const notDue = await row();
+      check(
+        "W2-X03 …and not before then: a run in between leaves it alone",
+        notDue.attempts === 1,
+        `attempts ${notDue.attempts}`,
+      );
+
+      const waits: number[] = [Number(first.wait)];
+      for (let n = 2; n <= MAX_ATTEMPTS; n++) {
+        await makeDue(first.id);
+        await webhooks.deliverPending();
+        const now = await row();
+        if (now.wait !== null) waits.push(Number(now.wait));
+      }
+      const last = await row();
+      const days = waits.reduce((a, b) => a + b, 0) / 60 / 24;
+      check(
+        "🔴 W2-X03 each wait is longer, over about three days, and then it has FAILED, not 'Pending' for ever",
+        last.attempts === MAX_ATTEMPTS && last.failed !== null && last.next === null &&
+          last.delivered === null && waits.length === RETRY_MINUTES.length &&
+          waits.every((w, i) => i === 0 || w >= waits[i - 1]! - 0.1) && days > 2.5 && days < 3.5,
+        `${last.attempts} tries, ${days.toFixed(2)} days, failed ${last.failed !== null}`,
+      );
+
+      await makeDue(first.id);
+      const tries = endpoint.calls.length;
+      await webhooks.deliverPending();
+      check("W2-X03 …and a failed delivery is not drained again", endpoint.calls.length === tries, `${endpoint.calls.length - tries} sent`);
+
+      const failing = (await webhooks.webhooksFor(partner.id)).find((h) => h.id === hookId);
+      check("🔴 W2-X03 the endpoint shows Failing", failing?.failing === true, `failing ${failing?.failing}`);
+
+      check(
+        "W2-X03 every try of one delivery carries the same delivery id, so a receiver can drop a repeat",
+        endpoint.calls.length === MAX_ATTEMPTS && endpoint.calls.every((c) => c.delivery === first.id),
+        `${endpoint.calls.length} calls, ids ${[...new Set(endpoint.calls.map((c) => c.delivery))].join(",")}`,
+      );
+
+      const borrowed = await webhooks.redeliver({ partnerId: randomUuid(), deliveryId: first.id });
+      check("W2-X03 a redelivery by another partner sends nothing", borrowed === null && endpoint.calls.length === tries, `${borrowed}`);
+
+      endpoint.status = 200;
+      const again = await webhooks.redeliver({ partnerId: partner.id, deliveryId: first.id });
+      const redelivered = await row();
+      const healthy = (await webhooks.webhooksFor(partner.id)).find((h) => h.id === hookId);
+      check(
+        "🔴 W2-X03 Redeliver sends it now, and success clears the failure and the endpoint's Failing",
+        again?.ok === true && redelivered.delivered !== null && redelivered.failed === null &&
+          healthy?.failing === false,
+        `ok ${again?.ok}, delivered ${redelivered.delivered !== null}, failing ${healthy?.failing}`,
+      );
+
+      const beforeTest = endpoint.calls.length;
+      const pinged = await webhooks.sendTestEvent({ partnerId: partner.id, webhookId: hookId });
+      const pingBody = JSON.parse(endpoint.calls.at(-1)?.body ?? "{}") as Record<string, unknown>;
+      check(
+        "🔴 W2-X03 Send test event: a signed ping with the same three fields and a null id",
+        pinged?.ok === true && endpoint.calls.length === beforeTest + 1 &&
+          pingBody.event === "ping" && pingBody.id === null &&
+          Object.keys(pingBody).sort().join(",") === "at,event,id",
+        JSON.stringify(pingBody),
+      );
+
+      endpoint.status = 503;
+      const refused = await webhooks.sendTestEvent({ partnerId: partner.id, webhookId: hookId });
+      const pingRow = await one<{ failed: Date | null; next: Date | null }>(sql`
+        SELECT failed_at AS failed, next_attempt_at AS next FROM partner_webhook_deliveries
+         WHERE webhook_id = ${hookId} AND event = 'ping' ORDER BY created_at DESC LIMIT 1`);
+      check(
+        "W2-X03 …a test the endpoint refuses says so and is not retried",
+        refused?.ok === false && refused.status === 503 && pingRow.failed !== null && pingRow.next === null,
+        `ok ${refused?.ok}, status ${refused?.status}`,
+      );
+    });
   } finally {
     mock.server.close();
     for (const bucket of buckets) await db.execute(sql`DELETE FROM rate_limits WHERE key = ${bucket}`);

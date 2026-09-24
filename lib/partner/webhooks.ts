@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHmac, randomBytes } from "node:crypto";
 
-import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, sql } from "drizzle-orm";
 
 import { encryptSecret, decryptSecret, secretsConfigured } from "@/lib/crypto/secretbox";
 import { controlDb } from "@/lib/db";
@@ -12,9 +12,12 @@ import {
   partnerWebhookDeliveries,
   partnerWebhooks,
   users,
+  WEBHOOK_TEST_EVENT,
   type WebhookEvent,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+
+import { retryWaitMinutes } from "./retry";
 
 /**
  * 🔴 42.4 / 55.10 — A WEBHOOK CARRIES AN EVENT AND AN ID, NEVER CONTENT.
@@ -41,8 +44,6 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
  * cannot give it. The signature is over the timestamp AND the body, so a captured
  * delivery cannot be replayed with a new time.
  */
-
-const MAX_ATTEMPTS = 6;
 
 export type NewWebhook = { id: string; secret: string };
 
@@ -218,20 +219,114 @@ export async function notifyRecordClaimed(personId: string): Promise<{ queued: n
   return { queued };
 }
 
+type Outcome = { ok: boolean; status: number | null; error: string | null };
+
 /**
- * Drain the queue. Called from the cron, beside the other sweeps.
+ * 🔴 ONE TRY AT ONE DELIVERY, and the only place a webhook is sent.
  *
- * 🔴 THE BODY IS BUILT HERE AND IT IS THREE FIELDS. Not assembled from a row, not spread
+ * THE BODY IS BUILT HERE AND IT IS THREE FIELDS. Not assembled from a row, not spread
  * from an object a caller passed: written out, so a future edit that wanted to add
  * content would have to add it to this literal in a diff somebody reads.
+ *
+ * W2-X03: the drain, a redelivery and a test event all come through here, so the three
+ * cannot sign or shape a delivery differently. `x-24t-delivery` is the same on every
+ * try of one delivery, so a receiver can drop a repeat (the Standard Webhooks id).
  */
-export async function deliverPending(limit = 50): Promise<{ sent: number; failed: number }> {
-  const pending = await controlDb
+async function attempt(delivery: {
+  id: string;
+  event: string;
+  subjectId: string | null;
+  url: string;
+  secretSealed: string;
+}): Promise<Outcome> {
+  const body = JSON.stringify({
+    event: delivery.event,
+    id: delivery.subjectId,
+    at: new Date().toISOString(),
+  });
+
+  try {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const secret = decryptSecret(delivery.secretSealed);
+    /*
+     * 🔴 Signed over the TIMESTAMP and the body together.
+     *
+     * Signing the body alone makes a captured delivery replayable for ever; the
+     * receiver checks the timestamp is recent and the signature covers it, which is the
+     * construction Stripe uses and for the same reason.
+     */
+    const signature = createHmac("sha256", secret)
+      .update(`${timestamp}.${body}`)
+      .digest("hex");
+
+    const response = await fetch(delivery.url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-24t-signature": `t=${timestamp},v1=${signature}`,
+        "x-24t-delivery": delivery.id,
+      },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    return { ok: response.ok, status: response.status, error: null };
+  } catch (error) {
+    return { ok: false, status: null, error: safeErrorMessage(error).slice(0, 300) };
+  }
+}
+
+/** Minutes from the DATABASE's now, so the drain and the schedule share one clock. */
+const inMinutes = (minutes: number) => sql`now() + make_interval(mins => ${minutes}::int)`;
+
+/**
+ * What a try leaves on the row. `retryMinutes` null after a failure means that was
+ * the last try and the delivery has failed.
+ */
+async function record(id: string, outcome: Outcome, retryMinutes: number | null) {
+  await controlDb
+    .update(partnerWebhookDeliveries)
+    .set(
+      outcome.ok
+        ? {
+            deliveredAt: sql`now()`,
+            failedAt: null,
+            nextAttemptAt: null,
+            lastStatus: outcome.status,
+            lastError: null,
+          }
+        : {
+            lastStatus: outcome.status,
+            lastError: outcome.error,
+            nextAttemptAt: retryMinutes === null ? null : inMinutes(retryMinutes),
+            failedAt: retryMinutes === null ? sql`now()` : null,
+          },
+    )
+    .where(eq(partnerWebhookDeliveries.id, id));
+}
+
+/**
+ * Drain the queue: every delivery whose next try is due. W2-X03.
+ *
+ * It ran once a day inside the billing cron with six tries, so a delivery could be a
+ * day late, retries were a day apart, and one that used them all said "Pending" for
+ * ever. Now it runs on the hourly wake, each failure waits longer (`retry.ts`), and
+ * the last one writes `failed_at`.
+ *
+ * 🔴 CLAIMED BEFORE IT IS SENT. The try is counted and the row held in one
+ * conditional UPDATE, so an overlapping run cannot send the same delivery twice and a
+ * crash mid-flight spends the try rather than losing the delivery.
+ *
+ * 🔴 `now()` IS THE DATABASE'S, on both sides of every comparison (78.6).
+ */
+export async function deliverPending(
+  limit = 50,
+): Promise<{ sent: number; failed: number; gaveUp: number }> {
+  const due = await controlDb
     .select({
       id: partnerWebhookDeliveries.id,
       event: partnerWebhookDeliveries.event,
       subjectId: partnerWebhookDeliveries.subjectId,
-      attempts: partnerWebhookDeliveries.attempts,
       url: partnerWebhooks.url,
       secretSealed: partnerWebhooks.secretSealed,
     })
@@ -240,76 +335,153 @@ export async function deliverPending(limit = 50): Promise<{ sent: number; failed
     .where(
       and(
         isNull(partnerWebhookDeliveries.deliveredAt),
+        isNull(partnerWebhookDeliveries.failedAt),
         isNull(partnerWebhooks.disabledAt),
-        lt(partnerWebhookDeliveries.attempts, MAX_ATTEMPTS),
+        lte(partnerWebhookDeliveries.nextAttemptAt, sql`now()`),
       ),
     )
+    .orderBy(partnerWebhookDeliveries.nextAttemptAt)
     .limit(limit);
 
   let sent = 0;
   let failed = 0;
+  let gaveUp = 0;
 
-  for (const delivery of pending) {
-    /* Counted first and unconditionally, so a crash mid-flight spends the attempt. */
-    await controlDb
+  for (const delivery of due) {
+    const [claimed] = await controlDb
       .update(partnerWebhookDeliveries)
-      .set({ attempts: sql`${partnerWebhookDeliveries.attempts} + 1` })
-      .where(eq(partnerWebhookDeliveries.id, delivery.id));
+      .set({
+        attempts: sql`${partnerWebhookDeliveries.attempts} + 1`,
+        /* Held an hour while in flight; `record` writes the real next time. */
+        nextAttemptAt: inMinutes(60),
+      })
+      .where(
+        and(
+          eq(partnerWebhookDeliveries.id, delivery.id),
+          isNull(partnerWebhookDeliveries.deliveredAt),
+          isNull(partnerWebhookDeliveries.failedAt),
+          lte(partnerWebhookDeliveries.nextAttemptAt, sql`now()`),
+        ),
+      )
+      .returning({ attempts: partnerWebhookDeliveries.attempts });
+    if (!claimed) continue;
 
-    const body = JSON.stringify({
-      event: delivery.event,
-      id: delivery.subjectId,
-      at: new Date().toISOString(),
-    });
+    const outcome = await attempt(delivery);
+    const retry = outcome.ok ? null : retryWaitMinutes(claimed.attempts);
+    await record(delivery.id, outcome, retry);
 
-    try {
-      const timestamp = Math.floor(Date.now() / 1000);
-      const secret = decryptSecret(delivery.secretSealed);
-      /*
-       * 🔴 Signed over the TIMESTAMP and the body together.
-       *
-       * Signing the body alone makes a captured delivery replayable for ever; the
-       * receiver checks the timestamp is recent and the signature covers it, which is the
-       * construction Stripe uses and for the same reason.
-       */
-      const signature = createHmac("sha256", secret)
-        .update(`${timestamp}.${body}`)
-        .digest("hex");
-
-      const response = await fetch(delivery.url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-24t-signature": `t=${timestamp},v1=${signature}`,
-        },
-        body,
-        signal: AbortSignal.timeout(10_000),
-      });
-
-      if (response.ok) {
-        await controlDb
-          .update(partnerWebhookDeliveries)
-          .set({ deliveredAt: new Date(), lastStatus: response.status, lastError: null })
-          .where(eq(partnerWebhookDeliveries.id, delivery.id));
-        sent += 1;
-      } else {
-        await controlDb
-          .update(partnerWebhookDeliveries)
-          .set({ lastStatus: response.status })
-          .where(eq(partnerWebhookDeliveries.id, delivery.id));
-        failed += 1;
-      }
-    } catch (error) {
-      await controlDb
-        .update(partnerWebhookDeliveries)
-        .set({ lastError: safeErrorMessage(error).slice(0, 300) })
-        .where(eq(partnerWebhookDeliveries.id, delivery.id));
-      failed += 1;
-    }
+    if (outcome.ok) sent += 1;
+    else if (retry !== null) failed += 1;
+    else gaveUp += 1;
   }
 
-  if (sent + failed > 0) log.info("webhook deliveries drained", { sent, failed });
-  return { sent, failed };
+  if (sent + failed + gaveUp > 0) log.info("webhook deliveries drained", { sent, failed, gaveUp });
+  return { sent, failed, gaveUp };
+}
+
+/**
+ * 🔴 W2-X03 — REDELIVER, BY HAND, NOW. One try, and the result shown on the spot.
+ *
+ * For a partner whose endpoint was down or whose own side lost what it received. A
+ * failure leaves a failed delivery failed and a pending one on its schedule: a button
+ * pressed in a hurry must not reset three days of backoff.
+ *
+ * Scoped in the WHERE through the endpoint's owner, so a borrowed delivery id sends
+ * nothing.
+ */
+export async function redeliver(input: {
+  partnerId: string;
+  deliveryId: string;
+}): Promise<Outcome | null> {
+  const [delivery] = await controlDb
+    .select({
+      id: partnerWebhookDeliveries.id,
+      event: partnerWebhookDeliveries.event,
+      subjectId: partnerWebhookDeliveries.subjectId,
+      url: partnerWebhooks.url,
+      secretSealed: partnerWebhooks.secretSealed,
+    })
+    .from(partnerWebhookDeliveries)
+    .innerJoin(partnerWebhooks, eq(partnerWebhooks.id, partnerWebhookDeliveries.webhookId))
+    .where(
+      and(
+        eq(partnerWebhookDeliveries.id, input.deliveryId),
+        eq(partnerWebhooks.partnerId, input.partnerId),
+        isNull(partnerWebhooks.disabledAt),
+      ),
+    )
+    .limit(1);
+  if (!delivery) return null;
+
+  await controlDb
+    .update(partnerWebhookDeliveries)
+    .set({ attempts: sql`${partnerWebhookDeliveries.attempts} + 1` })
+    .where(eq(partnerWebhookDeliveries.id, delivery.id));
+
+  const outcome = await attempt(delivery);
+  if (outcome.ok) {
+    await record(delivery.id, outcome, null);
+  } else {
+    await controlDb
+      .update(partnerWebhookDeliveries)
+      .set({ lastStatus: outcome.status, lastError: outcome.error })
+      .where(eq(partnerWebhookDeliveries.id, delivery.id));
+  }
+
+  log.info("webhook redelivered by hand", { partner: ref(input.partnerId), ok: outcome.ok });
+  return outcome;
+}
+
+/**
+ * 🔴 W2-X03 — SEND A TEST EVENT to one endpoint, now, and say what happened.
+ *
+ * `ping`, with a null id: the same three fields and the same signature as a real
+ * delivery, so a partner can prove their verification code before a real event
+ * depends on it. It goes in the delivery log like any other and is never retried:
+ * the person who pressed the button is looking at the answer.
+ */
+export async function sendTestEvent(input: {
+  partnerId: string;
+  webhookId: string;
+}): Promise<Outcome | null> {
+  const [hook] = await controlDb
+    .select({
+      id: partnerWebhooks.id,
+      url: partnerWebhooks.url,
+      secretSealed: partnerWebhooks.secretSealed,
+    })
+    .from(partnerWebhooks)
+    .where(
+      and(
+        eq(partnerWebhooks.id, input.webhookId),
+        eq(partnerWebhooks.partnerId, input.partnerId),
+        isNull(partnerWebhooks.disabledAt),
+      ),
+    )
+    .limit(1);
+  if (!hook) return null;
+
+  const [row] = await controlDb
+    .insert(partnerWebhookDeliveries)
+    .values({
+      webhookId: hook.id,
+      event: WEBHOOK_TEST_EVENT,
+      subjectId: null,
+      attempts: 1,
+      nextAttemptAt: null,
+    })
+    .returning({ id: partnerWebhookDeliveries.id });
+  if (!row) return null;
+
+  const outcome = await attempt({
+    id: row.id,
+    event: WEBHOOK_TEST_EVENT,
+    subjectId: null,
+    url: hook.url,
+    secretSealed: hook.secretSealed,
+  });
+  await record(row.id, outcome, null);
+  return outcome;
 }
 
 /** The delivery log a developer debugs from. 55.2. */
@@ -323,8 +495,11 @@ export async function deliveriesFor(partnerId: string, limit = 100) {
       lastStatus: partnerWebhookDeliveries.lastStatus,
       lastError: partnerWebhookDeliveries.lastError,
       deliveredAt: partnerWebhookDeliveries.deliveredAt,
+      failedAt: partnerWebhookDeliveries.failedAt,
+      nextAttemptAt: partnerWebhookDeliveries.nextAttemptAt,
       createdAt: partnerWebhookDeliveries.createdAt,
       url: partnerWebhooks.url,
+      endpointDisabled: sql<boolean>`${partnerWebhooks.disabledAt} IS NOT NULL`,
     })
     .from(partnerWebhookDeliveries)
     .innerJoin(partnerWebhooks, eq(partnerWebhooks.id, partnerWebhookDeliveries.webhookId))
@@ -342,6 +517,18 @@ export async function webhooksFor(partnerId: string) {
       events: partnerWebhooks.events,
       disabledAt: partnerWebhooks.disabledAt,
       createdAt: partnerWebhooks.createdAt,
+      /*
+       * 🔴 W2-X03 — FAILING: its latest finished delivery failed and nothing has
+       * reached it since. Read from the deliveries rather than stored, so it clears
+       * itself the moment a redelivery or a test event gets through.
+       */
+      failing: sql<boolean>`COALESCE((
+        SELECT d.failed_at IS NOT NULL FROM partner_webhook_deliveries d
+         WHERE d.webhook_id = ${partnerWebhooks.id}
+           AND (d.failed_at IS NOT NULL OR d.delivered_at IS NOT NULL)
+         ORDER BY COALESCE(d.delivered_at, d.failed_at) DESC
+         LIMIT 1
+      ), false)`,
     })
     .from(partnerWebhooks)
     .where(eq(partnerWebhooks.partnerId, partnerId));

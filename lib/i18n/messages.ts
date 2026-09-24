@@ -3996,6 +3996,12 @@ export const en = {
   "arefund.errProof": "Receipt, account and name needed.",
   "arefund.errTwo": "Needs a second person.",
   "arefund.errReason": "Say why.",
+  // W2X partner
+  "dev.failed": "Failed",
+  "dev.failing": "Failing",
+  "dev.nextTry": "Next try {time}",
+  "dev.redeliver": "Redeliver",
+  "dev.sendTest": "Send a test event",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7226,6 +7232,12 @@ export const ar: Record<MessageKey, string> = {
   "arefund.errProof": "الإيصال والحساب والاسم مطلوبة.",
   "arefund.errTwo": "يلزم شخص ثانٍ.",
   "arefund.errReason": "اذكر السبب.",
+  // W2X partner
+  "dev.failed": "فشل",
+  "dev.failing": "يتعثّر",
+  "dev.nextTry": "المحاولة التالية {time}",
+  "dev.redeliver": "أعد الإرسال",
+  "dev.sendTest": "أرسل حدثًا تجريبيًا",
 };
 
 export const DICTIONARIES = { en, ar } as const;
