@@ -96,11 +96,11 @@ export function SosOrb({
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"start" | "end">("end");
   /*
-   * Just above the bottom bar by default. At 0.62 it rested on the booking
-   * form's phone field on a phone (live walkthrough), where a tap meant for
-   * the field opened the sheet. Low on the screen, content scrolls past it.
+   * Low on the screen by default, and above the pay or join orb, which sits
+   * at `bottom-24` on the same side. At 0.62 it rested on the booking form's
+   * phone field on a phone (live walkthrough); at 0.82 it sat on that orb.
    */
-  const [top, setTop] = useState(0.82);
+  const [top, setTop] = useState(0.72);
   const dragging = useRef(false);
 
   /* Remembered per device, so it stays where somebody put it. */

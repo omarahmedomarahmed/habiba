@@ -14,7 +14,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { openCarts, queue } from "@/lib/billing/manual";
 import { openExceptions } from "@/lib/billing/rail-exceptions";
 import { controlDb as db } from "@/lib/db";
-import { organizations, patientAccounts, sponsors, users } from "@/lib/db/schema";
+import { organizations, patientAccounts, patients, sessions, sponsors, users } from "@/lib/db/schema";
 
 export const metadata: Metadata = { title: "Transfers", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -77,6 +77,27 @@ export default async function TransfersPage({
   const practiceIds = everyRow
     .filter((r) => r.payerKind === "organization" && r.organizationId)
     .map((r) => r.organizationId as string);
+  /*
+   * A guest or patient paying for one session carries only the session, so
+   * the name comes through it. They read "A company" before (live walkthrough),
+   * the fallback at the end of `nameFor`.
+   */
+  const sessionIds = everyRow
+    .filter((r) => r.payerKind === "session" && r.refId)
+    .map((r) => r.refId as string);
+  const sessionPayers =
+    sessionIds.length > 0
+      ? await db
+          .select({
+            id: sessions.id,
+            guestName: sessions.guestName,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+          })
+          .from(sessions)
+          .leftJoin(patients, eq(patients.id, sessions.patientId))
+          .where(inArray(sessions.id, sessionIds))
+      : [];
   const practices =
     practiceIds.length > 0
       ? await db
@@ -198,6 +219,11 @@ export default async function TransfersPage({
     if (row.patientAccountId) {
       const a = accounts.find((p) => p.id === row.patientAccountId);
       return a?.email ?? "A patient";
+    }
+    if (row.payerKind === "session") {
+      const s = sessionPayers.find((p) => p.id === row.refId);
+      const name = [s?.firstName, s?.lastName].filter(Boolean).join(" ") || s?.guestName;
+      return name || "A patient";
     }
     const s = orgs.find((p) => p.id === row.sponsorId);
     return s?.name ?? "A company";

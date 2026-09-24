@@ -22,6 +22,13 @@ export type EarningsProps = {
   paidSessionCount: number;
   /** Money we took on their behalf and are holding until Stripe verifies them. */
   heldCents: number;
+  /**
+   * Paid out by hand from the Egyptian entity (§3c). There is no Stripe here,
+   * so no Stripe balance, no dashboard and no "until Stripe verifies you": the
+   * live walkthrough found that sentence on an Egyptian clinician's earnings.
+   * The withdrawal card below this one is where their money is.
+   */
+  manualRail?: boolean;
 };
 
 /**
@@ -58,6 +65,35 @@ export function EarningsCard(props: EarningsProps) {
    * somebody who is already owed forty dollars that they might like to try
    * charging sometime.
    */
+  if (props.manualRail) {
+    return (
+      <div className="overflow-hidden rounded-3xl bg-brand-500 text-navy-600">
+        <div className="px-5 pt-5 pb-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-600/10 px-2.5 py-1 text-xs font-semibold">
+            <Wallet className="h-3 w-3" aria-hidden />
+            {t("tearn.title")}
+          </span>
+          <dl className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-white/10 px-4 py-3">
+              <dt className="text-xs text-navy-600/80">{t("tearn.thisMonth")}</dt>
+              <dd className="mt-0.5 text-2xl font-bold"><Money cents={props.thisMonthNetCents} /></dd>
+            </div>
+            <div className="rounded-2xl bg-white/10 px-4 py-3">
+              <dt className="text-xs text-navy-600/80">{t("tearn.paidSessions")}</dt>
+              <dd className="mt-0.5 text-2xl font-bold">{props.paidSessionCount}</dd>
+            </div>
+          </dl>
+        </div>
+        <div className="border-t border-navy-600/15 px-5 py-3 text-xs text-navy-600/80">
+          {rich(t("tearn.lifetime", { net: slot(0), fees: slot(1) }), [
+            <Money cents={props.lifetimeNetCents} />,
+            <Money cents={props.platformFeesCents} />,
+          ])}
+        </div>
+      </div>
+    );
+  }
+
   if (!props.connected) {
     return (
       <Card className="p-5">

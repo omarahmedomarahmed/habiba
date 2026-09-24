@@ -92,6 +92,7 @@ export default async function EarningsPage() {
           settledFromEarningsCents={earnings.settledFromEarningsCents}
           paidSessionCount={earnings.paidSessionCount}
           heldCents={earnings.heldCents}
+          manualRail={needsTransfer}
         />
 
         {/*

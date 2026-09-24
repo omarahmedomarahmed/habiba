@@ -187,6 +187,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
         now,
         scheduled: row.scheduledAt !== null,
         fromRadar: row.sessionType === "radar",
+        cancelled: row.status === "cancelled",
       }),
       at,
       therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
@@ -446,8 +447,10 @@ export function groupOf(input: {
   now: number;
   scheduled: boolean;
   fromRadar: boolean;
+  /** A cancelled session is never coming up, whatever its date (walkthrough). */
+  cancelled?: boolean;
 }): SessionGroup {
-  const future = input.at.getTime() > input.now;
+  const future = input.at.getTime() > input.now && !input.cancelled;
 
   if (future) {
     const withinDay = input.at.getTime() - input.now < 24 * 3_600_000;

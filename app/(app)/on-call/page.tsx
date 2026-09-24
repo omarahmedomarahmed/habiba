@@ -70,6 +70,10 @@ export default async function RadarConsolePage() {
     closedCodes("country"),
   ]);
 
+  /* The same question the earnings and settings pages ask (76.34). */
+  const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
+  const needsTransfer = await organizationNeedsTransfer(actor.organizationId);
+
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
@@ -87,6 +91,7 @@ export default async function RadarConsolePage() {
           country={profile.country}
           sessionRateCents={me?.sessionRateCents ?? 0}
           chargesEnabled={me?.chargesEnabled ?? false}
+          manualRail={needsTransfer}
           countryClosed={Boolean(profile.country && closedCountries.has(profile.country))}
           languageOptions={languageOptions.map((o) => ({ code: o.code, label: o.label }))}
           specialtyOptions={specialtyOptions.map((o) => ({ code: o.code, label: o.label }))}

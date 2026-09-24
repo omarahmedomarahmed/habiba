@@ -199,7 +199,6 @@ export function PaymentPopup({
    */
   useEffect(() => {
     if (openInitially) void onOpen?.().catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const remember = (next: boolean) => {
@@ -218,6 +217,19 @@ export function PaymentPopup({
       /* Nothing to remember. The payment itself is on the server regardless. */
     }
   };
+
+  /*
+   * Escape minimises, as the button does (live walkthrough: a keyboard user
+   * had no way out of the sheet but a control they could not see).
+   */
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") remember(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   /*
    * 🔴 76.37 — ONE CONTROL, DECLARED ONCE, RENDERED ON THE ENTRY.

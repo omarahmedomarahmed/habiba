@@ -263,6 +263,11 @@ async function main() {
         groupOf({ at: new Date(now - 86_400_000), now, scheduled: false, fromRadar: true }) ===
           "past_instant",
     );
+    check(
+      "🔴 15.3 a CANCELLED session an hour away is in the past list, not under Today (live walkthrough)",
+      groupOf({ at: new Date(now + 3_600_000), now, scheduled: true, fromRadar: false, cancelled: true }) ===
+        "past_scheduled",
+    );
 
     /* ---------------------------------------------------------- C16 */
 

@@ -39,6 +39,8 @@ export type ConsoleProps = {
   country: string | null;
   sessionRateCents: number;
   chargesEnabled: boolean;
+  /** Paid out by hand in Egypt: nothing waits on Stripe, so no note says it does. */
+  manualRail?: boolean;
   /**
    * 🔴 50.3 — the country they practise in has been closed to new bookings.
    *
@@ -142,7 +144,7 @@ export function TherapistConsole(props: ConsoleProps) {
    *
    * What is left is a disclosure, not a block.
    */
-  const held = props.sessionRateCents > 0 && !props.chargesEnabled;
+  const held = props.sessionRateCents > 0 && !props.chargesEnabled && !props.manualRail;
 
   return (
     <div className="space-y-4">
