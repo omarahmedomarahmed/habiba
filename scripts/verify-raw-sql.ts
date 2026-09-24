@@ -127,6 +127,13 @@ async function main() {
 
       const known = new Set<string>();
       for (const t of tables) for (const c of byTable.get(t)!) known.add(c);
+      /*
+       * A name this statement declares with `AS` is a column of whatever it
+       * declared it on: a derived table's `SUM(...) AS platform_cents` is read
+       * back as `l.platform_cents` (W2-C03). Only names declared in the same
+       * statement, so a typo is still a typo.
+       */
+      for (const m of body.matchAll(/\bas\s+([a-z_][a-z0-9_]*)/gi)) known.add(m[1].toLowerCase());
 
       /*
        * Identifiers that look like columns: snake_case words, not SQL keywords,

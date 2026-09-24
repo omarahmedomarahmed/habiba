@@ -423,7 +423,7 @@ export async function abandonSession(
   const reason = cleanCancelReason(reasonText);
   if (!reason) {
     const { getI18n } = await import("@/lib/i18n/server");
-    return { error: (await getI18n()).t("w1a.cancelReasonNeeded") };
+    return { error: (await getI18n()).t("tcancel.reasonNeeded") };
   }
 
   if (await cancelSession(actor, sessionId)) {

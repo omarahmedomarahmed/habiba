@@ -35,7 +35,7 @@ export function TopUpForm({
       <p className="mt-1 text-sm leading-relaxed text-slate-600">
         {t("sponsor.topUpBody", { min: minimumLabel })}
       </p>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("w1a.potCardOff")}</p>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("sponsor.potCardOff")}</p>
 
       {/* 🔴 C233: beside the way in. Not a link, not a tooltip, not a footer. */}
       <div className="mt-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
@@ -52,7 +52,7 @@ export function TopUpForm({
         href="/contact"
         className="mt-4 inline-block text-sm font-semibold text-slate-900 underline"
       >
-        {t("w1a.potAskUs")}
+        {t("sponsor.potAskUs")}
       </Link>
     </Card>
   );

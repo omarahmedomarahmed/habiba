@@ -288,8 +288,8 @@ export function AvailabilityEditor({
               {day.slots.some((slot) => slot.id === cancelling) ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Input
-                    aria-label={t("w1a.cancelReason")}
-                    placeholder={t("w1a.cancelReason")}
+                    aria-label={t("tcancel.reason")}
+                    placeholder={t("tcancel.reason")}
                     value={reason}
                     maxLength={300}
                     onChange={(event) => setReason(event.target.value)}

@@ -18,5 +18,5 @@ export async function requireOrgAccount(): Promise<{ actor: Actor; refused: stri
 
   const { getI18n } = await import("@/lib/i18n/server");
   const { t } = await getI18n();
-  return { actor, refused: t("w1a.clinicRunsAccount") };
+  return { actor, refused: t("tacct.clinicRunsAccount") };
 }

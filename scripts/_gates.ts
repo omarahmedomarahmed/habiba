@@ -81,6 +81,20 @@ export const GATES = [
     script: "verify:raw-sql",
     why: "and every column named in raw SQL is really on the table",
   },
+  /*
+   * 🔴 W2-Q01 — and a column in a subquery means the row it is next to.
+   *
+   * Drizzle renders an interpolated column without its table in the select
+   * list of a query with no join, so inside a subquery it bound to the
+   * subquery's own table: the board showed every clinic with no clinicians and
+   * every patient as sponsored, and traction read zero. `tsc` cannot see inside
+   * a template, and neither could any of the gates above.
+   */
+  {
+    name: "qualified",
+    script: "verify:qualified",
+    why: "and every outer column inside a subquery names its table",
+  },
   {
     name: "renders",
     script: "smoke",

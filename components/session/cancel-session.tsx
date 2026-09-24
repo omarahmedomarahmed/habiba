@@ -58,8 +58,8 @@ export function CancelSession({ sessionId }: { sessionId: string }) {
     <div className="flex flex-wrap items-center gap-3">
       <p className="text-sm text-slate-600">{t("portal.session.cancelConfirm")}</p>
       <Input
-        aria-label={t("w1a.cancelReason")}
-        placeholder={t("w1a.cancelReason")}
+        aria-label={t("tcancel.reason")}
+        placeholder={t("tcancel.reason")}
         value={reason}
         maxLength={300}
         onChange={(event) => setReason(event.target.value)}

@@ -73,6 +73,14 @@ const PORTALS: Record<string, readonly string[]> = {
    * public-only despite living beside `common` and `nav`.
    */
   patient: [
+    /*
+     * Wave tags whose remaining keys are all patient notices. A notice row
+     * stores its message key (C231), so these cannot be renamed to a `p…`
+     * prefix without orphaning notices already sent; every other key under
+     * them was moved to its portal's prefix.
+     */
+    "w1a",
+    "w2a",
     "home",
     /*
      * 🔴 `error` is the PATIENT's, because there is exactly one route boundary using

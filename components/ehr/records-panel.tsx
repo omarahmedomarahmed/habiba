@@ -225,7 +225,7 @@ export function RecordsPanel({
                   <form action={actions.disconnect} className="mt-3">
                     <input type="hidden" name="connectionId" value={connection.id} />
                     <p className="text-sm font-semibold text-slate-900">
-                      {t("w1a.disconnectConfirm")}
+                      {t("tacct.disconnectConfirm")}
                     </p>
 
                     {/*
@@ -247,7 +247,7 @@ export function RecordsPanel({
                         type="submit"
                         className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
                       >
-                        {t("w1a.disconnectYes")}
+                        {t("tacct.disconnectYes")}
                       </button>
                       <button
                         type="button"
@@ -280,7 +280,7 @@ export function RecordsPanel({
       {!canManage ? (
         <Card className="p-5">
           <p className="text-sm leading-relaxed text-slate-600">
-            {isClinic ? t("w1a.recordsAdminOnly") : t("w1a.clinicRunsAccount")}
+            {isClinic ? t("tacct.recordsAdminOnly") : t("tacct.clinicRunsAccount")}
           </p>
         </Card>
       ) : !configured ? (

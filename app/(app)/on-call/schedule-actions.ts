@@ -92,7 +92,7 @@ export async function cancel(slotId: string, reasonText: string): Promise<Schedu
   const reason = cleanCancelReason(reasonText);
   if (!reason) {
     const { getI18n } = await import("@/lib/i18n/server");
-    return { error: (await getI18n()).t("w1a.cancelReasonNeeded") };
+    return { error: (await getI18n()).t("tcancel.reasonNeeded") };
   }
 
   const result = await cancelBooking({ slotId, by: "therapist", actor });
