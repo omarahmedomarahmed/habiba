@@ -369,7 +369,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-07 — THE ACTIONS ASK FOR PROOF, NOT AN ID.
+     * 🔴 W1-07: THE ACTIONS ASK FOR PROOF, NOT AN ID.
      *
      * `takeRefund(sessionId)` refunded any overdue session for whoever held its
      * id. The proof now is the patient's own join link, or a signed-in patient
@@ -432,7 +432,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-08 — A CLAIM IS NOT A PROOF.
+     * 🔴 W1-08: A CLAIM IS NOT A PROOF.
      *
      * "They never joined" refunded the patient and took the clinician off the
      * radar on the report alone. Here the room's own record says the clinician
@@ -497,7 +497,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-11 — THE ROOM'S "SOMETHING IS WRONG" BOX STORED NOTHING.
+     * 🔴 W1-11: THE ROOM'S "SOMETHING IS WRONG" BOX STORED NOTHING.
      *
      * It passed the JOIN token to an action that looks up the FEEDBACK token,
      * ignored the refusal, and told the patient "Sent to 24Therapy". The room

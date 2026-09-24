@@ -37,7 +37,7 @@ export function NoShowRecovery({
   startedAt,
   waitMinutes,
 }: {
-  /** 🔴 W1-07 — the patient's own join link is the proof, never the session id. */
+  /** 🔴 W1-07: the patient's own join link is the proof, never the session id. */
   token: string;
   /** Non-null once the therapist joined — this component then never appears. */
   startedAt: string | null;

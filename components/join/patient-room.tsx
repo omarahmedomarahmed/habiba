@@ -736,7 +736,7 @@ function TroubleBox({ token }: { token: string }) {
           onClick={() =>
             startTransition(async () => {
               /*
-               * 🔴 W1-11 — "Sent" only when it was. This used to ignore the
+               * 🔴 W1-11: "Sent" only when it was. This used to ignore the
                * result and say "Sent to 24Therapy" over a refusal.
                */
               const result = await reportFromRoom({ token, detail }).catch(() => ({

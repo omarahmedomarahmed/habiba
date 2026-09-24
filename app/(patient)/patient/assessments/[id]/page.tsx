@@ -53,7 +53,7 @@ export default async function AssessmentPage({
         attribution={assignment.attribution}
         questions={assignment.questions}
         answers={assignment.answers}
-        /* 🔴 W1-10 — what a risk answer is answered with: the SOS numbers for this reader. */
+        /* 🔴 W1-10: what a risk answer is answered with: the SOS numbers for this reader. */
         sos={{
           phone: actor.phone,
           country: crisisCountryFor({ locale }),

@@ -12,7 +12,7 @@ import { getI18n } from "@/lib/i18n/server";
  * mistyping a URL, on a site whose Arabic half has its own hostname. Async because the
  * dictionary is resolved on the server; Next renders this file exactly like any other.
  *
- * 🔴 W1-09 — AND IT KEEPS THE SOS ORB. A bad `/pay`, `/join` or `/patient` link lands
+ * 🔴 W1-09: AND IT KEEPS THE SOS ORB. A bad `/pay`, `/join` or `/patient` link lands
  * here, outside every patient layout, and the crisis button went with the page.
  */
 export default async function NotFound() {

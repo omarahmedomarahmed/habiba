@@ -69,7 +69,7 @@ export type CrisisLine = {
    */
   steps?: { en: string; ar: string };
   /**
-   * 🔴 W1-09 — WHEN SOMEBODY ANSWERS, where a source says so.
+   * 🔴 W1-09: WHEN SOMEBODY ANSWERS, where a source says so.
    *
    * `"always"` for an emergency number. Days (0 is Sunday) and hours in the
    * line's own time zone for a line that closes. Absent means unknown, and
@@ -115,7 +115,7 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
       ar: "اضغط ١ للعربية، ثم ١ للصحة النفسية.",
     },
     /*
-     * 🔴 W1-09 — 105 IS NOT A 24 HOUR LINE. Ahram Online gives Monday to
+     * 🔴 W1-09: 105 IS NOT A 24 HOUR LINE. Ahram Online gives Monday to
      * Thursday, 9am to 5pm (takeover/design/RESEARCH-2.md section 1). So it is
      * never offered alone: `EMERGENCY_LINES` below always sits beside it, and
      * leads outside these hours.
@@ -125,7 +125,7 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
 };
 
 /**
- * 🔴 W1-09 — the numbers that always answer, per country, from the same source
+ * 🔴 W1-09: the numbers that always answer, per country, from the same source
  * (RESEARCH-2 section 1: U.S. Embassy Egypt, and 112 since 2022). Shown beside
  * the crisis line, never instead of it, and first whenever that line is likely
  * closed. A country with none here still gets "your local emergency number".
@@ -231,7 +231,7 @@ export function crisisLine(
       label: configured.label,
       tel: configured.tel,
       ...(sameNumber && built?.steps ? { steps: built.steps } : {}),
-      /* W1-09 — and its hours, on the same rule: known for that number only. */
+      /* W1-09: and its hours, on the same rule: known for that number only. */
       ...(sameNumber && built?.hours ? { hours: built.hours } : {}),
     };
   }

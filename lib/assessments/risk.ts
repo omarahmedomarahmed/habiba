@@ -1,11 +1,11 @@
 import type { InstrumentQuestion } from "@/lib/db/schema";
 
 /**
- * 🔴 W1-10 — WHICH QUESTIONNAIRE ANSWERS OPEN THE CRISIS PATH.
+ * 🔴 W1-10: WHICH QUESTIONNAIRE ANSWERS OPEN THE CRISIS PATH.
  *
  * A patient answering PHQ-9 item 9 ("thoughts that you would be better off
  * dead or of hurting yourself") above zero was saved, and the screen moved on
- * to item 10 of nothing. Now such an answer shows the crisis numbers on the
+ * as if nothing had been said. Now such an answer shows the crisis numbers on the
  * screen and tells the clinician, through the crisis notification their
  * dashboard already reads.
  *

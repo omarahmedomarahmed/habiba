@@ -341,7 +341,7 @@ export async function fileReport(input: {
   detail: string;
   email: string;
   /*
-   * 🔴 W1-11 — which link the token is. The room's "Something is wrong" box
+   * 🔴 W1-11: which link the token is. The room's "Something is wrong" box
    * holds the JOIN token, and this only ever looked up the feedback token, so
    * every report from inside a session was refused while the screen said
    * "Sent to 24Therapy". Named rather than guessed, so neither link opens the

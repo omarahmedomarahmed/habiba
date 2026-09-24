@@ -6182,7 +6182,7 @@ export type InstrumentQuestion = {
   /** The answers, in order. `value` scores; `label` is read. C203. */
   options: { value: number; label: Record<string, string> }[];
   /**
-   * 🔴 W1-10 — a risk item: an answer above `above` opens the crisis path
+   * 🔴 W1-10: a risk item: an answer above `above` opens the crisis path
    * (numbers on screen, the clinician told). Part of the JSON content, so no
    * column. `lib/assessments/risk.ts` also knows PHQ-9 item 9 by key, for
    * rows seeded before this existed.

@@ -77,7 +77,7 @@ type Props = {
    */
   country?: string | null;
   /**
-   * 🔴 W1-09 — every country's line as an operator configured it, loaded by
+   * 🔴 W1-09: every country's line as an operator configured it, loaded by
    * the server (`SosOrbServer`, the patient chrome). Absent on a client-only
    * page such as an error boundary, where the verified table is the list.
    */
@@ -121,7 +121,7 @@ export function SosOrb({
   };
 
   /*
-   * 🔴 W1-09 — the reader's own line when we can place them (their number,
+   * 🔴 W1-09: the reader's own line when we can place them (their number,
    * then the page's country), with the numbers that always answer beside it.
    * When we cannot, every enabled country's line, each labelled, rather than
    * nothing. `sosLinesFor` holds the rule and its tests; the sentence that is
@@ -201,7 +201,7 @@ export function SosOrb({
                     {COUNTRY_LABEL[entry.country] ?? entry.countryName ?? entry.country}
                   </span>
                   {/*
-                    🔴 W1-09 — whether somebody is likely to answer, only where a
+                    🔴 W1-09: whether somebody is likely to answer, only where a
                     source gave the hours. Unknown hours say nothing.
                   */}
                   {entry.open !== null ? (

@@ -37,7 +37,7 @@ export async function answerQuestion(
 
   if (result.error) return { error: result.error };
   /*
-   * 🔴 W1-10 — whether this answer opens the crisis path, and nothing else
+   * 🔴 W1-10: whether this answer opens the crisis path, and nothing else
    * about it: no score, no band. The screen answers with crisis numbers.
    */
   return { ok: true, risk: Boolean(result.risk) };

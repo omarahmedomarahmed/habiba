@@ -5,7 +5,7 @@ import type { SosCountry } from "@/lib/crisis/sos";
 import { getCountries } from "@/lib/settings";
 
 /**
- * 🔴 W1-09 — the crisis lines an operator configured, for the SOS sheet.
+ * 🔴 W1-09: the crisis lines an operator configured, for the SOS sheet.
  *
  * The orb is a client component and must not fetch, so the server hands it
  * `country_settings` already loaded. `getCountries` answers an empty list when

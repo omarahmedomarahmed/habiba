@@ -84,7 +84,7 @@ export async function PatientChrome({
         practiceNumber={practiceNumber}
         phone={phone}
         country={country}
-        /* 🔴 W1-09 — every configured country's line, for a reader we cannot place. */
+        /* 🔴 W1-09: every configured country's line, for a reader we cannot place. */
         countries={await sosCountries()}
       />
     </div>

@@ -279,7 +279,7 @@ async function main() {
     const itemNine = await recordAnswer({ assignmentId, personId, questionKey: "selfHarm", value: 1, answerMs: 90_000 });
 
     /*
-     * 🔴 W1-10 — AND ITEM 9 ABOVE ZERO IS A RISK PATH, NOT JUST A ROW.
+     * 🔴 W1-10: AND ITEM 9 ABOVE ZERO IS A RISK PATH, NOT JUST A ROW.
      *
      * The answer was stored and the screen moved on. Now the answer comes
      * back marked so the screen can show crisis numbers, and the clinician

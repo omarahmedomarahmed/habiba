@@ -50,7 +50,7 @@ export async function rateSession(input: {
 /**
  * Something went wrong, and it is not a star rating.
  *
- * 🔴 W1-08 — a no-show refunds the patient and suspends the clinician without
+ * 🔴 W1-08: a no-show refunds the patient and suspends the clinician without
  * waiting for anyone ONLY when the session's own record shows the clinician
  * never joined (`noShowProven`). That case is our failure and the patient
  * should not wait for office hours. A claim the record does not back stays

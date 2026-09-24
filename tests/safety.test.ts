@@ -1329,7 +1329,7 @@ test("identifiers never reach the error log", async () => {
 /* ------------------------------------------------------ W1-08 no-show claims */
 
 /**
- * 🔴 W1-08 — a patient's "they never joined" refunds and suspends on its own
+ * 🔴 W1-08: a patient's "they never joined" refunds and suspends on its own
  * only when the session's record agrees. Both branches, and each way the
  * record can disagree.
  */
@@ -1365,7 +1365,7 @@ test("a no-show claim is proven only by a record showing the clinician never joi
 /* ---------------------------------------------------- W1-09 the SOS layer */
 
 /**
- * 🔴 W1-09 — the SOS orb sat at z-70 and the radar booking sheet at z-100, so
+ * 🔴 W1-09: the SOS orb sat at z-70 and the radar booking sheet at z-100, so
  * the one crisis button in the product was under the sheet somebody was using
  * to book. Every layer in the product must be below the orb; the orb's own
  * sheet is above it. Scans every file under `app/` and `components/`, and the
@@ -1406,7 +1406,7 @@ test("no sheet, dialog or overlay in the product can cover the SOS orb", async (
   assert.ok(layersIn(readFileSync("components/radar/booking-sheet.tsx", "utf8")).length > 0);
 });
 
-/** 🔴 W1-09 — a bad patient link lands on the global 404, and it kept no SOS orb. */
+/** 🔴 W1-09: a bad patient link lands on the global 404, and it kept no SOS orb. */
 test("the not-found page and the patient error page keep the SOS orb", async () => {
   const { readFileSync } = await import("node:fs");
   assert.match(readFileSync("app/not-found.tsx", "utf8"), /<SosOrb/);
@@ -1416,7 +1416,7 @@ test("the not-found page and the patient error page keep the SOS orb", async () 
 /* ------------------------------------------------ W1-10 questionnaire risk */
 
 /**
- * 🔴 W1-10 — a questionnaire answer that signals self-harm had no risk path.
+ * 🔴 W1-10: a questionnaire answer that signals self-harm had no risk path.
  * PHQ-9 item 9 above zero is the rule; the marker lives on the question, and
  * a PHQ-9 row seeded before the marker existed is still recognised by key.
  */

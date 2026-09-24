@@ -96,7 +96,7 @@ export const INSTRUMENT_SEEDS: InstrumentSeed[] = [
        * for. What this file must never do is turn it into a risk level on its
        * own: `facts_journal_never_concludes` refuses exactly that.
        *
-       * 🔴 W1-10 — but it IS a risk path. Above zero, the patient is shown the
+       * 🔴 W1-10: but it IS a risk path. Above zero, the patient is shown the
        * crisis numbers there and then and their clinician gets a crisis
        * notification (`lib/assessments/risk.ts`). Reaching a person is not a
        * conclusion about them.

@@ -84,7 +84,7 @@ export function recoveryDue(
 }
 
 /**
- * 🔴 W1-08 — WHETHER THE SESSION'S OWN RECORD SAYS THE CLINICIAN NEVER JOINED.
+ * 🔴 W1-08: WHETHER THE SESSION'S OWN RECORD SAYS THE CLINICIAN NEVER JOINED.
  *
  * A patient's "they never joined" refunded them and suspended the clinician on
  * the report alone. That stays automatic only when the record agrees: a video

@@ -10,7 +10,7 @@ import {
 import { DIALLING_CODES } from "@/lib/phone/e164";
 
 /**
- * 🔴 W1-09 — every number the SOS sheet shows, and in what order.
+ * 🔴 W1-09: every number the SOS sheet shows, and in what order.
  *
  * Pure, and kept apart from `line.ts` so the orb (a client component) can call
  * it with rows the server already loaded. The verified-line rules stay in

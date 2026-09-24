@@ -64,7 +64,7 @@ export function PatientQuestionnaire({
   attribution: string;
   questions: Question[];
   answers: Record<string, number>;
-  /** 🔴 W1-10 — the reader's SOS inputs, for a risk answer. */
+  /** 🔴 W1-10: the reader's SOS inputs, for a risk answer. */
   sos: { phone: string | null; country: string | null; countries: SosCountry[] };
 }) {
   const t = useT();
@@ -77,7 +77,7 @@ export function PatientQuestionnaire({
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /*
-   * 🔴 W1-10 — the answers as they stood after a risk answer, held while the
+   * 🔴 W1-10: the answers as they stood after a risk answer, held while the
    * crisis response is on screen. They carry on from it when they choose to.
    */
   const [crisis, setCrisis] = useState<Record<string, number> | null>(null);
@@ -139,7 +139,7 @@ export function PatientQuestionnaire({
   if (!question) return null;
 
   /*
-   * 🔴 W1-10 — AN ANSWER THAT SIGNALS SELF-HARM IS ANSWERED, HERE AND NOW.
+   * 🔴 W1-10: AN ANSWER THAT SIGNALS SELF-HARM IS ANSWERED, HERE AND NOW.
    *
    * It used to be saved and the next question appeared. Now the screen stops:
    * calm words, the crisis numbers for this reader (the SOS sheet's rule,

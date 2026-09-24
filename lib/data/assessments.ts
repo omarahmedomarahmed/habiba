@@ -276,7 +276,7 @@ export async function recordAnswer(input: {
     );
 
   /*
-   * 🔴 W1-10 — an answer that signals self-harm is a risk path, not a row.
+   * 🔴 W1-10: an answer that signals self-harm is a risk path, not a row.
    * The screen shows the crisis numbers on `risk`; the clinician is told here,
    * after the answer is safely stored, and a failure to tell them is logged
    * loudly rather than taking the patient's answer down with it.
@@ -301,7 +301,7 @@ export async function recordAnswer(input: {
 }
 
 /**
- * 🔴 W1-10 — tell the clinician, on the crisis kind their dashboard reads.
+ * 🔴 W1-10: tell the clinician, on the crisis kind their dashboard reads.
  *
  * Whoever assigned it and whoever holds the patient's file, once per
  * assignment (going back and changing the answer does not ring twice). The

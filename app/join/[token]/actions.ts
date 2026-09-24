@@ -864,7 +864,7 @@ export async function setSessionMinimised(
 }
 
 /**
- * 🔴 W1-11 — "Something is wrong, tell 24Therapy", from inside the room.
+ * 🔴 W1-11: "Something is wrong, tell 24Therapy", from inside the room.
  *
  * The box used to call the feedback page's `reportSession` with the JOIN
  * token, which looks up the feedback token, so every report was refused and

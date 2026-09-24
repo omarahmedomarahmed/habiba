@@ -462,7 +462,7 @@ function ReportBox({
         return;
       }
       /*
-       * 🔴 W1-08 — what actually happened, never what we hoped. A claim the
+       * 🔴 W1-08: what actually happened, never what we hoped. A claim the
        * session record does not back waits for a person, and the patient is
        * told that rather than promised a refund.
        */

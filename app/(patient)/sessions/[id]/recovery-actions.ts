@@ -33,7 +33,7 @@ const db = dbFor(pinnedToDefaultRegion("app/(patient)/sessions/[id]/recovery-act
 /**
  * The patient's side of a no-show. PLAN.md 14.2–14.6.
  *
- * ## 🔴 W1-07 — proof of being the patient, not an id
+ * ## 🔴 W1-07: proof of being the patient, not an id
  *
  * Somebody who booked from a public profile has no account, and the moment
  * their therapist fails to appear is the worst possible moment to ask them to

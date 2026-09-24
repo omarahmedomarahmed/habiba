@@ -109,7 +109,7 @@ test("🔴 a line an operator configured wins, and carries no menu it was not gi
 /* ---------------------------------------------- W1-09 every reader, a number */
 
 /*
- * 🔴 W1-09 — the SOS sheet printed nothing for an English reader with no phone,
+ * 🔴 W1-09: the SOS sheet printed nothing for an English reader with no phone,
  * because the only country signals were a `+20`/`+1` number and an Arabic
  * locale, and only the two built-in lines existed. Operators can configure a
  * line per country; the sheet now uses them, and when it cannot tell where the
