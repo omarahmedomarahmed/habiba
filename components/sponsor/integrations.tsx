@@ -106,7 +106,6 @@ export function SponsorIntegrations({
         <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
           <p className="font-semibold text-slate-900">{t("sint.neverTitle")}</p>
           <p>{t("sint.neverBody")}</p>
-          <p>{t("sint.onlyBody")}</p>
         </div>
 
         {canManage ? (
@@ -311,7 +310,6 @@ Content-Type: application/json
             <p className="text-base font-bold tracking-tight text-slate-900">
               {t("sint.logTitle")}
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sint.logBody")}</p>
 
             {deliveries.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">{t("sint.logEmpty")}</p>

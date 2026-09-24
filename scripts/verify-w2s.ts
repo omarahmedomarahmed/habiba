@@ -144,6 +144,81 @@ async function firstCode(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-S09 · an enquiry is followed through                            */
+/* ================================================================== */
+
+async function enquiry(db: Db) {
+  const email = `enquiry-${fixture}@example.com`;
+  const started = new Date();
+  try {
+    const { applyToSponsor } = await import("../lib/data/sponsor-admin");
+    const apply = applyToSponsor as unknown as (input: Record<string, unknown>) => Promise<{
+      ok?: true;
+      error?: string;
+    }>;
+    const input = {
+      name: `W2S Textiles ${fixture}`,
+      kind: "company",
+      contactName: "Salma Example",
+      contactEmail: email,
+      contactPhone: "+20 100 000 0000",
+      contactBestTime: "mornings",
+      country: "EG",
+      acknowledgement: { subject: "We have your enquiry", body: "We will call Salma." },
+    };
+
+    const first = await apply(input);
+    const second = await apply({ ...input, contactEmail: email.toUpperCase() });
+
+    const rows = (
+      await db.execute(sql`
+        SELECT entity, currency FROM sponsors WHERE lower(contact_email) = ${email}`)
+    ).rows as { entity: string; currency: string }[];
+
+    check(
+      "W2-S09 an Egyptian company's enquiry lands on the Egyptian entity",
+      Boolean(first.ok) && rows[0]?.entity === "eg" && rows[0]?.currency === "egp",
+      JSON.stringify(rows[0] ?? first),
+    );
+    check(
+      "W2-S09 the same enquiry twice makes one held account, not two",
+      Boolean(second.ok) && rows.length === 1,
+      `${rows.length} rows`,
+    );
+
+    const told = (
+      await db.execute(sql`
+        SELECT kind, count(*)::int AS n FROM delivery_attempts
+         WHERE kind IN ('sponsor.enquiry', 'sponsor.enquiry_received')
+           AND created_at >= ${started}
+         GROUP BY kind`)
+    ).rows as { kind: string; n: number }[];
+    const n = (kind: string) => told.find((row) => row.kind === kind)?.n ?? 0;
+
+    check(
+      "W2-S09 the applicant is told we have it, each time they ask",
+      n("sponsor.enquiry_received") === 2,
+      `${n("sponsor.enquiry_received")} acknowledgements`,
+    );
+
+    const staff = (
+      await db.execute(sql`
+        SELECT count(*)::int AS n FROM users
+         WHERE role IN ('staff', 'manager', 'super_admin') AND deleted_at IS NULL`)
+    ).rows as { n: number }[];
+    check(
+      "W2-S09 our staff are told about a new enquiry, once, not about the repeat",
+      (staff[0]?.n ?? 0) === 0 ? true : n("sponsor.enquiry") === Math.min(10, staff[0]!.n),
+      `${n("sponsor.enquiry")} staff alerts for ${staff[0]?.n ?? 0} back-office users`,
+    );
+  } finally {
+    await db.execute(sql`DELETE FROM delivery_attempts
+      WHERE kind IN ('sponsor.enquiry', 'sponsor.enquiry_received') AND created_at >= ${started}`);
+    await db.execute(sql`DELETE FROM sponsors WHERE lower(contact_email) = ${email}`);
+  }
+}
+
 async function main() {
   writesTo();
 
@@ -151,6 +226,7 @@ async function main() {
   try {
     await balanceAfterTopUp(db);
     await firstCode(db);
+    await enquiry(db);
   } finally {
     await pool.end();
   }

@@ -218,6 +218,9 @@ export type Message = {
      * applies with more force to a message nobody asked for.
      */
     | "sponsor.domain_confirm"
+    /** 🔴 W2-S09 — an enquiry, acknowledged to the applicant and told to our staff. */
+    | "sponsor.enquiry_received"
+    | "sponsor.enquiry"
     /*
      * 🔴 68.16 — a partner is approaching the session limit THEY set.
      *
