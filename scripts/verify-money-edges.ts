@@ -116,8 +116,8 @@ async function main() {
       priceCents = PRICE,
     ): Promise<{ personId: string; patientId: string; sessionId: string }> => {
       const person = await one<{ id: string }>(sql`
-        INSERT INTO people (first_name, last_name, region)
-        VALUES (${tag}, 'Demo', 'eg') RETURNING id`);
+        INSERT INTO people (first_name, last_name, email, region)
+        VALUES (${tag}, 'Demo', ${`${tag.toLowerCase()}.${fixture}@example.com`}, 'eg') RETURNING id`);
 
       const patient = await one<{ id: string }>(sql`
         INSERT INTO patients (organization_id, person_id, first_name, last_name, email, phone, source)

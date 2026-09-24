@@ -237,7 +237,8 @@ async function usMonth(db: Db) {
   const payer = async (first: string, enrolled: boolean) => {
     n += 1;
     const p = await one<{ id: string }>(sql`
-      INSERT INTO people (first_name, last_name, region) VALUES (${first}, 'Demo', 'us') RETURNING id`);
+      INSERT INTO people (first_name, last_name, email, region)
+      VALUES (${first}, 'Demo', ${`${first.toLowerCase()}${n}.${tag}@example.com`}, 'us') RETURNING id`);
     const patient = await one<{ id: string }>(sql`
       INSERT INTO patients (organization_id, person_id, first_name, last_name, email, source)
       VALUES (${org.id}, ${p.id}, ${first}, 'Demo', ${`${first.toLowerCase()}${n}.${tag}@example.com`}, 'self')
@@ -401,7 +402,8 @@ async function main() {
   const payer = async (first: string, enrolled: boolean) => {
     n += 1;
     const p = await one<{ id: string }>(sql`
-      INSERT INTO people (first_name, last_name, region) VALUES (${first}, 'Demo', 'eg') RETURNING id`);
+      INSERT INTO people (first_name, last_name, email, region)
+      VALUES (${first}, 'Demo', ${`${first.toLowerCase()}${n}.${fixture}@example.com`}, 'eg') RETURNING id`);
     const patient = await one<{ id: string }>(sql`
       INSERT INTO patients (organization_id, person_id, first_name, last_name, email, source)
       VALUES (${org.id}, ${p.id}, ${first}, 'Demo', ${`${first.toLowerCase()}${n}.${fixture}@example.com`}, 'self')

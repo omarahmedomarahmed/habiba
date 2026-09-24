@@ -83,8 +83,8 @@ async function plantWorld(db: Db, label: string) {
   const cast = async (first: string, priceCents = 2000) => {
     n += 1;
     const person = await one<{ id: string }>(sql`
-      INSERT INTO people (first_name, last_name, region)
-      VALUES (${first}, 'Demo', 'eg') RETURNING id`);
+      INSERT INTO people (first_name, last_name, email, region)
+      VALUES (${first}, 'Demo', ${`${first.toLowerCase()}${n}.${tag}@example.com`}, 'eg') RETURNING id`);
     const patient = await one<{ id: string }>(sql`
       INSERT INTO patients (organization_id, person_id, first_name, last_name, email, source)
       VALUES (${org.id}, ${person.id}, ${first}, 'Demo', ${`${first.toLowerCase()}${n}.${tag}@example.com`}, 'self')

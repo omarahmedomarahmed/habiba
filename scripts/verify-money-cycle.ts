@@ -98,8 +98,8 @@ async function main() {
       VALUES ('Cycle Demo Foundry', 'company', 'eg', 'EGP') RETURNING id`);
 
     const person = await one<{ id: string }>(sql`
-      INSERT INTO people (first_name, last_name, region)
-      VALUES ('Nour', 'Demo', 'eg') RETURNING id`);
+      INSERT INTO people (first_name, last_name, email, region)
+      VALUES ('Nour', 'Demo', ${`nour.${fixture}@example.com`}, 'eg') RETURNING id`);
 
     const patient = await one<{ id: string }>(sql`
       INSERT INTO patients (organization_id, person_id, first_name, last_name, email, phone, source)
