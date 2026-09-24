@@ -589,7 +589,7 @@ export const en = {
   "tab.session": "Session",
   "tab.leaveTitle": "Leave your session?",
   "tab.leaveBody":
-    "Your therapist is still there. The session keeps running, and the Session tab brings you straight back.",
+    "The session keeps running. The Session tab brings you back.",
   "tab.stay": "Stay",
   "tab.leaveAnyway": "Leave anyway",
 
@@ -1842,7 +1842,7 @@ export const en = {
    */
   "transfer.checking": "We are checking your transfer",
   "transfer.checkingBody": "Usually a few minutes.",
-  "transfer.closePage": "You can close this page. It will be waiting for you here.",
+  "transfer.closePage": "You can close this page and come back.",
   "transfer.rejected": "We could not confirm that transfer",
   "transfer.rejectedBody": "Send the reference again below, or reply to us.",
   "transfer.unset": "Payment is not set up yet",
@@ -1881,7 +1881,7 @@ export const en = {
    */
   "pop.cancel": "Cancel this payment",
   "pop.cancelSure": "Cancel this payment?",
-  "pop.cancelSureBody": "It comes out of your cart and the reminder goes. Nothing is charged, and you can start it again.",
+  "pop.cancelSureBody": "Nothing is charged, and you can start it again.",
   "pop.cancelYes": "Yes, cancel it",
   "pop.cancelNo": "Keep it",
   "pop.proofSent": "You sent this receipt",
@@ -3932,6 +3932,8 @@ export const en = {
   "crisis.openNow": "Likely open now",
   "crisis.closedNow": "Likely closed now",
   "crisis.anyTime": "Any time",
+  "crisis.qTitle": "Thank you for telling us",
+  "crisis.qBody": "Your therapist will be told. If you feel unsafe now, call a number below.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -4337,7 +4339,7 @@ export const ar: Record<MessageKey, string> = {
   "tab.session": "الجلسة",
   "tab.leaveTitle": "تخرج من جلستك؟",
   "tab.leaveBody":
-    "معالجك ما زال هناك. الجلسة مستمرة، وزر الجلسة يعيدك إليها مباشرة.",
+    "الجلسة مستمرة، وزر الجلسة يعيدك إليها.",
   "tab.stay": "ابقَ",
   "tab.leaveAnyway": "اخرج على أي حال",
 
@@ -5329,7 +5331,7 @@ export const ar: Record<MessageKey, string> = {
   "feedback.makeMine": "اجعله ملكي",
   "transfer.checking": "نراجع التحويل الآن",
   "transfer.checkingBody": "عادة دقائق قليلة.",
-  "transfer.closePage": "يمكنك إغلاق الصفحة. ستجدها في انتظارك هنا.",
+  "transfer.closePage": "يمكنك إغلاق الصفحة والعودة إليها.",
   "transfer.rejected": "لم نتمكن من تأكيد هذا التحويل",
   "transfer.rejectedBody": "أرسل الرقم المرجعي مرة أخرى بالأسفل، أو راسلنا.",
   "transfer.unset": "طريقة الدفع غير مُعدّة بعد",
@@ -5358,7 +5360,7 @@ export const ar: Record<MessageKey, string> = {
   "pop.minimise": "تصغير",
   "pop.cancel": "إلغاء هذه الدفعة",
   "pop.cancelSure": "تلغي الدفعة دي؟",
-  "pop.cancelSureBody": "هتتشال من السلة والتنبيه هيختفي. مفيش أي مبلغ هيتخصم، وتقدر تبدأها تاني في أي وقت.",
+  "pop.cancelSureBody": "مفيش أي مبلغ هيتخصم، وتقدر تبدأها تاني في أي وقت.",
   "pop.cancelYes": "أيوه، ألغيها",
   "pop.cancelNo": "سيبها",
   "pop.proofSent": "لقد أرسلت هذا الإيصال",
@@ -7098,6 +7100,8 @@ export const ar: Record<MessageKey, string> = {
   "crisis.openNow": "مفتوح الآن غالبًا",
   "crisis.closedNow": "مغلق الآن غالبًا",
   "crisis.anyTime": "في أي وقت",
+  "crisis.qTitle": "شكرًا لأنك أخبرتنا",
+  "crisis.qBody": "سنُبلغ معالجك. وإن شعرت أنك لست بأمان الآن، اتصل بأحد الأرقام أدناه.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

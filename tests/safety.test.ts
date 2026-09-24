@@ -1412,3 +1412,41 @@ test("the not-found page and the patient error page keep the SOS orb", async () 
   assert.match(readFileSync("app/not-found.tsx", "utf8"), /<SosOrb/);
   assert.match(readFileSync("app/(patient)/error.tsx", "utf8"), /<SosOrb\b/);
 });
+
+/* ------------------------------------------------ W1-10 questionnaire risk */
+
+/**
+ * 🔴 W1-10 — a questionnaire answer that signals self-harm had no risk path.
+ * PHQ-9 item 9 above zero is the rule; the marker lives on the question, and
+ * a PHQ-9 row seeded before the marker existed is still recognised by key.
+ */
+test("a self-harm answer on a questionnaire is a risk answer, and nothing else is", async () => {
+  const { answerSignalsRisk } = await import("../lib/assessments/risk");
+  const options = [0, 1, 2, 3].map((value) => ({ value, label: { en: String(value) } }));
+  const marked = { key: "selfHarm", text: { en: "item 9" }, options, risk: { above: 0 } };
+  const unmarked = { key: "selfHarm", text: { en: "item 9" }, options };
+
+  for (const value of [1, 2, 3]) {
+    assert.equal(answerSignalsRisk({ instrumentKey: "phq9", question: marked, value }), true);
+    assert.equal(
+      answerSignalsRisk({ instrumentKey: "phq9", question: unmarked, value }),
+      true,
+      "a PHQ-9 seeded before the marker is still read by its key",
+    );
+  }
+  assert.equal(answerSignalsRisk({ instrumentKey: "phq9", question: marked, value: 0 }), false);
+  assert.equal(
+    answerSignalsRisk({ instrumentKey: "phq9", question: { key: "down", text: { en: "item 2" }, options }, value: 3 }),
+    false,
+    "a high answer elsewhere is a score, not a risk path",
+  );
+  assert.equal(
+    answerSignalsRisk({ instrumentKey: "gad7", question: { key: "nervous", text: { en: "item 1" }, options }, value: 3 }),
+    false,
+  );
+
+  /* And the shipped PHQ-9 carries the marker on item 9. */
+  const { INSTRUMENT_SEEDS } = await import("../lib/data/instrument-seeds");
+  const phq9 = INSTRUMENT_SEEDS.find((seed) => seed.key === "phq9")!;
+  assert.deepEqual(phq9.questions.find((q) => q.key === "selfHarm")?.risk, { above: 0 });
+});

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { PatientQuestionnaire } from "@/components/assessments/patient-questionnaire";
 import { PatientBack } from "@/components/patient/back";
+import { sosCountries } from "@/components/patient/sos-orb-server";
+import { crisisCountryFor } from "@/lib/crisis/line";
 import { assignmentForAnswering } from "@/lib/data/assessments";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -29,7 +31,7 @@ export default async function AssessmentPage({
 }) {
   const actor = await requirePatient();
   const { id } = await params;
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
 
   const assignment = await assignmentForAnswering(id, actor.personId);
   if (!assignment) notFound();
@@ -51,6 +53,12 @@ export default async function AssessmentPage({
         attribution={assignment.attribution}
         questions={assignment.questions}
         answers={assignment.answers}
+        /* 🔴 W1-10 — what a risk answer is answered with: the SOS numbers for this reader. */
+        sos={{
+          phone: actor.phone,
+          country: crisisCountryFor({ locale }),
+          countries: await sosCountries(),
+        }}
       />
     </main>
   );
