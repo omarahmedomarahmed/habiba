@@ -317,6 +317,81 @@ async function clinicNames(db: ReturnType<typeof connect>["db"]) {
   );
 }
 
+/* ================================================================== */
+/*  W1-19 · a cell in a clinic export is never a formula               */
+/* ================================================================== */
+
+async function csvFormulas(db: ReturnType<typeof connect>["db"]) {
+  const exportModule = (await import("../lib/data/clinic-export")) as Record<string, unknown>;
+  const { exportSchedule } = await import("../lib/data/clinic-export");
+  const csvCell = exportModule.csvCell as ((value: string | number | null) => string) | undefined;
+
+  const hostile = ["=1+2", "+1+2", "-1+2", "@SUM(A1)", "\t=1", "\r=1"];
+  const escaped = csvCell ? hostile.map((value) => csvCell(value)) : [];
+  check(
+    "W1-19 a cell starting with = + - @ tab or return is prefixed with a quote",
+    escaped.length === hostile.length && escaped.every((out) => /^"?'/.test(out)),
+    escaped.map((out) => JSON.stringify(out)).join(" ") || "csvCell is not exported",
+  );
+  check(
+    "W1-19 CONTROL …and ordinary text, a date and a number are left alone",
+    Boolean(csvCell) &&
+      csvCell!("Sarah M") === "Sarah M" &&
+      csvCell!("2026-09-24T09:00:00.000Z") === "2026-09-24T09:00:00.000Z" &&
+      csvCell!(-12.5) === "-12.5" &&
+      csvCell!('a "b", c') === '"a ""b"", c"',
+    "a bill total below zero is a number, not a formula",
+  );
+
+  /* Through the real export, with names somebody could have typed. */
+  const slug = `${fixture}-f`;
+  const [org] = (
+    await db.execute(sql`
+      INSERT INTO organizations (name, slug, kind, clinic_state)
+      VALUES (${`Clinic ${fixture}`}, ${slug}, 'clinic', 'active') RETURNING id`)
+  ).rows as { id: string }[];
+  const clinicId = required(org, "a clinic").id;
+  const [th] = (
+    await db.execute(sql`
+      INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role,
+                         verification_status)
+      VALUES (${clinicId}, ${`f-${fixture}@example.com`}, 'x', '@Dee', 'Octor', 'therapist', 'verified')
+      RETURNING id`)
+  ).rows as { id: string }[];
+  const [mgr] = (
+    await db.execute(sql`
+      INSERT INTO clinic_managers (organization_id, email, password_hash, role)
+      VALUES (${clinicId}, ${`fm-${fixture}@example.com`}, 'x', 'admin') RETURNING id`)
+  ).rows as { id: string }[];
+  await db.execute(sql`
+    INSERT INTO sessions (organization_id, therapist_id, status, modality, scheduled_at,
+                          feedback_token, price_cents, guest_name)
+    VALUES (${clinicId}, ${required(th, "a clinician").id}, 'scheduled', 'video', now(),
+            ${`${fixture}-f`}, 5000, '=HYPERLINK("https://example.com") x')`);
+
+  const { ADMIN_CAPABILITIES } = await import("../lib/clinic-auth/capabilities");
+  const exported = await exportSchedule({
+    actor: {
+      clinicManagerId: required(mgr, "a clinic admin").id,
+      clinicOrganizationId: clinicId,
+      role: "admin" as const,
+      capabilities: ADMIN_CAPABILITIES,
+      therapistIds: null,
+    },
+    email: `fm-${fixture}@example.com`,
+    clinicName: `Clinic ${fixture}`,
+    from: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    to: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
+  const cells = exported.csv.split("\r\n").flatMap((line) => line.split(","));
+  const live = cells.filter((value) => /^"?[=+\-@\t\r]/.test(value));
+  check(
+    "W1-19 the schedule export carries no cell a spreadsheet would run",
+    live.length === 0 && /'=HYPERLINK/.test(exported.csv) && /'@Dee/.test(exported.csv),
+    live.join(" | ") || "every hostile cell is quoted",
+  );
+}
+
 async function main() {
   await stubModules();
   writesTo();
@@ -325,6 +400,7 @@ async function main() {
   try {
     await totalView(db);
     await clinicNames(db);
+    await csvFormulas(db);
   } finally {
     await db.execute(sql`DELETE FROM audit_log WHERE actor_user_id IN
       (SELECT id FROM users WHERE email LIKE ${`%${fixture}%`})`);
