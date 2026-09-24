@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { CheckinsEditor } from "@/components/admin/checkins-editor";
 import { Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
 import { checkinStats, muteRate } from "@/lib/data/checkins";
@@ -34,7 +35,9 @@ export default async function AdminCheckinsPage() {
   await requireRole("super_admin");
   const { t } = await getI18n();
 
-  const [settings, rate, stats] = await Promise.all([getSettings(), muteRate(), checkinStats()]);
+  const settings = await getSettings();
+  // W2-A08: measured from where the operator last resumed it, the same number the sender reads.
+  const [rate, stats] = await Promise.all([muteRate(settings.checkins.measuredSince), checkinStats()]);
 
   const halted = rate.rate >= settings.checkins.muteRateHalt;
 
@@ -64,6 +67,16 @@ export default async function AdminCheckinsPage() {
           <p className="mt-2 text-sm font-semibold text-red-700">{t("acheckin.halted")}</p>
         ) : null}
       </Card>
+
+      {/* 🔴 W2-A08: the numbers the sentence above says are the operator's, editable. */}
+      <CheckinsEditor
+        enabled={settings.checkins.enabled}
+        everyHours={settings.checkins.everyHours}
+        quietFromHour={settings.checkins.quietFromHour}
+        quietToHour={settings.checkins.quietToHour}
+        haltPercent={Math.round(settings.checkins.muteRateHalt * 100)}
+        halted={halted}
+      />
 
       <Card className="p-5">
         <ul className="space-y-1 text-sm text-slate-700">

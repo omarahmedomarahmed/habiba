@@ -4053,6 +4053,12 @@ export const en = {
   "aconfirm.off": "Off",
   "aconfirm.on": "On",
   "w2a.cancelledByUs": "We cancelled your booking: your clinician is no longer available.",
+  "acheckin.enabled": "Sending",
+  "acheckin.every": "Hours between",
+  "acheckin.halt": "Halt above (%)",
+  "acheckin.quietFrom": "Quiet from (hour)",
+  "acheckin.quietTo": "Quiet until (hour)",
+  "acheckin.resume": "Resume",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7340,6 +7346,12 @@ export const ar: Record<MessageKey, string> = {
   "aconfirm.off": "أوقف",
   "aconfirm.on": "شغّل",
   "w2a.cancelledByUs": "ألغينا حجزك لأن معالجك لم يعد متاحًا.",
+  "acheckin.enabled": "الإرسال مفعّل",
+  "acheckin.every": "الساعات بين كل رسالتين",
+  "acheckin.halt": "التوقف فوق (%)",
+  "acheckin.quietFrom": "الهدوء من (الساعة)",
+  "acheckin.quietTo": "الهدوء حتى (الساعة)",
+  "acheckin.resume": "استئناف",
 };
 
 export const DICTIONARIES = { en, ar } as const;
