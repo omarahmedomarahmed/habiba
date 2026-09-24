@@ -618,6 +618,21 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
 
   if (claimed.length === 0) return;
 
+  /*
+   * 🔴 C13: the claim is released when the work throws. It used to stay, so
+   * Stripe's retry of a failed event met the claim and was dropped, and the
+   * payment it carried was lost for good.
+   */
+  try {
+    await applyEvent(event, client);
+  } catch (error) {
+    await db.delete(stripeEvents).where(eq(stripeEvents.id, event.id));
+    throw error;
+  }
+}
+
+/** What one verified, claimed event does. */
+async function applyEvent(event: Stripe.Event, client: Stripe): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed":
       await applyCheckoutOutcome(event.data.object);
