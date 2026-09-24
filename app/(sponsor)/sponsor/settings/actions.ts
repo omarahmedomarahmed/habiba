@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
-import { removeIdentifierField, setIdentifierField, setListed } from "@/lib/data/sponsor-admin";
+import { removeIdentifierField, setIdentifierField } from "@/lib/data/sponsor-admin";
 import { IDENTIFIER_KINDS, type IdentifierKind } from "@/lib/db/schema";
 import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
+import { presetPattern } from "@/lib/sponsor/gate";
 
 export type GateState = { error?: string; ok?: boolean };
 
@@ -24,11 +25,25 @@ export async function addGate(_prev: GateState, formData: FormData): Promise<Gat
     return { error: "Pick one of the two." };
   }
 
+  /*
+   * 🔴 W2-S06: the pattern is BUILT from a preset, never typed. A description
+   * typed into a pattern box compiled into a gate that matched nobody.
+   */
+  let pattern: string | null = null;
+  if (kind === "id_number") {
+    pattern = presetPattern({
+      preset: String(formData.get("preset") ?? ""),
+      length: Number(formData.get("length") ?? 0),
+      prefix: String(formData.get("prefix") ?? ""),
+    });
+    if (!pattern) return { error: "Pick a shape and a length between 1 and 20." };
+  }
+
   const result = await setIdentifierField({
     sponsorId: actor.sponsorId,
     kind: kind as IdentifierKind,
     domain: String(formData.get("domain") ?? "") || null,
-    pattern: String(formData.get("pattern") ?? "") || null,
+    pattern,
     shapeHint: String(formData.get("shapeHint") ?? "") || null,
   });
 
@@ -66,30 +81,6 @@ export async function dropGate(fieldId: string): Promise<GateState> {
     action: "gate.removed",
     resourceType: "sponsor_identifier_field",
     resourceId: fieldId,
-  });
-
-  revalidatePath("/sponsor/settings");
-  return { ok: true };
-}
-
-/** 🔴 C236 — unlisted is the default, and this is the only thing that changes it. */
-export async function setPublicListing(listed: boolean): Promise<GateState> {
-  const actor = await requireSponsorAdmin();
-  await setListed(actor.sponsorId, listed);
-
-  /*
-   * 🔴 C236 — unlisted is the default and this is the only thing that changes
-   * it. Whether the world knows a company buys therapy for its staff is the
-   * kind of decision somebody later says they never agreed to.
-   */
-  await audit({
-    /* Explicit, like every other call site: this act has no clinician actor. */
-    actor: null,
-    sponsorUserId: actor.sponsorUserId,
-    category: "admin",
-    action: listed ? "listing.public" : "listing.private",
-    resourceType: "sponsor",
-    resourceId: actor.sponsorId,
   });
 
   revalidatePath("/sponsor/settings");

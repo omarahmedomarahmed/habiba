@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { GateSettings } from "@/components/sponsor/gate-settings";
 import { Card } from "@/components/ui";
 import { MAX_IDENTIFIER_FIELDS } from "@/lib/data/sponsor-admin";
-import { getSponsor, identifierFields } from "@/lib/data/sponsors";
+import { domainProved, domainsFor } from "@/lib/data/sponsor-domains";
+import { identifierFields } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
@@ -24,10 +25,25 @@ export default async function SponsorSettingsPage() {
   const { t } = await getI18n();
   const settings = await getSettings();
 
-  const [sponsor, fields] = await Promise.all([
-    getSponsor(actor.sponsorId),
+  const [saved, domains] = await Promise.all([
     identifierFields(actor.sponsorId),
+    domainsFor(actor.sponsorId),
   ]);
+
+  /*
+   * 🔴 W2-S06: enrolment admits a domain gate only for a PROVED domain, so a
+   * gate naming one that is not proved refuses every employee. Said beside it.
+   */
+  const fields = saved.map((field) => ({
+    ...field,
+    unproved:
+      field.kind === "domain_email" &&
+      !domains.some(
+        (row) =>
+          row.domain.trim().toLowerCase() === (field.domain ?? "").trim().toLowerCase() &&
+          domainProved(row),
+      ),
+  }));
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
@@ -38,7 +54,6 @@ export default async function SponsorSettingsPage() {
       {actor.role === "admin" ? (
         <GateSettings
           fields={fields}
-          listed={sponsor?.listedPublicly ?? false}
           atCap={fields.length >= MAX_IDENTIFIER_FIELDS}
         />
       ) : (

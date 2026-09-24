@@ -434,3 +434,32 @@ test("C264 CONTROL the overlap check catches a planted overlap", () => {
 
   assert.equal(clashes.length, 2, "the check must see an overlap that exists");
 });
+
+/**
+ * 🔴 W2-S01: the domain mailbox link opens for the IT contact it was mailed to.
+ *
+ * `confirmDomainMailbox` is authorised by the HMAC in the link, and the page says
+ * it has no guard on purpose. The router still bounced a stranger to the sponsor
+ * sign-in, so the one person the email was for could never press the button.
+ * Only the confirm path opens: the domains page itself stays behind the door.
+ */
+/**
+ * 🔴 W2-S05: a company user who cannot sign in can still reach the two pages
+ * that let them: asking for a reset link, and setting a password from one.
+ */
+test("W2-S05 forgot password and set password are reachable signed out", () => {
+  const stranger = { clinician: false, patient: false, expired: false };
+  assert.deepEqual(routeDecision("/sponsor/forgot-password", stranger), { kind: "pass" });
+  assert.deepEqual(routeDecision("/sponsor/set-password", stranger), { kind: "pass" });
+  assert.equal(routeDecision("/sponsor/team", stranger).kind, "redirect");
+});
+
+test("W2-S01 the domain mailbox confirm link opens without a portal login", () => {
+  const stranger = { clinician: false, patient: false, expired: false };
+  assert.deepEqual(routeDecision("/sponsor/domains/confirm/abc", stranger), { kind: "pass" });
+  assert.deepEqual(routeDecision("/sponsor/domains", stranger), {
+    kind: "redirect",
+    to: "/sponsor/sign-in",
+    keepNext: true,
+  });
+});

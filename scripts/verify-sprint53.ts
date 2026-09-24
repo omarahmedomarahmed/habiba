@@ -200,6 +200,38 @@ async function main() {
   );
 
   /*
+   * 🔴 C244's ONE SANCTIONED EXCEPTION (W2-S10, FIX-PLAN D1), held to its shape.
+   *
+   * The company's money ledger. It carries a sponsor id AND session money,
+   * which is exactly why its column list is asserted whole: money, a kind, the
+   * Monday of the week and a shuffle, and no session, person, patient,
+   * therapist or payment id and no timestamp. A column added to it is a way
+   * back to a person, so it fails here rather than shipping.
+   */
+  const MONEY_COLUMNS = [
+    "covered_cents",
+    "coverage_bps",
+    "employee_cents",
+    "id",
+    "kind",
+    "price_cents",
+    "shuffle",
+    "sponsor_id",
+    "week_start",
+  ];
+  const moneyColumns = (
+    await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'sponsor_money_entries' ORDER BY column_name`)
+  ).rows.map((row) => String((row as { column_name: string }).column_name));
+
+  check(
+    "🔴 C244 its one exception, sponsor_money_entries, holds money and a week and no key to anybody",
+    JSON.stringify(moneyColumns) === JSON.stringify(MONEY_COLUMNS),
+    moneyColumns.join(", ") || "the table does not exist (0134)",
+  );
+
+  /*
    * 🔴 C231 amended — and `patient_notifications` is the sharpest of those.
    *
    * *A permanently undeletable entry saying an employer enrolled you and later
@@ -1282,25 +1314,40 @@ async function main() {
     /*  53.5 / 53.8 / 53.9 · the doors and the poster       */
     /* ==================================================== */
 
-    const { PRINCIPALS, routeDecision, SPONSOR_APPLY } = await import("../lib/routing");
+    const { PRINCIPALS, routeDecision, SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM } = await import(
+      "../lib/routing"
+    );
 
     const sponsorPrincipal = required(
       PRINCIPALS.find((principal) => principal.name === "sponsor"),
       "the sponsor principal",
     );
 
+    /*
+     * 🔴 W2-S01: AND THE DOMAIN MAILBOX LINK, WHICH THIS CHECK HAD FORBIDDEN.
+     *
+     * It asserted exactly one open route, and so encoded the defect: the confirm
+     * link mailed to `postmaster@` could only be pressed by somebody who already
+     * had a portal login. The link's HMAC is its authorisation (C318). The rule
+     * stays a closed list, now naming both, so a third open route still fails.
+     */
+    const open = sponsorPrincipal.openRoutes ?? [];
     check(
-      "🔴 53.5 the enquiry form is reachable by a stranger, and it is the ONLY such path",
+      "🔴 53.5 the enquiry form and the mailbox link are reachable by a stranger, and they are the ONLY such paths",
       routeDecision(SPONSOR_APPLY, { expired: false }).kind === "pass" &&
-        (sponsorPrincipal.openRoutes ?? []).length === 1,
-      "one open route inside /sponsor, listed rather than implied",
+        routeDecision(`${SPONSOR_DOMAIN_CONFIRM}/x`, { expired: false }).kind === "pass" &&
+        open.length === 2 &&
+        open.includes(SPONSOR_APPLY) &&
+        open.includes(SPONSOR_DOMAIN_CONFIRM),
+      open.join(", "),
     );
 
     check(
       "🔴 CONTROL …and every other sponsor path still bounces a stranger to the door",
       routeDecision("/sponsor", { expired: false }).kind === "redirect" &&
         routeDecision("/sponsor/people", { expired: false }).kind === "redirect" &&
-        routeDecision("/sponsor/pot", { expired: false }).kind === "redirect",
+        routeDecision("/sponsor/pot", { expired: false }).kind === "redirect" &&
+        routeDecision("/sponsor/domains", { expired: false }).kind === "redirect",
       "the open route is an exception, not a hole",
     );
 

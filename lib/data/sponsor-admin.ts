@@ -56,6 +56,17 @@ export async function applyToSponsor(input: {
   contactEmail: string;
   contactPhone: string;
   contactBestTime: string;
+  /**
+   * 🔴 W2-S09: where they are, which decides the entity. Every enquiry landed
+   * on `us`, so an Egyptian company sat on a rail it could not pay through
+   * until somebody noticed and moved it.
+   */
+  country?: string;
+  /**
+   * The acknowledgement, already in the applicant's language. Written by the
+   * caller, which knows the locale the form was read in.
+   */
+  acknowledgement: { subject: string; body: string };
 }): Promise<{ ok?: true; error?: string }> {
   const name = input.name.trim().slice(0, 200);
   const contactName = input.contactName.trim().slice(0, 120);
@@ -66,6 +77,42 @@ export async function applyToSponsor(input: {
   if (!contactName) return { error: "Tell us who we should speak to." };
   if (!contactEmail.includes("@")) return { error: "That email address does not look right." };
   if (!contactPhone) return { error: "We need a phone number to call you on." };
+
+  const entity: Entity = (input.country ?? "").trim().toUpperCase() === "EG" ? "eg" : "us";
+
+  /*
+   * 🔴 W2-S09: the applicant is told, every time, at the address they gave.
+   *
+   * Only that address hears it, so a repeat enquiry learns nothing it did not
+   * already know, and a stranger typing somebody else's address learns nothing
+   * at all: the form answers the same either way.
+   */
+  const acknowledge = async () => {
+    const { notify } = await import("@/lib/notify");
+    await notify(
+      { email: contactEmail, phone: null, timezone: null },
+      { kind: "sponsor.enquiry_received", ...input.acknowledgement },
+    );
+  };
+
+  /*
+   * 🔴 W2-S09: ONE ENQUIRY IS ONE HELD ACCOUNT. Every submission inserted a
+   * row, so an impatient HR lead pressing the button three times put three
+   * companies in the operator's queue, and the operator could activate the
+   * wrong one. The contact address is the key: the same person asking again
+   * is the same enquiry.
+   */
+  const [already] = await controlDb
+    .select({ id: sponsors.id })
+    .from(sponsors)
+    .where(sql`lower(${sponsors.contactEmail}) = ${contactEmail}`)
+    .limit(1);
+
+  if (already) {
+    log.info("corporate enquiry repeated", { sponsor: ref(already.id) });
+    await acknowledge();
+    return { ok: true };
+  }
 
   await controlDb.insert(sponsors).values({
     name,
@@ -85,8 +132,9 @@ export async function applyToSponsor(input: {
      * e-invoicing (C241), and `topUpPot` refuses `eg` for that reason. An
      * operator moves it when that changes.
      */
-    entity: "us",
-    currency: "usd",
+    entity,
+    /* The same pairing `setSponsorEntity` writes. */
+    currency: entity === "eg" ? "egp" : "usd",
     contactName,
     contactEmail,
     contactPhone,
@@ -94,7 +142,40 @@ export async function applyToSponsor(input: {
   });
 
   log.info("corporate enquiry received");
+  await acknowledge();
+  await tellBackOffice(name);
   return { ok: true };
+}
+
+/**
+ * 🔴 W2-S09: AND SOMEBODY HERE IS TOLD. `applyToSponsor` wrote a log line and
+ * nothing else, so an enquiry waited until somebody happened to open
+ * `/admin/sponsors`. The back office is emailed once per new enquiry, with the
+ * organisation's name and nothing about any person there. English, like the
+ * rest of the operator console (37L.3).
+ */
+async function tellBackOffice(organisation: string): Promise<void> {
+  const { users, BACK_OFFICE_ROLES } = await import("@/lib/db/schema");
+  const { inArray } = await import("drizzle-orm");
+  const { notify } = await import("@/lib/notify");
+
+  const staff = await controlDb
+    .select({ email: users.email, timezone: users.timezone })
+    .from(users)
+    .where(and(inArray(users.role, [...BACK_OFFICE_ROLES]), isNull(users.deletedAt)))
+    .limit(10);
+
+  for (const person of staff) {
+    await notify(
+      { email: person.email, phone: null, timezone: person.timezone },
+      {
+        kind: "sponsor.enquiry",
+        subject: "A company asked us to call",
+        body: `${organisation} sent an enquiry. It is held on the sponsors page until somebody calls them.`,
+        link: { label: "Open sponsors", url: "/admin/sponsors" },
+      },
+    );
+  }
 }
 
 /**
@@ -343,6 +424,10 @@ export async function openPot(input: {
       ],
     });
 
+    /* W2-S02: a credit the company can see, from the day the pot opens. */
+    const { publishTopUp } = await import("@/lib/billing/pot");
+    await publishTopUp(input.sponsorId, credit);
+
     log.info("welcome credit granted", { sponsor: ref(input.sponsorId), amountCents: credit });
   }
 
@@ -392,6 +477,27 @@ export async function rotateCode(sponsorId: string): Promise<{ code: string }> {
   }
 
   throw new Error("Could not mint a joining code");
+}
+
+/**
+ * 🔴 W2-S03: THE FIRST CODE, MADE BY THE COMPANY ITSELF.
+ *
+ * Only an operator's `mintCode` could make one, and the company's code page said
+ * "You have no joining code yet" with nothing to press. This mints one only when
+ * no code is live, so it can never be used to rotate a code by accident: a
+ * rotation strands every poster and has its own confirm on the code card.
+ */
+export async function mintFirstCode(
+  sponsorId: string,
+): Promise<{ code?: string; error?: string }> {
+  const [live] = await controlDb
+    .select({ id: sponsorCodes.id })
+    .from(sponsorCodes)
+    .where(and(eq(sponsorCodes.sponsorId, sponsorId), isNull(sponsorCodes.revokedAt)))
+    .limit(1);
+  if (live) return { error: "You already have a joining code." };
+
+  return rotateCode(sponsorId);
 }
 
 /**
@@ -495,21 +601,10 @@ export async function removeIdentifierField(
   return { ok: true };
 }
 
-/**
- * 🔴 53.8 / C236 — listed publicly, or reachable only by the code.
- *
- * Unlisted is the default and this is the only thing that changes it. Being in a
- * public picker says "this organisation buys therapy for its staff", which is
- * theirs to say and not ours to assume.
+/*
+ * FIX-PLAN D5: `setListed` is gone with the switch that called it. Nothing
+ * public ever read `listed_publicly`, and every sponsor stays unlisted (C236).
  */
-export async function setListed(sponsorId: string, listed: boolean): Promise<{ ok: true }> {
-  await controlDb
-    .update(sponsors)
-    .set({ listedPublicly: listed, updatedAt: new Date() })
-    .where(eq(sponsors.id, sponsorId));
-
-  return { ok: true };
-}
 
 /**
  * Sign a sponsor user in. PLAN.md 53.4.

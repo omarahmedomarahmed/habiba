@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
 import { REMOVAL_REASONS, type RemovalReason } from "@/lib/db/schema";
-import { removeFromRoster } from "@/lib/data/sponsors";
+import { pauseBenefit, removeFromRoster, resumeBenefit } from "@/lib/data/sponsors";
 import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 
 export type RemoveState = { error?: string; ok?: boolean };
@@ -67,6 +67,50 @@ export async function endBenefit(enrolmentId: string, reason: string): Promise<R
     resourceType: "enrolment",
     resourceId: enrolmentId,
     reason,
+  });
+
+  revalidatePath("/sponsor/people");
+  return { ok: true };
+}
+
+/**
+ * 🔴 W2-S11 / D1: PAUSE AND RESUME, beside END.
+ *
+ * The founder's decision widened the paragraph above: a company controls its
+ * employees' benefit (end, pause, resume) and still performs no act that reads
+ * anything about their use of it. Admin only, audited against the enrolment,
+ * and the person is told in the app with no employer and no reason (C231).
+ */
+export async function pauseTheirBenefit(enrolmentId: string): Promise<RemoveState> {
+  const actor = await requireSponsorAdmin();
+  const result = await pauseBenefit({ sponsorId: actor.sponsorId, enrolmentId });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "benefit.paused",
+    resourceType: "enrolment",
+    resourceId: enrolmentId,
+  });
+
+  revalidatePath("/sponsor/people");
+  return { ok: true };
+}
+
+export async function resumeTheirBenefit(enrolmentId: string): Promise<RemoveState> {
+  const actor = await requireSponsorAdmin();
+  const result = await resumeBenefit({ sponsorId: actor.sponsorId, enrolmentId });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "benefit.resumed",
+    resourceType: "enrolment",
+    resourceId: enrolmentId,
   });
 
   revalidatePath("/sponsor/people");

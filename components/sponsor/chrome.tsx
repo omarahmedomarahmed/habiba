@@ -27,6 +27,11 @@ import type { MessageKey } from "@/lib/i18n/messages";
 
 const TABS: { href: string; key: MessageKey }[] = [
   { href: "/sponsor", key: "sponsor.nav.overview" },
+  /*
+   * 🔴 W2-S10 / D1: every session's money, and still no way to open a person:
+   * the entries carry no name, therapist or date finer than the week.
+   */
+  { href: "/sponsor/ledger", key: "sponsor.nav.ledger" },
   { href: "/sponsor/people", key: "sponsor.nav.people" },
   { href: "/sponsor/code", key: "sponsor.nav.code" },
   { href: "/sponsor/pot", key: "sponsor.nav.pot" },
@@ -42,6 +47,8 @@ const TABS: { href: string; key: MessageKey }[] = [
    * (FIX-PLAN D4) and its route redirects to /sponsor.
    */
   { href: "/sponsor/settings", key: "sponsor.nav.settings" },
+  /* W2-S05: the company's own logins: invite, role, remove, and your password. */
+  { href: "/sponsor/team", key: "sponsor.nav.team" },
 ];
 
 /**

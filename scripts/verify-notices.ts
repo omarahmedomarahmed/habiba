@@ -60,6 +60,12 @@ const OUTBOUND_ONLY: Record<string, string> = {
   /* W1-16 */
   "lib/data/licence-expiry.ts":
     "the recipient is a clinician, who has no person row and so no patient notice log; the portal banner is read from the verification row itself, which is the in-app home",
+  /* W2-S09 */
+  "lib/data/sponsor-admin.ts":
+    "the recipients are a company that has only enquired and our own back office; neither has a person row, and the enquiry's in-app home is the operator's sponsors page",
+  /* W2-S05 */
+  "lib/data/sponsor-users.ts":
+    "an invite or reset link for a company login, which has no person row, and a password link written into a log is a second place to steal it from",
 };
 
 function walk(dir: string): string[] {

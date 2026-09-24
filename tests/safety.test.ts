@@ -703,7 +703,14 @@ test("🔴 E2 the company's people list carries a name per person and nothing ab
   // Re-proving employment happens when somebody next wants the benefit, so the
   // date and the pause say who came back to therapy and when.
   assert.doesNotMatch(page, /lastVerifiedAt|paused/, "the page hands a per-person check date or pause to the list");
-  assert.doesNotMatch(list, /lastChecked|paused/, "the list renders a per-person check date or pause");
+  /*
+   * W2-S11 / D1: the company now pauses and resumes a benefit itself, so the
+   * list shows THAT pause (`held`, from `heldByYou`), which is the company's
+   * own act. The re-verification pause (`paused`) stays forbidden: `\bpaused\b`
+   * is the field, and `sponsor.pausedLabel` is the badge for the company's own.
+   */
+  assert.doesNotMatch(list, /lastChecked|\bpaused\b/, "the list renders a per-person check date or pause");
+  assert.match(page, /held: person\.heldByYou/, "the only pause the list gets is the company's own");
   // Control: the name is still there, because "End their benefit" needs it.
   assert.match(list, /person\.name/);
 });

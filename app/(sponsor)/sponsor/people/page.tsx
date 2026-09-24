@@ -45,6 +45,8 @@ export default async function SponsorPeoplePage() {
         people={people.map((person) => ({
           enrolmentId: person.enrolmentId,
           name: person.name,
+          /* W2-S11: the company's OWN pause, which is theirs to see and undo. */
+          held: person.heldByYou,
           /*
            * 🔴 E2 — no per-person date and no per-person pause, on purpose.
            *

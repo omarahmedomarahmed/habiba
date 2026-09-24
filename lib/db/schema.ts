@@ -7116,6 +7116,14 @@ export const enrolments = pgTable(
      */
     provisionalSessionsUsed: integer("provisional_sessions_used").notNull().default(0),
 
+    /**
+     * 🔴 W2-S10 (0134): when this person was told, in the app, that the company
+     * sees each session's money with no name on it. Null until then, and an
+     * entry is only ever written for a session paid AFTER it: nobody's earlier
+     * sessions appear in a view they were never told about.
+     */
+    ledgerToldAt: timestamp("ledger_told_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -7264,6 +7272,51 @@ export const sponsorPots = pgTable(
 export type SponsorPot = typeof sponsorPots.$inferSelect;
 
 /**
+ * 🔴 W2-S10 / FIX-PLAN D1: ONE ROW PER POT-FUNDED SESSION, AND NOBODY IN IT.
+ *
+ * The founder's decision: a company sees every session's money (price, its
+ * coverage, the covered amount, the employee's share) and never a name, a
+ * therapist or a specialty. C244 forbids company reporting from joining
+ * sessions, dates or names; this table is its ONE sanctioned exception, and it
+ * is shaped so the join never happens at read time:
+ *
+ *   - written by `payFromPot` from the figures it has just frozen, and read by
+ *     `lib/data/sponsor-ledger.ts` with no join at all;
+ *   - NO session, person, patient, therapist or payment id: an entry cannot be
+ *     walked back to anybody, by the company or by us;
+ *   - NO created_at: the only date is `week_start`, the Monday of the week it
+ *     was paid, and `shuffle` orders a batch, so row order says nothing either.
+ *
+ * `verify:sprint53` asserts this column list exactly, so a column added here
+ * is a failure, not a feature.
+ */
+export const SPONSOR_MONEY_KINDS = ["session", "refund"] as const;
+export type SponsorMoneyKind = (typeof SPONSOR_MONEY_KINDS)[number];
+
+export const sponsorMoneyEntries = pgTable(
+  "sponsor_money_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+    /** A session paid from the pot, or money a refund put back into it. */
+    kind: text("kind").$type<SponsorMoneyKind>().notNull().default("session"),
+    /** The Monday of the week it was paid. The finest date an entry has. */
+    weekStart: date("week_start", { mode: "string" }).notNull(),
+    priceCents: integer("price_cents").notNull(),
+    coverageBps: integer("coverage_bps").notNull(),
+    coveredCents: integer("covered_cents").notNull(),
+    employeeCents: integer("employee_cents").notNull(),
+    /** Random at insert: the order within a published batch. */
+    shuffle: integer("shuffle").notNull(),
+  },
+  (t) => [index("sponsor_money_entries_sponsor_week_idx").on(t.sponsorId, t.weekStart)],
+);
+
+export type SponsorMoneyEntry = typeof sponsorMoneyEntries.$inferSelect;
+
+/**
  * 🔴 C231 — THE PATIENT'S OWN NOTIFICATION LOG, and there are TWO logs.
  *
  * The amendment is the whole ruling: *a permanently undeletable entry saying an
@@ -7302,6 +7355,12 @@ export const PATIENT_NOTICE_KINDS = [
   "access_requested",
   /** 🔴 W1-28b (0122): a clinician cancelled, with their reason in `reason`. */
   "session_cancelled",
+  /*
+   * 🔴 W2-S10 (0134): "what your organisation sees has changed". Sent to every
+   * enrolled person BEFORE the company's money ledger includes their sessions;
+   * `enrolments.ledger_told_at` records when.
+   */
+  "benefit_terms",
 ] as const;
 export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
 

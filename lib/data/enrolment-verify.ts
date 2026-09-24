@@ -14,6 +14,7 @@ import {
   sponsors,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
+import { getSettings } from "@/lib/settings";
 import { notify } from "@/lib/notify";
 import { callerKey, consume } from "@/lib/rate-limit";
 
@@ -237,17 +238,28 @@ export async function confirmEnrolmentCode(input: {
  */
 export async function pauseUnverified(now = new Date()): Promise<{ paused: number }> {
   /*
+   * 🔴 W2-S07: THE SAME NUMBER THE COMPANY IS SHOWN.
+   *
+   * Both sponsor screens print `settings.sponsor.verifyCycleMonths` (six), and
+   * this read `sponsors.verify_cycle_months`, a column that defaults to three
+   * and that nothing writes. A company told "every six months" had its people
+   * paused at three. The setting is the one number now; the column is unread.
+   */
+  const settings = await getSettings();
+  const months = settings.sponsor.verifyCycleMonths;
+
+  /*
    * The sponsors whose window has come round, computed in SQL from their own
-   * column so a person's own dates are never part of the decision.
+   * start date so a person's own dates are never part of the decision.
    */
   const due = await controlDb
-    .select({ id: sponsors.id, months: sponsors.verifyCycleMonths })
+    .select({ id: sponsors.id })
     .from(sponsors)
     .where(
       and(
         eq(sponsors.state, "active"),
         sql`${sponsors.verifyCycleStartedAt} IS NOT NULL`,
-        sql`${sponsors.verifyCycleStartedAt} + make_interval(months => ${sponsors.verifyCycleMonths}) <= ${now.toISOString()}`,
+        sql`${sponsors.verifyCycleStartedAt} + make_interval(months => ${months}) <= ${now.toISOString()}`,
       ),
     );
 
@@ -271,7 +283,7 @@ export async function pauseUnverified(now = new Date()): Promise<{ paused: numbe
            */
           or(
             isNull(enrolments.lastVerifiedAt),
-            sql`${enrolments.lastVerifiedAt} + make_interval(months => ${sponsor.months}) <= ${now.toISOString()}`,
+            sql`${enrolments.lastVerifiedAt} + make_interval(months => ${months}) <= ${now.toISOString()}`,
           ),
         ),
       )
@@ -366,4 +378,60 @@ export async function pausedBenefits() {
     .where(and(isNotNull(enrolments.pausedAt), isNull(enrolments.removedAt)))
     /* Longest paused first: the person waiting longest is the one being failed. */
     .orderBy(enrolments.pausedAt);
+}
+
+/**
+ * 🔴 W2-S10 / FIX-PLAN D1: EVERY ENROLLED PERSON IS TOLD BEFORE THE COMPANY'S
+ * MONEY LEDGER INCLUDES THEM.
+ *
+ * Enrolled employees were told their organisation sees "not a date, not a
+ * count". The founder's decision adds a ledger of each session's money with no
+ * name on it, so each of them hears it in the app first, and `payFromPot`
+ * writes an entry only for a session paid after `ledger_told_at`.
+ *
+ * 🔴 The notice first, then the timestamp, and only if the notice was written:
+ * a told-at with no notice behind it would put somebody's sessions in a view
+ * they were never shown. One notice per PERSON, however many organisations they
+ * are enrolled with, and it names none of them (C231).
+ *
+ * Run daily by the billing job, in batches, so a large enrolment base is told
+ * over a few days rather than in one request (H9).
+ */
+export async function tellEnrolledAboutLedger(now = new Date()): Promise<{ told: number }> {
+  const waiting = await controlDb
+    .selectDistinct({ personId: enrolments.personId })
+    .from(enrolments)
+    .where(and(isNull(enrolments.ledgerToldAt), isNull(enrolments.removedAt)))
+    .limit(500);
+
+  let told = 0;
+  for (const { personId } of waiting) {
+    try {
+      await controlDb.insert(patientNotifications).values({
+        personId,
+        kind: "benefit_terms",
+        messageKey: "pnotice.ledgerTold",
+      });
+    } catch (error) {
+      log.warn("ledger notice not written; not marking as told", {
+        reason: error instanceof Error ? error.message.slice(0, 120) : "unknown",
+      });
+      continue;
+    }
+
+    await controlDb
+      .update(enrolments)
+      .set({ ledgerToldAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(enrolments.personId, personId),
+          isNull(enrolments.ledgerToldAt),
+          isNull(enrolments.removedAt),
+        ),
+      );
+    told += 1;
+  }
+
+  if (told > 0) log.info("enrolled people told about the company ledger", { count: told });
+  return { told };
 }

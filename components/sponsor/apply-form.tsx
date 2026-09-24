@@ -43,7 +43,7 @@ export function SponsorApplyForm() {
         <p className="text-sm font-semibold text-slate-900">{t("sponsor.apply.sent")}</p>
         {/* 🔴 C233 — the terms are agreed before any money, and said here. */}
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          {t("sponsor.apply.sentBody")}
+          {t("sponsor.apply.sentBody", { email: state.email ?? "" })}
         </p>
       </Card>
     );
@@ -71,6 +71,19 @@ export function SponsorApplyForm() {
             </label>
           </div>
         </fieldset>
+
+        {/* W2-S09: the country decides which of our two entities bills them. */}
+        <Field label={t("sponsor.apply.country")} htmlFor="apply-country">
+          <select
+            id="apply-country"
+            name="country"
+            defaultValue="EG"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+          >
+            <option value="EG">{t("sponsor.apply.egypt")}</option>
+            <option value="US">{t("sponsor.apply.elsewhere")}</option>
+          </select>
+        </Field>
 
         <Field label={t("sponsor.apply.contact")} htmlFor="apply-contact">
           <Input id="apply-contact" name="contactName" required />

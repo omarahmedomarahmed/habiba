@@ -144,10 +144,10 @@ export function PendingBar({
          * never in question; they measure 11.4 and 14.2.
          */
         stage === "confirmed"
-          ? "flex items-center gap-3 bg-emerald-700 px-4 py-2 text-white"
+          ? "flex items-center gap-3 bg-emerald-700 px-4 py-2 text-white print:hidden"
           : stage === "open"
-            ? "flex items-center gap-3 bg-amber-500 px-4 py-2 text-amber-950"
-            : "flex items-center gap-3 bg-amber-300 px-4 py-2 text-amber-950"
+            ? "flex items-center gap-3 bg-amber-500 px-4 py-2 text-amber-950 print:hidden"
+            : "flex items-center gap-3 bg-amber-300 px-4 py-2 text-amber-950 print:hidden"
       }
     >
       <Link href={href} onClick={openSheet} className="min-w-0 flex-1">

@@ -9,6 +9,7 @@ import {
   patients,
   sessionPayments,
   sessions,
+  sponsorMoneyEntries,
   sponsorPots,
   sponsors,
   therapistVerifications,
@@ -155,11 +156,16 @@ const NO_POT = {
   coverageBps: 0,
   pendingCoverageBps: null,
   pendingCoverageFrom: null,
+  expiresAt: null,
 } as const;
 
 export type PotSpend =
   | { paid: true; sponsorId: string; amountCents: number }
-  | { paid: false; reason: "no_benefit" | "no_pot" | "insufficient" | "nothing_to_pay" };
+  | {
+      paid: false;
+      /** W2-S08: `expired`: the pot's expiry date has passed, so it pays for nothing. */
+      reason: "no_benefit" | "no_pot" | "insufficient" | "nothing_to_pay" | "expired";
+    };
 
 /**
  * 🔴 W2-P15 / E5: WHY THE BENEFIT DID NOT PAY, for the screen that asks for money.
@@ -474,6 +480,25 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       .where(eq(enrolments.id, benefit.enrolmentId));
   };
 
+  /*
+   * 🔴 W2-S08: UNSPENT MONEY EXPIRES ON ITS DATE, AND NOW IT DOES.
+   *
+   * The pot page, the top-up form and every invoice say "Unspent money expires
+   * on {date}", and no code read the date: an expired pot paid for sessions for
+   * ever. It stops here, at booking, the same place an empty pot stops, so the
+   * employee is offered the ordinary pay link. The company is warned by
+   * `alertPots` thirty days before, and on its own pot page.
+   *
+   * Nothing is written off. What happens to an expired balance is the refund
+   * policy agreed when the pot opened (C233), which is a person's decision and
+   * not this function's.
+   */
+  if (pot.expiresAt && pot.expiresAt.getTime() <= Date.now()) {
+    log.info("pot has expired and funds nothing", { session: ref(sessionId) });
+    await releaseProvisional();
+    return { paid: false, reason: "expired" };
+  }
+
   if (pot.balanceCents + pot.overdraftCents < sponsorShare) {
     log.info("pot cannot fund this booking", { session: ref(sessionId) });
     await releaseProvisional();
@@ -722,6 +747,18 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   // 🔴 C382 — the debit used to be here, unconditional, after every irreversible
   // effect above it. It is now the first thing this function claims.
 
+  /* W2-S10: the company's money entry, for a person who has been told. */
+  await recordMoneyEntry({
+    sponsorId: benefit.sponsorId,
+    enrolmentId: benefit.enrolmentId,
+    kind: "session",
+    priceCents: gross,
+    coverageBps,
+    coveredCents: sponsorShare,
+    employeeCents: gross - sponsorShare,
+    paidAt: new Date(),
+  });
+
   log.info("session funded from a pot", { session: ref(sessionId) });
   /*
    * 🔴 The SPONSOR'S SHARE is what was paid from the pot, and the caller uses
@@ -775,6 +812,7 @@ export async function refundToPot(input: {
       grossCents: sessionPayments.grossCents,
       status: sessionPayments.status,
       fundingSource: sessionPayments.fundingSource,
+      coverageBps: sessionPayments.coverageBps,
     })
     .from(sessionPayments)
     .where(eq(sessionPayments.id, input.paymentId))
@@ -856,8 +894,91 @@ export async function refundToPot(input: {
     .set({ status: "refunded" })
     .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")));
 
+  /*
+   * W2-S10: the money back, as its own entry in the company's ledger, if the
+   * session it reverses was in it. Found through the payment's own session
+   * here, inside the money path, and never written to the entry.
+   */
+  const [told] = await controlDb
+    .select({ enrolmentId: enrolments.id, paidAt: sessionPayments.paidAt })
+    .from(sessionPayments)
+    .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .innerJoin(
+      enrolments,
+      and(eq(enrolments.personId, patients.personId), eq(enrolments.sponsorId, spend.refId)),
+    )
+    .where(eq(sessionPayments.id, payment.id))
+    .limit(1);
+
+  if (told) {
+    await recordMoneyEntry({
+      sponsorId: spend.refId,
+      enrolmentId: told.enrolmentId,
+      kind: "refund",
+      priceCents: payment.grossCents,
+      coverageBps: payment.coverageBps ?? 0,
+      coveredCents: payment.grossCents,
+      employeeCents: 0,
+      /* Written only if the session itself was: told before it was paid. */
+      paidAt: told.paidAt ?? new Date(),
+    });
+  }
+
   log.info("pot session refunded", { session: ref(payment.sessionId) });
   return { ok: true };
+}
+
+/**
+ * 🔴 W2-S10 / FIX-PLAN D1: ONE MONEY ENTRY FOR THE COMPANY, WITH NOBODY IN IT.
+ *
+ * Written here, where the split has just been frozen, so the company's ledger
+ * (`lib/data/sponsor-ledger.ts`) never joins anything to read it. The entry
+ * carries the price, the coverage, the two shares, the Monday of the week and a
+ * random `shuffle`; no session, person, therapist or payment id, and no time.
+ *
+ * 🔴 ONLY FOR A PERSON WHO WAS TOLD FIRST. `ledger_told_at` is set when the
+ * in-app notice reaches them (`tellEnrolledAboutLedger`), and a session paid
+ * before it never enters a view they were not told about.
+ *
+ * 🔴 Never allowed to fail a payment. The told-at read is its own query, so a
+ * payment still works on a database that has not had 0134 yet (H16), and any
+ * failure is logged: a missing report line is recoverable, a refused booking
+ * is not.
+ */
+async function recordMoneyEntry(input: {
+  sponsorId: string;
+  enrolmentId: string;
+  kind: "session" | "refund";
+  priceCents: number;
+  coverageBps: number;
+  coveredCents: number;
+  employeeCents: number;
+  paidAt: Date;
+}): Promise<void> {
+  try {
+    const [row] = await controlDb
+      .select({ toldAt: enrolments.ledgerToldAt })
+      .from(enrolments)
+      .where(eq(enrolments.id, input.enrolmentId))
+      .limit(1);
+    if (!row?.toldAt || row.toldAt.getTime() > input.paidAt.getTime()) return;
+
+    const { weekStartOf } = await import("@/lib/sponsor/ledger");
+    const { randomInt } = await import("node:crypto");
+    await controlDb.insert(sponsorMoneyEntries).values({
+      sponsorId: input.sponsorId,
+      kind: input.kind,
+      weekStart: weekStartOf(new Date()),
+      priceCents: Math.max(0, input.priceCents),
+      coverageBps: input.coverageBps,
+      coveredCents: Math.max(0, input.coveredCents),
+      employeeCents: Math.max(0, input.employeeCents),
+      shuffle: randomInt(0, 2_147_483_647),
+    });
+  } catch (error) {
+    log.warn("company money entry not written", { reason: safeErrorMessage(error) });
+  }
 }
 
 /**
@@ -1005,8 +1126,49 @@ export async function topUpPot(input: {
     })
     .where(eq(sponsorPots.id, pot.potId));
 
+  /* W2-S02: the company's own money in, published at once. */
+  await publishTopUp(input.sponsorId, net);
+
   log.info("pot topped up", { sponsor: ref(input.sponsorId) });
   return { ok: true };
+}
+
+/**
+ * 🔴 W2-S02: A TOP-UP IS PUBLISHED THE MOMENT IT LANDS, and only the top-up.
+ *
+ * `potBalance` republished only when pot-funded sessions moved `activityFloor`
+ * past the last publication, so a company that paid in read the old balance, or
+ * "not enough activity", until five more sessions were spent. A top-up is the
+ * company's own act and names nobody, so it is published at once.
+ *
+ * 🔴 ADDED TO THE PUBLISHED FIGURE, NEVER COPIED FROM THE LIVE ONE. Publishing
+ * the live balance here would hand over every session spent since the last
+ * publication in one subtraction (published, plus top-up, minus shown), which is
+ * C229's differencing attack arriving through the money coming in. So the credit
+ * is added to what was already published, and the spend waits for the floor.
+ *
+ * A pot that has never published starts from every credit it has ever had
+ * (`pot_topup` legs only, this one included), which is its balance before any
+ * reported session. Called after the journal, so that sum can see this credit.
+ */
+export async function publishTopUp(sponsorId: string, creditCents: number): Promise<void> {
+  const credit = Math.max(0, Math.round(creditCents));
+  if (credit === 0) return;
+
+  await controlDb.execute(sql`
+    UPDATE sponsor_pots
+       SET published_balance_cents = CASE
+             WHEN published_balance_cents IS NULL THEN (
+               SELECT COALESCE(-SUM(l.amount_cents), 0)::int
+                 FROM ledger_entries l
+                WHERE l.account = 'sponsor_pot'
+                  AND l.ref_type = 'sponsor'
+                  AND l.ref_id = ${sponsorId}
+                  AND l.txn_kind = 'pot_topup')
+             ELSE published_balance_cents + ${credit}
+           END,
+           updated_at = now()
+     WHERE sponsor_id = ${sponsorId}`);
 }
 
 /** Asked of the processor, never of the browser. Any doubt is a no. */
@@ -1147,6 +1309,8 @@ async function potRow(sponsorId: string) {
   const [pot] = await controlDb
     .select({
       potId: sponsorPots.id,
+      /* W2-S08: read at booking, so an expired pot funds nothing. */
+      expiresAt: sponsorPots.expiresAt,
       balanceCents: sponsorPots.balanceCents,
       overdraftCents: sponsorPots.overdraftCents,
       /* 🔴 60.1 / C311 — what this employer covers, and any pending change. */

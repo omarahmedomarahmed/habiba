@@ -47,6 +47,8 @@ export type Benefit = {
   sponsorName: string;
   isPrimary: boolean;
   paused: boolean;
+  /** W2-S11: paused by the organisation. A code does not restart it. */
+  held: boolean;
   /**
    * 🔴 53.19 — a `domain_email` enrolment is not proof until the code is answered,
    * and `payFromPot` has `last_verified_at IS NOT NULL` in its WHERE clause. So an
@@ -121,7 +123,7 @@ export function BenefitForm({
           {benefits.map((benefit) => (
             <Card key={benefit.enrolmentId} className="p-4">
               <p className="text-sm font-semibold text-slate-900">
-                {benefit.paused
+                {benefit.paused || benefit.held
                   ? t("benefit.paused")
                   : !benefit.verified
                     ? t("benefit.unverified")
@@ -131,6 +133,11 @@ export function BenefitForm({
               {benefit.paused ? (
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
                   {t("benefit.pausedBody")}
+                </p>
+              ) : benefit.held ? (
+                /* W2-S11: the organisation paused it; a code cannot restart it. */
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {t("benefit.heldBody")}
                 </p>
               ) : null}
 

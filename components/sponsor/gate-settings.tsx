@@ -1,12 +1,18 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { addGate, dropGate, setPublicListing } from "@/app/(sponsor)/sponsor/settings/actions";
+import { addGate, dropGate } from "@/app/(sponsor)/sponsor/settings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import Link from "next/link";
+
+import type { IdentifierKind } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
+
+import { ConfirmAct } from "./confirm-act";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { matchesGate } from "@/lib/sponsor/gate";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -55,22 +61,46 @@ export type GateField = {
   kind: string;
   domain: string | null;
   shapeHint: string | null;
+  /** Their own gate's pattern, so the test box runs what enrolment runs. */
+  pattern: string | null;
+  /**
+   * 🔴 W2-S06: a domain gate whose domain is not proved refuses everybody
+   * (`enrol` requires a proved domain), and nothing used to say so.
+   */
+  unproved: boolean;
 };
 
 export function GateSettings({
   fields,
-  listed,
   atCap,
 }: {
   fields: GateField[];
-  listed: boolean;
   /** 53.7 — two at most, decided on the server and told to the user here. */
   atCap: boolean;
 }) {
   const t = useT();
   const [state, formAction] = useActionState(addGate, {});
   const [kind, setKind] = useState("domain_email");
-  const [pending, startTransition] = useTransition();
+  const [preset, setPreset] = useState<string>("digits");
+  const [trial, setTrial] = useState("");
+
+  /*
+   * 🔴 W2-S06: THE TEST BOX RUNS THE REAL GATE, the same `matchesGate`
+   * enrolment runs, over the fields already saved. An unproved domain admits
+   * nobody at enrolment, so it admits nobody here either.
+   */
+  const admitted = fields.some(
+    (field) =>
+      !field.unproved &&
+      matchesGate(
+        {
+          kind: field.kind as IdentifierKind,
+          domain: field.domain,
+          pattern: field.pattern,
+        },
+        trial,
+      ),
+  );
 
   return (
     <div className="space-y-4">
@@ -100,17 +130,48 @@ export function GateSettings({
                 {field.domain ? (
                   <span className="font-mono text-xs text-slate-500">{field.domain}</span>
                 ) : null}
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => startTransition(async () => void (await dropGate(field.id)))}
-                  className="tap-target ms-auto h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-200 disabled:opacity-50"
-                >
-                  {t("sponsor.removeField")}
-                </button>
+                {field.unproved ? (
+                  <Link
+                    href="/sponsor/domains"
+                    className="w-full rounded-xl bg-amber-50 p-2 text-xs leading-relaxed text-amber-900 underline"
+                  >
+                    {t("sponsor.gateUnproved")}
+                  </Link>
+                ) : null}
+                {/* W2-S04: the last field gone leaves a code nobody can pass, so ask. */}
+                <ConfirmAct
+                  className="ms-auto"
+                  label={t("sponsor.removeField")}
+                  body={t("sponsor.removeFieldBody")}
+                  done={t("sponsor.fieldRemoved")}
+                  act={() => dropGate(field.id)}
+                />
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {fields.length > 0 ? (
+          <div className="mt-4">
+            <Field label={t("sponsor.gateTry")} htmlFor="gate-try">
+              <Input
+                id="gate-try"
+                autoCapitalize="none"
+                value={trial}
+                onChange={(event) => setTrial(event.target.value)}
+              />
+            </Field>
+            {trial.trim() ? (
+              <p
+                role="status"
+                className={
+                  admitted ? "mt-1 text-xs text-brand-700" : "mt-1 text-xs text-slate-600"
+                }
+              >
+                {admitted ? t("sponsor.gateTryYes") : t("sponsor.gateTryNo")}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {atCap ? (
@@ -139,9 +200,33 @@ export function GateSettings({
                 <Input id="gate-domain" name="domain" autoCapitalize="none" placeholder="" />
               </Field>
             ) : (
-              <Field label={t("sponsor.shapeHint")} htmlFor="gate-pattern" hint={undefined}>
-                <Input id="gate-pattern" name="pattern" autoCapitalize="none" />
-              </Field>
+              /*
+                🔴 W2-S06: a shape and a length, never a typed pattern. This box
+                shared its label with the hint below and was compiled as a
+                regular expression, so a description matched nobody.
+              */
+              <>
+                <Field label={t("sponsor.presetLabel")} htmlFor="gate-preset">
+                  <select
+                    id="gate-preset"
+                    name="preset"
+                    value={preset}
+                    onChange={(event) => setPreset(event.target.value)}
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                  >
+                    <option value="digits">{t("sponsor.presetDigits")}</option>
+                    <option value="prefixed">{t("sponsor.presetPrefixed")}</option>
+                  </select>
+                </Field>
+                {preset === "prefixed" ? (
+                  <Field label={t("sponsor.presetPrefix")} htmlFor="gate-prefix">
+                    <Input id="gate-prefix" name="prefix" autoCapitalize="characters" />
+                  </Field>
+                ) : null}
+                <Field label={t("sponsor.presetLength")} htmlFor="gate-length">
+                  <Input id="gate-length" name="length" type="number" min={1} max={20} />
+                </Field>
+              </>
             )}
 
             <Field label={t("sponsor.shapeHint")} htmlFor="gate-hint">
@@ -161,22 +246,11 @@ export function GateSettings({
         )}
       </Card>
 
-      {/* 🔴 C236 — unlisted is the default, and what listing means is said plainly. */}
-      <Card className="p-5">
-        <p className="text-base font-bold tracking-tight text-slate-900">
-          {t("sponsor.listedTitle")}
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sponsor.listedBody")}</p>
-
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => startTransition(async () => void (await setPublicListing(!listed)))}
-          className="tap-target mt-3 h-10 rounded-xl bg-slate-100 px-4 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-        >
-          {listed ? t("sponsor.listedOn") : t("sponsor.listedOff")}
-        </button>
-      </Card>
+      {/*
+        FIX-PLAN D5: the public listing switch is gone. No public surface ever
+        read `listed_publicly`, so "turning it on tells anybody searching" was a
+        sentence about a search that does not exist. The column stays unlisted.
+      */}
     </div>
   );
 }

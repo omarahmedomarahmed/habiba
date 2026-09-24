@@ -7,6 +7,7 @@ import { PaymentPopup } from "@/components/billing/payment-popup";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { localeTag } from "@/lib/i18n/config";
+import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
 import { Card } from "@/components/ui";
 import { Meter } from "@/components/visual/primitives";
 import { topUpHistory } from "@/lib/billing/invoice";
@@ -117,8 +118,20 @@ export default async function SponsorPotPage() {
       maximumFractionDigits: 0,
     }).format(cents / 100);
 
+  /* W2-S08: the pot stops paying on its date; say so before, and after. */
+  const expiry = expiryState(terms?.expiresAt ?? null);
+
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
+      {expiry && terms?.expiresAt ? (
+        <ExpiryNotice
+          text={
+            expiry === "expired"
+              ? t("sponsor.expiredOn", { date: day(terms.expiresAt) })
+              : t("sponsor.expiresOn", { date: day(terms.expiresAt) })
+          }
+        />
+      ) : null}
       {/*
         🔴 65.12 — THE POT, ITS TERMS AND ITS EXPIRY AS A METER WITH THREE STATES.
 

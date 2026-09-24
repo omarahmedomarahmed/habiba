@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
+import { matchesGate } from "@/lib/sponsor/gate";
 import {
   ATTESTATION_TTL_MINUTES,
   enrolmentAttestations,
@@ -207,46 +208,11 @@ export async function lookupCode(code: string): Promise<CodeLookup> {
 }
 
 /**
- * 🔴 Does this identifier cross the gate? A SHAPE AND A DOMAIN, never a list.
- *
- * Pure, so the rule can be tested without a database, and exported so
- * `verify:sprint53` can assert the weak gate is weak in the way the sponsor was
- * told it is.
- *
- * C246: *prefer an identifier we can prove over one we can only pattern-match.*
- * A `domain_email` is real proof of control once the code sent to it is
- * answered; an `id_number` matched by shape is a weak gate, permitted, and the
- * sponsor is told in plain words that it is guessable and that they carry the
- * risk.
+ * 🔴 W2-S06: the gate itself lives in `lib/sponsor/gate.ts`, pure, so the
+ * company's settings page runs the same function as a test box. Re-exported
+ * here because every caller and `verify:sprint53` already import it from here.
  */
-export function matchesGate(
-  field: { kind: IdentifierKind; domain: string | null; pattern: string | null },
-  value: string,
-): boolean {
-  const trimmed = value.trim().toLowerCase();
-  if (!trimmed) return false;
-
-  if (field.kind === "domain_email") {
-    if (!field.domain) return false;
-    /*
-     * Exactly one @, and the domain matched whole. `endsWith` alone would let
-     * `me@notuniversity.edu` through a gate for `university.edu`.
-     */
-    const parts = trimmed.split("@");
-    if (parts.length !== 2 || !parts[0]) return false;
-    return parts[1] === field.domain.trim().toLowerCase();
-  }
-
-  if (!field.pattern) return false;
-  try {
-    /* Anchored both ends, so a pattern for six digits cannot match sixty. */
-    return new RegExp(`^(?:${field.pattern})$`).test(trimmed);
-  } catch {
-    // A pattern an admin typed wrongly refuses everybody rather than admitting
-    // everybody, which is the safe direction for a gate.
-    return false;
-  }
-}
+export { matchesGate };
 
 export type EnrolResult =
   | { ok: true; needsVerification: boolean }
@@ -626,6 +592,8 @@ export async function myBenefits(personId: string) {
       lastVerifiedAt: enrolments.lastVerifiedAt,
       /* W2-P08: which way a paused row is confirmed again. The kind, never the value. */
       identifierKind: enrolments.identifierKind,
+      /* W2-S11: `paused` here is the organisation's pause, not C247's. */
+      state: enrolments.state,
     })
     .from(enrolments)
     .innerJoin(sponsors, eq(sponsors.id, enrolments.sponsorId))

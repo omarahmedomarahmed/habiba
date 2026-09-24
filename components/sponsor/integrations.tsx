@@ -11,6 +11,8 @@ import { Button, Card, Field } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
+import { ConfirmAct } from "./confirm-act";
+
 /**
  * The HR connection, step by step. PLAN.md 66.2, 66.5 to 66.12, C227, C246.
  *
@@ -31,8 +33,9 @@ import type { MessageKey } from "@/lib/i18n/messages";
  * early sits in a clipboard through three steps.
  */
 
-const STEPS: { title: MessageKey; body: MessageKey }[] = [
-  { title: "sint.step1", body: "sint.step1Body" },
+/* W2-S05 paid for step 1's body, which only repeated its title. */
+const STEPS: { title: MessageKey; body?: MessageKey }[] = [
+  { title: "sint.step1" },
   { title: "sint.step2", body: "sint.step2Body" },
   { title: "sint.step3", body: "sint.step3Body" },
   { title: "sint.step4", body: "sint.step4Body" },
@@ -62,7 +65,6 @@ export function SponsorIntegrations({
   enabled,
   hrSystem,
   systems,
-  failedAttempts,
   keys,
   deliveries,
 }: {
@@ -70,7 +72,6 @@ export function SponsorIntegrations({
   enabled: boolean;
   hrSystem: string | null;
   systems: { key: string; name: string }[];
-  failedAttempts: number;
   keys: HrKeyRow[];
   deliveries: DeliveryRow[];
 }) {
@@ -106,7 +107,6 @@ export function SponsorIntegrations({
         <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
           <p className="font-semibold text-slate-900">{t("sint.neverTitle")}</p>
           <p>{t("sint.neverBody")}</p>
-          <p>{t("sint.onlyBody")}</p>
         </div>
 
         {canManage ? (
@@ -190,7 +190,7 @@ export function SponsorIntegrations({
             <p className="mt-1 text-sm text-slate-600">
               {live
                 ? t("sint.lastAnswered", { when: live.lastSuccessAt ?? "" })
-                : t("sint.neverAnswered")}
+                : t("sint.keyUnused")}
             </p>
           </Card>
 
@@ -208,9 +208,11 @@ export function SponsorIntegrations({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-900">{t(step.title)}</p>
-                    <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
-                      {t(step.body)}
-                    </p>
+                    {step.body ? (
+                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
+                        {t(step.body)}
+                      </p>
+                    ) : null}
 
                     {/*
                       🔴 66.6 — THE SNIPPET AT THE STEP THAT USES IT, and the key
@@ -281,56 +283,37 @@ Content-Type: application/json
                           : (key.lastSuccessAt ?? t("sint.keyUnused"))}
                     </span>
                     {canManage && !key.revoked ? (
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() =>
-                          start(async () => {
-                            const result = await revokeHrKey(key.id);
-                            setError(result.error ?? null);
-                          })
-                        }
-                        className="tap-target ms-auto h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-50"
-                      >
-                        {t("sint.revoke")}
-                      </button>
+                      /* W2-S04: a key stops at once, so ask first and say when it has. */
+                      <ConfirmAct
+                        className="ms-auto"
+                        label={t("sint.revoke")}
+                        body={t("sint.revokeBody")}
+                        done={t("sint.keyRevoked")}
+                        act={() => revokeHrKey(key.id)}
+                      />
                     ) : null}
                   </li>
                 ))}
               </ul>
-              {/* 🔴 66.10 — a revoked key is WHY calls stopped working. */}
-              <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                {t("sint.revokedMeans")}
-              </p>
+              {/*
+                W2-S05 paid for this: "every later call appears below as refused"
+                described a log a sponsor can never have (the delivery log reads
+                partner webhooks), so the sentence was untrue.
+              */}
             </Card>
           ) : null}
 
-          {/* ----------------------------------------------- the spike -- */}
-          {failedAttempts > 0 ? (
-            <Card className="p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                {t("sint.attemptsTitle")}
-              </p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
-                {failedAttempts}
-              </p>
-              {/*
-                🔴 66.11 — A NUMBER, AND WHAT IT MEANS. Never a list: the identifiers
-                people typed are the roster again, and a list of failed attempts also
-                tells somebody which guesses were close.
-              */}
-              <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                {t("sint.attemptsBody")}
-              </p>
-            </Card>
-          ) : null}
+          {/*
+            W2-S06 paid for this: the "did not match" count is gone. It counted
+            unanswered attestations, which are written only after an enrolment
+            SUCCEEDS, so its sentence about failed matches was untrue (W1-21).
+          */}
 
           {/* --------------------------------------------- the deliveries -- */}
           <Card className="p-5">
             <p className="text-base font-bold tracking-tight text-slate-900">
               {t("sint.logTitle")}
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sint.logBody")}</p>
 
             {deliveries.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">{t("sint.logEmpty")}</p>

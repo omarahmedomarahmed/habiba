@@ -398,6 +398,67 @@ async function main() {
     "naming who pressed a button names no patient, no session and no appointment",
   );
 
+  /*
+   * 🔴 C244'S ONE SANCTIONED EXCEPTION, NAMED, AND NOTHING ELSE LET THROUGH.
+   * W2-S10, FIX-PLAN D1 (the founder's decision of 2026-09-24).
+   *
+   * A company sees each pot-funded session's MONEY: price, coverage, covered
+   * amount, the employee's share, dated by the week. Never a name, a therapist,
+   * a specialty, an exact date, or anything reached by joining a session. So the
+   * exception is one table written in the money path (`sponsor_money_entries`,
+   * no key to anybody) and one module that reads it and nothing else. Every
+   * rule above still holds for every other file; these three checks hold the
+   * exception to exactly its shape.
+   */
+  const MONEY_VIEW = "lib/data/sponsor-ledger.ts";
+  const MONEY_TABLE = /\b(sponsorMoneyEntries|sponsor_money_entries)\b/;
+  const BEYOND_MONEY =
+    /\b(sessions|patients|people|users|sessionPayments|ledgerEntries|enrolments|sponsorUsers|session_payments|ledger_entries)\b|therapist|specialt|firstName|lastName|first_name|last_name|createdAt|created_at|scheduledAt|paidAt|startedAt/i;
+
+  const view = readSource(MONEY_VIEW);
+  check(
+    "🔴 49.13 / C244 its one exception, the company money view, reads money and a week and nothing else",
+    MONEY_TABLE.test(view) && !BEYOND_MONEY.test(view),
+    MONEY_TABLE.test(view)
+      ? (view.match(BEYOND_MONEY)?.[0] ?? "sponsor_money_entries alone: no name, therapist, specialty, exact date or session join")
+      : "the money view does not read its table",
+  );
+
+  /*
+   * One reader and one writer. The writer is `payFromPot` (and its refund),
+   * where the split is frozen; the schema declares it. A second reader would be
+   * a second place the exception could widen without this file noticing.
+   */
+  const fs = await import("node:fs");
+  const walkTree = (dir: string): string[] =>
+    fs.readdirSync(dir).flatMap((entry: string): string[] => {
+      const path = `${dir}/${entry}`;
+      if (fs.statSync(path).isDirectory()) return walkTree(path);
+      return /\.tsx?$/.test(entry) ? [path] : [];
+    });
+  const MONEY_FILES = new Set([MONEY_VIEW, "lib/billing/pot.ts", "lib/db/schema.ts"]);
+  const strays = ["app", "components", "lib"]
+    .flatMap(walkTree)
+    .filter((file) => !MONEY_FILES.has(file) && MONEY_TABLE.test(readSource(file)));
+  check(
+    "🔴 49.13 / C244 …and nothing else in the product reads that table",
+    strays.length === 0,
+    strays.join(", ") || "one reader, one writer, one schema",
+  );
+
+  /* CONTROL: the view rule catches a planted view that reaches a person or a day. */
+  const PLANTED = [
+    "select({ price: sponsorMoneyEntries.priceCents }).from(sponsorMoneyEntries).innerJoin(sessions)",
+    "select({ who: people.firstName, cost: sponsorMoneyEntries.priceCents })",
+    "select({ at: sponsorMoneyEntries.createdAt })",
+    "select({ by: sponsorMoneyEntries.therapistId })",
+  ];
+  check(
+    "🔴 49.13 CONTROL the exception's rule still catches a session join, a name, an exact date and a therapist",
+    PLANTED.every((source) => BEYOND_MONEY.test(source)),
+    "an exception narrowed to its shape, not an off switch",
+  );
+
   finish("sprint 49");
 }
 
