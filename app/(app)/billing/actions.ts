@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
-import { requireUser } from "@/lib/auth/guard";
+import { requireOrgAccount } from "@/lib/auth/guard";
 import { formatUsd } from "@/lib/billing/plans";
 import type { SeatQuote } from "@/components/billing/seat-manager";
 import {
@@ -54,7 +54,8 @@ export type BillingActionState = { error?: string };
  * whether or not a button exists. So it stops being one.
  */
 async function startSubscription(tierKey: string): Promise<BillingActionState> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
   if (typeof tierKey !== "string" || tierKey.length === 0 || tierKey.length > 64) {
     return { error: "Choose a plan." };
   }
@@ -107,7 +108,8 @@ async function startSubscription(tierKey: string): Promise<BillingActionState> {
  * more than a dialog that asks "are you sure".
  */
 export async function cancelPlan(): Promise<BillingActionState> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
   await cancelSubscription(actor.organizationId);
   revalidatePath("/billing");
   return {};
@@ -115,7 +117,8 @@ export async function cancelPlan(): Promise<BillingActionState> {
 
 /** Undo a cancellation that has not taken effect yet. */
 export async function resumePlan(): Promise<BillingActionState> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
   const ok = await resumeSubscription(actor.organizationId);
   revalidatePath("/billing");
   return ok ? {} : { error: "That plan has already ended. Subscribing again starts a new month." };
@@ -126,7 +129,8 @@ export async function resumePlan(): Promise<BillingActionState> {
  * link for the total.
  */
 export async function payInvoices(invoiceIds: string[]): Promise<BillingActionState> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
   if (invoiceIds.length === 0) return { error: "Select at least one invoice." };
 
   const result = await createInvoiceCheckout({
@@ -166,7 +170,8 @@ export async function declareBillTransfer(
   _prev: TransferState,
   formData: FormData,
 ): Promise<TransferState> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
 
   const { declarePaid, organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
 
@@ -258,7 +263,8 @@ export type SeatState = { error?: string; ok?: boolean };
 export async function quoteSeats(
   toSeats: number,
 ): Promise<{ quote?: SeatQuote; error?: string }> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
 
   const { quoteSeatChange } = await import("@/lib/billing/seats");
   const change = await quoteSeatChange({
@@ -289,7 +295,8 @@ export async function quoteSeats(
  * only honest answer when the thing somebody accepted has moved.
  */
 export async function saveSeats(fromSeats: number, toSeats: number): Promise<SeatState> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
 
   const { applySeatChange } = await import("@/lib/billing/seats");
   const result = await applySeatChange({
@@ -345,7 +352,8 @@ export async function quoteInvoices(invoiceIds: string[]): Promise<{
   lines: { label: string; amountLabel: string }[];
   totalCents: number;
 }> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { amountLabel: "", lines: [], totalCents: 0 };
   const ids = cleanIds(invoiceIds);
 
   const { billLines } = await import("@/lib/billing/bill-lines");
@@ -378,7 +386,8 @@ export async function quoteInvoices(invoiceIds: string[]): Promise<{
  * sheet without touching the picker".
  */
 export async function openBillPayment(invoiceIds: string[] = []): Promise<void> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return;
 
   const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
   if (!(await organizationNeedsTransfer(actor.organizationId))) return;
@@ -441,6 +450,9 @@ function cleanIds(ids: unknown): string[] {
  * already in flight.
  */
 export async function upgradeAndPay(tierKey: string): Promise<BillingActionState> {
+  const { refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
+
   const raised = await startSubscription(tierKey);
   if (raised.error) return raised;
 
@@ -458,7 +470,8 @@ export async function upgradeAndPay(tierKey: string): Promise<BillingActionState
  * proof is in, the payment is a claim about money and belongs to an operator.
  */
 export async function cancelBillPayment(): Promise<void> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return;
   const { cancelCart } = await import("@/lib/billing/cart");
   await cancelCart({ kind: "user", userId: actor.userId, organizationId: actor.organizationId });
   revalidatePath("/billing");

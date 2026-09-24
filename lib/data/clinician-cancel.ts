@@ -1,0 +1,104 @@
+import "server-only";
+
+import { and, eq } from "drizzle-orm";
+
+import { controlDb } from "@/lib/db";
+import { patients, sessionPayments, sessions } from "@/lib/db/schema";
+import { en } from "@/lib/i18n/messages";
+import { log, ref } from "@/lib/logger";
+import { notify } from "@/lib/notify";
+
+export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
+
+/**
+ * 🔴 W1-13: what follows a clinician cancelling a session they had booked.
+ *
+ * The cancellation itself is the caller's (`cancelBooking`, `cancelSession`),
+ * each guarded on who owns the row. This runs only after one of them succeeded,
+ * and does the two things neither did: gives the money back, and tells the
+ * patient why.
+ *
+ *   - Paid by card or from a pot: refunded through `refundSessionPayment`.
+ *   - Paid by bank transfer: that refuses (no charge to reverse), so the
+ *     payment stays `paid` and the patient is told a refund is owed and to
+ *     contact us. Never called refunded when it was not (W1-12).
+ *   - Never paid: the message alone.
+ *
+ * English, like every other message `notify` sends; the words live in the
+ * dictionary. No in-app notice yet: `patient_notifications_kind` has no
+ * cancellation kind, and adding one is a migration.
+ */
+export async function afterClinicianCancel(input: {
+  actorUserId: string;
+  sessionId: string;
+  reason: string;
+}): Promise<{ outcome: ClinicianCancelOutcome }> {
+  const [payment] = await controlDb
+    .select({ id: sessionPayments.id })
+    .from(sessionPayments)
+    .where(and(eq(sessionPayments.sessionId, input.sessionId), eq(sessionPayments.status, "paid")))
+    .limit(1);
+
+  let outcome: ClinicianCancelOutcome = "notified";
+  if (payment) {
+    const { refundSessionPayment } = await import("@/lib/billing/connect");
+    const result = await refundSessionPayment({
+      paymentId: payment.id,
+      reason: `Cancelled by the clinician: ${input.reason}`.slice(0, 200),
+      adminUserId: input.actorUserId,
+    });
+    if (result.error) {
+      log.error("clinician cancellation not refunded, refund owed", {
+        session: ref(input.sessionId),
+        reason: result.error,
+      });
+      outcome = "refund_owed";
+    } else {
+      outcome = "refunded";
+    }
+  }
+
+  const [to] = await controlDb
+    .select({
+      personId: patients.personId,
+      email: patients.email,
+      phone: patients.phone,
+      timezone: patients.timezone,
+      guestEmail: sessions.guestEmail,
+    })
+    .from(sessions)
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .where(eq(sessions.id, input.sessionId))
+    .limit(1);
+
+  const moneyLine =
+    outcome === "refunded"
+      ? en["tshow.refundedBody"]
+      : outcome === "refund_owed"
+        ? en["w1a.refundOwedBody"]
+        : "";
+
+  if (to) {
+    await notify(
+      {
+        personId: to.personId ?? null,
+        email: to.email ?? to.guestEmail ?? null,
+        phone: to.phone ?? null,
+        timezone: to.timezone ?? null,
+      },
+      {
+        kind: "booking.cancelled",
+        subject: en["w1a.noShowCancelled"],
+        body: [
+          en["w1a.cancelledByClinician"],
+          en["w1a.cancelReasonGiven"].replace("{reason}", input.reason),
+          moneyLine,
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      },
+    );
+  }
+
+  return { outcome };
+}

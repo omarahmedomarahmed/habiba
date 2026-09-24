@@ -142,6 +142,10 @@ export async function replacementsFor(input: {
 export type RecoveryResult =
   | { ok: true; outcome: "reassigned"; creditCents: number }
   | { ok: true; outcome: "refunded" }
+  /** 🔴 W1-12: cancelled, and nothing was ever taken, so nothing goes back. */
+  | { ok: true; outcome: "cancelled" }
+  /** 🔴 W1-12: cancelled, money taken, and it could not be returned automatically. */
+  | { ok: true; outcome: "refund_owed" }
   | { ok: false; error: string };
 
 /**
@@ -319,11 +323,19 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
    * condition `offerReplacements` already checked before OFFERING the choice;
    * the read path had it and the two write paths did not.
    */
+  /*
+   * 🔴 W1-12: THE CLAIM IS THE CANCELLATION, NOT THE REFUND.
+   *
+   * This used to write `recovery_outcome = 'refunded'` here, before any money
+   * moved, and then only log a refund that failed. Every bank-transfer payment
+   * fails it (no Stripe charge to reverse), so a patient was told they had their
+   * money back when we still held it. `status` leaving `scheduled` is what makes
+   * the second press lose; `refunded` is written below, only once it is true.
+   */
   const [marked] = await db
     .update(sessions)
     .set({
       status: "cancelled",
-      recoveryOutcome: "refunded",
       recoveryOfferedAt: now,
       updatedAt: now,
     })
@@ -344,40 +356,49 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
     return { ok: false, error: "That session is not overdue or has already been resolved." };
   }
 
-  if (marked.priceCents > 0) {
-    const { sessionPayments } = await import("@/lib/db/schema");
-    const [payment] = await db
-      .select({ id: sessionPayments.id })
-      .from(sessionPayments)
-      .where(
-        and(eq(sessionPayments.sessionId, input.sessionId), eq(sessionPayments.status, "paid")),
-      )
-      .limit(1);
+  const { sessionPayments } = await import("@/lib/db/schema");
+  const [payment] =
+    marked.priceCents > 0
+      ? await db
+          .select({ id: sessionPayments.id })
+          .from(sessionPayments)
+          .where(
+            and(eq(sessionPayments.sessionId, input.sessionId), eq(sessionPayments.status, "paid")),
+          )
+          .limit(1)
+      : [];
 
-    if (!payment) {
-      // Nothing settled, so there is nothing to give back. Not an error: a
-      // session can be priced and unpaid, and cancelling it is the whole
-      // remedy.
-      log.info("no-show refund skipped, nothing settled", { session: ref(input.sessionId) });
-      return { ok: true, outcome: "refunded" };
-    }
-
-    const { refundSessionPayment } = await import("@/lib/billing/connect");
-    const result = await refundSessionPayment({
-      paymentId: payment.id,
-      reason: "Therapist did not join. Automatic refund.",
-      // 🔴 Nobody ordered this. The clock did.
-      adminUserId: null,
-    });
-    if ("error" in result && result.error) {
-      /*
-       * The session stays cancelled and the failure is loud. A refund that
-       * silently did not happen is money we are holding from somebody we have
-       * already let down once.
-       */
-      log.error("no-show refund failed", { session: ref(input.sessionId), reason: result.error });
-    }
+  if (!payment) {
+    // Nothing settled, so there is nothing to give back, and nothing was
+    // refunded either. The cancellation is the whole remedy.
+    log.info("no-show cancelled, nothing settled", { session: ref(input.sessionId) });
+    return { ok: true, outcome: "cancelled" };
   }
+
+  const { refundSessionPayment } = await import("@/lib/billing/connect");
+  const result = await refundSessionPayment({
+    paymentId: payment.id,
+    reason: "Therapist did not join. Automatic refund.",
+    // 🔴 Nobody ordered this. The clock did.
+    adminUserId: null,
+  });
+  if ("error" in result && result.error) {
+    /*
+     * The session stays cancelled, the payment stays `paid` because we still
+     * hold it, and the failure is loud. A refund that silently did not happen
+     * is money we are holding from somebody we have already let down once.
+     */
+    log.error("no-show refund failed, refund owed", {
+      session: ref(input.sessionId),
+      reason: result.error,
+    });
+    return { ok: true, outcome: "refund_owed" };
+  }
+
+  await db
+    .update(sessions)
+    .set({ recoveryOutcome: "refunded", updatedAt: new Date() })
+    .where(eq(sessions.id, input.sessionId));
 
   return { ok: true, outcome: "refunded" };
 }

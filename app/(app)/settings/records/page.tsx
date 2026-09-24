@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 
 import { RecordsPanel } from "@/components/ehr/records-panel";
 import { requireUser } from "@/lib/auth/guard";
+import { mayRunOrgAccount } from "@/lib/auth/org-authority";
 import { connectionsFor, filersOn, isClinicOrganization, writebacksFor } from "@/lib/data/ehr";
+import { orgKindOf } from "@/lib/data/org-kind";
 import { features } from "@/lib/env";
 import { whatIsMissing } from "@/lib/ehr/owner";
 import { getI18n } from "@/lib/i18n/server";
@@ -24,7 +26,7 @@ export default async function SettingsRecordsPage() {
   const actor = await requireUser();
   const { locale } = await getI18n();
 
-  const [connections, filings, filers, onClinicPlan] = await Promise.all([
+  const [connections, filings, filers, onClinicPlan, kind] = await Promise.all([
     connectionsFor(actor.organizationId),
     writebacksFor(actor.organizationId),
     /* 🔴 67.7 — what stops filing if they disconnect. */
@@ -35,6 +37,7 @@ export default async function SettingsRecordsPage() {
      * instead rather than shown a disabled button.
      */
     isClinicOrganization(actor.organizationId),
+    orgKindOf(actor.organizationId),
   ]);
 
   return (
@@ -51,6 +54,8 @@ export default async function SettingsRecordsPage() {
          * connection needs is an organisation that outlives one person.
          */
         onClinicPlan={onClinicPlan}
+        /* 🔴 W1-02: a clinic seat clinician reads the clinic's connection and cannot change it. */
+        canManage={mayRunOrgAccount(kind)}
         filers={filers}
         configured={features.ehr}
         missing={whatIsMissing()}

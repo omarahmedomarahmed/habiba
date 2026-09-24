@@ -84,6 +84,7 @@ export function RecordsPanel({
   onClinicPlan,
   filers,
   actions,
+  canManage,
 }: {
   connections: ConnectionRow[];
   filings: FilingRow[];
@@ -104,10 +105,18 @@ export function RecordsPanel({
   /** 🔴 67.7 — how many clinicians file through this, before they disconnect. */
   filers: number;
   actions: PanelActions;
+  /**
+   * 🔴 W1-02 / W1-22: may this reader connect or disconnect? A clinic seat
+   * clinician and a clinic manager without `team.manage` read the state and
+   * cannot change it, and the server actions refuse them as well.
+   */
+  canManage: boolean;
 }) {
   const t = useT();
   const [state, beginAction] = useActionState(actions.begin, {});
   const [open, setOpen] = useState(false);
+  /* 🔴 W1-22: the connection somebody pressed Disconnect on, asked about before it goes. */
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const live = connections.filter((c) => c.revokedAt === null);
 
@@ -185,29 +194,54 @@ export function RecordsPanel({
                   </p>
                 ) : null}
 
-                <form action={actions.disconnect} className="mt-3">
-                  <input type="hidden" name="connectionId" value={connection.id} />
+                {canManage && confirming !== connection.id ? (
                   <button
-                    type="submit"
-                    className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+                    type="button"
+                    onClick={() => setConfirming(connection.id)}
+                    className="tap-target mt-3 h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
                   >
                     {t("records.disconnect")}
                   </button>
+                ) : null}
 
-                  {/*
-                    🔴 67.7 — WHAT STOPS FILING, AS A NUMBER, BEFORE THE PRESS.
+                {canManage && confirming === connection.id ? (
+                  <form action={actions.disconnect} className="mt-3">
+                    <input type="hidden" name="connectionId" value={connection.id} />
+                    <p className="text-sm font-semibold text-slate-900">
+                      {t("w1a.disconnectConfirm")}
+                    </p>
 
-                    A practice manager pressing this is deciding something about every
-                    clinician on the account. "12 clinicians file notes through this"
-                    is the fact that decides it; without the count the button reads as
-                    undoing a setting.
-                  */}
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                    {filers > 0
-                      ? t("records.disconnectCount", { count: filers })
-                      : t("records.disconnectNone")}
-                  </p>
-                </form>
+                    {/*
+                      🔴 67.7 — WHAT STOPS FILING, AS A NUMBER, BEFORE THE PRESS.
+
+                      A practice manager pressing this is deciding something about every
+                      clinician on the account. "12 clinicians file notes through this"
+                      is the fact that decides it; without the count the button reads as
+                      undoing a setting.
+                    */}
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                      {filers > 0
+                        ? t("records.disconnectCount", { count: filers })
+                        : t("records.disconnectNone")}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        {t("w1a.disconnectYes")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirming(null)}
+                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        {t("common.cancel")}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
               </Card>
             </li>
           ))}
@@ -226,7 +260,13 @@ export function RecordsPanel({
         <p>{t("records.severOnDisconnect")}</p>
       </Card>
 
-      {!configured ? (
+      {!canManage ? (
+        <Card className="p-5">
+          <p className="text-sm leading-relaxed text-slate-600">
+            {isClinic ? t("w1a.recordsAdminOnly") : t("w1a.clinicRunsAccount")}
+          </p>
+        </Card>
+      ) : !configured ? (
         /*
          * 🔴 The screen says which half is missing, rather than offering a button that fails.
          *

@@ -9,6 +9,7 @@ import { PlanCard } from "@/components/billing/plan-card";
 import { SeatManager } from "@/components/billing/seat-manager";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
+import { mayRunOrgAccount } from "@/lib/auth/org-authority";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";
 import { formatUsd } from "@/lib/billing/plans";
 import { currentSeatBill } from "@/lib/billing/seats";
@@ -55,7 +56,7 @@ export default async function BillingPage({
       .where(eq(users.id, actor.userId))
       .limit(1),
     controlDb
-      .select({ name: organizations.name })
+      .select({ name: organizations.name, kind: organizations.kind })
       .from(organizations)
       .where(eq(organizations.id, actor.organizationId))
       .limit(1),
@@ -71,6 +72,15 @@ export default async function BillingPage({
    */
   const viewerName = [me?.first, me?.last].filter(Boolean).join(" ") || actor.email;
   const practiceName = practice?.name ?? null;
+
+  /*
+   * 🔴 W1-02: A CLINIC SEAT CLINICIAN READS THEIR OWN PATIENTS' PAYMENTS, AND
+   * NOTHING OF THE CLINIC'S ACCOUNT. Their session carries the clinic's
+   * organisation id, so every figure below keyed on it is the clinic's: its
+   * seats, its plan, its invoices. The actions refuse them too; this is the
+   * screen not offering what the server will not do.
+   */
+  const runsAccount = mayRunOrgAccount(practice?.kind);
 
   const [summary, invoices, earnings, payments, seatBill] = await Promise.all([
     billingSummary(actor.organizationId),
@@ -107,7 +117,7 @@ export default async function BillingPage({
       userId: actor.userId,
       organizationId: actor.organizationId,
     },
-    needed: needsTransfer && summary.outstandingCents > 0,
+    needed: runsAccount && needsTransfer && summary.outstandingCents > 0,
     settlesCents: summary.outstandingCents,
     lines: bill.lines,
     locale: localeTag(locale),
@@ -151,53 +161,61 @@ export default async function BillingPage({
           card because the seat count is what decides the bill once there is
           one.
         */}
-        {seatBill.seats > 0 ? (
+        {!runsAccount ? (
+          <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">
+            {t("w1a.clinicRunsAccount")}
+          </p>
+        ) : null}
+
+        {runsAccount && seatBill.seats > 0 ? (
           <SeatManager seats={seatBill.seats} monthlyLabel={formatUsd(seatBill.monthlyCents)} />
         ) : null}
 
-        <PlanCard
-          tiers={summary.tiers}
-          currentTierKey={summary.tier.key}
-          creditRemainingCents={summary.credits.remainingCents}
-          creditsExpireOn={
-            summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone, locale) : null
-          }
-          billingEnabled={features.billing}
-          platformFeeCents={summary.platformFeeCents}
-          spentPlatformCents={summary.spentPlatformCents}
-          spentAiCents={summary.spentAiCents}
-          heldEarningsCents={summary.heldEarningsCents}
-          /*
-           * 🔴 57.4 — formatted HERE, on the server, in the therapist's own
-           * zone and language. 12.3 / C84: the same date formatted inside the
-           * client component renders one string on the server pass and another
-           * in the browser, which is a hydration mismatch on the one figure a
-           * subscriber most needs to trust.
-           *
-           * Exactly one is ever non-null. A plan set to stop has an end date; a
-           * plan that will charge again has a renewal date. The card says which
-           * in words, so the two can never be read as each other.
-           */
-          renewsOn={
-            summary.subscription.currentPeriodEnd && !summary.subscription.cancelAtPeriodEnd
-              ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
-              : null
-          }
-          endsOn={
-            summary.subscription.currentPeriodEnd && summary.subscription.cancelAtPeriodEnd
-              ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
-              : null
-          }
-          /*
-           * 🔴 76.34 — WHICH RAIL, so the confirmation can say what happens next.
-           * Asked once above, for the transfer sheet, and read here for the
-           * sentence about it. Two answers to this question is how a screen
-           * promises a checkout on an account that will never see one.
-           */
-          needsTransfer={needsTransfer}
-          /* The same key the sheet below remembers itself under. */
-          paymentStorageKey={actor.organizationId}
-        />
+        {runsAccount ? (
+          <PlanCard
+            tiers={summary.tiers}
+            currentTierKey={summary.tier.key}
+            creditRemainingCents={summary.credits.remainingCents}
+            creditsExpireOn={
+              summary.credits.nextExpiryAt ? formatDate(summary.credits.nextExpiryAt, actor.timezone, locale) : null
+            }
+            billingEnabled={features.billing}
+            platformFeeCents={summary.platformFeeCents}
+            spentPlatformCents={summary.spentPlatformCents}
+            spentAiCents={summary.spentAiCents}
+            heldEarningsCents={summary.heldEarningsCents}
+            /*
+             * 🔴 57.4 — formatted HERE, on the server, in the therapist's own
+             * zone and language. 12.3 / C84: the same date formatted inside the
+             * client component renders one string on the server pass and another
+             * in the browser, which is a hydration mismatch on the one figure a
+             * subscriber most needs to trust.
+             *
+             * Exactly one is ever non-null. A plan set to stop has an end date; a
+             * plan that will charge again has a renewal date. The card says which
+             * in words, so the two can never be read as each other.
+             */
+            renewsOn={
+              summary.subscription.currentPeriodEnd && !summary.subscription.cancelAtPeriodEnd
+                ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
+                : null
+            }
+            endsOn={
+              summary.subscription.currentPeriodEnd && summary.subscription.cancelAtPeriodEnd
+                ? formatDate(summary.subscription.currentPeriodEnd, actor.timezone, locale)
+                : null
+            }
+            /*
+             * 🔴 76.34 — WHICH RAIL, so the confirmation can say what happens next.
+             * Asked once above, for the transfer sheet, and read here for the
+             * sentence about it. Two answers to this question is how a screen
+             * promises a checkout on an account that will never see one.
+             */
+            needsTransfer={needsTransfer}
+            /* The same key the sheet below remembers itself under. */
+            paymentStorageKey={actor.organizationId}
+          />
+        ) : null}
 
         {/*
           🔴 74.2 — THE EGYPTIAN BILL, ABOVE EVERYTHING THEY CANNOT ACT ON.
@@ -274,13 +292,13 @@ export default async function BillingPage({
           </>
         ) : null}
 
-        {!summary.subscription.trialSessionUsed ? (
+        {runsAccount && !summary.subscription.trialSessionUsed ? (
           <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
             {t("portal.billing.firstFree")}
           </p>
         ) : null}
 
-        {summary.subscription.upcomingDiscountCents > 0 ? (
+        {runsAccount && summary.subscription.upcomingDiscountCents > 0 ? (
           <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
             {t("portal.billing.creditWaiting")}
             {summary.subscription.upcomingDiscountReason
@@ -338,8 +356,8 @@ export default async function BillingPage({
            * country, is how a clinician in Cairo met a control that could not
            * work.
            */
-          payable={!needsTransfer}
-          invoices={invoices.map((invoice) => ({
+          payable={runsAccount && !needsTransfer}
+          invoices={(runsAccount ? invoices : []).map((invoice) => ({
             id: invoice.id,
             kind: invoice.kind,
             description: invoice.description,

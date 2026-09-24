@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { CalendarDays, Trash2, X } from "lucide-react";
 
 import { cancel, publish, withdraw } from "@/app/(app)/on-call/schedule-actions";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Button, Card, Input } from "@/components/ui";
 import { byDayIn, dayKey, formatTime, formatWeekday, zoneLabel } from "@/lib/scheduling/tz";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { Locale } from "@/lib/i18n/config";
@@ -55,6 +55,9 @@ export function AvailabilityEditor({
   const [toHour, setToHour] = useState(21);
   const [days, setDays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /* 🔴 W1-13: the booked hour being cancelled, and the reason the patient is sent. */
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
   const [adopted, setAdopted] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -252,13 +255,11 @@ export function AvailabilityEditor({
                         type="button"
                         disabled={pending}
                         aria-label={t("tav.cancelAppointment")}
-                        onClick={() =>
-                          startTransition(async () => {
-                            setError(null);
-                            const result = await cancel(slot.id);
-                            if (result.error) setError(result.error);
-                          })
-                        }
+                        onClick={() => {
+                          setError(null);
+                          setReason("");
+                          setCancelling(slot.id);
+                        }}
                         className="tap-target rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
                       >
                         <X className="h-3.5 w-3.5" aria-hidden />
@@ -283,6 +284,39 @@ export function AvailabilityEditor({
                   </li>
                 ))}
               </ul>
+
+              {day.slots.some((slot) => slot.id === cancelling) ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Input
+                    aria-label={t("w1a.cancelReason")}
+                    placeholder={t("w1a.cancelReason")}
+                    value={reason}
+                    maxLength={300}
+                    onChange={(event) => setReason(event.target.value)}
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        setError(null);
+                        const result = await cancel(cancelling!, reason);
+                        if (result.error) setError(result.error);
+                        else setCancelling(null);
+                      })
+                    }
+                  >
+                    {t("tav.cancelAppointment")}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setCancelling(null)}
+                    className="text-sm font-semibold text-slate-500"
+                  >
+                    {t("common.back")}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

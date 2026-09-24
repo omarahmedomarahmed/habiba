@@ -195,16 +195,38 @@ async function main() {
       approved.error ?? "approved by somebody who is not the clinician",
     );
 
-    const sent = await markPayoutSent({
-      requestId,
-      senderUserId: approverId,
-      proofUrl: "/api/uploads/receipt/verify/payout-proof.png",
-    });
+    /*
+     * 🔴 W1-04: TWO PRESSES AT ONCE. Two people on the queue, or one double
+     * click, both reach "Mark sent". The ledger used to be posted before the
+     * guarded status move, so both calls posted and one payout left the books
+     * twice. Exactly one call may win, and only the winner posts.
+     */
+    const both = await Promise.all(
+      [0, 1].map(() =>
+        markPayoutSent({
+          requestId,
+          senderUserId: approverId!,
+          proofUrl: "/api/uploads/receipt/verify/payout-proof.png",
+        }),
+      ),
+    );
+    const sent = both.find((result) => result.ok) ?? both[0]!;
 
     check(
       "🔴 …and WITH a receipt it goes out, which is what makes refusal 4 a rule rather than a bug",
       Boolean(sent.ok) && !sent.error,
       sent.error ?? "stamped, with the receipt on the row",
+    );
+
+    const posted = await db.execute<{ txns: string }>(sql`
+      SELECT COUNT(DISTINCT txn_id)::text AS txns
+        FROM ledger_entries
+       WHERE txn_kind = 'manual_payout' AND ref_id = ${requestId}`);
+
+    check(
+      "🔴 two concurrent sends post ONE ledger transaction",
+      Number(posted.rows[0]?.txns ?? 0) === 1 && both.filter((result) => result.ok).length === 1,
+      `${posted.rows[0]?.txns ?? 0} ledger transactions, ${both.filter((result) => result.ok).length} calls reported success`,
     );
 
     /*

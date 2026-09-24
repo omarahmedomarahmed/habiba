@@ -37,6 +37,7 @@ import { RECORDING_CONSENT_VERSION } from "@/lib/consent";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { sendSessionInvite } from "@/lib/mail";
 import { finishSession } from "@/lib/session-finish";
+import { cleanCancelReason } from "@/lib/sessions/cancel-reason";
 import { createPrivateRoom, roomFailureText, type RoomInfo } from "@/lib/video";
 import { fullName } from "@/lib/utils";
 
@@ -397,9 +398,27 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
   return { ok: true };
 }
 
-export async function abandonSession(sessionId: string): Promise<void> {
+/**
+ * 🔴 W1-13: a reason is required, and a session that really was cancelled is
+ * followed by `afterClinicianCancel`: the patient is told why and any payment
+ * goes back. This used to cancel and stop.
+ */
+export async function abandonSession(
+  sessionId: string,
+  reasonText: string,
+): Promise<{ error?: string }> {
   const actor = await requireUser();
-  await cancelSession(actor, sessionId);
+
+  const reason = cleanCancelReason(reasonText);
+  if (!reason) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("w1a.cancelReasonNeeded") };
+  }
+
+  if (await cancelSession(actor, sessionId)) {
+    const { afterClinicianCancel } = await import("@/lib/data/clinician-cancel");
+    await afterClinicianCancel({ actorUserId: actor.userId, sessionId, reason });
+  }
   await releaseClaim(sessionId);
   revalidatePath("/sessions");
   redirect("/sessions");

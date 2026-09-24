@@ -714,6 +714,39 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
       break;
     }
 
+    /*
+     * 🔴 W1-01: the one door into `topUpPot`: a charge Stripe says succeeded,
+     * which `topUpPot` asks Stripe about again before crediting. No checkout
+     * creates such a charge yet, so the card rail stays off until one does.
+     */
+    case "payment_intent.succeeded": {
+      const intent = event.data.object;
+      if (intent.metadata?.purpose !== "pot_topup" || !intent.metadata.sponsorId) break;
+
+      const { topUpPot } = await import("./pot");
+      const result = await topUpPot({
+        sponsorId: intent.metadata.sponsorId,
+        amountCents: Number(intent.metadata.creditCents ?? 0),
+        bySponsorUserId: intent.metadata.sponsorUserId ?? null,
+        confirmedCharge: { paymentIntentId: intent.id },
+      });
+      if (result.error) {
+        log.error("a confirmed pot charge was not credited", { reason: result.error });
+        break;
+      }
+
+      const { audit } = await import("@/lib/audit");
+      await audit({
+        actor: null,
+        sponsorUserId: intent.metadata.sponsorUserId ?? null,
+        category: "billing",
+        action: "pot.topped_up",
+        resourceType: "sponsor",
+        resourceId: intent.metadata.sponsorId,
+      });
+      break;
+    }
+
     case "invoice.payment_failed": {
       const invoice = event.data.object;
       const customerId = typeof invoice.customer === "string" ? invoice.customer : null;

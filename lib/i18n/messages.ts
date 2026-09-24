@@ -3929,6 +3929,21 @@ export const en = {
   "atv.missing": "Not found.",
   "atv.sentTo": "Sent to {to}.",
   "clinic.neverContact": "A full name, email or phone",
+  // W1A
+  "w1a.potCardOff": "Card payment is not open yet. Ask us and we will send bank transfer details.",
+  "w1a.potAskUs": "Ask us",
+  "w1a.clinicRunsAccount": "Your clinic's account is run from the clinic portal.",
+  "w1a.disconnectConfirm": "Disconnect this record system?",
+  "w1a.disconnectYes": "Yes, disconnect",
+  "w1a.recordsAdminOnly": "Only the clinic admin can connect or disconnect a record system.",
+  "w1a.noShowCancelled": "Your session is cancelled",
+  "w1a.noShowCancelledBody": "Nothing was charged. We are sorry.",
+  "w1a.refundOwed": "We owe you a refund",
+  "w1a.refundOwedBody": "Your payment could not go back automatically. Contact us and we will return it.",
+  "w1a.cancelledByClinician": "Your clinician cancelled your session.",
+  "w1a.cancelReasonGiven": "Their reason: {reason}",
+  "w1a.cancelReason": "Reason for the patient (no clinical detail)",
+  "w1a.cancelReasonNeeded": "Give the patient a short reason.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7092,6 +7107,21 @@ export const ar: Record<MessageKey, string> = {
   "atv.missing": "غير موجود.",
   "atv.sentTo": "أُرسل إلى {to}.",
   "clinic.neverContact": "اسمًا كاملًا أو بريدًا أو هاتفًا",
+  // W1A
+  "w1a.potCardOff": "الدفع بالبطاقة غير متاح بعد. تواصلوا معنا وسنرسل لكم بيانات التحويل البنكي.",
+  "w1a.potAskUs": "تواصلوا معنا",
+  "w1a.clinicRunsAccount": "يُدار حساب عيادتكم من بوابة العيادة.",
+  "w1a.disconnectConfirm": "هل تريد فصل نظام السجلات هذا؟",
+  "w1a.disconnectYes": "نعم، افصله",
+  "w1a.recordsAdminOnly": "مسؤول العيادة وحده يمكنه ربط نظام السجلات أو فصله.",
+  "w1a.noShowCancelled": "أُلغيت جلستك",
+  "w1a.noShowCancelledBody": "لم يُخصم منك شيء. ونعتذر لك.",
+  "w1a.refundOwed": "نحن مدينون لك باسترداد المبلغ",
+  "w1a.refundOwedBody": "تعذّر ردّ دفعتك تلقائيًا. تواصل معنا وسنعيدها إليك.",
+  "w1a.cancelledByClinician": "ألغى معالجك جلستك.",
+  "w1a.cancelReasonGiven": "السبب: {reason}",
+  "w1a.cancelReason": "السبب للمريض (دون تفاصيل سريرية)",
+  "w1a.cancelReasonNeeded": "اكتب للمريض سببًا قصيرًا.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

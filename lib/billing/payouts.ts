@@ -18,7 +18,7 @@ import { notify } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 
 import { quoteFor } from "./fx";
-import { heldForTherapist, postManualPayout } from "./ledger";
+import { heldForTherapist, postManualPayout, type LedgerExecutor } from "./ledger";
 import { convert, payoutCurrencyFor } from "./money";
 
 /*
@@ -251,6 +251,8 @@ async function move(input: {
   actorUserId: string | null;
   note?: string;
   set?: Record<string, unknown>;
+  /** Runs in the same transaction, and only for the call that won the move. */
+  alsoPost?: (tx: LedgerExecutor) => Promise<unknown>;
 }): Promise<{ ok?: boolean; error?: string }> {
   /*
    * The status is part of the WHERE, so two people pressing the same button
@@ -258,30 +260,39 @@ async function move(input: {
    * payout be sent twice by two members of a three-person team working the
    * same queue at the same hour, which is the exact shape of a double payment.
    */
-  const updated = await db
-    .update(payoutRequests)
-    .set({ status: input.to, updatedAt: new Date(), ...(input.set ?? {}) })
-    .where(
-      and(
-        eq(payoutRequests.id, input.requestId),
-        inArray(payoutRequests.status, input.from),
-      ),
-    )
-    .returning({ id: payoutRequests.id });
+  return db.transaction(async (tx) => {
+    const updated = await tx
+      .update(payoutRequests)
+      .set({ status: input.to, updatedAt: new Date(), ...(input.set ?? {}) })
+      .where(
+        and(
+          eq(payoutRequests.id, input.requestId),
+          inArray(payoutRequests.status, input.from),
+        ),
+      )
+      .returning({ id: payoutRequests.id });
 
-  if (updated.length === 0) {
-    return { error: "That request has already moved on. Reload the queue." };
-  }
+    if (updated.length === 0) {
+      return { error: "That request has already moved on. Reload the queue." };
+    }
 
-  await db.insert(payoutRequestEvents).values({
-    requestId: input.requestId,
-    fromStatus: input.from[0] ?? null,
-    toStatus: input.to,
-    actorUserId: input.actorUserId,
-    note: input.note ?? null,
+    await tx.insert(payoutRequestEvents).values({
+      requestId: input.requestId,
+      fromStatus: input.from[0] ?? null,
+      toStatus: input.to,
+      actorUserId: input.actorUserId,
+      note: input.note ?? null,
+    });
+
+    /*
+     * 🔴 W1-04: the ledger post rides on the WON transition. It used to run
+     * before the move, so both of two concurrent "Mark sent" calls posted and
+     * the loser's legs stayed on the books with no request pointing at them.
+     */
+    if (input.alsoPost) await input.alsoPost(tx);
+
+    return { ok: true };
   });
-
-  return { ok: true };
 }
 
 /**
@@ -368,15 +379,7 @@ export async function markPayoutSent(input: {
   if (!row) return { error: "That request no longer exists." };
   if (row.status !== "approved") return { error: "Only an approved payout can be sent." };
 
-  const txnId = await postManualPayout({
-    requestId: row.id,
-    organizationId: row.organizationId,
-    therapistId: row.therapistId,
-    amountCents: row.amountCents,
-    entity: row.entity,
-    sentByUserId: input.senderUserId,
-  });
-
+  const txnId = crypto.randomUUID();
   const moved = await move({
     requestId: input.requestId,
     from: ["approved"],
@@ -389,6 +392,17 @@ export async function markPayoutSent(input: {
       proofUrl: proof,
       ledgerTxnId: txnId,
     },
+    alsoPost: (tx) =>
+      postManualPayout({
+        requestId: row.id,
+        organizationId: row.organizationId,
+        therapistId: row.therapistId,
+        amountCents: row.amountCents,
+        entity: row.entity,
+        sentByUserId: input.senderUserId,
+        txnId,
+        executor: tx,
+      }),
   });
   if (moved.error) return moved;
 

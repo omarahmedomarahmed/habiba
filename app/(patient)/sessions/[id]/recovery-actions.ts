@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patients, sessions, users } from "@/lib/db/schema";
+import { patients, sessionPayments, sessions, users } from "@/lib/db/schema";
 import {
   recordNoShow,
   refundNoShow,
@@ -44,7 +44,11 @@ export type RecoveryView =
   | { state: "waiting" }
   | { state: "offer"; replacements: Replacement[] }
   | { state: "none" }
-  | { state: "done"; outcome: "reassigned" | "refunded"; creditCents?: number };
+  | {
+      state: "done";
+      outcome: "reassigned" | "refunded" | "cancelled" | "refund_owed";
+      creditCents?: number;
+    };
 
 /**
  * Who could step in, and the no-show recorded at the same moment. 14.2.
@@ -67,6 +71,7 @@ export async function offerReplacements(sessionId: string): Promise<RecoveryView
       patientJoinedAt: sessions.patientJoinedAt,
       status: sessions.status,
       outcome: sessions.recoveryOutcome,
+      noShowAt: sessions.noShowAt,
     })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
@@ -78,6 +83,20 @@ export async function offerReplacements(sessionId: string): Promise<RecoveryView
   if (row.startedAt) return { state: "waiting" };
   if (row.outcome) {
     return { state: "done", outcome: row.outcome === "reassigned" ? "reassigned" : "refunded" };
+  }
+
+  /*
+   * 🔴 W1-12: cancelled as a no-show with no outcome written: nothing was
+   * taken, or money was taken and could not go back by itself. The payment
+   * row says which, because it stays `paid` while we still hold the money.
+   */
+  if (row.status === "cancelled" && row.noShowAt) {
+    const [held] = await db
+      .select({ id: sessionPayments.id })
+      .from(sessionPayments)
+      .where(and(eq(sessionPayments.sessionId, sessionId), eq(sessionPayments.status, "paid")))
+      .limit(1);
+    return { state: "done", outcome: held ? "refund_owed" : "cancelled" };
   }
 
   /*
@@ -171,6 +190,19 @@ export async function takeRefund(sessionId: string): Promise<RecoveryView | { er
    * blames a person we cannot speak for; "we could not put you in front of
    * anybody" is what actually happened.
    */
+  /*
+   * 🔴 W1-12: the message says what happened to the money, and only that. It
+   * used to say "refunded in full" whatever the refund had done. English, like
+   * the rest of this message.
+   */
+  const { en } = await import("@/lib/i18n/messages");
+  const moneyLine =
+    result.outcome === "refunded"
+      ? "You have been refunded in full, including our fee."
+      : result.outcome === "refund_owed"
+        ? en["w1a.refundOwedBody"]
+        : en["w1a.noShowCancelledBody"];
+
   if (row) {
     await notify(
       {
@@ -181,7 +213,7 @@ export async function takeRefund(sessionId: string): Promise<RecoveryView | { er
       {
         kind: "booking.cancelled",
         subject: "We are sorry. Your session did not happen",
-        body: "Nobody joined your session and we could not find anybody else free. You have been refunded in full, including our fee.\n\nThis is our failure, not yours, and you do not need to do anything. Book again whenever you are ready.",
+        body: `Nobody joined your session and we could not find anybody else free. ${moneyLine}\n\nThis is our failure, not yours. Book again whenever you are ready.`,
         link: { label: "Find somebody now", url: `${env.appUrl}/radar` },
         variables: ["24Therapy", "your session"],
       },
@@ -189,5 +221,5 @@ export async function takeRefund(sessionId: string): Promise<RecoveryView | { er
   }
 
   revalidatePath(`/sessions/${sessionId}`);
-  return { state: "done", outcome: "refunded" };
+  return { state: "done", outcome: result.outcome };
 }

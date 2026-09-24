@@ -60,6 +60,9 @@ export class UnbalancedTransaction extends Error {
   }
 }
 
+/** Anything that can insert: the pool, or a transaction opened on it. */
+export type LedgerExecutor = Pick<typeof db, "insert">;
+
 /**
  * Post one balanced transaction.
  *
@@ -75,6 +78,8 @@ export async function journal(input: {
   createdBy?: string | null;
   /** Reuse an id to make a reversal traceable to what it reverses. */
   txnId?: string;
+  /** A transaction to post inside, so the legs commit with the caller's other writes. */
+  executor?: LedgerExecutor;
 }): Promise<string> {
   const legs = input.legs.filter((leg) => leg.amountCents !== 0);
   if (legs.length === 0) return "";
@@ -84,7 +89,7 @@ export async function journal(input: {
 
   const txnId = input.txnId ?? crypto.randomUUID();
 
-  await db.insert(ledgerEntries).values(
+  await (input.executor ?? db).insert(ledgerEntries).values(
     legs.map((leg) => ({
       txnId,
       txnKind: input.kind,
@@ -709,8 +714,12 @@ export async function postManualPayout(input: {
   amountCents: number;
   entity: Entity;
   sentByUserId: string;
+  txnId?: string;
+  executor?: LedgerExecutor;
 }): Promise<string> {
   return journal({
+    txnId: input.txnId,
+    executor: input.executor,
     kind: "manual_payout",
     refType: "payout_request",
     refId: input.requestId,

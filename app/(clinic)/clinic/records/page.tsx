@@ -34,6 +34,8 @@ export default async function ClinicRecordsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
       <RecordsPanel
+        /* 🔴 W1-22: the same gate as both actions: `requireClinicAdmin`. */
+        canManage={actor.role === "admin"}
         isClinic={true}
         /*
          * 🔴 67.1 — THIS PORTAL IS THE CLINIC PLAN.

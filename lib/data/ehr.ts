@@ -127,6 +127,11 @@ export async function revokeConnectionsFor(
   organizationId: string,
   vendor: EhrVendor | null,
   reason: string,
+  /**
+   * 🔴 W1-22: the one connection a person chose to disconnect. Still scoped to
+   * the organisation, so an id from a form cannot reach another practice's row.
+   */
+  connectionId?: string,
 ): Promise<{ revoked: number; severed: number }> {
   const live = await controlDb
     .select({ id: ehrConnections.id })
@@ -136,6 +141,7 @@ export async function revokeConnectionsFor(
         eq(ehrConnections.organizationId, organizationId),
         isNull(ehrConnections.revokedAt),
         ...(vendor ? [eq(ehrConnections.vendor, vendor)] : []),
+        ...(connectionId !== undefined ? [eq(ehrConnections.id, connectionId)] : []),
       ),
     );
 

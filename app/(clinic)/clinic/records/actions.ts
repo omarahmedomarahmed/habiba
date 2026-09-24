@@ -87,9 +87,25 @@ export async function begin(_prev: { error?: string }, formData: FormData): Prom
   );
 }
 
-export async function disconnect(): Promise<void> {
+export async function disconnect(formData: FormData): Promise<void> {
   const actor = await requireClinicAdmin();
-  await revokeConnectionsFor(actor.clinicOrganizationId, null, "disconnected by the practice");
+
+  /*
+   * 🔴 W1-22: the connection the admin chose, and only that one. This used to
+   * ignore the posted id and revoke every live connection the practice had.
+   * `revokeConnectionsFor` still pins the organisation, so a changed id reaches
+   * nothing outside it; a malformed one reaches nothing at all.
+   */
+  const connectionId = String(formData.get("connectionId") ?? "");
+  if (!UUID.test(connectionId)) return;
+
+  const { revoked } = await revokeConnectionsFor(
+    actor.clinicOrganizationId,
+    null,
+    "disconnected by the practice",
+    connectionId,
+  );
+  if (revoked === 0) return;
 
   /*
    * 🔴 Disconnecting stops note filing for every clinician under the practice,
@@ -102,9 +118,11 @@ export async function disconnect(): Promise<void> {
     clinicManagerId: actor.clinicManagerId,
     category: "admin",
     action: "records.disconnected",
-    resourceType: "organization",
-    resourceId: actor.clinicOrganizationId,
+    resourceType: "ehr_connection",
+    resourceId: connectionId,
   });
 
   revalidatePath("/clinic/records");
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -633,6 +633,45 @@ async function main() {
     );
 
     /*
+     * 🔴 W1-22: DISCONNECT REVOKES THE CONNECTION THAT WAS CHOSEN, AND NO OTHER.
+     *
+     * The clinic's Disconnect posted a `connectionId` and the action ignored it,
+     * revoking every live connection the practice had. Two live, one chosen.
+     */
+    const [other] = (
+      await db.execute(sql`
+      INSERT INTO ehr_connections (organization_id, vendor, fhir_base_url, issuer)
+      VALUES (${clinicId}, 'cerner', 'https://example.com/fhir', 'https://example.com')
+      RETURNING id`)
+    ).rows as { id: string }[];
+    const otherId = required(other, "a third connection").id;
+
+    const chosen = await revokeConnectionsFor(clinicId, null, `${tag} one of two`, freshId);
+    const stillLive = (
+      await db.execute(sql`
+      SELECT id FROM ehr_connections WHERE organization_id = ${clinicId} AND revoked_at IS NULL`)
+    ).rows as { id: string }[];
+
+    check(
+      "🔴 W1-22 disconnecting one connection leaves the other live",
+      chosen.revoked === 1 && stillLive.length === 1 && stillLive[0]!.id === otherId,
+      `${chosen.revoked} revoked, ${stillLive.length} still live`,
+    );
+
+    const clinicActions = readSource("app/(clinic)/clinic/records/actions.ts");
+    const panelSource = readSource("components/ehr/records-panel.tsx");
+    const clinicPage = readSource("app/(clinic)/clinic/records/page.tsx");
+
+    check(
+      "🔴 W1-22 the clinic's disconnect is admin-only, reads the chosen id, and asks first",
+      /disconnect\([^)]*formData/.test(clinicActions) &&
+        /requireClinicAdmin\(\)[\s\S]{0,400}connectionId/.test(clinicActions) &&
+        /canManage=\{actor\.role === "admin"\}/.test(clinicPage) &&
+        /records\.disconnectConfirm|w1a\.disconnectConfirm/.test(panelSource),
+      "one connection, by the admin, after a confirm",
+    );
+
+    /*
      * 🔴 AND THE https CHECK, EXERCISED, because the sandbox is deliberately not exempt.
      */
     let httpRefused = false;

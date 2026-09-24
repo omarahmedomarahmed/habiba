@@ -640,6 +640,55 @@ async function main() {
     );
 
     /*
+     * 🔴 W1-01: NO CREDIT WITHOUT A CONFIRMED PAYMENT.
+     *
+     * `topUpPot` used to journal cash as received and raise the balance on
+     * nothing but a form post, so the US card rail credited money nobody paid.
+     * Asked here the way that form asked it: no charge at all, and then a charge
+     * id no processor ever confirmed. Neither may move the balance or the books.
+     */
+    const { topUpPot } = await import("../lib/billing/pot");
+    const potState = async () => {
+      const [row] = (
+        await db.execute(sql`
+          SELECT (SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${fixture.id})::text AS balance,
+                 (SELECT COUNT(*) FROM ledger_entries
+                   WHERE ref_type = 'sponsor' AND ref_id = ${fixture.id})::text AS legs`)
+      ).rows as { balance: string; legs: string }[];
+      return `${row?.balance}/${row?.legs}`;
+    };
+
+    const beforeFree = await potState();
+    const free = await topUpPot({
+      sponsorId: fixture.id,
+      amountCents: 1_000_000,
+      bySponsorUserId: null,
+    } as Parameters<typeof topUpPot>[0]);
+    const unconfirmed = await topUpPot({
+      sponsorId: fixture.id,
+      amountCents: 1_000_000,
+      bySponsorUserId: null,
+      confirmedCharge: { paymentIntentId: "pi_verify53_never_charged" },
+    });
+    const afterFree = await potState();
+
+    check(
+      "🔴 W1-01 a top-up with no confirmed charge moves neither the pot nor the ledger",
+      Boolean(free.error) && Boolean(unconfirmed.error) && beforeFree === afterFree,
+      `balance/legs ${beforeFree} then ${afterFree}; ${free.error ?? "no charge ACCEPTED"}; ${unconfirmed.error ?? "unconfirmed charge ACCEPTED"}`,
+    );
+
+    const { readFileSync } = await import("node:fs");
+    const potActions = readFileSync("app/(sponsor)/sponsor/pot/actions.ts", "utf8");
+    const stripeSource = readFileSync("lib/billing/stripe.ts", "utf8");
+
+    check(
+      "🔴 W1-01 no sponsor action reaches `topUpPot`; only the Stripe webhook does",
+      !/topUpPot\s*\(/.test(potActions) && /payment_intent\.succeeded[\s\S]{0,600}topUpPot\(/.test(stripeSource),
+      "the card rail is off until a checkout confirms a charge",
+    );
+
+    /*
      * 🔴 C239 amended — THE OVERDRAFT IS PER SPONSOR AND BOUNDED.
      *
      * *A sponsor with 400 enrolled people and an empty pot can go 400 sessions
