@@ -157,6 +157,51 @@ export async function revokeCode(actor: Actor, id: string): Promise<{ ok: boolea
   return { ok: done.length > 0 };
 }
 
+/**
+ * 🔴 W2-P13: the person who scanned a live code, connected to its clinician.
+ *
+ * The page said "You are joining {name}" and connected nobody to anybody: the
+ * code was not passed to signup, so a patient who scanned the poster in the
+ * waiting room had an account and no therapist, and the clinician had no way
+ * to invite them to a session.
+ *
+ * What it does, and all it does: the person from the SESSION gets their own
+ * file with this clinician (`patientRowForPerson`), holding the name they gave
+ * us and nothing else. It still names no patient on the poster and reads no
+ * record: history stays behind a claim and a grant, exactly as before. A dead,
+ * revoked or unknown code connects nothing.
+ */
+export async function connectByCode(code: string, personId: string): Promise<{ ok: boolean }> {
+  const normalised = code.trim().toUpperCase();
+  if (!/^[A-HJ-NP-Z2-9]{8}$/.test(normalised)) return { ok: false };
+
+  const [row] = await db
+    .select({
+      userId: therapistCodes.userId,
+      organizationId: therapistCodes.organizationId,
+    })
+    .from(therapistCodes)
+    .innerJoin(users, eq(users.id, therapistCodes.userId))
+    .where(
+      and(
+        eq(therapistCodes.code, normalised),
+        isNull(therapistCodes.revokedAt),
+        isNull(users.deletedAt),
+        eq(users.status, "active"),
+      ),
+    )
+    .limit(1);
+  if (!row) return { ok: false };
+
+  const { patientRowForPerson } = await import("./people");
+  const patientId = await patientRowForPerson({
+    organizationId: row.organizationId,
+    therapistId: row.userId,
+    personId,
+  });
+  return { ok: Boolean(patientId) };
+}
+
 export type ScannedCode =
   | { state: "live"; therapistName: string; credentials: string | null; practiceName: string | null }
   | { state: "revoked" }

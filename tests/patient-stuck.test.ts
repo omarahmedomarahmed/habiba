@@ -260,6 +260,16 @@ test("W2-P12 a radar with nobody on it offers the first bookable hours", () => {
   }
 });
 
+/* ----------------------------------------------------------------- W2-P13 -- */
+
+test("W2-P13 the wall code reaches signup, and a signed-in reader can act on it", () => {
+  const page = code("app/j/[code]/page.tsx");
+  assert.match(page, /<PatientAuthForm mode="signup" wallCode=\{code\} \/>/, "the code was never passed to signup");
+  assert.match(page, /action=\{connectToTherapist\}/, "a signed-in reader was told to create an account");
+  assert.match(code("lib/patient-auth/actions.ts"), /connectByCode\(wallCode, created\.personId\)/);
+  assert.match(code("app/j/[code]/actions.ts"), /connectByCode\(String\(formData\.get\("code"\) \?\? ""\), actor\.personId\)/);
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

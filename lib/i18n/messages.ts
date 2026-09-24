@@ -4004,6 +4004,7 @@ export const en = {
   "pbilling.open": "Still open",
   "pnumber.changed": "Number changed.",
   "prating.send": "Send",
+  "pcode.connect": "Join them",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7242,6 +7243,7 @@ export const ar: Record<MessageKey, string> = {
   "pbilling.open": "لم يُدفع بعد",
   "pnumber.changed": "تغيّر الرقم.",
   "prating.send": "أرسل",
+  "pcode.connect": "انضم إليه",
 };
 
 export const DICTIONARIES = { en, ar } as const;

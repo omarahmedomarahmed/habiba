@@ -34,8 +34,11 @@ export function PatientAuthForm({
   inviteToken = null,
   invitePhone = false,
   next = null,
+  wallCode = null,
 }: {
   mode: "signin" | "signup";
+  /** 🔴 W2-P13: the clinic wall code this signup came from, so it connects them. */
+  wallCode?: string | null;
   /** 🔴 W2-P02: where sign-in returns them to. */
   next?: string | null;
   /** Carried through signup so the claim can be bound to the invited record. */
@@ -69,6 +72,7 @@ export function PatientAuthForm({
           <input type="hidden" name="inviteToken" value={inviteToken} />
         ) : null}
         {next ? <input type="hidden" name="next" value={next} /> : null}
+        {wallCode ? <input type="hidden" name="wallCode" value={wallCode} /> : null}
 
         {mode === "signup" ? (
           <>

@@ -163,7 +163,7 @@ export async function patientSignUp(
     return { error: "We could not create that account. Try signing in instead." };
   }
 
-  const accountId = await db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     /*
      * Their own person, always a new one (5.3's rule, one sprint on).
      *
@@ -190,10 +190,11 @@ export async function patientSignUp(
       })
       .returning({ id: patientAccounts.id });
 
-    return account?.id ?? null;
+    return account ? { accountId: account.id, personId: person.id } : null;
   });
 
-  if (!accountId) return { error: "We could not create that account. Try again." };
+  if (!created) return { error: "We could not create that account. Try again." };
+  const { accountId } = created;
 
   await createPatientSession(accountId);
   log.info("patient account created");
@@ -216,6 +217,16 @@ export async function patientSignUp(
    * OFF, and the patient chooses. Claiming silently at signup would answer a
    * consent question on their behalf.
    */
+  /*
+   * 🔴 W2-P13: the clinic wall's code, carried from `/j/<code>`. The page said
+   * "You are joining" them and signup never heard which code was scanned.
+   */
+  const wallCode = String(formData.get("wallCode") ?? "").trim();
+  if (wallCode) {
+    const { connectByCode } = await import("@/lib/data/therapist-codes");
+    await connectByCode(wallCode, created.personId);
+  }
+
   const inviteToken = String(formData.get("inviteToken") ?? "").trim();
   redirect(inviteToken ? `/patient/invite/${encodeURIComponent(inviteToken)}` : "/patient/claim");
 }

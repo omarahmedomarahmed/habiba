@@ -347,7 +347,43 @@ async function main() {
       !hours.some((hour) => hour.therapistUserId === therapist.id),
       "uncleared left out",
     );
+
+    /* ================================================================ */
+    /*  W2-P13 · THE WALL CODE CONNECTS THE ACCOUNT TO ITS CLINICIAN     */
+    /* ================================================================ */
+
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const wall = () =>
+      Array.from({ length: 8 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+    const live = wall();
+    const retired = wall();
+    await db.execute(sql`
+      INSERT INTO therapist_codes (code, user_id, organization_id, revoked_at)
+      VALUES (${live}, ${cleared.id}, ${org.id}, NULL), (${retired}, ${therapist.id}, ${org.id}, now())`);
+    const scanner = await one<{ id: string }>(sql`
+      INSERT INTO people (first_name, last_name, email)
+      VALUES ('Omar', 'Demo', ${`omar.${fixture}@example.com`}) RETURNING id`);
+
+    const { connectByCode } = await import("../lib/data/therapist-codes");
+    const joined = await connectByCode(live.toLowerCase(), scanner.id);
+    const refused = await connectByCode(retired, scanner.id);
+    const files2 = await one<{ live: number; retired: number }>(sql`
+      SELECT COUNT(*) FILTER (WHERE therapist_id = ${cleared.id})::int AS live,
+             COUNT(*) FILTER (WHERE therapist_id = ${therapist.id})::int AS retired
+        FROM patients WHERE person_id = ${scanner.id}`);
+    check(
+      "🔴 W2-P13 scanning a live wall code connects the person to that clinician",
+      joined.ok && files2.live === 1,
+      `ok=${joined.ok}, files=${files2.live}`,
+    );
+    check(
+      "W2-P13 CONTROL …and a revoked code connects nobody",
+      !refused.ok && files2.retired === 0,
+      `ok=${refused.ok}, files=${files2.retired}`,
+    );
   } finally {
+    await db.execute(sql`DELETE FROM therapist_codes WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM therapist_verifications WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM session_feedback WHERE organization_id IN
