@@ -36,7 +36,7 @@ export async function replaceCode(): Promise<{ ok: true }> {
 }
 
 /**
- * 🔴 W2-S03 — the first code, which only an operator could make.
+ * 🔴 W2-S03: the first code, which only an operator could make.
  *
  * Admin only, like a rotation, and it refuses when a code is already live, so it
  * cannot strand a poster the way a replacement does.

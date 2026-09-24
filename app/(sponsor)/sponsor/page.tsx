@@ -140,7 +140,7 @@ export default async function SponsorOverviewPage() {
         ? t("sponsor.planUnknown")
         : t("sponsor.budgetBody", { percent: usedPercent });
 
-  /* W2-S08 — the pot stops paying on its date; say so before, and after. */
+  /* W2-S08: the pot stops paying on its date; say so before, and after. */
   const expiry = expiryState(terms?.expiresAt ?? null);
 
   return (

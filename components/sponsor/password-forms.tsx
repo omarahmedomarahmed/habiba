@@ -9,7 +9,7 @@ import { Button, Card, Field, Input } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
 /**
- * 🔴 W2-S05 — the two doors a company user who cannot sign in comes through:
+ * 🔴 W2-S05: the two doors a company user who cannot sign in comes through:
  * asking for a link, and setting a password from one (a reset, or an invite
  * from a colleague). Both were missing, so the only way back in was a call.
  */

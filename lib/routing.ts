@@ -99,7 +99,7 @@ export const STAFF_SIGN_IN = "/staff/sign-in";
 export const SPONSOR_COOKIE = "24t_sponsor";
 export const SPONSOR_SIGN_IN = "/sponsor/sign-in";
 /**
- * 🔴 W2-S05 — the way back in, and the way in for an invited colleague. Doors
+ * 🔴 W2-S05: the way back in, and the way in for an invited colleague. Doors
  * like the sign-in page: open signed out, and a signed-in holder is sent home.
  */
 export const SPONSOR_FORGOT = "/sponsor/forgot-password";
@@ -162,7 +162,7 @@ export const PARTNER_APPLY = "/partner/apply";
 export const SPONSOR_APPLY = "/sponsor/apply";
 
 /**
- * 🔴 W2-S01 — the domain mailbox link, opened by an IT contact with no login.
+ * 🔴 W2-S01: the domain mailbox link, opened by an IT contact with no login.
  *
  * `confirmDomainMailbox` is authorised by the HMAC in the link (C318), and the
  * page carries no guard for that reason. Until this was listed the router sent

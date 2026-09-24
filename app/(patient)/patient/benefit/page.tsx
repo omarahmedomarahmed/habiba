@@ -48,7 +48,7 @@ export default async function BenefitPage() {
           sponsorName: benefit.sponsorName,
           isPrimary: benefit.isPrimary,
           paused: benefit.pausedAt !== null,
-          /* W2-S11 — paused by the organisation, which no code can undo. */
+          /* W2-S11: paused by the organisation, which no code can undo. */
           held: benefit.state === "paused",
           /* 🔴 53.19 — proof, not a pattern. `payFromPot` requires this too. */
           verified: benefit.lastVerifiedAt !== null,

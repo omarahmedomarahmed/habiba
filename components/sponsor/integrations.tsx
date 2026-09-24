@@ -283,7 +283,7 @@ Content-Type: application/json
                           : (key.lastSuccessAt ?? t("sint.keyUnused"))}
                     </span>
                     {canManage && !key.revoked ? (
-                      /* W2-S04 — a key stops at once, so ask first and say when it has. */
+                      /* W2-S04: a key stops at once, so ask first and say when it has. */
                       <ConfirmAct
                         className="ms-auto"
                         label={t("sint.revoke")}

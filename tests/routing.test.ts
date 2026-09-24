@@ -436,7 +436,7 @@ test("C264 CONTROL the overlap check catches a planted overlap", () => {
 });
 
 /**
- * 🔴 W2-S01 — the domain mailbox link opens for the IT contact it was mailed to.
+ * 🔴 W2-S01: the domain mailbox link opens for the IT contact it was mailed to.
  *
  * `confirmDomainMailbox` is authorised by the HMAC in the link, and the page says
  * it has no guard on purpose. The router still bounced a stranger to the sponsor
@@ -444,7 +444,7 @@ test("C264 CONTROL the overlap check catches a planted overlap", () => {
  * Only the confirm path opens: the domains page itself stays behind the door.
  */
 /**
- * 🔴 W2-S05 — a company user who cannot sign in can still reach the two pages
+ * 🔴 W2-S05: a company user who cannot sign in can still reach the two pages
  * that let them: asking for a reset link, and setting a password from one.
  */
 test("W2-S05 forgot password and set password are reachable signed out", () => {

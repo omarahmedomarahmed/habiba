@@ -118,7 +118,7 @@ export default async function SponsorPotPage() {
       maximumFractionDigits: 0,
     }).format(cents / 100);
 
-  /* W2-S08 — the pot stops paying on its date; say so before, and after. */
+  /* W2-S08: the pot stops paying on its date; say so before, and after. */
   const expiry = expiryState(terms?.expiresAt ?? null);
 
   return (

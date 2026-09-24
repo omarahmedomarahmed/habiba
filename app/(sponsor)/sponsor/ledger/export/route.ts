@@ -9,7 +9,7 @@ import { filterLedger, ledgerCsvRows, parseLedgerQuery, sortLedger } from "@/lib
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 W2-S10 — THE COMPANY'S MONEY LEDGER AS A CSV, the rows on the page with the
+ * 🔴 W2-S10: THE COMPANY'S MONEY LEDGER AS A CSV, the rows on the page with the
  * same filters and sort, and no more: a week, a kind and four amounts, never a
  * name, a therapist or a specialty (the table has none to give).
  *

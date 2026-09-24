@@ -261,7 +261,7 @@ const JOBS = {
     const potAlerts = await alertPots();
 
     /*
-     * W2-S10 — every enrolled person is told, in the app, that their company
+     * W2-S10: every enrolled person is told, in the app, that their company
      * sees each session's money with no name on it, BEFORE any of their
      * sessions enters that view. `payFromPot` checks the timestamp this sets.
      */

@@ -49,7 +49,7 @@ export function matchesGate(
 }
 
 /**
- * 🔴 W2-S06 — THE SHAPES A COMPANY PICKS, INSTEAD OF A PATTERN IT TYPES.
+ * 🔴 W2-S06: THE SHAPES A COMPANY PICKS, INSTEAD OF A PATTERN IT TYPES.
  *
  * The form asked "How would you describe a valid one" twice, once for the
  * pattern and once for the hint, and compiled the first as a regular

@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Reset your password", robots: { inde
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 W2-S05 — the way back in for a company user who forgot their password.
+ * 🔴 W2-S05: the way back in for a company user who forgot their password.
  * A door, like the sign-in page: open signed out (`lib/routing.ts`).
  */
 export default async function SponsorForgotPasswordPage() {

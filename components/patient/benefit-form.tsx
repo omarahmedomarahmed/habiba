@@ -46,7 +46,7 @@ export type Benefit = {
   sponsorName: string;
   isPrimary: boolean;
   paused: boolean;
-  /** W2-S11 — paused by the organisation. A code does not restart it. */
+  /** W2-S11: paused by the organisation. A code does not restart it. */
   held: boolean;
   /**
    * 🔴 53.19 — a `domain_email` enrolment is not proof until the code is answered,
@@ -115,7 +115,7 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
                   {t("benefit.pausedBody")}
                 </p>
               ) : benefit.held ? (
-                /* W2-S11 — the organisation paused it; a code cannot restart it. */
+                /* W2-S11: the organisation paused it; a code cannot restart it. */
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
                   {t("benefit.heldBody")}
                 </p>

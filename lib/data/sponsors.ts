@@ -87,7 +87,7 @@ export type RosterEntry = {
   /** Whether their funding is paused. C247 — they were not reached. */
   paused: boolean;
   /**
-   * 🔴 W2-S11 — paused BY THIS COMPANY, which is its own act and so its own to
+   * 🔴 W2-S11: paused BY THIS COMPANY, which is its own act and so its own to
    * see and to undo. A re-verification pause (`paused`) is not: the page never
    * renders that one (E2), because it is stamped when one person comes back.
    */
@@ -110,7 +110,7 @@ export async function roster(sponsorId: string): Promise<RosterEntry[]> {
       lastVerifiedAt: enrolments.lastVerifiedAt,
       pausedAt: enrolments.pausedAt,
       /*
-       * W2-S11 — a boolean, never the state itself: `provisional` is somebody
+       * W2-S11: a boolean, never the state itself: `provisional` is somebody
        * who enrolled in the last few days, which is the join date by another
        * name.
        */
@@ -394,7 +394,7 @@ export async function identifierFields(sponsorId: string) {
       kind: sponsorIdentifierFields.kind,
       domain: sponsorIdentifierFields.domain,
       shapeHint: sponsorIdentifierFields.shapeHint,
-      /* W2-S06 — their own gate, for the test box on their own settings page. */
+      /* W2-S06: their own gate, for the test box on their own settings page. */
       pattern: sponsorIdentifierFields.pattern,
     })
     .from(sponsorIdentifierFields)
@@ -474,7 +474,7 @@ export async function removeFromRoster(input: {
 }
 
 /**
- * 🔴 W2-S11 / D1 — PAUSE AND RESUME ONE PERSON'S BENEFIT, and they are told.
+ * 🔴 W2-S11 / D1: PAUSE AND RESUME ONE PERSON'S BENEFIT, and they are told.
  *
  * The founder's decision: a company controls its employees' benefit (end,
  * pause, resume) and never sees their sessions. Pausing stops the funding and

@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 
 /**
- * 🔴 W2-S04 — ONE SHAPE FOR EVERY ACT A COMPANY CANNOT TAKE BACK.
+ * 🔴 W2-S04: ONE SHAPE FOR EVERY ACT A COMPANY CANNOT TAKE BACK.
  *
  * Replace the code, remove a field, revoke a key: each was one tap, or a second
  * tap with no way back out, and none said it had worked. So each is now the same

@@ -54,7 +54,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
 export type RosterRow = {
   enrolmentId: string;
   name: string;
-  /** W2-S11 — paused by this company. Never a re-verification pause (E2). */
+  /** W2-S11: paused by this company. Never a re-verification pause (E2). */
   held: boolean;
 };
 
@@ -75,7 +75,7 @@ export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemo
   }
 
   /*
-   * 🔴 W2-S04 — a reason CHOOSES, and a separate red button ends it.
+   * 🔴 W2-S04: a reason CHOOSES, and a separate red button ends it.
    *
    * One tap on a reason used to end the benefit on the spot, with no Cancel once
    * the panel was open and nothing said afterwards: the row just vanished.
@@ -113,7 +113,7 @@ export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemo
               </span>
             ) : null}
             {/*
-              W2-S11 — pause and resume, beside end. The person is told in the
+              W2-S11: pause and resume, beside end. The person is told in the
               app, with no employer and no reason; the record is untouched.
             */}
             {canRemove && openFor !== person.enrolmentId ? (

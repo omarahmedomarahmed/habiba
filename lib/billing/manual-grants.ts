@@ -641,7 +641,7 @@ async function grantPotTopUp(payment: ManualPayment): Promise<void> {
     ],
   });
 
-  /* W2-S02 — published at once, after the legs so a first publication sees them. */
+  /* W2-S02: published at once, after the legs so a first publication sees them. */
   const { publishTopUp } = await import("./pot");
   await publishTopUp(payment.sponsorId, net);
 

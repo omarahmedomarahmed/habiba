@@ -15,7 +15,7 @@ import {
 } from "@/lib/sponsor/password-link";
 
 /**
- * 🔴 W2-S05 — A COMPANY RUNS ITS OWN LOGINS.
+ * 🔴 W2-S05: A COMPANY RUNS ITS OWN LOGINS.
  *
  * Every portal login was typed in by an operator at `/admin/sponsors`, with a
  * password somebody then had to hand over, and there was no way back in for a

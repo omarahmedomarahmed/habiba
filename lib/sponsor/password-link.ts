@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 
 /**
- * 🔴 W2-S05 — A COMPANY LOGIN'S RESET AND INVITE LINKS, WITH NO ROW BEHIND THEM.
+ * 🔴 W2-S05: A COMPANY LOGIN'S RESET AND INVITE LINKS, WITH NO ROW BEHIND THEM.
  *
  * The token is `purpose.login.expiry.signature`, where the signature is an HMAC
  * with `AUTH_SECRET` over those three and the login's password hash as it

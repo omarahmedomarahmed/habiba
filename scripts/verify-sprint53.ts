@@ -1324,7 +1324,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W2-S01 — AND THE DOMAIN MAILBOX LINK, WHICH THIS CHECK HAD FORBIDDEN.
+     * 🔴 W2-S01: AND THE DOMAIN MAILBOX LINK, WHICH THIS CHECK HAD FORBIDDEN.
      *
      * It asserted exactly one open route, and so encoded the defect: the confirm
      * link mailed to `postmaster@` could only be pressed by somebody who already

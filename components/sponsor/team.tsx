@@ -15,7 +15,7 @@ import { useT } from "@/lib/i18n/client";
 import { ConfirmAct } from "./confirm-act";
 
 /**
- * 🔴 W2-S05 — who can sign in to this company's portal, and the company's own
+ * 🔴 W2-S05: who can sign in to this company's portal, and the company's own
  * control of it. Everybody sees the list and changes their own password; an
  * admin invites, changes roles and removes. The server re-checks every one.
  */

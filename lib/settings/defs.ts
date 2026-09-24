@@ -427,7 +427,7 @@ export type PlatformSettings = {
      */
     provisionalSessions: number;
     /**
-     * 🔴 W2-S10 / D1 — WHEN A COMPANY SEES EACH SESSION'S MONEY ENTRY.
+     * 🔴 W2-S10 / D1: WHEN A COMPANY SEES EACH SESSION'S MONEY ENTRY.
      *
      * `weekly` (the default) publishes a week's entries once the week is over,
      * shuffled, dated by the week: a live entry at a small company is a person
@@ -1258,7 +1258,7 @@ export function parseGroup<G extends SettingsGroup>(
           min: 0,
           max: 10,
         }),
-        /* W2-S10 — anything but the one word `live` is the safe default. */
+        /* W2-S10: anything but the one word `live` is the safe default. */
         ledgerPublishing: v.ledgerPublishing === "live" ? "live" : "weekly",
       } as PlatformSettings[G];
 

@@ -31,7 +31,7 @@ export default async function SponsorSettingsPage() {
   ]);
 
   /*
-   * 🔴 W2-S06 — enrolment admits a domain gate only for a PROVED domain, so a
+   * 🔴 W2-S06: enrolment admits a domain gate only for a PROVED domain, so a
    * gate naming one that is not proved refuses every employee. Said beside it.
    */
   const fields = saved.map((field) => ({

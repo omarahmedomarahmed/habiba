@@ -208,7 +208,7 @@ export async function lookupCode(code: string): Promise<CodeLookup> {
 }
 
 /**
- * 🔴 W2-S06 — the gate itself lives in `lib/sponsor/gate.ts`, pure, so the
+ * 🔴 W2-S06: the gate itself lives in `lib/sponsor/gate.ts`, pure, so the
  * company's settings page runs the same function as a test box. Re-exported
  * here because every caller and `verify:sprint53` already import it from here.
  */
@@ -525,7 +525,7 @@ export async function myBenefits(personId: string) {
       isPrimary: enrolments.isPrimary,
       pausedAt: enrolments.pausedAt,
       lastVerifiedAt: enrolments.lastVerifiedAt,
-      /* W2-S11 — `paused` here is the organisation's pause, not C247's. */
+      /* W2-S11: `paused` here is the organisation's pause, not C247's. */
       state: enrolments.state,
     })
     .from(enrolments)

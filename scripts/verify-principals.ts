@@ -294,13 +294,13 @@ const SCOPE: Record<string, Scope> = {
   sponsors: { who: ["admin"] },
   "sponsor-admin": { who: ["admin"] },
   /*
-   * W2-S05 — a company's own logins: invite, role, remove, reset, change. It
+   * W2-S05: a company's own logins: invite, role, remove, reset, change. It
    * reads `sponsor_users` and `sponsor_auth_sessions` and nothing about any
    * person the company funds, so a sponsor may call it for its own account.
    */
   "sponsor-users": { who: ["sponsor"] },
   /*
-   * W2-S10 — the company's money ledger, C244's one sanctioned exception. It
+   * W2-S10: the company's money ledger, C244's one sanctioned exception. It
    * reads `sponsor_money_entries` alone, which carries money and a week and no
    * session, person or therapist, so it is not clinical and a sponsor reads it.
    */

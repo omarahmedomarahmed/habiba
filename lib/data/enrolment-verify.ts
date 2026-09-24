@@ -234,7 +234,7 @@ export async function confirmEnrolmentCode(input: {
  */
 export async function pauseUnverified(now = new Date()): Promise<{ paused: number }> {
   /*
-   * 🔴 W2-S07 — THE SAME NUMBER THE COMPANY IS SHOWN.
+   * 🔴 W2-S07: THE SAME NUMBER THE COMPANY IS SHOWN.
    *
    * Both sponsor screens print `settings.sponsor.verifyCycleMonths` (six), and
    * this read `sponsors.verify_cycle_months`, a column that defaults to three
@@ -377,7 +377,7 @@ export async function pausedBenefits() {
 }
 
 /**
- * 🔴 W2-S10 / FIX-PLAN D1 — EVERY ENROLLED PERSON IS TOLD BEFORE THE COMPANY'S
+ * 🔴 W2-S10 / FIX-PLAN D1: EVERY ENROLLED PERSON IS TOLD BEFORE THE COMPANY'S
  * MONEY LEDGER INCLUDES THEM.
  *
  * Enrolled employees were told their organisation sees "not a date, not a

@@ -7053,7 +7053,7 @@ export const enrolments = pgTable(
     provisionalSessionsUsed: integer("provisional_sessions_used").notNull().default(0),
 
     /**
-     * 🔴 W2-S10 (0134) — when this person was told, in the app, that the company
+     * 🔴 W2-S10 (0134): when this person was told, in the app, that the company
      * sees each session's money with no name on it. Null until then, and an
      * entry is only ever written for a session paid AFTER it: nobody's earlier
      * sessions appear in a view they were never told about.
@@ -7208,7 +7208,7 @@ export const sponsorPots = pgTable(
 export type SponsorPot = typeof sponsorPots.$inferSelect;
 
 /**
- * 🔴 W2-S10 / FIX-PLAN D1 — ONE ROW PER POT-FUNDED SESSION, AND NOBODY IN IT.
+ * 🔴 W2-S10 / FIX-PLAN D1: ONE ROW PER POT-FUNDED SESSION, AND NOBODY IN IT.
  *
  * The founder's decision: a company sees every session's money (price, its
  * coverage, the covered amount, the employee's share) and never a name, a
@@ -7292,7 +7292,7 @@ export const PATIENT_NOTICE_KINDS = [
   /** 🔴 W1-28b (0122): a clinician cancelled, with their reason in `reason`. */
   "session_cancelled",
   /*
-   * 🔴 W2-S10 (0134) — "what your organisation sees has changed". Sent to every
+   * 🔴 W2-S10 (0134): "what your organisation sees has changed". Sent to every
    * enrolled person BEFORE the company's money ledger includes their sessions;
    * `enrolments.ledger_told_at` records when.
    */

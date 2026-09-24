@@ -64,7 +64,7 @@ export type GateField = {
   /** Their own gate's pattern, so the test box runs what enrolment runs. */
   pattern: string | null;
   /**
-   * 🔴 W2-S06 — a domain gate whose domain is not proved refuses everybody
+   * 🔴 W2-S06: a domain gate whose domain is not proved refuses everybody
    * (`enrol` requires a proved domain), and nothing used to say so.
    */
   unproved: boolean;
@@ -85,7 +85,7 @@ export function GateSettings({
   const [trial, setTrial] = useState("");
 
   /*
-   * 🔴 W2-S06 — THE TEST BOX RUNS THE REAL GATE, the same `matchesGate`
+   * 🔴 W2-S06: THE TEST BOX RUNS THE REAL GATE, the same `matchesGate`
    * enrolment runs, over the fields already saved. An unproved domain admits
    * nobody at enrolment, so it admits nobody here either.
    */
@@ -138,7 +138,7 @@ export function GateSettings({
                     {t("sponsor.gateUnproved")}
                   </Link>
                 ) : null}
-                {/* W2-S04 — the last field gone leaves a code nobody can pass, so ask. */}
+                {/* W2-S04: the last field gone leaves a code nobody can pass, so ask. */}
                 <ConfirmAct
                   className="ms-auto"
                   label={t("sponsor.removeField")}
@@ -201,7 +201,7 @@ export function GateSettings({
               </Field>
             ) : (
               /*
-                🔴 W2-S06 — a shape and a length, never a typed pattern. This box
+                🔴 W2-S06: a shape and a length, never a typed pattern. This box
                 shared its label with the hint below and was compiled as a
                 regular expression, so a description matched nobody.
               */
@@ -247,7 +247,7 @@ export function GateSettings({
       </Card>
 
       {/*
-        FIX-PLAN D5 — the public listing switch is gone. No public surface ever
+        FIX-PLAN D5: the public listing switch is gone. No public surface ever
         read `listed_publicly`, so "turning it on tells anybody searching" was a
         sentence about a search that does not exist. The column stays unlisted.
       */}

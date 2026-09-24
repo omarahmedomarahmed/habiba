@@ -1,5 +1,5 @@
 /**
- * 🔴 W2-S10 / FIX-PLAN D1 — THE COMPANY'S MONEY LEDGER, AS ARITHMETIC.
+ * 🔴 W2-S10 / FIX-PLAN D1: THE COMPANY'S MONEY LEDGER, AS ARITHMETIC.
  *
  * The founder's decision: a company sees every pot-funded session's money entry
  * (price, coverage, covered amount, the employee's share) with analytics,

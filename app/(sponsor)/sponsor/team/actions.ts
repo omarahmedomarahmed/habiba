@@ -17,7 +17,7 @@ import { requireSponsor, requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 export type TeamState = { error?: string; ok?: boolean };
 
 /**
- * 🔴 W2-S05 — a company's own logins, which only an operator could make.
+ * 🔴 W2-S05: a company's own logins, which only an operator could make.
  *
  * Inviting, changing a role and removing are admin acts, like every other write
  * in this portal, and each is audited against the sponsor user who did it.

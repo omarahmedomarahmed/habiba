@@ -1,5 +1,5 @@
 /**
- * 🔴 W2-S08 — THE POT'S DATE, ON THE COMPANY'S OWN SCREEN, WHEN IT MATTERS.
+ * 🔴 W2-S08: THE POT'S DATE, ON THE COMPANY'S OWN SCREEN, WHEN IT MATTERS.
  *
  * `payFromPot` stops paying on the expiry date. Thirty days before, the pot page
  * and the overview say so in amber (the admins are also emailed by `alertPots`);

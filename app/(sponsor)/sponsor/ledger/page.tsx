@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 const SHOWN = 500;
 
 /**
- * 🔴 W2-S10 / FIX-PLAN D1 — EVERY POT-FUNDED SESSION'S MONEY, AND NOBODY IN IT.
+ * 🔴 W2-S10 / FIX-PLAN D1: EVERY POT-FUNDED SESSION'S MONEY, AND NOBODY IN IT.
  *
  * The founder's decision: a company sees each session's price, its coverage,
  * the covered amount and the employee's share, with analytics, filters,

@@ -8,7 +8,7 @@ import { getSettings } from "@/lib/settings";
 import { lastPublishedWeek, type LedgerEntry } from "@/lib/sponsor/ledger";
 
 /**
- * 🔴 W2-S10 / FIX-PLAN D1 — THE COMPANY'S MONEY VIEW. C244'S ONE EXCEPTION.
+ * 🔴 W2-S10 / FIX-PLAN D1: THE COMPANY'S MONEY VIEW. C244'S ONE EXCEPTION.
  *
  * C244 forbids company reporting from joining sessions, dates or names. The
  * founder's decision of 2026-09-24 makes one exception: a company sees each

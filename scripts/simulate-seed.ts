@@ -520,7 +520,7 @@ async function main() {
         contactEmail: application.contactEmail,
         contactPhone: application.contactPhone,
         contactBestTime: application.contactBestTime,
-        /* W2-S09 — what the public form sends the applicant, in English. */
+        /* W2-S09: what the public form sends the applicant, in English. */
         acknowledgement: {
           subject: "We have your enquiry",
           body: `We will call ${application.contactName} about ${application.name}. Nothing is set up before that call.`,

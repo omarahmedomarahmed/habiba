@@ -26,7 +26,7 @@ export async function addGate(_prev: GateState, formData: FormData): Promise<Gat
   }
 
   /*
-   * 🔴 W2-S06 — the pattern is BUILT from a preset, never typed. A description
+   * 🔴 W2-S06: the pattern is BUILT from a preset, never typed. A description
    * typed into a pattern box compiled into a gate that matched nobody.
    */
   let pattern: string | null = null;

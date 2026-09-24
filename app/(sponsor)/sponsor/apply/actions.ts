@@ -35,7 +35,7 @@ export async function apply(_prev: ApplyState, formData: FormData): Promise<Appl
     contactEmail: String(formData.get("contactEmail") ?? ""),
     contactPhone: String(formData.get("contactPhone") ?? ""),
     contactBestTime: String(formData.get("contactBestTime") ?? ""),
-    /* W2-S09 — the entity follows the country, and the applicant hears from us. */
+    /* W2-S09: the entity follows the country, and the applicant hears from us. */
     country: String(formData.get("country") ?? ""),
     acknowledgement: {
       subject: t("sponsor.apply.mailSubject"),

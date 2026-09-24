@@ -74,7 +74,7 @@ export async function endBenefit(enrolmentId: string, reason: string): Promise<R
 }
 
 /**
- * 🔴 W2-S11 / D1 — PAUSE AND RESUME, beside END.
+ * 🔴 W2-S11 / D1: PAUSE AND RESUME, beside END.
  *
  * The founder's decision widened the paragraph above: a company controls its
  * employees' benefit (end, pause, resume) and still performs no act that reads

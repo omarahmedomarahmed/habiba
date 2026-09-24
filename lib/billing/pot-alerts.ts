@@ -132,11 +132,11 @@ export async function alertPots(): Promise<{ alerted: number }> {
   return { alerted };
 }
 
-/** W2-S08 — how long before its date a pot is warned that it will expire. */
+/** W2-S08: how long before its date a pot is warned that it will expire. */
 export const EXPIRY_WARNING_DAYS = 30;
 
 /**
- * 🔴 W2-S08 — THE WARNING BEFORE A POT EXPIRES, once per expiry date.
+ * 🔴 W2-S08: THE WARNING BEFORE A POT EXPIRES, once per expiry date.
  *
  * `payFromPot` stops paying on the date, so the company hears about it thirty
  * days before, while there is time to agree an extension. Keyed on the date in
@@ -211,7 +211,7 @@ async function tellAdmins(
   }
 
   /*
-   * W2-S08 — the expiry warning's words live in the dictionary. A company user
+   * W2-S08: the expiry warning's words live in the dictionary. A company user
    * carries no language, so it goes in English, like the two above it.
    */
   const en = translator("en");

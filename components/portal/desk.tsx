@@ -141,7 +141,7 @@ export function Desk({
   const switcher = routed === null ? null : <LanguageSwitch />;
 
   /*
-   * W2-S03 — the rail, the top bar and the wall are `print:hidden`, so a
+   * W2-S03: the rail, the top bar and the wall are `print:hidden`, so a
    * company printing its joining code poster gets the poster and not the portal.
    */
   return (

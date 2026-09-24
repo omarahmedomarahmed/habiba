@@ -86,7 +86,7 @@ export function CodeCard({
         </button>
 
         {canRotate ? (
-          /* W2-S04 — a Cancel beside the red button, and a line once it is done. */
+          /* W2-S04: a Cancel beside the red button, and a line once it is done. */
           <ConfirmAct
             label={t("sponsor.codeRotate")}
             body={t("sponsor.codeRotateBody")}
@@ -100,7 +100,7 @@ export function CodeCard({
 }
 
 /**
- * W2-S03 — the first code, pressed by the company. `createCode` refuses when a
+ * W2-S03: the first code, pressed by the company. `createCode` refuses when a
  * code is already live, so this can never do what "Replace this code" does.
  */
 export function CreateCode() {

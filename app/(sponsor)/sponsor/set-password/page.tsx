@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Set your password", robots: { index:
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 W2-S05 — a password from a reset or invite link. The token in the link is
+ * 🔴 W2-S05: a password from a reset or invite link. The token in the link is
  * the whole authorisation (`setSponsorPassword` checks it), so the page itself
  * has no guard and says nothing about which company it belongs to.
  */

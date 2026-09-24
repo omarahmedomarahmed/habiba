@@ -57,7 +57,7 @@ export async function applyToSponsor(input: {
   contactPhone: string;
   contactBestTime: string;
   /**
-   * 🔴 W2-S09 — where they are, which decides the entity. Every enquiry landed
+   * 🔴 W2-S09: where they are, which decides the entity. Every enquiry landed
    * on `us`, so an Egyptian company sat on a rail it could not pay through
    * until somebody noticed and moved it.
    */
@@ -81,7 +81,7 @@ export async function applyToSponsor(input: {
   const entity: Entity = (input.country ?? "").trim().toUpperCase() === "EG" ? "eg" : "us";
 
   /*
-   * 🔴 W2-S09 — the applicant is told, every time, at the address they gave.
+   * 🔴 W2-S09: the applicant is told, every time, at the address they gave.
    *
    * Only that address hears it, so a repeat enquiry learns nothing it did not
    * already know, and a stranger typing somebody else's address learns nothing
@@ -96,7 +96,7 @@ export async function applyToSponsor(input: {
   };
 
   /*
-   * 🔴 W2-S09 — ONE ENQUIRY IS ONE HELD ACCOUNT. Every submission inserted a
+   * 🔴 W2-S09: ONE ENQUIRY IS ONE HELD ACCOUNT. Every submission inserted a
    * row, so an impatient HR lead pressing the button three times put three
    * companies in the operator's queue, and the operator could activate the
    * wrong one. The contact address is the key: the same person asking again
@@ -148,7 +148,7 @@ export async function applyToSponsor(input: {
 }
 
 /**
- * 🔴 W2-S09 — AND SOMEBODY HERE IS TOLD. `applyToSponsor` wrote a log line and
+ * 🔴 W2-S09: AND SOMEBODY HERE IS TOLD. `applyToSponsor` wrote a log line and
  * nothing else, so an enquiry waited until somebody happened to open
  * `/admin/sponsors`. The back office is emailed once per new enquiry, with the
  * organisation's name and nothing about any person there. English, like the
@@ -424,7 +424,7 @@ export async function openPot(input: {
       ],
     });
 
-    /* W2-S02 — a credit the company can see, from the day the pot opens. */
+    /* W2-S02: a credit the company can see, from the day the pot opens. */
     const { publishTopUp } = await import("@/lib/billing/pot");
     await publishTopUp(input.sponsorId, credit);
 
@@ -480,7 +480,7 @@ export async function rotateCode(sponsorId: string): Promise<{ code: string }> {
 }
 
 /**
- * 🔴 W2-S03 — THE FIRST CODE, MADE BY THE COMPANY ITSELF.
+ * 🔴 W2-S03: THE FIRST CODE, MADE BY THE COMPANY ITSELF.
  *
  * Only an operator's `mintCode` could make one, and the company's code page said
  * "You have no joining code yet" with nothing to press. This mints one only when
@@ -602,7 +602,7 @@ export async function removeIdentifierField(
 }
 
 /*
- * FIX-PLAN D5 — `setListed` is gone with the switch that called it. Nothing
+ * FIX-PLAN D5: `setListed` is gone with the switch that called it. Nothing
  * public ever read `listed_publicly`, and every sponsor stays unlisted (C236).
  */
 

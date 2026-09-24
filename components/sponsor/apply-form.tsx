@@ -72,7 +72,7 @@ export function SponsorApplyForm() {
           </div>
         </fieldset>
 
-        {/* W2-S09 — the country decides which of our two entities bills them. */}
+        {/* W2-S09: the country decides which of our two entities bills them. */}
         <Field label={t("sponsor.apply.country")} htmlFor="apply-country">
           <select
             id="apply-country"

@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Team", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 W2-S05 — the company's own logins. Every one was made by an operator, so a
+ * 🔴 W2-S05: the company's own logins. Every one was made by an operator, so a
  * company could not add a colleague, take a leaver's access away or change who
  * may make changes. A viewer sees the list and can change their own password.
  */

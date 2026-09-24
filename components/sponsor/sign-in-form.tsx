@@ -31,7 +31,7 @@ export function SponsorSignInForm({ passwordSet = false }: { passwordSet?: boole
 
   return (
     <Card className="p-5">
-      {/* W2-S05 — arriving from a reset or invite link. */}
+      {/* W2-S05: arriving from a reset or invite link. */}
       {passwordSet ? (
         <p role="status" className="mb-4 text-sm font-semibold text-brand-700">
           {t("sponsor.passwordSet")}
@@ -67,7 +67,7 @@ export function SponsorSignInForm({ passwordSet = false }: { passwordSet?: boole
 
         <Submit label={t("sponsor.signIn")} />
       </form>
-      {/* W2-S05 — there was no way back in but a call to us. */}
+      {/* W2-S05: there was no way back in but a call to us. */}
       <Link
         href="/sponsor/forgot-password"
         className="mt-3 inline-block text-xs font-semibold text-slate-600 underline"

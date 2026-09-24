@@ -163,7 +163,7 @@ export type PotSpend =
   | { paid: true; sponsorId: string; amountCents: number }
   | {
       paid: false;
-      /** W2-S08 — `expired`: the pot's expiry date has passed, so it pays for nothing. */
+      /** W2-S08: `expired`: the pot's expiry date has passed, so it pays for nothing. */
       reason: "no_benefit" | "no_pot" | "insufficient" | "nothing_to_pay" | "expired";
     };
 
@@ -412,7 +412,7 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   };
 
   /*
-   * 🔴 W2-S08 — UNSPENT MONEY EXPIRES ON ITS DATE, AND NOW IT DOES.
+   * 🔴 W2-S08: UNSPENT MONEY EXPIRES ON ITS DATE, AND NOW IT DOES.
    *
    * The pot page, the top-up form and every invoice say "Unspent money expires
    * on {date}", and no code read the date: an expired pot paid for sessions for
@@ -678,7 +678,7 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   // 🔴 C382 — the debit used to be here, unconditional, after every irreversible
   // effect above it. It is now the first thing this function claims.
 
-  /* W2-S10 — the company's money entry, for a person who has been told. */
+  /* W2-S10: the company's money entry, for a person who has been told. */
   await recordMoneyEntry({
     sponsorId: benefit.sponsorId,
     enrolmentId: benefit.enrolmentId,
@@ -826,7 +826,7 @@ export async function refundToPot(input: {
     .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")));
 
   /*
-   * W2-S10 — the money back, as its own entry in the company's ledger, if the
+   * W2-S10: the money back, as its own entry in the company's ledger, if the
    * session it reverses was in it. Found through the payment's own session
    * here, inside the money path, and never written to the entry.
    */
@@ -861,7 +861,7 @@ export async function refundToPot(input: {
 }
 
 /**
- * 🔴 W2-S10 / FIX-PLAN D1 — ONE MONEY ENTRY FOR THE COMPANY, WITH NOBODY IN IT.
+ * 🔴 W2-S10 / FIX-PLAN D1: ONE MONEY ENTRY FOR THE COMPANY, WITH NOBODY IN IT.
  *
  * Written here, where the split has just been frozen, so the company's ledger
  * (`lib/data/sponsor-ledger.ts`) never joins anything to read it. The entry
@@ -1057,7 +1057,7 @@ export async function topUpPot(input: {
     })
     .where(eq(sponsorPots.id, pot.potId));
 
-  /* W2-S02 — the company's own money in, published at once. */
+  /* W2-S02: the company's own money in, published at once. */
   await publishTopUp(input.sponsorId, net);
 
   log.info("pot topped up", { sponsor: ref(input.sponsorId) });
@@ -1065,7 +1065,7 @@ export async function topUpPot(input: {
 }
 
 /**
- * 🔴 W2-S02 — A TOP-UP IS PUBLISHED THE MOMENT IT LANDS, and only the top-up.
+ * 🔴 W2-S02: A TOP-UP IS PUBLISHED THE MOMENT IT LANDS, and only the top-up.
  *
  * `potBalance` republished only when pot-funded sessions moved `activityFloor`
  * past the last publication, so a company that paid in read the old balance, or
@@ -1240,7 +1240,7 @@ async function potRow(sponsorId: string) {
   const [pot] = await controlDb
     .select({
       potId: sponsorPots.id,
-      /* W2-S08 — read at booking, so an expired pot funds nothing. */
+      /* W2-S08: read at booking, so an expired pot funds nothing. */
       expiresAt: sponsorPots.expiresAt,
       balanceCents: sponsorPots.balanceCents,
       overdraftCents: sponsorPots.overdraftCents,

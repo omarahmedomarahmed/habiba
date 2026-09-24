@@ -88,7 +88,7 @@ export default async function SponsorCodePage() {
         <Card className="p-5">
           <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.codeNone")}</p>
           {/*
-            W2-S03 — the company makes its own first code. This was a dead end:
+            W2-S03: the company makes its own first code. This was a dead end:
             only an operator could mint one.
           */}
           {actor.role === "admin" ? <CreateCode /> : null}

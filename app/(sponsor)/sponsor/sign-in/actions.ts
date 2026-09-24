@@ -41,7 +41,7 @@ export async function signInSponsor(
 }
 
 /**
- * 🔴 W2-S05 — forgot password. A company user who forgot theirs had no way back
+ * 🔴 W2-S05: forgot password. A company user who forgot theirs had no way back
  * in but a call to us. Rate limited like sign-in, and the answer is the same
  * whether or not the address has a login.
  */
@@ -60,7 +60,7 @@ export async function askForReset(
   return { sent: true };
 }
 
-/** W2-S05 — a password from a reset or invite link, then the sign-in page. */
+/** W2-S05: a password from a reset or invite link, then the sign-in page. */
 export async function setPasswordFromLink(
   _prev: { error?: string },
   formData: FormData,
