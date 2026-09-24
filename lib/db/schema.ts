@@ -460,6 +460,17 @@ export const authTokens = pgTable(
 export const VERIFICATION_STATES = ["draft", "submitted", "approved", "rejected"] as const;
 export type VerificationState = (typeof VERIFICATION_STATES)[number];
 
+/** W1-23: the licence details a clinician asked to change to, awaiting review. */
+export type PendingLicence = {
+  country?: string | null;
+  licenseBody?: string | null;
+  licenseNumber?: string | null;
+  licenseExpiry?: string | null;
+  credentials?: string | null;
+  licenseType?: string | null;
+  licenseState?: string | null;
+};
+
 /**
  * Who a clinician actually is.
  *
@@ -498,6 +509,13 @@ export const therapistVerifications = pgTable(
      */
     licenseExpiredAt: timestamp("license_expired_at", { withTimezone: true }),
     licenseExpiryWarnedAt: timestamp("license_expiry_warned_at", { withTimezone: true }),
+    /**
+     * 🔴 W1-23: a licence change asked for after approval, held for review.
+     * The checked columns above keep what was checked; an approval moves these
+     * in, a rejection drops them. The state stays `approved` meanwhile.
+     */
+    pendingLicence: jsonb("pending_licence").$type<PendingLicence | null>(),
+    recheckSubmittedAt: timestamp("recheck_submitted_at", { withTimezone: true }),
     specialties: jsonb("specialties").$type<string[]>().default([]).notNull(),
     languages: jsonb("languages").$type<string[]>().default([]).notNull(),
 

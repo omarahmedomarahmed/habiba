@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Lock, ShieldCheck } from "lucide-react";
 
 import { VerificationForm } from "@/components/onboarding/verification-form";
+import { LicenceChangeForm } from "@/components/onboarding/licence-change-form";
+import { licenceChangeView } from "@/lib/data/licence-change";
 import { Card } from "@/components/ui";
 import { SeesWhat } from "@/components/visual/primitives";
 import { requireUser } from "@/lib/auth/guard";
@@ -34,6 +36,8 @@ export default async function OnboardingPage() {
     activeTaxonomy("specialty"),
   ]);
   const missing = missingFrom(verification);
+  /* 🔴 W1-23: after approval, licence details change through review. */
+  const change = verification.state === "approved" ? await licenceChangeView(actor) : null;
   /*
    * 20.4 / 20.5 — the labels and regulators an administrator has configured,
    * with the shipped constants underneath. Read on the server; the form needs
@@ -128,6 +132,16 @@ export default async function OnboardingPage() {
           <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
             {t("portal.onboarding.publicOnly")}
           </p>
+        </div>
+      ) : null}
+
+      {change ? (
+        <div className="mt-5">
+          <LicenceChangeForm
+            initial={change.initial}
+            pending={change.pending}
+            reviewNote={change.reviewNote}
+          />
         </div>
       ) : null}
 

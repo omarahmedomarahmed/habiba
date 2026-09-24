@@ -322,6 +322,121 @@ async function main() {
         firstWarning === secondWarning,
       `${JSON.stringify(soonNow)}, warned at ${firstWarning}, then ${secondWarning}`,
     );
+    /* ================================================================ */
+    /*  W1-23 · A LICENCE CHANGE AFTER APPROVAL GOES THROUGH REVIEW      */
+    /* ================================================================ */
+
+    const changer = await clinician("changer", iso(Date.now() + 400 * day));
+    await db.execute(sql`
+      UPDATE users SET profile = ${JSON.stringify({
+        credentials: "LPC",
+        licenseType: "LPC",
+        licenseNumber: "X-1",
+        licenseState: "Cairo",
+      })}::jsonb WHERE id = ${changer.id}`);
+    const changerActor = {
+      ...actor,
+      userId: changer.id,
+      email: `changer.${fixture}@example.com`,
+      firstName: "changer",
+    };
+
+    const { writeProfile, writeVerificationDetails } = await import("../lib/data/licence-change");
+    await writeProfile(changerActor as never, {
+      firstName: "changer",
+      lastName: "Demo",
+      credentials: "PhD, invented",
+      licenseType: "Psychiatrist",
+      licenseNumber: "FAKE-9",
+      licenseState: "Nowhere",
+    });
+    const profileNow = await one<{ credentials: string; number: string; first: string }>(sql`
+      SELECT profile->>'credentials' AS credentials, profile->>'licenseNumber' AS number,
+             first_name AS first
+        FROM users WHERE id = ${changer.id}`);
+    check(
+      "🔴 W1-23 after approval, /settings cannot change credentials or licence fields unreviewed",
+      profileNow.credentials === "LPC" && profileNow.number === "X-1",
+      JSON.stringify(profileNow),
+    );
+
+    await writeVerificationDetails(changerActor as never, {
+      country: "EG",
+      licenseBody: "Another Board",
+      licenseNumber: "Y-2",
+      licenseExpiry: iso(Date.now() + 700 * day),
+      specialties: [],
+      languages: [],
+    });
+    const changed = await one<{
+      state: string;
+      body: string;
+      number: string;
+      pending: string | null;
+      status: string;
+    }>(sql`
+      SELECT v.state, v.license_body AS body, v.license_number AS number,
+             to_jsonb(v)->>'pending_licence' AS pending, u.verification_status AS status
+        FROM therapist_verifications v JOIN users u ON u.id = v.user_id
+       WHERE v.user_id = ${changer.id}`);
+    check(
+      "🔴 W1-23 a licence change after approval is held for review, not written over what was checked",
+      changed.body === "Demo Board" && changed.number === "X-1" &&
+        (changed.pending ?? "").includes("Y-2"),
+      JSON.stringify(changed),
+    );
+    check(
+      "🔴 W1-23 …and the clinician stays cleared while the operator decides",
+      changed.state === "approved" && changed.status === "verified",
+      `${changed.state}, ${changed.status}`,
+    );
+    const recheckQueue = await reviewQueue("submitted");
+    check(
+      "🔴 W1-23 …and it is in the operator's queue",
+      recheckQueue.some((row) => row.userId === changer.id),
+      recheckQueue.some((row) => row.userId === changer.id) ? "queued" : "not queued",
+    );
+
+    const { requestLicenceChange } = await import("../lib/data/licence-change");
+    await requestLicenceChange(changerActor as never, { credentials: "MSc, checked" });
+    const { decideVerification } = await import("../lib/data/verification");
+    const vid = recheckQueue.find((row) => row.userId === changer.id)?.id ?? "";
+    const decided = await decideVerification({
+      verificationId: vid,
+      approve: true,
+      note: "",
+      adminUserId: therapist.id,
+    });
+    const afterApproval = await one<{
+      state: string;
+      number: string;
+      pending: string | null;
+      credentials: string;
+    }>(sql`
+      SELECT v.state, v.license_number AS number, to_jsonb(v)->>'pending_licence' AS pending,
+             u.profile->>'credentials' AS credentials
+        FROM therapist_verifications v JOIN users u ON u.id = v.user_id
+       WHERE v.user_id = ${changer.id}`);
+    check(
+      "W1-23 an operator's approval moves the change in, and the request is gone",
+      Boolean(decided?.recheck) && afterApproval.state === "approved" &&
+        afterApproval.number === "Y-2" && afterApproval.credentials === "MSc, checked" &&
+        afterApproval.pending === null,
+      JSON.stringify(afterApproval),
+    );
+
+    await requestLicenceChange(changerActor as never, { licenseNumber: "Z-3" });
+    await decideVerification({ verificationId: vid, approve: false, note: "Unreadable", adminUserId: therapist.id });
+    const afterRejection = await one<{ state: string; number: string; pending: string | null }>(sql`
+      SELECT v.state, v.license_number AS number, to_jsonb(v)->>'pending_licence' AS pending
+        FROM therapist_verifications v WHERE v.user_id = ${changer.id}`);
+    check(
+      "W1-23 a rejected change is dropped, and the clinician keeps what was checked",
+      afterRejection.state === "approved" && afterRejection.number === "Y-2" &&
+        afterRejection.pending === null,
+      JSON.stringify(afterRejection),
+    );
+
     check(
       "W1-16 a licence well in date is left alone",
       fineNow.state === "approved" && !fineNow.warned && fineNow.radar === "online",

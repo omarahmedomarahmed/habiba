@@ -2637,7 +2637,7 @@ export const en = {
   "tset.licenceType": "Licence type",
   "tset.licenceState": "Licence state",
   "tset.licenceNumber": "Licence number",
-  "tset.licenceNumberHint": "Optional. Nothing here gates your ability to record sessions.",
+  "tset.licenceNumberHint": "Optional. Nothing here gates recording sessions.",
   "tset.password": "Password",
   "tset.passwordBody": "Changing your password signs you out on every device.",
   "tset.currentPassword": "Current password",
@@ -2703,9 +2703,9 @@ export const en = {
   "tpay.owedNow": "You currently owe {amount}.",
   "tpay.saveSettings": "Save payment settings",
   "tver.underReview": "With us for review",
-  "tver.underReviewBody": "Somebody is checking your documents, usually within a working day. Sessions unlock when you are approved.",
+  "tver.underReviewBody": "We check your documents, usually within a working day. Sessions unlock on approval.",
   "tver.rejected": "We could not verify you yet",
-  "tver.rejectedBody": "Fix what is described above and submit again. It returns to the front of the queue.",
+  "tver.rejectedBody": "Fix what is above and submit again; it goes to the front of the queue.",
   "tver.noUploads":
     "File storage is not configured on this deployment, so uploads will fail. Set BLOB_READ_WRITE_TOKEN.",
   "tver.aboutPractice": "About your practice",
@@ -2789,7 +2789,7 @@ export const en = {
   "trad.headlineOn": "You are visible to the world",
   "trad.headlineOff": "Fill a free half hour",
   "trad.bodyOn": "Anyone on the public radar can start a session with you now.",
-  "trad.bodyOff": "Go on call between appointments. Somebody who needs help now finds you and pays you.",
+  "trad.bodyOff": "Go on call between appointments. Somebody who needs help now finds and pays you.",
   "trad.rate": "Your rate · 30 min",
   "trad.free": "Free",
   "trad.youKeep": "You keep",
@@ -2899,7 +2899,7 @@ export const en = {
   "tpres.alertMe": "Alert me",
   "tpres.notifBlocked": "notifications blocked",
   "tprac.title": "Your practice",
-  "tprac.blurb": "Optional. It puts you on the map by city rather than country, and allows walk-ins.",
+  "tprac.blurb": "Optional. It maps you by city, not country, and allows walk-ins.",
   "tprac.name": "Practice or clinic name",
   "tprac.nameHint": "Shown to patients.",
   "tprac.namePlaceholder": "Nile Psychology Centre",
@@ -2912,7 +2912,7 @@ export const en = {
   "tprac.confirmed": "Confirmed location",
   "tprac.openInMaps": "Open this pin in maps and check it",
   "tprac.walkIns": "Accept walk-in visits",
-  "tprac.walkInsOn": "Your address becomes public and patients can get directions. Only for a place a stranger may visit.",
+  "tprac.walkInsOn": "Your address becomes public so patients can find you. Only for a place a stranger may visit.",
   "tprac.walkInsOff": "Confirm an address first.",
   "tprac.save": "Save practice",
   "tprac.remove": "Remove",
@@ -2948,7 +2948,7 @@ export const en = {
   "tcop.listening": "Listening, press Stop and I will type it out for you to check.",
   "tcop.left": "{count} left",
   "tcop.ask": "Ask",
-  "tcop.citeNote": "Every answer cites its moment, and a citation with no matching line is discarded. It can still be wrong.",
+  "tcop.citeNote": "Every answer cites its moment; a citation with no matching line is dropped. It can still be wrong.",
   "tcop.readAloud": "Read aloud",
   "tcop.voiceSettings": "Voice settings",
   "tcop.voice": "Voice",
@@ -3218,7 +3218,7 @@ export const en = {
   "tcon.gaveCodeBody": "Enter it and they are asked. You see the answer on their record.",
   "tcon.notClearedYet": "Your licence is still being checked, so access will not start until we approve you.",
   "tcon.asking": "People asking you for their own history",
-  "tcon.askingBody": "They want what you hold added to the record they own. Say no if you must, but answer.",
+  "tcon.askingBody": "They want what you hold added to their record. Say no if you must, but answer.",
   "tcon.added": "I have added it",
   "tcon.decline": "Decline, with that reason",
   "tcon.declinePlaceholder": "If you are declining, why? They read this.",
@@ -3253,7 +3253,7 @@ export const en = {
   "tattr.unsure": "Not sure",
   "tattr.guessed": "worked out from the words",
   "tattr.fromVoice": "from a separated voice, named above",
-  "tattr.oneMic": "One microphone heard you both. Where a line holds two people we leave it unnamed. You were there, so you can say.",
+  "tattr.oneMic": "One microphone heard you both. Where a line holds two people we leave it unnamed. You were there; you can say.",
   "tcon.theirCode": "Their code",
   "tcon.asking2": "Asking…",
   "tcon.askThem": "Ask them",
@@ -3732,7 +3732,7 @@ export const en = {
 
   /* ------------------------------------------- 🔴 57.4 — the monthly plan -- */
   "tplan.monthlyEvery": "{amount} a month, unlimited",
-  "tplan.unlimitedNoMeter": "Sessions and AI cost nothing on top. No per-session fee riding on the recording question.",
+  "tplan.unlimitedNoMeter": "Sessions and AI cost nothing on top, whatever the recording answer.",
   "tplan.plansTitle": "Stop counting sessions",
   /*
    * 🔴 76.34 — the pricing cards, and the details somebody reads BEFORE paying.
@@ -3760,7 +3760,7 @@ export const en = {
   "tplan.cancelKeepsMonth": "Cancelling stops the next charge. The plan runs to the date above.",
   "tplan.cancel": "Cancel the plan",
   "tplan.endsOn": "Your plan ends {date}",
-  "tplan.endsBody": "Nothing changes until then. Afterwards, {amount} a session plus the AI fee when your patient turns it on.",
+  "tplan.endsBody": "Nothing changes until then. Afterwards, {amount} a session plus the AI fee when your patient opts in.",
   "tplan.resume": "Keep my plan",
   "tplan.creditExpiresOn": "Credit expires {date}",
 
@@ -3940,6 +3940,12 @@ export const en = {
   "tlic.expiringTitle": "Licence expires soon",
   "tlic.expiringBody": "Expires {date}. Send the renewal to stay listed.",
   "tlic.update": "Update licence",
+  "tlic.change": "Change licence",
+  "tlic.changePending": "Under review. You stay cleared.",
+  "tlic.lockedHint": "Changes go through review.",
+  "tlic.changeApproved": "Licence change approved.",
+  "tlic.changeRejectedTitle": "Licence change declined",
+  "tlic.changeRejected": "{note}\n\nYour earlier details stand.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7114,6 +7120,12 @@ export const ar: Record<MessageKey, string> = {
   "tlic.expiringTitle": "ينتهي الترخيص قريبًا",
   "tlic.expiringBody": "ينتهي في {date}. أرسل التجديد لتبقى ظاهرًا.",
   "tlic.update": "حدّث الترخيص",
+  "tlic.change": "غيّر بيانات الترخيص",
+  "tlic.changePending": "قيد المراجعة. وتبقى معتمدًا.",
+  "tlic.lockedHint": "التغييرات تمر بالمراجعة.",
+  "tlic.changeApproved": "اعتُمد تغيير الترخيص.",
+  "tlic.changeRejectedTitle": "رُفض تغيير الترخيص",
+  "tlic.changeRejected": "{note}\n\nبياناتك السابقة باقية.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

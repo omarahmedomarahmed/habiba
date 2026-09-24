@@ -331,7 +331,25 @@ export async function decideTherapistVerification(
     .where(eq(users.id, decided.userId))
     .limit(1);
 
-  if (person) {
+  if (person && decided.recheck) {
+    /*
+     * 🔴 W1-23: a licence change on somebody already approved. They were
+     * cleared throughout, so neither answer is "you are verified" or "we need
+     * something else"; it is about the change.
+     */
+    const { stringsFor } = await import("@/lib/i18n/strings");
+    const { t } = await stringsFor("en");
+    after(() =>
+      sendTherapistMessage({
+        to: person.email,
+        firstName: person.firstName,
+        subject: t(approve ? "tlic.changeApproved" : "tlic.changeRejectedTitle"),
+        body: approve
+          ? t("tlic.changeApproved")
+          : t("tlic.changeRejected", { note: trimmed }),
+      }),
+    );
+  } else if (person) {
     after(() =>
       sendTherapistMessage({
         to: person.email,

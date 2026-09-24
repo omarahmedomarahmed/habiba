@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, or, sql } from "drizzle-orm";
 
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
@@ -182,6 +182,9 @@ export async function reviewQueue(state: "submitted" | "approved" | "rejected" =
       licenseExpiry: therapistVerifications.licenseExpiry,
       /* W1-16: set when the sweep sent an approved clinician back for re-review. */
       licenseExpiredAt: therapistVerifications.licenseExpiredAt,
+      /* W1-23: a licence change waiting on an approved clinician. */
+      pendingLicence: therapistVerifications.pendingLicence,
+      recheckSubmittedAt: therapistVerifications.recheckSubmittedAt,
       specialties: therapistVerifications.specialties,
       languages: therapistVerifications.languages,
       idFrontUrl: therapistVerifications.idFrontUrl,
@@ -206,16 +209,29 @@ export async function reviewQueue(state: "submitted" | "approved" | "rejected" =
     .from(therapistVerifications)
     .innerJoin(users, eq(users.id, therapistVerifications.userId))
     .leftJoin(organizations, eq(organizations.id, therapistVerifications.organizationId))
-    .where(eq(therapistVerifications.state, state))
-    .orderBy(desc(therapistVerifications.submittedAt))
+    .where(waitingOn(state))
+    .orderBy(desc(sql`COALESCE(${therapistVerifications.recheckSubmittedAt}, ${therapistVerifications.submittedAt})`))
     .limit(100);
+}
+
+/**
+ * The "submitted" tab is everything waiting on an operator: new submissions,
+ * and (W1-23) licence changes asked for by clinicians who stay approved.
+ */
+function waitingOn(state: "submitted" | "approved" | "rejected") {
+  return state === "submitted"
+    ? or(
+        eq(therapistVerifications.state, "submitted"),
+        isNotNull(therapistVerifications.recheckSubmittedAt),
+      )
+    : eq(therapistVerifications.state, state);
 }
 
 export async function pendingReviewCount(): Promise<number> {
   const rows = await db
     .select({ id: therapistVerifications.id })
     .from(therapistVerifications)
-    .where(eq(therapistVerifications.state, "submitted"));
+    .where(waitingOn("submitted"));
   return rows.length;
 }
 
@@ -239,7 +255,13 @@ export async function decideVerification(opts: {
   approve: boolean;
   note: string;
   adminUserId: string;
-}): Promise<{ userId: string; rejectionCount: number; documentsCleared: boolean } | null> {
+}): Promise<{
+  userId: string;
+  rejectionCount: number;
+  documentsCleared: boolean;
+  /** W1-23: this decided a licence change on an approved clinician. */
+  recheck?: boolean;
+} | null> {
   const now = new Date();
 
   const [row] = await db
@@ -264,6 +286,9 @@ export async function decideVerification(opts: {
        * two stamps start again. A rejection leaves them, as evidence.
        */
       ...(opts.approve ? { licenseExpiredAt: null, licenseExpiryWarnedAt: null } : {}),
+      // W1-23: a change asked for before the licence lapsed is decided with it.
+      pendingLicence: null,
+      recheckSubmittedAt: null,
       updatedAt: now,
     })
     .where(
@@ -281,7 +306,7 @@ export async function decideVerification(opts: {
       headshotUrl: therapistVerifications.headshotUrl,
     });
 
-  if (!row) return null;
+  if (!row) return decideRecheck(opts, now);
 
   /*
    * 🔴 C351 — THE SECOND NO TAKES THE DOCUMENTS WITH IT.
@@ -340,4 +365,70 @@ export async function decideVerification(opts: {
    * mirror; it is a second opinion.
    */
   return { userId: row.userId, rejectionCount: row.rejectionCount, documentsCleared: cleared };
+}
+
+/**
+ * 🔴 W1-23: deciding a licence change on a clinician who is already approved.
+ *
+ * The row stays `approved` throughout, so the clinician was cleared while this
+ * waited. An approval writes the new details into the checked columns (and the
+ * profile fields patients read), and is a fresh look at the licence, so the
+ * expiry stamps start again. A rejection drops the request and keeps what was
+ * checked before. Conditional on the request still being there, so two
+ * operators produce one decision.
+ */
+async function decideRecheck(
+  opts: { verificationId: string; approve: boolean; note: string; adminUserId: string },
+  now: Date,
+): Promise<{ userId: string; rejectionCount: number; documentsCleared: boolean; recheck: true } | null> {
+  const waiting = and(
+    eq(therapistVerifications.id, opts.verificationId),
+    eq(therapistVerifications.state, "approved"),
+    isNotNull(therapistVerifications.recheckSubmittedAt),
+  );
+  const [row] = await db.select().from(therapistVerifications).where(waiting).limit(1);
+  if (!row) return null;
+
+  const change = row.pendingLicence ?? {};
+  const checked = opts.approve
+    ? {
+        ...(change.country !== undefined ? { country: change.country } : {}),
+        ...(change.licenseBody !== undefined ? { licenseBody: change.licenseBody } : {}),
+        ...(change.licenseNumber !== undefined ? { licenseNumber: change.licenseNumber } : {}),
+        ...(change.licenseExpiry !== undefined ? { licenseExpiry: change.licenseExpiry } : {}),
+        licenseExpiredAt: null,
+        licenseExpiryWarnedAt: null,
+      }
+    : {};
+
+  const [landed] = await db
+    .update(therapistVerifications)
+    .set({
+      ...checked,
+      pendingLicence: null,
+      recheckSubmittedAt: null,
+      reviewedAt: now,
+      reviewedBy: opts.adminUserId,
+      reviewNote: opts.note.trim() || null,
+      updatedAt: now,
+    })
+    .where(waiting)
+    .returning({ userId: therapistVerifications.userId });
+  if (!landed) return null;
+
+  const profileFields = (["credentials", "licenseType", "licenseState", "licenseNumber"] as const).filter(
+    (key) => change[key] !== undefined,
+  );
+  if (opts.approve && profileFields.length > 0) {
+    const [user] = await db
+      .select({ profile: users.profile })
+      .from(users)
+      .where(eq(users.id, landed.userId))
+      .limit(1);
+    const profile = { ...(user?.profile ?? {}) };
+    for (const key of profileFields) profile[key] = change[key] ?? undefined;
+    await db.update(users).set({ profile, updatedAt: now }).where(eq(users.id, landed.userId));
+  }
+
+  return { userId: landed.userId, rejectionCount: row.rejectionCount, documentsCleared: false, recheck: true };
 }

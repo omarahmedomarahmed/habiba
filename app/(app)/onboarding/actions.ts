@@ -12,7 +12,7 @@ import {
 } from "@/lib/data/verification";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { therapistVerifications } from "@/lib/db/schema";
+import { therapistVerifications, users } from "@/lib/db/schema";
 import { validateSelections } from "@/lib/data/taxonomy";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { deleteDocument, uploadDocument, type UploadKind } from "@/lib/uploads";
@@ -73,24 +73,76 @@ export async function saveVerificationDetails(
     current?.languages ?? [],
   );
 
-  await db
-    .update(therapistVerifications)
-    .set({
-      country: String(formData.get("country") ?? "").trim().slice(0, 2).toUpperCase() || null,
-      licenseBody: String(formData.get("licenseBody") ?? "").trim().slice(0, 160) || null,
-      licenseNumber: String(formData.get("licenseNumber") ?? "").trim().slice(0, 80) || null,
-      licenseExpiry: String(formData.get("licenseExpiry") ?? "").trim().slice(0, 20) || null,
-      specialties,
-      languages,
-      // Editing after a rejection puts it back in draft, so the queue does not
-      // show a stale "rejected" for someone actively fixing it.
-      state: current?.state === "rejected" ? "draft" : (current?.state ?? "draft"),
-      updatedAt: new Date(),
-    })
-    .where(eq(therapistVerifications.userId, actor.userId));
+  /*
+   * 🔴 W1-23: after approval this wrote straight over the licence an operator
+   * had checked. `writeVerificationDetails` holds a changed licence field as a
+   * request for review instead, and the clinician stays cleared meanwhile.
+   */
+  const { writeVerificationDetails } = await import("@/lib/data/licence-change");
+  const written = await writeVerificationDetails(actor, {
+    country: String(formData.get("country") ?? "").trim().slice(0, 2).toUpperCase() || null,
+    licenseBody: String(formData.get("licenseBody") ?? "").trim().slice(0, 160) || null,
+    licenseNumber: String(formData.get("licenseNumber") ?? "").trim().slice(0, 80) || null,
+    licenseExpiry: String(formData.get("licenseExpiry") ?? "").trim().slice(0, 20) || null,
+    specialties,
+    languages,
+  });
+  if (!written.ok) {
+    return { error: "This is already with us for review, you cannot change it right now." };
+  }
 
   revalidatePath("/onboarding");
   return { ok: true, message: "Saved" };
+}
+
+/** W1-23: licence details change through review, in the reader's language. */
+async function lockedHint(): Promise<string> {
+  const { getI18n } = await import("@/lib/i18n/server");
+  const { t } = await getI18n();
+  return t("tlic.lockedHint");
+}
+
+/**
+ * 🔴 W1-23: an approved clinician asks to change their licence details.
+ *
+ * Held beside the approval for an operator to check; nothing a patient reads
+ * changes until then, and the clinician stays cleared.
+ */
+export async function askLicenceChange(
+  _prev: OnboardingState,
+  formData: FormData,
+): Promise<OnboardingState> {
+  const actor = await requireUser();
+  const current = await getVerification(actor.userId);
+  if (current?.state !== "approved") return { error: await lockedHint() };
+
+  const { requestLicenceChange } = await import("@/lib/data/licence-change");
+  const [me] = await db
+    .select({ profile: users.profile })
+    .from(users)
+    .where(eq(users.id, actor.userId))
+    .limit(1);
+
+  const now = {
+    licenseBody: current.licenseBody,
+    licenseNumber: current.licenseNumber,
+    licenseExpiry: current.licenseExpiry,
+    credentials: me?.profile?.credentials ?? null,
+    licenseType: me?.profile?.licenseType ?? null,
+    licenseState: me?.profile?.licenseState ?? null,
+  };
+  const change: Record<string, string | null> = {};
+  for (const key of Object.keys(now) as (keyof typeof now)[]) {
+    const sent = String(formData.get(key) ?? "").trim() || null;
+    if (sent !== (now[key] ?? null)) change[key] = sent;
+  }
+
+  const asked = await requestLicenceChange(actor, change);
+  if (!asked.ok) return asked.reason === "no_change" ? { ok: true } : { error: await lockedHint() };
+
+  revalidatePath("/onboarding");
+  revalidatePath("/admin/verifications");
+  return { ok: true };
 }
 
 /**
@@ -117,6 +169,10 @@ export async function uploadVerificationDocument(
   const current = await ensureVerification(actor);
   if (current.state === "submitted" && !current.licenseExpiredAt) {
     return { error: "This is already with us for review, you cannot change it right now." };
+  }
+  // 🔴 W1-23: an approved clinician's documents are what was checked.
+  if (current.state === "approved") {
+    return { error: await lockedHint() };
   }
 
   const file = formData.get("file");
