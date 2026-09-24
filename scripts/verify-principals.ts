@@ -293,6 +293,12 @@ const SCOPE: Record<string, Scope> = {
 
   sponsors: { who: ["admin"] },
   "sponsor-admin": { who: ["admin"] },
+  /*
+   * W2-S05 — a company's own logins: invite, role, remove, reset, change. It
+   * reads `sponsor_users` and `sponsor_auth_sessions` and nothing about any
+   * person the company funds, so a sponsor may call it for its own account.
+   */
+  "sponsor-users": { who: ["sponsor"] },
   support: { who: ["admin", "patient", "clinician"] },
   taxonomy: { who: ["admin"] },
   "therapist-codes": { who: ["clinician", "admin"] },

@@ -373,6 +373,154 @@ async function potExpiry(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-S05 · a company runs its own logins                             */
+/* ================================================================== */
+
+async function companyLogins(db: Db) {
+  const started = new Date();
+  const sponsorId = await plantSponsor(db, "team");
+  try {
+    const mod = (await import("../lib/data/sponsor-users").catch(() => null)) as
+      | typeof import("../lib/data/sponsor-users")
+      | null;
+    if (!mod) {
+      check("W2-S05 a company can invite, reset, change and remove its own logins", false, "no lib/data/sponsor-users");
+      return;
+    }
+    const { checkSponsorPassword } = await import("../lib/data/sponsor-admin");
+    const { passwordLinkToken } = await import("../lib/sponsor/password-link");
+    /* What the emailed link carries: signed over the login's hash as it stands. */
+    const mint = async (sponsorUserId: string, purpose: "reset" | "invite", expiresMs?: number) => {
+      const [row] = (
+        await db.execute(sql`SELECT password_hash FROM sponsor_users WHERE id = ${sponsorUserId}`)
+      ).rows as { password_hash: string | null }[];
+      return passwordLinkToken({
+        sponsorUserId,
+        purpose,
+        passwordHash: row?.password_hash ?? null,
+        expiresMs,
+      });
+    };
+    const [admin] = (
+      await db.execute(sql`SELECT id FROM sponsor_users WHERE sponsor_id = ${sponsorId}`)
+    ).rows as { id: string }[];
+    const adminId = required(admin, "the planted admin").id;
+    await db.execute(sql`
+      UPDATE sponsor_users SET password_hash = 'x' WHERE id = ${adminId}`);
+
+    /* Invite: a login with no password, and a link that sets one, once. */
+    const email = `new-${fixture}@example.com`;
+    const invited = await mod.inviteSponsorUser({
+      sponsorId,
+      email,
+      role: "viewer",
+      message: { subject: "Invited", body: "Set your password." },
+    });
+    const token = invited.ok ? await mint(invited.sponsorUserId!, "invite") : null;
+    const set = token ? await mod.setSponsorPassword(token, "a long enough password") : { error: "no token" };
+    const signedIn = await checkSponsorPassword(email, "a long enough password");
+    check(
+      "W2-S05 an invited person sets their own password from the link and signs in",
+      Boolean(invited.ok && set.ok && signedIn.sponsorUserId),
+      JSON.stringify({ invited, set, signedIn: Boolean(signedIn.sponsorUserId) }),
+    );
+    const reused: { error?: string } = token
+      ? await mod.setSponsorPassword(token, "another long password")
+      : {};
+    check("W2-S05 …and the link works once", Boolean(reused.error), reused.error ?? "it worked twice");
+
+    /* Forgot: an unknown address sends nothing and says the same thing. */
+    const unknown = await mod.requestSponsorReset(`nobody-${fixture}@example.com`, {
+      subject: "Reset",
+      body: "Link",
+    });
+    const known = await mod.requestSponsorReset(email, { subject: "Reset", body: "Link" });
+    const resets = Number(
+      (
+        (
+          await db.execute(sql`
+            SELECT count(*)::int AS n FROM delivery_attempts
+             WHERE kind = 'sponsor.password_reset' AND created_at >= ${started}`)
+        ).rows[0] as { n: number }
+      ).n,
+    );
+    check(
+      "W2-S05 forgot password emails a link to a real login only, and answers the same either way",
+      Boolean(unknown.ok && known.ok) && resets === 1,
+      `${resets} reset emails`,
+    );
+    const resetToken = await mint(invited.sponsorUserId!, "reset");
+    const reset = await mod.setSponsorPassword(resetToken, "a brand new password");
+    check(
+      "W2-S05 the reset link sets a new password, and the old one stops working",
+      Boolean(reset.ok) &&
+        Boolean((await checkSponsorPassword(email, "a brand new password")).sponsorUserId) &&
+        !(await checkSponsorPassword(email, "a long enough password")).sponsorUserId,
+      JSON.stringify(reset),
+    );
+    const stale = await mint(invited.sponsorUserId!, "reset", Date.now() - 1000);
+    check(
+      "W2-S05 CONTROL an expired link sets nothing",
+      Boolean((await mod.setSponsorPassword(stale, "yet another password")).error),
+    );
+
+    /* Change: the current password is asked for. */
+    const wrong = await mod.changeSponsorPassword(invited.sponsorUserId!, "not it at all", "a fourth password here");
+    const right = await mod.changeSponsorPassword(invited.sponsorUserId!, "a brand new password", "a fourth password here");
+    check(
+      "W2-S05 changing a password needs the current one",
+      Boolean(wrong.error) && Boolean(right.ok),
+      JSON.stringify({ wrong, right }),
+    );
+
+    /* Roles and removal, and the account is never left without an admin. */
+    const lastAdmin = await mod.setSponsorUserRole({ sponsorId, sponsorUserId: adminId, role: "viewer" });
+    const promote = await mod.setSponsorUserRole({
+      sponsorId,
+      sponsorUserId: invited.sponsorUserId!,
+      role: "admin",
+    });
+    check(
+      "W2-S05 roles change, but the last admin cannot be made a viewer",
+      Boolean(lastAdmin.error) && Boolean(promote.ok),
+      JSON.stringify({ lastAdmin, promote }),
+    );
+
+    const self = await mod.removeSponsorUser({ sponsorId, sponsorUserId: adminId, bySponsorUserId: adminId });
+    const other = await mod.removeSponsorUser({
+      sponsorId,
+      sponsorUserId: invited.sponsorUserId!,
+      bySponsorUserId: adminId,
+    });
+    check(
+      "W2-S05 an admin removes somebody else, never themselves, and the removed login is dead",
+      Boolean(self.error) &&
+        Boolean(other.ok) &&
+        !(await checkSponsorPassword(email, "a fourth password here")).sponsorUserId,
+      JSON.stringify({ self, other }),
+    );
+
+    const elsewhere = await plantSponsor(db, "team-other");
+    try {
+      const borrowed = await mod.removeSponsorUser({
+        sponsorId: elsewhere,
+        sponsorUserId: adminId,
+        bySponsorUserId: adminId,
+      });
+      check("W2-S05 CONTROL another company's login cannot be touched", Boolean(borrowed.error));
+    } finally {
+      await dropSponsor(db, elsewhere);
+    }
+  } finally {
+    await db.execute(sql`DELETE FROM delivery_attempts
+      WHERE kind IN ('sponsor.password_reset', 'sponsor.invite') AND created_at >= ${started}`);
+    await db.execute(sql`DELETE FROM sponsor_auth_sessions WHERE sponsor_user_id IN
+      (SELECT id FROM sponsor_users WHERE sponsor_id = ${sponsorId})`);
+    await dropSponsor(db, sponsorId);
+  }
+}
+
 async function main() {
   writesTo();
 
@@ -382,6 +530,7 @@ async function main() {
     await firstCode(db);
     await enquiry(db);
     await potExpiry(db);
+    await companyLogins(db);
   } finally {
     await pool.end();
   }

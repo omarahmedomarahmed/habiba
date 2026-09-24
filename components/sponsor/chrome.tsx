@@ -42,6 +42,8 @@ const TABS: { href: string; key: MessageKey }[] = [
    * (FIX-PLAN D4) and its route redirects to /sponsor.
    */
   { href: "/sponsor/settings", key: "sponsor.nav.settings" },
+  /* W2-S05 — the company's own logins: invite, role, remove, and your password. */
+  { href: "/sponsor/team", key: "sponsor.nav.team" },
 ];
 
 /**

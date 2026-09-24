@@ -98,6 +98,12 @@ export const STAFF_SIGN_IN = "/staff/sign-in";
  */
 export const SPONSOR_COOKIE = "24t_sponsor";
 export const SPONSOR_SIGN_IN = "/sponsor/sign-in";
+/**
+ * 🔴 W2-S05 — the way back in, and the way in for an invited colleague. Doors
+ * like the sign-in page: open signed out, and a signed-in holder is sent home.
+ */
+export const SPONSOR_FORGOT = "/sponsor/forgot-password";
+export const SPONSOR_SET_PASSWORD = "/sponsor/set-password";
 export const SPONSOR_PREFIXES = ["/sponsor"];
 
 /**
@@ -304,7 +310,7 @@ export const PRINCIPALS: Principal[] = [
     prefixes: SPONSOR_PREFIXES,
     signIn: SPONSOR_SIGN_IN,
     home: "/sponsor",
-    authRoutes: [SPONSOR_SIGN_IN],
+    authRoutes: [SPONSOR_SIGN_IN, SPONSOR_FORGOT, SPONSOR_SET_PASSWORD],
     /* 53.5 — the enquiry form, which cannot sit behind the sign-in it precedes. */
     openRoutes: [SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM],
   },

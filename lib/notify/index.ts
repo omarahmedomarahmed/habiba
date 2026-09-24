@@ -221,6 +221,9 @@ export type Message = {
     /** 🔴 W2-S09 — an enquiry, acknowledged to the applicant and told to our staff. */
     | "sponsor.enquiry_received"
     | "sponsor.enquiry"
+    /** 🔴 W2-S05 — a company login's own links: an invitation, and a reset. Email only. */
+    | "sponsor.invite"
+    | "sponsor.password_reset"
     /*
      * 🔴 68.16 — a partner is approaching the session limit THEY set.
      *

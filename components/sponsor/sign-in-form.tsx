@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -24,12 +25,18 @@ function Submit({ label }: { label: string }) {
  * here without an account is sent to the enquiry form rather than offered a
  * self-serve account that would then have to be held.
  */
-export function SponsorSignInForm() {
+export function SponsorSignInForm({ passwordSet = false }: { passwordSet?: boolean }) {
   const t = useT();
   const [state, formAction] = useActionState(signInSponsor, {});
 
   return (
     <Card className="p-5">
+      {/* W2-S05 — arriving from a reset or invite link. */}
+      {passwordSet ? (
+        <p role="status" className="mb-4 text-sm font-semibold text-brand-700">
+          {t("sponsor.passwordSet")}
+        </p>
+      ) : null}
       <form action={formAction} className="space-y-4">
         <Field label={t("sponsor.email")} htmlFor="sponsor-email">
           <Input
@@ -60,6 +67,13 @@ export function SponsorSignInForm() {
 
         <Submit label={t("sponsor.signIn")} />
       </form>
+      {/* W2-S05 — there was no way back in but a call to us. */}
+      <Link
+        href="/sponsor/forgot-password"
+        className="mt-3 inline-block text-xs font-semibold text-slate-600 underline"
+      >
+        {t("sponsor.forgotLink")}
+      </Link>
     </Card>
   );
 }

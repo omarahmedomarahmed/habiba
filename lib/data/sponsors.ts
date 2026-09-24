@@ -13,7 +13,6 @@ import {
   sponsorPots,
   sponsors,
   type RemovalReason,
-  type Sponsor,
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
@@ -217,15 +216,6 @@ export function applyActivityFloor(
 }
 
 /* ------------------------------------------------------------- the sponsor -- */
-
-export async function getSponsor(sponsorId: string): Promise<Sponsor | null> {
-  const [row] = await controlDb
-    .select()
-    .from(sponsors)
-    .where(eq(sponsors.id, sponsorId))
-    .limit(1);
-  return row ?? null;
-}
 
 /**
  * 🔴 The balance, and it goes through the floor too (C229).

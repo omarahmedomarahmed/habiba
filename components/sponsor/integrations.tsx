@@ -33,8 +33,9 @@ import { ConfirmAct } from "./confirm-act";
  * early sits in a clipboard through three steps.
  */
 
-const STEPS: { title: MessageKey; body: MessageKey }[] = [
-  { title: "sint.step1", body: "sint.step1Body" },
+/* W2-S05 paid for step 1's body, which only repeated its title. */
+const STEPS: { title: MessageKey; body?: MessageKey }[] = [
+  { title: "sint.step1" },
   { title: "sint.step2", body: "sint.step2Body" },
   { title: "sint.step3", body: "sint.step3Body" },
   { title: "sint.step4", body: "sint.step4Body" },
@@ -189,7 +190,7 @@ export function SponsorIntegrations({
             <p className="mt-1 text-sm text-slate-600">
               {live
                 ? t("sint.lastAnswered", { when: live.lastSuccessAt ?? "" })
-                : t("sint.neverAnswered")}
+                : t("sint.keyUnused")}
             </p>
           </Card>
 
@@ -207,9 +208,11 @@ export function SponsorIntegrations({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-900">{t(step.title)}</p>
-                    <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
-                      {t(step.body)}
-                    </p>
+                    {step.body ? (
+                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
+                        {t(step.body)}
+                      </p>
+                    ) : null}
 
                     {/*
                       🔴 66.6 — THE SNIPPET AT THE STEP THAT USES IT, and the key
@@ -292,10 +295,11 @@ Content-Type: application/json
                   </li>
                 ))}
               </ul>
-              {/* 🔴 66.10 — a revoked key is WHY calls stopped working. */}
-              <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                {t("sint.revokedMeans")}
-              </p>
+              {/*
+                W2-S05 paid for this: "every later call appears below as refused"
+                described a log a sponsor can never have (the delivery log reads
+                partner webhooks), so the sentence was untrue.
+              */}
             </Card>
           ) : null}
 

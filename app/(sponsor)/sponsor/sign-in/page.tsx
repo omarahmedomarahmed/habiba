@@ -21,8 +21,13 @@ export const dynamic = "force-dynamic";
  * `SPONSOR_APPLY`, because an organisation account is created from an enquiry
  * and there is no self serve signup to point at instead.
  */
-export default async function SponsorSignInPage() {
+export default async function SponsorSignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ set?: string }>;
+}) {
   const { t } = await getI18n();
+  const { set } = await searchParams;
 
   return (
     <AuthShell
@@ -32,7 +37,7 @@ export default async function SponsorSignInPage() {
       promise={t("auth.company.promise")}
       points={[t("auth.company.p1"), t("auth.company.p2"), t("auth.company.p3")]}
     >
-      <SponsorSignInForm />
+      <SponsorSignInForm passwordSet={set === "1"} />
     </AuthShell>
   );
 }

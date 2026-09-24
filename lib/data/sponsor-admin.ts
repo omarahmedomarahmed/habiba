@@ -601,21 +601,10 @@ export async function removeIdentifierField(
   return { ok: true };
 }
 
-/**
- * 🔴 53.8 / C236 — listed publicly, or reachable only by the code.
- *
- * Unlisted is the default and this is the only thing that changes it. Being in a
- * public picker says "this organisation buys therapy for its staff", which is
- * theirs to say and not ours to assume.
+/*
+ * FIX-PLAN D5 — `setListed` is gone with the switch that called it. Nothing
+ * public ever read `listed_publicly`, and every sponsor stays unlisted (C236).
  */
-export async function setListed(sponsorId: string, listed: boolean): Promise<{ ok: true }> {
-  await controlDb
-    .update(sponsors)
-    .set({ listedPublicly: listed, updatedAt: new Date() })
-    .where(eq(sponsors.id, sponsorId));
-
-  return { ok: true };
-}
 
 /**
  * Sign a sponsor user in. PLAN.md 53.4.
