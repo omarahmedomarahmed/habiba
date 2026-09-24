@@ -5473,6 +5473,10 @@ export const refundRequests = pgTable(
     ledgerTxnId: uuid("ledger_txn_id"),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /** 🔴 0157 / A16 — one person asks to cancel, a different one cancels. */
+    cancelAskedByUserId: uuid("cancel_asked_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    cancelAskedAt: timestamp("cancel_asked_at", { withTimezone: true }),
+    cancelledByUserId: uuid("cancelled_by_user_id").references(() => users.id, { onDelete: "set null" }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

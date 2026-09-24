@@ -1030,6 +1030,13 @@
       "when": 1789966042000,
       "tag": "0156_a_card_refund_is_claimed_first",
       "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1789966043000,
+      "tag": "0157_a_refund_is_cancelled_by_two",
+      "breakpoints": true
     }
   ]
 }

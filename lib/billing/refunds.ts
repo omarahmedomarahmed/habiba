@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
@@ -462,14 +462,45 @@ export async function confirmRefund(input: { requestId: string }): Promise<Resul
   return updated.length ? { ok: true } : { error: "arefund.errMoved" };
 }
 
-/** Not owed after all, with the reason. Never once money has left. */
-export async function cancelRefund(input: { requestId: string; reason: string }): Promise<Result> {
-  const reason = input.reason.trim();
-  if (reason.length < 5) return { error: "arefund.errReason" };
+/**
+ * Not owed after all, with the reason. Never once money has left.
+ *
+ * 🔴 0157 / A16: TWO PEOPLE. Money owed back to a patient was one click away
+ * from not being owed, by anybody on staff, and the row did not say who. The
+ * first person asks, with the reason; a different person cancels. Like 0152,
+ * the first step answers with `arefund.cancelAsked`, which the action reads
+ * as done. The database refuses a cancel by the person who asked.
+ */
+export async function cancelRefund(input: { requestId: string; reason: string; byUserId: string }): Promise<Result> {
+  const [row] = await db
+    .select({ status: refundRequests.status, askedBy: refundRequests.cancelAskedByUserId })
+    .from(refundRequests)
+    .where(eq(refundRequests.id, input.requestId))
+    .limit(1);
+  if (!row || row.status !== "owed") return { error: "arefund.errMoved" };
+
+  if (!row.askedBy) {
+    const reason = input.reason.trim();
+    if (reason.length < 5) return { error: "arefund.errReason" };
+    const asked = await db
+      .update(refundRequests)
+      .set({ cancelAskedByUserId: input.byUserId, cancelAskedAt: new Date(), cancelledReason: reason.slice(0, 300), updatedAt: new Date() })
+      .where(and(eq(refundRequests.id, input.requestId), eq(refundRequests.status, "owed"), isNull(refundRequests.cancelAskedByUserId)))
+      .returning({ id: refundRequests.id });
+    return asked.length ? { error: "arefund.cancelAsked" } : { error: "arefund.errMoved" };
+  }
+
+  if (row.askedBy === input.byUserId) return { error: "arefund.errTwo" };
   const updated = await db
     .update(refundRequests)
-    .set({ status: "cancelled", cancelledReason: reason.slice(0, 300), cancelledAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(refundRequests.id, input.requestId), eq(refundRequests.status, "owed")))
+    .set({ status: "cancelled", cancelledByUserId: input.byUserId, cancelledAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(refundRequests.id, input.requestId),
+        eq(refundRequests.status, "owed"),
+        eq(refundRequests.cancelAskedByUserId, row.askedBy),
+      ),
+    )
     .returning({ id: refundRequests.id });
   return updated.length ? { ok: true } : { error: "arefund.errMoved" };
 }
@@ -488,6 +519,9 @@ export type RefundQueueRow = {
   /** 0152 — where it goes, once somebody has said, and who said it. */
   destination: string | null;
   destinationSetBy: string | null;
+  /** 0157 — a cancel somebody asked for, and who, waiting on a second person. */
+  cancelAsked: string | null;
+  cancelAskedBy: string | null;
 };
 
 /** Open work, oldest first. Money facts only: no session content, no clinician notes. */
@@ -514,5 +548,7 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
       ? [row.payeeMethod, row.payeeIdentifier, row.payeeAccountName].filter(Boolean).join(" · ")
       : null,
     destinationSetBy: row.payeeSetByUserId,
+    cancelAsked: row.cancelAskedByUserId ? row.cancelledReason : null,
+    cancelAskedBy: row.cancelAskedByUserId,
   }));
 }

@@ -78,7 +78,12 @@ export async function cancelRefundAction(_prev: RefundState, formData: FormData)
   const actor = await requireStaff();
   const requestId = String(formData.get("requestId") ?? "");
   const reason = String(formData.get("reason") ?? "");
-  return done(actor, requestId, "refund.cancelled", await cancelRefund({ requestId, reason }), reason.trim());
+  const result = await cancelRefund({ requestId, reason, byUserId: actor.userId });
+  /* 0157 — the first of two people: the cancel is asked for, nothing is cancelled. */
+  if (result.error === "arefund.cancelAsked") {
+    return done(actor, requestId, "refund.cancel_asked", { ok: true }, reason.trim());
+  }
+  return done(actor, requestId, "refund.cancelled", result);
 }
 
 /** W2-M05: the company's share back into its pot; the refund then finishes itself. */

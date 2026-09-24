@@ -575,7 +575,7 @@ async function main() {
         `payment ${afterSent.payment_status}, session ${sentSession?.outcome}`,
       );
       const confirmed = await refunds.confirmRefund({ requestId: noShowRefund[0]!.id });
-      const lateCancel = await refunds.cancelRefund({ requestId: noShowRefund[0]!.id, reason: "changed our mind" });
+      const lateCancel = await refunds.cancelRefund({ requestId: noShowRefund[0]!.id, reason: "changed our mind", byUserId: opA!.id });
       check(
         "W1-28a arrival is confirmed, and a refund that has left cannot be cancelled",
         Boolean(confirmed.ok) && Boolean(lateCancel.error) &&
@@ -583,16 +583,29 @@ async function main() {
         `${JSON.stringify(confirmed)} ${JSON.stringify(lateCancel)}`,
       );
 
-      const shortReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "no" });
-      const withReason = await refunds.cancelRefund({
+      const shortReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "no", byUserId: opA!.id });
+      const asked = await refunds.cancelRefund({
         requestId: cancelRefundRows[0]!.id,
         reason: "The patient took a credit instead",
+        byUserId: opA!.id,
       });
+      const askedStatus = (await refundRow(booked))[0]!.status;
+      const sameAgain = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "", byUserId: opA!.id });
+      const forged = await db
+        .execute(sql`UPDATE refund_requests SET status = 'cancelled', cancelled_by_user_id = cancel_asked_by_user_id
+                      WHERE id = ${cancelRefundRows[0]!.id}`)
+        .then(() => "written", () => "refused");
+      const withReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "", byUserId: opB!.id });
       check(
-        "W1-28a cancelling needs a reason, and then it is cancelled",
-        Boolean(shortReason.error) && Boolean(withReason.ok) &&
-          (await refundRow(booked))[0]!.status === "cancelled",
-        `${JSON.stringify(shortReason)} ${JSON.stringify(withReason)}`,
+        "🔴 A16 cancelling needs a reason, one person asks, the same person cannot finish it, not even by hand in the database",
+        Boolean(shortReason.error) && asked.error === "arefund.cancelAsked" && askedStatus === "owed" &&
+          sameAgain.error === "arefund.errTwo" && forged === "refused",
+        `${JSON.stringify({ shortReason, asked, askedStatus, sameAgain, forged })}`,
+      );
+      check(
+        "A16 CONTROL …and a second person cancels it",
+        Boolean(withReason.ok) && (await refundRow(booked))[0]!.status === "cancelled",
+        JSON.stringify(withReason),
       );
 
       /* Four eyes: above the threshold, whoever took it on does not also send it. */

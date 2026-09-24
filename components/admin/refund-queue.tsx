@@ -38,6 +38,9 @@ export type RefundQueueItem = {
   /** 0152 — recorded by one person, sent by another. */
   destination: string | null;
   destinationByMe: boolean;
+  /** 0157 — the reason a cancel was asked for, and whether I asked. */
+  cancelAsked: string | null;
+  cancelAskedByMe: boolean;
 };
 
 function Go({ label, quiet }: { label: string; quiet?: boolean }) {
@@ -162,11 +165,23 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
           </form>
         ) : null}
 
-        {row.status === "owed" ? (
+        {row.status === "owed" && row.cancelAsked !== null ? (
+          <form action={cancelAction} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="requestId" value={row.id} />
+            <span className="text-xs text-slate-600">
+              {t("arefund.cancelAskedLabel")}: {row.cancelAsked}
+            </span>
+            {row.cancelAskedByMe ? (
+              <span className="text-xs text-amber-700">{t("arefund.errTwo")}</span>
+            ) : (
+              <Go label={t("arefund.cancelConfirm")} quiet />
+            )}
+          </form>
+        ) : row.status === "owed" ? (
           <form action={cancelAction} className="flex items-end gap-2">
             <input type="hidden" name="requestId" value={row.id} />
             <Input name="reason" placeholder={t("arefund.cancelWhy")} required className="h-8 w-48 text-xs" />
-            <Go label={t("arefund.cancel")} quiet />
+            <Go label={t("arefund.cancelAsk")} quiet />
           </form>
         ) : null}
       </div>

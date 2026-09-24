@@ -165,6 +165,8 @@ export default async function PayoutsPage() {
             proofUrl: row.proofUrl,
             destination: row.destination,
             destinationByMe: row.destinationSetBy === actor.userId,
+            cancelAsked: row.cancelAsked,
+            cancelAskedByMe: row.cancelAskedBy === actor.userId,
           }))}
         />
       </div>
