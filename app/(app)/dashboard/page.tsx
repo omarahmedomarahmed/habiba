@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { billingSummary } from "@/lib/billing/service";
 import { unreadNotifications } from "@/lib/data/notifications";
 import { getRadarProfile } from "@/lib/data/radar";
-import { countOpenDrafts, listSessions } from "@/lib/data/sessions";
+import { countOpenDrafts, listSessions, sessionHref } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
 import { formatDay, resolveZone } from "@/lib/scheduling/tz";
 import { getI18n } from "@/lib/i18n/server";
@@ -209,12 +209,9 @@ export default async function DashboardPage() {
             <ul className="divide-y divide-slate-100">
               {sessions.map((session) => (
                 <li key={session.id}>
+                  {/* 🔴 T18: a cancelled session opens its page, not a video room. */}
                   <Link
-                    href={
-                      session.status === "completed"
-                        ? `/sessions/${session.id}`
-                        : `/sessions/${session.id}/room`
-                    }
+                    href={sessionHref(session)}
                     className="flex items-center gap-3 px-4 py-3 active:bg-slate-50"
                   >
                     <div className="min-w-0 flex-1">

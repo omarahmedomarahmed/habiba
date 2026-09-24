@@ -20,6 +20,7 @@ import {
   sessions,
   users,
   type ClinicRole,
+  type PayoutStatus,
 } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
@@ -533,7 +534,8 @@ export type ClinicEarnings = {
   userId: string;
   name: string;
   earnedCents: number;
-  withdrawals: { requestedAt: Date; amountCents: number; status: string }[];
+  /** 🔴 T19: the closed set, so the screen's label map is exhaustive by type. */
+  withdrawals: { requestedAt: Date; amountCents: number; status: PayoutStatus }[];
 };
 
 export async function clinicEarnings(actor: ClinicPrincipal): Promise<ClinicEarnings[]> {
@@ -637,7 +639,16 @@ export type ClinicUsageWeek = {
   spendCents: number | null;
 };
 
-export async function clinicUsage(actor: ClinicPrincipal): Promise<ClinicUsageWeek[]> {
+export async function clinicUsage(
+  actor: ClinicPrincipal,
+  /**
+   * 🔴 T8: the zone whose Mondays the weeks start on. Required, like every zone in
+   * `lib/scheduling/tz.ts`: grouped in the database's UTC, an invoice issued at 01:00
+   * on a Cairo Monday counted in the week before, beside a rota that (since T8) does
+   * not. The caller passes `actor.zone.name`, which `usable` has already vetted.
+   */
+  zone: string,
+): Promise<ClinicUsageWeek[]> {
   refuseWithout(actor, "reports.read");
 
   const settings = await getSettings();
@@ -651,6 +662,10 @@ export async function clinicUsage(actor: ClinicPrincipal): Promise<ClinicUsageWe
    * 🔴 And grouped for the WHOLE CLINIC, never per therapist. A per-therapist
    * breakdown is precisely what C262 rules out, so there is no `group by therapist_id`
    * here and no argument that would produce one.
+   *
+   * 🔴 T8: truncated to the week on the reader's wall clock and turned back into an
+   * instant, so `week_start` is that zone's Monday midnight. The zone is a bound
+   * parameter, never text in the statement.
    */
   /*
    * 🔴 W2-C01: AND SCOPED LIKE THE SCHEDULE, in the WHERE.
@@ -663,7 +678,7 @@ export async function clinicUsage(actor: ClinicPrincipal): Promise<ClinicUsageWe
   const scope = scopeToAssigned(actor, "reports.read");
 
   const rows = await controlDb.execute(sql`
-    SELECT date_trunc('week', i.issued_at) AS week_start,
+    SELECT date_trunc('week', i.issued_at AT TIME ZONE ${zone}) AT TIME ZONE ${zone} AS week_start,
            COUNT(DISTINCT i.session_id)::int AS sessions,
            SUM(i.amount_cents - i.discount_cents)::int AS spend_cents
       FROM invoices i
@@ -725,6 +740,17 @@ export type ClinicBill = {
   dueCents: number;
   /** 🔴 W2-C03: settled. "Paid" is said only when all of the total is, never for a waived month. */
   paidCents: number;
+  /**
+   * 🔴 T12: WHAT THE CENTS ARE CENTS OF, carried on the row rather than assumed by
+   * each reader.
+   *
+   * `invoices.amount_cents` is denominated in dollars and always was (16.6a: a bill
+   * settled in pounds records that in `settled_currency` beside it). The screen
+   * passed nothing to `<Money>` and so said dollars by default, and the CSV wrote a
+   * bare `12.5`, so the two agreed only by coincidence and the file never said
+   * which currency it meant. Both now read this field.
+   */
+  currency: "USD";
 };
 
 export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]> {
@@ -804,6 +830,7 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
     totalCents: Number(row.total_cents),
     dueCents: Number(row.due_cents),
     paidCents: Number(row.paid_cents),
+    currency: "USD" as const,
   }));
 }
 

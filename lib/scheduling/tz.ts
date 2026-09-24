@@ -20,8 +20,14 @@ import { dateTag, intlTag, type Locale } from "@/lib/i18n/config";
  * on-again-off-again DST, and knows it better than a table we would maintain.
  */
 
-/** What we fell back to, so the sentence can say so. 11R.3. */
-export type ZoneSource = "reader" | "clinician" | "utc";
+/**
+ * What we fell back to, so the sentence can say so. 11R.3.
+ *
+ * 🔴 T8: `region` is the default zone of the practice's country, used when the
+ * reader has none of their own. It exists for the clinic portal, whose reader
+ * (a practice manager) usually has no `users` row to carry a zone at all.
+ */
+export type ZoneSource = "reader" | "clinician" | "region" | "utc";
 
 export type Zone = {
   /** An IANA name. Always usable — `resolveZone` guarantees it. */
@@ -43,6 +49,38 @@ export function resolveZone(
 ): Zone {
   if (usable(readerZone)) return { name: readerZone!, source: "reader" };
   if (usable(clinicianZone)) return { name: clinicianZone!, source: "clinician" };
+  return { name: "UTC", source: "utc" };
+}
+
+/**
+ * 🔴 T8: the zone a practice's country keeps, where it has one.
+ *
+ * Egypt first, because the product is: a Cairo practice whose manager never
+ * set a zone read a 13:00 appointment as 10:00 (UTC) and had every Monday
+ * session before 02:00 filed under the week before. A country that spans
+ * several zones has no entry here on purpose, since guessing one of them is
+ * the silent default `resolveZone` exists to refuse.
+ *
+ * Keyed by the region code as a plain string so this module stays free of
+ * `lib/db`, which is server-only.
+ */
+export const REGION_ZONES: Readonly<Record<string, string>> = { eg: "Africa/Cairo" };
+
+/**
+ * The reader's own zone, then their practice's country's, then UTC. T8.
+ *
+ * `resolveZone`'s order with the clinician step swapped for the region one,
+ * for a reader who is not reading about a clinician: a practice manager looking
+ * at the whole practice. The `source` still says which step answered, so the
+ * screen can name the zone it fell back to.
+ */
+export function resolveViewerZone(
+  readerZone: string | null | undefined,
+  region: string | null | undefined,
+): Zone {
+  if (usable(readerZone)) return { name: readerZone!, source: "reader" };
+  const regional = region ? REGION_ZONES[region] : undefined;
+  if (usable(regional)) return { name: regional!, source: "region" };
   return { name: "UTC", source: "utc" };
 }
 
@@ -182,6 +220,7 @@ export function formatWhenWithCaveat(at: Date, zone: Zone, locale: Locale): stri
   const base = formatWhen(at, zone, locale);
   if (zone.source === "reader") return base;
   if (zone.source === "clinician") return `${base}, your therapist's time zone`;
+  if (zone.source === "region") return `${base}, your practice's local time`;
   return `${base}. We do not have your time zone, so this is UTC`;
 }
 
@@ -302,6 +341,70 @@ export function parseDayKey(day: string): { year: number; month: number; date: n
   if (probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== date) return null;
 
   return { year, month, date };
+}
+
+/* ------------------------------------------------ a week, in a local zone -- */
+
+export type CalendarDay = { year: number; month: number; date: number };
+
+/**
+ * A calendar day moved by whole days. T8.
+ *
+ * Arithmetic on three numbers, through `Date.UTC` only because it normalises
+ * 32 September into 2 October for us. No instant is involved, so no zone can
+ * shift the answer, which is the point: "the Monday before this day" is a
+ * question about the calendar, and an hour of DST is not part of it.
+ */
+export function addDays(day: CalendarDay, days: number): CalendarDay {
+  const at = new Date(Date.UTC(day.year, day.month - 1, day.date + days));
+  return { year: at.getUTCFullYear(), month: at.getUTCMonth() + 1, date: at.getUTCDate() };
+}
+
+/** `{ 2026, 9, 12 }` to `2026-09-12`, the inverse of `parseDayKey`. */
+export function dayKeyOf(day: CalendarDay): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${day.year}-${pad(day.month)}-${pad(day.date)}`;
+}
+
+/**
+ * The first instant of a calendar day in a zone. T8.
+ *
+ * Midnight, unless midnight does not exist there that day (a zone that springs
+ * forward at 00:00, which Egypt did in 2023 and 2024), and then the first hour
+ * that does. Either way the day's own first instant, never the previous day's.
+ */
+export function startOfDayIn(day: CalendarDay, zone: string): Date {
+  for (let hour = 0; hour < 3; hour += 1) {
+    const at = zonedHourToUtc(day, hour, zone);
+    if (at) return at;
+  }
+  // No zone skips three hours at once; UTC midnight is the honest last resort.
+  return new Date(Date.UTC(day.year, day.month - 1, day.date));
+}
+
+/**
+ * The Monday-to-Monday week containing a calendar day, bounded in a zone. T8.
+ *
+ * 🔴 The bounds are that zone's midnights. Computed in UTC, a Cairo session at
+ * 01:30 on a Monday is 22:30 on Sunday and fell into the week before, on the
+ * one screen a practice manager uses to see who is coming this week.
+ *
+ * `from` is inclusive and `to` exclusive, the shape `clinicSchedule` takes.
+ */
+export function weekIn(
+  day: CalendarDay,
+  zone: string,
+): { monday: CalendarDay; from: Date; to: Date; prev: CalendarDay; next: CalendarDay } {
+  const weekday = new Date(Date.UTC(day.year, day.month - 1, day.date)).getUTCDay();
+  const monday = addDays(day, -((weekday + 6) % 7));
+  const next = addDays(monday, 7);
+  return {
+    monday,
+    from: startOfDayIn(monday, zone),
+    to: startOfDayIn(next, zone),
+    prev: addDays(monday, -7),
+    next,
+  };
 }
 
 /** What an instant looks like in a zone, as numbers. */

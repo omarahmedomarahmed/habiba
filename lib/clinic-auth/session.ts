@@ -12,10 +12,13 @@ import {
   clinicRoles,
   clinicStaffAssignments,
   organizations,
+  users,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { CLINIC_COOKIE } from "@/lib/routing";
 import type { ClinicRole, ClinicState } from "@/lib/db/schema";
+import type { Region } from "@/lib/db/region";
+import { resolveViewerZone, type Zone } from "@/lib/scheduling/tz";
 import {
   ADMIN_CAPABILITIES,
   parseCapabilities,
@@ -105,6 +108,19 @@ export type ClinicActor = {
    * one. The switcher in the header renders only when this is set.
    */
   linkedUserId: string | null;
+  /**
+   * 🔴 T8: THE ZONE EVERY TIME ON THIS PORTAL IS READ IN, resolved once.
+   *
+   * The reader's own zone where there is one, which for a manager is the
+   * `users.timezone` of the clinician account that is the same human
+   * (`linkedUserId`); then the default for the practice's country (Cairo for
+   * `eg`); then UTC. `source` says which, and the screen names the zone, so a
+   * fallback is never silent.
+   *
+   * There is no zone column on a practice and this does not want one: a zone
+   * is where the READER is, and the week a manager plans is their own.
+   */
+  zone: Zone;
 };
 
 function hashToken(token: string): string {
@@ -157,6 +173,9 @@ export async function getClinicActor(): Promise<ClinicActor | null> {
       role: clinicManagers.role,
       email: clinicManagers.email,
       linkedUserId: clinicManagers.linkedUserId,
+      /* 🔴 T8: where the reader is, and failing that, where the practice is. */
+      linkedTimezone: users.timezone,
+      region: organizations.region,
       /* 🔴 63.3 — the custom role's stored strings, which mean nothing yet. */
       roleCapabilities: clinicRoles.capabilities,
       roleDeletedAt: clinicRoles.deletedAt,
@@ -165,6 +184,12 @@ export async function getClinicActor(): Promise<ClinicActor | null> {
     .innerJoin(clinicManagers, eq(clinicManagers.id, clinicAuthSessions.clinicManagerId))
     .innerJoin(organizations, eq(organizations.id, clinicManagers.organizationId))
     .leftJoin(clinicRoles, eq(clinicRoles.id, clinicManagers.roleId))
+    /*
+     * A left join, and a zone is the only thing read through it: the linked
+     * clinician is the same human, and nothing about their caseload is in reach
+     * of this select list.
+     */
+    .leftJoin(users, and(eq(users.id, clinicManagers.linkedUserId), isNull(users.deletedAt)))
     .where(
       and(
         eq(clinicAuthSessions.tokenHash, hashToken(token)),
@@ -232,7 +257,18 @@ export async function getClinicActor(): Promise<ClinicActor | null> {
     capabilities,
     therapistIds,
     linkedUserId: row.linkedUserId,
+    zone: clinicZone({ timezone: row.linkedTimezone, region: row.region }),
   };
+}
+
+/**
+ * 🔴 T8: the reader's zone, then the practice country's, then UTC.
+ *
+ * Exported and pure so a verifier can ask it about a Cairo practice whose
+ * manager set nothing, without a cookie or a database.
+ */
+export function clinicZone(input: { timezone: string | null; region: Region }): Zone {
+  return resolveViewerZone(input.timezone, input.region);
 }
 
 export async function revokeClinicSession(): Promise<void> {

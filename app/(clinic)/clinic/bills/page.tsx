@@ -74,7 +74,11 @@ export default async function ClinicBillsPage({
     bills.reduce((sum, bill) => sum + bill.dueCents, 0) +
     seatBills.reduce((sum, row) => sum + (row.status === "due" ? row.amountCents : 0), 0);
 
-  const money = (cents: number) => <Money cents={cents} />;
+  /*
+   * 🔴 T12: a bill row passes its own currency, the field the CSV export writes as
+   * a column; a seat row's cents are dollars like every invoice.
+   */
+  const money = (cents: number, currency = "USD") => <Money cents={cents} currency={currency} />;
 
   /*
    * 🔴 0150 — AN EGYPTIAN PRACTICE PAYS BY TRANSFER, HERE. The same sheet a
@@ -252,16 +256,16 @@ export default async function ClinicBillsPage({
               <dl className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-slate-500">{t("clinic.platformFee")}</dt>
-                  <dd className="tabular-nums text-slate-700">{money(bill.platformFeeCents)}</dd>
+                  <dd className="tabular-nums text-slate-700">{money(bill.platformFeeCents, bill.currency)}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-slate-500">{t("clinic.aiFee")}</dt>
-                  <dd className="tabular-nums text-slate-700">{money(bill.aiFeeCents)}</dd>
+                  <dd className="tabular-nums text-slate-700">{money(bill.aiFeeCents, bill.currency)}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3 border-t border-slate-100 pt-1">
                   <dt className="font-semibold text-slate-900">{t("clinic.total")}</dt>
                   <dd className="font-semibold tabular-nums text-slate-900">
-                    {money(bill.totalCents)}
+                    {money(bill.totalCents, bill.currency)}
                   </dd>
                 </div>
               </dl>

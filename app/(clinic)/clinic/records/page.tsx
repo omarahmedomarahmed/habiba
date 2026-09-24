@@ -61,6 +61,7 @@ export default async function ClinicRecordsPage({
         configured={features.ehr}
         missing={whatIsMissing()}
         actions={{ begin, disconnect }}
+        /* 🔴 T8: every time below in the reader's zone (`actor.zone`), not UTC. */
         filings={filings.map((filing) => ({
           id: filing.id,
           state: filing.state,
@@ -70,7 +71,7 @@ export default async function ClinicRecordsPage({
           approvedBy:
             [filing.approvedByFirstName, filing.approvedByLastName].filter(Boolean).join(" ") ||
             null,
-          createdAt: formatDateTime(filing.createdAt, "UTC", locale),
+          createdAt: formatDateTime(filing.createdAt, actor.zone.name, locale),
         }))}
         connections={connections.map((connection) => ({
           id: connection.id,
@@ -78,13 +79,13 @@ export default async function ClinicRecordsPage({
           tenantLabel: connection.tenantLabel,
           /* 🔴 `formatDate`, not `Intl` (37L.9), and formatted here so no date crosses the
              client boundary as an object. */
-          connectedAt: formatDate(connection.connectedAt, "UTC", locale),
+          connectedAt: formatDate(connection.connectedAt, actor.zone.name, locale),
           /* 🔴 67.4 — a call that returned, not an exchange that completed. */
           lastSuccessAt: connection.lastSuccessAt
-            ? formatDateTime(connection.lastSuccessAt, "UTC", locale)
+            ? formatDateTime(connection.lastSuccessAt, actor.zone.name, locale)
             : null,
           lastError: connection.lastError,
-          revokedAt: connection.revokedAt ? formatDate(connection.revokedAt, "UTC", locale) : null,
+          revokedAt: connection.revokedAt ? formatDate(connection.revokedAt, actor.zone.name, locale) : null,
           revokedReason: connection.revokedReason,
         }))}
       />

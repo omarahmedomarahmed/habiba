@@ -44,6 +44,7 @@ export default async function ClinicTeamPage() {
   return (
     <ClinicTeam
       isAdmin={actor.role === "admin"}
+      selfId={actor.clinicManagerId}
       grantable={[...DELEGABLE]}
       roles={roles}
       staff={staff.map((person) => ({

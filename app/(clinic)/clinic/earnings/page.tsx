@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { Card } from "@/components/ui";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicEarnings } from "@/lib/data/clinic";
+import type { PayoutStatus } from "@/lib/db/schema";
 import { getI18n } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { formatDate } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 
@@ -32,6 +34,27 @@ export const dynamic = "force-dynamic";
  * social-engineered into changing one, and the route the money takes belongs to the
  * person the money belongs to.
  */
+/*
+ * 🔴 T19: A WITHDRAWAL'S STATE, AS A WORD, IN THE READER'S LANGUAGE.
+ *
+ * The row printed `withdrawal.status`, so a practice manager reading in Arabic met
+ * `requested` and `confirmed` in English, as stored. A `Record` over the closed set
+ * means a new state added to `PAYOUT_STATUSES` does not compile until it has a
+ * label here, rather than reaching this screen as a raw code again.
+ *
+ * `returned` (the transfer bounced back) reads "Not processed", as it does on the
+ * clinician's own withdrawals screen: from where the practice sits, the money did
+ * not arrive, and two screens naming one state two ways is a support ticket.
+ */
+const PAYOUT_LABEL: Record<PayoutStatus, MessageKey> = {
+  requested: "clinic.payout.requested",
+  approved: "clinic.payout.approved",
+  sent: "clinic.payout.sent",
+  confirmed: "clinic.payout.confirmed",
+  rejected: "clinic.payout.rejected",
+  returned: "clinic.payout.rejected",
+};
+
 export default async function ClinicEarningsPage() {
   const actor = await requireClinicCapability("earnings.read");
   const { t, locale } = await getI18n();
@@ -83,9 +106,12 @@ export default async function ClinicEarningsPage() {
                       className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm"
                     >
                       <span className="text-slate-600">
-                        {formatDate(withdrawal.requestedAt, "UTC", locale)}
+                        {/* 🔴 T8: the day in the reader's zone, as on the rota. */}
+                        {formatDate(withdrawal.requestedAt, actor.zone.name, locale)}
                       </span>
-                      <span className="text-xs text-slate-500">{withdrawal.status}</span>
+                      <span className="text-xs text-slate-500">
+                        {t(PAYOUT_LABEL[withdrawal.status])}
+                      </span>
                       <span className="tabular-nums text-slate-800">
                         {money(withdrawal.amountCents)}
                       </span>

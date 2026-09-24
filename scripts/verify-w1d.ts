@@ -308,6 +308,7 @@ async function clinicNames(db: ReturnType<typeof connect>["db"]) {
     email: `m-${fixture}@example.com`,
     clinicName: `Clinic ${fixture}`,
     ...window,
+    zone: "Africa/Cairo",
   });
   const shown = JSON.stringify(rota) + exported.csv;
 
@@ -420,6 +421,7 @@ async function csvFormulas(db: ReturnType<typeof connect>["db"]) {
     clinicName: `Clinic ${fixture}`,
     from: new Date(Date.now() - 24 * 60 * 60 * 1000),
     to: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    zone: "Africa/Cairo",
   });
   const cells = exported.csv.split("\r\n").flatMap((line) => line.split(","));
   const live = cells.filter((value) => /^"?[=+\-@\t\r]/.test(value));

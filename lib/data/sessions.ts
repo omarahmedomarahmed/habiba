@@ -112,6 +112,93 @@ export async function listSessions(
 }
 
 /**
+ * 🔴 T15: THE SESSIONS LIST, SPLIT IN TWO AND PAGED.
+ *
+ * `/sessions` read `listSessions`, which is the fifty most recently CREATED rows.
+ * A session booked in March for next Thursday was created in March, so a busy
+ * clinician's next appointment fell off the end of their own list, and the order
+ * they did see was the order the rows were typed in rather than the order they
+ * happen in.
+ *
+ * So two lists, each ordered by the thing a clinician reads it for:
+ *
+ *   upcoming  scheduled or in progress, soonest first. A live session with no
+ *             booked hour sorts by when it started, which puts it at the top
+ *             where it belongs. A booked hour that has passed without the
+ *             session starting stays here, at the top, because it still needs
+ *             the clinician to start it or cancel it.
+ *   past      completed or cancelled, most recent first, by when it ended, else
+ *             the hour it was for, else when it was made.
+ *
+ * Paged by offset with one row of lookahead, so `hasMore` is a fact about the
+ * database rather than a guess from a full page. The id breaks ties, so two
+ * sessions at the same hour cannot swap between pages.
+ */
+export const SESSIONS_PAGE_SIZE = 20;
+
+export type SessionListWhen = "upcoming" | "past";
+
+export async function listSessionsPage(
+  actor: Actor,
+  opts: { when: SessionListWhen; page: number; pageSize?: number },
+): Promise<{ items: SessionListItem[]; hasMore: boolean }> {
+  const size = opts.pageSize ?? SESSIONS_PAGE_SIZE;
+  const page = Number.isInteger(opts.page) && opts.page > 0 ? opts.page : 0;
+
+  const upcoming = opts.when === "upcoming";
+  const at = upcoming
+    ? sql`coalesce(${sessions.scheduledAt}, ${sessions.startedAt}, ${sessions.createdAt})`
+    : sql`coalesce(${sessions.endedAt}, ${sessions.scheduledAt}, ${sessions.createdAt})`;
+
+  const rows = await db
+    .select({
+      id: sessions.id,
+      status: sessions.status,
+      modality: sessions.modality,
+      noteStatus: sessions.noteStatus,
+      createdAt: sessions.createdAt,
+      startedAt: sessions.startedAt,
+      endedAt: sessions.endedAt,
+      scheduledAt: sessions.scheduledAt,
+      durationMinutes: sessions.durationMinutes,
+      patientId: sessions.patientId,
+      patientFirstName: patients.firstName,
+      patientLastName: patients.lastName,
+      guestName: sessions.guestName,
+    })
+    .from(sessions)
+    // LEFT JOIN, for the reason `listSessions` gives: link sessions have no patient.
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .where(
+      and(
+        scope(actor),
+        inArray(
+          sessions.status,
+          upcoming ? ["scheduled", "in_progress"] : ["completed", "cancelled"],
+        ),
+      ),
+    )
+    .orderBy(...(upcoming ? [asc(at), asc(sessions.id)] : [desc(at), desc(sessions.id)]))
+    .limit(size + 1)
+    .offset(page * size);
+
+  return { items: rows.slice(0, size), hasMore: rows.length > size };
+}
+
+/**
+ * 🔴 T18: WHERE A SESSION ROW LEADS, decided once for every list.
+ *
+ * Only a session that can still happen opens the room. The dashboard sent every
+ * row that was not `completed` there, so a cancelled session opened a video room
+ * for an appointment that no longer exists; `/sessions` already sent it to the
+ * session page. One function, so the two lists cannot disagree again.
+ */
+export function sessionHref(session: { id: string; status: string }): string {
+  const live = session.status === "in_progress" || session.status === "scheduled";
+  return live ? `/sessions/${session.id}/room` : `/sessions/${session.id}`;
+}
+
+/**
  * 🔴 W2-T05: THE SESSIONS A CLINICIAN RAN AT A PRACTICE THEY HAVE LEFT.
  *
  * `removeClinician` moves them to a practice of their own and leaves every
