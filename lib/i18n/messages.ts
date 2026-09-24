@@ -3934,6 +3934,10 @@ export const en = {
   "w1a.noShowCancelledBody": "Nothing was charged. We are sorry.",
   "w1a.refundOwed": "We owe you a refund",
   "w1a.refundOwedBody": "Your payment could not go back automatically. Contact us and we will return it.",
+  "w1a.cancelledByClinician": "Your clinician cancelled your session.",
+  "w1a.cancelReasonGiven": "Their reason: {reason}",
+  "w1a.cancelReason": "Reason for the patient (no clinical detail)",
+  "w1a.cancelReasonNeeded": "Give the patient a short reason.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7102,6 +7106,10 @@ export const ar: Record<MessageKey, string> = {
   "w1a.noShowCancelledBody": "لم يُخصم منك شيء. ونعتذر لك.",
   "w1a.refundOwed": "نحن مدينون لك باسترداد المبلغ",
   "w1a.refundOwedBody": "تعذّر ردّ دفعتك تلقائيًا. تواصل معنا وسنعيدها إليك.",
+  "w1a.cancelledByClinician": "ألغى معالجك جلستك.",
+  "w1a.cancelReasonGiven": "السبب: {reason}",
+  "w1a.cancelReason": "السبب للمريض (دون تفاصيل سريرية)",
+  "w1a.cancelReasonNeeded": "اكتب للمريض سببًا قصيرًا.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

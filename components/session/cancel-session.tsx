@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { abandonSession } from "@/app/(app)/sessions/actions";
-import { Button } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -36,6 +36,9 @@ import { useT } from "@/lib/i18n/client";
  */
 export function CancelSession({ sessionId }: { sessionId: string }) {
   const [armed, setArmed] = useState(false);
+  /* 🔴 W1-13 — the patient is told why, so the second click needs a reason. */
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const t = useT();
 
@@ -54,10 +57,28 @@ export function CancelSession({ sessionId }: { sessionId: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <p className="text-sm text-slate-600">{t("portal.session.cancelConfirm")}</p>
+      <Input
+        aria-label={t("w1a.cancelReason")}
+        placeholder={t("w1a.cancelReason")}
+        value={reason}
+        maxLength={300}
+        onChange={(event) => setReason(event.target.value)}
+      />
+      {error ? (
+        <p role="alert" className="w-full text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
       <Button
         variant="secondary"
         disabled={pending}
-        onClick={() => start(() => abandonSession(sessionId))}
+        onClick={() =>
+          start(async () => {
+            setError(null);
+            const result = await abandonSession(sessionId, reason);
+            if (result?.error) setError(result.error);
+          })
+        }
       >
         {pending ? t("common.saving") : t("portal.session.cancelYes")}
       </Button>

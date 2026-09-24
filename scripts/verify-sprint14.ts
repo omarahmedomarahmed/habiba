@@ -400,6 +400,36 @@ async function main() {
       `result ${owed.ok ? owed.outcome : owed.error}, session ${owedSession?.status}/${owedSession?.outcome}, payment ${owedPayment.rows[0]?.status}`,
     );
 
+    /*
+     * 🔴 W1-13 — A CLINICIAN CANCELS A PAID APPOINTMENT.
+     *
+     * Paid by transfer, so the refund cannot go back by itself: the answer is a
+     * refund OWED, the payment still `paid`, and never a row calling it refunded.
+     */
+    const { afterClinicianCancel } = await import("../lib/data/clinician-cancel");
+    const booked = await early("clinician-cancel", {
+      scheduledAt: new Date(Date.now() + 24 * 60 * 60_000),
+      patientJoinedAt: null,
+    });
+    await db.execute(sql`
+      INSERT INTO session_payments (organization_id, therapist_id, session_id, gross_cents,
+                                    platform_fee_cents, therapist_net_cents, capture, status, paid_at)
+      VALUES (${absent!.organizationId}, ${absent!.id}, ${booked}, 3000, 450, 2550,
+              'platform', 'paid', now())`);
+    await db.update(sessions).set({ status: "cancelled" }).where(eq(sessions.id, booked));
+    const cancelled = await afterClinicianCancel({
+      actorUserId: absent!.id,
+      sessionId: booked,
+      reason: "I am unwell today",
+    });
+    const cancelledPayment = await db.execute<{ status: string }>(sql`
+      SELECT status FROM session_payments WHERE session_id = ${booked}`);
+    check(
+      "🔴 W1-13 a paid appointment the clinician cancels is refunded or owed, never silently kept",
+      cancelled.outcome === "refund_owed" && cancelledPayment.rows[0]?.status === "paid",
+      `outcome ${cancelled.outcome}, payment ${cancelledPayment.rows[0]?.status}`,
+    );
+
     /* ------------------------------------------------------ 14.7 the score */
 
     const score = await reliabilityFor(absent!.id);

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { cancelBooking, publishHours, withdrawHour } from "@/lib/data/scheduling";
 import { clinicianZone } from "@/lib/data/timezone";
+import { cleanCancelReason } from "@/lib/sessions/cancel-reason";
 
 export type ScheduleState = {
   error?: string;
@@ -80,12 +81,27 @@ export async function withdraw(slotId: string): Promise<ScheduleState> {
  * The hour goes back on the calendar rather than disappearing — a clinician
  * cancelling one appointment has not withdrawn the hour — and the patient is
  * told. Whether the telling arrives is reported honestly: see `notify`.
+ *
+ * 🔴 W1-13 — "the patient is told" was not true: nothing was sent and nothing
+ * refunded. A reason is required now, and `afterClinicianCancel` sends it and
+ * returns the money (or says a refund is owed on the transfer rail).
  */
-export async function cancel(slotId: string): Promise<ScheduleState> {
+export async function cancel(slotId: string, reasonText: string): Promise<ScheduleState> {
   const actor = await requireUser();
+
+  const reason = cleanCancelReason(reasonText);
+  if (!reason) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("w1a.cancelReasonNeeded") };
+  }
 
   const result = await cancelBooking({ slotId, by: "therapist", actor });
   if (!result.ok) return { error: result.error };
+
+  if (result.sessionId) {
+    const { afterClinicianCancel } = await import("@/lib/data/clinician-cancel");
+    await afterClinicianCancel({ actorUserId: actor.userId, sessionId: result.sessionId, reason });
+  }
 
   revalidatePath("/on-call");
   return { ok: true };
