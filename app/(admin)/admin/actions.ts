@@ -9,6 +9,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { requireRole, requireStaff } from "@/lib/auth/guard";
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/data/admin";
@@ -43,8 +44,26 @@ const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/actions.ts", "not rout
 
 export type AdminActionState = { error?: string; ok?: boolean };
 
-export async function suspendUser(userId: string, suspend: boolean): Promise<AdminActionState> {
+/**
+ * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
+ * (`lib/admin/reason.ts`), the same number the confirm step enables at, said
+ * in the reader's language.
+ */
+async function reasonRefused(reason: unknown): Promise<string | null> {
+  const problem = reasonProblem(reason);
+  if (!problem) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(problem);
+}
+
+export async function suspendUser(
+  userId: string,
+  suspend: boolean,
+  reason: string,
+): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
   await setUserStatus(userId, suspend ? "suspended" : "active");
   await audit({
     actor,
@@ -52,6 +71,7 @@ export async function suspendUser(userId: string, suspend: boolean): Promise<Adm
     action: suspend ? "user.suspend" : "user.reinstate",
     resourceType: "user",
     resourceId: userId,
+    reason: reasonText(reason),
   });
   revalidatePath("/admin/therapists");
   return { ok: true };
@@ -60,8 +80,11 @@ export async function suspendUser(userId: string, suspend: boolean): Promise<Adm
 export async function verifyUser(
   userId: string,
   status: "verified" | "rejected" | "pending",
+  reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
   await setVerification(userId, status, actor.userId);
   await audit({
     actor,
@@ -69,6 +92,7 @@ export async function verifyUser(
     action: `user.verification.${status}`,
     resourceType: "user",
     resourceId: userId,
+    reason: reasonText(reason),
   });
   revalidatePath("/admin/therapists");
   revalidatePath("/admin/verifications");
@@ -158,6 +182,8 @@ export async function applyInvoiceDiscount(
   reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const result = await discountInvoice({
     invoiceId,
@@ -414,8 +440,9 @@ export async function editInvoice(
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
 
-  const trimmedReason = reason.trim();
-  if (!trimmedReason) return { error: "Say why, this ends up in the audit log." };
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+  const trimmedReason = reasonText(reason);
 
   const [invoice] = await db
     .select()
@@ -519,8 +546,11 @@ export async function refundPatient(
  */
 export async function releaseTherapistEarnings(
   therapistId: string,
+  reason: string,
 ): Promise<AdminActionState & { movedCents?: number }> {
   const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const { releaseHeldEarnings } = await import("@/lib/billing/connect");
   const result = await releaseHeldEarnings(therapistId, { adminUserId: actor.userId });
@@ -533,7 +563,7 @@ export async function releaseTherapistEarnings(
     action: "earnings.release",
     resourceType: "user",
     resourceId: therapistId,
-    reason: `Released ${result.movedCents} cents`,
+    reason: `Released ${result.movedCents} cents, ${reasonText(reason)}`,
   });
 
   revalidatePath("/admin/vault");
@@ -556,6 +586,9 @@ export async function adjustLedger(input: {
   reason: string;
 }): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  // W2-A05: the screen asked for a sentence and the server never checked one.
+  const refused = await reasonRefused(input.reason);
+  if (refused) return { error: refused };
 
   if (!LEDGER_ACCOUNTS.includes(input.account)) return { error: "Unknown account." };
 
@@ -583,8 +616,12 @@ export async function applyUpcomingDiscount(
   reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
+  // W2-A05: no reason and no amount check, and it overwrote any existing credit silently.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+  if (!Number.isInteger(discountCents) || discountCents <= 0) return { error: "Enter a whole number of cents above zero." };
 
-  await setUpcomingDiscount({ organizationId, discountCents, reason });
+  await setUpcomingDiscount({ organizationId, discountCents, reason: reasonText(reason) });
 
   await audit({
     actor,
@@ -666,9 +703,13 @@ export async function setTaxonomyState(
   kind: TaxonomyKind,
   code: string,
   enabled: boolean,
+  reason: string,
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
   if (!TAXONOMY_KINDS.includes(kind)) return { error: "Unknown list." };
+  // W2-A05: switching a country off takes its clinicians off the radar.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const { setTaxonomyEnabled } = await import("@/lib/data/taxonomy");
   await setTaxonomyEnabled(kind, code, enabled, actor.userId);
@@ -679,6 +720,7 @@ export async function setTaxonomyState(
     action: enabled ? "taxonomy.enable" : "taxonomy.disable",
     resourceType: "taxonomy",
     resourceId: `${kind}:${code}`,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/taxonomy");
@@ -707,9 +749,15 @@ export async function addTaxonomy(kind: TaxonomyKind, label: string): Promise<Ad
   return { ok: true };
 }
 
-export async function removeTaxonomy(kind: TaxonomyKind, code: string): Promise<AdminActionState> {
+export async function removeTaxonomy(
+  kind: TaxonomyKind,
+  code: string,
+  reason: string,
+): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
   if (!TAXONOMY_KINDS.includes(kind)) return { error: "Unknown list." };
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const { removeTaxonomyEntry } = await import("@/lib/data/taxonomy");
   await removeTaxonomyEntry(kind, code);
@@ -720,6 +768,7 @@ export async function removeTaxonomy(kind: TaxonomyKind, code: string): Promise<
     action: "taxonomy.remove",
     resourceType: "taxonomy",
     resourceId: `${kind}:${code}`,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/taxonomy");

@@ -3,10 +3,23 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { requireRole } from "@/lib/auth/guard";
 import { unpause } from "@/lib/data/enrolment-verify";
 
 export type LiftPauseState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
+ * (`lib/admin/reason.ts`), the same number the confirm step enables at, said
+ * in the reader's language.
+ */
+async function reasonRefused(reason: unknown): Promise<string | null> {
+  const problem = reasonProblem(reason);
+  if (!problem) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(problem);
+}
 
 /**
  * 🔴 C247 — "the pause must be reversible by us in one step", and this is the step.
@@ -35,10 +48,13 @@ export type LiftPauseState = { error?: string; ok?: boolean };
  * a payer to a named person on a surface a payer can reach, and an audit row
  * reading "lifted Ahmed's pause at Acme" is that join written down.
  */
-export async function liftPause(enrolmentId: string): Promise<LiftPauseState> {
+export async function liftPause(enrolmentId: string, reason: string): Promise<LiftPauseState> {
   const actor = await requireRole("super_admin");
 
   if (!enrolmentId) return { error: "No benefit chosen." };
+  // W2-A05: lifting a pause restarts an employer's funding without the proof the cycle collects.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   await unpause(enrolmentId);
 
@@ -48,6 +64,7 @@ export async function liftPause(enrolmentId: string): Promise<LiftPauseState> {
     action: "benefit.pause_lifted",
     resourceType: "enrolment",
     resourceId: enrolmentId,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/benefits");

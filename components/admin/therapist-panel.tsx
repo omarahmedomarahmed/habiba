@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { useState, useTransition } from "react";
 import {
   AlertTriangle,
@@ -730,15 +731,22 @@ function AdminInvoiceRow({
             >
               Credit next renewal
             </Button>
-            <Button
-              size="sm"
+            {/* W2-A05: voiding is confirmed, with its own reason, before anything moves. */}
+            <ConfirmWithReason
+              label={
+                <>
+                  <Ban className="h-3.5 w-3.5" aria-hidden />
+                  Void
+                </>
+              }
               variant="danger"
               disabled={pending || invoice.status === "void"}
-              onClick={() => run(() => editInvoice(invoice.id, { status: "void" }, reason), "Voided")}
-            >
-              <Ban className="h-3.5 w-3.5" aria-hidden />
-              Void
-            </Button>
+              onConfirm={async (why) => {
+                const result = await editInvoice(invoice.id, { status: "void" }, why);
+                if (!result.error) setDone("Voided");
+                return result;
+              }}
+            />
           </div>
         </div>
       ) : null}
@@ -794,37 +802,51 @@ function Manage({
         ) : null}
         {done ? <p className="mt-3 text-sm text-emerald-700">{done}</p> : null}
 
+        {/*
+          W2-A05: each of these changes what the clinician can do, so each is
+          two presses and a reason on the record, checked by the server at the
+          same length the screen enables at.
+        */}
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            size="sm"
+          <ConfirmWithReason
+            label={
+              <>
+                <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                Verify
+              </>
+            }
+            variant="primary"
             disabled={pending || verification === "verified"}
-            onClick={() => run(() => verifyUser(therapistId, "verified"), "Marked verified")}
-          >
-            <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-            Verify
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
+            onConfirm={async (reason) => {
+              const result = await verifyUser(therapistId, "verified", reason);
+              if (!result.error) setDone("Marked verified");
+              return result;
+            }}
+          />
+          <ConfirmWithReason
+            label="Reject"
             disabled={pending || verification === "rejected"}
-            onClick={() => run(() => verifyUser(therapistId, "rejected"), "Marked rejected")}
-          >
-            Reject
-          </Button>
-          <Button
-            size="sm"
+            onConfirm={async (reason) => {
+              const result = await verifyUser(therapistId, "rejected", reason);
+              if (!result.error) setDone("Marked rejected");
+              return result;
+            }}
+          />
+          <ConfirmWithReason
+            label={
+              <>
+                <Ban className="h-3.5 w-3.5" aria-hidden />
+                {status === "active" ? "Suspend account" : "Reinstate"}
+              </>
+            }
             variant={status === "active" ? "danger" : "primary"}
             disabled={pending}
-            onClick={() =>
-              run(
-                () => suspendUser(therapistId, status === "active"),
-                status === "active" ? "Account suspended" : "Account reinstated",
-              )
-            }
-          >
-            <Ban className="h-3.5 w-3.5" aria-hidden />
-            {status === "active" ? "Suspend account" : "Reinstate"}
-          </Button>
+            onConfirm={async (reason) => {
+              const result = await suspendUser(therapistId, status === "active", reason);
+              if (!result.error) setDone(status === "active" ? "Account suspended" : "Account reinstated");
+              return result;
+            }}
+          />
         </div>
       </Card>
 

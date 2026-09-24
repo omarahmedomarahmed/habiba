@@ -4047,6 +4047,11 @@ export const en = {
   "arail.discard": "Discard",
   "arail.errStillFailing": "Still failing.",
   "arail.errNote": "Say what you did.",
+  "aconfirm.why": "Why? It is audited.",
+  "aconfirm.tooShort": "Give a reason of ten characters or more.",
+  "aconfirm.delete": "Delete",
+  "aconfirm.off": "Off",
+  "aconfirm.on": "On",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7328,6 +7333,11 @@ export const ar: Record<MessageKey, string> = {
   "arail.discard": "تجاهل",
   "arail.errStillFailing": "ما زال يفشل.",
   "arail.errNote": "اذكر ما فعلته.",
+  "aconfirm.why": "لماذا؟ يُسجَّل ذلك.",
+  "aconfirm.tooShort": "اذكر سببًا من عشرة أحرف أو أكثر.",
+  "aconfirm.delete": "احذف",
+  "aconfirm.off": "أوقف",
+  "aconfirm.on": "شغّل",
 };
 
 export const DICTIONARIES = { en, ar } as const;

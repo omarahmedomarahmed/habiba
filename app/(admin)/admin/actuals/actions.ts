@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { requireRole } from "@/lib/auth/guard";
 import { addCapital, removeCapital, setOtherCost } from "@/lib/data/capital";
 import { addEmployee, endEmployment, setSalary } from "@/lib/data/payroll";
@@ -146,8 +147,15 @@ export async function removeCapitalAction(
   form: FormData,
 ): Promise<PayrollActionState> {
   const actor = await requireRole("super_admin");
+  // W2-A05: a one-click hard delete, now with a reason the audit row keeps.
+  const why = String(form.get("reason") ?? "");
+  const problem = reasonProblem(why);
+  if (problem) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t(problem) };
+  }
 
-  const result = await removeCapital(actor, { id: String(form.get("id") ?? "") });
+  const result = await removeCapital(actor, { id: String(form.get("id") ?? ""), why: reasonText(why) });
   if (!result.ok) return { error: result.error };
 
   revalidatePath("/admin/actuals");

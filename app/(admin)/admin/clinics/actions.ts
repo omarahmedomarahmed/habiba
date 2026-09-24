@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import { createClinicManager, setClinicRegion, setClinicState } from "@/lib/data/clinic-admin";
@@ -10,6 +11,18 @@ import { isRegion } from "@/lib/db/region";
 import { CLINIC_STATES, type ClinicState } from "@/lib/db/schema";
 
 export type AdminClinicState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
+ * (`lib/admin/reason.ts`), the same number the confirm step enables at, said
+ * in the reader's language.
+ */
+async function reasonRefused(reason: unknown): Promise<string | null> {
+  const problem = reasonProblem(reason);
+  if (!problem) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(problem);
+}
 
 /**
  * Admin's side of a practice. PLAN.md 54.3, C259, C267.
@@ -26,10 +39,13 @@ export type AdminClinicState = { error?: string; ok?: boolean };
 export async function setState(
   clinicOrganizationId: string,
   state: string,
+  reason: string,
 ): Promise<AdminClinicState> {
   const actor = await requireRole("super_admin");
 
   if (!CLINIC_STATES.includes(state as ClinicState)) return { error: "Not a state." };
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   const result = await setClinicState(clinicOrganizationId, state as ClinicState);
   if (result.error) return { error: result.error };
@@ -40,6 +56,7 @@ export async function setState(
     action: `clinic.${state}`,
     resourceType: "organization",
     resourceId: clinicOrganizationId,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/clinics");

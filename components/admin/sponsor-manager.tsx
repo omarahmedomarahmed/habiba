@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -164,18 +165,14 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
 
           {/* The state machine, as buttons. Held, active, suspended, closed. */}
           <div className="flex flex-wrap gap-2">
+            {/* W2-A05: a confirm and a reason, and a refusal is shown rather than voided. */}
             {SPONSOR_STATES.filter((state) => state !== sponsor.state).map((state) => (
-              <button
+              <ConfirmWithReason
                 key={state}
-                type="button"
+                label={state}
                 disabled={pending}
-                onClick={() =>
-                  startTransition(async () => void (await activate(sponsor.id, state)))
-                }
-                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-              >
-                {state}
-              </button>
+                onConfirm={(reason) => activate(sponsor.id, state, reason)}
+              />
             ))}
           </div>
 
@@ -220,14 +217,12 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
             >
               {t("sponsor.attempts", { count: sponsor.attempts })}
             </span>
-            <button
-              type="button"
+            {/* W2-A05: rotating kills the old code for anybody mid-signup, so it is confirmed. */}
+            <ConfirmWithReason
+              label={sponsor.code ? t("asponsor.rotate") : t("asponsor.mint")}
               disabled={pending}
-              onClick={() => startTransition(async () => void (await mintCode(sponsor.id)))}
-              className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-            >
-              {sponsor.code ? t("asponsor.rotate") : t("asponsor.mint")}
-            </button>
+              onConfirm={(reason) => mintCode(sponsor.id, reason)}
+            />
           </div>
 
           {/*

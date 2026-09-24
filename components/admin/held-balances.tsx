@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { useState, useTransition } from "react";
 import { AlertTriangle, Send, ShieldCheck } from "lucide-react";
 
@@ -130,23 +131,23 @@ function HeldRowItem({ row }: { row: HeldRow }) {
           error message.
         */}
         {row.hasAccount ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                setError(null);
-                setMessage(null);
-                const result = await releaseTherapistEarnings(row.therapistId);
-                if (result.error) setError(result.error);
-                else setMessage(`Released ${formatUsd(result.movedCents ?? 0)}`);
-              })
+          /* W2-A05: money leaves on this press, so it is confirmed with a reason. */
+          <ConfirmWithReason
+            label={
+              <>
+                <Send className="h-3.5 w-3.5" aria-hidden />
+                Release now
+              </>
             }
-          >
-            <Send className="h-3.5 w-3.5" aria-hidden />
-            {pending ? "Releasing…" : "Release now"}
-          </Button>
+            disabled={pending}
+            onConfirm={async (reason) => {
+              setError(null);
+              setMessage(null);
+              const result = await releaseTherapistEarnings(row.therapistId, reason);
+              if (!result.error) setMessage(`Released ${formatUsd(result.movedCents ?? 0)}`);
+              return result;
+            }}
+          />
         ) : null}
       </div>
 

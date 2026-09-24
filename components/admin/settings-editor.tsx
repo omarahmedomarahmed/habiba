@@ -553,7 +553,7 @@ export function CountryEditor({
         <Field
           label="Regulators"
           htmlFor={`reg-${country.code}`}
-          hint="One per line. A missing regulator reads as 'you are not welcome here', so it never constrains."
+          hint="One per line."
         >
           <Textarea
             id={`reg-${country.code}`}

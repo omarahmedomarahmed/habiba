@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { suspendUser, verifyUser } from "@/app/(admin)/admin/actions";
-import { Badge, Button } from "@/components/ui";
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
+import { Badge } from "@/components/ui";
 
 export function ClinicianRow(props: {
   id: string;
@@ -18,7 +19,6 @@ export function ClinicianRow(props: {
   plan: string;
   sessionCount: number;
 }) {
-  const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState(props.status);
   const [verification, setVerification] = useState(props.verificationStatus);
 
@@ -51,37 +51,33 @@ export function ClinicianRow(props: {
         {status === "suspended" ? <Badge tone="red">Suspended</Badge> : null}
       </div>
 
-      <div className="flex shrink-0 gap-2">
+      {/*
+        W2-A05: both are two presses and a reason, and the row changes only
+        when the server said yes. It used to flip whatever the call returned.
+      */}
+      <div className="flex shrink-0 flex-wrap gap-2">
         {verification !== "verified" ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                await verifyUser(props.id, "verified");
-                setVerification("verified");
-              })
-            }
-          >
-            Verify
-          </Button>
+          <ConfirmWithReason
+            label="Verify"
+            onConfirm={async (reason) => {
+              const result = await verifyUser(props.id, "verified", reason);
+              if (!result.error) setVerification("verified");
+              return result;
+            }}
+          />
         ) : null}
 
-        <Button
-          size="sm"
+        <ConfirmWithReason
+          label={status === "suspended" ? "Reinstate" : "Suspend"}
           variant={status === "suspended" ? "secondary" : "danger"}
-          disabled={pending || props.role === "super_admin"}
-          onClick={() =>
-            startTransition(async () => {
-              const next = status !== "suspended";
-              await suspendUser(props.id, next);
-              setStatus(next ? "suspended" : "active");
-            })
-          }
-        >
-          {status === "suspended" ? "Reinstate" : "Suspend"}
-        </Button>
+          disabled={props.role === "super_admin"}
+          onConfirm={async (reason) => {
+            const next = status !== "suspended";
+            const result = await suspendUser(props.id, next, reason);
+            if (!result.error) setStatus(next ? "suspended" : "active");
+            return result;
+          }}
+        />
       </div>
     </div>
   );

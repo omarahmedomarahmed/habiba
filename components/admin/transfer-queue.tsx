@@ -6,6 +6,7 @@ import { confirm, reject } from "@/app/(admin)/admin/transfers/actions";
 import { ReceiptModal } from "@/components/admin/receipt-modal";
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
+import { MIN_REASON } from "@/lib/admin/reason";
 
 /**
  * The queue an operator works, by the minute.
@@ -372,7 +373,7 @@ function TransferRow({
           />
           <button
             type="button"
-            disabled={pending || reason.trim().length < 10}
+            disabled={pending || reason.trim().length < MIN_REASON}
             onClick={() =>
               start(async () => {
                 onDone(await reject(row.id, reason));

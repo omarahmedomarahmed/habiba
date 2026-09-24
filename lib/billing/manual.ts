@@ -41,6 +41,7 @@ import {
   type ManualPaymentPurpose,
   users,
 } from "@/lib/db/schema";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { log } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 
@@ -607,7 +608,7 @@ export async function confirmWithoutProof(input: {
   onConfirmed?: (payment: ManualPayment) => Promise<void>;
 }): Promise<Decision> {
   const reason = input.reason.trim();
-  if (reason.length < 10) {
+  if (reason.length < MIN_REASON) {
     return { error: "Say what you saw in the bank. This stays on the payment." };
   }
 
@@ -679,7 +680,7 @@ export async function rejectPayment(input: {
   reason: string;
 }): Promise<Decision> {
   const reason = input.reason.trim();
-  if (reason.length < 10) {
+  if (reason.length < MIN_REASON) {
     return { error: "Give a reason they can act on. At least a sentence." };
   }
 

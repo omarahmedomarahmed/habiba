@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import {
@@ -15,6 +16,18 @@ import {
 import { ENTITIES, SPONSOR_STATES, type Entity, type SponsorState } from "@/lib/db/schema";
 
 export type AdminSponsorState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
+ * (`lib/admin/reason.ts`), the same number the confirm step enables at, said
+ * in the reader's language.
+ */
+async function reasonRefused(reason: unknown): Promise<string | null> {
+  const problem = reasonProblem(reason);
+  if (!problem) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t(problem);
+}
 
 /**
  * Admin's side of the corporate account. PLAN.md 53.6, C233, C237.
@@ -31,10 +44,14 @@ export type AdminSponsorState = { error?: string; ok?: boolean };
 export async function activate(
   sponsorId: string,
   state: string,
+  reason: string,
 ): Promise<AdminSponsorState> {
   const actor = await requireRole("super_admin");
 
   if (!SPONSOR_STATES.includes(state as SponsorState)) return { error: "Not a state." };
+  // W2-A05: suspending or closing a company's account is theirs to be told about.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   await setSponsorState(sponsorId, state as SponsorState);
 
@@ -44,6 +61,7 @@ export async function activate(
     action: `sponsor.${state}`,
     resourceType: "sponsor",
     resourceId: sponsorId,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/sponsors");
@@ -168,8 +186,11 @@ export async function addPortalUser(
 }
 
 /** 53.9 — mint or rotate their joining code from our side too. */
-export async function mintCode(sponsorId: string): Promise<AdminSponsorState> {
+export async function mintCode(sponsorId: string, reason: string): Promise<AdminSponsorState> {
   const actor = await requireRole("super_admin");
+  // W2-A05: rotating kills the old code for anybody halfway through signing up.
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
 
   await rotateCode(sponsorId);
 
@@ -179,6 +200,7 @@ export async function mintCode(sponsorId: string): Promise<AdminSponsorState> {
     action: "sponsor.code_rotated",
     resourceType: "sponsor",
     resourceId: sponsorId,
+    reason: reasonText(reason),
   });
 
   revalidatePath("/admin/sponsors");

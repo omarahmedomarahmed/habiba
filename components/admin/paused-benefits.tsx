@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { useState, useTransition } from "react";
 import { ShieldCheck } from "lucide-react";
 
@@ -93,23 +94,12 @@ export function PausedBenefits({ rows }: { rows: PausedRow[] }) {
               <Badge tone="slate">Cannot self-serve</Badge>
             ) : null}
 
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-8 px-2.5 text-xs"
+            {/* W2-A05: it restarts an employer's funding, so it is confirmed with a reason. */}
+            <ConfirmWithReason
+              label="Lift the pause"
               disabled={pending && busy === row.enrolmentId}
-              onClick={() => {
-                setBusy(row.enrolmentId);
-                setError(null);
-                start(async () => {
-                  const result = await liftPause(row.enrolmentId);
-                  if (result.error) setError(result.error);
-                  setBusy(null);
-                });
-              }}
-            >
-              {pending && busy === row.enrolmentId ? "…" : "Lift the pause"}
-            </Button>
+              onConfirm={(reason) => liftPause(row.enrolmentId, reason)}
+            />
           </div>
         </div>
       ))}
