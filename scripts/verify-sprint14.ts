@@ -369,7 +369,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-12 — A REFUND THAT DID NOT HAPPEN IS NOT CALLED ONE.
+     * 🔴 W1-12: A REFUND THAT DID NOT HAPPEN IS NOT CALLED ONE.
      *
      * A bank-transfer payment has no Stripe charge (`capture: "platform"`, no
      * intent), so `refundSessionPayment` refuses it. `refundNoShow` used to mark
@@ -401,7 +401,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-13 — A CLINICIAN CANCELS A PAID APPOINTMENT.
+     * 🔴 W1-13: A CLINICIAN CANCELS A PAID APPOINTMENT.
      *
      * Paid by transfer, so the refund cannot go back by itself: the answer is a
      * refund OWED, the payment still `paid`, and never a row calling it refunded.

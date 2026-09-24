@@ -71,7 +71,7 @@ export default async function AppLayout({
   const { t, locale } = await getI18n();
   const actor = await requireUser();
   /*
-   * 🔴 W1-02 — the organisation's bill in flight is the account holder's. A
+   * 🔴 W1-02: the organisation's bill in flight is the account holder's. A
    * clinic seat clinician's organisation is the clinic, whose bill they do not run.
    */
   const { orgKindOf } = await import("@/lib/data/org-kind");

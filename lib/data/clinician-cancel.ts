@@ -11,7 +11,7 @@ import { notify } from "@/lib/notify";
 export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
 
 /**
- * 🔴 W1-13 — what follows a clinician cancelling a session they had booked.
+ * 🔴 W1-13: what follows a clinician cancelling a session they had booked.
  *
  * The cancellation itself is the caller's (`cancelBooking`, `cancelSession`),
  * each guarded on who owns the row. This runs only after one of them succeeded,

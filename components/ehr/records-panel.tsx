@@ -106,7 +106,7 @@ export function RecordsPanel({
   filers: number;
   actions: PanelActions;
   /**
-   * 🔴 W1-02 / W1-22 — may this reader connect or disconnect? A clinic seat
+   * 🔴 W1-02 / W1-22: may this reader connect or disconnect? A clinic seat
    * clinician and a clinic manager without `team.manage` read the state and
    * cannot change it, and the server actions refuse them as well.
    */
@@ -115,7 +115,7 @@ export function RecordsPanel({
   const t = useT();
   const [state, beginAction] = useActionState(actions.begin, {});
   const [open, setOpen] = useState(false);
-  /* 🔴 W1-22 — the connection somebody pressed Disconnect on, asked about before it goes. */
+  /* 🔴 W1-22: the connection somebody pressed Disconnect on, asked about before it goes. */
   const [confirming, setConfirming] = useState<string | null>(null);
 
   const live = connections.filter((c) => c.revokedAt === null);

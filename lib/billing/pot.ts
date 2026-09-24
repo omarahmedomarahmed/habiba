@@ -819,7 +819,7 @@ export async function refundToPot(input: {
  * refuses the top-up with the reason rather than letting the insert fail with a
  * constraint name.
  *
- * 🔴 W1-01 — ONLY AFTER A CONFIRMED CHARGE. This used to journal cash as
+ * 🔴 W1-01: ONLY AFTER A CONFIRMED CHARGE. This used to journal cash as
  * received on nothing but a form post, so the card rail credited money nobody
  * paid. It now asks the processor whether the named charge succeeded for this
  * sponsor and this amount, and refuses otherwise. No screen calls it today: the

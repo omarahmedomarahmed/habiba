@@ -399,7 +399,7 @@ export async function endSession(sessionId: string): Promise<SessionActionState>
 }
 
 /**
- * 🔴 W1-13 — a reason is required, and a session that really was cancelled is
+ * 🔴 W1-13: a reason is required, and a session that really was cancelled is
  * followed by `afterClinicianCancel`: the patient is told why and any payment
  * goes back. This used to cancel and stop.
  */

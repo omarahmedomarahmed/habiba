@@ -10,7 +10,7 @@ import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 export type TopUpState = { error?: string; ok?: boolean };
 
 /*
- * 🔴 W1-01 — `addToPot`, the card rail's action, is GONE. It called `topUpPot`
+ * 🔴 W1-01: `addToPot`, the card rail's action, is GONE. It called `topUpPot`
  * straight from a form, which journalled cash as received and raised the
  * balance with no charge anywhere on the path. `topUpPot` now demands a charge
  * Stripe confirms and is reached only from the webhook; the page tells a company

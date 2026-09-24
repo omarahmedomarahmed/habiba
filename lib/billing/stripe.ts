@@ -715,7 +715,7 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
     }
 
     /*
-     * 🔴 W1-01 — the one door into `topUpPot`: a charge Stripe says succeeded,
+     * 🔴 W1-01: the one door into `topUpPot`: a charge Stripe says succeeded,
      * which `topUpPot` asks Stripe about again before crediting. No checkout
      * creates such a charge yet, so the card rail stays off until one does.
      */

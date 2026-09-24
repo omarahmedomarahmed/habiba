@@ -196,7 +196,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-04 — TWO PRESSES AT ONCE. Two people on the queue, or one double
+     * 🔴 W1-04: TWO PRESSES AT ONCE. Two people on the queue, or one double
      * click, both reach "Mark sent". The ledger used to be posted before the
      * guarded status move, so both calls posted and one payout left the books
      * twice. Exactly one call may win, and only the winner posts.

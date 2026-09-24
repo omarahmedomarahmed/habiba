@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 /**
- * W1-13 — a clinician cancelling a booked appointment, or a session, tells the
+ * W1-13: a clinician cancelling a booked appointment, or a session, tells the
  * patient why and gives back what they paid.
  *
  * Both doors (`cancel` on the availability editor, `abandonSession` on the

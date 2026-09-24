@@ -73,7 +73,7 @@ export async function disconnect(formData: FormData): Promise<void> {
   const { actor, refused } = await requireOrgAccount();
   if (refused) return;
   /*
-   * 🔴 W1-22 — the connection that was chosen. One live connection per organisation per VENDOR
+   * 🔴 W1-22: the connection that was chosen. One live connection per organisation per VENDOR
    * still allows two vendors, so "disconnect" without an id revoked both. The id is pinned to
    * this organisation inside `revokeConnectionsFor`, so changing it reaches nothing else.
    */

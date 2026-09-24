@@ -285,7 +285,7 @@ async function move(input: {
     });
 
     /*
-     * 🔴 W1-04 — the ledger post rides on the WON transition. It used to run
+     * 🔴 W1-04: the ledger post rides on the WON transition. It used to run
      * before the move, so both of two concurrent "Mark sent" calls posted and
      * the loser's legs stayed on the books with no request pointing at them.
      */

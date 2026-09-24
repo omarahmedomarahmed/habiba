@@ -640,7 +640,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-01 — NO CREDIT WITHOUT A CONFIRMED PAYMENT.
+     * 🔴 W1-01: NO CREDIT WITHOUT A CONFIRMED PAYMENT.
      *
      * `topUpPot` used to journal cash as received and raise the balance on
      * nothing but a form post, so the US card rail credited money nobody paid.

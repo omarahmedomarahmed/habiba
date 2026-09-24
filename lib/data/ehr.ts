@@ -128,7 +128,7 @@ export async function revokeConnectionsFor(
   vendor: EhrVendor | null,
   reason: string,
   /**
-   * 🔴 W1-22 — the one connection a person chose to disconnect. Still scoped to
+   * 🔴 W1-22: the one connection a person chose to disconnect. Still scoped to
    * the organisation, so an id from a form cannot reach another practice's row.
    */
   connectionId?: string,

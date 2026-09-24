@@ -142,9 +142,9 @@ export async function replacementsFor(input: {
 export type RecoveryResult =
   | { ok: true; outcome: "reassigned"; creditCents: number }
   | { ok: true; outcome: "refunded" }
-  /** 🔴 W1-12 — cancelled, and nothing was ever taken, so nothing goes back. */
+  /** 🔴 W1-12: cancelled, and nothing was ever taken, so nothing goes back. */
   | { ok: true; outcome: "cancelled" }
-  /** 🔴 W1-12 — cancelled, money taken, and it could not be returned automatically. */
+  /** 🔴 W1-12: cancelled, money taken, and it could not be returned automatically. */
   | { ok: true; outcome: "refund_owed" }
   | { ok: false; error: string };
 
@@ -324,7 +324,7 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
    * the read path had it and the two write paths did not.
    */
   /*
-   * 🔴 W1-12 — THE CLAIM IS THE CANCELLATION, NOT THE REFUND.
+   * 🔴 W1-12: THE CLAIM IS THE CANCELLATION, NOT THE REFUND.
    *
    * This used to write `recovery_outcome = 'refunded'` here, before any money
    * moved, and then only log a refund that failed. Every bank-transfer payment

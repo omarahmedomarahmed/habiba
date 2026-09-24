@@ -91,7 +91,7 @@ export async function disconnect(formData: FormData): Promise<void> {
   const actor = await requireClinicAdmin();
 
   /*
-   * 🔴 W1-22 — the connection the admin chose, and only that one. This used to
+   * 🔴 W1-22: the connection the admin chose, and only that one. This used to
    * ignore the posted id and revoke every live connection the practice had.
    * `revokeConnectionsFor` still pins the organisation, so a changed id reaches
    * nothing outside it; a malformed one reaches nothing at all.

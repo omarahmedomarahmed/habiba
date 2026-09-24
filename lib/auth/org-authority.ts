@@ -1,7 +1,7 @@
 import type { OrganizationKind } from "@/lib/db/schema";
 
 /**
- * 🔴 W1-02 — may this clinician act on their organisation's account?
+ * 🔴 W1-02: may this clinician act on their organisation's account?
  *
  * Only when the organisation is their own solo practice. A clinic seat
  * clinician's session carries the CLINIC's id, so seats, plan, bills and the

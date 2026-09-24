@@ -74,7 +74,7 @@ export default async function BillingPage({
   const practiceName = practice?.name ?? null;
 
   /*
-   * 🔴 W1-02 — A CLINIC SEAT CLINICIAN READS THEIR OWN PATIENTS' PAYMENTS, AND
+   * 🔴 W1-02: A CLINIC SEAT CLINICIAN READS THEIR OWN PATIENTS' PAYMENTS, AND
    * NOTHING OF THE CLINIC'S ACCOUNT. Their session carries the clinic's
    * organisation id, so every figure below keyed on it is the clinic's: its
    * seats, its plan, its invoices. The actions refuse them too; this is the

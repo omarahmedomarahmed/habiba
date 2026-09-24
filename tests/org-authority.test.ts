@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 /**
- * W1-02 — who may act on an organisation's account.
+ * W1-02: who may act on an organisation's account.
  *
  * A clinic seat clinician's session carries the CLINIC's organisation id, so
  * every action that did `requireUser` and then acted on `actor.organizationId`

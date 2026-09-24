@@ -54,7 +54,7 @@ export default async function SettingsRecordsPage() {
          * connection needs is an organisation that outlives one person.
          */
         onClinicPlan={onClinicPlan}
-        /* 🔴 W1-02 — a clinic seat clinician reads the clinic's connection and cannot change it. */
+        /* 🔴 W1-02: a clinic seat clinician reads the clinic's connection and cannot change it. */
         canManage={mayRunOrgAccount(kind)}
         filers={filers}
         configured={features.ehr}

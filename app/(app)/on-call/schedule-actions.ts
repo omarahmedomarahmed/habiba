@@ -82,7 +82,7 @@ export async function withdraw(slotId: string): Promise<ScheduleState> {
  * cancelling one appointment has not withdrawn the hour — and the patient is
  * told. Whether the telling arrives is reported honestly: see `notify`.
  *
- * 🔴 W1-13 — "the patient is told" was not true: nothing was sent and nothing
+ * 🔴 W1-13: "the patient is told" was not true: nothing was sent and nothing
  * refunded. A reason is required now, and `afterClinicianCancel` sends it and
  * returns the money (or says a refund is owed on the transfer rail).
  */

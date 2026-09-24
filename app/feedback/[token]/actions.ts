@@ -92,7 +92,7 @@ export async function reportSession(input: {
       .where(eq(sessionPayments.sessionId, filed.sessionId))
       .limit(1);
 
-    /* 🔴 W1-12 — what actually happened to the money, for the resolution below. */
+    /* 🔴 W1-12: what actually happened to the money, for the resolution below. */
     let refundNote = "nothing was paid";
     if (payment) {
       try {

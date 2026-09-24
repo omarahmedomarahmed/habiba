@@ -1,5 +1,5 @@
 /**
- * 🔴 W1-13 — the reason a clinician gives the patient for cancelling.
+ * 🔴 W1-13: the reason a clinician gives the patient for cancelling.
  *
  * Required, because a cancellation with no sentence reads as a mistake to the
  * person it happened to. Capped rather than refused when long: it is a message,

@@ -157,7 +157,7 @@ export async function requireStaff(): Promise<Actor> {
 }
 
 /**
- * 🔴 W1-02 — a clinician acting on their ORGANISATION's account: seats, plan,
+ * 🔴 W1-02: a clinician acting on their ORGANISATION's account: seats, plan,
  * bills, the records connection. Allowed for a solo practice only; see
  * `mayRunOrgAccount`. Returns the refusal as a sentence rather than throwing,
  * because the callers are server actions with a form state to put it in.

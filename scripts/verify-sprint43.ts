@@ -633,7 +633,7 @@ async function main() {
     );
 
     /*
-     * 🔴 W1-22 — DISCONNECT REVOKES THE CONNECTION THAT WAS CHOSEN, AND NO OTHER.
+     * 🔴 W1-22: DISCONNECT REVOKES THE CONNECTION THAT WAS CHOSEN, AND NO OTHER.
      *
      * The clinic's Disconnect posted a `connectionId` and the action ignored it,
      * revoking every live connection the practice had. Two live, one chosen.

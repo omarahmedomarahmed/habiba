@@ -86,7 +86,7 @@ export async function offerReplacements(sessionId: string): Promise<RecoveryView
   }
 
   /*
-   * 🔴 W1-12 — cancelled as a no-show with no outcome written: nothing was
+   * 🔴 W1-12: cancelled as a no-show with no outcome written: nothing was
    * taken, or money was taken and could not go back by itself. The payment
    * row says which, because it stays `paid` while we still hold the money.
    */
@@ -191,7 +191,7 @@ export async function takeRefund(sessionId: string): Promise<RecoveryView | { er
    * anybody" is what actually happened.
    */
   /*
-   * 🔴 W1-12 — the message says what happened to the money, and only that. It
+   * 🔴 W1-12: the message says what happened to the money, and only that. It
    * used to say "refunded in full" whatever the refund had done. English, like
    * the rest of this message.
    */

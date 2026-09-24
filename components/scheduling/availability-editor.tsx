@@ -55,7 +55,7 @@ export function AvailabilityEditor({
   const [toHour, setToHour] = useState(21);
   const [days, setDays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  /* 🔴 W1-13 — the booked hour being cancelled, and the reason the patient is sent. */
+  /* 🔴 W1-13: the booked hour being cancelled, and the reason the patient is sent. */
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [adopted, setAdopted] = useState<string | null>(null);

@@ -36,7 +36,7 @@ import { useT } from "@/lib/i18n/client";
  */
 export function CancelSession({ sessionId }: { sessionId: string }) {
   const [armed, setArmed] = useState(false);
-  /* 🔴 W1-13 — the patient is told why, so the second click needs a reason. */
+  /* 🔴 W1-13: the patient is told why, so the second click needs a reason. */
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
