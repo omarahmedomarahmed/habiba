@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
-import { requireOrgAccount } from "@/lib/auth/guard";
+import { requireOrgAccount } from "@/lib/auth/org-account";
 import { formatUsd } from "@/lib/billing/plans";
 import type { SeatQuote } from "@/components/billing/seat-manager";
 import {

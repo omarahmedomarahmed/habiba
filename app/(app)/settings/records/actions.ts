@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireOrgAccount } from "@/lib/auth/guard";
+import { requireOrgAccount } from "@/lib/auth/org-account";
 import { beginConnection, revokeConnectionsFor } from "@/lib/data/ehr";
 import { putPending } from "@/lib/ehr/pending";
 import { authorizeUrl, pkce } from "@/lib/ehr/smart";
