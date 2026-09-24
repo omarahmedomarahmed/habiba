@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requirePartnerAdmin } from "@/lib/partner-auth/guard";
-import { mintKey, revokeKey } from "@/lib/partner/keys";
+import { mintKey, revokeKey, rotateKey } from "@/lib/partner/keys";
 import type { ApiEnvironment } from "@/lib/db/schema";
 
 export type KeyState = { error?: string; raw?: string; prefix?: string };
@@ -38,6 +38,7 @@ export async function createKey(_prev: KeyState, formData: FormData): Promise<Ke
      * refuses it again in the database.
      */
     sponsorId: sponsorId || null,
+    byPartnerUserId: actor.partnerUserId,
   });
 
   if (result.error || !result.key) return { error: result.error ?? "That key could not be made." };
@@ -50,10 +51,31 @@ export async function createKey(_prev: KeyState, formData: FormData): Promise<Ke
   return { raw: result.key.raw, prefix: result.key.prefix };
 }
 
+/** Revoke, after the screen's own confirm step. W2-X04: audited in `revokeKey`. */
 export async function revoke(formData: FormData): Promise<void> {
   const actor = await requirePartnerAdmin();
-  await revokeKey(actor.partnerId, String(formData.get("keyId") ?? ""));
+  await revokeKey(actor.partnerId, String(formData.get("keyId") ?? ""), actor.partnerUserId);
   revalidatePath("/partner");
+}
+
+/**
+ * 🔴 W2-X04 — ROLL A KEY. The new raw key comes back once, exactly as a new key
+ * does, and the old one keeps working for the overlap chosen on the form.
+ */
+export async function rotate(_prev: KeyState, formData: FormData): Promise<KeyState> {
+  const actor = await requirePartnerAdmin();
+
+  const result = await rotateKey({
+    partnerId: actor.partnerId,
+    keyId: String(formData.get("keyId") ?? ""),
+    overlapHours: Number(formData.get("overlapHours") ?? 0),
+    byPartnerUserId: actor.partnerUserId,
+  });
+
+  if (result.error || !result.key) return { error: result.error ?? "That key could not be made." };
+
+  revalidatePath("/partner");
+  return { raw: result.key.raw, prefix: result.key.prefix };
 }
 
 /**

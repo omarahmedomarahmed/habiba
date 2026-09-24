@@ -4002,6 +4002,15 @@ export const en = {
   "dev.nextTry": "Next try {time}",
   "dev.redeliver": "Redeliver",
   "dev.sendTest": "Send a test event",
+  "dev.rotate": "Rotate",
+  "dev.overlap": "Keep the old key working for",
+  "dev.overlapWeek": "Seven days",
+  "dev.overlapDay": "One day",
+  "dev.overlapNow": "No time: stop it now",
+  "dev.stopsAt": "Stops working {date}",
+  "dev.revokeConfirm": "It stops working at once, for every call.",
+  "dev.revokeYes": "Revoke it",
+  "dev.cancel": "Cancel",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7238,6 +7247,15 @@ export const ar: Record<MessageKey, string> = {
   "dev.nextTry": "المحاولة التالية {time}",
   "dev.redeliver": "أعد الإرسال",
   "dev.sendTest": "أرسل حدثًا تجريبيًا",
+  "dev.rotate": "استبدل المفتاح",
+  "dev.overlap": "أبقِ المفتاح القديم يعمل لمدة",
+  "dev.overlapWeek": "سبعة أيام",
+  "dev.overlapDay": "يوم واحد",
+  "dev.overlapNow": "لا شيء: أوقفه الآن",
+  "dev.stopsAt": "يتوقف عن العمل {date}",
+  "dev.revokeConfirm": "سيتوقف عن العمل فورًا، في كل الطلبات.",
+  "dev.revokeYes": "ألغِه",
+  "dev.cancel": "إلغاء",
 };
 
 export const DICTIONARIES = { en, ar } as const;

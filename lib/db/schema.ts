@@ -7992,6 +7992,14 @@ export const partnerApiKeys = pgTable(
     suspendedAt: timestamp("suspended_at", { withTimezone: true }),
     suspendedReason: text("suspended_reason"),
 
+    /**
+     * 🔴 W2-X04 — WHEN THE KEY STOPS WORKING, WHICH MAY BE IN THE FUTURE.
+     *
+     * A revoke writes now. A roll writes the end of the overlap the partner chose
+     * (now, a day, seven days), so the old key keeps answering while their servers
+     * move to the new one. `authenticateKey` admits a key only while this is null
+     * or still ahead, in the WHERE.
+     */
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

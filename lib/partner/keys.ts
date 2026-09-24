@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
@@ -89,6 +89,8 @@ export async function mintKey(input: {
   scopes: string[];
   environment: ApiEnvironment;
   sponsorId: string | null;
+  /** W2-X04: who pressed the button, for the audit row. */
+  byPartnerUserId?: string | null;
 }): Promise<{ key?: MintedKey; error?: string }> {
   const scopes = input.scopes.filter((scope): scope is ApiScope =>
     (API_SCOPES as readonly string[]).includes(scope),
@@ -161,7 +163,34 @@ export async function mintKey(input: {
   if (!created) return { error: "That key could not be created." };
 
   log.info("api key minted", { partner: ref(input.partnerId), environment: input.environment });
+  await auditKey("partner.key.mint", created.id, input.partnerId, input.byPartnerUserId, input.environment);
   return { key: { raw, prefix: created.prefix, id: created.id } };
+}
+
+/**
+ * 🔴 W2-X04 — EVERY MINT, ROLL AND REVOKE LEAVES A ROW. `devs.promise4` says every
+ * call is recorded with the key that made it; the key's own life was not.
+ *
+ * A partner user is not an `Actor` and has no column of their own in `audit_log`,
+ * so the row names the key as its resource and the partner and person in the
+ * reason (H6: descriptive text goes in `reason`, never in the uuid column).
+ */
+async function auditKey(
+  action: string,
+  keyId: string,
+  partnerId: string,
+  byPartnerUserId: string | null | undefined,
+  detail: string,
+): Promise<void> {
+  const { audit } = await import("@/lib/audit");
+  await audit({
+    actor: null,
+    category: "admin",
+    action,
+    resourceType: "partner_api_key",
+    resourceId: keyId,
+    reason: `partner ${partnerId}, ${detail}${byPartnerUserId ? `, by partner user ${byPartnerUserId}` : ""}`,
+  });
 }
 
 /**
@@ -272,7 +301,8 @@ export async function authenticateKey(
     .where(
       and(
         eq(partnerApiKeys.keyHash, hash),
-        isNull(partnerApiKeys.revokedAt),
+        /* 🔴 W2-X04 — a rolled key answers until the end of its overlap, then never. */
+        or(isNull(partnerApiKeys.revokedAt), gt(partnerApiKeys.revokedAt, sql`now()`)),
         /* 🔴 C265 — a suspended key is dead in the WHERE clause, not in a branch. */
         isNull(partnerApiKeys.suspendedAt),
       ),
@@ -424,6 +454,12 @@ export async function keysFor(partnerId: string) {
       suspendedAt: partnerApiKeys.suspendedAt,
       suspendedReason: partnerApiKeys.suspendedReason,
       revokedAt: partnerApiKeys.revokedAt,
+      /*
+       * 🔴 W2-X04 — STOPPED, by the database's clock, which is the clock
+       * `authenticateKey` asks. A rolled key has a `revokedAt` in the future and is
+       * still working until then.
+       */
+      stopped: sql<boolean>`(${partnerApiKeys.revokedAt} IS NOT NULL AND ${partnerApiKeys.revokedAt} <= now())`,
       createdAt: partnerApiKeys.createdAt,
     })
     .from(partnerApiKeys)
@@ -432,19 +468,102 @@ export async function keysFor(partnerId: string) {
     .orderBy(partnerApiKeys.createdAt);
 }
 
-/** 🔴 Rotatable, which in practice means revoke and mint. There is no edit. */
-export async function revokeKey(partnerId: string, keyId: string): Promise<{ ok: true }> {
-  await controlDb
+/** A key that still answers: never revoked, or rolled and inside its overlap. */
+const stillWorking = () =>
+  or(isNull(partnerApiKeys.revokedAt), gt(partnerApiKeys.revokedAt, sql`now()`));
+
+/**
+ * Revoke a key: it stops working now, including a rolled key inside its overlap.
+ *
+ * 🔴 W2-X04 — audited, and confirmed on the screen before it is called.
+ */
+export async function revokeKey(
+  partnerId: string,
+  keyId: string,
+  byPartnerUserId?: string | null,
+): Promise<{ ok: boolean }> {
+  const revoked = await controlDb
     .update(partnerApiKeys)
-    .set({ revokedAt: new Date() })
+    .set({ revokedAt: sql`now()` })
     .where(
       and(
         eq(partnerApiKeys.id, keyId),
         /* Scoped in the WHERE. A borrowed key id revokes nothing. */
         eq(partnerApiKeys.partnerId, partnerId),
-        isNull(partnerApiKeys.revokedAt),
+        stillWorking(),
       ),
-    );
+    )
+    .returning({ id: partnerApiKeys.id });
 
+  if (revoked.length === 0) return { ok: false };
+  await auditKey("partner.key.revoke", keyId, partnerId, byPartnerUserId, "revoked now");
   return { ok: true };
+}
+
+/** W2-X04: how long a rolled key keeps working. Stripe's default overlap is seven days. */
+export const ROLL_OVERLAP_HOURS = [0, 24, 24 * 7] as const;
+
+/**
+ * 🔴 W2-X04 — ROLL A KEY: a new one with the same label, scopes and environment, and
+ * an end for the old one.
+ *
+ * "Rotatable" used to mean revoke and mint, which cut every call the old key made at
+ * the moment the new one appeared. A roll lets the partner's servers move across:
+ * the old key works until the overlap they chose runs out (RESEARCH-2 section 7).
+ * The new key goes through `mintKey`, so a live key still needs a live approval.
+ */
+export async function rotateKey(input: {
+  partnerId: string;
+  keyId: string;
+  overlapHours: number;
+  byPartnerUserId?: string | null;
+}): Promise<{ key?: MintedKey; error?: string }> {
+  const overlap = (ROLL_OVERLAP_HOURS as readonly number[]).includes(input.overlapHours)
+    ? input.overlapHours
+    : 0;
+
+  const [old] = await controlDb
+    .select({
+      label: partnerApiKeys.label,
+      scopes: partnerApiKeys.scopes,
+      environment: partnerApiKeys.environment,
+      sponsorId: partnerApiKeys.sponsorId,
+    })
+    .from(partnerApiKeys)
+    .where(
+      and(
+        eq(partnerApiKeys.id, input.keyId),
+        eq(partnerApiKeys.partnerId, input.partnerId),
+        stillWorking(),
+      ),
+    )
+    .limit(1);
+  if (!old) return { error: "That key has already stopped working." };
+
+  const minted = await mintKey({
+    partnerId: input.partnerId,
+    label: old.label,
+    scopes: old.scopes,
+    environment: old.environment,
+    sponsorId: old.sponsorId,
+    byPartnerUserId: input.byPartnerUserId,
+  });
+  if (!minted.key) return minted;
+
+  /* The old key's end, never later than an end it already had. */
+  await controlDb
+    .update(partnerApiKeys)
+    .set({
+      revokedAt: sql`LEAST(COALESCE(${partnerApiKeys.revokedAt}, 'infinity'::timestamptz), now() + make_interval(hours => ${overlap}::int))`,
+    })
+    .where(and(eq(partnerApiKeys.id, input.keyId), eq(partnerApiKeys.partnerId, input.partnerId)));
+
+  await auditKey(
+    "partner.key.rotate",
+    input.keyId,
+    input.partnerId,
+    input.byPartnerUserId,
+    `replaced by ${minted.key.id}, old key works ${overlap} more hours`,
+  );
+  return minted;
 }

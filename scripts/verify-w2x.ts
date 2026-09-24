@@ -242,6 +242,98 @@ async function main() {
     check("W2-X02 an unknown session is a 404", nobody?.status === 404, `${nobody?.status}`);
 
     /* ================================================================ */
+    /*  W2-X04 · ROTATE, CONFIRM ON REVOKE, AUDIT ON MINT AND REVOKE     */
+    /* ================================================================ */
+
+    const keys = await import("../lib/partner/keys");
+    const actorId = randomUuid();
+    const audited = async (action: string, keyId: string) =>
+      (
+        await one<{ n: number }>(sql`
+          SELECT count(*)::int AS n FROM audit_log
+           WHERE action = ${action} AND resource_id = ${keyId}`)
+      ).n;
+
+    const rollable = await keys.mintKey({
+      partnerId: partner.id,
+      label: "to be rolled",
+      environment: "sandbox",
+      sponsorId: null,
+      scopes: ["consent:write"],
+      byPartnerUserId: actorId,
+    } as Parameters<typeof keys.mintKey>[0]);
+    const oldId = rollable.key!.id;
+    check(
+      "🔴 W2-X04 minting a key writes an audit row",
+      (await audited("partner.key.mint", oldId)) === 1,
+      `${await audited("partner.key.mint", oldId)} rows`,
+    );
+
+    const asKey = (raw: string) => (session: string) =>
+      consentRoute.GET(
+        new Request(`${base}/consent?session=${session}`, { headers: { authorization: `Bearer ${raw}` } }),
+      );
+    const oldCall = asKey(rollable.key!.raw);
+
+    const rotateKey = (keys as { rotateKey?: typeof keys.rotateKey }).rotateKey;
+    const rolled = rotateKey
+      ? await rotateKey({ partnerId: partner.id, keyId: oldId, overlapHours: 24, byPartnerUserId: actorId })
+      : { error: "no rotateKey" };
+    const newKey = rolled.key;
+    const oldEnd = await one<{ hours: number | null }>(sql`
+      SELECT EXTRACT(EPOCH FROM revoked_at - now()) / 3600 AS hours
+        FROM partner_api_keys WHERE id = ${oldId}`);
+    const oldDuring = (await oldCall(`${fixture}-roll`)).status;
+    const newDuring = newKey ? (await asKey(newKey.raw)(`${fixture}-roll`)).status : 0;
+    check(
+      "🔴 W2-X04 rotating mints a replacement, and the old key keeps working through the overlap",
+      Boolean(newKey) && newDuring === 200 && oldDuring === 200 &&
+        Number(oldEnd.hours) > 23.5 && Number(oldEnd.hours) < 24.5,
+      `${rolled.error ?? "rolled"}, old ${oldDuring}, new ${newDuring}, old ends in ${Number(oldEnd.hours).toFixed(2)} h`,
+    );
+    check(
+      "W2-X04 …and the roll is audited",
+      (await audited("partner.key.rotate", oldId)) === 1 &&
+        (newKey ? await audited("partner.key.mint", newKey.id) : 0) === 1,
+      `rotate ${await audited("partner.key.rotate", oldId)}`,
+    );
+
+    await db.execute(sql`
+      UPDATE partner_api_keys SET revoked_at = now() - interval '1 second' WHERE id = ${oldId}`);
+    const oldAfter = (await oldCall(`${fixture}-roll`)).status;
+    const rollAgain = rotateKey
+      ? await rotateKey({ partnerId: partner.id, keyId: oldId, overlapHours: 24 })
+      : { error: "no rotateKey" };
+    check(
+      "🔴 W2-X04 once the overlap is over the old key is refused, and it cannot be rolled again",
+      oldAfter === 401 && Boolean(rollAgain.error),
+      `old ${oldAfter}, second roll: ${rollAgain.error ?? "allowed"}`,
+    );
+
+    if (newKey) {
+      const borrowed = await keys.revokeKey(randomUuid(), newKey.id, actorId);
+      await keys.revokeKey(partner.id, newKey.id, actorId);
+      const newAfter = (await asKey(newKey.raw)(`${fixture}-roll`)).status;
+      check(
+        "🔴 W2-X04 revoking stops the key at once and writes an audit row; a borrowed id revokes nothing",
+        newAfter === 401 && (await audited("partner.key.revoke", newKey.id)) === 1 &&
+          (borrowed as { ok?: boolean }).ok !== true,
+        `after revoke ${newAfter}, audit ${await audited("partner.key.revoke", newKey.id)}`,
+      );
+    } else {
+      check("🔴 W2-X04 revoking stops the key at once and writes an audit row", false, "no key to revoke");
+    }
+
+    const keyList = readSource("components/partner/key-list.tsx");
+    check(
+      "🔴 W2-X04 Revoke asks first: the form that revokes is only on the confirm step, beside a Cancel",
+      /asking\.act === "revoke"/.test(keyList) && /dev\.revokeConfirm/.test(keyList) &&
+        /dev\.cancel/.test(keyList) &&
+        keyList.indexOf("action={revoke}") > keyList.indexOf('asking.act === "revoke"'),
+      "a one-tap revoke stops a production integration with no question asked",
+    );
+
+    /* ================================================================ */
     /*  W2-X03 · WEBHOOKS: HOURLY, BACKOFF, FAILED, REDELIVER, TEST      */
     /* ================================================================ */
 
@@ -380,6 +472,9 @@ async function main() {
     await db.execute(sql`DELETE FROM partner_subjects WHERE external_ref LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM partner_clinicians WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
+    /* The key audit rows name the partner in `reason` (W2-X04), so they go by it. */
+    await db.execute(sql`DELETE FROM audit_log WHERE reason LIKE
+      'partner ' || (SELECT id::text FROM partners WHERE slug = ${fixture}) || '%'`);
     await db.execute(sql`DELETE FROM partner_api_keys WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM partners WHERE slug = ${fixture}`);

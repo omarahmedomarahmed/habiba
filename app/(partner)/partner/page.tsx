@@ -5,7 +5,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
 import { sponsorChoices } from "@/lib/data/partner-admin";
 import { keysFor } from "@/lib/partner/keys";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Your keys", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -58,7 +58,10 @@ export default async function PartnerKeysPage() {
           lastUsed: key.lastUsedAt ? formatDate(key.lastUsedAt, "UTC", locale) : null,
           suspendedReason: key.suspendedReason,
           suspended: key.suspendedAt !== null,
-          revoked: key.revokedAt !== null,
+          /* 🔴 W2-X04 — stopped by the database's clock; a rolled key works until then. */
+          revoked: key.stopped,
+          stopsAt:
+            !key.stopped && key.revokedAt ? formatDateTime(key.revokedAt, "UTC", locale) : null,
         }))}
         sponsors={sponsors}
         canMint={actor.role === "admin"}
