@@ -1,0 +1,125 @@
+/**
+ * Wave 2, the company portal: every dead end gets a way forward. `takeover/FIX-PLAN.md`.
+ *
+ *   npm run verify:w2s
+ *
+ * One section per W2-S item that needs the database. Every check was written
+ * first and seen to FAIL on the code it describes, then the fix made it pass.
+ * Fixtures are planted and removed in a `finally` (H29), and `writesTo()`
+ * refuses production by name.
+ */
+import { sql } from "drizzle-orm";
+
+import { readSource, reporter, required, writesTo } from "./_verify";
+import { connect } from "./db";
+
+const { check, finish } = reporter();
+
+const fixture = `w2s-${Date.now().toString(36)}`;
+
+type Db = ReturnType<typeof connect>["db"];
+
+/** Plant an active company with one admin user. Removed by `dropSponsor`. */
+async function plantSponsor(db: Db, label: string): Promise<string> {
+  const [sp] = (
+    await db.execute(sql`
+      INSERT INTO sponsors (name, kind, entity, currency, state)
+      VALUES (${`W2S ${label} ${fixture}`}, 'company', 'us', 'USD', 'active') RETURNING id`)
+  ).rows as { id: string }[];
+  const sponsorId = required(sp, "a sponsor").id;
+  await db.execute(sql`
+    INSERT INTO sponsor_users (sponsor_id, email, role)
+    VALUES (${sponsorId}, ${`hr-${label}-${fixture}@example.com`}, 'admin')`);
+  return sponsorId;
+}
+
+async function dropSponsor(db: Db, sponsorId: string) {
+  await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+    (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
+  await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
+  await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
+  await db.execute(sql`DELETE FROM sponsor_codes WHERE sponsor_id = ${sponsorId}`);
+  await db.execute(sql`DELETE FROM sponsor_users WHERE sponsor_id = ${sponsorId}`);
+  await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsorId}`);
+}
+
+const YEAR = 365 * 24 * 60 * 60 * 1000;
+
+/* ================================================================== */
+/*  W2-S02 · the balance is republished on every top-up                */
+/* ================================================================== */
+
+async function balanceAfterTopUp(db: Db) {
+  const sponsorId = await plantSponsor(db, "topup");
+  try {
+    const { openPot } = await import("../lib/data/sponsor-admin");
+    const { potBalance } = await import("../lib/data/sponsors");
+
+    await openPot({
+      sponsorId,
+      refundPolicy: "Unused balance is refunded within 30 days of written notice.",
+      expiresAt: new Date(Date.now() + YEAR),
+      overdraftCents: 0,
+      welcomeCreditCents: 10_000,
+    });
+
+    const opened = await potBalance(sponsorId);
+    check(
+      "W2-S02 a pot opened with a credit shows that credit, before any session",
+      opened.balanceCents === 10_000,
+      `published ${String(opened.balanceCents)}`,
+    );
+
+    /*
+     * The differencing half: sessions have been spent since the last
+     * publication (the live balance is lower than the published one), and a
+     * top-up must move the published figure by the top-up alone.
+     */
+    await db.execute(sql`
+      UPDATE sponsor_pots SET balance_cents = 7000, published_balance_cents = 10000
+       WHERE sponsor_id = ${sponsorId}`);
+
+    const pot = (await import("../lib/billing/pot")) as Record<string, unknown>;
+    const publishTopUp = pot.publishTopUp as
+      | ((sponsorId: string, creditCents: number) => Promise<void>)
+      | undefined;
+    if (!publishTopUp) {
+      check("W2-S02 a top-up moves the published balance by the top-up and nothing else", false, "no publishTopUp");
+    } else {
+      await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 12000 WHERE sponsor_id = ${sponsorId}`);
+      await publishTopUp(sponsorId, 5_000);
+      const after = await potBalance(sponsorId);
+      check(
+        "W2-S02 a top-up moves the published balance by the top-up and nothing else",
+        after.balanceCents === 15_000,
+        `published ${String(after.balanceCents)}, live 12000: the hidden spend stays hidden`,
+      );
+    }
+
+    const grants = readSource("lib/billing/manual-grants.ts");
+    const card = readSource("lib/billing/pot.ts");
+    check(
+      "W2-S02 both top-up rails publish what they credit",
+      /publishTopUp\(payment\.sponsorId, net\)/.test(grants) &&
+        /publishTopUp\(input\.sponsorId, net\)/.test(card),
+      "grantPotTopUp and topUpPot",
+    );
+  } finally {
+    await dropSponsor(db, sponsorId);
+  }
+}
+
+async function main() {
+  writesTo();
+
+  const { pool, db } = connect();
+  try {
+    await balanceAfterTopUp(db);
+  } finally {
+    await pool.end();
+  }
+
+  finish("wave 2 company");
+}
+
+void main();

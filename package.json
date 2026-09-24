@@ -133,6 +133,7 @@
     "verify:sprint11r": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint11r.ts",
     "verify:migrations": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-migrations.ts",
     "verify:radar-place": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-radar-place.ts",
+    "verify:w2s": "node --env-file-if-exists=.env.local --import tsx --import ./scripts/_render-preload.mjs scripts/verify-w2s.ts",
     "verify:w1d": "node --env-file-if-exists=.env.local --import tsx --import ./scripts/_render-preload.mjs scripts/verify-w1d.ts",
     "verify:palette": "node --import tsx scripts/verify-palette.ts",
     "verify:contrast": "node --import tsx scripts/verify-contrast.ts",

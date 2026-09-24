@@ -343,6 +343,10 @@ export async function openPot(input: {
       ],
     });
 
+    /* W2-S02 — a credit the company can see, from the day the pot opens. */
+    const { publishTopUp } = await import("@/lib/billing/pot");
+    await publishTopUp(input.sponsorId, credit);
+
     log.info("welcome credit granted", { sponsor: ref(input.sponsorId), amountCents: credit });
   }
 

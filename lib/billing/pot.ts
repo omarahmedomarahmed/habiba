@@ -936,8 +936,49 @@ export async function topUpPot(input: {
     })
     .where(eq(sponsorPots.id, pot.potId));
 
+  /* W2-S02 — the company's own money in, published at once. */
+  await publishTopUp(input.sponsorId, net);
+
   log.info("pot topped up", { sponsor: ref(input.sponsorId) });
   return { ok: true };
+}
+
+/**
+ * 🔴 W2-S02 — A TOP-UP IS PUBLISHED THE MOMENT IT LANDS, and only the top-up.
+ *
+ * `potBalance` republished only when pot-funded sessions moved `activityFloor`
+ * past the last publication, so a company that paid in read the old balance, or
+ * "not enough activity", until five more sessions were spent. A top-up is the
+ * company's own act and names nobody, so it is published at once.
+ *
+ * 🔴 ADDED TO THE PUBLISHED FIGURE, NEVER COPIED FROM THE LIVE ONE. Publishing
+ * the live balance here would hand over every session spent since the last
+ * publication in one subtraction (published, plus top-up, minus shown), which is
+ * C229's differencing attack arriving through the money coming in. So the credit
+ * is added to what was already published, and the spend waits for the floor.
+ *
+ * A pot that has never published starts from every credit it has ever had
+ * (`pot_topup` legs only, this one included), which is its balance before any
+ * reported session. Called after the journal, so that sum can see this credit.
+ */
+export async function publishTopUp(sponsorId: string, creditCents: number): Promise<void> {
+  const credit = Math.max(0, Math.round(creditCents));
+  if (credit === 0) return;
+
+  await controlDb.execute(sql`
+    UPDATE sponsor_pots
+       SET published_balance_cents = CASE
+             WHEN published_balance_cents IS NULL THEN (
+               SELECT COALESCE(-SUM(l.amount_cents), 0)::int
+                 FROM ledger_entries l
+                WHERE l.account = 'sponsor_pot'
+                  AND l.ref_type = 'sponsor'
+                  AND l.ref_id = ${sponsorId}
+                  AND l.txn_kind = 'pot_topup')
+             ELSE published_balance_cents + ${credit}
+           END,
+           updated_at = now()
+     WHERE sponsor_id = ${sponsorId}`);
 }
 
 /** Asked of the processor, never of the browser. Any doubt is a no. */
