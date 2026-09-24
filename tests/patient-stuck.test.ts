@@ -123,7 +123,7 @@ test("W2-P05 what a patient is sent about their booking opens their own session,
 /* ------------------------------------------------------ W2-P06 and W2-P14 -- */
 
 test("W2-P06 a session card opens what it is waiting on: join, pay, the transfer, the summary", async () => {
-  const { doorFor } = await import("../lib/data/patient-view");
+  const { doorFor } = await import("../lib/sessions/doors");
   const now = Date.parse("2026-09-24T10:00:00Z");
   const base = {
     status: "scheduled",
@@ -168,6 +168,16 @@ test("W2-P14 billing lists what is still open, not only what was paid", () => {
   assert.match(billing, /sessionDoors\(/);
   assert.match(billing, /kind === "pay" \|\| row\.door\?\.kind === "checking"/);
   assert.match(billing, /patientOwesFor\(/, "the amount is what they owe after their benefit");
+});
+
+/* ----------------------------------------------------------------- W2-P07 -- */
+
+test("W2-P07 the code sent to a new number has a screen, and it finishes only the patient's own change", () => {
+  const actions = code("app/(patient)/patient/account/actions.ts");
+  assert.match(actions, /completeOwnChange\(\{\s*accountId: actor\.accountId/);
+  assert.doesNotMatch(actions, /formData\.get\("requestId"\)/, "never an id the client chooses");
+  assert.match(code("components/patient/change-number.tsx"), /finishNumberChange/);
+  assert.match(code("app/(patient)/patient/account/page.tsx"), /awaitingCode=\{await awaitingChangeCode\(/);
 });
 
 /* ----------------------------------------------------------------- W2-P04 -- */

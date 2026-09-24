@@ -4003,6 +4003,7 @@ export const en = {
   "paccount.emailCodeSent": "A code is on its way to {email}.",
   "paccount.emailAdded": "Added. It signs you in and receives your record.",
   "pbilling.open": "Still open",
+  "pnumber.changed": "Number changed.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7240,6 +7241,7 @@ export const ar: Record<MessageKey, string> = {
   "paccount.emailCodeSent": "رمز في طريقه إلى {email}.",
   "paccount.emailAdded": "أُضيف. يمكنك الدخول به واستلام سجلك عليه.",
   "pbilling.open": "لم يُدفع بعد",
+  "pnumber.changed": "تغيّر الرقم.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

@@ -11,7 +11,7 @@ import { Card } from "@/components/ui";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, people } from "@/lib/db/schema";
-import { lockUntil } from "@/lib/data/phone-change";
+import { awaitingChangeCode, lockUntil } from "@/lib/data/phone-change";
 import { getI18n } from "@/lib/i18n/server";
 import { patientSignOut } from "@/lib/patient-auth/actions";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -84,6 +84,7 @@ export default async function PatientAccountPage() {
         current={actor.phone}
         countries={countries.map((c) => ({ code: c.code, name: c.name }))}
         lockedUntilLabel={locked ? locked.toISOString().slice(0, 10) : null}
+        awaitingCode={await awaitingChangeCode(actor.accountId)}
       />
 
       <Card className="p-4">

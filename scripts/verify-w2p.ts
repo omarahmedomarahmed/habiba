@@ -192,7 +192,39 @@ async function main() {
       doorOf(owed.id) === "pay" && doorOf(checking.id) === "checking" && doorOf(mine.id) === "join",
       `owed=${doorOf(owed.id)}, transfer=${doorOf(checking.id)}, free=${doorOf(mine.id)}`,
     );
+
+    /* ================================================================ */
+    /*  W2-P07 · AN APPROVED NUMBER CHANGE CAN BE FINISHED               */
+    /* ================================================================ */
+
+    const { hashPassword } = await import("../lib/auth/password");
+    const oldPhone = (
+      await one<{ phone: string }>(sql`SELECT phone FROM patient_accounts WHERE id = ${account.id}`)
+    ).phone;
+    const newPhone = `+2011${String(Date.now()).slice(-8)}`;
+    await db.execute(sql`
+      INSERT INTO phone_change_requests (patient_account_id, old_phone, new_phone, reason,
+                                         contact_consent, status, approved_by_user_id,
+                                         verification_hash, verification_expires_at)
+      VALUES (${account.id}, ${oldPhone}, ${newPhone}, 'Lost the old phone on holiday', true,
+              'verifying', ${therapist.id}, ${await hashPassword("424242")},
+              now() + interval '1 day')`);
+
+    const { awaitingChangeCode, completeOwnChange } = await import("../lib/data/phone-change");
+    const waiting = await awaitingChangeCode(account.id);
+    const wrongCode = await completeOwnChange({ accountId: account.id, code: "111111" });
+    const moved = await completeOwnChange({ accountId: account.id, code: "424242" });
+    const nowPhone = await one<{ phone: string }>(sql`
+      SELECT phone FROM patient_accounts WHERE id = ${account.id}`);
+    check(
+      "🔴 W2-P07 the patient's own code finishes the approved change, and a wrong one does not",
+      waiting && Boolean(wrongCode.error) && moved.ok === true && nowPhone.phone === newPhone,
+      `waiting=${waiting}, wrong=${wrongCode.error ? "refused" : "ACCEPTED"}, moved=${moved.ok}`,
+    );
   } finally {
+    await db.execute(sql`DELETE FROM phone_change_requests WHERE patient_account_id IN
+      (SELECT id FROM patient_accounts WHERE person_id IN
+        (SELECT id FROM people WHERE email LIKE ${`%${fixture}@example.com`}))`);
     await db.execute(sql`DELETE FROM manual_payments WHERE reference = ${`ref-${fixture}`}`);
     await db.execute(sql`DELETE FROM availability_slots WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);

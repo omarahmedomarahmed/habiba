@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { people } from "@/lib/db/schema";
-import { requestPhoneChange } from "@/lib/data/phone-change";
+import { completeOwnChange, requestPhoneChange } from "@/lib/data/phone-change";
 import { confirmEmailCode, issueEmailCode } from "@/lib/patient-auth/email";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { callerKey, consume } from "@/lib/rate-limit";
@@ -47,6 +47,29 @@ export async function askToChangeNumber(
     contactConsent: formData.get("consent") === "on",
   });
 
+  if (result.error) return { error: result.error };
+
+  revalidatePath("/patient/account");
+  return { ok: true };
+}
+
+/**
+ * 🔴 W2-P07: the code sent to the new number, which nothing could take.
+ * Rate limited because the code is six digits and the request lives a day.
+ */
+export async function finishNumberChange(
+  _prev: AccountState,
+  formData: FormData,
+): Promise<AccountState> {
+  const actor = await requirePatient();
+
+  const verdict = await consume(await callerKey("patient:number-code"), 5, 15 * 60);
+  if (!verdict.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+
+  const result = await completeOwnChange({
+    accountId: actor.accountId,
+    code: String(formData.get("code") ?? ""),
+  });
   if (result.error) return { error: result.error };
 
   revalidatePath("/patient/account");

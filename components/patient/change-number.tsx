@@ -3,7 +3,11 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { askToChangeNumber, type AccountState } from "@/app/(patient)/patient/account/actions";
+import {
+  askToChangeNumber,
+  finishNumberChange,
+  type AccountState,
+} from "@/app/(patient)/patient/account/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
@@ -31,14 +35,58 @@ export function ChangeNumber({
   current,
   countries,
   lockedUntilLabel,
+  awaitingCode = false,
 }: {
   current: string | null;
   countries: { code: string; name: string }[];
   /** Null when it can be changed today. 20.14's ninety days. */
   lockedUntilLabel: string | null;
+  /**
+   * 🔴 W2-P07: a person approved the change and a code went to the new
+   * number. The screen that takes it did not exist, so every change stalled.
+   */
+  awaitingCode?: boolean;
 }) {
   const t = useT();
   const [state, action] = useActionState(askToChangeNumber, INITIAL);
+  const [finished, finish] = useActionState(finishNumberChange, INITIAL);
+
+  if (finished.ok) {
+    return (
+      <Card className="border-brand-200 bg-brand-50 p-4">
+        <p className="text-sm font-semibold text-brand-900">{t("pnumber.changed")}</p>
+      </Card>
+    );
+  }
+
+  if (awaitingCode) {
+    return (
+      <Card className="p-4">
+        <p className="text-sm font-semibold text-slate-900">{t("pnumber.yours")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("pnumber.requestedBody")}</p>
+        <form action={finish} className="mt-3 space-y-3">
+          <Field label={t("pfield.sixDigitCode")} htmlFor="number-code">
+            <Input
+              id="number-code"
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              required
+            />
+          </Field>
+          {finished.error ? (
+            <p role="alert" className="text-sm text-rose-600">
+              {finished.error}
+            </p>
+          ) : null}
+          <Button type="submit" full>
+            {t("pfield.checkTheCode")}
+          </Button>
+        </form>
+      </Card>
+    );
+  }
 
   if (state.ok) {
     return (
