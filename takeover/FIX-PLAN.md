@@ -70,6 +70,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | W1-27 | S2 | Found merging 1A with 1C: `refundNoShow` returns "cancelled" or "refund owed" but writes no `recovery_outcome`, because the column's check allows only reassigned, refunded, abandoned | Migration adds `cancelled` and `refund_owed`, both written; `verify:sprint14` W1-07 control reads it | verify:sprint14 |
 | W1-28 | S2 | Manual-rail refund queue (`refund_requests`) and the `session_cancelled` patient notice kind (from 1A, both need a migration) | One migration after 1B merges | verify:sprint14 |
 | W1-29 | S1 | The in-session crisis message and risk banner still offer Egypt's 105 alone; `global-error.tsx` has no SOS (from 1C) | Same line rule as the SOS sheet | test |
+| W1-30 | S1 | Our own notes write a late-recording line into the summary text (found by 1B), the pattern W1-24 removed | Fact kept as provenance, shown beside the note, stripped from text | test |
 | W1-25 | S1 | Egypt's 105 line is reported as not 24/7 (RESEARCH-2 section 1); SOS offers it alone | 123 and 112 always shown with it, emergency number first outside its hours; same on the website samples | test on the line list |
 
 ## Wave 2: stuck (S3). Every dead end gets a way forward.
@@ -194,3 +195,11 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 | W1-09 | fixed 6eb07d9c (with the Egypt hours rule) |
 | W1-10 | fixed 332a9cd1 |
 | W1-11 | fixed 292c60b6 |
+| W1-03 | fixed 46919970 (migration 0116) |
+| W1-06 | fixed 83e9ed20 |
+| W1-16 | fixed 2967c5cc (0117) |
+| W1-23 | fixed c994844d (0118); clinician stays approved while a licence change waits, expired goes back to review |
+| W1-17 | fixed 6cf2f97d (WAV trimmed exactly; other formats refused when they reach before the offset) |
+| W1-18 | fixed cedbf710 |
+| W1-24 | fixed 7c0a0a29 (0119) |
+| W1-29 | fixed 8a3861a5, 391a8473 |
