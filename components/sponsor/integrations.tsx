@@ -64,7 +64,6 @@ export function SponsorIntegrations({
   enabled,
   hrSystem,
   systems,
-  failedAttempts,
   keys,
   deliveries,
 }: {
@@ -72,7 +71,6 @@ export function SponsorIntegrations({
   enabled: boolean;
   hrSystem: string | null;
   systems: { key: string; name: string }[];
-  failedAttempts: number;
   keys: HrKeyRow[];
   deliveries: DeliveryRow[];
 }) {
@@ -302,25 +300,11 @@ Content-Type: application/json
             </Card>
           ) : null}
 
-          {/* ----------------------------------------------- the spike -- */}
-          {failedAttempts > 0 ? (
-            <Card className="p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                {t("sint.attemptsTitle")}
-              </p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
-                {failedAttempts}
-              </p>
-              {/*
-                🔴 66.11 — A NUMBER, AND WHAT IT MEANS. Never a list: the identifiers
-                people typed are the roster again, and a list of failed attempts also
-                tells somebody which guesses were close.
-              */}
-              <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                {t("sint.attemptsBody")}
-              </p>
-            </Card>
-          ) : null}
+          {/*
+            W2-S06 paid for this: the "did not match" count is gone. It counted
+            unanswered attestations, which are written only after an enrolment
+            SUCCEEDS, so its sentence about failed matches was untrue (W1-21).
+          */}
 
           {/* --------------------------------------------- the deliveries -- */}
           <Card className="p-5">

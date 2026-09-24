@@ -2,7 +2,6 @@ import { SponsorIntegrations } from "@/components/sponsor/integrations";
 import { getI18n } from "@/lib/i18n/server";
 import {
   deliveriesFor,
-  failedAttemptsFor,
   HR_SYSTEMS,
   integrationFor,
 } from "@/lib/data/sponsor-integrations";
@@ -38,11 +37,9 @@ export default async function SponsorIntegrationsPage() {
   const actor = await requireSponsor();
   const { locale } = await getI18n();
 
-  const [integration, deliveries, failedAttempts] = await Promise.all([
+  const [integration, deliveries] = await Promise.all([
     integrationFor(actor.sponsorId),
     deliveriesFor(actor.sponsorId),
-    /* 🔴 66.11 — a NUMBER. See `failedAttemptsFor` for why not a list. */
-    failedAttemptsFor(actor.sponsorId),
   ]);
 
   /*
@@ -58,7 +55,6 @@ export default async function SponsorIntegrationsPage() {
       enabled={integration.enabled}
       hrSystem={integration.hrSystem}
       systems={HR_SYSTEMS.map((system) => ({ key: system.key, name: system.name }))}
-      failedAttempts={failedAttempts}
       keys={integration.keys.map((key) => ({
         id: key.id,
         label: key.label,

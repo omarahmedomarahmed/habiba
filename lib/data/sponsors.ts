@@ -391,6 +391,8 @@ export async function identifierFields(sponsorId: string) {
       kind: sponsorIdentifierFields.kind,
       domain: sponsorIdentifierFields.domain,
       shapeHint: sponsorIdentifierFields.shapeHint,
+      /* W2-S06 — their own gate, for the test box on their own settings page. */
+      pattern: sponsorIdentifierFields.pattern,
     })
     .from(sponsorIdentifierFields)
     .where(eq(sponsorIdentifierFields.sponsorId, sponsorId))

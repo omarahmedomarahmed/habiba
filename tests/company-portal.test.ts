@@ -45,6 +45,55 @@ test("W2-S03 the poster prints without the portal around it", () => {
   assert.match(bar, /print:hidden/, "the pending payment bar prints with the poster");
 });
 
+/* ------------------------------------------------------------ W2-S06 -- */
+
+test("W2-S06 a staff number is set up from a preset, and the preset admits what it says", async () => {
+  const gate = (await import("../lib/sponsor/gate").catch(() => null)) as
+    | typeof import("../lib/sponsor/gate")
+    | null;
+  assert.ok(gate, "lib/sponsor/gate.ts does not exist");
+
+  const six = gate.presetPattern({ preset: "digits", length: 6, prefix: "" });
+  assert.ok(six, "six digits is not a preset");
+  const field = { kind: "id_number" as const, domain: null, pattern: six };
+  assert.equal(gate.matchesGate(field, "204511"), true);
+  assert.equal(gate.matchesGate(field, "2045110"), false);
+  assert.equal(gate.matchesGate(field, "20451a"), false);
+
+  /*
+   * A prefix typed in capitals, as it is printed on a staff card. `matchesGate`
+   * lowercases what the employee types, so a pattern kept in capitals would
+   * refuse every one of them.
+   */
+  const prefixed = gate.presetPattern({ preset: "prefixed", length: 4, prefix: "EMP" });
+  assert.ok(prefixed);
+  const pf = { kind: "id_number" as const, domain: null, pattern: prefixed };
+  assert.equal(gate.matchesGate(pf, "EMP2045"), true);
+  assert.equal(gate.matchesGate(pf, "emp2045"), true);
+  assert.equal(gate.matchesGate(pf, "XEMP2045"), false);
+
+  /* A prefix is text, never a pattern: a dot matches a dot and nothing else. */
+  const dotted = gate.presetPattern({ preset: "prefixed", length: 2, prefix: "A." });
+  assert.ok(dotted);
+  assert.equal(gate.matchesGate({ kind: "id_number", domain: null, pattern: dotted }, "ab12"), false);
+
+  assert.equal(gate.presetPattern({ preset: "digits", length: 0, prefix: "" }), null);
+  assert.equal(gate.presetPattern({ preset: "digits", length: 99, prefix: "" }), null);
+});
+
+test("W2-S06 the settings form has a test box and warns about an unproved domain", () => {
+  const form = readSource("components/sponsor/gate-settings.tsx");
+  assert.match(form, /matchesGate\(/, "no test box running the real gate");
+  assert.match(form, /t\("sponsor\.gateUnproved"\)/, "an unproved domain gate is not warned about");
+  assert.doesNotMatch(form, /name="pattern"/, "a raw pattern box is still offered");
+
+  const page = readSource("app/(sponsor)/sponsor/settings/page.tsx");
+  assert.match(page, /domainProved\(/, "the page never asks whether the domain is proved");
+
+  const enrol = readSource("lib/data/enrolment.ts");
+  assert.match(enrol, /from "@\/lib\/sponsor\/gate"/, "enrolment runs a different gate from the test box");
+});
+
 /* ------------------------------------------------------------ W2-S07 -- */
 
 test("W2-S07 the verify-cycle screen and the pause job read the same number", () => {
