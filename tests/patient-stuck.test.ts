@@ -87,3 +87,16 @@ test("W2-P02 sign-in returns a patient to where they were going, on both forms",
   assert.doesNotMatch(code("components/patient/code-signin-form.tsx"), /router\.replace\("\/patient"\)/);
   assert.match(code("app/(patient)/patient/login/page.tsx"), /next=\{/);
 });
+
+/* ----------------------------------------------------------------- W2-P03 -- */
+
+test("W2-P03 signup and the account both take an address, and a record only goes to a proved one", async () => {
+  const { emailProblem } = await import("../lib/patient-auth/email");
+  assert.equal(emailProblem("laila@example.com"), null);
+  assert.ok(emailProblem("not an address"));
+
+  assert.match(code("components/patient/auth-form.tsx"), /name="email"/, "signup never asked for one");
+  assert.match(code("app/(patient)/patient/account/page.tsx"), /<EmailEditor/, "the account had no way to add one");
+  assert.match(code("app/(patient)/patient/account/actions.ts"), /confirmEmailCode\(/);
+  assert.match(code("app/(patient)/patient/record/actions.ts"), /emailVerified \? actor\.email : null/);
+});

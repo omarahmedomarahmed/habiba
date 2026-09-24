@@ -5,6 +5,7 @@ import { Receipt, ShieldCheck } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { ChangeNumber } from "@/components/patient/change-number";
+import { EmailEditor } from "@/components/patient/email-editor";
 import { IdentityEditor } from "@/components/patient/identity-editor";
 import { Card } from "@/components/ui";
 import { dbFor} from "@/lib/db";
@@ -98,7 +99,10 @@ export default async function PatientAccountPage() {
               better than an empty line, and the sentence names what adding one
               buys rather than nagging.
             */}
-            <dd className="truncate text-slate-800">{actor.email ?? t("paccount.notAdded")}</dd>
+            <dd className="truncate text-slate-800">
+              {actor.email ?? t("paccount.notAdded")}
+              {actor.email && !actor.emailVerified ? ` · ${t("paccount.emailUnconfirmed")}` : ""}
+            </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-slate-500">{t("paccount.timezone")}</dt>
@@ -108,11 +112,11 @@ export default async function PatientAccountPage() {
           </div>
         </dl>
 
-        {!actor.email ? (
-          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
-            {t("paccount.addEmailBody")}
-          </p>
-        ) : null}
+        {/*
+          🔴 W2-P03: the sentence above promised an address and nothing could
+          add one. Adding it, or proving the one given at signup, is here.
+        */}
+        <EmailEditor current={actor.email} verified={actor.emailVerified} />
       </Card>
 
       <Link href="/patient/consent">

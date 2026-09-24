@@ -120,6 +120,21 @@ export function PatientAuthForm({
             </Field>
 
             {/*
+              🔴 W2-P03: the server always read an address and the form never
+              asked for one. Optional, and proved later from the account page.
+            */}
+            <Field label={t("pfield.emailOptional")} htmlFor="email">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+            </Field>
+
+            {/*
             13.11 / 13.12 — where they are. Detected, **shown, and editable**.
             §3b's whole shape is telling somebody what we are about to do with
             their number; where we think they are gets the same courtesy.

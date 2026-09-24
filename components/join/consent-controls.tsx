@@ -82,12 +82,9 @@ export function ConsentControls({
       ) : null}
 
       {/*
-        Said plainly, because the alternative is a person tapping a switch that
-        does nothing and drawing their own conclusion about why.
+        🔴 W2-P03 paid for with a false sentence: this said "Recording cannot
+        stop part-way" directly under a strip whose button stops it.
       */}
-      <p className="mt-3 text-[11px] leading-relaxed text-white/40">
-        {t("jconsent.cannotUndo")}
-      </p>
     </div>
   );
 }

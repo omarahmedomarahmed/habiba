@@ -24,7 +24,11 @@ export async function exportMyRecord(): Promise<ExportState> {
   const result = await requestOwnExport({
     accountId: actor.accountId,
     personId: actor.personId,
-    email: actor.email,
+    /*
+     * 🔴 W2-P03: a proved address only. Signup takes one unchecked, and a
+     * whole record sent to a mistyped or borrowed address cannot be recalled.
+     */
+    email: actor.emailVerified ? actor.email : null,
   });
 
   if (!result.ok) return { error: result.error, needsEmail: result.needsEmail };

@@ -1149,7 +1149,6 @@ export const en = {
   "jconsent.on": "On",
   "jconsent.turnOn": "Turn on",
   "jconsent.changeAnyTime": "You can change these at any time during the session.",
-  "jconsent.cannotUndo": "Recording cannot stop part-way. Ask your therapist to end the session, and answer no next time.",
   "radar.globeLabel": "A globe showing where therapists are online right now",
   "radar.spinningUp": "Spinning up…",
   "radar.clearFilters": "Clear all filters",
@@ -1234,7 +1233,7 @@ export const en = {
    */
   "pbook.taken": "Someone is on this profile now. If they do not go ahead, they free up.",
   "pbook.unavailable": "They have just become unavailable. The board updates every few seconds.",
-  "pbook.noAccount": "No account needed. Stripe takes the payment, we never see your card.",
+  "pbook.noAccount": "No account needed.",
   "pbook.walkIns": "Accepts walk-in visits",
   "pbook.directions": "Get directions",
   "pbook.emailAddress": "Email me the address",
@@ -3998,6 +3997,11 @@ export const en = {
   "arefund.errProof": "Receipt, account and name needed.",
   "arefund.errTwo": "Needs a second person.",
   "arefund.errReason": "Say why.",
+  // W2A patient
+  "pfield.emailOptional": "Email (optional)",
+  "paccount.emailUnconfirmed": "not confirmed",
+  "paccount.emailCodeSent": "A code is on its way to {email}.",
+  "paccount.emailAdded": "Added. It signs you in and receives your record.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -4871,7 +4875,6 @@ export const ar: Record<MessageKey, string> = {
   "jconsent.on": "مفعّل",
   "jconsent.turnOn": "فعّل",
   "jconsent.changeAnyTime": "يمكنك تغييرها في أي وقت أثناء الجلسة.",
-  "jconsent.cannotUndo": "لا يمكن إيقاف التسجيل في منتصفه. اطلب من معالجك إنهاء الجلسة، وأجب بلا في المرة القادمة.",
   "radar.globeLabel": "كرة أرضية تعرض أماكن المعالجين المتاحين الآن",
   "radar.spinningUp": "جارٍ التشغيل…",
   "radar.clearFilters": "امسح كل عوامل التصفية",
@@ -4946,7 +4949,7 @@ export const ar: Record<MessageKey, string> = {
   "pbook.heldBody": "يظهر الآن مشغولًا للجميع. أكمل الحجز أو أغلق هذه الصفحة.",
   "pbook.taken": "أحدهم على هذا الملف الآن. وإن لم يمض قدمًا يعود متاحًا.",
   "pbook.unavailable": "لم يعد متاحًا الآن. وتتحدث الشاشة كل بضع ثوانٍ.",
-  "pbook.noAccount": "بلا حساب. سترايب تتولى الدفع، ولا نرى بطاقتك.",
+  "pbook.noAccount": "بلا حساب.",
   "pbook.walkIns": "يستقبل زيارات بلا موعد",
   "pbook.directions": "احصل على الاتجاهات",
   "pbook.emailAddress": "أرسل لي العنوان بالبريد",
@@ -7230,6 +7233,11 @@ export const ar: Record<MessageKey, string> = {
   "arefund.errProof": "الإيصال والحساب والاسم مطلوبة.",
   "arefund.errTwo": "يلزم شخص ثانٍ.",
   "arefund.errReason": "اذكر السبب.",
+  // W2A patient
+  "pfield.emailOptional": "البريد الإلكتروني (اختياري)",
+  "paccount.emailUnconfirmed": "غير مؤكد",
+  "paccount.emailCodeSent": "رمز في طريقه إلى {email}.",
+  "paccount.emailAdded": "أُضيف. يمكنك الدخول به واستلام سجلك عليه.",
 };
 
 export const DICTIONARIES = { en, ar } as const;
