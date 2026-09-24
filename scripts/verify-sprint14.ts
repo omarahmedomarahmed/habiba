@@ -494,7 +494,7 @@ async function main() {
        * because nothing was paid. Either recovered state proves the link is
        * accepted; a refused proof leaves the outcome empty.
        */
-      refundedRow?.outcome === "refunded" || refundedRow?.outcome === "cancelled",
+      refundedRow?.outcome === "refunded" || (refundedRow?.outcome as string | null) === "cancelled",
       `outcome ${refundedRow?.outcome}, ${JSON.stringify(byToken)}`,
     );
 

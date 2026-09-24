@@ -106,7 +106,8 @@ export type CrisisLine = {
  * places is how two places come to disagree.
  */
 export const CRISIS_LINES: Record<string, CrisisLine> = {
-  US: { label: "988", tel: "988" },
+  // 988 answers by call, text and chat around the clock (SAMHSA 988 FAQ, RESEARCH-2 section 1).
+  US: { label: "988", tel: "988", hours: "always" },
   EG: {
     label: "105",
     tel: "105",

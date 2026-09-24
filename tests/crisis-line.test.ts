@@ -42,7 +42,7 @@ test("🔴 an Egyptian number gets 105, and the menu choices that reach the serv
 });
 
 test("🔴 …and a United States number still gets 988, with no menu", () => {
-  assert.deepEqual(lineForNumber("+15551234567"), { label: "988", tel: "988" });
+  assert.deepEqual(lineForNumber("+15551234567"), { label: "988", tel: "988", hours: "always" });
   assert.equal(countryForNumber("+15551234567"), "US");
 
   /* Steps are absent, not empty: 988 answers directly and inventing a menu for
@@ -79,7 +79,7 @@ test("🔴 a shared dialling code answers only when the countries agree", () => 
      guess to print it. If Canada ever gets a different verified line, this
      test fails and the orb correctly falls silent for +1 until somebody
      decides what to do about it. */
-  assert.deepEqual(lineForNumber("+14165550000"), { label: "988", tel: "988" });
+  assert.deepEqual(lineForNumber("+14165550000"), { label: "988", tel: "988", hours: "always" });
 });
 
 test("the country lookup for a form is display only and may tie-break", () => {
@@ -90,7 +90,7 @@ test("the country lookup for a form is display only and may tie-break", () => {
 });
 
 test("the old by-country lookup answers for both verified countries and nobody else", () => {
-  assert.deepEqual(crisisLine("US"), { label: "988", tel: "988" });
+  assert.deepEqual(crisisLine("US"), { label: "988", tel: "988", hours: "always" });
   assert.equal(crisisLine("EG")?.tel, "105");
   assert.equal(crisisLine("GB"), null, "no verified line, so no number");
   assert.equal(crisisLine(null), null);

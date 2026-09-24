@@ -1,6 +1,6 @@
 import "server-only";
 
-import { crisisLine } from "@/lib/crisis/line";
+import { EMERGENCY_LINES, crisisLine, lineOpenAt } from "@/lib/crisis/line";
 import { stillCounts } from "@/lib/crisis/context";
 import { contains, containsArabizi } from "@/lib/crisis/fold";
 
@@ -486,6 +486,7 @@ export function patientFacingCrisisMessage(
    * everywhere.
    */
   configured?: { label: string | null; tel: string | null } | null,
+  now: Date = new Date(),
 ): {
   message: string;
   helpline: string | null;
@@ -501,11 +502,38 @@ export function patientFacingCrisisMessage(
    * which is true from any phone in any country.
    */
   const line = crisisLine(country, configured);
+  const lead = "Your therapist has been notified and is here with you. If you need immediate help right now,";
 
+  if (!line) {
+    return {
+      message: `${lead} call your local emergency number. It is free from any phone.`,
+      helpline: null,
+    };
+  }
+
+  /*
+   * 🔴 W1-29: "at any time" only for a line that answers at any time.
+   *
+   * Egypt's 105 keeps office hours (RESEARCH-2 section 1), and this said "call
+   * or text 105 at any time" on a Friday night. A line that may be closed is
+   * named with an always-open emergency number, and the open one comes first.
+   */
+  if (line.hours === "always") {
+    return { message: `${lead} you can call or text ${line.label} at any time.`, helpline: line.label };
+  }
+  const always = (EMERGENCY_LINES[(country ?? "").trim().toUpperCase()] ?? [])[0] ?? null;
+  if (!always) {
+    return {
+      message: `${lead} you can call ${line.label}, or your local emergency number at any time.`,
+      helpline: line.label,
+    };
+  }
+  const open = lineOpenAt(line, now);
   return {
-    message: line
-      ? `Your therapist has been notified and is here with you. If you need immediate help right now, you can call or text ${line.label} at any time.`
-      : "Your therapist has been notified and is here with you. If you need immediate help right now, call your local emergency number. It is free from any phone.",
-    helpline: line?.label ?? null,
+    message:
+      open === true
+        ? `${lead} you can call ${line.label} now, or ${always.label} at any time.`
+        : `${lead} call ${always.label} at any time. ${line.label} answers during office hours.`,
+    helpline: open === true ? line.label : always.label,
   };
 }

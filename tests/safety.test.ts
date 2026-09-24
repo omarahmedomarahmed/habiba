@@ -1466,3 +1466,21 @@ test("a self-harm answer on a questionnaire is a risk answer, and nothing else i
   const phq9 = INSTRUMENT_SEEDS.find((seed) => seed.key === "phq9")!;
   assert.deepEqual(phq9.questions.find((q) => q.key === "selfHarm")?.risk, { above: 0 });
 });
+
+/* W1-29: the in-session crisis message never promises a line that is closed. */
+test("the crisis message never says a line with office hours answers at any time", () => {
+  // Friday 23:00 in Cairo: 105 keeps Monday to Thursday office hours.
+  const fridayNight = new Date("2026-09-25T20:00:00Z");
+  const egypt = patientFacingCrisisMessage("EG", null, fridayNight);
+  assert.ok(!/105[^.]*at any time/.test(egypt.message), egypt.message);
+  assert.ok(egypt.message.includes("123"), "an always-open number is named");
+  assert.deepEqual(Object.keys(egypt).sort(), ["helpline", "message"]);
+
+  // Tuesday 11:00 in Cairo: 105 is likely open, and the emergency number is still there.
+  const tuesdayMorning = new Date("2026-09-22T08:00:00Z");
+  const open = patientFacingCrisisMessage("EG", null, tuesdayMorning);
+  assert.ok(open.message.includes("105") && open.message.includes("123"), open.message);
+
+  // 988 answers around the clock, so "at any time" is true there.
+  assert.ok(patientFacingCrisisMessage("US").message.includes("at any time"));
+});
