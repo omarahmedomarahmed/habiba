@@ -7,6 +7,7 @@ import { requireClinic } from "@/lib/clinic-auth/guard";
 import { clinicWeek } from "@/lib/clinic-week";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
+import { zoneLabel } from "@/lib/scheduling/tz";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 
@@ -45,13 +46,22 @@ export default async function ClinicOverviewPage({
   const { week } = await searchParams;
 
   /*
-   * The week to show, from the URL, defaulting to this one. Monday-anchored in UTC
-   * rather than in the reader's zone: a practice manager and a clinician in different
-   * cities must be looking at the same seven rows when they discuss them, and a
-   * per-viewer week boundary means they are not.
+   * 🔴 T8: THE WEEK AND EVERY TIME ON IT ARE IN THE READER'S ZONE, NOT UTC.
+   *
+   * This was Monday-anchored in UTC, so a Cairo practice read a 13:00 appointment
+   * as 10:00 or 11:00 and found every Monday session before 02:00 under the
+   * previous week: the same rows for everybody, all of them wrong for the person
+   * reading them, who is almost always in the same city as the room.
+   *
+   * `actor.zone` is resolved once with the session: the manager's own zone if their
+   * linked clinician account has one, else their practice country's (Cairo for
+   * `eg`), else UTC. The line beside the week names it, so a fallback is visible.
+   *
+   * 🔴 W2-C06: one function, which the export route calls with the same parameter
+   * and the same zone.
    */
-  /* 🔴 W2-C06: one function, which the export route calls with the same parameter. */
-  const { monday, next, prev } = clinicWeek(week);
+  const zone = actor.zone.name;
+  const { monday, next, mondayKey, prevKey, nextKey } = clinicWeek(week, zone);
 
   /*
    * 🔴 W2-C01: EVERY REFUSED CAPABILITY REDIRECTS HERE, so this page reads
@@ -64,21 +74,18 @@ export default async function ClinicOverviewPage({
 
   const [rows, usage] = await Promise.all([
     seesSchedule ? clinicSchedule({ actor, from: monday, to: next }) : Promise.resolve([]),
-    seesReports ? clinicUsage(actor) : Promise.resolve([]),
+    seesReports ? clinicUsage(actor, zone) : Promise.resolve([]),
   ]);
 
   /*
    * 🔴 THROUGH `formatDateTime`, NOT `Intl` HERE, and `verify:sprint37l2` caught the
    * first draft doing the latter.
    *
-   * 37L.9's rule is that a page formatting a date itself is a date nothing can translate,
-   * and it is a rule this page had two reasons to think it was exempt from: the week is
-   * anchored in UTC deliberately (above), and a practice manager's screen is not a
-   * patient's. Both are wrong. The helper takes the zone as an argument, so UTC is passed
-   * explicitly and the LANGUAGE still comes from the reader, which is exactly the split the
-   * rule exists to keep.
+   * 37L.9's rule is that a page formatting a date itself is a date nothing can translate.
+   * The helper takes the zone as an argument and the LANGUAGE from the reader, which is
+   * exactly the split the rule exists to keep.
    */
-  const when = (at: Date | null) => formatDateTime(at, "UTC", locale);
+  const when = (at: Date | null) => formatDateTime(at, zone, locale);
 
   /*
    * 🔴 AND THE WEEK LABELS GO THROUGH IT TOO, which they did not.
@@ -89,11 +96,10 @@ export default async function ClinicOverviewPage({
    * algorithm reorders "2026-09-21" on screen to "21-09-2026", which is the
    * same three numbers with the year and day swapped and nothing to say so.
    *
-   * The ISO string is still what the prev/next links carry, because a URL
-   * parameter is machine-shaped by design and `new Date(...)` parses it on the
-   * way back in. Only the rendered label changes.
+   * A `YYYY-MM-DD` day key is still what the prev/next links carry, because a
+   * URL parameter is machine-shaped by design. Only the rendered label changes.
    */
-  const day = (at: Date) => formatDate(at, "UTC", locale);
+  const day = (at: Date) => formatDate(at, zone, locale);
 
   const money = (cents: number) => <Money cents={cents} />;
 
@@ -113,8 +119,15 @@ export default async function ClinicOverviewPage({
    * session counted here is a visible row in the table below, and a count of
    * DISTINCT clinicians is not a caseload for any of them, which is the line
    * `components/clinic/people-list.tsx` draws.
+   *
+   * 🔴 T16: AND A CANCELLED SESSION IS NOT BOOKED. Both figures counted every row,
+   * so a week of four sessions with two cancelled read "Booked this week 4" above
+   * two rows marked cancelled. The rows stay in the table, marked; the figures
+   * count only what is still going ahead, and a clinician whose only session was
+   * cancelled is not on the rota.
    */
-  const onTheRota = new Set(rows.map((row) => row.therapistName)).size;
+  const booked = rows.filter((row) => row.status !== "cancelled");
+  const onTheRota = new Set(booked.map((row) => row.therapistName)).size;
 
   return (
     <div className="space-y-4">
@@ -130,7 +143,7 @@ export default async function ClinicOverviewPage({
         {seesSchedule && actor.capabilities.includes("export") ? (
           <div className="mt-3">
             <a
-              href={`/clinic/export?what=schedule&week=${monday.toISOString().slice(0, 10)}`}
+              href={`/clinic/export?what=schedule&week=${mondayKey}`}
               className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               {t("clinic.exportCsv")}
@@ -146,7 +159,7 @@ export default async function ClinicOverviewPage({
         <>
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href={`/clinic?week=${prev.toISOString().slice(0, 10)}`}
+              href={`/clinic?week=${prevKey}`}
               className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
             >
               {t("clinic.prevWeek")}
@@ -155,11 +168,20 @@ export default async function ClinicOverviewPage({
               {t("clinic.week", { date: day(monday) })}
             </span>
             <Link
-              href={`/clinic?week=${next.toISOString().slice(0, 10)}`}
+              href={`/clinic?week=${nextKey}`}
               className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
             >
               {t("clinic.nextWeek")}
             </Link>
+            {/*
+              🔴 T8: the zone every time on this page is in, named whether or not
+              it was a fallback. A manager with no zone of their own at a Cairo
+              practice reads "Cairo" and knows; one at a practice with no default
+              reads "UTC" and knows that too, rather than taking it for local time.
+            */}
+            <span className="text-xs text-slate-500">
+              {t("clinic.timesIn", { zone: zoneLabel(zone) })}
+            </span>
           </div>
 
           {/*
@@ -179,7 +201,7 @@ export default async function ClinicOverviewPage({
               <Card className="p-4">
                 <p className="text-xs font-medium text-slate-500">{t("clinic.hoursBooked")}</p>
                 <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
-                  {rows.length}
+                  {booked.length}
                 </p>
               </Card>
               <Card className="p-4">
@@ -206,9 +228,10 @@ export default async function ClinicOverviewPage({
                     <span className="ms-auto text-xs tabular-nums text-slate-600">
                       {when(row.scheduledAt)}
                     </span>
+                    {/* 🔴 T19: the word, in their language, not the stored code. */}
                     {row.status === "cancelled" ? (
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                        {row.status}
+                        {t("clinic.cancelled")}
                       </span>
                     ) : null}
                   </li>

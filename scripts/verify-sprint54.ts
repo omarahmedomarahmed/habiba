@@ -653,6 +653,56 @@ async function main() {
     );
 
     /*
+     * 🔴 T12: THE BILLS CSV SAYS WHAT CURRENCY IT IS IN, AND AGREES WITH THE SCREEN.
+     *
+     * It wrote `platformFeeCents / 100` with no currency anywhere in the file. Run
+     * through the real export over the invoices this run posted: a Currency column,
+     * the bill's own currency in it, the total to two places, and the pounds the
+     * screen leads with, from `egpMinorFor` at the operator's rate as `<Money>`
+     * computes them.
+     */
+    const { amount, exportBills } = await import("../lib/data/clinic-export");
+    const billsCsv = (
+      await exportBills({
+        actor: principal,
+        email: `wall-${fixture}@example.test`,
+        clinicName: fixture,
+      })
+    ).csv.split("\r\n");
+    const header = billsCsv.find((line) => line.startsWith("Period,")) ?? "";
+    const firstBill = billsCsv[billsCsv.indexOf(header) + 1] ?? "";
+    const cells = firstBill.split(",");
+    const columns = header.split(",");
+    const totalText = `${Math.floor(billedAfter.totalCents / 100)}.${String(billedAfter.totalCents % 100).padStart(2, "0")}`;
+    check(
+      "🔴 T12 the bills export names its currency, and its total is the screen's figure",
+      columns[2] === "Currency" &&
+        cells[2] === billedAfter.currency &&
+        billedAfter.currency === "USD" &&
+        columns[5] === "Total" &&
+        cells[5] === totalText,
+      `${header} | ${firstBill}`,
+    );
+
+    const { getSettings } = await import("../lib/settings");
+    const { egpMinorFor } = await import("../lib/money/convert");
+    const rateMicro = (await getSettings()).payouts.egpRateMicro;
+    check(
+      "🔴 T12 …and the pounds the screen leads with are in the file, at the rate it names",
+      columns[9] === "Total (EGP)" &&
+        (rateMicro > 0
+          ? cells[9] === amount(egpMinorFor(billedAfter.totalCents, rateMicro)) &&
+            cells[6] === amount(Math.round(rateMicro / 10_000))
+          : cells[9] === "no rate"),
+      `rate ${rateMicro}: ${cells[6]} per dollar, total ${cells[9]}`,
+    );
+    check(
+      "🔴 T12 CONTROL …and a round figure is written 12.50, which the old bare division wrote 12.5",
+      amount(1250) === "12.50" && String(1250 / 100) === "12.5",
+      `${amount(1250)} now, ${String(1250 / 100)} before`,
+    );
+
+    /*
      * 🔴 C263 — AND THE BILL CANNOT BE TIED TO A SESSION.
      *
      * The shape is the enforcement: `ClinicBill` has no session id and no line list, so
@@ -685,7 +735,7 @@ async function main() {
      * 🔴 CONTROL — and it actually SUPPRESSES. One session in a week is under any floor
      * that C229 permits, so the week this run created must come back withheld.
      */
-    const usage = await clinicUsage(principal);
+    const usage = await clinicUsage(principal, "UTC");
     const thisWeek = usage[usage.length - 1];
 
     check(

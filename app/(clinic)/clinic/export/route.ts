@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const what = url.searchParams.get("what");
-  const week = clinicWeek(url.searchParams.get("week"));
+  const week = clinicWeek(url.searchParams.get("week"), actor.zone.name);
 
   try {
     const result =
@@ -54,6 +54,8 @@ export async function GET(request: Request) {
              */
             from: week.monday,
             to: week.next,
+            /* 🔴 T8: the zone the rota on screen is read in, so the file agrees with it. */
+            zone: actor.zone.name,
           });
 
     return new NextResponse(result.csv, {

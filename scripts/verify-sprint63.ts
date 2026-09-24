@@ -302,6 +302,63 @@ async function main() {
       `${unassignedRows.length} row(s), and "no assignments" must never read as "no filter"`,
     );
 
+    /*
+     * 🔴 T13: A NON-ADMIN MAY NOT WIDEN THEIR OWN ASSIGNMENTS.
+     *
+     * `team.manage` sets whose work somebody covers, which only narrows a capability,
+     * except on the holder's own row: ticking every clinician there handed them the
+     * admin's view of the whole practice. Asked as the assistant, about the
+     * assistant, with both clinicians: refused, and the stored list is still A only.
+     */
+    const { setAssignments } = await import("../lib/data/clinic-team");
+    const assignedTo = async (managerId: string) =>
+      (
+        (
+          await db.execute(sql`
+            SELECT user_id FROM clinic_staff_assignments WHERE clinic_manager_id = ${managerId}`)
+        ).rows as { user_id: string }[]
+      ).map((row) => row.user_id);
+
+    const selfWiden = await setAssignments({
+      clinicOrganizationId: clinic.id,
+      clinicManagerId: assistant.id,
+      userIds: [therapistA.id, therapistB.id],
+      by: { clinicManagerId: assistant.id, role: "viewer" },
+    });
+    const afterSelf = await assignedTo(assistant.id);
+
+    check(
+      "🔴 T13 a non-admin changing their OWN assignments is refused, and nothing is written",
+      selfWiden.refused === "self" &&
+        afterSelf.length === 1 &&
+        afterSelf[0] === therapistA.id,
+      `${selfWiden.refused ?? "not refused"}; stored ${afterSelf.length} assignment(s)`,
+    );
+
+    /*
+     * 🔴 CONTROL: the same list, set by the admin, is written. So the refusal above is
+     * about WHO asked, not a function that refuses everything. Put back to A after,
+     * because the checks below read this fixture.
+     */
+    const byAdmin = await setAssignments({
+      clinicOrganizationId: clinic.id,
+      clinicManagerId: assistant.id,
+      userIds: [therapistA.id, therapistB.id],
+      by: { clinicManagerId: admin.id, role: "admin" },
+    });
+    const afterAdmin = await assignedTo(assistant.id);
+    check(
+      "🔴 T13 CONTROL …while the admin setting the same list for them is written",
+      byAdmin.ok === true && afterAdmin.length === 2,
+      `${byAdmin.error ?? "ok"}; stored ${afterAdmin.length} assignment(s)`,
+    );
+    await setAssignments({
+      clinicOrganizationId: clinic.id,
+      clinicManagerId: assistant.id,
+      userIds: [therapistA.id],
+      by: { clinicManagerId: admin.id, role: "admin" },
+    });
+
     /* 🔴 And a capability they do not hold is refused, on the resource. */
     let refused = false;
     try {
@@ -350,11 +407,14 @@ async function main() {
     }
 
     const { clinicUsage } = await import("../lib/data/clinic");
-    const adminUsage = await clinicUsage(adminPrincipal);
-    const scopedUsage = await clinicUsage({
-      ...assistantPrincipal,
-      capabilities: ["schedule.read", "reports.read"],
-    });
+    const adminUsage = await clinicUsage(adminPrincipal, "UTC");
+    const scopedUsage = await clinicUsage(
+      {
+        ...assistantPrincipal,
+        capabilities: ["schedule.read", "reports.read"],
+      },
+      "UTC",
+    );
 
     check(
       "🔴 CONTROL W2-C01 the admin's usage has B's five sessions in it, so the fixture bills",
@@ -546,8 +606,100 @@ async function main() {
       email: `admin-${fixture}@example.test`,
       clinicName: `Clinic ${fixture}`,
       ...window,
+      zone: "Africa/Cairo",
     });
 
+    /*
+     * 🔴 T8: THE EXPORT'S TIMES ARE THE READER'S, AND THE FILE SAYS WHICH ZONE.
+     *
+     * It wrote `toISOString()`, so a 13:00 Cairo session reached the spreadsheet as
+     * 10:00. The CONTROL is that the two renderings differ for this very row, so the
+     * check can tell them apart and is not passing on a coincidence.
+     */
+    const tz = await import("../lib/scheduling/tz");
+    const exportedAt = adminRows[0]?.scheduledAt ?? null;
+    const cairoCell = exportedAt
+      ? `${tz.dayKey(exportedAt, "Africa/Cairo")} ${tz.formatTime(exportedAt, "Africa/Cairo")}`
+      : "";
+    const utcCell = exportedAt
+      ? `${tz.dayKey(exportedAt, "UTC")} ${tz.formatTime(exportedAt, "UTC")}`
+      : "";
+    check(
+      "🔴 T8 the schedule export writes Cairo wall-clock time, with the zone in its own column",
+      Boolean(exportedAt) &&
+        exported.csv.includes(`${cairoCell},Africa/Cairo,`) &&
+        !exported.csv.includes(exportedAt!.toISOString()),
+      cairoCell || "no row to export",
+    );
+    check(
+      "🔴 T8 CONTROL …and the UTC rendering of the same row is a different string, and absent",
+      cairoCell !== utcCell && !exported.csv.includes(utcCell),
+      `${cairoCell} in the file, ${utcCell} not`,
+    );
+
+    /*
+     * 🔴 T8: A MONDAY 01:30 CAIRO SESSION IS IN THAT MONDAY'S WEEK.
+     *
+     * 01:30 on Monday 21 September in Cairo is 22:30 on Sunday in UTC, and the
+     * UTC week put it in the week before. Pure calendar arithmetic, no database.
+     */
+    const monday = { year: 2026, month: 9, date: 21 };
+    const earlyMonday = tz.zonedHourToUtc(monday, 1, "Africa/Cairo")!;
+    const halfPast = new Date(earlyMonday.getTime() + 30 * 60 * 1000);
+    const cairoWeek = tz.weekIn({ year: 2026, month: 9, date: 24 }, "Africa/Cairo");
+    const utcWeek = tz.weekIn({ year: 2026, month: 9, date: 24 }, "UTC");
+    check(
+      "🔴 T8 a 01:30 Monday Cairo session falls inside the Cairo week that starts that Monday",
+      tz.dayKeyOf(cairoWeek.monday) === "2026-09-21" &&
+        halfPast >= cairoWeek.from &&
+        halfPast < cairoWeek.to,
+      `${halfPast.toISOString()} in [${cairoWeek.from.toISOString()}, ${cairoWeek.to.toISOString()})`,
+    );
+    check(
+      "🔴 T8 CONTROL …where the UTC week, the old computation, leaves it out",
+      halfPast < utcWeek.from,
+      `UTC week starts ${utcWeek.from.toISOString()}`,
+    );
+
+    /* 🔴 T8: the zone, and it says when it fell back. */
+    const { clinicZone } = await import("../lib/clinic-auth/session");
+    const egDefault = clinicZone({ timezone: null, region: "eg" });
+    const ownZone = clinicZone({ timezone: "Asia/Dubai", region: "eg" });
+    const noDefault = clinicZone({ timezone: null, region: "us" });
+    check(
+      "🔴 T8 a manager with no zone at an Egyptian practice reads Cairo, marked as the fallback",
+      egDefault.name === "Africa/Cairo" && egDefault.source === "region",
+      `${egDefault.name} (${egDefault.source})`,
+    );
+    check(
+      "🔴 T8 CONTROL …their own zone wins where they have one, and no default means UTC, said",
+      ownZone.name === "Asia/Dubai" &&
+        ownZone.source === "reader" &&
+        noDefault.name === "UTC" &&
+        noDefault.source === "utc",
+      `${ownZone.name} (${ownZone.source}); ${noDefault.name} (${noDefault.source})`,
+    );
+
+    /*
+     * 🔴 T12: THE BILLS CSV NAMES ITS CURRENCY AND WRITES THE SCREEN'S TWO PLACES.
+     *
+     * `amount` is what `exportBills` writes; a figure that is a plain negative
+     * number passes the formula guard, and one with an operator still does not.
+     */
+    const exportLib = await import("../lib/data/clinic-export");
+    check(
+      "🔴 T12 bill amounts are written to two places, as the bills screen shows them",
+      exportLib.amount(1250) === "12.50" &&
+        exportLib.amount(5) === "0.05" &&
+        exportLib.amount(-1250) === "-12.50" &&
+        exportLib.csvCell(exportLib.amount(-1250)) === "-12.50",
+      `${exportLib.amount(1250)}, ${exportLib.amount(5)}, ${exportLib.csvCell(exportLib.amount(-1250))}`,
+    );
+    check(
+      "🔴 T12 CONTROL …while a cell with an operator after the sign is still quoted",
+      exportLib.csvCell("-1+2") === "'-1+2" && exportLib.csvCell("-12.50+1") === "'-12.50+1",
+      `${exportLib.csvCell("-1+2")}, ${exportLib.csvCell("-12.50+1")}`,
+    );
     check(
       "🔴 63.17 / C334 the export is watermarked with the requester and the timestamp",
       exported.csv.includes(`admin-${fixture}@example.test`) &&
@@ -590,6 +742,7 @@ async function main() {
         email: "x@example.test",
         clinicName: "x",
         ...window,
+        zone: "UTC",
       });
     } catch {
       exportRefused = true;
@@ -755,6 +908,61 @@ async function main() {
     THERAPIST_SCOPED.every((capability) => DELEGABLE.includes(capability)) &&
       !THERAPIST_SCOPED.includes("bills.read"),
     "a practice's bill is the practice's, not one clinician's share of it",
+  );
+
+  /* ================================================================== */
+  /*  T16 · T19 · T20 · what the clinic screens count, print and catch   */
+  /* ================================================================== */
+
+  const overview = readSource("app/(clinic)/clinic/page.tsx");
+  check(
+    "🔴 T16 'Booked this week' counts the rows that are not cancelled",
+    /const booked = rows\.filter\(\(row\) => row\.status !== "cancelled"\)/.test(overview) &&
+      /\{booked\.length\}/.test(overview) &&
+      !/\{rows\.length\}/.test(overview),
+    "a cancelled row stays in the table, marked, and out of the figure",
+  );
+
+  /*
+   * 🔴 T19: no clinic screen prints a stored status code. The pattern is a JSX
+   * expression that is nothing but `something.status`; the CONTROL proves it matches
+   * the line that was on the overview and the earnings page.
+   */
+  const RAW_STATUS = /\{\s*[A-Za-z]+\.status\s*\}/;
+  const clinicScreens = [
+    "app/(clinic)/clinic/page.tsx",
+    "app/(clinic)/clinic/earnings/page.tsx",
+    "app/(clinic)/clinic/bills/page.tsx",
+  ];
+  const printsCode = clinicScreens.filter((file) => RAW_STATUS.test(readSource(file)));
+  check(
+    "🔴 T19 no clinic screen prints a raw status code",
+    printsCode.length === 0,
+    printsCode.join(", ") || `${clinicScreens.length} screens, every state through a message key`,
+  );
+  check(
+    "🔴 T19 CONTROL …and the scan catches the line that was there",
+    RAW_STATUS.test(`<span className="text-xs text-slate-500">{withdrawal.status}</span>`) &&
+      RAW_STATUS.test(`{row.status}`),
+    "the scan is a scan",
+  );
+
+  /* 🔴 T20: both portals catch a failed page in their own chrome, in the reader's language. */
+  const boundaries = ["app/(app)", "app/(clinic)"].map((dir) => ({
+    dir,
+    error: readSource(`${dir}/error.tsx`),
+    loading: readSource(`${dir}/loading.tsx`),
+  }));
+  check(
+    "🔴 T20 the clinician and clinic portals each have a translated error boundary with a retry, and a loading state",
+    boundaries.every(
+      (row) =>
+        /useT\(\)/.test(row.error) &&
+        /onClick=\{reset\}/.test(row.error) &&
+        /t\("common\.retry"\)/.test(row.error) &&
+        /t\("common\.loading"\)/.test(row.loading),
+    ),
+    boundaries.map((row) => row.dir).join(", "),
   );
 
   finish("sprint 63");

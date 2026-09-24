@@ -291,6 +291,9 @@ export async function signOutStaff(clinicManagerId: string): Promise<TeamState> 
  * with two receptionists and a rota has an office manager who does it. It grants
  * nothing that role does not already hold: an assignment can only narrow what a
  * capability reaches, never add one.
+ *
+ * 🔴 T13: EXCEPT ON YOUR OWN ROW, where it widens. `setAssignments` refuses a
+ * non-admin changing their own list, and the screen draws no checkboxes there.
  */
 export async function saveAssignments(
   clinicManagerId: string,
@@ -303,8 +306,14 @@ export async function saveAssignments(
     clinicOrganizationId: actor.clinicOrganizationId,
     clinicManagerId,
     userIds,
+    /* 🔴 T13: from the session, never the form: your own list is the admin's to set. */
+    by: { clinicManagerId: actor.clinicManagerId, role: actor.role },
   });
 
+  if (result.refused === "self") {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("clinic.team.notYourOwn") };
+  }
   if (result.error) return { error: result.error };
 
   /*

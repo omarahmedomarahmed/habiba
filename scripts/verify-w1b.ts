@@ -13,7 +13,7 @@
 import { sql } from "drizzle-orm";
 
 import { startMockOpenAi } from "../tests/mock-openai";
-import { reporter, writesTo } from "./_verify";
+import { readSource, reporter, writesTo } from "./_verify";
 import { connect } from "./db";
 
 const { check, finish } = reporter();
@@ -740,7 +740,167 @@ async function main() {
       lateNote?.provenance === "partial" && (lateNote?.off_record_seconds ?? 0) >= 600,
       `${lateNote?.provenance}, ${lateNote?.off_record_seconds}s`,
     );
+
+    /* ================================================================ */
+    /*  T17 · A SIGNED NOTE IS NOT REGENERATED, NOR FED ANYWHERE ELSE     */
+    /* ================================================================ */
+
+    /*
+     * W1-03 kept a regeneration off a signed note at the upsert, and the new summary
+     * still went on into the copilot thread (`recordSessionNote`) and the rolling
+     * profile. The upsert alone leaves the note untouched either way, so what tells
+     * the old code from the new is the copilot thread: a session note message per
+     * regeneration that went through. The session is given a patient so the thread
+     * exists to be written to.
+     *
+     * CONTROL first: on a DRAFT the same call rewrites the row and does write the
+     * thread, so the silence below is about the signature and not a no-op.
+     */
+    const t17Patient = await one<{ id: string }>(sql`
+      INSERT INTO patients (organization_id, therapist_id, first_name, source)
+      VALUES (${org.id}, ${therapist.id}, 'Tee Seventeen', 'walk_in')
+      RETURNING id`);
+    await db.execute(sql`UPDATE sessions SET patient_id = ${t17Patient.id} WHERE id = ${lateSession.id}`);
+
+    const stamp = async () =>
+      one<{ updated_at: string; status: string; note_status: string; fed: number }>(sql`
+        SELECT n.updated_at::text AS updated_at, n.status, s.note_status,
+               (SELECT count(*)::int FROM copilot_messages m
+                 WHERE m.session_id = s.id AND m.role = 'session_note') AS fed
+          FROM session_notes n JOIN sessions s ON s.id = n.session_id
+         WHERE n.session_id = ${lateSession.id}`);
+    const regenerate = () =>
+      generateAndStoreNote({
+        sessionId: lateSession.id,
+        organizationId: org.id,
+        therapistId: therapist.id,
+        patientId: t17Patient.id,
+      });
+
+    const draftBefore = await stamp();
+    await regenerate();
+    const draftAfter = await stamp();
+    check(
+      "🔴 T17 CONTROL a DRAFT note is rewritten by a regeneration, and its summary reaches the thread",
+      draftAfter.updated_at !== draftBefore.updated_at &&
+        draftAfter.status === "draft" &&
+        draftAfter.fed === draftBefore.fed + 1,
+      `${draftBefore.updated_at} then ${draftAfter.updated_at}; thread ${draftBefore.fed} then ${draftAfter.fed}`,
+    );
+
+    await db.execute(sql`
+      UPDATE session_notes SET status = 'approved', approved_at = now()
+       WHERE session_id = ${lateSession.id}`);
+    const signedBefore = await stamp();
+    await regenerate();
+    const signedAfter = await stamp();
+    check(
+      "🔴 T17 a SIGNED note is left as signed, nothing reaches the thread, and the session reads ready",
+      signedAfter.updated_at === signedBefore.updated_at &&
+        signedAfter.status === "approved" &&
+        signedAfter.note_status === "ready" &&
+        signedAfter.fed === signedBefore.fed,
+      `${signedBefore.updated_at} then ${signedAfter.updated_at}, ${signedAfter.note_status}; thread ${signedBefore.fed} then ${signedAfter.fed}`,
+    );
+
+    /*
+     * And the action refuses before it marks the session "generating" or schedules
+     * anything, with the note screen's own translated sentence. The action needs a
+     * signed-in clinician, so this reads its body; the behaviour is proved above.
+     */
+    const actionsSource = readSource("app/(app)/sessions/actions.ts");
+    const actionStart = actionsSource.indexOf("export async function regenerateNote");
+    const regenerateAction =
+      actionStart === -1
+        ? ""
+        : actionsSource.slice(actionStart, actionsSource.indexOf("\n}\n", actionStart));
+    check(
+      "🔴 T17 regenerateNote refuses a signed note, translated, before marking it generating",
+      /refusalText\("locked"/.test(regenerateAction) &&
+        regenerateAction.indexOf('refusalText("locked"') < regenerateAction.indexOf('"generating"'),
+      regenerateAction ? "refusal precedes the status write" : "regenerateNote not found",
+    );
+
+    /* ================================================================ */
+    /*  T15 · UPCOMING SOONEST FIRST, PAST MOST RECENT FIRST, PAGED       */
+    /*  T18 · A CANCELLED SESSION OPENS ITS PAGE, NOT A VIDEO ROOM        */
+    /* ================================================================ */
+
+    /*
+     * `/sessions` was the fifty most recently CREATED rows, so next week's booking,
+     * made in March, fell off the end. A clinician of their own, so the lists hold
+     * only these rows; they are created in an order that is neither of the orders
+     * the lists must come back in.
+     */
+    const t15 = await one<{ id: string }>(sql`
+      INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash)
+      VALUES (${org.id}, ${`t15.${fixture}@example.com`}, 'Tee', 'Fifteen', 'therapist', 'x')
+      RETURNING id`);
+    const oneDay = 24 * 60 * 60 * 1000;
+    const planted: { key: string; status: string; at: Date; ended: Date | null }[] = [
+      { key: "in3", status: "scheduled", at: new Date(Date.now() + 3 * oneDay), ended: null },
+      { key: "past2", status: "completed", at: new Date(Date.now() - 2 * oneDay), ended: new Date(Date.now() - 2 * oneDay) },
+      { key: "in1", status: "scheduled", at: new Date(Date.now() + 1 * oneDay), ended: null },
+      { key: "past1", status: "cancelled", at: new Date(Date.now() - 1 * oneDay), ended: null },
+      { key: "in2", status: "scheduled", at: new Date(Date.now() + 2 * oneDay), ended: null },
+    ];
+    const idOf = new Map<string, string>();
+    for (const row of planted) {
+      const made = await one<{ id: string }>(sql`
+        INSERT INTO sessions (organization_id, therapist_id, status, modality, scheduled_at,
+                              ended_at, feedback_token)
+        VALUES (${org.id}, ${t15.id}, ${row.status}, 'video', ${row.at}, ${row.ended},
+                ${`${fixture}-t15-${row.key}`})
+        RETURNING id`);
+      idOf.set(made.id, row.key);
+    }
+
+    const sessionsLib = await import("../lib/data/sessions");
+    const t15Actor = { ...actor, userId: t15.id, email: `t15.${fixture}@example.com` };
+    const keys = (items: { id: string }[]) => items.map((item) => idOf.get(item.id)).join(",");
+
+    const up0 = await sessionsLib.listSessionsPage(t15Actor, { when: "upcoming", page: 0, pageSize: 2 });
+    const up1 = await sessionsLib.listSessionsPage(t15Actor, { when: "upcoming", page: 1, pageSize: 2 });
+    const past0 = await sessionsLib.listSessionsPage(t15Actor, { when: "past", page: 0, pageSize: 2 });
+    check(
+      "🔴 T15 upcoming is soonest first and pages on, past is most recent first",
+      keys(up0.items) === "in1,in2" &&
+        up0.hasMore &&
+        keys(up1.items) === "in3" &&
+        !up1.hasMore &&
+        keys(past0.items) === "past1,past2" &&
+        !past0.hasMore,
+      `upcoming ${keys(up0.items)} | ${keys(up1.items)}; past ${keys(past0.items)}`,
+    );
+
+    /* CONTROL: the old list, by creation, is in neither order, so the check can tell. */
+    const byCreation = await sessionsLib.listSessions(t15Actor, { limit: 5 });
+    check(
+      "🔴 T15 CONTROL …the list by creation, which `/sessions` used to show, puts the latest-made first",
+      keys(byCreation) === "in2,past1,in1,past2,in3",
+      keys(byCreation),
+    );
+
+    const cancelled = { id: "x", status: "cancelled" };
+    check(
+      "🔴 T18 a cancelled session opens its own page, and the dashboard asks the same function",
+      sessionsLib.sessionHref(cancelled) === "/sessions/x" &&
+        /sessionHref\(session\)/.test(readSource("app/(app)/dashboard/page.tsx")) &&
+        !/\/room`\s*:/.test(readSource("app/(app)/dashboard/page.tsx")),
+      sessionsLib.sessionHref(cancelled),
+    );
+    check(
+      "🔴 T18 CONTROL …while a scheduled one still opens the room",
+      sessionsLib.sessionHref({ id: "x", status: "scheduled" }) === "/sessions/x/room",
+      sessionsLib.sessionHref({ id: "x", status: "scheduled" }),
+    );
   } finally {
+    /* T17 writes a copilot thread for its patient; it goes before the patient does. */
+    await db.execute(sql`DELETE FROM copilot_messages WHERE thread_id IN
+      (SELECT id FROM copilot_threads WHERE organization_id IN
+        (SELECT id FROM organizations WHERE slug = ${fixture}))`);
+    await db.execute(sql`DELETE FROM copilot_threads WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM session_notes WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM transcript_segments WHERE organization_id IN

@@ -83,12 +83,15 @@ export type StaffRow = {
 
 export function ClinicTeam({
   isAdmin,
+  selfId,
   grantable,
   roles,
   staff,
   clinicians,
 }: {
   isAdmin: boolean;
+  /** 🔴 T13: whose row is the reader's own, which only an admin may assign. */
+  selfId: string;
   grantable: ClinicCapability[];
   roles: RoleRow[];
   staff: StaffRow[];
@@ -333,6 +336,13 @@ export function ClinicTeam({
               */}
               {person.isAdmin ? (
                 <p className="mt-1 text-xs text-slate-500">{t("clinic.team.adminSeesAll")}</p>
+              ) : person.id === selfId && !isAdmin ? (
+                /*
+                  🔴 T13: NOT ON YOUR OWN ROW. Ticking every box here widened the
+                  reader's own reach to the whole practice; `setAssignments` refuses
+                  it, and this says so instead of drawing boxes that would fail.
+                */
+                <p className="mt-1 text-xs text-slate-500">{t("clinic.team.notYourOwn")}</p>
               ) : clinicians.length > 0 ? (
                 <AssignmentPicker
                   managerId={person.id}

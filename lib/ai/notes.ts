@@ -336,6 +336,27 @@ export async function generateAndStoreNote(opts: {
 }): Promise<void> {
   try {
     /*
+     * 🔴 T17: NOTHING IS GENERATED OVER A SIGNED PRIMARY NOTE.
+     *
+     * `regenerateNote` refuses first and says why; this is the same rule for every
+     * other caller, before a model is paid for a draft that could never land. The
+     * session's `noteStatus` goes back to `ready`, because the note it has is ready.
+     */
+    const [primary] = await db
+      .select({ status: sessionNotes.status, patientStatus: sessionNotes.patientStatus })
+      .from(sessionNotes)
+      .where(and(eq(sessionNotes.sessionId, opts.sessionId), eq(sessionNotes.isPrimary, true)))
+      .limit(1);
+    if (primary && (primary.status !== "draft" || primary.patientStatus !== "draft")) {
+      await db
+        .update(sessions)
+        .set({ noteStatus: "ready", updatedAt: new Date() })
+        .where(eq(sessions.id, opts.sessionId));
+      log.info("note generation skipped: the note is signed", { session: ref(opts.sessionId) });
+      return;
+    }
+
+    /*
      * 🔴 W2-F01 / D7: the session's note is drafted in the clinician's format.
      * A session that already has its note (a retry, a redraft) keeps that
      * note's format, so this rewrites the same document rather than starting
@@ -399,7 +420,7 @@ export async function generateAndStoreNote(opts: {
      */
     const origin = await noteProvenanceFor(opts.sessionId);
 
-    await db
+    const landed = await db
       .insert(sessionNotes)
       .values({
         sessionId: opts.sessionId,
@@ -432,7 +453,27 @@ export async function generateAndStoreNote(opts: {
          * clinician's now, and a change is an addendum.
          */
         setWhere: and(eq(sessionNotes.status, "draft"), eq(sessionNotes.patientStatus, "draft")),
-      });
+      })
+      .returning({ id: sessionNotes.id });
+
+    /*
+     * 🔴 T17: AND WHAT DID NOT LAND GOES NOWHERE ELSE EITHER.
+     *
+     * The upsert above skipped a signed note, and everything below carried on with
+     * the summary it had just refused: into the copilot thread and into the rolling
+     * profile, so the patient's standing record learned a version of the session
+     * nobody signed. No row back means the note was signed or released between the
+     * check at the top and here; the session keeps the note it has and nothing
+     * downstream hears about the draft.
+     */
+    if (landed.length === 0) {
+      await db
+        .update(sessions)
+        .set({ noteStatus: "ready", updatedAt: new Date() })
+        .where(eq(sessions.id, opts.sessionId));
+      log.info("note regeneration dropped: the note is signed", { session: ref(opts.sessionId) });
+      return;
+    }
 
     await db
       .update(sessions)

@@ -14,6 +14,7 @@ import {
   clinicRoles,
   clinicStaffAssignments,
   users,
+  type ClinicRole,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
@@ -437,7 +438,22 @@ export async function setAssignments(input: {
   clinicOrganizationId: string;
   clinicManagerId: string;
   userIds: string[];
-}): Promise<{ ok?: true; error?: string }> {
+  /**
+   * 🔴 T13: WHO IS ASKING. Required, so no caller can forget to say.
+   *
+   * An assignment only narrows what a capability reaches, which is why it takes
+   * `team.manage` rather than admin. That argument holds for somebody else's
+   * assignments and fails for your own: a staff member holding `team.manage` could
+   * tick every clinician on their own row and widen their own reach to the whole
+   * practice, which is the admin's view, obtained by the person it was meant to
+   * limit. So your own list is the admin's to set, and nobody else's.
+   */
+  by: { clinicManagerId: string; role: ClinicRole };
+}): Promise<{ ok?: true; error?: string; refused?: "self" }> {
+  if (input.by.clinicManagerId === input.clinicManagerId && input.by.role !== "admin") {
+    return { refused: "self", error: "Whoever runs the practice sets yours." };
+  }
+
   /* Theirs. A borrowed manager id assigns nobody. */
   const [staff] = await controlDb
     .select({ id: clinicManagers.id, role: clinicManagers.role })

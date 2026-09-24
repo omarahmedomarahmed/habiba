@@ -473,6 +473,31 @@ export async function regenerateNote(
     }
   }
 
+  /*
+   * 🔴 T17: A SIGNED PRIMARY NOTE IS NOT REGENERATED, AND THE REFUSAL IS HERE, FIRST.
+   *
+   * W1-03 kept a regeneration off a signed chart at the upsert, and that was the
+   * only place it held: the new summary still went on into the copilot thread
+   * (`recordSessionNote`) and the rolling profile (`regenerateProfile`), so the
+   * patient's standing record learned a version of the session the clinician
+   * never signed, and the session flipped to "generating" over a finished note.
+   *
+   * Refused before anything is written or any model is called. Either half signed
+   * means the words are the clinician's; a change after that is an addendum, and
+   * the sentence says so with the same words the note screen already uses.
+   * `generateAndStoreNote` refuses the same state again for any other caller.
+   */
+  const [primary] = await db
+    .select({ status: sessionNotes.status, patientStatus: sessionNotes.patientStatus })
+    .from(sessionNotes)
+    .where(and(eq(sessionNotes.sessionId, sessionId), eq(sessionNotes.isPrimary, true)))
+    .limit(1);
+  if (primary && (primary.status !== "draft" || primary.patientStatus !== "draft")) {
+    return {
+      error: await refusalText("locked", primary.status !== "draft" ? "clinical" : "patient"),
+    };
+  }
+
   await db
     .update(sessions)
     .set({ noteStatus: "generating", updatedAt: new Date() })

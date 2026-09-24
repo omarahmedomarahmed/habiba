@@ -190,7 +190,9 @@ export function NoteReview(props: Props) {
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  await regenerateNote(props.sessionId);
+                  /* 🔴 T17: a refusal (the note is signed) is said, not swallowed. */
+                  const result = await regenerateNote(props.sessionId);
+                  setError(result.error ?? null);
                   router.refresh();
                 })
               }
@@ -200,6 +202,11 @@ export function NoteReview(props: Props) {
           )}
           {writeOwn}
         </div>
+        {error ? (
+          <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
       </Card>
     );
   }
