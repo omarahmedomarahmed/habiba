@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm
 
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
+import { doorFor, type SessionDoor } from "@/lib/sessions/doors";
 import {
   manualPayments,
   noteAddenda,
@@ -335,39 +336,10 @@ export async function liveSessionForPatient(
  * §6's enforcement and `verify:sprint15` freezes its shape, and a join token is
  * a door key. So the doors come from here, keyed by session id, and carry a
  * state and a link and nothing clinical: a note's `patient_status` is read only
- * to know whether a signed summary exists to point at.
+ * to know whether a signed summary exists to point at. The decision itself is
+ * `doorFor`, pure, in `lib/sessions/doors.ts`.
  */
-export type SessionDoor = { kind: "join" | "pay" | "checking" | "summary"; href: string };
-
-/** Pure, so the four states and the dead ends between them are a test. */
-export function doorFor(row: {
-  status: string;
-  endedAt: Date | null;
-  joinToken: string | null;
-  joinTokenExpiresAt: Date | null;
-  priceCents: number;
-  paymentStatus: string;
-  transferSubmitted: boolean;
-  summarySigned: boolean;
-  now: number;
-}): SessionDoor | null {
-  if (row.status === "cancelled") return null;
-
-  const open =
-    (row.status === "scheduled" || row.status === "in_progress") &&
-    row.endedAt === null &&
-    row.joinToken !== null &&
-    (row.joinTokenExpiresAt === null || row.joinTokenExpiresAt.getTime() > row.now);
-
-  if (open) {
-    const owes = row.priceCents > 0 && row.paymentStatus === "pending";
-    if (!owes) return { kind: "join", href: `/join/${row.joinToken}` };
-    /* The pay page shows the transfer's state itself; the card says which it is. */
-    return { kind: row.transferSubmitted ? "checking" : "pay", href: `/pay/${row.joinToken}` };
-  }
-
-  return row.summarySigned ? { kind: "summary", href: "/patient/summary" } : null;
-}
+export type { SessionDoor };
 
 export type SessionDoorRow = {
   sessionId: string;
