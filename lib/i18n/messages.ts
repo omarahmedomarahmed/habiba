@@ -4003,6 +4003,7 @@ export const en = {
   "tw2.notifications": "Notifications",
   "tw2.markAllRead": "Mark all read",
   "tw2.open": "Open",
+  "tw2.changeSubmission": "Change something",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7240,6 +7241,7 @@ export const ar: Record<MessageKey, string> = {
   "tw2.notifications": "الإشعارات",
   "tw2.markAllRead": "علّمها كلها مقروءة",
   "tw2.open": "افتح",
+  "tw2.changeSubmission": "غيّر شيئًا",
 };
 
 export const DICTIONARIES = { en, ar } as const;
