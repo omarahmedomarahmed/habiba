@@ -4006,6 +4006,9 @@ export const en = {
   "clinic.seatsFilled": "{filled} filled, {invited} invited",
   "clinic.seatAdds": "No free seat: this adds one. {monthly} a month, {today} now.",
   "clinic.seatReleases": "This frees a seat: {monthly} a month.",
+  "clinic.dueNow": "{amount} due",
+  "clinic.due": "Due",
+  "clinic.payByTransfer": "Your practice pays by bank transfer. Write to us for the details.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7246,6 +7249,9 @@ export const ar: Record<MessageKey, string> = {
   "clinic.seatsFilled": "{filled} مشغول، {invited} مدعو",
   "clinic.seatAdds": "لا مقعد شاغر: هذه الدعوة تضيف مقعدًا. {monthly} شهريًا، و{today} الآن.",
   "clinic.seatReleases": "هذا يُفرغ مقعدًا: {monthly} شهريًا.",
+  "clinic.dueNow": "{amount} مستحقة",
+  "clinic.due": "مستحقة",
+  "clinic.payByTransfer": "تدفع عيادتك بالتحويل البنكي. راسلنا لنرسل إليك التفاصيل.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

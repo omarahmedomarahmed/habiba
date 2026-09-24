@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
+import { PayClinicBills } from "@/components/clinic/pay-bills";
 import { Card } from "@/components/ui";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
-import { clinicBills } from "@/lib/data/clinic";
+import { clinicBills, clinicSeatBills } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 
@@ -36,12 +37,33 @@ export const dynamic = "force-dynamic";
  *
  * That is C226's rule holding in a second place: one billing system, not two.
  */
-export default async function ClinicBillsPage() {
+export default async function ClinicBillsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string }>;
+}) {
   /* 🔴 W2-C01: by name, so a typed URL redirects instead of throwing. */
   const actor = await requireClinicCapability("bills.read");
   const { t, locale } = await getI18n();
 
-  const bills = await clinicBills(actor);
+  const { checkout } = await searchParams;
+
+  /*
+   * 🔴 W2-C03: back from the card checkout. Confirmed here as `/billing`
+   * does, so the paid state below is true on this render rather than after
+   * the webhook lands; the webhook applies the same outcome either way.
+   */
+  if (checkout && checkout !== "cancelled") {
+    const { confirmCheckout } = await import("@/lib/billing/stripe");
+    await confirmCheckout(checkout);
+  }
+
+  const [bills, seatBills] = await Promise.all([clinicBills(actor), clinicSeatBills(actor)]);
+
+  /* 🔴 W2-C03 / C3: what is owed now, sessions and seats together. */
+  const dueCents =
+    bills.reduce((sum, bill) => sum + bill.dueCents, 0) +
+    seatBills.reduce((sum, row) => sum + (row.status === "due" ? row.amountCents : 0), 0);
 
   const money = (cents: number) =>
     new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
@@ -89,6 +111,54 @@ export default async function ClinicBillsPage() {
         ) : null}
       </div>
 
+      {checkout && checkout !== "cancelled" ? (
+        <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+          {t("portal.billing.paid")}
+        </p>
+      ) : null}
+      {checkout === "cancelled" ? (
+        <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
+          {t("portal.billing.cancelled")}
+        </p>
+      ) : null}
+
+      {/*
+        🔴 W2-C03 — WHAT IS OWED, AND THE WAY TO PAY IT.
+
+        Nothing in this portal could pay, and nothing said whether a month was
+        settled. The button is the admin's: paying spends the practice's money.
+      */}
+      {dueCents > 0 ? (
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <p className="text-sm font-semibold text-slate-900">
+            {t("clinic.dueNow", { amount: money(dueCents) })}
+          </p>
+          {actor.role === "admin" ? <PayClinicBills amountLabel={money(dueCents)} /> : null}
+        </Card>
+      ) : null}
+
+      {/* 🔴 W2-C03 / C3 — the seat invoices, which no clinic screen showed. */}
+      {seatBills.length > 0 ? (
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-900">{t("clinic.nav.seats")}</p>
+          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+            {seatBills.map((row, index) => (
+              <li key={index} className="flex flex-wrap items-baseline justify-between gap-3 py-2">
+                <span className="text-slate-600">
+                  {month(row.issuedAt)} · {row.description}
+                </span>
+                <span className="tabular-nums text-slate-800">
+                  {money(row.amountCents)}{" "}
+                  <span className="text-xs text-slate-500">
+                    {row.status === "paid" ? t("sponsor.inv.paid") : row.status === "due" ? t("clinic.due") : null}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
       {bills.length === 0 ? (
         <Card className="p-5">
           <p className="text-sm leading-relaxed text-slate-600">{t("clinic.billsEmpty")}</p>
@@ -108,6 +178,12 @@ export default async function ClinicBillsPage() {
                   {bill.sessions === null
                     ? t("clinic.suppressed")
                     : t("clinic.sessionCount", { count: bill.sessions })}
+                  {/* 🔴 W2-C03: settled or not, said on the month itself. */}
+                  {bill.dueCents > 0
+                    ? ` · ${t("clinic.due")}`
+                    : bill.totalCents > 0 && bill.paidCents === bill.totalCents
+                      ? ` · ${t("sponsor.inv.paid")}`
+                      : null}
                 </p>
               </div>
 

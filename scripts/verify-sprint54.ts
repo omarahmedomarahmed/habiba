@@ -597,6 +597,61 @@ async function main() {
       `${bill.platformFeeCents} + ${bill.aiFeeCents} = ${bill.totalCents}`,
     );
 
+    /* ==================================================== */
+    /*  W2-C03 · seat invoices, what is due, and two lines  */
+    /* ==================================================== */
+
+    /*
+     * A third session billed with TWO lines, platform and AI, the ordinary
+     * shape of a recorded session. The month's total must rise by the invoice
+     * once: joining lines onto invoices and summing the invoice amount counts
+     * it once per line.
+     */
+    const [third] = (
+      await db.execute(sql`
+        INSERT INTO sessions (organization_id, therapist_id, status, modality, scheduled_at,
+                              feedback_token, price_cents)
+        VALUES (${org.id}, ${doctor.id}, 'completed', 'video', now() - interval '10 days',
+                ${`${fixture}-c`}, 3000)
+        RETURNING id`)
+    ).rows as { id: string }[];
+    const [twoLines] = (
+      await db.execute(sql`
+        INSERT INTO invoices (organization_id, kind, session_id, amount_cents, status, description)
+        VALUES (${org.id}, 'session', ${required(third, "a third session").id}, 400, 'due', 'verify54 two lines')
+        RETURNING id`)
+    ).rows as { id: string }[];
+    await db.execute(sql`
+      INSERT INTO invoice_lines (invoice_id, kind, amount_cents)
+      VALUES (${required(twoLines, "a two-line invoice").id}, 'platform', 300),
+             (${twoLines!.id}, 'ai', 100)`);
+
+    /* And a seat invoice, which carries no session at all. */
+    await db.execute(sql`
+      INSERT INTO invoices (organization_id, kind, amount_cents, status, description)
+      VALUES (${org.id}, 'subscription', 8900, 'due', '2 seats from 1, for the 15 days left of this month')`);
+
+    const billedAfter = required((await clinicBills(principal))[0], "the month after");
+    check(
+      "🔴 W2-C03 a two-line invoice is counted once in the month's total",
+      billedAfter.totalCents === bill.totalCents + 400,
+      `${bill.totalCents} then ${billedAfter.totalCents}, for one more invoice of 400`,
+    );
+
+    check(
+      "🔴 W2-C03 the month says what is still due",
+      billedAfter.dueCents >= 400,
+      `due ${billedAfter.dueCents}`,
+    );
+
+    const { clinicSeatBills } = await import("../lib/data/clinic");
+    const seatRows = await clinicSeatBills(principal);
+    check(
+      "🔴 W2-C03 / C3 the practice's bills include its seat invoices, with their state",
+      seatRows.some((row) => row.amountCents === 8900 && row.status === "due"),
+      JSON.stringify(seatRows),
+    );
+
     /*
      * 🔴 C263 — AND THE BILL CANNOT BE TIED TO A SESSION.
      *

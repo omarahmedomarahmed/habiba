@@ -721,6 +721,10 @@ export type ClinicBill = {
   platformFeeCents: number;
   aiFeeCents: number;
   totalCents: number;
+  /** 🔴 W2-C03: what of the total is still unpaid, so the page can say so and offer to pay. */
+  dueCents: number;
+  /** 🔴 W2-C03: settled. "Paid" is said only when all of the total is, never for a waived month. */
+  paidCents: number;
 };
 
 export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]> {
@@ -746,16 +750,35 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
    * lines and asserts both figures are non-zero, because typecheck cannot see inside
    * a SQL string and neither can a reader who trusts one.
    */
+  /*
+   * 🔴 W2-C03 — THE LINES ARE SUMMED PER INVOICE FIRST, then joined.
+   *
+   * This joined `invoice_lines` straight onto `invoices` and summed the
+   * invoice amount, so an invoice with a platform line and an AI line was
+   * counted twice in the total: a recorded session doubled the practice's
+   * bill on this screen while the clinician's own ledger was right.
+   * `verify:sprint54` posts a two-line invoice and asserts it is counted once.
+   */
   const rows = await controlDb.execute(sql`
     SELECT date_trunc('month', i.issued_at)                               AS period_start,
            COUNT(DISTINCT i.session_id)::int                              AS sessions,
-           COALESCE(SUM(CASE WHEN l.kind = 'platform'
-                             THEN l.amount_cents ELSE 0 END), 0)::int      AS platform_fee_cents,
-           COALESCE(SUM(CASE WHEN l.kind = 'ai'
-                             THEN l.amount_cents ELSE 0 END), 0)::int      AS ai_fee_cents,
-           SUM(i.amount_cents - i.discount_cents)::int                     AS total_cents
+           COALESCE(SUM(l.platform_cents), 0)::int                        AS platform_fee_cents,
+           COALESCE(SUM(l.ai_cents), 0)::int                              AS ai_fee_cents,
+           SUM(i.amount_cents - i.discount_cents)::int                     AS total_cents,
+           COALESCE(SUM(CASE WHEN i.status = 'due'
+                             THEN i.amount_cents - i.discount_cents ELSE 0 END), 0)::int
+                                                                           AS due_cents,
+           COALESCE(SUM(CASE WHEN i.status = 'paid'
+                             THEN i.amount_cents - i.discount_cents ELSE 0 END), 0)::int
+                                                                           AS paid_cents
       FROM invoices i
-      LEFT JOIN invoice_lines l ON l.invoice_id = i.id
+      LEFT JOIN (
+        SELECT invoice_id,
+               SUM(CASE WHEN kind = 'platform' THEN amount_cents ELSE 0 END) AS platform_cents,
+               SUM(CASE WHEN kind = 'ai' THEN amount_cents ELSE 0 END)       AS ai_cents
+          FROM invoice_lines
+         GROUP BY invoice_id
+      ) l ON l.invoice_id = i.id
      WHERE i.organization_id = ${actor.clinicOrganizationId}
        AND i.session_id IS NOT NULL
      GROUP BY 1
@@ -769,6 +792,8 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
       platform_fee_cents: number;
       ai_fee_cents: number;
       total_cents: number;
+      due_cents: number;
+      paid_cents: number;
     }[]
   ).map((row) => ({
     periodStart: new Date(row.period_start),
@@ -777,6 +802,60 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
     platformFeeCents: Number(row.platform_fee_cents),
     aiFeeCents: Number(row.ai_fee_cents),
     totalCents: Number(row.total_cents),
+    dueCents: Number(row.due_cents),
+    paidCents: Number(row.paid_cents),
+  }));
+}
+
+/**
+ * 🔴 W2-C03 / C3 — THE SEAT INVOICES, which the bills page never showed.
+ *
+ * `clinicBills` reads session invoices only (`session_id IS NOT NULL`), so
+ * a seat change's proration invoice (`billSeatProration`, kind
+ * `subscription`) was billed to the practice and appeared on no clinic
+ * screen. These carry no session, so listing them one by one discloses
+ * nothing about any patient: the description is the seat arithmetic.
+ *
+ * No id leaves this function. Paying reads the due invoices again on the
+ * server, by organisation, so there is nothing a browser could substitute.
+ */
+export type ClinicSeatBill = {
+  issuedAt: Date;
+  description: string;
+  amountCents: number;
+  status: string;
+  paidAt: Date | null;
+};
+
+export async function clinicSeatBills(actor: ClinicPrincipal): Promise<ClinicSeatBill[]> {
+  refuseWithout(actor, "bills.read");
+
+  const rows = await controlDb
+    .select({
+      issuedAt: invoices.issuedAt,
+      description: invoices.description,
+      amountCents: invoices.amountCents,
+      discountCents: invoices.discountCents,
+      status: invoices.status,
+      paidAt: invoices.paidAt,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.organizationId, actor.clinicOrganizationId),
+        eq(invoices.kind, "subscription"),
+        isNull(invoices.sessionId),
+      ),
+    )
+    .orderBy(desc(invoices.issuedAt))
+    .limit(48);
+
+  return rows.map((row) => ({
+    issuedAt: row.issuedAt,
+    description: row.description,
+    amountCents: row.amountCents - row.discountCents,
+    status: row.status,
+    paidAt: row.paidAt,
   }));
 }
 
