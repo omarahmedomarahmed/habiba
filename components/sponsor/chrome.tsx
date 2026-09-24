@@ -37,13 +37,10 @@ const TABS: { href: string; key: MessageKey }[] = [
    */
   { href: "/sponsor/domains", key: "sponsor.nav.domains" },
   /*
-   * 🔴 66.1 — A PAGE, NOT A ROW IN SETTINGS.
-   *
-   * Connecting an HR system is a project somebody schedules. A settings row gets
-   * flipped by whoever is in settings that afternoon; a page with four steps on it
-   * gets opened by the person who came to do this.
+   * W1-21: no Integrations tab. The page did nothing enrolment reads and its
+   * counter showed real joiners by the week, so it is hidden until it is rebuilt
+   * (FIX-PLAN D4) and its route redirects to /sponsor.
    */
-  { href: "/sponsor/integrations", key: "sponsor.nav.integrations" },
   { href: "/sponsor/settings", key: "sponsor.nav.settings" },
 ];
 

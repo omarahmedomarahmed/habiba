@@ -66,7 +66,7 @@ async function recipientFor(
 ): Promise<{ to: Recipient; name: string } | null> {
   if (payment.sponsorId) {
     /*
-     * Admins only, the same rule `alertSponsorPotEmpty` follows: a viewer can
+     * Admins only, the same rule `alertPots` follows: a viewer can
      * read the balance and cannot move money, and telling somebody about a
      * payment they had no part in is how a sender gets filtered.
      */

@@ -233,6 +233,14 @@ const JOBS = {
     }
 
     /*
+     * W1-20: a company whose pot is low or empty is told here, once per pot
+     * until the next top-up, rather than from the booking that found it empty.
+     * A daily email says nothing about when anybody booked.
+     */
+    const { alertPots } = await import("@/lib/billing/pot-alerts");
+    const potAlerts = await alertPots();
+
+    /*
      * 🔴 59.16 / 59.13 — DUNNING, AND THE LAPSE THAT FOLLOWS IT.
      *
      * Sprint 57 shipped two monthly plans and named the absence of dunning as a
@@ -353,6 +361,7 @@ const JOBS = {
       payoutsAlerted: aged.alerted,
       benefitsPaused: reverified.paused,
       potsOutOfBalance: potDrift.length,
+      potAlerts: potAlerts.alerted,
       renewalsDueSoon: dueSoon.length,
       renewalsLapsed: lapsed.lapsed,
       renewalsPaidNoReference: renewalDrift.paidWithNoReference.length,

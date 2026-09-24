@@ -15,11 +15,18 @@ import {
   Users,
 } from "lucide-react";
 
-import { close, mailClinicianHistory, mailRecordToPerson } from "@/app/(admin)/admin/tv/actions";
+import {
+  close,
+  mailClinicianHistory,
+  mailRecordToPerson,
+  openPerson,
+  openSession,
+} from "@/app/(admin)/admin/tv/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import type { NoteContent } from "@/lib/db/schema";
 import { formatUsd } from "@/lib/billing/plans";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 type Live = {
@@ -119,11 +126,10 @@ type Props = {
   events: Event[];
   people: Person[];
   selectedPerson: string | null;
-  conversation: Message[];
-  personSessions: PersonSession[];
   roster: Clinician[];
   audits: AuditRow[];
-  detail: Detail | null;
+  /** A session asked for in the URL. Its content is fetched only after a reason. */
+  session: string | null;
 };
 
 const TABS = ["now", "timeline", "people", "clinicians", "audit"] as const;
@@ -177,9 +183,6 @@ export function TotalView(props: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Total View</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Read-only, across every practice. Nothing here can be edited.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 tabular-nums">
@@ -224,8 +227,6 @@ export function TotalView(props: Props) {
           people={props.people}
           query={props.query}
           selected={props.selectedPerson}
-          conversation={props.conversation}
-          sessions={props.personSessions}
           onSearch={(q) => go({ q: q || null, person: null })}
           onSelect={(key) => go({ person: key })}
           onOpen={(id) => go({ session: id })}
@@ -234,7 +235,9 @@ export function TotalView(props: Props) {
       {tab === "clinicians" ? <Clinicians roster={props.roster} /> : null}
       {tab === "audit" ? <AuditList rows={props.audits} /> : null}
 
-      {props.detail ? <SessionDetail detail={props.detail} onClose={() => go({ session: null })} /> : null}
+      {props.session ? (
+        <SessionDetail key={props.session} id={props.session} onClose={() => go({ session: null })} />
+      ) : null}
     </div>
   );
 }
@@ -450,8 +453,6 @@ function People({
   people,
   query,
   selected,
-  conversation,
-  sessions,
   onSearch,
   onSelect,
   onOpen,
@@ -459,8 +460,6 @@ function People({
   people: Person[];
   query: string;
   selected: string | null;
-  conversation: Message[];
-  sessions: PersonSession[];
   onSearch: (q: string) => void;
   onSelect: (key: string) => void;
   onOpen: (id: string) => void;
@@ -489,7 +488,7 @@ function People({
       </form>
 
       {person ? (
-        <PersonDetail person={person} conversation={conversation} sessions={sessions} onOpen={onOpen} />
+        <PersonDetail key={person.key} person={person} onOpen={onOpen} />
       ) : null}
 
       <Card className="overflow-hidden">
@@ -529,19 +528,55 @@ function People({
   );
 }
 
-function PersonDetail({
-  person,
-  conversation,
-  sessions,
+/**
+ * W1-14: the reason the operator types, before a record is read.
+ *
+ * The same box serves opening the record and emailing it, so a reason given for
+ * one is on the audit row of the other.
+ */
+function ReasonForm({
+  reason,
+  onReason,
   onOpen,
+  pending,
 }: {
-  person: Person;
-  conversation: Message[];
-  sessions: PersonSession[];
-  onOpen: (id: string) => void;
+  reason: string;
+  onReason: (value: string) => void;
+  onOpen: () => void;
+  pending: boolean;
 }) {
+  const t = useT();
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onOpen();
+      }}
+      className="flex flex-wrap items-end gap-2"
+    >
+      <div className="min-w-0 flex-1">
+        <Field label={t("atv.reason")}>
+          <Input value={reason} onChange={(e) => onReason(e.target.value)} minLength={10} required />
+        </Field>
+      </div>
+      <Button type="submit" size="sm" disabled={pending || reason.trim().length < 10}>
+        {t("atv.open")}
+      </Button>
+    </form>
+  );
+}
+
+function PersonDetail({ person, onOpen }: { person: Person; onOpen: (id: string) => void }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [record, setRecord] = useState<{
+    conversation: Message[];
+    sessions: PersonSession[];
+  } | null>(null);
+  const conversation = record?.conversation ?? [];
+  const sessions = record?.sessions ?? [];
 
   return (
     <Card className="overflow-hidden">
@@ -551,25 +586,41 @@ function PersonDetail({
           {person.email ?? "no email"} · seen by {person.therapists} ·{" "}
           {person.patientIds.length} chart{person.patientIds.length === 1 ? "" : "s"}
         </p>
+        <div className="mt-3">
+          <ReasonForm
+            reason={reason}
+            onReason={setReason}
+            pending={pending}
+            onOpen={() =>
+              start(async () => {
+                setMessage(null);
+                const result = await openPerson(person.patientIds, reason);
+                if ("error" in result) setMessage(t("atv.reasonShort"));
+                else setRecord(result);
+              })
+            }
+          />
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="secondary"
-            disabled={pending || person.patientIds.length === 0}
+            disabled={pending || person.patientIds.length === 0 || reason.trim().length < 10}
             onClick={() =>
               start(async () => {
                 setMessage(null);
-                const result = await mailRecordToPerson(person.patientIds[0]!);
-                setMessage(result.error ?? `Sent to ${result.sentTo}, copy to you.`);
+                const result = await mailRecordToPerson(person.patientIds[0]!, reason);
+                setMessage(
+                  result.error === "reason"
+                    ? t("atv.reasonShort")
+                    : (result.error ?? t("atv.sentTo", { to: result.sentTo ?? "" })),
+                );
               })
             }
           >
             <Mail className="h-3.5 w-3.5" aria-hidden />
             {pending ? "Sending…" : "Email their record to them"}
           </Button>
-          <span className="text-xs text-slate-500">
-            Goes to the address on the chart. You are blind-copied.
-          </span>
         </div>
         {message ? <p className="mt-2 text-xs text-slate-600">{message}</p> : null}
       </div>
@@ -602,7 +653,7 @@ function PersonDetail({
         </ul>
       ) : null}
 
-      {conversation.length > 0 ? (
+      {!record ? null : conversation.length > 0 ? (
         <div className="max-h-[28rem] space-y-2.5 overflow-y-auto px-4 py-3">
           {conversation.map((m) => (
             <div
@@ -762,7 +813,39 @@ function AuditList({ rows }: { rows: AuditRow[] }) {
 
 /* --------------------------------------------------------------- detail */
 
-function SessionDetail({ detail, onClose }: { detail: Detail; onClose: () => void }) {
+function SessionDetail({ id, onClose }: { id: string; onClose: () => void }) {
+  const t = useT();
+  const [pending, start] = useTransition();
+  const [reason, setReason] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Detail | null>(null);
+
+  if (!detail) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-6">
+        <div className="w-full max-w-2xl space-y-3 rounded-t-3xl bg-white px-5 py-4 sm:rounded-3xl">
+          <ReasonForm
+            reason={reason}
+            onReason={setReason}
+            pending={pending}
+            onOpen={() =>
+              start(async () => {
+                setMessage(null);
+                const result = await openSession(id, reason);
+                if ("detail" in result && result.detail) setDetail(result.detail);
+                else setMessage(t(result.error === "reason" ? "atv.reasonShort" : "atv.missing"));
+              })
+            }
+          />
+          {message ? <p className="text-xs text-slate-600">{message}</p> : null}
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-6">
       <div className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white sm:rounded-3xl">

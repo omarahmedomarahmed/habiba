@@ -1325,3 +1325,19 @@ test("identifiers never reach the error log", async () => {
   assert.equal(scrubPath("/admin/radar"), "/admin/radar");
   assert.equal(scrubPath("/"), "/");
 });
+
+/* W1-19: a clinic export must not hand a spreadsheet a formula to run. */
+test("a clinic export cell never starts a formula", async () => {
+  const { csvCell } = await import("../lib/data/clinic-export");
+
+  for (const hostile of ["=1+2", "+1", "-1+2", "@SUM(A1)", "\t=1"]) {
+    assert.equal(csvCell(hostile), `'${hostile}`, `${JSON.stringify(hostile)} must be quoted`);
+  }
+  assert.equal(csvCell("\r=1"), `"'\r=1"`, "a return still forces the cell into quotes");
+  assert.equal(csvCell('=HYPERLINK("x")'), `"'=HYPERLINK(""x"")"`);
+
+  // Ordinary cells are untouched, and a negative NUMBER stays a number.
+  assert.equal(csvCell("Sarah M"), "Sarah M");
+  assert.equal(csvCell(-12.5), "-12.5");
+  assert.equal(csvCell(null), "");
+});

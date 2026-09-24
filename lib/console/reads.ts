@@ -10,6 +10,8 @@ import "server-only";
 
 import { and, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 
+import { audit } from "@/lib/audit";
+import type { Actor } from "@/lib/auth/session";
 import { controlDb as db } from "@/lib/db";
 import {
   auditLog,
@@ -27,7 +29,10 @@ import {
 /**
  * Read-only queries, unscoped by organisation.
  *
- * Every function here is a SELECT. Nothing in this module writes.
+ * Every function here is a SELECT, except that `readSession` and `readPerson`
+ * write a `phi_access` audit row before they return anything. The clinical
+ * reads behind them are not exported, so nothing reaches a transcript, a note
+ * or a copilot message from here without a typed reason on the record.
  */
 
 /* --------------------------------------------------------------- now -- */
@@ -254,7 +259,7 @@ export async function peopleByEmail(query?: string) {
 }
 
 /** Every copilot exchange about one person, across clinicians, in order. */
-export async function conversationFor(patientIds: string[]) {
+async function conversationFor(patientIds: string[]) {
   if (patientIds.length === 0) return [];
   return db
     .select({
@@ -278,7 +283,7 @@ export async function conversationFor(patientIds: string[]) {
 }
 
 /** Every session for one person, across clinicians. */
-export async function sessionsFor(patientIds: string[]) {
+async function sessionsFor(patientIds: string[]) {
   if (patientIds.length === 0) return [];
   return db
     .select({
@@ -309,7 +314,7 @@ export async function sessionsFor(patientIds: string[]) {
 }
 
 /** One session in full. */
-export async function sessionDetail(sessionId: string) {
+async function sessionDetail(sessionId: string) {
   const [row] = await db
     .select({
       session: sessions,
@@ -343,6 +348,88 @@ export async function sessionDetail(sessionId: string) {
     .limit(20);
 
   return { ...row, transcript: transcript.rows as Record<string, unknown>[], risks };
+}
+
+/* ------------------------------------------------- the audited reads -- */
+
+/** The shortest reason an operator may give for opening a record. */
+export const REASON_MIN = 10;
+
+/** A code rather than a sentence: the screen says it in the reader's language. */
+type Refused = { error: "reason" };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function reasonProblem(reason: string): Refused | null {
+  return reason.trim().length < REASON_MIN ? { error: "reason" } : null;
+}
+
+/**
+ * One session in full, and the audit row that says who read it and why.
+ *
+ * Matches `/admin/radar/investigate/[id]`: the row is written before anything
+ * is returned. The typed reason goes in `reason`, never in `resourceId`, which
+ * is a uuid (H6).
+ */
+export async function readSession(
+  actor: Pick<Actor, "userId" | "organizationId">,
+  sessionId: string,
+  reason: string,
+): Promise<Awaited<ReturnType<typeof sessionDetail>> | Refused> {
+  const refused = reasonProblem(reason);
+  if (refused) return refused;
+  if (!UUID.test(sessionId)) return null;
+
+  const detail = await sessionDetail(sessionId);
+  if (!detail) return null;
+
+  await audit({
+    actor,
+    category: "phi_access",
+    action: "console.read.session",
+    resourceType: "session",
+    resourceId: sessionId,
+    patientId: detail.session.patientId,
+    reason: reason.trim(),
+  });
+  return detail;
+}
+
+/**
+ * One person's sessions and copilot conversation, across clinicians.
+ *
+ * One audit row per chart, because "who read this patient" is asked of the
+ * patient column, and a person seen by two clinicians is two charts.
+ */
+export async function readPerson(
+  actor: Pick<Actor, "userId" | "organizationId">,
+  patientIds: string[],
+  reason: string,
+): Promise<
+  | {
+      conversation: Awaited<ReturnType<typeof conversationFor>>;
+      sessions: Awaited<ReturnType<typeof sessionsFor>>;
+    }
+  | Refused
+> {
+  const refused = reasonProblem(reason);
+  if (refused) return refused;
+  const ids = patientIds.filter((id) => UUID.test(id));
+
+  for (const patientId of ids) {
+    await audit({
+      actor,
+      category: "phi_access",
+      action: "console.read.person",
+      resourceType: "patient",
+      resourceId: patientId,
+      patientId,
+      reason: reason.trim(),
+    });
+  }
+
+  const [conversation, sessions] = await Promise.all([conversationFor(ids), sessionsFor(ids)]);
+  return { conversation, sessions };
 }
 
 /* ------------------------------------------------------------ counts -- */

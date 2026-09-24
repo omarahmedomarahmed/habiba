@@ -1570,8 +1570,8 @@ export const en = {
   "sponsor.codeRotateBody": "The old code stops working straight away. Anybody already enrolled stays enrolled.",
   "sponsor.codePrint": "Print this",
   /* 🔴 53.19 — a NUMBER, never a name and never an identifier that was tried. */
-  "sponsor.attempts": "{count} attempts on this code in the last seven days.",
-  "sponsor.attemptsHigh": "More than we would expect. Somebody may be guessing at your code. Replacing it costs only reprinting.",
+  "sponsor.attempts": "{count} refused attempts on this code in the last seven days.",
+  "sponsor.attemptsHigh": "More than we would expect. Somebody may be guessing your code. Replacing it costs only reprinting.",
   "sponsor.codePoster": "Activate your benefit at {url} with the code {code}.",
   "sponsor.topUpBody": "The minimum is {min}. It can only be spent on sessions here, and cannot be taken back out as cash.",
   "sponsor.amount": "Amount",
@@ -1737,9 +1737,9 @@ export const en = {
   "clinic.apply.sentBody": "Your practice is on our list. We set it up with you on the call.",
   /* 🔴 C260 — said to the practice, in the words a patient would be told. */
   "clinic.scheduleTitle": "Who is coming, and when",
-  "clinic.scheduleBody": "Your clinicians' appointments: a name and a time, because you pay for the hour.",
+  "clinic.scheduleBody": "First name, last initial and time, because you pay for the hour.",
   "clinic.apply.seesWho": "A practice manager here",
-  "clinic.apply.seesSchedule": "Each clinician's appointments: a name and a time",
+  "clinic.apply.seesSchedule": "Appointments: first name, last initial and time",
   "clinic.apply.seesBills": "One total for the period, never a line per session",
   "clinic.apply.seesTeam": "Who works here, and what each of them can reach",
   "clinic.scheduleEmpty": "No appointments this week.",
@@ -2103,8 +2103,7 @@ export const en = {
    * for.
    */
   "clinic.join.seesTitle": "What {name} will be able to see",
-  "clinic.join.sees.calendar": "Your calendar: who is coming and when",
-  "clinic.join.sees.names": "Each patient's first name and last initial",
+  "clinic.join.sees.calendar": "Your calendar: each patient's first name, last initial and time",
   "clinic.join.sees.radar": "Whether you are on the radar and taking sessions",
   "clinic.join.sees.prices": "What you charge for a session",
   "clinic.join.sees.earnings": "Your earnings totals for the practice",
@@ -3922,6 +3921,14 @@ export const en = {
   "tcop.liveNow": "This patient is in a session right now",
   "tcop.liveFree": "Questions are free while it runs, and answer from the record as it was when the session started.",
   "tcop.goToRoom": "Open the room",
+
+  // W1D: privacy and the console audit.
+  "atv.reason": "Why are you opening this?",
+  "atv.reasonShort": "At least 10 characters.",
+  "atv.open": "Open",
+  "atv.missing": "Not found.",
+  "atv.sentTo": "Sent to {to}.",
+  "clinic.neverContact": "A full name, email or phone",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5120,7 +5127,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.codeRotate": "استبدل هذا الرمز",
   "sponsor.codeRotateBody": "يتوقف الرمز القديم فورًا. ومن انضم بالفعل يبقى منضمًا.",
   "sponsor.codePrint": "اطبع هذا",
-  "sponsor.attempts": "{count} محاولة على هذا الرمز في الأيام السبعة الماضية.",
+  "sponsor.attempts": "{count} محاولة مرفوضة على هذا الرمز في الأيام السبعة الماضية.",
   "sponsor.attemptsHigh": "أكثر مما نتوقع. ربما يخمّن أحدهم رمزك. واستبداله لا يكلف سوى إعادة الطباعة.",
   "sponsor.codePoster": "فعّل ميزتك على {url} بالرمز {code}.",
   "sponsor.topUpBody": "الحد الأدنى {min}. ولا يُنفَق إلا على جلسات هنا، ولا يُسترد نقدًا.",
@@ -5252,9 +5259,9 @@ export const ar: Record<MessageKey, string> = {
   "clinic.apply.sent": "شكرًا لكم. سنتصل بكم.",
   "clinic.apply.sentBody": "عيادتك على قائمتنا. ونجهّزها معك في المكالمة.",
   "clinic.scheduleTitle": "من سيأتي، ومتى",
-  "clinic.scheduleBody": "مواعيد معالجيك: اسم ووقت، لأنك تدفع مقابل الساعة.",
+  "clinic.scheduleBody": "الاسم الأول والحرف الأول من اسم العائلة والوقت، لأنك تدفع مقابل الساعة.",
   "clinic.apply.seesWho": "مدير العيادة هنا",
-  "clinic.apply.seesSchedule": "مواعيد كل معالج: اسم ووقت",
+  "clinic.apply.seesSchedule": "المواعيد: الاسم الأول والحرف الأول من اسم العائلة والوقت",
   "clinic.apply.seesBills": "إجمالي واحد للفترة، لا سطر لكل جلسة",
   "clinic.apply.seesTeam": "من يعمل هنا، وما يصل إليه كل منهم",
   "clinic.scheduleEmpty": "لا مواعيد هذا الأسبوع.",
@@ -5526,8 +5533,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}، لأنه كان قد دفع شهره عند انضمامه.",
   /* 🔴 63.9 / C328 — ما ستراه العيادة، مُعدَّدًا قبل القبول. */
   "clinic.join.seesTitle": "ما ستستطيع {name} رؤيته",
-  "clinic.join.sees.calendar": "جدولك: من سيأتي ومتى",
-  "clinic.join.sees.names": "الاسم الأول لكل مريض والحرف الأول من اسم العائلة",
+  "clinic.join.sees.calendar": "جدولك: الاسم الأول لكل مريض والحرف الأول من اسم العائلة والوقت",
   "clinic.join.sees.radar": "ما إذا كنت على الرادار وتستقبل جلسات",
   "clinic.join.sees.prices": "سعر الجلسة لديك",
   "clinic.join.sees.earnings": "إجماليات أرباحك في العيادة",
@@ -7078,6 +7084,14 @@ export const ar: Record<MessageKey, string> = {
   "tcop.liveNow": "هذا المريض في جلسة الآن",
   "tcop.liveFree": "الأسئلة مجانية أثناء الجلسة، وتُجيب من السجل كما كان عند بدايتها.",
   "tcop.goToRoom": "افتح الغرفة",
+
+  // W1D: privacy and the console audit.
+  "atv.reason": "لماذا تفتح هذا؟",
+  "atv.reasonShort": "10 أحرف على الأقل.",
+  "atv.open": "افتح",
+  "atv.missing": "غير موجود.",
+  "atv.sentTo": "أُرسل إلى {to}.",
+  "clinic.neverContact": "اسمًا كاملًا أو بريدًا أو هاتفًا",
 };
 
 export const DICTIONARIES = { en, ar } as const;
