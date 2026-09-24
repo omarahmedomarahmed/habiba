@@ -24,7 +24,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
-import { organizations, sponsors } from "@/lib/db/schema";
+import { organizations, sessions, sponsors } from "@/lib/db/schema";
 
 import {
   egpMinorFor,
@@ -493,4 +493,25 @@ export async function potTopUpLadder(input: {
   }
 
   return { steps, rateLabel: egp(100) };
+}
+
+/**
+ * 🔴 WHAT THIS PATIENT OWES FOR THIS SESSION, AFTER THEIR BENEFIT, WITH VAT.
+ *
+ * The one figure every patient screen shows: the pay page asks for exactly
+ * this. Billing listed the share before tax and the session cards the full
+ * list price, so a patient read three numbers for one session.
+ */
+export async function patientOwesTotal(sessionId: string): Promise<number> {
+  const [row] = await db
+    .select({ organizationId: sessions.organizationId })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  if (!row) return 0;
+  const { patientOwesFor } = await import("./session-owed");
+  const owed = await patientOwesFor(sessionId);
+  if (owed.grossCents <= 0) return 0;
+  const money = await sessionTransferMoney({ organizationId: row.organizationId, priceCents: owed.grossCents });
+  return money.settlesCents;
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 import {
@@ -320,14 +320,37 @@ async function refundAttempt(attemptId: string): Promise<{ ok: true; usdCents: n
   }
   const gateway = gatewayNamed(attempt.provider);
   if (!gateway) return { ok: false, error: "The gateway that took this payment is not available." };
+  /*
+   * 🔴 CLAIMED FIRST, so two callers cannot both send it back. A claim older
+   * than ten minutes belonged to a process that died and may be taken again;
+   * the attempt id is the gateway's idempotency key for the refund.
+   */
+  const [claimed] = await db
+    .update(gatewayPayments)
+    .set({ refundingAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(gatewayPayments.id, attempt.id),
+        eq(gatewayPayments.state, "paid"),
+        sql`(${gatewayPayments.refundingAt} IS NULL OR ${gatewayPayments.refundingAt} < now() - interval '10 minutes')`,
+      ),
+    )
+    .returning({ id: gatewayPayments.id });
+  if (!claimed) return { ok: false, error: GATEWAY_REFUND_CLAIMED };
+  const release = () =>
+    db.update(gatewayPayments).set({ refundingAt: null, updatedAt: new Date() }).where(eq(gatewayPayments.id, attempt.id));
   try {
     const result = await gateway.refund({
       transactionId: attempt.providerTxnId,
       amountMinor: attempt.amountMinor - attempt.refundedMinor,
       reference: attempt.id,
     });
-    if (!result.ok) return { ok: false, error: result.reason };
+    if (!result.ok) {
+      await release();
+      return { ok: false, error: result.reason };
+    }
   } catch (error) {
+    await release();
     return { ok: false, error: safeErrorMessage(error) };
   }
   const [moved] = await db
@@ -338,6 +361,9 @@ async function refundAttempt(attemptId: string): Promise<{ ok: true; usdCents: n
   if (!moved) return { ok: false, error: "The payment moved on while it was being returned." };
   return { ok: true, usdCents: attempt.usdCents };
 }
+
+/** Another caller holds the refund claim on this attempt. */
+export const GATEWAY_REFUND_CLAIMED = "This payment is already being returned.";
 
 /** The paid gateway attempt behind a session payment, if the payer used one. */
 export async function paidAttemptFor(sessionPaymentId: string) {

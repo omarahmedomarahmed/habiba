@@ -92,6 +92,10 @@ export type PatientSession = {
    * session whose note is still being drafted.
    */
   provenance: NoteProvenance | null;
+  /** 🔴 A cancelled session says so, and never "your summary is being written". */
+  cancelled: boolean;
+  /** What they still owe, after their benefit and with VAT. Null when nothing is owed. */
+  owedCents: number | null;
 };
 
 /**
@@ -117,6 +121,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       priceCents: sessions.priceCents,
       priceCurrency: sessions.priceCurrency,
       paymentStatus: sessions.paymentStatus,
+      status: sessions.status,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
 
@@ -161,6 +166,15 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
         .orderBy(asc(noteAddenda.createdAt))
     : [];
 
+  /* 🔴 The pay page's figure for each unpaid one, never the list price. */
+  const { patientOwesTotal } = await import("@/lib/billing/manual-entry");
+  const owed = new Map<string, number>();
+  for (const row of rows) {
+    if (row.priceCents > 0 && row.paymentStatus === "pending" && row.status !== "cancelled") {
+      owed.set(row.id, await patientOwesTotal(row.id));
+    }
+  }
+
   return rows.map((row) => {
     const at = row.scheduledAt ?? row.endedAt ?? row.startedAt ?? row.createdAt;
     const signed = row.patientStatus === "approved";
@@ -181,7 +195,9 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       priceCurrency: row.priceCurrency,
       paymentStatus: row.paymentStatus,
       brief: signed ? row.brief : null,
-      briefPending: !signed && at.getTime() < now,
+      cancelled: row.status === "cancelled",
+      owedCents: owed.get(row.id) ?? null,
+      briefPending: !signed && row.status !== "cancelled" && at.getTime() < now,
       briefAddenda: signed
         ? addenda
             .filter((line) => line.sessionId === row.id)

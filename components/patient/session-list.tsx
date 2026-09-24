@@ -130,8 +130,11 @@ export function PatientSessionList({
                            * states: the defect was reachable from the first frame of the patient
                            * cut and invisible while the list was empty.
                            */
-                          <> · <Money cents={session.priceCents} currency={session.priceCurrency} /></>
+                          <> · <Money cents={session.owedCents ?? session.priceCents} currency={session.owedCents !== null ? "USD" : session.priceCurrency} /></>
                         : ` · ${t("psessions.free")}`}
+                      {session.cancelled ? (
+                        <span className="ms-1 font-semibold text-rose-600">· {t("psessions.cancelled")}</span>
+                      ) : null}
                     </p>
 
                     {/*

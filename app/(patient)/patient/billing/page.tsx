@@ -8,7 +8,7 @@ import { BeforeAfter } from "@/components/visual/primitives";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientCredits, patients, sessionPayments, sessions, users } from "@/lib/db/schema";
-import { patientOwesFor } from "@/lib/billing/session-owed";
+import { patientOwesTotal } from "@/lib/billing/manual-entry";
 import { sessionDoors } from "@/lib/data/patient-view";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
@@ -79,6 +79,7 @@ export default async function PatientBillingPage() {
          * pot payment (C243) and there is no sponsor id on `session_payments`.
          */
         fundingSource: sessionPayments.fundingSource,
+        patientShare: sessionPayments.patientShareCents,
         therapistFirst: users.firstName,
         therapistLast: users.lastName,
       })
@@ -119,7 +120,8 @@ export default async function PatientBillingPage() {
   const open = await Promise.all(
     (await sessionDoors(actor.personId))
       .filter((row) => row.door?.kind === "pay" || row.door?.kind === "checking")
-      .map(async (row) => ({ ...row, owed: (await patientOwesFor(row.sessionId)).grossCents })),
+      /* 🔴 With VAT: the figure the pay page asks for, not the share before tax. */
+      .map(async (row) => ({ ...row, owed: await patientOwesTotal(row.sessionId) })),
   );
 
   return (
@@ -153,7 +155,7 @@ export default async function PatientBillingPage() {
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="text-sm font-semibold text-slate-900">{row.therapistName}</p>
                     <p className="text-sm font-semibold tabular-nums text-slate-900">
-                      <Money cents={row.owed} currency={row.priceCurrency} />
+                      <Money cents={row.owed} />
                     </p>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
@@ -189,7 +191,14 @@ export default async function PatientBillingPage() {
                     {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
                   </p>
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
-                    {row.fundingSource === "pot"
+                    {/*
+                      🔴 "Covered" only when the company paid all of it. A
+                      half-covered session showed "Covered" while the patient
+                      owed, and after they paid, their half never appeared.
+                    */}
+                    {row.fundingSource === "pot" && (row.patientShare ?? 0) > 0
+                      ? <Money cents={(row.patientShare ?? 0) + (row.vat ?? 0)} currency={row.currency ?? "usd"} />
+                      : row.fundingSource === "pot"
                       ? t("pbilling.covered")
                       : row.presented !== null && row.presentedCurrency
                         ? <Money cents={row.presented} currency={row.presentedCurrency} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
+import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -104,7 +105,9 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="text-sm font-semibold text-slate-900">{sponsor.name}</span>
+        <Link href={`/admin/sponsors/${sponsor.id}`} className="text-sm font-semibold text-slate-900 underline-offset-2 hover:underline">
+          {sponsor.name}
+        </Link>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
           {sponsor.kind}
         </span>

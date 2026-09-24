@@ -603,6 +603,7 @@ export const en = {
   "psessions.radarGroup": "When you needed someone",
   "psessions.radarGroupBody": "Sessions you found on the radar, without booking.",
   "psessions.free": "Free",
+  "psessions.cancelled": "Cancelled",
   "psessions.join": "Join",
 
   /* ------------------------------- 🔴 76.17 the door is open, right now */
@@ -669,7 +670,7 @@ export const en = {
   "pbilling.title": "Billing",
   "pbilling.body": "What you paid, and exactly where it went.",
   "pbilling.none": "Nothing paid yet",
-  "pbilling.noneBody": "Sessions you pay for appear here with the full breakdown.",
+  "pbilling.noneBody": "Sessions you pay for appear here, fully broken down.",
   /* 🔴 53.21 — a covered session, named without naming an employer (C227, C243). */
   "pbilling.covered": "Covered",
   "pbilling.coveredBody": "Your benefit paid for this one. There is nothing for you to pay.",
@@ -1455,7 +1456,7 @@ export const en = {
   /* 🔴 C228 / C229 — the sentence a client asking for a daily chart reads. */
   "sponsor.whyWeekly": "Weekly at the finest, and never one session alone.",
   "sponsor.suppressed": "Not enough activity to report yet",
-  "sponsor.suppressedBody": "A quiet period's figure could identify somebody, so we hold it back.",
+  "sponsor.suppressedBody": "A quiet period's figure could identify somebody, so we hold it.",
   /* 🔴 C240 — on their own screen, so nobody buys this expecting otherwise. */
   /*
    * 🔴 65.12 / 65.3 — `sponsor.noAttendance` became these four.
@@ -1471,7 +1472,7 @@ export const en = {
   "sponsor.neverAttendance": "Whether somebody attended, so attendance cannot be required through us",
   "sponsor.neverClinical": "A note, a transcript or a diagnosis",
   "sponsor.code": "Your joining code",
-  "sponsor.codeBody": "It names your organisation and nothing else, so it is safe on a wall.",
+  "sponsor.codeBody": "It names only your organisation, so it is safe on a wall.",
   "sponsor.topUp": "Add to your pot",
   /* 🔴 C233 — beside the button, never on a later page. */
   "sponsor.refundTerms": "Refund and expiry",
@@ -1592,6 +1593,9 @@ export const en = {
   "sponsor.tax.errRin": "Tax number: 9 digits.",
   "sponsor.tax.errAddress": "Complete the address.",
   "sponsor.eta.title": "Tax invoices",
+  "sponsor.returns.title": "Returned to you",
+  "sponsor.returns.sent": "Sent",
+  "sponsor.returns.requested": "On its way",
   "sponsor.eta.invoice": "Invoice",
   "sponsor.eta.creditNote": "Credit note",
   "sponsor.eta.waiting": "Being issued",
@@ -1700,11 +1704,11 @@ export const en = {
   "sponsor.inv.spendableOnly": "Spendable on sessions, not withdrawable. Your refund and expiry terms apply.",
   "sponsor.settingsTitle": "How people join",
   "sponsor.identifierTitle": "What you ask people for",
-  "sponsor.identifierBody": "One or two things from a fixed list. Never a national ID or anything about health.",
+  "sponsor.identifierBody": "One or two things from a fixed list. Never a national ID or health.",
   "sponsor.kind.domain_email": "An email address on your domain",
   "sponsor.kind.id_number": "A staff or student number",
   /* 🔴 53.19 / C246 — the sponsor is told in plain words which gate is weak. */
-  "sponsor.preferProof": "A work email gets a code. A staff number is only checked for shape.",
+  "sponsor.preferProof": "A work email gets a code. A staff number is only shape-checked.",
   "sponsor.domain": "Your email domain",
   "sponsor.shapeHint": "How would you describe a valid one",
   /* 🔴 C248 — the shape, never a specimen. Said on the form that collects it. */
@@ -1712,7 +1716,7 @@ export const en = {
   "sponsor.addField": "Add this",
   "sponsor.removeField": "Remove",
   "sponsor.fieldCap": "You can ask for two things at most.",
-  "sponsor.verifyCycle": "We re-check each person every {months} months. No answer pauses their funding only.",
+  "sponsor.verifyCycle": "We re-check each person every {months} months. No answer pauses funding only.",
   /* ------------------------------------------------------------- the clinic */
   /*
    * 🔴 SPRINT 54. Every word a practice manager reads, and the vocabulary is
@@ -4661,6 +4665,7 @@ export const ar: Record<MessageKey, string> = {
   "psessions.radarGroup": "حين احتجت إلى أحد",
   "psessions.radarGroupBody": "جلسات وجدتها بين المتاحين الآن، بلا حجز مسبق.",
   "psessions.free": "مجانية",
+  "psessions.cancelled": "أُلغيت",
   "psessions.join": "ادخل",
 
   /* ------------------------------- 🔴 76.17 the door is open, right now */
@@ -5457,6 +5462,9 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.tax.errRin": "رقم التسجيل الضريبي 9 أرقام.",
   "sponsor.tax.errAddress": "املأ كل حقول العنوان.",
   "sponsor.eta.title": "الفواتير الضريبية",
+  "sponsor.returns.title": "أُعيد إليكم",
+  "sponsor.returns.sent": "أُرسل",
+  "sponsor.returns.requested": "في الطريق",
   "sponsor.eta.invoice": "فاتورة",
   "sponsor.eta.creditNote": "إشعار دائن",
   "sponsor.eta.waiting": "قيد الإصدار",

@@ -1023,6 +1023,13 @@
       "when": 1789966041000,
       "tag": "0155_one_transaction_one_book",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1789966042000,
+      "tag": "0156_a_card_refund_is_claimed_first",
+      "breakpoints": true
     }
   ]
 }

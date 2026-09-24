@@ -8,6 +8,7 @@ import { TaxDetails } from "@/components/sponsor/tax-details";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { companyTaxDetails } from "@/lib/billing/eta/company";
 import { documentsFor } from "@/lib/billing/eta/issue";
+import { potReturnsFor } from "@/lib/billing/pot-return";
 import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { localeTag } from "@/lib/i18n/config";
 import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
@@ -85,7 +86,7 @@ export default async function SponsorPotPage() {
     locale: localeTag(locale),
   });
 
-  const [pot, terms, history, coverage, tax, etaDocs] = await Promise.all([
+  const [pot, terms, history, coverage, tax, etaDocs, returns] = await Promise.all([
     potBalance(actor.sponsorId),
     potTerms(actor.sponsorId),
     topUpHistory(actor.sponsorId),
@@ -94,6 +95,8 @@ export default async function SponsorPotPage() {
     /* 🔴 0147 — what ETA needs to invoice them, and what it has issued. */
     companyTaxDetails(actor.sponsorId),
     documentsFor(actor.sponsorId),
+    /* 🔴 C8 — money we are sending back, or sent, which they never saw. */
+    potReturnsFor(actor.sponsorId),
   ]);
   const egp = (minor: number) => <Money cents={minor} currency={"EGP"} />;
 
@@ -283,6 +286,25 @@ export default async function SponsorPotPage() {
                 </Link>
               </li>
             ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {returns.some((r) => r.state !== "cancelled") ? (
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-900">{t("sponsor.returns.title")}</p>
+          <ul className="mt-2 space-y-1">
+            {returns
+              .filter((r) => r.state !== "cancelled")
+              .map((r) => (
+                <li key={r.id} className="flex items-baseline justify-between gap-3 py-1 text-sm text-slate-700">
+                  <span>{day(r.decidedAt ?? r.createdAt)}</span>
+                  <span className="tabular-nums">{egp(r.egpMinor)}</span>
+                  <span className="text-xs text-slate-500">
+                    {r.state === "sent" ? t("sponsor.returns.sent") : t("sponsor.returns.requested")}
+                  </span>
+                </li>
+              ))}
           </ul>
         </Card>
       ) : null}

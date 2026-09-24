@@ -184,7 +184,8 @@ export async function requestPayout(input: {
 
   if (!Number.isFinite(amount) || amount <= 0) return { error: "Enter an amount to withdraw." };
   if (amount > held) {
-    return { error: `You can withdraw up to ${(held / 100).toFixed(2)} right now.` };
+    const { moneyText } = await import("@/lib/money/text");
+    return { error: `You can withdraw up to ${await moneyText(held)} right now.` };
   }
 
   const method = await defaultMethodFor(input.therapistId);
@@ -211,8 +212,21 @@ export async function requestPayout(input: {
    * true any more, it is a decision somebody makes, not a number that
    * silently changed.
    */
+  /*
+   * 🔴 THE OPERATOR'S RATE, like every other Egyptian payment. This asked
+   * `quoteFor`, which refuses a static rate in production and has no provider
+   * behind it, so on the live deployment an Egyptian clinician could not
+   * withdraw at all. The rate is frozen onto the request either way.
+   */
   const payoutCurrency = payoutCurrencyFor(method.method);
-  const quote = payoutCurrency === "usd" ? null : await quoteFor("usd", payoutCurrency);
+  const { egpRateMicro } = await import("./manual");
+  const operatorRate = payoutCurrency === "egp" ? await egpRateMicro() : 0;
+  const quote =
+    payoutCurrency === "usd"
+      ? null
+      : payoutCurrency === "egp" && operatorRate > 0
+        ? { rateMicro: operatorRate, quotedAt: new Date() }
+        : await quoteFor("usd", payoutCurrency);
   if (payoutCurrency !== "usd" && !quote) {
     return { error: "We cannot price that currency right now. Try again shortly." };
   }
@@ -220,7 +234,26 @@ export async function requestPayout(input: {
   const payoutAmountMinor = quote ? convert(amount, quote.rateMicro) : amount;
   const entity: Entity = method.method === "stripe" ? "us" : "eg";
 
-  const [row] = await db
+  /*
+   * 🔴 ONE OPEN REQUEST, ENFORCED UNDER A LOCK. The check above and this insert
+   * were two statements, so a double submit made two requests, each up to the
+   * whole balance. The per-clinician lock makes the second wait, then see the
+   * first.
+   */
+  const [row] = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`payout:${input.therapistId}`}))`);
+    const stillOpen = await tx
+      .select({ id: payoutRequests.id })
+      .from(payoutRequests)
+      .where(
+        and(
+          eq(payoutRequests.therapistId, input.therapistId),
+          inArray(payoutRequests.status, ["requested", "approved", "sent"]),
+        ),
+      )
+      .limit(1);
+    if (stillOpen.length > 0) return [];
+    return tx
     .insert(payoutRequests)
     .values({
       organizationId: input.organizationId,
@@ -239,6 +272,8 @@ export async function requestPayout(input: {
       status: "requested",
     })
     .returning({ id: payoutRequests.id });
+  });
+  if (!row) return { error: "You already have a withdrawal in progress. It is on the queue." };
 
   if (row) {
     await db.insert(payoutRequestEvents).values({

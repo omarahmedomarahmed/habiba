@@ -8,6 +8,7 @@ import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
+  availabilitySlots,
   organizations,
   patients,
   sessionNotes,
@@ -729,6 +730,17 @@ export async function cancelSession(actor: Actor, sessionId: string): Promise<bo
       ),
     )
     .returning({ id: sessions.id });
+
+  /*
+   * 🔴 AND THE HOUR IS FREE AGAIN. A booked hour cancelled from the session
+   * page stayed booked for ever; only the on-call screen freed it.
+   */
+  if (cancelled.length > 0) {
+    await db
+      .update(availabilitySlots)
+      .set({ status: "open", sessionId: null, bookedByAccountId: null, note: null, updatedAt: new Date() })
+      .where(and(eq(availabilitySlots.sessionId, sessionId), eq(availabilitySlots.status, "booked")));
+  }
 
   return cancelled.length > 0;
 }

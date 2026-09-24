@@ -257,22 +257,26 @@ export function PayByTransfer({
 
   /* ---------------------------------------------------------- turned down -- */
 
-  if (live.state === "rejected") {
-    return (
+  /*
+   * 🔴 TURNED DOWN, AND THE FORM IS STILL HERE. The reason said "send the
+   * reference again below" over a page with nothing below it, so a payer who
+   * had been told exactly what to fix had nowhere to fix it.
+   */
+  const rejectedBanner =
+    live.state === "rejected" ? (
       <Card className="border-rose-200 bg-rose-50 p-5">
-        <p className="text-sm font-semibold text-rose-900">{t("transfer.rejected")}</p>
-        {/*
-          🔴 THEIR WORDS, VERBATIM. The operator wrote a reason the payer can act
-          on, and paraphrasing it here or replacing it with a generic sentence
-          would throw away the only thing that makes a rejection survivable.
-        */}
-        <p className="mt-2 rounded-xl bg-white/70 p-3 text-sm leading-relaxed text-rose-900">
-          {live.reason}
-        </p>
-        <p className="mt-3 text-sm text-rose-900/90">{t("transfer.rejectedBody")}</p>
-      </Card>
-    );
-  }
+          <p className="text-sm font-semibold text-rose-900">{t("transfer.rejected")}</p>
+          {/*
+            🔴 THEIR WORDS, VERBATIM. The operator wrote a reason the payer can act
+            on, and paraphrasing it here or replacing it with a generic sentence
+            would throw away the only thing that makes a rejection survivable.
+          */}
+          <p className="mt-2 rounded-xl bg-white/70 p-3 text-sm leading-relaxed text-rose-900">
+            {live.reason}
+          </p>
+          <p className="mt-3 text-sm text-rose-900/90">{t("transfer.rejectedBody")}</p>
+        </Card>
+    ) : null;
 
   /* ------------------------------------------------------- not set up yet -- */
 
@@ -293,6 +297,8 @@ export function PayByTransfer({
   /* ---------------------------------------------------------- the details -- */
 
   return (
+    <>
+    {rejectedBanner}
     <Card className="p-5">
       <p className="text-sm font-semibold text-slate-900">{details.label}</p>
       <p className="mt-1 text-sm text-slate-600">
@@ -443,6 +449,7 @@ export function PayByTransfer({
         <Declare />
       </form>
     </Card>
+    </>
   );
 }
 

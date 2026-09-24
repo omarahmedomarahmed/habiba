@@ -5521,6 +5521,8 @@ export const gatewayPayments = pgTable(
     vatCents: integer("vat_cents").notNull().default(0),
     providerRef: text("provider_ref").notNull(),
     providerTxnId: text("provider_txn_id"),
+    /** 🔴 0156 — a refund in flight, claimed before the gateway is asked. */
+    refundingAt: timestamp("refunding_at", { withTimezone: true }),
     state: text("state").$type<GatewayPaymentState>().notNull().default("created"),
     refundedMinor: integer("refunded_minor").notNull().default(0),
     failure: text("failure"),

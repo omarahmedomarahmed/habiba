@@ -177,7 +177,12 @@ export default async function JoinPage({
         }}
         token={token}
         modality={session.modality}
-        priceCents={session.priceCents}
+        /* 🔴 What they owe, after their benefit and with VAT: the pay page's figure. */
+        priceCents={
+          session.priceCents > 0 && session.paymentStatus !== "paid"
+            ? await (await import("@/lib/billing/manual-entry")).patientOwesTotal(session.id)
+            : session.priceCents
+        }
         paymentStatus={session.paymentStatus}
         /*
          * 🔴 A DROPPED CONNECTION IS NOT A NEW ARRIVAL.

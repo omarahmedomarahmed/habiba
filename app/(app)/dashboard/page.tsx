@@ -23,6 +23,10 @@ export default async function DashboardPage() {
   const { locale, t } = await getI18n();
   const actor = await requireUser();
 
+  const { orgKindOf } = await import("@/lib/data/org-kind");
+  const { mayRunOrgAccount } = await import("@/lib/auth/org-authority");
+  const runsAccount = mayRunOrgAccount(await orgKindOf(actor.organizationId));
+
   const [sessions, drafts, billing, alerts, radar] = await Promise.all([
     listSessions(actor, { limit: 5 }),
     countOpenDrafts(actor),
@@ -234,6 +238,8 @@ export default async function DashboardPage() {
           )}
         </Card>
 
+        {/* 🔴 A seat clinician's organisation is the clinic, whose bill is not theirs to see. */}
+        {runsAccount ? (
         <Link href="/billing" className="block">
           <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
             <span className="flex-1">
@@ -252,6 +258,7 @@ export default async function DashboardPage() {
             <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden />
           </Card>
         </Link>
+        ) : null}
       </div>
     </div>
   );

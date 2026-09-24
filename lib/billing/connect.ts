@@ -1200,10 +1200,23 @@ export async function refundSessionPayment(opts: {
    * against its own transaction, then the same books and session writes as a
    * card refund. Before the Stripe check: this money never touched Stripe.
    */
-  const { refundThroughGateway } = await import("./gateway/session");
+  const { refundThroughGateway, GATEWAY_REFUND_CLAIMED } = await import("./gateway/session");
   const viaGateway = await refundThroughGateway(payment.id);
   if (viaGateway && !viaGateway.ok) {
     log.error("gateway refund failed", { payment: ref(opts.paymentId), reason: viaGateway.error });
+    /*
+     * 🔴 A9: the message said "owed on the refund queue" and queued nothing.
+     * Now it is queued, so a person sends it back by hand. Not when another
+     * caller holds the claim: that one is returning it already.
+     */
+    if (viaGateway.error === GATEWAY_REFUND_CLAIMED) return { error: viaGateway.error };
+    const { openRefundRequest } = await import("./refunds");
+    const queued = await openRefundRequest({
+      sessionPaymentId: payment.id,
+      requestedByUserId: opts.adminUserId,
+      reason: opts.why ?? "admin",
+    });
+    if (queued.error) return { error: "The card gateway did not return the payment, and it could not be queued." };
     return { error: "The card gateway did not return the payment. It is owed on the refund queue." };
   }
   if (viaGateway?.ok) {

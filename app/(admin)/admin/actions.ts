@@ -491,6 +491,10 @@ export async function editInvoice(
     if (input.status === "due" && invoice.status === "paid") {
       return { error: "Reopening a paid invoice would contradict Stripe." };
     }
+    /* 🔴 Money that arrived is refunded, never voided: a void would leave the cash with nothing owed for it. */
+    if (input.status === "void" && invoice.status === "paid") {
+      return { error: "That invoice is paid. Refund it; a paid bill is not voided." };
+    }
     patch.status = input.status;
     if (input.status === "void") patch.paidAt = null;
   }
@@ -498,6 +502,33 @@ export async function editInvoice(
   if (Object.keys(patch).length === 0) return { error: "Nothing to change." };
 
   await db.update(invoices).set(patch).where(eq(invoices.id, invoiceId));
+
+  /*
+   * 🔴 AND THE BOOKS FOLLOW THE BILL. A re-priced or voided invoice left the
+   * original receivable on the ledger, so "owed by clinicians" disagreed with
+   * every bill a person could read. The difference in what is payable moves
+   * between the receivable and revenue.
+   */
+  if (invoice.status === "due") {
+    const before = Math.max(0, invoice.amountCents - invoice.discountCents);
+    const newAmount = patch.amountCents ?? invoice.amountCents;
+    const newDiscount = patch.discountCents ?? invoice.discountCents;
+    const after = patch.status === "void" ? 0 : Math.max(0, newAmount - newDiscount);
+    const delta = after - before;
+    if (delta !== 0) {
+      const { journal } = await import("@/lib/billing/ledger");
+      await journal({
+        kind: "adjustment",
+        refType: "invoice",
+        refId: invoiceId,
+        createdBy: actor.userId,
+        legs: [
+          { account: "therapist_receivable", amountCents: delta, organizationId: invoice.organizationId, memo: `Bill edited: ${trimmedReason}` },
+          { account: "platform_revenue", amountCents: -delta, organizationId: invoice.organizationId, memo: `Bill edited: ${trimmedReason}` },
+        ],
+      });
+    }
+  }
 
   await audit({
     actor,

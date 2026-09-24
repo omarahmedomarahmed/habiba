@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { emailAccountLink } from "@/lib/auth/account-links";
-import { requireRole } from "@/lib/auth/guard";
+import { requireRole, requireStaff } from "@/lib/auth/guard";
 import {
   createSponsorUser,
   openPot,
@@ -32,9 +32,10 @@ async function reasonRefused(reason: unknown): Promise<string | null> {
 /**
  * Admin's side of the corporate account. PLAN.md 53.6, C233, C237.
  *
- * 🔴 `requireRole("super_admin")`, all of it. Activating a sponsor opens a corporate account and
- * opening a pot commits the company to refund terms; both are the same authority as
- * the payouts queue and the vault.
+ * 🔴 `requireRole("super_admin")`, all but the pot returns. Activating a sponsor
+ * opens a corporate account and opening a pot commits the company to refund
+ * terms. A return is sending money back under terms already agreed, which is
+ * staff work with four eyes, as payouts and refunds are.
  *
  * 🔴 Every one of these is audited with a real `Actor`, unlike the sponsor's own
  * acts, which carry a sponsor user id and no actor. The two are different
@@ -210,9 +211,10 @@ export async function mintCode(sponsorId: string, reason: string): Promise<Admin
 /**
  * 🔴 0148: money back out of a pot. One operator asks, a second one sends
  * after making the transfer, and the database refuses the same person twice.
+ * Staff, as on payouts and refunds (D9): the four eyes are the control.
  */
 export async function askPotReturn(_prev: AdminSponsorState, formData: FormData): Promise<AdminSponsorState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const sponsorId = String(formData.get("sponsorId") ?? "");
   const reason = String(formData.get("reason") ?? "");
   const refused = await reasonRefused(reason);
@@ -232,7 +234,7 @@ export async function askPotReturn(_prev: AdminSponsorState, formData: FormData)
 }
 
 export async function sendAskedReturn(_prev: AdminSponsorState, formData: FormData): Promise<AdminSponsorState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const id = String(formData.get("returnId") ?? "");
   const sponsorId = String(formData.get("sponsorId") ?? "");
   const { sendPotReturn } = await import("@/lib/billing/pot-return");
@@ -244,7 +246,7 @@ export async function sendAskedReturn(_prev: AdminSponsorState, formData: FormDa
 }
 
 export async function cancelAskedReturn(_prev: AdminSponsorState, formData: FormData): Promise<AdminSponsorState> {
-  const actor = await requireRole("super_admin");
+  const actor = await requireStaff();
   const id = String(formData.get("returnId") ?? "");
   const sponsorId = String(formData.get("sponsorId") ?? "");
   const { cancelPotReturn } = await import("@/lib/billing/pot-return");

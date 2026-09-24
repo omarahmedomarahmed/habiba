@@ -167,6 +167,21 @@ export async function quoteFor(base: string, quote: string): Promise<Quote | nul
     };
   }
 
+  /*
+   * 🔴 DOLLARS TO POUNDS IS THE OPERATOR'S RATE, the one every screen and
+   * every transfer already uses. There is no rate provider, and C37 refuses a
+   * static rate in production, so this pair returned nothing live: the pay
+   * page could not price a session and a clinician could not withdraw. The
+   * operator's rate is a published, audited setting, not a guess.
+   */
+  if (from === "usd" && to === "egp") {
+    const { egpRateMicro } = await import("./manual");
+    const rateMicro = await egpRateMicro().catch(() => 0);
+    if (rateMicro > 0) {
+      return { base: from, quote: to, rateMicro, quotedAt: now, expiresAt: new Date(now.getTime() + QUOTE_TTL_MS), source: "operator" };
+    }
+  }
+
   const [live] = await db
     .select()
     .from(fxQuotes)
