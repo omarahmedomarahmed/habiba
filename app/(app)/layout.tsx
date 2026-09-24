@@ -70,11 +70,19 @@ export default async function AppLayout({
 }) {
   const { t, locale } = await getI18n();
   const actor = await requireUser();
-  const pending = await pendingPaymentFor(
-    { kind: "organization", organizationId: actor.organizationId },
-    t,
-    localeTag(locale),
-  );
+  /*
+   * 🔴 W1-02 — the organisation's bill in flight is the account holder's. A
+   * clinic seat clinician's organisation is the clinic, whose bill they do not run.
+   */
+  const { orgKindOf } = await import("@/lib/data/org-kind");
+  const { mayRunOrgAccount } = await import("@/lib/auth/org-authority");
+  const pending = mayRunOrgAccount(await orgKindOf(actor.organizationId))
+    ? await pendingPaymentFor(
+        { kind: "organization", organizationId: actor.organizationId },
+        t,
+        localeTag(locale),
+      )
+    : null;
 
   const [radar, [me], state] = await Promise.all([
     getRadarProfile(actor.userId),

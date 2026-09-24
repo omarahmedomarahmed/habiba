@@ -3926,6 +3926,7 @@ export const en = {
   // W1A
   "w1a.potCardOff": "Card payment is not open yet. Ask us and we will send bank transfer details.",
   "w1a.potAskUs": "Ask us",
+  "w1a.clinicRunsAccount": "Your clinic's account is run from the clinic portal.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7086,6 +7087,7 @@ export const ar: Record<MessageKey, string> = {
   // W1A
   "w1a.potCardOff": "الدفع بالبطاقة غير متاح بعد. تواصلوا معنا وسنرسل لكم بيانات التحويل البنكي.",
   "w1a.potAskUs": "تواصلوا معنا",
+  "w1a.clinicRunsAccount": "يُدار حساب عيادتكم من بوابة العيادة.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

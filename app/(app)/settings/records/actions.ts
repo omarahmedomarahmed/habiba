@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireUser } from "@/lib/auth/guard";
+import { requireOrgAccount } from "@/lib/auth/guard";
 import { beginConnection, revokeConnectionsFor } from "@/lib/data/ehr";
 import { putPending } from "@/lib/ehr/pending";
 import { authorizeUrl, pkce } from "@/lib/ehr/smart";
@@ -12,15 +12,17 @@ import type { EhrVendor } from "@/lib/db/schema";
 /**
  * 43.1c — the solo clinician's home for the records connection.
  *
- * 🔴 `requireUser`, so the organisation comes from the session. A solo therapist is an organisation
- * of one (C259/C266), so `actor.organizationId` is the owner with no second case and no
- * `organizationId` field this form could supply.
+ * 🔴 The organisation comes from the session. A solo therapist is an organisation of one
+ * (C259/C266), so `actor.organizationId` is the owner and no form field can supply another.
+ * W1-02: a clinic seat clinician's session carries the CLINIC's id, so `requireOrgAccount`
+ * refuses them; the clinic's connection is run from `/clinic/records`.
  *
  * Same actions, same data module and same panel as the clinic's. What differs is the guard, because
  * an `Actor` and a `ClinicActor` are deliberately different types.
  */
 export async function begin(_prev: { error?: string }, formData: FormData): Promise<{ error?: string }> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return { error: refused };
 
   const vendor = String(formData.get("vendor") ?? "epic") as EhrVendor;
   const fhirBaseUrl = String(formData.get("fhirBaseUrl") ?? "").trim();
@@ -68,7 +70,8 @@ export async function begin(_prev: { error?: string }, formData: FormData): Prom
 }
 
 export async function disconnect(): Promise<void> {
-  const actor = await requireUser();
+  const { actor, refused } = await requireOrgAccount();
+  if (refused) return;
   /*
    * 🔴 No connection id from the form, deliberately. There is at most one live connection per
    * organisation per vendor (`ehr_connections_live_unique`), so "disconnect" is unambiguous, and an
