@@ -85,6 +85,7 @@ export function RecordsPanel({
   filers,
   actions,
   canManage,
+  outcome = null,
 }: {
   connections: ConnectionRow[];
   filings: FilingRow[];
@@ -111,6 +112,12 @@ export function RecordsPanel({
    * cannot change it, and the server actions refuse them as well.
    */
   canManage: boolean;
+  /**
+   * 🔴 W2-C06: how the connection just went, from `/api/ehr/callback`'s
+   * `?ehr=`. Nothing read it, so a practice back from its hospital's sign-in
+   * saw the same screen whether it had worked or not.
+   */
+  outcome?: string | null;
 }) {
   const t = useT();
   const [state, beginAction] = useActionState(actions.begin, {});
@@ -129,6 +136,16 @@ export function RecordsPanel({
           {isClinic ? t("records.bodyClinic") : t("records.bodySolo")}
         </p>
       </div>
+
+      {outcome === "connected" ? (
+        <p role="status" className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+          {t("records.outcomeConnected")}
+        </p>
+      ) : outcome ? (
+        <p role="alert" className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+          {t("records.outcomeFailed")}
+        </p>
+      ) : null}
 
       {/*
         🔴 67.1 — THE UPSELL SAYS WHAT TO DO INSTEAD, which is what makes it not an

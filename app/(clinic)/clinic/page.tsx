@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { can } from "@/lib/clinic-auth/capabilities";
 import { requireClinic } from "@/lib/clinic-auth/guard";
+import { clinicWeek } from "@/lib/clinic-week";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -48,15 +49,8 @@ export default async function ClinicOverviewPage({
    * cities must be looking at the same seven rows when they discuss them, and a
    * per-viewer week boundary means they are not.
    */
-  const anchor = week ? new Date(`${week}T00:00:00Z`) : new Date();
-  const valid = Number.isFinite(anchor.getTime()) ? anchor : new Date();
-  const monday = new Date(valid);
-  monday.setUTCHours(0, 0, 0, 0);
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
-  const next = new Date(monday);
-  next.setUTCDate(next.getUTCDate() + 7);
-  const prev = new Date(monday);
-  prev.setUTCDate(prev.getUTCDate() - 7);
+  /* 🔴 W2-C06: one function, which the export route calls with the same parameter. */
+  const { monday, next, prev } = clinicWeek(week);
 
   /*
    * 🔴 W2-C01: EVERY REFUSED CAPABILITY REDIRECTS HERE, so this page reads
@@ -139,7 +133,7 @@ export default async function ClinicOverviewPage({
         {seesSchedule && actor.capabilities.includes("export") ? (
           <div className="mt-3">
             <a
-              href="/clinic/export?what=schedule"
+              href={`/clinic/export?what=schedule&week=${monday.toISOString().slice(0, 10)}`}
               className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               {t("clinic.exportCsv")}

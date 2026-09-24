@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getClinicActor } from "@/lib/clinic-auth/session";
+import { clinicWeek } from "@/lib/clinic-week";
 import { exportBills, exportSchedule } from "@/lib/data/clinic-export";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const what = url.searchParams.get("what");
+  const week = clinicWeek(url.searchParams.get("week"));
 
   try {
     const result =
@@ -44,12 +46,14 @@ export async function GET(request: Request) {
             email: actor.email,
             clinicName: actor.clinicName,
             /*
-             * A fixed window rather than one from the query string. An exporter who
-             * can name its own range can name a hundred years of it, and the screen
-             * this mirrors shows one week at a time.
+             * 🔴 W2-C06: THE WEEK ON THE SCREEN, through the function the screen
+             * uses. It was a fixed 90 days back and 90 forward, against a screen
+             * showing seven days and a watermark promising the file shows nothing
+             * the screen does not. The query names a week, never a range: an
+             * exporter who can name its own range can name a hundred years of it.
              */
-            from: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-            to: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            from: week.monday,
+            to: week.next,
           });
 
     return new NextResponse(result.csv, {

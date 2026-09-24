@@ -207,6 +207,7 @@
     "test:partner-wav": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/partner-wav.test.ts",
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "test:clinician-nav": "node --env-file-if-exists=.env.local --import tsx --test tests/clinician-nav.test.ts",
+    "test:clinic-records": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-records.test.ts",
     "test:clinic-staff": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-staff.test.ts",
     "test:clinic-bills": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-bills.test.ts",
     "test:clinic-seats": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-seats.test.ts",

@@ -4013,6 +4013,8 @@ export const en = {
   "clinic.team.invited": "Invited, no password yet",
   "clinic.team.signOut": "Sign them out everywhere",
   "clinic.team.newLink": "New link",
+  "records.outcomeConnected": "Connected.",
+  "records.outcomeFailed": "That did not connect. Nothing changed; start again.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7260,6 +7262,8 @@ export const ar: Record<MessageKey, string> = {
   "clinic.team.invited": "مدعو، لم يختر كلمة مرور بعد",
   "clinic.team.signOut": "أخرِجه من كل الأجهزة",
   "clinic.team.newLink": "رابط جديد",
+  "records.outcomeConnected": "تم الربط.",
+  "records.outcomeFailed": "لم يتم الربط. لم يتغير شيء، فابدأ من جديد.",
 };
 
 export const DICTIONARIES = { en, ar } as const;
