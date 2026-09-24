@@ -700,10 +700,10 @@ async function main() {
       const pinged = await webhooks.sendTestEvent({ partnerId: partner.id, webhookId: hookId });
       const pingBody = JSON.parse(endpoint.calls.at(-1)?.body ?? "{}") as Record<string, unknown>;
       check(
-        "🔴 W2-X03 Send test event: a signed ping with the same three fields and a null id",
+        "🔴 W2-X03 Send test event: a signed ping with the same fields as a delivery and a null id and ref",
         pinged?.ok === true && endpoint.calls.length === beforeTest + 1 &&
-          pingBody.event === "ping" && pingBody.id === null &&
-          Object.keys(pingBody).sort().join(",") === "at,event,id",
+          pingBody.event === "ping" && pingBody.id === null && pingBody.ref === null &&
+          Object.keys(pingBody).sort().join(",") === "at,event,id,ref",
         JSON.stringify(pingBody),
       );
 
@@ -716,6 +716,74 @@ async function main() {
         "W2-X03 …a test the endpoint refuses says so and is not retried",
         refused?.ok === false && refused.status === 503 && pingRow.failed !== null && pingRow.next === null,
         `ok ${refused?.ok}, status ${refused?.status}`,
+      );
+
+      /*
+       * 🔴 C17: a subject event names the subject by OUR id, which no API returns,
+       * so it carries the partner's own reference beside it. Only for the
+       * partner's own subject: a subject id of another platform's carries none.
+       */
+      const subject = await one<{ id: string }>(sql`
+        INSERT INTO partner_subjects (partner_id, external_ref) VALUES (${partner.id}, ${`${fixture}-THEIR-77`}) RETURNING id`);
+      const stranger = await one<{ id: string }>(sql`
+        INSERT INTO partners (name, slug, state) VALUES (${`${fixture}-other`}, ${`${fixture}-other`}, 'active') RETURNING id`);
+      const foreign = await one<{ id: string }>(sql`
+        INSERT INTO partner_subjects (partner_id, external_ref) VALUES (${stranger.id}, ${`${fixture}-NOT-THEIRS`}) RETURNING id`);
+      await webhooks.registerWebhook({ partnerId: partner.id, url: `${hookHost}/subjects`, events: ["record.claimed"] });
+      endpoint.status = 200;
+      const ourSession = randomUuid();
+      await webhooks.queueWebhook({ partnerId: partner.id, event: "record.claimed", subjectId: subject.id });
+      await webhooks.queueWebhook({ partnerId: partner.id, event: "record.claimed", subjectId: foreign.id });
+      await webhooks.queueWebhook({ partnerId: partner.id, event: "session.completed", subjectId: ourSession });
+      await webhooks.deliverPending();
+      const bodies = endpoint.calls.map((c) => JSON.parse(c.body) as Record<string, unknown>);
+      const claimedBody = bodies.find((b) => b.id === subject.id);
+      const foreignBody = bodies.find((b) => b.id === foreign.id);
+      const sessionBody = bodies.find((b) => b.id === ourSession);
+      check(
+        "🔴 C17 record.claimed carries the partner's own reference for the subject beside our id, and nothing else new",
+        claimedBody?.event === "record.claimed" && claimedBody.ref === `${fixture}-THEIR-77` &&
+          Object.keys(claimedBody).sort().join(",") === "at,event,id,ref",
+        JSON.stringify(claimedBody),
+      );
+      check(
+        "C17 CONTROL another platform's subject id carries no reference, and a session event carries our session id with a null ref",
+        foreignBody !== undefined && foreignBody.ref === null &&
+          sessionBody?.event === "session.completed" && sessionBody.ref === null,
+        JSON.stringify({ foreignBody, sessionBody }),
+      );
+
+      /*
+       * 🔴 C24: the hourly drain sent one batch of 50. It now takes batch after
+       * batch within a time budget, each delivery still claimed before it is sent:
+       * two drains racing over more deliveries than one batch send each exactly once.
+       */
+      const bulk = await webhooks.registerWebhook({ partnerId: partner.id, url: `${hookHost}/bulk`, events: ["note.approved"] });
+      const bulkIds = Array.from({ length: 8 }, () => randomUuid());
+      for (const id of bulkIds) await webhooks.queueWebhook({ partnerId: partner.id, event: "note.approved", subjectId: id });
+      const noTime = await webhooks.deliverPending({ budgetMs: 0 });
+      const sentBefore = endpoint.calls.length;
+      const [a, b] = await Promise.all([
+        webhooks.deliverPending({ batch: 3 }),
+        webhooks.deliverPending({ batch: 3 }),
+      ]);
+      const bulkSent = endpoint.calls
+        .slice(sentBefore)
+        .map((c) => JSON.parse(c.body) as { id?: string })
+        .filter((body) => bulkIds.includes(body.id ?? ""));
+      const leftDue = await one<{ n: number }>(sql`
+        SELECT count(*)::int AS n FROM partner_webhook_deliveries
+         WHERE webhook_id = ${bulk.webhook!.id} AND delivered_at IS NULL`);
+      check(
+        "🔴 C24 one hourly call drains more than one batch, and two racing drains send each delivery exactly once",
+        bulkSent.length === bulkIds.length && new Set(bulkSent.map((body) => body.id)).size === bulkIds.length &&
+          leftDue.n === 0 && a.sent + b.sent >= bulkIds.length,
+        JSON.stringify({ sent: bulkSent.length, leftDue: leftDue.n, a, b }),
+      );
+      check(
+        "C24 CONTROL with no time left it starts nothing and says more is due",
+        noTime.sent + noTime.failed + noTime.gaveUp === 0 && noTime.more === true,
+        JSON.stringify(noTime),
       );
     });
   } finally {
@@ -738,6 +806,7 @@ async function main() {
     await db.execute(sql`DELETE FROM partner_limits WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM partners WHERE slug = ${fixture}`);
+    await db.execute(sql`DELETE FROM partners WHERE slug = ${`${fixture}-other`}`);
     await pool.end();
   }
 

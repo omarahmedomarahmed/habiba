@@ -108,7 +108,8 @@ same externalMeetingId again -> the same sessionId`}
           title={t("devs.useCase5")}
           body={t("devs.useCase5Body")}
           exampleLabel={t("devs.example")}
-          example={`note.approved -> { "event": "note.approved", "id": "...", "at": "..." }
+          example={`note.approved -> { "event": "note.approved", "id": "<sessionId>",
+                   "ref": null, "at": "..." }
 
 GET /api/partner/v1/notes/<sessionId>
 
@@ -242,6 +243,35 @@ GET /api/partner/v1/subjects/<ref>/memory
                  session limit it set (500). Your session is
                  unaffected and is held on your own platform.
                  Raise the limit to turn the AI back on." }`}
+        </pre>
+      </Card>
+
+      {/*
+        🔴 C17: WHAT A WEBHOOK CARRIES, AND WHAT EACH ID IS FOR.
+
+        The subject events named the subject by OUR `partner_subjects` id, which
+        no endpoint returns, so a partner had nothing to match it against. They
+        carry the partner's own reference now, as `ref`. The session events carry
+        our session id, which the notes route takes as it is. Four fields, never
+        content (42.4): `lib/partner/webhooks.ts` builds the body as a literal.
+      */}
+      <Card className="mt-6 border-slate-200 p-5">
+        <p className="font-semibold text-slate-900">{t("devs.hooks")}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.hooksBody")}</p>
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+{`POST <your endpoint>
+x-24t-signature: t=<unix time>,v1=<hex HMAC-SHA256 of "t.body">
+x-24t-delivery: <the same on every retry>
+
+{ "event": "record.claimed", "id": "...",
+  "ref": "P-77", "at": "2026-09-14T10:40:00Z" }
+
+session.completed, note.approved
+  id  = <sessionId> for GET /api/partner/v1/notes/<sessionId>
+  ref = null
+grant.revoked, record.claimed, subject.unlinked
+  id  = our id for the patient, returned by no endpoint
+  ref = the subject reference you sent us, e.g. P-77`}
         </pre>
       </Card>
 

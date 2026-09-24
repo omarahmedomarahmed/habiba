@@ -33,6 +33,11 @@
  */
 process.env.EGYPT_GATEWAY = "fake";
 process.env.EGYPT_PAYOUTS = "fake";
+/* C23: the simulator has no built-in secret, so the run brings its own. */
+process.env.EGYPT_GATEWAY_HMAC = `verify-mm-${randomBytes(24).toString("hex")}`;
+process.env.EGYPT_PAYOUTS_HMAC = `verify-mm-${randomBytes(24).toString("hex")}`;
+
+import { randomBytes } from "node:crypto";
 
 import { sql } from "drizzle-orm";
 

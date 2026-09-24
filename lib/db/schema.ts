@@ -2607,6 +2607,15 @@ export const LEDGER_ACCOUNTS = [
    * `platform_expense` carries.
    */
   "fx_difference",
+  /**
+   * 🔴 C15: WHAT A PARTNER PLATFORM OWES US for its month of sessions. An
+   * asset, like `therapist_receivable`, and not that account: the partner
+   * bill was posted there, so every figure about what clinicians owe us
+   * carried money a company owed, and collecting it would have settled
+   * against the wrong debtor. `ledger_entries.account` carries no CHECK, so
+   * this needs no migration.
+   */
+  "partner_receivable",
 ] as const;
 export type LedgerAccount = (typeof LEDGER_ACCOUNTS)[number];
 
@@ -8439,7 +8448,7 @@ export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
  *
  * Nobody subscribes to it: it is sent once, to one endpoint, when its owner presses
  * "Send a test event", so they can check their signature code before a real event
- * depends on it. The same three fields as every delivery, with a null id.
+ * depends on it. The same fields as every delivery, with a null id and ref.
  */
 export const WEBHOOK_TEST_EVENT = "ping";
 
@@ -8709,6 +8718,14 @@ export const partnerSessions = pgTable(
     /** 🔴 68.10 — null is the NORMAL case: a platform has a caseload before we do. */
     personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
 
+    /**
+     * 🔴 C15: WHEN WE STARTED WORK ON IT, its first transcribed audio, which is
+     * the moment it became billable. Written once, by `billFirstAudio`, in the
+     * same conditional UPDATE that sets `billable`; null until then. The month
+     * it falls in is the month the session is metered and billed in, so a
+     * session opened on the 31st and first heard on the 1st is billed once, in
+     * the month it was heard. Rows billed before C15 carry their opening time.
+     */
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
 

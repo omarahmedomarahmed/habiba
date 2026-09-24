@@ -8,10 +8,45 @@ import {
   domainsFor,
   markDnsProved,
   markMailboxProved,
+  sendDomainProof,
 } from "@/lib/data/sponsor-domains";
+import type { MessageKey } from "@/lib/i18n/messages";
+import { isAdminMailbox } from "@/lib/sponsor/domain-mailboxes";
 import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 
 export type DomainState = { error?: string; ok?: boolean; token?: string };
+
+/**
+ * 🔴 C18: SEND THE PROOF AGAIN, to the admin mailbox the company picks.
+ *
+ * The first mail went to `postmaster@` once and nothing could send it again,
+ * so a domain whose postmaster nobody reads could never be proved. An admin
+ * picks one of `ADMIN_MAILBOXES` (never a typed address, which would let the
+ * company prove its own inbox) and it goes, three times a domain an hour.
+ * The answer is a dictionary key and the address it went to, nothing else.
+ */
+export async function resendDomainProof(
+  domainId: string,
+  mailbox: string,
+): Promise<{ sent?: string; error?: MessageKey }> {
+  const actor = await requireSponsorAdmin();
+  if (!isAdminMailbox(mailbox)) return { error: "common.somethingWrong" };
+
+  const result = await sendDomainProof({ sponsorId: actor.sponsorId, domainId, mailbox });
+  if ("error" in result) {
+    return { error: result.error === "wait" ? "sponsor.domain.errWait" : "common.somethingWrong" };
+  }
+
+  await audit({
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "domain.proof_sent",
+    resourceType: "sponsor_domain",
+    resourceId: domainId,
+  });
+  return { sent: result.sent };
+}
 
 /**
  * 🔴 61.1 to 61.4 / C318 — a domain to prove, and the record to publish.
@@ -30,9 +65,12 @@ export async function addSponsorDomain(
 ): Promise<DomainState> {
   const actor = await requireSponsorAdmin();
 
+  const mailbox = formData.get("mailbox");
   const result = await addDomain({
     sponsorId: actor.sponsorId,
     domain: String(formData.get("domain") ?? ""),
+    /* C18: one of the admin names, or postmaster. Never an address they type. */
+    mailbox: isAdminMailbox(mailbox) ? mailbox : undefined,
   });
 
   if (result.error) return { error: result.error };

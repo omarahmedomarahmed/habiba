@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { UsageMeter } from "@/components/partner/usage-meter";
 import { requirePartner } from "@/lib/partner-auth/guard";
-import { billFor } from "@/lib/partner/billing";
+import { closedMonthBill } from "@/lib/partner/billing";
 import { usageFor } from "@/lib/partner/usage";
 
 export const metadata: Metadata = { title: "Usage", robots: { index: false } };
@@ -33,11 +33,14 @@ export default async function PartnerUsagePage() {
    * here, from the same function the cron posts from, so the figure somebody sees
    * before it arrives is the figure that arrives. A bill an integrator sees for the
    * first time when it lands is a bill they dispute.
+   *
+   * 🔴 C15: and once it is posted, the figure is the LEDGER's. `billFor` prices
+   * the month at today's setting, so a reprice rewrote a bill already sent.
    */
   const lastMonth = new Date(
     Date.UTC(usage.periodStart.getUTCFullYear(), usage.periodStart.getUTCMonth() - 1, 1),
   );
-  const bill = await billFor({ partnerId: actor.partnerId, periodStart: lastMonth });
+  const bill = await closedMonthBill({ partnerId: actor.partnerId, periodStart: lastMonth });
 
   return (
     <UsageMeter

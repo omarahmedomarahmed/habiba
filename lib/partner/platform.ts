@@ -139,7 +139,7 @@ export async function openSession(input: {
       environment: input.environment,
       externalSessionRef: input.externalSessionRef.slice(0, 200),
       externalSubjectRef: input.externalSubjectRef.slice(0, 200),
-      startedAt: now,
+      /* 🔴 C15: no `startedAt`. It is the first audio's, set by `billFirstAudio`. */
       recordingFromSeconds: fromSeconds,
       stoppedReason,
       billable,
@@ -342,11 +342,16 @@ export async function mayBillFirstAudio(input: {
  * Conditional on `billable = false`, so a second piece of audio, a retry or two
  * pieces racing each other bill it once. Live only and never a stopped session:
  * the two CHECKs on the table say the same, and this WHERE never asks them to.
+ *
+ * 🔴 C15: and it stamps `startedAt`, in the same UPDATE, so the month a session
+ * is billed in is the month it became billable. The bill counted by `createdAt`,
+ * so a session opened on the 31st and first heard after that month was billed
+ * belonged to a month already closed, and was never billed at all.
  */
-export async function billFirstAudio(sessionId: string): Promise<void> {
+export async function billFirstAudio(sessionId: string, now = new Date()): Promise<void> {
   await controlDb
     .update(partnerSessions)
-    .set({ billable: true, updatedAt: new Date() })
+    .set({ billable: true, startedAt: now, updatedAt: now })
     .where(
       and(
         eq(partnerSessions.id, sessionId),

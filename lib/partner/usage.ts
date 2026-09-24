@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { partnerLimits, partnerSessions, partners } from "@/lib/db/schema";
@@ -34,6 +34,23 @@ import { log, ref } from "@/lib/logger";
 /** The billing period a moment falls in. Calendar months, in UTC. */
 function periodOf(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+/**
+ * 🔴 C15: THE MONTH A SESSION IS METERED AND BILLED IN is the month it became
+ * billable (its first audio, `startedAt`), not the month it was opened. The
+ * meter, the limit and the bill all count through this one condition, so the
+ * page a partner watches all month and the bill that follows cannot disagree.
+ * `createdAt` stands in only for a billable row with no stamp, which no writer
+ * leaves.
+ */
+export function billableBetween(from: Date, to?: Date) {
+  const at = sql`COALESCE(${partnerSessions.startedAt}, ${partnerSessions.createdAt})`;
+  return and(
+    eq(partnerSessions.billable, true),
+    sql`${at} >= ${from.toISOString()}::timestamptz`,
+    to ? sql`${at} < ${to.toISOString()}::timestamptz` : undefined,
+  );
 }
 
 /**
@@ -95,8 +112,7 @@ export async function usageFor(partnerId: string, now = new Date()): Promise<Par
       and(
         eq(partnerSessions.partnerId, partnerId),
         eq(partnerSessions.environment, "live"),
-        eq(partnerSessions.billable, true),
-        gte(partnerSessions.createdAt, periodStart),
+        billableBetween(periodStart),
       ),
     );
 

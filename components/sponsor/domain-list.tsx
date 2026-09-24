@@ -7,9 +7,12 @@ import { Check, Circle } from "lucide-react";
 import {
   addSponsorDomain,
   checkDnsRecord,
+  resendDomainProof,
   type DomainState,
 } from "@/app/(sponsor)/sponsor/domains/actions";
 import { Button, Card, EmptyState, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
+import { ADMIN_MAILBOXES, type AdminMailbox } from "@/lib/sponsor/domain-mailboxes";
 
 const INITIAL: DomainState = {};
 
@@ -78,6 +81,10 @@ export function DomainList({
                 <Step done={row.mailboxProved} label="Somebody at this domain answered our code" />
                 <Step done={row.dnsProved} label="The DNS record is published and we can see it" />
               </ul>
+            ) : null}
+
+            {canEdit && !row.mailboxProved && !row.byAgreement ? (
+              <ProofMail domainId={row.id} domain={row.domain} />
             ) : null}
 
             {row.problem ? (
@@ -150,6 +157,8 @@ export function DomainList({
           </p>
           <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
             <Input name="domain" placeholder="acme.com" className="max-w-xs" />
+            {/* 🔴 C18: where the first code goes, from the admin names only. */}
+            <MailboxSelect name="mailbox" suffix="@" />
             <Add />
           </form>
           {state.error ? (
@@ -162,6 +171,80 @@ export function DomainList({
             </p>
           ) : null}
         </Card>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 🔴 C18: the admin mailboxes, and only them. Postmaster first-selected, as the
+ * one address every mail domain is required to have; the others are the names
+ * hosted mail more often routes to a person.
+ */
+function MailboxSelect({
+  name,
+  suffix,
+  value,
+  onChange,
+}: {
+  name?: string;
+  suffix: string;
+  value?: AdminMailbox;
+  onChange?: (mailbox: AdminMailbox) => void;
+}) {
+  const t = useT();
+  return (
+    <select
+      name={name}
+      aria-label={t("sponsor.domain.sendTo")}
+      value={value}
+      defaultValue={value === undefined ? "postmaster" : undefined}
+      onChange={onChange ? (event) => onChange(event.target.value as AdminMailbox) : undefined}
+      className="h-12 rounded-xl border border-slate-300 bg-white px-3 font-mono text-sm text-slate-900"
+    >
+      {ADMIN_MAILBOXES.map((mailbox) => (
+        <option key={mailbox} value={mailbox}>
+          {mailbox}
+          {suffix}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** 🔴 C18: send the confirm link again, to the mailbox the company picks. */
+function ProofMail({ domainId, domain }: { domainId: string; domain: string }) {
+  const t = useT();
+  const [mailbox, setMailbox] = useState<AdminMailbox>("postmaster");
+  const [pending, start] = useTransition();
+  const [said, setSaid] = useState<string | null>(null);
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <span className="text-xs font-medium text-slate-600">{t("sponsor.domain.sendTo")}</span>
+      <MailboxSelect suffix={`@${domain}`} value={mailbox} onChange={setMailbox} />
+      <Button
+        type="button"
+        variant="secondary"
+        className="h-12 px-3 text-sm"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const result = await resendDomainProof(domainId, mailbox);
+            setSaid(
+              result.sent
+                ? t("sponsor.domain.sent", { address: result.sent })
+                : t(result.error ?? "common.somethingWrong"),
+            );
+          })
+        }
+      >
+        {pending ? t("common.sending") : t("sponsor.domain.send")}
+      </Button>
+      {said ? (
+        <p role="status" className="w-full text-xs leading-relaxed text-slate-600">
+          {said}
+        </p>
       ) : null}
     </div>
   );

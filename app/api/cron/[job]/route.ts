@@ -655,6 +655,10 @@ const JOBS = {
      * Each failure waits longer, over about three days (`lib/partner/retry.ts`), so
      * an hour is the finest the schedule needs.
      *
+     * 🔴 C24: in batches for up to 45 seconds, not one batch of 50, so a busy
+     * hour is sent in that hour; the reminders above and the ETA job below share
+     * this call's 300 seconds.
+     *
      * 🔴 Queued rather than sent at the moment the thing happened, so a partner's dead
      * endpoint cannot hold up a session ending or a note being approved. What crosses the
      * wire is an event and an id, so a delivery sitting in the queue for an hour leaks
@@ -677,6 +681,8 @@ const JOBS = {
     return {
       failedSteps: failed.join(",") || undefined,
       etaAdvanced: eta?.advanced,
+      /* C12a: credit notes a sent return was missing, opened this hour. */
+      etaRebuilt: eta?.rebuilt,
       remindersDue: due.length,
       remindersSent: sent,
       unreachable,
@@ -686,6 +692,8 @@ const JOBS = {
       webhooksSent: hooks?.sent,
       webhooksRetrying: hooks?.failed,
       webhooksFailed: hooks?.gaveUp,
+      /* C24: the 45 second budget ran out with deliveries still due; next hour takes them. */
+      webhooksMore: hooks?.more,
     };
   },
 

@@ -28,10 +28,11 @@ import { retryWaitMinutes } from "./retry";
  *
  * > *A leaked webhook URL then leaks nothing.*
  *
- * That is the whole module. The body this sends is three fields, and there is no argument
- * to any function here that could add a fourth: an event name, an opaque uuid, and when
- * it happened. A partner receiving one knows something happened and has to ask, with a
- * key we can revoke, to learn what.
+ * That is the whole module. The body this sends is four fields, and there is no argument
+ * to any function here that could add a fifth: an event name, an opaque uuid, the
+ * partner's OWN reference when the event is about one of its subjects (C17: a string
+ * their system gave us, never one of ours), and when it happened. A partner receiving
+ * one knows something happened and has to ask, with a key we can revoke, to learn what.
  *
  * ## 🔴 The temptation, stated so it stays refused
  *
@@ -274,11 +275,42 @@ export async function notifyRecordClaimed(personId: string): Promise<{ queued: n
 type Outcome = { ok: boolean; status: number | null; error: string | null };
 
 /**
+ * 🔴 C17: THE EVENTS WHOSE `id` IS ONE OF OUR `partner_subjects` ROWS. That id is
+ * returned by no API, so a partner receiving `grant.revoked` had nothing to match
+ * it against. These carry the partner's OWN reference for the subject beside it.
+ * `session.completed` and `note.approved` carry our session id, which
+ * `GET /api/partner/v1/notes/[sessionId]` takes as it is.
+ */
+const SUBJECT_EVENTS: ReadonlySet<string> = new Set<WebhookEvent>(["grant.revoked", "record.claimed", "subject.unlinked"]);
+
+/**
+ * The reference the partner itself sent us for this subject, and only if the
+ * subject is theirs: scoped in the WHERE through the endpoint's owner, so a
+ * delivery can never carry another platform's reference. Nothing it did not
+ * already hold: it is the string their own system gave us.
+ */
+async function partnerRefFor(delivery: {
+  event: string;
+  subjectId: string | null;
+  /** Null for an endpoint a company registered (66.8): it has no subjects. */
+  partnerId: string | null;
+}): Promise<string | null> {
+  if (!delivery.subjectId || !delivery.partnerId || !SUBJECT_EVENTS.has(delivery.event)) return null;
+  const [row] = await controlDb
+    .select({ externalRef: partnerSubjects.externalRef })
+    .from(partnerSubjects)
+    .where(and(eq(partnerSubjects.id, delivery.subjectId), eq(partnerSubjects.partnerId, delivery.partnerId)))
+    .limit(1);
+  return row?.externalRef ?? null;
+}
+
+/**
  * 🔴 ONE TRY AT ONE DELIVERY, and the only place a webhook is sent.
  *
- * THE BODY IS BUILT HERE AND IT IS THREE FIELDS. Not assembled from a row, not spread
+ * THE BODY IS BUILT HERE AND IT IS FOUR FIELDS. Not assembled from a row, not spread
  * from an object a caller passed: written out, so a future edit that wanted to add
- * content would have to add it to this literal in a diff somebody reads.
+ * content would have to add it to this literal in a diff somebody reads. The event,
+ * our id, the partner's own reference for a subject (C17, null otherwise), and when.
  *
  * W2-X03: the drain, a redelivery and a test event all come through here, so the three
  * cannot sign or shape a delivery differently. `x-24t-delivery` is the same on every
@@ -288,12 +320,20 @@ async function attempt(delivery: {
   id: string;
   event: string;
   subjectId: string | null;
+  partnerId: string | null;
   url: string;
   secretSealed: string;
 }): Promise<Outcome> {
+  let theirRef: string | null;
+  try {
+    theirRef = await partnerRefFor(delivery);
+  } catch (error) {
+    return { ok: false, status: null, error: safeErrorMessage(error).slice(0, 300) };
+  }
   const body = JSON.stringify({
     event: delivery.event,
     id: delivery.subjectId,
+    ref: theirRef,
     at: new Date().toISOString(),
   });
 
@@ -375,36 +415,31 @@ async function record(id: string, outcome: Outcome, retryMinutes: number | null)
  * crash mid-flight spends the try rather than losing the delivery.
  *
  * 🔴 `now()` IS THE DATABASE'S, on both sides of every comparison (78.6).
+ *
+ * 🔴 C24: BATCHES UNTIL THE QUEUE IS EMPTY OR THE TIME IS SPENT. One batch of 50 an
+ * hour meant a partner with a busy day waited days for events that happened in an
+ * afternoon, and every retry queued behind them. Now batch after batch, each sent a
+ * few at a time, until nothing is due or `budgetMs` has passed; a delivery is
+ * never STARTED after the budget, and one in flight has its own 10 second timeout,
+ * so the hourly job ends within about budget + 10s. Every delivery is still claimed
+ * before it is sent, one conditional UPDATE each, so two overlapping drains, or two
+ * senders inside one, can never send the same delivery twice; a claimed row is not
+ * due again, so the next batch cannot select it.
  */
 export async function deliverPending(
-  limit = 50,
-): Promise<{ sent: number; failed: number; gaveUp: number }> {
-  const due = await controlDb
-    .select({
-      id: partnerWebhookDeliveries.id,
-      event: partnerWebhookDeliveries.event,
-      subjectId: partnerWebhookDeliveries.subjectId,
-      url: partnerWebhooks.url,
-      secretSealed: partnerWebhooks.secretSealed,
-    })
-    .from(partnerWebhookDeliveries)
-    .innerJoin(partnerWebhooks, eq(partnerWebhooks.id, partnerWebhookDeliveries.webhookId))
-    .where(
-      and(
-        isNull(partnerWebhookDeliveries.deliveredAt),
-        isNull(partnerWebhookDeliveries.failedAt),
-        isNull(partnerWebhooks.disabledAt),
-        lte(partnerWebhookDeliveries.nextAttemptAt, sql`now()`),
-      ),
-    )
-    .orderBy(partnerWebhookDeliveries.nextAttemptAt)
-    .limit(limit);
+  opts: { batch?: number; budgetMs?: number; parallel?: number } = {},
+): Promise<{ sent: number; failed: number; gaveUp: number; more: boolean }> {
+  const batch = opts.batch ?? 50;
+  const budgetMs = opts.budgetMs ?? 45_000;
+  const parallel = Math.max(1, opts.parallel ?? 5);
+  const deadline = Date.now() + budgetMs;
 
   let sent = 0;
   let failed = 0;
   let gaveUp = 0;
+  let more = false;
 
-  for (const delivery of due) {
+  const one = async (delivery: DueDelivery): Promise<boolean> => {
     const [claimed] = await controlDb
       .update(partnerWebhookDeliveries)
       .set({
@@ -421,7 +456,7 @@ export async function deliverPending(
         ),
       )
       .returning({ attempts: partnerWebhookDeliveries.attempts });
-    if (!claimed) continue;
+    if (!claimed) return false;
 
     const outcome = await attempt(delivery);
     const retry = outcome.ok ? null : retryWaitMinutes(claimed.attempts);
@@ -430,10 +465,71 @@ export async function deliverPending(
     if (outcome.ok) sent += 1;
     else if (retry !== null) failed += 1;
     else gaveUp += 1;
+    return true;
+  };
+
+  for (;;) {
+    if (Date.now() >= deadline) {
+      more = true;
+      break;
+    }
+    const due = await dueDeliveries(batch);
+    if (due.length === 0) break;
+
+    /* A few senders share the batch; each takes the next row and asks the clock first. */
+    let next = 0;
+    let claimedAny = false;
+    let stoppedEarly = false;
+    const sender = async () => {
+      while (next < due.length) {
+        if (Date.now() >= deadline) {
+          stoppedEarly = true;
+          return;
+        }
+        const delivery = due[next++]!;
+        if (await one(delivery)) claimedAny = true;
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(parallel, due.length) }, sender));
+
+    if (stoppedEarly) {
+      more = true;
+      break;
+    }
+    /* Everything due was taken by another drain: leave the rest to it. */
+    if (!claimedAny) break;
+    if (due.length < batch) break;
   }
 
-  if (sent + failed + gaveUp > 0) log.info("webhook deliveries drained", { sent, failed, gaveUp });
-  return { sent, failed, gaveUp };
+  if (sent + failed + gaveUp > 0 || more) log.info("webhook deliveries drained", { sent, failed, gaveUp, more });
+  return { sent, failed, gaveUp, more };
+}
+
+type DueDelivery = Awaited<ReturnType<typeof dueDeliveries>>[number];
+
+/** The oldest due deliveries, to endpoints still switched on. */
+async function dueDeliveries(limit: number) {
+  return controlDb
+    .select({
+      id: partnerWebhookDeliveries.id,
+      event: partnerWebhookDeliveries.event,
+      subjectId: partnerWebhookDeliveries.subjectId,
+      partnerId: partnerWebhooks.partnerId,
+      url: partnerWebhooks.url,
+      secretSealed: partnerWebhooks.secretSealed,
+    })
+    .from(partnerWebhookDeliveries)
+    .innerJoin(partnerWebhooks, eq(partnerWebhooks.id, partnerWebhookDeliveries.webhookId))
+    .where(
+      and(
+        isNull(partnerWebhookDeliveries.deliveredAt),
+        isNull(partnerWebhookDeliveries.failedAt),
+        isNull(partnerWebhooks.disabledAt),
+        lte(partnerWebhookDeliveries.nextAttemptAt, sql`now()`),
+      ),
+    )
+    .orderBy(partnerWebhookDeliveries.nextAttemptAt)
+    .limit(limit);
 }
 
 /**
@@ -455,6 +551,7 @@ export async function redeliver(input: {
       id: partnerWebhookDeliveries.id,
       event: partnerWebhookDeliveries.event,
       subjectId: partnerWebhookDeliveries.subjectId,
+      partnerId: partnerWebhooks.partnerId,
       url: partnerWebhooks.url,
       secretSealed: partnerWebhooks.secretSealed,
     })
@@ -492,7 +589,7 @@ export async function redeliver(input: {
 /**
  * 🔴 W2-X03: SEND A TEST EVENT to one endpoint, now, and say what happened.
  *
- * `ping`, with a null id: the same three fields and the same signature as a real
+ * `ping`, with a null id and ref: the same fields and the same signature as a real
  * delivery, so a partner can prove their verification code before a real event
  * depends on it. It goes in the delivery log like any other and is never retried:
  * the person who pressed the button is looking at the answer.
@@ -534,6 +631,7 @@ export async function sendTestEvent(input: {
     id: row.id,
     event: WEBHOOK_TEST_EVENT,
     subjectId: null,
+    partnerId: input.partnerId,
     url: hook.url,
     secretSealed: hook.secretSealed,
   });
@@ -613,7 +711,7 @@ export async function disableWebhook(partnerId: string, webhookId: string): Prom
  * 🔴 THE ABSENCE, STATED SO A VERIFIER CAN FIND IT.
  *
  * No function here takes content, no row here stores content, and the delivery body is a
- * literal with three fields in it. 42.4 is a rule enforced by the shape of an argument
+ * literal with four fields in it. 42.4 is a rule enforced by the shape of an argument
  * list, and that is invisible to a reader unless something says so out loud.
  */
 export const A_WEBHOOK_CARRIES_NO_CONTENT = true;
