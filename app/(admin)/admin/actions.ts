@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 
-import { CMS_TAG } from "@/lib/content/service";
+import { CMS_TAG, saveContentPage } from "@/lib/content/service";
 import { honestyMessage, honestyProblemsIn } from "@/lib/content/honesty";
 import { and, eq, isNull } from "drizzle-orm";
 
@@ -135,19 +135,21 @@ export async function savePage(
   const dishonest = honestyProblemsIn(input.title.trim() || "this page", blocks);
   if (dishonest.length > 0) return { error: honestyMessage(dishonest[0]!) };
 
-  const [page] = await db
-    .update(contentPages)
-    .set({
-      title: input.title.trim(),
-      description: input.description.trim() || null,
-      status: input.status,
-      blocks,
-      publishedAt: input.status === "published" ? new Date() : null,
-      updatedBy: actor.userId,
-      updatedAt: new Date(),
-    })
-    .where(eq(contentPages.id, pageId))
-    .returning({ slug: contentPages.slug });
+  /*
+   * 🔴 W2-A07: a draft of a live page is kept beside it and the live page
+   * stays up (`saveContentPage`). This wrote the draft status onto the live
+   * row, and `readPage` returns null for a draft, so the public page was gone
+   * until somebody pressed Publish.
+   */
+  const page = await saveContentPage({
+    pageId,
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    status: input.status,
+    blocks,
+    userId: actor.userId,
+  });
+  if (!page) return { error: "That page no longer exists." };
 
   await audit({
     actor,
@@ -155,6 +157,7 @@ export async function savePage(
     action: "content.save",
     resourceType: "content_page",
     resourceId: pageId,
+    reason: page.kept === "live" ? "draft saved beside the live page" : page.kept,
   });
 
   /*
