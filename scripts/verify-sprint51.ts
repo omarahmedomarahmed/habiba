@@ -396,7 +396,8 @@ async function main() {
    */
   check(
     "🔴 C184 the orb asks for the reader's own line, never the whole table",
-    /lineForNumber\(/.test(orb) && !/Object\.(keys|values|entries)\(CRISIS_LINES\)/.test(orb),
+    /* W1-09: `sosLinesFor` is the one rule now, reader's number first. */
+    /sosLinesFor\(/.test(orb) && !/Object\.(keys|values|entries)\(CRISIS_LINES\)/.test(orb),
     "one line for this reader, or the sentence that is true everywhere",
   );
 

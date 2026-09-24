@@ -8,7 +8,7 @@ import { Logo } from "@/components/brand/logo";
 import { getI18n } from "@/lib/i18n/server";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { crisisCountryFor } from "@/lib/crisis/line";
-import { SosOrb } from "@/components/patient/sos-orb";
+import { SosOrbServer } from "@/components/patient/sos-orb-server";
 
 export const metadata: Metadata = { title: "Your session", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -122,7 +122,7 @@ function Shell({ children, country }: { children: React.ReactNode; country: stri
         the person who should still have the orb, and putting it on the happy
         path only is how "every patient screen" quietly becomes "most".
       */}
-      <SosOrb country={country} />
+      <SosOrbServer country={country} />
     </div>
   );
 }

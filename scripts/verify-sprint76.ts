@@ -90,7 +90,8 @@ async function main() {
   const banner = readSource("components/patient/session-started.tsx");
   check(
     "🔴 the in-app alert is in the page flow, so it cannot cover the crisis orb",
-    !/fixed |z-\[/.test(banner) && /z-\[70\]/.test(readSource("components/patient/sos-orb.tsx")),
+    /* W1-09 moved the orb from z-70 to z-300; the orb is still pinned, whatever its layer. */
+    !/fixed |z-\[/.test(banner) && /fixed z-\[\d+\]/.test(readSource("components/patient/sos-orb.tsx")),
     "the orb is pinned to a corner and this is a strip at the top: they cannot overlap",
   );
 

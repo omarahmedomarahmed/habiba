@@ -20,7 +20,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { organizations, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { LanguageCorner } from "@/components/i18n/language-corner";
-import { SosOrb } from "@/components/patient/sos-orb";
+import { SosOrbServer } from "@/components/patient/sos-orb-server";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -187,7 +187,7 @@ export default async function PayPage({
     return (
       <>
         {/* 51.4 — a payment screen is a patient screen, on both rails. */}
-        <SosOrb country={sosCountry} />
+        <SosOrbServer country={sosCountry} />
         {/* 🔴 75.3 — and the one where reading the wrong language costs money. */}
         <LanguageCorner />
         <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
@@ -259,7 +259,7 @@ export default async function PayPage({
       somebody who needed one an hour ago, and the orb is never conditional on
       having paid: 🔴 the crisis path does not depend on money.
     */}
-    <SosOrb country={sosCountry} />
+    <SosOrbServer country={sosCountry} />
     <LanguageCorner />
     <PayFlow
       locale={tag}

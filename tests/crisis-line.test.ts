@@ -105,3 +105,72 @@ test("🔴 a line an operator configured wins, and carries no menu it was not gi
   assert.equal(configured?.tel, "16000");
   assert.equal(configured?.steps, undefined);
 });
+
+/* ---------------------------------------------- W1-09 every reader, a number */
+
+/*
+ * 🔴 W1-09 — the SOS sheet printed nothing for an English reader with no phone,
+ * because the only country signals were a `+20`/`+1` number and an Arabic
+ * locale, and only the two built-in lines existed. Operators can configure a
+ * line per country; the sheet now uses them, and when it cannot tell where the
+ * reader is it shows every enabled country's line beside "your local emergency
+ * number" rather than nothing.
+ */
+const COUNTRIES = [
+  { code: "EG", name: "Egypt", enabled: true, crisisLineLabel: null, crisisLineTel: null },
+  { code: "AE", name: "United Arab Emirates", enabled: true, crisisLineLabel: "800 4673", crisisLineTel: "8004673" },
+  { code: "US", name: "United States", enabled: false, crisisLineLabel: null, crisisLineTel: null },
+  { code: "GB", name: "United Kingdom", enabled: true, crisisLineLabel: null, crisisLineTel: null },
+];
+/* Monday 12:00 UTC is mid afternoon in Cairo whatever the clock change. */
+const MONDAY_NOON = new Date("2026-09-21T12:00:00Z");
+/* Friday: 105 is not staffed, per RESEARCH-2 section 1 (Ahram Online). */
+const FRIDAY_NOON = new Date("2026-09-25T12:00:00Z");
+
+test("🔴 W1-09 a reader we cannot place gets every enabled country's line, not nothing", async () => {
+  const { sosLinesFor } = await import("../lib/crisis/sos");
+  const tels = sosLinesFor({ phone: null, country: null, countries: COUNTRIES, now: MONDAY_NOON }).map(
+    (entry) => entry.line.tel,
+  );
+  for (const tel of ["105", "123", "112", "8004673"]) assert.ok(tels.includes(tel), `${tel} should be offered`);
+  assert.ok(!tels.includes("988"), "a country that is switched off is not offered");
+});
+
+test("🔴 W1-09 a configured line reaches its own country, by page country or by phone", async () => {
+  const { sosLinesFor } = await import("../lib/crisis/sos");
+  const byCountry = sosLinesFor({ country: "AE", countries: COUNTRIES, now: MONDAY_NOON });
+  assert.deepEqual(byCountry.map((entry) => entry.line.tel), ["8004673"]);
+  const byPhone = sosLinesFor({ phone: "+971501234567", country: "EG", countries: COUNTRIES, now: MONDAY_NOON });
+  assert.deepEqual(byPhone.map((entry) => entry.line.tel), ["8004673"], "their own number beats the page");
+});
+
+test("🔴 W1-09 Egypt never gets 105 alone, and outside its hours the always-open numbers lead", async () => {
+  const { sosLinesFor } = await import("../lib/crisis/sos");
+  const open = sosLinesFor({ country: "EG", countries: COUNTRIES, now: MONDAY_NOON });
+  assert.deepEqual(open.map((entry) => entry.line.tel).sort(), ["105", "112", "123"]);
+  assert.equal(open[0]!.line.tel, "105");
+  assert.equal(open[0]!.open, true);
+
+  const closed = sosLinesFor({ country: "EG", countries: COUNTRIES, now: FRIDAY_NOON });
+  assert.notEqual(closed[0]!.line.tel, "105", "a line that is likely closed is not the first button");
+  assert.equal(closed[0]!.open, true);
+  assert.equal(closed.find((entry) => entry.line.tel === "105")?.open, false);
+});
+
+test("W1-09 a line with unknown hours is not labelled open or closed", async () => {
+  const { sosLinesFor } = await import("../lib/crisis/sos");
+  const [ae] = sosLinesFor({ country: "AE", countries: COUNTRIES, now: FRIDAY_NOON });
+  assert.equal(ae!.open, null);
+});
+
+test("W1-09 with no settings loaded, the verified table is the fallback, never silence", async () => {
+  const { sosLinesFor } = await import("../lib/crisis/sos");
+  const tels = sosLinesFor({ now: MONDAY_NOON }).map((entry) => entry.line.tel);
+  for (const tel of ["988", "105", "123", "112"]) assert.ok(tels.includes(tel), `${tel} should be offered`);
+});
+
+test("W1-09 control: a country we can place and hold no line for gets the sentence, not a stranger's number", async () => {
+  const { sosLinesFor } = await import("../lib/crisis/sos");
+  assert.deepEqual(sosLinesFor({ country: "GB", countries: COUNTRIES, now: MONDAY_NOON }), []);
+  assert.deepEqual(sosLinesFor({ phone: "+447700900000", countries: COUNTRIES, now: MONDAY_NOON }), []);
+});

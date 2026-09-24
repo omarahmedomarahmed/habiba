@@ -718,7 +718,7 @@ export const en = {
 
   /* ------------------------------------------------- 🔴 the crisis sheet */
   "crisis.sheetTitle": "Help now",
-  "crisis.sheetBody": "These are phone numbers, not a chat. They connect you to a person.",
+  "crisis.sheetBody": "These are phone numbers, not a chat.",
   "crisis.yourPractice": "Your practice",
   "crisis.orbLabel": "SOS, get help now",
   "crisis.anywhereElse":
@@ -1825,7 +1825,7 @@ export const en = {
    * acknowledgement, nothing to dismiss.
    */
   "nf.title": "We could not find that page",
-  "nf.body": "The link may be out of date, or the page may have moved.",
+  "nf.body": "The link may be old, or the page has moved.",
   "nf.back": "Back to home",
   "feedback.seeTitle": "Do you want to see this yourself?",
   "feedback.seeBody": "Your therapist keeps this record either way. An account changes who can read it, and it travels with you.",
@@ -3929,6 +3929,9 @@ export const en = {
   "prating.noShowRefunded": "Refunded. It reaches your card in a few days.",
   "prating.noShowReview": "We cannot confirm it yet. A person checks before any refund.",
   "room.notSent": "Not sent. Please try again.",
+  "crisis.openNow": "Likely open now",
+  "crisis.closedNow": "Likely closed now",
+  "crisis.anyTime": "Any time",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -4462,7 +4465,7 @@ export const ar: Record<MessageKey, string> = {
 
   /* ------------------------------------------------- 🔴 شاشة المساعدة الآن */
   "crisis.sheetTitle": "مساعدة الآن",
-  "crisis.sheetBody": "هذه أرقام هاتف، لا محادثة. تصلك بإنسان.",
+  "crisis.sheetBody": "هذه أرقام هاتف، لا محادثة.",
   "crisis.yourPractice": "عيادتك",
   "crisis.orbLabel": "استغاثة، اطلب المساعدة الآن",
   "crisis.anywhereElse":
@@ -7092,6 +7095,9 @@ export const ar: Record<MessageKey, string> = {
   "prating.noShowRefunded": "تم رد المبلغ. يصل إلى بطاقتك خلال أيام.",
   "prating.noShowReview": "لا يمكننا تأكيد ذلك بعد. يراجعه شخص قبل أي استرداد.",
   "room.notSent": "لم تُرسل. حاول مرة أخرى من فضلك.",
+  "crisis.openNow": "مفتوح الآن غالبًا",
+  "crisis.closedNow": "مغلق الآن غالبًا",
+  "crisis.anyTime": "في أي وقت",
 };
 
 export const DICTIONARIES = { en, ar } as const;

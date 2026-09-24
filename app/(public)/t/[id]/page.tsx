@@ -6,7 +6,7 @@ import { publicProfile } from "@/lib/data/radar";
 import { fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
-import { SosOrb } from "@/components/patient/sos-orb";
+import { SosOrbServer } from "@/components/patient/sos-orb-server";
 
 /**
  * A clinician's shareable page.
@@ -66,7 +66,7 @@ export default async function TherapistProfilePage({
   return (
     <>
       <TherapistPageBody id={id} />
-      <SosOrb country={crisisCountryFor({ locale: (await getI18n()).locale })} />
+      <SosOrbServer country={crisisCountryFor({ locale: (await getI18n()).locale })} />
     </>
   );
 }

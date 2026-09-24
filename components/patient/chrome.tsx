@@ -1,6 +1,7 @@
 import { PatientBottomNav } from "@/components/patient/bottom-nav";
 import { SessionOrb } from "@/components/patient/session-orb";
 import { SosOrb } from "@/components/patient/sos-orb";
+import { sosCountries } from "@/components/patient/sos-orb-server";
 
 /**
  * The app chrome, in one place. PLAN.md 25.2, C129.
@@ -83,6 +84,8 @@ export async function PatientChrome({
         practiceNumber={practiceNumber}
         phone={phone}
         country={country}
+        /* 🔴 W1-09 — every configured country's line, for a reader we cannot place. */
+        countries={await sosCountries()}
       />
     </div>
   );

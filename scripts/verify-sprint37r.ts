@@ -112,7 +112,12 @@ async function main() {
   const orb = readSource("components/patient/sos-orb.tsx");
   check(
     "🔴 C184 the orb asks for ONE line by number, never the whole table",
-    /lineForNumber\(phone\)/.test(orb) && !/Object\.entries\(\s*CRISIS_LINES/.test(orb),
+    /*
+     * W1-09: the orb asks `sosLinesFor({ phone, ... })`, which places the
+     * reader by their number first and is tested for it in
+     * tests/crisis-line.test.ts. The table itself is still never walked here.
+     */
+    /sosLinesFor\(\{ phone/.test(orb) && !/Object\.entries\(\s*CRISIS_LINES/.test(orb),
     "Object.entries(CRISIS_LINES) is what printed 988 to Cairo",
   );
 
