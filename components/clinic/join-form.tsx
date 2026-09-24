@@ -53,9 +53,11 @@ function WhatTheySee({ clinicName }: { clinicName: string }) {
       <SeesWhat
         who={t("clinic.join.seesTitle", { name: clinicName })}
         can={[
-          t("clinic.join.sees.calendar"),
-          t("clinic.join.sees.radar"),
-          t("clinic.join.sees.prices"),
+          /*
+            🔴 W2-C08 / D2: the calendar AND the patient list, names shortened.
+            Radar standing and prices went: no clinic screen shows either.
+          */
+          t("clinic.join.sees.patients"),
           t("clinic.join.sees.earnings"),
           t("clinic.join.sees.withdrawals"),
         ]}

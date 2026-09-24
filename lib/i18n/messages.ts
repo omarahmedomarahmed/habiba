@@ -1739,7 +1739,7 @@ export const en = {
   "clinic.scheduleTitle": "Who is coming, and when",
   "clinic.scheduleBody": "First name, last initial and time, because you pay for the hour.",
   "clinic.apply.seesWho": "A practice manager here",
-  "clinic.apply.seesSchedule": "Appointments: first name, last initial and time",
+  "clinic.apply.seesSchedule": "Appointments and patient lists: first name, last initial",
   "clinic.apply.seesBills": "One total for the period, never a line per session",
   "clinic.apply.seesTeam": "Who works here, and what each of them can reach",
   "clinic.scheduleEmpty": "No appointments this week.",
@@ -2103,9 +2103,6 @@ export const en = {
    * for.
    */
   "clinic.join.seesTitle": "What {name} will be able to see",
-  "clinic.join.sees.calendar": "Your calendar: each patient's first name, last initial and time",
-  "clinic.join.sees.radar": "Whether you are on the radar and taking sessions",
-  "clinic.join.sees.prices": "What you charge for a session",
   "clinic.join.sees.earnings": "Your earnings totals for the practice",
   "clinic.join.sees.withdrawals": "A log of withdrawals you make, never the power to make one",
   "clinic.join.neverTitle": "What they will never see",
@@ -4004,6 +4001,7 @@ export const en = {
   "tw2.changeSubmission": "Change something",
   "tw2.formerTitle": "Earlier, at {name}",
   "tw2.formerBody": "Their notes stay with the practice.",
+  "clinic.join.sees.patients": "Your calendar and patient list: each patient's first name, last initial",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5336,7 +5334,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.scheduleTitle": "من سيأتي، ومتى",
   "clinic.scheduleBody": "الاسم الأول والحرف الأول من اسم العائلة والوقت، لأنك تدفع مقابل الساعة.",
   "clinic.apply.seesWho": "مدير العيادة هنا",
-  "clinic.apply.seesSchedule": "المواعيد: الاسم الأول والحرف الأول من اسم العائلة والوقت",
+  "clinic.apply.seesSchedule": "المواعيد وقوائم المرضى: الاسم الأول والحرف الأول من اسم العائلة",
   "clinic.apply.seesBills": "إجمالي واحد للفترة، لا سطر لكل جلسة",
   "clinic.apply.seesTeam": "من يعمل هنا، وما يصل إليه كل منهم",
   "clinic.scheduleEmpty": "لا مواعيد هذا الأسبوع.",
@@ -5608,9 +5606,6 @@ export const ar: Record<MessageKey, string> = {
   "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}، لأنه كان قد دفع شهره عند انضمامه.",
   /* 🔴 63.9 / C328 — ما ستراه العيادة، مُعدَّدًا قبل القبول. */
   "clinic.join.seesTitle": "ما ستستطيع {name} رؤيته",
-  "clinic.join.sees.calendar": "جدولك: الاسم الأول لكل مريض والحرف الأول من اسم العائلة والوقت",
-  "clinic.join.sees.radar": "ما إذا كنت على الرادار وتستقبل جلسات",
-  "clinic.join.sees.prices": "سعر الجلسة لديك",
   "clinic.join.sees.earnings": "إجماليات أرباحك في العيادة",
   "clinic.join.sees.withdrawals": "سجلًّا بسحوباتك، دون أي قدرة على السحب نيابة عنك",
   "clinic.join.neverTitle": "ما لن يروه أبدًا",
@@ -7242,6 +7237,7 @@ export const ar: Record<MessageKey, string> = {
   "tw2.changeSubmission": "غيّر شيئًا",
   "tw2.formerTitle": "سابقًا، في {name}",
   "tw2.formerBody": "ملاحظاتها تبقى مع العيادة.",
+  "clinic.join.sees.patients": "جدولك وقائمة مرضاك: الاسم الأول لكل مريض والحرف الأول من اسم العائلة",
 };
 
 export const DICTIONARIES = { en, ar } as const;

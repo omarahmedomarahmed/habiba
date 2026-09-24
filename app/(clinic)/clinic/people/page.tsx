@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { ClinicPeopleList } from "@/components/clinic/people-list";
 import { seatsFor } from "@/lib/billing/seats";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
-import { clinicClinicians, clinicInvitations } from "@/lib/data/clinic";
+import { can } from "@/lib/clinic-auth/capabilities";
+import { clinicClinicians, clinicInvitations, patientsByClinician } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 
@@ -23,12 +24,20 @@ export default async function ClinicPeoplePage() {
 
   const { locale } = await getI18n();
 
-  const [people, invitations, seats] = await Promise.all([
+  const [people, invitations, seats, lists] = await Promise.all([
     clinicClinicians(actor),
     clinicInvitations(actor),
     /* 🔴 62.6 / C355 — which seats are live and which are waiting for a period. */
     seatsFor(actor.clinicOrganizationId),
+    /*
+     * 🔴 W2-C08 / D2 — each clinician's patients, first name and last initial,
+     * for a principal who may read those names at all (`schedule.read`, scoped).
+     */
+    can(actor.capabilities, "schedule.read")
+      ? patientsByClinician(actor)
+      : Promise.resolve([]),
   ]);
+  const patientsOf = new Map(lists.map((row) => [row.therapistId, row.names]));
 
   /*
    * 🔴 62.6 — THE START DATE IS ON THE ROW, and only where it is in the future.
@@ -59,6 +68,7 @@ export default async function ClinicPeoplePage() {
         email: person.email,
         verificationStatus: person.verificationStatus,
         seatBillableFrom: waiting.get(person.userId) ?? null,
+        patients: patientsOf.get(person.userId) ?? null,
       }))}
       invitations={invitations
         .filter((row) => row.state === "sent")

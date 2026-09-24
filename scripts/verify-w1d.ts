@@ -339,7 +339,8 @@ async function clinicNames(db: ReturnType<typeof connect>["db"]) {
     "W1-15 the rota, the apply table and the join list say first name and last initial",
     rule.test(en["clinic.scheduleBody"]) &&
       rule.test(en["clinic.apply.seesSchedule"]) &&
-      rule.test(en["clinic.join.sees.calendar"]),
+      /* W2-C08: the join list's line now names the patient list too, same rule. */
+      rule.test(en["clinic.join.sees.patients"]),
     `${en["clinic.scheduleBody"]} · ${en["clinic.apply.seesSchedule"]}`,
   );
 

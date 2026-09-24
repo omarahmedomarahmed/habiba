@@ -406,6 +406,71 @@ export async function clinicSchedule(input: {
   }));
 }
 
+/**
+ * 🔴 W2-C08 / D2 — EACH CLINICIAN'S PATIENTS, AS A FIRST NAME AND A LAST INITIAL.
+ *
+ * The founder's decision of 2026-09-23: the practice sees first name and last
+ * initial on each clinician's calendar AND patient list. C2 and C5 say so, the
+ * joining clinician is told so, and the patient is told so on their record page.
+ *
+ * The same construction as the schedule, for the same reasons:
+ *   - the select list is a name and whose patient it is, and nothing else: no
+ *     id leaves this function, no contact, no date, no count of anything;
+ *   - `schedule.read` is the capability that already grants these names, and
+ *     it is therapist-scoped IN THE WHERE, so an assistant assigned to A reads
+ *     A's list and no other;
+ *   - shortened here with `shortenForClinic`, so no full name is in memory on
+ *     the way out;
+ *   - one `phi_access` audit row for the read, never a row per name.
+ *
+ * A list per clinician does say how many patients each has. D2 accepted that,
+ * and the homepage sentence claiming otherwise went in the same change.
+ */
+export async function patientsByClinician(
+  actor: ClinicPrincipal,
+): Promise<{ therapistId: string; names: string[] }[]> {
+  refuseWithout(actor, "schedule.read");
+  const scope = scopeToAssigned(actor, "schedule.read");
+
+  const rows = await controlDb
+    .select({
+      therapistId: patients.therapistId,
+      firstName: patients.firstName,
+      lastName: patients.lastName,
+    })
+    .from(patients)
+    .innerJoin(users, eq(users.id, patients.therapistId))
+    .where(
+      and(
+        eq(patients.organizationId, actor.clinicOrganizationId),
+        eq(users.organizationId, actor.clinicOrganizationId),
+        isNull(patients.deletedAt),
+        ...(scope === null ? [] : [inArray(patients.therapistId, scope)]),
+      ),
+    )
+    .orderBy(asc(patients.firstName))
+    .limit(2000);
+
+  const { audit } = await import("@/lib/audit");
+  await audit({
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "phi_access",
+    action: "clinic.patients.read",
+    resourceType: "organization",
+    resourceId: actor.clinicOrganizationId,
+    reason: `${rows.length} names, first name and last initial`,
+  });
+
+  const byClinician = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!row.therapistId) continue;
+    const name = shortenForClinic(row.firstName, row.lastName);
+    byClinician.set(row.therapistId, [...(byClinician.get(row.therapistId) ?? []), name]);
+  }
+  return [...byClinician].map(([therapistId, names]) => ({ therapistId, names }));
+}
+
 /** A typed-in name is one string. Split once, on the first space. */
 function splitGuestName(name: string | null): [string | null, string | null] {
   const value = (name ?? "").trim();

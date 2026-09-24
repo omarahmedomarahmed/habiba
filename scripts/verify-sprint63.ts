@@ -362,6 +362,32 @@ async function main() {
       adminUsage.map((week) => String(week.sessions)).join(", ") || "no weeks",
     );
 
+    /* ================================================================ */
+    /*  W2-C08 · each clinician's patients, first name and last initial   */
+    /* ================================================================ */
+
+    /* B's own patient, so a list that ignored the scope would show it. */
+    await db.execute(sql`
+      INSERT INTO patients (organization_id, therapist_id, first_name, last_name, phone)
+      VALUES (${clinic.id}, ${therapistB.id}, 'Omar', 'Hassan', ${`+2011${Date.now() % 100000000}`})`);
+
+    const { patientsByClinician } = await import("../lib/data/clinic");
+    const adminLists = await patientsByClinician(adminPrincipal);
+    const scopedLists = await patientsByClinician(assistantPrincipal);
+
+    check(
+      "🔴 W2-C08 / D2 the practice sees each clinician's patients as a first name and a last initial",
+      adminLists.find((row) => row.therapistId === therapistA.id)?.names.join(",") === "Sarah M" &&
+        adminLists.find((row) => row.therapistId === therapistB.id)?.names.join(",") === "Omar H",
+      JSON.stringify(adminLists),
+    );
+
+    check(
+      "🔴 W2-C08 …scoped like the schedule: an assistant assigned to A sees A's list and no other",
+      scopedLists.length > 0 && scopedLists.every((row) => row.therapistId === therapistA.id),
+      JSON.stringify(scopedLists),
+    );
+
     check(
       "🔴 W2-C01 usage is scoped: an assistant assigned to A sees none of B's spend",
       scopedUsage.every((week) => !week.spendCents),
