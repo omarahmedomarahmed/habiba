@@ -5,6 +5,7 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import {
   manualPayments,
+  patients,
   refundRequests,
   sessionPayments,
   sessions,
@@ -522,6 +523,14 @@ export type RefundQueueRow = {
   /** 0157 — a cancel somebody asked for, and who, waiting on a second person. */
   cancelAsked: string | null;
   cancelAskedBy: string | null;
+  /**
+   * What goes back, in the currency it came in: the pounds of the transfer
+   * that paid, when one did. The queue showed "$68.40" for a patient who sent
+   * EGP 3,420, and no name at all (live walkthrough).
+   */
+  sendMinor: number | null;
+  sendCurrency: string | null;
+  patientName: string | null;
 };
 
 /** Open work, oldest first. Money facts only: no session content, no clinician notes. */
@@ -533,6 +542,52 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
     .where(inArray(refundRequests.status, ["owed", "sent"]))
     .orderBy(asc(refundRequests.createdAt))
     .limit(200);
+
+  /* The session behind each payment: who it was for, and the transfer that paid it. */
+  const paymentIds = rows.map((row) => row.sessionPaymentId);
+  const facts =
+    paymentIds.length > 0
+      ? await db
+          .select({
+            paymentId: sessionPayments.id,
+            sessionId: sessions.id,
+            guestName: sessions.guestName,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+          })
+          .from(sessionPayments)
+          .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+          .leftJoin(patients, eq(patients.id, sessions.patientId))
+          .where(inArray(sessionPayments.id, paymentIds))
+      : [];
+  const sessionIds = facts.map((f) => f.sessionId);
+  const transfers =
+    sessionIds.length > 0
+      ? await db
+          .select({ refId: manualPayments.refId, amountCents: manualPayments.amountCents, currency: manualPayments.currency })
+          .from(manualPayments)
+          .where(
+            and(
+              eq(manualPayments.purpose, "session"),
+              inArray(manualPayments.refId, sessionIds),
+              eq(manualPayments.state, "confirmed"),
+            ),
+          )
+      : [];
+  const paid = new Map(
+    facts.map((f) => {
+      const transfer = transfers.find((t) => t.refId === f.sessionId);
+      return [
+        f.paymentId,
+        {
+          sendMinor: transfer?.amountCents ?? null,
+          sendCurrency: transfer?.currency ?? null,
+          patientName: [f.firstName, f.lastName].filter(Boolean).join(" ") || f.guestName || null,
+        },
+      ] as const;
+    }),
+  );
+
   return rows.map((row) => ({
     id: row.id,
     amountCents: row.amountCents,
@@ -550,5 +605,6 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
     destinationSetBy: row.payeeSetByUserId,
     cancelAsked: row.cancelAskedByUserId ? row.cancelledReason : null,
     cancelAskedBy: row.cancelAskedByUserId,
+    ...(paid.get(row.sessionPaymentId) ?? { sendMinor: null, sendCurrency: null, patientName: null }),
   }));
 }

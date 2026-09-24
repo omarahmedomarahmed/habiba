@@ -889,10 +889,18 @@ async function main() {
         !/\/room`\s*:/.test(readSource("app/(app)/dashboard/page.tsx")),
       sessionsLib.sessionHref(cancelled),
     );
+    const hrefNow = Date.now();
+    const aboutToStart = { id: "x", status: "scheduled", scheduledAt: new Date(hrefNow + 10 * 60_000) };
+    const daysAway = { id: "x", status: "scheduled", scheduledAt: new Date(hrefNow + 4 * 86_400_000) };
     check(
-      "🔴 T18 CONTROL …while a scheduled one still opens the room",
-      sessionsLib.sessionHref({ id: "x", status: "scheduled" }) === "/sessions/x/room",
-      sessionsLib.sessionHref({ id: "x", status: "scheduled" }),
+      "🔴 T18 CONTROL …while a scheduled one about to start still opens the room",
+      sessionsLib.sessionHref(aboutToStart, hrefNow) === "/sessions/x/room",
+      sessionsLib.sessionHref(aboutToStart, hrefNow),
+    );
+    check(
+      "🔴 a booking days away opens its page, where Cancel is, not the room, which has none (live walkthrough)",
+      sessionsLib.sessionHref(daysAway, hrefNow) === "/sessions/x",
+      sessionsLib.sessionHref(daysAway, hrefNow),
     );
   } finally {
     /* T17 writes a copilot thread for its patient; it goes before the patient does. */

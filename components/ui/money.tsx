@@ -28,10 +28,17 @@ export function Money({
   /** The currency the stored figure is in. Dollars unless a column says otherwise. */
   currency = "USD",
   className,
+  asIs = false,
 }: {
   cents: number;
   currency?: string;
   className?: string;
+  /**
+   * Lead with the figure's own currency whatever the page's display is: a
+   * bank amount somebody is about to type into a banking app. The admin's
+   * dollar toggle turned "EGP 5,700 to send" into "$114" (live walkthrough).
+   */
+  asIs?: boolean;
 }) {
   const locale = useLocale();
   const { primary, rateMicro } = useMoneyDisplay();
@@ -40,7 +47,13 @@ export function Money({
   /* A figure settled in any other currency is that currency, and there is nothing to reveal. */
   const known = code === "EGP" || code === "USD";
   const { shown, other } = known
-    ? moneyLabels({ minor: cents, amountIn: code as DisplayCurrency, primary, rateMicro, locale: tag })
+    ? moneyLabels({
+        minor: cents,
+        amountIn: code as DisplayCurrency,
+        primary: asIs ? (code as DisplayCurrency) : primary,
+        rateMicro,
+        locale: tag,
+      })
     : { shown: formatDisplay(cents, code, tag), other: null };
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

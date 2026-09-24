@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
@@ -80,6 +80,7 @@ export default async function PatientBillingPage() {
          */
         fundingSource: sessionPayments.fundingSource,
         patientShare: sessionPayments.patientShareCents,
+        status: sessionPayments.status,
         therapistFirst: users.firstName,
         therapistLast: users.lastName,
       })
@@ -87,7 +88,17 @@ export default async function PatientBillingPage() {
       .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
       .innerJoin(patients, eq(patients.id, sessions.patientId))
       .innerJoin(users, eq(users.id, sessions.therapistId))
-      .where(and(eq(patients.personId, actor.personId), eq(sessionPayments.status, "paid")))
+      /*
+       * Refunded ones too. A patient whose session was cancelled and refunded
+       * found "Nothing paid yet" here, with no trace of the money either way
+       * (live walkthrough). They are marked as refunded below.
+       */
+      .where(
+        and(
+          eq(patients.personId, actor.personId),
+          inArray(sessionPayments.status, ["paid", "refunded"]),
+        ),
+      )
       .orderBy(desc(sessionPayments.paidAt))
       .limit(50),
 
@@ -206,6 +217,11 @@ export default async function PatientBillingPage() {
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-900">
                     {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
+                    {row.status === "refunded" ? (
+                      <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                        {t("pbilling.refunded")}
+                      </span>
+                    ) : null}
                   </p>
                   <p className="text-sm font-semibold tabular-nums text-slate-900">
                     {/*

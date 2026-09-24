@@ -41,6 +41,9 @@ export type RefundQueueItem = {
   /** 0157 — the reason a cancel was asked for, and whether I asked. */
   cancelAsked: string | null;
   cancelAskedByMe: boolean;
+  /** The pounds the transfer brought in, which is what goes back. */
+  sendMinor: number | null;
+  sendCurrency: string | null;
 };
 
 function Go({ label, quiet }: { label: string; quiet?: boolean }) {
@@ -91,7 +94,16 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
     <li className="rounded-xl border border-slate-200 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-slate-900">
-          <Money cents={row.amountCents} currency={row.currency.toUpperCase()} />
+          {row.sendMinor !== null && row.sendCurrency ? (
+            <>
+              <Money cents={row.sendMinor} currency={row.sendCurrency.toUpperCase()} asIs />{" "}
+              <span className="text-xs font-normal text-slate-500">
+                (<Money cents={row.amountCents} currency={row.currency.toUpperCase()} />)
+              </span>
+            </>
+          ) : (
+            <Money cents={row.amountCents} currency={row.currency.toUpperCase()} />
+          )}
         </span>
         <span className="text-sm text-slate-700">{row.payeeName ?? ""}</span>
         <Badge>{row.status}</Badge>

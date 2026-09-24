@@ -34,7 +34,7 @@ export function PotReturns({
       {open ? (
         <div className="mt-2 space-y-2 text-sm text-slate-700">
           <p>
-            Asked: <Money cents={open.netCents} /> credit, <Money cents={open.egpMinor} currency="EGP" /> to send. {open.reason}
+            Asked: <Money cents={open.netCents} /> credit, <Money cents={open.egpMinor} currency="EGP" asIs /> to send. {open.reason}
           </p>
           <form action={send} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="returnId" value={open.id} />
@@ -74,7 +74,7 @@ export function PotReturns({
         <ul className="mt-3 space-y-1 text-xs text-slate-500">
           {history.map((h) => (
             <li key={h.id}>
-              {h.day} {h.state} <Money cents={h.egpMinor} currency="EGP" />
+              {h.day} {h.state} <Money cents={h.egpMinor} currency="EGP" asIs />
               {h.reference ? ` · ${h.reference}` : ""}
             </li>
           ))}

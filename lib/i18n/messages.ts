@@ -675,6 +675,7 @@ export const en = {
   "pbilling.noneBody": "Sessions you pay for appear here, fully broken down.",
   /* 🔴 53.21 — a covered session, named without naming an employer (C227, C243). */
   "pbilling.covered": "Covered",
+  "pbilling.refunded": "Refunded",
   "pbilling.coveredBody": "Your benefit paid for this one. You owe nothing.",
   "pbilling.youPaidLabel": "You paid",
   "pbilling.youPaidBody": "The headline figure, in your currency, at the rate quoted then.",
@@ -4780,6 +4781,7 @@ export const ar: Record<MessageKey, string> = {
   "pbilling.none": "لم تدفع شيئًا بعد",
   "pbilling.noneBody": "الجلسات التي تدفع مقابلها تظهر هنا بتفصيلها الكامل.",
   "pbilling.covered": "مغطاة",
+  "pbilling.refunded": "مُسترد",
   "pbilling.coveredBody": "ميزتك دفعت مقابل هذه الجلسة. لا شيء عليك.",
   "pbilling.youPaidLabel": "ما دفعته",
   "pbilling.youPaidBody": "الرقم الأساسي بعملتك وبالسعر المعلن وقتها.",

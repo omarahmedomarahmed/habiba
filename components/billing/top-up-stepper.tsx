@@ -97,15 +97,16 @@ export function TopUpStepper({
 
         <div className="min-w-0 flex-1 text-center">
           {/*
-            🔴 DOLLARS LARGE, POUNDS SMALL, AND BOTH ALWAYS PRESENT.
-            The pot is denominated in dollars and the bank moves pounds. A
-            finance team shown one and asked for the other converts in their
-            head at a rate we have not agreed to.
+            🔴 POUNDS LARGE, DOLLARS SMALL, AND BOTH ALWAYS PRESENT.
+            The bank moves pounds and every user reads pounds first (27); the
+            pot's books are in dollars, so the dollar figure stays beside it
+            rather than leaving a finance team to convert at a rate we did not
+            agree. It led in dollars until the live walkthrough.
           */}
           <p className="text-4xl font-bold tracking-tight text-slate-900 tabular-nums">
-            {step.usdLabel}
+            {step.egpLabel}
           </p>
-          <p className="mt-1 text-sm text-slate-500 tabular-nums">{step.egpLabel}</p>
+          <p className="mt-1 text-sm text-slate-500 tabular-nums">{step.usdLabel}</p>
         </div>
 
         <StepButton

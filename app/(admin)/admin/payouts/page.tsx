@@ -153,7 +153,7 @@ export default async function PayoutsPage() {
             id: row.id,
             amountCents: row.amountCents,
             currency: row.currency,
-            payeeName: row.payeeName,
+            payeeName: row.payeeName ?? row.patientName,
             status: row.status,
             why:
               row.reason === "no_show" || row.reason === "clinician_cancel" || row.reason === "pot_share"
@@ -167,6 +167,8 @@ export default async function PayoutsPage() {
             destinationByMe: row.destinationSetBy === actor.userId,
             cancelAsked: row.cancelAsked,
             cancelAskedByMe: row.cancelAskedBy === actor.userId,
+            sendMinor: row.sendMinor,
+            sendCurrency: row.sendCurrency,
           }))}
         />
       </div>

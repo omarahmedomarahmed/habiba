@@ -193,8 +193,19 @@ export async function listSessionsPage(
  * for an appointment that no longer exists; `/sessions` already sent it to the
  * session page. One function, so the two lists cannot disagree again.
  */
-export function sessionHref(session: { id: string; status: string }): string {
-  const live = session.status === "in_progress" || session.status === "scheduled";
+export function sessionHref(
+  session: { id: string; status: string; scheduledAt?: Date | string | null },
+  now: number = Date.now(),
+): string {
+  /*
+   * The room for a session that is running or about to. One booked for later
+   * opens its page, which has the room's button AND Cancel: the live
+   * walkthrough found a clinician's only route to a booked session was the
+   * room, which has no cancel, so a booking could not be cancelled from the list.
+   */
+  const at = session.scheduledAt ? new Date(session.scheduledAt).getTime() : null;
+  const soon = at === null || at - now < 30 * 60_000;
+  const live = session.status === "in_progress" || (session.status === "scheduled" && soon);
   return live ? `/sessions/${session.id}/room` : `/sessions/${session.id}`;
 }
 

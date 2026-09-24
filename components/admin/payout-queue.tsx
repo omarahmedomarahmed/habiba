@@ -226,7 +226,7 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
         <p className="mt-2 text-sm text-slate-700">
           <Money cents={row.amountCents} /> →{" "}
           <span className="font-semibold">
-            <Money cents={row.payoutAmountMinor} currency={row.payoutCurrency.toUpperCase()} />
+            <Money cents={row.payoutAmountMinor} currency={row.payoutCurrency.toUpperCase()} asIs />
           </span>{" "}
           by {row.method === "instapay" ? "InstaPay" : "wallet"} to {row.identifier}
         </p>
