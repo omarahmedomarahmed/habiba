@@ -180,6 +180,18 @@ test("W2-P07 the code sent to a new number has a screen, and it finishes only th
   assert.match(code("app/(patient)/patient/account/page.tsx"), /awaitingCode=\{await awaitingChangeCode\(/);
 });
 
+/* ----------------------------------------------------------------- W2-P08 -- */
+
+test("W2-P08 the benefit page reads the QR's code, and a paused benefit has a field to answer", () => {
+  const page = code("app/(patient)/patient/benefit/page.tsx");
+  assert.match(page, /searchParams/);
+  assert.match(page, /initialCode=\{/);
+  const form = code("components/patient/benefit-form.tsx");
+  assert.match(form, /useState\(initialCode/);
+  assert.match(form, /reconfirmBenefit\(/, "the paused card asked for an address with nowhere to type it");
+  assert.match(code("app/(patient)/patient/benefit/actions.ts"), /personId: actor\.personId, enrolmentId, identifier/);
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

@@ -221,7 +221,65 @@ async function main() {
       waiting && Boolean(wrongCode.error) && moved.ok === true && nowPhone.phone === newPhone,
       `waiting=${waiting}, wrong=${wrongCode.error ? "refused" : "ACCEPTED"}, moved=${moved.ok}`,
     );
+
+    /* ================================================================ */
+    /*  W2-P08 · A PAUSED BENEFIT CAN BE CONFIRMED AGAIN                 */
+    /* ================================================================ */
+
+    const sponsor = await one<{ id: string }>(sql`
+      INSERT INTO sponsors (name, kind, entity, currency, state)
+      VALUES (${`W2P Demo Foundry ${fixture}`}, 'company', 'eg', 'EGP', 'active') RETURNING id`);
+    const { hashIdentifier, reconfirmEnrolment } = await import("../lib/data/enrolment");
+    const paused = await one<{ id: string }>(sql`
+      INSERT INTO enrolments (sponsor_id, person_id, state, is_primary, identifier_hash,
+                              identifier_kind, last_verified_at, paused_at)
+      VALUES (${sponsor.id}, ${person.id}, 'active', true,
+              ${hashIdentifier(sponsor.id, "EMP-40417")}, 'id_number', now() - interval '200 days', now())
+      RETURNING id`);
+
+    const guessed = await reconfirmEnrolment({
+      personId: person.id,
+      enrolmentId: paused.id,
+      identifier: "EMP-99999",
+    });
+    const stillPaused = await one<{ paused: boolean }>(sql`
+      SELECT paused_at IS NOT NULL AS paused FROM enrolments WHERE id = ${paused.id}`);
+    check(
+      "🔴 W2-P08 CONTROL a value that is not what enrolled them restarts nothing",
+      !guessed.ok && stillPaused.paused,
+      guessed.ok ? "IT UNPAUSED ON A GUESS" : "refused, still paused",
+    );
+
+    const borrowed = await reconfirmEnrolment({
+      personId: strangerPerson.person!,
+      enrolmentId: paused.id,
+      identifier: "EMP-40417",
+    });
+    check(
+      "W2-P08 CONTROL …and the right value from somebody else's session restarts nothing",
+      !borrowed.ok,
+      borrowed.ok ? "A BORROWED ENROLMENT ID WORKED" : "refused",
+    );
+
+    const again2 = await reconfirmEnrolment({
+      personId: person.id,
+      enrolmentId: paused.id,
+      identifier: "EMP-40417",
+    });
+    const restarted = await one<{ paused: boolean }>(sql`
+      SELECT paused_at IS NOT NULL AS paused FROM enrolments WHERE id = ${paused.id}`);
+    check(
+      "🔴 W2-P08 the paused person types what enrolled them and the benefit restarts",
+      again2.ok && !restarted.paused,
+      `ok=${again2.ok}, paused=${restarted.paused}`,
+    );
   } finally {
+    await db.execute(sql`DELETE FROM enrolment_verifications WHERE enrolment_id IN
+      (SELECT id FROM enrolments WHERE sponsor_id IN
+        (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`}))`);
+    await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id IN
+      (SELECT id FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`})`);
+    await db.execute(sql`DELETE FROM sponsors WHERE name = ${`W2P Demo Foundry ${fixture}`}`);
     await db.execute(sql`DELETE FROM phone_change_requests WHERE patient_account_id IN
       (SELECT id FROM patient_accounts WHERE person_id IN
         (SELECT id FROM people WHERE email LIKE ${`%${fixture}@example.com`}))`);
