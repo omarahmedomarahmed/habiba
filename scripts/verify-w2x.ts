@@ -10,7 +10,7 @@
  * Everything it makes is deleted in a `finally`, and `writesTo()` refuses
  * production by name.
  */
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { sql } from "drizzle-orm";
@@ -334,6 +334,101 @@ async function main() {
     );
 
     /* ================================================================ */
+    /*  W2-X05 · BILLED AT FIRST AUDIO; ALERTS RESET MONTHLY, ABSOLUTE   */
+    /* ================================================================ */
+
+    /*
+     * A live key, planted as a row: minting one needs a production approval, which
+     * needs a named approver, and neither is what this checks.
+     */
+    const liveRaw = `24t_sk_live_${randomBytes(24).toString("base64url")}`;
+    await db.execute(sql`
+      INSERT INTO partner_api_keys (partner_id, label, key_hash, prefix, scopes, environment)
+      VALUES (${partner.id}, 'live fixture', ${createHash("sha256").update(liveRaw).digest("hex")},
+              ${liveRaw.slice(0, 18)}, ${JSON.stringify(["consent:write", "session:media"])}::jsonb, 'live')`);
+    const live = { authorization: `Bearer ${liveRaw}` };
+    const liveConsent = (session: string) =>
+      consentRoute.POST(
+        new Request(`${base}/consent`, {
+          method: "POST",
+          headers: { ...live, "content-type": "application/json" },
+          body: JSON.stringify({
+            session,
+            subject: `${fixture}-L`,
+            state: "given",
+            answered_at: new Date().toISOString(),
+            offset_seconds: 0,
+          }),
+        }),
+      );
+    const liveMedia = (ref: string) =>
+      mediaRoute.POST(
+        new Request(`${base}/sessions/${ref}/media`, {
+          method: "POST",
+          headers: { ...live, "content-type": "audio/wav" },
+          body: silentWav(1),
+        }),
+        { params: Promise.resolve({ ref }) },
+      );
+    const usage = await import("../lib/partner/usage");
+    const used = async () => (await usage.usageFor(partner.id)).used;
+
+    await usage.setLimit({ partnerId: partner.id, monthlySessionLimit: 2 });
+    await liveConsent(`${fixture}-L1`);
+    const afterConsent = await used();
+    check(
+      "🔴 W2-X05 a consent on its own bills nothing: no audio, no session on the bill",
+      afterConsent === 0,
+      `${afterConsent} billed after a consent with no audio`,
+    );
+
+    const firstAudio = await liveMedia(`${fixture}-L1`);
+    const afterFirst = await used();
+    await liveMedia(`${fixture}-L1`);
+    const afterSecond = await used();
+    check(
+      "🔴 W2-X05 the first audio bills the session, once: a second piece adds nothing",
+      firstAudio.status === 200 && afterFirst === 1 && afterSecond === 1,
+      `media ${firstAudio.status}, ${afterFirst} then ${afterSecond}`,
+    );
+
+    await liveConsent(`${fixture}-L2`);
+    await liveConsent(`${fixture}-L3`);
+    await liveMedia(`${fixture}-L2`);
+    const heardBefore = mock.state.transcriptionRequests.length;
+    const overLimit = await liveMedia(`${fixture}-L3`);
+    const overBody = (await overLimit.json()) as { error?: string };
+    check(
+      "🔴 W2-X05 a session opened under the limit is stopped at its first audio if the month is full, untranscribed",
+      overLimit.status === 409 && /limit it set/.test(overBody.error ?? "") && (await used()) === 2 &&
+        mock.state.transcriptionRequests.length === heardBefore,
+      `status ${overLimit.status}, ${await used()} billed, ${mock.state.transcriptionRequests.length - heardBefore} transcribed`,
+    );
+
+    /* The alert stamps, as a month that crossed 80% and 90% left them. */
+    await db.execute(sql`
+      UPDATE partner_limits
+         SET monthly_session_limit = 2,
+             alerted_80_at = date_trunc('month', now() AT TIME ZONE 'UTC') - interval '10 days',
+             alerted_90_at = date_trunc('month', now() AT TIME ZONE 'UTC') - interval '5 days',
+             period_start = date_trunc('month', now() AT TIME ZONE 'UTC') - interval '1 month'
+       WHERE partner_id = ${partner.id}`);
+    await usage.alertApproachingLimits();
+    const stamps = await one<{ fresh: boolean }>(sql`
+      SELECT alerted_90_at >= date_trunc('month', now() AT TIME ZONE 'UTC') AS fresh
+        FROM partner_limits WHERE partner_id = ${partner.id}`);
+    check(
+      "🔴 W2-X05 last month's alert stamps do not silence this month: the 90% alert is sent again",
+      stamps.fresh === true,
+      `fresh ${stamps.fresh}`,
+    );
+    check(
+      "W2-X05 …and the alert's link is absolute, so it opens from an email",
+      /url: `\$\{env\.appUrl\}\/partner\/usage`/.test(readSource("lib/partner/usage.ts")),
+      "a relative link in an email has no host",
+    );
+
+    /* ================================================================ */
     /*  W2-X03 · WEBHOOKS: HOURLY, BACKOFF, FAILED, REDELIVER, TEST      */
     /* ================================================================ */
 
@@ -476,6 +571,8 @@ async function main() {
     await db.execute(sql`DELETE FROM audit_log WHERE reason LIKE
       'partner ' || (SELECT id::text FROM partners WHERE slug = ${fixture}) || '%'`);
     await db.execute(sql`DELETE FROM partner_api_keys WHERE partner_id IN
+      (SELECT id FROM partners WHERE slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM partner_limits WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM partners WHERE slug = ${fixture}`);
     await pool.end();

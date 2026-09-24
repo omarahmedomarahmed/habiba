@@ -182,7 +182,15 @@ async function main() {
 
     await setLimit({ partnerId: partner.id, monthlySessionLimit: 2 });
 
-    /* Two consented, billable, live sessions. */
+    /*
+     * Two consented live sessions, each billed at its first audio.
+     *
+     * 🔴 W2-X05, 2026-09-24: this used to assert that CONSENT made a session
+     * billable, which was the defect: a patient who said yes and never started
+     * cost the partner a session. The unit is unchanged (one per session); what
+     * bills it is the first audio, so the fixture now says so.
+     */
+    const { billFirstAudio } = await import("../lib/partner/platform");
     for (const n of [1, 2]) {
       await recordConsent({
         partnerId: partner.id,
@@ -192,17 +200,18 @@ async function main() {
         answeredAt: new Date(),
         offsetSeconds: 0,
       });
-      await openSession({
+      const opened = await openSession({
         partnerId: partner.id,
         environment: "live",
         externalSessionRef: `${fixture}-S${n}`,
         externalSubjectRef: `${fixture}-P1`,
       });
+      await billFirstAudio(opened.id);
     }
 
     const used = await usageFor(partner.id);
     check(
-      "🔴 68.14 a consented live session is ONE billable unit, priced per session",
+      "🔴 68.14 a live session with audio is ONE billable unit, priced per session",
       used.used === 2 && used.limit === 2,
       `${used.used} of ${used.limit}`,
     );

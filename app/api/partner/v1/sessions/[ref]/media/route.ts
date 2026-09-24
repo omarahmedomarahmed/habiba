@@ -88,6 +88,17 @@ export async function POST(
     return fail("X-Audio-Start-Seconds must be a number of seconds from the session's start.", 400);
   }
 
+  /*
+   * 🔴 W2-X05: the first audio is what bills a session, so the limit is asked here,
+   * before anything is transcribed, and the session is billed once it has been.
+   */
+  const { billFirstAudio, mayBillFirstAudio } = await import("@/lib/partner/platform");
+  const billing = await mayBillFirstAudio({
+    partnerId: guard.key.partnerId,
+    session: allowed.session,
+  });
+  if (!billing.ok) return fail(billing.error, 409);
+
   const { ingestPartnerAudio } = await import("@/lib/partner/media");
   const result = await ingestPartnerAudio({
     partnerSessionId: allowed.session.id,
@@ -98,6 +109,7 @@ export async function POST(
   });
 
   if (result.error) return fail(result.error, result.status ?? 400);
+  if (result.transcribed) await billFirstAudio(allowed.session.id);
 
   return NextResponse.json({
     accepted_bytes: audio.byteLength,

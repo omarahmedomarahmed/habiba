@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { partnerClinicians, partnerSessions } from "@/lib/db/schema";
@@ -56,12 +56,30 @@ export async function openSession(input: {
 }): Promise<OpenedSession> {
   const now = input.now ?? new Date();
 
+  /*
+   * 🔴 W2-X05: a session already billed is already paid for. A second consent call
+   * on it (68.2, a yes ten minutes in) must not be refused by a limit its own first
+   * audio used up, and the CHECK refusing a billed session a stop would throw.
+   */
+  const [existing] = await controlDb
+    .select({ billable: partnerSessions.billable })
+    .from(partnerSessions)
+    .where(
+      and(
+        eq(partnerSessions.partnerId, input.partnerId),
+        eq(partnerSessions.externalSessionRef, input.externalSessionRef.slice(0, 200)),
+      ),
+    )
+    .limit(1);
+
   /* 1 — their own limit. */
-  const permitted = await mayRun({
-    partnerId: input.partnerId,
-    environment: input.environment,
-    now,
-  });
+  const permitted = existing?.billable
+    ? ({ allowed: true } as const)
+    : await mayRun({
+        partnerId: input.partnerId,
+        environment: input.environment,
+        now,
+      });
 
   const stoppedReason = permitted.allowed ? null : permitted.reason;
   if (!permitted.allowed) await markStopped(input.partnerId, now);
@@ -75,16 +93,20 @@ export async function openSession(input: {
       });
 
   /*
-   * 🔴 BILLABLE MEANS WE DID WORK, and both refusals make it false.
+   * 🔴 BILLABLE MEANS WE DID WORK, and opening a session is not work.
    *
    * A session we were stopped on is 68.17 in one column: *we did not do the session,
    * so we do not bill for it.* A session the patient declined is the same arithmetic
-   * for a different reason: there was no transcript, no note and no summary, so
-   * there is nothing to charge for. Charging for a declined session would also put a
+   * for a different reason. Charging for a declined session would also put a
    * financial reason behind a consent conversation, which is C209's rule reaching
    * across a commercial boundary.
+   *
+   * 🔴 W2-X05: and a consented session with no audio is the same case. It was
+   * billed here, at consent, so a patient who said yes and then never started cost
+   * the partner a session. It is billed at its first audio now (`billFirstAudio`),
+   * which is the moment we start doing anything for it.
    */
-  const billable = input.environment === "live" && !stoppedReason && fromSeconds !== null;
+  const billable = false;
 
   const [row] = await controlDb
     .insert(partnerSessions)
@@ -105,8 +127,8 @@ export async function openSession(input: {
        *
        * A partner retrying a request must not produce a second billable unit for one
        * session, and a network that delivered the first attempt after the retry must
-       * not either. `billable` is left alone by this update: whatever the first
-       * successful open decided is what the month is charged.
+       * not either. `billable` is left alone by this update: only the session's
+       * first audio sets it (W2-X05).
        *
        * The consent boundary IS updated, because 68.2's case is exactly a second
        * call arriving ten minutes in with a yes on it.
@@ -170,6 +192,8 @@ export type PartnerSessionRow = {
   personId: string | null;
   /** W2-X02: when their platform said the session was over. Null while it runs. */
   endedAt: Date | null;
+  /** W2-X05: whether its first audio has been billed. */
+  billable: boolean;
 };
 
 /*
@@ -189,6 +213,7 @@ async function sessionFor(input: {
       stoppedReason: partnerSessions.stoppedReason,
       personId: partnerSessions.personId,
       endedAt: partnerSessions.endedAt,
+      billable: partnerSessions.billable,
     })
     .from(partnerSessions)
     .where(
@@ -247,6 +272,56 @@ export async function mayAnswer(input: {
   }
 
   return { ok: true, session };
+}
+
+/**
+ * 🔴 W2-X05 — MAY THIS SESSION'S FIRST AUDIO BE BILLED? Asked before it is transcribed.
+ *
+ * Billing moved from consent to the first audio, so the limit is asked here too: a
+ * session opened under the limit whose audio arrives after other sessions used the
+ * rest of it would otherwise take the month past the number the partner set. At the
+ * limit the session is stopped exactly as `openSession` stops one, with the same
+ * sentence, and nothing is transcribed. A session already billed, or a sandbox one,
+ * passes without asking.
+ */
+export async function mayBillFirstAudio(input: {
+  partnerId: string;
+  session: PartnerSessionRow;
+  now?: Date;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (input.session.billable || input.session.environment !== "live") return { ok: true };
+
+  const now = input.now ?? new Date();
+  const permitted = await mayRun({ partnerId: input.partnerId, environment: "live", now });
+  if (permitted.allowed) return { ok: true };
+
+  await markStopped(input.partnerId, now);
+  await controlDb
+    .update(partnerSessions)
+    .set({ stoppedReason: permitted.reason, updatedAt: now })
+    .where(and(eq(partnerSessions.id, input.session.id), eq(partnerSessions.billable, false)));
+  return { ok: false, error: permitted.reason };
+}
+
+/**
+ * 🔴 W2-X05 — THE SESSION IS BILLED, ONCE, when audio from it has been transcribed.
+ *
+ * Conditional on `billable = false`, so a second piece of audio, a retry or two
+ * pieces racing each other bill it once. Live only and never a stopped session:
+ * the two CHECKs on the table say the same, and this WHERE never asks them to.
+ */
+export async function billFirstAudio(sessionId: string): Promise<void> {
+  await controlDb
+    .update(partnerSessions)
+    .set({ billable: true, updatedAt: new Date() })
+    .where(
+      and(
+        eq(partnerSessions.id, sessionId),
+        eq(partnerSessions.billable, false),
+        eq(partnerSessions.environment, "live"),
+        isNull(partnerSessions.stoppedReason),
+      ),
+    );
 }
 
 /**

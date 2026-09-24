@@ -50,7 +50,14 @@ export async function ingestPartnerAudio(input: {
   fromSeconds: number;
   /** Where this piece starts in the session, in seconds. */
   startSeconds?: number;
-}): Promise<{ ready?: boolean; error?: string; status?: number; droppedSeconds?: number }> {
+}): Promise<{
+  ready?: boolean;
+  error?: string;
+  status?: number;
+  droppedSeconds?: number;
+  /** W2-X05: audio from after the consent boundary reached the transcriber. */
+  transcribed?: boolean;
+}> {
   const start = Math.max(0, input.startSeconds ?? 0);
   const before = Math.max(0, input.fromSeconds - start);
   let audio = input.audio;
@@ -122,7 +129,7 @@ export async function ingestPartnerAudio(input: {
     })
     .where(eq(partnerSessions.id, input.partnerSessionId));
 
-  return { ready: text.trim().length > 0, droppedSeconds: before };
+  return { ready: text.trim().length > 0, droppedSeconds: before, transcribed: true };
 }
 
 /**
