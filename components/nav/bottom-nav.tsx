@@ -3,111 +3,43 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarDays,
-  CreditCard,
-  FileText,
-  Home,
-  KeyRound,
-  MessageSquare,
-  MoreHorizontal,
-  Plus,
-  Radio,
-  Settings,
-  ShieldCheck,
-  Sparkles,
-  Users,
-  Wallet,
-  X,
-} from "lucide-react";
+import { Building2, Home, MoreHorizontal, Plus, X } from "lucide-react";
 
+import { switchToClinic } from "@/app/(app)/switch-principal/actions";
+import { destinationsFor } from "@/lib/nav/clinician";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
-import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * Bottom navigation — the primary navigation on every screen size up to
  * desktop, with Start as a raised centre action because it is the one thing
  * the product exists to do.
  *
- * Four destinations plus a sheet, not thirteen tabs. The product has grown a
- * copilot, a radar and an earnings page since this bar was four items, and the
- * honest options were a cramped eight-tab bar or a short overflow. The sheet
- * wins on one condition, which is that it stays short: if it ever needs a
- * scrollbar, the product has too many top-level places to be.
+ * Three destinations plus a sheet, not thirteen tabs. The sheet wins on one
+ * condition, which is that it stays short: if it ever needs a scrollbar, the
+ * product has too many top-level places to be.
+ *
+ * 🔴 W2-T07: the destinations are `destinationsFor`, the list the desktop
+ * sidebar renders too. This file kept its own two lists, and they drifted: the
+ * calendar was desktop-only, support was nowhere, and an applicant on a phone
+ * lost Earnings. Labels are keys resolved where they are rendered (37L.2).
  *
  * Targets are 44px minimum; the previous bar shipped ~40px.
  */
-/*
- * 37L.2 — keys, not words.
- *
- * These were English strings in a module-level constant, which is the shape
- * this project keeps finding: copy in a place no translator is looking and no
- * hook can reach. The label is resolved where it is rendered.
- */
-const PRIMARY = [
-  { href: "/dashboard", label: "portal.nav.home", icon: Home },
-  { href: "/sessions", label: "portal.nav.sessions", icon: CalendarDays },
-  { href: "/patients", label: "portal.nav.patients", icon: Users },
-] as const satisfies readonly { href: string; label: MessageKey; icon: typeof Home }[];
-
-const MORE = [
-  {
-    href: "/copilot",
-    label: "portal.nav.copilot",
-    icon: MessageSquare,
-    hint: "portal.nav.hintCopilot",
-  },
-  /*
-   * Named for what it is *not* allowed to see, because the two copilots are
-   * one tap apart and a clinician who asks the wrong one gets a refusal
-   * instead of an answer. "Assistant · your practice" beside "Copilot · ask
-   * about a patient" is the whole distinction.
-   */
-  {
-    href: "/assistant",
-    label: "portal.nav.assistant",
-    icon: Sparkles,
-    hint: "portal.nav.hintAssistant",
-  },
-  { href: "/notes", label: "portal.nav.notes", icon: FileText, hint: "portal.nav.hintNotes" },
-  /* 27.2 / 27.7 — the two things a patient starts and a clinician answers. */
-  { href: "/connect", label: "portal.nav.connect", icon: KeyRound, hint: "portal.nav.hintConnect" },
-  {
-    href: "/on-call",
-    label: "portal.nav.crisisRadar",
-    icon: Radio,
-    hint: "portal.nav.hintRadar",
-  },
-  {
-    href: "/earnings",
-    label: "portal.nav.earnings",
-    icon: Wallet,
-    hint: "portal.nav.hintEarnings",
-  },
-  {
-    href: "/billing",
-    label: "portal.nav.billing",
-    icon: CreditCard,
-    hint: "portal.nav.hintBilling",
-  },
-  {
-    href: "/settings",
-    label: "portal.nav.settings",
-    icon: Settings,
-    hint: "portal.nav.hintSettings",
-  },
-] as const satisfies readonly {
-  href: string;
-  label: MessageKey;
-  icon: typeof Home;
-  hint: MessageKey;
-}[];
-
-export function BottomNav({ cleared = true }: { cleared?: boolean }) {
+export function BottomNav({
+  cleared = true,
+  clinic = false,
+}: {
+  cleared?: boolean;
+  /** 🔴 63.2 / C352: this human also runs a practice, so the switch is offered. */
+  clinic?: boolean;
+}) {
   const pathname = usePathname();
   const t = useT();
   const [open, setOpen] = useState(false);
+  const all = destinationsFor(cleared);
+  const primary = all.filter((item) => item.primary);
+  const more = all.filter((item) => !item.primary);
 
   // A sheet that survives navigation is a sheet covering the page you just
   // asked for.
@@ -116,7 +48,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
-  const moreActive = MORE.some((item) => isActive(item.href));
+  const moreActive = more.some((item) => isActive(item.href));
 
   // The live room is full-bleed; navigation would be a way to lose a session.
   if (pathname.endsWith("/room")) return null;
@@ -136,24 +68,15 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
         className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
       >
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 pt-1">
-          <NavItem
-            href="/onboarding"
-            label={t("portal.nav.verify")}
-            icon={ShieldCheck}
-            active={isActive("/onboarding")}
-          />
-          <NavItem
-            href="/billing"
-            label={t("portal.nav.billing")}
-            icon={CreditCard}
-            active={isActive("/billing")}
-          />
-          <NavItem
-            href="/settings"
-            label={t("portal.nav.settings")}
-            icon={Settings}
-            active={isActive("/settings")}
-          />
+          {all.map((item) => (
+            <NavItem
+              key={item.href}
+              href={item.href}
+              label={t(item.short ?? item.label)}
+              icon={item.icon}
+              active={isActive(item.href)}
+            />
+          ))}
         </div>
       </nav>
     );
@@ -184,7 +107,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
               </button>
             </div>
 
-            {MORE.map((item) => (
+            {more.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -203,10 +126,33 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-slate-900">{t(item.label)}</span>
-                  <span className="block truncate text-xs text-slate-500">{t(item.hint)}</span>
+                  {item.hint ? (
+                    <span className="block truncate text-xs text-slate-500">{t(item.hint)}</span>
+                  ) : null}
                 </span>
               </Link>
             ))}
+
+            {/*
+              🔴 63.2 / C352 — THE SWITCHER, and only for a human who has both.
+              It was desktop-only, so a practice owner on a phone could not
+              reach their practice at all. Same action, same handover.
+            */}
+            {clinic ? (
+              <form action={switchToClinic}>
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-start active:bg-slate-100"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                    <Building2 className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {t("portal.nav.switchToClinic")}
+                  </span>
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -216,7 +162,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
         className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
       >
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 pt-1">
-          {PRIMARY.slice(0, 2).map((item) => (
+          {primary.slice(0, 2).map((item) => (
             <NavItem
               key={item.href}
               href={item.href}
@@ -234,7 +180,7 @@ export function BottomNav({ cleared = true }: { cleared?: boolean }) {
             <Plus className="h-6 w-6" aria-hidden />
           </Link>
 
-          {PRIMARY.slice(2).map((item) => (
+          {primary.slice(2).map((item) => (
             <NavItem
               key={item.href}
               href={item.href}

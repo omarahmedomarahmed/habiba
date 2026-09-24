@@ -2609,7 +2609,7 @@ export const en = {
   "tauth.staffConsole": "Staff console",
   "tauth.staffBody": "For the 24Therapy team. Clinicians sign in at {link}.",
   "tauth.signUpTitle": "Start your first session",
-  "tauth.signUpBody": "Four fields, then you are in. Your first session is free.",
+  "tauth.signUpBody": "Your first session is free.",
   "tauth.firstName": "First name",
   "tauth.lastName": "Last name",
   "tauth.passwordHint": "At least 10 characters.",
@@ -3998,6 +3998,8 @@ export const en = {
   "arefund.errProof": "Receipt, account and name needed.",
   "arefund.errTwo": "Needs a second person.",
   "arefund.errReason": "Say why.",
+  // W2C clinician and clinic
+  "tw2.publicPage": "Your public page",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -6011,7 +6013,7 @@ export const ar: Record<MessageKey, string> = {
   "tauth.staffConsole": "لوحة الفريق",
   "tauth.staffBody": "لفريق 24Therapy. أما الأخصائيون فيسجّلون الدخول من {link}.",
   "tauth.signUpTitle": "ابدأ جلستك الأولى",
-  "tauth.signUpBody": "أربعة حقول ثم تدخل. وجلستك الأولى مجانية.",
+  "tauth.signUpBody": "جلستك الأولى مجانية.",
   "tauth.firstName": "الاسم الأول",
   "tauth.lastName": "اسم العائلة",
   "tauth.passwordHint": "عشرة أحرف على الأقل.",
@@ -7230,6 +7232,8 @@ export const ar: Record<MessageKey, string> = {
   "arefund.errProof": "الإيصال والحساب والاسم مطلوبة.",
   "arefund.errTwo": "يلزم شخص ثانٍ.",
   "arefund.errReason": "اذكر السبب.",
+  // W2C clinician and clinic
+  "tw2.publicPage": "صفحتك العامة",
 };
 
 export const DICTIONARIES = { en, ar } as const;

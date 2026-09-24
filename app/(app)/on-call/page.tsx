@@ -155,7 +155,11 @@ export default async function RadarConsolePage() {
                     </Link>,
                     part,
                   ],
-            )}
+            )}{" "}
+          {/* 🔴 W2-T07: their own page, as a patient finds it. */}
+          <Link href={`/t/${actor.userId}`} className="font-medium text-brand-700">
+            {t("tw2.publicPage")}
+          </Link>
         </p>
       </div>
     </div>

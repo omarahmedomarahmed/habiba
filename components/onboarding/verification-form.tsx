@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Camera, Check, Loader2, ShieldCheck, Upload } from "lucide-react";
 
@@ -170,6 +171,13 @@ export function VerificationForm({
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
           {t("tver.underReviewBody")}
         </p>
+        {/* 🔴 W2-T01: the person waiting on us can ask us something. */}
+        <Link
+          href="/support"
+          className="mt-4 inline-flex text-sm font-semibold text-brand-700"
+        >
+          {t("portal.support.title")}
+        </Link>
       </Card>
     );
   }

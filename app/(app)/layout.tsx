@@ -1,22 +1,12 @@
 import Link from "next/link";
 
 import { Logo } from "@/components/brand/logo";
-import {
-  CalendarClock,
-  CalendarDays,
-  CreditCard,
-  FileText,
-  Home,
-  MessageSquare,
-  Plus,
-  Radio,
-  Settings,
-  ShieldCheck,
-  Users, Wallet, LogOut, Building2 } from "lucide-react";
+import { Home, LogOut, Building2, Plus } from "lucide-react";
 
 import { signOut } from "@/lib/auth/actions";
 import { switchToClinic } from "@/app/(app)/switch-principal/actions";
 import { BottomNav } from "@/components/nav/bottom-nav";
+import { destinationsFor, OPEN_TO_UNVERIFIED } from "@/lib/nav/clinician";
 import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
 import { headers } from "next/headers";
@@ -55,14 +45,7 @@ const db = dbFor(pinnedToDefaultRegion("app/(app)/layout.tsx", "not routed yet: 
  * re-run for every nested render, so treating it as the only gate is a mistake
  * that is very hard to see in review.
  */
-/**
- * Pages an unverified clinician may still reach.
- *
- * Deliberately short. Settings and billing are here because Stripe onboarding
- * and reading the terms are things you should be able to do while waiting for
- * approval; everything else needs a patient, and they do not have one yet.
- */
-const OPEN_TO_UNVERIFIED = ["/onboarding", "/settings", "/billing", "/earnings"];
+/* Pages an unverified clinician may still reach: `lib/nav/clinician.ts` (W2-T01). */
 
 export default async function AppLayout({
   children,
@@ -160,69 +143,34 @@ export default async function AppLayout({
             navigation, and the shell's redirect for those renders a blank
             document rather than the onboarding page. Removing the links
             removes the only way an unverified clinician could trigger it.
-          */}
-          {!cleared ? (
-            <SidebarLink href="/onboarding" icon={ShieldCheck}>
-              {t("portal.nav.finishVerification")}
-            </SidebarLink>
-          ) : null}
-          {cleared ? (
-          <>
-          <SidebarLink href="/dashboard" icon={Home}>
-            {t("portal.nav.home")}
-          </SidebarLink>
-          <SidebarLink href="/sessions" icon={CalendarDays}>
-            {t("portal.nav.sessions")}
-          </SidebarLink>
-          {/*
-            51.7 — the calendar, beside the sessions it fills.
 
-            Separate from /sessions on purpose: that page is what HAS happened
-            and what is about to, this one is the hours nobody has taken yet.
-            Folding them together is how availability becomes a setting
-            somebody edits once and never looks at again.
+            🔴 W2-T07: the list is `destinationsFor`, the same one the phone bar
+            renders, so the two screens can no longer disagree about where a
+            clinician can go.
           */}
-          <SidebarLink href="/bookings" icon={CalendarClock}>
-            {t("portal.nav.bookings")}
-          </SidebarLink>
-          <SidebarLink href="/patients" icon={Users}>
-            {t("portal.nav.patients")}
-          </SidebarLink>
-          <SidebarLink href="/notes" icon={FileText}>
-            {t("portal.nav.notes")}
-          </SidebarLink>
-          <SidebarLink href="/copilot" icon={MessageSquare}>
-            {t("portal.nav.copilot")}
-          </SidebarLink>
-          {/*
-            When a clinician is live, the radar stops being one nav item among
-            eight. It is the only thing on this screen that a stranger in crisis
-            is currently depending on, so it says so.
-          */}
-          <SidebarLink href="/on-call" icon={Radio}>
-            <span className="flex items-center gap-2">
-              {t("portal.nav.crisisRadar")}
-              {radar?.status === "online" || radar?.status === "in_session" ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-700 uppercase">
-                  <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
-                  {radar.status === "in_session"
-                    ? t("portal.nav.radarInSession")
-                    : t("portal.nav.radarLive")}
+          {destinationsFor(cleared).map((item) => (
+            <SidebarLink key={item.href} href={item.href} icon={item.icon}>
+              {/*
+                When a clinician is live, the radar stops being one nav item
+                among eight. It is the only thing on this screen that a stranger
+                in crisis is currently depending on, so it says so.
+              */}
+              {item.href === "/on-call" &&
+              (radar?.status === "online" || radar?.status === "in_session") ? (
+                <span className="flex items-center gap-2">
+                  {t(item.label)}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-700 uppercase">
+                    <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
+                    {radar.status === "in_session"
+                      ? t("portal.nav.radarInSession")
+                      : t("portal.nav.radarLive")}
+                  </span>
                 </span>
-              ) : null}
-            </span>
-          </SidebarLink>
-          </>
-          ) : null}
-          <SidebarLink href="/earnings" icon={Wallet}>
-            {t("portal.nav.earnings")}
-          </SidebarLink>
-          <SidebarLink href="/billing" icon={CreditCard}>
-            {t("portal.nav.billing")}
-          </SidebarLink>
-          <SidebarLink href="/settings" icon={Settings}>
-            {t("portal.nav.settings")}
-          </SidebarLink>
+              ) : (
+                t(item.label)
+              )}
+            </SidebarLink>
+          ))}
         </nav>
 
         {/*
@@ -320,7 +268,8 @@ export default async function AppLayout({
         <div className="pb-24 lg:pb-8">{children}</div>
       </div>
 
-      <BottomNav cleared={cleared} />
+      {/* 🔴 W2-T07: the practice switch reaches the phone too. */}
+      <BottomNav cleared={cleared} clinic={Boolean(clinicManagerId)} />
 
       {/* Presence and the booking alarm follow the clinician around the whole
           portal, not just the radar page — see the comment in the component. */}
