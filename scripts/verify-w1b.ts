@@ -680,7 +680,62 @@ async function main() {
       noteBody.coverage === coverage,
       noteBody.coverage ?? "no coverage field",
     );
+
+    /* ================================================================ */
+    /*  W1-30 · OUR OWN NOTES: THE LATE START IS PROVENANCE, NOT TEXT    */
+    /* ================================================================ */
+
+    /*
+     * `generateAndStoreNote` prepended "Recording began at 10:10; the first 10
+     * minutes ... do not exist." to the summary, and to the English copy: a
+     * recording fact written by the machine into clinical text, the pattern
+     * W1-24 took out of partner drafts. The fact belongs to the note's
+     * provenance, shown above the note.
+     */
+    const lateStart = new Date(Date.now() - 60 * 60_000);
+    const lateSession = await one<{ id: string }>(sql`
+      INSERT INTO sessions (organization_id, therapist_id, status, modality, feedback_token,
+                            started_at, recording_started_at, ended_at, recording_consent)
+      VALUES (${org.id}, ${therapist.id}, 'completed', 'in_person', ${`fb-late-${fixture}`},
+              ${lateStart}, ${new Date(lateStart.getTime() + 10 * 60_000)},
+              ${new Date(lateStart.getTime() + 50 * 60_000)}, 'granted')
+      RETURNING id`);
+    await db.execute(sql`
+      INSERT INTO transcript_segments (session_id, organization_id, sequence, speaker, text, start_ms, end_ms)
+      VALUES (${lateSession.id}, ${org.id}, 1, 'patient', 'I slept badly again this week, and the deadline at work kept me up most nights until three.', 0, 2400000)`);
+    const { generateAndStoreNote } = await import("../lib/ai/notes");
+    await generateAndStoreNote({
+      sessionId: lateSession.id,
+      organizationId: org.id,
+      therapistId: therapist.id,
+      patientId: null,
+    });
+    const lateNote = await one<{
+      summary: string | null;
+      summary_en: string | null;
+      provenance: string;
+      off_record_seconds: number | null;
+    } | undefined>(sql`
+      SELECT content->>'summary' AS summary, content_en->>'summary' AS summary_en,
+             provenance, off_record_seconds
+        FROM session_notes WHERE session_id = ${lateSession.id}`);
+    check(
+      "🔴 W1-30 a late-recorded session's note text carries no recording sentence",
+      Boolean(lateNote) &&
+        !(lateNote!.summary ?? "").includes("Recording began") &&
+        !(lateNote!.summary_en ?? "").includes("Recording began"),
+      lateNote ? (lateNote.summary ?? "").slice(0, 90) : "no note written",
+    );
+    check(
+      "W1-30 …and the late start is the note's provenance: partial, ten minutes off record",
+      lateNote?.provenance === "partial" && (lateNote?.off_record_seconds ?? 0) >= 600,
+      `${lateNote?.provenance}, ${lateNote?.off_record_seconds}s`,
+    );
   } finally {
+    await db.execute(sql`DELETE FROM session_notes WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM transcript_segments WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
     mock.server.close();
     await db.execute(sql`DELETE FROM partner_sessions WHERE external_session_ref LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM partner_consents WHERE external_session_ref LIKE ${`%${fixture}%`}`);

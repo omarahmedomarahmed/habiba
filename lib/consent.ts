@@ -63,6 +63,10 @@ export const LATE_RECORDING_THRESHOLD_MS = 60 * 1000;
  * > exist. The note is stamped *'recording began at 10:32; earlier
  * > conversation not captured'*."
  *
+ * 🔴 W1-30: no longer written INTO a note. The fact is the note's provenance
+ * (`partial`, `offRecordSeconds`), shown beside it; this stays as the one
+ * statement of the rule, and 0123 matches its exact shape to strip old drafts.
+ *
  * Pure, and returns `null` when there is nothing to say — which is the common
  * case and also the *unknown* case. A session with no `recordingStartedAt` is
  * one where we do not know when the microphone began; the honest output there
