@@ -406,7 +406,10 @@ async function main() {
   const manualLib = readSource("lib/billing/manual.ts");
   check(
     "🔴 crediting without proof demands a written reason, and keeps it ON the payment",
-    /reason\.length < 10/.test(manualLib) &&
+    // W2-A05 moved the number to one constant for every admin reason; it must still be 10 or more.
+    (/reason\.length < 10/.test(manualLib) ||
+      (/reason\.length < MIN_REASON/.test(manualLib) &&
+        Number(/MIN_REASON = (\d+)/.exec(readSource("lib/admin/reason.ts"))?.[1] ?? 0) >= 10)) &&
       /rejectReason: `Received without proof\./.test(manualLib),
     "a log entry is not enough: the fact must follow this money to every screen that shows it",
   );
@@ -1099,7 +1102,8 @@ async function main() {
    */
   check(
     "🔴 …and it returns when the session was not pending, so a second Confirm posts nothing",
-    /was not pending[\s\S]{0,220}?\n\s*return;/.test(grants) &&
+    // W2-A03 flags a non-payable session before returning; nothing may POST on that way out.
+    /was not pending(?:(?!postSessionPayment)[\s\S]){0,1500}?\n\s*return;/.test(grants) &&
       /onConflictDoNothing\(\{ target: sessionPayments\.sessionId \}\)/.test(grants),
     "two guards: the status guard for the grant, the unique session for the payment row",
   );
@@ -1828,6 +1832,14 @@ async function main() {
      * session's status.
      */
     ["lib/billing/refunds.ts", "cancels a refund request, never a session"],
+    /*
+     * W2-A10: an operator taking a clinician off the board cancels the booking
+     * in flight (still `scheduled`, the guard is in its WHERE) and hands it to
+     * `afterClinicianCancel`, which refunds a paid one or queues the refund and
+     * tells the patient it was us. Leaving a paid patient waiting for somebody
+     * we removed is the outcome this check exists to prevent, not this.
+     */
+    ["lib/data/radar-admin.ts", "an operator removing a clinician mid-booking; refunded through clinician-cancel"],
   ]);
 
   const cancellers = everySource.filter((file) =>
