@@ -13,8 +13,8 @@ import {
   type RefundState,
 } from "@/app/(admin)/admin/payouts/refund-actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
-import { formatMoney } from "@/lib/billing/plans";
 import { useT } from "@/lib/i18n/client";
+import { Money } from "@/components/ui/money";
 
 const INITIAL: RefundState = {};
 
@@ -85,7 +85,7 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
     <li className="rounded-xl border border-slate-200 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-slate-900">
-          {formatMoney(row.amountCents, row.currency.toUpperCase(), "en-US")}
+          <Money cents={row.amountCents} currency={row.currency.toUpperCase()} />
         </span>
         <span className="text-sm text-slate-700">{row.payeeName ?? ""}</span>
         <Badge>{row.status}</Badge>

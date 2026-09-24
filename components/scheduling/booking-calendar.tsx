@@ -38,7 +38,7 @@ export function BookingCalendar({
   therapistName: string;
   /** The zone the first render uses, before the browser answers. 12.3 / C84. */
   therapistTimezone: string | null;
-  rateLabel: string;
+  rateLabel: React.ReactNode;
 }) {
   const t = useT();
   const locale = useLocale();

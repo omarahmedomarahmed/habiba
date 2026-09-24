@@ -4,9 +4,9 @@ import { ArrowUpRight, Clock, CreditCard, Receipt, Undo2 } from "lucide-react";
 
 import { Card, EmptyState } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export type PaymentRow = {
   id: string;
@@ -118,9 +118,9 @@ export function PaymentHistory({
                   ) : null}
                   {payment.settledInvoiceCents > 0 ? (
                     <Chip tone="slate">
-                      {t("tph.billsSettled", {
-                        amount: formatUsd(payment.settledInvoiceCents),
-                      })}
+                      {rich(t("tph.billsSettled", {
+                        amount: slot(0),
+                      }), [<Money cents={payment.settledInvoiceCents} />])}
                     </Chip>
                   ) : null}
                   {payment.receiptUrl ? (

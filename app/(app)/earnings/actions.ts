@@ -66,11 +66,23 @@ export async function requestWithdrawal(
 ): Promise<EarningsState> {
   const actor = await requireUser();
 
-  const dollars = Number(String(formData.get("amountDollars") ?? "").trim() || "0");
+  /*
+   * 🔴 Typed in pounds. The whole balance is taken exactly (a conversion there
+   * and back could land a cent over and be refused); anything else is
+   * converted at the operator's rate. `requestPayout` checks it against what
+   * is really available either way, so the hidden figures cannot raise it.
+   */
+  const typed = String(formData.get("amountPounds") ?? "").trim();
+  const { egpRateMicro } = await import("@/lib/billing/manual");
+  const { usdCentsFor } = await import("@/lib/money/convert");
+  const whole = typed !== "" && typed === String(formData.get("wholePounds") ?? "");
+  const amountCents = whole
+    ? Math.round(Number(formData.get("wholeCents") ?? 0))
+    : usdCentsFor(Math.round((Number(typed) || 0) * 100), await egpRateMicro());
   const result = await requestManualPayout({
     therapistId: actor.userId,
     organizationId: actor.organizationId,
-    amountCents: Math.round(dollars * 100),
+    amountCents,
   });
 
   if (result.error) return { error: result.error };

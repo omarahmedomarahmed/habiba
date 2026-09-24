@@ -4,11 +4,11 @@ import { PriceTag } from "@/components/money/price-tag";
 import { egpRateMicro } from "@/lib/billing/manual";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
-import { formatUsd } from "@/lib/billing/plans";
 import { formatMonthYear } from "@/lib/utils";
 import { publicProfile } from "@/lib/data/radar";
 import { reliabilityFor } from "@/lib/data/recovery";
 import { openHours } from "@/lib/data/scheduling";
+import { Money } from "@/components/ui/money";
 
 /**
  * A clinician's page, body only. PLAN.md 11.3, 11.4, 14.7, 16.4, 25.2.
@@ -136,7 +136,7 @@ export async function TherapistPageBody({ id }: { id: string }) {
           slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString() }))}
           therapistName={profile.firstName}
           therapistTimezone={profile.timezone}
-          rateLabel={profile.sessionRateCents > 0 ? formatUsd(profile.sessionRateCents) : "Free"}
+          rateLabel={profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : "Free"}
         />
       </div>
     </>

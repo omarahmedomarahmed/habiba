@@ -8,6 +8,8 @@ import { Card } from "@/components/ui";
 import { TopUpStepper } from "@/components/billing/top-up-stepper";
 import { useT } from "@/lib/i18n/client";
 import type { PotStep } from "@/lib/billing/manual-entry";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /**
  * How anybody in Egypt pays us, until there is a gateway.
@@ -129,7 +131,7 @@ export function PayByTransfer({
   live,
   action,
   askAmount = false,
-  minimumLabel,
+  minimumCents,
   rateLabel,
   steps,
   lines,
@@ -151,7 +153,7 @@ export function PayByTransfer({
    */
   askAmount?: boolean;
   /** The floor, formatted on the server. Only meaningful beside `askAmount`. */
-  minimumLabel?: string;
+  minimumCents?: number;
   /**
    * 🔴 "50 EGP", only meaningful beside `askAmount`, and required by it.
    *
@@ -296,7 +298,7 @@ export function PayByTransfer({
       <p className="mt-1 text-sm text-slate-600">
         {askAmount ? (
           <>
-            {t("transfer.sendAtLeast", { amount: minimumLabel ?? "" })} · {what}
+            {rich(t("transfer.sendAtLeast", { amount: slot(0) }), [minimumCents != null ? <Money cents={minimumCents} /> : ""])} · {what}
           </>
         ) : (
           <>

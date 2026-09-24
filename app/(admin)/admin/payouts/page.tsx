@@ -11,7 +11,6 @@ import { requireStaff } from "@/lib/auth/guard";
 import { reconcile } from "@/lib/billing/ledger";
 import { manualQueue } from "@/lib/billing/payouts";
 import { refundQueue } from "@/lib/billing/refunds";
-import { formatUsd } from "@/lib/billing/plans";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { earningsTransfers, users } from "@/lib/db/schema";
@@ -97,9 +96,14 @@ export default async function PayoutsPage() {
 
           <p className="mt-2 text-xs text-slate-500">
             By entity:{" "}
-            {books.cashByEntity
-              .map((row) => `${row.entity.toUpperCase()} ${formatUsd(row.cashCents)}`)
-              .join(" · ") || "nothing yet"}
+            {books.cashByEntity.length === 0
+              ? "nothing yet"
+              : books.cashByEntity.map((row, i) => (
+                  <span key={row.entity}>
+                    {i > 0 ? " · " : ""}
+                    {row.entity.toUpperCase()} <Money cents={row.cashCents} />
+                  </span>
+                ))}
             {books.unbackedEntity.length > 0
               ? ` · 🔴 paying out of an entity that never collected: ${books.unbackedEntity.join(", ")}`
               : ""}

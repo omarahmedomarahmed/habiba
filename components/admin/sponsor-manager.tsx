@@ -66,7 +66,7 @@ export type AdminSponsorRow = {
   contactBestTime: string | null;
   code: string | null;
   potOpen: boolean;
-  potBalanceLabel: string;
+  potBalanceLabel: React.ReactNode;
   /** 🔴 53.19 — attempts on their code this week. A number, never names. */
   attempts: number;
   spike: boolean;

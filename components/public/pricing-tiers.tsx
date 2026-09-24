@@ -14,11 +14,12 @@ import { egpRateMicro } from "@/lib/billing/manual";
  * Cairo, so the money is formatted in their language with Western digits, the
  * same rule every other figure on the public site follows.
  */
-import { formatMoney } from "@/lib/billing/plans";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { seatMonthlyCents } from "@/lib/settings/defs";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /**
  * The three rates. PLAN.md 17.2–17.8, 17.10.
@@ -131,7 +132,6 @@ export async function PricingTiers({
       ? t(`pricing.tier.${tier.key}` as "pricing.tier.payg")
       : tier.name;
   const tag = localeTag(locale);
-  const money = (cents: number) => formatMoney(cents, "USD", tag);
 
   const tiers = settings.pricing.tiers;
   const platformFeeCents = settings.session.platformFeeCents;
@@ -189,7 +189,7 @@ export async function PricingTiers({
             : t("pricing.seatsRange", { from: band.from, to: upper }),
       rate:
         band.perSeatCents > 0
-          ? t("pricing.seatsEach", { amount: money(band.perSeatCents) })
+          ? rich(t("pricing.seatsEach", { amount: slot(0) }), [<Money cents={band.perSeatCents} />])
           : t("pricing.seatsIncluded"),
       monthlyCents: seatMonthlyCents(band.from, bands),
     };
@@ -209,8 +209,8 @@ export async function PricingTiers({
     boundary !== null
       ? {
           count: boundary,
-          from: money(seatMonthlyCents(boundary - 1, bands)),
-          to: money(seatMonthlyCents(boundary, bands)),
+          from: <Money cents={seatMonthlyCents(boundary - 1, bands)} />,
+          to: <Money cents={seatMonthlyCents(boundary, bands)} />,
         }
       : null;
 
@@ -229,8 +229,8 @@ export async function PricingTiers({
    * where the same facts answer the question a reader is actually holding: what
    * is in each, what is not, and what it costs if I subscribe.
    */
-  const paygSession = money(platformFeeCents);
-  const paygAi = money(payg.aiRateCents);
+  const paygSession = <Money cents={platformFeeCents} />;
+  const paygAi = <Money cents={payg.aiRateCents} />;
   const practice = plans.find((tier) => tier.key === "practice") ?? cheapestPlan;
   const seatFrom = bands[bands.length - 1]?.perSeatCents ?? bands[0]?.perSeatCents ?? 0;
 
@@ -239,8 +239,8 @@ export async function PricingTiers({
     name: string;
     who: string;
     price: React.ReactNode;
-    under: string;
-    bullets: string[];
+    under: React.ReactNode;
+    bullets: React.ReactNode[];
     cta: { label: string; href: string };
     note?: string;
     featured?: boolean;
@@ -252,7 +252,7 @@ export async function PricingTiers({
       price: (
         <PriceTag usdCents={platformFeeCents} rateMicro={egpRate} locale={tag} size="lg" />
       ),
-      under: t("pr2.paygAi", { amount: paygAi }),
+      under: rich(t("pr2.paygAi", { amount: slot(0) }), [paygAi]),
       bullets: [
         t("pr2.nothingMonthly"),
         t("pricing.feature.note"),
@@ -304,7 +304,7 @@ export async function PricingTiers({
     ),
     under: t("pr2.seatBody"),
     bullets: [
-      t("pr2.seatFrom", { amount: money(seatFrom) }),
+      rich(t("pr2.seatFrom", { amount: slot(0) }), [<Money cents={seatFrom} />]),
       t("pr2.rowClinicBooks"),
       t("pricing.feature.baa"),
       t("pr2.rowCopilot"),
@@ -335,13 +335,13 @@ export async function PricingTiers({
    */
   const YES = "yes" as const;
   const NO = "no" as const;
-  const grid: { label: string; cells: (string | typeof YES | typeof NO)[] }[] = [
+  const grid: { label: string; cells: (React.ReactNode | typeof YES | typeof NO)[] }[] = [
     {
       label: t("pr2.rowMonthly"),
       cells: [
         t("pr2.none"),
-        practice ? money(practice.monthlyCents) : t("pr2.none"),
-        t("pr2.seatFrom", { amount: money(seatFrom) }),
+        practice ? <Money cents={practice.monthlyCents} /> : t("pr2.none"),
+        rich(t("pr2.seatFrom", { amount: slot(0) }), [<Money cents={seatFrom} />]),
       ],
     },
     {
@@ -408,8 +408,8 @@ export async function PricingTiers({
               <p className="mt-2 text-[13px] leading-relaxed text-slate-600">{card.under}</p>
 
               <ul className="mt-5 flex-1 space-y-2.5">
-                {card.bullets.map((bullet) => (
-                  <li key={bullet} className="flex gap-2.5 text-[13px] leading-snug text-slate-700">
+                {card.bullets.map((bullet, i) => (
+                  <li key={i} className="flex gap-2.5 text-[13px] leading-snug text-slate-700">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden />
                     {bullet}
                   </li>
@@ -528,7 +528,10 @@ export async function PricingTiers({
                 />
                 {seatStep ? (
                   <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
-                    {t("pricing.seatsStep", seatStep)}
+                    {rich(t("pricing.seatsStep", { count: seatStep.count, from: slot(0), to: slot(1) }), [
+                      seatStep.from,
+                      seatStep.to,
+                    ])}
                   </p>
                 ) : null}
               </div>

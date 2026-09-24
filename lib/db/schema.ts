@@ -339,7 +339,14 @@ export const users = pgTable(
      * guess which one the price was written in. Every existing row is `usd`,
      * which is what every existing price actually was.
      */
-    rateCurrency: text("rate_currency").notNull().default("usd"),
+    rateCurrency: text("rate_currency").notNull().default("egp"),
+    /**
+     * 🔴 0149 — the price in pounds exactly as they typed it, when they price
+     * in pounds. `sessionRateCents` is always dollars, re-derived from this
+     * whenever the operator moves the rate, so the pounds never drift and
+     * every money path keeps reading dollars.
+     */
+    rateEgpMinor: integer("rate_egp_minor"),
     /**
      * Settle 24Therapy invoices out of the application fee on the next patient
      * payment, instead of asking for a card. Opt-out, disclosed at the point of

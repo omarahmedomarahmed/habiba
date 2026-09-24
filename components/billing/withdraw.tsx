@@ -11,8 +11,9 @@ import {
 } from "@/app/(app)/earnings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
+import { useMoneyDisplay } from "@/components/money/display";
+import { egpMinorFor } from "@/lib/money/convert";
 // 19.4 — an English-only surface, so the English shorthand, named as such.
-import { formatMoney, formatUsd } from "@/lib/billing/plans";
 import type { PayoutStatus } from "@/lib/db/schema";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { localeTag } from "@/lib/i18n/config";
@@ -104,6 +105,9 @@ export function Withdraw({
   const [saveState, saveAction] = useActionState(savePayoutDestination, INITIAL);
   const [askState, askAction] = useActionState(requestWithdrawal, INITIAL);
 
+  const { rateMicro } = useMoneyDisplay();
+  const wholePounds = rateMicro > 0 ? (egpMinorFor(availableCents, rateMicro) / 100).toFixed(2) : "0";
+
   return (
     <div className="space-y-4">
       <Card className="p-4">
@@ -174,14 +178,17 @@ export function Withdraw({
         <Card className="p-4">
           <p className="text-sm font-semibold text-slate-900">{t("twd.withdraw")}</p>
           <form action={askAction} className="mt-3 flex items-end gap-2">
-            <Field label={t("twd.amountUsd")}>
+            {/* 🔴 Pounds, like every figure they read; the whole balance is one exact figure. */}
+            <input type="hidden" name="wholeCents" value={availableCents} />
+            <input type="hidden" name="wholePounds" value={wholePounds} />
+            <Field label={t("twd.amountEgp")}>
               <Input
-                name="amountDollars"
+                name="amountPounds"
                 type="number"
                 step="0.01"
                 min="0.01"
-                max={(availableCents / 100).toFixed(2)}
-                defaultValue={(availableCents / 100).toFixed(2)}
+                max={wholePounds}
+                defaultValue={wholePounds}
                 required
               />
             </Field>
@@ -209,11 +216,7 @@ export function Withdraw({
                     <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
                     <Money cents={row.amountCents} />
                     <span className="text-slate-500">→</span>
-                    {formatMoney(
-                      row.payoutAmountMinor,
-                      row.payoutCurrency.toUpperCase(),
-                      localeTag(locale),
-                    )}
+                    <Money cents={row.payoutAmountMinor} currency={row.payoutCurrency.toUpperCase()} />
                     <span className="ml-auto text-xs font-normal text-slate-500">
                       {t(state.label)}
                     </span>

@@ -9,6 +9,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 import { formatDate } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Your account", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -82,12 +83,7 @@ export default async function SponsorOverviewPage() {
   const underFloor = people.length < floor;
   const weeks = underFloor ? [] : await weeklySpend(actor.sponsorId, floor);
 
-  const fmt = (cents: number) =>
-    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(cents / 100);
+  const fmt = (cents: number) => <Money cents={cents} />;
 
   /*
    * 53.26 — the two faces, from the same two numbers.

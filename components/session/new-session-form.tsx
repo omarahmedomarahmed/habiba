@@ -7,9 +7,12 @@ import { Link2, User, Users, Video } from "lucide-react";
 import { startNewSession, type SessionActionState } from "@/app/(app)/sessions/actions";
 import { Button, Field, Input } from "@/components/ui";
 import { SeesWhat, SplitBar } from "@/components/visual/primitives";
-import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { Money } from "@/components/ui/money";
+import { useMoneyDisplay } from "@/components/money/display";
+import { egpMinorFor, usdCentsFor } from "@/lib/money/convert";
+import { rich, slot } from "@/lib/i18n/rich";
 
 type PatientOption = { id: string; name: string; email: string | null };
 
@@ -88,11 +91,15 @@ export function NewSessionForm({
   const modality = where === "in_person" ? "in_person" : "video";
   const [existing, setExisting] = useState<string>("");
   const [charge, setCharge] = useState(false);
+  /* 🔴 Pounds in the box, dollars in the books, at the operator's rate that came with the page. */
+  const { rateMicro } = useMoneyDisplay();
   const [price, setPrice] = useState(
-    payments?.defaultRateCents ? String(payments.defaultRateCents / 100) : "",
+    payments?.defaultRateCents && rateMicro > 0
+      ? String(Math.round(egpMinorFor(payments.defaultRateCents, rateMicro) / 100))
+      : "",
   );
 
-  const priceCents = Math.round((Number(price) || 0) * 100);
+  const priceCents = rateMicro > 0 ? usdCentsFor(Math.round((Number(price) || 0) * 100), rateMicro) : 0;
   const cut = payments ? Math.floor((priceCents * payments.feeBps) / 10_000) : 0;
   /*
    * 🔴 76.3 — plain arithmetic, deliberately, and NOT `Intl` (C84). The rate
@@ -298,7 +305,7 @@ export function NewSessionForm({
         silently costs the patient money because a rate was saved in settings
         weeks ago is the kind of default that loses a licence, not a customer.
       */}
-      <input type="hidden" name="priceDollars" value={chargeable ? price || "0" : "0"} />
+      <input type="hidden" name="pricePounds" value={chargeable ? price || "0" : "0"} />
 
       {modality === "video" && payments ? (
         <div className="rounded-2xl border border-slate-200 p-4">
@@ -323,20 +330,20 @@ export function NewSessionForm({
             <div className="mt-3 space-y-3">
               <Field label={t("tnew.price")} htmlFor="price">
                 <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-500">
-                    $
+                  <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-xs text-slate-500">
+                    EGP
                   </span>
                   <Input
                     id="price"
                     type="number"
                     inputMode="decimal"
-                    min={payments.minPriceCents / 100}
-                    max={payments.maxPriceCents / 100}
+                    min={rateMicro > 0 ? Math.ceil(egpMinorFor(payments.minPriceCents, rateMicro) / 100) : undefined}
+                    max={rateMicro > 0 ? Math.floor(egpMinorFor(payments.maxPriceCents, rateMicro) / 100) : undefined}
                     step={1}
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
-                    className="ps-7"
-                    placeholder="60"
+                    className="ps-12"
+                    placeholder="1000"
                     required
                   />
                 </div>
@@ -368,15 +375,15 @@ export function NewSessionForm({
                 <SplitBar
                   parts={[
                     {
-                      label: t("tnew.youKeep", { amount: formatUsd(priceCents - cut) }),
+                      label: rich(t("tnew.youKeep", { amount: slot(0) }), [<Money cents={priceCents - cut} />]),
                       value: priceCents - cut,
                       kind: "keep",
                     },
                     {
-                      label: t("tnew.ourFee", {
-                        amount: formatUsd(cut),
+                      label: rich(t("tnew.ourFee", {
+                        amount: slot(0),
                         percent: payments.feeBps / 100,
-                      }),
+                      }), [<Money cents={cut} />]),
                       value: cut,
                       kind: "fee",
                     },
@@ -397,10 +404,10 @@ export function NewSessionForm({
                    */
                   note={
                     vatCents > 0
-                      ? t("tnew.patientPays", {
-                          total: formatUsd(priceCents + vatCents),
-                          vat: formatUsd(vatCents),
-                        })
+                      ? rich(t("tnew.patientPays", {
+                          total: slot(0),
+                          vat: slot(1),
+                        }), [<Money cents={priceCents + vatCents} />, <Money cents={vatCents} />])
                       : t("tnew.vatOnTop")
                   }
                 />

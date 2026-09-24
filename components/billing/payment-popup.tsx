@@ -90,7 +90,7 @@ export function PaymentPopup({
   live,
   action,
   askAmount,
-  minimumLabel,
+  minimumCents,
   rateLabel,
   steps,
   lines,
@@ -156,7 +156,7 @@ export function PaymentPopup({
   live: LiveState;
   action: (prev: TransferFormState, form: FormData) => Promise<TransferFormState>;
   askAmount?: boolean;
-  minimumLabel?: string;
+  minimumCents?: number;
   rateLabel?: string;
   steps?: PotStep[];
   /** 🔴 76.16 — what the total covers. Server-formatted, empty where obvious. */
@@ -443,7 +443,7 @@ export function PaymentPopup({
           live={live}
           action={action}
           askAmount={askAmount}
-          minimumLabel={minimumLabel}
+          minimumCents={minimumCents}
           rateLabel={rateLabel}
           steps={steps}
           lines={lines}

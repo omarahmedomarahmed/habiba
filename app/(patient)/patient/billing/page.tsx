@@ -8,7 +8,6 @@ import { BeforeAfter } from "@/components/visual/primitives";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientCredits, patients, sessionPayments, sessions, users } from "@/lib/db/schema";
-import { formatMoney } from "@/lib/billing/plans";
 import { patientOwesFor } from "@/lib/billing/session-owed";
 import { sessionDoors } from "@/lib/data/patient-view";
 import { localeTag } from "@/lib/i18n/config";
@@ -154,7 +153,7 @@ export default async function PatientBillingPage() {
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="text-sm font-semibold text-slate-900">{row.therapistName}</p>
                     <p className="text-sm font-semibold tabular-nums text-slate-900">
-                      {formatMoney(row.owed, row.priceCurrency, tag)}
+                      <Money cents={row.owed} currency={row.priceCurrency} />
                     </p>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
@@ -193,12 +192,8 @@ export default async function PatientBillingPage() {
                     {row.fundingSource === "pot"
                       ? t("pbilling.covered")
                       : row.presented !== null && row.presentedCurrency
-                        ? formatMoney(row.presented, row.presentedCurrency, tag)
-                        : formatMoney(
-                            (row.gross ?? 0) + (row.vat ?? 0),
-                            row.currency ?? "usd",
-                            tag,
-                          )}
+                        ? <Money cents={row.presented} currency={row.presentedCurrency} />
+                        : <Money cents={(row.gross ?? 0) + (row.vat ?? 0)} currency={row.currency ?? "usd"} />}
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">

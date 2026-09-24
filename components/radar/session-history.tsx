@@ -3,12 +3,12 @@ import { ExternalLink, MessageSquare } from "lucide-react";
 
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import type { RadarSessionRow } from "@/lib/data/radar";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/config";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /*
  * 12.3 / C70 — the zone this screen prints its dates in.
@@ -153,7 +153,7 @@ export async function SessionHistory({
                     <Money cents={row.paid.netCents} />
                   </p>
                 ) : (
-                  <Badge tone="amber">{t("thist.unpaid", { amount: formatUsd(row.priceCents) })}</Badge>
+                  <Badge tone="amber">{rich(t("thist.unpaid", { amount: slot(0) }), [<Money cents={row.priceCents} />])}</Badge>
                 )}
               </div>
             </div>
@@ -230,7 +230,7 @@ export async function SessionHistory({
                 <span className="tabular-nums text-slate-700">
                   {row.ownBill.amountCents === 0
                     ? row.ownBill.description
-                    : formatUsd(row.ownBill.amountCents)}
+                    : <Money cents={row.ownBill.amountCents} />}
                 </span>
                 {row.ownBill.status === "due" && row.ownBill.amountCents > 0
                   ? ` · ${t("thist.billUnpaid")}`

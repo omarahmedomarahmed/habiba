@@ -6,6 +6,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 import { invoiceFor } from "@/lib/billing/invoice";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
+import { Money } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Invoice", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -64,11 +65,7 @@ export default async function InvoicePage({
     );
   }
 
-  const fmt = (cents: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: invoice.currency.toUpperCase(),
-    }).format(cents / 100);
+  const fmt = (cents: number) => <Money cents={cents} currency={invoice.currency.toUpperCase()} />;
 
   return (
     <div className="mx-auto max-w-2xl">

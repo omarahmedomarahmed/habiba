@@ -220,7 +220,11 @@ export default async function SettingsPage({
               connected: Boolean(connect.accountId),
               chargesEnabled: connect.chargesEnabled,
               payoutsEnabled: connect.payoutsEnabled,
-              sessionRateCents: connect.sessionRateCents,
+              /* 0149 — the figure they typed, in the currency they typed it in. */
+              sessionRateCents:
+                connect.rateCurrency.toLowerCase() === "egp" && connect.rateEgpMinor !== null
+                  ? connect.rateEgpMinor
+                  : connect.sessionRateCents,
               rateCurrency: connect.rateCurrency,
               /*
                * 🔴 74.6 — null for a clinician on a clinic's roster, which hides

@@ -25,7 +25,7 @@ export type DisplayCurrency = "EGP" | "USD";
  * decimals ("EGP 1,000", "$20"); a figure with a fraction keeps two, because
  * an amount somebody transfers has to match to the piastre.
  */
-export function formatDisplay(minor: number, currency: DisplayCurrency, locale: string): string {
+export function formatDisplay(minor: number, currency: string, locale: string): string {
   const whole = Math.round(minor) % 100 === 0;
   return (Math.round(minor) / 100).toLocaleString(locale || "en-US", {
     style: "currency",

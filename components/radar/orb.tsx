@@ -5,10 +5,10 @@ import Link from "next/link";
 import { MapPin, Radio, X } from "lucide-react";
 
 import { toggleClinicVisits, toggleRadar } from "@/app/(app)/on-call/actions";
-import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { Money } from "@/components/ui/money";
 
 /**
  * The orb: what the radar is doing, on every page, without going to look.
@@ -218,7 +218,7 @@ export function RadarOrb({
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-slate-600">{t("torb.rate")}</dt>
                 <dd className="font-medium tabular-nums text-slate-900">
-                  {sessionRateCents > 0 ? formatUsd(sessionRateCents) : t("trad.free")}
+                  {sessionRateCents > 0 ? <Money cents={sessionRateCents} /> : t("trad.free")}
                 </dd>
               </div>
               {sessionRateCents > 0 && !chargesEnabled ? (

@@ -4,7 +4,6 @@ import { Star } from "lucide-react";
 
 import { Avatar, StatusPill } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
-import { formatUsd } from "@/lib/billing/plans";
 import { useT, useLocale } from "@/lib/i18n/client";
 /*
  * 🔴 C84 / 12.3 — THE SHARED FORMATTER, NOT AN `Intl` CALL OF ITS OWN.
@@ -18,6 +17,7 @@ import { useT, useLocale } from "@/lib/i18n/client";
 import { formatTime } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn, fullName, relativeDay } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
 
 /**
  * 🔴 65.6 — THE LIST VIEW, BESIDE THE MAP.
@@ -152,7 +152,7 @@ export function RadarList({
             <span className="text-end sm:basis-24">
               <span className="block text-sm font-bold text-white tabular-nums">
                 {entry.sessionRateCents > 0
-                  ? formatUsd(entry.sessionRateCents)
+                  ? <Money cents={entry.sessionRateCents} />
                   : t("radar.free")}
               </span>
               <span className="block text-[10px] text-white/85">{t("radar.perHalfHour")}</span>

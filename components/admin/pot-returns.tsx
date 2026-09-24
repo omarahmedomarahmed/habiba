@@ -9,6 +9,7 @@ import {
   type AdminSponsorState,
 } from "@/app/(admin)/admin/sponsors/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 
 /**
  * 🔴 0148: money back out of a pot. One person asks; a different person makes
@@ -20,8 +21,8 @@ export function PotReturns({
   history,
 }: {
   sponsorId: string;
-  open: { id: string; creditLabel: string; egpLabel: string; reason: string } | null;
-  history: { id: string; line: string }[];
+  open: { id: string; netCents: number; egpMinor: number; reason: string } | null;
+  history: { id: string; day: string; state: string; egpMinor: number; reference: string | null }[];
 }) {
   const [asked, ask] = useActionState<AdminSponsorState, FormData>(askPotReturn, {});
   const [sent, send] = useActionState<AdminSponsorState, FormData>(sendAskedReturn, {});
@@ -33,7 +34,7 @@ export function PotReturns({
       {open ? (
         <div className="mt-2 space-y-2 text-sm text-slate-700">
           <p>
-            Asked: {open.creditLabel} credit, {open.egpLabel} to send. {open.reason}
+            Asked: <Money cents={open.netCents} /> credit, <Money cents={open.egpMinor} currency="EGP" /> to send. {open.reason}
           </p>
           <form action={send} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="returnId" value={open.id} />
@@ -72,7 +73,10 @@ export function PotReturns({
       {history.length > 0 ? (
         <ul className="mt-3 space-y-1 text-xs text-slate-500">
           {history.map((h) => (
-            <li key={h.id}>{h.line}</li>
+            <li key={h.id}>
+              {h.day} {h.state} <Money cents={h.egpMinor} currency="EGP" />
+              {h.reference ? ` · ${h.reference}` : ""}
+            </li>
           ))}
         </ul>
       ) : null}

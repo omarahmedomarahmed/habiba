@@ -1,5 +1,6 @@
 import "server-only";
 
+import { egpMinorFor, formatDisplay } from "@/lib/money/convert";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
@@ -90,15 +91,17 @@ export { platformFeeOn, sessionMoney, vatOn } from "@/lib/settings/defs";
 export function priceProblem(
   cents: number,
   bounds: { minPriceCents: number; maxPriceCents: number },
+  /** The operator's rate, so the bound is said in the pounds the price was typed in. */
+  rateMicro = 0,
 ): string | null {
-  if (!Number.isFinite(cents) || !Number.isInteger(cents)) return "Enter a whole dollar amount.";
+  const said = (usd: number) =>
+    rateMicro > 0
+      ? `${formatDisplay(egpMinorFor(usd, rateMicro), "EGP", "en-US")} (${formatDisplay(usd, "USD", "en-US")})`
+      : formatDisplay(usd, "USD", "en-US");
+  if (!Number.isFinite(cents) || !Number.isInteger(cents)) return "Enter a whole amount.";
   if (cents === 0) return null; // Free sessions are allowed and are the default.
-  if (cents < bounds.minPriceCents) {
-    return `The lowest chargeable price is $${(bounds.minPriceCents / 100).toFixed(2)}.`;
-  }
-  if (cents > bounds.maxPriceCents) {
-    return `The highest price we can process is $${(bounds.maxPriceCents / 100).toFixed(0)}.`;
-  }
+  if (cents < bounds.minPriceCents) return `The lowest chargeable price is ${said(bounds.minPriceCents)}.`;
+  if (cents > bounds.maxPriceCents) return `The highest price we can process is ${said(bounds.maxPriceCents)}.`;
   return null;
 }
 
@@ -107,8 +110,10 @@ export type ConnectAccount = {
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
   sessionRateCents: number;
-  /** 16.5 — the currency that rate is denominated in. */
+  /** 16.5 — the currency they price in. `sessionRateCents` is dollars whatever this says (0149). */
   rateCurrency: string;
+  /** 0149 — the pounds they typed, when they price in pounds. */
+  rateEgpMinor: number | null;
   autoSettleFromEarnings: boolean;
 };
 
@@ -120,6 +125,7 @@ export async function getConnectAccount(userId: string): Promise<ConnectAccount>
       payoutsEnabled: users.payoutsEnabled,
       sessionRateCents: users.sessionRateCents,
       rateCurrency: users.rateCurrency,
+      rateEgpMinor: users.rateEgpMinor,
       autoSettleFromEarnings: users.autoSettleFromEarnings,
     })
     .from(users)
@@ -132,7 +138,8 @@ export async function getConnectAccount(userId: string): Promise<ConnectAccount>
       chargesEnabled: false,
       payoutsEnabled: false,
       sessionRateCents: 0,
-      rateCurrency: "usd",
+      rateCurrency: "egp",
+      rateEgpMinor: null,
       autoSettleFromEarnings: true,
     }
   );

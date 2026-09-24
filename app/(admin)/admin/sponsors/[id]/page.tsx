@@ -5,7 +5,6 @@ import { desc, eq } from "drizzle-orm";
 
 import { Card, PageHeader } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatMoney } from "@/lib/billing/plans";
 import { potSpendAgrees, potTrace } from "@/lib/console/pot-trace";
 import { requireStaff } from "@/lib/auth/guard";
 import { ledgerPotBalance } from "@/lib/billing/pot";
@@ -185,21 +184,15 @@ export default async function SponsorProfilePage({
       {terms?.refundPolicy ? (
         <PotReturns
           sponsorId={id}
-          open={
-            asked
-              ? {
-                  id: asked.id,
-                  creditLabel: formatMoney(asked.netCents, "USD", "en-US"),
-                  egpLabel: formatMoney(asked.egpMinor, "EGP", "en-US"),
-                  reason: asked.reason,
-                }
-              : null
-          }
+          open={asked ? { id: asked.id, netCents: asked.netCents, egpMinor: asked.egpMinor, reason: asked.reason } : null}
           history={returns
             .filter((r) => r.state !== "requested")
             .map((r) => ({
               id: r.id,
-              line: `${r.createdAt.toISOString().slice(0, 10)} ${r.state} ${formatMoney(r.egpMinor, "EGP", "en-US")}${r.bankReference ? ` · ${r.bankReference}` : ""}`,
+              day: r.createdAt.toISOString().slice(0, 10),
+              state: r.state,
+              egpMinor: r.egpMinor,
+              reference: r.bankReference,
             }))}
         />
       ) : null}
@@ -222,7 +215,7 @@ export default async function SponsorProfilePage({
                         and an operator matches this against a bank statement.
                         A server component, so `formatMoney` is allowed here.
                       */}
-                      sent {formatMoney(p.amountCents, p.currency.toUpperCase(), "en-US")}
+                      sent <Money cents={p.amountCents} currency={p.currency.toUpperCase()} />
                     </span>
                   </p>
                   <p className="truncate text-xs text-slate-500">

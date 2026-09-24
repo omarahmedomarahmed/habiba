@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 
+import { MoneyDisplayProvider } from "@/components/money/display";
 import { SiteFooter, SiteHeader } from "@/components/public/site-chrome";
 import { env } from "@/lib/env";
 import { alternatesFor } from "@/lib/i18n/paths";
@@ -37,11 +38,14 @@ export async function generateMetadata(): Promise<Metadata> {
  * were typed inline and rendered in English on every Arabic page.
  */
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
+  /* The website quotes dollars and reveals the pounds; every signed-in screen is the other way round. */
   return (
-    <div className="flex min-h-dvh flex-col">
-      <SiteHeader />
-      <main className="flex-1">{children}</main>
-      <SiteFooter />
-    </div>
+    <MoneyDisplayProvider primary="USD">
+      <div className="flex min-h-dvh flex-col">
+        <SiteHeader />
+        <main className="flex-1">{children}</main>
+        <SiteFooter />
+      </div>
+    </MoneyDisplayProvider>
   );
 }

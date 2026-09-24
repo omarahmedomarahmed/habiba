@@ -18,7 +18,6 @@ import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { mayRunOrgAccount } from "@/lib/auth/org-authority";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";
-import { formatUsd } from "@/lib/billing/plans";
 import { currentSeatBill } from "@/lib/billing/seats";
 import { manualEntry, organizationNeedsTransfer } from "@/lib/billing/manual-entry";
 import { billLines } from "@/lib/billing/bill-lines";
@@ -31,6 +30,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { eq } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { organizations, users } from "@/lib/db/schema";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export const metadata: Metadata = { title: "Billing", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -177,7 +178,7 @@ export default async function BillingPage({
         {runsAccount && seatBill.seats > 0 ? (
           <SeatManager
             seats={seatBill.seats}
-            monthlyLabel={formatUsd(seatBill.monthlyCents)}
+            monthlyLabel={<Money cents={seatBill.monthlyCents} />}
             quoteSeats={quoteSeats}
             saveSeats={saveSeats}
           />
@@ -239,11 +240,11 @@ export default async function BillingPage({
           <>
             <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">
               {summary.outstandingCount === 1
-                ? t("transfer.billDueOne", { amount: formatUsd(summary.outstandingCents) })
-                : t("transfer.billDue", {
-                    amount: formatUsd(summary.outstandingCents),
+                ? rich(t("transfer.billDueOne", { amount: slot(0) }), [<Money cents={summary.outstandingCents} />])
+                : rich(t("transfer.billDue", {
+                    amount: slot(0),
                     count: String(summary.outstandingCount),
-                  })}
+                  }), [<Money cents={summary.outstandingCents} />])}
             </p>
             {/*
               🔴 76.10 — THE SAME SHEET A PATIENT AND A COMPANY SEE.
@@ -340,13 +341,13 @@ export default async function BillingPage({
             <span className="block text-sm font-semibold text-slate-900">{t("portal.billing.earnings")}</span>
             <span className="block truncate text-xs text-slate-500">
               {earnings.heldCents > 0
-                ? t("portal.billing.heldAndEarned", {
-                    held: formatUsd(earnings.heldCents),
-                    earned: formatUsd(earnings.thisMonthNetCents),
-                  })
-                : t("portal.billing.earnedThisMonth", {
-                    earned: formatUsd(earnings.thisMonthNetCents),
-                  })}
+                ? rich(t("portal.billing.heldAndEarned", {
+                    held: slot(0),
+                    earned: slot(1),
+                  }), [<Money cents={earnings.heldCents} />, <Money cents={earnings.thisMonthNetCents} />])
+                : rich(t("portal.billing.earnedThisMonth", {
+                    earned: slot(0),
+                  }), [<Money cents={earnings.thisMonthNetCents} />])}
             </span>
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />

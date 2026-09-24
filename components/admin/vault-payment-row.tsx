@@ -6,7 +6,6 @@ import { Undo2 } from "lucide-react";
 import { refundPatient } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 
 /**
  * One patient→therapist payment in the Vault, with the refund control inline.
@@ -60,7 +59,7 @@ export function VaultPaymentRow(props: {
           <span className="block truncate text-xs text-slate-500">
             {props.organizationName ?? "-"} · {props.when} · we kept <Money cents={ourCut} />
             {props.settledInvoiceCents > 0
-              ? ` · ${formatUsd(props.settledInvoiceCents)} of their bill settled`
+              ? <> · <Money cents={props.settledInvoiceCents} /> of their bill settled</>
               : ""}
           </span>
         </span>
@@ -141,7 +140,7 @@ export function VaultPaymentRow(props: {
                 })
               }
             >
-              {pending ? "Refunding…" : `Refund ${formatUsd(props.grossCents)}`}
+              {pending ? "Refunding…" : <>Refund <Money cents={props.grossCents} /></>}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
               Cancel

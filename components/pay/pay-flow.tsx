@@ -6,8 +6,9 @@ import { useT } from "@/lib/i18n/client";
 import { Globe, Loader2, ShieldCheck } from "lucide-react";
 
 import { priceFor, startPayment, type Breakdown } from "@/app/pay/[token]/actions";
-import { formatMoney } from "@/lib/billing/plans";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /**
  * Country, then price, then pay.
@@ -98,7 +99,6 @@ export function PayFlow({
    * payment screen, where the number is the whole point.
    */
   /** 19.4 — every figure on this screen, in the reader's language. */
-  const money = (cents: number, currency: string) => formatMoney(cents, currency, locale);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
@@ -154,7 +154,7 @@ export function PayFlow({
               <div className="flex justify-between gap-3">
                 <dt className="text-slate-600">{t("pay.session")}</dt>
                 <dd className="tabular-nums text-slate-900">
-                  {money(breakdown.presentedGrossCents, breakdown.currency)}
+                  <Money cents={breakdown.presentedGrossCents} currency={breakdown.currency} />
                 </dd>
               </div>
               {breakdown.vatCents > 0 ? (
@@ -166,25 +166,25 @@ export function PayFlow({
                     </span>
                   </dt>
                   <dd className="tabular-nums text-slate-900">
-                    {money(breakdown.presentedVatCents, breakdown.currency)}
+                    <Money cents={breakdown.presentedVatCents} currency={breakdown.currency} />
                   </dd>
                 </div>
               ) : null}
               <div className="flex justify-between gap-3 border-t border-slate-200 pt-1.5 font-semibold">
                 <dt className="text-slate-900">{t("pay.total")}</dt>
                 <dd className="tabular-nums text-slate-900">
-                  {money(breakdown.presentedTotalCents, breakdown.currency)}
+                  <Money cents={breakdown.presentedTotalCents} currency={breakdown.currency} />
                 </dd>
               </div>
             </dl>
 
             {breakdown.currency !== "usd" ? (
               <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                {t("pay.converted", {
-                  amount: money(breakdown.totalCents, "usd"),
+                {rich(t("pay.converted", {
+                  amount: slot(0),
                   rate: (breakdown.rateMicro / 1_000_000).toFixed(2),
                   currency: breakdown.currency.toUpperCase(),
-                })}
+                }), [<Money cents={breakdown.totalCents} />])}
                 {breakdown.rateSource === "static" ? (
                   <span className="mt-1 block text-amber-700">
                     {t("pay.indicative")}
@@ -235,7 +235,9 @@ export function PayFlow({
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t("pay.opening")}
             </>
           ) : breakdown ? (
-            t("pay.payAmount", { amount: money(breakdown.presentedTotalCents, breakdown.currency) })
+            rich(t("pay.payAmount", { amount: slot(0) }), [
+              <Money cents={breakdown.presentedTotalCents} currency={breakdown.currency} />,
+            ])
           ) : (
             t("pay.chooseToContinue")
           )}

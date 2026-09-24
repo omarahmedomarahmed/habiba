@@ -9,7 +9,6 @@ import { Money } from "@/components/ui/money";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";
-import { formatUsd } from "@/lib/billing/plans";
 import { listInvoices } from "@/lib/billing/service";
 import {
   therapistAiSpend,
@@ -114,8 +113,12 @@ export default async function TherapistDetailPage({
         <Stat label="Copilot questions" value={String(copilotAsked)} />
         <Stat
           label="Contribution"
-          value={formatUsd(revenue + earnings.platformFeesCents - aiTotal)}
-          sub={`${formatUsd(revenue + earnings.platformFeesCents)} in · ${formatUsd(aiTotal)} model spend`}
+          value={<Money cents={revenue + earnings.platformFeesCents - aiTotal} />}
+          sub={
+            <>
+              <Money cents={revenue + earnings.platformFeesCents} /> in · <Money cents={aiTotal} /> model spend
+            </>
+          }
         />
       </div>
 
@@ -213,7 +216,7 @@ export default async function TherapistDetailPage({
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <Card className="px-4 py-3.5">
       <p className="flex items-center gap-1.5 text-xs text-slate-500">

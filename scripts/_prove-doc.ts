@@ -143,7 +143,8 @@ export function document(): string[] {
       s.why,
       "",
       `The company covers **${String(t.coverageBps / 100)} per cent** and the pot was funded with ` +
-        `**${String(t.topUpCreditCents / 100)} dollars**. ` +
+        `**EGP ${(t.topUpCreditCents / 2).toLocaleString("en-US")}** ($${String(t.topUpCreditCents / 100)} at 50 to the dollar)` +
+        (t.welcomeCreditCents > 0 ? `, on top of a $${String(t.welcomeCreditCents / 100)} welcome credit. ` : ", with no welcome credit. ") +
         (t.enrolTheSecondPatient
           ? "Two people are on that pot."
           : "One person is on that pot, and one patient is enrolled nowhere."),

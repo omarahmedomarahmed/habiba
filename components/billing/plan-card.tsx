@@ -6,8 +6,8 @@ import { Check } from "lucide-react";
 import { cancelPlan, resumePlan, upgradeAndPay } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export type TierRow = {
   key: string;
@@ -243,7 +243,7 @@ export function PlanCard({
                 {t("tplan.endsOn", { date: endsOn })}
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-                {t("tplan.endsBody", { amount: formatUsd(platformFeeCents) })}
+                {rich(t("tplan.endsBody", { amount: slot(0) }), [<Money cents={platformFeeCents} />])}
               </p>
               <Button
                 full
@@ -258,8 +258,8 @@ export function PlanCard({
             <>
               <p className="text-sm font-semibold text-slate-900">
                 {renewsOn
-                  ? t("tplan.renewsOn", { date: renewsOn, amount: formatUsd(current.monthlyCents) })
-                  : t("tplan.renewsMonthly", { amount: formatUsd(current.monthlyCents) })}
+                  ? rich(t("tplan.renewsOn", { date: renewsOn, amount: slot(0) }), [<Money cents={current.monthlyCents} />])
+                  : rich(t("tplan.renewsMonthly", { amount: slot(0) }), [<Money cents={current.monthlyCents} />])}
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
                 {t("tplan.cancelKeepsMonth")}
@@ -330,13 +330,13 @@ export function PlanCard({
                   </span>
                   <span className="mt-1 block text-lg font-bold tracking-tight text-slate-900">
                     {tier.monthlyCents > 0
-                      ? t("tplan.monthlyEvery", { amount: formatUsd(tier.monthlyCents) })
-                      : t("tplan.paygPrice", { amount: formatUsd(platformFeeCents) })}
+                      ? rich(t("tplan.monthlyEvery", { amount: slot(0) }), [<Money cents={tier.monthlyCents} />])
+                      : rich(t("tplan.paygPrice", { amount: slot(0) }), [<Money cents={platformFeeCents} />])}
                   </span>
                   <span className="mt-1 block text-xs leading-relaxed text-slate-600">
                     {tier.monthlyCents > 0
                       ? t("tplan.unlimitedNoMeter")
-                      : t("tplan.aiRate", { amount: formatUsd(tier.aiRateCents) })}
+                      : rich(t("tplan.aiRate", { amount: slot(0) }), [<Money cents={tier.aiRateCents} />])}
                   </span>
                 </button>
               );
@@ -372,8 +372,8 @@ export function PlanCard({
                     <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-slate-600">
                       <li>
                         {up
-                          ? t("tplan.confirmCost", { amount: formatUsd(tier.monthlyCents) })
-                          : t("tplan.confirmDownCost", { amount: formatUsd(platformFeeCents) })}
+                          ? rich(t("tplan.confirmCost", { amount: slot(0) }), [<Money cents={tier.monthlyCents} />])
+                          : rich(t("tplan.confirmDownCost", { amount: slot(0) }), [<Money cents={platformFeeCents} />])}
                       </li>
                       <li>{up ? t("tplan.confirmMeter") : t("tplan.confirmDownMeter")}</li>
                       <li>{t("tplan.confirmCancel")}</li>

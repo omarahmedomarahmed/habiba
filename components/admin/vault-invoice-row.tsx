@@ -7,7 +7,6 @@ import { Percent } from "lucide-react";
 import { applyInvoiceDiscount, applyUpcomingDiscount } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 
 /**
  * One invoice in the Vault, with the discount controls inline.
@@ -55,7 +54,7 @@ export function VaultInvoiceRow(props: {
           </span>
           <span className="block truncate text-xs text-slate-500">
             {props.organizationName} · {props.issuedAt}
-            {applied > 0 ? ` · ${formatUsd(applied)} discounted` : ""}
+            {applied > 0 ? <> · <Money cents={applied} /> discounted</> : ""}
           </span>
         </span>
 

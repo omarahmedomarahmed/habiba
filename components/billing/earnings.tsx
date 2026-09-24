@@ -7,8 +7,8 @@ import { ArrowUpRight, Banknote, Clock, Wallet } from "lucide-react";
 import { openPayoutDashboard, payOutNow, type SettingsState } from "@/app/(app)/settings/actions";
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export type EarningsProps = {
   connected: boolean;
@@ -69,7 +69,7 @@ export function EarningsCard(props: EarningsProps) {
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">
-                  {t("tearn.waiting", { amount: formatUsd(props.heldCents) })}
+                  {rich(t("tearn.waiting", { amount: slot(0) }), [<Money cents={props.heldCents} />])}
                 </p>
                 <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
                   {t("tearn.waitingBody")}
@@ -120,16 +120,19 @@ export function EarningsCard(props: EarningsProps) {
           </span>
 
           <p className="mt-3 text-3xl font-bold tracking-tight">
-            {props.availableCents === null ? "-" : formatUsd(props.availableCents)}
+            {props.availableCents === null ? "-" : <Money cents={props.availableCents} />}
           </p>
           <p className="mt-0.5 text-sm text-navy-600/80">
             {props.availableCents === null
               ? t("tearn.unavailable")
-              : `${t("tearn.availableNow")}${
-                  props.pendingCents
-                    ? ` · ${t("tearn.clearing", { amount: formatUsd(props.pendingCents) })}`
-                    : ""
-                }`}
+              : (
+                  <>
+                    {t("tearn.availableNow")}
+                    {props.pendingCents ? (
+                      <> · {rich(t("tearn.clearing", { amount: slot(0) }), [<Money cents={props.pendingCents} />])}</>
+                    ) : null}
+                  </>
+                )}
           </p>
 
           <dl className="mt-5 grid grid-cols-2 gap-3">
@@ -153,7 +156,7 @@ export function EarningsCard(props: EarningsProps) {
               <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" aria-hidden />
               <div className="min-w-0">
                 <p className="text-sm font-semibold">
-                  {t("tearn.heldBy", { amount: formatUsd(props.heldCents) })}
+                  {rich(t("tearn.heldBy", { amount: slot(0) }), [<Money cents={props.heldCents} />])}
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-navy-600/80">
                   {t("tearn.heldBody")}
@@ -194,15 +197,15 @@ export function EarningsCard(props: EarningsProps) {
 
         <div className="border-t border-navy-600/15 px-5 py-3 text-xs text-navy-600/80">
           {props.settledFromEarningsCents > 0
-            ? t("tearn.lifetimeSettled", {
-                net: formatUsd(props.lifetimeNetCents),
-                fees: formatUsd(props.platformFeesCents),
-                settled: formatUsd(props.settledFromEarningsCents),
-              })
-            : t("tearn.lifetime", {
-                net: formatUsd(props.lifetimeNetCents),
-                fees: formatUsd(props.platformFeesCents),
-              })}
+            ? rich(t("tearn.lifetimeSettled", {
+                net: slot(0),
+                fees: slot(1),
+                settled: slot(2),
+              }), [<Money cents={props.lifetimeNetCents} />, <Money cents={props.platformFeesCents} />, <Money cents={props.settledFromEarningsCents} />])
+            : rich(t("tearn.lifetime", {
+                net: slot(0),
+                fees: slot(1),
+              }), [<Money cents={props.lifetimeNetCents} />, <Money cents={props.platformFeesCents} />])}
         </div>
       </div>
     </div>

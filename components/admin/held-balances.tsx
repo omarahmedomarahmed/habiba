@@ -7,7 +7,6 @@ import { AlertTriangle, Send, ShieldCheck } from "lucide-react";
 import { releaseTherapistEarnings } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { fullName } from "@/lib/utils";
 
 export type HeldRow = {
@@ -99,7 +98,7 @@ export function HeldBalances({
 
 function HeldRowItem({ row }: { row: HeldRow }) {
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -144,7 +143,7 @@ function HeldRowItem({ row }: { row: HeldRow }) {
               setError(null);
               setMessage(null);
               const result = await releaseTherapistEarnings(row.therapistId, reason);
-              if (!result.error) setMessage(`Released ${formatUsd(result.movedCents ?? 0)}`);
+              if (!result.error) setMessage(<>Released <Money cents={result.movedCents ?? 0} /></>);
               return result;
             }}
           />

@@ -25,7 +25,6 @@ import {
 import type { RadarEntry } from "@/components/radar/types";
 import { Button, Card, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import type { CommandRow, CommandView } from "@/lib/data/radar-admin";
 import { countryFlag, countryName, languageFlag } from "@/lib/geo";
@@ -182,7 +181,7 @@ export function RadarCommand({
         <Stat label="Being booked" value={t.booking} tone="amber" />
         <Stat label="In session" value={t.inSession} tone="brand" />
         <Stat label="Countries" value={t.countries} />
-        <Stat label="Our cut · 30d" value={formatUsd(t.feeCents30d)} tone="teal" />
+        <Stat label="Our cut · 30d" value={<Money cents={t.feeCents30d} />} tone="teal" />
         <Stat
           label="Open reports"
           value={t.openReports}
@@ -345,7 +344,7 @@ export function RadarCommand({
                   </Td>
                   <Td className="text-end tabular-nums text-slate-600">{row.sessions30d}</Td>
                   <Td className="text-end tabular-nums font-medium text-slate-900">
-                    {row.feeCents30d > 0 ? formatUsd(row.feeCents30d) : "-"}
+                    {row.feeCents30d > 0 ? <Money cents={row.feeCents30d} /> : "-"}
                   </Td>
                   <Td>
                     <Controls row={row} />
@@ -391,7 +390,7 @@ function Stat({
   pulse,
 }: {
   label: string;
-  value: number | string;
+  value: React.ReactNode;
   tone?: "teal" | "amber" | "brand" | "red";
   pulse?: boolean;
 }) {
@@ -625,7 +624,7 @@ function Detail({
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <Row label="Rate">{row.sessionRateCents > 0 ? formatUsd(row.sessionRateCents) : "Free"}</Row>
+          <Row label="Rate">{row.sessionRateCents > 0 ? <Money cents={row.sessionRateCents} /> : "Free"}</Row>
           <Row label="Payouts">{row.chargesEnabled ? "Connected" : "Not connected"}</Row>
           <Row label="Sessions 30d">{row.sessions30d}</Row>
           <Row label="Gross 30d"><Money cents={row.grossCents30d} /></Row>

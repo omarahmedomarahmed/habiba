@@ -15,11 +15,11 @@ import {
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
-import { formatUsd } from "@/lib/billing/plans";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn } from "@/lib/utils";
 import { PatientRoom, type Therapist } from "@/components/join/patient-room";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
+import { rich, slot } from "@/lib/i18n/rich";
 
 const INITIAL: JoinState = {};
 
@@ -35,7 +35,7 @@ function Submit({ priceCents }: { priceCents: number }) {
           ? t("join.openingCheckout")
           : t("join.joining")
         : paid
-          ? t("join.submitPaid", { amount: formatUsd(priceCents) })
+          ? rich(t("join.submitPaid", { amount: slot(0) }), [<Money cents={priceCents} />])
           : t("join.submitFree")}
     </Button>
   );

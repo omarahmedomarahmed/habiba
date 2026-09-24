@@ -25,7 +25,6 @@ import {
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import type { NoteContent } from "@/lib/db/schema";
-import { formatUsd } from "@/lib/billing/plans";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -356,7 +355,7 @@ function Now({
                 <span className="block truncate text-xs text-slate-500">
                   {row.email}
                   {row.where ? ` · ${row.where}` : ""}
-                  {row.sessionRateCents > 0 ? ` · ${formatUsd(row.sessionRateCents)}` : " · free"}
+                  {row.sessionRateCents > 0 ? <> · <Money cents={row.sessionRateCents} /></> : " · free"}
                 </span>
               </span>
               {row.demo ? <Badge tone="slate">Fixture</Badge> : null}

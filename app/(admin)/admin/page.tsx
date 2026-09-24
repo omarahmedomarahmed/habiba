@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { requireRole } from "@/lib/auth/guard";
-import { formatUsd } from "@/lib/billing/plans";
 import { aiUsageByDay, platformStats } from "@/lib/data/admin";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false } };

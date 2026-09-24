@@ -12,7 +12,6 @@ import {
   usageByKind,
   usageByTherapist,
 } from "@/lib/data/usage";
-import { formatUsd } from "@/lib/billing/plans";
 import { fullName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Usage", robots: { index: false } };
@@ -103,7 +102,7 @@ export default async function AdminUsagePage() {
         <Stat label="Cost per session" value={formatMicrocents(perSession.perSessionMicrocents)} />
         <Stat label="Sessions with AI" value={String(perSession.sessions)} />
         <Stat label="Model spend" value={formatMicrocents(totalMicrocents)} />
-        <Stat label="Our fees" value={formatUsd(totalFees)} tone="teal" />
+        <Stat label="Our fees" value={<Money cents={totalFees} />} tone="teal" />
       </div>
 
       {/*
@@ -245,7 +244,7 @@ export default async function AdminUsagePage() {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "teal" }) {
+function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "teal" }) {
   return (
     <Card className="p-4">
       <p className="text-xs text-slate-500">{label}</p>

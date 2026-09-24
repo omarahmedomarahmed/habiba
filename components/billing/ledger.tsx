@@ -12,9 +12,9 @@ import {
 import { payInvoices } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export type LedgerInvoice = {
   id: string;
@@ -215,11 +215,9 @@ export function BillingLedger({
                       </span>
                       <span className="block text-xs text-slate-500">
                         {invoice.issuedAt}
-                        {invoice.discountCents > 0
-                          ? ` · ${t("tled.creditApplied", {
-                              amount: formatUsd(invoice.discountCents),
-                            })}`
-                          : ""}
+                        {invoice.discountCents > 0 ? (
+                          <> · {rich(t("tled.creditApplied", { amount: slot(0) }), [<Money cents={invoice.discountCents} />])}</>
+                        ) : null}
                       </span>
                     </span>
                     <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
@@ -253,8 +251,8 @@ export function BillingLedger({
               {pending
                 ? t("tled.openingCheckout")
                 : selected.size === 1
-                  ? t("tled.payOne", { amount: formatUsd(total) })
-                  : t("tled.payMany", { amount: formatUsd(total), count: selected.size })}
+                  ? rich(t("tled.payOne", { amount: slot(0) }), [<Money cents={total} />])
+                  : rich(t("tled.payMany", { amount: slot(0), count: selected.size }), [<Money cents={total} />])}
             </Button>
           </div>
         </Card>
@@ -316,10 +314,10 @@ export function BillingLedger({
                         )}
                       >
                         {entry.kind === "payment"
-                          ? `+${formatUsd(entry.payment.therapistNetCents)}`
+                          ? <>+<Money cents={entry.payment.therapistNetCents} /></>
                           : entry.invoice.amountCents === 0
                             ? t("tled.free")
-                            : `−${formatUsd(Math.max(0, entry.invoice.amountCents - entry.invoice.discountCents))}`}
+                            : <>−<Money cents={Math.max(0, entry.invoice.amountCents - entry.invoice.discountCents)} /></>}
                       </span>
                     </span>
 
@@ -381,7 +379,7 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
       {invoice.periodStart && invoice.periodEnd ? (
         <Line label={t("tled.period")} value={`${invoice.periodStart} → ${invoice.periodEnd}`} />
       ) : null}
-      <Line label={t("tled.amount")} value={formatUsd(invoice.amountCents)} />
+      <Line label={t("tled.amount")} value={<Money cents={invoice.amountCents} />} />
       {invoice.discountCents > 0 ? (
         <Line
           label={t("tled.credit")}
@@ -395,7 +393,7 @@ function InvoiceDetail({ invoice }: { invoice: LedgerInvoice }) {
       ) : null}
       <Line
         label={t("tled.youPaid")}
-        value={<span className="font-semibold">{invoice.paidAt ? formatUsd(payable) : "-"}</span>}
+        value={<span className="font-semibold">{invoice.paidAt ? <Money cents={payable} /> : "-"}</span>}
       />
       {invoice.paidAt ? <Line label={t("tled.settled")} value={invoice.paidAt} /> : null}
 
@@ -465,7 +463,7 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
         label={t("tled.payment")}
         value={<span className="font-mono text-xs">{payment.id.slice(0, 8)}</span>}
       />
-      <Line label={t("tled.patientPaid")} value={formatUsd(payment.grossCents)} />
+      <Line label={t("tled.patientPaid")} value={<Money cents={payment.grossCents} />} />
       <Line
         label={t("tled.fee")}
         value={<span className="text-slate-500">−<Money cents={ourFee} /></span>}

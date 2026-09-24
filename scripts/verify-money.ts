@@ -151,23 +151,32 @@ function main() {
   );
 
   /*
-   * 🔴 THE BROWSER NEVER CONVERTS, and that is the half a screenshot cannot
-   * show. The rate is an operator's setting and changes the afternoon the pound
-   * moves; a component that could compute the pounds could show a figure we
-   * would not honour. It asks the server and renders the answer.
+   * 🔴 THE RATE IS THE SERVER'S, AND THE ARITHMETIC IS THE ONE THE PAYMENT USES.
+   *
+   * Pounds now lead on every signed-in screen, so every figure converts at
+   * render rather than on a hover. What must still hold is the point of the
+   * old rule: no screen invents a rate. The rate arrives with the page from
+   * the operator's setting (root layout), and the component converts only
+   * through `moneyLabels`, whose `egpMinorFor` is the same function a transfer
+   * and a card are asked for with.
    */
   const money = readSource("components/ui/money.tsx");
+  const root = readSource("app/layout.tsx");
   check(
-    "🔴 the pounds come from the server, and the component does no arithmetic",
-    /egpFor\(cents\)/.test(money) &&
-      !/egpRateMicro|rateMicro|\* *1_000_000|\/ *1_000_000/.test(money),
-    "a browser that can compute the rate can show one we would not honour",
+    "🔴 the rate comes from the operator's setting with the page, and the component converts only through the shared function",
+    /moneyLabels\(/.test(money) && /useMoneyDisplay\(\)/.test(money) &&
+      !/\d{2}_?000_?000|egpRateMicro/.test(money) &&
+      /egpRateMicro\(\)/.test(root) && /MoneyDisplayProvider primary="EGP" rateMicro=\{rateMicro\}/.test(root) &&
+      /export \{ egpMinorFor \} from "@\/lib\/money\/convert"/.test(readSource("lib/billing/manual.ts")),
+    "a browser that could pick its own rate could show a figure we would not honour",
   );
 
   check(
-    "🔴 …and nothing is converted until somebody asks",
-    !/useEffect\([^)]*\{\s*egpFor/.test(money) && /setTimeout\(reveal/.test(money),
-    "a table of forty prices must cost forty conversions only if forty questions are asked",
+    "🔴 …pounds lead for everybody using the product; dollars lead on the website and the console, whose switch is the console's alone",
+    /primary="USD"/.test(readSource("app/(public)/layout.tsx")) &&
+      /adminCurrencyFrom\(/.test(readSource("app/(admin)/layout.tsx")) &&
+      /requireStaff\(\)/.test(readSource("app/actions/admin-currency.ts")),
+    "the founder's rule: users read EGP, the website and staff read USD, and a staff switch changes no user's screen",
   );
 
   check(

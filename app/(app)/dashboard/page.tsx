@@ -8,12 +8,13 @@ import { billingSummary } from "@/lib/billing/service";
 import { unreadNotifications } from "@/lib/data/notifications";
 import { getRadarProfile } from "@/lib/data/radar";
 import { countOpenDrafts, listSessions } from "@/lib/data/sessions";
-import { formatUsd } from "@/lib/billing/plans";
 import { fullName, relativeDay } from "@/lib/utils";
 import { formatDay, resolveZone } from "@/lib/scheduling/tz";
 import { getI18n } from "@/lib/i18n/server";
 import { getCountries } from "@/lib/settings";
 import { radarProblem } from "@/lib/settings/defs";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export const metadata: Metadata = { title: "Home", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -243,9 +244,9 @@ export default async function DashboardPage() {
                 {billing.sessionsThisMonth === 1
                   ? t("portal.dash.monthOne")
                   : t("portal.dash.monthMany", { count: billing.sessionsThisMonth })}
-                {billing.outstandingCents > 0
-                  ? ` · ${t("portal.dash.outstanding", { amount: formatUsd(billing.outstandingCents) })}`
-                  : ""}
+                {billing.outstandingCents > 0 ? (
+                  <> · {rich(t("portal.dash.outstanding", { amount: slot(0) }), [<Money cents={billing.outstandingCents} />])}</>
+                ) : null}
               </span>
             </span>
             <ChevronRight className="h-4 w-4 text-slate-300" aria-hidden />

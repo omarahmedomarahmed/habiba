@@ -6,7 +6,6 @@ import { VaultInvoiceRow } from "@/components/admin/vault-invoice-row";
 import { VaultPaymentRow } from "@/components/admin/vault-payment-row";
 import { Badge, Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
-import { formatUsd } from "@/lib/billing/plans";
 import {
   allInvoices,
   allSessionPayments,
@@ -383,23 +382,21 @@ export default async function VaultPage() {
           <Stat label="Sessions (7d)" value={String(traction.sessionsLast7)} />
           <Stat label="Sessions (30d)" value={String(traction.sessionsLast30)} />
           <Stat label="Paying practices" value={String(traction.payingOrgs)} />
-          <Stat label="MRR" value={formatUsd(traction.mrrCents)} sub="subscriptions only" />
-          <Stat label="ARPU (30d)" value={formatUsd(traction.arpuCents)} sub="per activated" />
+          <Stat label="MRR" value={<UsdMoney cents={traction.mrrCents} />} sub="subscriptions only" />
+          <Stat label="ARPU (30d)" value={<UsdMoney cents={traction.arpuCents} />} sub="per activated" />
           <Stat
             label="Revenue / session"
-            value={formatUsd(traction.revenuePerSessionCents)}
+            value={<UsdMoney cents={traction.revenuePerSessionCents} />}
             sub="30d"
           />
           <Stat
             label="Model cost / session"
-            value={formatUsd(traction.costPerSessionCents)}
+            value={<UsdMoney cents={traction.costPerSessionCents} />}
             sub="30d"
           />
           <Stat
             label="Contribution / session"
-            value={formatUsd(
-              traction.revenuePerSessionCents - traction.costPerSessionCents,
-            )}
+            value={<UsdMoney cents={traction.revenuePerSessionCents - traction.costPerSessionCents} />}
             sub="30d"
           />
         </div>
@@ -598,7 +595,7 @@ function Swatch({ className }: { className: string }) {
   return <span className={`me-1.5 inline-block h-2 w-2 rounded-sm align-[1px] ${className}`} />;
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <Card className="px-4 py-3.5">
       <p className="text-xs text-slate-500">{label}</p>

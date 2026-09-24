@@ -14,7 +14,6 @@ import {
 } from "@/components/admin/settings-editor";
 import { Card, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
-import { formatUsd } from "@/lib/billing/plans";
 import { tractionMetrics } from "@/lib/data/vault";
 import { getCountries, getSettings } from "@/lib/settings";
 import { hasNoRail } from "@/lib/settings/defs";
@@ -24,6 +23,7 @@ import { documentsNeedingAttention } from "@/lib/billing/eta/issue";
 import { EtaIssuerEditor } from "@/components/admin/eta-issuer-editor";
 import { retryEtaDocuments } from "./actions";
 import { countriesMissingACrisisLine } from "@/lib/crisis/line";
+import { Money } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -99,9 +99,9 @@ export default async function SettingsPage() {
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">Margin per session, last 30 days</p>
         <dl className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Revenue" value={formatUsd(traction.revenuePerSessionCents)} />
-          <Stat label="Model cost" value={formatUsd(traction.costPerSessionCents)} />
-          <Stat label="Margin" value={formatUsd(traction.marginPerSessionCents)} strong />
+          <Stat label="Revenue" value={<Money cents={traction.revenuePerSessionCents} />} />
+          <Stat label="Model cost" value={<Money cents={traction.costPerSessionCents} />} />
+          <Stat label="Margin" value={<Money cents={traction.marginPerSessionCents} />} strong />
           <Stat
             label="Margin %"
             value={
@@ -277,7 +277,7 @@ export default async function SettingsPage() {
   );
 }
 
-function Stat({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Stat({ label, value, strong }: { label: string; value: React.ReactNode; strong?: boolean }) {
   return (
     <div>
       <dt className="text-xs text-slate-500">{label}</dt>

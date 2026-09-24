@@ -21,6 +21,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export const metadata: Metadata = { title: "Your pot", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -93,12 +95,7 @@ export default async function SponsorPotPage() {
     companyTaxDetails(actor.sponsorId),
     documentsFor(actor.sponsorId),
   ]);
-  const egp = (minor: number) =>
-    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
-      style: "currency",
-      currency: "EGP",
-      maximumFractionDigits: 2,
-    }).format(minor / 100);
+  const egp = (minor: number) => <Money cents={minor} currency={"EGP"} />;
 
   /* 65.12 — the meter's denominator, and it is the figure the sponsor last authorised. */
   const lastTopUpCents = history[0]?.amountCents ?? 0;
@@ -123,12 +120,7 @@ export default async function SponsorPotPage() {
       })
     : null;
 
-  const fmt = (cents: number) =>
-    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(cents / 100);
+  const fmt = (cents: number) => <Money cents={cents} />;
 
   /* W2-S08: the pot stops paying on its date; say so before, and after. */
   const expiry = expiryState(terms?.expiresAt ?? null);
@@ -169,7 +161,7 @@ export default async function SponsorPotPage() {
             usedLabel={fmt(pot.balanceCents)}
             ofLabel={
               lastTopUpCents > 0
-                ? t("sponsor.ofLastTopUp", { amount: fmt(lastTopUpCents) })
+                ? rich(t("sponsor.ofLastTopUp", { amount: slot(0) }), [fmt(lastTopUpCents)])
                 : t("sponsor.balance")
             }
             /* Spent, not remaining: the tone ladder in `Meter` runs red as it fills. */
@@ -231,7 +223,7 @@ export default async function SponsorPotPage() {
           live={rail.live}
           action={declarePotTransfer}
           askAmount
-          minimumLabel={fmt(settings.sponsor.minTopUpCents)}
+          minimumCents={settings.sponsor.minTopUpCents}
           rateLabel={rail.rateLabel}
           steps={ladder?.steps}
           onChoose={openPotPayment}
@@ -241,7 +233,7 @@ export default async function SponsorPotPage() {
       {terms?.refundPolicy && terms.expiresAt && !rail.needed ? (
         actor.role === "admin" ? (
           <TopUpForm
-            minimumLabel={fmt(settings.sponsor.minTopUpCents)}
+            minimumCents={settings.sponsor.minTopUpCents}
             terms={{
               refundPolicy: terms.refundPolicy,
               expiresLabel: day(terms.expiresAt),

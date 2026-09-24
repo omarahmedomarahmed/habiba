@@ -24,7 +24,9 @@ export async function GET(
 
   if (!record) return gone();
 
-  return new NextResponse(renderExportHtml(record, `/records/${token}/data.json`), {
+  const { egpRateMicro } = await import("@/lib/billing/manual");
+  const rateMicro = await egpRateMicro().catch(() => 0);
+  return new NextResponse(renderExportHtml(record, `/records/${token}/data.json`, rateMicro), {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       // Never cached anywhere but the reader's own tab.

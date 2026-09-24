@@ -276,10 +276,9 @@ export async function quoteSeats(
     quote: {
       fromSeats: change.fromSeats,
       toSeats: change.toSeats,
-      fromMonthlyLabel: formatUsd(change.fromMonthlyCents),
-      toMonthlyLabel: formatUsd(change.toMonthlyCents),
+      fromMonthlyCents: change.fromMonthlyCents,
+      toMonthlyCents: change.toMonthlyCents,
       /* 🔴 The absolute value, because the words above it say which direction. */
-      proratedLabel: formatUsd(Math.abs(change.proratedCents)),
       proratedCents: change.proratedCents,
       daysRemaining: change.daysRemaining,
     },

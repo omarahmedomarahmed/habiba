@@ -13,9 +13,9 @@ import {
 } from "@/app/(app)/settings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { FlowStrip, SplitBar } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 const INITIAL: SettingsState = {};
 
@@ -208,10 +208,10 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             */}
             {manualRail
               ? state.heldCents > 0
-                ? t("tpay.egHolding", { amount: formatUsd(state.heldCents) })
+                ? rich(t("tpay.egHolding", { amount: slot(0) }), [<Money cents={state.heldCents} />])
                 : t("tpay.egRail")
               : state.heldCents > 0
-                ? t("tpay.holding", { amount: formatUsd(state.heldCents) })
+                ? rich(t("tpay.holding", { amount: slot(0) }), [<Money cents={state.heldCents} />])
                 : state.payoutsEnabled
                   ? t("tpay.enabled")
                   : t("tpay.notEnabled")}
@@ -371,7 +371,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
               <Button disabled={pending} onClick={() => run(payOutNow)}>
                 {pending
                   ? t("tpay.requesting")
-                  : t("tpay.payOut", { amount: formatUsd(state.availableCents ?? 0) })}
+                  : rich(t("tpay.payOut", { amount: slot(0) }), [<Money cents={state.availableCents ?? 0} />])}
               </Button>
             ) : null}
             <Button variant="secondary" disabled={pending} onClick={() => run(openPayoutDashboard)}>
@@ -466,9 +466,9 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <SplitBar
               parts={[
-                { label: `${t("tpay.youKeep")} ${formatUsd(keep)}`, value: keep, kind: "keep" },
+                { label: <>{t("tpay.youKeep")} <Money cents={keep} /></>, value: keep, kind: "keep" },
                 {
-                  label: `${t("tpay.fee", { percent: (state.feeBps / 100).toFixed(0) })} ${formatUsd(cut)}`,
+                  label: <>{t("tpay.fee", { percent: (state.feeBps / 100).toFixed(0) })} <Money cents={cut} /></>,
                   value: cut,
                   kind: "fee",
                 },
@@ -490,9 +490,9 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             </span>
             <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
               {t("tpay.autoSettleBody")}
-              {state.outstandingCents > 0
-                ? ` ${t("tpay.owedNow", { amount: formatUsd(state.outstandingCents) })}`
-                : ""}
+              {state.outstandingCents > 0 ? (
+                <> {rich(t("tpay.owedNow", { amount: slot(0) }), [<Money cents={state.outstandingCents} />])}</>
+              ) : null}
             </span>
           </span>
         </label>

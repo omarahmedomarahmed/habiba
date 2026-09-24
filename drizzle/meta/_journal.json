@@ -974,6 +974,13 @@
       "when": 1789966034000,
       "tag": "0148_money_back_from_a_pot",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1789966035000,
+      "tag": "0149_a_price_in_pounds_stays_in_pounds",
+      "breakpoints": true
     }
   ]
 }

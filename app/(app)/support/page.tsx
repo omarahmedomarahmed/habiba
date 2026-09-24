@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { payoutRequests, sessions, supportTickets } from "@/lib/db/schema";
+import { moneyText } from "@/lib/money/text";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -81,10 +82,13 @@ export default async function TherapistSupportPage() {
             id: row.id,
             label: formatDate(row.at ?? row.createdAt, actor.timezone, locale),
           }))}
-          payouts={payouts.map((row) => ({
-            id: row.id,
-            label: `$${(row.amountCents / 100).toFixed(2)} · ${row.status} · ${formatDate(row.requestedAt, actor.timezone, locale)}`,
-          }))}
+          payouts={await Promise.all(
+            payouts.map(async (row) => ({
+              id: row.id,
+              /* A choice in a list, so text: pounds, with the dollars beside them. */
+              label: `${await moneyText(row.amountCents)} · ${row.status} · ${formatDate(row.requestedAt, actor.timezone, locale)}`,
+            })),
+          )}
           mine={mine.map((row) => ({
             reference: row.reference,
             topic: row.topic,

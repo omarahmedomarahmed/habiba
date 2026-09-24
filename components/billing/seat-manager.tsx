@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 
+import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 import { Button, Card } from "@/components/ui";
 
@@ -11,9 +13,8 @@ export type SeatState = { error?: string; ok?: boolean };
 export type SeatQuote = {
   fromSeats: number;
   toSeats: number;
-  fromMonthlyLabel: string;
-  toMonthlyLabel: string;
-  proratedLabel: string;
+  fromMonthlyCents: number;
+  toMonthlyCents: number;
   proratedCents: number;
   daysRemaining: number;
 };
@@ -52,7 +53,7 @@ export function SeatManager({
   saveSeats,
 }: {
   seats: number;
-  monthlyLabel: string;
+  monthlyLabel: React.ReactNode;
   maxSeats?: number;
   quoteSeats: (toSeats: number) => Promise<{ quote?: SeatQuote; error?: string }>;
   saveSeats: (fromSeats: number, toSeats: number) => Promise<SeatState>;
@@ -82,7 +83,7 @@ export function SeatManager({
       <p className="mt-1 text-sm text-slate-600">
         {seats === 0
           ? t("seats.solo")
-          : t("seats.now", { count: seats, monthly: monthlyLabel })}
+          : rich(t("seats.now", { count: seats, monthly: slot(0) }), [monthlyLabel])}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -107,11 +108,16 @@ export function SeatManager({
       {quote ? (
         <div className="mt-4 rounded-xl bg-slate-50 p-4">
           <p className="text-sm text-slate-700">
-            {t("seats.quote", { count: quote.toSeats, to: quote.toMonthlyLabel, from: quote.fromMonthlyLabel })}
+            {rich(t("seats.quote", { count: quote.toSeats, to: slot(0), from: slot(1) }), [
+              <Money cents={quote.toMonthlyCents} />,
+              <Money cents={quote.fromMonthlyCents} />,
+            ])}
           </p>
           <p className="mt-1 text-sm text-slate-700">
             {quote.proratedCents > 0 ? (
-              t("seats.payNow", { amount: quote.proratedLabel, days: quote.daysRemaining })
+              rich(t("seats.payNow", { amount: slot(0), days: quote.daysRemaining }), [
+                <Money cents={Math.abs(quote.proratedCents)} />,
+              ])
             ) : quote.proratedCents < 0 ? (
               t("seats.noRefund")
             ) : (

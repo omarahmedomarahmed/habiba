@@ -30,6 +30,10 @@ import {
 
 import { landingFor, mayOpen } from "@/lib/admin/access";
 import { requireStaff } from "@/lib/auth/guard";
+import { cookies } from "next/headers";
+import { CurrencySwitch } from "@/components/admin/currency-switch";
+import { MoneyDisplayProvider } from "@/components/money/display";
+import { ADMIN_CURRENCY_COOKIE, adminCurrencyFrom } from "@/lib/money/admin-currency";
 import { getI18n } from "@/lib/i18n/server";
 import { openChanges } from "@/lib/data/phone-change";
 import { ticketCounts } from "@/lib/data/support";
@@ -136,7 +140,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/actuals", icon: Wallet, label: t("anav.actuals") },
   ];
 
+  /* The console leads with dollars, or pounds if this operator switched. Nobody else's screen changes. */
+  const currency = adminCurrencyFrom((await cookies()).get(ADMIN_CURRENCY_COOKIE)?.value);
+
   return (
+    <MoneyDisplayProvider primary={currency}>
     <div className="min-h-dvh">
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       <LanguageCorner />
@@ -145,9 +153,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href={landingFor(actor.role)} className="text-[15px] font-bold tracking-tight text-white">
             24Therapy <span className="font-normal text-white/50">admin</span>
           </Link>
-          <Link href="/dashboard" className="text-xs font-medium text-white/70 hover:text-white">
-            Back to portal
-          </Link>
+          <div className="flex items-center gap-3">
+            <CurrencySwitch current={currency} />
+            <Link href="/dashboard" className="text-xs font-medium text-white/70 hover:text-white">
+              Back to portal
+            </Link>
+          </div>
         </div>
 
         {/*
@@ -187,6 +198,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{children}</main>
     </div>
+    </MoneyDisplayProvider>
   );
 }
 

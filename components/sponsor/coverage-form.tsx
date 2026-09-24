@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { setCoveragePercent, type CoverageState } from "@/app/(sponsor)/sponsor/pot/actions";
 import { Button, Card } from "@/components/ui";
+import { Money } from "@/components/ui/money";
 
 const INITIAL: CoverageState = {};
 
@@ -122,9 +123,9 @@ export function CoverageForm({
             ) : (
               <>
                 At {draft}% you pay{" "}
-                <strong className="text-slate-900">{fmtUsd((sessionPriceUsd * draft) / 100)}</strong>{" "}
-                of a {fmtUsd(sessionPriceUsd)} session, so your balance of{" "}
-                <strong className="text-slate-900">{fmtUsd(balanceUsd)}</strong> covers about{" "}
+                <strong className="text-slate-900"><Money cents={Math.round(((sessionPriceUsd * draft) / 100) * 100)} /></strong>{" "}
+                of a <Money cents={Math.round(sessionPriceUsd * 100)} /> session, so your balance of{" "}
+                <strong className="text-slate-900"><Money cents={Math.round(balanceUsd * 100)} /></strong> covers about{" "}
                 <strong className="text-slate-900">
                   {Math.floor(balanceUsd / ((sessionPriceUsd * draft) / 100))} sessions
                 </strong>
@@ -184,18 +185,6 @@ export function CoverageForm({
   );
 }
 
-/**
- * Whole dollars, grouped by hand.
- *
- * 🔴 C84: `toLocaleString` is banned in a client file, and an explicit `"en-US"`
- * is banned with it, because it is indistinguishable in a diff from the
- * `undefined` that means "ask whatever machine is running this". A finance team
- * reads round numbers, so no cents either.
- */
-function fmtUsd(n: number): string {
-  const whole = String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `$${whole}`;
-}
 
 function Save() {
   const { pending } = useFormStatus();

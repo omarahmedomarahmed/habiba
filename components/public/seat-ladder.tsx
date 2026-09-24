@@ -8,7 +8,7 @@ export type SeatBandRow = {
   /** "1 to 2", "5 or more". Built on the server, in the reader's language. */
   range: string;
   /** "Included" or "$80 each". */
-  rate: string;
+  rate: React.ReactNode;
   /** The monthly figure at the first count in this band, in USD cents. */
   monthlyCents: number;
 };

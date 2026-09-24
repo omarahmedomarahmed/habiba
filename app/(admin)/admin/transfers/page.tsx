@@ -214,7 +214,6 @@ export default async function TransfersPage({
            * it matters: an operator comparing it with a line in a banking app.
            */
           amountLabel: formatMoney(r.amountCents, r.currency.toUpperCase(), "en-US"),
-          settlesLabel: formatMoney(r.settlesCents, "USD", "en-US"),
           settlesCents: r.settlesCents,
           reference: r.reference,
           /*

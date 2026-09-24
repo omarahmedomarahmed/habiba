@@ -146,8 +146,8 @@ export async function declarePotTransfer(
    */
   const settings = await getSettings();
   if (creditCents < settings.sponsor.minTopUpCents) {
-    const { formatUsd } = await import("@/lib/billing/plans");
-    return { error: `The smallest top-up is ${formatUsd(settings.sponsor.minTopUpCents)}.` };
+    const { moneyText } = await import("@/lib/money/text");
+    return { error: `The smallest top-up is ${await moneyText(settings.sponsor.minTopUpCents)}.` };
   }
 
   /*
@@ -156,9 +156,9 @@ export async function declarePotTransfer(
    * choose their own figure could choose one no screen would ever show.
    */
   if (creditCents > settings.sponsor.maxTopUpCents) {
-    const { formatUsd } = await import("@/lib/billing/plans");
+    const { moneyText } = await import("@/lib/money/text");
     return {
-      error: `The largest top-up we can take on this screen is ${formatUsd(settings.sponsor.maxTopUpCents)}. Talk to us for more.`,
+      error: `The largest top-up we can take on this screen is ${await moneyText(settings.sponsor.maxTopUpCents)}. Talk to us for more.`,
     };
   }
 

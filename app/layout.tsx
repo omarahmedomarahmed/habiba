@@ -74,10 +74,25 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // The shipped dictionary is a complete answer. 21.6.
   }
 
+  /*
+   * 🔴 The operator's rate, once per page, for every amount on it: pounds lead
+   * for everybody using the product and dollars are a hover away. A failed
+   * read shows the stored dollars and reveals nothing, never a wrong pound.
+   */
+  let rateMicro = 0;
+  try {
+    const { egpRateMicro } = await import("@/lib/billing/manual");
+    rateMicro = await egpRateMicro();
+  } catch {
+    rateMicro = 0;
+  }
+  const { MoneyDisplayProvider } = await import("@/components/money/display");
+
   return (
     <html lang={locale} dir={dirFor(locale)}>
       <body>
         <I18nProvider locale={locale} overrides={overrides}>
+          <MoneyDisplayProvider primary="EGP" rateMicro={rateMicro}>
           {/*
             🔴 76.47 — null everywhere except the simulation deployment, where
             it is the one thing on the page saying that every person in the
@@ -85,6 +100,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           */}
           <SimulationBanner />
           {children}
+          </MoneyDisplayProvider>
         </I18nProvider>
       </body>
     </html>

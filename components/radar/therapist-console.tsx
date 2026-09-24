@@ -21,9 +21,9 @@ import {
   subscribeAlarm,
   type AlarmState,
 } from "@/lib/alarm";
-import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { Money } from "@/components/ui/money";
 
 const INITIAL: RadarState = {};
 
@@ -212,14 +212,14 @@ export function TherapistConsole(props: ConsoleProps) {
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/85">{t("trad.rate")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-white">
-                {props.sessionRateCents > 0 ? formatUsd(props.sessionRateCents) : t("trad.free")}
+                {props.sessionRateCents > 0 ? <Money cents={props.sessionRateCents} /> : t("trad.free")}
               </dd>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/85">{t("trad.youKeep")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-teal-300">
                 {props.sessionRateCents > 0
-                  ? formatUsd(props.sessionRateCents - Math.floor((props.sessionRateCents * 1000) / 10_000))
+                  ? <Money cents={props.sessionRateCents - Math.floor((props.sessionRateCents * 1000) / 10_000)} />
                   : "-"}
               </dd>
             </div>

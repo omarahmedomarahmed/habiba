@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { ClinicPeopleList } from "@/components/clinic/people-list";
-import { formatUsd } from "@/lib/billing/plans";
 import { currentSeatBill, quoteSeatChange, seatsFor } from "@/lib/billing/seats";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { can } from "@/lib/clinic-auth/capabilities";
@@ -101,14 +100,14 @@ export default async function ClinicPeoplePage() {
           ? {
               fromSeats: adding.fromSeats,
               toSeats: adding.toSeats,
-              monthlyLabel: formatUsd(adding.toMonthlyCents),
-              todayLabel: formatUsd(Math.max(0, adding.proratedCents)),
+              monthlyCents: adding.toMonthlyCents,
+              todayCents: Math.max(0, adding.proratedCents),
             }
           : null
       }
       seatRelease={
         releasing
-          ? { fromSeats: releasing.fromSeats, monthlyLabel: formatUsd(releasing.toMonthlyCents) }
+          ? { fromSeats: releasing.fromSeats, monthlyCents: releasing.toMonthlyCents }
           : null
       }
       people={people.map((person) => ({

@@ -26,7 +26,6 @@ import {
 } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
 type Patient = {
@@ -480,12 +479,12 @@ function Billing({
           Money they have received
         </p>
         <dl className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Mini label="Earned (net)" value={formatUsd(earnings.lifetimeNetCents)} />
-          <Mini label="Our fees" value={formatUsd(earnings.platformFeesCents)} />
+          <Mini label="Earned (net)" value={<Money cents={earnings.lifetimeNetCents} />} />
+          <Mini label="Our fees" value={<Money cents={earnings.platformFeesCents} />} />
           <Mini label="Paid sessions" value={String(earnings.paidSessionCount)} />
           <Mini
             label="Rate · 30 min"
-            value={sessionRateCents > 0 ? formatUsd(sessionRateCents) : "Free"}
+            value={sessionRateCents > 0 ? <Money cents={sessionRateCents} /> : "Free"}
             sub={payoutsEnabled ? "payouts on" : "payouts off"}
           />
         </dl>
@@ -530,7 +529,7 @@ function Billing({
                   <span className="block text-xs text-slate-500">
                     {payment.when}
                     {payment.settledInvoiceCents > 0
-                      ? ` · ${formatUsd(payment.settledInvoiceCents)} of their bill settled`
+                      ? <> · <Money cents={payment.settledInvoiceCents} /> of bill settled</>
                       : ""}
                   </span>
                 </span>
@@ -594,7 +593,7 @@ function AdminInvoiceRow({
           </span>
           <span className="block text-xs text-slate-500">
             {invoice.kind} · {invoice.issuedAt}
-            {invoice.discountCents > 0 ? ` · ${formatUsd(invoice.discountCents)} discounted` : ""}
+            {invoice.discountCents > 0 ? <> · <Money cents={invoice.discountCents} /> discounted</> : ""}
             {invoice.discountReason ? ` (${invoice.discountReason})` : ""}
           </span>
         </span>
@@ -902,7 +901,7 @@ function Td({ children, className }: { children: React.ReactNode; className?: st
   return <td className={cn("px-4 py-2.5 whitespace-nowrap", className)}>{children}</td>;
 }
 
-function Mini({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Mini({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-slate-50 px-3.5 py-2.5">
       <dt className="text-xs text-slate-500">{label}</dt>

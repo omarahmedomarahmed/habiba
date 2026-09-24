@@ -5,6 +5,7 @@ import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicEarnings } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Earnings", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -37,11 +38,7 @@ export default async function ClinicEarningsPage() {
 
   const rows = await clinicEarnings(actor);
 
-  const money = (cents: number) =>
-    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(cents / 100);
+  const money = (cents: number) => <Money cents={cents} />;
 
   return (
     <div className="space-y-4">

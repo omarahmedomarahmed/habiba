@@ -370,23 +370,23 @@ async function main() {
      */
     const drOmar = await one<{ id: string }>(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status,
-                         session_rate_cents, rate_currency, timezone)
+                         session_rate_cents, rate_egp_minor, rate_currency, timezone)
       VALUES (${solo.id}, 'omarabdelgawad001@gmail.com', 'Omar', 'Abdelgawad', 'therapist', ${hash}, 'active',
-              6000, 'USD', 'Africa/Cairo')
+              2000, 100000, 'egp', 'Africa/Cairo')
       RETURNING id`);
 
     const drSara = await one<{ id: string }>(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status,
-                         session_rate_cents, rate_currency, timezone)
+                         session_rate_cents, rate_egp_minor, rate_currency, timezone)
       VALUES (${clinic.id}, 'dr.sara.demo@example.com', 'Sara', 'Demo', 'therapist', ${hash}, 'active',
-              7500, 'USD', 'Africa/Cairo')
+              2400, 120000, 'egp', 'Africa/Cairo')
       RETURNING id`);
 
     const drKareem = await one<{ id: string }>(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status,
-                         session_rate_cents, rate_currency, timezone)
+                         session_rate_cents, rate_egp_minor, rate_currency, timezone)
       VALUES (${clinic.id}, 'dr.kareem.example@example.com', 'Kareem', 'Example', 'therapist', ${hash}, 'active',
-              7500, 'USD', 'Africa/Cairo')
+              2400, 120000, 'egp', 'Africa/Cairo')
       RETURNING id`);
 
     /*
@@ -405,9 +405,9 @@ async function main() {
      */
     const drYasmin = await one<{ id: string }>(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status,
-                         session_rate_cents, rate_currency, timezone)
+                         session_rate_cents, rate_egp_minor, rate_currency, timezone)
       VALUES (${clinic.id}, 'dr.yasmin.example@example.com', 'Yasmin', 'Example', 'therapist', ${hash}, 'active',
-              7500, 'USD', 'Africa/Cairo')
+              2400, 120000, 'egp', 'Africa/Cairo')
       RETURNING id`);
 
     /*
@@ -551,8 +551,9 @@ async function main() {
       sponsorId: sponsor.id,
       refundPolicy: "Unused balance is refunded within 30 days of written notice.",
       expiresAt: new Date(now.getTime() + 365 * 86_400_000),
-      overdraftCents: 5_000,
-      welcomeCreditCents: 10_000,
+      /* $10, EGP 500: a session already started always completes, within this. */
+      overdraftCents: 1_000,
+      welcomeCreditCents: tuning.welcomeCreditCents,
     });
     if (opened.error) throw new Error(`openPot: ${opened.error}`);
 
@@ -565,6 +566,9 @@ async function main() {
     const { potTopUpMoney, entityVatBps } = await import("../lib/billing/pot");
 
     const rate = await egpRateMicro();
+    /* 0149: the demo therapists price in pounds; their dollars follow whatever rate this database has. */
+    const { rederiveEgpRates } = await import("../lib/billing/egp-rates");
+    await rederiveEgpRates(rate);
     const money = potTopUpMoney({
       creditCents: tuning.topUpCreditCents,
       vatBps: await entityVatBps("eg"),
@@ -611,7 +615,7 @@ async function main() {
      */
     const funded = await one<{ balance: number }>(sql`
       SELECT balance_cents AS balance FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`);
-    const wanted = 10_000 + money.creditCents;
+    const wanted = tuning.welcomeCreditCents + money.creditCents;
     if (Number(funded.balance) !== wanted) {
       throw new Error(
         `the pot holds ${String(funded.balance)} cents and should hold ${String(wanted)}: ` +
@@ -989,18 +993,18 @@ async function main() {
     for (const n of [3, 10, 17, 24, 31, 45]) {
       await held({
         orgId: solo.id, therapistId: drOmar.id, patientId: omarChart.id,
-        when: daysAgo(n), priceCents: 6_000,
+        when: daysAgo(n), priceCents: 2_000,
         paymentStatus: n === 3 ? "pending" : "paid",
       });
     }
     await held({
       orgId: solo.id, therapistId: drOmar.id, patientId: lailaChart.id,
-      when: daysAgo(12), priceCents: 6_000, paymentStatus: "paid", modality: "in_person",
+      when: daysAgo(12), priceCents: 2_000, paymentStatus: "paid", modality: "in_person",
     });
     for (const n of [28, 35]) {
       await held({
         orgId: solo.id, therapistId: drOmar.id, patientId: tarekChart.id,
-        when: daysAgo(n), priceCents: 6_000, paymentStatus: "paid",
+        when: daysAgo(n), priceCents: 2_000, paymentStatus: "paid",
       });
     }
 
@@ -1023,7 +1027,7 @@ async function main() {
     for (const n of [4, 11, 18, 25, 32, 39]) {
       const s = await held({
         orgId: clinic.id, therapistId: drSara.id, patientId: mariamChart.id,
-        when: daysAgo(n), priceCents: 7_500, paymentStatus: "pending",
+        when: daysAgo(n), priceCents: 2_400, paymentStatus: "pending",
       });
       /* 🔴 Through `payFromPot`, so the ledger has the company's 60% in it. */
       const { payFromPot } = await import("../lib/billing/pot");
@@ -1032,13 +1036,13 @@ async function main() {
     }
     await held({
       orgId: clinic.id, therapistId: drSara.id, patientId: tarekAtClinic.id,
-      when: daysAgo(5), priceCents: 7_500, paymentStatus: "paid",
+      when: daysAgo(5), priceCents: 2_400, paymentStatus: "paid",
     });
     /* Dr Kareem's own caseload, so the second clinic seat opens onto work. */
     for (const n of [6, 13, 20, 27]) {
       await held({
         orgId: clinic.id, therapistId: drKareem.id, patientId: nadiaChart.id,
-        when: daysAgo(n), priceCents: 7_500, paymentStatus: n === 6 ? "pending" : "paid",
+        when: daysAgo(n), priceCents: 2_400, paymentStatus: n === 6 ? "pending" : "paid",
       });
     }
 
@@ -1294,7 +1298,7 @@ async function main() {
       await imminent({
         patientId: omarChart.id,
         token: "demo-live-now",
-        priceCents: 6_000,
+        priceCents: 2_000,
       });
 
       await noticeFor(omarPerson.id, "session_invited", "pnotice.sessionInvited");
@@ -1315,14 +1319,14 @@ async function main() {
       const orphan = await imminent({
         patientId: lailaChart.id,
         token: "demo-orphan-claim",
-        priceCents: 6_000,
+        priceCents: 2_000,
       });
       const stray = await openCart({
         purpose: "session",
         refId: orphan.id,
-        amountCents: egpMinorFor(6_000, rate),
-        settlesCents: 6_000,
-        lineItems: [{ label: "Session", cents: 6_000 }],
+        amountCents: egpMinorFor(2_000, rate),
+        settlesCents: 2_000,
+        lineItems: [{ label: "Session", cents: 2_000 }],
         payer: { kind: "session", organizationId: solo.id },
       });
       if (!stray.id) throw new Error(`the orphan claim did not open: ${stray.error ?? "?"}`);
@@ -1371,9 +1375,9 @@ async function main() {
       const bill = await openCart({
         purpose: "session",
         refId: null,
-        amountCents: egpMinorFor(7_500, rate),
-        settlesCents: 7_500,
-        lineItems: [{ label: "Session with Dr Sara Demo", cents: 7_500 }],
+        amountCents: egpMinorFor(2_400, rate),
+        settlesCents: 2_400,
+        lineItems: [{ label: "Session with Dr Sara Demo", cents: 2_400 }],
         payer: { kind: "patient", patientAccountId: mariamAccount.id },
       });
       if (!bill.id) throw new Error(`the rejected claim did not open: ${bill.error ?? "?"}`);

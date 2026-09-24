@@ -16,11 +16,12 @@ import {
 } from "@/lib/billing/connect";
 import { heldForTherapist, transfersForTherapist } from "@/lib/billing/ledger";
 import { defaultMethodFor, payoutsForTherapist } from "@/lib/billing/payouts";
-import { formatUsd } from "@/lib/billing/plans";
 import { features } from "@/lib/env";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export const metadata: Metadata = { title: "Earnings", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -107,7 +108,7 @@ export default async function EarningsPage() {
               {t("portal.earnings.heldPays")}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-slate-500">
-              {t("portal.earnings.heldBody", { amount: formatUsd(earnings.heldCents) })}
+              {rich(t("portal.earnings.heldBody", { amount: slot(0) }), [<Money cents={earnings.heldCents} />])}
             </p>
             <Link
               href="/billing"

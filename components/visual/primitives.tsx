@@ -197,8 +197,8 @@ export function Meter({
   fraction,
   note,
 }: {
-  usedLabel: string;
-  ofLabel: string;
+  usedLabel: React.ReactNode;
+  ofLabel: React.ReactNode;
   /** 0 to 1. Clamped, because a figure above the cap renders past the box. */
   fraction: number;
   note?: string;
@@ -218,7 +218,7 @@ export function Meter({
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={ofLabel}
+        aria-label={typeof ofLabel === "string" ? ofLabel : undefined}
       >
         <div className={cn("h-full rounded-full", tone)} style={{ width: `${pct}%` }} />
       </div>
@@ -354,7 +354,7 @@ export function NeverBar({ label, items }: { label: string; items: string[] }) {
 /* ═══════════════════════════════════════════════════════════ 8 · the split ══ */
 
 export type SplitPart = {
-  label: string;
+  label: React.ReactNode;
   /** Minor units. Widths are proportional to this, so it has to be the real figure. */
   value: number;
   /** What kind of money this is. Not a colour choice: the three behave differently. */
@@ -391,24 +391,24 @@ const SPLIT: Record<SplitPart["kind"], { bar: string; dot: string }> = {
  * that does not know the patient's country yet passes two parts and the bar is honest
  * about being a split of what the clinician charges rather than of what the patient pays.
  */
-export function SplitBar({ parts, note }: { parts: SplitPart[]; note?: string }) {
+export function SplitBar({ parts, note }: { parts: SplitPart[]; note?: React.ReactNode }) {
   const total = parts.reduce((sum, part) => sum + Math.max(0, part.value), 0);
   if (total <= 0) return null;
 
   return (
     <div>
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100">
-        {parts.map((part) => (
+        {parts.map((part, i) => (
           <div
-            key={part.label}
+            key={i}
             className={SPLIT[part.kind].bar}
             style={{ width: `${(Math.max(0, part.value) / total) * 100}%` }}
           />
         ))}
       </div>
       <ul className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
-        {parts.map((part) => (
-          <li key={part.label} className="flex items-center gap-1.5 text-xs text-slate-600">
+        {parts.map((part, i) => (
+          <li key={i} className="flex items-center gap-1.5 text-xs text-slate-600">
             <span className={cn("h-2 w-2 shrink-0 rounded-full", SPLIT[part.kind].dot)} />
             {part.label}
           </li>

@@ -38,7 +38,6 @@ type Row = {
   /** 🔴 76.28 — the same figure, written out by the server. C84. */
   amountLabel: string;
   /** What it settles, in dollars, written out by the server. */
-  settlesLabel: string;
   /** What it settles, in USD cents. 0106. */
   settlesCents: number;
   reference: string | null;
@@ -237,7 +236,7 @@ function TransferRow({
             */}
             {row.amountLabel}
             <span className="ms-2 text-slate-500">
-              settles {row.settlesLabel}
+              settles <Money cents={row.settlesCents} />
             </span>
             {waited !== null ? (
               <span className={waited > 15 ? "ms-2 font-semibold text-rose-600" : "ms-2 text-slate-500"}>

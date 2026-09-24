@@ -1,5 +1,7 @@
 "use client";
 
+import { useMoneyDisplay } from "@/components/money/display";
+
 import { useState } from "react";
 
 import { formatMoney } from "@/lib/billing/plans";
@@ -84,7 +86,8 @@ export function PriceTag({
    */
   unit?: string;
 }) {
-  const [egp, setEgp] = useState(false);
+  /* Pounds lead wherever the page says they do (every signed-in screen); dollars on the website. */
+  const [egp, setEgp] = useState(useMoneyDisplay().primary === "EGP");
   const [peeking, setPeeking] = useState(false);
   const showEgp = egp && rateMicro !== null;
 

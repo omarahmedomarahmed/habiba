@@ -220,31 +220,31 @@ npm run on:production -- verify:demo -- --scenario=<name>
 
 It is the flagship, it touches six surfaces, and every part of it was broken on production within the last week: the patient was told nothing, the pay link asked a signed-in person their own name, and the room threw a client-side exception the clinician could not read.
 
-The company covers **60 per cent** and the pot was funded with **2500 dollars**. One person is on that pot, and one patient is enrolled nowhere.
+The company covers **60 per cent** and the pot was funded with **EGP 7,500** ($150 at 50 to the dollar), on top of a $100 welcome credit. One person is on that pot, and one patient is enrolled nowhere.
 
 ### `money`
 
 The path with the most moving parts in this product. Sprint 76 found four defects in it in one afternoon, and all four were invisible to every gate that claimed to cover it.
 
-The company covers **10 per cent** and the pot was funded with **2500 dollars**. Two people are on that pot.
+The company covers **10 per cent** and the pot was funded with **EGP 7,500** ($150 at 50 to the dollar), on top of a $100 welcome credit. Two people are on that pot.
 
 ### `continuity`
 
 Portability is the claim the whole patient site rests on, and it is the one thing that cannot be shown on a database where everybody saw one person.
 
-The company covers **60 per cent** and the pot was funded with **2500 dollars**. One person is on that pot, and one patient is enrolled nowhere.
+The company covers **60 per cent** and the pot was funded with **EGP 7,500** ($150 at 50 to the dollar), on top of a $100 welcome credit. One person is on that pot, and one patient is enrolled nowhere.
 
 ### `crisis`
 
 C235 is that a patient's crisis path never depends on money. The rest of this position is the honest half: the rejected transfer, the expired claim link and the applicant who is waiting, which are the three ways this product currently strands a person.
 
-The company covers **60 per cent** and the pot was funded with **2500 dollars**. One person is on that pot, and one patient is enrolled nowhere.
+The company covers **60 per cent** and the pot was funded with **EGP 7,500** ($150 at 50 to the dollar), on top of a $100 welcome credit. One person is on that pot, and one patient is enrolled nowhere.
 
 ### `growth`
 
 Everything that changes shape rather than state. The pot emptying mid-week and the seat released mid-month are the two the product has never been walked through.
 
-The company covers **60 per cent** and the pot was funded with **100 dollars**. Two people are on that pot.
+The company covers **100 per cent** and the pot was funded with **EGP 5,000** ($100 at 50 to the dollar), with no welcome credit. Two people are on that pot.
 
 ## Everyone you sign in as
 

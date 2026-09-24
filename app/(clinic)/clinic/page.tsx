@@ -8,6 +8,7 @@ import { clinicWeek } from "@/lib/clinic-week";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "This week", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -94,11 +95,7 @@ export default async function ClinicOverviewPage({
    */
   const day = (at: Date) => formatDate(at, "UTC", locale);
 
-  const money = (cents: number) =>
-    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(cents / 100);
+  const money = (cents: number) => <Money cents={cents} />;
 
   /*
    * 🔴 THE WEEK IN TWO FIGURES, FROM ROWS ALREADY IN HAND. Option A,

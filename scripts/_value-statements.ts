@@ -375,10 +375,13 @@ export type Tuning = {
   /** What share of a session the company pays, in basis points. */
   coverageBps: number;
   /**
-   * 🔴 What the operator confirms into the pot, in USD cents.
+   * 🔴 What the operator confirms into the pot, in USD cents. $150 is EGP
+   * 7,500 at 50, the size a company here actually tops up by (EGP 5,000 to
+   * 10,000).
    *
-   * `growth` funds it to $100 against six covered sessions that want $270, so
-   * the pot genuinely runs out partway through its own history. That is `CV9`
+   * `growth` funds it to $100 (EGP 5,000) with no welcome credit, against six
+   * fully covered sessions that want $144 (EGP 7,200), so the pot genuinely
+   * runs out partway through its own history. That is `CV9`
    * and `RR9`, and it cannot be faked by editing a balance: `payFromPot`
    * refuses the spend, and the sessions it refused stay unpaid, which is the
    * position a person has to walk.
@@ -386,20 +389,22 @@ export type Tuning = {
   topUpCreditCents: number;
   /** Whether the unenrolled patient is enrolled at the company too. */
   enrolTheSecondPatient: boolean;
+  /** What we give the company to start, in USD cents. $100 is EGP 5,000. */
+  welcomeCreditCents: number;
 };
 
 export const TUNING: Record<ScenarioName, Tuning> = {
-  live: { coverageBps: 6000, topUpCreditCents: 250_000, enrolTheSecondPatient: false },
+  live: { coverageBps: 6000, topUpCreditCents: 15_000, enrolTheSecondPatient: false, welcomeCreditCents: 10_000 },
   /*
    * 🔴 10 per cent, so a covered session splits VISIBLY: the patient owes 90
    * plus the VAT on 90, and every surface that prices it has to agree. At 60
    * per cent the two wrong answers — the share and the whole price — are close
    * enough that a person reads past the difference.
    */
-  money: { coverageBps: 1000, topUpCreditCents: 250_000, enrolTheSecondPatient: true },
-  continuity: { coverageBps: 6000, topUpCreditCents: 250_000, enrolTheSecondPatient: false },
-  crisis: { coverageBps: 6000, topUpCreditCents: 250_000, enrolTheSecondPatient: false },
-  growth: { coverageBps: 6000, topUpCreditCents: 10_000, enrolTheSecondPatient: true },
+  money: { coverageBps: 1000, topUpCreditCents: 15_000, enrolTheSecondPatient: true, welcomeCreditCents: 10_000 },
+  continuity: { coverageBps: 6000, topUpCreditCents: 15_000, enrolTheSecondPatient: false, welcomeCreditCents: 10_000 },
+  crisis: { coverageBps: 6000, topUpCreditCents: 15_000, enrolTheSecondPatient: false, welcomeCreditCents: 10_000 },
+  growth: { coverageBps: 10000, topUpCreditCents: 10_000, enrolTheSecondPatient: true, welcomeCreditCents: 0 },
 };
 
 /** Every statement id, for the checks that have to know the whole set. */

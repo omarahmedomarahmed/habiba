@@ -3,9 +3,9 @@
 import { ChevronRight, DoorOpen, Star } from "lucide-react";
 
 import type { RadarEntry } from "@/components/radar/types";
-import { formatUsd } from "@/lib/billing/plans";
 import { cn, fullName, initials } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { Money } from "@/components/ui/money";
 
 /** One clinician, on the dark hero board or the light radar page. */
 export function TherapistCard({
@@ -154,7 +154,7 @@ export function TherapistCard({
 
       <span className="shrink-0 text-end">
         <span className={cn("block text-sm font-bold", dark ? "text-white" : "text-slate-900")}>
-          {entry.sessionRateCents > 0 ? formatUsd(entry.sessionRateCents) : t("radar.free")}
+          {entry.sessionRateCents > 0 ? <Money cents={entry.sessionRateCents} /> : t("radar.free")}
         </span>
         <span className={cn("block text-[10px]", dark ? "text-white/85" : "text-slate-600")}>
           {t("radar.perHalfHour")}

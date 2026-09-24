@@ -6,6 +6,8 @@ import { ledgerPotBalance, reconcilePots } from "@/lib/billing/pot";
 import { allSponsors, potTerms, sponsorUsersFor } from "@/lib/data/sponsor-admin";
 import { attemptsOnCode, liveCode, SPIKE_THRESHOLD } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export const metadata: Metadata = { title: "Sponsors", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -38,12 +40,7 @@ export default async function AdminSponsorsPage() {
 
   const [sponsors, drift] = await Promise.all([allSponsors(), reconcilePots()]);
 
-  const fmt = (cents: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 2,
-    }).format(cents / 100);
+  const fmt = (cents: number) => <Money cents={cents} />;
 
   const rows = await Promise.all(
     sponsors.map(async (sponsor) => {
@@ -100,12 +97,11 @@ export default async function AdminSponsorsPage() {
           <ul className="mt-2 space-y-1 text-xs text-red-700">
             {drift.map((row) => (
               <li key={row.sponsorId}>
-                {t("asponsor.driftRow", {
-                  id: row.sponsorId,
-                  table: fmt(row.tableCents),
-                  ledger: fmt(row.ledgerCents),
-                  delta: fmt(row.deltaCents),
-                })}
+                {rich(t("asponsor.driftRow", { id: row.sponsorId, table: slot(0), ledger: slot(1), delta: slot(2) }), [
+                  fmt(row.tableCents),
+                  fmt(row.ledgerCents),
+                  fmt(row.deltaCents),
+                ])}
               </li>
             ))}
           </ul>

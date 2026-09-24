@@ -11,10 +11,10 @@ import {
 } from "@/app/(patient)/sessions/[id]/recovery-actions";
 import { Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatMoney } from "@/lib/billing/plans";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { localeTag } from "@/lib/i18n/config";
 import { minutesWaiting, shouldAsk } from "@/lib/sessions/waiting";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /**
  * What a patient sees while nobody is joining. PLAN.md 14.1–14.4.
@@ -137,11 +137,9 @@ export function NoShowRecovery({
               : view.outcome === "cancelled"
                 ? t("w1a.noShowCancelledBody")
                 : t("tshow.refundedBody")}
-          {view.creditCents
-            ? ` ${t("tshow.creditWaiting", {
-                amount: formatMoney(view.creditCents, "USD", locale),
-              })}`
-            : ""}
+          {view.creditCents ? (
+            <> {rich(t("tshow.creditWaiting", { amount: slot(0) }), [<Money cents={view.creditCents} />])}</>
+          ) : null}
         </p>
       </Card>
     );

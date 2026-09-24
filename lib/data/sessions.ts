@@ -316,13 +316,11 @@ export async function createSession(
       joinTokenExpiresAt: needsLink ? new Date(Date.now() + 12 * 60 * 60 * 1000) : null,
       priceCents: price,
       /*
-       * 16.5 — the currency the clinician priced in, copied onto the session.
-       *
-       * Not read from the user row later: a therapist who switches from EGP to
-       * USD next month must not change what last month's sessions were priced
-       * in. A receipt has to reproduce exactly what was agreed.
+       * 🔴 0149 — dollars, the currency the books and every payment path are
+       * kept in. A price typed in pounds was converted on the way in, at the
+       * rate the payment is then asked for at, so the receipt reproduces it.
        */
-      priceCurrency: await rateCurrencyFor(actor.userId),
+      priceCurrency: "usd",
       paymentStatus: price > 0 ? "pending" : "not_required",
     })
     .returning();
@@ -356,22 +354,6 @@ export async function createSession(
  * link the therapist sent, so there is one code path that turns a stranger into
  * a chart.
  */
-/**
- * The currency this clinician prices in. 16.5.
- *
- * One small query rather than a column threaded through six call sites,
- * because the alternative is six places that can be updated inconsistently and
- * a price whose denomination depends on which screen created it.
- */
-async function rateCurrencyFor(therapistId: string): Promise<string> {
-  const [row] = await db
-    .select({ currency: users.rateCurrency })
-    .from(users)
-    .where(eq(users.id, therapistId))
-    .limit(1);
-  return row?.currency ?? "usd";
-}
-
 export async function createRadarSession(input: {
   organizationId: string;
   therapistId: string;
@@ -396,7 +378,7 @@ export async function createRadarSession(input: {
       // Short: this is a session starting now, not an invitation for later.
       joinTokenExpiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
       priceCents: input.priceCents,
-      priceCurrency: await rateCurrencyFor(input.therapistId),
+      priceCurrency: "usd",
       paymentStatus: input.priceCents > 0 ? "pending" : "not_required",
     })
     .returning();

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { egpMinorFor, formatDisplay } from "@/lib/money/convert";
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
@@ -707,7 +708,13 @@ function noteSection(note: NoteContent, language: string): string {
 export function renderExportHtml(
   record: NonNullable<ExportRecord>,
   jsonHref: string,
+  /** The operator's rate, so a price reads in pounds with the dollars beside it. */
+  rateMicro = 0,
 ): string {
+  const price = (usd: number) =>
+    rateMicro > 0
+      ? `${formatDisplay(egpMinorFor(usd, rateMicro), "EGP", "en-US")} (${formatDisplay(usd, "USD", "en-US")})`
+      : formatDisplay(usd, "USD", "en-US");
   /*
    * 🔴 C127 — the words "certified" and "proof of diagnosis" never appear in
    * this document, and `verify:sprint26` scans the rendered HTML for them
@@ -737,7 +744,7 @@ export function renderExportHtml(
         <p class="muted">
           ${esc(session.status)}${
             session.priceCents > 0
-              ? ` · $${(session.priceCents / 100).toFixed(2)} ${esc(session.paymentStatus)}`
+              ? ` · ${esc(price(session.priceCents))} ${esc(session.paymentStatus)}`
               : " · no charge"
           }${session.noteSigned ? ` · note signed ${when(session.noteSigned)}` : ""}${
             session.riskLevel && session.riskLevel !== "none"

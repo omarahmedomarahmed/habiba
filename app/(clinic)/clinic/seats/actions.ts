@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 
 import type { SeatQuote, SeatState } from "@/components/billing/seat-manager";
 import { audit } from "@/lib/audit";
-import { formatUsd } from "@/lib/billing/plans";
 import { applySeatChange, quoteSeatChange } from "@/lib/billing/seats";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 
@@ -36,9 +35,8 @@ export async function quoteClinicSeats(
     quote: {
       fromSeats: change.fromSeats,
       toSeats: change.toSeats,
-      fromMonthlyLabel: formatUsd(change.fromMonthlyCents),
-      toMonthlyLabel: formatUsd(change.toMonthlyCents),
-      proratedLabel: formatUsd(Math.abs(change.proratedCents)),
+      fromMonthlyCents: change.fromMonthlyCents,
+      toMonthlyCents: change.toMonthlyCents,
       proratedCents: change.proratedCents,
       daysRemaining: change.daysRemaining,
     },

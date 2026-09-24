@@ -415,7 +415,9 @@ export async function sendSessionInvite(opts: {
 }): Promise<boolean> {
   const price = Math.max(0, Math.round(opts.priceCents ?? 0));
   const paid = price > 0;
-  const amount = `$${(price / 100).toFixed(price % 100 === 0 ? 0 : 2)}`;
+  /* Pounds first, dollars beside them: an email has no hover. */
+  const { moneyText } = await import("@/lib/money/text");
+  const amount = await moneyText(price);
 
   const priceRow = paid
     ? `<table role="presentation" width="100%" style="margin:0 0 20px;border-collapse:collapse;background:#0A2342;border-radius:12px;">

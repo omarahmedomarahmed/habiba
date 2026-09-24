@@ -6,6 +6,8 @@ import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicBills, clinicSeatBills } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 export const metadata: Metadata = { title: "Your bills", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -65,11 +67,7 @@ export default async function ClinicBillsPage({
     bills.reduce((sum, bill) => sum + bill.dueCents, 0) +
     seatBills.reduce((sum, row) => sum + (row.status === "due" ? row.amountCents : 0), 0);
 
-  const money = (cents: number) =>
-    new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(cents / 100);
+  const money = (cents: number) => <Money cents={cents} />;
 
   /*
    * 🔴 `formatDate`, not `Intl`, and 37L.9 caught the first draft.
@@ -131,9 +129,9 @@ export default async function ClinicBillsPage({
       {dueCents > 0 ? (
         <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
           <p className="text-sm font-semibold text-slate-900">
-            {t("clinic.dueNow", { amount: money(dueCents) })}
+            {rich(t("clinic.dueNow", { amount: slot(0) }), [money(dueCents)])}
           </p>
-          {actor.role === "admin" ? <PayClinicBills amountLabel={money(dueCents)} /> : null}
+          {actor.role === "admin" ? <PayClinicBills amountCents={dueCents} /> : null}
         </Card>
       ) : null}
 

@@ -277,13 +277,19 @@ export async function updatePaymentSettings(
     usdEquivalent = Math.round((cents * 1_000_000) / rateMicro);
   }
 
-  const problem = priceProblem(usdEquivalent, (await getSettings()).session);
+  const problem = priceProblem(usdEquivalent, (await getSettings()).session, await egpRateMicro());
   if (problem) return { error: problem };
 
+  /*
+   * 🔴 0149 — dollars in `session_rate_cents` always, because every path that
+   * charges, splits and pays out reads it as dollars; the pounds they typed
+   * are kept as typed and the dollars re-derived when the operator's rate moves.
+   */
   await db
     .update(users)
     .set({
-      sessionRateCents: cents,
+      sessionRateCents: usdEquivalent,
+      rateEgpMinor: currency === "egp" ? cents : null,
       rateCurrency: currency,
       autoSettleFromEarnings: formData.get("autoSettle") === "on",
       updatedAt: new Date(),

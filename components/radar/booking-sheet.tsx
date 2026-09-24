@@ -26,7 +26,6 @@ import { Avatar, StatusPill } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
 import { Field, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
-import { formatUsd } from "@/lib/billing/plans";
 import { countryName } from "@/lib/geo";
 import { cn, fullName } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
@@ -52,7 +51,7 @@ function Submit({ sessionRateCents }: { sessionRateCents: number }) {
       {pending
         ? "Connecting…"
         : sessionRateCents > 0
-          ? `Pay ${formatUsd(sessionRateCents)} and start now`
+          ? <>Pay <Money cents={sessionRateCents} /> and start now</>
           : "Start now"}
     </button>
   );
@@ -306,7 +305,7 @@ export function BookingSheet({
             <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3 text-white">
               <span className="text-sm text-white/85">{t("radar.thirtyMinutes")}</span>
               <span className="text-2xl font-bold tracking-tight">
-                {entry.sessionRateCents > 0 ? formatUsd(entry.sessionRateCents) : "Free"}
+                {entry.sessionRateCents > 0 ? <Money cents={entry.sessionRateCents} /> : "Free"}
               </span>
             </div>
 

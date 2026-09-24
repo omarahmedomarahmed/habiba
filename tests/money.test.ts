@@ -174,3 +174,41 @@ test("there is no such thing as an InstaPay transfer in dollars", () => {
   assert.equal(payoutCurrencyFor("wallet"), "egp");
   assert.equal(payoutCurrencyFor("stripe"), "usd");
 });
+
+/* ------------------------------------------------ the display currency -- */
+
+import { egpMinorFor, formatDisplay, moneyLabels, usdCentsFor } from "../lib/money/convert";
+
+/** `Intl` puts a no-break space between a currency code and its figure. */
+const plain = (s: string | null) => (s === null ? null : s.replace(/\u00a0/g, " "));
+
+test("pounds lead for a user: $20 at 50 is EGP 1,000, and the dollars are what a hover reveals", () => {
+  const labels = moneyLabels({ minor: 2_000, amountIn: "USD", primary: "EGP", rateMicro: 50_000_000, locale: "en-US" });
+  assert.equal(plain(labels.shown), "EGP 1,000");
+  assert.equal(plain(labels.other), "$20");
+});
+
+test("dollars lead on the website and the console, with the pounds one hover away", () => {
+  const labels = moneyLabels({ minor: 2_000, amountIn: "USD", primary: "USD", rateMicro: 50_000_000, locale: "en-US" });
+  assert.equal(plain(labels.shown), "$20");
+  assert.equal(plain(labels.other), "EGP 1,000");
+});
+
+test("a figure already in pounds converts back, and no rate shows the stored figure with nothing revealed", () => {
+  const back = moneyLabels({ minor: 114_050, amountIn: "EGP", primary: "EGP", rateMicro: 50_000_000, locale: "en-US" });
+  assert.equal(plain(back.shown), "EGP 1,140.50");
+  assert.equal(plain(back.other), "$22.81");
+  const none = moneyLabels({ minor: 2_000, amountIn: "USD", primary: "EGP", rateMicro: 0, locale: "en-US" });
+  assert.equal(plain(none.shown), "$20");
+  assert.equal(plain(none.other), null);
+});
+
+test("🔴 0149 the screen's pounds are the payment's pounds: one function, both directions round-trip a typed price", () => {
+  for (const rate of [48_000_000, 50_000_000, 52_750_000]) {
+    for (const pounds of [500, 1_000, 1_250, 7_500]) {
+      const usd = usdCentsFor(pounds * 100, rate);
+      assert.ok(Math.abs(egpMinorFor(usd, rate) - pounds * 100) <= Math.ceil(rate / 2_000_000), `${pounds} at ${rate}`);
+    }
+  }
+  assert.equal(formatDisplay(100_000, "EGP", "ar-AE-u-nu-latn").includes("1,000"), true);
+});

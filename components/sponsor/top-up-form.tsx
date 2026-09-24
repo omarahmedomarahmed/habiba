@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /**
  * Adding to the pot. PLAN.md 53.11, 53.12, 53.13, C233.
@@ -20,10 +22,10 @@ import { useT } from "@/lib/i18n/client";
  * the refund policy and the expiry to hand.
  */
 export function TopUpForm({
-  minimumLabel,
+  minimumCents,
   terms,
 }: {
-  minimumLabel: string;
+  minimumCents: number;
   /** 🔴 Required. A top-up screen without the terms is the thing C233 forbids. */
   terms: { refundPolicy: string; expiresLabel: string };
 }) {
@@ -33,7 +35,7 @@ export function TopUpForm({
     <Card className="p-5">
       <p className="text-base font-bold tracking-tight text-slate-900">{t("sponsor.topUp")}</p>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">
-        {t("sponsor.topUpBody", { min: minimumLabel })}
+        {rich(t("sponsor.topUpBody", { min: slot(0) }), [<Money cents={minimumCents} />])}
       </p>
       <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("sponsor.potCardOff")}</p>
 

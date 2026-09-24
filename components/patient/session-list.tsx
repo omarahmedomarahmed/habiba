@@ -5,12 +5,12 @@ import { CalendarClock, FileText, Zap } from "lucide-react";
 
 import { Card } from "@/components/ui";
 import type { PatientSession, SessionDoor, SessionGroup } from "@/lib/data/patient-view";
-import { formatMoney } from "@/lib/billing/plans";
 import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { localeTag } from "@/lib/i18n/config";
 import { PatientNoteOriginClient } from "@/components/notes/provenance-client";
+import { Money } from "@/components/ui/money";
 
 /**
  * A patient's own sessions, in the four groups 15.3 names.
@@ -130,11 +130,7 @@ export function PatientSessionList({
                            * states: the defect was reachable from the first frame of the patient
                            * cut and invisible while the list was empty.
                            */
-                          ` · ${formatMoney(
-                            session.priceCents,
-                            session.priceCurrency.toUpperCase(),
-                            localeTag(locale),
-                          )}`
+                          <> · <Money cents={session.priceCents} currency={session.priceCurrency} /></>
                         : ` · ${t("psessions.free")}`}
                     </p>
 

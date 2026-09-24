@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 
 import { SeatManager } from "@/components/billing/seat-manager";
 import { Card } from "@/components/ui";
-import { formatUsd } from "@/lib/billing/plans";
 import { currentSeatBill, seatsFor } from "@/lib/billing/seats";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicInvitations } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 
 import { quoteClinicSeats, saveClinicSeats } from "./actions";
+import { Money } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Seats", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -46,7 +46,7 @@ export default async function ClinicSeatsPage() {
       </Card>
       <SeatManager
         seats={bill.seats}
-        monthlyLabel={formatUsd(bill.monthlyCents)}
+        monthlyLabel={<Money cents={bill.monthlyCents} />}
         quoteSeats={quoteClinicSeats}
         saveSeats={saveClinicSeats}
       />

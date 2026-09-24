@@ -119,9 +119,19 @@ export async function startNewSession(
 
   // Only a video session can be paid for: an in-person session has no link to
   // put a paywall in front of.
-  const priceDollars = Number(String(formData.get("priceDollars") ?? "0").trim() || "0");
-  const priceCents = modality === "video" ? Math.round(priceDollars * 100) : 0;
-  const problem = priceProblem(priceCents, (await getSettings()).session);
+  /*
+   * 🔴 Typed in pounds, kept in dollars at the operator's rate: the same rate
+   * the payment is then asked for at, so the patient pays the pounds typed.
+   */
+  const pounds = Number(String(formData.get("pricePounds") ?? "0").trim() || "0");
+  const { egpRateMicro } = await import("@/lib/billing/manual");
+  const { usdCentsFor } = await import("@/lib/money/convert");
+  const rate = await egpRateMicro();
+  const priceCents =
+    modality === "video" && Number.isFinite(pounds) && pounds > 0 && rate > 0
+      ? usdCentsFor(Math.round(pounds * 100), rate)
+      : 0;
+  const problem = priceProblem(priceCents, (await getSettings()).session, rate);
   if (problem) return { error: problem };
 
   /*

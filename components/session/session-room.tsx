@@ -25,6 +25,7 @@ import { pressOffRecord } from "@/lib/sessions/off-record";
 import { cn, formatDuration } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { AskPanel } from "@/components/session/ask-panel";
+import { Money } from "@/components/ui/money";
 
 type Speaker = "therapist" | "patient" | "unknown";
 
@@ -734,7 +735,7 @@ export function SessionRoom(props: RoomProps) {
                 {props.priceCents > 0
                   ? props.paymentStatus === "paid"
                     ? " · paid"
-                    : ` · $${(props.priceCents / 100).toFixed(0)} to pay before they can join`
+                    : <> · <Money cents={props.priceCents} /> due before they join</>
                   : ""}
               </p>
               <div className="mt-2 flex gap-2">

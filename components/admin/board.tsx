@@ -16,6 +16,7 @@ import {
   refreshTherapists,
 } from "@/app/(admin)/admin/tv/board-actions";
 import type { WholeBoard } from "@/lib/console/board";
+import { Money } from "@/components/ui/money";
 
 /**
  * 🔴 76.1 — THE BOARD. "I run the company by sitting back and watching TV."
@@ -57,10 +58,9 @@ function grouped(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function usd(cents: number): string {
-  const abs = Math.abs(cents) / 100;
-  const body = abs < 10 ? abs.toFixed(2) : grouped(abs);
-  return `${cents < 0 ? "-" : ""}$${body}`;
+/* Every figure follows the console's currency switch, and reveals the other on a hover. */
+function usd(cents: number): React.ReactNode {
+  return <Money cents={cents} />;
 }
 
 function when(at: Date): string {
@@ -142,7 +142,7 @@ function Section({
 }
 
 /** A big number with its label under it. The unit of this whole screen. */
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "warn" | "good" }) {
+function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "warn" | "good" }) {
   const colour =
     tone === "warn" ? "text-rose-600" : tone === "good" ? "text-brand-700" : "text-slate-900";
   return (
@@ -157,7 +157,7 @@ function Row({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{children}</div>;
 }
 
-function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
+function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   if (rows.length === 0) {
     return <p className="text-sm text-slate-500">Nothing yet.</p>;
   }

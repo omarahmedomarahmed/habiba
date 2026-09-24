@@ -46,6 +46,8 @@
  * Everything it makes is deleted in a `finally`, and `writesTo()` refuses
  * production by name.
  */
+import { readFileSync } from "node:fs";
+
 import { sql } from "drizzle-orm";
 
 import { reporter, writesTo } from "./_verify";
@@ -719,6 +721,36 @@ async function main() {
       "🔴 76.41 a session with no model calls is still listed, at zero",
       all.some((entry) => entry.sessionId === silent.sessionId && entry.costMicrocents === 0),
       "a cost screen that hides free sessions hides the decline rate",
+    );
+
+    /* ================================================================ */
+    /*  🔴 0149 · A PRICE TYPED IN POUNDS IS CHARGED IN POUNDS             */
+    /* ================================================================ */
+    /*
+     * It was stored as piastres in a column every payment path reads as US
+     * cents, so 1,000 EGP would have been asked for as $1,000. Now the pounds
+     * are kept as typed and the dollars follow the operator's rate.
+     */
+    const { rederiveEgpRates } = await import("../lib/billing/egp-rates");
+    const { priceProblem } = await import("../lib/billing/connect");
+    await db.execute(sql`
+      UPDATE users SET rate_currency = 'egp', rate_egp_minor = 100000, session_rate_cents = 2000
+       WHERE id = ${therapist.id}`);
+    await rederiveEgpRates(40_000_000);
+    const moved = await one<{ usd: number; egp: number }>(sql`
+      SELECT session_rate_cents AS usd, rate_egp_minor AS egp FROM users WHERE id = ${therapist.id}`);
+    await rederiveEgpRates(await (await import("../lib/billing/manual")).egpRateMicro());
+    const sessionsSource = readFileSync("lib/data/sessions.ts", "utf8");
+    check(
+      "🔴 0149 when the pound moves, a therapist's 1,000 EGP stays 1,000 EGP and the dollars every payment reads follow it",
+      Number(moved.usd) === 2_500 && Number(moved.egp) === 100_000,
+      JSON.stringify(moved),
+    );
+    check(
+      "🔴 0149 …every new session is priced in dollars, and a price bound is said in pounds",
+      !/rateCurrencyFor|priceCurrency: await/.test(sessionsSource) &&
+        (priceProblem(100, { minPriceCents: 500, maxPriceCents: 50_000 }, 50_000_000) ?? "").includes("EGP"),
+      priceProblem(100, { minPriceCents: 500, maxPriceCents: 50_000 }, 50_000_000) ?? "no message",
     );
   } finally {
     /*

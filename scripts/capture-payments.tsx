@@ -329,7 +329,7 @@ async function main() {
         details: DETAILS,
         amountLabel: "",
         askAmount: true,
-        minimumLabel: egp(100_00),
+        minimumCents: 2_000,
         rateLabel: egp(100),
         steps,
         live: { state: "none" },

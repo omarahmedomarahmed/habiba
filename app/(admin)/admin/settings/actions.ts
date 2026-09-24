@@ -266,6 +266,9 @@ export async function savePayouts(
   }
 
   await writeSettingsGroup({ group: "payouts", value, updatedBy: actor.userId });
+  /* 🔴 0149 — prices typed in pounds stay in pounds when the rate moves. */
+  const { rederiveEgpRates } = await import("@/lib/billing/egp-rates");
+  await rederiveEgpRates(value.egpRateMicro);
   await audit({
     actor,
     category: "admin",

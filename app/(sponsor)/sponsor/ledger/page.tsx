@@ -18,6 +18,7 @@ import {
   type LedgerSort,
 } from "@/lib/sponsor/ledger";
 import { formatDate } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Money", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -65,10 +66,7 @@ export default async function SponsorLedgerPage({
   const money = (cents: number | null) =>
     cents === null
       ? t("sponsor.figureSuppressed")
-      : new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(cents / 100);
+      : <Money cents={cents} />;
   const week = (iso: string) => formatDate(new Date(`${iso}T00:00:00Z`), "UTC", locale);
 
   /* The same filters, one key changed: for sort links and the CSV. */
@@ -86,7 +84,7 @@ export default async function SponsorLedgerPage({
       dir: query.sort === sort && query.dir === "desc" ? "asc" : "desc",
     });
 
-  const figure = (label: string, value: string) => (
+  const figure = (label: string, value: React.ReactNode) => (
     <Card className="p-4">
       <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className="mt-1 text-lg font-bold tabular-nums text-navy-500">{value}</p>

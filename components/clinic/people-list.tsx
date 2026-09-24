@@ -7,6 +7,8 @@ import { cancelInvitation, invite, remove } from "@/app/(clinic)/clinic/people/a
 import { Button, Card, Field, Input } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -73,11 +75,11 @@ export type InviteRow = {
 export type SeatAdd = {
   fromSeats: number;
   toSeats: number;
-  monthlyLabel: string;
-  todayLabel: string;
+  monthlyCents: number;
+  todayCents: number;
 };
 /** 🔴 W2-C02 / C4: the seat a removal releases, and the bill after it. */
-export type SeatRelease = { fromSeats: number; monthlyLabel: string };
+export type SeatRelease = { fromSeats: number; monthlyCents: number };
 
 export function ClinicPeopleList({
   people,
@@ -164,7 +166,7 @@ export function ClinicPeopleList({
                       {/* 🔴 W2-C02 / C4: and the bill after it, when a seat comes free. */}
                       {seatRelease ? (
                         <p className="mt-1 text-xs font-medium text-slate-700">
-                          {t("clinic.seatReleases", { monthly: seatRelease.monthlyLabel })}
+                          {rich(t("clinic.seatReleases", { monthly: slot(0) }), [<Money cents={seatRelease.monthlyCents} />])}
                         </p>
                       ) : null}
                       <button
@@ -261,10 +263,10 @@ export function ClinicPeopleList({
               <p className="rounded-xl bg-slate-50 p-3 text-xs font-medium text-slate-700">
                 <input type="hidden" name="seatFrom" value={seatAdd.fromSeats} />
                 <input type="hidden" name="seatTo" value={seatAdd.toSeats} />
-                {t("clinic.seatAdds", {
-                  monthly: seatAdd.monthlyLabel,
-                  today: seatAdd.todayLabel,
-                })}
+                {rich(t("clinic.seatAdds", { monthly: slot(0), today: slot(1) }), [
+                  <Money cents={seatAdd.monthlyCents} />,
+                  <Money cents={seatAdd.todayCents} />,
+                ])}
               </p>
             ) : null}
 

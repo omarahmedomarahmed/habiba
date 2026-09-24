@@ -6,8 +6,10 @@ import { useFormStatus } from "react-dom";
 import { payClinicBills, type PayState } from "@/app/(clinic)/clinic/bills/actions";
 import { Button } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+import { Money } from "@/components/ui/money";
+import { rich, slot } from "@/lib/i18n/rich";
 
-function Submit({ label }: { label: string }) {
+function Submit({ label }: { label: React.ReactNode }) {
   const { pending } = useFormStatus();
   const t = useT();
   return (
@@ -22,7 +24,7 @@ function Submit({ label }: { label: string }) {
  * formatted; the action reads the due invoices again itself, so nothing here
  * decides what is paid.
  */
-export function PayClinicBills({ amountLabel }: { amountLabel: string }) {
+export function PayClinicBills({ amountCents }: { amountCents: number }) {
   const t = useT();
   const [state, action] = useActionState(
     async (_prev: PayState) => payClinicBills(),
@@ -31,7 +33,7 @@ export function PayClinicBills({ amountLabel }: { amountLabel: string }) {
 
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
-      <Submit label={t("pay.payAmount", { amount: amountLabel })} />
+      <Submit label={rich(t("pay.payAmount", { amount: slot(0) }), [<Money cents={amountCents} />])} />
       {state.error ? (
         <p role="alert" className="text-xs text-red-600">
           {state.error}

@@ -17,7 +17,6 @@ import {
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 // 19.4 — an English-only surface, so the English shorthand, named as such.
-import { formatMoney, formatUsd } from "@/lib/billing/plans";
 import type { PayoutStatus } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 
@@ -227,7 +226,7 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
         <p className="mt-2 text-sm text-slate-700">
           <Money cents={row.amountCents} /> →{" "}
           <span className="font-semibold">
-            {formatMoney(row.payoutAmountMinor, row.payoutCurrency.toUpperCase(), "en-US")}
+            <Money cents={row.payoutAmountMinor} currency={row.payoutCurrency.toUpperCase()} />
           </span>{" "}
           by {row.method === "instapay" ? "InstaPay" : "wallet"} to {row.identifier}
         </p>
