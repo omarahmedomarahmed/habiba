@@ -129,7 +129,12 @@ export function ClinicChrome({
       }
       never={{
         label: t("clinic.neverLabel"),
-        items: [t("clinic.neverNote"), t("clinic.neverRisk"), t("clinic.neverBuilt")],
+        items: [
+          t("clinic.neverNote"),
+          t("clinic.neverRisk"),
+          t("clinic.neverContact"),
+          t("clinic.neverBuilt"),
+        ],
       }}
     >
       {children}

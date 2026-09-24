@@ -191,6 +191,132 @@ async function totalView(db: ReturnType<typeof connect>["db"]) {
   );
 }
 
+/* ================================================================== */
+/*  W1-15 · the clinic sees first name and last initial, and no more   */
+/* ================================================================== */
+
+async function clinicNames(db: ReturnType<typeof connect>["db"]) {
+  const { shortenForClinic, clinicSchedule } = await import("../lib/data/clinic");
+  const { exportSchedule } = await import("../lib/data/clinic-export");
+  const { en } = await import("../lib/i18n/messages");
+
+  /*
+   * A chart can hold the whole name in the first-name field: a walk-in typed
+   * as one string, an import with one name column. "Never in full" has to hold
+   * for that row too, or the rule protects only the tidy records.
+   */
+  check(
+    "W1-15 a whole name typed into the first-name field still reaches the clinic shortened",
+    shortenForClinic("Sarah Mahmoud", null) === "Sarah M" &&
+      shortenForClinic("  Sarah   van der Berg ", "") === "Sarah v",
+    `${shortenForClinic("Sarah Mahmoud", null)} · ${shortenForClinic("  Sarah   van der Berg ", "")}`,
+  );
+  check(
+    "W1-15 CONTROL …and a tidy record is unchanged",
+    shortenForClinic("Sarah", "Mahmoud") === "Sarah M" &&
+      shortenForClinic("Sarah", null) === "Sarah" &&
+      shortenForClinic("سارة", "محمود") === "سارة م",
+    "the rule the founder set: first name and last initial",
+  );
+
+  const slug = `${fixture}-c`;
+  const [org] = (
+    await db.execute(sql`
+      INSERT INTO organizations (name, slug, kind, clinic_state)
+      VALUES (${`Clinic ${fixture}`}, ${slug}, 'clinic', 'active') RETURNING id`)
+  ).rows as { id: string }[];
+  const clinicId = required(org, "a clinic").id;
+  const [th] = (
+    await db.execute(sql`
+      INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role,
+                         verification_status)
+      VALUES (${clinicId}, ${`c-${fixture}@example.com`}, 'x', 'Cee', 'Linician', 'therapist', 'verified')
+      RETURNING id`)
+  ).rows as { id: string }[];
+  const [mgr] = (
+    await db.execute(sql`
+      INSERT INTO clinic_managers (organization_id, email, password_hash, role)
+      VALUES (${clinicId}, ${`m-${fixture}@example.com`}, 'x', 'admin') RETURNING id`)
+  ).rows as { id: string }[];
+  const phone = `+2011${Date.now() % 100000000}`;
+  const email = `sarah-${fixture}@example.com`;
+  const [pat] = (
+    await db.execute(sql`
+      INSERT INTO patients (organization_id, therapist_id, first_name, last_name, email, phone)
+      VALUES (${clinicId}, ${required(th, "a clinician").id}, 'Sarah Mahmoud', '', ${email}, ${phone})
+      RETURNING id`)
+  ).rows as { id: string }[];
+  await db.execute(sql`
+    INSERT INTO sessions (organization_id, therapist_id, patient_id, status, modality,
+                          scheduled_at, feedback_token, price_cents)
+    VALUES (${clinicId}, ${th!.id}, ${required(pat, "a patient").id}, 'scheduled', 'video', now(),
+            ${`${fixture}-c`}, 5000)`);
+
+  const { ADMIN_CAPABILITIES } = await import("../lib/clinic-auth/capabilities");
+  const actor = {
+    clinicManagerId: required(mgr, "a clinic admin").id,
+    clinicOrganizationId: clinicId,
+    role: "admin" as const,
+    capabilities: ADMIN_CAPABILITIES,
+    therapistIds: null,
+  };
+  const window = {
+    from: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    to: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  };
+
+  const rota = await clinicSchedule({ actor, ...window });
+  const exported = await exportSchedule({
+    actor,
+    email: `m-${fixture}@example.com`,
+    clinicName: `Clinic ${fixture}`,
+    ...window,
+  });
+  const shown = JSON.stringify(rota) + exported.csv;
+
+  check(
+    "W1-15 the rota and its export show Sarah M, never the surname, the email or the phone",
+    rota.length === 1 &&
+      rota[0]!.patientName === "Sarah M" &&
+      exported.csv.includes("Sarah M") &&
+      !/Mahmoud/.test(shown) &&
+      !shown.includes(email) &&
+      !shown.includes(phone),
+    rota.map((row) => row.patientName).join(", ") || "no rows",
+  );
+
+  const audited = (
+    await db.execute(sql`
+      SELECT category FROM audit_log
+       WHERE actor_clinic_manager_id = ${actor.clinicManagerId} AND action = 'clinic.schedule.read'`)
+  ).rows as { category: string }[];
+  check(
+    "W1-15 the rota still reads patient rows, so every read keeps its phi_access row",
+    audited.length >= 1 && audited.every((row) => row.category === "phi_access"),
+    `${audited.length} row(s)`,
+  );
+
+  /* The copy says the same rule, in the same words, wherever the clinic reads it. */
+  const rule = /first name, last initial/i;
+  check(
+    "W1-15 the rota, the apply table and the join list say first name and last initial",
+    rule.test(en["clinic.scheduleBody"]) &&
+      rule.test(en["clinic.apply.seesSchedule"]) &&
+      rule.test(en["clinic.join.sees.calendar"]),
+    `${en["clinic.scheduleBody"]} · ${en["clinic.apply.seesSchedule"]}`,
+  );
+
+  const walls = [
+    "components/clinic/chrome.tsx",
+    "app/(clinic)/clinic/apply/page.tsx",
+  ].filter((file) => !readSource(file).includes(`t("clinic.neverContact")`));
+  check(
+    "W1-15 the 'never show you' wall says the full name, email and phone stay out",
+    walls.length === 0 && /full name/.test((en as Record<string, string>)["clinic.neverContact"] ?? ""),
+    walls.join(", ") || "both walls carry it",
+  );
+}
+
 async function main() {
   await stubModules();
   writesTo();
@@ -198,21 +324,25 @@ async function main() {
   const { pool, db } = connect();
   try {
     await totalView(db);
+    await clinicNames(db);
   } finally {
     await db.execute(sql`DELETE FROM audit_log WHERE actor_user_id IN
       (SELECT id FROM users WHERE email LIKE ${`%${fixture}%`})`);
+    await db.execute(sql`DELETE FROM audit_log WHERE actor_clinic_manager_id IN
+      (SELECT id FROM clinic_managers WHERE email LIKE ${`%${fixture}%`})`);
+    await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM copilot_messages WHERE thread_id IN
       (SELECT id FROM copilot_threads WHERE organization_id IN
-        (SELECT id FROM organizations WHERE slug = ${fixture}))`);
+        (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`}))`);
     await db.execute(sql`DELETE FROM copilot_threads WHERE organization_id IN
-      (SELECT id FROM organizations WHERE slug = ${fixture})`);
+      (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
     await db.execute(sql`DELETE FROM transcript_segments WHERE organization_id IN
-      (SELECT id FROM organizations WHERE slug = ${fixture})`);
+      (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
     await db.execute(sql`DELETE FROM sessions WHERE feedback_token LIKE ${`${fixture}%`}`);
     await db.execute(sql`DELETE FROM patients WHERE organization_id IN
-      (SELECT id FROM organizations WHERE slug = ${fixture})`);
+      (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
     await db.execute(sql`DELETE FROM users WHERE email LIKE ${`%${fixture}%`}`);
-    await db.execute(sql`DELETE FROM organizations WHERE slug = ${fixture}`);
+    await db.execute(sql`DELETE FROM organizations WHERE slug LIKE ${`${fixture}%`}`);
     await pool.end();
   }
 

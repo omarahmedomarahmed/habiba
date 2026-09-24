@@ -1737,9 +1737,9 @@ export const en = {
   "clinic.apply.sentBody": "Your practice is on our list. We set it up with you on the call.",
   /* 🔴 C260 — said to the practice, in the words a patient would be told. */
   "clinic.scheduleTitle": "Who is coming, and when",
-  "clinic.scheduleBody": "Your clinicians' appointments: a name and a time, because you pay for the hour.",
+  "clinic.scheduleBody": "First name, last initial and time, because you pay for the hour.",
   "clinic.apply.seesWho": "A practice manager here",
-  "clinic.apply.seesSchedule": "Each clinician's appointments: a name and a time",
+  "clinic.apply.seesSchedule": "Appointments: first name, last initial and time",
   "clinic.apply.seesBills": "One total for the period, never a line per session",
   "clinic.apply.seesTeam": "Who works here, and what each of them can reach",
   "clinic.scheduleEmpty": "No appointments this week.",
@@ -2103,8 +2103,7 @@ export const en = {
    * for.
    */
   "clinic.join.seesTitle": "What {name} will be able to see",
-  "clinic.join.sees.calendar": "Your calendar: who is coming and when",
-  "clinic.join.sees.names": "Each patient's first name and last initial",
+  "clinic.join.sees.calendar": "Your calendar: each patient's first name, last initial and time",
   "clinic.join.sees.radar": "Whether you are on the radar and taking sessions",
   "clinic.join.sees.prices": "What you charge for a session",
   "clinic.join.sees.earnings": "Your earnings totals for the practice",
@@ -3929,6 +3928,7 @@ export const en = {
   "atv.open": "Open",
   "atv.missing": "Not found.",
   "atv.sentTo": "Sent to {to}.",
+  "clinic.neverContact": "A full name, email or phone",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5259,9 +5259,9 @@ export const ar: Record<MessageKey, string> = {
   "clinic.apply.sent": "شكرًا لكم. سنتصل بكم.",
   "clinic.apply.sentBody": "عيادتك على قائمتنا. ونجهّزها معك في المكالمة.",
   "clinic.scheduleTitle": "من سيأتي، ومتى",
-  "clinic.scheduleBody": "مواعيد معالجيك: اسم ووقت، لأنك تدفع مقابل الساعة.",
+  "clinic.scheduleBody": "الاسم الأول والحرف الأول من اسم العائلة والوقت، لأنك تدفع مقابل الساعة.",
   "clinic.apply.seesWho": "مدير العيادة هنا",
-  "clinic.apply.seesSchedule": "مواعيد كل معالج: اسم ووقت",
+  "clinic.apply.seesSchedule": "المواعيد: الاسم الأول والحرف الأول من اسم العائلة والوقت",
   "clinic.apply.seesBills": "إجمالي واحد للفترة، لا سطر لكل جلسة",
   "clinic.apply.seesTeam": "من يعمل هنا، وما يصل إليه كل منهم",
   "clinic.scheduleEmpty": "لا مواعيد هذا الأسبوع.",
@@ -5533,8 +5533,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}، لأنه كان قد دفع شهره عند انضمامه.",
   /* 🔴 63.9 / C328 — ما ستراه العيادة، مُعدَّدًا قبل القبول. */
   "clinic.join.seesTitle": "ما ستستطيع {name} رؤيته",
-  "clinic.join.sees.calendar": "جدولك: من سيأتي ومتى",
-  "clinic.join.sees.names": "الاسم الأول لكل مريض والحرف الأول من اسم العائلة",
+  "clinic.join.sees.calendar": "جدولك: الاسم الأول لكل مريض والحرف الأول من اسم العائلة والوقت",
   "clinic.join.sees.radar": "ما إذا كنت على الرادار وتستقبل جلسات",
   "clinic.join.sees.prices": "سعر الجلسة لديك",
   "clinic.join.sees.earnings": "إجماليات أرباحك في العيادة",
@@ -7092,6 +7091,7 @@ export const ar: Record<MessageKey, string> = {
   "atv.open": "افتح",
   "atv.missing": "غير موجود.",
   "atv.sentTo": "أُرسل إلى {to}.",
+  "clinic.neverContact": "اسمًا كاملًا أو بريدًا أو هاتفًا",
 };
 
 export const DICTIONARIES = { en, ar } as const;

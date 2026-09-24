@@ -46,7 +46,12 @@ export default async function ClinicApplyPage() {
         <SeesWhat
           who={t("clinic.apply.seesWho")}
           can={[t("clinic.apply.seesSchedule"), t("clinic.apply.seesBills"), t("clinic.apply.seesTeam")]}
-          cannot={[t("clinic.neverNote"), t("clinic.neverRisk"), t("clinic.neverBuilt")]}
+          cannot={[
+            t("clinic.neverNote"),
+            t("clinic.neverRisk"),
+            t("clinic.neverContact"),
+            t("clinic.neverBuilt"),
+          ]}
         />
         <p className="text-sm leading-relaxed text-slate-600">{t("clinic.cannotVerify")}</p>
       </div>

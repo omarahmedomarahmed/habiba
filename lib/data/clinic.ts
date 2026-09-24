@@ -277,10 +277,22 @@ export type ClinicScheduleRow = {
  * identifying.
  */
 export function shortenForClinic(first: string | null, last: string | null): string {
-  const given = (first ?? "").trim();
-  const family = (last ?? "").trim();
+  let given = (first ?? "").trim();
+  let family = (last ?? "").trim();
 
   if (!given && !family) return "";
+
+  /*
+   * W1-15: a whole name in the first-name field, from a walk-in typed as one
+   * string or an import with one name column, used to come back in full. It is
+   * split the way a guest's typed name is, at the first space, so "Sarah
+   * Mahmoud" reaches the practice as "Sarah M" like every other row.
+   */
+  if (!family) {
+    const [head, ...rest] = given.split(/\s+/);
+    given = head ?? "";
+    family = rest.join(" ");
+  }
   if (!family) return given;
 
   /*

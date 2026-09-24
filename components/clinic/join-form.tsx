@@ -53,7 +53,6 @@ function WhatTheySee({ clinicName }: { clinicName: string }) {
         who={t("clinic.join.seesTitle", { name: clinicName })}
         can={[
           t("clinic.join.sees.calendar"),
-          t("clinic.join.sees.names"),
           t("clinic.join.sees.radar"),
           t("clinic.join.sees.prices"),
           t("clinic.join.sees.earnings"),
