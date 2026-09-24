@@ -212,7 +212,8 @@
     "prove": "node --import tsx scripts/prove.ts",
     "verify:prove": "node --import tsx scripts/verify-prove.ts",
     "audit:csp-enforced": "node --env-file-if-exists=.env.local --import tsx scripts/audit-csp-enforced.ts",
-    "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts"
+    "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts",
+    "verify:w2x": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2x.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

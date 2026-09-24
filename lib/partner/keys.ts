@@ -43,20 +43,26 @@ import { consume, subjectKey } from "@/lib/rate-limit";
  * the same question and leaving it implicit is how somebody later replaces the lookup
  * with a scan.
  *
- * ## 🔴 AND AN ABNORMAL RATE SUSPENDS THE KEY (C265)
+ * ## 🔴 AN ABNORMAL RATE SUSPENDS A SPONSOR'S KEY (C265), AND THROTTLES A PARTNER'S
  *
  * *An abnormal rate suspends the key rather than alerting somebody to read a chart
- * later.* So the limiter does not merely refuse the call: it writes `suspended_at` and a
- * reason, and every subsequent call fails on the WHERE clause until a human clears it.
- * A rate limit that only slows an attacker down is a rate limit that lets them keep
- * going at the permitted speed, and against an identity oracle that is still an oracle.
+ * later.* That is C265's defence for the one identity oracle this table holds, the
+ * sponsor's `employment:verify` key: the limiter writes `suspended_at` and a reason, and
+ * every subsequent call fails on the WHERE clause until a human clears it. A rate limit
+ * that only slows an attacker down lets them keep going at the permitted speed, and
+ * against an oracle that is still an oracle.
+ *
+ * 🔴 W2-X01: a PARTNER's key is not an oracle, and suspending it for a burst stopped
+ * transcription in rooms that were open, until an operator noticed. So it gets a 429
+ * with `Retry-After` and works again once the caller slows down (RESEARCH-2 section 7:
+ * throttle, never suspend; only a human suspends a partner).
  */
 
 /** A prefix a developer can recognise, and an environment they cannot confuse. */
 const PREFIX = { sandbox: "24t_sk_test_", live: "24t_sk_live_" } as const;
 
-/** C265's hard limit. Per key, per minute, and crossing it suspends. */
-const CALLS_PER_MINUTE = 60;
+/** Per key, per minute. Crossing it suspends a sponsor's key (C265), throttles a partner's. */
+export const CALLS_PER_MINUTE = 60;
 
 function hashKey(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -192,7 +198,12 @@ export type AuthedKey = {
   sponsorId: string | null;
 };
 
-export type KeyFailure = { status: 401 | 403 | 429; error: string };
+export type KeyFailure = {
+  status: 401 | 403 | 429;
+  error: string;
+  /** W2-X01: on a throttle, seconds until the window rolls over, for `Retry-After`. */
+  retryAfter?: number;
+};
 
 /**
  * 🔴 Authenticate a call, rate-limit it, and suspend the key if the rate is abnormal.
@@ -307,15 +318,39 @@ export async function authenticateKey(
     return { failure: { status: 401, error: "That key is not valid." } };
   }
 
+  const throttle = await consume(subjectKey("api-key", row.keyId), CALLS_PER_MINUTE, 60);
+
   /*
-   * 🔴 C265 — THE RATE LIMIT SUSPENDS RATHER THAN REFUSING.
+   * 🔴 W2-X01 — A PARTNER'S KEY IS THROTTLED, NEVER SUSPENDED.
+   *
+   * A burst from a partner is a retry loop or a busy afternoon, not somebody probing
+   * an oracle: no partner scope answers "does this person exist". Suspending the key
+   * stopped every open room on their platform until an operator cleared it by hand.
+   * So the surplus call gets a 429 and the second it may retry, and the key works
+   * again once the window rolls over. The warning is the ops alert: a human decides
+   * whether a partner is abusing us, and only a human suspends one.
+   */
+  if (!throttle.allowed && row.partnerIdColumn) {
+    /* Never more than the window: `retryAfter` compares two clocks (see `consume`). */
+    const wait = Math.min(60, Math.max(1, throttle.retryAfter));
+    log.warn("api key throttled", { partner: ref(row.partnerId) });
+    return {
+      failure: {
+        status: 429,
+        error: `More than ${CALLS_PER_MINUTE} calls in a minute on this key. Wait ${wait} seconds and retry.`,
+        retryAfter: wait,
+      },
+    };
+  }
+
+  /*
+   * 🔴 C265 — FOR A SPONSOR'S KEY THE RATE LIMIT SUSPENDS RATHER THAN REFUSING.
    *
    * Crossing the limit writes `suspended_at` and a reason, so the key is dead until a
    * human clears it. A limiter that only refuses the surplus call lets an attacker
    * continue at the permitted speed for ever, and against an identity oracle that is
    * still an oracle: sixty guesses a minute is thirty-one million a year.
    */
-  const throttle = await consume(subjectKey("api-key", row.keyId), CALLS_PER_MINUTE, 60);
   if (!throttle.allowed) {
     await controlDb
       .update(partnerApiKeys)

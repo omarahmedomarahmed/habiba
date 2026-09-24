@@ -18,13 +18,12 @@ import { useT } from "@/lib/i18n/client";
  * the one immediately after the POST that made it, and the sentence beside it says so
  * rather than leaving a developer to discover it by reloading.
  *
- * ## 🔴 C265's SENTENCE IS ON THE FORM, BESIDE THE CHECKBOX IT IS ABOUT
+ * ## 🔴 NO EMPLOYMENT SENTENCE, because no partner key can hold that scope
  *
- * *An employment key has to name the one organisation it may ask about... An abnormal call
- * rate suspends the key rather than slowing it down.* On the form, because the person who
- * needs to know that a burst suspends rather than throttles is the engineer deciding how to
- * retry, at the moment they are choosing the scope. In a contract it is a clause; here it
- * is a design constraint they will build around.
+ * `employment:verify` moved to the sponsor's own portal in sprint 66, and with it the
+ * rule that a burst suspends the key (C265). A partner's key is throttled with a 429 and
+ * `Retry-After` instead (W2-X01), which `devs.rateNote` says on the docs page. The two
+ * orphan strings that described the old form were deleted with this comment.
  *
  * ## 🔴 AND A SUSPENSION SAYS WHY
  *

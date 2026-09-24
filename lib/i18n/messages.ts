@@ -2188,8 +2188,6 @@ export const en = {
   "dev.lastUsed": "Last used {date}",
   "dev.neverUsed": "Never used",
   /* 🔴 C265 — said on the form that creates the key, not in a contract. */
-  "dev.employmentScoped": "An employment key has to name the one organisation it may ask about, and it can only ever answer about somebody who has just given that organisation's details themselves, inside an enrolment. It is a step in a flow, not a lookup. An abnormal call rate suspends the key rather than slowing it down.",
-  "dev.forOrganisation": "Which organisation may it ask about",
   "dev.webhooksTitle": "Your endpoints",
   "dev.webhooksEmpty": "You have no endpoints yet.",
   "dev.newWebhook": "Add an endpoint",
@@ -2237,7 +2235,7 @@ export const en = {
   "devs.promise4Body": "Every call is recorded with the key that made it and, for a launch, the clinician it was on behalf of. A read of a record appears in the patient's own access log, exactly as ours does, naming your platform.",
   "devs.limits": "What there is no endpoint for",
   "devs.limitsBody": "Not held back, not on a roadmap: there is no route and no argument that would take one. No list of who is enrolled anywhere. No list of anybody's patients. No record read by a key. No note that a clinician has not approved. No transcript accepted from a server. No payload on a webhook.",
-  "devs.rateNote": "Live keys are limited per minute, and crossing that limit suspends the key rather than slowing it down. Build for one call inside one flow, not for a sweep.",
+  "devs.rateNote": "Each key may make 60 calls a minute. Past that we answer 429 with Retry-After, and the key works again once you slow down.",
   /*
    * 43.1c — the records connection. Two homes for one flow, so one set of keys.
    *
@@ -5673,8 +5671,6 @@ export const ar: Record<MessageKey, string> = {
   "dev.suspended": "موقوف",
   "dev.lastUsed": "آخر استخدام {date}",
   "dev.neverUsed": "لم يُستخدم",
-  "dev.employmentScoped": "مفتاح التحقق من العمل يجب أن يسمي الجهة الواحدة التي يسأل عنها، ولا يجيب إلا عن شخص قدّم بيانات تلك الجهة بنفسه للتو، داخل عملية انضمام. هو خطوة في مسار، لا استعلام. والمعدل غير الطبيعي للطلبات يوقف المفتاح بدلًا من إبطائه.",
-  "dev.forOrganisation": "أي جهة يسأل عنها",
   "dev.webhooksTitle": "نقاطك",
   "dev.webhooksEmpty": "لا نقاط لديك بعد.",
   "dev.newWebhook": "أضف نقطة",
@@ -5714,7 +5710,7 @@ export const ar: Record<MessageKey, string> = {
   "devs.promise4Body": "كل طلب يُسجَّل بالمفتاح الذي أجراه، وفي حالة الإطلاق بالمعالج الذي جرى بالنيابة عنه. وقراءة السجل تظهر في سجل وصول المريض نفسه، كما تظهر قراءتنا، وتسمي منصتك.",
   "devs.limits": "ما لا توجد له نقطة وصول",
   "devs.limitsBody": "ليس مؤجلًا ولا على خطة: لا يوجد مسار ولا وسيط يقبله. لا قائمة بمن هو منضم في أي جهة. لا قائمة بمرضى أحد. لا سجل يقرأه مفتاح. لا ملاحظة لم يعتمدها معالج. لا نص جلسة نقبله من خادم. لا محتوى في استدعاء.",
-  "devs.rateNote": "المفاتيح الحقيقية محدودة بعدد طلبات في الدقيقة، وتجاوز الحد يوقف المفتاح بدلًا من إبطائه. ابنِ على طلب واحد داخل مسار واحد، لا على مسح شامل.",
+  "devs.rateNote": "لكل مفتاح 60 طلبًا في الدقيقة. وبعدها نرد بـ 429 مع Retry-After، ويعود المفتاح للعمل حين تبطئون.",
   "acheckin.nav": "رسائل الاطمئنان",
   "acheckin.title": "رسائل الاطمئنان",
   "acheckin.body": "رسالة قصيرة تسأل عن حال الشخص، على جدول. كان التواتر مطلبًا وكان الحكم المرافق له أن نتحقق منه لا أن نفترضه، فكل رقم هنا لك أن تغيّره، ومعدل الإيقاف هو ما يجب مراقبته.",
