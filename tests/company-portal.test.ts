@@ -1,0 +1,75 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { readSource } from "../scripts/_verify";
+
+/**
+ * Wave 2, the company portal: the dead ends a company met with no way forward.
+ * `takeover/FIX-PLAN.md` W2-S03, W2-S04 and the rest of the company list.
+ *
+ * These read the components rather than render them, because what each one
+ * asserts is a SHAPE of the control: whether a tap on a reason ends a benefit
+ * straight away, whether there is a way back out of a confirm, whether the
+ * portal chrome prints. Comments are stripped by `readSource` (C205), so a
+ * paragraph describing a Cancel button does not count as one.
+ */
+
+/* ------------------------------------------------------------ W2-S03 -- */
+
+test("W2-S03 a company with no joining code can create its first one", () => {
+  const actions = readSource("app/(sponsor)/sponsor/code/actions.ts");
+  assert.match(actions, /export async function createCode\(/, "no createCode action");
+  assert.match(
+    actions.slice(actions.indexOf("export async function createCode")),
+    /requireSponsorAdmin\(\)[\s\S]*mintFirstCode\(/,
+    "createCode must be admin only and go through mintFirstCode",
+  );
+
+  const page = readSource("app/(sponsor)/sponsor/code/page.tsx");
+  assert.match(page, /<CreateCode\b/, "the no-code state offers nothing to press");
+});
+
+test("W2-S03 the poster prints without the portal around it", () => {
+  const desk = readSource("components/portal/desk.tsx");
+  for (const tag of ["<aside", "<header", "<footer"]) {
+    const at = desk.indexOf(tag);
+    assert.ok(at >= 0, `${tag} not found in the desk`);
+    const open = desk.slice(at, desk.indexOf(">", at));
+    assert.match(open, /print:hidden/, `the desk's ${tag} prints with the poster`);
+  }
+
+  const page = readSource("app/(sponsor)/sponsor/code/page.tsx");
+  assert.match(page, /print:hidden/, "the page heading prints with the poster");
+
+  const bar = readSource("components/billing/pending-bar.tsx");
+  assert.match(bar, /print:hidden/, "the pending payment bar prints with the poster");
+});
+
+/* ------------------------------------------------------------ W2-S04 -- */
+
+test("W2-S04 ending a benefit takes a reason, then a final confirm, and can be cancelled", () => {
+  const roster = readSource("components/sponsor/roster-list.tsx");
+  /* A reason button only chooses. The act is its own button. */
+  assert.doesNotMatch(
+    roster,
+    /onClick=\{\(\) => remove\(person\.enrolmentId, reason\)\}/,
+    "one tap on a reason still ends the benefit",
+  );
+  assert.match(roster, /t\("sponsor\.cancel"\)/, "no way back out once the panel is open");
+  assert.match(roster, /t\("sponsor\.benefitEnded"/, "nothing says the benefit ended");
+});
+
+test("W2-S04 replace code, remove field and revoke key each get Cancel and a success line", () => {
+  for (const file of [
+    "components/sponsor/code-card.tsx",
+    "components/sponsor/gate-settings.tsx",
+    "components/sponsor/integrations.tsx",
+  ]) {
+    const source = readSource(file);
+    assert.match(source, /<ConfirmAct\b/, `${file} acts on one tap`);
+  }
+
+  const confirm = readSource("components/sponsor/confirm-act.tsx");
+  assert.match(confirm, /t\("sponsor\.cancel"\)/, "the confirm has no Cancel");
+  assert.match(confirm, /done/, "the confirm never reports success");
+});

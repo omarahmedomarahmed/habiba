@@ -54,6 +54,8 @@ export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemo
   const t = useT();
   const [pending, startTransition] = useTransition();
   const [openFor, setOpenFor] = useState<string | null>(null);
+  const [reason, setReason] = useState<string | null>(null);
+  const [ended, setEnded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (people.length === 0) {
@@ -64,15 +66,35 @@ export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemo
     );
   }
 
-  const remove = (enrolmentId: string, reason: string) =>
+  /*
+   * 🔴 W2-S04 — a reason CHOOSES, and a separate red button ends it.
+   *
+   * One tap on a reason used to end the benefit on the spot, with no Cancel once
+   * the panel was open and nothing said afterwards: the row just vanished.
+   */
+  const close = () => {
+    setOpenFor(null);
+    setReason(null);
+    setError(null);
+  };
+
+  const remove = (person: RosterRow, chosen: string) =>
     startTransition(async () => {
-      const result = await endBenefit(enrolmentId, reason);
+      const result = await endBenefit(person.enrolmentId, chosen);
       setError(result.error ?? null);
-      if (!result.error) setOpenFor(null);
+      if (!result.error) {
+        close();
+        setEnded(person.name);
+      }
     });
 
   return (
     <div className="space-y-2">
+      {ended ? (
+        <p role="status" className="text-xs font-semibold text-brand-700">
+          {t("sponsor.benefitEnded", { name: ended })}
+        </p>
+      ) : null}
       {people.map((person) => (
         <Card key={person.enrolmentId} className="p-4">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -90,23 +112,49 @@ export function RosterList({ people, canRemove }: { people: RosterRow[]; canRemo
                   {t("sponsor.removeReason")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {REMOVAL_REASONS.map((reason) => (
+                  {REMOVAL_REASONS.map((value) => (
                     <button
-                      key={reason}
+                      key={value}
                       type="button"
                       disabled={pending}
-                      onClick={() => remove(person.enrolmentId, reason)}
-                      className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                      aria-pressed={reason === value}
+                      onClick={() => setReason(value)}
+                      className={
+                        reason === value
+                          ? "tap-target h-9 rounded-xl bg-navy-500 px-3 text-xs font-semibold text-white disabled:opacity-50"
+                          : "tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                      }
                     >
-                      {t(REASON_KEYS[reason]!)}
+                      {t(REASON_KEYS[value]!)}
                     </button>
                   ))}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={pending || reason === null}
+                    onClick={() => reason && remove(person, reason)}
+                    className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    {t("sponsor.remove")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={close}
+                    className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  >
+                    {t("sponsor.cancel")}
+                  </button>
                 </div>
               </div>
             ) : (
               <button
                 type="button"
-                onClick={() => setOpenFor(person.enrolmentId)}
+                onClick={() => {
+                  close();
+                  setOpenFor(person.enrolmentId);
+                }}
                 className="tap-target mt-2 h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100"
               >
                 {t("sponsor.remove")}

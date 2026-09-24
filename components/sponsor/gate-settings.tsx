@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { addGate, dropGate, setPublicListing } from "@/app/(sponsor)/sponsor/settings/actions";
+import { addGate, dropGate } from "@/app/(sponsor)/sponsor/settings/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+
+import { ConfirmAct } from "./confirm-act";
 import type { MessageKey } from "@/lib/i18n/messages";
 
 function Submit({ label }: { label: string }) {
@@ -59,18 +61,15 @@ export type GateField = {
 
 export function GateSettings({
   fields,
-  listed,
   atCap,
 }: {
   fields: GateField[];
-  listed: boolean;
   /** 53.7 — two at most, decided on the server and told to the user here. */
   atCap: boolean;
 }) {
   const t = useT();
   const [state, formAction] = useActionState(addGate, {});
   const [kind, setKind] = useState("domain_email");
-  const [pending, startTransition] = useTransition();
 
   return (
     <div className="space-y-4">
@@ -100,14 +99,14 @@ export function GateSettings({
                 {field.domain ? (
                   <span className="font-mono text-xs text-slate-500">{field.domain}</span>
                 ) : null}
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => startTransition(async () => void (await dropGate(field.id)))}
-                  className="tap-target ms-auto h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-200 disabled:opacity-50"
-                >
-                  {t("sponsor.removeField")}
-                </button>
+                {/* W2-S04 — the last field gone leaves a code nobody can pass, so ask. */}
+                <ConfirmAct
+                  className="ms-auto"
+                  label={t("sponsor.removeField")}
+                  body={t("sponsor.removeFieldBody")}
+                  done={t("sponsor.fieldRemoved")}
+                  act={() => dropGate(field.id)}
+                />
               </li>
             ))}
           </ul>
@@ -161,22 +160,11 @@ export function GateSettings({
         )}
       </Card>
 
-      {/* 🔴 C236 — unlisted is the default, and what listing means is said plainly. */}
-      <Card className="p-5">
-        <p className="text-base font-bold tracking-tight text-slate-900">
-          {t("sponsor.listedTitle")}
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sponsor.listedBody")}</p>
-
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => startTransition(async () => void (await setPublicListing(!listed)))}
-          className="tap-target mt-3 h-10 rounded-xl bg-slate-100 px-4 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-        >
-          {listed ? t("sponsor.listedOn") : t("sponsor.listedOff")}
-        </button>
-      </Card>
+      {/*
+        FIX-PLAN D5 — the public listing switch is gone. No public surface ever
+        read `listed_publicly`, so "turning it on tells anybody searching" was a
+        sentence about a search that does not exist. The column stays unlisted.
+      */}
     </div>
   );
 }

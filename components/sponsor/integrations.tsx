@@ -11,6 +11,8 @@ import { Button, Card, Field } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
+import { ConfirmAct } from "./confirm-act";
+
 /**
  * The HR connection, step by step. PLAN.md 66.2, 66.5 to 66.12, C227, C246.
  *
@@ -281,19 +283,14 @@ Content-Type: application/json
                           : (key.lastSuccessAt ?? t("sint.keyUnused"))}
                     </span>
                     {canManage && !key.revoked ? (
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() =>
-                          start(async () => {
-                            const result = await revokeHrKey(key.id);
-                            setError(result.error ?? null);
-                          })
-                        }
-                        className="tap-target ms-auto h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-50"
-                      >
-                        {t("sint.revoke")}
-                      </button>
+                      /* W2-S04 — a key stops at once, so ask first and say when it has. */
+                      <ConfirmAct
+                        className="ms-auto"
+                        label={t("sint.revoke")}
+                        body={t("sint.revokeBody")}
+                        done={t("sint.keyRevoked")}
+                        act={() => revokeHrKey(key.id)}
+                      />
                     ) : null}
                   </li>
                 ))}

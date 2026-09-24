@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from "react";
 
-import { replaceCode } from "@/app/(sponsor)/sponsor/code/actions";
+import { createCode, replaceCode } from "@/app/(sponsor)/sponsor/code/actions";
 import { Card } from "@/components/ui";
+
+import { ConfirmAct } from "./confirm-act";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -43,8 +45,6 @@ export function CodeCard({
   spike: boolean;
 }) {
   const t = useT();
-  const [confirming, setConfirming] = useState(false);
-  const [pending, startTransition] = useTransition();
 
   return (
     <Card className="p-5">
@@ -86,31 +86,48 @@ export function CodeCard({
         </button>
 
         {canRotate ? (
-          confirming ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs leading-relaxed text-slate-600">
-                {t("sponsor.codeRotateBody")}
-              </span>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => startTransition(async () => void (await replaceCode()))}
-                className="tap-target h-10 rounded-xl bg-red-600 px-4 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                {t("sponsor.codeRotate")}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              className="tap-target h-10 rounded-xl px-3 text-xs font-semibold text-slate-500 hover:bg-slate-100"
-            >
-              {t("sponsor.codeRotate")}
-            </button>
-          )
+          /* W2-S04 — a Cancel beside the red button, and a line once it is done. */
+          <ConfirmAct
+            label={t("sponsor.codeRotate")}
+            body={t("sponsor.codeRotateBody")}
+            done={t("sponsor.codeRotated")}
+            act={() => replaceCode()}
+          />
         ) : null}
       </div>
     </Card>
+  );
+}
+
+/**
+ * W2-S03 — the first code, pressed by the company. `createCode` refuses when a
+ * code is already live, so this can never do what "Replace this code" does.
+ */
+export function CreateCode() {
+  const t = useT();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const result = await createCode();
+            setError(result.error ?? null);
+          })
+        }
+        className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
+      >
+        {t("sponsor.codeCreate")}
+      </button>
+      {error ? (
+        <p role="alert" className="mt-2 text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

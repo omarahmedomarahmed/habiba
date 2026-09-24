@@ -95,6 +95,7 @@
     "verify:sprint1": "node --env-file-if-exists=.env.local --import tsx scripts/verify-sprint1.ts",
     "test:attribution": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/attribution.test.ts",
     "test:people": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/people.test.ts",
+    "test:company-portal": "node --env-file-if-exists=.env.local --import tsx --test tests/company-portal.test.ts",
     "test:routing": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/routing.test.ts",
     "verify:sprint6": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint6.ts",
     "verify:sprint7": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint7.ts",

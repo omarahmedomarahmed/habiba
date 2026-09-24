@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
-import { rotateCode } from "@/lib/data/sponsor-admin";
+import { mintFirstCode, rotateCode } from "@/lib/data/sponsor-admin";
 import { requireSponsorAdmin } from "@/lib/sponsor-auth/guard";
 
 /**
@@ -27,6 +27,30 @@ export async function replaceCode(): Promise<{ ok: true }> {
     sponsorUserId: actor.sponsorUserId,
     category: "admin",
     action: "sponsor.code_rotated",
+    resourceType: "sponsor",
+    resourceId: actor.sponsorId,
+  });
+
+  revalidatePath("/sponsor/code");
+  return { ok: true };
+}
+
+/**
+ * 🔴 W2-S03 — the first code, which only an operator could make.
+ *
+ * Admin only, like a rotation, and it refuses when a code is already live, so it
+ * cannot strand a poster the way a replacement does.
+ */
+export async function createCode(): Promise<{ ok?: true; error?: string }> {
+  const actor = await requireSponsorAdmin();
+  const result = await mintFirstCode(actor.sponsorId);
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "sponsor.code_created",
     resourceType: "sponsor",
     resourceId: actor.sponsorId,
   });

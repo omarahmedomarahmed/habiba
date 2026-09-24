@@ -1702,11 +1702,6 @@ export const en = {
   "sponsor.addField": "Add this",
   "sponsor.removeField": "Remove",
   "sponsor.fieldCap": "You can ask for two things at most.",
-  "sponsor.listedTitle": "Can people find you without the code",
-  /* 🔴 C236 — unlisted is the default, and what listing means is said plainly. */
-  "sponsor.listedBody": "Off by default. Turning it on tells anybody searching that you cover therapy for your staff.",
-  "sponsor.listedOn": "Listed",
-  "sponsor.listedOff": "Reachable only with your code",
   "sponsor.verifyCycle": "We re-check each person every {months} months. No answer pauses their funding and nothing else.",
   /* ------------------------------------------------------------- the clinic */
   /*
@@ -3998,6 +3993,14 @@ export const en = {
   "arefund.errProof": "Receipt, account and name needed.",
   "arefund.errTwo": "Needs a second person.",
   "arefund.errReason": "Say why.",
+  // W2S company
+  "sponsor.cancel": "Cancel",
+  "sponsor.codeCreate": "Create a code",
+  "sponsor.codeRotated": "New code live. Reprint your posters.",
+  "sponsor.benefitEnded": "{name}'s benefit has ended.",
+  "sponsor.removeFieldBody": "Nobody is asked for this from now on.",
+  "sponsor.fieldRemoved": "Removed.",
+  "sint.revokeBody": "It stops working at once.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5300,10 +5303,6 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.addField": "أضف هذا",
   "sponsor.removeField": "احذف",
   "sponsor.fieldCap": "يمكنكم طلب شيئين على الأكثر.",
-  "sponsor.listedTitle": "هل يجدكم الناس بدون الرمز",
-  "sponsor.listedBody": "مغلق افتراضيًا. وتشغيله يخبر كل باحث أنك تغطي العلاج النفسي لموظفيك.",
-  "sponsor.listedOn": "مدرج",
-  "sponsor.listedOff": "يُوصل إليكم بالرمز فقط",
   "sponsor.verifyCycle": "نعيد التحقق من كل شخص كل {months} أشهر. وعدم الرد يوقف تمويله ولا شيء غير ذلك.",
   /* --------------------------------------------------------------- العيادة */
   "clinic.signIn": "تسجيل الدخول",
@@ -7230,6 +7229,14 @@ export const ar: Record<MessageKey, string> = {
   "arefund.errProof": "الإيصال والحساب والاسم مطلوبة.",
   "arefund.errTwo": "يلزم شخص ثانٍ.",
   "arefund.errReason": "اذكر السبب.",
+  // W2S company
+  "sponsor.cancel": "إلغاء",
+  "sponsor.codeCreate": "أنشئ رمزًا",
+  "sponsor.codeRotated": "الرمز الجديد يعمل الآن. أعد طباعة ملصقاتك.",
+  "sponsor.benefitEnded": "انتهت ميزة {name}.",
+  "sponsor.removeFieldBody": "لن يُطلب هذا من أحد بعد الآن.",
+  "sponsor.fieldRemoved": "حُذف.",
+  "sint.revokeBody": "يتوقف عن العمل فورًا.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

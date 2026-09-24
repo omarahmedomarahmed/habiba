@@ -399,6 +399,27 @@ export async function rotateCode(sponsorId: string): Promise<{ code: string }> {
 }
 
 /**
+ * 🔴 W2-S03 — THE FIRST CODE, MADE BY THE COMPANY ITSELF.
+ *
+ * Only an operator's `mintCode` could make one, and the company's code page said
+ * "You have no joining code yet" with nothing to press. This mints one only when
+ * no code is live, so it can never be used to rotate a code by accident: a
+ * rotation strands every poster and has its own confirm on the code card.
+ */
+export async function mintFirstCode(
+  sponsorId: string,
+): Promise<{ code?: string; error?: string }> {
+  const [live] = await controlDb
+    .select({ id: sponsorCodes.id })
+    .from(sponsorCodes)
+    .where(and(eq(sponsorCodes.sponsorId, sponsorId), isNull(sponsorCodes.revokedAt)))
+    .limit(1);
+  if (live) return { error: "You already have a joining code." };
+
+  return rotateCode(sponsorId);
+}
+
+/**
  * 🔴 53.7 / C238 / C248 — what the sponsor asks for, from a constrained set.
  *
  * *"Never a national identifier, never health information, never free text."*

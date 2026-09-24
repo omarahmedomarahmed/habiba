@@ -140,10 +140,14 @@ export function Desk({
   const wall = <NeverBar label={never.label} items={never.items} />;
   const switcher = routed === null ? null : <LanguageSwitch />;
 
+  /*
+   * W2-S03 — the rail, the top bar and the wall are `print:hidden`, so a
+   * company printing its joining code poster gets the poster and not the portal.
+   */
   return (
     <div className="min-h-dvh bg-slate-50 lg:flex">
       {nav ? (
-        <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:shrink-0 lg:flex-col lg:border-e lg:border-slate-200 lg:bg-white">
+        <aside className="hidden print:hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:shrink-0 lg:flex-col lg:border-e lg:border-slate-200 lg:bg-white">
           <div className="border-b border-slate-100 px-4 py-4">
             <Logo ink="navy" height={22} />
             <p className="mt-2.5 truncate text-sm font-bold tracking-tight text-navy-500">
@@ -193,7 +197,7 @@ export function Desk({
 
       <div className="min-w-0 flex-1">
         {nav ? (
-          <header className="border-b border-slate-200 bg-white lg:hidden">
+          <header className="border-b border-slate-200 bg-white lg:hidden print:hidden">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
               <Logo ink="navy" height={22} />
               <span className="truncate text-sm font-bold tracking-tight text-navy-500">
@@ -243,7 +247,7 @@ export function Desk({
 
         {/* No rail below `lg`, so the wall goes back to the foot of the page. */}
         {nav ? (
-          <footer className="mx-auto max-w-5xl px-4 pb-10 lg:hidden">{wall}</footer>
+          <footer className="mx-auto max-w-5xl px-4 pb-10 lg:hidden print:hidden">{wall}</footer>
         ) : null}
       </div>
     </div>

@@ -109,12 +109,48 @@ async function balanceAfterTopUp(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-S03 · the company can make its first joining code               */
+/* ================================================================== */
+
+async function firstCode(db: Db) {
+  const sponsorId = await plantSponsor(db, "code");
+  try {
+    const admin = (await import("../lib/data/sponsor-admin")) as Record<string, unknown>;
+    const mintFirstCode = admin.mintFirstCode as
+      | ((sponsorId: string) => Promise<{ code?: string; error?: string }>)
+      | undefined;
+    if (!mintFirstCode) {
+      check("W2-S03 a company with no code can mint its first one", false, "no mintFirstCode");
+      return;
+    }
+
+    const first = await mintFirstCode(sponsorId);
+    const { liveCode } = await import("../lib/data/sponsors");
+    check(
+      "W2-S03 a company with no code can mint its first one",
+      Boolean(first.code) && (await liveCode(sponsorId)) === first.code,
+      first.error ?? "live",
+    );
+
+    const second = await mintFirstCode(sponsorId);
+    check(
+      "W2-S03 …and it cannot replace a live one, so no poster is stranded by it",
+      Boolean(second.error) && (await liveCode(sponsorId)) === first.code,
+      second.error ?? "it minted a second code",
+    );
+  } finally {
+    await dropSponsor(db, sponsorId);
+  }
+}
+
 async function main() {
   writesTo();
 
   const { pool, db } = connect();
   try {
     await balanceAfterTopUp(db);
+    await firstCode(db);
   } finally {
     await pool.end();
   }
