@@ -334,6 +334,12 @@ export async function postSessionPayment(payment: {
   platformFeeCents: number;
   settledInvoiceCents: number;
   therapistNetCents: number;
+  /**
+   * W2-S12: a pot spend passes its own, so the spend and the session are one
+   * transaction and a refund can walk from the payment to the pot it came
+   * from. `payFromPot` said it did this; the id was never passed.
+   */
+  txnId?: string;
 }): Promise<void> {
   const org = payment.organizationId;
   const user = payment.therapistId;
@@ -373,6 +379,7 @@ export async function postSessionPayment(payment: {
       kind: "session_payment",
       refType: "session_payment",
       refId: payment.id,
+      txnId: payment.txnId,
       /*
        * 🔴 NO VAT LEG HERE, AND ON THIS PATH THERE IS NEVER ANY VAT TO POST.
        *
@@ -416,6 +423,7 @@ export async function postSessionPayment(payment: {
     kind: "session_payment",
     refType: "session_payment",
     refId: payment.id,
+    txnId: payment.txnId,
     legs: [
       /*
        * 🔴 GROSS PLUS VAT, because that is what arrived.

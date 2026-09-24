@@ -4,6 +4,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
+  manualPayments,
   refundRequests,
   sessionPayments,
   sessions,
@@ -14,6 +15,12 @@ import { log, ref } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 
 import { fourEyesProblem } from "./four-eyes";
+import {
+  refundOwedCents,
+  splitRefundPlan,
+  type EmployeeHalf,
+  type FrozenSplit,
+} from "./split-refund";
 
 const db = controlDb;
 
@@ -41,6 +48,41 @@ const db = controlDb;
 type Result = { ok?: boolean; error?: MessageKey; id?: string };
 
 /**
+ * 🔴 W2-S12: the employee's half of a pot-funded payment, and which rail it
+ * goes back on (`splitRefundPlan`). Their share arrived if the session is paid
+ * (a partly covered one is paid only once they pay) or a transfer for it was
+ * confirmed; a covered-in-full session is paid with nothing of theirs in it,
+ * which the plan reads from the shares.
+ */
+export async function employeeHalfOf(payment: FrozenSplit & {
+  sessionId: string;
+  vatCents: number;
+  stripePaymentIntentId: string | null;
+}): Promise<EmployeeHalf> {
+  const [session] = await db
+    .select({ paymentStatus: sessions.paymentStatus })
+    .from(sessions)
+    .where(eq(sessions.id, payment.sessionId))
+    .limit(1);
+  const [transfer] = await db
+    .select({ id: manualPayments.id })
+    .from(manualPayments)
+    .where(
+      and(
+        eq(manualPayments.refId, payment.sessionId),
+        inArray(manualPayments.purpose, ["session", "payg_session"]),
+        eq(manualPayments.state, "confirmed"),
+      ),
+    )
+    .limit(1);
+
+  return splitRefundPlan({
+    ...payment,
+    employeePaid: session?.paymentStatus === "paid" || Boolean(transfer),
+  }).employee;
+}
+
+/**
  * Open (or find) the live row for a payment we still hold. Idempotent: the
  * partial unique index keeps one live row per payment, so a second path that
  * says "refund owed" for the same money lands on the first one.
@@ -54,16 +96,34 @@ export async function openRefundRequest(input: {
     .select({
       id: sessionPayments.id,
       organizationId: sessionPayments.organizationId,
+      sessionId: sessionPayments.sessionId,
       grossCents: sessionPayments.grossCents,
       vatCents: sessionPayments.vatCents,
       currency: sessionPayments.currency,
       payerName: sessionPayments.payerName,
       status: sessionPayments.status,
+      fundingSource: sessionPayments.fundingSource,
+      coverageBps: sessionPayments.coverageBps,
+      sponsorShareCents: sessionPayments.sponsorShareCents,
+      patientShareCents: sessionPayments.patientShareCents,
+      stripePaymentIntentId: sessionPayments.stripePaymentIntentId,
     })
     .from(sessionPayments)
     .where(eq(sessionPayments.id, input.sessionPaymentId))
     .limit(1);
   if (!payment || payment.status !== "paid") return { error: "arefund.errPaid" };
+
+  /*
+   * 🔴 W2-S12: what THIS payer paid, tax included. On a pot row that is the
+   * employee's share, and only if it arrived: the whole price used to be queued,
+   * so an operator would have sent an employee the company's money too, or
+   * refunded a share nobody paid. The company's share goes back to its pot.
+   */
+  const amountCents =
+    payment.fundingSource === "pot"
+      ? (await employeeHalfOf(payment)).cents
+      : refundOwedCents(payment);
+  if (amountCents <= 0) return { error: "arefund.errPaid" };
 
   const [row] = await db
     .insert(refundRequests)
@@ -71,7 +131,7 @@ export async function openRefundRequest(input: {
       sessionPaymentId: payment.id,
       organizationId: payment.organizationId,
       // What the patient paid, tax included: the same cash the reversal returns.
-      amountCents: payment.grossCents + Math.max(0, payment.vatCents),
+      amountCents,
       currency: payment.currency,
       payeeName: payment.payerName,
       reason: input.reason.slice(0, 300),
@@ -150,6 +210,31 @@ export async function markRefundSent(input: {
     movesMoney: true,
   });
   if (problem) return { error: "arefund.errTwo" };
+
+  /*
+   * 🔴 W2-S12: a pot-funded payment is called refunded only once the company
+   * has its share back too. `refundSplit` returned it before it queued the
+   * employee's half, so this is normally nothing; a row queued before W2-S12,
+   * or one whose pot return failed, gets it here or is refused. Before the
+   * transaction, because the pool has one connection and the transaction holds
+   * it; `refundToPot` returns a share at most once.
+   */
+  const [held] = await db
+    .select({ fundingSource: sessionPayments.fundingSource, status: sessionPayments.status })
+    .from(sessionPayments)
+    .where(eq(sessionPayments.id, row.sessionPaymentId))
+    .limit(1);
+  if (held?.fundingSource === "pot" && held.status === "paid") {
+    const { refundToPot } = await import("./pot");
+    const pot = await refundToPot({ paymentId: row.sessionPaymentId, reason: row.reason });
+    if (pot.error) {
+      log.error("refund not sent: the company's share is not back", {
+        payment: ref(row.sessionPaymentId),
+        reason: pot.error,
+      });
+      return { error: "arefund.errPot" };
+    }
+  }
 
   const txnId = crypto.randomUUID();
   const now = new Date();

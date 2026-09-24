@@ -58,15 +58,13 @@ export async function patientOwesFor(sessionId: string): Promise<SessionOwed> {
 
   const priceCents = Math.max(0, row?.priceCents ?? 0);
 
-  /*
-   * 🔴 THE NEWEST ONE, and there is normally exactly one. A refund writes its
-   * own row rather than editing this, so ordering by creation and taking the
-   * first is reading the current split rather than a historical one.
-   */
+  /* The session's one payment row: `session_payments` is unique on the session. */
   const [split] = await db
     .select({
       sponsorShareCents: sessionPayments.sponsorShareCents,
       patientShareCents: sessionPayments.patientShareCents,
+      status: sessionPayments.status,
+      fundingSource: sessionPayments.fundingSource,
     })
     .from(sessionPayments)
     .where(eq(sessionPayments.sessionId, sessionId))
@@ -74,6 +72,16 @@ export async function patientOwesFor(sessionId: string): Promise<SessionOwed> {
 
   if (!split || split.patientShareCents === null) {
     return { grossCents: priceCents, coveredCents: 0, priceCents };
+  }
+
+  /*
+   * 🔴 W2-S12: A REFUNDED SPLIT IS OWED BY NOBODY. The refund gave the pot its
+   * share back and the employee theirs, or, when they had not paid it yet,
+   * simply ended it. Reading the frozen share off a refunded row would go on
+   * asking them for their half of a session that was refunded.
+   */
+  if (split.fundingSource === "pot" && split.status === "refunded") {
+    return { grossCents: 0, coveredCents: 0, priceCents };
   }
 
   /*

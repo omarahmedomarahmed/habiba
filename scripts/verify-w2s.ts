@@ -703,6 +703,277 @@ async function moneyLedger(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-S12 · a refund of a split session returns each party its own    */
+/* ================================================================== */
+
+/*
+ * A partly covered session has ONE payment row with a frozen split, and two
+ * payers: the pot paid `sponsor_share_cents` at booking, the employee pays
+ * `patient_share_cents` later (by card, or by transfer on the manual rail).
+ * A refund must give each of them what they paid and nothing else, balance the
+ * journal, and call the payment refunded only when both halves are done (W1-12).
+ *
+ * Three cases on one company: covered in full, covered half with the employee's
+ * share unpaid, covered half with the share paid by transfer. For each, every
+ * ledger account this money touched is back where it started once the refund is
+ * done, and every transaction sums to zero.
+ */
+async function splitRefunds(db: Db) {
+  const world = await plantWorld(db, "refund");
+  const sessionIds: string[] = [];
+  try {
+    const { payFromPot } = await import("../lib/billing/pot");
+    const { refundSessionPayment } = await import("../lib/billing/connect");
+    const { patientOwesFor } = await import("../lib/billing/session-owed");
+
+    const balance = async () =>
+      Number(
+        (
+          (
+            await db.execute(sql`
+              SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${world.sponsorId}`)
+          ).rows[0] as { balance_cents: number }
+        ).balance_cents,
+      );
+
+    /* What this world's money sits at, account by account. */
+    const books = async () => {
+      const rows = (
+        await db.execute(sql`
+          SELECT account, COALESCE(SUM(amount_cents), 0)::int AS total FROM ledger_entries
+           WHERE organization_id = ${world.orgId}
+              OR (ref_type = 'sponsor' AND ref_id = ${world.sponsorId})
+           GROUP BY account`)
+      ).rows as { account: string; total: number }[];
+      return Object.fromEntries(rows.map((row) => [row.account, Number(row.total)])) as Record<
+        string,
+        number
+      >;
+    };
+    const moved = (before: Record<string, number>, after: Record<string, number>) =>
+      Object.entries(after)
+        .map(([account, total]) => [account, total - (before[account] ?? 0)] as const)
+        .filter(([, delta]) => delta !== 0);
+    const unbalanced = async () =>
+      (
+        await db.execute(sql`
+          SELECT txn_id, SUM(amount_cents)::int AS delta FROM ledger_entries
+           WHERE organization_id = ${world.orgId}
+              OR (ref_type = 'sponsor' AND ref_id = ${world.sponsorId})
+           GROUP BY txn_id HAVING SUM(amount_cents) <> 0`)
+      ).rows.length;
+    const payment = async (sessionId: string) =>
+      (
+        await db.execute(sql`
+          SELECT sp.id, sp.status, sp.sponsor_share_cents, sp.patient_share_cents,
+                 s.payment_status
+            FROM session_payments sp JOIN sessions s ON s.id = sp.session_id
+           WHERE sp.session_id = ${sessionId}`)
+      ).rows[0] as {
+        id: string;
+        status: string;
+        sponsor_share_cents: number;
+        patient_share_cents: number;
+        payment_status: string;
+      };
+    const cover = (bps: number) =>
+      db.execute(sql`UPDATE sponsor_pots SET coverage_bps = ${bps} WHERE sponsor_id = ${world.sponsorId}`);
+    /*
+     * An employee who has been told about the company's ledger (W2-S10), so
+     * their sessions and refunds enter it where 0134 is applied. Without the
+     * column it is nothing, and the money checks above do not need it.
+     */
+    const cast = async (first: string) => {
+      const person = await world.cast(first, 10_000);
+      await db
+        .execute(sql`UPDATE enrolments SET ledger_told_at = now() - interval '1 minute'
+                      WHERE id = ${person.enrolmentId}`)
+        .catch(() => undefined);
+      return person;
+    };
+
+    /* 1. Covered in full: the pot gets the whole price back, and only that. */
+    await cover(10_000);
+    const nour = await cast("Nour");
+    sessionIds.push(nour.sessionId);
+    const start1 = await balance();
+    const books1 = await books();
+    await payFromPot(nour.sessionId);
+    const full = await payment(nour.sessionId);
+    const r1 = await refundSessionPayment({ paymentId: full.id, reason: "W2-S12 full", adminUserId: null });
+    const after1 = await payment(nour.sessionId);
+    check(
+      "W2-S12 a session the company covered in full, refunded: the pot has its whole price back, the payment is refunded",
+      Boolean(r1.ok) && (await balance()) === start1 && after1.status === "refunded",
+      JSON.stringify({ r1, balance: (await balance()) - start1, status: after1.status }),
+    );
+    const delta1 = moved(books1, await books());
+    check(
+      "W2-S12 …and every account it touched is back where it was, the clinician's held share included",
+      delta1.length === 0 && (await unbalanced()) === 0,
+      JSON.stringify(delta1),
+    );
+
+    /* 2. Covered half, the employee's share never paid: the pot gets ITS half. */
+    await cover(5_000);
+    const hana = await cast("Hana");
+    sessionIds.push(hana.sessionId);
+    const start2 = await balance();
+    const books2 = await books();
+    await payFromPot(hana.sessionId);
+    const half = await payment(hana.sessionId);
+    const r2 = await refundSessionPayment({ paymentId: half.id, reason: "W2-S12 unpaid", adminUserId: null });
+    const after2 = await payment(hana.sessionId);
+    check(
+      "W2-S12 half covered, share unpaid: the pot gets back the 50 it paid, not the 100 the session cost",
+      half.sponsor_share_cents === 5_000 && Boolean(r2.ok) && (await balance()) === start2,
+      JSON.stringify({ r2, share: half.sponsor_share_cents, balance: (await balance()) - start2 }),
+    );
+    const owed = await patientOwesFor(hana.sessionId);
+    const delta2 = moved(books2, await books());
+    check(
+      "W2-S12 …the employee's unpaid share is no longer owed, the payment is refunded, and the books are back",
+      after2.status === "refunded" && owed.grossCents === 0 && delta2.length === 0 && (await unbalanced()) === 0,
+      JSON.stringify({ status: after2.status, owed, moved: delta2 }),
+    );
+
+    /* 3. Covered half, the share paid by bank transfer (the manual rail). */
+    const omar = await cast("Omar");
+    sessionIds.push(omar.sessionId);
+    const start3 = await balance();
+    const books3 = await books();
+    await payFromPot(omar.sessionId);
+    const [transfer] = (
+      await db.execute(sql`
+        INSERT INTO manual_payments (purpose, ref_id, amount_cents, currency, settles_cents,
+                                     payer_kind, organization_id, state, decided_at)
+        VALUES ('session', ${omar.sessionId}, 5000, 'USD', 5000, 'session', ${world.orgId},
+                'confirmed', now())
+        RETURNING *`)
+    ).rows as Record<string, unknown>[];
+    const { grantFor } = await import("../lib/billing/manual-grants");
+    await grantFor({
+      ...(transfer as object),
+      refId: omar.sessionId,
+      purpose: "session",
+      settlesCents: 5000,
+      decidedAt: new Date(),
+      id: String(transfer!.id),
+    } as Parameters<typeof grantFor>[0]);
+    const paid3 = await payment(omar.sessionId);
+    const r3 = await refundSessionPayment({ paymentId: paid3.id, reason: "W2-S12 transfer", adminUserId: null });
+    const again3 = await refundSessionPayment({ paymentId: paid3.id, reason: "W2-S12 again", adminUserId: null });
+    const queued = (
+      await db.execute(sql`
+        SELECT id, amount_cents, status FROM refund_requests WHERE session_payment_id = ${paid3.id}`)
+    ).rows as { id: string; amount_cents: number; status: string }[];
+    const held3 = await payment(omar.sessionId);
+    check(
+      "CONTROL W2-S12 the employee's share was paid by transfer before the refund",
+      paid3.payment_status === "paid" && paid3.status === "paid",
+      JSON.stringify(paid3),
+    );
+    check(
+      "W2-S12 half covered, share paid by transfer: the pot has its 50 back at once, once, however often it is asked",
+      (await balance()) === start3,
+      `${(await balance()) - start3} against the start`,
+    );
+    check(
+      "W2-S12 …the employee's 50 is on the refund queue, and the payment is NOT called refunded while we hold it",
+      Boolean(r3.error) &&
+        Boolean(again3.error) &&
+        queued.length === 1 &&
+        Number(queued[0]!.amount_cents) === 5_000 &&
+        queued[0]!.status === "owed" &&
+        held3.status === "paid",
+      JSON.stringify({ r3, again3, queued, status: held3.status }),
+    );
+
+    const { markRefundSent } = await import("../lib/billing/refunds");
+    const sent = await markRefundSent({
+      requestId: queued[0]?.id ?? "00000000-0000-0000-0000-000000000000",
+      senderUserId: world.therapistId,
+      proofUrl: "https://example.com/proof/w2s12",
+      method: "bank",
+      identifier: "EG00 0000",
+      accountName: "Omar Demo",
+    });
+    const after3 = await payment(omar.sessionId);
+    const delta3 = moved(books3, await books());
+    check(
+      "W2-S12 …and when an operator sends it, the payment is refunded and every account is back where it was",
+      Boolean(sent.ok) &&
+        after3.status === "refunded" &&
+        (await balance()) === start3 &&
+        delta3.length === 0 &&
+        (await unbalanced()) === 0,
+      JSON.stringify({ sent, status: after3.status, moved: delta3 }),
+    );
+
+    /*
+     * 4. A session paid before this fix: its pot leg sits in a transaction of
+     * its own, which is why every pot refund used to stop at "No pot spend is on
+     * the books". Planted by moving the pot leg out of the payment's txn.
+     */
+    await cover(6_000);
+    const lina = await cast("Lina");
+    sessionIds.push(lina.sessionId);
+    const start4 = await balance();
+    await payFromPot(lina.sessionId);
+    await db.execute(sql`
+      UPDATE ledger_entries SET txn_id = ${crypto.randomUUID()}
+       WHERE ref_type = 'sponsor' AND ref_id = ${world.sponsorId}
+         AND txn_id IN (SELECT txn_id FROM ledger_entries
+                         WHERE ref_type = 'session_payment'
+                           AND ref_id = (SELECT id FROM session_payments WHERE session_id = ${lina.sessionId}))`);
+    const legacy = await payment(lina.sessionId);
+    const r4 = await refundSessionPayment({ paymentId: legacy.id, reason: "W2-S12 legacy", adminUserId: null });
+    check(
+      "W2-S12 a pot session paid before the fix is refunded too: the pot gets its 60 back",
+      Boolean(r4.ok) && (await balance()) === start4 && (await unbalanced()) === 0,
+      JSON.stringify({ r4, balance: (await balance()) - start4 }),
+    );
+
+    /* The company's own ledger, where 0134 exists (it is not applied in dev). */
+    const table = (
+      await db.execute(sql`SELECT to_regclass('sponsor_money_entries') IS NOT NULL AS present`)
+    ).rows[0] as { present: boolean };
+    if (table.present) {
+      const figures = async (kind: string) =>
+        (
+          (
+            await db.execute(sql`
+              SELECT price_cents, coverage_bps, covered_cents, employee_cents
+                FROM sponsor_money_entries
+               WHERE sponsor_id = ${world.sponsorId} AND kind = ${kind}`)
+          ).rows as Record<string, number>[]
+        )
+          .map((row) =>
+            [row.price_cents, row.coverage_bps, row.covered_cents, row.employee_cents].map(Number).join("/"),
+          )
+          .sort();
+      const sessionsIn = await figures("session");
+      const refundsIn = await figures("refund");
+      check(
+        "W2-S12 each refund entry in the company's ledger is its session's entry: its share back, the employee's share as frozen",
+        sessionsIn.length === 4 && JSON.stringify(refundsIn) === JSON.stringify(sessionsIn),
+        JSON.stringify({ sessionsIn, refundsIn }),
+      );
+    }
+  } finally {
+    for (const id of sessionIds) {
+      await db.execute(sql`DELETE FROM refund_requests WHERE session_payment_id IN
+        (SELECT id FROM session_payments WHERE session_id = ${id})`);
+      await db.execute(sql`DELETE FROM manual_payments WHERE ref_id = ${id}`);
+    }
+    await db.execute(sql`DELETE FROM sponsor_money_entries WHERE sponsor_id = ${world.sponsorId}`).catch(
+      () => undefined,
+    );
+    await world.drop();
+  }
+}
+
 async function main() {
   writesTo();
 
@@ -715,6 +986,7 @@ async function main() {
     await companyLogins(db);
     await pauseResume(db);
     await moneyLedger(db);
+    await splitRefunds(db);
   } finally {
     await pool.end();
   }

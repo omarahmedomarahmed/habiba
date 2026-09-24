@@ -21,6 +21,7 @@ import { coverageNow, coverageSplit, vatOn } from "@/lib/settings/defs";
 
 import { journal } from "./ledger";
 import { crossingFor, payoutRailFor } from "./money";
+import { moneyEntryFigures, sharesOf } from "./split-refund";
 
 /**
  * The corporate pot. PLAN.md 53.10 to 53.16, 53.21, C226, C232, C239, C244.
@@ -742,6 +743,12 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     platformFeeCents: money.platformCutCents,
     settledInvoiceCents: 0,
     therapistNetCents: money.therapistNetCents,
+    /*
+     * 🔴 W2-S12: THE SAME txn, which the comment above always said and the call
+     * never did. Without it `refundToPot` could not find the pot a session was
+     * paid from, and every pot refund stopped at "No pot spend is on the books".
+     */
+    txnId,
   });
 
   // 🔴 C382 — the debit used to be here, unconditional, after every irreversible
@@ -752,10 +759,12 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     sponsorId: benefit.sponsorId,
     enrolmentId: benefit.enrolmentId,
     kind: "session",
-    priceCents: gross,
-    coverageBps,
-    coveredCents: sponsorShare,
-    employeeCents: gross - sponsorShare,
+    ...moneyEntryFigures({
+      grossCents: gross,
+      coverageBps,
+      sponsorShareCents: sponsorShare,
+      patientShareCents: gross - sponsorShare,
+    }),
     paidAt: new Date(),
   });
 
@@ -800,133 +809,235 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
  * `journal` takes a `txnId` for exactly this, so a person auditing a pot cent
  * can walk from the spend to the reversal and see them as one story rather than
  * two unrelated entries that happen to cancel.
+ *
+ * ## 🔴 W2-S12: THE POT'S SHARE, AND ONLY THE POT'S HALF OF THE REFUND
+ *
+ * This credited the pot, and journalled, `grossCents`: a 50% covered $100
+ * session refunded put $100 into a pot that had paid $50. It never actually
+ * ran, because the walk below looked for the pot leg in the payment's own
+ * transaction and `payFromPot` never passed its txn id on, so every pot refund
+ * stopped at "No pot spend is on the books" and went to the manual queue for
+ * the whole price.
+ *
+ * Now it returns `sponsorShareCents` (`sharesOf`), and nothing else. The
+ * employee's half, and the session's own books, are `refundSessionPayment`'s:
+ * this function is the company's money only, which is why it never marks the
+ * payment refunded. Returned at most once per payment: the row is locked and a
+ * reversal already on the books returns nothing, so a refund asked for twice
+ * (an admin retry, the queue sending the employee's half later) cannot credit
+ * the pot twice.
  */
 export async function refundToPot(input: {
   paymentId: string;
   reason: string;
-}): Promise<{ ok?: true; error?: string }> {
-  const [payment] = await controlDb
-    .select({
-      id: sessionPayments.id,
-      sessionId: sessionPayments.sessionId,
-      grossCents: sessionPayments.grossCents,
-      status: sessionPayments.status,
-      fundingSource: sessionPayments.fundingSource,
-      coverageBps: sessionPayments.coverageBps,
-    })
-    .from(sessionPayments)
-    .where(eq(sessionPayments.id, input.paymentId))
-    .limit(1);
+}): Promise<{ ok?: true; returnedCents?: number; error?: string }> {
+  const outcome = await controlDb.transaction(async (tx) => {
+    const [payment] = await tx
+      .select({
+        id: sessionPayments.id,
+        sessionId: sessionPayments.sessionId,
+        grossCents: sessionPayments.grossCents,
+        status: sessionPayments.status,
+        fundingSource: sessionPayments.fundingSource,
+        coverageBps: sessionPayments.coverageBps,
+        sponsorShareCents: sessionPayments.sponsorShareCents,
+        patientShareCents: sessionPayments.patientShareCents,
+        paidAt: sessionPayments.paidAt,
+      })
+      .from(sessionPayments)
+      .where(eq(sessionPayments.id, input.paymentId))
+      .limit(1)
+      .for("update");
 
-  if (!payment) return { error: "Payment not found." };
-  if (payment.fundingSource !== "pot") return { error: "That payment did not come from a pot." };
-  if (payment.status !== "paid") return { error: "Only a settled payment can be refunded." };
+    if (!payment) return { error: "Payment not found." };
+    if (payment.fundingSource !== "pot") return { error: "That payment did not come from a pot." };
+    if (payment.status !== "paid") return { error: "Only a settled payment can be refunded." };
 
-  /*
-   * The sponsor, walked out of the ledger in two hops.
-   *
-   * `ledger_entries` has no session id, deliberately: it keys on
-   * `ref_type`/`ref_id`. `postSessionPayment` refs the PAYMENT, and
-   * `payFromPot` posts its pot leg under the SAME `txnId` for exactly this
-   * reason, which its own comment calls out: "a person auditing a pot cent can
-   * walk from the pot leg to the session payment". This walks it the other way.
-   *
-   * `sponsor_pot` legs are positive when spent, because the pot is a liability
-   * and spending it reduces what we owe. So the spend to reverse is the
-   * positive one.
-   */
-  const [link] = await controlDb
-    .select({ txnId: ledgerEntries.txnId })
-    .from(ledgerEntries)
-    .where(
-      and(eq(ledgerEntries.refType, "session_payment"), eq(ledgerEntries.refId, payment.id)),
-    )
-    .limit(1);
+    const spend = await potSpendOf(tx, payment);
+    if (!spend) return { error: "No pot spend is on the books for that session." };
 
-  if (!link?.txnId) return { error: "That payment is not on the books." };
+    /*
+     * `sponsor_pot` legs are positive when spent, because the pot is a
+     * liability and spending it reduces what we owe. A reversal is the negative
+     * one, under the spend's own txn id, so its presence is the fact that this
+     * pot already has its money back.
+     */
+    const [already] = await tx
+      .select({ id: ledgerEntries.id })
+      .from(ledgerEntries)
+      .where(
+        and(
+          eq(ledgerEntries.txnId, spend.txnId),
+          eq(ledgerEntries.account, "sponsor_pot"),
+          eq(ledgerEntries.refType, "sponsor"),
+          sql`${ledgerEntries.amountCents} < 0`,
+        ),
+      )
+      .limit(1);
+    if (already) return { ok: true as const, returnedCents: 0 };
 
-  const [spend] = await controlDb
-    .select({ txnId: ledgerEntries.txnId, refId: ledgerEntries.refId })
-    .from(ledgerEntries)
-    .where(
-      and(
-        eq(ledgerEntries.txnId, link.txnId),
-        eq(ledgerEntries.account, "sponsor_pot"),
-        eq(ledgerEntries.refType, "sponsor"),
-        sql`${ledgerEntries.amountCents} > 0`,
-      ),
-    )
-    .limit(1);
+    const [pot] = await tx
+      .select({ id: sponsorPots.id })
+      .from(sponsorPots)
+      .where(eq(sponsorPots.sponsorId, spend.sponsorId))
+      .limit(1);
+    if (!pot) return { error: "That sponsor no longer has a pot." };
 
-  if (!spend?.refId) {
-    return { error: "No pot spend is on the books for that session." };
-  }
+    const { potCents } = sharesOf(payment);
 
-  const pot = await potRow(spend.refId);
-  if (!pot.potId) return { error: "That sponsor no longer has a pot." };
+    /*
+     * 🔴 The credit is unconditional. Putting money back can never overdraw
+     * anything, so it carries no predicate that could fail and leave a sponsor
+     * short of money we have already agreed to return.
+     */
+    await tx
+      .update(sponsorPots)
+      .set({
+        balanceCents: sql`${sponsorPots.balanceCents} + ${potCents}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(sponsorPots.id, pot.id));
 
-  /*
-   * 🔴 The credit is unconditional. Putting money back can never overdraw
-   * anything, so it carries no predicate that could fail and leave a sponsor
-   * short of money we have already agreed to return.
-   */
-  await controlDb
-    .update(sponsorPots)
-    .set({
-      balanceCents: sql`${sponsorPots.balanceCents} + ${payment.grossCents}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(sponsorPots.id, pot.potId));
+    await journal({
+      kind: "session_payment",
+      txnId: spend.txnId,
+      refType: "sponsor",
+      refId: spend.sponsorId,
+      executor: tx,
+      legs: [
+        { account: "sponsor_pot", amountCents: -potCents, memo: input.reason.slice(0, 200) },
+        { account: "cash", amountCents: potCents, memo: "Returned to the pot" },
+      ],
+    });
 
-  await journal({
-    kind: "session_payment",
-    txnId: spend.txnId,
-    refType: "sponsor",
-    refId: spend.refId,
-    legs: [
-      { account: "sponsor_pot", amountCents: -payment.grossCents, memo: input.reason.slice(0, 200) },
-      { account: "cash", amountCents: payment.grossCents, memo: "Returned to the pot" },
-    ],
+    return { ok: true as const, returnedCents: potCents, sponsorId: spend.sponsorId, payment };
   });
 
-  await controlDb
-    .update(sessionPayments)
-    .set({ status: "refunded" })
-    .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")));
+  if (!("payment" in outcome) || !outcome.payment) {
+    return "error" in outcome ? { error: outcome.error } : { ok: true, returnedCents: 0 };
+  }
+  const { payment, sponsorId } = outcome;
 
   /*
    * W2-S10: the money back, as its own entry in the company's ledger, if the
    * session it reverses was in it. Found through the payment's own session
-   * here, inside the money path, and never written to the entry.
+   * here, inside the money path, and never written to the entry. After the
+   * transaction, because the pool has one connection and the transaction held
+   * it.
    */
   const [told] = await controlDb
-    .select({ enrolmentId: enrolments.id, paidAt: sessionPayments.paidAt })
-    .from(sessionPayments)
-    .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .select({ enrolmentId: enrolments.id })
+    .from(sessions)
     .innerJoin(patients, eq(patients.id, sessions.patientId))
     .innerJoin(
       enrolments,
-      and(eq(enrolments.personId, patients.personId), eq(enrolments.sponsorId, spend.refId)),
+      and(eq(enrolments.personId, patients.personId), eq(enrolments.sponsorId, sponsorId)),
     )
-    .where(eq(sessionPayments.id, payment.id))
+    .where(eq(sessions.id, payment.sessionId))
     .limit(1);
 
   if (told) {
     await recordMoneyEntry({
-      sponsorId: spend.refId,
+      sponsorId,
       enrolmentId: told.enrolmentId,
       kind: "refund",
-      priceCents: payment.grossCents,
-      coverageBps: payment.coverageBps ?? 0,
-      coveredCents: payment.grossCents,
-      employeeCents: 0,
+      /* 🔴 W2-S12: the session's own figures, as frozen. Never the whole price covered. */
+      ...moneyEntryFigures(payment),
       /* Written only if the session itself was: told before it was paid. */
-      paidAt: told.paidAt ?? new Date(),
+      paidAt: payment.paidAt ?? new Date(),
     });
   }
 
-  log.info("pot session refunded", { session: ref(payment.sessionId) });
-  return { ok: true };
+  log.info("pot share returned", { session: ref(payment.sessionId) });
+  return { ok: true, returnedCents: outcome.returnedCents };
+}
+
+type Tx = Parameters<Parameters<typeof controlDb.transaction>[0]>[0];
+
+/**
+ * The pot a session was paid from, walked out of the ledger.
+ *
+ * `ledger_entries` has no session id, deliberately: it keys on
+ * `ref_type`/`ref_id`. `postSessionPayment` refs the PAYMENT, and `payFromPot`
+ * posts its pot leg under the SAME txn id (W2-S12 made that true), so the pot
+ * leg is the positive `sponsor_pot` leg in any transaction that refs this
+ * payment.
+ *
+ * 🔴 A pot session paid before W2-S12 has its pot leg in a transaction of its
+ * own, posted a moment before the payment's, by the same call. For those only:
+ * the frozen amount, from a sponsor this person is enrolled with, nearest in
+ * time to the payment and within a minute of it. Nearest, so the same leg is
+ * found every time and the reversal check above stays true.
+ */
+async function potSpendOf(
+  tx: Tx,
+  payment: {
+    id: string;
+    sessionId: string;
+    grossCents: number;
+    coverageBps: number;
+    sponsorShareCents: number;
+    patientShareCents: number;
+    paidAt: Date | null;
+  },
+): Promise<{ txnId: string; sponsorId: string } | null> {
+  const [same] = await tx
+    .select({ txnId: ledgerEntries.txnId, sponsorId: ledgerEntries.refId })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.account, "sponsor_pot"),
+        eq(ledgerEntries.refType, "sponsor"),
+        sql`${ledgerEntries.amountCents} > 0`,
+        inArray(
+          ledgerEntries.txnId,
+          tx
+            .select({ txnId: ledgerEntries.txnId })
+            .from(ledgerEntries)
+            .where(
+              and(
+                eq(ledgerEntries.refType, "session_payment"),
+                eq(ledgerEntries.refId, payment.id),
+              ),
+            ),
+        ),
+      ),
+    )
+    .limit(1);
+  if (same?.sponsorId) return { txnId: same.txnId, sponsorId: same.sponsorId };
+
+  if (!payment.paidAt) return null;
+  const [person] = await tx
+    .select({ personId: patients.personId })
+    .from(sessions)
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .where(eq(sessions.id, payment.sessionId))
+    .limit(1);
+  if (!person?.personId) return null;
+
+  const paidAt = payment.paidAt.toISOString();
+  const [near] = await tx
+    .select({ txnId: ledgerEntries.txnId, sponsorId: ledgerEntries.refId })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.account, "sponsor_pot"),
+        eq(ledgerEntries.refType, "sponsor"),
+        eq(ledgerEntries.amountCents, sharesOf(payment).potCents),
+        inArray(
+          ledgerEntries.refId,
+          tx
+            .select({ sponsorId: enrolments.sponsorId })
+            .from(enrolments)
+            .where(eq(enrolments.personId, person.personId)),
+        ),
+        sql`${ledgerEntries.createdAt} BETWEEN ${paidAt}::timestamptz - interval '1 minute'
+                                        AND ${paidAt}::timestamptz + interval '1 minute'`,
+      ),
+    )
+    .orderBy(sql`abs(extract(epoch from ${ledgerEntries.createdAt} - ${paidAt}::timestamptz))`)
+    .limit(1);
+  return near?.sponsorId ? { txnId: near.txnId, sponsorId: near.sponsorId } : null;
 }
 
 /**

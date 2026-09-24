@@ -1635,7 +1635,7 @@ export const en = {
   "asponsor.rotate": "Rotate code",
   "asponsor.mint": "Mint a code",
   "asponsor.potOpen": "Pot open, with terms.",
-  "asponsor.openPot": "Open their pot. The refund terms and the expiry are agreed first.",
+  "asponsor.openPot": "Open their pot. Refund and expiry terms are agreed first.",
   "asponsor.terms": "Refund and expiry terms",
   "asponsor.expires": "Unspent money expires",
   "asponsor.overdraft": "Overdraft allowed, in whole units",
@@ -4203,6 +4203,8 @@ export const en = {
   "apage.search": "Search",
   "apage.newer": "Newer",
   "apage.older": "Older",
+  // W2R refunds
+  "arefund.errPot": "Company share not returned.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7641,6 +7643,8 @@ export const ar: Record<MessageKey, string> = {
   "apage.search": "بحث",
   "apage.newer": "الأحدث",
   "apage.older": "الأقدم",
+  // W2R refunds
+  "arefund.errPot": "لم تُرَدّ حصة الشركة بعد.",
 };
 
 export const DICTIONARIES = { en, ar } as const;
