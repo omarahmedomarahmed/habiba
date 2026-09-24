@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { completeAssignment, recordAnswer } from "@/lib/data/assessments";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
-export type AnswerState = { error?: string; ok?: boolean };
+export type AnswerState = { error?: string; ok?: boolean; risk?: boolean };
 
 /**
  * The person answers one question. PLAN.md 56.3, 56.7.
@@ -36,7 +36,11 @@ export async function answerQuestion(
   });
 
   if (result.error) return { error: result.error };
-  return { ok: true };
+  /*
+   * 🔴 W1-10: whether this answer opens the crisis path, and nothing else
+   * about it: no score, no band. The screen answers with crisis numbers.
+   */
+  return { ok: true, risk: Boolean(result.risk) };
 }
 
 /**

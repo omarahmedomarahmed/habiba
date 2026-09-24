@@ -589,7 +589,7 @@ export const en = {
   "tab.session": "Session",
   "tab.leaveTitle": "Leave your session?",
   "tab.leaveBody":
-    "Your therapist is still there. The session keeps running, and the Session tab brings you straight back.",
+    "The session keeps running. The Session tab brings you back.",
   "tab.stay": "Stay",
   "tab.leaveAnyway": "Leave anyway",
 
@@ -630,7 +630,7 @@ export const en = {
   "psummary.title": "Your clinical summary",
   "psummary.body": "Your therapists write it, version by version, each under its author's name.",
   "psummary.none": "Nothing has been written yet.",
-  "psummary.noneBody": "A therapist adds a version when a session ends. Theirs to write, yours to keep.",
+  "psummary.noneBody": "Your therapist adds one when a session ends.",
   "psummary.version": "Version {n} · {date}",
 
   /* ---------------------------------------------------------- whole record */
@@ -718,7 +718,7 @@ export const en = {
 
   /* ------------------------------------------------- 🔴 the crisis sheet */
   "crisis.sheetTitle": "Help now",
-  "crisis.sheetBody": "These are phone numbers, not a chat. They connect you to a person.",
+  "crisis.sheetBody": "These are phone numbers, not a chat.",
   "crisis.yourPractice": "Your practice",
   "crisis.orbLabel": "SOS, get help now",
   "crisis.anywhereElse":
@@ -1076,7 +1076,7 @@ export const en = {
   "room.whereSummary": "Where shall we send your summary?",
   "room.emailPlaceholder": "you@example.com",
   "room.sentToUs": "Sent to 24Therapy",
-  "room.sentToUsBody": "Someone will read this today. It did not go to your therapist.",
+  "room.sentToUsBody": "Someone will read this today.",
   "room.tellUsTitle": "Tell us what is happening",
   "room.tellUsBody": "This goes straight to 24Therapy. Your therapist does not see it.",
   "room.tellUsPlaceholder": "What is happening right now.",
@@ -1190,22 +1190,22 @@ export const en = {
   "radar.inSession": "In session",
   "radar.heldForYou": "Held for you",
   "prating.yourSession": "Your session",
-  "prating.summaryOnWay": "Your summary is below, and a copy is on its way to your inbox.",
+  "prating.summaryOnWay": "Your summary is below. A copy is on its way.",
   "prating.stillWriting": "{name} is still writing it up. It arrives by email once approved.",
-  "prating.keepLink": "Your summary is below. Keep this link to come back to it.",
+  "prating.keepLink": "Keep this link to come back to your summary.",
   "prating.yourSummary": "Your summary",
-  "prating.writtenForYou": "Written for you. Your therapist keeps a separate clinical note.",
+  "prating.writtenForYou": "Written for you. Their clinical note is separate.",
   "prating.oneMinute": "One minute, and your summary is yours",
   "prating.andSession": "And the session itself?",
   "prating.andApp": "And 24Therapy itself?",
   "prating.andAppBody": "Finding someone, connecting, the app.",
   "prating.anythingElse": "Anything else?",
   "prating.optional": "Optional",
-  "prating.noName": "Your therapist sees this without your name on it.",
+  "prating.noName": "Your therapist sees this without your name.",
   "prating.commentPlaceholder": "What helped, what did not.",
   "prating.whereSummary": "Where shall we send your summary?",
-  "prating.summaryBody": "Where we send your summary. Used for this session and nothing else.",
-  "prating.ratingsAndEmail": "The ratings and an email address, and it is yours.",
+  "prating.summaryBody": "Used for this session and nothing else.",
+  "prating.ratingsAndEmail": "Ratings and an email, and it is yours.",
   "prating.reported": "Reported",
   "prating.neverJoined": "They never joined, I want my money back",
   "prating.reportSomething": "Report something that happened in this session",
@@ -1825,7 +1825,7 @@ export const en = {
    * acknowledgement, nothing to dismiss.
    */
   "nf.title": "We could not find that page",
-  "nf.body": "The link may be out of date, or the page may have moved.",
+  "nf.body": "The link may be old, or the page has moved.",
   "nf.back": "Back to home",
   "feedback.seeTitle": "Do you want to see this yourself?",
   "feedback.seeBody": "Your therapist keeps this record either way. An account changes who can read it, and it travels with you.",
@@ -1842,7 +1842,7 @@ export const en = {
    */
   "transfer.checking": "We are checking your transfer",
   "transfer.checkingBody": "Usually a few minutes.",
-  "transfer.closePage": "You can close this page. It will be waiting for you here.",
+  "transfer.closePage": "You can close this page and come back.",
   "transfer.rejected": "We could not confirm that transfer",
   "transfer.rejectedBody": "Send the reference again below, or reply to us.",
   "transfer.unset": "Payment is not set up yet",
@@ -1881,7 +1881,7 @@ export const en = {
    */
   "pop.cancel": "Cancel this payment",
   "pop.cancelSure": "Cancel this payment?",
-  "pop.cancelSureBody": "It comes out of your cart and the reminder goes. Nothing is charged, and you can start it again.",
+  "pop.cancelSureBody": "Nothing is charged, and you can start it again.",
   "pop.cancelYes": "Yes, cancel it",
   "pop.cancelNo": "Keep it",
   "pop.proofSent": "You sent this receipt",
@@ -1975,7 +1975,7 @@ export const en = {
   "prating.rateTherapist": "Rate your therapist",
   "prating.rateSession": "Rate the session",
   "prating.rateService": "Rate the service",
-  "prating.blurb": "Rate the session and say where to send the summary. It keeps good therapists visible.",
+  "prating.blurb": "Rate it, and say where to send the summary.",
   "pcode.youAreJoining": "You are joining",
   "pcode.createAccount": "Create your account",
   "pcode.signIn": "Sign in",
@@ -3059,7 +3059,7 @@ export const en = {
   "tshow.nobodyBody": "No other therapist is online. Our failure, not yours: take your money back.",
   "tshow.refund": "Refund me in full",
   "tshow.someoneElse": "Somebody else can see you now",
-  "tshow.someoneElseBody": "Your therapist has not joined. These are online now, and none costs more than you paid.",
+  "tshow.someoneElseBody": "These are online now, and none costs more than you paid.",
   "tshow.noneRefund": "None of these, refund me instead",
   "tclock.timeUp": "Time is up.",
   "tclock.timeUpBody": "To keep going, end this session and send them a link to a new one.",
@@ -3944,6 +3944,17 @@ export const en = {
   "w1a.cancelReasonGiven": "Their reason: {reason}",
   "w1a.cancelReason": "Reason for the patient (no clinical detail)",
   "w1a.cancelReasonNeeded": "Give the patient a short reason.",
+  // W1C
+  "tshow.notYours": "This link cannot do that.",
+  "prating.noShowIntro": "We refund you if the record shows they never joined.",
+  "prating.noShowRefunded": "Refunded. It reaches your card in a few days.",
+  "prating.noShowReview": "We cannot confirm it yet. A person checks before any refund.",
+  "room.notSent": "Not sent. Please try again.",
+  "crisis.openNow": "Likely open now",
+  "crisis.closedNow": "Likely closed now",
+  "crisis.anyTime": "Any time",
+  "crisis.qTitle": "Thank you for telling us",
+  "crisis.qBody": "Your therapist will be told. If you feel unsafe now, call a number below.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -4349,7 +4360,7 @@ export const ar: Record<MessageKey, string> = {
   "tab.session": "الجلسة",
   "tab.leaveTitle": "تخرج من جلستك؟",
   "tab.leaveBody":
-    "معالجك ما زال هناك. الجلسة مستمرة، وزر الجلسة يعيدك إليها مباشرة.",
+    "الجلسة مستمرة، وزر الجلسة يعيدك إليها.",
   "tab.stay": "ابقَ",
   "tab.leaveAnyway": "اخرج على أي حال",
 
@@ -4390,7 +4401,7 @@ export const ar: Record<MessageKey, string> = {
   "psummary.title": "ملخصك السريري",
   "psummary.body": "يكتبه معالجوك نسخةً بعد نسخة، كل واحدة باسم كاتبها.",
   "psummary.none": "لم يُكتب شيء بعد.",
-  "psummary.noneBody": "يضيف المعالج نسخة عند انتهاء الجلسة. هو يكتبها وأنت تحتفظ بها.",
+  "psummary.noneBody": "يضيفه معالجك عند انتهاء الجلسة.",
   "psummary.version": "النسخة {n} · {date}",
 
   /* --------------------------------------------------------- السجل كاملًا */
@@ -4477,7 +4488,7 @@ export const ar: Record<MessageKey, string> = {
 
   /* ------------------------------------------------- 🔴 شاشة المساعدة الآن */
   "crisis.sheetTitle": "مساعدة الآن",
-  "crisis.sheetBody": "هذه أرقام هاتف، لا محادثة. تصلك بإنسان.",
+  "crisis.sheetBody": "هذه أرقام هاتف، لا محادثة.",
   "crisis.yourPractice": "عيادتك",
   "crisis.orbLabel": "استغاثة، اطلب المساعدة الآن",
   "crisis.anywhereElse":
@@ -4763,7 +4774,7 @@ export const ar: Record<MessageKey, string> = {
   "room.whereSummary": "إلى أين نرسل ملخصك؟",
   "room.emailPlaceholder": "you@example.com",
   "room.sentToUs": "أُرسلت إلى 24Therapy",
-  "room.sentToUsBody": "سيقرأها أحدنا اليوم. ولم تصل إلى معالجك.",
+  "room.sentToUsBody": "سيقرأها أحدنا اليوم.",
   "room.tellUsTitle": "أخبرنا بما يحدث",
   "room.tellUsBody": "هذا يصل إلى 24Therapy مباشرة. ولا يراه معالجك.",
   "room.tellUsPlaceholder": "ما الذي يحدث الآن.",
@@ -4857,9 +4868,9 @@ export const ar: Record<MessageKey, string> = {
   "radar.inSession": "في جلسة",
   "radar.heldForYou": "محجوز لك",
   "prating.yourSession": "جلستك",
-  "prating.summaryOnWay": "ملخصك بالأسفل، ونسخة منه في طريقها إلى بريدك.",
+  "prating.summaryOnWay": "ملخصك بالأسفل. ونسخة منه في الطريق.",
   "prating.stillWriting": "ما زال {name} يكتبه. ويصلك بالبريد فور اعتماده.",
-  "prating.keepLink": "ملخصك بالأسفل. احتفظ بهذا الرابط للعودة إليه.",
+  "prating.keepLink": "احتفظ بهذا الرابط للعودة إلى ملخصك.",
   "prating.yourSummary": "ملخصك",
   "prating.writtenForYou": "مكتوب لك أنت. ويحتفظ معالجك بملاحظة سريرية منفصلة.",
   "prating.oneMinute": "دقيقة واحدة، ويصبح ملخصك لك",
@@ -4871,7 +4882,7 @@ export const ar: Record<MessageKey, string> = {
   "prating.noName": "يرى معالجك هذا بلا اسمك عليه.",
   "prating.commentPlaceholder": "ما الذي ساعد، وما الذي لم يساعد.",
   "prating.whereSummary": "إلى أين نرسل ملخصك؟",
-  "prating.summaryBody": "إلى هنا نرسل ملخصك. يُستخدم لهذه الجلسة ولا شيء غيرها.",
+  "prating.summaryBody": "يُستخدم لهذه الجلسة ولا شيء غيرها.",
   "prating.ratingsAndEmail": "التقييمات وعنوان بريد، ويصبح الملخص لك.",
   "prating.reported": "تم الإبلاغ",
   "prating.neverJoined": "لم يحضر، وأريد استرداد أموالي",
@@ -5341,7 +5352,7 @@ export const ar: Record<MessageKey, string> = {
   "feedback.makeMine": "اجعله ملكي",
   "transfer.checking": "نراجع التحويل الآن",
   "transfer.checkingBody": "عادة دقائق قليلة.",
-  "transfer.closePage": "يمكنك إغلاق الصفحة. ستجدها في انتظارك هنا.",
+  "transfer.closePage": "يمكنك إغلاق الصفحة والعودة إليها.",
   "transfer.rejected": "لم نتمكن من تأكيد هذا التحويل",
   "transfer.rejectedBody": "أرسل الرقم المرجعي مرة أخرى بالأسفل، أو راسلنا.",
   "transfer.unset": "طريقة الدفع غير مُعدّة بعد",
@@ -5370,7 +5381,7 @@ export const ar: Record<MessageKey, string> = {
   "pop.minimise": "تصغير",
   "pop.cancel": "إلغاء هذه الدفعة",
   "pop.cancelSure": "تلغي الدفعة دي؟",
-  "pop.cancelSureBody": "هتتشال من السلة والتنبيه هيختفي. مفيش أي مبلغ هيتخصم، وتقدر تبدأها تاني في أي وقت.",
+  "pop.cancelSureBody": "مفيش أي مبلغ هيتخصم، وتقدر تبدأها تاني في أي وقت.",
   "pop.cancelYes": "أيوه، ألغيها",
   "pop.cancelNo": "سيبها",
   "pop.proofSent": "لقد أرسلت هذا الإيصال",
@@ -5437,7 +5448,7 @@ export const ar: Record<MessageKey, string> = {
   "prating.rateTherapist": "قيّم معالجك",
   "prating.rateSession": "قيّم الجلسة",
   "prating.rateService": "قيّم الخدمة",
-  "prating.blurb": "قيّم الجلسة وأخبرنا أين نرسل الملخص. هذا ما يُبقي المعالجين الجيدين ظاهرين.",
+  "prating.blurb": "قيّم الجلسة، وأخبرنا أين نرسل الملخص.",
   "pcode.youAreJoining": "أنت تنضم إلى",
   "pcode.createAccount": "أنشئ حسابك",
   "pcode.signIn": "تسجيل الدخول",
@@ -6402,7 +6413,7 @@ export const ar: Record<MessageKey, string> = {
   "tshow.nobodyBody": "لا يوجد معالج آخر متاح. هذا تقصيرنا لا تقصيرك: استرد أموالك.",
   "tshow.refund": "استرد لي المبلغ كاملًا",
   "tshow.someoneElse": "يستطيع شخص آخر استقبالك الآن",
-  "tshow.someoneElseBody": "لم ينضم معالجك. هؤلاء متاحون الآن، ولا أحد منهم أغلى مما دفعت.",
+  "tshow.someoneElseBody": "هؤلاء متاحون الآن، ولا أحد منهم أغلى مما دفعت.",
   "tshow.noneRefund": "لا أريد أيًّا منهم، استرد لي المبلغ",
   "tclock.timeUp": "انتهى الوقت.",
   "tclock.timeUpBody": "للمتابعة، أنهِ هذه الجلسة وأرسل له رابطًا لجلسة جديدة.",
@@ -7122,6 +7133,17 @@ export const ar: Record<MessageKey, string> = {
   "w1a.cancelReasonGiven": "السبب: {reason}",
   "w1a.cancelReason": "السبب للمريض (دون تفاصيل سريرية)",
   "w1a.cancelReasonNeeded": "اكتب للمريض سببًا قصيرًا.",
+  // W1C
+  "tshow.notYours": "لا يستطيع هذا الرابط فعل ذلك.",
+  "prating.noShowIntro": "نرد لك المبلغ إن أظهر السجل أنه لم ينضم.",
+  "prating.noShowRefunded": "تم رد المبلغ. يصل إلى بطاقتك خلال أيام.",
+  "prating.noShowReview": "لا يمكننا تأكيد ذلك بعد. يراجعه شخص قبل أي استرداد.",
+  "room.notSent": "لم تُرسل. حاول مرة أخرى من فضلك.",
+  "crisis.openNow": "مفتوح الآن غالبًا",
+  "crisis.closedNow": "مغلق الآن غالبًا",
+  "crisis.anyTime": "في أي وقت",
+  "crisis.qTitle": "شكرًا لأنك أخبرتنا",
+  "crisis.qBody": "سنُبلغ معالجك. وإن شعرت أنك لست بأمان الآن، اتصل بأحد الأرقام أدناه.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

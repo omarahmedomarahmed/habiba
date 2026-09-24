@@ -430,6 +430,178 @@ async function main() {
       `outcome ${cancelled.outcome}, payment ${cancelledPayment.rows[0]?.status}`,
     );
 
+    /*
+     * 🔴 W1-07: THE ACTIONS ASK FOR PROOF, NOT AN ID.
+     *
+     * `takeRefund(sessionId)` refunded any overdue session for whoever held its
+     * id. The proof now is the patient's own join link, or a signed-in patient
+     * whose person owns the session. Planted with no contact details, so the
+     * control's apology has nobody to reach.
+     */
+    const { takeRefund, takeReplacement } = await import(
+      "../app/(patient)/sessions/[id]/recovery-actions"
+    );
+    const plantOverdue = async (joinToken: string) => {
+      const [row] = await db
+        .insert(sessions)
+        .values({
+          organizationId: absent!.organizationId,
+          therapistId: absent!.id,
+          status: "scheduled",
+          modality: "video",
+          guestName: "verify14 w107",
+          joinToken,
+          feedbackToken: `${joinToken}-rate`,
+          priceCents: 0,
+          scheduledAt: new Date(Date.now() - 60 * 60_000),
+          patientJoinedAt: new Date(Date.now() - 59 * 60_000),
+        })
+        .returning({ id: sessions.id });
+      if (row) made.push(row.id);
+      return row!;
+    };
+    const overdue = await plantOverdue(`verify14-join-a-${Date.now()}`);
+    const joinToken = `verify14-join-b-${Date.now()}`;
+    const withLink = await plantOverdue(joinToken);
+    const byIdRefund = await (takeRefund as (proof: unknown) => Promise<unknown>)(overdue!.id).catch(
+      (error: Error) => ({ error: error.message }),
+    );
+    const byIdMove = await (
+      takeReplacement as (proof: unknown, userId: string) => Promise<unknown>
+    )(overdue!.id, cheaper!.id).catch((error: Error) => ({ error: error.message }));
+    const [untouched] = await db
+      .select({ status: sessions.status, therapistId: sessions.therapistId })
+      .from(sessions)
+      .where(eq(sessions.id, overdue!.id))
+      .limit(1);
+    check(
+      "🔴 W1-07 an overdue session cannot be refunded or moved by its bare id",
+      untouched?.status === "scheduled" && untouched?.therapistId === absent!.id,
+      `refund ${JSON.stringify(byIdRefund)}, move ${JSON.stringify(byIdMove)}, now ${untouched?.status}`,
+    );
+    const byToken = await takeRefund({ token: joinToken }).catch((error: Error) => ({
+      error: error.message,
+    }));
+    const [refundedRow] = await db
+      .select({ outcome: sessions.recoveryOutcome })
+      .from(sessions)
+      .where(eq(sessions.id, withLink.id))
+      .limit(1);
+    check(
+      "W1-07 control: the same session IS recovered with the patient's join link",
+      /*
+       * Unpaid, so W1-12's honest outcome is "cancelled": nothing went back
+       * because nothing was paid. Either recovered state proves the link is
+       * accepted; a refused proof leaves the outcome empty.
+       */
+      refundedRow?.outcome === "refunded" || refundedRow?.outcome === "cancelled",
+      `outcome ${refundedRow?.outcome}, ${JSON.stringify(byToken)}`,
+    );
+
+    /*
+     * 🔴 W1-08: A CLAIM IS NOT A PROOF.
+     *
+     * "They never joined" refunded the patient and took the clinician off the
+     * radar on the report alone. Here the room's own record says the clinician
+     * DID start the session, so the claim must wait in the admin queue and the
+     * clinician must stay on the board. Planted clinician, never a found one.
+     */
+    const { reportSession } = await import("../app/feedback/[token]/actions");
+    const [claimed] = await db
+      .insert(users)
+      .values({
+        organizationId,
+        email: `verify14-w108-${Date.now()}@example.com`,
+        passwordHash: "x".repeat(60),
+        firstName: "verify14",
+        lastName: "w108",
+        role: "therapist" as const,
+      })
+      .returning({ id: users.id });
+    await db
+      .insert(therapistRadar)
+      .values({ userId: claimed!.id, organizationId, status: "online" });
+    const claimToken = `verify14-w108-${Date.now()}`;
+    const [attended] = await db
+      .insert(sessions)
+      .values({
+        organizationId,
+        therapistId: claimed!.id,
+        status: "completed",
+        modality: "video",
+        guestName: "verify14 w108",
+        feedbackToken: claimToken,
+        priceCents: 3000,
+        scheduledAt: new Date(Date.now() - 90 * 60_000),
+        startedAt: new Date(Date.now() - 89 * 60_000),
+        endedAt: new Date(Date.now() - 40 * 60_000),
+      })
+      .returning({ id: sessions.id });
+    if (attended) made.push(attended.id);
+    const claim = await reportSession({ token: claimToken, kind: "no_show", detail: "", email: "" });
+    const { releaseHold, callerKey } = await import("../lib/rate-limit");
+    await releaseHold(await callerKey("report"));
+    const [radarAfter] = await db
+      .select({ suspendedUntil: therapistRadar.suspendedUntil })
+      .from(therapistRadar)
+      .where(eq(therapistRadar.userId, claimed!.id))
+      .limit(1);
+    const { sessionReports } = await import("../lib/db/schema");
+    const [queued] = await db
+      .select({ status: sessionReports.status, kind: sessionReports.kind })
+      .from(sessionReports)
+      .where(eq(sessionReports.sessionId, attended!.id))
+      .limit(1);
+    check(
+      "🔴 W1-08 a no-show claim against a session the clinician started is queued, not actioned",
+      queued?.kind === "no_show" && queued?.status === "open" && !radarAfter?.suspendedUntil,
+      `report ${queued?.status ?? "missing"}, radar ${radarAfter?.suspendedUntil ? "SUSPENDED" : "untouched"}, ${JSON.stringify(claim)}`,
+    );
+    check(
+      "W1-08 …and the patient is told a person will decide",
+      "noShow" in claim && claim.noShow === "review",
+      JSON.stringify(claim),
+    );
+
+    /*
+     * 🔴 W1-11: THE ROOM'S "SOMETHING IS WRONG" BOX STORED NOTHING.
+     *
+     * It passed the JOIN token to an action that looks up the FEEDBACK token,
+     * ignored the refusal, and told the patient "Sent to 24Therapy". The room
+     * now has its own action; this plants a live session, reports from it by
+     * its join link, and reads the queue.
+     */
+    const roomToken = `verify14-room-${Date.now()}`;
+    const live = await plantOverdue(roomToken);
+    const joinActions = (await import("../app/join/[token]/actions")) as Record<string, unknown>;
+    const reportFromRoom = joinActions.reportFromRoom as
+      | ((input: { token: string; detail: string }) => Promise<{ ok?: boolean; error?: string }>)
+      | undefined;
+    const fromRoom = reportFromRoom
+      ? await reportFromRoom({ token: roomToken, detail: "verify14 the clinician said something wrong" })
+      : { error: "no reportFromRoom action" };
+    await releaseHold(await callerKey("report"));
+    const [stored] = await db
+      .select({ status: sessionReports.status, detail: sessionReports.detail })
+      .from(sessionReports)
+      .where(eq(sessionReports.sessionId, live.id))
+      .limit(1);
+    check(
+      "🔴 W1-11 a report from inside the room, by its join link, lands in the report queue",
+      Boolean(fromRoom.ok) && stored?.status === "open" && Boolean(stored?.detail?.includes("verify14")),
+      JSON.stringify(fromRoom),
+    );
+    const bogus = reportFromRoom
+      ? await reportFromRoom({ token: `${roomToken}-nope`, detail: "verify14 a report with a dead link" })
+      : { error: "no reportFromRoom action" };
+    await releaseHold(await callerKey("report"));
+    check("W1-11 …and a dead link comes back as an error, not as sent", Boolean(bogus.error) && !bogus.ok);
+    const room = readSource("components/join/patient-room.tsx");
+    check(
+      "🔴 W1-11 the room calls its own action and reads the result",
+      room.includes("reportFromRoom(") && !/reportSession\(/.test(room),
+    );
+
     /* ------------------------------------------------------ 14.7 the score */
 
     const score = await reliabilityFor(absent!.id);

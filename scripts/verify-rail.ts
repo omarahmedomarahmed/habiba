@@ -1340,7 +1340,12 @@ async function main() {
     "🔴 the patient minimises to an orb, and it sits under the crisis one",
     /minimised="orb"/.test(readSource("app/pay/[token]/page.tsx")) &&
       /z-\[60\]/.test(popup) &&
-      /z-\[70\]/.test(readSource("components/patient/sos-orb.tsx")),
+      /*
+       * W1-09 moved the orb from 70 to 300, above the radar booking sheet at
+       * 100. What this asserts is the ORDER, so it reads the orb's layer
+       * rather than pinning the old number.
+       */
+      Number(/fixed z-\[(\d+)\]/.exec(readSource("components/patient/sos-orb.tsx"))?.[1] ?? 0) > 60,
     "a payment reminder covering the SOS button is C235 broken by a stacking context",
   );
 

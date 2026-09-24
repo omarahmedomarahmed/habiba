@@ -218,7 +218,7 @@ export default async function JoinPage({
       {session.scheduledAt && !session.startedAt && session.scheduledAt < new Date() ? (
         <div className="mx-auto w-full max-w-md px-4 pb-8">
           <NoShowRecovery
-            sessionId={session.id}
+            token={token}
             startedAt={null}
             waitMinutes={Math.floor((Date.now() - session.scheduledAt.getTime()) / 60_000)}
           />

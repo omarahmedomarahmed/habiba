@@ -68,6 +68,16 @@ export type CrisisLine = {
    * Absent for a line that answers directly. Never guessed.
    */
   steps?: { en: string; ar: string };
+  /**
+   * 🔴 W1-09: WHEN SOMEBODY ANSWERS, where a source says so.
+   *
+   * `"always"` for an emergency number. Days (0 is Sunday) and hours in the
+   * line's own time zone for a line that closes. Absent means unknown, and
+   * unknown is never shown as open or closed. Never guessed.
+   */
+  hours?: "always" | { timeZone: string; days: number[]; from: number; to: number };
+  /** What the number is, for a line that is not a crisis line: "Ambulance". */
+  name?: { en: string; ar: string };
 };
 
 /**
@@ -104,8 +114,45 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
       en: "Press 1 for Arabic, then 1 for mental health.",
       ar: "اضغط ١ للعربية، ثم ١ للصحة النفسية.",
     },
+    /*
+     * 🔴 W1-09: 105 IS NOT A 24 HOUR LINE. Ahram Online gives Monday to
+     * Thursday, 9am to 5pm (takeover/design/RESEARCH-2.md section 1). So it is
+     * never offered alone: `EMERGENCY_LINES` below always sits beside it, and
+     * leads outside these hours.
+     */
+    hours: { timeZone: "Africa/Cairo", days: [1, 2, 3, 4], from: 9, to: 17 },
   },
 };
+
+/**
+ * 🔴 W1-09: the numbers that always answer, per country, from the same source
+ * (RESEARCH-2 section 1: U.S. Embassy Egypt, and 112 since 2022). Shown beside
+ * the crisis line, never instead of it, and first whenever that line is likely
+ * closed. A country with none here still gets "your local emergency number".
+ */
+export const EMERGENCY_LINES: Record<string, CrisisLine[]> = {
+  EG: [
+    { label: "123", tel: "123", hours: "always", name: { en: "Ambulance", ar: "الإسعاف" } },
+    { label: "112", tel: "112", hours: "always", name: { en: "Emergency", ar: "الطوارئ" } },
+  ],
+};
+
+/** Whether a line is likely answering at `now`: null when nobody has told us its hours. */
+export function lineOpenAt(line: CrisisLine, now: Date = new Date()): boolean | null {
+  if (!line.hours) return null;
+  if (line.hours === "always") return true;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: line.hours.timeZone,
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
+    parts.find((part) => part.type === "weekday")?.value ?? "",
+  );
+  const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  return line.hours.days.includes(weekday) && hour >= line.hours.from && hour < line.hours.to;
+}
 
 /**
  * The line for a country, or null when we do not know one.
@@ -184,6 +231,8 @@ export function crisisLine(
       label: configured.label,
       tel: configured.tel,
       ...(sameNumber && built?.steps ? { steps: built.steps } : {}),
+      /* W1-09: and its hours, on the same rule: known for that number only. */
+      ...(sameNumber && built?.hours ? { hours: built.hours } : {}),
     };
   }
 

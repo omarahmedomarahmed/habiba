@@ -83,6 +83,59 @@ export function recoveryDue(
   return now.getTime() - row.scheduledAt.getTime() >= NO_SHOW_AFTER_MINUTES * 60_000;
 }
 
+/**
+ * 🔴 W1-08: WHETHER THE SESSION'S OWN RECORD SAYS THE CLINICIAN NEVER JOINED.
+ *
+ * A patient's "they never joined" refunded them and suspended the clinician on
+ * the report alone. That stays automatic only when the record agrees: a video
+ * session in our own room, due at least `NO_SHOW_AFTER_MINUTES` ago, never
+ * started, never recorded, still `scheduled` and not already recovered. Every
+ * other case (a started session, an in-person or external meeting we cannot
+ * see into, a cancelled or already refunded one, a claim made early) goes to
+ * a person in the admin report queue.
+ */
+export function noShowProven(
+  row: {
+    scheduledAt: Date | null;
+    startedAt: Date | null;
+    recordingStartedAt: Date | null;
+    status: string;
+    modality: string;
+    recoveryOutcome: string | null;
+    externalMeeting: boolean;
+  },
+  now: Date = new Date(),
+): boolean {
+  if (!row.scheduledAt || row.startedAt || row.recordingStartedAt) return false;
+  if (row.status !== "scheduled" || row.modality !== "video") return false;
+  if (row.externalMeeting || row.recoveryOutcome) return false;
+  return now.getTime() - row.scheduledAt.getTime() >= NO_SHOW_AFTER_MINUTES * 60_000;
+}
+
+/** The facts `noShowProven` reads, for one session. Null when there is no such session. */
+export async function noShowFacts(sessionId: string) {
+  const { sessionSources } = await import("@/lib/db/schema");
+  const [row] = await db
+    .select({
+      scheduledAt: sessions.scheduledAt,
+      startedAt: sessions.startedAt,
+      recordingStartedAt: sessions.recordingStartedAt,
+      status: sessions.status,
+      modality: sessions.modality,
+      recoveryOutcome: sessions.recoveryOutcome,
+    })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  if (!row) return null;
+  // Held anywhere but our own room, and nothing here can say who was in it.
+  const sources = await db
+    .select({ kind: sessionSources.kind })
+    .from(sessionSources)
+    .where(eq(sessionSources.sessionId, sessionId));
+  return { ...row, externalMeeting: sources.some((source) => source.kind !== "24t_room") };
+}
+
 /** 14.6 — a patient's credit lasts as long as a therapist's. */
 export const CREDIT_MONTHS = 12;
 
@@ -301,10 +354,11 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
    * 🔴 THE THERAPIST MUST ACTUALLY HAVE FAILED TO APPEAR, AND UNTIL THIS SPRINT
    * NOTHING CHECKED IT.
    *
-   * The caller is unauthenticated on purpose: somebody who booked from a public
-   * profile has no account, and the moment their therapist does not turn up is
-   * the worst possible moment to ask them to make one. The session id is the
-   * capability, exactly as it is for the join link.
+   * The caller has no account on purpose: somebody who booked from a public
+   * profile has none, and the moment their therapist does not turn up is the
+   * worst possible moment to ask them to make one. W1-07: the action now asks
+   * for their join link (or a signed-in patient who owns the session) and
+   * hands this function the id only once that is proved.
    *
    * That argument only holds while the id can do **one** thing. The WHERE below
    * used to be `id = X AND recovery_outcome IS NULL`, which is every scheduled,

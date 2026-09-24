@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Phone, X } from "lucide-react";
 
-import { countryForNumber, crisisLine, lineForNumber, type CrisisLine } from "@/lib/crisis/line";
+import { sosLinesFor, type SosCountry } from "@/lib/crisis/sos";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +28,10 @@ import { cn } from "@/lib/utils";
  *     number.
  *   - 🔴 **Only the READER's number** (C184, 37R.25). Verified is not enough:
  *     a verified line for another country is a button that looks like help and
- *     reaches nothing. The reader's own dialling code decides, and when it
- *     decides nothing the sentence above is the whole answer.
+ *     reaches nothing. The reader's own dialling code decides, then the page's
+ *     country. 🔴 W1-09: when neither places them, every enabled country's
+ *     line is listed with its country's name, because nothing at all was the
+ *     worse answer for an English reader with no phone.
  *
  * ## Why it is draggable, and why it snaps
  *
@@ -74,6 +76,12 @@ type Props = {
    * guess at where they are than the page they are looking at.
    */
   country?: string | null;
+  /**
+   * 🔴 W1-09: every country's line as an operator configured it, loaded by
+   * the server (`SosOrbServer`, the patient chrome). Absent on a client-only
+   * page such as an error boundary, where the verified table is the list.
+   */
+  countries?: SosCountry[] | null;
 };
 
 export function SosOrb({
@@ -81,6 +89,7 @@ export function SosOrb({
   dimmed = false,
   phone = null,
   country = null,
+  countries = null,
 }: Props) {
   const t = useT();
   const locale = useLocale();
@@ -112,31 +121,13 @@ export function SosOrb({
   };
 
   /*
-   * 🔴 One line, for this reader, or none. Never the whole table.
-   *
-   * `lineForNumber` refuses unless the number's dialling code leaves exactly
-   * one verified line, so a `+20` number gets null and falls through to the
-   * sentence that is true everywhere. The list rendered here is therefore at
-   * most one entry long, and it exists as a list only because a second
-   * verified country will slot into it without this component changing.
+   * 🔴 W1-09: the reader's own line when we can place them (their number,
+   * then the page's country), with the numbers that always answer beside it.
+   * When we cannot, every enabled country's line, each labelled, rather than
+   * nothing. `sosLinesFor` holds the rule and its tests; the sentence that is
+   * true everywhere is printed under the list either way.
    */
-  const fromPhone = lineForNumber(phone);
-  const phoneCountry = countryForNumber(phone);
-
-  /* Their own number first, then the page's country. Never a default. */
-  const mineCountry = phoneCountry ?? (country ? country.trim().toUpperCase() : null);
-  const mine = fromPhone ?? (mineCountry ? crisisLine(mineCountry) : null);
-  const lines: { country: string; label: string; line: CrisisLine; word: string }[] =
-    mine && mineCountry
-      ? [
-          {
-            country: mineCountry,
-            label: COUNTRY_LABEL[mineCountry] ?? mineCountry,
-            line: mine,
-            word: HELP_WORD[mineCountry] ?? "Help",
-          },
-        ]
-      : [];
+  const lines = sosLinesFor({ phone, country, countries });
 
   return (
     <>
@@ -160,7 +151,7 @@ export function SosOrb({
         }}
         style={{ top: `${top * 100}%` }}
         className={cn(
-          "fixed z-[70] flex h-14 w-14 -translate-y-1/2 touch-none items-center justify-center rounded-full bg-red-600 text-white shadow-lg",
+          "fixed z-[300] flex h-14 w-14 -translate-y-1/2 touch-none items-center justify-center rounded-full bg-red-600 text-white shadow-lg",
           side === "end" ? "end-3" : "start-3",
           dimmed && !open ? "opacity-55" : "opacity-100",
         )}
@@ -169,8 +160,8 @@ export function SosOrb({
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[80] flex flex-col justify-end bg-slate-900/60 p-3">
-          <div className="rounded-3xl bg-white p-4">
+        <div className="fixed inset-0 z-[310] flex flex-col justify-end bg-slate-900/60 p-3">
+          <div className="max-h-[90dvh] overflow-y-auto rounded-3xl bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-base font-bold tracking-tight text-slate-900">{t("crisis.sheetTitle")}</p>
@@ -191,16 +182,37 @@ export function SosOrb({
             <div className={cn("mt-4 grid gap-2.5", lines.length + (practiceNumber ? 1 : 0) > 1 ? "grid-cols-2" : "grid-cols-1")}>
               {lines.map((entry) => (
                 <a
-                  key={entry.country}
+                  key={`${entry.country}-${entry.line.tel}`}
                   href={`tel:${entry.line.tel}`}
                   className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-red-600 px-3 py-4 text-white"
                 >
                   <span className="text-2xl leading-none" aria-hidden>
-                    {FLAG[entry.country] ?? ""}
+                    {flagOf(entry.country)}
                   </span>
-                  <span className="text-xs font-semibold">{entry.word}</span>
+                  <span className="text-xs font-semibold">
+                    {entry.line.name
+                      ? locale === "ar"
+                        ? entry.line.name.ar
+                        : entry.line.name.en
+                      : (HELP_WORD[entry.country] ?? "Help")}
+                  </span>
                   <span className="text-lg font-bold tracking-wide">{entry.line.label}</span>
-                  <span className="text-[11px] opacity-80">{entry.label}</span>
+                  <span className="text-[11px] opacity-80">
+                    {COUNTRY_LABEL[entry.country] ?? entry.countryName ?? entry.country}
+                  </span>
+                  {/*
+                    🔴 W1-09: whether somebody is likely to answer, only where a
+                    source gave the hours. Unknown hours say nothing.
+                  */}
+                  {entry.open !== null ? (
+                    <span className="text-[11px] font-semibold">
+                      {entry.line.hours === "always"
+                        ? t("crisis.anyTime")
+                        : entry.open
+                          ? t("crisis.openNow")
+                          : t("crisis.closedNow")}
+                    </span>
+                  ) : null}
                   {/*
                     🔴 C350 — the menu, on the button, before the call.
                     Egypt's 105 answers with a menu and the mental health
@@ -255,4 +267,8 @@ const COUNTRY_LABEL: Record<string, string> = { US: "United States", EG: "مصر
  */
 const HELP_WORD: Record<string, string> = { US: "Help", EG: "نجدة" };
 
-const FLAG: Record<string, string> = { US: "🇺🇸", EG: "🇪🇬" };
+/** A flag from the ISO code, for any country an operator configures. */
+function flagOf(code: string): string {
+  if (!/^[A-Z]{2}$/.test(code)) return "";
+  return String.fromCodePoint(...[...code].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65));
+}

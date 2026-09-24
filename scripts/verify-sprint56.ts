@@ -270,13 +270,41 @@ async function main() {
   const assignmentId = required(assignment, "assignment").id;
 
   try {
-    await recordAnswer({ assignmentId, personId, questionKey: "interest", value: 2, answerMs: 4_000 });
+    const ordinary = await recordAnswer({ assignmentId, personId, questionKey: "interest", value: 2, answerMs: 4_000 });
     await recordAnswer({ assignmentId, personId, questionKey: "down", value: 3, answerMs: 3_500 });
     /*
      * 🔴 The hesitation this whole table exists for: ninety seconds on item 9.
      * No transcript would have carried it.
      */
-    await recordAnswer({ assignmentId, personId, questionKey: "selfHarm", value: 1, answerMs: 90_000 });
+    const itemNine = await recordAnswer({ assignmentId, personId, questionKey: "selfHarm", value: 1, answerMs: 90_000 });
+
+    /*
+     * 🔴 W1-10: AND ITEM 9 ABOVE ZERO IS A RISK PATH, NOT JUST A ROW.
+     *
+     * The answer was stored and the screen moved on. Now the answer comes
+     * back marked so the screen can show crisis numbers, and the clinician
+     * gets the crisis notification their dashboard already reads.
+     */
+    const { notifications } = await import("../lib/db/schema");
+    const { like } = await import("drizzle-orm");
+    const flagged = await db
+      .select({ kind: notifications.kind, body: notifications.body })
+      .from(notifications)
+      .where(like(notifications.actionUrl, `%${assignmentId}%`));
+    check(
+      "🔴 W1-10 item 9 above zero comes back as a risk answer, and the clinician gets a crisis notification",
+      "risk" in itemNine && itemNine.risk === true && flagged.length > 0 && flagged.every((row) => row.kind === "crisis"),
+      `${JSON.stringify(itemNine)}, ${flagged.length} notification(s)`,
+    );
+    check(
+      "W1-10 …and the notification does not carry the answer itself",
+      flagged.every((row) => !/better off dead|hurting yourself/i.test(row.body)),
+    );
+    check(
+      "W1-10 control: an ordinary answer is not a risk answer",
+      ordinary.ok === true && !("risk" in ordinary && ordinary.risk),
+      JSON.stringify(ordinary),
+    );
 
     const answers = await db
       .select({ questionKey: assessmentResponses.questionKey, answerMs: assessmentResponses.answerMs })
@@ -504,6 +532,10 @@ async function main() {
       citable ? "summarise, quote and cite is permitted; conclude is not" : citeError,
     );
   } finally {
+    /* W1-10's crisis notification, which names this planted assignment. */
+    const { notifications } = await import("../lib/db/schema");
+    const { like } = await import("drizzle-orm");
+    await db.delete(notifications).where(like(notifications.actionUrl, `%${assignmentId}%`));
     await db
       .delete(patientClinicalFacts)
       .where(eq(patientClinicalFacts.assessmentId, assignmentId));

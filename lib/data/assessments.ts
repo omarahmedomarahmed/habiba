@@ -6,16 +6,18 @@ import type { Actor } from "@/lib/auth/session";
 import { controlDb } from "@/lib/db";
 import { dbFor } from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
+import { answerSignalsRisk } from "@/lib/assessments/risk";
 import {
   assessmentAssignments,
   assessmentResponses,
   instruments,
+  notifications,
   patients,
   type AssignmentMode,
   type Instrument,
   type InstrumentQuestion,
 } from "@/lib/db/schema";
-import { log } from "@/lib/logger";
+import { log, ref } from "@/lib/logger";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -202,7 +204,7 @@ export async function recordAnswer(input: {
   questionKey: string;
   value: number;
   answerMs?: number | null;
-}): Promise<{ ok?: boolean; error?: string }> {
+}): Promise<{ ok?: boolean; error?: string; risk?: boolean }> {
   const owned = await ownedAssignment(input.assignmentId, input.personId);
   if (!owned) return { error: "That assessment is not yours to answer." };
 
@@ -216,7 +218,7 @@ export async function recordAnswer(input: {
   }
 
   const [instrument] = await controlDb
-    .select({ questions: instruments.questions })
+    .select({ key: instruments.key, questions: instruments.questions })
     .from(instruments)
     .where(eq(instruments.id, owned.instrumentId))
     .limit(1);
@@ -273,7 +275,77 @@ export async function recordAnswer(input: {
       ),
     );
 
-  return { ok: true };
+  /*
+   * 🔴 W1-10: an answer that signals self-harm is a risk path, not a row.
+   * The screen shows the crisis numbers on `risk`; the clinician is told here,
+   * after the answer is safely stored, and a failure to tell them is logged
+   * loudly rather than taking the patient's answer down with it.
+   */
+  const risk = answerSignalsRisk({
+    instrumentKey: instrument?.key ?? "",
+    question,
+    value: input.value,
+  });
+  if (risk) {
+    try {
+      await flagRiskAnswer(input.assignmentId);
+    } catch (error) {
+      log.error("questionnaire risk flag failed", {
+        assignment: ref(input.assignmentId),
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { ok: true, risk };
+}
+
+/**
+ * 🔴 W1-10: tell the clinician, on the crisis kind their dashboard reads.
+ *
+ * Whoever assigned it and whoever holds the patient's file, once per
+ * assignment (going back and changing the answer does not ring twice). The
+ * body carries neither the question nor the answer: it asks them to open the
+ * record, as the journal alert does.
+ */
+async function flagRiskAnswer(assignmentId: string): Promise<void> {
+  const [row] = await db
+    .select({
+      patientId: assessmentAssignments.patientId,
+      assignedBy: assessmentAssignments.assignedByUserId,
+      therapistId: patients.therapistId,
+      firstName: patients.firstName,
+    })
+    .from(assessmentAssignments)
+    .innerJoin(patients, eq(patients.id, assessmentAssignments.patientId))
+    .where(eq(assessmentAssignments.id, assignmentId))
+    .limit(1);
+  if (!row) return;
+
+  const actionUrl = `/patients/${row.patientId}?assessment=${assignmentId}`;
+  const [already] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(eq(notifications.actionUrl, actionUrl))
+    .limit(1);
+  if (already) return;
+
+  const recipients = [...new Set([row.assignedBy, row.therapistId].filter((id): id is string => Boolean(id)))];
+  if (recipients.length === 0) {
+    log.warn("questionnaire risk answer with no clinician to tell", { assignment: ref(assignmentId) });
+    return;
+  }
+
+  await db.insert(notifications).values(
+    recipients.map((userId) => ({
+      userId,
+      kind: "crisis" as const,
+      title: `${row.firstName || "A patient"} gave a questionnaire answer that may need a call`,
+      body: "An answer on a questionnaire they are filling in now is one we treat as a risk item. It is not quoted here on purpose. Open their record to read it.",
+      actionUrl,
+    })),
+  );
+  log.warn("questionnaire risk answer flagged", { assignment: ref(assignmentId), clinicians: recipients.length });
 }
 
 /**

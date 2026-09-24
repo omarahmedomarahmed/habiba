@@ -89,15 +89,19 @@ export const INSTRUMENT_SEEDS: InstrumentSeed[] = [
       item("concentration", "Trouble concentrating on things, such as reading the newspaper or watching television", "صعوبة في التركيز على الأشياء، مثل قراءة الجريدة أو مشاهدة التلفاز"),
       item("psychomotor", "Moving or speaking so slowly that other people could have noticed, or the opposite: being so fidgety or restless that you have been moving around a lot more than usual", "التحرك أو الكلام ببطء لدرجة قد يلاحظها الآخرون، أو العكس: التململ أو عدم الاستقرار لدرجة الحركة أكثر من المعتاد"),
       /*
-       * 🔴 Item 9. It is part of the instrument and it is not an alert.
+       * 🔴 Item 9. It is part of the instrument and it is not a risk LEVEL.
        *
        * A non-zero answer here is clinically significant and the clinician
        * must see it, which is what the score and the per-answer timing are
        * for. What this file must never do is turn it into a risk level on its
-       * own: `facts_journal_never_concludes` refuses exactly that, and C123's
-       * separate alerting path is where reaching a person actually happens.
+       * own: `facts_journal_never_concludes` refuses exactly that.
+       *
+       * 🔴 W1-10: but it IS a risk path. Above zero, the patient is shown the
+       * crisis numbers there and then and their clinician gets a crisis
+       * notification (`lib/assessments/risk.ts`). Reaching a person is not a
+       * conclusion about them.
        */
-      item("selfHarm", "Thoughts that you would be better off dead or of hurting yourself in some way", "أفكار بأنك أفضل حالًا لو كنت ميتًا، أو أفكار بإيذاء نفسك بطريقة ما"),
+      { ...item("selfHarm", "Thoughts that you would be better off dead or of hurting yourself in some way", "أفكار بأنك أفضل حالًا لو كنت ميتًا، أو أفكار بإيذاء نفسك بطريقة ما"), risk: { above: 0 } },
     ],
     /*
      * 🔴 Clinician-facing only. 56.9 and C113: a patient sees a number and a

@@ -1341,3 +1341,128 @@ test("a clinic export cell never starts a formula", async () => {
   assert.equal(csvCell(-12.5), "-12.5");
   assert.equal(csvCell(null), "");
 });
+
+/* ------------------------------------------------------ W1-08 no-show claims */
+
+/**
+ * 🔴 W1-08: a patient's "they never joined" refunds and suspends on its own
+ * only when the session's record agrees. Both branches, and each way the
+ * record can disagree.
+ */
+test("a no-show claim is proven only by a record showing the clinician never joined", async () => {
+  const { noShowProven } = await import("../lib/data/recovery");
+  const now = new Date("2026-09-23T12:00:00Z");
+  const missed = {
+    scheduledAt: new Date("2026-09-23T11:30:00Z"),
+    startedAt: null,
+    recordingStartedAt: null,
+    status: "scheduled",
+    modality: "video",
+    recoveryOutcome: null,
+    externalMeeting: false,
+  };
+
+  assert.equal(noShowProven(missed, now), true, "never started, due half an hour ago");
+
+  for (const [label, row] of [
+    ["the clinician started the session", { ...missed, startedAt: new Date("2026-09-23T11:31:00Z"), status: "completed" }],
+    ["the recording started", { ...missed, recordingStartedAt: new Date("2026-09-23T11:32:00Z") }],
+    ["it is not due yet", { ...missed, scheduledAt: new Date("2026-09-23T11:58:00Z") }],
+    ["it has no scheduled time", { ...missed, scheduledAt: null }],
+    ["it was held in person", { ...missed, modality: "in_person" }],
+    ["it was held in a meeting we cannot see into", { ...missed, externalMeeting: true }],
+    ["it was already cancelled", { ...missed, status: "cancelled" }],
+    ["it was already refunded by the recovery flow", { ...missed, recoveryOutcome: "refunded" }],
+  ] as const) {
+    assert.equal(noShowProven(row, now), false, `${label}: a person decides`);
+  }
+});
+
+/* ---------------------------------------------------- W1-09 the SOS layer */
+
+/**
+ * 🔴 W1-09: the SOS orb sat at z-70 and the radar booking sheet at z-100, so
+ * the one crisis button in the product was under the sheet somebody was using
+ * to book. Every layer in the product must be below the orb; the orb's own
+ * sheet is above it. Scans every file under `app/` and `components/`, and the
+ * control proves the scan reads the booking sheet it was written about.
+ */
+test("no sheet, dialog or overlay in the product can cover the SOS orb", async () => {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+
+  const orbFile = "components/patient/sos-orb.tsx";
+  const orbSource = readFileSync(orbFile, "utf8");
+  const orbLayer = Number(/fixed z-\[(\d+)\] flex h-14/.exec(orbSource)?.[1] ?? NaN);
+  const sheetLayer = Number(/fixed inset-0 z-\[(\d+)\]/.exec(orbSource)?.[1] ?? NaN);
+  assert.ok(Number.isFinite(orbLayer) && Number.isFinite(sheetLayer), "the orb and its sheet name their layers");
+  assert.ok(sheetLayer > orbLayer, "the SOS sheet opens above its own orb");
+
+  const layersIn = (source: string) =>
+    [...source.matchAll(/\bz-\[(\d+)\]|\bz-(\d+)\b|zIndex:\s*(\d+)/g)].map((m) => Number(m[1] ?? m[2] ?? m[3]));
+
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.(tsx|ts|css)$/.test(entry)) files.push(path);
+    }
+  };
+  walk("app");
+  walk("components");
+
+  const over = files
+    .filter((file) => file !== orbFile)
+    .flatMap((file) => layersIn(readFileSync(file, "utf8")).filter((z) => z >= orbLayer).map((z) => `${file} z-${z}`));
+  assert.deepEqual(over, [], `these can cover the SOS orb at z-${orbLayer}`);
+
+  /* Control: the scan sees the booking sheet, the layer this was found on. */
+  assert.ok(files.includes("components/radar/booking-sheet.tsx"));
+  assert.ok(layersIn(readFileSync("components/radar/booking-sheet.tsx", "utf8")).length > 0);
+});
+
+/** 🔴 W1-09: a bad patient link lands on the global 404, and it kept no SOS orb. */
+test("the not-found page and the patient error page keep the SOS orb", async () => {
+  const { readFileSync } = await import("node:fs");
+  assert.match(readFileSync("app/not-found.tsx", "utf8"), /<SosOrb/);
+  assert.match(readFileSync("app/(patient)/error.tsx", "utf8"), /<SosOrb\b/);
+});
+
+/* ------------------------------------------------ W1-10 questionnaire risk */
+
+/**
+ * 🔴 W1-10: a questionnaire answer that signals self-harm had no risk path.
+ * PHQ-9 item 9 above zero is the rule; the marker lives on the question, and
+ * a PHQ-9 row seeded before the marker existed is still recognised by key.
+ */
+test("a self-harm answer on a questionnaire is a risk answer, and nothing else is", async () => {
+  const { answerSignalsRisk } = await import("../lib/assessments/risk");
+  const options = [0, 1, 2, 3].map((value) => ({ value, label: { en: String(value) } }));
+  const marked = { key: "selfHarm", text: { en: "item 9" }, options, risk: { above: 0 } };
+  const unmarked = { key: "selfHarm", text: { en: "item 9" }, options };
+
+  for (const value of [1, 2, 3]) {
+    assert.equal(answerSignalsRisk({ instrumentKey: "phq9", question: marked, value }), true);
+    assert.equal(
+      answerSignalsRisk({ instrumentKey: "phq9", question: unmarked, value }),
+      true,
+      "a PHQ-9 seeded before the marker is still read by its key",
+    );
+  }
+  assert.equal(answerSignalsRisk({ instrumentKey: "phq9", question: marked, value: 0 }), false);
+  assert.equal(
+    answerSignalsRisk({ instrumentKey: "phq9", question: { key: "down", text: { en: "item 2" }, options }, value: 3 }),
+    false,
+    "a high answer elsewhere is a score, not a risk path",
+  );
+  assert.equal(
+    answerSignalsRisk({ instrumentKey: "gad7", question: { key: "nervous", text: { en: "item 1" }, options }, value: 3 }),
+    false,
+  );
+
+  /* And the shipped PHQ-9 carries the marker on item 9. */
+  const { INSTRUMENT_SEEDS } = await import("../lib/data/instrument-seeds");
+  const phq9 = INSTRUMENT_SEEDS.find((seed) => seed.key === "phq9")!;
+  assert.deepEqual(phq9.questions.find((q) => q.key === "selfHarm")?.risk, { above: 0 });
+});

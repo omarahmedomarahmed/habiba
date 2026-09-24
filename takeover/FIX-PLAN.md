@@ -67,6 +67,9 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | W1-23 | S1 | A clinician can edit licence fields after approval with no review | Licence fields editable only through re-verification | test |
 | W1-24 | S1 | Partner note draft has the consent coverage sentence pasted into the clinical text (RESEARCH-2 section 3: consent written into charts by the AI is the pattern behind the 2025 scribe lawsuits) | Consent and coverage stored and returned as their own fields, never inside note text | test |
 | W1-26 | S1 | Total View timeline shows 140-character copilot message previews and risk text without a reason (found by W1D) | Previews removed from the timeline; clinical text only through the audited reads | test |
+| W1-27 | S2 | Found merging 1A with 1C: `refundNoShow` returns "cancelled" or "refund owed" but writes no `recovery_outcome`, because the column's check allows only reassigned, refunded, abandoned | Migration adds `cancelled` and `refund_owed`, both written; `verify:sprint14` W1-07 control reads it | verify:sprint14 |
+| W1-28 | S2 | Manual-rail refund queue (`refund_requests`) and the `session_cancelled` patient notice kind (from 1A, both need a migration) | One migration after 1B merges | verify:sprint14 |
+| W1-29 | S1 | The in-session crisis message and risk banner still offer Egypt's 105 alone; `global-error.tsx` has no SOS (from 1C) | Same line rule as the SOS sheet | test |
 | W1-25 | S1 | Egypt's 105 line is reported as not 24/7 (RESEARCH-2 section 1); SOS offers it alone | 123 and 112 always shown with it, emergency number first outside its hours; same on the website samples | test on the line list |
 
 ## Wave 2: stuck (S3). Every dead end gets a way forward.
@@ -180,3 +183,14 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 | W1-19 | fixed 633364f5 |
 | W1-20 | fixed 00805ba4 |
 | W1-21 | fixed d9fc09b4 |
+| W1-01 | fixed f9a6af0e |
+| W1-02 | fixed 582685c1 |
+| W1-04 | fixed 11f268a8 |
+| W1-12 | honesty half a5c890c7; queue waits on W1-28 |
+| W1-13 | fixed 3935ce80 except the in-app notice (W1-28) |
+| W1-22 | fixed 3d2dd577 |
+| W1-07 | fixed 005ec96e |
+| W1-08 | fixed 2b816319 |
+| W1-09 | fixed 6eb07d9c (with the Egypt hours rule) |
+| W1-10 | fixed 332a9cd1 |
+| W1-11 | fixed 292c60b6 |

@@ -5,7 +5,7 @@ import { PatientAuthForm } from "@/components/patient/auth-form";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
-import { SosOrb } from "@/components/patient/sos-orb";
+import { SosOrbServer } from "@/components/patient/sos-orb-server";
 import { resolveCode } from "@/lib/data/therapist-codes";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 
@@ -101,7 +101,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
       )}
 
       {/* 🔴 25.5 / C125 — a stranger on a waiting-room floor gets the orb too. */}
-      <SosOrb
+      <SosOrbServer
         phone={reader?.phone ?? null}
         country={crisisCountryFor({ locale: (await getI18n()).locale })}
       />

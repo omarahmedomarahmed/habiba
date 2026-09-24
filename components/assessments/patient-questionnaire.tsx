@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 
 import { answerQuestion, finishAssessment } from "@/app/(patient)/patient/assessments/actions";
 import { Card } from "@/components/ui";
+import { sosLinesFor, type SosCountry } from "@/lib/crisis/sos";
 import { useLocale, useT } from "@/lib/i18n/client";
 
 /**
@@ -55,12 +57,15 @@ export function PatientQuestionnaire({
   attribution,
   questions,
   answers,
+  sos,
 }: {
   assignmentId: string;
   name: Record<string, string>;
   attribution: string;
   questions: Question[];
   answers: Record<string, number>;
+  /** 🔴 W1-10: the reader's SOS inputs, for a risk answer. */
+  sos: { phone: string | null; country: string | null; countries: SosCountry[] };
 }) {
   const t = useT();
   const locale = useLocale();
@@ -71,6 +76,11 @@ export function PatientQuestionnaire({
   });
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * 🔴 W1-10: the answers as they stood after a risk answer, held while the
+   * crisis response is on screen. They carry on from it when they choose to.
+   */
+  const [crisis, setCrisis] = useState<Record<string, number> | null>(null);
   const [pending, startTransition] = useTransition();
 
   /*
@@ -105,9 +115,104 @@ export function PatientQuestionnaire({
     );
   }
 
+  /* On to the next unanswered question, or finish. Shared by an answer and by "Continue". */
+  const advance = async (next: Record<string, number>) => {
+    if (Object.keys(next).length === questions.length) {
+      const finished = await finishAssessment(assignmentId);
+      if (finished.error) {
+        setError(finished.error);
+        return;
+      }
+      setDone(true);
+      return;
+    }
+
+    /*
+     * Forward to the next question they have NOT answered, rather than to
+     * index + 1. Somebody who came back to change item 3 should not be
+     * walked through items 4 to 9 again.
+     */
+    const remaining = questions.findIndex((q) => !(q.key in next));
+    setIndex(remaining === -1 ? Math.min(index + 1, questions.length - 1) : remaining);
+  };
+
   if (!question) return null;
 
+  /*
+   * 🔴 W1-10: AN ANSWER THAT SIGNALS SELF-HARM IS ANSWERED, HERE AND NOW.
+   *
+   * It used to be saved and the next question appeared. Now the screen stops:
+   * calm words, the crisis numbers for this reader (the SOS sheet's rule,
+   * Egypt's always-open numbers first when 105 is closed), a way to reach a
+   * person on the radar, and "Continue" when they are ready. Their clinician
+   * has already been told by the server. No score, no band, no alarm colour
+   * on the answer itself.
+   */
+  if (crisis) {
+    const lines = sosLinesFor(sos);
+    return (
+      <Card role="alert" className="space-y-3 p-5">
+        <p className="text-lg font-semibold text-slate-900">{t("crisis.qTitle")}</p>
+        <p className="text-sm leading-relaxed text-slate-600">{t("crisis.qBody")}</p>
+        {lines.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2">
+            {lines.map((entry) => (
+              <a
+                key={`${entry.country}-${entry.line.tel}`}
+                href={`tel:${entry.line.tel}`}
+                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-red-600 px-3 py-3 text-white"
+              >
+                <span className="text-lg font-bold tracking-wide">{entry.line.label}</span>
+                <span className="text-center text-[11px] opacity-90">
+                  {entry.line.name
+                    ? locale === "ar"
+                      ? entry.line.name.ar
+                      : entry.line.name.en
+                    : (entry.countryName ?? entry.country)}
+                </span>
+                {entry.open !== null ? (
+                  <span className="text-[11px] font-semibold">
+                    {entry.line.hours === "always"
+                      ? t("crisis.anyTime")
+                      : entry.open
+                        ? t("crisis.openNow")
+                        : t("crisis.closedNow")}
+                  </span>
+                ) : null}
+                {entry.line.steps ? (
+                  <span className="text-center text-[11px] leading-snug opacity-90">
+                    {locale === "ar" ? entry.line.steps.ar : entry.line.steps.en}
+                  </span>
+                ) : null}
+              </a>
+            ))}
+          </div>
+        ) : null}
+        <p className="text-sm leading-relaxed text-slate-700">{t("crisis.anywhereElse")}</p>
+        <Link
+          href="/patient/radar"
+          className="tap-target flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white"
+        >
+          {t("crisis.findSomeone")}
+        </Link>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            const next = crisis;
+            setCrisis(null);
+            startTransition(() => advance(next));
+          }}
+          className="tap-target h-11 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 disabled:opacity-60"
+        >
+          {t("common.continue")}
+        </button>
+      </Card>
+    );
+  }
+
   const answered = Object.keys(given).length;
+
   const choose = (value: number) => {
     const elapsed = Date.now() - shownAt.current;
 
@@ -122,23 +227,11 @@ export function PatientQuestionnaire({
       const next = { ...given, [question.key]: value };
       setGiven(next);
 
-      if (Object.keys(next).length === questions.length) {
-        const finished = await finishAssessment(assignmentId);
-        if (finished.error) {
-          setError(finished.error);
-          return;
-        }
-        setDone(true);
+      if (result.risk) {
+        setCrisis(next);
         return;
       }
-
-      /*
-       * Forward to the next question they have NOT answered, rather than to
-       * index + 1. Somebody who came back to change item 3 should not be
-       * walked through items 4 to 9 again.
-       */
-      const remaining = questions.findIndex((q) => !(q.key in next));
-      setIndex(remaining === -1 ? Math.min(index + 1, questions.length - 1) : remaining);
+      await advance(next);
     });
   };
 
