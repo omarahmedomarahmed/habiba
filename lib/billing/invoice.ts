@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { ledgerEntries, sponsors } from "@/lib/db/schema";
@@ -18,10 +18,10 @@ import { getSettings } from "@/lib/settings";
  * transaction, regenerated on every view, and the number it shows is by
  * construction the number the books show.
  *
- * The invoice number is derived from the transaction's own position in this
- * sponsor's sequence of top-ups. It is stable because ledger rows are append-only
- * and nothing is ever deleted, which is the property that makes a derived number
- * safe.
+ * The invoice number is derived from the transaction's own position in the
+ * ISSUER's sequence of paid top-ups (`invoicePosition`). It is stable because
+ * ledger rows are append-only and nothing is ever deleted, which is the property
+ * that makes a derived number safe.
  *
  * ## 🔴 VAT IS ON THE TOP-UP, WHICH IS WHY THIS DOCUMENT EXISTS AT ALL
  *
@@ -82,6 +82,7 @@ export async function invoiceFor(
    */
   const [leg] = await controlDb
     .select({
+      id: ledgerEntries.id,
       amountCents: ledgerEntries.amountCents,
       createdAt: ledgerEntries.createdAt,
       currency: ledgerEntries.currency,
@@ -115,6 +116,14 @@ export async function invoiceFor(
     )
     .limit(1);
 
+  /*
+   * 🔴 W2-A11: A WELCOME CREDIT IS NOT AN INVOICE. It is money we gave, posted
+   * against `platform_expense` with no cash leg, and it rendered as "Paid $100"
+   * on a document a finance team files. No money arrived, there was no supply,
+   * so there is no document: the credit shows in the pot's balance, not here.
+   */
+  if (!cashLeg) return null;
+
   const settings = await getSettings();
   const details = settings.invoice.entities.find((row) => row.entity === sponsor.entity);
 
@@ -124,25 +133,7 @@ export async function invoiceFor(
   if (!details?.taxId) missing.push("tax registration number");
   if (missing.length > 0) return { missing };
 
-  /*
-   * The sequence number: how many top-ups this sponsor had made up to and
-   * including this one. Ordered by time, then by id so two top-ups in the same
-   * millisecond are still ordered the same way on every render.
-   */
-  const earlier = await controlDb
-    .select({ txnId: ledgerEntries.txnId, createdAt: ledgerEntries.createdAt })
-    .from(ledgerEntries)
-    .where(
-      and(
-        eq(ledgerEntries.txnKind, "pot_topup"),
-        eq(ledgerEntries.account, "sponsor_pot"),
-        eq(ledgerEntries.refType, "sponsor"),
-        eq(ledgerEntries.refId, sponsorId),
-      ),
-    )
-    .orderBy(asc(ledgerEntries.createdAt), asc(ledgerEntries.id));
-
-  const position = earlier.findIndex((row) => row.txnId === txnId) + 1;
+  const position = await invoicePosition({ entity: sponsor.entity, legId: leg.id });
 
   /*
    * 🔴 THE TOTAL IS THE CASH LEG, NOT THE POT LEG, since the VAT was split out.
@@ -188,6 +179,37 @@ export async function invoiceFor(
 }
 
 /**
+ * 🔴 W2-A11: the invoice's place in its ISSUER's sequence, not its customer's.
+ *
+ * The number was this sponsor's own count of top-ups, so every company's first
+ * invoice from the US entity was `US-00001`: one issuer, many documents, one
+ * number, which no tax authority accepts. It is now the position among every
+ * PAID top-up (one with a cash leg; a welcome credit is not a document) held
+ * by a sponsor billed from the same entity, ordered by time and then by leg id
+ * so two in one millisecond keep one order on every render.
+ *
+ * The issuer is the sponsor's entity, the same one the legal details above are
+ * read from; `setEntity` refuses to move a sponsor whose pot holds money, so
+ * an issued number cannot change issuer.
+ */
+async function invoicePosition(input: { entity: string; legId: string }): Promise<number> {
+  const rows = await controlDb.execute(sql`
+    SELECT count(*)::int AS n
+      FROM ledger_entries p
+      JOIN sponsors s ON s.id = p.ref_id
+     WHERE p.txn_kind = 'pot_topup'
+       AND p.account = 'sponsor_pot'
+       AND p.ref_type = 'sponsor'
+       AND s.entity = ${input.entity}
+       AND EXISTS (
+         SELECT 1 FROM ledger_entries c WHERE c.txn_id = p.txn_id AND c.account = 'cash'
+       )
+       -- The leg's own timestamp from the database: a JS Date drops the microseconds.
+       AND (p.created_at, p.id) <= (SELECT l.created_at, l.id FROM ledger_entries l WHERE l.id = ${input.legId}::uuid)`);
+  return Number((rows.rows as { n: number }[])[0]?.n ?? 0);
+}
+
+/**
  * The entity's own VAT rate, from `country_settings` rather than a constant.
  *
  * 🔴 Zero is a REAL ANSWER, not a missing one. The US entity's rate is 0 and its
@@ -215,9 +237,10 @@ async function countryVatBps(entity: string): Promise<number> {
  */
 export async function topUpHistory(
   sponsorId: string,
-): Promise<{ txnId: string; at: Date; amountCents: number }[]> {
+): Promise<{ txnId: string; at: Date; amountCents: number; position: number }[]> {
   const rows = await controlDb
     .select({
+      id: ledgerEntries.id,
       txnId: ledgerEntries.txnId,
       at: ledgerEntries.createdAt,
       amountCents: ledgerEntries.amountCents,
@@ -233,10 +256,38 @@ export async function topUpHistory(
     )
     .orderBy(desc(ledgerEntries.createdAt));
 
+  /*
+   * 🔴 W2-A11: paid top-ups only. A welcome credit has no cash leg and no
+   * invoice (see `invoiceFor`), so it is not listed as one.
+   */
+  const txnIds = rows.map((row) => row.txnId);
+  const paid = txnIds.length
+    ? new Set(
+        (
+          await controlDb
+            .select({ txnId: ledgerEntries.txnId })
+            .from(ledgerEntries)
+            .where(and(inArray(ledgerEntries.txnId, txnIds), eq(ledgerEntries.account, "cash")))
+        ).map((row) => row.txnId),
+      )
+    : new Set<string>();
+
+  const [sponsor] = await controlDb
+    .select({ entity: sponsors.entity })
+    .from(sponsors)
+    .where(eq(sponsors.id, sponsorId))
+    .limit(1);
+
   /* Absolute value: the liability leg is negative. See the note in `invoiceFor`. */
-  return rows.map((row) => ({
-    txnId: row.txnId,
-    at: row.at,
-    amountCents: Math.abs(row.amountCents),
-  }));
+  return Promise.all(
+    rows
+      .filter((row) => paid.has(row.txnId))
+      .map(async (row) => ({
+        txnId: row.txnId,
+        at: row.at,
+        amountCents: Math.abs(row.amountCents),
+        /* W2-A11: the same place in the issuer's sequence the invoice prints. */
+        position: sponsor ? await invoicePosition({ entity: sponsor.entity, legId: row.id }) : 0,
+      })),
+  );
 }
