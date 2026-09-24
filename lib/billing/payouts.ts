@@ -416,6 +416,17 @@ export async function approvePayout(input: {
   const refused = await fourEyes(row, input.approverUserId, true);
   if (refused) return refused;
 
+  /*
+   * 🔴 AND WHETHER WE HOLD IT (live walkthrough). A request is checked against
+   * the balance when it is made, and a balance moves after that: a refund, an
+   * adjustment, a bill netted from it. Approval asked only who, so a $255
+   * request against $51 held was approved on production and one "sent" from
+   * paying out money the books do not owe. Other approved, unsent requests
+   * count against it first.
+   */
+  const short = await moreThanHeld(row);
+  if (short) return short;
+
   return move({
     requestId: input.requestId,
     from: ["requested"],
@@ -424,6 +435,32 @@ export async function approvePayout(input: {
     note: input.note,
     set: { approvedByUserId: input.approverUserId, approvedAt: new Date() },
   });
+}
+
+/**
+ * 🔴 Whether we still hold this request's money, asked at approval and again
+ * at "sent" (live walkthrough). The balance moves after a request is made (a
+ * refund, an adjustment, a bill netted from it), and other approved, unsent
+ * requests for the same clinician count against it first.
+ */
+async function moreThanHeld(row: { id: string; therapistId: string; amountCents: number }): Promise<{ error: string } | null> {
+  const held = await heldForTherapist(row.therapistId);
+  const [others] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${payoutRequests.amountCents}), 0)::int` })
+    .from(payoutRequests)
+    .where(
+      and(
+        eq(payoutRequests.therapistId, row.therapistId),
+        eq(payoutRequests.status, "approved"),
+        sql`${payoutRequests.id} <> ${row.id}`,
+      ),
+    );
+  const room = held - (others?.total ?? 0);
+  if (row.amountCents <= room) return null;
+  const { moneyText } = await import("@/lib/money/text");
+  return {
+    error: `We hold ${await moneyText(Math.max(0, room))} for them now, less than this request. Reject it so they can ask again.`,
+  };
 }
 
 /**
@@ -471,6 +508,8 @@ export async function markPayoutSent(input: {
   if (row.approvedByUserId && row.approvedByUserId === input.senderUserId) {
     return { error: "You approved this one. A second person sends it." };
   }
+  const short = await moreThanHeld(row);
+  if (short) return short;
 
   return recordSent(row, input.senderUserId, proof, "Transfer made");
 }
@@ -576,6 +615,8 @@ export async function sendViaProvider(input: {
   if (row.approvedByUserId && row.approvedByUserId === input.senderUserId) {
     return { error: "You approved this one. A second person sends it." };
   }
+  const short = await moreThanHeld(row);
+  if (short) return short;
 
   const placeholder = `claim:${row.id}:${crypto.randomUUID()}`;
   const [claimed] = await db

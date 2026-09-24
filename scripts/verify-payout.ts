@@ -192,6 +192,28 @@ async function main() {
       noProof.error ?? "marked sent with nothing to show. That is the state a dispute cannot be settled from",
     );
 
+    /*
+     * 🔴 THE BALANCE MOVES AFTER THE REQUEST (live walkthrough: $255 approved
+     * against $51 held on production). $50 of the $100 leaves the balance by an
+     * adjustment, so the $60 request is now more than we hold: approval is
+     * refused. Then the adjustment is taken back, and the approval below is the
+     * control that the refusal was about the balance.
+     */
+    const drop = crypto.randomUUID();
+    await db.execute(sql`
+      INSERT INTO ledger_entries (txn_id, txn_kind, account, organization_id, user_id,
+                                  amount_cents, ref_type, memo)
+      VALUES
+        (${drop}, 'adjustment', 'therapist_payable', ${orgId}, ${therapistId}, 5000, 'adjustment', 'verify: balance moved'),
+        (${drop}, 'adjustment', 'cash',              ${orgId}, NULL,           -5000, 'adjustment', 'verify: balance moved')`);
+    const overHeld = await approvePayout({ requestId, approverUserId: approverId });
+    check(
+      "🔴 a request the balance no longer covers cannot be approved, whatever it was when it was asked",
+      Boolean(overHeld.error) && !overHeld.ok,
+      overHeld.error ?? "APPROVED $60 against $50 held",
+    );
+    await db.execute(sql`DELETE FROM ledger_entries WHERE txn_id = ${drop}`);
+
     /* -------------------------------------------------- the whole way out -- */
 
     const approved = await approvePayout({ requestId, approverUserId: approverId });
