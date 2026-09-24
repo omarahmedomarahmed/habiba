@@ -5,6 +5,7 @@ import { and, count, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
 import { likePattern } from "@/lib/admin/paging";
 
 import { dbFor} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   aiRequestLogs,
@@ -116,7 +117,7 @@ export async function listClinicians() {
       plan: subscriptions.plan,
       sessionCount: sql<number>`(
         SELECT count(*)::int FROM ${sessions}
-        WHERE ${sessions.therapistId} = ${users.id} AND ${sessions.status} = 'completed'
+        WHERE ${sessions.therapistId} = ${qualified(users.id)} AND ${sessions.status} = 'completed'
       )`,
     })
     .from(users)
@@ -386,7 +387,7 @@ export async function therapistSessions(userId: string, limit = 200) {
       guestName: sessions.guestName,
       segmentCount: sql<number>`(
         SELECT count(*)::int FROM ${transcriptSegments}
-        WHERE ${transcriptSegments.sessionId} = ${sessions.id}
+        WHERE ${transcriptSegments.sessionId} = ${qualified(sessions.id)}
       )`,
     })
     .from(sessions)
@@ -410,18 +411,18 @@ export async function therapistCopilotUsage(userId: string) {
       lastMessageAt: copilotThreads.lastMessageAt,
       asked: sql<number>`(
         SELECT count(*)::int FROM ${copilotMessages}
-        WHERE ${copilotMessages.threadId} = ${copilotThreads.id}
+        WHERE ${copilotMessages.threadId} = ${qualified(copilotThreads.id)}
           AND ${copilotMessages.role} = 'therapist'
       )`,
       askedThisMonth: sql<number>`(
         SELECT count(*)::int FROM ${copilotMessages}
-        WHERE ${copilotMessages.threadId} = ${copilotThreads.id}
+        WHERE ${copilotMessages.threadId} = ${qualified(copilotThreads.id)}
           AND ${copilotMessages.role} = 'therapist'
           AND ${copilotMessages.createdAt} >= ${startOfMonth.toISOString()}
       )`,
       corrections: sql<number>`(
         SELECT count(*)::int FROM ${copilotMessages}
-        WHERE ${copilotMessages.threadId} = ${copilotThreads.id}
+        WHERE ${copilotMessages.threadId} = ${qualified(copilotThreads.id)}
           AND ${copilotMessages.role} = 'correction'
       )`,
     })

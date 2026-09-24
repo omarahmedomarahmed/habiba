@@ -6,6 +6,7 @@ import "server-only";
 import { and, count, desc, eq, gte, inArray, sql, sum } from "drizzle-orm";
 
 import { controlDb as db} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { aiRequestLogs, sessionPayments, sessions, users } from "@/lib/db/schema";
 
 /**
@@ -344,7 +345,7 @@ export async function consentRate(sinceDays = 30, country?: string | null) {
          * which is the country an operator closed or opened (sprint 50).
          */
         country
-          ? sql`EXISTS (SELECT 1 FROM therapist_radar r WHERE r.user_id = ${sessions.therapistId} AND r.country = ${country})`
+          ? sql`EXISTS (SELECT 1 FROM therapist_radar r WHERE r.user_id = ${qualified(sessions.therapistId)} AND r.country = ${country})`
           : undefined,
       ),
     );

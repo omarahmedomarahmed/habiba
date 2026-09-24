@@ -3,6 +3,7 @@ import "server-only";
 import { and, count, desc, eq, gte, isNull, lt, or, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   organizations,
@@ -180,31 +181,31 @@ export async function radarCommandView(): Promise<CommandView> {
 
       sessions30d: sql<number>`(
         SELECT COUNT(*)::int FROM ${sessions}
-        WHERE ${sessions.therapistId} = ${users.id} AND ${sessions.createdAt} >= ${since}
+        WHERE ${sessions.therapistId} = ${qualified(users.id)} AND ${sessions.createdAt} >= ${since}
       )`,
       grossCents30d: sql<number>`(
         SELECT COALESCE(SUM(p.gross_cents), 0)::int FROM ${sessionPayments} p
         JOIN ${sessions} s ON s.id = p.session_id
-        WHERE s.therapist_id = ${users.id} AND p.created_at >= ${since}
+        WHERE s.therapist_id = ${qualified(users.id)} AND p.created_at >= ${since}
       )`,
       feeCents30d: sql<number>`(
         SELECT COALESCE(SUM(p.platform_fee_cents), 0)::int FROM ${sessionPayments} p
         JOIN ${sessions} s ON s.id = p.session_id
-        WHERE s.therapist_id = ${users.id} AND p.created_at >= ${since}
+        WHERE s.therapist_id = ${qualified(users.id)} AND p.created_at >= ${since}
       )`,
       // Completed ratings only. An arrival row has no therapist score yet, and
       // counting it would drag the average toward nothing.
       ratingAverage: sql<number | null>`(
         SELECT AVG(f.therapist_stars) FROM ${sessionFeedback} f
-        WHERE f.therapist_id = ${users.id} AND f.therapist_stars IS NOT NULL
+        WHERE f.therapist_id = ${qualified(users.id)} AND f.therapist_stars IS NOT NULL
       )`,
       ratingCount: sql<number>`(
         SELECT COUNT(*)::int FROM ${sessionFeedback} f
-        WHERE f.therapist_id = ${users.id} AND f.therapist_stars IS NOT NULL
+        WHERE f.therapist_id = ${qualified(users.id)} AND f.therapist_stars IS NOT NULL
       )`,
       openReports: sql<number>`(
         SELECT COUNT(*)::int FROM ${sessionReports} r
-        WHERE r.therapist_id = ${users.id} AND r.status = 'open'
+        WHERE r.therapist_id = ${qualified(users.id)} AND r.status = 'open'
       )`,
     })
     .from(therapistRadar)

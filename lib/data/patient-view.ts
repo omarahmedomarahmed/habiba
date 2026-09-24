@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm
 
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
+import { qualified } from "@/lib/db/qualified";
 import { doorFor, type SessionDoor } from "@/lib/sessions/doors";
 import {
   manualPayments,
@@ -375,7 +376,7 @@ export async function sessionDoors(personId: string): Promise<SessionDoorRow[]> 
       transferSubmitted: sql<boolean>`EXISTS (
         SELECT 1 FROM ${manualPayments}
          WHERE ${manualPayments.purpose} = 'session'
-           AND ${manualPayments.refId} = ${sessions.id}
+           AND ${manualPayments.refId} = ${qualified(sessions.id)}
            AND ${manualPayments.state} = 'submitted')`,
     })
     .from(sessions)

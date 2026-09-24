@@ -4,6 +4,7 @@ import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { MODELS, openai } from "@/lib/ai/client";
 import { controlDb } from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { partnerConsents, partnerSessions, partnerSubjects } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 
@@ -229,15 +230,15 @@ export async function sessionMaterial(input: {
          */
         sql`(
           SELECT c.state FROM partner_consents c
-           WHERE c.partner_id = ${partnerSessions.partnerId}
-             AND c.external_session_ref = ${partnerSessions.externalSessionRef}
+           WHERE c.partner_id = ${qualified(partnerSessions.partnerId)}
+             AND c.external_session_ref = ${qualified(partnerSessions.externalSessionRef)}
            ORDER BY c.answered_at DESC, c.created_at DESC
            LIMIT 1
         ) = 'given'`,
         sql`NOT EXISTS (
           SELECT 1 FROM partner_subjects s
-           WHERE s.partner_id = ${partnerSessions.partnerId}
-             AND s.external_ref = ${partnerSessions.externalSubjectRef}
+           WHERE s.partner_id = ${qualified(partnerSessions.partnerId)}
+             AND s.external_ref = ${qualified(partnerSessions.externalSubjectRef)}
              AND s.revoked_at IS NOT NULL
         )`,
       ),
