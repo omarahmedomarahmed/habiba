@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console";
 import { listRadar } from "@/lib/data/radar";
+import { firstOpenHours } from "@/lib/data/scheduling";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 export const metadata: Metadata = { title: "Find someone now", robots: { index: false } };
@@ -28,11 +29,12 @@ export const dynamic = "force-dynamic";
 export default async function PatientRadarPage() {
   await requirePatient();
 
-  const therapists = await listRadar();
+  /* 🔴 W2-P12: what to book when nobody is on shift, so an empty radar is not a dead end. */
+  const [therapists, firstHours] = await Promise.all([listRadar(), firstOpenHours()]);
 
   return (
     <div className="bg-[#04101f]">
-      <RadarConsole initial={therapists} />
+      <RadarConsole initial={therapists} firstHours={firstHours} />
       <RadarSafetyLine />
     </div>
   );

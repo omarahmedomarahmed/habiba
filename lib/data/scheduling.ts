@@ -234,6 +234,62 @@ export async function openHours(therapistUserId: string, days = 21): Promise<Pub
 }
 
 /**
+ * 🔴 W2-P12: the first hours anybody can book, for a radar with nobody on it.
+ *
+ * With nobody online the radar said "0 other clinicians are available right
+ * now" and offered "Show everyone", which showed nobody: a dead end at the
+ * moment of need, on the page the homepage promises "if nobody is, you can
+ * book the first hour that suits you". This is that hour. The same rule as a
+ * profile's calendar (`openHours`): cleared clinicians, open or abandoned
+ * holds, the next three weeks. One hour per clinician, soonest first, so the
+ * list offers a choice of people rather than one person's afternoon.
+ */
+export type FirstHour = { therapistUserId: string; therapistName: string; startsAt: string };
+
+export async function firstOpenHours(limit = 3): Promise<FirstHour[]> {
+  const now = new Date();
+  const until = new Date(now.getTime() + 21 * 24 * 3_600_000);
+
+  const rows = await db
+    .select({
+      therapistUserId: availabilitySlots.therapistUserId,
+      startsAt: availabilitySlots.startsAt,
+      firstName: users.firstName,
+      lastName: users.lastName,
+    })
+    .from(availabilitySlots)
+    .innerJoin(users, eq(users.id, availabilitySlots.therapistUserId))
+    .where(
+      and(
+        clinicianCleared(),
+        isNull(users.deletedAt),
+        gt(availabilitySlots.startsAt, now),
+        lt(availabilitySlots.startsAt, until),
+        or(
+          eq(availabilitySlots.status, "open"),
+          and(eq(availabilitySlots.status, "held"), lt(availabilitySlots.heldUntil, now)),
+        ),
+      ),
+    )
+    .orderBy(asc(availabilitySlots.startsAt))
+    .limit(50);
+
+  const seen = new Set<string>();
+  const out: FirstHour[] = [];
+  for (const row of rows) {
+    if (seen.has(row.therapistUserId)) continue;
+    seen.add(row.therapistUserId);
+    out.push({
+      therapistUserId: row.therapistUserId,
+      therapistName: [row.firstName, row.lastName].filter(Boolean).join(" "),
+      startsAt: row.startsAt.toISOString(),
+    });
+    if (out.length === limit) break;
+  }
+  return out;
+}
+
+/**
  * 11.5 — is this clinician about to be, or currently, in a booked hour?
  *
  * 🔴 NOT read by the radar, whatever this comment used to say.

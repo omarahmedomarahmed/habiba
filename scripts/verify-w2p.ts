@@ -315,7 +315,41 @@ async function main() {
       noAddress.ok === true && stored?.stars === 4 && stored.email === null,
       noAddress.error ?? `stars=${stored?.stars}, email=${stored?.email}`,
     );
+
+    /* ================================================================ */
+    /*  W2-P12 · AN EMPTY RADAR OFFERS THE FIRST HOUR, NOT A DEAD END    */
+    /* ================================================================ */
+
+    const cleared = await one<{ id: string }>(sql`
+      INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash)
+      VALUES (${org.id}, ${`hana.${fixture}@example.com`}, 'Hana', 'Demo', 'therapist', 'x')
+      RETURNING id`);
+    await db.execute(sql`
+      INSERT INTO therapist_verifications (user_id, organization_id, state, country, license_body,
+                                           license_number, submitted_at, reviewed_at)
+      VALUES (${cleared.id}, ${org.id}, 'approved', 'EG', 'Egyptian Psychological Association',
+              ${`DEMO-${fixture}`}, now(), now())`);
+    /* Soonest of all, so it is on the list whatever else dev holds. */
+    await db.execute(sql`
+      INSERT INTO availability_slots (therapist_user_id, organization_id, starts_at, status)
+      VALUES (${cleared.id}, ${org.id}, date_trunc('hour', now()) + interval '1 hour', 'open'),
+             (${therapist.id}, ${org.id}, date_trunc('hour', now()) + interval '1 hour', 'open')`);
+
+    const { firstOpenHours } = await import("../lib/data/scheduling");
+    const hours = await firstOpenHours(50);
+    check(
+      "🔴 W2-P12 a cleared clinician's next open hour is offered when nobody is on shift",
+      hours.some((hour) => hour.therapistUserId === cleared.id),
+      `${hours.length} offered`,
+    );
+    check(
+      "W2-P12 CONTROL …and an uncleared clinician's is not, the same rule as their own calendar",
+      !hours.some((hour) => hour.therapistUserId === therapist.id),
+      "uncleared left out",
+    );
   } finally {
+    await db.execute(sql`DELETE FROM therapist_verifications WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM session_feedback WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM session_notes WHERE organization_id IN

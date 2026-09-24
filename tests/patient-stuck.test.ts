@@ -250,6 +250,16 @@ test("W2-P11 no-show recovery keeps counting, asks again, and is inside the room
   assert.doesNotMatch(code("components/session/no-show-recovery.tsx"), /waitMinutes: number/);
 });
 
+/* ----------------------------------------------------------------- W2-P12 -- */
+
+test("W2-P12 a radar with nobody on it offers the first bookable hours", () => {
+  const consoleSource = code("components/radar/radar-console.tsx");
+  assert.match(consoleSource, /onlineCount === 0 \? \(\s*<FirstHours/, "an empty board offered only 'Show everyone'");
+  for (const page of ["app/(public)/radar/page.tsx", "app/(patient)/patient/radar/page.tsx"]) {
+    assert.match(code(page), /firstHours=\{firstHours\}/, page);
+  }
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {
