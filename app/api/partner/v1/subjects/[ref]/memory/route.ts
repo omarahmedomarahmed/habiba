@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { sessionMaterial } from "@/lib/partner/copilot";
+import { sessionMaterial, subjectRefusal } from "@/lib/partner/copilot";
 import { fail, withKey } from "@/lib/partner/route";
 
 export const runtime = "nodejs";
@@ -39,6 +39,10 @@ export async function GET(
 
   const { ref } = await params;
   if (!ref) return fail("Send a subject reference.", 400);
+
+  /* 🔴 W1-18: consent and revocation, before any session material is read. */
+  const refused = await subjectRefusal({ partnerId: guard.key.partnerId, externalSubjectRef: ref });
+  if (refused) return fail(refused.error, refused.status);
 
   const material = await sessionMaterial({
     partnerId: guard.key.partnerId,

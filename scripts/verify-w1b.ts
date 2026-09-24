@@ -564,6 +564,88 @@ async function main() {
       purged.transcript === null && purged.draft === null && purged.summary === null,
       JSON.stringify(purged),
     );
+
+    /* ================================================================ */
+    /*  W1-18 · COPILOT AND MEMORY ASK ABOUT CONSENT AND REVOCATION      */
+    /* ================================================================ */
+
+    /*
+     * `ended_at` is planted, because nothing writes it yet (W2-X02 will). That
+     * is exactly the point: these checks must hold the day something does.
+     */
+    const copilotRoute = await import("../app/api/partner/v1/copilot/route");
+    const memoryRoute = await import("../app/api/partner/v1/subjects/[ref]/memory/route");
+    await copilotRoute.PUT(
+      new Request(`${base}/copilot`, {
+        method: "PUT",
+        headers: { ...bearer, "content-type": "application/json" },
+        body: JSON.stringify({ clinician: `${fixture}-C1`, enabled: true }),
+      }),
+    );
+    const ask = (subject: string) =>
+      copilotRoute.POST(
+        new Request(`${base}/copilot`, {
+          method: "POST",
+          headers: { ...bearer, "content-type": "application/json" },
+          body: JSON.stringify({ subject, clinician: `${fixture}-C1`, question: "What did we cover?" }),
+        }),
+      );
+    const remember = (subject: string) =>
+      memoryRoute.GET(new Request(`${base}/subjects/${subject}/memory`, { headers: bearer }), {
+        params: Promise.resolve({ ref: subject }),
+      });
+    const endedSession = async (ref: string, subject: string) => {
+      await consent(ref, subject, "given", 0);
+      await db.execute(sql`
+        UPDATE partner_sessions
+           SET ended_at = now(), transcript_text = 'They talked about sleep.',
+               note_approved_text = 'Approved note about sleep.', note_approved_by_ref = 'C1',
+               note_approved_at = now()
+         WHERE partner_id = ${partner.id} AND external_session_ref = ${ref}`);
+    };
+
+    const withdrawer = `${fixture}-P2`;
+    await endedSession(`${fixture}-w1`, withdrawer);
+    const beforeWithdrawal = await remember(withdrawer);
+    const beforeBody = (await beforeWithdrawal.json()) as { sessions?: unknown[] };
+    await consent(`${fixture}-w1`, withdrawer, "withdrawn", 0);
+    const askAfter = await ask(withdrawer);
+    const memoryAfter = await remember(withdrawer);
+    check(
+      "🔴 W1-18 after the subject withdraws consent, copilot and memory refuse with 403",
+      (beforeBody.sessions?.length ?? 0) === 1 && askAfter.status === 403 && memoryAfter.status === 403,
+      `memory had ${beforeBody.sessions?.length ?? 0} before; copilot ${askAfter.status}, memory ${memoryAfter.status}`,
+    );
+    const refusal = (await memoryAfter.clone().json().catch(() => ({}))) as { error?: string };
+    check(
+      "W1-18 …and the refusal says why",
+      /consent/i.test(refusal.error ?? ""),
+      refusal.error ?? "no error sentence",
+    );
+
+    const unlinked = `${fixture}-P3`;
+    await endedSession(`${fixture}-u1`, unlinked);
+    await db.execute(sql`
+      INSERT INTO partner_subjects (partner_id, external_ref, revoked_at)
+      VALUES (${partner.id}, ${unlinked}, now())`);
+    const askUnlinked = await ask(unlinked);
+    const memoryUnlinked = await remember(unlinked);
+    check(
+      "🔴 W1-18 a subject who unlinked is refused with 403 by both",
+      askUnlinked.status === 403 && memoryUnlinked.status === 403,
+      `copilot ${askUnlinked.status}, memory ${memoryUnlinked.status}`,
+    );
+
+    const { sessionMaterial } = await import("../lib/partner/copilot");
+    const leaked = [
+      ...(await sessionMaterial({ partnerId: partner.id, externalSubjectRef: withdrawer })),
+      ...(await sessionMaterial({ partnerId: partner.id, externalSubjectRef: unlinked })),
+    ];
+    check(
+      "🔴 W1-18 …and the material itself holds nothing for either, whatever route asks next",
+      leaked.length === 0,
+      `${leaked.length} sessions`,
+    );
   } finally {
     mock.server.close();
     await db.execute(sql`DELETE FROM partner_sessions WHERE external_session_ref LIKE ${`%${fixture}%`}`);

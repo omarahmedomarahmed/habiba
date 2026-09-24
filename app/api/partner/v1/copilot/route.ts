@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { askPartnerCopilot } from "@/lib/partner/copilot";
+import { askPartnerCopilot, subjectRefusal } from "@/lib/partner/copilot";
 import { clinicianEnabled } from "@/lib/partner/platform";
 import { mayRun } from "@/lib/partner/usage";
 import { fail, withKey } from "@/lib/partner/route";
@@ -53,6 +53,10 @@ export async function POST(request: Request) {
   ) {
     return fail("Send subject, clinician and question.", 400);
   }
+
+  /* 🔴 W1-18: consent and revocation, before any session material is read. */
+  const refused = await subjectRefusal({ partnerId: guard.key.partnerId, externalSubjectRef: subject });
+  if (refused) return fail(refused.error, refused.status);
 
   const enabled = await clinicianEnabled({
     partnerId: guard.key.partnerId,
