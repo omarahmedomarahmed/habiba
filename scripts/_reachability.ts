@@ -100,8 +100,14 @@ export function scanReachability(): { tables: number; orphans: Orphan[] } {
  * 51.6's two options and so has to be argued rather than assumed.
  */
 export const NO_SCREEN_BY_DESIGN: Record<string, string> = {
-  patient_auth_sessions:
-    "Session cookies. A screen listing somebody's live sessions is a feature (sign out everywhere) and not this table's absence of one; when that feature exists it will read this table and this entry goes.",
+  /*
+   * 🔴 W1-07 — `patient_auth_sessions` IS NO LONGER EXEMPT, for the reason the entry itself
+   * predicted: a screen now reads it. The no-show recovery actions accept a signed-in
+   * patient who owns the session as proof (`getPatientActor`), so the table is reached from
+   * `/join/[token]`. That is an authentication read, the right one, and the control in
+   * `verify:sprint51` failing is how it was noticed. The control now names a table that is
+   * still genuinely unreachable.
+   */
   /*
    * 🔴 55.2 — THE ONE EXEMPTION IN THIS FILE WHOSE ABSENCE IS THE FEATURE.
    *

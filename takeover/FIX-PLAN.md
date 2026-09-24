@@ -71,6 +71,7 @@ Severity, as in `takeover/NEW-TASKS.md`: **S1** privacy, safety or legal positio
 | W1-28 | S2 | Manual-rail refund queue (`refund_requests`) and the `session_cancelled` patient notice kind (from 1A, both need a migration) | One migration after 1B merges | verify:sprint14 |
 | W1-29 | S1 | The in-session crisis message and risk banner still offer Egypt's 105 alone; `global-error.tsx` has no SOS (from 1C) | Same line rule as the SOS sheet | test |
 | W1-30 | S1 | Our own notes write a late-recording line into the summary text (found by 1B), the pattern W1-24 removed | Fact kept as provenance, shown beside the note, stripped from text | test |
+| W1-31 | S2 | `deleteDocument` on a payment receipt returns instead of throwing, so a caller deleting evidence never learns it failed (`verify:payout`, failing before Wave 1 too) | Throw on failure | verify:payout |
 | W1-25 | S1 | Egypt's 105 line is reported as not 24/7 (RESEARCH-2 section 1); SOS offers it alone | 123 and 112 always shown with it, emergency number first outside its hours; same on the website samples | test on the line list |
 
 ## Wave 2: stuck (S3). Every dead end gets a way forward.

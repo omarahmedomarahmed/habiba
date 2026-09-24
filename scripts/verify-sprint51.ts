@@ -72,12 +72,13 @@ async function main() {
    * measures nothing passes. `scanReachability` has been wrong twice already
    * (it counted schema imports, then it counted API routes as pages), and both
    * times it reported a clean-looking answer. This plants nothing and instead
-   * asserts against a table we know the answer for: `patient_auth_sessions` is
-   * unreachable and must be seen as such.
+   * asserts against a table we know the answer for: `partner_clinicians` is
+   * unreachable (a named 68.6 gap in `NO_SCREEN_BY_DESIGN`) and must be seen as
+   * such. It was `patient_auth_sessions` until W1-07 gave that table a reader.
    */
   check(
     "🔴 CONTROL the scanner still detects an unreachable table",
-    orphans.length > 0 && orphaned.has("patient_auth_sessions"),
+    orphans.length > 0 && orphaned.has("partner_clinicians"),
     orphans.length > 0
       ? `${orphans.length} found, including the known one`
       : "THE SCANNER SEES NOTHING, so the check above is a false green",
