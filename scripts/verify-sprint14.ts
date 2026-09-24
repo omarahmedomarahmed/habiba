@@ -368,6 +368,38 @@ async function main() {
       }),
     );
 
+    /*
+     * 🔴 W1-12 — A REFUND THAT DID NOT HAPPEN IS NOT CALLED ONE.
+     *
+     * A bank-transfer payment has no Stripe charge (`capture: "platform"`, no
+     * intent), so `refundSessionPayment` refuses it. `refundNoShow` used to mark
+     * the session `refunded` first and only log the refusal, and the patient was
+     * then told they had their money back. The money is still here; so says the row.
+     */
+    const byTransfer = await early("transfer", {
+      scheduledAt: new Date(Date.now() - 60 * 60_000),
+      patientJoinedAt: new Date(Date.now() - 59 * 60_000),
+    });
+    await db.execute(sql`
+      INSERT INTO session_payments (organization_id, therapist_id, session_id, gross_cents,
+                                    platform_fee_cents, therapist_net_cents, capture, status, paid_at)
+      VALUES (${absent!.organizationId}, ${absent!.id}, ${byTransfer}, 3000, 450, 2550,
+              'platform', 'paid', now())`);
+    const owed = await refundNoShow({ sessionId: byTransfer });
+    const [owedSession] = await db
+      .select({ outcome: sessions.recoveryOutcome, status: sessions.status })
+      .from(sessions)
+      .where(eq(sessions.id, byTransfer))
+      .limit(1);
+    const owedPayment = await db.execute<{ status: string }>(sql`
+      SELECT status FROM session_payments WHERE session_id = ${byTransfer}`);
+    check(
+      "🔴 W1-12 a transfer payment the no-show job could not refund is not marked refunded",
+      owed.ok && owed.outcome === "refund_owed" && owedSession?.outcome !== "refunded" &&
+        owedPayment.rows[0]?.status === "paid",
+      `result ${owed.ok ? owed.outcome : owed.error}, session ${owedSession?.status}/${owedSession?.outcome}, payment ${owedPayment.rows[0]?.status}`,
+    );
+
     /* ------------------------------------------------------ 14.7 the score */
 
     const score = await reliabilityFor(absent!.id);

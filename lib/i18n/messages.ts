@@ -3930,6 +3930,10 @@ export const en = {
   "w1a.disconnectConfirm": "Disconnect this record system?",
   "w1a.disconnectYes": "Yes, disconnect",
   "w1a.recordsAdminOnly": "Only the clinic admin can connect or disconnect a record system.",
+  "w1a.noShowCancelled": "Your session is cancelled",
+  "w1a.noShowCancelledBody": "Nothing was charged. We are sorry.",
+  "w1a.refundOwed": "We owe you a refund",
+  "w1a.refundOwedBody": "Your payment could not go back automatically. Contact us and we will return it.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7094,6 +7098,10 @@ export const ar: Record<MessageKey, string> = {
   "w1a.disconnectConfirm": "هل تريد فصل نظام السجلات هذا؟",
   "w1a.disconnectYes": "نعم، افصله",
   "w1a.recordsAdminOnly": "مسؤول العيادة وحده يمكنه ربط نظام السجلات أو فصله.",
+  "w1a.noShowCancelled": "أُلغيت جلستك",
+  "w1a.noShowCancelledBody": "لم يُخصم منك شيء. ونعتذر لك.",
+  "w1a.refundOwed": "نحن مدينون لك باسترداد المبلغ",
+  "w1a.refundOwedBody": "تعذّر ردّ دفعتك تلقائيًا. تواصل معنا وسنعيدها إليك.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

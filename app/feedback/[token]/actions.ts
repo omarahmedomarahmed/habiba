@@ -92,9 +92,11 @@ export async function reportSession(input: {
       .where(eq(sessionPayments.sessionId, filed.sessionId))
       .limit(1);
 
+    /* 🔴 W1-12 — what actually happened to the money, for the resolution below. */
+    let refundNote = "nothing was paid";
     if (payment) {
       try {
-        await refundSessionPayment({
+        const refund = await refundSessionPayment({
           paymentId: payment.id,
           reason: "Therapist did not attend a booked session",
           // The refund is automatic, so there is no administrator to name. The
@@ -102,8 +104,10 @@ export async function reportSession(input: {
           // therapist is the party it concerns.
           adminUserId: filed.therapistId,
         });
+        refundNote = refund.error ? `NOT refunded (${refund.error}), refund owed` : "refunded";
       } catch {
         /* Already refunded, or payments are not configured here. */
+        refundNote = "NOT refunded, refund owed";
       }
     }
 
@@ -115,7 +119,7 @@ export async function reportSession(input: {
       .update(sessionReports)
       .set({
         status: "actioned",
-        resolution: `Automatic: refunded and suspended from the radar for ${penalty.label}.`,
+        resolution: `Automatic: ${refundNote}; suspended from the radar for ${penalty.label}.`,
         resolvedAt: new Date(),
       })
       .where(eq(sessionReports.sessionId, filed.sessionId));

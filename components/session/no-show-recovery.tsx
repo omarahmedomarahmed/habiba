@@ -92,10 +92,22 @@ export function NoShowRecovery({
     return (
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">
-          {view.outcome === "reassigned" ? t("tshow.reassigned") : t("tshow.refunded")}
+          {view.outcome === "reassigned"
+            ? t("tshow.reassigned")
+            : view.outcome === "refund_owed"
+              ? t("w1a.refundOwed")
+              : view.outcome === "cancelled"
+                ? t("w1a.noShowCancelled")
+                : t("tshow.refunded")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {view.outcome === "reassigned" ? t("tshow.reassignedBody") : t("tshow.refundedBody")}
+          {view.outcome === "reassigned"
+            ? t("tshow.reassignedBody")
+            : view.outcome === "refund_owed"
+              ? t("w1a.refundOwedBody")
+              : view.outcome === "cancelled"
+                ? t("w1a.noShowCancelledBody")
+                : t("tshow.refundedBody")}
           {view.creditCents
             ? ` ${t("tshow.creditWaiting", {
                 amount: formatMoney(view.creditCents, "USD", locale),

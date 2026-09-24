@@ -55,8 +55,8 @@ export default async function AdminRadarPage({
           ) : null}
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          What patients told us went wrong. A no-show has already been refunded and the clinician
-          suspended automatically; everything else is waiting for you.
+          What patients told us went wrong. A no-show suspends the clinician automatically, and is
+          refunded when the payment allows it; everything else is waiting for you.
         </p>
 
         <nav className="mt-3 flex gap-1">
