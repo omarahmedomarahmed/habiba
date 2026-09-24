@@ -17,6 +17,7 @@ import {
   type NoteProvenance,
   type ReportKind,
 } from "@/lib/db/schema";
+import { patientCopyText } from "@/lib/clinical/patient-copy";
 import { log } from "@/lib/logger";
 
 /*
@@ -693,7 +694,8 @@ export async function releaseBrief(sessionId: string): Promise<boolean> {
   if (!row || row.alreadySent || !row.email) return false;
   if (row.patientStatus !== "approved") return false;
 
-  const brief = row.content?.patientBrief?.trim() || row.content?.summary?.trim();
+  // Never the clinician's `summary` in its place: see `patientCopyText`.
+  const brief = patientCopyText(row.content);
   if (!brief) return false;
 
   const { sendSessionReport } = await import("@/lib/mail");
