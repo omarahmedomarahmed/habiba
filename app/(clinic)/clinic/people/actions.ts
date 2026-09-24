@@ -122,6 +122,25 @@ export async function remove(userId: string): Promise<PeopleState> {
   if (result.error) return { error: result.error };
 
   /*
+   * 🔴 W2-T05 — AND THEY ARE TOLD, by email as well as in their app.
+   *
+   * Best effort, like the invitation: the in-app notice `removeClinician`
+   * wrote is the one that cannot fail to arrive. Nothing about any patient;
+   * where their account stands and where their sessions went.
+   */
+  if (result.clinicianEmail) {
+    await notify(
+      { email: result.clinicianEmail, phone: null },
+      {
+        kind: "clinic.removed",
+        subject: `You are no longer part of ${actor.clinicName} on 24Therapy`,
+        body: `${actor.clinicName} has removed you from their practice. Your account carries on as a practice of your own, on pay as you go. The sessions you ran there are listed under Sessions; their notes stay with the practice.`,
+        link: { label: "Sign in", url: `${env.appUrl}/login` },
+      },
+    );
+  }
+
+  /*
    * 🔴 C266 — the largest act on this screen. They move to a practice of their
    * own and the clinic's meeting accounts are disconnected from them. A
    * clinician who finds themselves outside a practice on a Monday is entitled

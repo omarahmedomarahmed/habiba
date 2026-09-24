@@ -37,12 +37,10 @@ type WhereOption = "in_person" | "24t_room" | "zoom" | "google_meet" | "teams";
 
 export function NewSessionForm({
   patients,
-  welcome,
   connectedProviders = [],
   payments,
 }: {
   patients: PatientOption[];
-  welcome?: boolean;
   /**
    * 41.2 — the providers this clinician has actually connected.
    *
@@ -110,15 +108,6 @@ export function NewSessionForm({
 
   return (
     <form action={action} className="space-y-6">
-      {welcome ? (
-        <div className="rounded-2xl bg-brand-50 px-4 py-3.5">
-          <p className="text-sm font-semibold text-brand-900">{t("tnew.welcome")}</p>
-          <p className="mt-0.5 text-sm text-brand-800">
-            {t("tnew.welcomeBody")}
-          </p>
-        </div>
-      ) : null}
-
       {state.error ? (
         <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
           {state.error}

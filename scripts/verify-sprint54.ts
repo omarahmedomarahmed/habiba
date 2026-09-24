@@ -448,6 +448,12 @@ async function main() {
   /* ================================================================ */
 
   const fixture = `verify54-${randomBytes(4).toString("hex")}`;
+  /*
+   * W2-T05: the solo practice a departed clinician lands in is named after
+   * THEM ("Verify Fiftyfour"), so the `LIKE 'verify54-%'` sweep below never
+   * matched it and every run left one behind. Held by id instead.
+   */
+  let departedOrg: string | null = null;
 
   try {
     /*
@@ -967,6 +973,11 @@ async function main() {
      */
     const { removeClinician } = await import("../lib/data/clinic-admin");
 
+    /* W2-T05: a verification row in the clinic, to see whether it moves with them. */
+    await db.execute(sql`
+      INSERT INTO therapist_verifications (user_id, organization_id, state)
+      VALUES (${doctor.id}, ${org.id}, 'approved')`);
+
     const left = await removeClinician({ clinicOrganizationId: org.id, userId: doctor.id });
 
     const [after] = (
@@ -976,6 +987,7 @@ async function main() {
          WHERE u.id = ${doctor.id}`)
     ).rows as { user_org: string; kind: string; clinic_state: string | null }[];
     const moved = required(after, "the departed clinician");
+    departedOrg = moved.user_org;
 
     check(
       "🔴 54.11 / C266 a clinician who leaves lands in a SOLO organisation of their own",
@@ -1039,6 +1051,64 @@ async function main() {
       made.every((id) => afterRows.some((row) => row.sessionId === id)),
       "hiding hours a practice paid for would be a different kind of wrong",
     );
+
+    /* ==================================================== */
+    /*  W2-T05 · the clinician who left is told, and can go on */
+    /* ==================================================== */
+
+    const [told] = (
+      await db.execute(sql`
+        SELECT count(*)::int AS n FROM notifications
+         WHERE user_id = ${doctor.id} AND action_url = '/sessions'`)
+    ).rows as { n: number }[];
+
+    check(
+      "🔴 W2-T05 a clinician removed from a practice is told, in their own app",
+      Number(told?.n ?? 0) === 1,
+      `${String(told?.n ?? 0)} notice(s); they used to find out by signing in to an empty caseload`,
+    );
+
+    const [plan] = (
+      await db.execute(sql`
+        SELECT plan, status FROM subscriptions WHERE organization_id = ${moved.user_org}`)
+    ).rows as { plan: string; status: string }[];
+
+    check(
+      "🔴 W2-T05 / C4 they land on pay as you go, with the row a signup writes",
+      plan?.plan === "payg" && plan.status === "active",
+      plan ? `${plan.plan}, ${plan.status}` : "no subscription row for their new practice",
+    );
+
+    const [verification] = (
+      await db.execute(sql`
+        SELECT organization_id FROM therapist_verifications WHERE user_id = ${doctor.id}`)
+    ).rows as { organization_id: string }[];
+
+    check(
+      "🔴 W2-T05 their verification moves with them, so review names the right practice",
+      verification?.organization_id === moved.user_org,
+      verification?.organization_id === org.id ? "still points at the clinic they left" : "moved",
+    );
+
+    const { formerSessions } = await import("../lib/data/sessions");
+    const earlier = await formerSessions({
+      userId: doctor.id,
+      organizationId: moved.user_org,
+      role: "therapist",
+    } as Parameters<typeof formerSessions>[0]);
+
+    check(
+      "🔴 W2-T05 they keep sight of the sessions they ran at the practice",
+      made.every((id) => earlier.some((row) => row.id === id)) &&
+        earlier.every((row) => row.practice === fixture),
+      `${earlier.length} earlier session(s) listed under ${earlier[0]?.practice ?? "nothing"}`,
+    );
+
+    check(
+      "🔴 CONTROL …and not the one in their own practice, which is on their ordinary list",
+      !earlier.some((row) => row.id === future.id),
+      "only what is out of their tenancy now",
+    );
   } finally {
     /*
      * Everything this run made, in dependency order. The clinician was reparented to a
@@ -1061,6 +1131,7 @@ async function main() {
     await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE '%verify54-%' OR email LIKE '%wall-%'`);
     await db.execute(sql`DELETE FROM users WHERE email LIKE '%verify54-%'`);
     await db.execute(sql`DELETE FROM organizations WHERE name LIKE 'verify54-%'`);
+    if (departedOrg) await db.execute(sql`DELETE FROM organizations WHERE id = ${departedOrg}`);
   }
 
   finish("sprint 54");

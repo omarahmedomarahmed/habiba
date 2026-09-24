@@ -2749,8 +2749,6 @@ export const en = {
   "portal.nav.hintSettings": "Profile, payouts, licence",
   "tnew.starting": "Starting…",
   "tnew.startNow": "Start session now",
-  "tnew.welcome": "You are in.",
-  "tnew.welcomeBody": "Start a session below, the first one is on us. Everything else can wait.",
   "tnew.type": "Session type",
   "tnew.inPerson": "In person",
   "tnew.inPersonBody": "Record from this device",
@@ -4004,6 +4002,8 @@ export const en = {
   "tw2.markAllRead": "Mark all read",
   "tw2.open": "Open",
   "tw2.changeSubmission": "Change something",
+  "tw2.formerTitle": "Earlier, at {name}",
+  "tw2.formerBody": "Their notes stay with the practice.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -6154,8 +6154,6 @@ export const ar: Record<MessageKey, string> = {
   "portal.nav.hintSettings": "الملف والتحويلات والترخيص",
   "tnew.starting": "جارٍ البدء…",
   "tnew.startNow": "ابدأ الجلسة الآن",
-  "tnew.welcome": "أنت الآن معنا.",
-  "tnew.welcomeBody": "ابدأ جلسة بالأسفل، والأولى على حسابنا. وكل ما عدا ذلك يمكن أن ينتظر.",
   "tnew.type": "نوع الجلسة",
   "tnew.inPerson": "حضوريًا",
   "tnew.inPersonBody": "سجّل من هذا الجهاز",
@@ -7242,6 +7240,8 @@ export const ar: Record<MessageKey, string> = {
   "tw2.markAllRead": "علّمها كلها مقروءة",
   "tw2.open": "افتح",
   "tw2.changeSubmission": "غيّر شيئًا",
+  "tw2.formerTitle": "سابقًا، في {name}",
+  "tw2.formerBody": "ملاحظاتها تبقى مع العيادة.",
 };
 
 export const DICTIONARIES = { en, ar } as const;
