@@ -130,9 +130,24 @@ export async function offerReplacements(proof: RecoveryProof): Promise<RecoveryV
 
   // The therapist turned up after all. Nothing to recover from.
   if (row.startedAt) return { state: "waiting" };
-  if (row.outcome) {
-    return { state: "done", outcome: row.outcome === "reassigned" ? "reassigned" : "refunded" };
+  /*
+   * 🔴 W1-27: the row now says `cancelled` and `refund_owed` too, and each is
+   * read back as itself. Mapping every outcome but `reassigned` to "refunded"
+   * would tell somebody whose money we still hold that it went back.
+   */
+  if (row.outcome === "reassigned" || row.outcome === "refunded" || row.outcome === "cancelled") {
+    return { state: "done", outcome: row.outcome };
   }
+  if (row.outcome === "refund_owed") {
+    // Owed while the payment is still ours; the refund queue flips it on "sent".
+    const [held] = await db
+      .select({ id: sessionPayments.id })
+      .from(sessionPayments)
+      .where(and(eq(sessionPayments.sessionId, sessionId), eq(sessionPayments.status, "paid")))
+      .limit(1);
+    return { state: "done", outcome: held ? "refund_owed" : "refunded" };
+  }
+  if (row.outcome) return { state: "done", outcome: "cancelled" };
 
   /*
    * 🔴 W1-12: cancelled as a no-show with no outcome written: nothing was

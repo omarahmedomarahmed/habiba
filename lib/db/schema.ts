@@ -789,8 +789,13 @@ export const sessions = pgTable(
      */
     noShowAt: timestamp("no_show_at", { withTimezone: true }),
     recoveryOfferedAt: timestamp("recovery_offered_at", { withTimezone: true }),
-    /** `reassigned` · `refunded` · `abandoned`. What actually happened to them. */
-    recoveryOutcome: text("recovery_outcome").$type<"reassigned" | "refunded" | "abandoned">(),
+    /**
+     * What actually happened to them. W1-27 (0120) adds `cancelled` (nothing
+     * was paid) and `refund_owed` (paid, and not yet given back).
+     */
+    recoveryOutcome: text("recovery_outcome").$type<
+      "reassigned" | "refunded" | "abandoned" | "cancelled" | "refund_owed"
+    >(),
 
     /**
      * Who did not turn up, when the session was handed on. 14.5.

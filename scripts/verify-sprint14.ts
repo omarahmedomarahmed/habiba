@@ -395,7 +395,11 @@ async function main() {
       SELECT status FROM session_payments WHERE session_id = ${byTransfer}`);
     check(
       "🔴 W1-12 a transfer payment the no-show job could not refund is not marked refunded",
-      owed.ok && owed.outcome === "refund_owed" && owedSession?.outcome !== "refunded" &&
+      /*
+       * W1-27: and the row SAYS refund owed. It used to carry no outcome at
+       * all, because the column's CHECK had no word for it.
+       */
+      owed.ok && owed.outcome === "refund_owed" && owedSession?.outcome === "refund_owed" &&
         owedPayment.rows[0]?.status === "paid",
       `result ${owed.ok ? owed.outcome : owed.error}, session ${owedSession?.status}/${owedSession?.outcome}, payment ${owedPayment.rows[0]?.status}`,
     );
@@ -494,7 +498,7 @@ async function main() {
        * because nothing was paid. Either recovered state proves the link is
        * accepted; a refused proof leaves the outcome empty.
        */
-      refundedRow?.outcome === "refunded" || (refundedRow?.outcome as string | null) === "cancelled",
+      refundedRow?.outcome === "refunded" || refundedRow?.outcome === "cancelled",
       `outcome ${refundedRow?.outcome}, ${JSON.stringify(byToken)}`,
     );
 
