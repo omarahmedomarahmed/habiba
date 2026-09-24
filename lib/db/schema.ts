@@ -1181,6 +1181,47 @@ export const sessionNotes = pgTable(
   ],
 );
 
+/**
+ * 🔴 W1-03 / P4: what a clinician adds after signing.
+ *
+ * A signed chart and a released patient copy are locked (migration 0116 holds
+ * the lock in a trigger on `session_notes`), so a change after signing is one
+ * of these: author, time, text, shown under the note in order. `clinical`
+ * addenda belong to the chart; `patient` addenda are written to the patient and
+ * shown wherever their released copy is. Append only, enforced by the database.
+ */
+export const NOTE_ADDENDUM_KINDS = ["clinical", "patient"] as const;
+export type NoteAddendumKind = (typeof NOTE_ADDENDUM_KINDS)[number];
+
+export const noteAddenda = pgTable(
+  "note_addenda",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** The document it amends. A session will carry one note per format. */
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => sessionNotes.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    kind: text("kind").$type<NoteAddendumKind>().notNull(),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Snapshotted, so an addendum outlives its author's account. */
+    authorName: text("author_name").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("note_addenda_note").on(t.noteId, t.createdAt),
+    index("note_addenda_session").on(t.sessionId, t.createdAt),
+  ],
+);
+
+export type NoteAddendum = typeof noteAddenda.$inferSelect;
+
 export const RISK_LEVELS = ["none", "low", "moderate", "elevated", "high", "critical"] as const;
 export type RiskLevel = (typeof RISK_LEVELS)[number];
 

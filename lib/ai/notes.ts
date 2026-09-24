@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { recordSessionNote } from "@/lib/data/copilot";
 import { noteProvenanceFor } from "@/lib/data/feedback";
@@ -456,6 +456,12 @@ export async function generateAndStoreNote(opts: {
           offRecordSeconds: origin.offRecordSeconds,
           updatedAt: new Date(),
         },
+        /*
+         * 🔴 W1-03: a regeneration never lands on a signed chart or a
+         * released copy. Either half signed means the words are the
+         * clinician's now, and a change is an addendum.
+         */
+        setWhere: and(eq(sessionNotes.status, "draft"), eq(sessionNotes.patientStatus, "draft")),
       });
 
     await db

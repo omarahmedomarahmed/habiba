@@ -206,11 +206,19 @@ async function main() {
      * set and cannot hold a sentence. The sentinel CONTROL above is what proves this assertion can
      * still catch a field that could.
      */
+    /*
+     * 🔴 `briefAddenda` was added by W1-03 (a released copy is locked, and a
+     * change is an addendum). It CAN hold a sentence, so it is argued for
+     * rather than slipped in: it carries only `note_addenda` rows of kind
+     * `patient`, which are written TO the patient exactly like `brief`, and
+     * only once the copy is released. `verify:w1b` plants a clinical addendum
+     * with a sentinel and asserts it never reaches this query.
+     */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
       keys ===
-        "at,brief,briefPending,group,id,modality,paymentStatus,priceCents,priceCurrency," +
+        "at,brief,briefAddenda,briefPending,group,id,modality,paymentStatus,priceCents,priceCurrency," +
           "provenance,therapistName",
       keys,
     );

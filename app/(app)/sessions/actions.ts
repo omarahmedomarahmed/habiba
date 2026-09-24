@@ -14,6 +14,13 @@ import { releaseBrief, sweepUnratedSessions } from "@/lib/data/feedback";
 import { createInviteLink } from "@/app/(app)/patients/actions";
 import { normalisePhone, personIdForPatient } from "@/lib/data/people";
 import { publishSummary } from "@/lib/data/summaries";
+import {
+  addAddendum,
+  saveClinicalNote,
+  savePatientCopy,
+  type NoteRefusal,
+} from "@/lib/data/note-record";
+import { getI18n } from "@/lib/i18n/server";
 import { releaseClaim } from "@/lib/data/radar";
 import {
   cancelSession,
@@ -30,6 +37,7 @@ import {
   patients,
   sessionNotes,
   sessions,
+  type NoteAddendumKind,
   type NoteContent,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -479,22 +487,42 @@ export async function saveNote(
   content: NoteContent,
 ): Promise<SessionActionState> {
   const actor = await requireUser();
-  const row = await getSession(actor, sessionId);
-  if (!row) return { error: "Session not found." };
-
-  await db
-    .update(sessionNotes)
-    .set({ content, updatedAt: new Date() })
-    .where(eq(sessionNotes.sessionId, sessionId));
-
-  await auditPhi(actor, "note.update", {
-    resourceType: "note",
-    resourceId: sessionId,
-    patientId: row.session.patientId,
-  });
+  const result = await saveClinicalNote(actor, sessionId, content);
+  if (!result.ok) return { error: await refusalText(result.reason, "clinical") };
 
   revalidatePath(`/sessions/${sessionId}`);
   return { ok: true, message: "Saved" };
+}
+
+/**
+ * 🔴 W1-03: the sentence for a refused note write. The two old English
+ * strings are kept as they were; the lock is new text, so it is translated.
+ */
+async function refusalText(reason: NoteRefusal, kind: NoteAddendumKind): Promise<string> {
+  if (reason === "not_found") return "Session not found.";
+  if (reason === "no_note") return "There is no note for this session yet.";
+  const { t } = await getI18n();
+  if (reason === "locked") return t(kind === "clinical" ? "tnote.lockedNote" : "tnote.lockedCopy");
+  if (reason === "not_signed") return t("tnote.addendumNotSigned");
+  return t("tnote.addendumEmpty");
+}
+
+/**
+ * 🔴 W1-03 / P4: a change after signing. Kept under the note for ever, with
+ * the author's name and the time, and never edited.
+ */
+export async function addNoteAddendum(
+  sessionId: string,
+  kind: NoteAddendumKind,
+  body: string,
+): Promise<SessionActionState> {
+  const actor = await requireUser();
+  const which = kind === "patient" ? "patient" : "clinical";
+  const result = await addAddendum(actor, sessionId, which, body);
+  if (!result.ok) return { error: await refusalText(result.reason, which) };
+
+  revalidatePath(`/sessions/${sessionId}`);
+  return { ok: true };
 }
 
 /**
@@ -540,34 +568,8 @@ export async function savePatientNote(
   patch: { patientBrief: string; patientSteps: string[]; patientNext: string },
 ): Promise<SessionActionState> {
   const actor = await requireUser();
-  const row = await getSession(actor, sessionId);
-  if (!row) return { error: "Session not found." };
-
-  const [note] = await db
-    .select({ content: sessionNotes.content })
-    .from(sessionNotes)
-    .where(eq(sessionNotes.sessionId, sessionId))
-    .limit(1);
-  if (!note) return { error: "There is no note for this session yet." };
-
-  await db
-    .update(sessionNotes)
-    .set({
-      content: {
-        ...note.content,
-        patientBrief: patch.patientBrief.trim(),
-        patientSteps: patch.patientSteps.map((s) => s.trim()).filter(Boolean).slice(0, 4),
-        patientNext: patch.patientNext.trim(),
-      },
-      updatedAt: new Date(),
-    })
-    .where(eq(sessionNotes.sessionId, sessionId));
-
-  await auditPhi(actor, "note.patient.update", {
-    resourceType: "note",
-    resourceId: sessionId,
-    patientId: row.session.patientId,
-  });
+  const result = await savePatientCopy(actor, sessionId, patch);
+  if (!result.ok) return { error: await refusalText(result.reason, "patient") };
 
   revalidatePath(`/sessions/${sessionId}`);
   return { ok: true, message: "Saved" };

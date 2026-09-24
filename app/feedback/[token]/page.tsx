@@ -69,6 +69,7 @@ export default async function FeedbackPage({
         briefSteps={context.briefSteps}
         briefNext={context.briefNext}
         briefLanguage={context.briefLanguage}
+        briefAddenda={context.briefAddenda}
         notePending={context.notePending}
         emailed={context.emailed}
         alreadyDone={context.done}

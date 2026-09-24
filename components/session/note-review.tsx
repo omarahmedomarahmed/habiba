@@ -8,6 +8,7 @@ import { NoteCard } from "@/components/clinical/note-card";
 import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import {
+  addNoteAddendum,
   approveNote,
   approvePatientNote,
   regenerateNote,
@@ -49,7 +50,13 @@ type Props = {
    * Defaulted to true so that any other caller keeps the behaviour it had.
    */
   approvals?: boolean;
+  /** W1-03: what was added after each half was signed, oldest first. */
+  clinicalAddenda?: AddendumLine[];
+  patientAddenda?: AddendumLine[];
 };
+
+/** Formatted on the server, in the reader's zone. */
+export type AddendumLine = { id: string; by: string; when: string; body: string };
 
 /**
  * Two documents, two signatures.
@@ -372,12 +379,24 @@ export function NoteReview(props: Props) {
 
           {showEnglish ? (
             <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs leading-relaxed text-slate-600">
-              A machine translation of the note above, for a supervisor or an insurer. The record
+              {/* W1-03: an English fragment used to print before this key. */}
               {t("tnote.machineNote", { language: props.languageLabel })}
             </p>
           ) : null}
 
-          {!editing && !showEnglish ? (
+          {status === "approved" && !showEnglish ? (
+            <Addenda
+              sessionId={props.sessionId}
+              kind="clinical"
+              lines={props.clinicalAddenda ?? []}
+              onAdded={() => {
+                setFeedback(t("common.saved"));
+                router.refresh();
+              }}
+            />
+          ) : null}
+
+          {!editing && !showEnglish && status === "draft" ? (
             <div className="flex flex-col gap-2.5 sm:flex-row">
               <Button variant="secondary" full onClick={() => setEditing(true)}>
                 <Pencil className="h-4 w-4" aria-hidden /> {t("tnote.edit")}
@@ -477,7 +496,19 @@ export function NoteReview(props: Props) {
             </Card>
           )}
 
-          {!editingBrief ? (
+          {patientStatus === "approved" ? (
+            <Addenda
+              sessionId={props.sessionId}
+              kind="patient"
+              lines={props.patientAddenda ?? []}
+              onAdded={() => {
+                setFeedback(t("common.saved"));
+                router.refresh();
+              }}
+            />
+          ) : null}
+
+          {!editingBrief && patientStatus === "draft" ? (
             <div className="flex flex-col gap-2.5 sm:flex-row">
               <Button variant="secondary" full onClick={() => setEditingBrief(true)}>
                 <Pencil className="h-4 w-4" aria-hidden /> {t("tnote.editCopy")}
@@ -523,6 +554,96 @@ export function NoteReview(props: Props) {
             </p>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 🔴 W1-03 / P4: after signing, a change is an addendum.
+ *
+ * The signed text above stays exactly as it was signed. What is added here is
+ * kept under it with the author's name and the time, in order, and cannot be
+ * edited or removed: the button that used to say Edit says this instead.
+ */
+function Addenda({
+  sessionId,
+  kind,
+  lines,
+  onAdded,
+}: {
+  sessionId: string;
+  kind: "clinical" | "patient";
+  lines: AddendumLine[];
+  onAdded: () => void;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const save = () =>
+    startTransition(async () => {
+      setError(null);
+      const result = await addNoteAddendum(sessionId, kind, body);
+      if (result.error) setError(result.error);
+      else {
+        setBody("");
+        setOpen(false);
+        onAdded();
+      }
+    });
+
+  return (
+    <div className="space-y-2.5">
+      {lines.length > 0 ? (
+        <Card className="space-y-3 p-4">
+          <p className="text-sm font-semibold text-slate-900">{t("tnote.addenda")}</p>
+          <ol className="space-y-3">
+            {lines.map((line) => (
+              <li key={line.id} className="border-s-2 border-slate-200 ps-3">
+                <p className="text-xs text-slate-500">
+                  {t("tnote.addendumBy", { name: line.by, when: line.when })}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                  {line.body}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </Card>
+      ) : null}
+
+      {error ? (
+        <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
+
+      {open ? (
+        <Card className="space-y-3 p-4">
+          <Field label={t("tnote.addAddendum")} htmlFor={`addendum-${kind}`} hint={t("tnote.addendumHint")}>
+            <Textarea
+              id={`addendum-${kind}`}
+              rows={4}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+            />
+          </Field>
+          <div className="flex gap-2.5">
+            <Button variant="secondary" full onClick={() => setOpen(false)} disabled={pending}>
+              {t("common.cancel")}
+            </Button>
+            <Button full onClick={save} disabled={pending || !body.trim()}>
+              {pending ? t("common.saving") : t("tnote.addendumSave")}
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <Button variant="secondary" full onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4" aria-hidden /> {t("tnote.addAddendum")}
+        </Button>
       )}
     </div>
   );

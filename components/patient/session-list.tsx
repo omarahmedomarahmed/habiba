@@ -141,6 +141,19 @@ export function PatientSessionList({
                       </p>
                     ) : null}
 
+                    {/* 🔴 W1-03: what their clinician added after releasing it. */}
+                    {session.briefAddenda.map((line, index) => (
+                      <div key={index} className="mt-2 rounded-xl bg-slate-50 p-3">
+                        <p className="text-xs text-slate-500">
+                          {t("psessions.addedLater", { name: line.by })} ·{" "}
+                          {formatWhen(line.at, resolved, locale)}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                          {line.body}
+                        </p>
+                      </div>
+                    ))}
+
                     {session.briefPending ? (
                       <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
                         <FileText className="h-3 w-3" aria-hidden />
