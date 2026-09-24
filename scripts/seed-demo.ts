@@ -1162,7 +1162,17 @@ async function main() {
       await db.execute(sql`
         INSERT INTO copilot_messages (thread_id, role, content, citations, session_id, created_at)
         VALUES (${thread.id}, 'assistant', ${opts.answer},
-                ${JSON.stringify([{ sessionId: opts.sessionId, quote: "Staying asleep. I wake around three and my head just starts going." }])}::jsonb,
+                ${JSON.stringify([
+                  {
+                    /* The whole `Citation` shape: a partial one printed NaN:NaN on the chart. */
+                    sessionId: opts.sessionId,
+                    sessionDate: daysAgo(3).toISOString(),
+                    sequence: 0,
+                    speaker: "patient",
+                    quote: "Staying asleep. I wake around three and my head just starts going.",
+                    atSeconds: 754,
+                  },
+                ])}::jsonb,
                 ${opts.sessionId}, ${daysAgo(3).toISOString()})`);
       return thread;
     };

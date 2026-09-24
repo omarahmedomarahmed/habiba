@@ -291,6 +291,12 @@ function warble(at: number, seconds: number, low: number, high: number, volume: 
 
 function buzz(pattern: number | number[]) {
   try {
+    /*
+     * Before the first tap a browser refuses vibration and logs it on every
+     * page (stopRinging runs on mount). Nothing is ringing then, so skip it.
+     */
+    const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+    if (activation && !activation.hasBeenActive) return;
     navigator.vibrate?.(pattern);
   } catch {
     /* Desktop, or a browser that does not do this. */

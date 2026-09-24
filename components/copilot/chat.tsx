@@ -633,7 +633,18 @@ function MessageBubble({
             )}
           >
             <Info className="h-3 w-3" aria-hidden />
-            {formatDate(citation.sessionDate, zone, locale)} · {formatDuration(citation.atSeconds)}
+            {/*
+              Only the parts a citation has. A stored citation without a date or
+              an offset printed "- · NaN:NaN" on the chart (live walkthrough).
+            */}
+            {[
+              citation.sessionDate && !Number.isNaN(Date.parse(citation.sessionDate))
+                ? formatDate(citation.sessionDate, zone, locale)
+                : null,
+              Number.isFinite(citation.atSeconds) ? formatDuration(citation.atSeconds) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || t("tcop.fromSession")}
           </button>
         ))}
 
