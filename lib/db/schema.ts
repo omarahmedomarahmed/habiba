@@ -789,8 +789,13 @@ export const sessions = pgTable(
      */
     noShowAt: timestamp("no_show_at", { withTimezone: true }),
     recoveryOfferedAt: timestamp("recovery_offered_at", { withTimezone: true }),
-    /** `reassigned` · `refunded` · `abandoned`. What actually happened to them. */
-    recoveryOutcome: text("recovery_outcome").$type<"reassigned" | "refunded" | "abandoned">(),
+    /**
+     * What actually happened to them. W1-27 (0120) adds `cancelled` (nothing
+     * was paid) and `refund_owed` (paid, and not yet given back).
+     */
+    recoveryOutcome: text("recovery_outcome").$type<
+      "reassigned" | "refunded" | "abandoned" | "cancelled" | "refund_owed"
+    >(),
 
     /**
      * Who did not turn up, when the session was handed on. 14.5.
@@ -5258,6 +5263,72 @@ export const payoutRequestEvents = pgTable(
 
 export type PayoutRequestEvent = typeof payoutRequestEvents.$inferSelect;
 
+/**
+ * 🔴 W1-28a: a refund we owe on the manual rail. Migration 0121.
+ *
+ * A bank-transfer payment has no charge to reverse, so the product says
+ * "refund owed" (a no-show, a clinician's cancellation) and this row is the
+ * promise being kept: owed, sent with proof (the ledger reversal posts on
+ * that move and nowhere else), confirmed; or cancelled with a reason. The
+ * database holds one live row per payment and refuses "sent" without the
+ * proof and the ledger transaction.
+ */
+export const REFUND_REQUEST_STATUSES = ["owed", "sent", "confirmed", "cancelled"] as const;
+export type RefundRequestStatus = (typeof REFUND_REQUEST_STATUSES)[number];
+
+export const refundRequests = pgTable(
+  "refund_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionPaymentId: uuid("session_payment_id")
+      .notNull()
+      .references(() => sessionPayments.id, { onDelete: "restrict" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "restrict" }),
+    /** What the patient paid, tax included, in the payment's currency. */
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+
+    /** Where it goes back to. The name comes from the payment; the rest from the patient. */
+    payeeName: text("payee_name"),
+    payeeMethod: text("payee_method"),
+    payeeIdentifier: text("payee_identifier"),
+    payeeAccountName: text("payee_account_name"),
+
+    status: text("status").$type<RefundRequestStatus>().notNull().default("owed"),
+    /** Why it is owed. Money facts only, never clinical. */
+    reason: text("reason").notNull(),
+    cancelledReason: text("cancelled_reason"),
+
+    /** Null when the clock opened it (a no-show). */
+    requestedByUserId: uuid("requested_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    sentByUserId: uuid("sent_by_user_id").references(() => users.id, { onDelete: "restrict" }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    proofUrl: text("proof_url"),
+    /** The reversal, so the books and the queue point at each other. */
+    ledgerTxnId: uuid("ledger_txn_id"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("refund_requests_one_live_per_payment")
+      .on(t.sessionPaymentId)
+      .where(sql`status IN ('owed', 'sent')`),
+    index("refund_requests_open_idx")
+      .on(t.createdAt)
+      .where(sql`status IN ('owed', 'sent')`),
+  ],
+);
+
+export type RefundRequest = typeof refundRequests.$inferSelect;
+
 /* ----------------------------------------------- §3d · support tickets -- */
 
 /**
@@ -7158,6 +7229,8 @@ export const PATIENT_NOTICE_KINDS = [
   "session_started",
   "payment_confirmed",
   "access_requested",
+  /** 🔴 W1-28b (0122): a clinician cancelled, with their reason in `reason`. */
+  "session_cancelled",
 ] as const;
 export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
 
@@ -7183,6 +7256,12 @@ export const patientNotifications = pgTable(
      * translatable and admin-editable and the row carries no prose either.
      */
     messageKey: text("message_key").notNull(),
+    /**
+     * 🔴 W1-28b (0122): the one piece of prose a notice may carry, the
+     * clinician's own short reason for cancelling, written for the patient
+     * (300 characters at most, checked by the database). Never a payer's.
+     */
+    reason: text("reason"),
 
     dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

@@ -36,6 +36,8 @@ import type { MessageKey } from "@/lib/i18n/messages";
 export type NoticeView = {
   id: string;
   messageKey: MessageKey;
+  /** W1-28b: the clinician's reason, on a cancellation. */
+  reason?: string | null;
   when: string;
   dismissed: boolean;
 };
@@ -78,6 +80,11 @@ export function PatientNotices({ notices }: { notices: NoticeView[] }) {
           {current.map((notice) => (
             <Card key={notice.id} className="p-4">
               <p className="text-sm leading-relaxed text-slate-900">{t(notice.messageKey)}</p>
+              {notice.reason ? (
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {t("w1a.cancelReasonGiven", { reason: notice.reason })}
+                </p>
+              ) : null}
               <div className="mt-2 flex items-center justify-between gap-3">
                 <span className="text-xs text-slate-500">{notice.when}</span>
                 <button
@@ -109,6 +116,11 @@ export function PatientNotices({ notices }: { notices: NoticeView[] }) {
           {earlier.map((notice) => (
             <Card key={notice.id} className="p-4 opacity-70">
               <p className="text-sm leading-relaxed text-slate-700">{t(notice.messageKey)}</p>
+              {notice.reason ? (
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {t("w1a.cancelReasonGiven", { reason: notice.reason })}
+                </p>
+              ) : null}
               <p className="mt-2 text-xs text-slate-500">{notice.when}</p>
             </Card>
           ))}

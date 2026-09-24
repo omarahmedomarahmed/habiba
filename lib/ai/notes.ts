@@ -330,40 +330,6 @@ export function isNoteEmpty(content: NoteContent): boolean {
  * persisted state, so a restart mid-generation lost the note permanently with
  * nothing to retry from.
  */
-/**
- * The stamp for one session, read from the two timestamps that decide it.
- *
- * Separate from `lateRecordingStamp` (which is pure, in `lib/consent.ts`) so
- * the rule can be tested without a database and the query lives next to its
- * only caller.
- */
-async function lateRecordingStampFor(
-  sessionId: string,
-  therapistId: string,
-): Promise<string | null> {
-  const { lateRecordingStamp } = await import("@/lib/consent");
-  const { users } = await import("@/lib/db/schema");
-
-  const [row] = await db
-    .select({
-      startedAt: sessions.startedAt,
-      recordingStartedAt: sessions.recordingStartedAt,
-      profile: users.profile,
-    })
-    .from(sessions)
-    .leftJoin(users, eq(users.id, therapistId))
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
-
-  if (!row) return null;
-
-  return lateRecordingStamp({
-    startedAt: row.startedAt,
-    recordingStartedAt: row.recordingStartedAt,
-    timeZone: row.profile?.timezone ?? null,
-  });
-}
-
 export async function generateAndStoreNote(opts: {
   sessionId: string;
   organizationId: string;
@@ -398,22 +364,18 @@ export async function generateAndStoreNote(opts: {
     });
 
     /*
-     * 7.8 — a session that was only half recorded says so, on the note.
+     * 🔴 W1-30: 7.8's "recording began late" is PROVENANCE, not note text.
      *
-     * Prepended to the summary rather than added as a field: it has to be the
-     * first thing read, and a separate field is a field a template can forget
-     * to render. Applied to the English copy too, because that is the one an
-     * auditor or a second clinician reads.
-     *
-     * This is a fact about the recording, not a summary of the session, so it
-     * is written here from the timestamps rather than asked of the model — a
-     * model asked to describe its own missing input will describe it wrongly.
+     * This used to prepend "Recording began at 10:10; the first 10 minutes of
+     * this session were not captured and do not exist." to the summary and the
+     * English copy: a recording fact written by the machine into a clinical
+     * text the clinician then signs, the pattern W1-24 took out of partner
+     * drafts (RESEARCH-2 section 3). The same fact is already stamped below by
+     * `noteProvenanceFor`: a late start makes the note `partial`, with the
+     * missing minutes in `offRecordSeconds`, and `NoteOriginNote` shows it
+     * above the note on every screen that shows the note. Migration 0123 takes
+     * the sentence back off drafts already stored.
      */
-    const stamp = await lateRecordingStampFor(opts.sessionId, opts.therapistId);
-    if (stamp) {
-      content.summary = content.summary ? `${stamp}\n\n${content.summary}` : stamp;
-      if (contentEn?.summary) contentEn.summary = `${stamp}\n\n${contentEn.summary}`;
-    }
 
     /*
      * 🔴 47.1 / C212 — the note records how it was made, stamped here.

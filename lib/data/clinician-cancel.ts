@@ -25,8 +25,8 @@ export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
  *   - Never paid: the message alone.
  *
  * English, like every other message `notify` sends; the words live in the
- * dictionary. No in-app notice yet: `patient_notifications_kind` has no
- * cancellation kind, and adding one is a migration.
+ * dictionary. The in-app notice (W1-28b) is a key plus the reason, so it reads
+ * in the patient's own language.
  */
 export async function afterClinicianCancel(input: {
   actorUserId: string;
@@ -53,6 +53,13 @@ export async function afterClinicianCancel(input: {
         reason: result.error,
       });
       outcome = "refund_owed";
+      // 🔴 W1-28a: the refund owed is a row on the operators' refund queue.
+      const { openRefundRequest } = await import("@/lib/billing/refunds");
+      await openRefundRequest({
+        sessionPaymentId: payment.id,
+        requestedByUserId: input.actorUserId,
+        reason: "clinician_cancel",
+      });
     } else {
       outcome = "refunded";
     }
@@ -88,6 +95,8 @@ export async function afterClinicianCancel(input: {
       },
       {
         kind: "booking.cancelled",
+        // 🔴 W1-28b: and in the app, with the reason (0122 gave it a kind).
+        notice: { kind: "session_cancelled", key: "w1a.cancelledByClinician", reason: input.reason },
         subject: en["w1a.noShowCancelled"],
         body: [
           en["w1a.cancelledByClinician"],

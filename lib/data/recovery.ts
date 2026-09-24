@@ -383,14 +383,24 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
    * This used to write `recovery_outcome = 'refunded'` here, before any money
    * moved, and then only log a refund that failed. Every bank-transfer payment
    * fails it (no Stripe charge to reverse), so a patient was told they had their
-   * money back when we still held it. `status` leaving `scheduled` is what makes
-   * the second press lose; `refunded` is written below, only once it is true.
+   * money back when we still held it. `refunded` is written below, only once
+   * it is true.
+   *
+   * 🔴 W1-27: AND WHAT IS TRUE NOW IS WRITTEN IN THE SAME STATEMENT. The row
+   * says `cancelled` when nothing was paid and `refund_owed` while we hold the
+   * money, decided from the payment row inside this UPDATE so the status and
+   * the outcome cannot disagree. It used to write neither, because the
+   * column's CHECK had no word for them (0120 added both).
    */
   const [marked] = await db
     .update(sessions)
     .set({
       status: "cancelled",
       recoveryOfferedAt: now,
+      recoveryOutcome: sql<"refund_owed" | "cancelled">`CASE WHEN EXISTS (
+        SELECT 1 FROM session_payments paid
+         WHERE paid.session_id = ${input.sessionId} AND paid.status = 'paid'
+      ) THEN 'refund_owed' ELSE 'cancelled' END`,
       updatedAt: now,
     })
     .where(
@@ -404,7 +414,7 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
         lte(sessions.scheduledAt, new Date(now.getTime() - NO_SHOW_AFTER_MINUTES * 60_000)),
       ),
     )
-    .returning({ id: sessions.id, priceCents: sessions.priceCents });
+    .returning({ id: sessions.id, outcome: sessions.recoveryOutcome });
 
   if (!marked) {
     return { ok: false, error: "That session is not overdue or has already been resolved." };
@@ -412,7 +422,7 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
 
   const { sessionPayments } = await import("@/lib/db/schema");
   const [payment] =
-    marked.priceCents > 0
+    marked.outcome === "refund_owed"
       ? await db
           .select({ id: sessionPayments.id })
           .from(sessionPayments)
@@ -426,7 +436,7 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
     // Nothing settled, so there is nothing to give back, and nothing was
     // refunded either. The cancellation is the whole remedy.
     log.info("no-show cancelled, nothing settled", { session: ref(input.sessionId) });
-    return { ok: true, outcome: "cancelled" };
+    return { ok: true, outcome: marked.outcome === "refund_owed" ? "refund_owed" : "cancelled" };
   }
 
   const { refundSessionPayment } = await import("@/lib/billing/connect");
@@ -438,13 +448,20 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
   });
   if ("error" in result && result.error) {
     /*
-     * The session stays cancelled, the payment stays `paid` because we still
-     * hold it, and the failure is loud. A refund that silently did not happen
+     * The session stays cancelled with `refund_owed` on it, the payment stays
+     * `paid` because we still hold it, and the failure is loud. A refund that silently did not happen
      * is money we are holding from somebody we have already let down once.
      */
     log.error("no-show refund failed, refund owed", {
       session: ref(input.sessionId),
       reason: result.error,
+    });
+    // 🔴 W1-28a: and the promise becomes somebody's job on the refund queue.
+    const { openRefundRequest } = await import("@/lib/billing/refunds");
+    await openRefundRequest({
+      sessionPaymentId: payment.id,
+      requestedByUserId: null,
+      reason: "no_show",
     });
     return { ok: true, outcome: "refund_owed" };
   }
@@ -452,7 +469,7 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
   await db
     .update(sessions)
     .set({ recoveryOutcome: "refunded", updatedAt: new Date() })
-    .where(eq(sessions.id, input.sessionId));
+    .where(and(eq(sessions.id, input.sessionId), eq(sessions.recoveryOutcome, "refund_owed")));
 
   return { ok: true, outcome: "refunded" };
 }

@@ -51,6 +51,7 @@ export default async function NoticesPage() {
         notices={notices.map((notice) => ({
           id: notice.id,
           messageKey: notice.messageKey,
+          reason: notice.reason,
           when: formatDate(notice.createdAt, actor.timezone, locale),
           dismissed: notice.dismissedAt !== null,
         }))}

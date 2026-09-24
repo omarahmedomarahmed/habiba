@@ -189,6 +189,43 @@ async function totalView(db: ReturnType<typeof connect>["db"]) {
     (person?.conversation?.length ?? 0) === 1,
     `${person?.conversation?.length ?? 0} message(s)`,
   );
+
+  /*
+   * 🔴 W1-26: THE TIMELINE IS NOT A SIDE DOOR.
+   *
+   * The same page rendered a timeline with 140 characters of every copilot
+   * message, the risk assessment's recommended action and the rating comment,
+   * with no reason asked and nothing audited. Clinical text comes only through
+   * `readSession` and `readPerson` above; the timeline says that something
+   * happened, never what was said.
+   */
+  await db.execute(sql`
+    INSERT INTO risk_assessments (session_id, organization_id, therapist_id, patient_id, level, source,
+                                  recommended_action)
+    VALUES (${session.id}, ${orgId}, ${therapist.id}, ${patient.id}, 'moderate', 'keyword',
+            'Safety plan review about the thing they said.')`);
+  await db.execute(sql`
+    INSERT INTO session_feedback (session_id, organization_id, therapist_id, service_stars,
+                                  therapist_stars, comment)
+    VALUES (${session.id}, ${orgId}, ${therapist.id}, 5, 4, 'What I told them about my marriage.')`);
+  const timelineRead = gate.timeline as (opts: { sinceHours?: number }) => Promise<{ kind: string; what: string }[]>;
+  const events = await timelineRead({ sinceHours: 1 });
+  const leaked = events.filter((event) =>
+    ["A question about this person", "Safety plan review", "about my marriage"].some((text) =>
+      event.what.includes(text),
+    ),
+  );
+  check(
+    "🔴 W1-26 the Total View timeline carries no copilot, risk or rating text",
+    leaked.length === 0,
+    leaked.map((event) => `${event.kind}: ${event.what}`).join(" | ") || "no clinical text",
+  );
+  const kinds = new Set(events.map((event) => event.kind));
+  check(
+    "W1-26 CONTROL …and it still says that each of them happened",
+    kinds.has("copilot.therapist") && kinds.has("risk") && kinds.has("rating"),
+    [...kinds].join(", "),
+  );
 }
 
 /* ================================================================== */
@@ -598,6 +635,11 @@ async function main() {
     await db.execute(sql`DELETE FROM copilot_threads WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
     await db.execute(sql`DELETE FROM transcript_segments WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
+    // W1-26's plants, before the sessions and patients they point at.
+    await db.execute(sql`DELETE FROM risk_assessments WHERE organization_id IN
+      (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
+    await db.execute(sql`DELETE FROM session_feedback WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
     await db.execute(sql`DELETE FROM sessions WHERE feedback_token LIKE ${`${fixture}%`}`);
     await db.execute(sql`DELETE FROM patients WHERE organization_id IN

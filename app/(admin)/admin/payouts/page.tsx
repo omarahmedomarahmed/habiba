@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { desc, eq } from "drizzle-orm";
 
 import { PayoutQueue } from "@/components/admin/payout-queue";
+import { RefundQueue } from "@/components/admin/refund-queue";
 import { Card, PageHeader } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { requireStaff } from "@/lib/auth/guard";
 import { reconcile } from "@/lib/billing/ledger";
 import { manualQueue } from "@/lib/billing/payouts";
+import { refundQueue } from "@/lib/billing/refunds";
 import { formatUsd } from "@/lib/billing/plans";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -39,7 +41,7 @@ export const dynamic = "force-dynamic";
 export default async function PayoutsPage() {
   const actor = await requireStaff();
 
-  const [manual, books, automated] = await Promise.all([
+  const [manual, books, automated, refunds] = await Promise.all([
     manualQueue(),
     reconcile(),
     db
@@ -55,6 +57,7 @@ export default async function PayoutsPage() {
       .innerJoin(users, eq(users.id, earningsTransfers.therapistId))
       .orderBy(desc(earningsTransfers.createdAt))
       .limit(50),
+    refundQueue(),
   ]);
 
   return (
@@ -122,6 +125,22 @@ export default async function PayoutsPage() {
             amountCents: row.amountCents,
             status: row.status,
             createdAtLabel: formatDate(row.createdAt, actor.timezone, "en"),
+          }))}
+        />
+
+        {/* 🔴 W1-28a: refunds we owe on the manual rail, worked like the payouts. */}
+        <RefundQueue
+          rows={refunds.map((row) => ({
+            id: row.id,
+            amountCents: row.amountCents,
+            currency: row.currency,
+            payeeName: row.payeeName,
+            status: row.status,
+            why: row.reason === "no_show" || row.reason === "clinician_cancel" ? row.reason : "other",
+            owned: row.owned,
+            needsTwoPeople: row.needsTwoPeople,
+            openedLabel: formatDate(row.createdAt, actor.timezone, "en"),
+            proofUrl: row.proofUrl,
           }))}
         />
       </div>

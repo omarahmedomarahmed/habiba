@@ -435,7 +435,7 @@ function Timeline({
                       {row.kind}
                     </span>
                     <span className="font-medium text-slate-800">{row.who}</span>
-                    <span className="text-slate-600">, {row.what}</span>
+                    {row.what ? <span className="text-slate-600">, {row.what}</span> : null}
                   </span>
                 ))}
               </span>
