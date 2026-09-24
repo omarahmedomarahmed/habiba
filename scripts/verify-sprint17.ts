@@ -341,9 +341,20 @@ async function main() {
    * so the assertion is about the figures rather than about the component: no
    * money on this page may be a number written in a file.
    */
+  /*
+   * 🔴 And every `<Money cents>` the page renders. Since money became a
+   * component (USD on the website, EGP on hover), the figures are its props
+   * rather than dollar signs in the text, and a scan of the text alone found
+   * nothing and passed nothing. A `currency` other than USD would be a figure
+   * this rule cannot compare, so it is kept out of the set it measures.
+   */
   const figures = [
-    ...text.matchAll(/\$(\d+(?:\.\d{2})?)/g),
-  ].map((m) => Math.round(Number(m[1]) * 100));
+    ...[...text.matchAll(/\$(\d+(?:\.\d{2})?)/g)].map((m) => Math.round(Number(m[1]) * 100)),
+    ...nodes
+      .filter((node) => node.name === "Money" && typeof node.props.cents === "number")
+      .filter((node) => !node.props.currency || String(node.props.currency).toUpperCase() === "USD")
+      .map((node) => node.props.cents as number),
+  ];
 
   /*
    * 🔴 AMENDED AGAIN BY 57.5, and the two additions are different in kind.

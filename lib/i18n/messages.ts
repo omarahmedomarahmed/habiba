@@ -1690,7 +1690,7 @@ export const en = {
   "asponsor.create": "Create",
   /* 🔴 53.16 / C232 — the line an operator reads before taking any more money. */
   "asponsor.drift": "A pot disagrees with the ledger. No top-ups until explained.",
-  "asponsor.driftRow": "{id}: the table says {table}, the ledger says {ledger}, out by {delta}",
+  "asponsor.driftRow": "{id}: table {table}, ledger {ledger}, out by {delta}",
   /* 🔴 53.15 / 53.28 — a sponsor-facing DOCUMENT, so every word of it is a key. */
   "sponsor.inv.title": "Invoice",
   "sponsor.inv.taxNumber": "Tax number {id}",
@@ -2280,7 +2280,7 @@ export const en = {
   "acheckin.crisisRouted": "{count} went to the crisis path",
   "acheckin.mutedCount": "{count} turned them off",
   "acheckin.unmutedCount": "{count} turned them back on",
-  "acheckin.noBodies": "No replies shown. Worrying ones reach their therapist by the crisis path.",
+  "acheckin.noBodies": "No replies shown. Worrying ones reach their therapist.",
   "checkin.1": "{name}, how are you doing today?",
   "checkin.2": "Thinking of you, {name}. How is today going?",
   "checkin.3": "Hello {name}. How are things right now?",

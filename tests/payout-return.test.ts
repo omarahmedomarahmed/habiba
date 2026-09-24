@@ -18,7 +18,16 @@ type Row = { account: string; amountCents: number; userId: string | null; txnKin
 
 function capture(): { executor: never; rows: Row[] } {
   const rows: Row[] = [];
+  /*
+   * `journal()` reads through the executor too (which book an existing leg of
+   * this transaction is on), so the fake answers any select chain with no rows.
+   */
+  const none: unknown = new Proxy(() => none, {
+    get: (_t, key) => (key === "then" ? (resolve: (v: unknown[]) => void) => resolve([]) : none),
+    apply: () => none,
+  });
   const executor = {
+    select: () => none,
     insert: () => ({
       values: (values: Row[]) => {
         rows.push(...values);
