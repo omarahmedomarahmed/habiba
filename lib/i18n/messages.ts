@@ -3442,7 +3442,7 @@ export const en = {
   "troom.copyLink": "Copy join link",
   "troom.noMic": "No microphone access. Allow it and reload.",
   "troom.readyWhen": "Ready when you are",
-  "troom.appearsHere": "What is said in the room appears here within a few seconds.",
+  "troom.appearsHere": "What is said appears here within seconds.",
   "troom.pressStart": "Press Start session to begin recording and transcribing.",
   "troom.spoken": "Spoken",
   "troom.detect": "Detect",
@@ -3465,7 +3465,7 @@ export const en = {
   "troom.errPatientAudio":
     "Could not capture the patient's audio. Their side may not be transcribed.",
   "troom.errCopy": "Could not copy. Long-press the link to copy it manually.",
-  "troom.audioDropped": "Your patient's audio dropped. Still recording; speakers come from the words.",
+  "troom.audioDropped": "Your patient's audio dropped. Still recording.",
   "tav.title": "Hours people can book",
   "tav.blurb": "Whole hours only. Somebody not in crisis books one of these instead of your evening.",
   "tav.from": "From",
@@ -3933,6 +3933,8 @@ export const en = {
   "tnote.addendumBy": "{name}, {when}",
   "tnote.addendumSave": "Add it",
   "psessions.addedLater": "Added by {name}",
+  "troom.pauseFailed": "Still recording. Try again.",
+  "troom.resumeFailed": "Still off record. Try again.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -6765,7 +6767,7 @@ export const ar: Record<MessageKey, string> = {
   "troom.copyLink": "انسخ رابط الانضمام",
   "troom.noMic": "لا وصول إلى الميكروفون. اسمح به وأعد التحميل.",
   "troom.readyWhen": "جاهز متى كنت",
-  "troom.appearsHere": "يظهر ما يُقال في الغرفة هنا خلال ثوانٍ.",
+  "troom.appearsHere": "يظهر ما يُقال هنا خلال ثوانٍ.",
   "troom.pressStart": "اضغط ابدأ الجلسة لبدء التسجيل والتفريغ.",
   "troom.spoken": "لغة الحديث",
   "troom.detect": "تلقائي",
@@ -6787,7 +6789,7 @@ export const ar: Record<MessageKey, string> = {
   "troom.consentFirst": "تأكّد من موافقة مريضك على التسجيل.",
   "troom.errPatientAudio": "تعذّر التقاط صوت المريض. وقد لا يُفرَّغ جانبه من الحديث.",
   "troom.errCopy": "تعذّر النسخ. اضغط مطوّلًا على الرابط لنسخه يدويًا.",
-  "troom.audioDropped": "انقطع صوت مريضك. ما زال التسجيل جاريًا، لكن نسبة الكلام تأتي الآن من الألفاظ.",
+  "troom.audioDropped": "انقطع صوت مريضك. ما زال التسجيل جاريًا.",
   "tav.title": "ساعات يمكن حجزها",
   "tav.blurb": "ساعات كاملة فقط. من ليس في أزمة يحجز واحدة منها بدل أن يقتطع مساءك.",
   "tav.from": "من",
@@ -7100,6 +7102,8 @@ export const ar: Record<MessageKey, string> = {
   "tnote.addendumBy": "{name}، {when}",
   "tnote.addendumSave": "أضفه",
   "psessions.addedLater": "أضافه {name}",
+  "troom.pauseFailed": "ما زال التسجيل جاريًا. حاول مجددًا.",
+  "troom.resumeFailed": "ما زال التسجيل متوقفًا. حاول مجددًا.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

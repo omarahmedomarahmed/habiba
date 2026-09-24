@@ -728,7 +728,12 @@ export async function setRecordingPaused(
   paused: boolean,
 ): Promise<{ ok: boolean }> {
   const actor = await requireUser();
-  await db
+  /*
+   * 🔴 W1-06: `ok` is whether the row changed. It was `true` whatever
+   * happened, and the room now reverts on a refusal, so the answer has to be
+   * the database's.
+   */
+  const landed = await db
     .update(sessions)
     .set({ recordingPausedAt: paused ? new Date() : null })
     .where(
@@ -744,7 +749,10 @@ export async function setRecordingPaused(
          */
         paused ? undefined : eq(sessions.recordingConsent, "granted"),
       ),
-    );
+    )
+    .returning({ id: sessions.id });
+
+  if (landed.length === 0) return { ok: false };
 
   await audit({
     actor,
