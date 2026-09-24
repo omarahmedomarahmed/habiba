@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import { createClinicManager, setClinicRegion, setClinicState } from "@/lib/data/clinic-admin";
 import { isRegion } from "@/lib/db/region";
@@ -77,7 +78,10 @@ export async function setRegion(
   return { ok: true };
 }
 
-/** 54.3 — the first manager, with a password an operator sets on the call. */
+/**
+ * 54.3: the first manager. 🔴 W2-A06: invited by an emailed link, never a
+ * password the operator types (`lib/auth/account-links.ts`).
+ */
 export async function addManager(
   _prev: AdminClinicState,
   formData: FormData,
@@ -91,11 +95,16 @@ export async function addManager(
     clinicOrganizationId,
     email: String(formData.get("email") ?? ""),
     name: String(formData.get("name") ?? "") || null,
-    password: String(formData.get("password") ?? ""),
     role: role === "admin" ? "admin" : "viewer",
   });
 
-  if (result.error) return { error: result.error };
+  if (result.error || !result.id) return { error: result.error };
+  await emailAccountLink({
+    audience: "clinic",
+    accountId: result.id,
+    email: result.email!,
+    createdByUserId: actor.userId,
+  });
 
   await audit({
     actor,

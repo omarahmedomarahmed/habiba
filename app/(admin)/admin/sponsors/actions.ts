@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import {
   createSponsorUser,
@@ -126,7 +127,10 @@ export async function openTheirPot(
   return { ok: true };
 }
 
-/** 53.6 — the first portal user, with a password an operator sets on the call. */
+/**
+ * 53.6: the first portal user. 🔴 W2-A06: invited by an emailed link, never a
+ * password the operator types (`lib/auth/account-links.ts`).
+ */
 export async function addPortalUser(
   _prev: AdminSponsorState,
   formData: FormData,
@@ -140,11 +144,16 @@ export async function addPortalUser(
     sponsorId,
     email: String(formData.get("email") ?? ""),
     name: String(formData.get("name") ?? "") || null,
-    password: String(formData.get("password") ?? ""),
     role: role === "admin" ? "admin" : "viewer",
   });
 
-  if (result.error) return { error: result.error };
+  if (result.error || !result.id) return { error: result.error };
+  await emailAccountLink({
+    audience: "sponsor",
+    accountId: result.id,
+    email: result.email!,
+    createdByUserId: actor.userId,
+  });
 
   await audit({
     actor,

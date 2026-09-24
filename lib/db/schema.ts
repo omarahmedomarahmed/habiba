@@ -455,6 +455,41 @@ export const authTokens = pgTable(
   (t) => [uniqueIndex("auth_tokens_hash_unique").on(t.tokenHash)],
 );
 
+/**
+ * 🔴 W2-A06 (0141): the four kinds of account an operator creates, and the
+ * table each lives in. Closed, and the CHECK agrees.
+ */
+export const ACCOUNT_AUDIENCES = ["staff", "sponsor", "clinic", "partner"] as const;
+export type AccountAudience = (typeof ACCOUNT_AUDIENCES)[number];
+
+/**
+ * 🔴 W2-A06 (0141): an invitation, or a reset, by link. Nobody types a
+ * customer's password.
+ *
+ * One table for four account tables, so `accountId` has no foreign key and
+ * `audience` names the table. `lib/auth/account-links.ts` is the only writer
+ * and the only reader, and redeeming a link is the only thing that sets a
+ * password from it.
+ */
+export const accountLinks = pgTable(
+  "account_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    audience: text("audience").$type<AccountAudience>().notNull(),
+    accountId: uuid("account_id").notNull(),
+    purpose: text("purpose").$type<"invite" | "reset">().notNull().default("invite"),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("account_links_hash_unique").on(t.tokenHash),
+    index("account_links_account_idx").on(t.audience, t.accountId),
+  ],
+);
+
 // ------------------------------------------------------------ verification ---
 
 export const VERIFICATION_STATES = ["draft", "submitted", "approved", "rejected"] as const;

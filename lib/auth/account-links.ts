@@ -1,0 +1,206 @@
+import "server-only";
+
+import { createHash, randomBytes } from "node:crypto";
+
+import { and, eq, gt, isNull } from "drizzle-orm";
+
+import { hashPassword, validatePassword } from "@/lib/auth/password";
+import { controlDb } from "@/lib/db";
+import {
+  accountLinks,
+  clinicManagers,
+  partnerUsers,
+  sponsorUsers,
+  users,
+  type AccountAudience,
+} from "@/lib/db/schema";
+import { env } from "@/lib/env";
+import { log, ref } from "@/lib/logger";
+import {
+  CLINIC_SIGN_IN,
+  PARTNER_SIGN_IN,
+  SPONSOR_SIGN_IN,
+  STAFF_SIGN_IN,
+} from "@/lib/routing";
+
+const db = controlDb;
+
+/**
+ * 🔴 W2-A06: an account is invited by link. Nobody types a customer's password.
+ * Migration 0141.
+ *
+ * The console created back office, company, clinic and partner accounts with
+ * a password the operator typed in clear, usually read out on a call. The
+ * operator then knew it, and nothing made the customer change it. Now the
+ * account is created with no usable password and its owner is emailed a link
+ * that sets one.
+ *
+ * ## One module for every portal, on purpose
+ *
+ * The four kinds of account live in four tables. This is the one place that
+ * knows how to set a password on each from a link, so a portal's own team
+ * page (clinic, company and partner self-service, built beside this) invites
+ * and resets through `mintAccountLink` rather than growing a fifth copy of
+ * the rule. `/welcome/[token]` is the one page that redeems a link.
+ *
+ * The token is 32 random bytes, stored as its SHA-256 like `auth_tokens`, used
+ * once, and a new link for the same account retires any unused one.
+ */
+
+const INVITE_DAYS = 7;
+const RESET_HOURS = 1;
+
+/** Where each kind of account signs in once its password is set. */
+export const SIGN_IN_FOR: Record<AccountAudience, string> = {
+  staff: STAFF_SIGN_IN,
+  sponsor: SPONSOR_SIGN_IN,
+  clinic: CLINIC_SIGN_IN,
+  partner: PARTNER_SIGN_IN,
+};
+
+function hashOf(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/** Mint a link and return its URL. The caller emails it; it is never shown to an operator. */
+export async function mintAccountLink(input: {
+  audience: AccountAudience;
+  accountId: string;
+  purpose?: "invite" | "reset";
+  createdByUserId: string | null;
+}): Promise<string> {
+  const purpose = input.purpose ?? "invite";
+  const token = randomBytes(32).toString("base64url");
+  const now = new Date();
+  const ttl = purpose === "invite" ? INVITE_DAYS * 86_400_000 : RESET_HOURS * 3_600_000;
+
+  await db.transaction(async (tx) => {
+    // One live link per account: an older unused one stops working.
+    await tx
+      .update(accountLinks)
+      .set({ usedAt: now })
+      .where(
+        and(
+          eq(accountLinks.audience, input.audience),
+          eq(accountLinks.accountId, input.accountId),
+          isNull(accountLinks.usedAt),
+        ),
+      );
+    await tx.insert(accountLinks).values({
+      audience: input.audience,
+      accountId: input.accountId,
+      purpose,
+      tokenHash: hashOf(token),
+      expiresAt: new Date(now.getTime() + ttl),
+      createdByUserId: input.createdByUserId,
+    });
+  });
+
+  log.info("account link minted", { account: ref(input.accountId), audience: input.audience, purpose });
+  return `${env.appUrl}/welcome/${token}`;
+}
+
+/** The live link a token names, or null. Read-only, for the page that shows the form. */
+export async function peekAccountLink(
+  token: string,
+): Promise<{ audience: AccountAudience; accountId: string } | null> {
+  if (!token || token.length > 200) return null;
+  const [row] = await db
+    .select({ audience: accountLinks.audience, accountId: accountLinks.accountId })
+    .from(accountLinks)
+    .where(
+      and(
+        eq(accountLinks.tokenHash, hashOf(token)),
+        isNull(accountLinks.usedAt),
+        gt(accountLinks.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Set the password a link was minted for, once. The link is spent in the same
+ * transaction as the password is written, and the spend is guarded on
+ * `used_at IS NULL`, so two submissions of one link set it once.
+ */
+export async function redeemAccountLink(
+  token: string,
+  password: string,
+): Promise<{ ok: true; signIn: string; audience: AccountAudience; accountId: string } | { error: "weak" | "invalid"; message?: string }> {
+  const weak = validatePassword(password);
+  if (weak) return { error: "weak", message: weak };
+
+  const passwordHash = await hashPassword(password);
+  const now = new Date();
+
+  const spent = await db.transaction(async (tx) => {
+    const [link] = await tx
+      .update(accountLinks)
+      .set({ usedAt: now })
+      .where(
+        and(
+          eq(accountLinks.tokenHash, hashOf(token)),
+          isNull(accountLinks.usedAt),
+          gt(accountLinks.expiresAt, now),
+        ),
+      )
+      .returning({ audience: accountLinks.audience, accountId: accountLinks.accountId });
+    if (!link) return null;
+
+    const set = { passwordHash };
+    if (link.audience === "staff") {
+      await tx.update(users).set({ ...set, updatedAt: now }).where(eq(users.id, link.accountId));
+    } else if (link.audience === "sponsor") {
+      await tx.update(sponsorUsers).set(set).where(eq(sponsorUsers.id, link.accountId));
+    } else if (link.audience === "clinic") {
+      await tx.update(clinicManagers).set(set).where(eq(clinicManagers.id, link.accountId));
+    } else {
+      await tx.update(partnerUsers).set(set).where(eq(partnerUsers.id, link.accountId));
+    }
+    return link;
+  });
+
+  if (!spent) return { error: "invalid" };
+
+  if (spent.audience === "staff") {
+    // A reset ends every session the old password opened (the same rule as `resetPassword`).
+    const { revokeAllSessionsForUser } = await import("@/lib/auth/session");
+    await revokeAllSessionsForUser(spent.accountId);
+  }
+
+  log.info("account link redeemed", { account: ref(spent.accountId), audience: spent.audience });
+  return { ok: true, signIn: SIGN_IN_FOR[spent.audience], ...spent };
+}
+
+/**
+ * Mint a link and email it to the account's owner. The operator who pressed
+ * the button never sees it, so they can no more set the password than type it.
+ */
+export async function emailAccountLink(input: {
+  audience: AccountAudience;
+  accountId: string;
+  email: string;
+  purpose?: "invite" | "reset";
+  createdByUserId: string | null;
+}): Promise<boolean> {
+  const url = await mintAccountLink(input);
+  const { stringsFor } = await import("@/lib/i18n/strings");
+  const { t } = await stringsFor("en");
+  const { sendNotification } = await import("@/lib/mail");
+  return sendNotification({
+    to: input.email,
+    subject: t("aaccess.linkSubject"),
+    body: t("aaccess.linkBody"),
+    link: { label: t("aaccess.linkButton"), url },
+  });
+}
+
+/**
+ * A password nobody knows, for an account that must exist before its owner
+ * has chosen one. `users.password_hash` is NOT NULL; the three portal tables
+ * take null instead, which their sign-ins already refuse.
+ */
+export async function unusablePasswordHash(): Promise<string> {
+  return hashPassword(randomBytes(32).toString("base64url"));
+}

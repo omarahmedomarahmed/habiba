@@ -119,26 +119,31 @@ export async function setPartnerState(
   return { ok: true };
 }
 
-/** 55.2 — the first portal user, created by an operator with a password set on the call. */
+/**
+ * 55.2: the first portal user, created by an operator. 🔴 W2-A06: with no
+ * password; its owner sets one from the emailed link.
+ */
 export async function createPartnerUser(input: {
   partnerId: string;
   email: string;
   name: string | null;
-  password: string;
   role: PartnerRole;
-}): Promise<{ ok?: true; error?: string }> {
+}): Promise<{ ok?: true; error?: string; id?: string; email?: string }> {
   const email = input.email.trim().toLowerCase();
   if (!email.includes("@")) return { error: "That email address does not look right." };
-  if (input.password.length < 12) return { error: "Use at least twelve characters." };
 
   try {
-    await controlDb.insert(partnerUsers).values({
-      partnerId: input.partnerId,
-      email,
-      name: input.name?.trim().slice(0, 120) || null,
-      passwordHash: await hashPassword(input.password),
-      role: input.role,
-    });
+    const [row] = await controlDb
+      .insert(partnerUsers)
+      .values({
+        partnerId: input.partnerId,
+        email,
+        name: input.name?.trim().slice(0, 120) || null,
+        passwordHash: null,
+        role: input.role,
+      })
+      .returning({ id: partnerUsers.id });
+    return { ok: true, id: row?.id, email };
   } catch {
     /*
      * The unique index is across partners, not within one, so this also catches an
@@ -147,8 +152,6 @@ export async function createPartnerUser(input: {
      */
     return { error: "There is already an account with that email address." };
   }
-
-  return { ok: true };
 }
 
 /**

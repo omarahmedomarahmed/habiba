@@ -305,9 +305,6 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
               <Field label={t("asponsor.name")} htmlFor={`name-${sponsor.id}`}>
                 <Input id={`name-${sponsor.id}`} name="name" />
               </Field>
-              <Field label={t("asponsor.password")} htmlFor={`pw-${sponsor.id}`}>
-                <Input id={`pw-${sponsor.id}`} name="password" type="text" required />
-              </Field>
               <div className="flex gap-4 text-xs text-slate-700">
                 <label className="flex items-center gap-2">
                   <input type="radio" name="role" value="viewer" defaultChecked /> viewer

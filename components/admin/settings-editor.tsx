@@ -4,7 +4,6 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
-  addBackOfficeUser,
   saveCopilot,
   saveCountry,
   savePayouts,
@@ -286,59 +285,6 @@ export function CopilotEditor({
         <div className="sm:col-span-3 space-y-2">
           <Result state={state} />
           <Save />
-        </div>
-      </form>
-    </Card>
-  );
-}
-
-/**
- * 🔴 75.5 — THE 24/7 TEAM, WHO HAD NO WAY TO SIGN IN.
- *
- * `staff` and `manager` have been roles since sprint 20, five admin pages are
- * behind `requireStaff()` and the board is behind `requireManager()`. Nothing
- * in the product could create an account with either, so the only way to work
- * the payments queue was to share the owner's login, and a shared login means
- * every confirmation in the audit log is attributed to somebody who did not
- * make it.
- *
- * `super_admin` is not on the menu on purpose.
- */
-export function TeamEditor() {
-  const t = useT();
-  const [state, action] = useActionState(addBackOfficeUser, INITIAL);
-
-  return (
-    <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("ateam.title")}</p>
-      <p className="mt-1 text-xs text-slate-500">{t("ateam.body")}</p>
-      <form action={action} className="mt-3 grid gap-2 sm:grid-cols-2">
-        <Field label={t("ateam.first")} htmlFor="firstName">
-          <Input id="firstName" name="firstName" required />
-        </Field>
-        <Field label={t("ateam.last")} htmlFor="lastName">
-          <Input id="lastName" name="lastName" required />
-        </Field>
-        <Field label={t("ateam.email")} htmlFor="teamEmail">
-          <Input id="teamEmail" name="email" type="email" required />
-        </Field>
-        <Field label={t("ateam.password")} htmlFor="teamPassword">
-          <Input id="teamPassword" name="password" type="password" required />
-        </Field>
-        <Field label={t("ateam.role")} htmlFor="teamRole">
-          <select
-            id="teamRole"
-            name="role"
-            defaultValue="staff"
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-          >
-            <option value="staff">{t("ateam.roleStaff")}</option>
-            <option value="manager">{t("ateam.roleManager")}</option>
-          </select>
-        </Field>
-        <div className="sm:col-span-2 space-y-2">
-          <Result state={state} />
-          <Save label={t("ateam.add")} />
         </div>
       </form>
     </Card>

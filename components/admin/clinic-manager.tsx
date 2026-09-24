@@ -183,9 +183,6 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
               <Field label={t("aclinic.name")} htmlFor={`cm-name-${clinic.id}`}>
                 <Input id={`cm-name-${clinic.id}`} name="name" />
               </Field>
-              <Field label={t("aclinic.password")} htmlFor={`cm-pw-${clinic.id}`}>
-                <Input id={`cm-pw-${clinic.id}`} name="password" type="text" required />
-              </Field>
               <div className="flex gap-4 text-xs text-slate-700">
                 <label className="flex items-center gap-2">
                   <input type="radio" name="role" value="viewer" defaultChecked /> viewer

@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Users,
+  UserCog,
   Vault,
   Gauge,
   TriangleAlert,
@@ -117,6 +118,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/announce", icon: Megaphone, label: t("anav.announce") },
     { href: "/admin/content", icon: FileEdit, label: t("anav.content") },
     { href: "/admin/settings", icon: SlidersHorizontal, label: t("anav.settings") },
+    /* W2-A06: who can open the console, invited by link. */
+    { href: "/admin/team", icon: UserCog, label: t("anav.team") },
     { href: "/admin/strings", icon: Languages, label: t("anav.strings") },
     { href: "/admin/audit", icon: ScrollText, label: t("anav.audit") },
     /*

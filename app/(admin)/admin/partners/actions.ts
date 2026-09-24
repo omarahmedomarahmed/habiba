@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
+import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import {
   approveForProduction,
@@ -69,11 +70,17 @@ export async function addUser(
     partnerId,
     email: String(formData.get("email") ?? ""),
     name: String(formData.get("name") ?? "") || null,
-    password: String(formData.get("password") ?? ""),
     role: role === "admin" ? "admin" : "developer",
   });
 
-  if (result.error) return { error: result.error };
+  if (result.error || !result.id) return { error: result.error };
+  // 🔴 W2-A06: invited by an emailed link, never a password the operator types.
+  await emailAccountLink({
+    audience: "partner",
+    accountId: result.id,
+    email: result.email!,
+    createdByUserId: actor.userId,
+  });
 
   await audit({
     actor,

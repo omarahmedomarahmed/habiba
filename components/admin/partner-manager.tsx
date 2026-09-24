@@ -230,9 +230,6 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
               <Field label={t("apartner.name")} htmlFor={`pu-name-${partner.id}`}>
                 <Input id={`pu-name-${partner.id}`} name="name" />
               </Field>
-              <Field label={t("apartner.password")} htmlFor={`pu-pw-${partner.id}`}>
-                <Input id={`pu-pw-${partner.id}`} name="password" type="text" required />
-              </Field>
               <div className="flex flex-wrap gap-4 text-xs text-slate-700">
                 <label className="flex items-center gap-2">
                   <input type="radio" name="role" value="developer" defaultChecked />{" "}
