@@ -11,8 +11,10 @@ import {
   clinicianInvitations,
   invoices,
   meetingConnections,
+  notifications,
   organizations,
   patients,
+  subscriptions,
   therapistVerifications,
   users,
   type ClinicState,
@@ -378,7 +380,7 @@ export async function acceptInvitation(input: {
   password: string;
   firstName: string;
   lastName: string;
-}): Promise<{ ok?: true; error?: string }> {
+}): Promise<{ ok?: true; userId?: string; error?: string }> {
   if (input.password.length < 12) return { error: "Use at least twelve characters." };
   if (!input.firstName.trim()) return { error: "Tell us your first name." };
 
@@ -470,7 +472,7 @@ export async function acceptInvitation(input: {
   });
 
   log.info("clinician accepted a clinic invitation");
-  return { ok: true };
+  return { ok: true, userId: createdUserId };
 }
 
 /**
@@ -505,7 +507,7 @@ export async function joinWithExistingAccount(input: {
   token: string;
   email: string;
   password: string;
-}): Promise<{ ok?: true; cancelSubscriptionFor?: string; error?: string }> {
+}): Promise<{ ok?: true; userId?: string; cancelSubscriptionFor?: string; error?: string }> {
   const [invitation] = await controlDb
     .select({
       id: clinicianInvitations.id,
@@ -641,7 +643,7 @@ export async function joinWithExistingAccount(input: {
    * network call to a gateway, and a gateway having a bad afternoon must not
    * roll back a person's seat, so it happens after this returns and on its own.
    */
-  return { ok: true, cancelSubscriptionFor: existing.organizationId };
+  return { ok: true, userId: existing.id, cancelSubscriptionFor: existing.organizationId };
 }
 
 /**
@@ -677,7 +679,13 @@ export async function joinWithExistingAccount(input: {
 export async function removeClinician(input: {
   clinicOrganizationId: string;
   userId: string;
-}): Promise<{ ok?: true; error?: string }> {
+}): Promise<{
+  ok?: true;
+  error?: string;
+  /* W2-T05: for the email the caller sends. */
+  clinicianEmail?: string;
+  clinicName?: string | null;
+}> {
   const [clinician] = await controlDb
     .select({
       id: users.id,
@@ -776,8 +784,44 @@ export async function removeClinician(input: {
     .set({ organizationId: solo.id, updatedAt: new Date() })
     .where(eq(users.id, input.userId));
 
+  /*
+   * 🔴 W2-T05: AND THEY CAN GO ON WORKING, WHICH C266 PROMISED AND NOTHING DID.
+   *
+   * Three things `signUp` and `joinWithExistingAccount` each do and this did
+   * not, so the practice of one was a practice in name only:
+   *
+   *   - The verification row moves with them, as it does on the way IN. Left
+   *     behind, `reviewQueue` names the clinic they left on their next review.
+   *   - A pay-as-you-go subscription, the row `signUp` writes, so C4's "lands
+   *     on pay-as-you-go by themselves" is a row and not an absence.
+   *   - A notice in their own app. They used to find out by signing in to an
+   *     empty caseload. `formerSessions` is what they keep sight of.
+   */
+  await controlDb
+    .update(therapistVerifications)
+    .set({ organizationId: solo.id, updatedAt: new Date() })
+    .where(eq(therapistVerifications.userId, input.userId));
+
+  await controlDb
+    .insert(subscriptions)
+    .values({ organizationId: solo.id, plan: "payg", status: "active" });
+
+  const [clinic] = await controlDb
+    .select({ name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.id, input.clinicOrganizationId))
+    .limit(1);
+
+  await controlDb.insert(notifications).values({
+    userId: input.userId,
+    kind: "system",
+    title: `You have left ${clinic?.name ?? "the practice"}`,
+    body: "Your account is a practice of your own now, on pay as you go. The sessions you ran there are listed under Sessions; their notes stay with the practice.",
+    actionUrl: "/sessions",
+  });
+
   log.info("clinician left a clinic", { org: ref(input.clinicOrganizationId) });
-  return { ok: true };
+  return { ok: true, clinicianEmail: clinician.email, clinicName: clinic?.name ?? null };
 }
 
 /**

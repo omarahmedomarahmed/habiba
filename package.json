@@ -210,6 +210,16 @@
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "test:note-formats": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/note-formats.test.ts",
     "test:patient-stuck": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-stuck.test.ts",
+    "test:clinician-nav": "node --env-file-if-exists=.env.local --import tsx --test tests/clinician-nav.test.ts",
+    "test:clinic-records": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-records.test.ts",
+    "test:clinic-staff": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-staff.test.ts",
+    "test:clinic-bills": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-bills.test.ts",
+    "test:clinic-seats": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-seats.test.ts",
+    "test:clinic-patients": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-patients.test.ts",
+    "test:clinic-capabilities": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-capabilities.test.ts",
+    "test:clinic-doors": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-doors.test.ts",
+    "test:applicant-status": "node --env-file-if-exists=.env.local --import tsx --test tests/applicant-status.test.ts",
+    "test:clinician-notifications": "node --env-file-if-exists=.env.local --import tsx --test tests/clinician-notifications.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
     "verify:notices": "node --import tsx scripts/verify-notices.ts",
@@ -219,7 +229,8 @@
     "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts",
     "verify:w2f": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2f.ts",
     "verify:w2x": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2x.ts",
-    "verify:w2p": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2p.ts"
+    "verify:w2p": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2p.ts",
+    "verify:w2c": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2c.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

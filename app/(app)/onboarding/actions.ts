@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/guard";
@@ -259,4 +259,46 @@ export async function submitForReview(): Promise<OnboardingState> {
   revalidatePath("/onboarding");
   revalidatePath("/admin/verifications");
   return { ok: true, message: "Submitted for review" };
+}
+
+/**
+ * 🔴 W2-T02: take a submission back to change it, before anybody has looked.
+ *
+ * The under-review screen was a spinner with no way to fix a typo noticed an
+ * hour after pressing Submit. This returns it to draft. The guard is in the
+ * WHERE, and `decideVerification` has the mirror image in its own: a decision
+ * needs `submitted`, a withdrawal needs `submitted`, so whichever lands first
+ * wins and the other matches nothing.
+ *
+ * Never a renewal (`licenseExpiredAt` set): that form is already open for
+ * editing, and pulling an expired licence out of review would hide it from
+ * the operator who has to clear it.
+ */
+export async function withdrawFromReview(): Promise<void> {
+  const actor = await requireUser();
+
+  const [row] = await db
+    .update(therapistVerifications)
+    .set({ state: "draft", updatedAt: new Date() })
+    .where(
+      and(
+        eq(therapistVerifications.userId, actor.userId),
+        eq(therapistVerifications.state, "submitted"),
+        isNull(therapistVerifications.licenseExpiredAt),
+      ),
+    )
+    .returning({ id: therapistVerifications.id });
+
+  if (row) {
+    await audit({
+      actor,
+      category: "auth",
+      action: "verification.withdraw",
+      resourceType: "verification",
+      resourceId: row.id,
+    });
+  }
+
+  revalidatePath("/onboarding");
+  revalidatePath("/admin/verifications");
 }

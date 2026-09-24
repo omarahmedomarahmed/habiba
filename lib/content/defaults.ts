@@ -364,7 +364,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             audience: "Clinic",
             title: "Seats and the people on them",
-            body: "Add a clinician and they are on the radar the same hour. Verification state on every row, and no caseload count on any of them.",
+            body: "Add a clinician and they are on the radar the same hour. Verification state on every row.",
             demo: "clinic-people",
           },
           {

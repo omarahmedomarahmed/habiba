@@ -40,6 +40,8 @@ export const PROTECTED_PREFIXES = [
   "/dashboard",
   "/earnings",
   "/notes",
+  /* 🔴 W2-T06: the clinician's notifications list. */
+  "/notifications",
   "/on-call",
   "/onboarding",
   "/patients",
@@ -168,6 +170,25 @@ export const CLINIC_SIGN_IN = "/clinic/sign-in";
 export const CLINIC_PREFIXES = ["/clinic"];
 export const CLINIC_APPLY = "/clinic/apply";
 export const CLINIC_JOIN = "/clinic/join";
+/* 🔴 W2-C05 / W2-C04: a reset asked for by email, and the page a link opens. */
+export const CLINIC_FORGOT = "/clinic/forgot-password";
+export const CLINIC_SET_PASSWORD = "/clinic/set-password";
+
+/**
+ * 🔴 W2-C07: the clinic's DOORS, which render inside the site's own header
+ * and footer rather than the portal's rail. The sign-in was the only one, so
+ * the enquiry and the invited clinician's screen had no logo, no way back and
+ * no language switch.
+ */
+export function isClinicDoor(path: string): boolean {
+  return (
+    path === CLINIC_SIGN_IN ||
+    path === CLINIC_APPLY ||
+    path === CLINIC_FORGOT ||
+    path === CLINIC_SET_PASSWORD ||
+    path.startsWith(`${CLINIC_JOIN}/`)
+  );
+}
 
 /**
  * 🔴 55.1 / C264 — the sixth principal, and the router is unchanged for it.
@@ -365,7 +386,12 @@ export const PRINCIPALS: Principal[] = [
      * clinician who verifies themselves (C267). Bouncing them to a manager's sign-in
      * would be the product telling an invited therapist to log in as their employer.
      */
-    openRoutes: [CLINIC_APPLY, CLINIC_JOIN],
+    /*
+     * 🔴 W2-C05 / W2-C04: and the two password doors. Somebody who cannot sign
+     * in has no cookie, so a reset route behind the sign-in is a reset nobody
+     * can reach (the 21R.4 lesson, for this principal).
+     */
+    openRoutes: [CLINIC_APPLY, CLINIC_JOIN, CLINIC_FORGOT, CLINIC_SET_PASSWORD],
   },
   {
     name: "partner",

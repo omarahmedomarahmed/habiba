@@ -40,6 +40,11 @@ const TABS: { href: string; key: MessageKey; needs: ClinicCapability }[] = [
   { href: "/clinic", key: "clinic.nav.overview", needs: "schedule.read" },
   { href: "/clinic/people", key: "clinic.nav.people", needs: "people.read" },
   { href: "/clinic/bills", key: "clinic.nav.bills", needs: "bills.read" },
+  /*
+   * 🔴 W2-C02: the seats, which had no screen in this portal at all. Never
+   * delegable, so only the admin ever holds `seats.manage`.
+   */
+  { href: "/clinic/seats", key: "clinic.nav.seats", needs: "seats.manage" },
   /* 🔴 63.15 — a DIFFERENT page from the therapist's own, never the same one filtered. */
   { href: "/clinic/earnings", key: "clinic.nav.earnings", needs: "earnings.read" },
   /* 🔴 63.8 — the practice's own staff and the roles it names. */

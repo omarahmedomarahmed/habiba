@@ -448,6 +448,12 @@ async function main() {
   /* ================================================================ */
 
   const fixture = `verify54-${randomBytes(4).toString("hex")}`;
+  /*
+   * W2-T05: the solo practice a departed clinician lands in is named after
+   * THEM ("Verify Fiftyfour"), so the `LIKE 'verify54-%'` sweep below never
+   * matched it and every run left one behind. Held by id instead.
+   */
+  let departedOrg: string | null = null;
 
   try {
     /*
@@ -589,6 +595,61 @@ async function main() {
       "🔴 CONTROL …and the platform and AI figures add up to the total, so no kind is unnamed",
       bill.platformFeeCents + bill.aiFeeCents === bill.totalCents,
       `${bill.platformFeeCents} + ${bill.aiFeeCents} = ${bill.totalCents}`,
+    );
+
+    /* ==================================================== */
+    /*  W2-C03 · seat invoices, what is due, and two lines  */
+    /* ==================================================== */
+
+    /*
+     * A third session billed with TWO lines, platform and AI, the ordinary
+     * shape of a recorded session. The month's total must rise by the invoice
+     * once: joining lines onto invoices and summing the invoice amount counts
+     * it once per line.
+     */
+    const [third] = (
+      await db.execute(sql`
+        INSERT INTO sessions (organization_id, therapist_id, status, modality, scheduled_at,
+                              feedback_token, price_cents)
+        VALUES (${org.id}, ${doctor.id}, 'completed', 'video', now() - interval '10 days',
+                ${`${fixture}-c`}, 3000)
+        RETURNING id`)
+    ).rows as { id: string }[];
+    const [twoLines] = (
+      await db.execute(sql`
+        INSERT INTO invoices (organization_id, kind, session_id, amount_cents, status, description)
+        VALUES (${org.id}, 'session', ${required(third, "a third session").id}, 400, 'due', 'verify54 two lines')
+        RETURNING id`)
+    ).rows as { id: string }[];
+    await db.execute(sql`
+      INSERT INTO invoice_lines (invoice_id, kind, amount_cents)
+      VALUES (${required(twoLines, "a two-line invoice").id}, 'platform', 300),
+             (${twoLines!.id}, 'ai', 100)`);
+
+    /* And a seat invoice, which carries no session at all. */
+    await db.execute(sql`
+      INSERT INTO invoices (organization_id, kind, amount_cents, status, description)
+      VALUES (${org.id}, 'subscription', 8900, 'due', '2 seats from 1, for the 15 days left of this month')`);
+
+    const billedAfter = required((await clinicBills(principal))[0], "the month after");
+    check(
+      "🔴 W2-C03 a two-line invoice is counted once in the month's total",
+      billedAfter.totalCents === bill.totalCents + 400,
+      `${bill.totalCents} then ${billedAfter.totalCents}, for one more invoice of 400`,
+    );
+
+    check(
+      "🔴 W2-C03 the month says what is still due",
+      billedAfter.dueCents >= 400,
+      `due ${billedAfter.dueCents}`,
+    );
+
+    const { clinicSeatBills } = await import("../lib/data/clinic");
+    const seatRows = await clinicSeatBills(principal);
+    check(
+      "🔴 W2-C03 / C3 the practice's bills include its seat invoices, with their state",
+      seatRows.some((row) => row.amountCents === 8900 && row.status === "due"),
+      JSON.stringify(seatRows),
     );
 
     /*
@@ -967,6 +1028,11 @@ async function main() {
      */
     const { removeClinician } = await import("../lib/data/clinic-admin");
 
+    /* W2-T05: a verification row in the clinic, to see whether it moves with them. */
+    await db.execute(sql`
+      INSERT INTO therapist_verifications (user_id, organization_id, state)
+      VALUES (${doctor.id}, ${org.id}, 'approved')`);
+
     const left = await removeClinician({ clinicOrganizationId: org.id, userId: doctor.id });
 
     const [after] = (
@@ -976,6 +1042,7 @@ async function main() {
          WHERE u.id = ${doctor.id}`)
     ).rows as { user_org: string; kind: string; clinic_state: string | null }[];
     const moved = required(after, "the departed clinician");
+    departedOrg = moved.user_org;
 
     check(
       "🔴 54.11 / C266 a clinician who leaves lands in a SOLO organisation of their own",
@@ -1039,6 +1106,64 @@ async function main() {
       made.every((id) => afterRows.some((row) => row.sessionId === id)),
       "hiding hours a practice paid for would be a different kind of wrong",
     );
+
+    /* ==================================================== */
+    /*  W2-T05 · the clinician who left is told, and can go on */
+    /* ==================================================== */
+
+    const [told] = (
+      await db.execute(sql`
+        SELECT count(*)::int AS n FROM notifications
+         WHERE user_id = ${doctor.id} AND action_url = '/sessions'`)
+    ).rows as { n: number }[];
+
+    check(
+      "🔴 W2-T05 a clinician removed from a practice is told, in their own app",
+      Number(told?.n ?? 0) === 1,
+      `${String(told?.n ?? 0)} notice(s); they used to find out by signing in to an empty caseload`,
+    );
+
+    const [plan] = (
+      await db.execute(sql`
+        SELECT plan, status FROM subscriptions WHERE organization_id = ${moved.user_org}`)
+    ).rows as { plan: string; status: string }[];
+
+    check(
+      "🔴 W2-T05 / C4 they land on pay as you go, with the row a signup writes",
+      plan?.plan === "payg" && plan.status === "active",
+      plan ? `${plan.plan}, ${plan.status}` : "no subscription row for their new practice",
+    );
+
+    const [verification] = (
+      await db.execute(sql`
+        SELECT organization_id FROM therapist_verifications WHERE user_id = ${doctor.id}`)
+    ).rows as { organization_id: string }[];
+
+    check(
+      "🔴 W2-T05 their verification moves with them, so review names the right practice",
+      verification?.organization_id === moved.user_org,
+      verification?.organization_id === org.id ? "still points at the clinic they left" : "moved",
+    );
+
+    const { formerSessions } = await import("../lib/data/sessions");
+    const earlier = await formerSessions({
+      userId: doctor.id,
+      organizationId: moved.user_org,
+      role: "therapist",
+    } as Parameters<typeof formerSessions>[0]);
+
+    check(
+      "🔴 W2-T05 they keep sight of the sessions they ran at the practice",
+      made.every((id) => earlier.some((row) => row.id === id)) &&
+        earlier.every((row) => row.practice === fixture),
+      `${earlier.length} earlier session(s) listed under ${earlier[0]?.practice ?? "nothing"}`,
+    );
+
+    check(
+      "🔴 CONTROL …and not the one in their own practice, which is on their ordinary list",
+      !earlier.some((row) => row.id === future.id),
+      "only what is out of their tenancy now",
+    );
   } finally {
     /*
      * Everything this run made, in dependency order. The clinician was reparented to a
@@ -1061,6 +1186,7 @@ async function main() {
     await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE '%verify54-%' OR email LIKE '%wall-%'`);
     await db.execute(sql`DELETE FROM users WHERE email LIKE '%verify54-%'`);
     await db.execute(sql`DELETE FROM organizations WHERE name LIKE 'verify54-%'`);
+    if (departedOrg) await db.execute(sql`DELETE FROM organizations WHERE id = ${departedOrg}`);
   }
 
   finish("sprint 54");

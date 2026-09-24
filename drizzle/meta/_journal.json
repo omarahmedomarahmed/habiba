@@ -892,6 +892,13 @@
       "breakpoints": true
     },
     {
+      "idx": 131,
+      "version": "7",
+      "when": 1789966017000,
+      "tag": "0131_a_clinic_manager_sets_their_own_password",
+      "breakpoints": true
+    },
+    {
       "idx": 138,
       "version": "7",
       "when": 1789966024000,

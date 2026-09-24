@@ -4,7 +4,7 @@ import { CalendarDays, ChevronRight, Plus } from "lucide-react";
 
 import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
-import { listSessions } from "@/lib/data/sessions";
+import { formerSessions, listSessions } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
@@ -15,7 +15,17 @@ export const dynamic = "force-dynamic";
 export default async function SessionsPage() {
   const { locale, t } = await getI18n();
   const actor = await requireUser();
-  const sessions = await listSessions(actor);
+  const [sessions, former] = await Promise.all([listSessions(actor), formerSessions(actor)]);
+
+  /*
+   * 🔴 W2-T05: the sessions they ran at a practice that has removed them,
+   * grouped by practice. Read only and not links: the notes are the
+   * practice's (C266), and the list is what they keep sight of.
+   */
+  const byPractice = new Map<string, typeof former>();
+  for (const row of former) {
+    byPractice.set(row.practice, [...(byPractice.get(row.practice) ?? []), row]);
+  }
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -76,6 +86,29 @@ export default async function SessionsPage() {
             })}
           </ul>
         )}
+
+        {[...byPractice].map(([practice, rows]) => (
+          <section key={practice} className="mt-8">
+            <h2 className="text-sm font-semibold text-slate-900">
+              {t("tw2.formerTitle", { name: practice })}
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500">{t("tw2.formerBody")}</p>
+            <ul className="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+              {rows.map((row) => (
+                <li key={row.id} className="flex items-center gap-3 px-4 py-3">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+                    {fullName(row.patientFirstName, row.patientLastName, "") ||
+                      row.guestName ||
+                      t("portal.unnamedPatient")}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {relativeDay(row.scheduledAt ?? row.createdAt, actor.timezone, locale, t)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
     </div>
   );

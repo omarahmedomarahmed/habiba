@@ -1,13 +1,14 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
+  organizations,
   patients,
   sessionNotes,
   sessions,
@@ -105,6 +106,63 @@ export async function listSessions(
     .where(scope(actor))
     .orderBy(desc(sessions.createdAt))
     .limit(opts.limit ?? 50);
+}
+
+/**
+ * 🔴 W2-T05: THE SESSIONS A CLINICIAN RAN AT A PRACTICE THEY HAVE LEFT.
+ *
+ * `removeClinician` moves them to a practice of their own and leaves every
+ * session, patient and note with the clinic (C266: the credential and the
+ * record were the practice's). Every clinical list here is scoped by
+ * organisation, so on the Monday after they were removed `/sessions` and
+ * `/patients` were simply empty, with nothing to say why.
+ *
+ * This is the sight they keep: who they saw, when, where and how it ended.
+ * Their own rows only (`therapist_id`), in any organisation that is not their
+ * current one. No note, no transcript, no summary: reading those is the
+ * practice's now, and a patient who wants them to keep reading can grant it
+ * (P4). Not a link either, for the same reason.
+ *
+ * Audited as one read, like the clinic's schedule, because it reads patient
+ * names across a tenancy boundary.
+ */
+export async function formerSessions(actor: Pick<Actor, "userId" | "organizationId">) {
+  const rows = await db
+    .select({
+      id: sessions.id,
+      practice: organizations.name,
+      status: sessions.status,
+      scheduledAt: sessions.scheduledAt,
+      createdAt: sessions.createdAt,
+      patientFirstName: patients.firstName,
+      patientLastName: patients.lastName,
+      guestName: sessions.guestName,
+    })
+    .from(sessions)
+    .innerJoin(organizations, eq(organizations.id, sessions.organizationId))
+    .leftJoin(patients, eq(patients.id, sessions.patientId))
+    .where(
+      and(
+        eq(sessions.therapistId, actor.userId),
+        ne(sessions.organizationId, actor.organizationId),
+      ),
+    )
+    .orderBy(desc(sessions.createdAt))
+    .limit(200);
+
+  if (rows.length > 0) {
+    const { audit } = await import("@/lib/audit");
+    await audit({
+      actor,
+      category: "phi_access",
+      action: "sessions.former.read",
+      resourceType: "user",
+      resourceId: actor.userId,
+      reason: `${rows.length} sessions at a practice they have left`,
+    });
+  }
+
+  return rows;
 }
 
 export async function getSession(actor: Actor, sessionId: string) {

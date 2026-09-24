@@ -26,7 +26,8 @@ export default async function DashboardPage() {
     listSessions(actor, { limit: 5 }),
     countOpenDrafts(actor),
     billingSummary(actor.organizationId),
-    unreadNotifications(actor, 3),
+    /* 🔴 W2-T06: crisis by kind, so newer rows of another kind cannot hide one. */
+    unreadNotifications(actor, 3, "crisis"),
     getRadarProfile(actor.userId),
   ]);
 
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
       : null,
   );
 
-  const crisisAlerts = alerts.filter((a) => a.kind === "crisis");
+  const crisisAlerts = alerts;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -158,6 +159,10 @@ export default async function DashboardPage() {
                     {t("portal.dash.review")}
                   </Link>
                 ))}
+                {/* 🔴 W2-T06: and the rest of them, which had nowhere to be read. */}
+                <Link href="/notifications" className="mt-1 block text-sm text-red-700 underline">
+                  {t("tw2.notifications")}
+                </Link>
               </div>
             </div>
           </Card>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ClinicSignInForm } from "@/components/clinic/sign-in-form";
@@ -25,6 +26,14 @@ export default async function ClinicSignInPage() {
       title={t("clinic.signInTitle")}
       promise={t("auth.clinic.promise")}
       points={[t("auth.clinic.p1"), t("auth.clinic.p2"), t("auth.clinic.p3")]}
+      /* 🔴 W2-C05: there was no way back in for a forgotten password. */
+      belowForm={
+        <p className="text-center text-sm">
+          <Link href="/clinic/forgot-password" className="font-medium text-brand-700">
+            {t("tauth.forgot")}
+          </Link>
+        </p>
+      }
     >
       <ClinicSignInForm />
     </AuthShell>

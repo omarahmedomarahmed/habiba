@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { QuietAuthShell } from "@/components/auth/auth-shell";
 import { ClinicApplyForm } from "@/components/clinic/apply-form";
 import { SeesWhat } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
@@ -24,37 +25,33 @@ export const dynamic = "force-dynamic";
 export default async function ClinicApplyPage() {
   const { t } = await getI18n();
 
+  /* 🔴 W2-C07: inside the site's header and footer, like every other door. */
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4 py-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {t("clinic.apply.title")}
-        </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("clinic.apply.body")}</p>
+    <QuietAuthShell title={t("clinic.apply.title")} subtitle={t("clinic.apply.body")}>
+      <div className="flex flex-col gap-4">
+        <ClinicApplyForm />
+
+        {/*
+          🔴 C267, C261, 54.9 and 65.11 — SAID TO THE BUYER BEFORE THEY BUY, AS A TABLE.
+
+          This was four paragraphs, 170 words, in one grey box below the form: the thing a
+          practice manager most needs before signing is what the portal will and will not
+          show them, and it was the third paragraph of four.
+        */}
+        <div className="space-y-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+          <SeesWhat
+            who={t("clinic.apply.seesWho")}
+            can={[t("clinic.apply.seesSchedule"), t("clinic.apply.seesBills"), t("clinic.apply.seesTeam")]}
+            cannot={[
+              t("clinic.neverNote"),
+              t("clinic.neverRisk"),
+              t("clinic.neverContact"),
+              t("clinic.neverBuilt"),
+            ]}
+          />
+          <p className="text-sm leading-relaxed text-slate-600">{t("clinic.cannotVerify")}</p>
+        </div>
       </div>
-
-      <ClinicApplyForm />
-
-      {/*
-        🔴 C267, C261, 54.9 and 65.11 — SAID TO THE BUYER BEFORE THEY BUY, AS A TABLE.
-
-        This was four paragraphs, 170 words, in one grey box below the form: the thing a
-        practice manager most needs before signing is what the portal will and will not
-        show them, and it was the third paragraph of four.
-      */}
-      <div className="space-y-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200">
-        <SeesWhat
-          who={t("clinic.apply.seesWho")}
-          can={[t("clinic.apply.seesSchedule"), t("clinic.apply.seesBills"), t("clinic.apply.seesTeam")]}
-          cannot={[
-            t("clinic.neverNote"),
-            t("clinic.neverRisk"),
-            t("clinic.neverContact"),
-            t("clinic.neverBuilt"),
-          ]}
-        />
-        <p className="text-sm leading-relaxed text-slate-600">{t("clinic.cannotVerify")}</p>
-      </div>
-    </div>
+    </QuietAuthShell>
   );
 }

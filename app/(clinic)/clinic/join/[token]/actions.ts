@@ -1,5 +1,7 @@
 "use server";
 
+import { redirect } from "next/navigation";
+
 import { acceptInvitation, joinWithExistingAccount } from "@/lib/data/clinic-admin";
 import { callerKey, consume } from "@/lib/rate-limit";
 
@@ -30,8 +32,17 @@ export async function accept(_prev: JoinState, formData: FormData): Promise<Join
     lastName: String(formData.get("lastName") ?? ""),
   });
 
-  if (result.error) return { error: result.error };
-  return { ok: true };
+  if (result.error || !result.userId) return { error: result.error ?? "That could not be completed. Try again." };
+
+  /*
+   * 🔴 W2-T08: SIGNED IN, AND TAKEN ON. The done state was "You are in.
+   * Verify your licence next." with nothing to press and no session, so the
+   * next step was a sign-in page they had to find. The shell sends an
+   * uncleared clinician from the dashboard to verification.
+   */
+  const { createSession } = await import("@/lib/auth/session");
+  await createSession(result.userId);
+  redirect("/dashboard");
 }
 
 /**
@@ -79,5 +90,9 @@ export async function joinWithAccount(
     }
   }
 
-  return { ok: true };
+  /* 🔴 W2-T08: signed in, and taken on, as above. */
+  if (!result.userId) return { ok: true };
+  const { createSession } = await import("@/lib/auth/session");
+  await createSession(result.userId);
+  redirect("/dashboard");
 }

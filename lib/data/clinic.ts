@@ -406,6 +406,71 @@ export async function clinicSchedule(input: {
   }));
 }
 
+/**
+ * 🔴 W2-C08 / D2: EACH CLINICIAN'S PATIENTS, AS A FIRST NAME AND A LAST INITIAL.
+ *
+ * The founder's decision of 2026-09-23: the practice sees first name and last
+ * initial on each clinician's calendar AND patient list. C2 and C5 say so, the
+ * joining clinician is told so, and the patient is told so on their record page.
+ *
+ * The same construction as the schedule, for the same reasons:
+ *   - the select list is a name and whose patient it is, and nothing else: no
+ *     id leaves this function, no contact, no date, no count of anything;
+ *   - `schedule.read` is the capability that already grants these names, and
+ *     it is therapist-scoped IN THE WHERE, so an assistant assigned to A reads
+ *     A's list and no other;
+ *   - shortened here with `shortenForClinic`, so no full name is in memory on
+ *     the way out;
+ *   - one `phi_access` audit row for the read, never a row per name.
+ *
+ * A list per clinician does say how many patients each has. D2 accepted that,
+ * and the homepage sentence claiming otherwise went in the same change.
+ */
+export async function patientsByClinician(
+  actor: ClinicPrincipal,
+): Promise<{ therapistId: string; names: string[] }[]> {
+  refuseWithout(actor, "schedule.read");
+  const scope = scopeToAssigned(actor, "schedule.read");
+
+  const rows = await controlDb
+    .select({
+      therapistId: patients.therapistId,
+      firstName: patients.firstName,
+      lastName: patients.lastName,
+    })
+    .from(patients)
+    .innerJoin(users, eq(users.id, patients.therapistId))
+    .where(
+      and(
+        eq(patients.organizationId, actor.clinicOrganizationId),
+        eq(users.organizationId, actor.clinicOrganizationId),
+        isNull(patients.deletedAt),
+        ...(scope === null ? [] : [inArray(patients.therapistId, scope)]),
+      ),
+    )
+    .orderBy(asc(patients.firstName))
+    .limit(2000);
+
+  const { audit } = await import("@/lib/audit");
+  await audit({
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "phi_access",
+    action: "clinic.patients.read",
+    resourceType: "organization",
+    resourceId: actor.clinicOrganizationId,
+    reason: `${rows.length} names, first name and last initial`,
+  });
+
+  const byClinician = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!row.therapistId) continue;
+    const name = shortenForClinic(row.firstName, row.lastName);
+    byClinician.set(row.therapistId, [...(byClinician.get(row.therapistId) ?? []), name]);
+  }
+  return [...byClinician].map(([therapistId, names]) => ({ therapistId, names }));
+}
+
 /** A typed-in name is one string. Split once, on the first space. */
 function splitGuestName(name: string | null): [string | null, string | null] {
   const value = (name ?? "").trim();
@@ -587,13 +652,32 @@ export async function clinicUsage(actor: ClinicPrincipal): Promise<ClinicUsageWe
    * breakdown is precisely what C262 rules out, so there is no `group by therapist_id`
    * here and no argument that would produce one.
    */
+  /*
+   * 🔴 W2-C01: AND SCOPED LIKE THE SCHEDULE, in the WHERE.
+   *
+   * `reports.read` is in THERAPIST_SCOPED, and this summed the whole practice
+   * for anybody holding it: an assistant assigned to one clinician read every
+   * clinician's spend. Null is the admin; an empty list is nobody, which is
+   * the direction it must point. Bound parameters, never text (H7).
+   */
+  const scope = scopeToAssigned(actor, "reports.read");
+
   const rows = await controlDb.execute(sql`
     SELECT date_trunc('week', i.issued_at) AS week_start,
            COUNT(DISTINCT i.session_id)::int AS sessions,
            SUM(i.amount_cents - i.discount_cents)::int AS spend_cents
       FROM invoices i
+      JOIN sessions s ON s.id = i.session_id
      WHERE i.organization_id = ${actor.clinicOrganizationId}
        AND i.session_id IS NOT NULL
+       ${scope === null
+         ? sql``
+         : scope.length === 0
+           ? sql`AND false`
+           : sql`AND s.therapist_id IN (${sql.join(
+               scope.map((id) => sql`${id}`),
+               sql`, `,
+             )})`}
      GROUP BY 1
      ORDER BY 1 ASC`);
 
@@ -637,6 +721,10 @@ export type ClinicBill = {
   platformFeeCents: number;
   aiFeeCents: number;
   totalCents: number;
+  /** 🔴 W2-C03: what of the total is still unpaid, so the page can say so and offer to pay. */
+  dueCents: number;
+  /** 🔴 W2-C03: settled. "Paid" is said only when all of the total is, never for a waived month. */
+  paidCents: number;
 };
 
 export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]> {
@@ -662,16 +750,35 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
    * lines and asserts both figures are non-zero, because typecheck cannot see inside
    * a SQL string and neither can a reader who trusts one.
    */
+  /*
+   * 🔴 W2-C03: THE LINES ARE SUMMED PER INVOICE FIRST, then joined.
+   *
+   * This joined `invoice_lines` straight onto `invoices` and summed the
+   * invoice amount, so an invoice with a platform line and an AI line was
+   * counted twice in the total: a recorded session doubled the practice's
+   * bill on this screen while the clinician's own ledger was right.
+   * `verify:sprint54` posts a two-line invoice and asserts it is counted once.
+   */
   const rows = await controlDb.execute(sql`
     SELECT date_trunc('month', i.issued_at)                               AS period_start,
            COUNT(DISTINCT i.session_id)::int                              AS sessions,
-           COALESCE(SUM(CASE WHEN l.kind = 'platform'
-                             THEN l.amount_cents ELSE 0 END), 0)::int      AS platform_fee_cents,
-           COALESCE(SUM(CASE WHEN l.kind = 'ai'
-                             THEN l.amount_cents ELSE 0 END), 0)::int      AS ai_fee_cents,
-           SUM(i.amount_cents - i.discount_cents)::int                     AS total_cents
+           COALESCE(SUM(l.platform_cents), 0)::int                        AS platform_fee_cents,
+           COALESCE(SUM(l.ai_cents), 0)::int                              AS ai_fee_cents,
+           SUM(i.amount_cents - i.discount_cents)::int                     AS total_cents,
+           COALESCE(SUM(CASE WHEN i.status = 'due'
+                             THEN i.amount_cents - i.discount_cents ELSE 0 END), 0)::int
+                                                                           AS due_cents,
+           COALESCE(SUM(CASE WHEN i.status = 'paid'
+                             THEN i.amount_cents - i.discount_cents ELSE 0 END), 0)::int
+                                                                           AS paid_cents
       FROM invoices i
-      LEFT JOIN invoice_lines l ON l.invoice_id = i.id
+      LEFT JOIN (
+        SELECT invoice_id,
+               SUM(CASE WHEN kind = 'platform' THEN amount_cents ELSE 0 END) AS platform_cents,
+               SUM(CASE WHEN kind = 'ai' THEN amount_cents ELSE 0 END)       AS ai_cents
+          FROM invoice_lines
+         GROUP BY invoice_id
+      ) l ON l.invoice_id = i.id
      WHERE i.organization_id = ${actor.clinicOrganizationId}
        AND i.session_id IS NOT NULL
      GROUP BY 1
@@ -685,6 +792,8 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
       platform_fee_cents: number;
       ai_fee_cents: number;
       total_cents: number;
+      due_cents: number;
+      paid_cents: number;
     }[]
   ).map((row) => ({
     periodStart: new Date(row.period_start),
@@ -693,6 +802,60 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
     platformFeeCents: Number(row.platform_fee_cents),
     aiFeeCents: Number(row.ai_fee_cents),
     totalCents: Number(row.total_cents),
+    dueCents: Number(row.due_cents),
+    paidCents: Number(row.paid_cents),
+  }));
+}
+
+/**
+ * 🔴 W2-C03 / C3: THE SEAT INVOICES, which the bills page never showed.
+ *
+ * `clinicBills` reads session invoices only (`session_id IS NOT NULL`), so
+ * a seat change's proration invoice (`billSeatProration`, kind
+ * `subscription`) was billed to the practice and appeared on no clinic
+ * screen. These carry no session, so listing them one by one discloses
+ * nothing about any patient: the description is the seat arithmetic.
+ *
+ * No id leaves this function. Paying reads the due invoices again on the
+ * server, by organisation, so there is nothing a browser could substitute.
+ */
+export type ClinicSeatBill = {
+  issuedAt: Date;
+  description: string;
+  amountCents: number;
+  status: string;
+  paidAt: Date | null;
+};
+
+export async function clinicSeatBills(actor: ClinicPrincipal): Promise<ClinicSeatBill[]> {
+  refuseWithout(actor, "bills.read");
+
+  const rows = await controlDb
+    .select({
+      issuedAt: invoices.issuedAt,
+      description: invoices.description,
+      amountCents: invoices.amountCents,
+      discountCents: invoices.discountCents,
+      status: invoices.status,
+      paidAt: invoices.paidAt,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.organizationId, actor.clinicOrganizationId),
+        eq(invoices.kind, "subscription"),
+        isNull(invoices.sessionId),
+      ),
+    )
+    .orderBy(desc(invoices.issuedAt))
+    .limit(48);
+
+  return rows.map((row) => ({
+    issuedAt: row.issuedAt,
+    description: row.description,
+    amountCents: row.amountCents - row.discountCents,
+    status: row.status,
+    paidAt: row.paidAt,
   }));
 }
 

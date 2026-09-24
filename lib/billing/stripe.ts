@@ -316,6 +316,12 @@ export async function createInvoiceCheckout(opts: {
   organizationId: string;
   invoiceIds: string[];
   email: string;
+  /**
+   * W2-C03: where the payer comes back to. `/billing` is the clinician's
+   * page; a clinic admin paying the practice's bill returns to its own.
+   * A fixed path chosen by the caller, never a URL from a browser.
+   */
+  returnPath?: "/billing" | "/clinic/bills";
 }): Promise<{ url?: string; error?: string }> {
   const client = getStripe();
   if (!client) return { error: "Payments are not configured on this deployment." };
@@ -341,8 +347,8 @@ export async function createInvoiceCheckout(opts: {
         },
       },
     })),
-    success_url: `${env.appUrl}/billing?checkout={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.appUrl}/billing?checkout=cancelled`,
+    success_url: `${env.appUrl}${opts.returnPath ?? "/billing"}?checkout={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${env.appUrl}${opts.returnPath ?? "/billing"}?checkout=cancelled`,
     metadata: { organizationId: opts.organizationId, invoiceCount: String(rows.length) },
   });
 

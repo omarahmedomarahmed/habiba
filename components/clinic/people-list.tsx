@@ -28,11 +28,13 @@ function Submit({ label }: { label: string }) {
  * practice cannot complete it is on the screen, because a hospital onboarding twenty
  * people will otherwise open a support ticket asking for exactly this feature.
  *
- * ## 🔴 WHAT A ROW DOES NOT SHOW
+ * ## 🔴 WHAT A ROW SHOWS, AND WHAT IT DOES NOT
  *
- * No caseload size, no session count, no patient, no rating, no earnings. A clinician's
- * caseload is their own, and a practice that could see "Dr Salma: 14 patients" beside
- * "Dr Omar: 2" has a performance-management surface built out of clinical volume.
+ * W2-C08 / D2: the founder's decision of 2026-09-23 is that the practice sees each
+ * clinician's patients as a first name and a last initial. The list is folded under
+ * the row and carries nothing else: no date, no session count, no note, no rating,
+ * no earnings. It does say how many patients each clinician has, which D2 accepted,
+ * and the homepage sentence saying otherwise went in the same change.
  */
 
 const VERIFY_KEYS: Record<string, MessageKey> = {
@@ -56,6 +58,8 @@ export type PersonRow = {
    * hydration.
    */
   seatBillableFrom: string | null;
+  /** 🔴 W2-C08: first name and last initial, or null when this principal may not read names. */
+  patients: string[] | null;
 };
 
 export type InviteRow = {
@@ -65,14 +69,28 @@ export type InviteRow = {
   state: string;
 };
 
+/** 🔴 W2-C02: the seat an invitation buys, priced by the server before the click. */
+export type SeatAdd = {
+  fromSeats: number;
+  toSeats: number;
+  monthlyLabel: string;
+  todayLabel: string;
+};
+/** 🔴 W2-C02 / C4: the seat a removal releases, and the bill after it. */
+export type SeatRelease = { fromSeats: number; monthlyLabel: string };
+
 export function ClinicPeopleList({
   people,
   invitations,
   canManage,
+  seatAdd = null,
+  seatRelease = null,
 }: {
   people: PersonRow[];
   invitations: InviteRow[];
   canManage: boolean;
+  seatAdd?: SeatAdd | null;
+  seatRelease?: SeatRelease | null;
 }) {
   const t = useT();
   const [state, formAction] = useActionState(invite, {});
@@ -124,6 +142,18 @@ export function ClinicPeopleList({
                   </p>
                 ) : null}
 
+                {/* 🔴 W2-C08 / D2: names only, and not links: there is nowhere for one to go. */}
+                {person.patients && person.patients.length > 0 ? (
+                  <details className="mt-1">
+                    <summary className="cursor-pointer text-xs font-semibold text-slate-600">
+                      {t("portal.nav.patients")}
+                    </summary>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                      {person.patients.join(", ")}
+                    </p>
+                  </details>
+                ) : null}
+
                 {canManage ? (
                   confirming === person.userId ? (
                     <div className="mt-2 border-t border-slate-100 pt-2">
@@ -131,12 +161,21 @@ export function ClinicPeopleList({
                       <p className="text-xs leading-relaxed text-slate-600">
                         {t("clinic.removeConfirm")}
                       </p>
+                      {/* 🔴 W2-C02 / C4: and the bill after it, when a seat comes free. */}
+                      {seatRelease ? (
+                        <p className="mt-1 text-xs font-medium text-slate-700">
+                          {t("clinic.seatReleases", { monthly: seatRelease.monthlyLabel })}
+                        </p>
+                      ) : null}
                       <button
                         type="button"
                         disabled={pending}
                         onClick={() =>
                           startTransition(async () => {
-                            const result = await remove(person.userId);
+                            const result = await remove(
+                              person.userId,
+                              seatRelease?.fromSeats ?? null,
+                            );
                             setError(result.error ?? null);
                             if (!result.error) setConfirming(null);
                           })
@@ -212,6 +251,22 @@ export function ClinicPeopleList({
             <Field label={t("clinic.phone")} htmlFor="invite-phone">
               <Input id="invite-phone" name="phone" type="tel" />
             </Field>
+
+            {/*
+              🔴 W2-C02: no free seat, so this invitation buys one. The figure
+              is the server's, stated before the button, and the count it was
+              quoted against goes with the form so a moved count is refused.
+            */}
+            {seatAdd ? (
+              <p className="rounded-xl bg-slate-50 p-3 text-xs font-medium text-slate-700">
+                <input type="hidden" name="seatFrom" value={seatAdd.fromSeats} />
+                <input type="hidden" name="seatTo" value={seatAdd.toSeats} />
+                {t("clinic.seatAdds", {
+                  monthly: seatAdd.monthlyLabel,
+                  today: seatAdd.todayLabel,
+                })}
+              </p>
+            ) : null}
 
             {state.error ? (
               <p role="alert" className="text-xs text-red-600">

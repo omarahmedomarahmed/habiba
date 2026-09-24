@@ -7651,6 +7651,37 @@ export const clinicAuthSessions = pgTable(
 );
 
 /**
+ * 🔴 W2-C04 / W2-C05 (0131): A CLINIC MANAGER SETS THEIR OWN PASSWORD, BY LINK.
+ *
+ * `invite`: a staff member added by the clinic admin. Their row is created
+ * with no password, which `checkClinicPassword` refuses, and this link is how
+ * they set one. The admin never types or sees it.
+ * `password_reset`: asked for by email at /clinic/forgot-password.
+ *
+ * Single use, short lived, and only the SHA-256 is stored. Separate from the
+ * clinician's `auth_tokens` and the patient's `patient_auth_tokens` because
+ * each hangs off its own principal's table (C264).
+ */
+export const clinicAuthTokens = pgTable(
+  "clinic_auth_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clinicManagerId: uuid("clinic_manager_id")
+      .notNull()
+      .references(() => clinicManagers.id, { onDelete: "cascade" }),
+    purpose: text("purpose").$type<"invite" | "password_reset">().notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("clinic_auth_tokens_hash_unique").on(t.tokenHash),
+    index("clinic_auth_tokens_manager_idx").on(t.clinicManagerId, t.usedAt),
+  ],
+);
+
+/**
  * 🔴 54.4 / 54.5 / 54.6 — the invitation, and the three rulings it carries.
  *
  * *The clinic adds therapists one at a time, by email and phone, and each is

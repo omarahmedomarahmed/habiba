@@ -22,7 +22,11 @@ export default async function NewSessionPage({
 }) {
   const { t } = await getI18n();
   const actor = await requireUser();
-  const [{ welcome }, patients, connect, settings, connections, onTransferRail] =
+  /*
+   * W2-T05 (words): `?welcome=1` was read here and nothing ever sent it
+   * (signup lands on /onboarding), so its banner never rendered.
+   */
+  const [, patients, connect, settings, connections, onTransferRail] =
     await Promise.all([
       searchParams,
       listPatients(actor),
@@ -71,7 +75,6 @@ export default async function NewSessionPage({
       />
       <div className="px-4 pb-10 sm:px-6">
         <NewSessionForm
-          welcome={welcome === "1"}
           /*
             41.2 — only the providers this clinician has actually connected.
             An option they cannot use is a session that quietly falls back to

@@ -2,7 +2,7 @@ import { ClinicChrome } from "@/components/clinic/chrome";
 import { getClinicActor } from "@/lib/clinic-auth/session";
 import { headers } from "next/headers";
 
-import { CLINIC_SIGN_IN } from "@/lib/routing";
+import { isClinicDoor } from "@/lib/routing";
 
 /**
  * The clinic shell. PLAN.md 54.12, §3f, C259.
@@ -51,12 +51,13 @@ export default async function ClinicLayout({ children }: { children: React.React
    * no line of its own either way: the site header it brings carries its own
    * switch.
    */
-  const door = (head.get("x-pathname") ?? "") === CLINIC_SIGN_IN;
+  /* 🔴 W2-C07: every door, not only the sign-in, and no rail over one. */
+  const door = isClinicDoor(head.get("x-pathname") ?? "");
 
   return (
     <ClinicChrome
       bare={door}
-      nav={actor !== null}
+      nav={actor !== null && !door}
       clinicName={actor?.clinicName ?? null}
       capabilities={actor?.capabilities ?? []}
       linked={Boolean(actor?.linkedUserId)}

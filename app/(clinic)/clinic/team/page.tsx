@@ -54,6 +54,7 @@ export default async function ClinicTeamPage() {
         roleId: person.roleId,
         roleName: person.roleName,
         assigned: person.assigned.map((row) => row.userId),
+        invited: Boolean(person.invited),
       }))}
       clinicians={clinicians.map((clinician) => ({
         userId: clinician.userId,

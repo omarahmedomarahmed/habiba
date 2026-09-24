@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { RecordsPanel } from "@/components/ehr/records-panel";
-import { requireClinic } from "@/lib/clinic-auth/guard";
+import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { connectionsFor, filersOn, writebacksFor } from "@/lib/data/ehr";
 import { features } from "@/lib/env";
 import { whatIsMissing } from "@/lib/ehr/owner";
@@ -20,8 +20,16 @@ export const dynamic = "force-dynamic";
  * agreed would be two places for C266 to be got wrong, and the second would be written by somebody
  * who had not read the first. What differs is one sentence, chosen by `isClinic`.
  */
-export default async function ClinicRecordsPage() {
-  const actor = await requireClinic();
+export default async function ClinicRecordsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ehr?: string }>;
+}) {
+  /*
+   * 🔴 W2-C01: the capability its tab asks for. It was `requireClinic`, so
+   * any staff member reached clinician names and raw vendor errors here.
+   */
+  const actor = await requireClinicCapability("team.manage");
   const { locale } = await getI18n();
 
   const [connections, filings, filers] = await Promise.all([
@@ -34,6 +42,8 @@ export default async function ClinicRecordsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
       <RecordsPanel
+        /* 🔴 W2-C06: how the connection just went, from the callback. */
+        outcome={(await searchParams).ehr ?? null}
         /* 🔴 W1-22: the same gate as both actions: `requireClinicAdmin`. */
         canManage={actor.role === "admin"}
         isClinic={true}

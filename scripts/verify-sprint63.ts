@@ -323,6 +323,79 @@ async function main() {
     );
 
     /* ================================================================ */
+    /*  W2-C01 · usage is scoped like the schedule it sits under          */
+    /* ================================================================ */
+
+    /*
+     * 🔴 `reports.read` is therapist-scoped (THERAPIST_SCOPED), and
+     * `clinicUsage` summed the whole practice for anybody holding it. Five
+     * billed sessions for B, above the activity floor, and none for A: an
+     * assistant assigned to A must see no spend of B's.
+     */
+    const billed: string[] = [];
+    for (const nth of [0, 1, 2, 3, 4]) {
+      const [row] = (
+        await db.execute(sql`
+          INSERT INTO sessions (organization_id, therapist_id, status, modality, scheduled_at,
+                                feedback_token, price_cents)
+          VALUES (${clinic.id}, ${therapistB.id}, 'completed', 'video', now(),
+                  ${`${fixture}-usage-${nth}`}, 5000)
+          RETURNING id`)
+      ).rows as { id: string }[];
+      const id = required(row, "a billed session").id;
+      billed.push(id);
+      await db.execute(sql`
+        INSERT INTO invoices (organization_id, kind, session_id, amount_cents, status, description)
+        VALUES (${clinic.id}, 'session', ${id}, 400, 'due', 'verify63 usage')`);
+    }
+
+    const { clinicUsage } = await import("../lib/data/clinic");
+    const adminUsage = await clinicUsage(adminPrincipal);
+    const scopedUsage = await clinicUsage({
+      ...assistantPrincipal,
+      capabilities: ["schedule.read", "reports.read"],
+    });
+
+    check(
+      "🔴 CONTROL W2-C01 the admin's usage has B's five sessions in it, so the fixture bills",
+      adminUsage.some((week) => (week.sessions ?? 0) >= billed.length),
+      adminUsage.map((week) => String(week.sessions)).join(", ") || "no weeks",
+    );
+
+    /* ================================================================ */
+    /*  W2-C08 · each clinician's patients, first name and last initial   */
+    /* ================================================================ */
+
+    /* B's own patient, so a list that ignored the scope would show it. */
+    await db.execute(sql`
+      INSERT INTO patients (organization_id, therapist_id, first_name, last_name, phone)
+      VALUES (${clinic.id}, ${therapistB.id}, 'Omar', 'Hassan', ${`+2011${Date.now() % 100000000}`})`);
+
+    const { patientsByClinician } = await import("../lib/data/clinic");
+    const adminLists = await patientsByClinician(adminPrincipal);
+    const scopedLists = await patientsByClinician(assistantPrincipal);
+
+    check(
+      "🔴 W2-C08 / D2 the practice sees each clinician's patients as a first name and a last initial",
+      adminLists.find((row) => row.therapistId === therapistA.id)?.names.join(",") === "Sarah M" &&
+        adminLists.find((row) => row.therapistId === therapistB.id)?.names.join(",") === "Omar H",
+      JSON.stringify(adminLists),
+    );
+
+    check(
+      "🔴 W2-C08 …scoped like the schedule: an assistant assigned to A sees A's list and no other",
+      scopedLists.length > 0 && scopedLists.every((row) => row.therapistId === therapistA.id),
+      JSON.stringify(scopedLists),
+    );
+
+    check(
+      "🔴 W2-C01 usage is scoped: an assistant assigned to A sees none of B's spend",
+      scopedUsage.every((week) => !week.spendCents),
+      scopedUsage.map((week) => `${String(week.sessions)} for ${String(week.spendCents)}`).join(", ") ||
+        "no weeks, which is right: A billed nothing",
+    );
+
+    /* ================================================================ */
     /*  63.12 · C327 · first name plus last initial, and it is audited   */
     /* ================================================================ */
 
@@ -618,7 +691,8 @@ async function main() {
   const joinForm = readSource("components/clinic/join-form.tsx");
   check(
     "🔴 63.9 / C328 the acceptance screen ENUMERATES what the practice will see",
-    /clinic\.join\.sees\.calendar/.test(joinForm) &&
+    /* W2-C08: the calendar line is now the calendar AND patient list line. */
+    /clinic\.join\.sees\.patients/.test(joinForm) &&
       /clinic\.join\.sees\.earnings/.test(joinForm) &&
       /clinic\.join\.never\.notes/.test(joinForm),
     "the colleague has to understand that before, not after",

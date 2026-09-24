@@ -22,7 +22,11 @@ export const dynamic = "force-dynamic";
  * agreed would be two places for C266 to be got wrong, and the second would be written by somebody
  * who had not read the first. What differs is one sentence, chosen by `isClinic`.
  */
-export default async function SettingsRecordsPage() {
+export default async function SettingsRecordsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ehr?: string }>;
+}) {
   const actor = await requireUser();
   const { locale } = await getI18n();
 
@@ -43,6 +47,8 @@ export default async function SettingsRecordsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
       <RecordsPanel
+        /* 🔴 W2-C06: how the connection just went, from the callback. */
+        outcome={(await searchParams).ehr ?? null}
         isClinic={false}
         /*
          * 🔴 67.1 — A SOLO PRACTICE IS TOLD WHY, NOT SHOWN A DISABLED BUTTON.

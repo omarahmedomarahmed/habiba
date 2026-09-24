@@ -175,12 +175,15 @@ export default async function SettingsPage({
             <p className="mt-1 text-sm leading-relaxed text-slate-600">
               {t("portal.settings.qrBlurb")}
             </p>
-            <Link
-              href="/settings/codes"
-              className="mt-3 inline-flex text-sm font-semibold text-brand-700"
-            >
-              {t("portal.settings.openCodes")}
-            </Link>
+            {/* 🔴 W2-T07: the page the code opens, which nothing linked. */}
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              <Link href="/settings/codes" className="text-sm font-semibold text-brand-700">
+                {t("portal.settings.openCodes")}
+              </Link>
+              <Link href={`/t/${actor.userId}`} className="text-sm font-semibold text-brand-700">
+                {t("tw2.publicPage")}
+              </Link>
+            </div>
           </Card>
 
           {/*
@@ -195,12 +198,15 @@ export default async function SettingsPage({
             <p className="mt-1 text-sm leading-relaxed text-slate-600">
               {t("portal.meet.body")}
             </p>
-            <Link
-              href="/settings/integrations"
-              className="mt-3 inline-flex text-sm font-semibold text-brand-700"
-            >
-              {t("portal.meet.title")}
-            </Link>
+            {/* 🔴 W2-T07: the record system page existed and nothing linked it. */}
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              <Link href="/settings/integrations" className="text-sm font-semibold text-brand-700">
+                {t("portal.meet.title")}
+              </Link>
+              <Link href="/settings/records" className="text-sm font-semibold text-brand-700">
+                {t("records.title")}
+              </Link>
+            </div>
           </Card>
         </SettingsSection>
 

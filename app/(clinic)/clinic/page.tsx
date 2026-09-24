@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Card } from "@/components/ui";
+import { can } from "@/lib/clinic-auth/capabilities";
 import { requireClinic } from "@/lib/clinic-auth/guard";
+import { clinicWeek } from "@/lib/clinic-week";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -47,19 +49,21 @@ export default async function ClinicOverviewPage({
    * cities must be looking at the same seven rows when they discuss them, and a
    * per-viewer week boundary means they are not.
    */
-  const anchor = week ? new Date(`${week}T00:00:00Z`) : new Date();
-  const valid = Number.isFinite(anchor.getTime()) ? anchor : new Date();
-  const monday = new Date(valid);
-  monday.setUTCHours(0, 0, 0, 0);
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
-  const next = new Date(monday);
-  next.setUTCDate(next.getUTCDate() + 7);
-  const prev = new Date(monday);
-  prev.setUTCDate(prev.getUTCDate() - 7);
+  /* 🔴 W2-C06: one function, which the export route calls with the same parameter. */
+  const { monday, next, prev } = clinicWeek(week);
+
+  /*
+   * 🔴 W2-C01: EVERY REFUSED CAPABILITY REDIRECTS HERE, so this page reads
+   * only what the principal holds and never refuses. It ran `clinicUsage`
+   * (reports.read) for anybody, and a role with schedule.read alone got a
+   * thrown query on the one page that was meant to be their way back.
+   */
+  const seesSchedule = can(actor.capabilities, "schedule.read");
+  const seesReports = can(actor.capabilities, "reports.read");
 
   const [rows, usage] = await Promise.all([
-    clinicSchedule({ actor, from: monday, to: next }),
-    clinicUsage(actor),
+    seesSchedule ? clinicSchedule({ actor, from: monday, to: next }) : Promise.resolve([]),
+    seesReports ? clinicUsage(actor) : Promise.resolve([]),
   ]);
 
   /*
@@ -126,10 +130,10 @@ export default async function ClinicOverviewPage({
         </p>
 
         {/* 🔴 63.17 / C334 — and the sentence about the watermark is beside it. */}
-        {actor.capabilities.includes("export") ? (
+        {seesSchedule && actor.capabilities.includes("export") ? (
           <div className="mt-3">
             <a
-              href="/clinic/export?what=schedule"
+              href={`/clinic/export?what=schedule&week=${monday.toISOString().slice(0, 10)}`}
               className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               {t("clinic.exportCsv")}
@@ -141,151 +145,157 @@ export default async function ClinicOverviewPage({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href={`/clinic?week=${prev.toISOString().slice(0, 10)}`}
-          className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
-        >
-          {t("clinic.prevWeek")}
-        </Link>
-        <span className="text-xs font-medium text-slate-500">
-          {t("clinic.week", { date: day(monday) })}
-        </span>
-        <Link
-          href={`/clinic?week=${next.toISOString().slice(0, 10)}`}
-          className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
-        >
-          {t("clinic.nextWeek")}
-        </Link>
-      </div>
+      {seesSchedule ? (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href={`/clinic?week=${prev.toISOString().slice(0, 10)}`}
+              className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
+            >
+              {t("clinic.prevWeek")}
+            </Link>
+            <span className="text-xs font-medium text-slate-500">
+              {t("clinic.week", { date: day(monday) })}
+            </span>
+            <Link
+              href={`/clinic?week=${next.toISOString().slice(0, 10)}`}
+              className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
+            >
+              {t("clinic.nextWeek")}
+            </Link>
+          </div>
 
-      {/*
-        🔴 AND NOT ON A WEEK WITH NOTHING IN IT.
+          {/*
+            🔴 AND NOT ON A WEEK WITH NOTHING IN IT.
 
-        Rendered unconditionally, an empty week drew "Booked this week 0" and
-        "Clinicians on the rota 0" directly above "No appointments this week",
-        which is the same fact three times. The second one was worse than
-        redundant: a practice with six clinicians and a quiet week was told it
-        had none, two inches from a rail with "Your clinicians" in it.
+            Rendered unconditionally, an empty week drew "Booked this week 0" and
+            "Clinicians on the rota 0" directly above "No appointments this week",
+            which is the same fact three times. The second one was worse than
+            redundant: a practice with six clinicians and a quiet week was told it
+            had none, two inches from a rail with "Your clinicians" in it.
 
-        Both figures summarise the rows. With no rows there is nothing to
-        summarise, and the empty state below says the whole truth on its own.
-      */}
-      {rows.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Card className="p-4">
-            <p className="text-xs font-medium text-slate-500">{t("clinic.hoursBooked")}</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
-              {rows.length}
-            </p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-medium text-slate-500">{t("clinic.onTheRota")}</p>
-            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
-              {onTheRota}
-            </p>
-          </Card>
-        </div>
+            Both figures summarise the rows. With no rows there is nothing to
+            summarise, and the empty state below says the whole truth on its own.
+          */}
+          {rows.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Card className="p-4">
+                <p className="text-xs font-medium text-slate-500">{t("clinic.hoursBooked")}</p>
+                <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
+                  {rows.length}
+                </p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-xs font-medium text-slate-500">{t("clinic.onTheRota")}</p>
+                <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
+                  {onTheRota}
+                </p>
+              </Card>
+            </div>
+          ) : null}
+
+          {rows.length === 0 ? (
+            <Card className="p-5">
+              <p className="text-sm leading-relaxed text-slate-600">{t("clinic.scheduleEmpty")}</p>
+            </Card>
+          ) : (
+            <Card className="overflow-hidden">
+              <ul className="divide-y divide-slate-100">
+                {rows.map((row) => (
+                  <li key={row.sessionId} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
+                    {/* 🔴 Not a link. There is nowhere for it to go. */}
+                    <span className="text-sm font-semibold text-slate-900">{row.patientName}</span>
+                    <span className="text-xs text-slate-500">{row.therapistName}</span>
+                    <span className="ms-auto text-xs tabular-nums text-slate-600">
+                      {when(row.scheduledAt)}
+                    </span>
+                    {row.status === "cancelled" ? (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                        {row.status}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </>
       ) : null}
 
-      {rows.length === 0 ? (
-        <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("clinic.scheduleEmpty")}</p>
-        </Card>
-      ) : (
-        <Card className="overflow-hidden">
-          <ul className="divide-y divide-slate-100">
-            {rows.map((row) => (
-              <li key={row.sessionId} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
-                {/* 🔴 Not a link. There is nowhere for it to go. */}
-                <span className="text-sm font-semibold text-slate-900">{row.patientName}</span>
-                <span className="text-xs text-slate-500">{row.therapistName}</span>
-                <span className="ms-auto text-xs tabular-nums text-slate-600">
-                  {when(row.scheduledAt)}
-                </span>
-                {row.status === "cancelled" ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                    {row.status}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
       {/* 🔴 54.10 / C262 — the same floor as C229, through the same function. */}
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("clinic.usageTitle")}</p>
-        {/*
-          🔴 WHICH WEEK, because this card and the rota above it both say "week"
-          and mean different ones.
+      {seesReports ? (
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-900">{t("clinic.usageTitle")}</p>
+          {/*
+            🔴 WHICH WEEK, because this card and the rota above it both say "week"
+            and mean different ones.
 
-          `clinicSchedule` filters on `sessions.scheduled_at`: the hour itself.
-          `clinicUsage` groups `invoices` by `issued_at`: when it was billed. A
-          session on the 14th invoiced on the 21st is in last week's rota and
-          this week's total, both correctly. On one screen, with no label, that
-          reads as the page contradicting itself, and the first thing a practice
-          manager does with a portal that contradicts itself is stop trusting
-          the figures in it.
-        */}
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">{t("clinic.usageBasis")}</p>
+            `clinicSchedule` filters on `sessions.scheduled_at`: the hour itself.
+            `clinicUsage` groups `invoices` by `issued_at`: when it was billed. A
+            session on the 14th invoiced on the 21st is in last week's rota and
+            this week's total, both correctly. On one screen, with no label, that
+            reads as the page contradicting itself, and the first thing a practice
+            manager does with a portal that contradicts itself is stop trusting
+            the figures in it.
+          */}
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{t("clinic.usageBasis")}</p>
 
-        {usage.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">{t("clinic.suppressed")}</p>
-        ) : (
-          <ul className="mt-3 space-y-1.5">
-            {usage.slice(-12).map((row) => (
-              <li
-                key={row.weekStart.toISOString()}
-                className="flex flex-wrap items-baseline justify-between gap-3 text-sm"
-              >
-                <span className="text-slate-600">
-                  {t("clinic.week", { date: day(row.weekStart) })}
-                </span>
-                {/*
-                  🔴 null is SUPPRESSED and it is NOT zero.
-                  `applyActivityFloor` rolls a suppressed period's figures into the next
-                  reported one, so rendering it as 0 would be a different and false
-                  statement, and it is the statement a differencing attack needs.
-                */}
-                {row.sessions === null || row.spendCents === null ? (
-                  <span className="text-xs text-slate-500">{t("clinic.suppressed")}</span>
-                ) : (
-                  <span className="tabular-nums text-slate-800">
-                    {t("clinic.sessionCount", { count: row.sessions })} ·{" "}
-                    {/*
-                      🔴 A BARE "$0.00" BESIDE FIVE SESSIONS READS AS A BROKEN PAGE.
-
-                      It is not broken and it is not rounding. A session whose
-                      invoice is `included` or `waived` costs the clinic
-                      nothing: their welcome credit covered it, or a patient's
-                      employer did, or somebody waived it. The row summed to
-                      zero honestly, and the first thing a practice manager
-                      does with a money figure they cannot account for is stop
-                      believing the other ones.
-
-                      The words say only what the zero already said, which is
-                      why this is safe to show: no new fact about who was
-                      covered or by what, because this page must not carry one.
-                      The sessions count is still under the C262 floor above.
-                    */}
-                    {row.spendCents === 0 && row.sessions > 0 ? (
-                      <span className="font-medium text-slate-600">{t("clinic.nothingToPay")}</span>
-                    ) : (
-                      money(row.spendCents)
-                    )}
+          {usage.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">{t("clinic.suppressed")}</p>
+          ) : (
+            <ul className="mt-3 space-y-1.5">
+              {usage.slice(-12).map((row) => (
+                <li
+                  key={row.weekStart.toISOString()}
+                  className="flex flex-wrap items-baseline justify-between gap-3 text-sm"
+                >
+                  <span className="text-slate-600">
+                    {t("clinic.week", { date: day(row.weekStart) })}
                   </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+                  {/*
+                    🔴 null is SUPPRESSED and it is NOT zero.
+                    `applyActivityFloor` rolls a suppressed period's figures into the next
+                    reported one, so rendering it as 0 would be a different and false
+                    statement, and it is the statement a differencing attack needs.
+                  */}
+                  {row.sessions === null || row.spendCents === null ? (
+                    <span className="text-xs text-slate-500">{t("clinic.suppressed")}</span>
+                  ) : (
+                    <span className="tabular-nums text-slate-800">
+                      {t("clinic.sessionCount", { count: row.sessions })} ·{" "}
+                      {/*
+                        🔴 A BARE "$0.00" BESIDE FIVE SESSIONS READS AS A BROKEN PAGE.
 
-        <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
-          {t("clinic.suppressedBody")}
-        </p>
-      </Card>
+                        It is not broken and it is not rounding. A session whose
+                        invoice is `included` or `waived` costs the clinic
+                        nothing: their welcome credit covered it, or a patient's
+                        employer did, or somebody waived it. The row summed to
+                        zero honestly, and the first thing a practice manager
+                        does with a money figure they cannot account for is stop
+                        believing the other ones.
+
+                        The words say only what the zero already said, which is
+                        why this is safe to show: no new fact about who was
+                        covered or by what, because this page must not carry one.
+                        The sessions count is still under the C262 floor above.
+                      */}
+                      {row.spendCents === 0 && row.sessions > 0 ? (
+                        <span className="font-medium text-slate-600">{t("clinic.nothingToPay")}</span>
+                      ) : (
+                        money(row.spendCents)
+                      )}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
+            {t("clinic.suppressedBody")}
+          </p>
+        </Card>
+      ) : null}
     </div>
   );
 }

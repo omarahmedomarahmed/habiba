@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Camera, Check, Loader2, ShieldCheck, Upload } from "lucide-react";
 
@@ -9,6 +10,7 @@ import {
   saveVerificationDetails,
   submitForReview,
   uploadVerificationDocument,
+  withdrawFromReview,
   type OnboardingState,
 } from "@/app/(app)/onboarding/actions";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
@@ -170,6 +172,45 @@ export function VerificationForm({
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
           {t("tver.underReviewBody")}
         </p>
+
+        {/*
+          🔴 W2-T02: WHAT IS WITH US, not a spinner and a sentence.
+
+          The same fields and documents the form held, read back. Somebody who
+          noticed a wrong digit an hour after submitting could see nothing here
+          and change nothing, so the button below takes it back to draft,
+          which the server allows only while nobody has decided it.
+        */}
+        <dl className="mx-auto mt-4 max-w-md space-y-1 text-start text-sm">
+          {[
+            [t("tver.regulator"), initial.licenseBody],
+            [t("tver.licenceNumber"), initial.licenseNumber],
+            [t("tver.licenceExpiry"), initial.licenseExpiry],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3">
+              <dt className="text-slate-500">{label}</dt>
+              <dd className="font-medium text-slate-800">{value || "-"}</dd>
+            </div>
+          ))}
+          {documents.map((doc) => (
+            <div key={doc.key} className="flex justify-between gap-3">
+              <dt className="text-slate-500">{doc.label ?? t(doc.labelKey)}</dt>
+              <dd className="font-medium text-slate-800">{doc.url ? t("tver.uploaded") : "-"}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+          <form action={withdrawFromReview}>
+            <button type="submit" className="text-sm font-semibold text-brand-700">
+              {t("tw2.changeSubmission")}
+            </button>
+          </form>
+          {/* 🔴 W2-T01: the person waiting on us can ask us something. */}
+          <Link href="/support" className="text-sm font-semibold text-brand-700">
+            {t("portal.support.title")}
+          </Link>
+        </div>
       </Card>
     );
   }
