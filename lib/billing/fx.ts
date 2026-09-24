@@ -178,7 +178,12 @@ export async function quoteFor(base: string, quote: string): Promise<Quote | nul
     const { egpRateMicro } = await import("./manual");
     const rateMicro = await egpRateMicro().catch(() => 0);
     if (rateMicro > 0) {
-      return { base: from, quote: to, rateMicro, quotedAt: now, expiresAt: new Date(now.getTime() + QUOTE_TTL_MS), source: "operator" };
+      /*
+       * Quoted at the start of the hour, so the pay page and the checkout that
+       * ask a moment apart hold the SAME quote, not two quotes of one rate.
+       */
+      const quotedAt = new Date(Math.floor(now.getTime() / QUOTE_TTL_MS) * QUOTE_TTL_MS);
+      return { base: from, quote: to, rateMicro, quotedAt, expiresAt: new Date(quotedAt.getTime() + QUOTE_TTL_MS), source: "operator" };
     }
   }
 

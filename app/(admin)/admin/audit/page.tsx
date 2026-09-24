@@ -89,7 +89,7 @@ export default async function AdminAuditPage({
               </span>
             ) : null}
             {entry.resourceType ? (
-              <span className="font-mono text-xs text-slate-400">
+              <span className="font-mono text-xs text-slate-500">
                 {entry.resourceType} {entry.resourceKey ?? entry.resourceId?.slice(0, 8) ?? ""}
               </span>
             ) : null}

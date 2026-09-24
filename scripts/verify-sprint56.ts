@@ -238,7 +238,10 @@ async function main() {
         // nullable, and every patient-facing call in this sprint scopes
         // through it, so a fixture without one would make the ownership
         // checks below pass by matching nothing.
-        .where(sql`${patients.personId} is not null`)
+        // And a THERAPIST: W1-10 tells the clinician who holds the file, and a
+        // radar patient with none (a row other verifiers leave behind) made
+        // the risk check below depend on which row came first.
+        .where(sql`${patients.personId} is not null and ${patients.therapistId} is not null`)
         .limit(1)
     )[0],
     "patient with a person to assign an assessment to",

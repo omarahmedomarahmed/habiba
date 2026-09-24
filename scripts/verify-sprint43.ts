@@ -667,7 +667,7 @@ async function main() {
       /disconnect\([^)]*formData/.test(clinicActions) &&
         /requireClinicAdmin\(\)[\s\S]{0,400}connectionId/.test(clinicActions) &&
         /canManage=\{actor\.role === "admin"\}/.test(clinicPage) &&
-        /records\.disconnectConfirm|w1a\.disconnectConfirm/.test(panelSource),
+        /(records|w1a|tacct)\.disconnectConfirm/.test(panelSource),
       "one connection, by the admin, after a confirm",
     );
 

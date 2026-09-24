@@ -359,14 +359,22 @@ async function main() {
       .select({
         id: schema.sessionPayments.id,
         funding: schema.sessionPayments.fundingSource,
+        stripe: schema.sessionPayments.stripePaymentIntentId,
       })
       .from(schema.sessionPayments)
       .where(eq(schema.sessionPayments.capture, "platform"));
-    const notPot = held.filter((row) => row.funding !== "pot");
+    /*
+     * 🔴 AMENDED AGAIN FOR EGYPT (0146, 64.1, 73). The Egyptian entity collects
+     * a bank transfer or a local gateway payment itself and pays the clinician
+     * out by hand, so those are platform captures by design, exactly as a pot
+     * payment is. What 1.8 forbade is a STRIPE charge landing on our balance,
+     * and that is what this still counts.
+     */
+    const notPot = held.filter((row) => row.funding !== "pot" && row.stripe !== null);
     check(
-      "🔴 1.8 / C6 nothing but a pot payment is captured to the platform balance",
+      "🔴 1.8 / C6 no Stripe charge is captured to the platform balance, only pots and the Egyptian rails",
       notPot.length === 0,
-      `${held.length} platform rows, ${notPot.length} of them not pot-funded`,
+      `${held.length} platform rows, ${notPot.length} of them Stripe charges`,
     );
 
     /* --------------------------------------------------- nothing else moved */

@@ -5507,9 +5507,9 @@ export const refundRequests = pgTable(
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     /** 🔴 0157 / A16 — one person asks to cancel, a different one cancels. */
-    cancelAskedByUserId: uuid("cancel_asked_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    cancelAskedByUserId: uuid("cancel_asked_by_user_id").references(() => users.id, { onDelete: "restrict" }),
     cancelAskedAt: timestamp("cancel_asked_at", { withTimezone: true }),
-    cancelledByUserId: uuid("cancelled_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    cancelledByUserId: uuid("cancelled_by_user_id").references(() => users.id, { onDelete: "restrict" }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -9500,7 +9500,7 @@ export const manualPayments = pgTable(
     /** 🔴 0153 — when the grant claimed this payment. Set once, in the grant's transaction. */
     grantedAt: timestamp("granted_at", { withTimezone: true }),
     organizationId: uuid("organization_id").references(() => organizations.id, {
-      onDelete: "set null",
+      onDelete: "restrict", /* 0159 */
     }),
 
     /**

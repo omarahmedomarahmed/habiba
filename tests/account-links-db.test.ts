@@ -21,7 +21,7 @@ test("an invitation link sets the password once, and a newer link retires the ol
   const tag = `w2a06-${Date.now()}`;
   const [sponsor] = await db
     .insert(sponsors)
-    .values({ name: tag, kind: "company" } as never)
+    .values({ name: tag, kind: "company", currency: "EGP" } as never)
     .returning({ id: sponsors.id });
   let userId: string | undefined;
 

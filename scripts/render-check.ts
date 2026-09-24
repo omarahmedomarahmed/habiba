@@ -220,7 +220,15 @@ async function main() {
 
   check(
     "17.8 …and an EGP toggle beside the price, or none at all if the pair cannot be priced",
-    pricing.includes("Egyptian pounds") || !pricing.includes("EGP"),
+    /*
+     * Since money became `<Money>` (27), the toggle is the price itself: USD
+     * on the website, EGP on hover or tap, and its label names both. The old
+     * separate toggle said "Egyptian pounds"; either is the promise.
+     */
+    pricing.includes("Egyptian pounds") ||
+      /role="button"[^>]*aria-label="\$[^"]*, (EGP|E£|ج\.م)[^"]*"/.test(pricing) ||
+      /aria-label="\$[^"]*, (EGP|E£|ج\.م)[^"]*"[^>]*role="button"/.test(pricing) ||
+      !pricing.includes("EGP"),
   );
 
   const home = html["home.en-x-staging"] ?? "";

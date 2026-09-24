@@ -1433,7 +1433,11 @@ test("no sheet, dialog or overlay in the product can cover the SOS orb", async (
 test("the not-found page and the patient error page keep the SOS orb", async () => {
   const { readFileSync } = await import("node:fs");
   assert.match(readFileSync("app/not-found.tsx", "utf8"), /<SosOrb/);
-  assert.match(readFileSync("app/(patient)/error.tsx", "utf8"), /<SosOrb\b/);
+  /* P19: the boundary is one component, shared with /pay and /join, and it holds the orb. */
+  assert.match(readFileSync("components/patient/route-error.tsx", "utf8"), /<SosOrb\b/);
+  for (const file of ["app/(patient)/error.tsx", "app/pay/error.tsx", "app/join/error.tsx"]) {
+    assert.match(readFileSync(file, "utf8"), /<RouteError\b/, `${file} renders the boundary that holds the orb`);
+  }
 });
 
 /* ------------------------------------------------ W1-10 questionnaire risk */
