@@ -112,6 +112,11 @@ export type TimelineEvent = {
  *
  * `UNION ALL` over five sources rather than five round trips, ordered once in
  * the database. `sinceHours` bounds it; `limit` bounds it again.
+ *
+ * 🔴 W1-26: it says THAT something happened, never what was said. It showed
+ * 140 characters of every copilot message, a risk assessment's recommended
+ * action and a patient's rating comment, read with no reason and no audit row.
+ * Clinical text comes only through `readSession` and `readPerson`.
  */
 export async function timeline(opts: { sinceHours?: number; limit?: number } = {}) {
   const since = new Date(Date.now() - (opts.sinceHours ?? 24) * 3600_000);
@@ -164,7 +169,8 @@ export async function timeline(opts: { sinceHours?: number; limit?: number } = {
       UNION ALL
       SELECT m.created_at, concat('copilot.', m.role),
              concat_ws(' ', u.first_name, u.last_name),
-             concat(left(m.content, 140), CASE WHEN length(m.content) > 140 THEN '…' ELSE '' END),
+             -- 🔴 W1-26: that a message was sent, never what it said (readPerson has it).
+             '' AS what,
              t.patient_id::text
         FROM copilot_messages m
         JOIN copilot_threads t ON t.id = m.thread_id
@@ -174,7 +180,8 @@ export async function timeline(opts: { sinceHours?: number; limit?: number } = {
       UNION ALL
       SELECT r.created_at, 'risk',
              concat_ws(' ', u.first_name, u.last_name),
-             concat('Risk ', r.level, coalesce(concat(', ', left(r.recommended_action, 100)), '')),
+             -- 🔴 W1-26: the level alone; the recommended action is clinical text.
+             concat('Risk ', r.level),
              r.session_id::text
         FROM risk_assessments r
         JOIN users u ON u.id = r.therapist_id
@@ -183,8 +190,8 @@ export async function timeline(opts: { sinceHours?: number; limit?: number } = {
       UNION ALL
       SELECT f.created_at, 'rating',
              concat_ws(' ', u.first_name, u.last_name),
-             concat(coalesce(f.therapist_stars, 0), '/5',
-                    coalesce(concat(', ', left(f.comment, 120)), '')),
+             -- 🔴 W1-26: stars only; a patient's comment can carry anything.
+             concat(coalesce(f.therapist_stars, 0), '/5'),
              f.session_id::text
         FROM session_feedback f
         JOIN users u ON u.id = f.therapist_id
