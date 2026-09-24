@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { Card } from "@/components/ui";
@@ -8,6 +9,8 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientCredits, patients, sessionPayments, sessions, users } from "@/lib/db/schema";
 import { formatMoney } from "@/lib/billing/plans";
+import { patientOwesFor } from "@/lib/billing/session-owed";
+import { sessionDoors } from "@/lib/data/patient-view";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -108,6 +111,18 @@ export default async function PatientBillingPage() {
 
   const creditCents = credits.reduce((sum, c) => sum + (c.amount - c.spent), 0);
 
+  /*
+   * 🔴 W2-P14: what is still open, which the account link to this page has
+   * always promised ("and anything still open") and the page never listed.
+   * Unpaid and waiting-on-a-transfer sessions, each with its own door, at what
+   * the patient owes after their benefit rather than the session's price.
+   */
+  const open = await Promise.all(
+    (await sessionDoors(actor.personId))
+      .filter((row) => row.door?.kind === "pay" || row.door?.kind === "checking")
+      .map(async (row) => ({ ...row, owed: (await patientOwesFor(row.sessionId)).grossCents })),
+  );
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
       <div>
@@ -129,7 +144,36 @@ export default async function PatientBillingPage() {
         </Card>
       ) : null}
 
-      {paid.length === 0 ? (
+      {open.length > 0 ? (
+        <section>
+          <h2 className="text-sm font-semibold text-slate-900">{t("pbilling.open")}</h2>
+          <ul className="mt-2 space-y-2">
+            {open.map((row) => (
+              <li key={row.sessionId}>
+                <Card className="p-3.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-900">{row.therapistName}</p>
+                    <p className="text-sm font-semibold tabular-nums text-slate-900">
+                      {formatMoney(row.owed, row.priceCurrency, tag)}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {formatDate(row.at, actor.timezone, locale)}
+                  </p>
+                  <Link
+                    href={row.door!.href}
+                    className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+                  >
+                    {row.door!.kind === "checking" ? t("transfer.checking") : t("porb.pay")}
+                  </Link>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {paid.length === 0 && open.length === 0 ? (
         <Card className="p-5">
           <p className="text-sm font-semibold text-slate-900">{t("pbilling.none")}</p>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { PatientSessionList } from "@/components/patient/session-list";
 import { PatientBack } from "@/components/patient/back";
-import { sessionsForPatient } from "@/lib/data/patient-view";
+import { sessionDoors, sessionsForPatient } from "@/lib/data/patient-view";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,10 @@ export default async function PatientSessionsPage({
   const { tab } = await searchParams;
   const active: TabKey = TABS.some((t) => t.key === tab) ? (tab as TabKey) : "all";
 
-  const [sessions, i18n] = await Promise.all([sessionsForPatient(actor.personId), getI18n()]);
+  const [sessions, doors] = await Promise.all([
+    sessionsForPatient(actor.personId),
+    sessionDoors(actor.personId),
+  ]);
 
   const shown = sessions.filter((session) => {
     if (active === "upcoming") return session.group === "today" || session.group === "upcoming";
@@ -86,6 +89,7 @@ export default async function PatientSessionsPage({
       <PatientSessionList
         sessions={shown}
         zone={actor.timezone}
+        doors={Object.fromEntries(doors.map((row) => [row.sessionId, row.door]))}
       />
     </main>
   );

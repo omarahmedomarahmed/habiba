@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
 import {
+  manualPayments,
   noteAddenda,
   patients,
   sessionNotes,
@@ -318,6 +319,116 @@ export async function liveSessionForPatient(
     href: `/join/${row.joinToken}`,
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
   };
+}
+
+/**
+ * 🔴 W2-P06 / W2-P14: WHAT A SESSION CARD OPENS, and what is still owed.
+ *
+ * A card on the sessions list had no link or button at all: no join, no pay,
+ * no "we are checking your transfer", no summary. Billing listed only paid
+ * rows, so an unpaid session and a transfer waiting on an operator were on no
+ * screen but the orb, which shows only the newest.
+ *
+ * ## Why a second query and not a wider `sessionsForPatient`
+ *
+ * The reason `openSessionForPatient` gives: that function's select list is
+ * §6's enforcement and `verify:sprint15` freezes its shape, and a join token is
+ * a door key. So the doors come from here, keyed by session id, and carry a
+ * state and a link and nothing clinical: a note's `patient_status` is read only
+ * to know whether a signed summary exists to point at.
+ */
+export type SessionDoor = { kind: "join" | "pay" | "checking" | "summary"; href: string };
+
+/** Pure, so the four states and the dead ends between them are a test. */
+export function doorFor(row: {
+  status: string;
+  endedAt: Date | null;
+  joinToken: string | null;
+  joinTokenExpiresAt: Date | null;
+  priceCents: number;
+  paymentStatus: string;
+  transferSubmitted: boolean;
+  summarySigned: boolean;
+  now: number;
+}): SessionDoor | null {
+  if (row.status === "cancelled") return null;
+
+  const open =
+    (row.status === "scheduled" || row.status === "in_progress") &&
+    row.endedAt === null &&
+    row.joinToken !== null &&
+    (row.joinTokenExpiresAt === null || row.joinTokenExpiresAt.getTime() > row.now);
+
+  if (open) {
+    const owes = row.priceCents > 0 && row.paymentStatus === "pending";
+    if (!owes) return { kind: "join", href: `/join/${row.joinToken}` };
+    /* The pay page shows the transfer's state itself; the card says which it is. */
+    return { kind: row.transferSubmitted ? "checking" : "pay", href: `/pay/${row.joinToken}` };
+  }
+
+  return row.summarySigned ? { kind: "summary", href: "/patient/summary" } : null;
+}
+
+export type SessionDoorRow = {
+  sessionId: string;
+  therapistName: string;
+  at: Date;
+  priceCents: number;
+  priceCurrency: string;
+  door: SessionDoor | null;
+};
+
+export async function sessionDoors(personId: string): Promise<SessionDoorRow[]> {
+  const db = dbFor(await regionOfPerson(personId));
+
+  const rows = await db
+    .select({
+      id: sessions.id,
+      status: sessions.status,
+      endedAt: sessions.endedAt,
+      scheduledAt: sessions.scheduledAt,
+      createdAt: sessions.createdAt,
+      joinToken: sessions.joinToken,
+      joinTokenExpiresAt: sessions.joinTokenExpiresAt,
+      priceCents: sessions.priceCents,
+      priceCurrency: sessions.priceCurrency,
+      paymentStatus: sessions.paymentStatus,
+      therapistFirst: users.firstName,
+      therapistLast: users.lastName,
+      patientStatus: sessionNotes.patientStatus,
+      transferSubmitted: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${manualPayments}
+         WHERE ${manualPayments.purpose} = 'session'
+           AND ${manualPayments.refId} = ${sessions.id}
+           AND ${manualPayments.state} = 'submitted')`,
+    })
+    .from(sessions)
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .innerJoin(users, eq(users.id, sessions.therapistId))
+    .leftJoin(sessionNotes, eq(sessionNotes.sessionId, sessions.id))
+    .where(and(eq(patients.personId, personId), isNull(patients.deletedAt)))
+    .orderBy(desc(sql`COALESCE(${sessions.scheduledAt}, ${sessions.createdAt})`))
+    .limit(200);
+
+  const now = Date.now();
+  return rows.map((row) => ({
+    sessionId: row.id,
+    therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
+    at: row.scheduledAt ?? row.createdAt,
+    priceCents: row.priceCents,
+    priceCurrency: row.priceCurrency,
+    door: doorFor({
+      status: row.status,
+      endedAt: row.endedAt,
+      joinToken: row.joinToken,
+      joinTokenExpiresAt: row.joinTokenExpiresAt,
+      priceCents: row.priceCents,
+      paymentStatus: row.paymentStatus,
+      transferSubmitted: Boolean(row.transferSubmitted),
+      summarySigned: row.patientStatus === "approved",
+      now,
+    }),
+  }));
 }
 
 /**

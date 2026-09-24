@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { CalendarClock, FileText, Zap } from "lucide-react";
 
 import { Card } from "@/components/ui";
-import type { PatientSession, SessionGroup } from "@/lib/data/patient-view";
+import type { PatientSession, SessionDoor, SessionGroup } from "@/lib/data/patient-view";
 import { formatMoney } from "@/lib/billing/plans";
 import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -43,11 +44,25 @@ const HEADINGS: Record<SessionGroup, { title: MessageKey; blurb: MessageKey }> =
 
 const ORDER: SessionGroup[] = ["today", "upcoming", "past_scheduled", "past_instant"];
 
+/* 🔴 W2-P06: what each door says. Every label is one the app already uses for it. */
+const DOOR_LABEL: Record<SessionDoor["kind"], MessageKey> = {
+  join: "psessions.join",
+  pay: "porb.pay",
+  checking: "transfer.checking",
+  summary: "home.summary",
+};
+
 export function PatientSessionList({
   sessions,
   zone,
+  doors = {},
 }: {
   sessions: PatientSession[];
+  /**
+   * 🔴 W2-P06: what each card opens, by session id, from `sessionDoors`. A card
+   * with nothing on it was a card a patient could read and do nothing with.
+   */
+  doors?: Record<string, SessionDoor | null>;
   /** The account's own zone, from the server. 13.13 precedence, C84's rule. */
   zone: string | null;
 }) {
@@ -159,6 +174,15 @@ export function PatientSessionList({
                         <FileText className="h-3 w-3" aria-hidden />
                         {t("psessions.writing")}
                       </p>
+                    ) : null}
+
+                    {doors[session.id] ? (
+                      <Link
+                        href={doors[session.id]!.href}
+                        className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+                      >
+                        {t(DOOR_LABEL[doors[session.id]!.kind])}
+                      </Link>
                     ) : null}
                   </Card>
                 </li>

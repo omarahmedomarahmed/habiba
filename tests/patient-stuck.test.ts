@@ -120,6 +120,56 @@ test("W2-P05 what a patient is sent about their booking opens their own session,
   }
 });
 
+/* ------------------------------------------------------ W2-P06 and W2-P14 -- */
+
+test("W2-P06 a session card opens what it is waiting on: join, pay, the transfer, the summary", async () => {
+  const { doorFor } = await import("../lib/data/patient-view");
+  const now = Date.parse("2026-09-24T10:00:00Z");
+  const base = {
+    status: "scheduled",
+    endedAt: null,
+    joinToken: "tok",
+    joinTokenExpiresAt: new Date(now + 3_600_000),
+    priceCents: 0,
+    paymentStatus: "not_required",
+    transferSubmitted: false,
+    summarySigned: false,
+    now,
+  };
+
+  assert.deepEqual(doorFor(base), { kind: "join", href: "/join/tok" });
+  assert.deepEqual(doorFor({ ...base, priceCents: 2000, paymentStatus: "pending" }), {
+    kind: "pay",
+    href: "/pay/tok",
+  });
+  assert.deepEqual(
+    doorFor({ ...base, priceCents: 2000, paymentStatus: "pending", transferSubmitted: true }),
+    { kind: "checking", href: "/pay/tok" },
+  );
+  assert.deepEqual(doorFor({ ...base, priceCents: 2000, paymentStatus: "paid" }), {
+    kind: "join",
+    href: "/join/tok",
+  });
+  assert.deepEqual(
+    doorFor({ ...base, status: "completed", endedAt: new Date(now - 1), summarySigned: true }),
+    { kind: "summary", href: "/patient/summary" },
+  );
+  /* No dead doors: a cancelled session, an expired link, an unsigned summary. */
+  assert.equal(doorFor({ ...base, status: "cancelled", summarySigned: true }), null);
+  assert.equal(doorFor({ ...base, joinTokenExpiresAt: new Date(now - 1) }), null);
+  assert.equal(doorFor({ ...base, status: "completed", endedAt: new Date(now - 1) }), null);
+
+  assert.match(code("components/patient/session-list.tsx"), /doors\[session\.id\]/);
+  assert.match(code("app/(patient)/patient/sessions/page.tsx"), /sessionDoors\(/);
+});
+
+test("W2-P14 billing lists what is still open, not only what was paid", () => {
+  const billing = code("app/(patient)/patient/billing/page.tsx");
+  assert.match(billing, /sessionDoors\(/);
+  assert.match(billing, /kind === "pay" \|\| row\.door\?\.kind === "checking"/);
+  assert.match(billing, /patientOwesFor\(/, "the amount is what they owe after their benefit");
+});
+
 /* ----------------------------------------------------------------- W2-P04 -- */
 
 test("W2-P04 every self-booking door hands the signed-in person to the data layer", () => {

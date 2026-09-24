@@ -157,7 +157,43 @@ async function main() {
       ),
       `${listed.length} on the list`,
     );
+
+    /* ================================================================ */
+    /*  W2-P06 / W2-P14 · A CARD OPENS SOMETHING, AND WHAT IS OWED SHOWS */
+    /* ================================================================ */
+
+    const own = await one<{ id: string }>(sql`
+      SELECT id FROM patients WHERE person_id = ${person.id} AND therapist_id = ${therapist.id}`);
+    const owed = await one<{ id: string }>(sql`
+      INSERT INTO sessions (organization_id, therapist_id, patient_id, status, modality,
+                            feedback_token, join_token, join_token_expires_at,
+                            price_cents, payment_status)
+      VALUES (${org.id}, ${therapist.id}, ${own.id}, 'scheduled', 'video', ${`fb-owed-${fixture}`},
+              ${`jt-owed-${fixture}`}, now() + interval '3 hours', 2000, 'pending')
+      RETURNING id`);
+    const checking = await one<{ id: string }>(sql`
+      INSERT INTO sessions (organization_id, therapist_id, patient_id, status, modality,
+                            feedback_token, join_token, join_token_expires_at,
+                            price_cents, payment_status)
+      VALUES (${org.id}, ${therapist.id}, ${own.id}, 'scheduled', 'video', ${`fb-chk-${fixture}`},
+              ${`jt-chk-${fixture}`}, now() + interval '3 hours', 2000, 'pending')
+      RETURNING id`);
+    await db.execute(sql`
+      INSERT INTO manual_payments (purpose, ref_id, amount_cents, settles_cents, payer_kind,
+                                   organization_id, state, reference, submitted_at)
+      VALUES ('session', ${checking.id}, 100000, 2000, 'session', ${org.id}, 'submitted',
+              ${`ref-${fixture}`}, now())`);
+
+    const { sessionDoors } = await import("../lib/data/patient-view");
+    const doors = await sessionDoors(person.id);
+    const doorOf = (id: string) => doors.find((row) => row.sessionId === id)?.door?.kind ?? "none";
+    check(
+      "🔴 W2-P06 an unpaid session's card opens the payment, a submitted transfer's says it is being checked",
+      doorOf(owed.id) === "pay" && doorOf(checking.id) === "checking" && doorOf(mine.id) === "join",
+      `owed=${doorOf(owed.id)}, transfer=${doorOf(checking.id)}, free=${doorOf(mine.id)}`,
+    );
   } finally {
+    await db.execute(sql`DELETE FROM manual_payments WHERE reference = ${`ref-${fixture}`}`);
     await db.execute(sql`DELETE FROM availability_slots WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id IN
