@@ -1282,25 +1282,40 @@ async function main() {
     /*  53.5 / 53.8 / 53.9 · the doors and the poster       */
     /* ==================================================== */
 
-    const { PRINCIPALS, routeDecision, SPONSOR_APPLY } = await import("../lib/routing");
+    const { PRINCIPALS, routeDecision, SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM } = await import(
+      "../lib/routing"
+    );
 
     const sponsorPrincipal = required(
       PRINCIPALS.find((principal) => principal.name === "sponsor"),
       "the sponsor principal",
     );
 
+    /*
+     * 🔴 W2-S01 — AND THE DOMAIN MAILBOX LINK, WHICH THIS CHECK HAD FORBIDDEN.
+     *
+     * It asserted exactly one open route, and so encoded the defect: the confirm
+     * link mailed to `postmaster@` could only be pressed by somebody who already
+     * had a portal login. The link's HMAC is its authorisation (C318). The rule
+     * stays a closed list, now naming both, so a third open route still fails.
+     */
+    const open = sponsorPrincipal.openRoutes ?? [];
     check(
-      "🔴 53.5 the enquiry form is reachable by a stranger, and it is the ONLY such path",
+      "🔴 53.5 the enquiry form and the mailbox link are reachable by a stranger, and they are the ONLY such paths",
       routeDecision(SPONSOR_APPLY, { expired: false }).kind === "pass" &&
-        (sponsorPrincipal.openRoutes ?? []).length === 1,
-      "one open route inside /sponsor, listed rather than implied",
+        routeDecision(`${SPONSOR_DOMAIN_CONFIRM}/x`, { expired: false }).kind === "pass" &&
+        open.length === 2 &&
+        open.includes(SPONSOR_APPLY) &&
+        open.includes(SPONSOR_DOMAIN_CONFIRM),
+      open.join(", "),
     );
 
     check(
       "🔴 CONTROL …and every other sponsor path still bounces a stranger to the door",
       routeDecision("/sponsor", { expired: false }).kind === "redirect" &&
         routeDecision("/sponsor/people", { expired: false }).kind === "redirect" &&
-        routeDecision("/sponsor/pot", { expired: false }).kind === "redirect",
+        routeDecision("/sponsor/pot", { expired: false }).kind === "redirect" &&
+        routeDecision("/sponsor/domains", { expired: false }).kind === "redirect",
       "the open route is an exception, not a hole",
     );
 
