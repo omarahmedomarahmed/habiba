@@ -221,13 +221,14 @@ async function main() {
   check(
     "17.8 …and an EGP toggle beside the price, or none at all if the pair cannot be priced",
     /*
-     * Since money became `<Money>` (27), the toggle is the price itself: USD
-     * on the website, EGP on hover or tap, and its label names both. The old
-     * separate toggle said "Egyptian pounds"; either is the promise.
+     * Since money became a toggle on the price itself (27), the price button
+     * says "Show this price in dollars" (or pounds), and `<Money>` elsewhere
+     * names both currencies in its label. The old separate toggle said
+     * "Egyptian pounds"; any of the three is the promise.
      */
     pricing.includes("Egyptian pounds") ||
-      /role="button"[^>]*aria-label="\$[^"]*, (EGP|E£|ج\.م)[^"]*"/.test(pricing) ||
-      /aria-label="\$[^"]*, (EGP|E£|ج\.م)[^"]*"[^>]*role="button"/.test(pricing) ||
+      /aria-label="[^"]*(EGP|E£|\$)[^"]*Show this price in (dollars|pounds)"/.test(pricing) ||
+      /role="button"[^>]*aria-label="\$[^"]*, (EGP|E£)[^"]*"/.test(pricing) ||
       !pricing.includes("EGP"),
   );
 
