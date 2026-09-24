@@ -188,6 +188,7 @@
     "verify:plan": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-plan.ts",
     "verify:rail": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rail.ts",
     "verify:raw-sql": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-raw-sql.ts",
+    "verify:gateway": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-gateway.ts",
     "verify:qualified": "node --env-file-if-exists=.env.local --import tsx scripts/verify-qualified.ts",
     "verify:cycle": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-cycle.ts",
     "verify:served": "node --env-file-if-exists=.env.local --import tsx scripts/verify-served.ts",

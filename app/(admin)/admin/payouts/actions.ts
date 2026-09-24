@@ -106,6 +106,29 @@ export async function markSent(_prev: QueueState, formData: FormData): Promise<Q
   return { ok: true };
 }
 
+/**
+ * 🔴 64.1: hand an approved payout to the payouts provider. The same person
+ * rules as "Mark sent", asked now; the ledger posts when the provider says the
+ * money left.
+ */
+export async function sendThroughProvider(_prev: QueueState, formData: FormData): Promise<QueueState> {
+  const actor = await requireStaff();
+  const requestId = String(formData.get("requestId") ?? "");
+  const { sendViaProvider } = await import("@/lib/billing/payouts");
+  const result = await sendViaProvider({ requestId, senderUserId: actor.userId });
+  if (result.error) return { error: await say(result.error) };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "payout.provider_sent",
+    resourceType: "payout_request",
+    resourceId: requestId,
+  });
+  revalidatePath("/admin/payouts");
+  return { ok: true };
+}
+
 export async function confirm(_prev: QueueState, formData: FormData): Promise<QueueState> {
   const actor = await requireStaff();
   const requestId = String(formData.get("requestId") ?? "");

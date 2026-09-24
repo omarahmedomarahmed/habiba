@@ -49,6 +49,8 @@ export type EmployeeHalf =
   | { rail: "unpaid"; cents: 0 }
   /** Paid by card: a Stripe refund of their own charge. */
   | { rail: "card"; cents: number }
+  /** Paid by card through the Egyptian gateway: the gateway returns it (64.1). */
+  | { rail: "gateway"; cents: number }
   /** Paid by transfer (or by a rail we hold no charge for): the manual refund queue. */
   | { rail: "queue"; cents: number };
 
@@ -59,6 +61,8 @@ export function splitRefundPlan(input: FrozenSplit & {
   employeePaid: boolean;
   /** Their own charge, when they paid it by card. */
   stripePaymentIntentId: string | null;
+  /** They paid through the Egyptian card gateway (64.1). */
+  gatewayPaid?: boolean;
 }): { potCents: number; employee: EmployeeHalf } {
   const { potCents, employeeCents } = sharesOf(input);
   const back = employeeCents + Math.max(0, input.vatCents);
@@ -70,6 +74,7 @@ export function splitRefundPlan(input: FrozenSplit & {
    * some other way (a transfer), and a person sends it back; saying "refunded"
    * here is the W1-12 defect.
    */
+  if (input.gatewayPaid) return { potCents, employee: { rail: "gateway", cents: back } };
   if (input.stripePaymentIntentId) return { potCents, employee: { rail: "card", cents: back } };
   return { potCents, employee: { rail: "queue", cents: back } };
 }
@@ -91,29 +96,11 @@ export function refundOwedCents(payment: FrozenSplit & {
 }
 
 /**
- * 🔴 W2-M06: the most the refund queue may send back for one row.
- *
- * The same answer `refundOwedCents` gives when the queue row is opened, asked
- * again when it is sent, because rows opened before W2-S12 carry the whole
- * price plus VAT for a pot row and the money leaves on this step. A pot row
- * owes its employee their share and its VAT only if they paid it; a
- * `pot_share` row (W2-M05) is the company's share, returned to the pot by the
- * same step, and nothing to the employee.
+ * 🔴 W2-M05: the queue row that is the COMPANY's share, opened when its return
+ * to the pot failed during a refund. `returnPotShare` retries it; it is never
+ * sent to anybody by transfer.
  */
 export const POT_SHARE_REFUND = "pot_share";
-
-export function refundCeilingCents(payment: FrozenSplit & {
-  fundingSource: "card" | "pot";
-  vatCents: number;
-  /** The queue row's reason code. */
-  reason: string;
-  /** Whether the employee's share arrived (a pot row only). */
-  employeePaid: boolean;
-}): number {
-  if (payment.fundingSource !== "pot") return refundOwedCents(payment);
-  if (payment.reason === POT_SHARE_REFUND) return sharesOf(payment).potCents;
-  return payment.employeePaid ? refundOwedCents(payment) : 0;
-}
 
 /** One funding leg of a session's money: what it paid, our fee on it, the clinician's part. */
 export type FundingLeg = { grossCents: number; feeCents: number; netCents: number };

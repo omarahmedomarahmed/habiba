@@ -5,7 +5,6 @@ import { readSource } from "../scripts/_verify";
 import {
   fundingLegs,
   moneyEntryFigures,
-  refundCeilingCents,
   refundOwedCents,
   splitRefundPlan,
 } from "../lib/billing/split-refund";
@@ -158,18 +157,4 @@ test("W2-M01 at 95% cover the employee's charge carries only its own fee, never 
   });
   assert.equal(legs.employee.feeCents, 75);
   assert.ok(legs.employee.feeCents < legs.employee.grossCents);
-});
-
-test("W2-M06 a pot row's queue ceiling is what the employee paid, and nothing if they paid nothing", () => {
-  const row = {
-    grossCents: 10_000,
-    coverageBps: 5_000,
-    sponsorShareCents: 5_000,
-    patientShareCents: 5_000,
-    fundingSource: "pot" as const,
-    vatCents: 0,
-  };
-  assert.equal(refundCeilingCents({ ...row, reason: "no_show", employeePaid: true }), 5_000);
-  assert.equal(refundCeilingCents({ ...row, reason: "no_show", employeePaid: false }), 0);
-  assert.equal(refundCeilingCents({ ...row, reason: "pot_share", employeePaid: false }), 5_000);
 });

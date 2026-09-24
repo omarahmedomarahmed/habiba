@@ -544,42 +544,18 @@ export async function createSessionPaymentCheckout(opts: {
   const collectionCurrency = collectionCurrencyFor(country.code);
   if (collectionRailFor(country.code) !== "stripe_usd" || collectionCurrency !== "usd") {
     /*
-     * 🔴 64.1 — AND THE OTHER RAIL IS ASKED WHETHER IT IS READY, rather than assumed
-     * not to be.
+     * 🔴 64.1 — THE OTHER RAIL IS ITS OWN CHECKOUT, NOT A BRANCH OF THIS ONE.
      *
-     * Today it never is: sprint 64 is blocked on a licensed Egyptian entity, a
-     * merchant account and a signed gateway contract. The day those land, this
-     * branch stops being the end of the road and becomes the fork it was always
-     * shaped as, and nothing else in this function changes.
-     *
-     * 🔴 THE PATIENT'S MESSAGE DOES NOT NAME A GATEWAY OR A COUNTRY. Somebody
-     * trying to pay for therapy is not the person who can act on "the Egyptian
-     * merchant account is not open yet", and telling them which rail is missing is
-     * telling them about our paperwork. The operator's version of this is on the
-     * admin settings screen, where the person who can clear it reads it.
+     * The patient's message does not name a gateway or a country: somebody
+     * trying to pay for therapy cannot act on our paperwork. The operator's
+     * version is on the admin settings screen.
      */
-    const { railIsReady } = await import("./egypt");
-
-    if (!railIsReady()) {
-      return {
-        error:
-          "Card payments in that country go through a different rail, which is not switched on yet. Ask your therapist for a free link: the session itself works exactly the same.",
-      };
-    }
-
     /*
-     * 🔴 NOT BUILT, AND SAYING SO RATHER THAN FALLING THROUGH.
-     *
-     * `railIsReady()` returning true means somebody has configured a gateway that
-     * this build has no adapter for, which is a deployment mistake rather than a
-     * patient's problem. Falling through to the Stripe path below would charge them
-     * in the wrong currency on the wrong rail.
+     * 🔴 Never the Stripe path below, which would charge in the wrong currency
+     * on the wrong rail. An Egyptian practice's pay page offers the gateway's
+     * own checkout (`gateway/session.ts`) when it is ready, and a transfer
+     * always; nothing reaches here for Egypt on purpose.
      */
-    const { egyptianRail } = await import("./egypt");
-    log.error("a collection rail is configured with no adapter", {
-      rail: egyptianRail().name,
-    });
-
     return {
       error:
         "Card payments in that country go through a different rail, which is not switched on yet. Ask your therapist for a free link: the session itself works exactly the same.",
@@ -845,7 +821,7 @@ export async function createSessionPaymentCheckout(opts: {
  * out of `createSessionPaymentCheckout` (W2-M01) so the part that needs no
  * Stripe can be run against the database by `verify:w2m`.
  */
-export async function recordSessionCheckout(input: {
+async function recordSessionCheckout(input: {
   organizationId: string;
   therapistId: string;
   sessionId: string;
@@ -1212,6 +1188,44 @@ export async function refundSessionPayment(opts: {
    */
   if (payment.fundingSource === "pot") return refundSplit(payment, opts);
 
+  /*
+   * 🔴 64.1: paid by card through the Egyptian gateway. The gateway returns it
+   * against its own transaction, then the same books and session writes as a
+   * card refund. Before the Stripe check: this money never touched Stripe.
+   */
+  const { refundThroughGateway } = await import("./gateway/session");
+  const viaGateway = await refundThroughGateway(payment.id);
+  if (viaGateway && !viaGateway.ok) {
+    log.error("gateway refund failed", { payment: ref(opts.paymentId), reason: viaGateway.error });
+    return { error: "The card gateway did not return the payment. It is owed on the refund queue." };
+  }
+  if (viaGateway?.ok) {
+    const [refunded] = await db
+      .update(sessionPayments)
+      .set({ status: "refunded" })
+      .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")))
+      .returning({ id: sessionPayments.id });
+    if (refunded) {
+      const { postSessionRefund } = await import("./ledger");
+      await postSessionRefund({
+        id: payment.id,
+        organizationId: payment.organizationId,
+        therapistId: payment.therapistId,
+        capture: payment.capture,
+        grossCents: payment.grossCents,
+        vatCents: payment.vatCents,
+        platformFeeCents: payment.platformFeeCents,
+        settledInvoiceCents: payment.settledInvoiceCents,
+        therapistNetCents: payment.therapistNetCents,
+      });
+      await db
+        .update(sessions)
+        .set({ paymentStatus: "pending", updatedAt: new Date() })
+        .where(eq(sessions.id, payment.sessionId));
+    }
+    return { ok: true, toPayerCents: viaGateway.usdCents };
+  }
+
   const client = getStripe();
   if (!client) return { error: "Payments are not configured on this deployment." };
 
@@ -1344,6 +1358,18 @@ async function refundSplit(
      * move.
      */
     return { ok: true, queuedCents: employee.cents, toPayerCents: 0 };
+  }
+
+  if (employee.rail === "gateway") {
+    const { refundThroughGateway } = await import("./gateway/session");
+    const back = await refundThroughGateway(payment.id);
+    if (!back?.ok) {
+      log.error("gateway refund of an employee's share failed", {
+        payment: ref(payment.id),
+        reason: back?.error ?? "no paid attempt",
+      });
+      return { error: "The card gateway did not return the employee's share." };
+    }
   }
 
   if (employee.rail === "card") {

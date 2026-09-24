@@ -18,7 +18,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import { tractionMetrics } from "@/lib/data/vault";
 import { getCountries, getSettings } from "@/lib/settings";
 import { hasNoRail } from "@/lib/settings/defs";
-import { whatTheRailNeeds } from "@/lib/billing/egypt";
+import { whatPayoutsNeed, whatTheGatewayNeeds } from "@/lib/billing/gateway";
 import { countriesMissingACrisisLine } from "@/lib/crisis/line";
 
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
@@ -61,7 +61,8 @@ export default async function SettingsPage() {
   const unreachable = countries.filter(hasNoRail);
 
   /* 🔴 64.1 — what the Egyptian rail is waiting for, which is paperwork not code. */
-  const railNeeds = whatTheRailNeeds();
+  const gatewayNeeds = whatTheGatewayNeeds();
+  const payoutsNeed = whatPayoutsNeed();
 
   /*
    * 🔴 21R.8 / C98 / 0088 — WHERE A PERSON IN CRISIS GETS A SENTENCE, NOT A NUMBER.
@@ -153,20 +154,34 @@ export default async function SettingsPage() {
         `whatTheRailNeeds` returns an empty list when both are configured, so this
         disappears the day the contract lands rather than becoming a stale banner.
       */}
-      {railNeeds.length > 0 ? (
+      {gatewayNeeds.length > 0 || payoutsNeed.length > 0 ? (
         <Card className="border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-semibold text-amber-900">
-            Egypt has no payment rail yet
-          </p>
-          <ul className="mt-1 space-y-1 text-sm leading-relaxed text-amber-900/90">
-            {railNeeds.map((need) => (
-              <li key={need}>{need}</li>
-            ))}
-          </ul>
-          <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
-            Until then an Egyptian patient pays by transfer and the therapist is on the manual
-            payout queue.
-          </p>
+          {gatewayNeeds.length > 0 ? (
+            <>
+              <p className="text-sm font-semibold text-amber-900">Egypt: no card payments yet</p>
+              <ul className="mt-1 space-y-1 text-sm leading-relaxed text-amber-900/90">
+                {gatewayNeeds.map((need) => (
+                  <li key={need}>{need}</li>
+                ))}
+              </ul>
+              <p className="mt-1 text-sm leading-relaxed text-amber-900/90">
+                Meanwhile patients pay by transfer.
+              </p>
+            </>
+          ) : null}
+          {payoutsNeed.length > 0 ? (
+            <>
+              <p className="mt-3 text-sm font-semibold text-amber-900">Egypt: no automated payouts yet</p>
+              <ul className="mt-1 space-y-1 text-sm leading-relaxed text-amber-900/90">
+                {payoutsNeed.map((need) => (
+                  <li key={need}>{need}</li>
+                ))}
+              </ul>
+              <p className="mt-1 text-sm leading-relaxed text-amber-900/90">
+                Meanwhile clinicians are paid by hand.
+              </p>
+            </>
+          ) : null}
         </Card>
       ) : null}
 

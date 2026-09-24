@@ -5342,10 +5342,28 @@ export const payoutRequests = pgTable(
     /** Set when the money left the books, so a reversal is traceable. */
     ledgerTxnId: uuid("ledger_txn_id"),
 
+    /*
+     * 🔴 0145: the payouts provider's side, when one sends it. `sending` from
+     * the moment we asked it to, `sent` when its signed callback says the money
+     * left (which is when the ledger posts, as "Mark sent" does by hand),
+     * `failed` with its reason, and the request stays approved to try again or
+     * to send by hand. The person who pressed Send is kept for four eyes.
+     */
+    provider: text("provider"),
+    providerRef: text("provider_ref"),
+    providerState: text("provider_state").$type<"sending" | "sent" | "failed">(),
+    providerError: text("provider_error"),
+    providerSenderUserId: uuid("provider_sender_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    uniqueIndex("payout_requests_provider_ref_unique")
+      .on(t.provider, t.providerRef)
+      .where(sql`provider_ref IS NOT NULL`),
     index("payout_requests_therapist_idx").on(t.therapistId, t.requestedAt),
     // The queue screen: open work, oldest first.
     index("payout_requests_open_idx")
@@ -5449,6 +5467,55 @@ export const refundRequests = pgTable(
 );
 
 export type RefundRequest = typeof refundRequests.$inferSelect;
+
+/**
+ * 🔴 Migration 0145: one attempt to take money through a card gateway.
+ *
+ * The Egyptian entity's gateway is not contracted yet; this row is everything
+ * around it, so the day the keys arrive only an adapter is written
+ * (`lib/billing/gateway`). The vendor is a value in `provider`, never a
+ * column. `usd_cents` is what the attempt settles on our books, which are kept
+ * in dollars; `amount_minor` is what the payer was charged, in `currency`.
+ *
+ *   created   a checkout exists and nobody has paid it
+ *   paid      the gateway's signed callback (or a status read) said so, once
+ *   failed    declined or abandoned; the session is still owed
+ *   refunded  the gateway returned it
+ */
+export type GatewayPaymentState = "created" | "paid" | "failed" | "refunded";
+
+export const gatewayPayments = pgTable(
+  "gateway_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").notNull(),
+    purpose: text("purpose").$type<"session">().notNull(),
+    refId: uuid("ref_id").notNull(),
+    sessionPaymentId: uuid("session_payment_id").references(() => sessionPayments.id, {
+      onDelete: "set null",
+    }),
+    amountMinor: integer("amount_minor").notNull(),
+    currency: text("currency").$type<"egp">().notNull(),
+    usdCents: integer("usd_cents").notNull(),
+    vatCents: integer("vat_cents").notNull().default(0),
+    providerRef: text("provider_ref").notNull(),
+    providerTxnId: text("provider_txn_id"),
+    state: text("state").$type<GatewayPaymentState>().notNull().default("created"),
+    refundedMinor: integer("refunded_minor").notNull().default(0),
+    failure: text("failure"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    refundedAt: timestamp("refunded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("gateway_payments_provider_ref_unique").on(t.provider, t.providerRef),
+    index("gateway_payments_ref_idx").on(t.purpose, t.refId),
+  ],
+);
+
+export type GatewayPayment = typeof gatewayPayments.$inferSelect;
 
 /* ----------------------------------------------- §3d · support tickets -- */
 

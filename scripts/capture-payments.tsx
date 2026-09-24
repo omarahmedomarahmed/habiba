@@ -545,6 +545,8 @@ async function main() {
             owned: false,
             requestedAtLabel: "yesterday, 18:40",
             proofUrl: null,
+            providerState: null,
+            providerError: null,
           },
         ],
         automated: [

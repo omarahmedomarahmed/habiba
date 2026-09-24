@@ -319,6 +319,23 @@ export const env = {
    */
   egyptGatewayKey: process.env.EGYPT_GATEWAY_KEY || "",
   egyptMerchantId: process.env.EGYPT_MERCHANT_ID || "",
+  /*
+   * Which adapter sits behind the seam (`lib/billing/gateway`): empty for none,
+   * `fake` for the development simulator, or the contracted adapter's name once
+   * one is written. The callback signing secret is the gateway's own.
+   */
+  egyptGateway: (process.env.EGYPT_GATEWAY || "").trim().toLowerCase(),
+  egyptGatewayHmac: process.env.EGYPT_GATEWAY_HMAC || "",
+  /* The payouts provider, by the same three rules. */
+  egyptPayouts: (process.env.EGYPT_PAYOUTS || "").trim().toLowerCase(),
+  egyptPayoutsKey: process.env.EGYPT_PAYOUTS_KEY || "",
+  egyptPayoutsHmac: process.env.EGYPT_PAYOUTS_HMAC || "",
+  /**
+   * The deployment real people use. Not `isProduction`, which is also true of
+   * `next start` on a laptop; a simulator is refused only where it could take
+   * a real patient's payment for a pretend one.
+   */
+  liveDeployment: process.env.VERCEL_ENV === "production",
 
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "24Therapy <noreply@24therapy.app>",

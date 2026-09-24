@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { desc, eq } from "drizzle-orm";
 
+import Link from "next/link";
+
 import { PayoutQueue } from "@/components/admin/payout-queue";
 import { RefundQueue } from "@/components/admin/refund-queue";
 import { Card, PageHeader } from "@/components/ui";
@@ -40,6 +42,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function PayoutsPage() {
   const actor = await requireStaff();
+  const { payoutProvider } = await import("@/lib/billing/gateway");
+  const providerReady = payoutProvider() !== null;
+  const { simulatorOn } = await import("@/app/dev/simulator");
+  const simulator = simulatorOn("payouts");
 
   const [manual, books, automated, refunds] = await Promise.all([
     manualQueue(),
@@ -100,6 +106,12 @@ export default async function PayoutsPage() {
           </p>
         </Card>
 
+        {/* 🔴 64.1: whether a payouts provider can send, beside the manual queue. */}
+        {simulator ? (
+          <Link href="/dev/payouts" className="text-xs font-semibold text-amber-700 underline">
+            Simulator
+          </Link>
+        ) : null}
         <PayoutQueue
           manual={manual.map((row) => ({
             id: row.id,
@@ -118,7 +130,10 @@ export default async function PayoutsPage() {
             owned: row.ownerUserId !== null,
             requestedAtLabel: formatDate(row.requestedAt, actor.timezone, "en"),
             proofUrl: row.proofUrl,
+            providerState: row.providerState,
+            providerError: row.providerError,
           }))}
+          providerReady={providerReady}
           automated={automated.map((row) => ({
             id: row.id,
             therapistName: [row.firstName, row.lastName].filter(Boolean).join(" "),

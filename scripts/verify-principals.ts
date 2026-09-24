@@ -397,6 +397,18 @@ const CAPABILITY_AUTH = [
   "openExport",
   "feedbackContext",
   "pending.state",
+  /*
+   * 64.1: a payment provider's callback. `verifyCallback` checks the body's
+   * signature against the provider's secret before anything is read, the same
+   * kind of proof as `cronSecret` in a header; an unsigned or forged body is a
+   * 400 that touches nothing.
+   */
+  "verifyCallback",
+  /*
+   * 64.1: the payment simulator's own pages, which 404 unless the simulator is
+   * switched on, and never exist on the live deployment (`app/dev/simulator.ts`).
+   */
+  "simulatorOn",
 ];
 
 /** The guards a file calls, by name. */

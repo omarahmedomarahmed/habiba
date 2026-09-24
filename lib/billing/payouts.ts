@@ -84,6 +84,9 @@ export type PayoutQueueRow = {
   overdue: boolean;
   needsTwoPeople: boolean;
   proofUrl: string | null;
+  /** 64.1: the payouts provider's side, when one is sending it. */
+  providerState: "sending" | "sent" | "failed" | null;
+  providerError: string | null;
 };
 
 /* ---------------------------------------------------------- the details -- */
@@ -406,21 +409,41 @@ export async function markPayoutSent(input: {
 
   if (!row) return { error: "That request no longer exists." };
   if (row.status !== "approved") return { error: "Only an approved payout can be sent." };
+  /* A provider is already sending it: its callback finishes it, not a second hand. */
+  if (row.providerState === "sending") return { error: "A payouts provider is sending this one." };
   const refused = await fourEyes(row, input.senderUserId, false);
   if (refused) return refused;
 
+  return recordSent(row, input.senderUserId, proof, "Transfer made");
+}
+
+/**
+ * The money left: the guarded move to `sent`, the ledger post in the same
+ * transaction for the call that won it (W1-04), and the clinician told. Shared
+ * by "Mark sent" and the payouts provider's callback, so both leave the books
+ * and the screens in exactly the same state.
+ */
+async function recordSent(
+  row: PayoutRequest,
+  senderUserId: string,
+  proof: string,
+  note: string,
+  extra: Record<string, unknown> = {},
+): Promise<{ ok?: boolean; error?: string }> {
+  const input = { requestId: row.id, senderUserId };
   const txnId = crypto.randomUUID();
   const moved = await move({
     requestId: input.requestId,
     from: ["approved"],
     to: "sent",
     actorUserId: input.senderUserId,
-    note: "Transfer made",
+    note,
     set: {
       sentByUserId: input.senderUserId,
       sentAt: new Date(),
       proofUrl: proof,
       ledgerTxnId: txnId,
+      ...extra,
     },
     alsoPost: (tx) =>
       postManualPayout({
@@ -462,6 +485,124 @@ export async function markPayoutSent(input: {
   );
 
   return { ok: true };
+}
+
+/**
+ * 🔴 64.1: SEND THROUGH THE PAYOUTS PROVIDER, instead of by hand.
+ *
+ * The same person rules as "Mark sent" (four eyes, never the payee or the
+ * editor), asked at the moment somebody presses Send, because the provider's
+ * callback has no person in it. The request is claimed `sending` first, in the
+ * WHERE, so two presses make one instruction; the provider's reference is
+ * stored with it. Nothing posts to the ledger here: the money has not left
+ * until the provider says so (`applyPayoutEvent`), which is when "Mark sent"
+ * would have been pressed.
+ */
+export async function sendViaProvider(input: {
+  requestId: string;
+  senderUserId: string;
+}): Promise<{ ok?: boolean; error?: string }> {
+  const { payoutProvider, PROVIDER_METHODS } = await import("./gateway");
+  const provider = payoutProvider();
+  if (!provider) return { error: "No payouts provider is switched on. Send it by hand." };
+
+  const row = await requestRow(input.requestId);
+  if (!row) return { error: "That request no longer exists." };
+  if (row.status !== "approved") return { error: "Only an approved payout can be sent." };
+  if (!(PROVIDER_METHODS as readonly string[]).includes(row.method)) {
+    return { error: "The provider does not send to this kind of account. Send it by hand." };
+  }
+  const refused = await fourEyes(row, input.senderUserId, false);
+  if (refused) return refused;
+
+  const placeholder = `claim:${row.id}:${crypto.randomUUID()}`;
+  const [claimed] = await db
+    .update(payoutRequests)
+    .set({
+      provider: provider.name,
+      providerRef: placeholder,
+      providerState: "sending",
+      providerError: null,
+      providerSenderUserId: input.senderUserId,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(payoutRequests.id, row.id),
+        eq(payoutRequests.status, "approved"),
+        sql`(${payoutRequests.providerState} IS NULL OR ${payoutRequests.providerState} = 'failed')`,
+      ),
+    )
+    .returning({ id: payoutRequests.id });
+  if (!claimed) return { error: "That request has already moved on. Reload the queue." };
+
+  const { env } = await import("@/lib/env");
+  const sent = await provider.send({
+    reference: row.id,
+    amountMinor: row.payoutAmountMinor,
+    currency: "egp",
+    method: row.method as (typeof PROVIDER_METHODS)[number],
+    identifier: row.identifier,
+    accountName: row.accountName,
+    callbackUrl: `${env.appUrl}/api/payouts/callback`,
+  });
+  if (!sent.ok) {
+    await db
+      .update(payoutRequests)
+      .set({ providerState: "failed", providerError: sent.reason.slice(0, 300), updatedAt: new Date() })
+      .where(eq(payoutRequests.id, row.id));
+    return { error: "The provider refused it. Try again, or send it by hand." };
+  }
+  await db
+    .update(payoutRequests)
+    .set({ providerRef: sent.providerRef, updatedAt: new Date() })
+    .where(and(eq(payoutRequests.id, row.id), eq(payoutRequests.providerRef, placeholder)));
+  await db.insert(payoutRequestEvents).values({
+    requestId: row.id,
+    fromStatus: "approved",
+    toStatus: "approved",
+    actorUserId: input.senderUserId,
+    note: `Sent through ${provider.name}; waiting for it to confirm`,
+  });
+  return { ok: true };
+}
+
+/**
+ * 🔴 WHAT THE PROVIDER SAID, APPLIED ONCE. `sent` is "Mark sent" with the
+ * provider's reference as the proof and the person who pressed Send as the
+ * sender; `failed` leaves the request approved, with the reason, to send again
+ * or by hand. Anything else is not an event.
+ */
+export async function applyPayoutEvent(
+  providerName: string,
+  event: { providerRef: string; reference: string; outcome: "sent" | "failed" | "pending"; failure: string | null },
+): Promise<{ applied: "sent" | "failed" | "ignored" }> {
+  const [row] = await db
+    .select()
+    .from(payoutRequests)
+    .where(and(eq(payoutRequests.provider, providerName), eq(payoutRequests.providerRef, event.providerRef)))
+    .limit(1);
+  if (!row || row.id !== event.reference) return { applied: "ignored" };
+
+  if (event.outcome === "failed") {
+    const [failed] = await db
+      .update(payoutRequests)
+      .set({ providerState: "failed", providerError: (event.failure ?? "failed").slice(0, 300), updatedAt: new Date() })
+      .where(and(eq(payoutRequests.id, row.id), eq(payoutRequests.providerState, "sending")))
+      .returning({ id: payoutRequests.id });
+    return { applied: failed ? "failed" : "ignored" };
+  }
+  if (event.outcome !== "sent" || row.providerState !== "sending") return { applied: "ignored" };
+
+  const sender = row.providerSenderUserId ?? row.approvedByUserId;
+  if (!sender) {
+    log.error("provider sent a payout with nobody on record who sent it", { request: ref(row.id) });
+    return { applied: "ignored" };
+  }
+  const done = await recordSent(row, sender, `provider:${providerName}:${event.providerRef}`, `Sent by ${providerName}`, {
+    providerState: "sent",
+  });
+  return { applied: done.ok ? "sent" : "ignored" };
 }
 
 /** The clinician says it arrived, or the team confirms the bank did. */
@@ -676,6 +817,8 @@ export async function manualQueue(): Promise<PayoutQueueRow[]> {
       requestedAt: payoutRequests.requestedAt,
       ownerUserId: payoutRequests.ownerUserId,
       proofUrl: payoutRequests.proofUrl,
+      providerState: payoutRequests.providerState,
+      providerError: payoutRequests.providerError,
     })
     .from(payoutRequests)
     .innerJoin(users, eq(users.id, payoutRequests.therapistId))
@@ -707,6 +850,8 @@ export async function manualQueue(): Promise<PayoutQueueRow[]> {
       overdue: ageHours >= settings.payouts.alertAfterHours,
       needsTwoPeople: row.amountCents > settings.payouts.twoPersonThresholdCents,
       proofUrl: row.proofUrl,
+      providerState: row.providerState,
+      providerError: row.providerError,
     };
   });
 }

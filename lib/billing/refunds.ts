@@ -57,6 +57,7 @@ type Result = { ok?: boolean; error?: MessageKey; id?: string };
  * which the plan reads from the shares.
  */
 export async function employeeHalfOf(payment: FrozenSplit & {
+  id: string;
   sessionId: string;
   vatCents: number;
   stripePaymentIntentId: string | null;
@@ -78,9 +79,12 @@ export async function employeeHalfOf(payment: FrozenSplit & {
     )
     .limit(1);
 
+  const { paidAttemptFor } = await import("./gateway/session");
+  const gatewayPaid = Boolean(await paidAttemptFor(payment.id));
   return splitRefundPlan({
     ...payment,
-    employeePaid: session?.paymentStatus === "paid" || Boolean(transfer),
+    employeePaid: session?.paymentStatus === "paid" || Boolean(transfer) || gatewayPaid,
+    gatewayPaid,
   }).employee;
 }
 

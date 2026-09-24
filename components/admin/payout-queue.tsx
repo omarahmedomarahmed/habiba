@@ -10,6 +10,7 @@ import {
   didNotArrive,
   markSent,
   reject,
+  sendThroughProvider,
   takeOn,
   type QueueState,
 } from "@/app/(admin)/admin/payouts/actions";
@@ -59,6 +60,8 @@ export type QueueRow = {
   owned: boolean;
   requestedAtLabel: string;
   proofUrl: string | null;
+  providerState: "sending" | "sent" | "failed" | null;
+  providerError: string | null;
 };
 
 export type AutomatedRow = {
@@ -86,9 +89,12 @@ function Go({ label, tone }: { label: string; tone?: "quiet" }) {
 export function PayoutQueue({
   manual,
   automated,
+  providerReady = false,
 }: {
   manual: QueueRow[];
   automated: AutomatedRow[];
+  /** 64.1: a payouts provider is switched on, so an approved payout can be sent through it. */
+  providerReady?: boolean;
 }) {
   const [tab, setTab] = useState<"manual" | "automated">("manual");
 
@@ -111,7 +117,7 @@ export function PayoutQueue({
         ) : (
           <ul className="space-y-3">
             {manual.map((row) => (
-              <ManualRow key={row.id} row={row} />
+              <ManualRow key={row.id} row={row} providerReady={providerReady} />
             ))}
           </ul>
         )
@@ -165,18 +171,21 @@ function Tab({
   );
 }
 
-function ManualRow({ row }: { row: QueueRow }) {
+function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boolean }) {
   const [claimState, claimAction] = useActionState(takeOn, INITIAL);
   const [approveState, approveAction] = useActionState(approve, INITIAL);
   const [sentState, sentAction] = useActionState(markSent, INITIAL);
   const [confirmState, confirmAction] = useActionState(confirm, INITIAL);
   const [rejectState, rejectAction] = useActionState(reject, INITIAL);
   const [returnState, returnAction] = useActionState(didNotArrive, INITIAL);
+  const [providerState, providerAction] = useActionState(sendThroughProvider, INITIAL);
   const t = useT();
+  const sending = row.providerState === "sending";
 
   const error =
     claimState.error ??
     approveState.error ??
+    providerState.error ??
     sentState.error ??
     confirmState.error ??
     rejectState.error ??
@@ -243,7 +252,21 @@ function ManualRow({ row }: { row: QueueRow }) {
             </form>
           ) : null}
 
-          {row.status === "approved" ? (
+          {sending ? <Badge>{t("apayout.providerSending")}</Badge> : null}
+          {row.providerState === "failed" && row.providerError ? (
+            <p className="w-full text-xs text-rose-600">
+              {t("apayout.providerFailed")}: {row.providerError}
+            </p>
+          ) : null}
+
+          {row.status === "approved" && providerReady && !sending ? (
+            <form action={providerAction}>
+              <input type="hidden" name="requestId" value={row.id} />
+              <Go label={t("apayout.sendProvider")} />
+            </form>
+          ) : null}
+
+          {row.status === "approved" && !sending ? (
             <form action={sentAction} className="flex items-end gap-2">
               <input type="hidden" name="requestId" value={row.id} />
               <Input

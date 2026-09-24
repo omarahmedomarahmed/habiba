@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { declareSessionTransfer, openSessionPayment } from "./actions";
+import { declareSessionTransfer, openSessionPayment, payByCard } from "./actions";
 import { PaymentPopup } from "@/components/billing/payment-popup";
+import { Button } from "@/components/ui";
 import { PayFlow } from "@/components/pay/pay-flow";
 import {
   manualEntry,
@@ -57,10 +58,22 @@ export const dynamic = "force-dynamic";
  */
 export default async function PayPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ gateway?: string; card?: string }>;
 }) {
   const { token } = await params;
+  const query = await searchParams;
+  /*
+   * 🔴 64.1: back from the card gateway. Ask it what happened before reading
+   * the session, so a payment that settled is seen as paid on this request
+   * rather than after the callback arrives.
+   */
+  if (query.gateway && /^[0-9a-f-]{36}$/.test(query.gateway)) {
+    const { confirmGatewayReturn } = await import("@/lib/billing/gateway/session");
+    await confirmGatewayReturn(query.gateway);
+  }
   const session = await resolveJoinToken(token);
   if (!session) notFound();
 
@@ -187,6 +200,9 @@ export default async function PayPage({
     locale: tag,
   });
 
+  const { railIsReady } = await import("@/lib/billing/egypt");
+  const cardReady = railIsReady();
+
   if (rail.needed) {
     return (
       <>
@@ -204,13 +220,24 @@ export default async function PayPage({
             ) : null}
           </div>
           <BenefitNote shortfall={shortfall} />
+          {/* 🔴 64.1: by card through the Egyptian gateway, once it is contracted. */}
+          {cardReady ? (
+            <form action={payByCard.bind(null, token)}>
+              <Button type="submit" full>
+                {t("pay.byCard")}
+              </Button>
+              {query.card === "unavailable" ? (
+                <p className="mt-2 text-sm text-rose-600">{t("pay.cardFailed")}</p>
+              ) : null}
+            </form>
+          ) : null}
           {/*
             🔴 76.4 — THE POPUP, OPEN ON ARRIVAL, because this person followed
             a link whose entire purpose was to pay. Everywhere else it opens on
             a button; here the screen IS the payment.
           */}
           <PaymentPopup
-            openInitially
+            openInitially={!cardReady}
             /*
               🔴 76.9 — an orb, not a bar. A patient who minimises is going back
               to the app, and a bar across the top would follow them into a

@@ -946,6 +946,13 @@
       "when": 1789966030000,
       "tag": "0144_a_resolver_can_leave",
       "breakpoints": true
+    },
+    {
+      "idx": 145,
+      "version": "7",
+      "when": 1789966031000,
+      "tag": "0145_a_gateway_that_plugs_in",
+      "breakpoints": true
     }
   ]
 }

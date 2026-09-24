@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { createSessionPaymentCheckout } from "@/lib/billing/connect";
 import { quoteFor } from "@/lib/billing/fx";
@@ -346,4 +347,28 @@ export async function openSessionPayment(token: string): Promise<void> {
     lineItems,
     payer: { kind: "session", organizationId: session.organizationId },
   });
+}
+
+/**
+ * 🔴 64.1: an Egyptian patient paying by card, through the gateway's own page.
+ *
+ * Only offered when the gateway is ready and the practice is on the Egyptian
+ * rail. The amount is what they owe after any benefit, plus VAT, in pounds at
+ * the operator's rate, exactly as the transfer quotes it. On a refusal they
+ * come back to this page with the transfer still there.
+ */
+export async function payByCard(token: string): Promise<void> {
+  const session = await resolveJoinToken(token);
+  if (!session) redirect(`/pay/${token}`);
+  if (!(await organizationNeedsTransfer(session.organizationId))) redirect(`/pay/${token}`);
+
+  const { createGatewaySessionCheckout } = await import("@/lib/billing/gateway/session");
+  const result = await createGatewaySessionCheckout({
+    sessionId: session.id,
+    token,
+    payerName: session.guestName ?? "",
+    payerEmail: null,
+    payerPhone: null,
+  });
+  redirect(result.ok ? result.url : `/pay/${token}?card=unavailable`);
 }

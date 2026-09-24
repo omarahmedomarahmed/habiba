@@ -90,6 +90,16 @@ export const GATES = [
    * every patient as sponsored, and traction read zero. `tsc` cannot see inside
    * a template, and neither could any of the gates above.
    */
+  /*
+   * 🔴 64.1 — the Egyptian card rail and payouts provider, ready before the
+   * contracts are. Run on the simulator, through the real callback routes, so
+   * the day an adapter is written nothing else has to change and this proves it.
+   */
+  {
+    name: "gateway",
+    script: "verify:gateway",
+    why: "and an Egyptian card payment and payout go end to end on the simulator",
+  },
   {
     name: "qualified",
     script: "verify:qualified",
