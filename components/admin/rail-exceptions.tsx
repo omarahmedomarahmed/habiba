@@ -16,6 +16,8 @@ export type ExceptionRow = {
   id: string;
   payer: string;
   what: string;
+  /** 🔴 A15: the bank-line figure in the payer's currency, as `OpenCarts` has it. */
+  amountLabel: string;
   settlesCents: number;
   kind: ManualPaymentException;
   detail: string | null;
@@ -61,7 +63,14 @@ function ExceptionItem({ row }: { row: ExceptionRow }) {
         <Badge tone="amber">{t(KIND[row.kind])}</Badge>
         <span className="font-semibold text-slate-900">{row.payer}</span>
         <span className="text-slate-500">{row.what}</span>
-        <Money cents={row.settlesCents} />
+        {/*
+          🔴 A15: the pounds the payer actually sent lead, because an exception
+          is settled against a bank line. The dollars follow, smaller.
+        */}
+        <span className="font-semibold text-slate-900">{row.amountLabel}</span>
+        <span className="text-xs text-slate-500">
+          <Money cents={row.settlesCents} />
+        </span>
         {row.raisedAt ? <span className="text-xs text-slate-400">{row.raisedAt.slice(0, 16).replace("T", " ")}</span> : null}
       </div>
       {row.detail ? <p className="text-xs text-slate-600">{row.detail}</p> : null}

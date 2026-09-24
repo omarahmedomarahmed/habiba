@@ -17,7 +17,7 @@ import {
 } from "@/lib/data/vault";
 import { heldBalances, trialBalance, unbalancedTransactions } from "@/lib/billing/ledger";
 import { reconcileRenewals } from "@/lib/billing/obligations";
-import { allOrganizations } from "@/lib/data/admin";
+import { adjustableClinicians, allOrganizations } from "@/lib/data/admin";
 import { formatDate } from "@/lib/utils";
 import { Money as UsdMoney } from "@/components/ui/money";
 
@@ -40,6 +40,7 @@ export default async function VaultPage() {
     unbalanced,
     renewalDrift,
     orgs,
+    clinicians,
   ] = await Promise.all([
     ledgerSummary(),
     monthlyLedger(6),
@@ -67,6 +68,8 @@ export default async function VaultPage() {
      */
     reconcileRenewals(),
     allOrganizations(),
+    /* 🔴 A12: a clinician's balance is adjusted by naming the clinician. */
+    adjustableClinicians(),
   ]);
 
   const peak = Math.max(1, ...months.map((m) => Math.max(m.collected, m.spent)));
@@ -216,7 +219,7 @@ export default async function VaultPage() {
         out-of-balance figure, because that number is the only reason to reach
         for it.
       */}
-      <LedgerAdjust organizations={orgs} />
+      <LedgerAdjust organizations={orgs} clinicians={clinicians} />
 
       {/* ------------------------------------------------------------ ledger */}
       <section className="space-y-3">

@@ -11,6 +11,7 @@ import {
   type PricingTier,
 } from "@/lib/settings/defs";
 import { getSettings, writeCountrySettings, writeSettingsGroup } from "@/lib/settings";
+import { payoutSettingsChanges } from "@/lib/settings/payout-changes";
 
 export type SettingsFormState = { error?: string; ok?: string };
 
@@ -275,7 +276,8 @@ export async function savePayouts(
     action: "settings.payouts",
     resourceType: "platform_settings",
     resourceId: "payouts",
-    reason: `netting=${value.netFeeFromHeldEarnings} spread=${value.egpSpreadBps}bps`,
+    /* 🔴 A14: every field this form changed, old and new, not two of seven. */
+    reason: payoutSettingsChanges(existing.payouts, value),
   });
 
   revalidatePath("/admin/settings");

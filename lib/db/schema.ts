@@ -2610,6 +2610,30 @@ export const LEDGER_ACCOUNTS = [
 ] as const;
 export type LedgerAccount = (typeof LEDGER_ACCOUNTS)[number];
 
+/**
+ * 🔴 A12: WHICH ACCOUNTS A LEG MAY NAME A CLINICIAN ON, and which one must.
+ *
+ * `therapist_payable` is a per-clinician sub-ledger: `heldBalances`,
+ * `heldForTherapist` and every payout read it grouped by `user_id`, so a leg
+ * with no clinician on it is money we owe to nobody. The hand adjustment
+ * posted exactly that, because its only screen sent `therapistId: null`: the
+ * trial balance moved and no clinician's balance did.
+ *
+ * `therapist_receivable` may carry one and need not. A bill is raised against
+ * the practice (`postInvoiceRaised` names no clinician) and only some
+ * settlements name one, so no reader groups it by clinician and forcing a name
+ * onto a practice's bill would record a person who had nothing to do with it.
+ *
+ * Every other account is ours or the practice's, and a clinician on it would
+ * be a name nothing ever reads back. Shared by the screen and by
+ * `postAdjustment`, which is the rule's only enforcement that counts.
+ */
+export const CLINICIAN_REQUIRED_ACCOUNTS = ["therapist_payable"] as const satisfies readonly LedgerAccount[];
+export const CLINICIAN_ALLOWED_ACCOUNTS = [
+  ...CLINICIAN_REQUIRED_ACCOUNTS,
+  "therapist_receivable",
+] as const satisfies readonly LedgerAccount[];
+
 export const LEDGER_TXN_KINDS = [
   "session_payment",
   "session_refund",

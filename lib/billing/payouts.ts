@@ -29,6 +29,7 @@ import {
   type LedgerExecutor,
 } from "./ledger";
 import { convert, payoutCurrencyFor } from "./money";
+import { plausibleTransferReceipt } from "./transfer-receipt";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -432,6 +433,10 @@ export async function approvePayout(input: {
  * goes on: a screenshot of the transfer, which the therapist sees on their
  * earnings screen. A payout marked sent with nothing to show for it is the
  * state a dispute cannot be settled from.
+ *
+ * 🔴 A19: "something to show" was five characters of anything. It is now the
+ * bank's reference or a link to the receipt, by `plausibleTransferReceipt`,
+ * and the queue's field states the same rule.
  */
 export async function markPayoutSent(input: {
   requestId: string;
@@ -439,7 +444,12 @@ export async function markPayoutSent(input: {
   proofUrl: string;
 }): Promise<{ ok?: boolean; error?: string }> {
   const proof = input.proofUrl.trim();
-  if (proof.length < 5) return { error: "Attach the transfer receipt before marking this sent." };
+  if (!plausibleTransferReceipt(proof)) {
+    return {
+      error:
+        "Enter the bank's reference (6 to 40 characters with 4+ digits) or an https link to the receipt.",
+    };
+  }
 
   const [row] = await db
     .select()

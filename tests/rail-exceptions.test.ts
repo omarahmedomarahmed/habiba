@@ -44,6 +44,29 @@ test("the transfers page shows them, and an open cart can be discarded and expir
   assert.match(around(cron, "async retention()", 2000), /expireOpenCarts\(\)/);
 });
 
+/*
+ * 🔴 A15: both lists showed `settlesCents`, the dollars, which the console
+ * converts at TODAY's rate. An operator matching a bank line needs the pounds
+ * the payer was asked to send, which is `amountCents` in `currency`.
+ */
+test("🔴 A15 exceptions and open carts lead with the figure on the bank line", () => {
+  const page = read("app/(admin)/admin/transfers/page.tsx");
+  for (const [list, v] of [["<RailExceptions", "e"], ["<OpenCarts", "c"]] as const) {
+    assert.match(
+      around(page, list, 700),
+      new RegExp(`amountLabel: formatMoney\\(${v}\\.amountCents, ${v}\\.currency\\.toUpperCase\\(\\), "en-US"\\)`),
+      `${list} is given the payer's own figure`,
+    );
+  }
+  for (const file of ["components/admin/rail-exceptions.tsx", "components/admin/open-carts.tsx"]) {
+    const source = read(file);
+    const bank = source.indexOf("{row.amountLabel}");
+    const usd = source.indexOf("<Money cents={row.settlesCents} />");
+    assert.ok(bank >= 0, `${file} renders the bank figure`);
+    assert.ok(usd > bank, `CONTROL: ${file} still shows the dollars it settles, after the bank figure and not instead of it`);
+  }
+});
+
 test("the retry is claimed once, and the cart rules match the payer's own", async () => {
   const lib = read("lib/billing/rail-exceptions.ts");
   const retry = around(lib, "export async function retryGrant(", 900);

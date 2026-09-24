@@ -1,10 +1,12 @@
 import "server-only";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
+  CLINICIAN_ALLOWED_ACCOUNTS,
+  CLINICIAN_REQUIRED_ACCOUNTS,
   earningsTransfers,
   ledgerEntries,
   organizations,
@@ -806,34 +808,145 @@ export async function postAdjustment(input: {
   amountCents: number;
   reason: string;
   adminUserId: string;
-}): Promise<{ ok?: boolean; error?: string }> {
+  /**
+   * 🔴 A12: minted by the form when it renders and becomes the `txnId`, so
+   * the same form arriving twice (a retried request, a second press before
+   * the first answered) finds its own transaction and posts nothing.
+   */
+  idempotencyKey: string;
+}): Promise<{ ok?: boolean; error?: string; replayed?: boolean }> {
   const reason = input.reason.trim();
   if (reason.length < 5) return { error: "Say what this adjustment is for." };
   if (!Number.isInteger(input.amountCents) || input.amountCents === 0) {
     return { error: "Enter a whole number of cents, and not zero." };
   }
+  if (!UUID_SHAPE.test(input.idempotencyKey)) return { error: "Reload the page and post it again." };
 
-  await journal({
-    kind: "adjustment",
-    createdBy: input.adminUserId,
-    legs: [
-      {
-        account: input.account,
-        amountCents: input.amountCents,
-        organizationId: input.organizationId,
-        userId: input.therapistId,
-        memo: reason,
-      },
-      // The other side is always ours. An adjustment is us deciding to be out
-      // of pocket or better off; it never invents money from nowhere.
-      {
-        account: input.amountCents > 0 ? "platform_revenue" : "platform_expense",
-        amountCents: -input.amountCents,
-        organizationId: input.organizationId,
-        memo: reason,
-      },
-    ],
+  /*
+   * 🔴 A12: THE CLINICIAN, CHECKED HERE AND NOT ONLY ON THE SCREEN.
+   *
+   * Required where the account is a clinician's sub-ledger, refused where no
+   * reader would ever look for one, and when given it must be a clinician of
+   * this very practice: a payable leg naming somebody from another practice
+   * would move money between two practices' books under one organisation id.
+   */
+  const therapistId = input.therapistId || null;
+  const required = (CLINICIAN_REQUIRED_ACCOUNTS as readonly LedgerAccount[]).includes(input.account);
+  const allowed = (CLINICIAN_ALLOWED_ACCOUNTS as readonly LedgerAccount[]).includes(input.account);
+  if (required && !therapistId) return { error: "Choose whose balance this is." };
+  if (therapistId && !allowed) return { error: "This account belongs to no clinician. Leave the clinician empty." };
+  if (therapistId) {
+    if (!UUID_SHAPE.test(therapistId)) return { error: "That clinician is not in this organisation." };
+    const [clinician] = await db
+      .select({ organizationId: users.organizationId, role: users.role })
+      .from(users)
+      .where(eq(users.id, therapistId))
+      .limit(1);
+    if (!clinician || clinician.role !== "therapist" || clinician.organizationId !== input.organizationId) {
+      return { error: "That clinician is not in this organisation." };
+    }
+  }
+
+  const legs: Leg[] = [
+    {
+      account: input.account,
+      amountCents: input.amountCents,
+      organizationId: input.organizationId,
+      userId: therapistId,
+      memo: reason,
+    },
+    // The other side is always ours. An adjustment is us deciding to be out
+    // of pocket or better off; it never invents money from nowhere.
+    {
+      account: input.amountCents > 0 ? "platform_revenue" : "platform_expense",
+      amountCents: -input.amountCents,
+      organizationId: input.organizationId,
+      memo: reason,
+    },
+  ];
+
+  /*
+   * 🔴 A12: POSTED ONCE, AND WITHOUT A MIGRATION.
+   *
+   * `ledger_entries.txn_id` is not unique (a transaction is several rows), so
+   * there is no constraint to lean on and a read-then-insert alone races: two
+   * presses both read "nothing yet" and both post. So the practice's row is
+   * locked first, which queues every hand adjustment against one practice
+   * behind the other, and only then are the two questions asked:
+   *
+   *   1. Is this form's key already a transaction? Then this is the same
+   *      submit again. It succeeds having posted nothing, unless the figures
+   *      differ, which means the key was reused for a different adjustment and
+   *      is refused rather than guessed at.
+   *   2. Did the same adjustment (practice, account, clinician, amount and
+   *      reason, word for word) land in the last ten minutes under another
+   *      key? That is the second tab: each tab minted its own key, so the key
+   *      cannot see it. A real second adjustment says so in its reason.
+   *
+   * `NO KEY UPDATE` rather than `UPDATE`, because the lock only has to
+   * exclude the next adjustment. `UPDATE` would also block every foreign key
+   * check against the practice, which is every ledger insert and every session
+   * booked there, for as long as this transaction is open.
+   */
+  const outcome = await db.transaction(async (tx) => {
+    const [practice] = await tx
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.id, input.organizationId))
+      .for("no key update");
+    if (!practice) return { error: "That organisation no longer exists." };
+
+    const earlier = await tx
+      .select({
+        account: ledgerEntries.account,
+        amountCents: ledgerEntries.amountCents,
+        organizationId: ledgerEntries.organizationId,
+        userId: ledgerEntries.userId,
+        memo: ledgerEntries.memo,
+      })
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.txnId, input.idempotencyKey));
+    if (earlier.length > 0) {
+      const mine = earlier.find((leg) => leg.account === input.account && leg.userId === therapistId);
+      const same =
+        mine !== undefined &&
+        mine.amountCents === input.amountCents &&
+        mine.organizationId === input.organizationId &&
+        mine.memo === reason;
+      return same
+        ? { ok: true, replayed: true }
+        : { error: "This form already posted a different adjustment. Reload the page first." };
+    }
+
+    const [twin] = await tx
+      .select({ id: ledgerEntries.id })
+      .from(ledgerEntries)
+      .where(
+        and(
+          eq(ledgerEntries.txnKind, "adjustment"),
+          eq(ledgerEntries.organizationId, input.organizationId),
+          eq(ledgerEntries.account, input.account),
+          therapistId ? eq(ledgerEntries.userId, therapistId) : isNull(ledgerEntries.userId),
+          eq(ledgerEntries.amountCents, input.amountCents),
+          eq(ledgerEntries.memo, reason),
+          gte(ledgerEntries.createdAt, new Date(Date.now() - TWIN_WINDOW_MS)),
+        ),
+      )
+      .limit(1);
+    if (twin) {
+      return { error: "The same adjustment was posted in the last ten minutes. If you mean a second one, say so in the reason." };
+    }
+
+    await journal({
+      kind: "adjustment",
+      createdBy: input.adminUserId,
+      txnId: input.idempotencyKey,
+      executor: tx,
+      legs,
+    });
+    return { ok: true };
   });
+  if (!outcome.ok || ("replayed" in outcome && outcome.replayed)) return outcome;
 
   log.info("ledger adjustment posted", {
     org: ref(input.organizationId),
@@ -842,6 +955,10 @@ export async function postAdjustment(input: {
   });
   return { ok: true };
 }
+
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A12: how far back the second tab's twin is looked for. */
+const TWIN_WINDOW_MS = 10 * 60 * 1000;
 
 /** One clinician's release history. */
 export async function transfersForTherapist(therapistId: string, limit = 20) {

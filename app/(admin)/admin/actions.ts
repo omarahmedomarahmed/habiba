@@ -631,6 +631,8 @@ export async function adjustLedger(input: {
   account: LedgerAccount;
   amountCents: number;
   reason: string;
+  /** 🔴 A12: the form's own key, so one form posts once however often it arrives. */
+  idempotencyKey: string;
 }): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
   // W2-A05: the screen asked for a sentence and the server never checked one.
@@ -639,9 +641,24 @@ export async function adjustLedger(input: {
 
   if (!LEDGER_ACCOUNTS.includes(input.account)) return { error: "Unknown account." };
 
+  /*
+   * 🔴 A12: the clinician rules (required on a clinician's balance, refused on
+   * ours, and only one of this practice) and the post-once rule are both in
+   * `postAdjustment`, not here, so no other caller can skip them.
+   */
   const { postAdjustment } = await import("@/lib/billing/ledger");
-  const result = await postAdjustment({ ...input, adminUserId: actor.userId });
+  const result = await postAdjustment({
+    organizationId: input.organizationId,
+    therapistId: typeof input.therapistId === "string" && input.therapistId ? input.therapistId : null,
+    account: input.account,
+    amountCents: input.amountCents,
+    reason: input.reason,
+    idempotencyKey: String(input.idempotencyKey ?? ""),
+    adminUserId: actor.userId,
+  });
   if (result.error) return { error: result.error };
+  /* The same form again: its adjustment and its audit row are already written. */
+  if (result.replayed) return { ok: true };
 
   await audit({
     actor,
@@ -649,7 +666,7 @@ export async function adjustLedger(input: {
     action: "ledger.adjust",
     resourceType: "organization",
     resourceId: input.organizationId,
-    reason: `${input.account} ${input.amountCents}, ${input.reason.trim()}`,
+    reason: `${input.account} ${input.amountCents}${input.therapistId ? ` clinician ${input.therapistId}` : ""} txn ${input.idempotencyKey}, ${input.reason.trim()}`,
   });
 
   revalidatePath("/admin/vault");

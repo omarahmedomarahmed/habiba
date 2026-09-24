@@ -25,6 +25,7 @@ import {
   Gauge,
   TriangleAlert,
   LineChart,
+  Tv,
   Wallet,
 } from "lucide-react";
 
@@ -138,6 +139,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
      */
     { href: "/admin/financial-model", icon: LineChart, label: t("anav.model") },
     { href: "/admin/actuals", icon: Wallet, label: t("anav.actuals") },
+    /*
+     * 🔴 A17: Total View had a page, a guard, a row in the role table and no
+     * door, so the owners it exists for reached it by typing the address. The
+     * row is `OWNER` because both keys of its elevation gate are, and the
+     * filter below reads that row, so nobody else is shown it.
+     */
+    { href: "/admin/tv", icon: Tv, label: t("anav.tv") },
   ];
 
   /* The console leads with dollars, or pounds if this operator switched. Nobody else's screen changes. */

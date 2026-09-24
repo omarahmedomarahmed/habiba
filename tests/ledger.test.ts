@@ -410,6 +410,131 @@ test("…and an exact transfer posts no difference leg at all", async () => {
   );
 });
 
+/*
+ * 🔴 A12: THE HAND ADJUSTMENT. Its only screen posted `therapistId: null` on
+ * every account, so a correction to what we hold for a clinician belonged to
+ * nobody, and nothing made one form post once.
+ */
+test("🔴 A12 a hand adjustment to a clinician's balance must name the clinician", async () => {
+  const { postAdjustment } = await import("../lib/billing/ledger");
+  const held = await heldForTherapist(therapistId);
+
+  const nobody = await postAdjustment({
+    organizationId,
+    therapistId: null,
+    account: "therapist_payable",
+    amountCents: -700,
+    reason: "Owed for a session paid in cash",
+    adminUserId: therapistId,
+    idempotencyKey: crypto.randomUUID(),
+  });
+  assert.ok(nobody.error, "a payable leg with no clinician is money owed to nobody");
+
+  const onOurs = await postAdjustment({
+    organizationId,
+    therapistId,
+    account: "platform_expense",
+    amountCents: 700,
+    reason: "A clinician on our own expense account",
+    adminUserId: therapistId,
+    idempotencyKey: crypto.randomUUID(),
+  });
+  assert.ok(onOurs.error, "a clinician on an account no reader groups by clinician is refused");
+
+  const named = await postAdjustment({
+    organizationId,
+    therapistId,
+    account: "therapist_payable",
+    amountCents: -700,
+    reason: "Owed for a session paid in cash",
+    adminUserId: therapistId,
+    idempotencyKey: crypto.randomUUID(),
+  });
+  assert.equal(named.ok, true, named.error ?? "");
+  assert.equal(
+    await heldForTherapist(therapistId),
+    held + 700,
+    "CONTROL: named, the same adjustment reaches the clinician's held balance",
+  );
+  assert.equal(await scopedBalance(), 0);
+});
+
+test("🔴 A12 …and only a clinician of that practice", async () => {
+  const { postAdjustment } = await import("../lib/billing/ledger");
+  const stamp = Date.now();
+  const [other] = await db
+    .insert(organizations)
+    .values({ name: `ledger-other-${stamp}`, slug: `ledger-other-${stamp}` })
+    .returning({ id: organizations.id });
+  const [stranger] = await db
+    .insert(users)
+    .values({
+      organizationId: other!.id,
+      email: `ledger-other-${stamp}@24therapy.test`,
+      passwordHash: "x",
+      firstName: "Other",
+      lastName: "Practice",
+    })
+    .returning({ id: users.id });
+  try {
+    const result = await postAdjustment({
+      organizationId,
+      therapistId: stranger!.id,
+      account: "therapist_payable",
+      amountCents: -300,
+      reason: "A clinician from another practice",
+      adminUserId: therapistId,
+      idempotencyKey: crypto.randomUUID(),
+    });
+    assert.ok(result.error, "another practice's clinician on this practice's books is refused");
+  } finally {
+    await db.delete(users).where(eq(users.id, stranger!.id));
+    await db.delete(organizations).where(eq(organizations.id, other!.id));
+  }
+});
+
+test("🔴 A12 one form posts once, however often and however fast it arrives", async () => {
+  const { postAdjustment } = await import("../lib/billing/ledger");
+  const key = crypto.randomUUID();
+  const form = {
+    organizationId,
+    therapistId,
+    account: "therapist_payable" as const,
+    amountCents: -450,
+    reason: "Double pressed on purpose by the test",
+    adminUserId: therapistId,
+    idempotencyKey: key,
+  };
+
+  const both = await Promise.all([postAdjustment(form), postAdjustment(form)]);
+  const again = await postAdjustment(form);
+  assert.ok(both.every((r) => r.ok) && again.ok, JSON.stringify([...both, again]));
+
+  const [row] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.txnId, key));
+  assert.equal(row?.n, 2, "one balanced pair under the form's key, not two or three");
+
+  const reused = await postAdjustment({ ...form, amountCents: -900 });
+  assert.ok(reused.error, "the same key with different figures is refused, not guessed at");
+
+  const secondTab = await postAdjustment({ ...form, idempotencyKey: crypto.randomUUID() });
+  assert.ok(secondTab.error, "a second tab's identical adjustment minutes later is refused");
+
+  const meantIt = await postAdjustment({
+    ...form,
+    idempotencyKey: crypto.randomUUID(),
+    reason: "A second session paid in cash, the same amount",
+  });
+  assert.equal(
+    meantIt.ok,
+    true,
+    `CONTROL: a genuine second adjustment that says so still posts, ${meantIt.error ?? ""}`,
+  );
+  assert.equal(await scopedBalance(), 0);
+});
+
 test("cleanup leaves nothing behind", async () => {
   const ids = await db
     .select({ id: ledgerEntries.id })

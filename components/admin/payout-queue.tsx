@@ -266,14 +266,27 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
           ) : null}
 
           {row.status === "approved" && !sending ? (
-            <form action={sentAction} className="flex items-end gap-2">
+            <form action={sentAction} className="flex items-start gap-2">
               <input type="hidden" name="requestId" value={row.id} />
-              <Input
-                name="proofUrl"
-                placeholder="Transfer receipt"
-                required
-                className="h-8 w-64 text-xs"
-              />
+              {/*
+                🔴 A19: the rule is stated where it is typed. Any five
+                characters used to pass; `markPayoutSent` now refuses anything
+                that is not the bank's reference or a link to the receipt, and
+                this hint is the same rule in the operator's words.
+              */}
+              <div>
+                <Input
+                  name="proofUrl"
+                  placeholder={t("apayout.proof")}
+                  aria-describedby={`proof-${row.id}`}
+                  required
+                  minLength={6}
+                  className="h-8 w-64 text-xs"
+                />
+                <p id={`proof-${row.id}`} className="mt-1 w-64 text-[11px] text-slate-500">
+                  {t("apayout.proofHint")}
+                </p>
+              </div>
               <Go label="Mark sent" />
             </form>
           ) : null}

@@ -203,6 +203,35 @@ async function main() {
     );
 
     /*
+     * 🔴 A19: FIVE CHARACTERS OF ANYTHING WAS A RECEIPT. Asked of an APPROVED
+     * payout by a second person, so the only thing that can refuse it is the
+     * receipt rule: before the fix `done!` sent the money.
+     */
+    const { plausibleTransferReceipt } = await import("../lib/billing/transfer-receipt");
+    const junk = await markPayoutSent({ requestId, senderUserId: senderId!, proofUrl: "done!" });
+    const stillApproved = (
+      await db.execute<{ status: string }>(sql`SELECT status FROM payout_requests WHERE id = ${requestId}`)
+    ).rows[0];
+    check(
+      "🔴 A19 an approved payout cannot be marked sent with five characters that are no bank reference",
+      Boolean(junk.error) && stillApproved?.status === "approved",
+      junk.error ?? `ACCEPTED, status ${stillApproved?.status}`,
+    );
+    const shapes = {
+      refused: ["sent.", "12345", "000000", "paid by me", "http://bank.example/r", "javascript:alert(1)"],
+      accepted: ["CIB-TRX-4471902", "INSTA-99231", "NBE/2026/88120", "https://bank.example/r/1", "/api/uploads/receipt/x.png"],
+    };
+    const wrong = [
+      ...shapes.refused.filter((text) => plausibleTransferReceipt(text)),
+      ...shapes.accepted.filter((text) => !plausibleTransferReceipt(text)),
+    ];
+    check(
+      "🔴 A19 CONTROL a real bank reference and a receipt link still pass, so the rule refuses junk rather than everything",
+      wrong.length === 0,
+      wrong.length === 0 ? `${shapes.refused.length} refused, ${shapes.accepted.length} accepted` : `misjudged: ${wrong.join(" | ")}`,
+    );
+
+    /*
      * 🔴 W1-04: TWO PRESSES AT ONCE. Two people on the queue, or one double
      * click, both reach "Mark sent". The ledger used to be posted before the
      * guarded status move, so both calls posted and one payout left the books
