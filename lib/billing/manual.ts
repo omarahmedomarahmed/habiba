@@ -31,7 +31,7 @@
  */
 import "server-only";
 
-import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { controlDb as db } from "@/lib/db";
@@ -41,6 +41,7 @@ import {
   type ManualPaymentPurpose,
   users,
 } from "@/lib/db/schema";
+import { likePattern } from "@/lib/admin/paging";
 import { MIN_REASON } from "@/lib/admin/reason";
 import { log } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
@@ -370,13 +371,32 @@ export async function submitProof(input: {
 /* ------------------------------------------------------------ the decision */
 
 /** Everything an operator has to look at, oldest first because they are waiting. */
-export async function queue(): Promise<ManualPayment[]> {
+export async function queue(
+  /**
+   * 🔴 W2-A09: how an operator matches a bank line, which is by its reference
+   * or its amount. The queue was the oldest 200 with no search and nothing past
+   * them. An amount matches what was sent or what it settles, typed either way
+   * ("1500" or "1,500.00").
+   */
+  opts: { q?: string | null; offset?: number; limit?: number } = {},
+): Promise<ManualPayment[]> {
+  const amount = opts.q ? Number(opts.q.replace(/[,\s]/g, "")) : NaN;
+  const cents = Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : null;
+  const search = opts.q
+    ? or(
+        ilike(manualPayments.reference, likePattern(opts.q)),
+        cents !== null ? eq(manualPayments.amountCents, cents) : undefined,
+        cents !== null ? eq(manualPayments.settlesCents, cents) : undefined,
+      )
+    : undefined;
+
   return db
     .select()
     .from(manualPayments)
-    .where(eq(manualPayments.state, "submitted"))
+    .where(and(eq(manualPayments.state, "submitted"), search))
     .orderBy(manualPayments.submittedAt)
-    .limit(200);
+    .limit(opts.limit ?? 200)
+    .offset(opts.offset ?? 0);
 }
 
 /**

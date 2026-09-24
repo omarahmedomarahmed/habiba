@@ -5,7 +5,9 @@ import { OpenCarts } from "@/components/admin/open-carts";
 import { RailExceptions } from "@/components/admin/rail-exceptions";
 import { TransferQueue } from "@/components/admin/transfer-queue";
 import { PageHeader } from "@/components/ui";
+import { ListControls } from "@/components/admin/list-controls";
 import { mayOpen } from "@/lib/admin/access";
+import { pageOf, paging, searchTerm } from "@/lib/admin/paging";
 import { requireStaff } from "@/lib/auth/guard";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -34,10 +36,23 @@ export const dynamic = "force-dynamic";
  * whenever the queue is busier than the people working it. Every queue in this
  * product is oldest first for the same reason.
  */
-export default async function TransfersPage() {
+export default async function TransfersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
   const actor = await requireStaff();
+  // W2-A09: the queue is searched by reference or amount, and paged.
+  const params = await searchParams;
+  const q = searchTerm(params.q);
+  const { page, offset, fetch } = paging(params);
 
-  const [rows, carts, exceptions] = await Promise.all([queue(), openCarts(), openExceptions()]);
+  const [fetched, carts, exceptions] = await Promise.all([
+    queue({ q, offset, limit: fetch }),
+    openCarts(),
+    openExceptions(),
+  ]);
+  const { rows, hasMore } = pageOf(fetched);
 
   /*
    * 🔴 The payer's NAME, resolved here, because a queue of uuids is a queue
@@ -184,6 +199,8 @@ export default async function TransfersPage() {
         people waiting on us; this is a reference an operator opens when a bank
         line will not match anything in it.
       */}
+      <ListControls base="/admin/transfers" params={{}} q={q} page={page} hasMore={hasMore} />
+
       <TransferQueue
         rows={rows.map((r) => ({
           id: r.id,

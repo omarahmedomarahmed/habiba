@@ -1,5 +1,7 @@
 "use client";
 
+import { PAGE_SIZE } from "@/lib/admin/paging";
+import { useT } from "@/lib/i18n/client";
 import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { MIN_REASON } from "@/lib/admin/reason";
 import dynamicImport from "next/dynamic";
@@ -71,6 +73,9 @@ export function RadarCommand({
   const [only, setOnly] = useState<"all" | "live" | "suspended" | "flagged">("all");
   const [selected, setSelected] = useState<CommandRow | null>(null);
   const [beat, setBeat] = useState(0);
+  /* 🔴 W2-A09: the table had no paging; every clinician on the board was one list. */
+  const [page, setPage] = useState(1);
+  const say = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +119,11 @@ export function RadarCommand({
       );
     });
   }, [view.rows, query, country, language, only]);
+
+  // A new filter starts at the first page; a refresh keeps the page you are on.
+  useEffect(() => setPage(1), [query, country, language, only]);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const shown = rows.slice((Math.min(page, pages) - 1) * PAGE_SIZE, Math.min(page, pages) * PAGE_SIZE);
 
   /* The globe speaks RadarEntry. Everything clinical is absent from both. */
   const entries: RadarEntry[] = useMemo(
@@ -291,7 +301,7 @@ export function RadarCommand({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
+              {shown.map((row) => (
                 <tr key={row.userId} className={cn(row.suspendedUntil && "bg-red-50/50")}>
                   <Td>
                     <button
@@ -352,6 +362,19 @@ export function RadarCommand({
             </tbody>
           </table>
         </div>
+        {pages > 1 ? (
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-4 py-2">
+            <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              {say("apage.newer")}
+            </Button>
+            <span className="self-center text-xs text-slate-500">
+              {Math.min(page, pages)} / {pages}
+            </span>
+            <Button size="sm" variant="secondary" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
+              {say("apage.older")}
+            </Button>
+          </div>
+        ) : null}
       </Card>
 
       {selected ? <Detail zone={zone} row={selected} onClose={() => setSelected(null)} /> : null}

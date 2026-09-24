@@ -4059,6 +4059,9 @@ export const en = {
   "acheckin.quietFrom": "Quiet from (hour)",
   "acheckin.quietTo": "Quiet until (hour)",
   "acheckin.resume": "Resume",
+  "apage.search": "Search",
+  "apage.newer": "Newer",
+  "apage.older": "Older",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7352,6 +7355,9 @@ export const ar: Record<MessageKey, string> = {
   "acheckin.quietFrom": "الهدوء من (الساعة)",
   "acheckin.quietTo": "الهدوء حتى (الساعة)",
   "acheckin.resume": "استئناف",
+  "apage.search": "بحث",
+  "apage.newer": "الأحدث",
+  "apage.older": "الأقدم",
 };
 
 export const DICTIONARIES = { en, ar } as const;

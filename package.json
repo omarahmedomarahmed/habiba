@@ -216,6 +216,7 @@
     "test:radar-control": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/radar-control.test.ts",
     "test:cms-draft": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/cms-draft.test.ts",
     "test:checkins-settings": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/checkins-settings.test.ts",
+    "test:admin-lists": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/admin-lists.test.ts",
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
