@@ -7229,6 +7229,8 @@ export const PATIENT_NOTICE_KINDS = [
   "session_started",
   "payment_confirmed",
   "access_requested",
+  /** 🔴 W1-28b (0122): a clinician cancelled, with their reason in `reason`. */
+  "session_cancelled",
 ] as const;
 export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
 
@@ -7254,6 +7256,12 @@ export const patientNotifications = pgTable(
      * translatable and admin-editable and the row carries no prose either.
      */
     messageKey: text("message_key").notNull(),
+    /**
+     * 🔴 W1-28b (0122): the one piece of prose a notice may carry, the
+     * clinician's own short reason for cancelling, written for the patient
+     * (300 characters at most, checked by the database). Never a payer's.
+     */
+    reason: text("reason"),
 
     dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

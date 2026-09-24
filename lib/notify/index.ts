@@ -91,7 +91,12 @@ export type Message = {
    * Absent means this message has no in-app home yet. `verify:notices` counts
    * those and the number may only fall.
    */
-  notice?: { kind: PatientNoticeKind; key: MessageKey };
+  notice?: {
+    kind: PatientNoticeKind;
+    key: MessageKey;
+    /** W1-28b: a clinician's reason for cancelling, shown under the message. */
+    reason?: string;
+  };
   /** A stable key, so a provider template can be mapped to it. */
   kind:
     | "booking.confirmed"
@@ -311,6 +316,7 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
         personId: to.personId,
         kind: message.notice.kind,
         messageKey: message.notice.key,
+        reason: message.notice.reason?.slice(0, 300) ?? null,
       });
     } catch (error) {
       log.warn("in-app notice not written", {

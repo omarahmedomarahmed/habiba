@@ -42,6 +42,8 @@ export type Notice = {
    * a patient's screen.
    */
   messageKey: MessageKey;
+  /** W1-28b: a clinician's reason for cancelling, when this notice is one. */
+  reason: string | null;
   dismissedAt: Date | null;
   createdAt: Date;
 };
@@ -59,6 +61,7 @@ export async function noticesFor(personId: string): Promise<Notice[]> {
     .select({
       id: patientNotifications.id,
       messageKey: patientNotifications.messageKey,
+      reason: patientNotifications.reason,
       dismissedAt: patientNotifications.dismissedAt,
       createdAt: patientNotifications.createdAt,
     })
@@ -70,6 +73,7 @@ export async function noticesFor(personId: string): Promise<Notice[]> {
   return rows.map((row) => ({
     id: row.id,
     messageKey: row.messageKey as MessageKey,
+    reason: row.reason,
     dismissedAt: row.dismissedAt,
     createdAt: row.createdAt,
   }));

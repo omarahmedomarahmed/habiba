@@ -433,6 +433,22 @@ async function main() {
       cancelled.outcome === "refund_owed" && cancelledPayment.rows[0]?.status === "paid",
       `outcome ${cancelled.outcome}, payment ${cancelledPayment.rows[0]?.status}`,
     );
+    /*
+     * 🔴 W1-28b: AND THE PATIENT'S APP SAYS SO, WITH THE REASON. The email and
+     * WhatsApp went; the in-app log had no kind for a cancellation.
+     */
+    const cancelNotice = (
+      await db
+        .execute<{ kind: string; reason: string | null }>(sql`
+          SELECT kind, reason FROM patient_notifications
+           WHERE person_id = ${person!.id} AND kind = 'session_cancelled'`)
+        .catch(() => ({ rows: [] as { kind: string; reason: string | null }[] }))
+    ).rows;
+    check(
+      "🔴 W1-28b the clinician's cancellation is an in-app notice for the patient, with the reason",
+      cancelNotice.length === 1 && cancelNotice[0]!.reason === "I am unwell today",
+      JSON.stringify(cancelNotice),
+    );
 
     /*
      * 🔴 W1-28a: A REFUND OWED IS A ROW SOMEBODY WORKS.
