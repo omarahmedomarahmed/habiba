@@ -646,6 +646,40 @@ async function main() {
       leaked.length === 0,
       `${leaked.length} sessions`,
     );
+
+    /* ================================================================ */
+    /*  W1-24 · CONSENT AND COVERAGE STAY OUT OF THE NOTE TEXT           */
+    /* ================================================================ */
+
+    const noteRoute = await import("../app/api/partner/v1/sessions/[ref]/note/route");
+    const { coverageSentence } = await import("../lib/partner/consent");
+    const drafted = `${fixture}-n1`;
+    await consent(drafted, `${fixture}-P4`, "given", 600);
+    await db.execute(sql`
+      UPDATE partner_sessions
+         SET transcript_text = 'The patient described a hard week at work and poor sleep, and we agreed a plan.'
+       WHERE partner_id = ${partner.id} AND external_session_ref = ${drafted}`);
+    const noteResponse = await noteRoute.GET(
+      new Request(`${base}/sessions/${drafted}/note`, { headers: bearer }),
+      { params: Promise.resolve({ ref: drafted }) },
+    );
+    const noteBody = (await noteResponse.json()) as { draft?: string | null; coverage?: string };
+    const storedDraft = await one<{ draft: string | null }>(sql`
+      SELECT note_draft AS draft FROM partner_sessions
+       WHERE partner_id = ${partner.id} AND external_session_ref = ${drafted}`);
+    const coverage = coverageSentence(600);
+    check(
+      "🔴 W1-24 the stored draft and the draft we return carry no consent or coverage sentence",
+      Boolean(storedDraft.draft) &&
+        !(storedDraft.draft ?? "").includes("Recording started") &&
+        !(noteBody.draft ?? "").includes("Recording started"),
+      (storedDraft.draft ?? "no draft").slice(0, 90),
+    );
+    check(
+      "W1-24 …and coverage is still said, as its own field",
+      noteBody.coverage === coverage,
+      noteBody.coverage ?? "no coverage field",
+    );
   } finally {
     mock.server.close();
     await db.execute(sql`DELETE FROM partner_sessions WHERE external_session_ref LIKE ${`%${fixture}%`}`);

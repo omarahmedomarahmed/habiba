@@ -32,23 +32,25 @@ import { coverageSentence } from "./consent";
  */
 
 /**
- * 🔴 68.6 — WRITE THE DRAFT. THE COVERAGE SENTENCE IS PART OF IT, NOT BESIDE IT.
+ * 🔴 68.6 / W1-24: WRITE THE DRAFT. THE COVERAGE SENTENCE IS BESIDE IT, NEVER IN IT.
  *
- * A note produced from a session that was recorded from minute ten must SAY so, in
- * the note, because the note is the artefact that travels: it lands in the partner's
- * chart, is read by their clinician, and may be read by somebody else years later
- * with no API response next to it.
+ * This used to prepend `coverageSentence` to the draft, on the reasoning that the
+ * note is the artefact that travels. The 2025 AI scribe cases (takeover/design
+ * RESEARCH-2 section 3) turned on exactly that: consent and recording text written
+ * into a chart by the machine, which then reads as the clinician's attestation. So
+ * the draft is the clinical text and nothing else, and coverage is its own field on
+ * every response (`coverage` on the note, transcript and consent routes), for the
+ * partner to show beside the note in their own interface.
  *
- * Prepended rather than appended, because a reader who stops after the first
- * paragraph has still read the one sentence that changes how to read the rest.
+ * Defensive as well: a model that echoes a coverage sentence at the top of its
+ * output has it removed before anything is stored.
  */
 export async function draftNote(input: {
   partnerSessionId: string;
   text: string;
   recordingFromSeconds: number | null;
 }): Promise<{ ok: true }> {
-  const coverage = coverageSentence(input.recordingFromSeconds);
-  const body = `${coverage}\n\n${input.text.trim()}`;
+  const body = withoutCoverage(input.text, input.recordingFromSeconds);
 
   await controlDb
     .update(partnerSessions)
@@ -56,6 +58,19 @@ export async function draftNote(input: {
     .where(eq(partnerSessions.id, input.partnerSessionId));
 
   return { ok: true };
+}
+
+/** The text with any leading coverage sentence of ours taken off. */
+function withoutCoverage(text: string, recordingFromSeconds: number | null): string {
+  let body = text.trim();
+  for (const sentence of new Set([
+    coverageSentence(recordingFromSeconds),
+    coverageSentence(0),
+    coverageSentence(null),
+  ])) {
+    if (body.startsWith(sentence)) body = body.slice(sentence.length).trim();
+  }
+  return body;
 }
 
 /**

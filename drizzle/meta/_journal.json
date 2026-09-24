@@ -834,6 +834,13 @@
       "when": 1789966004000,
       "tag": "0118_a_licence_change_is_reviewed",
       "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1789966005000,
+      "tag": "0119_coverage_beside_the_note",
+      "breakpoints": true
     }
   ]
 }
