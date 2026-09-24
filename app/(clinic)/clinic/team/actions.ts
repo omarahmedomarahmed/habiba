@@ -9,14 +9,50 @@ import { revokeClinicSession } from "@/lib/clinic-auth/session";
 import { leaveClinicPrincipal } from "@/lib/clinic-auth/switch";
 import {
   addStaff,
+  changeStaffRole as changeRole,
   createRole,
+  invitedStaff,
   removeRole,
+  removeStaff as removeMember,
   setAssignments,
+  signOutStaff as endSessions,
   updateRole,
 } from "@/lib/data/clinic-team";
 import { callerKey, consume } from "@/lib/rate-limit";
 
-export type TeamState = { error?: string; ok?: boolean };
+export type TeamState = { error?: string; ok?: boolean; link?: string };
+
+/**
+ * 🔴 W2-C04 — THE INVITATION LINK, SENT AND SHOWN, the clinician invitation's
+ * shape (`people/actions.ts:invite`).
+ *
+ * Shown to the admin as well as emailed because our mail domain is not
+ * verified yet, so a practice adding a receptionist needs a way through that
+ * does not depend on us. The link lets its holder choose THEIR OWN password
+ * once; the admin never types or sees one.
+ */
+async function sendStaffInvite(input: {
+  clinicManagerId: string;
+  email: string;
+  clinicName: string;
+}): Promise<string> {
+  const { issueClinicToken } = await import("@/lib/clinic-auth/tokens");
+  const { env } = await import("@/lib/env");
+  const { notify } = await import("@/lib/notify");
+
+  const token = await issueClinicToken(input.clinicManagerId, "invite");
+  const link = `${env.appUrl}/clinic/set-password?token=${token}`;
+  await notify(
+    { email: input.email, phone: null },
+    {
+      kind: "clinic.staff_invite",
+      subject: `${input.clinicName} has added you on 24Therapy`,
+      body: `${input.clinicName} has added you to their practice's team on 24Therapy. Open the link to choose your password. It works once, for fourteen days.`,
+      link: { label: "Choose your password", url: link },
+    },
+  );
+  return link;
+}
 
 /**
  * The practice's staff and roles. PLAN.md 63.2 to 63.7, C325, C326, C352, C353.
@@ -109,15 +145,22 @@ export async function inviteStaff(_prev: TeamState, formData: FormData): Promise
   const throttle = await consume(await callerKey("clinic-team"), 30, 15 * 60);
   if (!throttle.allowed) return { error: "Too many changes at once. Wait a few minutes." };
 
+  const email = String(formData.get("email") ?? "");
   const result = await addStaff({
     clinicOrganizationId: actor.clinicOrganizationId,
-    email: String(formData.get("email") ?? ""),
+    email,
     name: String(formData.get("name") ?? "") || null,
-    password: String(formData.get("password") ?? ""),
     roleId: String(formData.get("roleId") ?? ""),
   });
 
-  if (result.error) return { error: result.error };
+  if (result.error || !result.id) return { error: result.error ?? "That could not be completed." };
+
+  /* 🔴 W2-C04: they choose their own password, from a link. */
+  const link = await sendStaffInvite({
+    clinicManagerId: result.id,
+    email: email.trim().toLowerCase(),
+    clinicName: actor.clinicName,
+  });
 
   /* 🔴 58.7 — a new principal inside a tenancy is the most auditable thing here. */
   await audit({
@@ -127,7 +170,114 @@ export async function inviteStaff(_prev: TeamState, formData: FormData): Promise
     action: "clinic.staff.add",
     resourceType: "clinic_manager",
     resourceId: result.id ?? null,
-    reason: "added to the practice with a custom role",
+    reason: "added to the practice with a custom role, invited by link",
+  });
+
+  revalidatePath("/clinic/team");
+  return { ok: true, link };
+}
+
+/**
+ * 🔴 W2-C04 — A NEW LINK for somebody who has not used theirs. The old one
+ * stops working (`issueClinicToken` supersedes it), so a link forwarded to the
+ * wrong person can be taken back by sending another.
+ */
+export async function reinviteStaff(clinicManagerId: string): Promise<TeamState> {
+  const actor = await requireClinicAdmin();
+
+  const staff = await invitedStaff(actor.clinicOrganizationId, clinicManagerId);
+  if (!staff) return { error: "That person has already chosen a password." };
+
+  const link = await sendStaffInvite({
+    clinicManagerId: staff.id,
+    email: staff.email,
+    clinicName: actor.clinicName,
+  });
+
+  await audit({
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "clinic.staff.reinvite",
+    resourceType: "clinic_manager",
+    resourceId: staff.id,
+  });
+
+  revalidatePath("/clinic/team");
+  return { ok: true, link };
+}
+
+/**
+ * 🔴 W2-C04 — REMOVE A STAFF MEMBER. The admin's, like adding one: somebody
+ * leaving the practice must lose their access the same minute, and before
+ * this there was no way to do it short of asking us.
+ */
+export async function removeStaff(clinicManagerId: string): Promise<TeamState> {
+  const actor = await requireClinicAdmin();
+
+  const result = await removeMember({
+    clinicOrganizationId: actor.clinicOrganizationId,
+    clinicManagerId,
+  });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "clinic.staff.remove",
+    resourceType: "clinic_manager",
+    resourceId: clinicManagerId,
+    reason: "removed from the practice, every session ended",
+  });
+
+  revalidatePath("/clinic/team");
+  return { ok: true };
+}
+
+/** 🔴 W2-C04 — A DIFFERENT ROLE for a staff member. A permission write, audited as one. */
+export async function changeStaffRole(clinicManagerId: string, roleId: string): Promise<TeamState> {
+  const actor = await requireClinicAdmin();
+
+  const result = await changeRole({
+    clinicOrganizationId: actor.clinicOrganizationId,
+    clinicManagerId,
+    roleId,
+  });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "admin",
+    action: "clinic.staff.role",
+    resourceType: "clinic_manager",
+    resourceId: clinicManagerId,
+    reason: `role ${roleId}`,
+  });
+
+  revalidatePath("/clinic/team");
+  return { ok: true };
+}
+
+/** 🔴 W2-C04 — SIGN A STAFF MEMBER OUT EVERYWHERE. A lost phone, a shared desk. */
+export async function signOutStaff(clinicManagerId: string): Promise<TeamState> {
+  const actor = await requireClinicAdmin();
+
+  const result = await endSessions({
+    clinicOrganizationId: actor.clinicOrganizationId,
+    clinicManagerId,
+  });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor: null,
+    clinicManagerId: actor.clinicManagerId,
+    category: "auth",
+    action: "clinic.staff.sign_out",
+    resourceType: "clinic_manager",
+    resourceId: clinicManagerId,
+    reason: `${result.ended ?? 0} session(s) ended`,
   });
 
   revalidatePath("/clinic/team");

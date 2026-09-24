@@ -1,13 +1,12 @@
 import "server-only";
 
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 import {
   ADMIN_CAPABILITIES,
   parseCapabilities,
   roleProblem,
 } from "@/lib/clinic-auth/capabilities";
-import { hashPassword } from "@/lib/auth/password";
 import { controlDb } from "@/lib/db";
 import {
   clinicAuthSessions,
@@ -212,6 +211,11 @@ export async function staffFor(clinicOrganizationId: string) {
       roleName: clinicRoles.name,
       linkedUserId: clinicManagers.linkedUserId,
       lastSignInAt: clinicManagers.lastSignInAt,
+      /*
+       * 🔴 W2-C04: invited and not yet in. Whether a password exists, never
+       * the hash: a screen has no business holding one.
+       */
+      invited: sql<boolean>`${clinicManagers.passwordHash} IS NULL`,
     })
     .from(clinicManagers)
     .leftJoin(clinicRoles, eq(clinicRoles.id, clinicManagers.roleId))
@@ -256,17 +260,20 @@ export async function staffFor(clinicOrganizationId: string) {
  * 🔴 `role: "viewer"` on the built-in column, ALWAYS. The built-in `admin` is the
  * practice's owner and is created by us on the call (54.3); nothing on a self-serve
  * path may mint one, or "add a colleague" is "add an owner".
+ *
+ * 🔴 W2-C04: AND WITH NO PASSWORD. The admin used to type one here and pass it
+ * on out of band. The row is created with none, which `checkClinicPassword`
+ * refuses, and the caller issues an invitation link from which the staff
+ * member chooses their own (`lib/clinic-auth/tokens.ts`).
  */
 export async function addStaff(input: {
   clinicOrganizationId: string;
   email: string;
   name: string | null;
-  password: string;
   roleId: string;
 }): Promise<{ id?: string; error?: string }> {
   const email = input.email.trim().toLowerCase();
   if (!email.includes("@")) return { error: "That email address does not look right." };
-  if (input.password.length < 12) return { error: "Use at least twelve characters." };
 
   /* The role must be this practice's. A borrowed id is a role from another clinic. */
   const [role] = await controlDb
@@ -290,7 +297,7 @@ export async function addStaff(input: {
         organizationId: input.clinicOrganizationId,
         email,
         name: input.name?.trim().slice(0, 120) || null,
-        passwordHash: await hashPassword(input.password),
+        passwordHash: null,
         role: "viewer",
         roleId: role.id,
       })
@@ -306,6 +313,116 @@ export async function addStaff(input: {
      */
     return { error: "There is already an account with that email address." };
   }
+}
+
+/**
+ * 🔴 W2-C04 — ONE OF THIS PRACTICE'S STAFF, and never its owner.
+ *
+ * Every lifecycle act below goes through this: the row must be this
+ * practice's, live, and a `viewer`. The built-in admin is ours to create and
+ * ours to change (54.3), so no screen here can remove, re-role or sign out the
+ * person who runs the practice, including themselves.
+ */
+async function staffMember(clinicOrganizationId: string, clinicManagerId: string) {
+  const [row] = await controlDb
+    .select({ id: clinicManagers.id, email: clinicManagers.email })
+    .from(clinicManagers)
+    .where(
+      and(
+        eq(clinicManagers.id, clinicManagerId),
+        eq(clinicManagers.organizationId, clinicOrganizationId),
+        eq(clinicManagers.role, "viewer"),
+        isNull(clinicManagers.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+/** The staff member an invitation link is for, if they have still not set a password. */
+export async function invitedStaff(clinicOrganizationId: string, clinicManagerId: string) {
+  const [row] = await controlDb
+    .select({ id: clinicManagers.id, email: clinicManagers.email })
+    .from(clinicManagers)
+    .where(
+      and(
+        eq(clinicManagers.id, clinicManagerId),
+        eq(clinicManagers.organizationId, clinicOrganizationId),
+        eq(clinicManagers.role, "viewer"),
+        isNull(clinicManagers.passwordHash),
+        isNull(clinicManagers.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * 🔴 W2-C04 — REMOVE A STAFF MEMBER. Soft, like a role: the row stays for the
+ * audit trail that names it, the assignments go, every session ends now and
+ * the address is free to be used again (the unique index is on live rows).
+ */
+export async function removeStaff(input: {
+  clinicOrganizationId: string;
+  clinicManagerId: string;
+}): Promise<{ ok?: true; error?: string }> {
+  const staff = await staffMember(input.clinicOrganizationId, input.clinicManagerId);
+  if (!staff) return { error: "That person is not on your team." };
+
+  await controlDb
+    .update(clinicManagers)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(eq(clinicManagers.id, staff.id));
+  await controlDb
+    .delete(clinicStaffAssignments)
+    .where(eq(clinicStaffAssignments.clinicManagerId, staff.id));
+  await revokeClinicSessionsFor(staff.id);
+
+  log.info("clinic staff removed", { org: ref(input.clinicOrganizationId) });
+  return { ok: true };
+}
+
+/**
+ * 🔴 W2-C04 — GIVE A STAFF MEMBER A DIFFERENT ROLE. One of this practice's own
+ * roles, never another clinic's. `getClinicActor` reads capabilities from the
+ * role on every request, so the change reaches a live session on its next page.
+ */
+export async function changeStaffRole(input: {
+  clinicOrganizationId: string;
+  clinicManagerId: string;
+  roleId: string;
+}): Promise<{ ok?: true; error?: string }> {
+  const staff = await staffMember(input.clinicOrganizationId, input.clinicManagerId);
+  if (!staff) return { error: "That person is not on your team." };
+
+  const [role] = await controlDb
+    .select({ id: clinicRoles.id })
+    .from(clinicRoles)
+    .where(
+      and(
+        eq(clinicRoles.id, input.roleId),
+        eq(clinicRoles.organizationId, input.clinicOrganizationId),
+        isNull(clinicRoles.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!role) return { error: "Choose one of your own roles for them." };
+
+  await controlDb
+    .update(clinicManagers)
+    .set({ roleId: role.id, updatedAt: new Date() })
+    .where(and(eq(clinicManagers.id, staff.id), ne(clinicManagers.role, "admin")));
+  return { ok: true };
+}
+
+/** 🔴 W2-C04 — SIGN A STAFF MEMBER OUT EVERYWHERE, now. Their account stays. */
+export async function signOutStaff(input: {
+  clinicOrganizationId: string;
+  clinicManagerId: string;
+}): Promise<{ ok?: true; ended?: number; error?: string }> {
+  const staff = await staffMember(input.clinicOrganizationId, input.clinicManagerId);
+  if (!staff) return { error: "That person is not on your team." };
+  return { ok: true, ended: await revokeClinicSessionsFor(staff.id) };
 }
 
 /**

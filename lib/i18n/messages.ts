@@ -2051,7 +2051,7 @@ export const en = {
   "clinic.exportCsv": "Download as a spreadsheet",
   "clinic.exportWatermark": "Every export carries your name and the time you took it, and shows nothing this screen does not.",
   "clinic.earn.title": "What your clinicians have earned",
-  "clinic.earn.body": "Their share of the sessions they ran here, and the withdrawals they made. You cannot withdraw for them.",
+  "clinic.earn.body": "Their share of the sessions they ran here, and the withdrawals they made.",
   "clinic.earn.empty": "Nothing earned here yet.",
   "clinic.earn.combined": "Combined",
   "clinic.earn.noWithdrawals": "No withdrawals yet.",
@@ -2060,7 +2060,7 @@ export const en = {
   "clinic.switchToClinician": "Switch to your clinician account",
   "portal.nav.switchToClinic": "Switch to your practice account",
   "clinic.team.title": "Your team",
-  "clinic.team.body": "Who works here and what each of them can reach. Nobody here reaches anything from inside a session.",
+  "clinic.team.body": "Who works here and what each of them can reach.",
   "clinic.team.rolesTitle": "Roles",
   "clinic.team.rolesEmpty": "You have no roles yet. Make one and you can add people to it.",
   "clinic.team.roleName": "What is this role called",
@@ -2092,7 +2092,7 @@ export const en = {
   "clinic.cap.clinicians": "Invite and remove clinicians",
   "clinic.cap.export": "Export what they can see",
   "clinic.seatsWord": "clinicians on seats",
-  "clinic.seatFrom": "This seat is not billed until {date}, because they had already paid for the month when they joined.",
+  "clinic.seatFrom": "This seat is not billed until {date}: they had already paid for their month.",
   /*
    * 🔴 63.9 / C328 — WHAT THE PRACTICE WILL SEE, ENUMERATED BEFORE THEY ACCEPT.
    *
@@ -2319,7 +2319,7 @@ export const en = {
   "records.planBody": "A records connection binds a whole practice to a hospital system, so the registration and the token are the practice's.",
   "records.planInstead": "On your own account the right tool is already in your settings: a full export of every record you hold.",
   "records.lastAnswered": "Their server last answered us at {when}.",
-  "records.neverAnswered": "Their server has not answered yet. This turns green on a real call, not a saved URL.",
+  "records.neverAnswered": "Their server has not answered yet.",
   "records.disconnectCount": "{count} clinicians file through this connection. Disconnecting stops all of them.",
   "records.disconnectNone": "Nobody has filed through this connection yet. Disconnecting stops nothing that is happening.",
   "records.title": "Your record system",
@@ -4009,6 +4009,10 @@ export const en = {
   "clinic.dueNow": "{amount} due",
   "clinic.due": "Due",
   "clinic.payByTransfer": "Your practice pays by bank transfer. Write to us for the details.",
+  "clinic.linkInvalid": "That link is no longer valid.",
+  "clinic.team.invited": "Invited, no password yet",
+  "clinic.team.signOut": "Sign them out everywhere",
+  "clinic.team.newLink": "New link",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5569,7 +5573,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.exportCsv": "نزّله كجدول بيانات",
   "clinic.exportWatermark": "كل تصدير يحمل اسمك ووقت أخذك له، ولا يعرض شيئًا لا تعرضه هذه الشاشة.",
   "clinic.earn.title": "ما كسبه معالجوك",
-  "clinic.earn.body": "حصته من الجلسات التي أجراها هنا، وسحوباته. ولا تستطيع السحب نيابة عنه.",
+  "clinic.earn.body": "حصته من الجلسات التي أجراها هنا، وسحوباته.",
   "clinic.earn.empty": "لا أرباح هنا بعد.",
   "clinic.earn.combined": "الإجمالي",
   "clinic.earn.noWithdrawals": "لا سحوبات بعد.",
@@ -5578,7 +5582,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.switchToClinician": "انتقل إلى حسابك كمعالج",
   "portal.nav.switchToClinic": "انتقل إلى حساب عيادتك",
   "clinic.team.title": "فريقك",
-  "clinic.team.body": "من يعمل هنا وما يصل إليه كل منهم. ولا أحد هنا يصل إلى شيء من داخل جلسة.",
+  "clinic.team.body": "من يعمل هنا وما يصل إليه كل منهم.",
   "clinic.team.rolesTitle": "الأدوار",
   "clinic.team.rolesEmpty": "لا أدوار بعد. أنشئ دورًا ثم أضف إليه أشخاصًا.",
   "clinic.team.roleName": "ما اسم هذا الدور",
@@ -5610,7 +5614,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.cap.clinicians": "دعوة المعالجين وإزالتهم",
   "clinic.cap.export": "تصدير ما يستطيع رؤيته",
   "clinic.seatsWord": "معالجون على مقاعد",
-  "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}، لأنه كان قد دفع شهره عند انضمامه.",
+  "clinic.seatFrom": "لا يُحتسب هذا المقعد قبل {date}: كان قد دفع شهره.",
   /* 🔴 63.9 / C328 — ما ستراه العيادة، مُعدَّدًا قبل القبول. */
   "clinic.join.seesTitle": "ما ستستطيع {name} رؤيته",
   "clinic.join.sees.earnings": "إجماليات أرباحك في العيادة",
@@ -5764,7 +5768,7 @@ export const ar: Record<MessageKey, string> = {
   "records.planBody": "ربط السجلات يربط عيادة كاملة بنظام مستشفى، فالتسجيل والمفتاح ملك العيادة.",
   "records.planInstead": "في حسابك الخاص الأداة الصحيحة في الإعدادات بالفعل: تصدير كامل لكل سجل لديك.",
   "records.lastAnswered": "آخر مرة أجابنا فيها خادمهم: {when}.",
-  "records.neverAnswered": "لم يرد خادمهم بعد. ويخضرّ هذا عند اتصال حقيقي، لا عند حفظ رابط.",
+  "records.neverAnswered": "لم يرد خادمهم بعد.",
   "records.disconnectCount": "يودع {count} معالجين عبر هذا الربط. والفصل يوقفهم جميعًا.",
   "records.disconnectNone": "لم يودع أحد شيئًا عبر هذا الاتصال بعد. فصله لا يوقف شيئًا جاريًا.",
   "records.title": "نظام السجلات لديك",
@@ -7252,6 +7256,10 @@ export const ar: Record<MessageKey, string> = {
   "clinic.dueNow": "{amount} مستحقة",
   "clinic.due": "مستحقة",
   "clinic.payByTransfer": "تدفع عيادتك بالتحويل البنكي. راسلنا لنرسل إليك التفاصيل.",
+  "clinic.linkInvalid": "لم يعد هذا الرابط صالحًا.",
+  "clinic.team.invited": "مدعو، لم يختر كلمة مرور بعد",
+  "clinic.team.signOut": "أخرِجه من كل الأجهزة",
+  "clinic.team.newLink": "رابط جديد",
 };
 
 export const DICTIONARIES = { en, ar } as const;

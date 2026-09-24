@@ -207,6 +207,7 @@
     "test:partner-wav": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/partner-wav.test.ts",
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "test:clinician-nav": "node --env-file-if-exists=.env.local --import tsx --test tests/clinician-nav.test.ts",
+    "test:clinic-staff": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-staff.test.ts",
     "test:clinic-bills": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-bills.test.ts",
     "test:clinic-seats": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-seats.test.ts",
     "test:clinic-patients": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-patients.test.ts",
@@ -220,7 +221,8 @@
     "prove": "node --import tsx scripts/prove.ts",
     "verify:prove": "node --import tsx scripts/verify-prove.ts",
     "audit:csp-enforced": "node --env-file-if-exists=.env.local --import tsx scripts/audit-csp-enforced.ts",
-    "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts"
+    "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts",
+    "verify:w2c": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2c.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

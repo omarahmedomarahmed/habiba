@@ -141,6 +141,11 @@ export type Message = {
      */
     | "clinic.removed"
     /**
+     * W2-C04: a clinic admin added somebody to the practice's team. The link
+     * lets them choose their own password; nothing about any patient.
+     */
+    | "clinic.staff_invite"
+    /**
      * 🔴 44.1 / C97 — the unprompted one, and the only message in this list nobody asked for.
      *
      * Every other kind here answers something the person did: they booked, they claimed, they wrote
