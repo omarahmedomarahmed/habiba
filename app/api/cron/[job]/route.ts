@@ -261,6 +261,14 @@ const JOBS = {
     const potAlerts = await alertPots();
 
     /*
+     * W2-S10 — every enrolled person is told, in the app, that their company
+     * sees each session's money with no name on it, BEFORE any of their
+     * sessions enters that view. `payFromPot` checks the timestamp this sets.
+     */
+    const { tellEnrolledAboutLedger } = await import("@/lib/data/enrolment-verify");
+    const ledgerTold = await tellEnrolledAboutLedger();
+
+    /*
      * 🔴 59.16 / 59.13 — DUNNING, AND THE LAPSE THAT FOLLOWS IT.
      *
      * Sprint 57 shipped two monthly plans and named the absence of dunning as a
@@ -382,6 +390,7 @@ const JOBS = {
       benefitsPaused: reverified.paused,
       potsOutOfBalance: potDrift.length,
       potAlerts: potAlerts.alerted,
+      ledgerTold: ledgerTold.told,
       renewalsDueSoon: dueSoon.length,
       renewalsLapsed: lapsed.lapsed,
       renewalsPaidNoReference: renewalDrift.paidWithNoReference.length,

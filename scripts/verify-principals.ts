@@ -299,6 +299,12 @@ const SCOPE: Record<string, Scope> = {
    * person the company funds, so a sponsor may call it for its own account.
    */
   "sponsor-users": { who: ["sponsor"] },
+  /*
+   * W2-S10 — the company's money ledger, C244's one sanctioned exception. It
+   * reads `sponsor_money_entries` alone, which carries money and a week and no
+   * session, person or therapist, so it is not clinical and a sponsor reads it.
+   */
+  "sponsor-ledger": { who: ["sponsor"] },
   support: { who: ["admin", "patient", "clinician"] },
   taxonomy: { who: ["admin"] },
   "therapist-codes": { who: ["clinician", "admin"] },

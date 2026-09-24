@@ -94,6 +94,126 @@ test("W2-S06 the settings form has a test box and warns about an unproved domain
   assert.match(enrol, /from "@\/lib\/sponsor\/gate"/, "enrolment runs a different gate from the test box");
 });
 
+/* ------------------------------------------------------------ W2-S10 -- */
+
+type Ledger = typeof import("../lib/sponsor/ledger");
+const ledgerModule = async () =>
+  (await import("../lib/sponsor/ledger").catch(() => null)) as Ledger | null;
+
+const entry = (over: Partial<import("../lib/sponsor/ledger").LedgerEntry>) => ({
+  kind: "session" as const,
+  weekStart: "2026-09-07",
+  priceCents: 2000,
+  coverageBps: 6000,
+  coveredCents: 1200,
+  employeeCents: 800,
+  shuffle: 0,
+  ...over,
+});
+
+test("W2-S10 entries are published in weekly batches unless an operator makes it live", async () => {
+  const l = await ledgerModule();
+  assert.ok(l, "lib/sponsor/ledger.ts does not exist");
+  /* Thursday 24 September 2026: this week began Monday the 21st. */
+  const now = new Date("2026-09-24T15:00:00Z");
+  assert.equal(l.weekStartOf(now), "2026-09-21");
+  assert.equal(l.weekStartOf(new Date("2026-09-27T23:59:00Z")), "2026-09-21", "Sunday is the same week");
+  assert.equal(l.lastPublishedWeek("weekly", now), "2026-09-14", "this week is not out until it ends");
+  assert.equal(l.lastPublishedWeek("live", now), "2026-09-21");
+});
+
+test("W2-S10 sorting breaks ties by the shuffle, never by the order paid", async () => {
+  const l = (await ledgerModule())!;
+  const q = l.parseLedgerQuery({ sort: "price", dir: "desc" });
+  const sorted = l.sortLedger(
+    [entry({ shuffle: 9 }), entry({ shuffle: 1 }), entry({ priceCents: 3000, shuffle: 5 })],
+    q,
+  );
+  assert.deepEqual(sorted.map((e) => e.shuffle), [5, 1, 9]);
+
+  const filtered = l.filterLedger(
+    [entry({ coverageBps: 6000 }), entry({ coverageBps: 10000 }), entry({ priceCents: 9000 })],
+    l.parseLedgerQuery({ coverage: "60", max: "50" }),
+  );
+  assert.equal(filtered.length, 1);
+  assert.equal(l.parseLedgerQuery({ coverage: "sixty", sort: "name" }).coverage, null);
+  assert.equal(l.parseLedgerQuery({ sort: "name" }).sort, "week", "an unknown sort is the default");
+});
+
+test("W2-S10 the reporting floor applies to every aggregate", async () => {
+  const l = (await ledgerModule())!;
+  const floor = 5;
+  const few = [entry({ weekStart: "2026-08-03" }), entry({ weekStart: "2026-08-10" })];
+  const quiet = l.ledgerAnalytics({ entries: few, floor, balanceCents: 50_000, topUps: [] });
+  assert.equal(quiet.sessions, null);
+  assert.equal(quiet.spendCents, null);
+  assert.equal(quiet.averagePriceCents, null);
+  assert.equal(quiet.employeeShareCents, null);
+  assert.ok(quiet.months.every((m) => m.spendCents === null && m.sessions === null));
+  assert.ok(quiet.coverageMix.every((b) => b.sessions === null));
+  assert.equal(quiet.burnCents, null);
+  assert.equal(quiet.runwayMonths, null);
+
+  /* August has two, September four: August rolls into September, never dropped. */
+  const more = [...few, ...[1, 2, 3, 4].map((n) => entry({ weekStart: "2026-09-07", shuffle: n }))];
+  const out = l.ledgerAnalytics({
+    entries: more,
+    floor,
+    balanceCents: 7200,
+    topUps: [{ amountCents: 10_000 }],
+  });
+  assert.deepEqual(out.months, [
+    { month: "2026-08", spendCents: null, sessions: null },
+    { month: "2026-09", spendCents: 7200, sessions: 6 },
+  ]);
+  assert.equal(out.sessions, 6);
+  assert.equal(out.averagePriceCents, 2000);
+  assert.equal(out.employeeShareCents, 4800);
+  assert.deepEqual(out.coverageMix, [{ coverageBps: 6000, sessions: 6 }]);
+  assert.equal(out.burnCents, 7200);
+  assert.equal(out.runwayMonths, 1);
+  assert.deepEqual(out.topUps, { count: 1, totalCents: 10_000 }, "top-ups are the company's own acts");
+
+  /* A coverage bucket under the floor is suppressed while the total is not. */
+  const mixed = l.ledgerAnalytics({
+    entries: [...more, entry({ coverageBps: 10000, coveredCents: 2000, employeeCents: 0 })],
+    floor,
+    balanceCents: null,
+    topUps: [],
+  });
+  assert.deepEqual(mixed.coverageMix, [
+    { coverageBps: 10000, sessions: null },
+    { coverageBps: 6000, sessions: 6 },
+  ]);
+  assert.equal(mixed.runwayMonths, null, "no runway from a suppressed balance");
+});
+
+test("W2-S10 the CSV carries money and a week, and every cell is escaped", async () => {
+  const l = (await ledgerModule())!;
+  const rows = l.ledgerCsvRows(
+    [entry({}), entry({ kind: "refund" })],
+    ["Week", "Kind", "Price", "Coverage %", "Covered", "Employee share"],
+    (kind) => (kind === "refund" ? "=HYPERLINK(1)" : "Session"),
+  );
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[1], ["2026-09-07", "Session", 20, 60, 12, 8]);
+  assert.equal(rows[2]![4], -12, "a refund is a negative number, not text");
+
+  const route = readSource("app/(sponsor)/sponsor/ledger/export/route.ts");
+  assert.match(route, /csvCell/, "the export does not escape its cells");
+  assert.match(route, /getSponsorActor\(\)/, "the export is not behind the company's login");
+});
+
+test("W2-S10 C244's one exception reads one table and names nobody", () => {
+  const reader = readSource("lib/data/sponsor-ledger.ts");
+  assert.match(reader, /sponsorMoneyEntries/);
+  assert.doesNotMatch(
+    reader,
+    /\b(sessions|patients|people|users|sessionPayments|ledgerEntries|enrolments|therapist\w*|specialt\w*|firstName|lastName|createdAt|scheduledAt)\b/,
+    "the company's money view reaches past its own table",
+  );
+});
+
 /* ------------------------------------------------------------ W2-S07 -- */
 
 test("W2-S07 the verify-cycle screen and the pause job read the same number", () => {

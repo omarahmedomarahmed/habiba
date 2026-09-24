@@ -1,6 +1,7 @@
 import "server-only";
 
 import { audit } from "@/lib/audit";
+import { csvCell } from "@/lib/csv";
 
 import { clinicBills, clinicSchedule, type ClinicPrincipal } from "./clinic";
 
@@ -30,19 +31,8 @@ import { clinicBills, clinicSchedule, type ClinicPrincipal } from "./clinic";
  * a spreadsheet found on a laptop still says where it came from.
  */
 
-/**
- * A cell, escaped. Commas, quotes and newlines all survive a round trip.
- *
- * W1-19: and a string a spreadsheet would read as a formula is prefixed with a
- * single quote. A guest name typed into a join link as `=HYPERLINK(...)` would
- * otherwise run in the practice manager's spreadsheet. Numbers are left alone:
- * a negative total is a number, not a formula.
- */
-export function csvCell(value: string | number | null | undefined): string {
-  let text = String(value ?? "");
-  if (typeof value === "string" && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
+/* W1-19's formula escaping lives in `lib/csv.ts` now (W2-S10), and is re-exported. */
+export { csvCell };
 
 function rows(lines: (string | number | null)[][]): string {
   return lines.map((line) => line.map(csvCell).join(",")).join("\r\n");

@@ -200,6 +200,38 @@ async function main() {
   );
 
   /*
+   * 🔴 C244's ONE SANCTIONED EXCEPTION (W2-S10, FIX-PLAN D1), held to its shape.
+   *
+   * The company's money ledger. It carries a sponsor id AND session money,
+   * which is exactly why its column list is asserted whole: money, a kind, the
+   * Monday of the week and a shuffle, and no session, person, patient,
+   * therapist or payment id and no timestamp. A column added to it is a way
+   * back to a person, so it fails here rather than shipping.
+   */
+  const MONEY_COLUMNS = [
+    "covered_cents",
+    "coverage_bps",
+    "employee_cents",
+    "id",
+    "kind",
+    "price_cents",
+    "shuffle",
+    "sponsor_id",
+    "week_start",
+  ];
+  const moneyColumns = (
+    await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'sponsor_money_entries' ORDER BY column_name`)
+  ).rows.map((row) => String((row as { column_name: string }).column_name));
+
+  check(
+    "🔴 C244 its one exception, sponsor_money_entries, holds money and a week and no key to anybody",
+    JSON.stringify(moneyColumns) === JSON.stringify(MONEY_COLUMNS),
+    moneyColumns.join(", ") || "the table does not exist (0134)",
+  );
+
+  /*
    * 🔴 C231 amended — and `patient_notifications` is the sharpest of those.
    *
    * *A permanently undeletable entry saying an employer enrolled you and later

@@ -375,3 +375,59 @@ export async function pausedBenefits() {
     /* Longest paused first: the person waiting longest is the one being failed. */
     .orderBy(enrolments.pausedAt);
 }
+
+/**
+ * 🔴 W2-S10 / FIX-PLAN D1 — EVERY ENROLLED PERSON IS TOLD BEFORE THE COMPANY'S
+ * MONEY LEDGER INCLUDES THEM.
+ *
+ * Enrolled employees were told their organisation sees "not a date, not a
+ * count". The founder's decision adds a ledger of each session's money with no
+ * name on it, so each of them hears it in the app first, and `payFromPot`
+ * writes an entry only for a session paid after `ledger_told_at`.
+ *
+ * 🔴 The notice first, then the timestamp, and only if the notice was written:
+ * a told-at with no notice behind it would put somebody's sessions in a view
+ * they were never shown. One notice per PERSON, however many organisations they
+ * are enrolled with, and it names none of them (C231).
+ *
+ * Run daily by the billing job, in batches, so a large enrolment base is told
+ * over a few days rather than in one request (H9).
+ */
+export async function tellEnrolledAboutLedger(now = new Date()): Promise<{ told: number }> {
+  const waiting = await controlDb
+    .selectDistinct({ personId: enrolments.personId })
+    .from(enrolments)
+    .where(and(isNull(enrolments.ledgerToldAt), isNull(enrolments.removedAt)))
+    .limit(500);
+
+  let told = 0;
+  for (const { personId } of waiting) {
+    try {
+      await controlDb.insert(patientNotifications).values({
+        personId,
+        kind: "benefit_terms",
+        messageKey: "pnotice.ledgerTold",
+      });
+    } catch (error) {
+      log.warn("ledger notice not written; not marking as told", {
+        reason: error instanceof Error ? error.message.slice(0, 120) : "unknown",
+      });
+      continue;
+    }
+
+    await controlDb
+      .update(enrolments)
+      .set({ ledgerToldAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(enrolments.personId, personId),
+          isNull(enrolments.ledgerToldAt),
+          isNull(enrolments.removedAt),
+        ),
+      );
+    told += 1;
+  }
+
+  if (told > 0) log.info("enrolled people told about the company ledger", { count: told });
+  return { told };
+}

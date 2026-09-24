@@ -27,6 +27,11 @@ import type { MessageKey } from "@/lib/i18n/messages";
 
 const TABS: { href: string; key: MessageKey }[] = [
   { href: "/sponsor", key: "sponsor.nav.overview" },
+  /*
+   * 🔴 W2-S10 / D1 — every session's money, and still no way to open a person:
+   * the entries carry no name, therapist or date finer than the week.
+   */
+  { href: "/sponsor/ledger", key: "sponsor.nav.ledger" },
   { href: "/sponsor/people", key: "sponsor.nav.people" },
   { href: "/sponsor/code", key: "sponsor.nav.code" },
   { href: "/sponsor/pot", key: "sponsor.nav.pot" },

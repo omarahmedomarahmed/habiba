@@ -606,6 +606,103 @@ async function pauseResume(db: Db) {
   }
 }
 
+/* ================================================================== */
+/*  W2-S10 · the company's money ledger (needs migration 0134)         */
+/* ================================================================== */
+
+async function moneyLedger(db: Db) {
+  /* A FAIL, never a skip: this item is not done until 0134 is applied. */
+  const table = (
+    await db.execute(sql`SELECT to_regclass('sponsor_money_entries') IS NOT NULL AS present`)
+  ).rows[0] as { present: boolean };
+  if (!table.present) {
+    check("W2-S10 the company's money ledger exists", false, "migration 0134 is not applied here");
+    return;
+  }
+
+  const world = await plantWorld(db, "ledger");
+  try {
+    const { payFromPot } = await import("../lib/billing/pot");
+    const { tellEnrolledAboutLedger } = await import("../lib/data/enrolment-verify");
+    const { publishedLedger } = await import("../lib/data/sponsor-ledger");
+    const entries = async () =>
+      (
+        await db.execute(sql`
+          SELECT kind, week_start::text AS week_start, price_cents, coverage_bps,
+                 covered_cents, employee_cents
+            FROM sponsor_money_entries WHERE sponsor_id = ${world.sponsorId}`)
+      ).rows as {
+        kind: string;
+        week_start: string;
+        price_cents: number;
+        coverage_bps: number;
+        covered_cents: number;
+        employee_cents: number;
+      }[];
+
+    /* Before they are told: their session is paid, and enters no ledger. */
+    const nour = await world.cast("Nour", 2500);
+    await payFromPot(nour.sessionId);
+    check(
+      "W2-S10 a session paid before the employee was told enters no ledger",
+      (await entries()).length === 0,
+      `${(await entries()).length} entries`,
+    );
+
+    /* Told, in the app, and only then. */
+    await tellEnrolledAboutLedger();
+    const notice = (
+      await db.execute(sql`
+        SELECT count(*)::int AS n FROM patient_notifications
+         WHERE person_id = ${nour.personId} AND kind = 'benefit_terms'
+           AND message_key = 'pnotice.ledgerTold'`)
+    ).rows[0] as { n: number };
+    const toldAt = (
+      await db.execute(sql`SELECT ledger_told_at FROM enrolments WHERE id = ${nour.enrolmentId}`)
+    ).rows[0] as { ledger_told_at: Date | null };
+    await tellEnrolledAboutLedger();
+    const again = (
+      await db.execute(sql`
+        SELECT count(*)::int AS n FROM patient_notifications
+         WHERE person_id = ${nour.personId} AND kind = 'benefit_terms'`)
+    ).rows[0] as { n: number };
+    check(
+      "W2-S10 each enrolled person is told in the app, once, before the ledger applies to them",
+      notice.n === 1 && toldAt.ledger_told_at !== null && again.n === 1,
+      JSON.stringify({ notice: notice.n, toldAt: toldAt.ledger_told_at, again: again.n }),
+    );
+
+    const later = await world.book(nour.patientId, 2500);
+    await payFromPot(later);
+    const [row] = await entries();
+    const { weekStartOf } = await import("../lib/sponsor/ledger");
+    check(
+      "W2-S10 a session paid after they were told is one money entry: price, cover, both shares, the week",
+      row?.kind === "session" &&
+        row.price_cents === 2500 &&
+        row.coverage_bps === 6000 &&
+        row.covered_cents === 1500 &&
+        row.employee_cents === 1000 &&
+        row.week_start === weekStartOf(new Date()),
+      JSON.stringify(row),
+    );
+
+    /* Published in batches: this week's entry is not out until the week ends. */
+    const weekly = await publishedLedger(world.sponsorId);
+    const nextWeek = await publishedLedger(world.sponsorId, new Date(Date.now() + 8 * 24 * 60 * 60 * 1000));
+    check(
+      "W2-S10 by default this week's entries are published the Monday after, not as they happen",
+      weekly.publishing === "weekly" && weekly.entries.length === 0 && nextWeek.entries.length === 1,
+      `${weekly.entries.length} now, ${nextWeek.entries.length} after the week ends`,
+    );
+  } finally {
+    await db.execute(sql`DELETE FROM sponsor_money_entries WHERE sponsor_id = ${world.sponsorId}`).catch(
+      () => undefined,
+    );
+    await world.drop();
+  }
+}
+
 async function main() {
   writesTo();
 
@@ -617,6 +714,7 @@ async function main() {
     await potExpiry(db);
     await companyLogins(db);
     await pauseResume(db);
+    await moneyLedger(db);
   } finally {
     await pool.end();
   }

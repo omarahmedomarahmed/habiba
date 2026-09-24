@@ -426,6 +426,16 @@ export type PlatformSettings = {
      * spend a term's budget.
      */
     provisionalSessions: number;
+    /**
+     * 🔴 W2-S10 / D1 — WHEN A COMPANY SEES EACH SESSION'S MONEY ENTRY.
+     *
+     * `weekly` (the default) publishes a week's entries once the week is over,
+     * shuffled, dated by the week: a live entry at a small company is a person
+     * seen booking, and enrolled employees were told "not a date". `live`
+     * shows each entry as soon as it is paid, still dated by its week. An
+     * operator's decision, per the founder's; the safe direction is weekly.
+     */
+    ledgerPublishing: "weekly" | "live";
   };
   /**
    * 🔴 44.1 / C97 — THE CHECK-IN CADENCE IS A SETTING BECAUSE THE FOUNDER SAID TO PROVE IT.
@@ -660,6 +670,7 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     verifyCycleMonths: 6,
     coverageNoticeDays: 30,
     provisionalSessions: 1,
+    ledgerPublishing: "weekly",
   },
   checkins: {
     /* 🔴 Off. A channel that messages every patient turns on deliberately or not at all. */
@@ -1247,6 +1258,8 @@ export function parseGroup<G extends SettingsGroup>(
           min: 0,
           max: 10,
         }),
+        /* W2-S10 — anything but the one word `live` is the safe default. */
+        ledgerPublishing: v.ledgerPublishing === "live" ? "live" : "weekly",
       } as PlatformSettings[G];
 
     default:

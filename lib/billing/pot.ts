@@ -9,6 +9,7 @@ import {
   patients,
   sessionPayments,
   sessions,
+  sponsorMoneyEntries,
   sponsorPots,
   sponsors,
   therapistVerifications,
@@ -677,6 +678,18 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
   // 🔴 C382 — the debit used to be here, unconditional, after every irreversible
   // effect above it. It is now the first thing this function claims.
 
+  /* W2-S10 — the company's money entry, for a person who has been told. */
+  await recordMoneyEntry({
+    sponsorId: benefit.sponsorId,
+    enrolmentId: benefit.enrolmentId,
+    kind: "session",
+    priceCents: gross,
+    coverageBps,
+    coveredCents: sponsorShare,
+    employeeCents: gross - sponsorShare,
+    paidAt: new Date(),
+  });
+
   log.info("session funded from a pot", { session: ref(sessionId) });
   /*
    * 🔴 The SPONSOR'S SHARE is what was paid from the pot, and the caller uses
@@ -730,6 +743,7 @@ export async function refundToPot(input: {
       grossCents: sessionPayments.grossCents,
       status: sessionPayments.status,
       fundingSource: sessionPayments.fundingSource,
+      coverageBps: sessionPayments.coverageBps,
     })
     .from(sessionPayments)
     .where(eq(sessionPayments.id, input.paymentId))
@@ -811,8 +825,91 @@ export async function refundToPot(input: {
     .set({ status: "refunded" })
     .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")));
 
+  /*
+   * W2-S10 — the money back, as its own entry in the company's ledger, if the
+   * session it reverses was in it. Found through the payment's own session
+   * here, inside the money path, and never written to the entry.
+   */
+  const [told] = await controlDb
+    .select({ enrolmentId: enrolments.id, paidAt: sessionPayments.paidAt })
+    .from(sessionPayments)
+    .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .innerJoin(
+      enrolments,
+      and(eq(enrolments.personId, patients.personId), eq(enrolments.sponsorId, spend.refId)),
+    )
+    .where(eq(sessionPayments.id, payment.id))
+    .limit(1);
+
+  if (told) {
+    await recordMoneyEntry({
+      sponsorId: spend.refId,
+      enrolmentId: told.enrolmentId,
+      kind: "refund",
+      priceCents: payment.grossCents,
+      coverageBps: payment.coverageBps ?? 0,
+      coveredCents: payment.grossCents,
+      employeeCents: 0,
+      /* Written only if the session itself was: told before it was paid. */
+      paidAt: told.paidAt ?? new Date(),
+    });
+  }
+
   log.info("pot session refunded", { session: ref(payment.sessionId) });
   return { ok: true };
+}
+
+/**
+ * 🔴 W2-S10 / FIX-PLAN D1 — ONE MONEY ENTRY FOR THE COMPANY, WITH NOBODY IN IT.
+ *
+ * Written here, where the split has just been frozen, so the company's ledger
+ * (`lib/data/sponsor-ledger.ts`) never joins anything to read it. The entry
+ * carries the price, the coverage, the two shares, the Monday of the week and a
+ * random `shuffle`; no session, person, therapist or payment id, and no time.
+ *
+ * 🔴 ONLY FOR A PERSON WHO WAS TOLD FIRST. `ledger_told_at` is set when the
+ * in-app notice reaches them (`tellEnrolledAboutLedger`), and a session paid
+ * before it never enters a view they were not told about.
+ *
+ * 🔴 Never allowed to fail a payment. The told-at read is its own query, so a
+ * payment still works on a database that has not had 0134 yet (H16), and any
+ * failure is logged: a missing report line is recoverable, a refused booking
+ * is not.
+ */
+async function recordMoneyEntry(input: {
+  sponsorId: string;
+  enrolmentId: string;
+  kind: "session" | "refund";
+  priceCents: number;
+  coverageBps: number;
+  coveredCents: number;
+  employeeCents: number;
+  paidAt: Date;
+}): Promise<void> {
+  try {
+    const [row] = await controlDb
+      .select({ toldAt: enrolments.ledgerToldAt })
+      .from(enrolments)
+      .where(eq(enrolments.id, input.enrolmentId))
+      .limit(1);
+    if (!row?.toldAt || row.toldAt.getTime() > input.paidAt.getTime()) return;
+
+    const { weekStartOf } = await import("@/lib/sponsor/ledger");
+    const { randomInt } = await import("node:crypto");
+    await controlDb.insert(sponsorMoneyEntries).values({
+      sponsorId: input.sponsorId,
+      kind: input.kind,
+      weekStart: weekStartOf(new Date()),
+      priceCents: Math.max(0, input.priceCents),
+      coverageBps: input.coverageBps,
+      coveredCents: Math.max(0, input.coveredCents),
+      employeeCents: Math.max(0, input.employeeCents),
+      shuffle: randomInt(0, 2_147_483_647),
+    });
+  } catch (error) {
+    log.warn("company money entry not written", { reason: safeErrorMessage(error) });
+  }
 }
 
 /**
