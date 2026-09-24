@@ -445,6 +445,7 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
     reason: "Therapist did not join. Automatic refund.",
     // 🔴 Nobody ordered this. The clock did.
     adminUserId: null,
+    why: "no_show",
   });
   if ("error" in result && result.error) {
     /*
@@ -466,12 +467,19 @@ export async function refundNoShow(input: { sessionId: string }): Promise<Recove
     return { ok: true, outcome: "refund_owed" };
   }
 
+  /*
+   * 🔴 W2-S12: `refunded` only if money went back to the patient. A session
+   * their company covered in full, or whose share they had not paid yet, gave
+   * the company its money back and returned none of theirs: that is a
+   * cancellation, and "you have been refunded" would be untrue.
+   */
+  const outcome = result.toPayerCents === 0 ? "cancelled" : "refunded";
   await db
     .update(sessions)
-    .set({ recoveryOutcome: "refunded", updatedAt: new Date() })
+    .set({ recoveryOutcome: outcome, updatedAt: new Date() })
     .where(and(eq(sessions.id, input.sessionId), eq(sessions.recoveryOutcome, "refund_owed")));
 
-  return { ok: true, outcome: "refunded" };
+  return { ok: true, outcome };
 }
 
 /**

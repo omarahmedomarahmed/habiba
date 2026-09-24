@@ -957,10 +957,21 @@ export async function refundSessionPayment(opts: {
    * metadata instead, so the reason is legible in the dashboard too.
    */
   adminUserId: string | null;
-}): Promise<{ ok?: boolean; error?: string }> {
-  const client = getStripe();
-  if (!client) return { error: "Payments are not configured on this deployment." };
-
+  /**
+   * W2-S12: why, as the refund queue's code (`no_show`, `clinician_cancel`),
+   * for when an employee's transfer-paid share has to be queued from here.
+   */
+  why?: string;
+}): Promise<{
+  ok?: boolean;
+  error?: string;
+  /**
+   * W2-S12: what went back to the person who paid, in cents. Zero when the
+   * pot paid all of it or their share was never paid, so a caller does not
+   * tell somebody who paid nothing that their money is on its way back.
+   */
+  toPayerCents?: number;
+}> {
   const [payment] = await db
     .select()
     .from(sessionPayments)
@@ -984,11 +995,20 @@ export async function refundSessionPayment(opts: {
    * who knew to go looking. `refundNoShow` calls straight through here, so the
    * automatic clock-driven refund was silently a no-op for every sponsored
    * patient in the product.
+   *
+   * 🔴 W2-S12: AND IT IS TWO REFUNDS WHEN THE COVER WAS PARTIAL. This returned
+   * into `refundToPot` for every pot row and marked it refunded there, so the
+   * employee's own share (by card, or by transfer) was never returned while the
+   * payment said it had been. `refundSplit` gives each payer their own.
+   *
+   * Before the Stripe check, because a pot's money does not move through
+   * Stripe: on a deployment without it, a covered session could not be
+   * refunded at all.
    */
-  if (payment.fundingSource === "pot") {
-    const { refundToPot } = await import("./pot");
-    return refundToPot({ paymentId: payment.id, reason: opts.reason });
-  }
+  if (payment.fundingSource === "pot") return refundSplit(payment, opts);
+
+  const client = getStripe();
+  if (!client) return { error: "Payments are not configured on this deployment." };
 
   if (!payment.stripePaymentIntentId) {
     return { error: "That payment has no Stripe charge to refund." };
@@ -1065,7 +1085,100 @@ export async function refundSessionPayment(opts: {
     .set({ paymentStatus: "pending", updatedAt: new Date() })
     .where(eq(sessions.id, payment.sessionId));
 
-  return { ok: true };
+  return { ok: true, toPayerCents: payment.grossCents + Math.max(0, payment.vatCents) };
+}
+
+/**
+ * 🔴 W2-S12: a pot-funded payment, refunded to each payer from their own rail.
+ *
+ * The pot gets its share first (`refundToPot`, once however often it is
+ * asked). Then the employee's half, as `splitRefundPlan` decides it:
+ *
+ *   none    the pot paid all of it
+ *   unpaid  their share never arrived, so it is simply no longer owed
+ *   card    a Stripe refund of their own charge
+ *   queue   a transfer: the manual refund queue, and the payment stays `paid`
+ *           while we hold their money (W1-12). `markRefundSent` finishes it.
+ *
+ * Only when the employee's half is done does the row say `refunded` and the
+ * session's own books reverse: the whole posting `payFromPot` made (our fee and
+ * the clinician's held share on the full price, C313) comes back, and with the
+ * pot's cash returned above, cash nets to exactly what the employee got back.
+ */
+async function refundSplit(
+  payment: typeof sessionPayments.$inferSelect,
+  opts: { reason: string; adminUserId: string | null; why?: string },
+): Promise<{ ok?: boolean; error?: string; toPayerCents?: number }> {
+  const { refundToPot } = await import("./pot");
+  const pot = await refundToPot({ paymentId: payment.id, reason: opts.reason });
+  if (pot.error) return { error: pot.error };
+
+  const { employeeHalfOf, openRefundRequest } = await import("./refunds");
+  const employee = await employeeHalfOf(payment);
+
+  if (employee.rail === "queue") {
+    await openRefundRequest({
+      sessionPaymentId: payment.id,
+      requestedByUserId: opts.adminUserId,
+      reason: opts.why ?? "admin",
+    });
+    return {
+      error:
+        "The company's share is back in its pot. The employee paid their share by transfer, so it is owed to them on the refund queue.",
+    };
+  }
+
+  if (employee.rail === "card") {
+    const client = getStripe();
+    if (!client) return { error: "Payments are not configured on this deployment." };
+    try {
+      await client.refunds.create({
+        payment_intent: payment.stripePaymentIntentId!,
+        /* Their share was a destination charge, like every patient charge (1.8). */
+        reverse_transfer: true,
+        refund_application_fee: true,
+        metadata: {
+          reason: opts.reason.slice(0, 200),
+          refundedBy: opts.adminUserId ?? "automatic",
+        },
+      });
+    } catch (error) {
+      log.error("refund of an employee's share failed", {
+        payment: ref(payment.id),
+        reason: safeErrorMessage(error),
+      });
+      return { error: "Stripe declined the refund. Check the payment in the dashboard." };
+    }
+  }
+
+  const [refunded] = await db
+    .update(sessionPayments)
+    .set({ status: "refunded" })
+    .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")))
+    .returning({ id: sessionPayments.id });
+  /* Somebody else finished it between our read and now: their books, not ours. */
+  if (!refunded) return { ok: true, toPayerCents: 0 };
+
+  const { postSessionRefund } = await import("./ledger");
+  await postSessionRefund({
+    id: payment.id,
+    organizationId: payment.organizationId,
+    therapistId: payment.therapistId,
+    capture: payment.capture,
+    grossCents: payment.grossCents,
+    vatCents: payment.vatCents,
+    platformFeeCents: payment.platformFeeCents,
+    settledInvoiceCents: payment.settledInvoiceCents,
+    therapistNetCents: payment.therapistNetCents,
+  });
+
+  await db
+    .update(sessions)
+    .set({ paymentStatus: "pending", updatedAt: new Date() })
+    .where(eq(sessions.id, payment.sessionId));
+
+  log.info("pot session refunded", { session: ref(payment.sessionId), employee: employee.rail });
+  return { ok: true, toPayerCents: employee.cents };
 }
 
 /* ------------------------------------------------- releasing held earnings -- */

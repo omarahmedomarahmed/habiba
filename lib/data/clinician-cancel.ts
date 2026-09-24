@@ -18,7 +18,8 @@ export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
  * and does the two things neither did: gives the money back, and tells the
  * patient why.
  *
- *   - Paid by card or from a pot: refunded through `refundSessionPayment`.
+ *   - Paid by card or from a pot: refunded through `refundSessionPayment`,
+ *     each payer from their own rail when a company covered part (W2-S12).
  *   - Paid by bank transfer: that refuses (no charge to reverse), so the
  *     payment stays `paid` and the patient is told a refund is owed and to
  *     contact us. Never called refunded when it was not (W1-12).
@@ -53,6 +54,7 @@ export async function afterClinicianCancel(input: {
       paymentId: payment.id,
       reason: `Cancelled by the clinician: ${input.reason}`.slice(0, 200),
       adminUserId: input.actorUserId,
+      why: "clinician_cancel",
     });
     if (result.error) {
       log.error("clinician cancellation not refunded, refund owed", {
@@ -68,7 +70,13 @@ export async function afterClinicianCancel(input: {
         reason: "clinician_cancel",
       });
     } else {
-      outcome = "refunded";
+      /*
+       * 🔴 W2-S12: refunded only if something went back to THEM. A session the
+       * company covered in full, or a share never paid, returns the company's
+       * money and none of theirs, and "the full amount is on its way back" to
+       * somebody who paid nothing is untrue.
+       */
+      outcome = result.toPayerCents === 0 ? "notified" : "refunded";
     }
   }
 

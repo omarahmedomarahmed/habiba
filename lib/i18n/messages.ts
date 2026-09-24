@@ -1637,7 +1637,7 @@ export const en = {
   "asponsor.rotate": "Rotate code",
   "asponsor.mint": "Mint a code",
   "asponsor.potOpen": "Pot open, with terms.",
-  "asponsor.openPot": "Open their pot. The refund terms and the expiry are agreed first.",
+  "asponsor.openPot": "Open their pot. Refund and expiry terms are agreed first.",
   "asponsor.terms": "Refund and expiry terms",
   "asponsor.expires": "Unspent money expires",
   "asponsor.overdraft": "Overdraft allowed, in whole units",
@@ -4139,6 +4139,8 @@ export const en = {
   "sponsor.ledgerRefund": "Refund",
   "sponsor.ledgerSession": "Session",
   "pnotice.ledgerTold": "Your organisation now sees each session's cost, never your name, therapist or the day.",
+  // W2R refunds
+  "arefund.errPot": "Company share not returned.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7513,6 +7515,8 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.ledgerRefund": "استرداد",
   "sponsor.ledgerSession": "جلسة",
   "pnotice.ledgerTold": "صارت جهتك ترى تكلفة كل جلسة، دون اسمك أو معالجك أو اليوم أبدًا.",
+  // W2R refunds
+  "arefund.errPot": "لم تُرَدّ حصة الشركة بعد.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

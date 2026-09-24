@@ -116,6 +116,7 @@ export async function reportSession(input: {
           // report row carries who and why; this field wants a user id and the
           // therapist is the party it concerns.
           adminUserId: filed.therapistId,
+          why: "no_show",
         });
         refundNote = refund.error ? `NOT refunded (${refund.error}), refund owed` : "refunded";
       } catch {
