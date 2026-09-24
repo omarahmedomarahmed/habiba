@@ -94,8 +94,11 @@ export type Message = {
   notice?: {
     kind: PatientNoticeKind;
     key: MessageKey;
-    /** W1-28b: a clinician's reason for cancelling, shown under the message. */
-    reason?: string;
+    /**
+     * W1-28b: the session this notice is about. A reference, never text (C231):
+     * a cancellation's reason is read from the session through it.
+     */
+    sessionId?: string;
   };
   /** A stable key, so a provider template can be mapped to it. */
   kind:
@@ -316,7 +319,7 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
         personId: to.personId,
         kind: message.notice.kind,
         messageKey: message.notice.key,
-        reason: message.notice.reason?.slice(0, 300) ?? null,
+        sessionId: message.notice.sessionId ?? null,
       });
     } catch (error) {
       log.warn("in-app notice not written", {

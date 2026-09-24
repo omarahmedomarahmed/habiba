@@ -1783,6 +1783,15 @@ async function main() {
     ["lib/data/scheduling.ts", "a clinician cancelling or rescheduling their own hour"],
     /* Offers the patient a cancellation after a no-show; they choose it. */
     ["lib/data/recovery.ts", "the patient's own choice after nobody turned up"],
+    /*
+     * W1-28: the "cancelled" here is a REFUND REQUEST's status, not a session's:
+     * an operator withdrawing a queued refund, with a required reason, only while
+     * the row is still `owed`. Its only session writes happen when a refund is
+     * marked sent: payment status back to pending (as the card refund does) and
+     * the recovery outcome from `refund_owed` to `refunded`. It never sets a
+     * session's status.
+     */
+    ["lib/billing/refunds.ts", "cancels a refund request, never a session"],
   ]);
 
   const cancellers = everySource.filter((file) =>

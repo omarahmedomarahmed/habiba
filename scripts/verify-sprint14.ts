@@ -435,15 +435,14 @@ async function main() {
     );
     /*
      * 🔴 W1-28b: AND THE PATIENT'S APP SAYS SO, WITH THE REASON. The email and
-     * WhatsApp went; the in-app log had no kind for a cancellation.
+     * WhatsApp went; the in-app log had no kind for a cancellation. Read
+     * through `noticesFor`, the loader the screen uses, because the reason
+     * lives on the session and the notice only points at it (0124, C231).
      */
-    const cancelNotice = (
-      await db
-        .execute<{ kind: string; reason: string | null }>(sql`
-          SELECT kind, reason FROM patient_notifications
-           WHERE person_id = ${person!.id} AND kind = 'session_cancelled'`)
-        .catch(() => ({ rows: [] as { kind: string; reason: string | null }[] }))
-    ).rows;
+    const { noticesFor } = await import("@/lib/data/notices");
+    const cancelNotice = (await noticesFor(person!.id)).filter(
+      (notice) => notice.messageKey === "w1a.cancelledByClinician",
+    );
     check(
       "🔴 W1-28b the clinician's cancellation is an in-app notice for the patient, with the reason",
       cancelNotice.length === 1 && cancelNotice[0]!.reason === "I am unwell today",

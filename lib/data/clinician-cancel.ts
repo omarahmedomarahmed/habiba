@@ -25,14 +25,21 @@ export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
  *   - Never paid: the message alone.
  *
  * English, like every other message `notify` sends; the words live in the
- * dictionary. The in-app notice (W1-28b) is a key plus the reason, so it reads
- * in the patient's own language.
+ * dictionary. The in-app notice (W1-28b) is a key plus the session it is about,
+ * so it reads in the patient's own language, and the reason is read from the
+ * session rather than stored in the notice log (C231).
  */
 export async function afterClinicianCancel(input: {
   actorUserId: string;
   sessionId: string;
   reason: string;
 }): Promise<{ outcome: ClinicianCancelOutcome }> {
+  // 🔴 W1-28b (0124): the reason lives on the session; the notice points at it (C231).
+  await controlDb
+    .update(sessions)
+    .set({ cancelledReason: input.reason.slice(0, 300) })
+    .where(eq(sessions.id, input.sessionId));
+
   const [payment] = await controlDb
     .select({ id: sessionPayments.id })
     .from(sessionPayments)
@@ -95,8 +102,8 @@ export async function afterClinicianCancel(input: {
       },
       {
         kind: "booking.cancelled",
-        // 🔴 W1-28b: and in the app, with the reason (0122 gave it a kind).
-        notice: { kind: "session_cancelled", key: "w1a.cancelledByClinician", reason: input.reason },
+        // 🔴 W1-28b: and in the app. The notice points at the session, whose reason it shows.
+        notice: { kind: "session_cancelled", key: "w1a.cancelledByClinician", sessionId: input.sessionId },
         subject: en["w1a.noShowCancelled"],
         body: [
           en["w1a.cancelledByClinician"],

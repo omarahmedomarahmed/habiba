@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
-import { patientNotifications } from "@/lib/db/schema";
+import { patientNotifications, sessions } from "@/lib/db/schema";
 import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
@@ -42,7 +42,10 @@ export type Notice = {
    * a patient's screen.
    */
   messageKey: MessageKey;
-  /** W1-28b: a clinician's reason for cancelling, when this notice is one. */
+  /**
+   * W1-28b: a clinician's reason for cancelling, when this notice is one. Read
+   * from the session the notice points at; the notice row holds no text (C231).
+   */
   reason: string | null;
   dismissedAt: Date | null;
   createdAt: Date;
@@ -61,11 +64,12 @@ export async function noticesFor(personId: string): Promise<Notice[]> {
     .select({
       id: patientNotifications.id,
       messageKey: patientNotifications.messageKey,
-      reason: patientNotifications.reason,
+      reason: sessions.cancelledReason,
       dismissedAt: patientNotifications.dismissedAt,
       createdAt: patientNotifications.createdAt,
     })
     .from(patientNotifications)
+    .leftJoin(sessions, eq(sessions.id, patientNotifications.sessionId))
     .where(eq(patientNotifications.personId, personId))
     .orderBy(desc(patientNotifications.createdAt), asc(patientNotifications.id))
     .limit(200);

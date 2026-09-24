@@ -703,6 +703,13 @@ export const sessions = pgTable(
       .notNull()
       .default("direct"),
     status: text("status").$type<SessionStatus>().notNull().default("scheduled"),
+    /**
+     * 🔴 W1-28b (0124): the clinician's own short reason when they cancel, written
+     * for the patient (300 characters at most, checked by the database). Read by
+     * the patient's cancellation notice through `patient_notifications.session_id`,
+     * so the notice log itself carries no prose (C231).
+     */
+    cancelledReason: text("cancelled_reason"),
 
     /** Patient join link. Random, expiring, revocable. */
     joinToken: text("join_token"),
@@ -7257,11 +7264,11 @@ export const patientNotifications = pgTable(
      */
     messageKey: text("message_key").notNull(),
     /**
-     * 🔴 W1-28b (0122): the one piece of prose a notice may carry, the
-     * clinician's own short reason for cancelling, written for the patient
-     * (300 characters at most, checked by the database). Never a payer's.
+     * 🔴 W1-28b (0124): the session this notice is about, when it is about one.
+     * A reference, never text (C231): a cancellation's reason lives on the
+     * session (`sessions.cancelled_reason`) and is read through this.
      */
-    reason: text("reason"),
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
 
     dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
