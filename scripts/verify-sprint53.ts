@@ -227,7 +227,8 @@ async function main() {
 
   check(
     "🔴 C244 its one exception, sponsor_money_entries, holds money and a week and no key to anybody",
-    JSON.stringify(moneyColumns) === JSON.stringify(MONEY_COLUMNS),
+    // Both sorted here: the database's collation and a hand-typed list need not agree on order.
+    JSON.stringify([...moneyColumns].sort()) === JSON.stringify([...MONEY_COLUMNS].sort()),
     moneyColumns.join(", ") || "the table does not exist (0134)",
   );
 

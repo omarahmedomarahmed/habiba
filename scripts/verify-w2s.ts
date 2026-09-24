@@ -690,10 +690,29 @@ async function moneyLedger(db: Db) {
     /* Published in batches: this week's entry is not out until the week ends. */
     const weekly = await publishedLedger(world.sponsorId);
     const nextWeek = await publishedLedger(world.sponsorId, new Date(Date.now() + 8 * 24 * 60 * 60 * 1000));
+    /*
+     * And never alone (a8c551ea): one entry in a week is one person at a small
+     * company, so the ended week stays held until its batch clears the floor.
+     * The floor's worth is planted in the same week to see it come out.
+     */
     check(
-      "W2-S10 by default this week's entries are published the Monday after, not as they happen",
-      weekly.publishing === "weekly" && weekly.entries.length === 0 && nextWeek.entries.length === 1,
+      "W2-S10 by default this week's entries are published the Monday after, and a lone entry not even then",
+      weekly.publishing === "weekly" && weekly.entries.length === 0 && nextWeek.entries.length === 0,
       `${weekly.entries.length} now, ${nextWeek.entries.length} after the week ends`,
+    );
+    const { getSettings } = await import("../lib/settings");
+    const floor = (await getSettings()).sponsor.activityFloor;
+    for (let i = 1; i < floor; i++) {
+      await db.execute(sql`
+        INSERT INTO sponsor_money_entries
+          (sponsor_id, kind, week_start, price_cents, coverage_bps, covered_cents, employee_cents, shuffle)
+        VALUES (${world.sponsorId}, 'session', ${row?.week_start ?? weekStartOf(new Date())}, 2500, 6000, 1500, 1000, ${i})`);
+    }
+    const cleared = await publishedLedger(world.sponsorId, new Date(Date.now() + 8 * 24 * 60 * 60 * 1000));
+    check(
+      "W2-S10 …and the week comes out whole once it holds the reporting floor's worth",
+      cleared.entries.length === floor,
+      `${cleared.entries.length} of ${floor}`,
     );
   } finally {
     await db.execute(sql`DELETE FROM sponsor_money_entries WHERE sponsor_id = ${world.sponsorId}`).catch(

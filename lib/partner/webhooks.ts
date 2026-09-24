@@ -520,11 +520,13 @@ export async function webhooksFor(partnerId: string) {
       /*
        * 🔴 W2-X03: FAILING: its latest finished delivery failed and nothing has
        * reached it since. Read from the deliveries rather than stored, so it clears
-       * itself the moment a redelivery or a test event gets through.
+       * itself the moment a redelivery or a test event gets through. The outer
+       * id is spelled out: interpolated, Drizzle renders a bare "id" in a
+       * single-table select, which inside the subquery means the delivery's own.
        */
       failing: sql<boolean>`COALESCE((
         SELECT d.failed_at IS NOT NULL FROM partner_webhook_deliveries d
-         WHERE d.webhook_id = ${partnerWebhooks.id}
+         WHERE d.webhook_id = "partner_webhooks"."id"
            AND (d.failed_at IS NOT NULL OR d.delivered_at IS NOT NULL)
          ORDER BY COALESCE(d.delivered_at, d.failed_at) DESC
          LIMIT 1
