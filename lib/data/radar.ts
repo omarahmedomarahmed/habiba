@@ -5,6 +5,7 @@ import { and, desc, eq, gt, gte, isNotNull, isNull, lt, notInArray, or, sql } fr
 
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   availabilitySlots,
@@ -216,7 +217,7 @@ function reachable(now: Date) {
      */
     sql`NOT EXISTS (
       SELECT 1 FROM ${availabilitySlots} a
-       WHERE a.therapist_user_id = ${therapistRadar.userId}
+       WHERE a.therapist_user_id = ${qualified(therapistRadar.userId)}
          AND a.status = 'booked'
          AND ${now} >= a.starts_at - interval '15 minutes'
          AND ${now} <  a.starts_at + (a.duration_minutes * interval '1 minute')

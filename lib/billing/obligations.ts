@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, isNull, lte, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import {
   invoices,
   renewalObligations,
@@ -276,7 +277,7 @@ export async function reconcileRenewals(): Promise<{
         eq(invoices.status, "paid"),
         sql`NOT EXISTS (
           SELECT 1 FROM ${renewalObligations} o
-           WHERE o.settled_ref = ${invoices.id}::text
+           WHERE o.settled_ref = ${qualified(invoices.id)}::text
         )`,
       ),
     )

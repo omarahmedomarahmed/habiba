@@ -5,6 +5,7 @@ import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { getSettings } from "@/lib/settings";
 import {
@@ -98,16 +99,16 @@ export async function listThreads(actor: Actor) {
       lastMessageAt: copilotThreads.lastMessageAt,
       messageCount: sql<number>`(
         SELECT COUNT(*)::int FROM ${copilotMessages}
-        WHERE ${copilotMessages.threadId} = ${copilotThreads.id}
+        WHERE ${copilotMessages.threadId} = ${qualified(copilotThreads.id)}
       )`,
       lastMessage: sql<string | null>`(
         SELECT m.content FROM ${copilotMessages} m
-        WHERE m.thread_id = ${copilotThreads.id}
+        WHERE m.thread_id = ${qualified(copilotThreads.id)}
         ORDER BY m.created_at DESC LIMIT 1
       )`,
       sessionCount: sql<number>`(
         SELECT COUNT(*)::int FROM ${sessions}
-        WHERE ${sessions.patientId} = ${patients.id} AND ${sessions.status} = 'completed'
+        WHERE ${sessions.patientId} = ${qualified(patients.id)} AND ${sessions.status} = 'completed'
       )`,
     })
     .from(copilotThreads)

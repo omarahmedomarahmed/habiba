@@ -241,6 +241,57 @@ async function main() {
     "the one count that says whether the plan is working",
   );
 
+  /* ================================================================== */
+  /*  5 · each subquery counts the row it sits on                        */
+  /* ================================================================== */
+
+  /*
+   * 🔴 W2-Q01: the clinics and people sections select from one table, and in a
+   * single-table select Drizzle rendered the outer `${organizations.id}` as a
+   * bare "id", which the subquery bound to its own row: every clinic showed 0
+   * clinicians, 0 live seats and 0 due, and every patient counted as claimed
+   * once any account existed. Each figure is asked again here in hand-written
+   * SQL and must agree.
+   */
+  const { controlDb } = await import("../lib/db");
+  const { sql } = await import("drizzle-orm");
+  const clinics = (await clinicsBoard()).rows;
+  const truth = new Map(
+    (
+      await controlDb.execute<{ id: string; clinicians: number; seats: number; due: number }>(sql`
+        SELECT o.id,
+          (SELECT count(*)::int FROM users u WHERE u.organization_id = o.id AND u.role = 'therapist' AND u.deleted_at IS NULL) AS clinicians,
+          (SELECT count(*)::int FROM clinic_seats cs WHERE cs.organization_id = o.id AND cs.released_at IS NULL) AS seats,
+          (SELECT COALESCE(SUM(i.amount_cents - i.discount_cents), 0)::int FROM invoices i WHERE i.organization_id = o.id AND i.status = 'due') AS due
+        FROM organizations o WHERE o.kind = 'clinic'`)
+    ).rows.map((r) => [r.id, r]),
+  );
+  const clinicsOff = clinics.filter((c) => {
+    const t = truth.get(c.id);
+    return !t || t.clinicians !== c.clinicians || t.seats !== c.liveSeats || t.due !== c.dueCents;
+  });
+  check(
+    "🔴 W2-Q01 each clinic's clinicians, live seats and due money are its own",
+    clinicsOff.length === 0,
+    clinicsOff.length === 0
+      ? `${clinics.length} clinics, ${clinics.reduce((n, c) => n + c.clinicians, 0)} clinicians`
+      : clinicsOff.map((c) => `${c.name}: ${c.clinicians}/${c.liveSeats}/${c.dueCents} vs ${JSON.stringify(truth.get(c.id))}`).join("; "),
+  );
+
+  const peopleNow = await patientsBoard();
+  const [peopleTruth] = (
+    await controlDb.execute<{ sponsored: number; claimed: number }>(sql`
+      SELECT
+        count(*) FILTER (WHERE p.deleted_at IS NULL AND EXISTS (SELECT 1 FROM enrolments e WHERE e.person_id = p.person_id AND e.state = 'active'))::int AS sponsored,
+        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM patient_accounts pa WHERE pa.person_id = p.person_id))::int AS claimed
+      FROM patients p`)
+  ).rows;
+  check(
+    "🔴 W2-Q01 a patient counts as sponsored or claimed by their own person only",
+    peopleNow.sponsored === peopleTruth.sponsored && peopleNow.claimed === peopleTruth.claimed,
+    `board ${peopleNow.sponsored} sponsored, ${peopleNow.claimed} claimed; asked directly ${peopleTruth.sponsored}, ${peopleTruth.claimed}, of ${peopleNow.total}`,
+  );
+
   /*
    * 🔴 76.18 — AND SAY WHAT IT WAS COUNTING, because sixteen passes over an
    * empty database is a green light that proved the board runs and nothing at

@@ -1,5 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 
+import { qualified } from "@/lib/db/qualified";
 import { users } from "@/lib/db/schema";
 
 /**
@@ -33,7 +34,7 @@ import { users } from "@/lib/db/schema";
  */
 const APPROVED = sql`EXISTS (
   SELECT 1 FROM therapist_verifications v
-   WHERE v.user_id = ${users.id}
+   WHERE v.user_id = ${qualified(users.id)}
      AND v.state = 'approved'
 )`;
 
@@ -76,7 +77,7 @@ export function verifiedFlag(): SQL<boolean> {
 export function verifiedByBody(): SQL<string | null> {
   return sql<string | null>`(
     SELECT v.license_body FROM therapist_verifications v
-     WHERE v.user_id = ${users.id} AND v.state = 'approved'
+     WHERE v.user_id = ${qualified(users.id)} AND v.state = 'approved'
      LIMIT 1
   )`;
 }
@@ -85,7 +86,7 @@ export function verifiedByBody(): SQL<string | null> {
 export function verifiedOn(): SQL<Date | null> {
   return sql<Date | null>`(
     SELECT v.reviewed_at FROM therapist_verifications v
-     WHERE v.user_id = ${users.id} AND v.state = 'approved'
+     WHERE v.user_id = ${qualified(users.id)} AND v.state = 'approved'
      LIMIT 1
   )`;
 }

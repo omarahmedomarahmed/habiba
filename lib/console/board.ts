@@ -31,6 +31,7 @@ import "server-only";
 import { and, eq, gte, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import {
   aiRequestLogs,
   auditLog,
@@ -183,9 +184,15 @@ export async function clinicsBoard() {
       region: organizations.region,
       seats: organizations.seats,
       createdAt: organizations.createdAt,
-      clinicians: sql<number>`(SELECT count(*)::int FROM users u WHERE u.organization_id = ${organizations.id} AND u.role = 'therapist' AND u.deleted_at IS NULL)`,
-      liveSeats: sql<number>`(SELECT count(*)::int FROM clinic_seats cs WHERE cs.organization_id = ${organizations.id} AND cs.released_at IS NULL)`,
-      dueCents: sql<number>`(SELECT COALESCE(SUM(i.amount_cents - i.discount_cents), 0)::int FROM invoices i WHERE i.organization_id = ${organizations.id} AND i.status = 'due')`,
+      /*
+       * 🔴 W2-Q01: qualified(), because this select has no join, and there
+       * Drizzle renders `${organizations.id}` as a bare "id" that each subquery
+       * bound to its own row (`u.organization_id = u.id`): every clinic read 0
+       * clinicians, 0 live seats and 0 due.
+       */
+      clinicians: sql<number>`(SELECT count(*)::int FROM users u WHERE u.organization_id = ${qualified(organizations.id)} AND u.role = 'therapist' AND u.deleted_at IS NULL)`,
+      liveSeats: sql<number>`(SELECT count(*)::int FROM clinic_seats cs WHERE cs.organization_id = ${qualified(organizations.id)} AND cs.released_at IS NULL)`,
+      dueCents: sql<number>`(SELECT COALESCE(SUM(i.amount_cents - i.discount_cents), 0)::int FROM invoices i WHERE i.organization_id = ${qualified(organizations.id)} AND i.status = 'due')`,
     })
     .from(organizations)
     .where(eq(organizations.kind, "clinic"))
@@ -219,9 +226,9 @@ export async function therapistsBoard() {
       region: organizations.region,
       plan: subscriptions.plan,
       status: subscriptions.status,
-      sessionsThisMonth: sql<number>`(SELECT count(*)::int FROM sessions s WHERE s.therapist_id = ${users.id} AND s.created_at >= ${month})`,
-      dueCents: sql<number>`(SELECT COALESCE(SUM(i.amount_cents - i.discount_cents), 0)::int FROM invoices i WHERE i.organization_id = ${users.organizationId} AND i.status = 'due')`,
-      aiMicro: sql<number>`(SELECT COALESCE(SUM(l.cost_microcents), 0)::bigint FROM ai_request_logs l WHERE l.organization_id = ${users.organizationId} AND l.created_at >= ${month})`,
+      sessionsThisMonth: sql<number>`(SELECT count(*)::int FROM sessions s WHERE s.therapist_id = ${qualified(users.id)} AND s.created_at >= ${month})`,
+      dueCents: sql<number>`(SELECT COALESCE(SUM(i.amount_cents - i.discount_cents), 0)::int FROM invoices i WHERE i.organization_id = ${qualified(users.organizationId)} AND i.status = 'due')`,
+      aiMicro: sql<number>`(SELECT COALESCE(SUM(l.cost_microcents), 0)::bigint FROM ai_request_logs l WHERE l.organization_id = ${qualified(users.organizationId)} AND l.created_at >= ${month})`,
     })
     .from(users)
     .leftJoin(organizations, eq(organizations.id, users.organizationId))
@@ -327,9 +334,15 @@ export async function patientsBoard() {
       week: sql<number>`COUNT(*) FILTER (WHERE ${patients.createdAt} >= ${week})::int`,
       month: sql<number>`COUNT(*) FILTER (WHERE ${patients.createdAt} >= ${month})::int`,
       /* Funded by an employer, asked of the live enrolment rather than a copy. */
-      sponsored: sql<number>`COUNT(*) FILTER (WHERE ${patients.deletedAt} IS NULL AND EXISTS (SELECT 1 FROM enrolments e WHERE e.person_id = ${patients.personId} AND e.state = 'active'))::int`,
+      /*
+       * 🔴 W2-Q01: qualified(). Bare, `${patients.personId}` rendered as
+       * "person_id" in this join-less select and bound to the subquery's own
+       * column, so both counts were true of every patient once one active
+       * enrolment, or one account, existed anywhere.
+       */
+      sponsored: sql<number>`COUNT(*) FILTER (WHERE ${patients.deletedAt} IS NULL AND EXISTS (SELECT 1 FROM enrolments e WHERE e.person_id = ${qualified(patients.personId)} AND e.state = 'active'))::int`,
       /* Claimed: the person behind the record has made themselves an account. */
-      claimed: sql<number>`COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM patient_accounts pa WHERE pa.person_id = ${patients.personId}))::int`,
+      claimed: sql<number>`COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM patient_accounts pa WHERE pa.person_id = ${qualified(patients.personId)}))::int`,
     })
     .from(patients);
 

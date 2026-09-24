@@ -585,6 +585,28 @@ async function main() {
       traction.marginBps === null ? "null, nothing collected in 30 days" : `${traction.marginBps}bps`,
     );
 
+    /*
+     * 🔴 W2-Q01: "activated" is a clinician with a completed session of their
+     * own. Selected from `users` alone, the subquery's `${users.id}` rendered as
+     * a bare "id" and bound to the session's own id, so activated, active in 7
+     * and 30 days, the activation rate and ARPU all read 0. Asked again here.
+     */
+    const [activation] = (
+      await db.execute<{ signups: number; activated: number; active30: number }>(sql`
+        SELECT count(*)::int AS signups,
+          count(*) FILTER (WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.therapist_id = u.id AND s.status = 'completed'))::int AS activated,
+          count(*) FILTER (WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.therapist_id = u.id AND s.status = 'completed'
+                                          AND s.ended_at >= now() - interval '30 days'))::int AS active30
+        FROM users u WHERE u.deleted_at IS NULL AND u.role = 'therapist'`)
+    ).rows;
+    check(
+      "🔴 W2-Q01 activated clinicians are the ones with a completed session of their own",
+      traction.signups === activation.signups &&
+        traction.activated === activation.activated &&
+        traction.activeLast30 === activation.active30,
+      `traction ${traction.activated} activated, ${traction.activeLast30} in 30 days; asked directly ${activation.activated}, ${activation.active30}, of ${activation.signups}`,
+    );
+
     /* 20.7 — the Total View sits on the same screen as the levers. */
     const settingsPage = readSource("app/(admin)/admin/settings/page.tsx");
     check(

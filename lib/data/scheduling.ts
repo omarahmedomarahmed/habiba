@@ -7,6 +7,7 @@ import { and, asc, eq, gt, gte, isNull, lt, or, sql } from "drizzle-orm";
 import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   availabilitySlots,
@@ -54,7 +55,7 @@ const db = dbFor(pinnedToDefaultRegion("lib/data/scheduling.ts", "not routed yet
 function clinicianCleared() {
   return sql`EXISTS (
     SELECT 1 FROM therapist_verifications v
-     WHERE v.user_id = ${availabilitySlots.therapistUserId}
+     WHERE v.user_id = ${qualified(availabilitySlots.therapistUserId)}
        AND v.state = 'approved'
   )`;
 }

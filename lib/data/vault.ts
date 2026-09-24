@@ -6,6 +6,7 @@ import "server-only";
 import { and, desc, eq, gt, gte, isNull, sql } from "drizzle-orm";
 
 import { controlDb as db} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import {
   aiRequestLogs,
   invoices,
@@ -283,20 +284,20 @@ export async function therapistEconomics() {
       plan: subscriptions.plan,
       sessionCount: sql<number>`(
         SELECT COUNT(*)::int FROM ${sessions}
-        WHERE ${sessions.therapistId} = ${users.id} AND ${sessions.status} = 'completed'
+        WHERE ${sessions.therapistId} = ${qualified(users.id)} AND ${sessions.status} = 'completed'
       )`,
       aiCostCents: sql<number>`(
         SELECT ROUND(COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) / 1000.0)::int
-        FROM ${aiRequestLogs} WHERE ${aiRequestLogs.userId} = ${users.id}
+        FROM ${aiRequestLogs} WHERE ${aiRequestLogs.userId} = ${qualified(users.id)}
       )`,
       aiCalls: sql<number>`(
         SELECT COUNT(*)::int FROM ${aiRequestLogs}
-        WHERE ${aiRequestLogs.userId} = ${users.id}
+        WHERE ${aiRequestLogs.userId} = ${qualified(users.id)}
       )`,
       revenueCents: sql<number>`(
         SELECT COALESCE(SUM(${invoices.amountCents} - ${invoices.discountCents}), 0)::int
         FROM ${invoices}
-        WHERE ${invoices.organizationId} = ${users.organizationId}
+        WHERE ${invoices.organizationId} = ${qualified(users.organizationId)}
           AND ${invoices.status} = 'paid'
       )`,
     })
@@ -306,7 +307,7 @@ export async function therapistEconomics() {
     .where(and(isNull(users.deletedAt), eq(users.role, "therapist")))
     .orderBy(desc(sql`(
       SELECT COALESCE(SUM(${aiRequestLogs.costMicrocents}), 0) FROM ${aiRequestLogs}
-      WHERE ${aiRequestLogs.userId} = ${users.id}
+      WHERE ${aiRequestLogs.userId} = ${qualified(users.id)}
     )`))
     .limit(100);
 }
@@ -353,20 +354,25 @@ export async function tractionMetrics(): Promise<Traction> {
   const day7 = new Date(Date.now() - 7 * 86_400_000);
   const day30 = new Date(Date.now() - 30 * 86_400_000);
 
+  /*
+   * 🔴 W2-Q01: qualified(). This select has no join, so a bare `${users.id}`
+   * rendered as "id" and bound to the session's own id (`s.therapist_id = s.id`):
+   * activated, active in 7 and 30 days, the activation rate and ARPU all read 0.
+   */
   const [people] = await db
     .select({
       signups: sql<number>`COUNT(*)::int`,
       activated: sql<number>`COUNT(*) FILTER (WHERE EXISTS (
         SELECT 1 FROM ${sessions} s
-        WHERE s.therapist_id = ${users.id} AND s.status = 'completed'
+        WHERE s.therapist_id = ${qualified(users.id)} AND s.status = 'completed'
       ))::int`,
       active7: sql<number>`COUNT(*) FILTER (WHERE EXISTS (
         SELECT 1 FROM ${sessions} s
-        WHERE s.therapist_id = ${users.id} AND s.status = 'completed' AND s.ended_at >= ${day7}
+        WHERE s.therapist_id = ${qualified(users.id)} AND s.status = 'completed' AND s.ended_at >= ${day7}
       ))::int`,
       active30: sql<number>`COUNT(*) FILTER (WHERE EXISTS (
         SELECT 1 FROM ${sessions} s
-        WHERE s.therapist_id = ${users.id} AND s.status = 'completed' AND s.ended_at >= ${day30}
+        WHERE s.therapist_id = ${qualified(users.id)} AND s.status = 'completed' AND s.ended_at >= ${day30}
       ))::int`,
     })
     .from(users)

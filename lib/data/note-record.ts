@@ -6,6 +6,7 @@ import { auditPhi } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { dbFor } from "@/lib/db";
 import { regionOfOrganization, regionOfPatient } from "@/lib/db/directory";
+import { qualified } from "@/lib/db/qualified";
 import {
   noteAddenda,
   sessionNotes,
@@ -78,7 +79,7 @@ async function writeClinical(db: Db, noteId: string, content: NoteContent) {
       .set({
         content: sql`${JSON.stringify(sent)}::jsonb
           || (SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb)
-                FROM jsonb_each(${sessionNotes.content})
+                FROM jsonb_each(${qualified(sessionNotes.content)})
                WHERE key IN ('patientBrief', 'patientSteps', 'patientNext'))`,
         updatedAt: new Date(),
       })
