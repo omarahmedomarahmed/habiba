@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { ClinicPeopleList } from "@/components/clinic/people-list";
-import { seatsFor } from "@/lib/billing/seats";
+import { formatUsd } from "@/lib/billing/plans";
+import { currentSeatBill, quoteSeatChange, seatsFor } from "@/lib/billing/seats";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { can } from "@/lib/clinic-auth/capabilities";
 import { clinicClinicians, clinicInvitations, patientsByClinician } from "@/lib/data/clinic";
@@ -40,6 +41,39 @@ export default async function ClinicPeoplePage() {
   const patientsOf = new Map(lists.map((row) => [row.therapistId, row.names]));
 
   /*
+   * 🔴 W2-C02 / C4 — WHAT INVITING OR REMOVING DOES TO THE SEAT BILL, BEFORE THE CLICK.
+   *
+   * Bought seats (`organizations.seats`, what the bill is priced on) against
+   * filled seats plus live invitations. An invitation with no free seat buys
+   * one; a removal that leaves a seat empty releases one. Both are quoted here
+   * through `quoteSeatChange` and applied by the actions through
+   * `applySeatChange`, the same pair the seats page uses.
+   */
+  const live = invitations.filter(
+    (row) => row.state === "sent" && row.expiresAt.getTime() > Date.now(),
+  );
+  const admin = actor.role === "admin";
+  const bill = admin ? await currentSeatBill(actor.clinicOrganizationId) : null;
+  const [adding, releasing] = bill
+    ? await Promise.all([
+        /*
+         * Enough seats for everybody on the account and everybody invited,
+         * plus this one. Usually one more than bought; more when the count
+         * was never raised as people joined, which is the drift C4 names.
+         */
+        seats.length + live.length >= bill.seats
+          ? quoteSeatChange({
+              organizationId: actor.clinicOrganizationId,
+              toSeats: seats.length + live.length + 1,
+            })
+          : Promise.resolve(null),
+        bill.seats > 0 && seats.length - 1 + live.length < bill.seats
+          ? quoteSeatChange({ organizationId: actor.clinicOrganizationId, toSeats: bill.seats - 1 })
+          : Promise.resolve(null),
+      ])
+    : [null, null];
+
+  /*
    * 🔴 62.6 — THE START DATE IS ON THE ROW, and only where it is in the future.
    *
    * A clinician who joined with a plan they had already paid for costs the
@@ -61,7 +95,22 @@ export default async function ClinicPeoplePage() {
 
   return (
     <ClinicPeopleList
-      canManage={actor.role === "admin"}
+      canManage={admin}
+      seatAdd={
+        adding
+          ? {
+              fromSeats: adding.fromSeats,
+              toSeats: adding.toSeats,
+              monthlyLabel: formatUsd(adding.toMonthlyCents),
+              todayLabel: formatUsd(Math.max(0, adding.proratedCents)),
+            }
+          : null
+      }
+      seatRelease={
+        releasing
+          ? { fromSeats: releasing.fromSeats, monthlyLabel: formatUsd(releasing.toMonthlyCents) }
+          : null
+      }
       people={people.map((person) => ({
         userId: person.userId,
         name: person.name,

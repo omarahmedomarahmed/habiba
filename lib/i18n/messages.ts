@@ -1731,7 +1731,7 @@ export const en = {
   "clinic.apply.registration": "Your practice registration number, if you have one",
   "clinic.apply.authority": "Who issued it",
   "clinic.apply.clinicians": "The clinicians you expect to bring, one name per line",
-  "clinic.apply.cliniciansWhy": "Names only. Each of them verifies their own registration with us, which is what makes the badge worth anything.",
+  "clinic.apply.cliniciansWhy": "Names only. Each of them verifies their own registration with us.",
   "clinic.apply.submit": "Ask us to call",
   "clinic.apply.sent": "Thank you. We will call you.",
   "clinic.apply.sentBody": "Your practice is on our list. We set it up with you on the call.",
@@ -1787,7 +1787,7 @@ export const en = {
   "clinic.hoursBooked": "Booked this week",
   "clinic.onTheRota": "Clinicians on the rota",
   "clinic.usageBasis":
-    "Counted by the week each session was billed, which is not always the week it happened. The rota above is by the hour itself.",
+    "Counted by the week each session was billed, not always the week it happened.",
   /* Says what a zero means, and nothing about who covered it or with what. */
   "clinic.nothingToPay": "Nothing to pay",
   "clinic.billsEmpty": "Nothing billed yet.",
@@ -2110,7 +2110,7 @@ export const en = {
   "clinic.join.never.risk": "Any risk flag or crisis alert",
   "clinic.join.never.copilot": "Anything you ask the copilot, about any patient",
   "clinic.join.never.consent": "Which patients turned recording on",
-  "clinic.join.verifyFirst": "You verify your own licence with us first. Until then this invitation does nothing.",
+  "clinic.join.verifyFirst": "You verify your own licence with us first.",
   "clinic.join.haveAccount": "I already have an account",
   "clinic.join.newHere": "I am new here",
   "clinic.join.signInBody": "Sign in and we move you onto {name}'s account. You keep the month you paid for.",
@@ -4002,6 +4002,10 @@ export const en = {
   "tw2.formerTitle": "Earlier, at {name}",
   "tw2.formerBody": "Their notes stay with the practice.",
   "clinic.join.sees.patients": "Your calendar and patient list: each patient's first name, last initial",
+  "clinic.nav.seats": "Seats",
+  "clinic.seatsFilled": "{filled} filled, {invited} invited",
+  "clinic.seatAdds": "No free seat: this adds one. {monthly} a month, {today} now.",
+  "clinic.seatReleases": "This frees a seat: {monthly} a month.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -5327,7 +5331,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.apply.registration": "رقم تسجيل عيادتكم، إن وُجد",
   "clinic.apply.authority": "الجهة التي أصدرته",
   "clinic.apply.clinicians": "المعالجون الذين تتوقعون ضمّهم، اسم في كل سطر",
-  "clinic.apply.cliniciansWhy": "الأسماء فقط. ويوثّق كل منهم تسجيله بنفسه لدينا، وهذا ما يجعل الشارة ذات قيمة.",
+  "clinic.apply.cliniciansWhy": "الأسماء فقط. ويوثّق كل منهم تسجيله بنفسه لدينا.",
   "clinic.apply.submit": "اطلب منا الاتصال",
   "clinic.apply.sent": "شكرًا لكم. سنتصل بكم.",
   "clinic.apply.sentBody": "عيادتك على قائمتنا. ونجهّزها معك في المكالمة.",
@@ -5377,7 +5381,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.hoursBooked": "محجوز هذا الأسبوع",
   "clinic.onTheRota": "معالجون على الجدول",
   "clinic.usageBasis":
-    "محسوبة بأسبوع صدور فاتورة كل جلسة، وهو ليس دائمًا أسبوع انعقادها. أما الجدول أعلاه فبالساعة نفسها.",
+    "محسوبة بأسبوع صدور فاتورة كل جلسة، لا دائمًا بأسبوع انعقادها.",
   "clinic.nothingToPay": "لا شيء للدفع",
   "clinic.billsEmpty": "لا فواتير بعد.",
   "clinic.join.title": "{name} دعتك",
@@ -5613,7 +5617,7 @@ export const ar: Record<MessageKey, string> = {
   "clinic.join.never.risk": "أي تنبيه خطر أو إنذار أزمة",
   "clinic.join.never.copilot": "أي شيء تسأله للمساعد، عن أي مريض",
   "clinic.join.never.consent": "أي المرضى شغّلوا التسجيل",
-  "clinic.join.verifyFirst": "توثّق ترخيصك بنفسك معنا أولًا. وحتى ذلك لا تفعل هذه الدعوة شيئًا.",
+  "clinic.join.verifyFirst": "توثّق ترخيصك بنفسك معنا أولًا.",
   "clinic.join.haveAccount": "لدي حساب بالفعل",
   "clinic.join.newHere": "أنا جديد هنا",
   "clinic.join.signInBody": "ادخل فننقلك إلى حساب {name}. وتحتفظ بالشهر الذي دفعته.",
@@ -7238,6 +7242,10 @@ export const ar: Record<MessageKey, string> = {
   "tw2.formerTitle": "سابقًا، في {name}",
   "tw2.formerBody": "ملاحظاتها تبقى مع العيادة.",
   "clinic.join.sees.patients": "جدولك وقائمة مرضاك: الاسم الأول لكل مريض والحرف الأول من اسم العائلة",
+  "clinic.nav.seats": "المقاعد",
+  "clinic.seatsFilled": "{filled} مشغول، {invited} مدعو",
+  "clinic.seatAdds": "لا مقعد شاغر: هذه الدعوة تضيف مقعدًا. {monthly} شهريًا، و{today} الآن.",
+  "clinic.seatReleases": "هذا يُفرغ مقعدًا: {monthly} شهريًا.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

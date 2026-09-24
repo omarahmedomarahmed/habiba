@@ -45,6 +45,40 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
   const link = `${env.appUrl}${CLINIC_JOIN}/${result.token}`;
 
   /*
+   * 🔴 W2-C02 — THE SEAT THIS INVITATION NEEDS, BOUGHT AS QUOTED.
+   *
+   * The form carries the count it was quoted against only when there was no
+   * free seat. `applySeatChange` refuses if that count has moved, and raises
+   * the proration invoice when it has not: the same function and the same
+   * guard as the seats page. After the invitation rather than before, so a
+   * refused address never buys a seat.
+   */
+  const from = Number(formData.get("seatFrom") ?? NaN);
+  const to = Number(formData.get("seatTo") ?? NaN);
+  let seatError: string | undefined;
+  /* Only ever upward, and never by more than the form could have quoted. */
+  if (Number.isInteger(from) && Number.isInteger(to) && to > from && to - from <= 50) {
+    const { applySeatChange } = await import("@/lib/billing/seats");
+    const seat = await applySeatChange({
+      organizationId: actor.clinicOrganizationId,
+      fromSeats: from,
+      toSeats: to,
+    });
+    seatError = seat.error;
+    if (!seat.error) {
+      await audit({
+        actor: null,
+        clinicManagerId: actor.clinicManagerId,
+        category: "billing",
+        action: "seats.changed",
+        resourceType: "organization",
+        resourceId: actor.clinicOrganizationId,
+        reason: `${from} to ${to}, for an invitation`,
+      });
+    }
+  }
+
+  /*
    * 🔴 Sent by us, to the clinician, on both channels. Best effort.
    *
    * The link is ALSO returned to the manager, and that is deliberate rather than a
@@ -89,7 +123,8 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
   });
 
   revalidatePath("/clinic/people");
-  return { ok: true, link };
+  revalidatePath("/clinic/seats");
+  return { ok: true, link, ...(seatError ? { error: seatError } : {}) };
 }
 
 export async function cancelInvitation(invitationId: string): Promise<PeopleState> {
@@ -111,7 +146,11 @@ export async function cancelInvitation(invitationId: string): Promise<PeopleStat
 }
 
 /** 🔴 54.11 / C266 — they move to a practice of their own and the connections go. */
-export async function remove(userId: string): Promise<PeopleState> {
+export async function remove(
+  userId: string,
+  /** 🔴 W2-C02 / C4: the seat count the release was quoted against, when a seat comes free. */
+  seatFrom: number | null = null,
+): Promise<PeopleState> {
   const actor = await requireClinicAdmin();
 
   const result = await removeClinician({
@@ -156,6 +195,34 @@ export async function remove(userId: string): Promise<PeopleState> {
     resourceId: userId,
   });
 
+  /*
+   * 🔴 W2-C02 / C4 — AND THE SEAT GOES WITH THEM.
+   *
+   * `removeClinician` released their `clinic_seats` row and left
+   * `organizations.seats`, which prices the bill, where it was: C4's "the
+   * next bill is lower by exactly one seat" was false. Applied through
+   * `applySeatChange` against the count the admin was shown.
+   */
+  if (typeof seatFrom === "number" && seatFrom > 0) {
+    const { applySeatChange } = await import("@/lib/billing/seats");
+    const seat = await applySeatChange({
+      organizationId: actor.clinicOrganizationId,
+      fromSeats: seatFrom,
+      toSeats: seatFrom - 1,
+    });
+    if (seat.error) return { ok: true, error: seat.error };
+    await audit({
+      actor: null,
+      clinicManagerId: actor.clinicManagerId,
+      category: "billing",
+      action: "seats.changed",
+      resourceType: "organization",
+      resourceId: actor.clinicOrganizationId,
+      reason: `${seatFrom} to ${seatFrom - 1}, a clinician left`,
+    });
+  }
+
   revalidatePath("/clinic/people");
+  revalidatePath("/clinic/seats");
   return { ok: true };
 }

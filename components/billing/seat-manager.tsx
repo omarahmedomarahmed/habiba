@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 
-import { quoteSeats, saveSeats, type SeatState } from "@/app/(app)/billing/actions";
 import { Button, Card } from "@/components/ui";
+
+export type SeatState = { error?: string; ok?: boolean };
 
 export type SeatQuote = {
   fromSeats: number;
@@ -34,15 +35,25 @@ export type SeatQuote = {
  * did not expect is a support ticket and a refund conversation, and the slider
  * is where that is cheapest to prevent. The figure is computed from the bands,
  * never written, so a reprice cannot leave a wrong number on the screen.
+ *
+ * 🔴 W2-C02: THE ACTIONS ARE PASSED IN. This component imported the solo
+ * portal's actions, which W1-02 made refuse a clinic, so the one seat control
+ * in the product could not be offered to the clinic admin who owns the seats.
+ * Each portal now hands it its own pair, both over `quoteSeatChange` and
+ * `applySeatChange`.
  */
 export function SeatManager({
   seats,
   monthlyLabel,
   maxSeats = 20,
+  quoteSeats,
+  saveSeats,
 }: {
   seats: number;
   monthlyLabel: string;
   maxSeats?: number;
+  quoteSeats: (toSeats: number) => Promise<{ quote?: SeatQuote; error?: string }>;
+  saveSeats: (fromSeats: number, toSeats: number) => Promise<SeatState>;
 }) {
   const [wanted, setWanted] = useState(seats);
   const [quote, setQuote] = useState<SeatQuote | null>(null);

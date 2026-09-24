@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Wallet } from "lucide-react";
 
-import { cancelBillPayment, declareBillTransfer, openBillPayment, quoteInvoices } from "./actions";
+import {
+  cancelBillPayment,
+  declareBillTransfer,
+  openBillPayment,
+  quoteInvoices,
+  quoteSeats,
+  saveSeats,
+} from "./actions";
 import { BillPicker } from "@/components/billing/bill-picker";
 import { BillingLedger } from "@/components/billing/ledger";
 import { PlanCard } from "@/components/billing/plan-card";
@@ -168,7 +175,12 @@ export default async function BillingPage({
         ) : null}
 
         {runsAccount && seatBill.seats > 0 ? (
-          <SeatManager seats={seatBill.seats} monthlyLabel={formatUsd(seatBill.monthlyCents)} />
+          <SeatManager
+            seats={seatBill.seats}
+            monthlyLabel={formatUsd(seatBill.monthlyCents)}
+            quoteSeats={quoteSeats}
+            saveSeats={saveSeats}
+          />
         ) : null}
 
         {runsAccount ? (
