@@ -30,6 +30,8 @@
  * what a layout wrapping both signed-in and signed-out pages needs.
  */
 import { PatientChrome } from "@/components/patient/chrome";
+import { NoticeBell } from "@/components/patient/notice-bell";
+import { undismissedCount } from "@/lib/data/notices";
 import { SessionStarted } from "@/components/patient/session-started";
 import { liveSessionForPatient, openSessionForPatient } from "@/lib/data/patient-view";
 import { optionalPatient } from "@/lib/patient-auth/guard";
@@ -76,7 +78,10 @@ export default async function PatientLayout({ children }: { children: React.Reac
   return (
     <PatientChrome nav={actor !== null} phone={actor?.phone ?? null} openSession={open}>
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
-      <LanguageCorner />
+      {/* 🔴 W2-P09: and beside it, for somebody signed in, what the app has told them. */}
+      <LanguageCorner
+        beside={actor ? <NoticeBell count={await undismissedCount(actor.personId)} /> : null}
+      />
       {live ? <SessionStarted href={live.href} therapistName={live.therapistName} /> : null}
       {children}
     </PatientChrome>

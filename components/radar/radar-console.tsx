@@ -9,7 +9,10 @@ import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components
 import { RadarList } from "@/components/radar/radar-list";
 import { TherapistCard } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import type { FirstHour } from "@/lib/data/scheduling";
+import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 
@@ -54,7 +57,14 @@ const Globe = dynamicImport(() => import("@/components/radar/globe").then((m) =>
 /** Availability changes in seconds. Four is the difference between free and busy. */
 const REFRESH_MS = 4_000;
 
-export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
+export function RadarConsole({
+  initial,
+  firstHours = [],
+}: {
+  initial: RadarEntry[];
+  /** 🔴 W2-P12: what to book when nobody is on shift, from `firstOpenHours`. */
+  firstHours?: FirstHour[];
+}) {
   const t = useT();
   const [entries, setEntries] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -120,7 +130,9 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
   );
 
   const listContent =
-    visible.length === 0 ? (
+    onlineCount === 0 ? (
+      <FirstHours hours={firstHours} />
+    ) : visible.length === 0 ? (
       <div className="rounded-2xl bg-white/5 p-4 text-center">
         <p className="text-sm font-semibold text-white">{t("radar.nobodyMatchingTitle")}</p>
         <p className="mt-1 text-xs leading-relaxed text-white/85">
@@ -166,7 +178,11 @@ export function RadarConsole({ initial }: { initial: RadarEntry[] }) {
           />
         ) : (
           <div className="h-full overflow-y-auto px-3 pt-16 pb-[56dvh] sm:px-4 sm:pb-6 sm:ps-[20.5rem]">
-            {visible.length === 0 ? (
+            {onlineCount === 0 ? (
+              <div className="mx-auto max-w-md">
+                <FirstHours hours={firstHours} />
+              </div>
+            ) : visible.length === 0 ? (
               <div className="mx-auto max-w-md rounded-2xl bg-white/5 p-4 text-center">
                 <p className="text-sm font-semibold text-white">
                   {t("radar.nobodyMatchingTitle")}
@@ -398,6 +414,46 @@ function Panel({
 }
 
 /** Kept out of the panel so the emergency line is never inside a collapsed box. */
+/**
+ * 🔴 W2-P12: nobody on shift is not the end of the page.
+ *
+ * It said "0 other clinicians are available right now" and offered "Show
+ * everyone", which showed nobody. It now names the soonest hour each of a few
+ * clinicians has open, in the reader's own zone, and each opens that
+ * clinician's calendar. Every word on it is one the product already uses.
+ */
+function FirstHours({ hours }: { hours: FirstHour[] }) {
+  const t = useT();
+  const locale = useLocale();
+  const zone = resolveZone(useReaderZone());
+
+  return (
+    <div className="rounded-2xl bg-white/5 p-4">
+      <p className="text-center text-sm font-semibold text-white">{t("home.liveNone")}</p>
+      {hours.length > 0 ? (
+        <>
+          <p className="mt-3 text-xs font-semibold text-white/85">{t("pbook.bookSession")}</p>
+          <ul className="mt-2 space-y-2">
+            {hours.map((hour) => (
+              <li key={hour.therapistUserId}>
+                <a
+                  href={`/t/${hour.therapistUserId}`}
+                  className="block rounded-xl bg-white/10 px-3 py-2.5 text-start hover:bg-white/15"
+                >
+                  <span className="block text-sm font-semibold text-white">{hour.therapistName}</span>
+                  <span className="block text-xs text-white/85">
+                    {formatWhen(new Date(hour.startsAt), zone, locale)}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export function RadarSafetyLine() {
   const t = useT();
 

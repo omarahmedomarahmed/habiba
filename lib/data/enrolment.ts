@@ -519,6 +519,71 @@ export async function enrol(input: {
 }
 
 /**
+ * 🔴 W2-P08: a paused benefit, confirmed again by typing what enrolled it.
+ *
+ * The paused card said "Enter your work address again and we will send a new
+ * code" and had no field and no button, so a person whose re-verification
+ * went unanswered could not restart their own funding.
+ *
+ * The identifier is checked against the enrolment's own salted hash, so this
+ * proves the same thing enrolment proved and nothing more: a typed value that
+ * does not hash to this row is refused with the sentence `enrol` uses. A work
+ * address gets a new code, sent from here while the person is typing it, the
+ * same single moment `enrol` uses one (nothing stores it). An ID number has
+ * nothing further to prove (C247), so matching it is the confirmation.
+ */
+export async function reconfirmEnrolment(input: {
+  personId: string;
+  enrolmentId: string;
+  identifier: string;
+}): Promise<{ ok: true; needsCode: boolean } | { ok: false; error: string }> {
+  const throttle = await consume(
+    await callerKey(`reconfirm:${input.personId}`),
+    ATTEMPTS_PER_WINDOW,
+    ATTEMPT_WINDOW_SECONDS,
+  );
+  if (!throttle.allowed) {
+    return { ok: false, error: "Too many attempts. Wait a few minutes and try again." };
+  }
+
+  const [row] = await controlDb
+    .select({
+      sponsorId: enrolments.sponsorId,
+      identifierHash: enrolments.identifierHash,
+      identifierKind: enrolments.identifierKind,
+    })
+    .from(enrolments)
+    .where(
+      and(
+        eq(enrolments.id, input.enrolmentId),
+        /* Theirs, from the session, as a condition rather than a check. */
+        eq(enrolments.personId, input.personId),
+        isNull(enrolments.removedAt),
+      ),
+    )
+    .limit(1);
+
+  const refused = {
+    ok: false as const,
+    error:
+      "That does not match what your organisation asks for. Check with whoever shared the code. You can use 24Therapy either way.",
+  };
+  if (!row || hashIdentifier(row.sponsorId, input.identifier) !== row.identifierHash) return refused;
+
+  if (row.identifierKind === "domain_email") {
+    const { sendEnrolmentCode } = await import("./enrolment-verify");
+    await sendEnrolmentCode(input.enrolmentId, input.identifier);
+    return { ok: true, needsCode: true };
+  }
+
+  await controlDb
+    .update(enrolments)
+    .set({ lastVerifiedAt: new Date(), pausedAt: null, updatedAt: new Date() })
+    .where(and(eq(enrolments.id, input.enrolmentId), eq(enrolments.personId, input.personId)));
+  return { ok: true, needsCode: false };
+}
+
+/**
  * 🔴 C249 / 53.19d — the patient chooses which pot pays.
  *
  * One statement, so two rows can never both be primary: clear every one of
@@ -559,6 +624,8 @@ export async function myBenefits(personId: string) {
       isPrimary: enrolments.isPrimary,
       pausedAt: enrolments.pausedAt,
       lastVerifiedAt: enrolments.lastVerifiedAt,
+      /* W2-P08: which way a paused row is confirmed again. The kind, never the value. */
+      identifierKind: enrolments.identifierKind,
     })
     .from(enrolments)
     .innerJoin(sponsors, eq(sponsors.id, enrolments.sponsorId))

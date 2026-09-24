@@ -171,7 +171,9 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
     return { error: "Too many attempts. Wait a moment and try again." };
   }
 
-  const sessionId = await joinByToken(token, name);
+  /* 🔴 W2-P04: a signed-in patient joins as themselves, never as a new stranger. */
+  const { optionalPatient } = await import("@/lib/patient-auth/guard");
+  const sessionId = await joinByToken(token, name, (await optionalPatient())?.personId ?? null);
   if (!sessionId) {
     return { error: "This link is no longer valid. Ask your therapist for a new one." };
   }

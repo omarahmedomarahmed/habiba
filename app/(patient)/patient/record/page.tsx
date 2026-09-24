@@ -48,7 +48,8 @@ export default async function RecordExportPage() {
         </p>
       </div>
 
-      <ExportRecord email={actor.email} />
+      {/* 🔴 W2-P03: a whole record goes only to an address the patient has proved. */}
+      <ExportRecord email={actor.emailVerified ? actor.email : null} />
 
       {visibility.practices.length > 0 ? (
         <Card className="p-5">

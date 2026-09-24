@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { hashPassword as hashCode, verifyPassword as verifyCode } from "@/lib/auth/password";
@@ -347,6 +347,49 @@ export async function completeChange(input: {
 
   log.info("phone change completed", { request: ref(row.id) });
   return { ok: true };
+}
+
+/**
+ * 🔴 W2-P07: the PATIENT's way to `completeChange`, which had no caller.
+ *
+ * "Nothing changes until you enter the code we send the new number" was on
+ * the account page and no screen took the code, so every approved change
+ * stalled at the last step. The request is found by the account from the
+ * session, never by an id the client sends, so nobody can finish somebody
+ * else's change with a code they happen to hold.
+ */
+export async function awaitingChangeCode(accountId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: phoneChangeRequests.id })
+    .from(phoneChangeRequests)
+    .where(
+      and(
+        eq(phoneChangeRequests.patientAccountId, accountId),
+        eq(phoneChangeRequests.status, "verifying"),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
+export async function completeOwnChange(input: {
+  accountId: string;
+  code: string;
+}): Promise<ChangeResult> {
+  const [row] = await db
+    .select({ id: phoneChangeRequests.id })
+    .from(phoneChangeRequests)
+    .where(
+      and(
+        eq(phoneChangeRequests.patientAccountId, input.accountId),
+        eq(phoneChangeRequests.status, "verifying"),
+      ),
+    )
+    .orderBy(desc(phoneChangeRequests.updatedAt))
+    .limit(1);
+  if (!row) return { error: "There is no change waiting for a code." };
+
+  return completeChange({ requestId: row.id, code: input.code.replace(/\D/g, "") });
 }
 
 /** Refused, with a reason the patient reads. Nothing about the account changes. */

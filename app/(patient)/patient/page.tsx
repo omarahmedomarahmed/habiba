@@ -15,7 +15,7 @@ import { radarCount } from "@/lib/data/radar";
 import { pendingRequestsFor } from "@/lib/data/grants";
 import { openAssignmentsForPerson } from "@/lib/data/assessments";
 import { nextStepFor } from "@/lib/data/homework";
-import { sessionsForPatient } from "@/lib/data/patient-view";
+import { sessionDoors, sessionsForPatient } from "@/lib/data/patient-view";
 import { PatientSessionList } from "@/components/patient/session-list";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -403,6 +403,10 @@ export default async function PatientHomePage({
       <PatientSessionList
         sessions={sessions}
         zone={actor.timezone}
+        /* 🔴 W2-P06: every card opens what it is waiting on. */
+        doors={Object.fromEntries(
+          (await sessionDoors(actor.personId)).map((row) => [row.sessionId, row.door]),
+        )}
       />
 
       {/*

@@ -8,6 +8,7 @@ import {
   checkCode,
   choosePrimary,
   confirmCode,
+  reconfirmBenefit,
   type BenefitState,
 } from "@/app/(patient)/patient/benefit/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
@@ -54,11 +55,23 @@ export type Benefit = {
    * screen must not tell.
    */
   verified: boolean;
+  /** 🔴 W2-P08: a work address gets a new code; an ID number is proof itself. */
+  kind: "domain_email" | "id_number" | string;
 };
 
-export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
+export function BenefitForm({
+  benefits,
+  initialCode = "",
+}: {
+  benefits: Benefit[];
+  /** 🔴 W2-P08: the sponsor's QR is `/patient/benefit?code=`, and the page ignored it. */
+  initialCode?: string;
+}) {
   const t = useT();
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode.toUpperCase());
+  /** What each paused row was enrolled with, typed again. Never stored. */
+  const [again, setAgain] = useState<Record<string, string>>({});
+  const [sentTo, setSentTo] = useState<Record<string, boolean>>({});
   const [identifier, setIdentifier] = useState("");
   const [state, setState] = useState<BenefitState>({});
   /** One code per enrolment row, because several may be waiting at once. */
@@ -85,6 +98,13 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
       const result = await confirmCode(enrolmentId, codes[enrolmentId] ?? "");
       setState(result);
       if (result.ok) setCodes((current) => ({ ...current, [enrolmentId]: "" }));
+    });
+
+  const reconfirm = (enrolmentId: string) =>
+    startTransition(async () => {
+      const result = await reconfirmBenefit(enrolmentId, again[enrolmentId] ?? "");
+      setState(result.needsCode ? { error: undefined } : result);
+      if (result.needsCode) setSentTo((current) => ({ ...current, [enrolmentId]: true }));
     });
 
   const pick = (enrolmentId: string) =>
@@ -125,8 +145,44 @@ export function BenefitForm({ benefits }: { benefits: Benefit[] }) {
               {!benefit.verified || benefit.paused ? (
                 <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
                   <p className="text-xs leading-relaxed text-slate-500">
-                    {benefit.paused ? t("benefit.resendPrompt") : t("benefit.codeSent")}
+                    {benefit.paused && !sentTo[benefit.enrolmentId]
+                      ? t("benefit.resendPrompt")
+                      : t("benefit.codeSent")}
                   </p>
+                  {/*
+                    🔴 W2-P08: the sentence above asked for the address again,
+                    and there was nowhere to type it. Checked against their own
+                    enrolment's hash, never stored.
+                  */}
+                  {benefit.paused && !sentTo[benefit.enrolmentId] ? (
+                    <>
+                      <Field
+                        label={t("benefit.identifierLabel", { name: benefit.sponsorName })}
+                        htmlFor={`again-${benefit.enrolmentId}`}
+                      >
+                        <Input
+                          id={`again-${benefit.enrolmentId}`}
+                          value={again[benefit.enrolmentId] ?? ""}
+                          onChange={(event) =>
+                            setAgain((current) => ({
+                              ...current,
+                              [benefit.enrolmentId]: event.target.value,
+                            }))
+                          }
+                          autoCapitalize="none"
+                          autoComplete="off"
+                        />
+                      </Field>
+                      <button
+                        type="button"
+                        disabled={pending || !again[benefit.enrolmentId]}
+                        onClick={() => reconfirm(benefit.enrolmentId)}
+                        className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        {benefit.kind === "domain_email" ? t("pfield.sendMeACode") : t("benefit.confirm")}
+                      </button>
+                    </>
+                  ) : null}
                   <Field
                     label={t("benefit.codeLabel2")}
                     htmlFor={`confirm-${benefit.enrolmentId}`}

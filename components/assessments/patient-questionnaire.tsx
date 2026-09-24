@@ -111,6 +111,13 @@ export function PatientQuestionnaire({
       <Card className="p-6 text-center">
         <p className="text-lg font-semibold text-slate-900">{t("passess.doneTitle")}</p>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("passess.doneBody")}</p>
+        {/* 🔴 W2-P16: the last question ended on a page with no way off it. */}
+        <Link
+          href="/patient"
+          className="mt-4 inline-flex h-11 items-center rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
+        >
+          {t("tab.home")}
+        </Link>
       </Card>
     );
   }

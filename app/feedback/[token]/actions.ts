@@ -44,7 +44,8 @@ export async function rateSession(input: {
    * and returns false; the approval path sends it later. Either way the patient
    * has done their part and is told so.
    */
-  return { ok: true, sent: await releaseBrief(context.sessionId) };
+  /* 🔴 W2-P10: a copy only where one was asked for; the page already shows it. */
+  return { ok: true, sent: input.email.trim() ? await releaseBrief(context.sessionId) : false };
 }
 
 /**

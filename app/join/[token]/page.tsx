@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { JoinFlow } from "@/components/join/join-flow";
 import { PatientChrome } from "@/components/patient/chrome";
 import { optionalPatient } from "@/lib/patient-auth/guard";
-import { NoShowRecovery } from "@/components/session/no-show-recovery";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { Logo } from "@/components/brand/logo";
 import { crisisCountryFor } from "@/lib/crisis/line";
@@ -14,6 +14,8 @@ import { confirmCheckout } from "@/lib/billing/stripe";
 import { feedbackContext, feedbackTokenForJoin } from "@/lib/data/feedback";
 import { releaseClaim } from "@/lib/data/radar";
 import { resolveJoinToken } from "@/lib/data/sessions";
+import { benefitShortfall } from "@/lib/billing/pot";
+import { BenefitNote } from "@/components/patient/benefit-note";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patients, therapistRadar, users } from "@/lib/db/schema";
@@ -84,6 +86,26 @@ export default async function JoinPage({
       <Shell>
         <h1 className="text-xl font-bold text-slate-900">{t("room.linkDead")}</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("room.linkDeadBody")}</p>
+        {/*
+          🔴 W2-P16: a dead link with nowhere to go. Somebody who needs a
+          session now gets the radar; somebody signed in, their own sessions.
+        */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/radar"
+            className="inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+          >
+            {t("tab.radar")}
+          </Link>
+          {(await optionalPatient()) ? (
+            <Link
+              href="/patient/sessions"
+              className="inline-flex h-11 items-center rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
+            >
+              {t("psessions.title")}
+            </Link>
+          ) : null}
+        </div>
       </Shell>
     );
   }
@@ -200,30 +222,25 @@ export default async function JoinPage({
           recording: session.recordingConsent,
           profileShare: session.profileShareConsent,
         }}
+        /*
+          🔴 Sprint 14's recovery, on the screen where the waiting happens, and
+          🔴 W2-P11 inside the room as well as before it. It was rendered here,
+          below the flow, where the room's fixed full-screen layer covered it
+          the moment the patient went in, and it was handed a wait computed
+          once, so a room opened before the five minutes never offered anybody.
+          The booked instant goes in; the component keeps the clock.
+        */
+        recoveryFrom={
+          session.scheduledAt && !session.startedAt ? session.scheduledAt.toISOString() : null
+        }
+        /* 🔴 W2-P15 / E5: a benefit that did not pay says who to ask, beside the price. */
+        benefitNote={<BenefitNote shortfall={await benefitShortfall(session.id)} />}
       />
-
       {/*
-        🔴 Sprint 14's recovery, on the screen where the waiting happens.
-        --------------------------------------------------------------
-        `NoShowRecovery` was built in sprint 14 and rendered **nowhere** — the
-        same defect as `InvoiceList` in sprint 12, found the same way, by a
-        type error asking who passes the new locale. A component nobody
-        renders is a feature nobody has.
-
-        It appears only once there is something to recover from: a session with
-        a scheduled time that has passed and a clinician who has not started.
-        The five-minute rule and the offer itself live in `lib/data/recovery.ts`
-        — this decides whether the patient is in a position to need them.
+        `NoShowRecovery` was built in sprint 14 and rendered nowhere, found by a
+        type error asking who passes the new locale. A component nobody renders
+        is a feature nobody has. `JoinFlow` renders it now, in both places.
       */}
-      {session.scheduledAt && !session.startedAt && session.scheduledAt < new Date() ? (
-        <div className="mx-auto w-full max-w-md px-4 pb-8">
-          <NoShowRecovery
-            token={token}
-            startedAt={null}
-            waitMinutes={Math.floor((Date.now() - session.scheduledAt.getTime()) / 60_000)}
-          />
-        </div>
-      ) : null}
     </Shell>
   );
 }

@@ -44,6 +44,13 @@ export default async function InvitePage({
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
             {t("pinvite.usedBody")}
           </p>
+          {/* 🔴 W2-P16: a dead link was a dead end. Home, which signs in whoever is not. */}
+          <Link
+            href="/patient"
+            className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-700"
+          >
+            {t("tab.home")}
+          </Link>
         </Card>
       </main>
     );

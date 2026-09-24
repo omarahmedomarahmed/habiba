@@ -115,7 +115,13 @@ export async function bookFromRadar(
   formData: FormData,
 ): Promise<BookingState> {
   const therapistUserId = String(formData.get("therapistId") ?? "");
-  const name = String(formData.get("name") ?? "").trim();
+  /*
+   * 🔴 W2-P04: a signed-in patient books as themselves. Read from the cookie,
+   * never from the form, and null for the stranger this action was built for.
+   */
+  const { optionalPatient } = await import("@/lib/patient-auth/guard");
+  const signedIn = await optionalPatient();
+  const name = String(formData.get("name") ?? "").trim() || signedIn?.firstName || "";
   const email = String(formData.get("email") ?? "").trim();
   const viewer = String(formData.get("viewer") ?? "").trim() || null;
 
@@ -225,6 +231,26 @@ export async function bookFromRadar(
     await refund(attemptKey);
     await refund(therapistKey);
     return { error: "Someone else booked them a second before you. Try another clinician." };
+  }
+
+  /*
+   * 🔴 W2-P04: only once the claim is won, so a lost race leaves no file with
+   * a clinician the patient never saw. Their own person, so the session is on
+   * their sessions list, their orb and their bill from this moment.
+   */
+  if (signedIn) {
+    const { patientRowForPerson } = await import("@/lib/data/people");
+    const patientId = await patientRowForPerson({
+      organizationId: therapist.organizationId,
+      therapistId: therapist.userId,
+      personId: signedIn.personId,
+    });
+    if (patientId) {
+      await db
+        .update(sessions)
+        .set({ patientId, updatedAt: new Date() })
+        .where(and(eq(sessions.id, session.id), isNull(sessions.patientId)));
+    }
   }
 
   /*
@@ -372,6 +398,25 @@ export async function bookFromRadar(
       // Nothing to pay, so the booking is real immediately.
       await markInSession(session.id);
       return { joinUrl };
+    }
+
+    /*
+     * 🔴 W2-P04 / 53.21: a person now stands behind this session, so their
+     * benefit pays before a price is shown, as it does on every other path.
+     * A pot that covers it all makes the booking real exactly like a free one.
+     */
+    if (signedIn) {
+      const { payFromPot } = await import("@/lib/billing/pot");
+      await payFromPot(session.id);
+      const [after] = await db
+        .select({ paymentStatus: sessions.paymentStatus })
+        .from(sessions)
+        .where(eq(sessions.id, session.id))
+        .limit(1);
+      if (after?.paymentStatus === "paid") {
+        await markInSession(session.id);
+        return { joinUrl };
+      }
     }
 
     /*

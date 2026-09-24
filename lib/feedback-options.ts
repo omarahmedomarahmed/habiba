@@ -36,3 +36,23 @@ export const SERVICE_TAGS = [
 
 /** Languages written right to left — the brief has to know which way to run. */
 export const RTL_LANGUAGE_CODES = new Set(["ar", "he", "fa", "ur"]);
+
+/**
+ * 🔴 W2-P10: what may be sent. Two ratings, and never an address: the summary
+ * is on the page already, and a copy by email is the patient's choice.
+ */
+export function ratingReady(input: {
+  therapistStars: number;
+  sessionStars: number;
+  serviceStars: number;
+  ratedApp: boolean;
+  email: string;
+}): boolean {
+  const addressOk = input.email.trim() === "" || input.email.includes("@");
+  return (
+    input.therapistStars > 0 &&
+    input.sessionStars > 0 &&
+    (input.ratedApp || input.serviceStars > 0) &&
+    addressOk
+  );
+}

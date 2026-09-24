@@ -9,6 +9,8 @@ import { SosOrbServer } from "@/components/patient/sos-orb-server";
 import { resolveCode } from "@/lib/data/therapist-codes";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 
+import { connectToTherapist } from "./actions";
+
 export const metadata: Metadata = {
   title: "Join 24Therapy",
   robots: { index: false, follow: false },
@@ -20,15 +22,18 @@ export const dynamic = "force-dynamic";
  *
  * ## 🔴 What this page is careful not to do
  *
- * It does not pre-fill a phone number, it does not name a patient, and it does
- * not attach anybody to anybody. The code is public by construction, so
- * everything it can be trusted with is on the screen: the clinician's name and
- * the practice, so somebody standing in a waiting room knows they scanned the
- * right poster.
+ * It does not pre-fill a phone number and it does not name a patient. The code
+ * is public by construction, so everything it can be trusted with is on the
+ * screen: the clinician's name and the practice, so somebody standing in a
+ * waiting room knows they scanned the right poster.
+ *
+ * 🔴 W2-P13: it DOES connect the person who acts on it to that clinician, once
+ * they have an account (signup carries the code; a signed-in reader presses
+ * one button). That is what "You are joining" says, and until now nothing did
+ * it. The connection is a file with the name they gave, and nothing more.
  *
  * Matching a record still runs afterwards through the ordinary door: a proven
  * phone or a proven email, then the full name challenge (25.14, 25.15, C114).
- * The code buys a person nothing except not having to type a URL.
  *
  * A revoked code gets a sentence rather than a 404. Somebody is reading this
  * in front of the poster, and "this code is no longer in use, ask at the desk"
@@ -41,6 +46,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
   const reader = await optionalPatient();
   const { code } = await params;
   const scanned = await resolveCode(code);
+  const { t } = await getI18n();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-5 px-4 py-8">
@@ -48,7 +54,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
         <>
           <Card className="border-brand-200 bg-brand-50 p-4">
             <p className="text-xs font-semibold tracking-wide text-brand-800 uppercase">
-              You are joining
+              {t("pcode.youAreJoining")}
             </p>
             <p className="mt-1 text-base font-bold tracking-tight text-slate-900">
               {scanned.therapistName}
@@ -63,23 +69,43 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
             ) : null}
           </Card>
 
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Create your account</h1>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
-              Your record becomes yours: it travels with you, and you decide who reads it. If this
-              therapist already keeps notes about you, you can take ownership of them once your
-              number is confirmed.
-            </p>
-          </div>
+          {/*
+            🔴 W2-P13: signed in, one button; signed out, signup carrying the
+            code. Either way the account is connected to this clinician, which
+            is what "You are joining" said and nothing did.
+          */}
+          {reader ? (
+            <form action={connectToTherapist}>
+              <input type="hidden" name="code" value={code} />
+              <button
+                type="submit"
+                className="h-12 w-full rounded-2xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
+              >
+                {t("pcode.connect")}
+              </button>
+            </form>
+          ) : (
+            <>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                  {t("pcode.createAccount")}
+                </h1>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("pauth.signUpBody")}</p>
+              </div>
 
-          <PatientAuthForm mode="signup" />
+              <PatientAuthForm mode="signup" wallCode={code} />
 
-          <p className="text-center text-sm text-slate-500">
-            Already have an account?{" "}
-            <Link href="/patient/login" className="font-semibold text-brand-700 hover:underline">
-              Sign in
-            </Link>
-          </p>
+              <p className="text-center text-sm text-slate-500">
+                {t("nav.haveAccount")}{" "}
+                <Link
+                  href={`/patient/login?next=${encodeURIComponent(`/j/${code}`)}`}
+                  className="font-semibold text-brand-700 hover:underline"
+                >
+                  {t("pcode.signIn")}
+                </Link>
+              </p>
+            </>
+          )}
         </>
       ) : (
         <Card className="p-5">

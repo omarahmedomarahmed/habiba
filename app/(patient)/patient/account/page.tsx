@@ -5,12 +5,13 @@ import { Receipt, ShieldCheck } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { ChangeNumber } from "@/components/patient/change-number";
+import { EmailEditor } from "@/components/patient/email-editor";
 import { IdentityEditor } from "@/components/patient/identity-editor";
 import { Card } from "@/components/ui";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, people } from "@/lib/db/schema";
-import { lockUntil } from "@/lib/data/phone-change";
+import { awaitingChangeCode, lockUntil } from "@/lib/data/phone-change";
 import { getI18n } from "@/lib/i18n/server";
 import { patientSignOut } from "@/lib/patient-auth/actions";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -83,6 +84,7 @@ export default async function PatientAccountPage() {
         current={actor.phone}
         countries={countries.map((c) => ({ code: c.code, name: c.name }))}
         lockedUntilLabel={locked ? locked.toISOString().slice(0, 10) : null}
+        awaitingCode={await awaitingChangeCode(actor.accountId)}
       />
 
       <Card className="p-4">
@@ -98,7 +100,10 @@ export default async function PatientAccountPage() {
               better than an empty line, and the sentence names what adding one
               buys rather than nagging.
             */}
-            <dd className="truncate text-slate-800">{actor.email ?? t("paccount.notAdded")}</dd>
+            <dd className="truncate text-slate-800">
+              {actor.email ?? t("paccount.notAdded")}
+              {actor.email && !actor.emailVerified ? ` · ${t("paccount.emailUnconfirmed")}` : ""}
+            </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-slate-500">{t("paccount.timezone")}</dt>
@@ -108,11 +113,11 @@ export default async function PatientAccountPage() {
           </div>
         </dl>
 
-        {!actor.email ? (
-          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
-            {t("paccount.addEmailBody")}
-          </p>
-        ) : null}
+        {/*
+          🔴 W2-P03: the sentence above promised an address and nothing could
+          add one. Adding it, or proving the one given at signup, is here.
+        */}
+        <EmailEditor current={actor.email} verified={actor.emailVerified} />
       </Card>
 
       <Link href="/patient/consent">
@@ -144,6 +149,30 @@ export default async function PatientAccountPage() {
           </span>
         </Card>
       </Link>
+
+      {/*
+        🔴 W2-P09: four pages that existed and that nothing linked to. Each is
+        named by its own page title, so the words are ones the patient meets
+        again when they arrive.
+      */}
+      <Card className="divide-y divide-slate-100 p-0">
+        {(
+          [
+            ["/patient/notices", "pnotice.title"],
+            ["/patient/messages", "checkin.settingsTitle"],
+            ["/patient/benefit", "benefit.title"],
+            ["/patient/residency", "residency.title"],
+          ] as const
+        ).map(([href, label]) => (
+          <Link
+            key={href}
+            href={href}
+            className="block px-4 py-3.5 text-sm font-semibold text-slate-900 active:bg-slate-50"
+          >
+            {t(label)}
+          </Link>
+        ))}
+      </Card>
 
       <Link href="/patient/profile">
         <Card className="p-4 active:bg-slate-50">

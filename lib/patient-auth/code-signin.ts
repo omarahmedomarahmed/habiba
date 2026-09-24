@@ -12,6 +12,7 @@ import { whatsappConfigured } from "@/lib/notify/whatsapp";
 import { toE164 } from "@/lib/phone/e164";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
+import { patientLanding } from "@/lib/routing";
 
 import { createPatientSession } from "./session";
 
@@ -56,6 +57,8 @@ const db = dbFor(pinnedToDefaultRegion("lib/patient-auth/code-signin.ts", "not r
 export type CodeSignInState = {
   /** The neutral acknowledgement. Never says whether an account was found. */
   sent?: boolean;
+  /** 🔴 W2-P02: where to go once signed in, already checked by `patientLanding`. */
+  next?: string;
   channelDown?: boolean;
   error?: string;
 };
@@ -224,5 +227,5 @@ export async function signInWithCode(
   await createPatientSession(account.id);
   log.info("patient signed in with a code", { account: ref(account.id), channel: row.channel });
 
-  return { sent: true };
+  return { sent: true, next: patientLanding(formData.get("next")) };
 }

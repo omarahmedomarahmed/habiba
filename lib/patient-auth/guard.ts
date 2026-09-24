@@ -1,6 +1,9 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
+
+import { PATIENT_COOKIE, patientBounce } from "@/lib/routing";
 
 import { getPatientActor, type PatientActor } from "./session";
 
@@ -17,7 +20,16 @@ import { getPatientActor, type PatientActor } from "./session";
  */
 export async function requirePatient(): Promise<PatientActor> {
   const actor = await getPatientActor();
-  if (!actor) redirect("/patient/login");
+  if (!actor) {
+    /*
+     * 🔴 W2-P01: never straight to the door while a cookie is still held.
+     * Middleware sends a cookie holder at `/patient/login` back to `/patient`,
+     * which lands here again, forever. `patientBounce` says why.
+     */
+    const hasCookie = Boolean((await cookies()).get(PATIENT_COOKIE)?.value);
+    const hdrs = await headers();
+    redirect(patientBounce(hasCookie, hdrs.get("x-pathname") ?? ""));
+  }
   return actor;
 }
 

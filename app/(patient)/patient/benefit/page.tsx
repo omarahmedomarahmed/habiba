@@ -23,8 +23,14 @@ export const dynamic = "force-dynamic";
  * narrower. Two queries over one table, with opposite select lists, is what the
  * wall is made of.
  */
-export default async function BenefitPage() {
+export default async function BenefitPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
   const actor = await requirePatient();
+  /* 🔴 W2-P08: the sponsor's QR carries the code, and sign-in now keeps it (W2-P02). */
+  const { code } = await searchParams;
   const { t } = await getI18n();
 
   const benefits = await myBenefits(actor.personId);
@@ -43,7 +49,9 @@ export default async function BenefitPage() {
       </div>
 
       <BenefitForm
+        initialCode={typeof code === "string" ? code.slice(0, 32) : ""}
         benefits={benefits.map((benefit) => ({
+          kind: benefit.identifierKind,
           enrolmentId: benefit.enrolmentId,
           sponsorName: benefit.sponsorName,
           isPrimary: benefit.isPrimary,

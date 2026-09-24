@@ -19,6 +19,7 @@ import { formatUsd } from "@/lib/billing/plans";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn } from "@/lib/utils";
 import { PatientRoom, type Therapist } from "@/components/join/patient-room";
+import { NoShowRecovery } from "@/components/session/no-show-recovery";
 
 const INITIAL: JoinState = {};
 
@@ -58,7 +59,16 @@ export function JoinFlow({
   cancelled,
   initialConsent,
   knownName,
+  recoveryFrom = null,
+  benefitNote = null,
 }: {
+  /** 🔴 W2-P15 / E5: rendered on the server, shown beside the price when one is owed. */
+  benefitNote?: React.ReactNode;
+  /**
+   * 🔴 W2-P11: the booked instant of a session nobody has started, for
+   * `NoShowRecovery`, which renders inside the room as well as before it.
+   */
+  recoveryFrom?: string | null;
   therapist: Therapist;
   token: string;
   /** Separate from `token`: the rating link outlives the room key. */
@@ -202,10 +212,9 @@ export function JoinFlow({
 
   if (ended) {
     /*
-     * Straight on to the rating, because this is the only moment it will ever
-     * be filled in. Somebody who closes this page and reads a "how did we do?"
-     * email tomorrow is gone — and their summary is behind the form, so the
-     * two things people want at this exact second are the same thing.
+     * Straight on to the summary page, where the rating waits beside it and is
+     * optional. 🔴 W2-P10: it used to say the summary came after the rating,
+     * which made a patient's own summary the price of rating their therapist.
      */
     return (
       <Card className="p-6 text-center">
@@ -253,6 +262,11 @@ export function JoinFlow({
         consent={consent}
         startedAt={startedAt}
         clock={clock}
+        recovery={
+          recoveryFrom ? (
+            <NoShowRecovery token={token} scheduledAt={recoveryFrom} startedAt={startedAt} />
+          ) : null
+        }
       />
     );
   }
@@ -272,6 +286,7 @@ export function JoinFlow({
           <span className="text-2xl font-bold tracking-tight"><Money cents={priceCents} /></span>
         </div>
       ) : null}
+      {owes ? benefitNote : null}
 
       {cancelled ? (
         <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
@@ -341,6 +356,11 @@ export function JoinFlow({
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         {owes ? t("join.privateNotePaid") : t("join.privateNote")}
       </p>
+
+      {/* 🔴 W2-P11: before they go in too, for somebody waiting on the form. */}
+      {recoveryFrom ? (
+        <NoShowRecovery token={token} scheduledAt={recoveryFrom} startedAt={startedAt} />
+      ) : null}
     </form>
   );
 }

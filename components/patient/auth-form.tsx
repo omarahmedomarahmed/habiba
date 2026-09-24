@@ -33,8 +33,14 @@ export function PatientAuthForm({
   mode,
   inviteToken = null,
   invitePhone = false,
+  next = null,
+  wallCode = null,
 }: {
   mode: "signin" | "signup";
+  /** 🔴 W2-P13: the clinic wall code this signup came from, so it connects them. */
+  wallCode?: string | null;
+  /** 🔴 W2-P02: where sign-in returns them to. */
+  next?: string | null;
   /** Carried through signup so the claim can be bound to the invited record. */
   inviteToken?: string | null;
   /**
@@ -65,6 +71,8 @@ export function PatientAuthForm({
         {inviteToken ? (
           <input type="hidden" name="inviteToken" value={inviteToken} />
         ) : null}
+        {next ? <input type="hidden" name="next" value={next} /> : null}
+        {wallCode ? <input type="hidden" name="wallCode" value={wallCode} /> : null}
 
         {mode === "signup" ? (
           <>
@@ -113,6 +121,21 @@ export function PatientAuthForm({
                   {t(invitePhone ? "pauth.invitePhoneNote" : "pauth.phoneNote")}
                 </p>
               </>
+            </Field>
+
+            {/*
+              🔴 W2-P03: the server always read an address and the form never
+              asked for one. Optional, and proved later from the account page.
+            */}
+            <Field label={t("pfield.emailOptional")} htmlFor="email">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
             </Field>
 
             {/*

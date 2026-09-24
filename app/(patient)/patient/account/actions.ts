@@ -7,8 +7,10 @@ import { eq } from "drizzle-orm";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { people } from "@/lib/db/schema";
-import { requestPhoneChange } from "@/lib/data/phone-change";
+import { completeOwnChange, requestPhoneChange } from "@/lib/data/phone-change";
+import { confirmEmailCode, issueEmailCode } from "@/lib/patient-auth/email";
 import { requirePatient } from "@/lib/patient-auth/guard";
+import { callerKey, consume } from "@/lib/rate-limit";
 import { avatarUploadProblem, deleteDocument, uploadDocument } from "@/lib/uploads";
 
 /*
@@ -45,6 +47,29 @@ export async function askToChangeNumber(
     contactConsent: formData.get("consent") === "on",
   });
 
+  if (result.error) return { error: result.error };
+
+  revalidatePath("/patient/account");
+  return { ok: true };
+}
+
+/**
+ * 🔴 W2-P07: the code sent to the new number, which nothing could take.
+ * Rate limited because the code is six digits and the request lives a day.
+ */
+export async function finishNumberChange(
+  _prev: AccountState,
+  formData: FormData,
+): Promise<AccountState> {
+  const actor = await requirePatient();
+
+  const verdict = await consume(await callerKey("patient:number-code"), 5, 15 * 60);
+  if (!verdict.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+
+  const result = await completeOwnChange({
+    accountId: actor.accountId,
+    code: String(formData.get("code") ?? ""),
+  });
   if (result.error) return { error: result.error };
 
   revalidatePath("/patient/account");
@@ -156,4 +181,39 @@ export async function removeOwnPhoto(): Promise<AccountState> {
   revalidatePath("/patient/account");
   revalidatePath("/patient");
   return { ok: true };
+}
+
+/* ------------------------------------------------ W2-P03 · an email address */
+
+export type EmailState = { error?: string; sentTo?: string; added?: string };
+
+/**
+ * 🔴 W2-P03: a code to the address they typed. Nothing is written until it
+ * comes back (`lib/patient-auth/email.ts` says why).
+ */
+export async function askForEmailCode(_prev: EmailState, formData: FormData): Promise<EmailState> {
+  const actor = await requirePatient();
+
+  const verdict = await consume(await callerKey("patient:email-code"), 5, 15 * 60);
+  if (!verdict.allowed) return { error: "Too many codes asked for. Try again in a few minutes." };
+
+  const email = String(formData.get("email") ?? "");
+  const issued = await issueEmailCode(actor.accountId, email);
+  if (!issued.ok) return { error: issued.error };
+  return { sentTo: email.trim().toLowerCase() };
+}
+
+export async function confirmEmail(_prev: EmailState, formData: FormData): Promise<EmailState> {
+  const actor = await requirePatient();
+
+  const verdict = await consume(await callerKey("patient:email-confirm"), 10, 15 * 60);
+  if (!verdict.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+
+  const email = String(formData.get("email") ?? "");
+  const done = await confirmEmailCode(actor.accountId, email, String(formData.get("code") ?? ""));
+  if (!done.ok) return { error: done.error, sentTo: email };
+
+  revalidatePath("/patient/account");
+  revalidatePath("/patient/record");
+  return { added: done.email };
 }

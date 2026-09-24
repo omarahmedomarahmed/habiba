@@ -234,6 +234,62 @@ export async function openHours(therapistUserId: string, days = 21): Promise<Pub
 }
 
 /**
+ * 🔴 W2-P12: the first hours anybody can book, for a radar with nobody on it.
+ *
+ * With nobody online the radar said "0 other clinicians are available right
+ * now" and offered "Show everyone", which showed nobody: a dead end at the
+ * moment of need, on the page the homepage promises "if nobody is, you can
+ * book the first hour that suits you". This is that hour. The same rule as a
+ * profile's calendar (`openHours`): cleared clinicians, open or abandoned
+ * holds, the next three weeks. One hour per clinician, soonest first, so the
+ * list offers a choice of people rather than one person's afternoon.
+ */
+export type FirstHour = { therapistUserId: string; therapistName: string; startsAt: string };
+
+export async function firstOpenHours(limit = 3): Promise<FirstHour[]> {
+  const now = new Date();
+  const until = new Date(now.getTime() + 21 * 24 * 3_600_000);
+
+  const rows = await db
+    .select({
+      therapistUserId: availabilitySlots.therapistUserId,
+      startsAt: availabilitySlots.startsAt,
+      firstName: users.firstName,
+      lastName: users.lastName,
+    })
+    .from(availabilitySlots)
+    .innerJoin(users, eq(users.id, availabilitySlots.therapistUserId))
+    .where(
+      and(
+        clinicianCleared(),
+        isNull(users.deletedAt),
+        gt(availabilitySlots.startsAt, now),
+        lt(availabilitySlots.startsAt, until),
+        or(
+          eq(availabilitySlots.status, "open"),
+          and(eq(availabilitySlots.status, "held"), lt(availabilitySlots.heldUntil, now)),
+        ),
+      ),
+    )
+    .orderBy(asc(availabilitySlots.startsAt))
+    .limit(50);
+
+  const seen = new Set<string>();
+  const out: FirstHour[] = [];
+  for (const row of rows) {
+    if (seen.has(row.therapistUserId)) continue;
+    seen.add(row.therapistUserId);
+    out.push({
+      therapistUserId: row.therapistUserId,
+      therapistName: [row.firstName, row.lastName].filter(Boolean).join(" "),
+      startsAt: row.startsAt.toISOString(),
+    });
+    if (out.length === limit) break;
+  }
+  return out;
+}
+
+/**
  * 11.5 — is this clinician about to be, or currently, in a booked hour?
  *
  * 🔴 NOT read by the radar, whatever this comment used to say.
@@ -374,6 +430,8 @@ export type BookResult =
   | {
       ok: true;
       sessionId: string;
+      /** 🔴 W2-P05: the patient's own way in, for the confirmation's link. */
+      joinToken: string | null;
       startsAt: Date;
       therapistName: string;
       /** For the confirmation's zone fallback. 11R.3. */
@@ -412,6 +470,12 @@ export async function bookSlot(input: {
    * `getPatient` gate does.
    */
   patientId?: string | null;
+  /**
+   * 🔴 W2-P04: the SIGNED-IN patient booking for themselves, from their
+   * session cookie and never from the form. Their own file with this clinician
+   * is used or made (`patientRowForPerson`), so the hour is on their app.
+   */
+  personId?: string | null;
 }): Promise<BookResult> {
   const now = new Date();
 
@@ -446,8 +510,21 @@ export async function bookSlot(input: {
    * clinician's caseload only — never across organisations, which is the
    * merge C39 measured going wrong.
    */
+  const own =
+    !input.patientId && input.personId
+      ? await (await import("./people")).patientRowForPerson({
+          organizationId: slot.organizationId,
+          therapistId: slot.therapistUserId,
+          personId: input.personId,
+          email: input.patientEmail ?? null,
+          phone: input.patientPhone ?? null,
+          timezone: input.patientTimezone ?? null,
+        })
+      : null;
+
   const patientId =
     input.patientId ??
+    own ??
     (await findOrCreatePatient({
       organizationId: slot.organizationId,
       therapistId: slot.therapistUserId,
@@ -505,7 +582,7 @@ export async function bookSlot(input: {
       priceCents: slot.sessionRateCents ?? 0,
       paymentStatus: (slot.sessionRateCents ?? 0) > 0 ? "pending" : "not_required",
     })
-    .returning({ id: sessions.id });
+    .returning({ id: sessions.id, joinToken: sessions.joinToken });
 
   if (!created) return { ok: false, error: "That booking could not be saved. Try again." };
 
@@ -562,6 +639,7 @@ export async function bookSlot(input: {
   return {
     ok: true,
     sessionId: created.id,
+    joinToken: created.joinToken,
     startsAt: slot.startsAt,
     therapistName: [slot.therapistFirstName, slot.therapistLastName].filter(Boolean).join(" "),
     therapistTimezone: slot.therapistTimezone,
@@ -860,6 +938,8 @@ export async function bookingsNeedingReminder(fromHours = 20, toHours = 24) {
       slotId: availabilitySlots.id,
       startsAt: availabilitySlots.startsAt,
       sessionId: availabilitySlots.sessionId,
+      /* W2-P05: the patient's own door, for the reminder's link. */
+      joinToken: sessions.joinToken,
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
       therapistTimezone: users.timezone,
@@ -901,6 +981,8 @@ export async function sameDayNeedingReminder() {
       slotId: availabilitySlots.id,
       startsAt: availabilitySlots.startsAt,
       sessionId: availabilitySlots.sessionId,
+      /* W2-P05: the patient's own door, for the reminder's link. */
+      joinToken: sessions.joinToken,
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
       therapistTimezone: users.timezone,

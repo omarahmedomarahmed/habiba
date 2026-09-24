@@ -209,6 +209,7 @@
     "test:partner-webhooks": "node --env-file-if-exists=.env.local --import tsx --test tests/partner-webhooks.test.ts",
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "test:note-formats": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/note-formats.test.ts",
+    "test:patient-stuck": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-stuck.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
     "verify:notices": "node --import tsx scripts/verify-notices.ts",
@@ -217,7 +218,8 @@
     "audit:csp-enforced": "node --env-file-if-exists=.env.local --import tsx scripts/audit-csp-enforced.ts",
     "verify:w1b": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w1b.ts",
     "verify:w2f": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2f.ts",
-    "verify:w2x": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2x.ts"
+    "verify:w2x": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2x.ts",
+    "verify:w2p": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2p.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

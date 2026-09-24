@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { enrol, lookupCode, setPrimarySponsor } from "@/lib/data/enrolment";
+import { enrol, lookupCode, reconfirmEnrolment, setPrimarySponsor } from "@/lib/data/enrolment";
 import { confirmEnrolmentCode } from "@/lib/data/enrolment-verify";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
@@ -94,6 +94,23 @@ export async function confirmCode(
   revalidatePath("/patient/benefit");
   revalidatePath("/patient");
   return { ok: true };
+}
+
+/**
+ * 🔴 W2-P08: a paused benefit, restarted by typing what enrolled it. The
+ * person comes from the SESSION; `reconfirmEnrolment` puts it in its WHERE.
+ */
+export async function reconfirmBenefit(
+  enrolmentId: string,
+  identifier: string,
+): Promise<BenefitState & { needsCode?: boolean }> {
+  const actor = await requirePatient();
+
+  const result = await reconfirmEnrolment({ personId: actor.personId, enrolmentId, identifier });
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath("/patient/benefit");
+  return { ok: !result.needsCode, needsCode: result.needsCode };
 }
 
 /** 🔴 C249 — the patient chooses which pot pays, and may change it. */

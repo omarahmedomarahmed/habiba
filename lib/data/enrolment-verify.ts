@@ -27,9 +27,11 @@ import { callerKey, consume } from "@/lib/rate-limit";
  * anywhere, because 53.18b stores the identifier for matching and de-duplication
  * only. So:
  *
- *   - `sendEnrolmentCode` takes the address as an ARGUMENT and is called from
- *     exactly one place, inside `enrol`, while the person is typing it. Nothing
- *     later can email a work inbox because nothing later knows one.
+ *   - `sendEnrolmentCode` takes the address as an ARGUMENT and is called only
+ *     while the person is typing it: inside `enrol`, and inside
+ *     `reconfirmEnrolment` once the typed address hashes to their own row
+ *     (W2-P08). Nothing later can email a work inbox because nothing later
+ *     knows one.
  *   - `pauseUnverified` therefore cannot email anybody. It pauses, and it tells the
  *     PERSON through their own notification log and their own contact details. The
  *     fix is that they re-enter their work address, which mints a new code.
@@ -54,7 +56,9 @@ function hashCode(code: string): string {
 }
 
 /**
- * 🔴 Called from `enrol` and nowhere else, with the address in hand.
+ * 🔴 Called from `enrol`, and from `reconfirmEnrolment` for a paused benefit
+ * (W2-P08), both while the person is typing the address and only once it has
+ * crossed the gate. Nowhere else, and never with an address from storage.
  *
  * The address is used and dropped: it reaches `notify` and this function returns,
  * and there is no column it could be written to. `verify:sprint53` asserts that no

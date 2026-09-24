@@ -6,7 +6,7 @@ import { AlertTriangle, Check, Mail, Star } from "lucide-react";
 import { rateSession, reportSession } from "@/app/feedback/[token]/actions";
 import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
 import { Button, Card, Input, Textarea } from "@/components/ui";
-import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS } from "@/lib/feedback-options";
+import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS, ratingReady } from "@/lib/feedback-options";
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn } from "@/lib/utils";
@@ -17,9 +17,10 @@ import { dateTag } from "@/lib/i18n/config";
  * The rating form a patient fills in to get their summary.
  *
  * Everything here is one screen and no account. Somebody who has just finished
- * a difficult half hour is not going to work through a wizard, and the whole
- * mechanism depends on them completing it — the summary is what they came back
- * for and this stands between them and it.
+ * a difficult half hour is not going to work through a wizard.
+ *
+ * 🔴 W2-P10: the summary used to wait behind this form. It no longer does: it
+ * is shown first, the moment it is signed, and the form is optional.
  *
  * Two ratings, side by side, because they are different questions. A patient
  * who says "she was wonderful, the video kept dropping" has told us the single
@@ -128,13 +129,52 @@ export function RatingForm({
       }
     });
 
+  /*
+   * 🔴 W2-P10: THE SUMMARY IS NOT A REWARD FOR RATING.
+   *
+   * It was shown only after the patient had rated their therapist, the session
+   * and the app and given an email: their own summary, written about them, held
+   * behind three opinions about somebody else. It is on the page the moment it
+   * is signed now, above everything, and the rating is optional and stays as
+   * anonymous as it was (nothing here changes what `submitFeedback` stores).
+   */
+  const rtl = RTL_LANGUAGE_CODES.has(briefLanguage);
+  const summary = brief ? (
+    <Card className="p-5">
+      <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+        {t("prating.yourSummary")}
+      </p>
+      {/* Same component the clinician approved this on, so what they
+          saw and what you are reading cannot drift apart. */}
+      <PatientBriefCard className="mt-2" brief={brief} steps={briefSteps} next={briefNext} rtl={rtl} />
+      {briefAddenda.map((line, index) => (
+        <div key={index} className="mt-3 rounded-xl bg-slate-50 p-3">
+          <p className="text-xs text-slate-500">
+            {t("psessions.addedLater", { name: line.by })} ·{" "}
+            {formatCalendarDate(
+              new Date(line.at),
+              resolveZone(detected, therapistTimezone).name,
+              dateTag(locale),
+            )}
+          </p>
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+            {line.body}
+          </p>
+        </div>
+      ))}
+      <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
+        {t("prating.writtenForYou")}
+      </p>
+    </Card>
+  ) : null;
+
   /* ------------------------------------------------------------- done -- */
 
   if (done) {
-    const rtl = RTL_LANGUAGE_CODES.has(briefLanguage);
     return (
       <div className="space-y-4">
         <Heading date={sessionDate} title={t("prating.yourSession")} />
+        {summary}
         <Card className="p-5 text-center">
           <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
             <Check className="h-5 w-5" aria-hidden />
@@ -148,41 +188,6 @@ export function RatingForm({
                 : t("prating.keepLink")}
           </p>
         </Card>
-
-        {brief ? (
-          <Card className="p-5">
-            <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
-              {t("prating.yourSummary")}
-            </p>
-            {/* Same component the clinician approved this on, so what they
-                saw and what you are reading cannot drift apart. */}
-            <PatientBriefCard
-              className="mt-2"
-              brief={brief}
-              steps={briefSteps}
-              next={briefNext}
-              rtl={rtl}
-            />
-            {briefAddenda.map((line, index) => (
-              <div key={index} className="mt-3 rounded-xl bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">
-                  {t("psessions.addedLater", { name: line.by })} ·{" "}
-                  {formatCalendarDate(
-                    new Date(line.at),
-                    resolveZone(detected, therapistTimezone).name,
-                    dateTag(locale),
-                  )}
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                  {line.body}
-                </p>
-              </div>
-            ))}
-            <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
-              {t("prating.writtenForYou")}
-            </p>
-          </Card>
-        ) : null}
 
         <ReportBox
           token={token}
@@ -200,18 +205,16 @@ export function RatingForm({
 
   /* ------------------------------------------------------------- form -- */
 
-  const ready =
-    therapistStars > 0 && sessionStars > 0 && (ratedApp || serviceStars > 0) && email.includes("@");
+  /* 🔴 W2-P10: the ratings only. An address is optional: the summary is above. */
+  const ready = ratingReady({ therapistStars, sessionStars, serviceStars, ratedApp, email });
 
   return (
     <div className="space-y-4">
-      <Heading
-        date={sessionDate}
-        title={t("prating.oneMinute")}
-        blurb={t("prating.blurb")}
-      />
+      <Heading date={sessionDate} title={t("prating.yourSession")} />
+      {summary}
 
       <Card className="space-y-5 p-5">
+        <p className="text-xs text-slate-500">{t("prating.oneMinute")}</p>
         <div>
           <p className="text-sm font-semibold text-slate-900">
             How was your session with {therapistFirstName}?
@@ -304,7 +307,7 @@ export function RatingForm({
 
         <Button full disabled={pending || !ready} onClick={submit}>
           <Mail className="h-4 w-4" aria-hidden />
-          {pending ? "Sending…" : "Send me my summary"}
+          {pending ? t("common.sending") : t("prating.send")}
         </Button>
         {!ready ? (
           <p className="text-center text-xs text-slate-500">
