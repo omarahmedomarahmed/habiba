@@ -179,7 +179,7 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 
 | ID | Status |
 |---|---|
-| W1-05 | fixed da98d4a, not yet live |
+| W1-05 | fixed da98d4a |
 | W1-14 | fixed 89298749 |
 | W1-15 | fixed 599de67d (per founder's D2) |
 | W1-19 | fixed 633364f5 |
@@ -212,3 +212,4 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 | W1-30 | fixed 173f5e3b (0123) |
 | W1-31 | fixed (receipt guard before the storage check) |
 | Gates | run 4: 6 of 35 red, all from the wave's own seams (principals, suites, boundary, rail, C231, C205, C264) plus two stale fixtures (sprint 11, sprint 18 C17); fixed 25a10d3d, af36ee6f, ab04bdec, a6e51b56 |
+| **Wave 1** | **live 634f4810** (2026-09-24, dpl_HQNTnegfjeyekXY86JVt5Gxhv5Za): all 35 gates green, migrations 0116 to 0124 on production first (journal 125 = ledger 125, every CHECK validated), new commits scanned for credentials (0, control detected) |
