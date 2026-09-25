@@ -17,7 +17,9 @@ import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 import {
   historyGrants,
+  manualPayments,
   notifications,
+  patientNotifications,
   organizations,
   patientAccounts,
   patients,
@@ -148,6 +150,7 @@ async function clean() {
     : [];
 
   if (orgIds.length) {
+    await db.delete(manualPayments).where(inArray(manualPayments.organizationId, orgIds));
     await db.delete(riskAssessments).where(inArray(riskAssessments.organizationId, orgIds));
     await db.delete(sessionFeedback).where(inArray(sessionFeedback.organizationId, orgIds));
     await db.delete(sessions).where(inArray(sessions.organizationId, orgIds));
@@ -182,6 +185,25 @@ async function clean() {
     await db.delete(organizations).where(inArray(organizations.id, orgIds));
   }
 }
+
+/**
+ * Nothing this script sends leaves the machine. Several fixes here are about a
+ * person being TOLD, so real senders run; a provider call is answered here and
+ * recorded, the way `verify:message-language` does it.
+ */
+const outbound: string[] = [];
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (/resend|facebook|twilio/.test(url)) {
+    outbound.push(url);
+    return new Response(JSON.stringify({ id: "verify", messages: [{ id: "verify" }] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  return realFetch(input, init);
+}) as typeof fetch;
 
 async function main() {
   writesTo();
@@ -373,6 +395,52 @@ async function main() {
       `${stored.length} stored: ${stored.map((row) => row.sequence).sort().join(", ")}`,
     );
     check("K11 CONTROL: a retried chunk (same id) is still a no-op", retry.inserted === false);
+
+    /* ------------------------- K10 · a signed-in patient paying by transfer */
+
+    /*
+     * P is signed in (an account on their person) and pays for the session on
+     * their chart through the link, so the row's payer is the SESSION and no
+     * receipt email was typed. The old lookup found no guest email and told
+     * nobody, at either moment.
+     */
+    const [claim] = await db
+      .insert(manualPayments)
+      .values({
+        purpose: "session",
+        refId: now,
+        amountCents: 2000,
+        currency: "EGP",
+        settlesCents: 2000,
+        payerKind: "session",
+        organizationId: f.orgId,
+        state: "submitted",
+      } as never)
+      .returning({ id: manualPayments.id });
+    const { noticePaymentSubmitted, noticePaymentConfirmed } = await import(
+      "../lib/billing/payment-notices"
+    );
+    await noticePaymentSubmitted(claim!.id);
+    await db
+      .update(manualPayments)
+      .set({ state: "confirmed", decidedAt: new Date() } as never)
+      .where(eq(manualPayments.id, claim!.id));
+    await noticePaymentConfirmed(claim!.id);
+    const told10 = await db
+      .select({ kind: patientNotifications.kind })
+      .from(patientNotifications)
+      .where(eq(patientNotifications.personId, f.p));
+    const kinds = told10.map((row) => row.kind);
+    check(
+      "🔴 K10 a signed-in patient paying through the link is told in the app when the claim arrives",
+      kinds.includes("payment_submitted"),
+      kinds.join(", ") || "nothing",
+    );
+    check(
+      "🔴 K10 …and when the money is confirmed, with no receipt email typed",
+      kinds.includes("payment_confirmed"),
+      kinds.join(", ") || "nothing",
+    );
 
     /* ----------------------------------------- K9 · the arrival rating */
 
