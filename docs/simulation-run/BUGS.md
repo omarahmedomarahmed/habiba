@@ -483,3 +483,69 @@ saw:      placeholder-only inputs (first name, email, phone, note). The country 
 where:    /t/[id] booking form
 severity: cosmetic
 status:   open
+
+### B61 · The session page says the whole session was captured when only one side was
+round R1b · step TH8.7 · found by R1b · shot shots/R1b/T1-TH8.7.png, T2-TH8.7.png
+expected: when only one recorder was captured, the page and the note say so
+saw:      "The whole session was captured and this note was drafted from it", and the note reads the therapist's words as the patient's
+where:    session page provenance line and the note prompt
+severity: safety
+status:   open
+
+### B62 · The therapist's own microphone lines are labelled as the patient's
+round R1b · step TH8.4 · found by R1b · shot shots/R1b/T1-TH8.7.png
+expected: every line from the clinician's own recorder is "You"
+saw:      of 32 lines from Amira's microphone, 8 were labelled Them and 9 Not sure
+where:    speaker attribution for the local track
+severity: wrong
+status:   open
+
+### B63 · Arabic speech is transcribed in Latin letters
+round R1b · step TH8.4 · found by R1b · shot shots/R1b/T1-TH8.7.png
+expected: Arabic speech comes back in Arabic script
+saw:      «يعني صعب عليكي ترفضي» became "Jani, sa ba' li tirfudi."
+where:    the transcription call does not pass the session's language
+severity: wrong
+status:   open
+
+### B64 · A paid booking can be started nine hours early without a word
+round R1b · step TH8.3 · found by R1b · shot shots/R1b/T1-TH8.3.png
+expected: starting a booked session well before its hour asks for confirmation, and the booked time stays on the page
+saw:      started at 00:26 for a 10:00 booking; the page then shows 00:30; the patient got "your session has started" at midnight
+where:    startSession for a session with scheduled_at
+severity: wrong
+status:   open
+
+### B65 · A finished session is still listed as upcoming for the patient
+round R1b · step PA18.4 · found by R1b · shot shots/R1b/P1-PA18.4-past.png
+expected: a completed session moves to Past
+saw:      /patient and /patient/sessions show "Today, Sat 26 Sep 10:00" and Past says "No sessions yet"
+where:    lib/data/patient-view.ts groupOf sorts by booked time and ignores status
+severity: wrong
+status:   open
+
+### B66 · The therapist never sees the patient's yes to recording before Start
+round R1b · step TH8.2 · found by R1b · shot shots/R1b/T1-TH8.2.png
+expected: the consent strip updates when the patient says yes
+saw:      "Waiting for {name}'s yes on their screen" stays beside "{name} is in the room" after the yes
+where:    therapist room consent strip polling
+severity: wrong
+status:   open
+
+### B67 · English in the Arabic room clock and feedback tags
+round R1b · step PA16.3, PA18.1 · found by R1b · shot shots/R1b/P1-PA16.3.png
+expected: Arabic throughout for an Arabic patient
+saw:      "just started", "2 min so far", and every feedback tag ("Listened properly", "Rushed") in English
+where:    room clock and rating tags
+severity: cosmetic
+status:   open
+
+### B68 · The therapist's session banner names the therapist instead of the patient
+round R1b · step TH8.6 · found by R1b · shot shots/R1b/T1-TH8.6.png
+expected: "Session with Layla" on Amira's pages
+saw:      "Session with Amira Demo · EGP 1,000 · Paid"
+where:    live session banner on clinician pages
+severity: cosmetic
+status:   open
+
+Not a product bug, recorded so nobody chases it: video never connected in either R1b session because this run's network proxy does not carry WebSocket upgrades (the Daily handshake fails with 404). Online sessions in this run record the therapist's side only, so from R2 the therapist's browser plays the two-voice file.
