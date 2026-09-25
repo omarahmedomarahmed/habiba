@@ -558,6 +558,61 @@ async function main() {
       t2Access.state,
     );
 
+    /*
+     * 🔴 B6: after that claim, the signup row S is left behind unclaimed with
+     * the same number. /patient/claim offered it back as "a therapist keeps
+     * notes for someone with your phone number", and claiming it hit
+     * `people_claimed_phone_unique` and showed the error page. A second
+     * clinician's chart on the same number (D) is the same collision with a
+     * real chart behind it.
+     */
+    {
+      const { suggestionsForAccount, startClaim, HANDLE_TAKEN } = await import("../lib/data/claims");
+      const { findMatches } = await import("../lib/data/people");
+      const [d43] = await db
+        .insert(people)
+        .values({ firstName: `${TAG}-D`, phone })
+        .returning({ id: people.id });
+      await db.insert(patients).values({
+        organizationId: f.orgId,
+        therapistId: f.t2,
+        personId: d43!.id,
+        firstName: `${TAG}-second`,
+        phone,
+      });
+      const raw = (await findMatches({ phone })).filter((m) => !m.claimed).map((m) => m.personId);
+      check(
+        "B6 CONTROL: the matcher still finds the left-behind signup row and the second chart, unclaimed",
+        raw.includes(s43!.id) && raw.includes(d43!.id),
+        `${raw.length} unclaimed match(es)`,
+      );
+      const offered = (await suggestionsForAccount(a43!.id)).map((s) => s.personId);
+      check(
+        "🔴 B6 a claimed patient is not offered their own left-behind signup row, nor a record their number can no longer take",
+        !offered.includes(s43!.id) && !offered.includes(d43!.id),
+        `${offered.length} offered`,
+      );
+      const bySignupRow = await startClaim({ personId: s43!.id, accountId: a43!.id, channel: "email" });
+      const bySecond = await startClaim({ personId: d43!.id, accountId: a43!.id, channel: "email", route: "invite" });
+      check(
+        "🔴 B6 …and starting a claim on either is refused with a sentence, not a database error",
+        !bySignupRow.ok && !bySecond.ok && bySecond.error === HANDLE_TAKEN,
+        bySecond.ok ? "STARTED" : bySecond.error,
+      );
+      const inviteD = await issueInvite({ personId: d43!.id, issuedByUserId: f.t2 });
+      const redeemD =
+        "token" in inviteD
+          ? await redeemInvite({ token: inviteD.token, accountId: a43!.id, therapistKeepsAccess: false }).catch(
+              (error: unknown) => ({ ok: false as const, error: `THREW ${String(error)}` }),
+            )
+          : { ok: false as const, error: inviteD.error };
+      check(
+        "🔴 B6 an invite to a second record on a number already claimed answers with a sentence and stays unspent",
+        !redeemD.ok && redeemD.error === HANDLE_TAKEN,
+        redeemD.ok ? "CLAIMED" : redeemD.error,
+      );
+    }
+
     /* PE42: the person is taken first and the invite spent second, in one transaction. */
     const claimsSource = stripComments(readSource("lib/data/claims.ts"));
     const redeem = claimsSource.slice(claimsSource.indexOf("export async function redeemInvite"));

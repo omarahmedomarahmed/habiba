@@ -14,6 +14,8 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { claimError } from "@/lib/data/claim-errors";
+import { getI18n } from "@/lib/i18n/server";
 import { sendClaimCode as mailClaimCode } from "@/lib/mail";
 import { log } from "@/lib/logger";
 
@@ -64,7 +66,7 @@ export async function sendClaimCode(
   const actor = await requirePatient();
 
   const result = await startClaim({ personId, accountId: actor.accountId, channel });
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: claimError(result.error, (await getI18n()).t) };
 
   /*
    * 11R.9 — through `notify()`, not `mailClaimCode`.
@@ -110,10 +112,7 @@ export async function sendClaimCode(
    * that knew the answer and kept it in a log file.
    */
   if (!delivery.sent) {
-    return {
-      error:
-        "We could not send your code. Check the email address on your account, or ask your therapist for an invite link instead.",
-    };
+    return { error: (await getI18n()).t("pclaim.err.notSent") };
   }
 
   return {
@@ -141,7 +140,7 @@ export async function confirmClaim(input: {
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
 
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: claimError(result.error, (await getI18n()).t) };
   revalidatePath("/patient");
   return { done: true };
 }
@@ -167,7 +166,7 @@ export async function acceptInvite(input: {
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
 
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: claimError(result.error, (await getI18n()).t) };
   revalidatePath("/patient");
   return { done: true };
 }

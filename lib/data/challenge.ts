@@ -648,6 +648,6 @@ export async function lockedOn(patientId: string): Promise<boolean> {
   return Boolean(row);
 }
 
-const GENERIC = "That does not match the record. Check with your therapist if you are unsure.";
-const LOCKED =
+export const GENERIC = "That does not match the record. Check with your therapist if you are unsure.";
+export const LOCKED =
   "We cannot confirm this record from here. Ask your therapist to send you an invite link.";

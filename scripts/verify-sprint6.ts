@@ -310,6 +310,27 @@ async function main() {
       .returning({ phone: patientAccounts.phone });
     await db.update(people).set({ phone: matcher!.phone }).where(eq(people.id, matchTarget));
 
+    /*
+     * 🔴 B6 — and a clinician keeps a chart on it. The screen says "a therapist
+     * keeps notes for someone with your number", and a person with no chart is
+     * the signup row a claim leaves behind, which is no longer offered.
+     */
+    const bare = await startClaim({ personId: matchTarget, accountId: matchAccount, channel: "email" });
+    check("🔴 B6 a matching person that no clinician keeps a chart on is not claimable", bare.ok === false);
+    const [holder] = await db
+      .execute<{ id: string; org: string }>(
+        sql`SELECT id, organization_id AS org FROM users WHERE deleted_at IS NULL AND role = 'therapist' LIMIT 1`,
+      )
+      .then((r) => r.rows);
+    if (!holder) throw new Error("no clinician rows in this database to hold the chart");
+    await db.insert(schema.patients).values({
+      organizationId: holder.org,
+      therapistId: holder.id,
+      personId: matchTarget,
+      firstName: TAG,
+      phone: matcher!.phone,
+    });
+
     const started = await startClaim({
       personId: matchTarget,
       accountId: matchAccount,
@@ -450,6 +471,7 @@ async function main() {
       .where(
         sql`patient_account_id IN (SELECT id FROM patient_accounts WHERE email LIKE ${`${TAG}%`})`,
       );
+    await db.delete(schema.patients).where(sql`first_name = ${TAG}`);
     await db.delete(patientAccounts).where(sql`email LIKE ${`${TAG}%`}`);
     await db.delete(people).where(sql`last_name = ${TAG}`);
     await pool.end();
