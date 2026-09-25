@@ -114,7 +114,7 @@ async function main() {
   const to = sendTo ?? "preview@example.com";
 
   /*
-   * 🔴 77.12 — THE FOURTEEN LIVE IN `lib/mail-previews.ts` NOW, NOT HERE.
+   * 🔴 77.12 — THE LIST LIVES IN `lib/mail-previews.ts` NOW, NOT HERE.
    *
    * They were typed into this file, and then `/admin/settings` needed the same
    * fourteen because this script cannot send: `RESEND_API_KEY` is a sensitive

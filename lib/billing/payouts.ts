@@ -992,6 +992,14 @@ export async function rejectPayout(input: {
   return result;
 }
 
+/** The alarm's words, apart from the send, so the mail previews show exactly these. */
+export function overdueAlertMessage(amountCents: number, alertAfterHours: number, owned: boolean) {
+  return {
+    subject: "A payout has been waiting too long",
+    body: `A withdrawal of $${(amountCents / 100).toFixed(2)} has been open for more than ${alertAfterHours} hours.${owned ? "" : " Nobody has taken it on."}`,
+  };
+}
+
 /** 16.3b — a named owner. A request nobody owns is a request nobody works. */
 export async function claimPayout(input: {
   requestId: string;
@@ -1165,8 +1173,7 @@ export async function alertAgedPayouts(): Promise<{ alerted: number }> {
         { email: person.email, phone: person.profile?.phone ?? null, timezone: person.timezone },
         {
           kind: "payout.overdue",
-          subject: "A payout has been waiting too long",
-          body: `A withdrawal of $${(row.amountCents / 100).toFixed(2)} has been open for more than ${settings.payouts.alertAfterHours} hours.${row.ownerUserId ? "" : " Nobody has taken it on."}`,
+          ...overdueAlertMessage(row.amountCents, settings.payouts.alertAfterHours, Boolean(row.ownerUserId)),
         },
       );
     }

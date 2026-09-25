@@ -51,7 +51,7 @@ import { callerKey, consume } from "@/lib/rate-limit";
  */
 
 /** Six digits. Short enough to read off a phone, and dead after five guesses. */
-const CODE_TTL_MINUTES = 30;
+export const CODE_TTL_MINUTES = 30;
 
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");

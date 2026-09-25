@@ -1082,9 +1082,9 @@ export async function resolveReport(
  *   - **Invented people only.** Surnames Demo and Example at the domain RFC
  *     2606 reserves. C127 has no preview exemption.
  *   - **Owner only, and written down.** `super_admin`, and an audit row naming
- *     the actor and the address, because "who made us send fourteen emails"
+ *     the actor and the address, because "who made us send all these emails"
  *     is a question somebody will ask.
- *   - **Sequential.** Fourteen simultaneous sends is how a provider rate-limits
+ *   - **Sequential.** Two dozen simultaneous sends is how a provider rate-limits
  *     you and half of them vanish, which is the same reasoning
  *     `announceToAllTherapists` above is built on.
  */

@@ -30,9 +30,13 @@
  * scanner is a function, it is run against a planted line as well as against
  * the tree, and a pass is only reported when the plant is caught.
  */
-import { readdirSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 
+import { potAlertLink } from "../lib/billing/pot-alerts";
+import { exportPath } from "../lib/data/export";
 import { CONTENT_DEMOS } from "../lib/db/schema";
+import { limitAlertMessage } from "../lib/partner/usage";
+import { patientSessionLink } from "../lib/sessions/patient-link";
 import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
@@ -446,6 +450,58 @@ function main() {
     "🔴 …and each one says what makes it fire",
     whens === sends,
     `${String(whens)} of ${String(sends)}`,
+  );
+
+  /*
+   * 🔴 AE69: EVERY LINK A PREVIEW CARRIES IS A ROUTE THIS APP ANSWERS.
+   *
+   * Five pointed nowhere (`/reset/…`, `/claim/…`, `/export/…`,
+   * `/sponsor/billing`, `/sponsor/confirm/…`), so the founder checking the
+   * emails clicked through to a 404 the real message never produced. The
+   * routes are read from `app/` itself, groups dropped and `[param]` any one
+   * segment; the links are every `${app}/…` in the list plus the helpers it
+   * borrows from the real sends.
+   */
+  const routes: RegExp[] = [];
+  const walkRoutes = (dir: string, segments: string[]) => {
+    for (const entry of readdirSync(dir)) {
+      const path = `${dir}/${entry}`;
+      if (statSync(path).isDirectory()) {
+        if (/^\(.*\)$/.test(entry)) walkRoutes(path, segments);
+        else walkRoutes(path, [...segments, entry.startsWith("[") ? "[^/]+" : entry.replace(/[.*+?^${}()|\\]/g, "\\$&")]);
+      } else if (/^(page|route)\.tsx?$/.test(entry)) {
+        routes.push(new RegExp(`^/${segments.join("/")}$`));
+      }
+    }
+  };
+  walkRoutes("app", []);
+  const answered = (link: string) => routes.some((route) => route.test(link.split("?")[0] ?? ""));
+  const helperLinks = [
+    exportPath("DEMO-TOKEN"),
+    new URL(patientSessionLink("https://example.com", "DEMO-TOKEN")?.url ?? "https://example.com/none").pathname,
+    new URL(potAlertLink(false).url).pathname,
+    new URL(limitAlertMessage({ name: "x", at: 80, used: 1, limit: 2, projected: 2 }).link.url).pathname,
+  ];
+  const previewLinks = [...previews.matchAll(/\$\{app\}(\/[^`"\s]*)/g)].map((m) => m[1] ?? "");
+  const dead = [...previewLinks, ...helperLinks].filter((link) => !answered(link));
+  check(
+    "🔴 AE69 every link in the email previews is a route the app answers",
+    previewLinks.length >= 10 && dead.length === 0,
+    dead.length > 0 ? `nowhere: ${dead.join(", ")}` : `${String(previewLinks.length + helperLinks.length)} links`,
+  );
+  check(
+    "AE69 CONTROL the route scan refuses the five links the list used to carry, and knows a real one",
+    ["/reset/DEMO-TOKEN", "/claim/DEMO-TOKEN", "/export/DEMO-TOKEN", "/sponsor/billing", "/sponsor/confirm/DEMO-TOKEN"].every(
+      (link) => !answered(link),
+    ) && answered("/join/DEMO-TOKEN") && answered("/reset-password"),
+    `${String(routes.length)} routes read`,
+  );
+  check(
+    "🔴 AE69 the previews take their words from the real sends: the benefit code's minutes, the export's hours, the dictionary",
+    /minutes: CODE_TTL_MINUTES/.test(previews) &&
+      /expiresInHours: EXPORT_TTL_HOURS/.test(previews) &&
+      /const t = translator\("en"\)/.test(previews) &&
+      !/15 minutes/.test(previews),
   );
 
   /*

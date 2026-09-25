@@ -55,7 +55,7 @@ import { Money } from "@/components/ui/money";
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
 export const dynamic = "force-dynamic";
 /*
- * 🔴 77.14 — the mail check paces fourteen sends at 150ms with a retry, so the
+ * 🔴 77.14 — the mail check paces every preview at 150ms with a retry, so the
  * action can run for ten seconds or so. The default ceiling would cut it off
  * partway through and report a count that is a story about a timeout.
  */
@@ -276,7 +276,8 @@ export default async function SettingsPage() {
 
       {/*
         🔴 77.12 — on the owner's screen, beside the other levers nobody else
-        may touch. It sends fourteen emails, which is the kind of button that
+        may touch. It sends every preview in `lib/mail-previews.ts`, and says
+        how many from the list itself (AE69), which is the kind of button that
         belongs behind the same door as the prices.
       */}
       <MailCheck roster={previewRoster(previewMessages())} />

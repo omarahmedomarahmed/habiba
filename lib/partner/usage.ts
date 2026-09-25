@@ -294,18 +294,7 @@ export async function alertApproachingLimits(now = new Date()): Promise<{ alerte
     const { notify } = await import("@/lib/notify");
     await notify(
       { email: row.contactEmail, phone: row.contactPhone },
-      {
-        kind: "partner.limit_approaching",
-        subject: `${row.name}: ${at}% of this month's session limit`,
-        /*
-         * 🔴 NOT ONE WORD ABOUT ANY PATIENT OR ANY SESSION. This is a message about
-         * a number, sent to a commercial contact who has no clinical standing at
-         * all. The same rule the sponsor's domain confirmation follows.
-         */
-        body: `You have used ${usage.used} of the ${usage.limit} sessions this account allows this month, and are on course for about ${usage.projected}. At the limit your own platform keeps working exactly as it does now, and our transcription, notes, summaries and copilot stop until you raise it.`,
-        /* 🔴 W2-X05: absolute: an email or a WhatsApp message has no host to resolve against. */
-        link: { label: "Raise the limit", url: `${env.appUrl}/partner/usage` },
-      },
+      { kind: "partner.limit_approaching", ...limitAlertMessage({ name: row.name, at, ...usage }) },
     );
 
     alerted += 1;
@@ -328,4 +317,20 @@ export async function markStopped(partnerId: string, now = new Date()): Promise<
     .update(partnerLimits)
     .set({ stoppedAt: now, updatedAt: now })
     .where(and(eq(partnerLimits.partnerId, partnerId), sql`stopped_at IS NULL`));
+}
+
+/**
+ * The words, apart from the send, so the mail previews show exactly these.
+ *
+ * 🔴 NOT ONE WORD ABOUT ANY PATIENT OR ANY SESSION. This is a message about a
+ * number, sent to a commercial contact who has no clinical standing at all.
+ * The same rule the sponsor's domain confirmation follows.
+ */
+export function limitAlertMessage(input: { name: string; at: number; used: number; limit: number; projected: number }) {
+  return {
+    subject: `${input.name}: ${input.at}% of this month's session limit`,
+    body: `You have used ${input.used} of the ${input.limit} sessions this account allows this month, and are on course for about ${input.projected}. At the limit your own platform keeps working exactly as it does now, and our transcription, notes, summaries and copilot stop until you raise it.`,
+    /* 🔴 W2-X05: absolute: an email or a WhatsApp message has no host to resolve against. */
+    link: { label: "Raise the limit", url: `${env.appUrl}/partner/usage` },
+  };
 }
