@@ -255,7 +255,7 @@ const FOLDED = [
   personProfiles,
 ] as const;
 
-export async function foldIntoClaimed(
+async function foldIntoClaimed(
   accountId: string,
   claimedPersonId: string,
 ): Promise<"folded" | "nothing" | "refused"> {
