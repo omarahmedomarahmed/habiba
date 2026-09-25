@@ -58,6 +58,15 @@ test("K22 the pay-as-you-go notice quotes the fees from settings, not $1 and $3"
   assert.match(page, /platformCents: settings\.session\.platformFeeCents, aiCents: tier\.aiRateCents/);
 });
 
+test("C327 the clinician's page names the practice that sees appointments, as the radar card does", () => {
+  const page = strip(readFileSync("components/radar/therapist-page.tsx", "utf8"));
+  assert.match(page, /profile\.clinicName \?[\s\S]*?radar\.inPractice/, "the page does not say which practice can see");
+  // Control: the card already did, from the same field.
+  assert.match(strip(readFileSync("components/radar/therapist-card.tsx", "utf8")), /entry\.clinicName \?/);
+  assert.doesNotMatch(page, /Turned up to|: "Free"/, "English literals on the clinician's page");
+  assert.doesNotMatch(readFileSync("lib/data/clinic-visibility.ts", "utf8"), /export async function clinicAffiliations/);
+});
+
 test("K22 a clinic seat's region change is refused before the rate is saved", () => {
   const actions = strip(readFileSync("app/(app)/settings/actions.ts", "utf8"));
   const body = actions.slice(actions.indexOf("export async function updatePaymentSettings("));

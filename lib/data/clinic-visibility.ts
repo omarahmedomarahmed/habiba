@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
-import { organizations, patients, users } from "@/lib/db/schema";
+import { organizations, patients } from "@/lib/db/schema";
 
 import { shortenForClinic } from "./clinic";
 
@@ -93,34 +93,12 @@ export async function markClinicVisibilityShown(personId: string): Promise<void>
     .where(and(eq(patients.personId, personId), sql`clinic_visibility_shown_at IS NULL`));
 }
 
-/**
- * 🔴 63.13 / C354 — THE LABEL ON A RADAR CARD, and it is one word rather than a wall.
+/*
+ * 🔴 63.13 / C354 — THE LABEL ON A RADAR CARD comes with the card itself.
  *
- * A patient choosing a therapist in distress needs to know that this clinician works
- * inside a practice, because that is the fact that decides whether administrative
- * staff will see their name. It is a label beside the clinician, not a dialog and not
- * a step, and the full sentence is a tap away on their record page.
- *
- * Takes the clinician ids a screen is about to render, and answers for all of them in
- * one query rather than one per card.
+ * `clinicAffiliations` answered it here in a second query that nothing called:
+ * `listRadar` and `publicProfile` already select `clinicName` (a clinic's name,
+ * null for a practice of one) in the query that builds the card, and the card
+ * and the clinician's page render it. One source, so it was removed rather
+ * than wired beside it.
  */
-export async function clinicAffiliations(
-  userIds: string[],
-): Promise<Map<string, string>> {
-  const wanted = [...new Set(userIds)].filter(Boolean).slice(0, 200);
-  if (wanted.length === 0) return new Map();
-
-  const rows = await controlDb
-    .select({ userId: users.id, practice: organizations.name })
-    .from(users)
-    .innerJoin(organizations, eq(organizations.id, users.organizationId))
-    .where(
-      and(
-        inArray(users.id, wanted),
-        eq(organizations.kind, "clinic"),
-        isNull(organizations.deletedAt),
-      ),
-    );
-
-  return new Map(rows.map((row) => [row.userId, row.practice]));
-}
