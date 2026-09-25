@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { SponsorManager } from "@/components/admin/sponsor-manager";
-import { requireRole } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
 import { ledgerPotBalance, reconcilePots } from "@/lib/billing/pot";
 import { allSponsors, potTerms, sponsorUsersFor } from "@/lib/data/sponsor-admin";
 import { attemptsOnCode, liveCode, SPIKE_THRESHOLD } from "@/lib/data/sponsors";
@@ -35,7 +35,14 @@ export const dynamic = "force-dynamic";
  * quietly over-spends for a month.
  */
 export default async function AdminSponsorsPage() {
-  await requireRole("super_admin");
+  /*
+   * 🔴 B8 — staff read this list, because it is the way to the sponsor page
+   * where the top-ups queue is worked. Every act on it stays the owner's:
+   * `sponsors/actions.ts` refuses anybody else, and the controls are not
+   * rendered for them.
+   */
+  const actor = await requireStaff();
+  const canManage = actor.role === "super_admin";
   const { t } = await getI18n();
 
   const [sponsors, drift] = await Promise.all([allSponsors(), reconcilePots()]);
@@ -108,7 +115,9 @@ export default async function AdminSponsorsPage() {
         </div>
       ) : null}
 
-      <SponsorManager sponsors={rows} />
+      {canManage ? null : <p className="text-sm text-slate-600">{t("asponsor.ownerOnly")}</p>}
+
+      <SponsorManager sponsors={rows} canManage={canManage} />
     </div>
   );
 }

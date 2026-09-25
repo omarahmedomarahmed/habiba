@@ -8,6 +8,7 @@ import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { CLINIC_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -82,7 +83,7 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
   const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [regionState, setRegionState] = useState<{ error?: string }>({});
+  const [regionState, setRegionState] = useState<{ error?: string; ok?: boolean }>({});
   const [managerState, managerAction] = useActionState(addManager, {});
 
   return (
@@ -96,7 +97,7 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
               : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
           }
         >
-          {clinic.clinicState}
+          {clinic.clinicState ? t(`admin.state.${clinic.clinicState}` as MessageKey) : null}
         </span>
         {/* 🔴 A COUNT, never a list. */}
         <span className="text-xs text-slate-500">
@@ -116,15 +117,15 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
           <dl className="grid gap-x-4 gap-y-1 text-xs text-slate-600 sm:grid-cols-2">
             <div>
               <dt className="font-semibold text-slate-700">{t("aclinic.contact")}</dt>
-              <dd>{clinic.contactName ?? "not given"}</dd>
+              <dd>{clinic.contactName ?? t("asponsor.notGiven")}</dd>
             </div>
             <div>
               <dt className="font-semibold text-slate-700">{t("clinic.email")}</dt>
-              <dd>{clinic.contactEmail ?? "not given"}</dd>
+              <dd>{clinic.contactEmail ?? t("asponsor.notGiven")}</dd>
             </div>
             <div>
               <dt className="font-semibold text-slate-700">{t("clinic.phone")}</dt>
-              <dd>{clinic.contactPhone ?? "not given"}</dd>
+              <dd>{clinic.contactPhone ?? t("asponsor.notGiven")}</dd>
             </div>
           </dl>
 
@@ -133,7 +134,7 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
             {CLINIC_STATES.filter((state) => state !== clinic.clinicState).map((state) => (
               <ConfirmWithReason
                 key={state}
-                label={state}
+                label={t(`admin.state.${state}` as MessageKey)}
                 disabled={pending}
                 onConfirm={(reason) => setState(clinic.id, state, reason)}
               />
@@ -146,8 +147,16 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
             outstanding: moving it then changes which rail an issued bill is
             paid on, and which company's books it sits in.
           */}
+          {/*
+            🔴 B25 — THE CURRENT REGION FIRST, SAID AS THE CURRENT ONE. The
+            row used to print only the region it could move TO, so an Egyptian
+            practice read as "Billed from US".
+          */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-slate-700">{t("clinic.billedFrom")}</span>
+            <span className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white">
+              {t("admin.regionNow", { region: clinic.region.toUpperCase() })}
+            </span>
             {regions.filter((region) => region !== clinic.region).map((region) => (
               <button
                 key={region}
@@ -156,13 +165,17 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
                 onClick={() =>
                   startTransition(async () => setRegionState(await setRegion(clinic.id, region)))
                 }
-                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 uppercase hover:bg-slate-200 disabled:opacity-50"
+                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
               >
-                {region}
+                {t("admin.regionMove", { region: region.toUpperCase() })}
               </button>
             ))}
             {regionState.error ? (
-              <p className="w-full text-xs text-rose-600">{regionState.error}</p>
+              <p role="alert" className="w-full text-xs text-rose-600">{regionState.error}</p>
+            ) : regionState.ok ? (
+              <p role="status" className="w-full text-xs text-brand-700">
+                {t("admin.regionMoved", { region: clinic.region.toUpperCase() })}
+              </p>
             ) : null}
           </div>
 
@@ -193,6 +206,11 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
               {managerState.error ? (
                 <p role="alert" className="text-xs text-red-600">
                   {managerState.error}
+                </p>
+              ) : managerState.ok ? (
+                /* B25: Create used to leave the form as it was, with nothing to say it worked. */
+                <p role="status" className="text-xs text-brand-700">
+                  {t("admin.invited")}
                 </p>
               ) : null}
               <Submit label={t("aclinic.create")} />

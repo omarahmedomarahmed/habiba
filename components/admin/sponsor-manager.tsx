@@ -15,6 +15,7 @@ import {
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { ENTITIES, SPONSOR_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -74,7 +75,18 @@ export type AdminSponsorRow = {
   users: { id: string; email: string; role: string }[];
 };
 
-export function SponsorManager({ sponsors }: { sponsors: AdminSponsorRow[] }) {
+export function SponsorManager({
+  sponsors,
+  canManage,
+}: {
+  sponsors: AdminSponsorRow[];
+  /**
+   * 🔴 B8 — false for staff, who read this list on the way to a sponsor's
+   * page. The actions refuse them anyway; this only stops the screen offering
+   * buttons that would bounce.
+   */
+  canManage: boolean;
+}) {
   const t = useT();
 
   if (sponsors.length === 0) {
@@ -88,17 +100,17 @@ export function SponsorManager({ sponsors }: { sponsors: AdminSponsorRow[] }) {
   return (
     <div className="space-y-3">
       {sponsors.map((sponsor) => (
-        <SponsorRow key={sponsor.id} sponsor={sponsor} />
+        <SponsorRow key={sponsor.id} sponsor={sponsor} canManage={canManage} />
       ))}
     </div>
   );
 }
 
-function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
+function SponsorRow({ sponsor, canManage }: { sponsor: AdminSponsorRow; canManage: boolean }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [entityState, setEntityState] = useState<{ error?: string }>({});
+  const [entityState, setEntityState] = useState<{ error?: string; ok?: boolean }>({});
   const [potState, potAction] = useActionState(openTheirPot, {});
   const [userState, userAction] = useActionState(addPortalUser, {});
 
@@ -109,7 +121,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           {sponsor.name}
         </Link>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-          {sponsor.kind}
+          {t(`admin.kind.${sponsor.kind}` as MessageKey)}
         </span>
         <span
           className={
@@ -118,7 +130,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
               : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
           }
         >
-          {sponsor.state}
+          {t(`admin.state.${sponsor.state}` as MessageKey)}
         </span>
         {/*
           🔴 74.5 — THE ENTITY, ON THE ROW RATHER THAN BEHIND THE FOLD.
@@ -167,17 +179,19 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           </dl>
 
           {/* The state machine, as buttons. Held, active, suspended, closed. */}
-          <div className="flex flex-wrap gap-2">
-            {/* W2-A05: a confirm and a reason, and a refusal is shown rather than voided. */}
-            {SPONSOR_STATES.filter((state) => state !== sponsor.state).map((state) => (
-              <ConfirmWithReason
-                key={state}
-                label={state}
-                disabled={pending}
-                onConfirm={(reason) => activate(sponsor.id, state, reason)}
-              />
-            ))}
-          </div>
+          {canManage ? (
+            <div className="flex flex-wrap gap-2">
+              {/* W2-A05: a confirm and a reason, and a refusal is shown rather than voided. */}
+              {SPONSOR_STATES.filter((state) => state !== sponsor.state).map((state) => (
+                <ConfirmWithReason
+                  key={state}
+                  label={t(`admin.state.${state}` as MessageKey)}
+                  disabled={pending}
+                  onConfirm={(reason) => activate(sponsor.id, state, reason)}
+                />
+              ))}
+            </div>
+          ) : null}
 
           {/*
             🔴 74.5 — WHICH ENTITY BILLS THEM. An Egyptian customer moved here
@@ -186,23 +200,37 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
             holds money: that would move a balance we have already invoiced into
             another company's books.
           */}
+          {/*
+            🔴 B25 — THE CURRENT ONE FIRST, SAID AS THE CURRENT ONE. The row
+            used to print only the entity it could move TO, so "Billed from US"
+            read as the answer for an Egyptian customer.
+          */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-slate-700">{t("asponsor.billedFrom")}</span>
-            {ENTITIES.filter((entity) => entity !== sponsor.entity).map((entity) => (
-              <button
-                key={entity}
-                type="button"
-                disabled={pending}
-                onClick={() =>
-                  startTransition(async () => setEntityState(await setEntity(sponsor.id, entity)))
-                }
-                className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 uppercase hover:bg-slate-200 disabled:opacity-50"
-              >
-                {entity}
-              </button>
-            ))}
+            <span className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white">
+              {t("admin.regionNow", { region: sponsor.entity.toUpperCase() })}
+            </span>
+            {canManage
+              ? ENTITIES.filter((entity) => entity !== sponsor.entity).map((entity) => (
+                  <button
+                    key={entity}
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => setEntityState(await setEntity(sponsor.id, entity)))
+                    }
+                    className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    {t("admin.regionMove", { region: entity.toUpperCase() })}
+                  </button>
+                ))
+              : null}
             {entityState.error ? (
-              <p className="w-full text-xs text-rose-600">{entityState.error}</p>
+              <p role="alert" className="w-full text-xs text-rose-600">{entityState.error}</p>
+            ) : entityState.ok ? (
+              <p role="status" className="w-full text-xs text-brand-700">
+                {t("admin.regionMoved", { region: sponsor.entity.toUpperCase() })}
+              </p>
             ) : null}
           </div>
 
@@ -221,11 +249,13 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
               {t("sponsor.attempts", { count: sponsor.attempts })}
             </span>
             {/* W2-A05: rotating kills the old code for anybody mid-signup, so it is confirmed. */}
-            <ConfirmWithReason
-              label={sponsor.code ? t("asponsor.rotate") : t("asponsor.mint")}
-              disabled={pending}
-              onConfirm={(reason) => mintCode(sponsor.id, reason)}
-            />
+            {canManage ? (
+              <ConfirmWithReason
+                label={sponsor.code ? t("asponsor.rotate") : t("asponsor.mint")}
+                disabled={pending}
+                onConfirm={(reason) => mintCode(sponsor.id, reason)}
+              />
+            ) : null}
           </div>
 
           {/*
@@ -235,7 +265,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
           */}
           {sponsor.potOpen ? (
             <p className="text-xs text-slate-500">{t("asponsor.potOpen")}</p>
-          ) : (
+          ) : !canManage ? null : (
             <form action={potAction} className="space-y-3 rounded-xl bg-slate-50 p-3">
               <input type="hidden" name="sponsorId" value={sponsor.id} />
               <p className="text-xs font-semibold text-slate-700">
@@ -294,6 +324,7 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
               </p>
             ))}
 
+            {canManage ? (
             <form action={userAction} className="space-y-3 rounded-xl bg-slate-50 p-3">
               <input type="hidden" name="sponsorId" value={sponsor.id} />
               <p className="text-xs font-semibold text-slate-700">{t("asponsor.addUser")}</p>
@@ -315,9 +346,15 @@ function SponsorRow({ sponsor }: { sponsor: AdminSponsorRow }) {
                 <p role="alert" className="text-xs text-red-600">
                   {userState.error}
                 </p>
+              ) : userState.ok ? (
+                /* B25: the invite went, and the screen says so. */
+                <p role="status" className="text-xs text-brand-700">
+                  {t("admin.invited")}
+                </p>
               ) : null}
               <Submit label={t("asponsor.create")} />
             </form>
+            ) : null}
           </div>
         </div>
       ) : null}

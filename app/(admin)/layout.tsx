@@ -101,8 +101,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/ratings", icon: Star, label: t("anav.ratings") },
     { href: "/admin/vault", icon: Vault, label: t("anav.vault") },
     /*
-     * 53.6: the owner's, like every other money door. Activating a sponsor
-     * opens a corporate account and opening a pot commits us to refund terms.
+     * 53.6: activating a sponsor opens a corporate account and opening a pot
+     * commits us to refund terms, so those acts are the owner's. B8: the
+     * list itself is staff's too, because it is the way to the sponsor page
+     * where the top-ups queue is worked.
      */
     { href: "/admin/sponsors", icon: Building2, label: t("asponsor.nav") },
     /*
