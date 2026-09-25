@@ -31,9 +31,12 @@ export function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-20 space-y-3">
+    <section id={id} className="scroll-mt-36 space-y-3 pt-2 lg:scroll-mt-24">
       <div>
-        <h2 className="text-sm font-bold tracking-wide text-navy-700 uppercase">{title}</h2>
+        <h2 className="flex items-center gap-2 text-[19px] font-bold text-navy-700">
+          <span aria-hidden className="h-5 w-1.5 rounded-full bg-brand-500" />
+          {title}
+        </h2>
         <p className="mt-0.5 text-sm leading-relaxed text-navy-400">{why}</p>
       </div>
       {children}
@@ -64,7 +67,7 @@ export async function SettingsNav({
         <Link
           key={section.id}
           href={`#${section.id}`}
-          className="shrink-0 rounded-full border border-navy-100 bg-white px-3 py-1.5 text-xs font-semibold text-navy-400 hover:bg-navy-50"
+          className="inline-flex h-10 shrink-0 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-navy-500 ring-1 ring-navy-100 hover:bg-navy-50 hover:text-navy-700"
         >
           {section.title}
         </Link>
