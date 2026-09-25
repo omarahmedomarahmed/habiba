@@ -4770,6 +4770,10 @@ export const en = {
   "appr.transfer": "Transfer with no proof",
   "appr.ledger": "Ledger adjustment",
   "appr.owner": "New owner",
+  /* 🔴 AE61: an image the page could not keep is named, rather than dropped in silence. */
+  "acontent.badBackground": "Not saved. The background image \"{value}\" is not one the page can use: an https address or a path on this site, with no quotes, spaces or brackets.",
+  "acontent.logoHint": "A path on this site, like /logos/name.svg. Empty for a lettermark.",
+  "acontent.badLogo": "Not saved. The logo \"{value}\" must be a path on this site, like /logos/name.svg. A logo loaded from another host tells that host who read the page.",
   /* 🔴 AE10: a cart waiting on a second person's credit is theirs to complete or decline. */
   "atransfer.discardAsked": "You asked a second person to credit this. They complete or decline it; it cannot be discarded under them.",
   "appr.askedBy": "Asked by {name}",
@@ -8982,6 +8986,9 @@ export const ar: Record<MessageKey, string> = {
   "appr.transfer": "تحويل بلا إثبات",
   "appr.ledger": "تعديل في الدفاتر",
   "appr.owner": "مالك جديد",
+  "acontent.badBackground": "لم يُحفظ. صورة الخلفية \"{value}\" لا يمكن للصفحة استخدامها: عنوان https أو مسار على هذا الموقع، بلا علامات اقتباس أو مسافات أو أقواس.",
+  "acontent.logoHint": "مسار على هذا الموقع، مثل /logos/name.svg. اتركه فارغًا لحرف أول بدل الشعار.",
+  "acontent.badLogo": "لم يُحفظ. الشعار \"{value}\" يجب أن يكون مسارًا على هذا الموقع، مثل /logos/name.svg. الشعار المحمَّل من موقع آخر يخبر ذلك الموقع بمن قرأ الصفحة.",
   "atransfer.discardAsked": "طلبت من شخص ثانٍ أن يقيّد هذا. هو من يكمله أو يرفضه، ولا يمكن التخلص منه قبل ذلك.",
   "appr.askedBy": "طلبه {name}",
   "appr.complete": "أكمِله",

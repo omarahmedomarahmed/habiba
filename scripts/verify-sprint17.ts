@@ -598,6 +598,40 @@ async function main() {
     `${String(declared.length)} declared: ${declared.join(", ")}`,
   );
 
+  /*
+   * 🔴 AE61: A LOGO FROM ANOTHER HOST, AND AN IMAGE DROPPED IN SILENCE.
+   *
+   * A competitor's logo was kept as typed and loaded from that host on the
+   * public page, telling it who read our comparison; a bad background was
+   * dropped and the save still said "Saved". A logo is now a path on this site,
+   * and `savePage` refuses a dropped image by name (`droppedImages`).
+   */
+  const { sanitiseBlocks, droppedImages } = await import("../lib/content/sanitise");
+  const typed = [
+    { type: "hero", heading: "x", backgroundImage: "javascript:alert(1)" },
+    {
+      type: "competitors",
+      heading: "x",
+      items: [
+        { name: "Rival Demo", logo: "https://tracker.example.com/rival.png", rows: [] },
+        { name: "Other Demo", logo: "/logos/other.svg", rows: [] },
+      ],
+    },
+  ];
+  const kept = sanitiseBlocks(typed) as unknown as { items?: { logo?: string }[] }[] | null;
+  const dropped = droppedImages(typed);
+  check(
+    "🔴 AE61 a logo from another host is not kept, one on this site is, and both dropped images are named for the save to refuse",
+    kept?.[1]?.items?.[0]?.logo === undefined && kept?.[1]?.items?.[1]?.logo === "/logos/other.svg" &&
+      dropped.length === 2 && dropped.some((d) => d.field === "logo") && dropped.some((d) => d.field === "backgroundImage"),
+    JSON.stringify({ logos: kept?.[1]?.items?.map((i) => i.logo ?? null), dropped }),
+  );
+  check(
+    "AE61 CONTROL good images are named as nothing, and the save reads the list before it writes",
+    droppedImages([{ type: "hero", backgroundImage: "https://images.example.com/sea.jpg" }]).length === 0 &&
+      /const \[dropped\] = droppedImages\(input\.blocks\)/.test(readSource("app/(admin)/admin/actions.ts")),
+  );
+
   finish("sprint 17");
 }
 

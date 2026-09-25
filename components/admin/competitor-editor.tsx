@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 
 import { Button, Field, Input, Textarea } from "@/components/ui";
 import type { ContentBlock } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/client";
 
 type Block = Extract<ContentBlock, { type: "competitors" }>;
 type Rival = Block["items"][number];
@@ -47,6 +48,7 @@ export function CompetitorEditor({
   block: Block;
   onChange: (next: Block) => void;
 }) {
+  const t = useT();
   const setItems = (items: Rival[]) => { onChange({ ...block, items }); };
 
   const patchRival = (i: number, patch: Partial<Rival>) => {
@@ -94,11 +96,11 @@ export function CompetitorEditor({
                 onChange={(e) => { patchRival(i, { name: e.target.value }); }}
               />
             </Field>
-            <Field label="Logo URL" htmlFor={`logo-${String(i)}`} hint="Empty for a lettermark.">
+            {/* 🔴 AE61: a path on this site; a logo from another host is refused at the save. */}
+            <Field label="Logo URL" htmlFor={`logo-${String(i)}`} hint={t("acontent.logoHint")}>
               <Input
                 id={`logo-${String(i)}`}
                 value={rival.logo ?? ""}
-                placeholder="https://"
                 onChange={(e) => { patchRival(i, { logo: e.target.value }); }}
               />
             </Field>

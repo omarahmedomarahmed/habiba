@@ -24,7 +24,7 @@
  * everything that is not an action lives here, where exporting a constant is
  * ordinary.
  */
-import { safeImageUrl } from "@/lib/content/url";
+import { safeImageUrl, safeLogoUrl } from "@/lib/content/url";
 import type { ContentBlock } from "@/lib/db/schema";
 
 /*
@@ -66,6 +66,9 @@ import type { ContentBlock } from "@/lib/db/schema";
 
 /** Image URLs get their own rule — see `safeImageUrl`. */
 const URL_KEYS = new Set(["backgroundImage"]);
+
+/** 🔴 AE61: an item's logo, a path on this site only (`safeLogoUrl`). */
+const LOGO_KEYS = new Set(["logo"]);
 
 /** A field that is a list of plain strings, kept as one. */
 const STRING_LIST_KEYS = new Set(["can", "cannot"]);
@@ -146,9 +149,38 @@ function pickStrings(source: unknown, keys: string[], cap = 4000): Record<string
   const target: Record<string, unknown> = {};
   for (const key of keys) {
     const value = from[key];
+    if (LOGO_KEYS.has(key)) {
+      const safe = safeLogoUrl(value);
+      if (safe) target[key] = safe;
+      continue;
+    }
     if (typeof value === "string") target[key] = value.slice(0, cap);
   }
   return target;
+}
+
+/**
+ * 🔴 AE61: THE IMAGES A SAVE WOULD DROP, NAMED, so the save can say so.
+ *
+ * `sanitiseBlocks` drops an unsafe image rather than keep it, which is right,
+ * and it did so in silence: an admin who typed a background or a logo saw
+ * "Saved" and a page without it. `savePage` refuses with these instead.
+ */
+export function droppedImages(raw: unknown): { field: "backgroundImage" | "logo"; value: string }[] {
+  if (!Array.isArray(raw)) return [];
+  const out: { field: "backgroundImage" | "logo"; value: string }[] = [];
+  const typed = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
+  for (const entry of raw) {
+    const block = (entry ?? {}) as Record<string, unknown>;
+    const background = typed(block.backgroundImage);
+    if (background && !safeImageUrl(background)) out.push({ field: "backgroundImage", value: background });
+    const items = Array.isArray(block.items) ? block.items : [];
+    for (const item of items) {
+      const logo = typed((item as Record<string, unknown> | null)?.logo);
+      if (logo && !safeLogoUrl(logo)) out.push({ field: "logo", value: logo });
+    }
+  }
+  return out;
 }
 
 export function sanitiseBlocks(raw: unknown): ContentBlock[] | null {

@@ -11,6 +11,21 @@
  * Applied twice on purpose: once when an admin saves, and again at render time.
  * A value that reached the database some other way still cannot reach the page.
  */
+/**
+ * 🔴 AE61: a logo is a path on this site and nothing else.
+ *
+ * A competitor's or vendor's logo was kept as typed, so the public page loaded
+ * it from whatever host was named, and that host learned the address of
+ * every visitor who read our comparison. Logos are built-in artwork, served
+ * from here like the backgrounds.
+ */
+export function safeLogoUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || /["'()\\\s<>]/.test(trimmed)) return null;
+  return trimmed.startsWith("/") && !trimmed.startsWith("//") ? trimmed : null;
+}
+
 export function safeImageUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();

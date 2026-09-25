@@ -14,7 +14,7 @@ import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
 import { allTherapistRecipients, setUserStatus } from "@/lib/data/admin";
 import { decideVerification } from "@/lib/data/verification";
-import { sanitiseBlocks } from "@/lib/content/sanitise";
+import { droppedImages, sanitiseBlocks } from "@/lib/content/sanitise";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
@@ -96,6 +96,18 @@ export async function savePage(
 
   const blocks = sanitiseBlocks(input.blocks);
   if (!blocks) return { error: "The content structure is not valid. Check the block editor." };
+
+  /* 🔴 AE61: an image the sanitiser would drop is refused by name, never dropped in silence. */
+  const [dropped] = droppedImages(input.blocks);
+  if (dropped) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    const { t } = await getI18n();
+    return {
+      error: t(dropped.field === "logo" ? "acontent.badLogo" : "acontent.badBackground", {
+        value: dropped.value.slice(0, 120),
+      }),
+    };
+  }
 
   /*
    * 🔴 28.2 / 28.3 / C109 / C110 — two claims this product may not make.
