@@ -218,8 +218,21 @@ export async function submitForReview(): Promise<OnboardingState> {
   if (current.state === "submitted") return { ok: true, message: "Already submitted" };
   if (current.state === "approved") return { ok: true, message: "Already approved" };
 
+  const { getI18n } = await import("@/lib/i18n/server");
+  const { locale, t } = await getI18n();
+
+  /*
+   * 🔴 B13: a rejection is answered by a change, not by pressing Submit again.
+   *
+   * This checked only that every field was present, so the same blurred licence
+   * went straight back to the queue. Replacing a document or changing a detail
+   * moves the row to draft (TH2.6); until then it stays rejected and refuses.
+   */
+  if (current.state === "rejected") return { error: t("tver.changeFirst") };
+
   const missing = missingFrom(current);
   if (missing.length > 0) {
+    const list = missing.map((item) => t(`tver.missing.${item}`)).join(locale === "ar" ? "، " : ", ");
     /*
      * 🔴 C351 — WHY THE SLOTS ARE EMPTY, NOT JUST THAT THEY ARE.
      *
@@ -231,11 +244,9 @@ export async function submitForReview(): Promise<OnboardingState> {
      * one step further along.
      */
     if (current.documentsClearedAt) {
-      return {
-        error: `We reviewed this twice and could not verify it, so we did not keep the documents. Upload them again and it goes back to our queue. Still needed: ${missing.join(", ")}.`,
-      };
+      return { error: t("tver.clearedStillNeeded", { list }) };
     }
-    return { error: `Still needed: ${missing.join(", ")}.` };
+    return { error: t("tver.stillNeeded", { list }) };
   }
 
   await db

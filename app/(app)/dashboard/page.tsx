@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronRight, FileText, Plus, Radio } from "lucide-react
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { billingSummary } from "@/lib/billing/service";
+import { tierName } from "@/lib/billing/tier-name";
 import { unreadNotifications } from "@/lib/data/notifications";
 import { getRadarProfile } from "@/lib/data/radar";
 import { countOpenDrafts, listSessions, sessionHref } from "@/lib/data/sessions";
@@ -245,7 +246,7 @@ export default async function DashboardPage() {
           <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
             <span className="flex-1">
               <span className="block text-sm font-semibold text-slate-900">
-                {billing.tier.name}
+                {tierName(billing.tier, t)}
               </span>
               <span className="block text-xs text-slate-500">
                 {billing.sessionsThisMonth === 1

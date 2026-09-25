@@ -75,8 +75,31 @@ export default async function SettingsPage({
     practiceState(actor.userId),
   ]);
 
+  /*
+   * 🔴 B14: the public page link only when there is a public page.
+   *
+   * `/t/:id` publishes a verified, active, unsuspended clinician and 404s
+   * everybody else, so a rejected or pending clinician followed our own link to
+   * "We could not find that page". Asked of the same function the page asks.
+   */
+  const { publicProfile } = await import("@/lib/data/radar");
+  const published = (await publicProfile(actor.userId)) !== null;
+
   /* 🔴 W1-23: licence fields are read-only once verification is submitted. */
-  const locked = licenceLocked(await getVerification(actor.userId));
+  const verification = await getVerification(actor.userId);
+  const locked = licenceLocked(verification);
+  /*
+   * 🔴 B12: once locked, the licence shown is the one an operator CHECKED.
+   *
+   * Onboarding writes the regulator and number onto `therapist_verifications`;
+   * these fields read `users.profile`, which onboarding never touches. So an
+   * approved clinician saw a blank, read-only "licence we checked". The profile
+   * value still wins while it is theirs to edit.
+   */
+  const licence = {
+    number: (locked ? verification?.licenseNumber : null) || user?.profile?.licenseNumber || "",
+    body: (locked ? verification?.licenseBody : null) || user?.profile?.licenseState || "",
+  };
 
   /*
    * 🔴 74.6 — the practice's own row: what kind it is, and where it bills from.
@@ -173,8 +196,8 @@ export default async function SettingsPage({
               lastName: user?.lastName ?? "",
               credentials: user?.profile?.credentials ?? "",
               licenseType: user?.profile?.licenseType ?? "",
-              licenseNumber: user?.profile?.licenseNumber ?? "",
-              licenseState: user?.profile?.licenseState ?? "",
+              licenseNumber: licence.number,
+              licenseState: licence.body,
             }}
           />
 
@@ -189,9 +212,13 @@ export default async function SettingsPage({
               <Link href="/settings/codes" className="text-sm font-semibold text-brand-700">
                 {t("portal.settings.openCodes")}
               </Link>
-              <Link href={`/t/${actor.userId}`} className="text-sm font-semibold text-brand-700">
-                {t("tw2.publicPage")}
-              </Link>
+              {published ? (
+                <Link href={`/t/${actor.userId}`} className="text-sm font-semibold text-brand-700">
+                  {t("tw2.publicPage")}
+                </Link>
+              ) : (
+                <span className="text-sm text-slate-600">{t("tw2.publicPageLater")}</span>
+              )}
             </div>
           </Card>
 
@@ -254,7 +281,7 @@ export default async function SettingsPage({
                */
               name: [user?.firstName, user?.lastName].filter(Boolean).join(" ") || actor.email,
               license:
-                [user?.profile?.licenseType, user?.profile?.licenseNumber]
+                [user?.profile?.licenseType, licence.number]
                   .filter(Boolean)
                   .join(" ") || null,
               payoutMethod: payoutMethod

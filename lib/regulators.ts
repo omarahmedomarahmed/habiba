@@ -140,8 +140,20 @@ export function regulatorsFor(
   overrides?: RequirementOverrides,
 ): string[] {
   const configured = overrides?.[(country ?? "").toUpperCase()]?.regulators ?? [];
-  if (configured.length > 0) return configured;
-  return regulatorsFromConstants(country);
+  /*
+   * 🔴 B38: the operator's list LEADS, it does not replace ours.
+   *
+   * A configured list used to win outright, and Egypt's seeded row names one
+   * body, so the form offered one suggestion and the chips (shown only for two
+   * or more) vanished: the three Egyptian regulators below had to be typed.
+   * These are shortcuts beside a free-text field, never a constraint, so the
+   * operator's first entry is still the prefill and ours stay one tap away.
+   */
+  const merged = [...configured];
+  for (const body of regulatorsFromConstants((country ?? "").toUpperCase())) {
+    if (!merged.includes(body)) merged.push(body);
+  }
+  return merged;
 }
 
 function regulatorsFromConstants(country: string | null | undefined): string[] {

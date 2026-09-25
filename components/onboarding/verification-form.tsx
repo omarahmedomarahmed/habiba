@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import type { MissingItem } from "@/lib/data/verification";
 
 const INITIAL: OnboardingState = {};
 
@@ -86,7 +87,7 @@ export function VerificationForm({
    * field, so a half-filled row is better than none rather than worse.
    */
   requirements: RequirementOverrides;
-  missing: string[];
+  missing: MissingItem[];
   reviewNote: string | null;
   initial: {
     country: string;
@@ -159,6 +160,28 @@ export function VerificationForm({
   }));
 
   const locked = (state === "submitted" && !renewing) || state === "approved";
+
+  /*
+   * 🔴 B37: the checklist follows the uploads on this screen.
+   *
+   * The list is built from the saved row and only moved when the page's server
+   * props came back, so after three uploads each badged "uploaded" it still
+   * named the photo ID and the licence as missing until a reload. A slot that
+   * reports a stored upload removes its line here at once; the refresh then
+   * confirms it. An upload after a rejection also reopens the submission on the
+   * server (TH2.6), so it does here too.
+   */
+  const [landed, setLanded] = useState<DocSlot["key"][]>([]);
+  const DOC_ITEM: Partial<Record<DocSlot["key"], MissingItem>> = {
+    idFront: "photoId",
+    licenseDoc: "licenceDoc",
+    headshot: "headshot",
+  };
+  const satisfied = new Set(landed.map((key) => DOC_ITEM[key]));
+  const outstanding = missing.filter((item) => !satisfied.has(item));
+  const onLanded = (key: DocSlot["key"]) => setLanded((keys) => (keys.includes(key) ? keys : [...keys, key]));
+  /* B13: rejected until something changes; an upload here is a change. */
+  const awaitingChange = state === "rejected" && landed.length === 0;
 
   if (state === "submitted" && !renewing) {
     return (
@@ -373,14 +396,21 @@ export function VerificationForm({
 
         <div className="mt-3 space-y-2.5">
           {slots.map((doc) => (
-            <DocumentSlot key={doc.key} doc={doc} disabled={locked || !uploadsEnabled} />
+            <DocumentSlot
+              key={doc.key}
+              doc={doc}
+              disabled={locked || !uploadsEnabled}
+              onLanded={onLanded}
+            />
           ))}
         </div>
       </Card>
 
       {/* ------------------------------------------------------------ submit */}
+      {/* Nothing to submit once approved; a licence change has its own form above. */}
+      {state === "approved" ? null : (
       <Card className="p-4">
-        {missing.length > 0 ? (
+        {outstanding.length > 0 ? (
           <>
             <p className="text-sm font-semibold text-slate-900">{t("tver.nearlyThere")}</p>
             {/*
@@ -408,10 +438,10 @@ export function VerificationForm({
                 )}
             </p>
             <ul className="mt-2 space-y-1">
-              {missing.map((item) => (
+              {outstanding.map((item) => (
                 <li key={item} className="flex items-center gap-2 text-sm text-slate-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  {item}
+                  {t(`tver.missing.${item}`)}
                 </li>
               ))}
             </ul>
@@ -423,6 +453,10 @@ export function VerificationForm({
           </p>
         )}
 
+        {awaitingChange ? (
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">{t("tver.changeFirst")}</p>
+        ) : null}
+
         {error ? (
           <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
             {error}
@@ -433,7 +467,7 @@ export function VerificationForm({
           full
           size="lg"
           className="mt-4"
-          disabled={pending || missing.length > 0}
+          disabled={pending || outstanding.length > 0 || awaitingChange}
           onClick={() =>
             startTransition(async () => {
               setError(null);
@@ -447,6 +481,7 @@ export function VerificationForm({
           {pending ? t("tver.submitting") : t("tver.submit")}
         </Button>
       </Card>
+      )}
     </div>
   );
 }
@@ -458,7 +493,16 @@ export function VerificationForm({
  * choosing an existing photo, which is exactly what someone who already
  * photographed their licence last week wants to do.
  */
-function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
+function DocumentSlot({
+  doc,
+  disabled,
+  onLanded,
+}: {
+  doc: DocSlot;
+  disabled: boolean;
+  /** B37: the server has stored this document. */
+  onLanded: (key: DocSlot["key"]) => void;
+}) {
   const router = useRouter();
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -476,6 +520,7 @@ function DocumentSlot({ doc, disabled }: { doc: DocSlot; disabled: boolean }) {
       else {
         // Optimistic: the server has it, and the real URL arrives on refresh.
         setUrl(URL.createObjectURL(file));
+        onLanded(doc.key);
         router.refresh();
       }
     });

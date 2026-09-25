@@ -51,7 +51,7 @@ import { sendSessionInvite } from "@/lib/mail";
 import { finishSession } from "@/lib/session-finish";
 import { cleanCancelReason } from "@/lib/sessions/cancel-reason";
 import { createPrivateRoom, roomFailureText, type RoomInfo } from "@/lib/video";
-import { fullName } from "@/lib/utils";
+import { formatDateTime, fullName } from "@/lib/utils";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -377,8 +377,30 @@ export async function startNewSession(
   redirect(`/sessions/${sessionId}/room`);
 }
 
-export async function goLive(sessionId: string): Promise<SessionActionState> {
+/**
+ * 🔴 B64: how far ahead of its booked hour a session starts without a question.
+ *
+ * Starting sends the patient "your session has started", so a booking for ten
+ * in the morning started at half past midnight woke them for nothing and left
+ * the booked hour empty. Fifteen minutes is early enough to open a room for
+ * somebody who is already waiting and short of a different part of the day.
+ */
+const EARLY_START_MS = 15 * 60 * 1000;
+
+export async function goLive(
+  sessionId: string,
+  { confirmEarly = false }: { confirmEarly?: boolean } = {},
+): Promise<SessionActionState & { early?: string }> {
   const actor = await requireUser();
+  if (!confirmEarly) {
+    const found = await getSession(actor, sessionId);
+    const bookedFor = found?.session.status === "scheduled" ? found.session.scheduledAt : null;
+    if (bookedFor && bookedFor.getTime() - Date.now() > EARLY_START_MS) {
+      const { locale } = await getI18n();
+      /* Formatted here, in the clinician's zone, so the room never reads a clock of its own. */
+      return { early: formatDateTime(bookedFor, actor.timezone, locale) };
+    }
+  }
   /*
    * 🔴 TE21: a clinician who may not practise starts nothing. An expired
    * licence sends them back to review, and every (app) page but the open list

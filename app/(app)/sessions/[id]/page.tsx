@@ -96,6 +96,13 @@ export default async function SessionDetailPage({
   const previousSummary = summaryPersonId ? await latestSummary(summaryPersonId) : null;
 
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
+  /* B64: the booked hour first; the end only for a session nobody booked. */
+  const sessionTime = row.session.scheduledAt ?? row.session.endedAt ?? row.session.createdAt;
+  const startedOffBooking = Boolean(
+    row.session.scheduledAt &&
+      row.session.startedAt &&
+      Math.abs(row.session.startedAt.getTime() - row.session.scheduledAt.getTime()) > 15 * 60 * 1000,
+  );
 
   /*
    * 🔴 W2-F01 / D7: one note per format. The primary carries the patient's one
@@ -220,9 +227,19 @@ export default async function SessionDetailPage({
             )}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDateTime(row.session.endedAt ?? row.session.scheduledAt ?? row.session.createdAt, actor.timezone, locale)}
+            {/*
+              🔴 B64: the booked hour stays the session's time. It used to
+              lead with the END, so a 10:00 booking started at 00:26 read as a
+              00:30 session. A start well away from the booking says both.
+            */}
+            {startedOffBooking
+              ? t("portal.session.bookedStarted", {
+                  booked: formatDateTime(row.session.scheduledAt, actor.timezone, locale),
+                  started: formatDateTime(row.session.startedAt, actor.timezone, locale),
+                })
+              : formatDateTime(sessionTime, actor.timezone, locale)}
             {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
-            {row.session.modality === "video" ? " · Video" : " · In person"}
+            {row.session.modality === "video" ? ` · ${t("thist.video")}` : ` · ${t("thist.inPerson")}`}
           </p>
           {/*
             A session that ended by itself says so.
@@ -337,6 +354,7 @@ export default async function SessionDetailPage({
             <NoteOriginNote
               provenance={note.provenance}
               offRecordSeconds={note.offRecordSeconds}
+              capturedSide={note.capturedSide}
             />
           ) : null}
           {note && lateNotice ? (
@@ -380,7 +398,7 @@ export default async function SessionDetailPage({
             recordingConsent={row.session.recordingConsent}
             patientLabel={patientLabel}
             patientEmail={row.patient?.email ?? row.session.guestEmail ?? null}
-            dateLabel={formatDateTime(row.session.endedAt ?? row.session.scheduledAt ?? row.session.createdAt, actor.timezone, locale)}
+            dateLabel={formatDateTime(sessionTime, actor.timezone, locale)}
             reportSent={Boolean(row.session.reportSentAt)}
             clinicalAddenda={addendumLines(clinicalAddenda, note)}
             patientAddenda={addendumLines(patientAddenda, primary)}

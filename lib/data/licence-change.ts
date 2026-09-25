@@ -136,13 +136,31 @@ export async function writeVerificationDetails(
     return { ok: true, held: asked.ok };
   }
 
+  /*
+   * 🔴 B13: only a real change reopens a rejected submission.
+   *
+   * Pressing Save on the untouched form used to move "rejected" to "draft",
+   * which is what enables Submit, so the rejected licence could go straight
+   * back to the queue unchanged. Lists compare as sets: order is not a change.
+   */
+  const sameList = (a: string[], b: string[]) =>
+    a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");
+  const changed =
+    !row ||
+    input.country !== row.country ||
+    input.licenseBody !== row.licenseBody ||
+    input.licenseNumber !== row.licenseNumber ||
+    input.licenseExpiry !== row.licenseExpiry ||
+    !sameList(input.specialties, row.specialties) ||
+    !sameList(input.languages, row.languages);
+
   await db
     .update(therapistVerifications)
     .set({
       ...input,
       // Editing after a rejection puts it back in draft, so the queue does not
       // show a stale "rejected" for someone actively fixing it.
-      state: row?.state === "rejected" ? "draft" : (row?.state ?? "draft"),
+      state: row?.state === "rejected" && changed ? "draft" : (row?.state ?? "draft"),
       updatedAt: new Date(),
     })
     .where(eq(therapistVerifications.userId, actor.userId));

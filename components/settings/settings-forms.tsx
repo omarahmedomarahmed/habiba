@@ -73,24 +73,33 @@ export function ProfileForm({
             </Field>
           </div>
 
-          <Field
-            label={t("tset.credentials")}
-            htmlFor="credentials"
-            hint={t("tset.credentialsHint")}
-          >
-            <Input
-              id="credentials"
-              name="credentials"
-              placeholder={t("tset.credentialsPlaceholder")}
-              defaultValue={initial.credentials}
-              readOnly={licenceLocked}
-            />
-          </Field>
+          {/*
+            🔴 B12: a locked field with nothing in it is a blank the clinician
+            can neither fill nor explain, so it is left out rather than shown
+            empty. The checked number and regulator come from the verification.
+          */}
+          {licenceLocked && !initial.credentials ? null : (
+            <Field
+              label={t("tset.credentials")}
+              htmlFor="credentials"
+              hint={t("tset.credentialsHint")}
+            >
+              <Input
+                id="credentials"
+                name="credentials"
+                placeholder={t("tset.credentialsPlaceholder")}
+                defaultValue={initial.credentials}
+                readOnly={licenceLocked}
+              />
+            </Field>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("tset.licenceType")} htmlFor="licenseType">
-              <Input id="licenseType" name="licenseType" defaultValue={initial.licenseType} readOnly={licenceLocked} />
-            </Field>
+            {licenceLocked && !initial.licenseType ? null : (
+              <Field label={t("tset.licenceType")} htmlFor="licenseType">
+                <Input id="licenseType" name="licenseType" defaultValue={initial.licenseType} readOnly={licenceLocked} />
+              </Field>
+            )}
             <Field label={t("tset.licenceState")} htmlFor="licenseState">
               <Input id="licenseState" name="licenseState" defaultValue={initial.licenseState} readOnly={licenceLocked} />
             </Field>

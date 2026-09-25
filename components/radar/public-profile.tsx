@@ -9,11 +9,13 @@ import { countryFlag } from "@/lib/geo";
 import { cn, fullName, initials } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 import { useT } from "@/lib/i18n/client";
-import { Money } from "@/components/ui/money";
+import { SessionPrice } from "@/components/money/session-price";
 
 export type ProfileEntry = Omit<RadarEntry, "status"> & {
   status: RadarEntry["status"] | "offline";
   bio: string | null;
+  /** B10: the pounds as typed, when the clinician priced in pounds. */
+  rateEgpMinor: number | null;
 };
 
 /**
@@ -133,7 +135,11 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
         <span className="text-sm">{t("radar.thirtyMinutes")}</span>
         <span className="text-xl font-bold">
           {/* Pounds in the app, dollars on the website, the other on hover (27). */}
-          {profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : t("radar.freeTitle")}
+          {profile.sessionRateCents > 0 ? (
+            <SessionPrice sessionRateCents={profile.sessionRateCents} rateEgpMinor={profile.rateEgpMinor} />
+          ) : (
+            t("radar.freeTitle")
+          )}
         </span>
       </div>
 

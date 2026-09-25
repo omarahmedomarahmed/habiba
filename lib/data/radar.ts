@@ -375,6 +375,8 @@ async function queryBoard() {
       lastName: users.lastName,
       profile: users.profile,
       sessionRateCents: users.sessionRateCents,
+      rateCurrency: users.rateCurrency,
+      rateEgpMinor: users.rateEgpMinor,
       // 12.3 / C84 — the zone the booking calendar renders in until the
       // visitor's browser tells us its own. Better than UTC by a mile: an
       // anonymous reader looking at this therapist is usually near them.
@@ -601,6 +603,12 @@ export type PublicProfile = Omit<RadarTherapist, "status"> & {
    */
   verifiedBy: string | null;
   verifiedOn: Date | null;
+  /**
+   * 🔴 B10: the pounds exactly as the clinician typed them, or null when they
+   * priced in dollars. `sessionRateCents` is dollars re-derived at the operator's
+   * rate, so converting it back can land a few piastres off the price they set.
+   */
+  rateEgpMinor: number | null;
 };
 
 export async function publicProfile(
@@ -620,6 +628,8 @@ export async function publicProfile(
       lastName: users.lastName,
       profile: users.profile,
       sessionRateCents: users.sessionRateCents,
+      rateCurrency: users.rateCurrency,
+      rateEgpMinor: users.rateEgpMinor,
       // 12.3 / C84 — the zone the booking calendar renders in until the
       // visitor's browser tells us its own. Better than UTC by a mile: an
       // anonymous reader looking at this therapist is usually near them.
@@ -641,7 +651,8 @@ export async function publicProfile(
       pendingUntil: therapistRadar.pendingUntil,
       pendingSessionId: therapistRadar.pendingSessionId,
       reservedBy: therapistRadar.reservedBy,
-      demo: therapistRadar.demo,
+      /* B4: COALESCEd for a clinician with no radar row yet; a read, never a test (80.3). */
+      demo: sql<boolean>`COALESCE(${therapistRadar.demo}, false)`,
       suspendedUntil: therapistRadar.suspendedUntil,
       lastSeenAt: therapistRadar.lastSeenAt,
       /* 🔴 63.13 — the same CASE as the board, for the same reason. */
@@ -656,8 +667,17 @@ export async function publicProfile(
       verifiedBy: verifiedByBody(),
       verifiedOn: verifiedOn(),
     })
-    .from(therapistRadar)
-    .innerJoin(users, eq(users.id, therapistRadar.userId))
+    /*
+     * 🔴 B4: FROM the clinician, LEFT JOIN the radar row.
+     *
+     * The radar row is created lazily, by `ensureRadarProfile` on /on-call. An
+     * inner join made the public page, and so every booking from it, a 404 for a
+     * verified, priced clinician with open hours until they happened to visit the
+     * crisis radar console. A profile is theirs from the moment they are verified;
+     * with no row they read as offline with nothing on the board, which is true.
+     */
+    .from(users)
+    .leftJoin(therapistRadar, eq(therapistRadar.userId, users.id))
     .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
       and(
@@ -677,8 +697,16 @@ export async function publicProfile(
     )
     .limit(1);
 
-  const row = rows[0];
-  if (!row) return null;
+  const found = rows[0];
+  if (!found) return null;
+  /* No radar row yet: the defaults `ensureRadarProfile` would have written. */
+  const row = {
+    ...found,
+    languages: found.languages ?? [],
+    specialties: found.specialties ?? [],
+    acceptsWalkIns: found.acceptsWalkIns ?? false,
+    status: found.status ?? ("offline" as const),
+  };
 
   const ratings = await therapistRatings();
   const [shaped] = shapeBoard([row], ratings, viewerHash);
@@ -712,6 +740,10 @@ export async function publicProfile(
      */
     verifiedBy: row.verifiedBy,
     verifiedOn: row.verifiedOn ? new Date(row.verifiedOn) : null,
+    rateEgpMinor:
+      row.rateCurrency.toLowerCase() === "egp" && row.rateEgpMinor !== null && row.rateEgpMinor > 0
+        ? row.rateEgpMinor
+        : null,
   };
 }
 

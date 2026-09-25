@@ -1386,6 +1386,12 @@ export const sessionNotes = pgTable(
       .default("clinician"),
     /** 47.2 — only meaningful on `partial`. Null everywhere else. */
     offRecordSeconds: integer("off_record_seconds"),
+    /**
+     * 🔴 B61 / 0176: `clinician` when a video session captured only the
+     * clinician's own track, so the note rests on one side of the call. Null
+     * when there is no single side to name. Stamped at save with `provenance`.
+     */
+    capturedSide: text("captured_side").$type<"clinician">(),
 
     /**
      * 🔴 W2-F01 / D7: the format this note is written in. A built-in key

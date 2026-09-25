@@ -277,7 +277,8 @@
     "verify:w2f": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2f.ts",
     "verify:w2x": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2x.ts",
     "verify:w2p": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2p.ts",
-    "verify:w2c": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2c.ts"
+    "verify:w2c": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-w2c.ts",
+    "verify:r1-portal": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-r1-portal.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.91.0",

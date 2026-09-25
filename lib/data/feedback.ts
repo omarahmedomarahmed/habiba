@@ -18,6 +18,7 @@ import {
   type ReportKind,
 } from "@/lib/db/schema";
 import { patientCopyText } from "@/lib/clinical/patient-copy";
+import { qualified } from "@/lib/db/qualified";
 import type { Words } from "@/lib/i18n/message-words";
 import { log } from "@/lib/logger";
 
@@ -567,6 +568,50 @@ export async function offRecordGaps(sessionId: string) {
  * `0067_note_provenance.sql`.
  */
 export async function noteProvenanceFor(
+  sessionId: string,
+): Promise<{ provenance: NoteProvenance; offRecordSeconds: number | null; capturedSide: "clinician" | null }> {
+  const origin = await provenanceOnly(sessionId);
+  if (origin.provenance === "clinician") return { ...origin, capturedSide: null };
+  return { ...origin, capturedSide: await capturedSideFor(sessionId) };
+}
+
+/**
+ * 🔴 B61: which side of a video call the transcript can speak for.
+ *
+ * Our own room records two tracks in the clinician's browser: their microphone
+ * (`therapist`) and the patient's audio from the call (`patient`). When no line
+ * was ever heard on the patient's track, the words on file are the clinician's
+ * alone, and a note that said "the whole session was captured" let a reader take
+ * the patient's side of it as heard. A line diarisation GUESSED to be the
+ * patient's is not the patient's track, so it does not count.
+ *
+ * Only our own room: a meeting bot or an upload hears one mixed track, which is
+ * both people, and in person one microphone hears the room.
+ */
+export async function capturedSideFor(sessionId: string): Promise<"clinician" | null> {
+  /* Qualified: an unqualified `id` inside the subqueries is the segment's own id. */
+  const [row] = await db
+    .select({
+      oneSide: sql<boolean>`(
+        ${qualified(sessions.modality)} = 'video'
+        AND NOT EXISTS (
+          SELECT 1 FROM session_sources src
+           WHERE src.session_id = ${qualified(sessions.id)} AND src.kind NOT IN ('24t_room', 'in_person')
+        )
+        AND EXISTS (SELECT 1 FROM transcript_segments t WHERE t.session_id = ${qualified(sessions.id)})
+        AND NOT EXISTS (
+          SELECT 1 FROM transcript_segments t
+           WHERE t.session_id = ${qualified(sessions.id)} AND t.speaker = 'patient' AND t.speaker_inferred = false
+        )
+      )`,
+    })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  return row?.oneSide ? "clinician" : null;
+}
+
+async function provenanceOnly(
   sessionId: string,
 ): Promise<{ provenance: NoteProvenance; offRecordSeconds: number | null }> {
   const [session] = await db
