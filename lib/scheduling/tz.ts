@@ -130,7 +130,25 @@ export function usable(zone: string | null | undefined): boolean {
  * The last IANA segment with underscores removed. Not the offset: "+03" is
  * correct and unreadable, and it changes under DST while the city does not.
  */
-export function zoneLabel(zone: string): string {
+export function zoneLabel(zone: string, locale: Locale = "en"): string {
+  /*
+   * 🔴 B44 — IN THE READER'S LANGUAGE. The IANA segment is English, so an
+   * Arabic clinic page read "الأوقات بتوقيت Cairo". Arabic takes CLDR's generic
+   * name ("توقيت مصر", "توقيت نيويورك") less its leading word, because every
+   * sentence this ends already says بتوقيت. Server-rendered callers only: a
+   * client component rendering this on both passes would be C84's mismatch.
+   */
+  if (locale === "ar") {
+    if (zone === "UTC") return "غرينتش";
+    try {
+      const name = new Intl.DateTimeFormat("ar", { timeZone: zone, timeZoneName: "shortGeneric" })
+        .formatToParts(new Date())
+        .find((part) => part.type === "timeZoneName")?.value;
+      if (name) return name.replace(/^توقيت\s+/, "");
+    } catch {
+      /* An unknown zone falls through to the English city, which is still true. */
+    }
+  }
   if (zone === "UTC") return "UTC";
   const last = zone.split("/").pop() ?? zone;
   return last.replace(/_/g, " ");

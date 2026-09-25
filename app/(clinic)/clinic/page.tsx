@@ -184,7 +184,7 @@ export default async function ClinicOverviewPage({
               reads "UTC" and knows that too, rather than taking it for local time.
             */}
             <span className="text-xs text-slate-500">
-              {t("clinic.timesIn", { zone: zoneLabel(zone) })}
+              {t("clinic.timesIn", { zone: zoneLabel(zone, locale) })}
             </span>
           </div>
 
