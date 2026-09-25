@@ -10,12 +10,12 @@ import {
   people,
   sessions,
   sponsorUsers,
-  sponsors,
   users,
   type ManualPayment,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
+import { localeTag, type Locale } from "@/lib/i18n/config";
 import { wordsFor, type Words } from "@/lib/i18n/message-words";
 import type { Who } from "@/lib/i18n/preference";
 import { notify, type Recipient } from "@/lib/notify";
@@ -68,20 +68,43 @@ import { notify, type Recipient } from "@/lib/notify";
  * words to tell them in (ruling 8): a patient's or a clinician's own choice.
  * A company login has no saved language, so it gets the default.
  */
-async function recipientFor(payment: ManualPayment): Promise<{ to: Recipient; words: Words; hi: string } | null> {
+async function recipientFor(
+  payment: ManualPayment,
+): Promise<{ to: Recipient; words: Words; hi: string; portal: string } | null> {
   const found = await payerOf(payment);
   if (!found) return null;
   const words = await wordsFor(found.who);
   return {
-    to: { ...found.to, locale: words.locale },
+    to: { ...found.to, locale: words.locale, reader: found.reader },
     words,
     hi: found.name ? words.t("pmsg.hi", { name: found.name }) : words.t("pmsg.hiThere"),
+    portal: `${env.appUrl}${found.portal}`,
   };
 }
 
+/**
+ * 🔴 B28 / B47: WHERE "OPEN YOUR ACCOUNT" GOES, for each kind of payer.
+ *
+ * Every one of these links used to be the bare app address, which is the
+ * public home page: a company admin who pressed "Track it" landed on the
+ * marketing site, signed out, with no way from there to the pot they had just
+ * paid into. Each payer's own portal page for what they bought.
+ */
+const PORTAL = {
+  company: "/sponsor/pot",
+  clinician: "/billing",
+  patient: "/patient/billing",
+} as const;
+
 async function payerOf(
   payment: ManualPayment,
-): Promise<{ to: Recipient; name: string | null; who: Who | null } | null> {
+): Promise<{
+  to: Recipient;
+  name: string | null;
+  who: Who | null;
+  reader: "patient" | "clinician" | "company";
+  portal: string;
+} | null> {
   if (payment.sponsorId) {
     /*
      * Admins only, the same rule `alertPots` follows: a viewer can
@@ -94,7 +117,7 @@ async function payerOf(
      * could go to a viewer or to somebody who had left the company.
      */
     const [admin] = await db
-      .select({ email: sponsorUsers.email })
+      .select({ email: sponsorUsers.email, name: sponsorUsers.name })
       .from(sponsorUsers)
       .where(
         and(
@@ -105,14 +128,20 @@ async function payerOf(
       )
       .orderBy(sponsorUsers.createdAt)
       .limit(1);
-    const [sponsor] = await db
-      .select({ name: sponsors.name })
-      .from(sponsors)
-      .where(eq(sponsors.id, payment.sponsorId))
-      .limit(1);
 
     if (!admin?.email) return null;
-    return { to: { email: admin.email, phone: null }, name: sponsor?.name ?? null, who: null };
+    /*
+     * 🔴 B28 / B47: the greeting is the PERSON reading it. It said "Hi Cairo
+     * Foundry", the company's name, to the admin who made the transfer. A login
+     * with no name on it gets "Hi," rather than the company's.
+     */
+    return {
+      to: { email: admin.email, phone: null },
+      name: admin.name?.trim().split(/\s+/)[0] || null,
+      who: null,
+      reader: "company",
+      portal: PORTAL.company,
+    };
   }
 
   if (payment.userId) {
@@ -128,7 +157,13 @@ async function payerOf(
       .limit(1);
 
     if (!row?.email) return null;
-    return { to: { email: row.email, phone: null }, name: row.first ?? null, who: { userId: payment.userId } };
+    return {
+      to: { email: row.email, phone: null },
+      name: row.first ?? null,
+      who: { userId: payment.userId },
+      reader: "clinician",
+      portal: PORTAL.clinician,
+    };
   }
 
   if (payment.patientAccountId) {
@@ -151,6 +186,8 @@ async function payerOf(
       to: { personId: row.personId, email: row.email ?? null, phone: row.phone ?? null },
       name: row.first ?? null,
       who: row.personId ? { personId: row.personId } : null,
+      reader: "patient",
+      portal: PORTAL.patient,
     };
   }
 
@@ -196,12 +233,15 @@ async function payerOf(
           },
           name: account.first ?? row.name ?? null,
           who: { personId: row.personId },
+          reader: "patient",
+          portal: PORTAL.patient,
         };
       }
     }
 
     if (!row?.email) return null;
-    return { to: { email: row.email, phone: null }, name: row.name ?? null, who: null };
+    /* A guest has no account to open; every message to them carries the join link instead. */
+    return { to: { email: row.email, phone: null }, name: row.name ?? null, who: null, reader: "patient", portal: PORTAL.patient };
   }
 
   return null;
@@ -218,11 +258,20 @@ async function payerOf(
  * and the payer sent. Converting `settles_cents` at today's rate quoted a
  * different number the moment an operator changed the rate in between.
  */
-async function poundsFor(payment: Pick<ManualPayment, "amountCents" | "currency" | "settlesCents">): Promise<string> {
-  const { formatMoney } = await import("./plans");
-  if (payment.currency.toUpperCase() === "EGP") return formatMoney(payment.amountCents, "EGP", "en-US");
+async function poundsFor(
+  payment: Pick<ManualPayment, "amountCents" | "currency" | "settlesCents">,
+  /**
+   * 🔴 B9: the reader's language. Always `en-US` before, so an Arabic
+   * message, email and WhatsApp alike, ended "EGP 1,000" in English. The
+   * same tag `<Money>` uses on screen, Western digits included.
+   */
+  locale: Locale,
+): Promise<string> {
+  const { formatDisplay } = await import("@/lib/money/convert");
+  const tag = localeTag(locale);
+  if (payment.currency.toUpperCase() === "EGP") return formatDisplay(payment.amountCents, "EGP", tag);
   const { egpMinorFor, egpRateMicro } = await import("./manual");
-  return formatMoney(egpMinorFor(payment.settlesCents, await egpRateMicro()), "EGP", "en-US");
+  return formatDisplay(egpMinorFor(payment.settlesCents, await egpRateMicro()), "EGP", tag);
 }
 
 /** The join link, for the one payer whose purchase is a door. */
@@ -257,7 +306,8 @@ export async function noticePaymentSubmitted(paymentId: string): Promise<void> {
     const who = await recipientFor(payment);
     if (!who) return;
 
-    const amount = await poundsFor(payment);
+    const join = await joinLinkFor(payment);
+    const amount = await poundsFor(payment, who.words.locale);
     const { t } = who.words;
 
     await notify(who.to, {
@@ -270,7 +320,8 @@ export async function noticePaymentSubmitted(paymentId: string): Promise<void> {
       kind: "payment.submitted",
       subject: t("pmsg.pay.submittedSubject"),
       body: `${who.hi}\n\n${t("pmsg.pay.submitted", { amount })}`,
-      link: { label: t("pmsg.pay.track"), url: `${env.appUrl}` },
+      /* 🔴 B47: to the page that shows this payment, never the public home page. */
+      link: { label: t("pmsg.pay.track"), url: join ?? who.portal },
       /* The one variable the approved WhatsApp template takes. */
       variables: [amount],
     });
@@ -298,7 +349,7 @@ export async function noticePaymentConfirmed(paymentId: string): Promise<void> {
     if (!who) return;
 
     const join = await joinLinkFor(payment);
-    const amount = await poundsFor(payment);
+    const amount = await poundsFor(payment, who.words.locale);
     const { t } = who.words;
 
     await notify(who.to, {
@@ -315,7 +366,7 @@ export async function noticePaymentConfirmed(paymentId: string): Promise<void> {
       body: `${who.hi}\n\n${t(join ? "pmsg.pay.sessionPaid" : "pmsg.pay.confirmed")}`,
       link: join
         ? { label: t("pmsg.pay.join"), url: join }
-        : { label: t("pmsg.pay.account"), url: `${env.appUrl}` },
+        : { label: t("pmsg.pay.account"), url: who.portal },
       variables: [amount],
     });
   } catch (error) {
@@ -344,7 +395,7 @@ export async function noticePaymentRejected(paymentId: string): Promise<void> {
     if (!who) return;
 
     const join = await joinLinkFor(payment);
-    const amount = await poundsFor(payment);
+    const amount = await poundsFor(payment, who.words.locale);
     const { t } = who.words;
     await notify(who.to, {
       kind: "payment.rejected",
@@ -352,7 +403,7 @@ export async function noticePaymentRejected(paymentId: string): Promise<void> {
       body: `${who.hi}\n\n${t("pmsg.pay.rejected", { reason: payment.rejectReason ?? t("pmsg.pay.noReason") })}`,
       link: join
         ? { label: t("pmsg.pay.page"), url: join }
-        : { label: t("pmsg.pay.account"), url: `${env.appUrl}` },
+        : { label: t("pmsg.pay.account"), url: who.portal },
       variables: [amount],
     });
   } catch (error) {

@@ -90,6 +90,7 @@ async function main() {
   );
 
   let orgId: string | null = null;
+  let sponsorId: string | null = null;
   const personIds: string[] = [];
   try {
     const org = await one<{ id: string }>(sql`
@@ -244,6 +245,59 @@ async function main() {
       JSON.stringify({ laila: lailaChat?.language, omar: omarChat?.language }),
     );
 
+    /* ------------------------------------ B9: the amount in their language -- */
+    const { noticePaymentSubmitted } = await import("../lib/billing/payment-notices");
+    const submittedFor = async (who: typeof laila) => {
+      const at = new Date();
+      const payment = await one<{ id: string }>(sql`
+        INSERT INTO manual_payments (purpose, ref_id, amount_cents, currency, settles_cents, payer_kind,
+          patient_account_id, organization_id, state, submitted_at)
+        VALUES ('session', ${who.started}, 100000, 'EGP', 2000, 'patient', ${who.accountId}, ${org.id}, 'submitted', now())
+        RETURNING id`);
+      await noticePaymentSubmitted(payment.id);
+      return keptFor(who.email, at);
+    };
+    const arSubmitted = await submittedFor(laila);
+    const enSubmitted = await submittedFor(omar);
+    check(
+      "🔴 B9: Laila's Arabic message names the amount in Arabic, and Omar's in English",
+      Boolean(arSubmitted && enSubmitted) &&
+        text(arSubmitted!.html).includes("1,000 ج.م.") &&
+        !/EGP/.test(text(arSubmitted!.html)) &&
+        text(enSubmitted!.html).includes("EGP 1,000"),
+      JSON.stringify({ ar: arSubmitted && text(arSubmitted.html).slice(0, 160), en: enSubmitted && text(enSubmitted.html).slice(0, 160) }),
+    );
+
+    /* ------------------------- B28 / B47: a company's payment, to a person -- */
+    const sponsor = await one<{ id: string }>(sql`
+      INSERT INTO sponsors (name, kind, entity, currency, state)
+      VALUES ('Foundry Demo', 'company', 'eg', 'EGP', 'active') RETURNING id`);
+    sponsorId = sponsor.id;
+    const dalia = `dalia.${fixture}@example.com`;
+    await db.execute(sql`
+      INSERT INTO sponsor_users (sponsor_id, email, name, role) VALUES (${sponsor.id}, ${dalia}, 'Dalia Demo', 'admin')`);
+    const potPayment = await one<{ id: string }>(sql`
+      INSERT INTO manual_payments (purpose, amount_cents, currency, settles_cents, payer_kind, sponsor_id, state, decided_at)
+      VALUES ('pot_topup', 3000000, 'EGP', 60000, 'sponsor', ${sponsor.id}, 'confirmed', now()) RETURNING id`);
+    const potAt = new Date();
+    await noticePaymentConfirmed(potPayment.id);
+    const companyMail = await keptFor(dalia, potAt);
+    const companyText = companyMail ? text(companyMail.html) : "";
+    check(
+      "🔴 B28: a company's payment email greets the admin by name, never the company",
+      companyText.includes(tEn("pmsg.hi", { name: "Dalia" })) && !companyText.includes("Hi Foundry Demo"),
+      companyText.slice(0, 160),
+    );
+    check(
+      "🔴 B47: its link opens the company's pot, not the home page, and the footer is written for a company",
+      Boolean(companyMail) &&
+        /href="[^"]*\/sponsor\/pot"/.test(companyMail!.html) &&
+        /* `text` reads an escaped apostrophe as a space. */
+        companyText.includes(tEn("mail.footer.company").replaceAll("'", " ")) &&
+        !companyText.includes(tEn("pmsg.mail.aboutBooking")),
+      (companyMail?.html.match(/href="[^"]*"/g) ?? []).join(" "),
+    );
+
     /* -------------------------------------------------------- in the app -- */
     const notices = await rows<{ person_id: string; message_key: string }>(sql`
       SELECT person_id, message_key FROM patient_notifications WHERE person_id IN (${laila.personId}, ${omar.personId})`);
@@ -269,6 +323,11 @@ async function main() {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
+    if (sponsorId) {
+      await db.execute(sql`DELETE FROM manual_payments WHERE sponsor_id = ${sponsorId}`);
+      await db.execute(sql`DELETE FROM sponsor_users WHERE sponsor_id = ${sponsorId}`);
+      await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsorId}`);
+    }
     if (orgId) {
       await db.execute(sql`DELETE FROM sim_outbox WHERE to_address LIKE ${`%.${fixture}@example.com`}`);
       await db.execute(sql`DELETE FROM refund_requests WHERE organization_id = ${orgId}`);
@@ -287,7 +346,7 @@ async function main() {
         DELETE FROM delivery_attempts
         WHERE created_at >= ${startedAt}
           AND (organization_id = ${orgId} OR organization_id IS NULL)
-          AND kind IN ('session.started', 'booking.cancelled', 'payment.confirmed', 'consent.granted')`);
+          AND kind IN ('session.started', 'booking.cancelled', 'payment.confirmed', 'payment.submitted', 'consent.granted')`);
     }
     for (const id of personIds) {
       await db.execute(sql`DELETE FROM patient_notifications WHERE person_id = ${id}`);
