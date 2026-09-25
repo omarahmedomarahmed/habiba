@@ -54,8 +54,9 @@ export function LiveCount({
   const text =
     count === null ? strings.checking : count === 0 ? strings.nobody : strings.online.replace("{count}", String(count));
 
+  /* Not a live region: the hero already has one (H8), and a count polled every four seconds is not news. */
   return (
-    <p role="status" className={className}>
+    <p className={className}>
       <span
         aria-hidden
         className={
