@@ -41,15 +41,22 @@ export const maxDuration = 300;
  * one idle window cost one. The five minutes of compute is the price, not the
  * few seconds of sweeping.
  *
- *   crisis     03:00  retries crisis alerts whose notification failed, sweeps
- *                     the radar, closes rooms a patient walked away from, and
- *                     tells patients whose summary is written and unclaimed,
- *                     and takes clinicians with an expired licence off (W1-16).
- *                     SAFETY-RELEVANT.
+ *   crisis     hourly :20  retries crisis alerts whose notification failed,
+ *                     sweeps the radar, closes rooms a patient walked away
+ *                     from, tells patients whose summary is written and
+ *                     unclaimed, and runs the watchdog. SAFETY-RELEVANT.
+ *   reminders  hourly :20  booking reminders, check-ins, webhooks, tax
+ *                     documents, and the watchdog again.
  *   billing    03:05  charges completed sessions that produced no charge row,
  *                     which happens when a Stripe webhook is lost.
  *   retention  03:10  purges audit rows past six years, expired sessions,
- *                     spent rate-limit rows and errors past thirty days.
+ *                     spent rate-limit rows and errors past thirty days, and
+ *                     takes clinicians with an expired licence off (W1-16).
+ *
+ * 🔴 0165: `crisis` WAS DAILY, and that was a launch blocker. A crisis alert
+ * whose notification failed waited up to a day for its retry. It runs on the
+ * same minute as `reminders`, so the two share one wake of the database (the
+ * cost this note is about) rather than buying a second one.
  *
  * These were switched off for a while, when the product had no users and the
  * only thing an hourly sweep achieved was five minutes of paid compute per
@@ -145,17 +152,26 @@ const JOBS = {
    * the single most safety-relevant scheduled job in the system.
    */
   async crisis() {
-    const delivered = await sweepUndeliveredAlerts();
+    /*
+     * 🔴 0165: HOURLY, AND EVERY PIECE ON ITS OWN.
+     *
+     * This ran once a day at 03:00 UTC with no step isolation, so a crisis
+     * alert whose notification failed at 03:05 waited a day for its retry, and
+     * a throw in any sweep stopped every sweep behind it. Each piece is now
+     * caught and named (C14's `step`), and the alert retry goes first.
+     */
+    const failed: string[] = [];
+    const delivered = await step(failed, "sweepUndeliveredAlerts", () => sweepUndeliveredAlerts());
     // Folded in rather than scheduled separately — see the note above. Both
     // are cheap sweeps and the expensive part is waking the database at all.
     // Flattened rather than nested: the log field type is a flat map, and a
     // nested object here is a type error at the call site rather than a
     // helpfully structured log line.
-    const swept = await sweepRadar();
+    const swept = await step(failed, "sweepRadar", () => sweepRadar());
     // And the one that matters most: a patient sitting in an empty room
     // because the clinician who advertised themselves never turned up.
     const { sweepAbandonedPatients, sweepUnratedSessions } = await import("@/lib/data/feedback");
-    const left = await sweepAbandonedPatients();
+    const left = await step(failed, "sweepAbandonedPatients", () => sweepAbandonedPatients());
     /*
      * And the patients whose summary is finished and who never came back for
      * it. Folded in here for the same billing reason as the radar sweep: the
@@ -164,9 +180,10 @@ const JOBS = {
      * The event-driven path in `approvePatientNote` catches most of these the
      * moment the clinician signs. This is the backstop for the ones it cannot
      * see — a note signed inside the first three-quarters of an hour, before
-     * the reminder is allowed to send at all.
+     * the reminder is allowed to send at all. Stamped per session
+     * (`rating_reminder_at`), so an hourly run reminds each one once.
      */
-    const unrated = await sweepUnratedSessions();
+    const unrated = await step(failed, "sweepUnratedSessions", () => sweepUnratedSessions());
 
     /*
      * And sessions that ran past the cap with nobody watching.
@@ -178,33 +195,42 @@ const JOBS = {
      * this sweep.
      */
     const { sweepOverrunSessions } = await import("@/lib/data/sessions");
-    const overrun = await sweepOverrunSessions();
+    const overrun = await step(failed, "sweepOverrunSessions", () => sweepOverrunSessions());
 
     /*
-     * 🔴 W1-16: licences that ran out, and those about to. Here, once a day,
-     * for the reason at the top of this file, and because who is on the radar
-     * is exactly this job's business. Also a named job below, by hand.
+     * 🔴 W1-16: the licence sweep moved to `retention`, the daily wake, when
+     * this job went hourly. A licence ends on a date, so it is a daily
+     * question, and an hourly run would email a clinician about it at whatever
+     * hour the date turned over in UTC.
      */
-    const { sweepLicences } = await import("@/lib/data/licence-expiry");
-    const licences = await sweepLicences();
+
+    /*
+     * 🔴 0165: THE WATCHDOG. A scheduled job twice its interval late, or new
+     * server errors in the last hour, emailed to the super admins at most once
+     * a day each. `reminders` runs it too, so either hourly job stopping is
+     * noticed by the other, and `ops_alerts` stops the pair sending twice.
+     */
+    const { watchdog } = await import("@/lib/observability/heartbeat");
+    const watched = await step(failed, "watchdog", () => watchdog());
 
     return {
-      delivered,
-      released: swept.released,
-      wentOffline: swept.offline,
-      abandoned: swept.abandoned,
-      warned: left.warned,
-      suspended: left.suspended,
-      reminded: unrated.reminded,
-      overrunEnded: overrun.ended,
-      licencesExpired: licences.expired,
-      licencesWarned: licences.warned,
+      failedSteps: failed.join(",") || undefined,
+      delivered: delivered ?? undefined,
+      released: swept?.released,
+      wentOffline: swept?.offline,
+      abandoned: swept?.abandoned,
+      warned: left?.warned,
+      suspended: left?.suspended,
+      reminded: unrated?.reminded,
+      overrunEnded: overrun?.ended,
+      opsProblems: watched?.problems,
+      opsAlerted: watched?.alerted,
     };
   },
 
   /**
    * W1-16: the licence sweep, reachable by hand like `radar`. Scheduled
-   * inside `crisis`, so it costs no wake of its own.
+   * inside `retention`, the daily wake, so it costs no wake of its own.
    */
   async licences() {
     const { sweepLicences } = await import("@/lib/data/licence-expiry");
@@ -396,20 +422,10 @@ const JOBS = {
     const launchesSwept = await step(failed, "sweepExpiredLaunches", () => sweepExpiredLaunches());
 
     /*
-     * 🔴 44.1 / C97 — the check-ins, swept here.
-     *
-     * Beside the other sweeps for the reason at the top of this file, and with one addition that
-     * matters: this job runs HOURLY like the rest, and the cadence is enforced per person by
-     * `settings.checkins.everyHours` rather than by how often the cron fires. A schedule that
-     * controlled the cadence would mean changing the rate needed a deploy, and C97's ruling was
-     * explicitly that the rate is an admin's to change.
-     *
-     * 🔴 So the sweep runs hourly and sends to nobody who was messaged recently, is inside their
-     * night, or has muted. The reasons it skipped are in the return value, because "measure the mute
-     * rate" needs the denominator visible and a job that logged only its sends would hide it.
+     * 🔴 0165: the check-ins moved to `reminders`, the hourly wake. This job
+     * runs at 03:05 UTC, inside every Egyptian patient's quiet window, so here
+     * they reached nobody in Egypt at all.
      */
-    const { sweepCheckins } = await import("@/lib/checkins/send");
-    const checkins = await step(failed, "sweepCheckins", () => sweepCheckins());
 
     /* 🔴 C14: the tax documents moved to `reminders`, the hourly wake. */
 
@@ -434,12 +450,6 @@ const JOBS = {
       partnerLimitAlerts: limits?.alerted,
       partnerMonthsBilled: partnerBills?.billed,
       launchTokensSwept: launchesSwept,
-      checkinsSent: checkins?.sent,
-      checkinsMuteRate: checkins ? Math.round(checkins.muteRate * 100) / 100 : undefined,
-      checkinsSkippedQuiet: checkins?.skipped.quiet_hours,
-      checkinsSkippedMuted: checkins?.skipped.muted,
-      checkinsSkippedTooSoon: checkins?.skipped.too_soon,
-      checkinsHalted: checkins?.skipped.mute_rate_halt,
     };
   },
 
@@ -491,7 +501,26 @@ const JOBS = {
     // W2-A03: open carts nobody submitted expire, and stop locking the bank details.
     const { expireOpenCarts } = await import("@/lib/billing/rail-exceptions");
     const cartsExpired = await expireOpenCarts();
-    return { auditPurged: purged.length, sessionsPurged, limitsPurged, errorsPurged, cartsExpired };
+
+    /*
+     * 🔴 W1-16 / 0165: licences that ran out, and those about to. Moved here,
+     * the daily wake, when `crisis` went hourly: a licence ends on a date.
+     * Caught on its own, so a throw here does not hide the purges above.
+     */
+    const failed: string[] = [];
+    const { sweepLicences } = await import("@/lib/data/licence-expiry");
+    const licences = await step(failed, "sweepLicences", () => sweepLicences());
+
+    return {
+      failedSteps: failed.join(",") || undefined,
+      auditPurged: purged.length,
+      sessionsPurged,
+      limitsPurged,
+      errorsPurged,
+      cartsExpired,
+      licencesExpired: licences?.expired,
+      licencesWarned: licences?.warned,
+    };
   },
 
   /**
@@ -554,6 +583,35 @@ const JOBS = {
    * body said "19:00 UTC" while the booking screen said "22:00".
    */
   async reminders() {
+    /* 🔴 C14: each step on its own, so one that throws does not stop the rest. */
+    const failed: string[] = [];
+
+    /*
+     * 🔴 44.1 / C97 / 0165: THE CHECK-INS, on the hourly wake, and first.
+     *
+     * They ran in the daily `billing` job at 03:05 UTC, which is 05:05 or 06:05
+     * in Cairo: inside the default quiet window (21:00 to 09:00 in the
+     * patient's own zone), so every patient in Egypt was skipped every day and
+     * the channel reached nobody there. Hourly, each patient is reached in the
+     * first run of their own daytime.
+     *
+     * The cadence is still per person, `settings.checkins.everyHours` (never
+     * under six), checked against the `checkins` row each send writes, so an
+     * hourly run sends to nobody who was messaged recently, is inside their
+     * night, or has muted. Two runs at once cannot both send: the sweep holds a
+     * lease (`lib/checkins/send.ts`). The skip reasons are in the return value,
+     * because "measure the mute rate" needs the denominator visible.
+     *
+     * Before the booking reminders rather than after, so a throw in those
+     * cannot stop it. `step` catches its own throws.
+     */
+    const { sweepCheckins } = await import("@/lib/checkins/send");
+    const checkins = await step(failed, "sweepCheckins", () => sweepCheckins());
+
+    /* 🔴 0165: the watchdog, also run by `crisis`. See there. */
+    const { watchdog } = await import("@/lib/observability/heartbeat");
+    const watched = await step(failed, "watchdog", () => watchdog());
+
     const { bookingsNeedingReminder, sameDayNeedingReminder, markReminded } = await import(
       "@/lib/data/scheduling"
     );
@@ -683,7 +741,6 @@ const JOBS = {
      * nothing while it waits.
      */
     const { deliverPending } = await import("@/lib/partner/webhooks");
-    const failed: string[] = [];
     const hooks = await step(failed, "deliverPending", () => deliverPending());
 
     /*
@@ -712,6 +769,15 @@ const JOBS = {
       webhooksFailed: hooks?.gaveUp,
       /* C24: the 45 second budget ran out with deliveries still due; next hour takes them. */
       webhooksMore: hooks?.more,
+      checkinsSent: checkins?.sent,
+      checkinsMuteRate: checkins ? Math.round(checkins.muteRate * 100) / 100 : undefined,
+      checkinsSkippedQuiet: checkins?.skipped.quiet_hours,
+      checkinsSkippedMuted: checkins?.skipped.muted,
+      checkinsSkippedTooSoon: checkins?.skipped.too_soon,
+      checkinsHalted: checkins?.skipped.mute_rate_halt,
+      checkinsOverlapped: checkins?.overlapped,
+      opsProblems: watched?.problems,
+      opsAlerted: watched?.alerted,
     };
   },
 
@@ -741,11 +807,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ job:
     return NextResponse.json({ error: "unknown_job" }, { status: 404 });
   }
 
+  /*
+   * 🔴 0165: every run leaves a heartbeat, clean or not, and the hourly
+   * watchdog emails the super admins when a scheduled job's last CLEAN run is
+   * twice its interval old. A failed step counts as not clean, so a job that
+   * runs every hour and fails the same step every hour is still reported.
+   * `recordHeartbeat` never throws.
+   */
+  const { recordHeartbeat } = await import("@/lib/observability/heartbeat");
+
   try {
     const result = await JOBS[job as JobName]();
+    const failedSteps = "failedSteps" in result ? (result.failedSteps as string | undefined) : undefined;
+    await recordHeartbeat(job, { failedSteps });
     log.info("cron job completed", { job, ...result });
     return NextResponse.json({ job, ...result });
   } catch (error) {
+    await recordHeartbeat(job, { threw: true });
     log.error("cron job failed", { job, reason: safeErrorMessage(error) });
     return NextResponse.json({ error: "job_failed" }, { status: 500 });
   }

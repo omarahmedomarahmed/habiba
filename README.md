@@ -295,8 +295,11 @@ lower, and the generated value is a wall clock that lands behind our synthetic o
 | `DATABASE_URL` | Neon **pooled** connection string |
 | `AUTH_SECRET` | Session cookie signing secret, 32 chars or more |
 | `OPENAI_API_KEY` | Transcription and note generation |
-| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks |
 | `APP_URL` | Public origin, no trailing slash |
+| `CRON_SECRET` | Scheduled jobs reject every request without it, the crisis sweep among them |
+| `BLOB_READ_WRITE_TOKEN` | Uploads, so clinician verification and transfer receipts |
+| `STRIPE_WEBHOOK_SECRET` | Only while `STRIPE_ENABLED=true`. Stripe is not used (ruling 17) |
+| `RESEND_API_KEY` | On the live deployment (`VERCEL_ENV=production`) only. Every email the product sends |
 
 ### Recommended: without them the feature degrades and the app still runs
 
@@ -305,9 +308,8 @@ lower, and the generated value is a wall clock that lands behind our synthetic o
 | `DAILY_API_KEY` | Our room shows an honest "video is not configured" state. Audio and notes still work |
 | `RECALL_API_KEY` | External meetings connect but no bot is dispatched |
 | `STRIPE_SECRET_KEY` | No checkout. Nothing is charged |
-| `RESEND_API_KEY` | No emails |
+| `RESEND_API_KEY` | No emails (required on the live deployment, above) |
 | `EMAIL_FROM` | Sender identity |
-| `CRON_SECRET` | Scheduled jobs reject every request |
 | `TOKEN_ENCRYPTION_KEY` | OAuth refresh tokens cannot be sealed, so meeting and EHR connections fail closed |
 
 ### Optional
@@ -347,9 +349,13 @@ npm run dev
 
 | Job | Schedule | What |
 |---|---|---|
-| `/api/cron/crisis` | every 5 min | Re-delivers crisis alerts whose notification failed. The alert is written **before** anyone is notified |
-| `/api/cron/billing` | every 30 min | Charges completed sessions with no charge row; drains partner webhooks; runs the enrolment re-verification cycle |
-| `/api/cron/retention` | daily 03:00 | Deletes audit records older than six years and expired tokens |
+| `/api/cron/crisis` | hourly at :20 | Re-delivers crisis alerts whose notification failed (the alert is written **before** anyone is notified), sweeps the radar, ends overrun sessions, runs the watchdog |
+| `/api/cron/reminders` | hourly at :20 | Booking reminders, check-ins, partner webhooks, tax documents, the watchdog again |
+| `/api/cron/billing` | daily 03:05 | Charges completed sessions with no charge row; runs the enrolment re-verification cycle |
+| `/api/cron/retention` | daily 03:10 | Deletes audit records older than six years and expired tokens; the licence sweep |
+| `/api/cron/extract` | daily 03:15 | Reads the text out of uploaded documents |
+
+Every run writes a row to `cron_heartbeats`. The watchdog emails every super admin when a job's last clean run is twice its interval old, or when new server errors appeared in the last hour, at most once per problem per day.
 
 ---
 

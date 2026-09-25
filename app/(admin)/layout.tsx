@@ -42,6 +42,8 @@ import { countOpenReports } from "@/lib/data/radar-admin";
 import { pendingReviewCount } from "@/lib/data/verification";
 import { waitingCount } from "@/lib/billing/manual";
 import { LanguageCorner } from "@/components/i18n/language-corner";
+import { features } from "@/lib/env";
+import { whatsappConfigured } from "@/lib/notify/whatsapp";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   /*
@@ -150,6 +152,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/tv", icon: Tv, label: t("anav.tv") },
   ];
 
+  /*
+   * 🔴 0165: A DEPLOYMENT THAT CANNOT SEND SAYS SO, ON EVERY CONSOLE PAGE.
+   *
+   * Without a Resend key every email in the product is dropped with one log
+   * line: sign-in links, resets, receipts and the watchdog's own alerts. The
+   * live deployment now refuses to boot without it (`lib/env.ts`), and this is
+   * for every other deployment and for WhatsApp, which is optional but whose
+   * absence means patients in Egypt are reached by email only. An operator
+   * working a queue should not learn that from a patient.
+   */
+  const channelsOff = [
+    features.email ? null : t("anav.emailOff"),
+    whatsappConfigured() ? null : t("anav.whatsappOff"),
+  ].filter((line): line is string => line !== null);
+
   /* The console leads with dollars, or pounds if this operator switched. Nobody else's screen changes. */
   const currency = adminCurrencyFrom((await cookies()).get(ADMIN_CURRENCY_COOKIE)?.value);
 
@@ -205,6 +222,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             ))}
         </nav>
       </header>
+
+      {channelsOff.length > 0 ? (
+        <div role="alert" className="border-b border-amber-300 bg-amber-50">
+          <div className="mx-auto max-w-5xl space-y-1 px-4 py-2 text-sm font-medium text-amber-900 sm:px-6">
+            {channelsOff.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{children}</main>
     </div>

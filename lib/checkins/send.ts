@@ -3,6 +3,7 @@ import "server-only";
 import { notify, reachable } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 import { log } from "@/lib/logger";
+import { claimLease, releaseLease } from "@/lib/observability/heartbeat";
 import { stringsFor } from "@/lib/i18n/strings";
 import {
   candidates,
@@ -37,13 +38,46 @@ export type SweepResult = {
   sent: number;
   skipped: Record<Skip, number>;
   muteRate: number;
+  /** 🔴 0165: another run held the lease, so this one sent nothing. */
+  overlapped?: boolean;
 };
 
-export async function sweepCheckins(limit = 200): Promise<SweepResult> {
-  const settings = await getSettings();
-  const rate = await muteRate(settings.checkins.measuredSince);
+/**
+ * 🔴 0165: ONE SWEEP AT A TIME, AND WHY HOURLY MADE THIS MATTER.
+ *
+ * The sweep runs hourly now, on the `reminders` wake, so each patient is
+ * reached in their own daytime: at 03:05 UTC, where it used to run once a day,
+ * the default quiet window (21:00 to 09:00 in the patient's zone) covered every
+ * patient in Egypt, and nobody there ever received one.
+ *
+ * Sequential runs cannot double send: the cadence is `settings.checkins.everyHours`
+ * (never under six), read from the `checkins` row each send writes, and the runs
+ * are an hour apart. Two runs at the SAME time could, because both would read
+ * "last sent seven hours ago" before either wrote its row. A retried cron, a run
+ * by hand during a scheduled one: rare, and the harm is two unprompted messages
+ * to somebody in distress. So the whole sweep holds a lease, claimed with a
+ * conditional upsert, and a run that finds it held sends nothing.
+ *
+ * Thirty minutes: longer than the route's 300 second limit, so a live run always
+ * holds it, and short enough that a run that died holding it costs one hour.
+ */
+const LEASE = "checkins.sweep";
+const LEASE_MINUTES = 30;
 
-  const skipped: Record<Skip, number> = {
+export async function sweepCheckins(limit = 200): Promise<SweepResult> {
+  if (!(await claimLease(LEASE, LEASE_MINUTES))) {
+    log.warn("check-ins skipped: another sweep holds the lease");
+    return { sent: 0, skipped: emptySkips(), muteRate: 0, overlapped: true };
+  }
+  try {
+    return await sweepUnderLease(limit);
+  } finally {
+    await releaseLease(LEASE);
+  }
+}
+
+function emptySkips(): Record<Skip, number> {
+  return {
     channel_off: 0,
     mute_rate_halt: 0,
     muted: 0,
@@ -51,6 +85,13 @@ export async function sweepCheckins(limit = 200): Promise<SweepResult> {
     too_soon: 0,
     unreachable: 0,
   };
+}
+
+async function sweepUnderLease(limit: number): Promise<SweepResult> {
+  const settings = await getSettings();
+  const rate = await muteRate(settings.checkins.measuredSince);
+
+  const skipped = emptySkips();
 
   /*
    * 🔴 The halt is evaluated ONCE, before any candidate is read, and it short-circuits.

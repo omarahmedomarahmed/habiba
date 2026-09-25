@@ -31,7 +31,12 @@ const KNOWN_WEAK_SECRETS = new Set([
 export const REQUIRED_IN_PRODUCTION = [
   "DATABASE_URL",
   "OPENAI_API_KEY",
-  "STRIPE_WEBHOOK_SECRET",
+  /*
+   * 🔴 `STRIPE_WEBHOOK_SECRET` WAS HERE, and production refused to boot without
+   * the secret of a rail nobody launches with (founder ruling 17: Stripe is
+   * not used). It is required only when `STRIPE_ENABLED` switches the rail on:
+   * see `REQUIRED_WHEN_STRIPE_ENABLED` below.
+   */
   "APP_URL",
   /*
    * 🔴 MOVED UP FROM RECOMMENDED, because "recommended" meant one console.warn
@@ -74,6 +79,29 @@ export const REQUIRED_IN_PRODUCTION = [
    */
   "BLOB_READ_WRITE_TOKEN",
 ] as const;
+
+/**
+ * 🔴 Required in production only while the card rail is switched on by name.
+ *
+ * `features.billing` needs `STRIPE_ENABLED=true` and a key, and the webhook
+ * route verifies every delivery against this secret. With the rail on and the
+ * secret missing, every Stripe event is refused and a paid charge never lands,
+ * which is worth refusing to boot over. With the rail off, nothing reads it.
+ * Exported for the same reason as the list above: `verify:sprint16` supplies it.
+ */
+export const REQUIRED_WHEN_STRIPE_ENABLED = ["STRIPE_WEBHOOK_SECRET"] as const;
+
+/**
+ * 🔴 Required on the LIVE deployment (`VERCEL_ENV=production`), the same test
+ * `env.liveDeployment` uses for the simulators it refuses there.
+ *
+ * `RESEND_API_KEY` was only "recommended", which meant one console warning
+ * and then every email in the product silently not sent: sign-in links,
+ * password resets, booking confirmations, the crisis alert's email leg and the
+ * watchdog that would have told somebody. A preview deployment may run
+ * without it (it still warns); the one real people use may not.
+ */
+export const REQUIRED_ON_LIVE_DEPLOYMENT = ["RESEND_API_KEY"] as const;
 
 /** Vars whose absence degrades a feature but must not stop the boot. */
 const RECOMMENDED = [
@@ -175,7 +203,28 @@ export function inspectEnv(
         problems.push({ level: "error", message: `${key} is required in production` });
       }
     }
+    if (env.STRIPE_ENABLED === "true") {
+      for (const key of REQUIRED_WHEN_STRIPE_ENABLED) {
+        if (!env[key]) {
+          problems.push({ level: "error", message: `${key} is required while STRIPE_ENABLED is on` });
+        }
+      }
+    }
+  }
+
+  const live = env.VERCEL_ENV === "production";
+  if (live) {
+    for (const key of REQUIRED_ON_LIVE_DEPLOYMENT) {
+      if (!env[key]) {
+        problems.push({ level: "error", message: `${key} is required on the live deployment` });
+      }
+    }
+  }
+
+  if (isProd) {
     for (const key of RECOMMENDED) {
+      /* A key the live deployment already refused over is not also a warning. */
+      if (live && (REQUIRED_ON_LIVE_DEPLOYMENT as readonly string[]).includes(key)) continue;
       if (!env[key]) {
         problems.push({
           level: "warn",

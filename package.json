@@ -192,6 +192,7 @@
     "verify:month": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-month.ts",
     "verify:staff-list": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-staff-list.ts",
     "verify:rules": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rules.ts",
+    "verify:launch": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-launch.ts",
     "verify:eta": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-eta.ts",
     "test:eta": "node --env-file-if-exists=.env.local --import tsx --test tests/eta.test.ts",
     "verify:qualified": "node --env-file-if-exists=.env.local --import tsx scripts/verify-qualified.ts",

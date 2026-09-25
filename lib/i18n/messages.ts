@@ -732,6 +732,8 @@ export const en = {
   "error.title": "Something went wrong at our end",
   "error.body": "Not your fault, and nothing you sent is lost. The SOS button still works.",
   "error.retry": "Try again",
+  /* 🔴 0165: the live room's own boundary. Leaving the page is what loses a call. */
+  "error.roomBody": "The call may still be running. Try again.",
 
   /* ------------------------------------------------ 🔴 consent, the patient's */
   "consent.pageTitle": "Who can read your history",
@@ -4254,6 +4256,9 @@ export const en = {
   "anav.model": "Financial model",
   "anav.actuals": "Actuals",
   "anav.tv": "Total View",
+  /* 🔴 0165: a deployment that cannot send says so on every console page. */
+  "anav.emailOff": "Email is off: RESEND_API_KEY is not set. Nothing is being emailed.",
+  "anav.whatsappOff": "WhatsApp is off: patients are reached by email only.",
   "aaccess.fourPayee": "This money is yours.",
   "aaccess.fourEditor": "You last edited where it goes.",
   "aaccess.ownVerification": "Not your own.",
@@ -4865,6 +4870,7 @@ export const ar: Record<MessageKey, string> = {
   "error.title": "حدث خطأ من جانبنا",
   "error.body": "ليس خطأك، ولم يُفقد أي شيء أرسلته. زر الاستغاثة أدناه ما زال يعمل.",
   "error.retry": "حاول مرة أخرى",
+  "error.roomBody": "قد تكون المكالمة ما زالت جارية. حاول مرة أخرى.",
 
   /* --------------------------------------------------- 🔴 الإذن، من جهة المريض */
   "consent.pageTitle": "من يمكنه قراءة تاريخك",
@@ -7795,6 +7801,8 @@ export const ar: Record<MessageKey, string> = {
   "anav.model": "النموذج المالي",
   "anav.actuals": "الأرقام الفعلية",
   "anav.tv": "العرض الشامل",
+  "anav.emailOff": "البريد الإلكتروني متوقف: RESEND_API_KEY غير موجود. لا يُرسل أي بريد.",
+  "anav.whatsappOff": "واتساب متوقف: نصل إلى المرضى بالبريد الإلكتروني فقط.",
   "aaccess.fourPayee": "هذا المبلغ لك.",
   "aaccess.fourEditor": "أنت آخر من عدّل وجهته.",
   "aaccess.ownVerification": "ليس طلبك أنت.",

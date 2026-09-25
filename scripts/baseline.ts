@@ -88,6 +88,14 @@ const MOVES_ON_ITS_OWN: Record<string, string> = {
   auth_sessions: "a sign-in creates one and expiry removes one, with nobody running anything",
   patient_auth_sessions: "the same, on the patient's side",
   auth_tokens: "a sign-in link or a reset, which expires by itself",
+  /*
+   * 🔴 0165: the scheduler writes these every hour with nobody running anything:
+   * a heartbeat per job, a lease per check-in sweep, and at most one alert row
+   * per problem per day.
+   */
+  cron_heartbeats: "every scheduled job, every run",
+  cron_leases: "the hourly check-in sweep takes one",
+  ops_alerts: "the hourly watchdog, when a job is late or errors appeared",
 };
 
 type Baseline = {

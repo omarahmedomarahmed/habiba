@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { guardDesignGallery } from "./_ds/guard";
 import { MotionRoot } from "./_ds/motion";
 
 /**
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function DesignLayout({ children }: { children: ReactNode }) {
+export default async function DesignLayout({ children }: { children: ReactNode }) {
+  /* 🔴 0165: not found on the live deployment unless a super admin is looking. Every page asks too. */
+  await guardDesignGallery();
   return (
     <MotionRoot>
       <div dir="ltr" lang="en" className="min-h-screen bg-navy-50 text-navy-600 antialiased">

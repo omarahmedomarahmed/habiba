@@ -167,6 +167,12 @@ export type Message = {
     | "ops.oneHandDigest"
     /** 🔴 A company asked for its unspent money back; the operators start the return. */
     | "ops.returnAsked"
+    /**
+     * 🔴 0165: the hourly watchdog. A scheduled job twice its interval late, or
+     * new server errors in the last hour, to the super admins, once per problem
+     * per day. A count, a route and a scrubbed message: never patient data.
+     */
+    | "ops.watchdog"
     /** 🔴 W1-16: a clinician's licence ran out, or will within 30 days. */
     | "licence.expired"
     | "licence.expiring"
