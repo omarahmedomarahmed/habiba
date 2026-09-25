@@ -683,6 +683,13 @@ async function main() {
     );
     check("C373 CONTROL: with no live bound the same profile is read", afterwards.includes("marker-profile-body"));
 
+    const assistant = readSource("lib/ai/assistant.ts");
+    const prompt = assistant.slice(assistant.indexOf("const SYSTEM = `"), assistant.indexOf("`;", assistant.indexOf("const SYSTEM = `")));
+    check(
+      "the home-screen assistant's prompt no longer denies the schedule its own roster carries",
+      !/no appointment schedule/i.test(prompt) && /next booked session/.test(prompt) && /`next \$\{row\.nextSessionAt/.test(assistant),
+    );
+
     /* ------------------------ questionnaires · only the published languages */
 
     const [phq] = await db
