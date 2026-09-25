@@ -81,14 +81,24 @@ export async function NoteOrigin({
 export async function NoteOriginNote({
   provenance,
   offRecordSeconds,
+  capturedSide = null,
 }: {
   provenance: NoteProvenance;
   offRecordSeconds?: number | null;
+  /**
+   * 🔴 B61 — only the clinician's track of a video call was captured. "The
+   * whole session was captured" was false over a transcript with one voice in
+   * it, and let a reader take the patient's side as heard.
+   */
+  capturedSide?: "clinician" | null;
 }) {
   const { t } = await getI18n();
 
+  const oneSide = capturedSide === "clinician" && provenance !== "clinician";
   const body =
-    provenance === "transcript"
+    provenance === "transcript" && oneSide
+      ? t("note.origin.oneSideWhy")
+      : provenance === "transcript"
       ? t("note.origin.transcriptWhy")
       : provenance === "partial"
         ? t("note.origin.partialWhy", {
@@ -100,13 +110,15 @@ export async function NoteOriginNote({
             minutes: Math.max(1, Math.ceil((offRecordSeconds ?? 0) / 60)),
           })
         : t("note.origin.clinicianWhy");
+  /* A partial note from one side says both things. */
+  const full = oneSide && provenance === "partial" ? `${body} ${t("note.origin.oneSideWhy")}` : body;
 
   return (
     <div className="flex items-start gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5">
       <div className="mt-0.5 shrink-0">
         <NoteOrigin provenance={provenance} offRecordSeconds={offRecordSeconds} />
       </div>
-      <p className="text-xs leading-relaxed text-slate-600">{body}</p>
+      <p className="text-xs leading-relaxed text-slate-600">{full}</p>
     </div>
   );
 }

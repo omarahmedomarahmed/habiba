@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 
 import { recordSessionNote } from "@/lib/data/copilot";
-import { noteProvenanceFor } from "@/lib/data/feedback";
+import { capturedSideFor, noteProvenanceFor } from "@/lib/data/feedback";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
@@ -151,8 +151,28 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
     // latency guard; the old query had no LIMIT at all.
     .limit(1200);
 
+  /*
+   * 🔴 B61 — only the clinician's side of a video call, said to the writer.
+   *
+   * Every line then came from the clinician's own microphone, whatever a guess
+   * labelled it, so each is theirs. Without the sentence the model read the
+   * clinician's questions and reflections as the patient's account and wrote
+   * them up as things the patient reported.
+   */
+  const oneSide = segments.length > 0 && (await capturedSideFor(sessionId)) === "clinician";
+  if (oneSide) {
+    contextParts.push(
+      "",
+      "Recording: only the therapist's side of this video call was captured. Every transcript line below is the therapist speaking. The patient's words are not in it. Do not attribute any line to the patient, and do not state what the patient said, felt or reported unless the therapist says it in their own words, and then say that it is the therapist's account.",
+    );
+  }
+
   const transcript = segments
-    .map((s) => `${s.speaker === "patient" ? "Patient" : s.speaker === "therapist" ? "Therapist" : "Speaker"}: ${s.text}`)
+    .map((s) =>
+      oneSide
+        ? `Therapist: ${s.text}`
+        : `${s.speaker === "patient" ? "Patient" : s.speaker === "therapist" ? "Therapist" : "Speaker"}: ${s.text}`,
+    )
     .join("\n");
 
   return { context: contextParts.join("\n"), transcript };
@@ -376,12 +396,19 @@ export async function generateAndStoreNote(opts: {
      * It is a no-op when the two-track capture already answered the question,
      * and it never throws: a session that cannot be diarised still gets a note.
      */
-    const { diariseSession } = await import("@/lib/ai/diarise");
-    await diariseSession({
-      sessionId: opts.sessionId,
-      organizationId: opts.organizationId,
-      userId: opts.therapistId,
-    });
+    /*
+     * 🔴 B61 / B62 — not when only the clinician's track was captured. Every
+     * line is then from their own microphone, and a guess from the words could
+     * only move some of them onto a patient nobody recorded.
+     */
+    if ((await capturedSideFor(opts.sessionId)) !== "clinician") {
+      const { diariseSession } = await import("@/lib/ai/diarise");
+      await diariseSession({
+        sessionId: opts.sessionId,
+        organizationId: opts.organizationId,
+        userId: opts.therapistId,
+      });
+    }
 
     const { content, language, contentEn, model } = await generateNoteContent({
       patientId: opts.patientId,
@@ -434,6 +461,7 @@ export async function generateAndStoreNote(opts: {
         model,
         provenance: origin.provenance,
         offRecordSeconds: origin.offRecordSeconds,
+        capturedSide: origin.capturedSide,
         format: format.key,
       })
       .onConflictDoUpdate({
@@ -445,6 +473,7 @@ export async function generateAndStoreNote(opts: {
           model,
           provenance: origin.provenance,
           offRecordSeconds: origin.offRecordSeconds,
+          capturedSide: origin.capturedSide,
           updatedAt: new Date(),
         },
         /*
@@ -595,7 +624,7 @@ export async function draftNoteInFormat(opts: {
     : { content: emptyContent(format), language: "en", contentEn: null, model: null };
   const origin = recorded
     ? await noteProvenanceFor(opts.sessionId)
-    : { provenance: "clinician" as const, offRecordSeconds: null };
+    : { provenance: "clinician" as const, offRecordSeconds: null, capturedSide: null };
 
   const [primary] = await db
     .select({ id: sessionNotes.id })
@@ -617,6 +646,7 @@ export async function draftNoteInFormat(opts: {
       model: drafted.model,
       provenance: origin.provenance,
       offRecordSeconds: origin.offRecordSeconds,
+      capturedSide: origin.capturedSide,
       format: format.key,
       isPrimary: !primary,
     })
@@ -629,6 +659,7 @@ export async function draftNoteInFormat(opts: {
         model: drafted.model,
         provenance: origin.provenance,
         offRecordSeconds: origin.offRecordSeconds,
+        capturedSide: origin.capturedSide,
         updatedAt: new Date(),
       },
       /* 🔴 W1-03: never over a signed chart or a released copy. */

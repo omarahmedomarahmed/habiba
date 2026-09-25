@@ -3967,6 +3967,9 @@ export const en = {
     "Could not capture the patient's audio. Their side may not be transcribed.",
   "troom.errCopy": "Could not copy. Long-press the link to copy it manually.",
   "troom.audioDropped": "Your patient's audio dropped. Still recording.",
+  "troom.earlyStart": "Booked for {time}. Starting now tells {name} the session has begun.",
+  "troom.startAnyway": "Start now anyway",
+  "portal.session.bookedStarted": "booked {booked}, started {started}",
   "tav.title": "Hours people can book",
   "tav.blurb": "Whole hours only. Somebody not in crisis books one of these instead of your evening.",
   "tav.from": "From",
@@ -4393,6 +4396,7 @@ export const en = {
    */
   "note.origin.transcript": "From the recording",
   "note.origin.transcriptWhy": "The whole session was captured and this note was drafted from it.",
+  "note.origin.oneSideWhy": "Only your side of the call was recorded. The patient's words are not in the transcript, and this note was drafted from yours.",
   "note.origin.partial": "Partly from the recording",
   "note.origin.partialWhy": "{minutes} minutes were not recorded. Those parts come from the clinician's own notes.",
   /* 7.8: a recording switched on part way through, said where it is read. */
@@ -8479,6 +8483,9 @@ export const ar: Record<MessageKey, string> = {
   "troom.errPatientAudio": "تعذّر التقاط صوت المريض. وقد لا يُفرَّغ جانبه من الحديث.",
   "troom.errCopy": "تعذّر النسخ. اضغط مطوّلًا على الرابط لنسخه يدويًا.",
   "troom.audioDropped": "انقطع صوت مريضك. ما زال التسجيل جاريًا.",
+  "troom.earlyStart": "موعدها {time}. البدء الآن يُبلغ {name} أن الجلسة بدأت.",
+  "troom.startAnyway": "ابدأ الآن على أي حال",
+  "portal.session.bookedStarted": "موعدها {booked}، بدأت {started}",
   "tav.title": "ساعات يمكن حجزها",
   "tav.blurb": "ساعات كاملة فقط. من ليس في أزمة يحجز واحدة منها بدل أن يقتطع مساءك.",
   "tav.from": "من",
@@ -8784,6 +8791,7 @@ export const ar: Record<MessageKey, string> = {
   /* 🔴 47.1 / 47.3 — how a note was made, in the reader's language. */
   "note.origin.transcript": "من التسجيل",
   "note.origin.transcriptWhy": "تم تسجيل الجلسة بالكامل وصيغت هذه الملاحظة منها.",
+  "note.origin.oneSideWhy": "سُجّل جانبك من المكالمة فقط. كلمات المريض ليست في النص، وصيغت هذه الملاحظة من كلماتك.",
   "note.origin.partial": "جزئيًا من التسجيل",
   "note.origin.partialWhy": "{minutes} دقيقة لم تُسجَّل. وتلك الأجزاء من ملاحظات المعالج نفسه.",
   "note.origin.lateStart": "بدأ التسجيل الساعة {clock}. أول {minutes} دقيقة من هذه الجلسة لم تُلتقط وليست موجودة.",
