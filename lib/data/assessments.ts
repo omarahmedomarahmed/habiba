@@ -336,14 +336,21 @@ async function flagRiskAnswer(assignmentId: string): Promise<void> {
     return;
   }
 
+  /* 🔴 K22 — each clinician in their own language (Ruling 8). */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
   await db.insert(notifications).values(
-    recipients.map((userId) => ({
-      userId,
-      kind: "crisis" as const,
-      title: `${row.firstName || "A patient"} gave a questionnaire answer that may need a call`,
-      body: "An answer on a questionnaire they are filling in now is one we treat as a risk item. It is not quoted here on purpose. Open their record to read it.",
-      actionUrl,
-    })),
+    await Promise.all(
+      recipients.map(async (userId) => {
+        const { t } = await wordsFor({ userId });
+        return {
+          userId,
+          kind: "crisis" as const,
+          title: t("talert.questionnaireTitle", { name: row.firstName || t("talert.aPatient") }),
+          body: t("talert.questionnaireBody"),
+          actionUrl,
+        };
+      }),
+    ),
   );
   log.warn("questionnaire risk answer flagged", { assignment: ref(assignmentId), clinicians: recipients.length });
 }

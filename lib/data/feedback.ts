@@ -905,6 +905,7 @@ export async function sweepAbandonedPatients(
       organizationId: sessions.organizationId,
       therapistId: sessions.therapistId,
       guestEmail: sessions.guestEmail,
+      sessionType: sessions.sessionType,
     })
     .from(sessions)
     .leftJoin(sessionReports, eq(sessionReports.sessionId, sessions.id))
@@ -968,16 +969,22 @@ export async function sweepAbandonedPatients(
       const { wordsFor } = await import("@/lib/i18n/message-words");
       const words = await wordsFor({ userId: row.therapistId });
       const { t } = words;
+      /*
+       * 🔴 K22 — "booked you on the Crisis Radar" only when they did. The same
+       * sweep catches a booked hour or a direct link, and telling a clinician
+       * their own patient came from the radar is a sentence they know is false.
+       */
+      const radar = row.sessionType === "radar";
       await sendTherapistMessage({
         to: therapist.email,
         firstName: therapist.firstName,
         subject: t(penalty ? "tmsg.radarOff.subject" : "tmsg.waiting.subject"),
         body: penalty
-          ? t("tmsg.radarOff.abandoned", {
+          ? t(radar ? "tmsg.radarOff.abandoned" : "tmsg.radarOff.abandonedBooked", {
               minutes: ABANDON_AFTER_MINUTES,
               period: radarPeriod(penalty.hours, words),
             })
-          : t("tmsg.waiting.body", { minutes: ABANDON_AFTER_MINUTES }),
+          : t(radar ? "tmsg.waiting.body" : "tmsg.waiting.bodyBooked", { minutes: ABANDON_AFTER_MINUTES }),
         locale: words.locale,
       });
     }

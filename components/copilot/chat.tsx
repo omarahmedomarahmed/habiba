@@ -377,12 +377,12 @@ export function CopilotChat({
               <p className="text-sm font-semibold text-slate-900">
                 {t("tcop.exhausted", { limit: quota.limit ?? 0, name: patientName })}
               </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {t("tcop.exhaustedBody", { limit: quota.limit ?? 0 })}
-              </p>
-              <a href="/billing" className="mt-3 inline-block">
-                <Button>{t("tcop.seeUnlimited")}</Button>
-              </a>
+              {/*
+                🔴 K22 — the allowance is earned per completed session and rolls
+                over (`checkQuota`); it never reset monthly and there is no
+                Unlimited plan, so the card no longer says either.
+              */}
+              <p className="mt-1 text-sm text-slate-500">{t("tcop.exhaustedBody")}</p>
             </Card>
           ) : (
             <div className="rounded-2xl border border-slate-200 bg-white p-2">

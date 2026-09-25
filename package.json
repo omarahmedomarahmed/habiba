@@ -254,6 +254,7 @@
     "test:clinic-doors": "node --env-file-if-exists=.env.local --import tsx --test tests/clinic-doors.test.ts",
     "test:applicant-status": "node --env-file-if-exists=.env.local --import tsx --test tests/applicant-status.test.ts",
     "test:clinician-notifications": "node --env-file-if-exists=.env.local --import tsx --test tests/clinician-notifications.test.ts",
+    "test:clinician-wording": "node --env-file-if-exists=.env.local --import tsx --test tests/clinician-wording.test.ts",
     "test:qualified": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/qualified.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",

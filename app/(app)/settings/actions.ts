@@ -281,6 +281,25 @@ export async function updatePaymentSettings(
   if (problem) return { error: problem };
 
   /*
+   * 🔴 K22 / TE30 — the region is VALIDATED before anything is written. It was
+   * checked after the rate had been saved, so a clinician on a clinic seat was
+   * told the save failed while half of it had landed. Only a solo practice
+   * may move its region (below); a clinic seat asking to is refused whole.
+   */
+  const region = String(formData.get("practiceRegion") ?? "").trim();
+  if (region) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    const { t } = await getI18n();
+    if (!isRegion(region)) return { error: t("tpay.regionChoose") };
+    const [own] = await db
+      .select({ kind: organizations.kind })
+      .from(organizations)
+      .where(eq(organizations.id, actor.organizationId))
+      .limit(1);
+    if (own?.kind !== "solo") return { error: t("tpay.regionClinic") };
+  }
+
+  /*
    * 🔴 0149 — dollars in `session_rate_cents` always, because every path that
    * charges, splits and pays out reads it as dollars; the pounds they typed
    * are kept as typed and the dollars re-derived when the operator's rate moves.
@@ -315,22 +334,11 @@ export async function updatePaymentSettings(
    * of our companies bills their colleagues. `/admin/clinics` is where that one
    * is answered, by somebody who has seen the paperwork.
    */
-  const region = String(formData.get("practiceRegion") ?? "").trim();
-  if (region) {
-    if (!isRegion(region)) return { error: "Choose where you practise." };
-
-    const moved = await db
+  if (region && isRegion(region)) {
+    await db
       .update(organizations)
       .set({ region, updatedAt: new Date() })
-      .where(and(eq(organizations.id, actor.organizationId), eq(organizations.kind, "solo")))
-      .returning({ id: organizations.id });
-
-    if (moved.length === 0) {
-      return {
-        error:
-          "Your practice is part of a clinic, so where it bills from is the clinic's to set. Ask us and we will change it.",
-      };
-    }
+      .where(and(eq(organizations.id, actor.organizationId), eq(organizations.kind, "solo")));
   }
 
   revalidatePath("/settings");

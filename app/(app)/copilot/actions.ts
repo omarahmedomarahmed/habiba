@@ -89,7 +89,8 @@ export async function askCopilot(patientId: string, question: string): Promise<A
       quotaExhausted: true,
       used: quota.used,
       limit: quota.limit,
-      error: `You have used all ${quota.limit} copilot questions for this patient. Each session you complete with them earns more, and unused ones roll over.`,
+      /* The card says it, in the reader's language (K22); no English line beside it. */
+      error: undefined,
     };
   }
 

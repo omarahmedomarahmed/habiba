@@ -42,8 +42,16 @@ export function NewSessionForm({
   patients,
   connectedProviders = [],
   payments,
+  ourFees,
 }: {
   patients: PatientOption[];
+  /**
+   * 🔴 K22 — our own per-session fees, read from settings and the clinician's
+   * tier by the page. The notice hard-coded $1 and $3, so an operator's change
+   * to either fee left this sentence quoting the old ones. Null when their
+   * plan covers both.
+   */
+  ourFees: { platformCents: number; aiCents: number } | null;
   /**
    * 41.2 — the providers this clinician has actually connected.
    *
@@ -346,7 +354,14 @@ export function NewSessionForm({
             </Field>
           ) : null}
           {/* 🔴 Ruling 5: the pay-as-you-go notice, before the session starts, either way. */}
-          <p className="text-xs text-slate-500">{t("tnew.paygNotice")}</p>
+          <p className="text-xs text-slate-500">
+            {ourFees
+              ? rich(t("tnew.paygNotice", { platform: slot(0), ai: slot(1) }), [
+                  <Money key="platform" cents={ourFees.platformCents} />,
+                  <Money key="ai" cents={ourFees.aiCents} />,
+                ])
+              : t("tnew.planCoversFees")}
+          </p>
         </div>
       ) : null}
 

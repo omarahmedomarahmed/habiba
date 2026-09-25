@@ -180,16 +180,26 @@ async function alertGrantHolders(
     .where(eq(people.id, personId))
     .limit(1);
 
-  const name = [person?.firstName, person?.lastName].filter(Boolean).join(" ") || "A patient";
+  const name = [person?.firstName, person?.lastName].filter(Boolean).join(" ");
 
+  /* 🔴 K22 — each clinician in their own language (Ruling 8). */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
   await db.insert(notifications).values(
-    holders.map((holder) => ({
-      userId: holder.userId,
-      kind: "crisis" as const,
-      title: `${name} wrote something that may need a call`,
-      body: `A journal entry written just now matched the language we watch for (${indicators.length} phrase${indicators.length === 1 ? "" : "s"}). It is not quoted here on purpose. Open their record to read it.`,
-      actionUrl: `/people/${personId}`,
-    })),
+    await Promise.all(
+      holders.map(async (holder) => {
+        const { t } = await wordsFor({ userId: holder.userId });
+        return {
+          userId: holder.userId,
+          kind: "crisis" as const,
+          title: t("talert.journalTitle", { name: name || t("talert.aPatient") }),
+          body:
+            indicators.length === 1
+              ? t("talert.journalBodyOne")
+              : t("talert.journalBody", { count: indicators.length }),
+          actionUrl: `/people/${personId}`,
+        };
+      }),
+    ),
   );
 }
 
