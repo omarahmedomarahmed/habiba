@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { PatientAuthForm } from "@/components/patient/auth-form";
 import { ConnectCodeForm } from "@/components/patient/connect-code-form";
-import { Card } from "@/components/patient/kit";
+import { Card, Face, Glow } from "@/components/patient/kit";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrbServer } from "@/components/patient/sos-orb-server";
@@ -52,21 +52,25 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
     <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-5 px-5 pt-16 pb-10">
       {scanned.state === "live" ? (
         <>
-          <Card className="border-brand-200 bg-brand-50 p-4">
-            <p className="text-xs font-semibold tracking-wide text-brand-800 uppercase">
-              {t("pcode.youAreJoining")}
-            </p>
-            <p className="mt-1 text-base font-bold tracking-tight text-navy-700">
-              {scanned.therapistName}
-              {scanned.credentials ? (
-                <span className="ms-1.5 text-sm font-medium text-navy-400">
-                  {scanned.credentials}
-                </span>
-              ) : null}
-            </p>
-            {scanned.practiceName ? (
-              <p className="mt-0.5 text-sm text-navy-400">{scanned.practiceName}</p>
-            ) : null}
+          <Card className="relative overflow-hidden border-0 bg-navy-900 p-5 text-white">
+            <Glow className="-end-16 -top-16 h-56 w-56" />
+            <div className="relative flex items-center gap-4">
+              <Face name={scanned.therapistName} size={56} ring />
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold tracking-wide text-brand-300 uppercase">
+                  {t("pcode.youAreJoining")}
+                </p>
+                <p className="mt-0.5 text-[19px] leading-snug font-bold tracking-tight">
+                  {scanned.therapistName}
+                </p>
+                {scanned.credentials ? (
+                  <p className="text-[14px] text-white/75">{scanned.credentials}</p>
+                ) : null}
+                {scanned.practiceName ? (
+                  <p className="text-[14px] text-white/75">{scanned.practiceName}</p>
+                ) : null}
+              </div>
+            </div>
           </Card>
 
           {/*
