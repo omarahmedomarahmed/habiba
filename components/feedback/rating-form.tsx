@@ -6,7 +6,7 @@ import { AlertTriangle, Check, Mail, Star } from "lucide-react";
 import { rateSession, reportSession } from "@/app/feedback/[token]/actions";
 import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
 import { Button, Card, Input, Textarea } from "@/components/ui";
-import { RTL_LANGUAGE_CODES, SERVICE_TAGS, THERAPIST_TAGS, ratingReady } from "@/lib/feedback-options";
+import { RTL_LANGUAGE_CODES, SERVICE_TAGS, TAG_LABEL_KEYS, THERAPIST_TAGS, ratingReady } from "@/lib/feedback-options";
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn } from "@/lib/utils";
@@ -403,7 +403,7 @@ function TagRow({
               : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
           )}
         >
-          {option}
+          {option in TAG_LABEL_KEYS ? t(TAG_LABEL_KEYS[option as keyof typeof TAG_LABEL_KEYS]) : option}
         </button>
       ))}
     </div>
