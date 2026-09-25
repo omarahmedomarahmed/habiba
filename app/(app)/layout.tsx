@@ -1,12 +1,13 @@
 import Link from "next/link";
 
 import { Logo } from "@/components/brand/logo";
-import { Home, LogOut, Building2, Plus } from "lucide-react";
+import { Bell, LogOut, Building2, Plus } from "lucide-react";
 
 import { signOut } from "@/lib/auth/actions";
 import { switchToClinic } from "@/app/(app)/switch-principal/actions";
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { SectionTabs } from "@/components/nav/section-tabs";
+import { SidebarLink } from "@/components/nav/sidebar-link";
 import { destinationsFor, OPEN_TO_UNVERIFIED } from "@/lib/nav/clinician";
 import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
@@ -114,29 +115,48 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-dvh bg-slate-50">
-      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
-      <LanguageCorner />
+    <div className="min-h-dvh bg-navy-50">
+      {/*
+        🔴 75.3 — the language switch, in the same corner of every screen, and
+        the bell for every notice we write them beside it (W2-T06).
+      */}
+      <LanguageCorner
+        beside={
+          <Link
+            href="/notifications"
+            aria-label={t("tw2.notifications")}
+            title={t("tw2.notifications")}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-navy-600 shadow-sm ring-1 ring-navy-100 backdrop-blur hover:bg-white"
+          >
+            <Bell className="h-[18px] w-[18px]" aria-hidden />
+          </Link>
+        }
+      />
       {/* Desktop is the enhancement: a sidebar appears only at lg and above. */}
-      <aside className="fixed inset-y-0 start-0 z-30 hidden w-60 flex-col border-e border-slate-200 bg-white lg:flex">
-        <div className="px-5 py-5">
+      <aside className="fixed inset-y-0 start-0 z-30 hidden w-64 flex-col overflow-hidden bg-navy-900 text-white lg:flex">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -start-24 -top-24 h-64 w-64 rounded-full opacity-70 blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+        />
+        <div className="relative px-6 pt-6 pb-5">
           {/* The mark, not the name set as text. See components/brand/logo.tsx. */}
           <Link href="/dashboard" className="inline-flex items-center">
-            <Logo ink="navy" height={26} />
+            <Logo ink="white" height={28} />
           </Link>
         </div>
 
         {cleared ? (
           <Link
             href="/sessions/new"
-            className="mx-4 mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
+            className="relative mx-4 mb-5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-white/10 text-[14px] font-semibold text-white ring-1 ring-white/15 transition-colors hover:bg-white/15"
           >
-            <Plus className="h-4 w-4" aria-hidden />
+            <Plus className="h-4 w-4 text-brand-300" aria-hidden />
             {t("portal.nav.newSession")}
           </Link>
         ) : null}
 
-        <nav aria-label={t("portal.nav.primary")} className="flex-1 space-y-0.5 px-3">
+        <nav aria-label={t("portal.nav.primary")} className="relative flex-1 space-y-1 overflow-y-auto px-4">
           {/*
             Nothing gated is linked until they are cleared.
 
@@ -150,7 +170,12 @@ export default async function AppLayout({
             clinician can go.
           */}
           {destinationsFor(cleared).map((item) => (
-            <SidebarLink key={item.href} href={item.href} icon={item.icon}>
+            <SidebarLink
+              key={item.href}
+              href={item.href}
+              cleared={cleared}
+              icon={<item.icon className="h-[18px] w-[18px]" aria-hidden />}
+            >
               {/*
                 When a clinician is live, the radar stops being one nav item
                 among eight. It is the only thing on this screen that a stranger
@@ -160,7 +185,7 @@ export default async function AppLayout({
               (radar?.status === "online" || radar?.status === "in_session") ? (
                 <span className="flex items-center gap-2">
                   {t(item.label)}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-700 uppercase">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-800 uppercase">
                     <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
                     {radar.status === "in_session"
                       ? t("portal.nav.radarInSession")
@@ -182,16 +207,16 @@ export default async function AppLayout({
           screen puts it against their own name, and a person who wants to leave
           a screen with patient data on it should not have to hunt.
         */}
-        <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
+        <div className="relative m-4 flex items-center gap-2 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
           <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy-500 text-xs font-semibold text-white">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-navy-700">
               {initials(actor.firstName, actor.lastName)}
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-slate-800">
+              <span className="block truncate text-[13px] font-semibold text-white">
                 {actor.firstName} {actor.lastName}
               </span>
-              <span className="block truncate text-xs text-slate-500">{actor.email}</span>
+              <span className="block truncate text-xs text-white/70">{actor.email}</span>
             </span>
           </Link>
           {/*
@@ -208,7 +233,7 @@ export default async function AppLayout({
                 type="submit"
                 title={t("portal.nav.switchToClinic")}
                 aria-label={t("portal.nav.switchToClinic")}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <Building2 className="h-4 w-4" aria-hidden />
               </button>
@@ -219,7 +244,7 @@ export default async function AppLayout({
               type="submit"
               title={t("portal.nav.signOut")}
               aria-label={t("portal.nav.signOut")}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-white/70 transition-colors hover:bg-white/10 hover:text-white"
             >
               <LogOut className="h-4 w-4" aria-hidden />
             </button>
@@ -227,7 +252,21 @@ export default async function AppLayout({
         </div>
       </aside>
 
-      <div className="lg:ps-60">
+      <div className="lg:ps-64">
+        {/*
+          The top bar: the mark on a phone, and the pages of this group as a row
+          of tabs (ruling 14b). Its end is left clear for the language corner
+          and the bell, which are fixed there on every screen.
+        */}
+        <header className="sticky top-0 z-20 flex min-h-16 flex-col justify-center border-b border-navy-100 bg-white/85 backdrop-blur-xl lg:pe-[240px]">
+          <div className="flex h-16 items-center px-4 sm:px-6 lg:hidden">
+            <Link href="/dashboard" className="inline-flex items-center">
+              <Logo ink="navy" height={24} />
+            </Link>
+          </div>
+          {/* 🔴 Ruling 14b: the pages inside this group, one tap away. */}
+          <SectionTabs cleared={cleared} />
+        </header>
         {/*
           🔴 76.4 — MONEY IN FLIGHT FOLLOWS THEM AROUND THE PORTAL.
 
@@ -250,27 +289,26 @@ export default async function AppLayout({
         {licence ? (
           <div
             role="status"
-            className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:mx-6"
+            className="mx-4 mt-4 flex items-start gap-3 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3.5 sm:mx-6"
           >
-            <p className="text-sm font-semibold text-amber-900">
-              {t(licence.kind === "expired" ? "tlic.expiredTitle" : "tlic.expiringTitle")}
-            </p>
-            <p className="mt-0.5 text-sm text-amber-800">
-              {t(licence.kind === "expired" ? "tlic.expiredBody" : "tlic.expiringBody", {
-                date: licence.date,
-              })}{" "}
-              <Link href="/onboarding" className="font-semibold underline underline-offset-2">
-                {t("tlic.update")}
-              </Link>
-            </p>
+            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-amber-900">
+                {t(licence.kind === "expired" ? "tlic.expiredTitle" : "tlic.expiringTitle")}
+              </p>
+              <p className="mt-0.5 text-sm text-amber-900">
+                {t(licence.kind === "expired" ? "tlic.expiredBody" : "tlic.expiringBody", {
+                  date: licence.date,
+                })}{" "}
+                <Link href="/onboarding" className="font-semibold underline underline-offset-2">
+                  {t("tlic.update")}
+                </Link>
+              </p>
+            </div>
           </div>
         ) : null}
         {/* Content gets bottom padding on mobile so the nav never covers a control. */}
-        <div className="pb-24 lg:pb-8">
-          {/* 🔴 Ruling 14b: the pages inside this group, one tap away. */}
-          <SectionTabs cleared={cleared} />
-          {children}
-        </div>
+        <div className="pb-28 lg:pb-10">{children}</div>
       </div>
 
       {/* 🔴 W2-T07: the practice switch reaches the phone too. */}
@@ -308,25 +346,5 @@ export default async function AppLayout({
         }}
       />
     </div>
-  );
-}
-
-function SidebarLink({
-  href,
-  icon: Icon,
-  children,
-}: {
-  href: string;
-  icon: typeof Home;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex h-10 items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-    >
-      <Icon className="h-4 w-4" aria-hidden />
-      {children}
-    </Link>
   );
 }
