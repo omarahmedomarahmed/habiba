@@ -388,6 +388,18 @@ async function main() {
     "refusing the audio is under our control; the provider's cooperation is not",
   );
 
+  /*
+   * 🔴 The route may say `processed: true` only when it writes the segments.
+   * It said so while storing nothing; the control is the write itself, so the
+   * day the segments are stored this check allows the word back.
+   */
+  const storesSegments = /transcriptSegments|appendSegment|insert\(/.test(webhook);
+  check(
+    "🔴 the transcript route does not answer processed: true while it stores nothing",
+    storesSegments || !/processed: true/.test(webhook),
+    storesSegments ? "it writes segments" : "it answers processed: false, not_stored",
+  );
+
   /* -------------------------------------------- 41.3 · a therapist never sees a key -- */
 
   /*

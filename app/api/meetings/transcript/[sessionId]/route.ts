@@ -114,6 +114,18 @@ export async function POST(
    * segment write is where 41 meets it; what is settled here is that no
    * display name from a provider ever reaches an attribution.
    */
-  log.info("meeting transcript accepted", { session: ref(sessionId) });
-  return NextResponse.json({ ok: true, processed: true });
+  /*
+   * 🔴 AND NOTHING IS STORED YET, so the answer says so.
+   *
+   * This answered `processed: true` and wrote nothing: the segment write is
+   * the half that waits on 37's track-to-voice binding (no caller writes
+   * `session_voices`), and a provider or a log reader told "processed" has no
+   * reason to look for the transcript that is not there. It is a warning,
+   * because a consented session whose words arrived and were dropped is a
+   * missing clinical record, not routine traffic.
+   */
+  log.warn("meeting transcript received and NOT stored: the segment write is not built", {
+    session: ref(sessionId),
+  });
+  return NextResponse.json({ ok: true, processed: false, reason: "not_stored" });
 }
