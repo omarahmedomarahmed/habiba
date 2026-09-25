@@ -80,7 +80,6 @@ export function RecordsPanel({
   filings,
   isClinic,
   configured,
-  missing,
   onClinicPlan,
   filers,
   actions,
@@ -92,7 +91,6 @@ export function RecordsPanel({
   /** Which of the two sentences to show. The only difference between the two homes. */
   isClinic: boolean;
   configured: boolean;
-  missing: string;
   /**
    * 🔴 67.1 — ON THE CLINIC PLAN, AND A SOLO PRACTICE IS TOLD WHY.
    *
@@ -290,15 +288,19 @@ export function RecordsPanel({
         </Card>
       ) : !configured ? (
         /*
-         * 🔴 The screen says which half is missing, rather than offering a button that fails.
-         *
-         * `lib/integrations/registry.ts` exists because of screens that promise what they cannot
-         * do; `features.ehr` is both halves, and this is where the missing one is named.
+         * 🔴 The screen says the connection is not available, rather than offering a button
+         * that fails. `features.ehr` is both halves (a client registration and a token sealing
+         * key); which half is missing is an operator's fact, and B17 is what naming it to a
+         * manager looked like. They get a plain sentence and a way to tell us what they use.
          */
         <Card className="border-amber-200 bg-amber-50 p-5">
-          <p className="text-sm leading-relaxed text-amber-900/90">
-            {t("records.notConfigured", { missing })}
-          </p>
+          <p className="text-sm leading-relaxed text-amber-900/90">{t("records.notConfigured")}</p>
+          <a
+            href="/contact"
+            className="mt-3 inline-block text-sm font-semibold text-amber-900 underline"
+          >
+            {t("records.notConfiguredAsk")}
+          </a>
         </Card>
       ) : open ? (
         <Card className="p-5">

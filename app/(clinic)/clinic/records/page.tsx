@@ -4,7 +4,6 @@ import { RecordsPanel } from "@/components/ehr/records-panel";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { connectionsFor, filersOn, writebacksFor } from "@/lib/data/ehr";
 import { features } from "@/lib/env";
-import { whatIsMissing } from "@/lib/ehr/owner";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
@@ -63,7 +62,6 @@ export default async function ClinicRecordsPage({
         onClinicPlan={true}
         filers={filers}
         configured={features.ehr}
-        missing={whatIsMissing()}
         actions={{ begin, disconnect }}
         /* 🔴 T8: every time below in the reader's zone (`actor.zone`), not UTC. */
         filings={filings.map((filing) => ({

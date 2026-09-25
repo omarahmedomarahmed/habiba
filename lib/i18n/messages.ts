@@ -2762,7 +2762,14 @@ export const en = {
   "records.whatWeHold": "Your system is the record. Today we read nothing from it; once filing is built we will read one thing, the patient's name.",
   "records.whatWeKeep": "We keep what we made: the session, the transcript, the note and who approved it. It answers to the patient.",
   "records.severOnDisconnect": "Disconnect and we stop resolving your identifiers the same moment. The record we made stays, with no link back.",
-  "records.notConfigured": "This deployment cannot hold a connection yet. It needs {missing}.",
+  /*
+   * 🔴 B17 — for the manager reading it, not the engineer. This named two
+   * missing environment settings ("no client registration and no token sealing
+   * key"), in English inside the Arabic sentence, read as if nothing were
+   * needed, and offered nowhere to go.
+   */
+  "records.notConfigured": "Connecting a record system is not switched on for 24Therapy yet, so there is nothing to set up on your side. When it is, a Connect button appears here. Until then your notes stay in 24Therapy, where they already are.",
+  "records.notConfiguredAsk": "Tell us which system you use",
   "records.filings": "Recent filings",
   "records.filingsEmpty": "No notes have been filed yet.",
   "records.filed": "Filed",
@@ -7324,7 +7331,8 @@ export const ar: Record<MessageKey, string> = {
   "records.whatWeHold": "نظامك هو السجل. اليوم لا نقرأ منه شيئًا، وحين يُبنى الإيداع سنقرأ شيئًا واحدًا: اسم المريض.",
   "records.whatWeKeep": "نحتفظ بما صنعناه: الجلسة والتفريغ والملاحظة ومن اعتمدها. وهي مسؤولة أمام المريض.",
   "records.severOnDisconnect": "بالفصل نتوقف فورًا عن ترجمة معرّفاتك. ويبقى السجل الذي صنعناه بلا رابط إليك.",
-  "records.notConfigured": "لا يستطيع هذا النشر حفظ ربط بعد. يحتاج {missing}.",
+  "records.notConfigured": "ربط نظام السجلات غير مفعّل في 24Therapy بعد، فلا شيء عليك إعداده. حين يُفعَّل يظهر هنا زر الربط. وحتى ذلك الحين تبقى ملاحظاتك في 24Therapy حيث هي الآن.",
+  "records.notConfiguredAsk": "أخبرنا بالنظام الذي تستخدمه",
   "records.filings": "الإيداعات الأخيرة",
   "records.filingsEmpty": "لم تودع أي ملاحظة بعد.",
   "records.filed": "أُودعت",
