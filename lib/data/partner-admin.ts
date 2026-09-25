@@ -309,6 +309,45 @@ export async function approveForProduction(input: {
 }
 
 /**
+ * 🔴 K13: WHERE THEIR DOCUMENTS ARE. `approveForProduction` refuses without
+ * `documents_url`, and nothing in the product wrote it, so no partner could
+ * ever be approved without SQL. The owner records the link here after reading
+ * the documents; the partner never sets it, because the approval rests on it.
+ *
+ * An https link and nothing else, since the console renders it as a link. Not
+ * changeable while approved: the approval was given on these documents, so a
+ * new set means withdrawing it first.
+ */
+export async function setPartnerDocuments(input: {
+  partnerId: string;
+  documentsUrl: string;
+}): Promise<{ ok?: true; error?: "apartner.errDocsUrl" | "apartner.errDocsApproved" | "apartner.errGone" }> {
+  const raw = input.documentsUrl.trim();
+  let url: URL | null = null;
+  try {
+    url = new URL(raw);
+  } catch {
+    url = null;
+  }
+  if (!url || url.protocol !== "https:" || raw.length > 500) return { error: "apartner.errDocsUrl" };
+
+  const [partner] = await controlDb
+    .select({ approvedAt: partners.approvedAt })
+    .from(partners)
+    .where(eq(partners.id, input.partnerId))
+    .limit(1);
+  if (!partner) return { error: "apartner.errGone" };
+  if (partner.approvedAt) return { error: "apartner.errDocsApproved" };
+
+  const [saved] = await controlDb
+    .update(partners)
+    .set({ documentsUrl: url.toString(), updatedAt: new Date() })
+    .where(and(eq(partners.id, input.partnerId), isNull(partners.approvedAt)))
+    .returning({ id: partners.id });
+  return saved ? { ok: true } : { error: "apartner.errDocsApproved" };
+}
+
+/**
  * 🔴 68.21 — AND IT CAN BE WITHDRAWN, which is the half an approval flow forgets.
  *
  * Clearing `approvedAt` stops new LIVE keys being minted. It does not revoke the keys

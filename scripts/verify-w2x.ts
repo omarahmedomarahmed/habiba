@@ -352,6 +352,48 @@ async function main() {
       "a one-tap disable stops a production endpoint with no question asked",
     );
 
+    /*
+     * 🔴 K13: PRODUCTION APPROVAL NEEDS THEIR DOCUMENTS, AND NOW SOMETHING RECORDS THEM.
+     *
+     * `approveForProduction` refused without `documents_url` and nothing in
+     * the product wrote it, so no partner could be approved without SQL. The
+     * owner records an https link on /admin/partners; approval then goes, and
+     * the link is fixed while the approval stands.
+     */
+    {
+      const admin = await import("../lib/data/partner-admin");
+      const docsPartner = await one<{ id: string }>(sql`
+        INSERT INTO partners (name, slug, state, contact_name, contact_email, contact_phone)
+        VALUES (${`${fixture}-docs`}, ${`${fixture}-docs`}, 'active', 'Docs Demo', ${`docs.${fixture}@example.com`}, '+201000000001')
+        RETURNING id`);
+      const approver = await one<{ id: string }>(sql`SELECT id FROM users WHERE role = 'super_admin' LIMIT 1`);
+      const before = await admin.approveForProduction({ partnerId: docsPartner.id, byUserId: approver.id });
+      const plainHttp = await admin.setPartnerDocuments({ partnerId: docsPartner.id, documentsUrl: "http://example.com/docs" });
+      const recorded = await admin.setPartnerDocuments({ partnerId: docsPartner.id, documentsUrl: "https://example.com/docs/demo" });
+      const approved = await admin.approveForProduction({ partnerId: docsPartner.id, byUserId: approver.id });
+      const afterApproval = await admin.setPartnerDocuments({ partnerId: docsPartner.id, documentsUrl: "https://example.com/other" });
+      const row = await one<{ documents_url: string | null; approved: boolean }>(sql`
+        SELECT documents_url, approved_at IS NOT NULL AS approved FROM partners WHERE id = ${docsPartner.id}`);
+      check(
+        "🔴 K13 the owner records the documents link, and only then can the partner be approved for production",
+        Boolean(before.error) && plainHttp.error === "apartner.errDocsUrl" && recorded.ok === true &&
+          approved.ok === true && row.approved,
+        JSON.stringify({ before, plainHttp, recorded, approved }),
+      );
+      check(
+        "K13 …and the link the approval rests on cannot be swapped while it stands",
+        afterApproval.error === "apartner.errDocsApproved" && row.documents_url === "https://example.com/docs/demo",
+        JSON.stringify({ afterApproval, url: row.documents_url }),
+      );
+      check(
+        "K13 …and the console has the form that writes it",
+        /saveDocuments/.test(readSource("components/admin/partner-manager.tsx")) &&
+          /export async function saveDocuments[\s\S]*?requireRole\("super_admin"\)[\s\S]*?setPartnerDocuments\(/.test(
+            readSource("app/(admin)/admin/partners/actions.ts"),
+          ),
+      );
+    }
+
     /* ================================================================ */
     /*  W2-X05 · BILLED AT FIRST AUDIO; ALERTS RESET MONTHLY, ABSOLUTE   */
     /* ================================================================ */
@@ -820,6 +862,7 @@ async function main() {
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM partners WHERE slug = ${fixture}`);
     await db.execute(sql`DELETE FROM partners WHERE slug = ${`${fixture}-other`}`);
+    await db.execute(sql`DELETE FROM partners WHERE slug = ${`${fixture}-docs`}`);
     await pool.end();
   }
 
