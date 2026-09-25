@@ -52,12 +52,12 @@ export default async function WallCodesPage() {
         href="/settings"
         className="flex w-fit items-center gap-1 text-sm font-medium text-navy-400"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
         {t("portal.nav.settings")}
       </Link>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-navy-700">{t("portal.codes.title")}</h1>
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">{t("portal.codes.title")}</h1>
         <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("portal.codes.blurb")}
         </p>

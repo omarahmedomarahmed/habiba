@@ -53,7 +53,7 @@ export default async function AssistantPage({
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <div className="pb-4">
-        <h1 className="text-2xl font-bold tracking-tight text-navy-700">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">
           {t("portal.assistant.title")}
         </h1>
         <p className="mt-1 text-sm text-navy-400">

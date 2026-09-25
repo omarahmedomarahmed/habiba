@@ -56,16 +56,16 @@ export default async function CopilotThreadPage({
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href="/copilot"
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-navy-400 hover:text-navy-700"
+          className="tap-target -ms-2 flex items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-navy-400 hover:bg-white hover:text-navy-700"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
+          <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
           {t("portal.copilot.title")}
         </Link>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 pb-4 sm:px-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-navy-700">{name}</h1>
+          <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">{name}</h1>
           <p className="mt-1 text-sm text-navy-400">
             {history.length === 1
               ? t("portal.patient.sessionsOne")

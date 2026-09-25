@@ -116,7 +116,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <Back id={id} label={t("portal.evidence.back")} />
-      <h1 className="mt-4 text-2xl font-bold tracking-tight text-navy-700">
+      <h1 className="mt-4 text-[26px] leading-tight font-bold tracking-tight text-navy-700">
         {t("portal.evidence.title", {
           name: fullName(patient.firstName, patient.lastName, t("portal.evidence.thisPatient")),
         })}
@@ -138,7 +138,7 @@ function Back({ id, label }: { id: string; label: string }) {
       href={`/patients/${id}`}
       className="inline-flex items-center gap-1.5 text-sm text-navy-400 hover:text-navy-700"
     >
-      <ArrowLeft className="h-4 w-4" aria-hidden />
+      <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
       {label}
     </Link>
   );

@@ -87,7 +87,7 @@ export default async function OnboardingPage() {
           <ShieldCheck className="h-5 w-5" aria-hidden />
         </span>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-navy-700">
+          <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">
             {verification.state === "approved"
               ? t("portal.onboarding.verified")
               : t("portal.onboarding.verify")}
