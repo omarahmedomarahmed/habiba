@@ -722,6 +722,18 @@ export const patients = pgTable(
      * wrong by three hours.
      */
     timezone: text("timezone"),
+    /**
+     * 🔴 0174 / B39: THE LANGUAGE THE CLINICIAN SAYS THEY READ, for messages
+     * sent before the person has chosen one. Layla's record invitation went
+     * out in English because a person who has never signed in has no
+     * `people.locale`, and the add-patient form had nowhere to say Arabic.
+     *
+     * A separate column rather than a write to `people.locale`, which is the
+     * person's OWN choice and also sets their screen at sign-in: a clinician's
+     * note about somebody is not that somebody's decision. Their own choice
+     * always wins (`recipientLocale`). Null: nobody said.
+     */
+    locale: text("locale"),
 
     /**
      * The person this file is about, once there is one (5.1).

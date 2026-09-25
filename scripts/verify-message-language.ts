@@ -245,6 +245,33 @@ async function main() {
       JSON.stringify({ laila: lailaChat?.language, omar: omarChat?.language }),
     );
 
+    /* ---------------- B39: the language the clinician said, until they choose -- */
+    const hoda = `hoda.${fixture}@example.com`;
+    const hodaPerson = await one<{ id: string }>(sql`
+      INSERT INTO people (first_name, last_name, email, region) VALUES ('Hoda', 'Demo', ${hoda}, 'eg') RETURNING id`);
+    personIds.push(hodaPerson.id);
+    await db.execute(sql`
+      INSERT INTO patients (organization_id, therapist_id, person_id, first_name, last_name, email, phone, source, locale)
+      VALUES (${org.id}, ${therapist.id}, ${hodaPerson.id}, 'Hoda', 'Demo', ${hoda}, '+201001110003', 'therapist', 'ar')`);
+    await db.execute(sql`INSERT INTO patient_accounts (person_id, email, phone) VALUES (${hodaPerson.id}, ${hoda}, '+201001110003')`);
+    let at39 = new Date();
+    await notifyPatientOfGrant({ personId: hodaPerson.id, therapistUserId: therapist.id });
+    const noted = await keptFor(hoda, at39);
+    await db.execute(sql`UPDATE people SET locale = 'en' WHERE id = ${hodaPerson.id}`);
+    at39 = new Date();
+    await notifyPatientOfGrant({ personId: hodaPerson.id, therapistUserId: therapist.id });
+    const chosen = await keptFor(hoda, at39);
+    check(
+      "🔴 B39: a patient who never chose, noted by their clinician as reading Arabic, is written to in Arabic",
+      noted?.subject === tAr("pmsg.granted.subject") && /dir="rtl"/.test(noted.html),
+      noted?.subject ?? "no email captured",
+    );
+    check(
+      "🔴 CONTROL their own choice wins over the clinician's note",
+      chosen?.subject === tEn("pmsg.granted.subject"),
+      chosen?.subject ?? "no email captured",
+    );
+
     /* ------------------------------------ B9: the amount in their language -- */
     const { noticePaymentSubmitted } = await import("../lib/billing/payment-notices");
     const submittedFor = async (who: typeof laila) => {

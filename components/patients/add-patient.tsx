@@ -9,7 +9,8 @@ import { addPatient } from "@/app/(app)/patients/actions";
 import { PhoneField } from "@/components/forms/phone-field";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { readerCountry } from "@/lib/phone/e164";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { LOCALE_NAMES, LOCALES } from "@/lib/i18n/config";
 
 /**
  * Writing down a new patient. PLAN.md 12.4, §3b.
@@ -42,6 +43,7 @@ function Submit() {
 
 export function AddPatient() {
   const t = useT();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(addPatient, {});
 
@@ -98,6 +100,27 @@ export function AddPatient() {
           <p className="mt-1 text-xs text-slate-500">
             {t("tap.emailHint")}
           </p>
+        </Field>
+
+        {/*
+          🔴 B39: Layla's invitation went out in English because nothing here
+          could say she reads Arabic. Starts at the clinician's own language,
+          the likeliest answer; their patient's own choice later always wins.
+        */}
+        <Field label={t("tap.language")} htmlFor="locale">
+          <select
+            id="locale"
+            name="locale"
+            defaultValue={locale}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+          >
+            {LOCALES.map((code) => (
+              <option key={code} value={code} lang={code}>
+                {LOCALE_NAMES[code]}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">{t("tap.languageHint")}</p>
         </Field>
 
         {state.error ? (

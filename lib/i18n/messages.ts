@@ -3973,6 +3973,8 @@ export const en = {
   "tap.phoneHint": "Required, so you can invite them by WhatsApp and hand them their record.",
   "tap.emailHint":
     "A complete alternative to WhatsApp for everything, the invite, the code, the summary.",
+  "tap.language": "The language they read",
+  "tap.languageHint": "Their invitation and our messages go in this language until they choose their own.",
   "tap.openExisting": "Open the record that already has this number",
   "tap.differentPerson":
     "This is a different person who shares that phone. Add them as a second record.",
@@ -8493,6 +8495,8 @@ export const ar: Record<MessageKey, string> = {
   "tap.saving": "أضف المريض",
   "tap.phoneHint": "مطلوب، لتدعوه عبر واتساب وتسلّمه سجله.",
   "tap.emailHint": "بديل كامل عن واتساب لكل شيء: الدعوة والرمز والملخّص.",
+  "tap.language": "اللغة التي يقرأ بها",
+  "tap.languageHint": "تصله الدعوة ورسائلنا بهذه اللغة إلى أن يختار لغته بنفسه.",
   "tap.openExisting": "افتح السجلّ الذي يحمل هذا الرقم بالفعل",
   "tap.differentPerson": "هذا شخص آخر يشاركه الرقم نفسه. أضفه كسجلّ ثانٍ.",
   "tap.lastNameOptional": "اسم العائلة (اختياري)",
