@@ -67,6 +67,25 @@ test("C327 the clinician's page names the practice that sees appointments, as th
   assert.doesNotMatch(readFileSync("lib/data/clinic-visibility.ts", "utf8"), /export async function clinicAffiliations/);
 });
 
+test("the record-system copy claims no filing while nothing calls fileNote", async () => {
+  const { execSync } = await import("node:child_process");
+  const callers = execSync(
+    "grep -rlE 'fileNote\\(|recordLaunch\\(' app lib --include=*.ts --include=*.tsx || true",
+    { encoding: "utf8" },
+  )
+    .split("\n")
+    .filter((file) => file && !/^lib\/ehr\/file-note\.ts$|^lib\/data\/ehr\.ts$/.test(file));
+  const { INTEGRATIONS } = await import("../lib/integrations/registry");
+  const entry = INTEGRATIONS.find((item) => item.slug === "clinic-systems")!;
+  if (callers.length === 0) {
+    assert.doesNotMatch(`${entry.summary} ${entry.today}`, /works end to end|is filed back|files into the record/i);
+    for (const key of ["records.bodySolo", "records.bodyClinic", "records.whatWeHold"] as const) {
+      assert.match(en[key], /not built|Once filing is built/, `${key}: ${en[key]}`);
+      assert.match(ar[key], /لم يُبنَ|حين يُبنى/, `${key} (ar)`);
+    }
+  }
+});
+
 test("K22 a clinic seat's region change is refused before the rate is saved", () => {
   const actions = strip(readFileSync("app/(app)/settings/actions.ts", "utf8"));
   const body = actions.slice(actions.indexOf("export async function updatePaymentSettings("));
