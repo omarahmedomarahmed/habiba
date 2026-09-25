@@ -55,7 +55,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "Paying in Egypt",
-          ours: "Bank transfer and local rails, priced in EGP with VAT shown.",
+          ours: "Bank transfer and local rails, priced in EGP.",
           theirs: "Card payments through US processing.",
         },
         {
@@ -340,7 +340,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             audience: "Patient",
             title: "Somebody who is free now",
-            body: "The radar, filtered by language and by what you need help with. Three taps from opening it to being in a session.",
+            body: "The radar, filtered by language and by what you need help with. Pick someone free, pay, and you are in a session.",
             demo: "radar",
           },
           {
@@ -364,7 +364,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             audience: "Clinic",
             title: "Seats and the people on them",
-            body: "Add a clinician and they are on the radar the same hour. Verification state on every row.",
+            body: "Add a clinician and they reach the radar once their licence is verified. Verification state on every row.",
             demo: "clinic-people",
           },
           {
@@ -937,7 +937,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
              * Sending a reader to the cards for the percentage sends them
              * somewhere it is not.
              */
-            a: "A share of what the session paid you, at the percentage on this page. With a Stripe account we never hold the money; without one we hold it and pay out on request.",
+            a: "A share of what the session paid you, at the percentage on this page. We hold the rest and pay it out when you ask.",
           },
           {
             q: "Can I pay my 24Therapy bill out of my earnings?",
@@ -988,7 +988,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             title: "24Therapy Inc.",
             entity: "us",
-            body: "The international entity. Card payments, Stripe payouts, and everything outside Egypt.",
+            body: "The international entity, for anything outside Egypt.",
             address: "",
             phone: "",
             email: "support@24therapy.app",

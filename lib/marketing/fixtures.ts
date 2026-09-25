@@ -186,37 +186,14 @@ export const CLINIC_BILL = {
 };
 
 /**
- * What a sponsoring employer sees: therapists paid, and how much.
- *
- * 🔴 NOT ONE PATIENT NAME, and that is the entire product decision. The
- * employer funds the pot and reads the invoice; who walked through the door is
- * not theirs to know, and a demo that showed it would be demonstrating the
- * opposite of what is sold.
+ * The joining code and who has joined. 🔴 W3 / D1: no headcount and no count of
+ * who used it, because the real portal has neither. It shows each session's
+ * money without names and never a therapist.
  */
-/**
- * 🔴 AMOUNTS, NOT COUNTS. The `sessions` field is gone for the same reason.
- *
- * `app/(sponsor)/sponsor/page.tsx:26` states the rule as SPEND, NEVER SESSION
- * COUNTS, NEVER PEOPLE, and `lib/data/sponsors.ts:96` calls the sponsor select
- * list "THE WALL", saying in as many words that it holds no therapist and no
- * count, with `verify:sprint53` asserting against it by name. A company sees
- * what it paid a clinician because it is paying them. It does not see how many
- * of its employees sat in front of them.
- */
-export const COMPANY_PAID: { therapist: string; cents: number }[] = [
-  { therapist: "Dr Nour Demo", cents: 84_000 },
-  { therapist: "Dr Karim Example", cents: 66_000 },
-  { therapist: "Dr Salma Demo", cents: 54_000 },
-  { therapist: "Dr Hana Example", cents: 36_000 },
-];
-
-/** The joining code and how far the roster has got. */
 export const COMPANY_CODE = {
   code: "NILE-7742",
   domain: "example.com",
-  employees: 240,
   joined: 63,
-  usedThisMonth: 40,
 };
 
 /* ────────────────────────────────────────────── the patient's own app ── */

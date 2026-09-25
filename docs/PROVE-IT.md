@@ -710,7 +710,7 @@ Sign in as her. The empty screen from position 4 is no longer empty.
 
 Then open the **public radar** in a window signed in as nobody.
 
-**Is she on it?** We say the same hour.
+**Is she on it?** We say once her licence is verified.
 
 > **Proves `C1`.** Write down the gap between the approval and the dot appearing.
 

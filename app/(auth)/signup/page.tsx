@@ -7,7 +7,7 @@ import { getI18n } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
   title: "Create your account",
-  description: "Start documenting sessions in under a minute. Your first session is free.",
+  description: "Sign up and verify your licence. Your first session is free.",
 };
 
 /**

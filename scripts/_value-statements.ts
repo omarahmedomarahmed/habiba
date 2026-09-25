@@ -71,10 +71,10 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
   {
     id: "P1",
     audience: "patient",
-    says: "Three taps from opening it to being in a session.",
+    says: "Pick someone free, pay, and you are in a session.",
     where: "`/`, the radar card: “Somebody who is free now”",
     proof:
-      "From the app's home screen to a live video room, counting the taps out loud. If it is more than three, the number is the finding.",
+      "From the app's home screen to a live video room, counting the taps out loud. Every step that is not picking, paying or going in is the finding.",
   },
   {
     id: "P2",
@@ -156,10 +156,10 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
   {
     id: "C1",
     audience: "clinic",
-    says: "Add a clinician and they are on the radar the same hour.",
+    says: "Add a clinician and they reach the radar once their licence is verified.",
     where: "`/`, the clinic card: “Seats and the people on them”",
     proof:
-      "A seat added in the clinic portal puts that clinician on the public radar, with their verification state on the row.",
+      "A seat added in the clinic portal puts that clinician on the public radar once verified, with their verification state on the row.",
   },
   {
     id: "C2",

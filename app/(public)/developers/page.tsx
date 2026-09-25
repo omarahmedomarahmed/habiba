@@ -9,7 +9,7 @@ import { PARTNER_APPLY, PARTNER_SIGN_IN } from "@/lib/routing";
 export const metadata: Metadata = {
   title: "Developers",
   description:
-    "Five things you can do with the 24Therapy API, each one a flow with a screen at one end, and the four things there is no endpoint for.",
+    "What you can do with the 24Therapy API, each one a flow with a screen at one end, and what there is no endpoint for.",
 };
 
 /**
@@ -72,6 +72,7 @@ export default async function DevelopersPage() {
         <UseCase
           title={t("devs.useCase3")}
           body={t("devs.useCase3Body")}
+          needsLink={t("devs.needsLink")}
           exampleLabel={t("devs.example")}
           example={`GET /api/partner/v1/subjects/YOUR-REF/readers
 
@@ -90,6 +91,7 @@ targets: ${PARTNER_LAUNCH_TARGETS.join(", ")}`}
         <UseCase
           title={t("devs.useCase4")}
           body={t("devs.useCase4Body")}
+          needsLink={t("devs.needsLink")}
           exampleLabel={t("devs.example")}
           example={`POST /api/partner/v1/sessions
 
@@ -107,6 +109,7 @@ same externalMeetingId again -> the same sessionId`}
         <UseCase
           title={t("devs.useCase5")}
           body={t("devs.useCase5Body")}
+          needsLink={t("devs.needsLink")}
           exampleLabel={t("devs.example")}
           example={`note.approved -> { "event": "note.approved", "id": "<sessionId>",
                    "ref": null, "at": "..." }
@@ -258,6 +261,7 @@ GET /api/partner/v1/subjects/<ref>/memory
       <Card className="mt-6 border-slate-200 p-5">
         <p className="font-semibold text-slate-900">{t("devs.hooks")}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.hooksBody")}</p>
+        <NeedsLink text={t("devs.needsLink")} />
         <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
 {`POST <your endpoint>
 x-24t-signature: t=<unix time>,v1=<hex HMAC-SHA256 of "t.body">
@@ -278,6 +282,7 @@ grant.revoked, record.claimed, subject.unlinked
       {/* 🔴 42.5 — the widget, and the sentence about video. */}
       <h2 className="mt-12 text-lg font-bold tracking-tight text-slate-900">{t("devs.widget")}</h2>
       <p className="mt-2 leading-relaxed text-slate-600">{t("devs.widgetBody")}</p>
+      <NeedsLink text={t("devs.needsLink")} />
 
       {/* 🔴 The absences, on the same page as the five use cases. */}
       <Card className="mt-10 border-slate-200 p-5">
@@ -321,14 +326,28 @@ grant.revoked, record.claimed, subject.unlinked
   );
 }
 
+/**
+ * 🔴 W3 / D6: THE RECORD LAYER IS DOCUMENTED AS NOT LIVE.
+ *
+ * Readers, launch, write-back, note delivery, the widget and every webhook need
+ * `partner_subjects.person_id`, and nothing links a patient to a partner yet. The
+ * routes exist and `verify:sprint55` still resolves every path printed here, so
+ * the docs keep them and say plainly that they cannot be used today.
+ */
+function NeedsLink({ text }: { text: string }) {
+  return <p className="mt-2 text-sm font-semibold text-amber-800">{text}</p>;
+}
+
 function UseCase({
   title,
   body,
+  needsLink,
   exampleLabel,
   example,
 }: {
   title: string;
   body: string;
+  needsLink?: string;
   exampleLabel: string;
   example: string;
 }) {
@@ -336,6 +355,7 @@ function UseCase({
     <section className="border-s-2 border-slate-200 ps-4">
       <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
       <p className="mt-1.5 leading-relaxed text-slate-600">{body}</p>
+      {needsLink ? <NeedsLink text={needsLink} /> : null}
       <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
         {exampleLabel}
       </p>

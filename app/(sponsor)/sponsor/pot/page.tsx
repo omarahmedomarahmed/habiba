@@ -234,8 +234,12 @@ export default async function SponsorPotPage() {
         />
       ) : null}
 
-      {terms?.refundPolicy && terms.expiresAt && !rail.needed ? (
-        actor.role === "admin" ? (
+      {/*
+        🔴 W3 / C233: the terms sit beside the way in on the transfer rail too,
+        which is the only rail an Egyptian company has.
+      */}
+      {terms?.refundPolicy && terms.expiresAt ? (
+        actor.role === "admin" && !rail.needed ? (
           <TopUpForm
             minimumCents={settings.sponsor.minTopUpCents}
             terms={{
@@ -244,7 +248,7 @@ export default async function SponsorPotPage() {
             }}
           />
         ) : (
-          /* A viewer reads the balance and the terms and cannot move money. */
+          /* A viewer, or anybody on the transfer rail, reads the terms here. */
           <Card className="p-5">
             <p className="text-xs font-semibold text-slate-700">{t("sponsor.refundTerms")}</p>
             <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-slate-600">

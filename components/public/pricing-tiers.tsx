@@ -277,7 +277,6 @@ export async function PricingTiers({
       bullets: [
         t("pricing.feature.transcription"),
         t("pricing.feature.report"),
-        t("pricing.feature.baa"),
         t("pr2.rowCopilot"),
         t("pr2.rowRadar"),
       ],
@@ -306,7 +305,6 @@ export async function PricingTiers({
     bullets: [
       rich(t("pr2.seatFrom", { amount: slot(0) }), [<Money cents={seatFrom} />]),
       t("pr2.rowClinicBooks"),
-      t("pricing.feature.baa"),
       t("pr2.rowCopilot"),
       t("pr2.rowRadar"),
     ],
@@ -360,7 +358,6 @@ export async function PricingTiers({
     { label: t("pr2.rowCopilot"), cells: [YES, YES, YES] },
     { label: t("pr2.rowRadar"), cells: [YES, YES, YES] },
     { label: t("pricing.feature.getPaid"), cells: [YES, YES, YES] },
-    { label: t("pricing.feature.baa"), cells: [YES, YES, YES] },
     { label: t("pr2.rowSeats"), cells: [NO, NO, YES] },
     { label: t("pr2.rowClinicBooks"), cells: [NO, NO, YES] },
     {
