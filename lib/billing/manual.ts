@@ -617,15 +617,24 @@ export async function confirmPayment(input: {
     /*
      * 🔴 K5: a grant that did not throw can still have found the thing it paid
      * for gone and raised that instead (not payable, paid twice, over the
-     * bill). Staff are told so here rather than "they can carry on", and the
-     * payer is not told their session is ready; `retryGrant` asks the same.
+     * bill). Staff are told so here rather than "they can carry on".
      */
     const [after] = await db
       .select({ exception: manualPayments.exception })
       .from(manualPayments)
       .where(eq(manualPayments.id, payment.id))
       .limit(1);
+    /*
+     * `not_payable` bought nothing, so nobody is told it is ready. `overpaid`
+     * still delivered (the bill was paid, or the session already was) and the
+     * payer is told as usual; the surplus is staff's to decide.
+     */
+    if (after?.exception === "not_payable") {
+      return { ok: true, confirmed: true, flagged: after.exception };
+    }
     if (after?.exception) {
+      const { noticePaymentConfirmed } = await import("./payment-notices");
+      await noticePaymentConfirmed(payment.id);
       return { ok: true, confirmed: true, flagged: after.exception };
     }
   }
