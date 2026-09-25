@@ -7,7 +7,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatMonthYear } from "@/lib/utils";
 import { publicProfile } from "@/lib/data/radar";
 import { reliabilityFor } from "@/lib/data/recovery";
-import { openHours } from "@/lib/data/scheduling";
+import { openHours, practiceFor } from "@/lib/data/scheduling";
 import { Money } from "@/components/ui/money";
 
 /**
@@ -47,10 +47,12 @@ export async function TherapistPageBody({
    * `/admin/settings` and the one the payment screen will show them at the end
    * of this same journey, so the two agree by construction.
    */
-  const [slots, reliability, egpRate] = await Promise.all([
+  const [slots, reliability, egpRate, practice] = await Promise.all([
     openHours(id),
     reliabilityFor(id),
     egpRateMicro(),
+    /* 🔴 Ruling 5c: where an in-person hour is held, shown when one is picked. */
+    practiceFor(id),
   ]);
   const { locale, t } = await getI18n();
   const tag = localeTag(locale);
@@ -140,7 +142,8 @@ export async function TherapistPageBody({
 
       <div className="mx-auto max-w-2xl px-4 pb-10 sm:px-6">
         <BookingCalendar
-          slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString() }))}
+          slots={slots.map((slot) => ({ id: slot.id, startsAt: slot.startsAt.toISOString(), place: slot.place }))}
+          practice={practice}
           therapistName={profile.firstName}
           therapistTimezone={profile.timezone}
           rateLabel={profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : "Free"}

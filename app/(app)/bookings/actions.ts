@@ -27,6 +27,8 @@ export async function openHoursOn(input: {
   fromHour: number;
   toHour: number;
   zone: string;
+  /** 🔴 Ruling 5c. */
+  place?: "online" | "in_person" | "either";
 }): Promise<BookingState> {
   const actor = await requireVerified(); // 🔴 25 September inventory: puts a clinician in front of a patient
 

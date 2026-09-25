@@ -34,8 +34,12 @@ export function BookingCalendar({
   therapistTimezone,
   rateLabel,
   booker,
+  practice,
 }: {
-  slots: { id: string; startsAt: string }[];
+  /** 🔴 Ruling 5c: each hour says where it can be booked for. */
+  slots: { id: string; startsAt: string; place?: "online" | "in_person" | "either" }[];
+  /** The practice address, shown for an in-person hour. */
+  practice?: { name: string | null; address: string } | null;
   therapistName: string;
   /** The zone the first render uses, before the browser answers. 12.3 / C84. */
   therapistTimezone: string | null;
@@ -50,7 +54,9 @@ export function BookingCalendar({
 }) {
   const t = useT();
   const locale = useLocale();
-  const [picked, setPicked] = useState<{ id: string; startsAt: string } | null>(null);
+  const [picked, setPicked] = useState<{ id: string; startsAt: string; place?: string } | null>(null);
+  /* 🔴 Ruling 5c: on an "either" hour the patient chooses. */
+  const [meet, setMeet] = useState<"online" | "in_person">("online");
   const [name, setName] = useState(booker?.firstName ?? "");
   const [email, setEmail] = useState(booker?.email ?? "");
   /* An E.164 number is taken as given by `toE164`, so the country beside it is only a label. */
@@ -187,6 +193,22 @@ export function BookingCalendar({
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
 
+          {picked.place === "either" ? (
+            <div className="flex gap-2 text-sm">
+              {(["online", "in_person"] as const).map((option) => (
+                <label key={option} className="flex items-center gap-1.5">
+                  <input type="radio" checked={meet === option} onChange={() => setMeet(option)} />
+                  {option === "online" ? t("pbook.online") : t("pbook.inPerson")}
+                </label>
+              ))}
+            </div>
+          ) : null}
+          {(picked.place === "in_person" || (picked.place === "either" && meet === "in_person")) && practice ? (
+            <p className="text-xs text-slate-600">
+              {t("pbook.where", { place: [practice.name, practice.address].filter(Boolean).join(", ") })}
+            </p>
+          ) : null}
+
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -196,6 +218,7 @@ export function BookingCalendar({
                   setError(null);
                   const result = await book({
                     slotId: picked.id,
+                    place: picked.place === "in_person" ? "in_person" : picked.place === "either" ? meet : "online",
                     name,
                     email,
                     phone,
@@ -241,12 +264,17 @@ export function BookingCalendar({
                     key={slot.id}
                     type="button"
                     onClick={() =>
-                      setPicked({ id: slot.id, startsAt: slot.startsAt.toISOString() })
+                      setPicked({ id: slot.id, startsAt: slot.startsAt.toISOString(), place: slot.place })
                     }
                     className="tap-target flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-sm font-medium text-slate-700 hover:border-slate-900 hover:bg-slate-50"
                   >
                     <Clock className="h-3 w-3 text-slate-500" aria-hidden />
                     {formatTime(slot.startsAt, zone.name)}
+                    {slot.place && slot.place !== "online" ? (
+                      <span className="text-[10px] text-brand-700">
+                        {slot.place === "in_person" ? t("pbook.inPerson") : t("pbook.either")}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>

@@ -225,8 +225,11 @@ export default async function PayPage({
    * 🔴 PAY BEFORE START, IN PERSON (docs/IN-PERSON-PAID.md): card or company
    * benefit only. A bank transfer takes hours to confirm and the patient is in
    * the room, so it is not offered here; bookings made in advance keep it.
+   * "In the room" is a session with no time, or one under two hours away.
    */
-  if (inPerson) {
+  const inRoom =
+    inPerson && (!session.scheduledAt || session.scheduledAt.getTime() - Date.now() < 2 * 60 * 60 * 1000);
+  if (inRoom) {
     return (
       <>
         <SosOrbServer country={sosCountry} />
@@ -280,6 +283,18 @@ export default async function PayPage({
             ) : null}
           </div>
           <BenefitNote shortfall={shortfall} />
+          {/*
+            🔴 An in-person booking made ahead: the benefit waits for the
+            patient to say yes, so the button is here, not spent at booking.
+          */}
+          {inPerson ? (
+            <form action={coverWithBenefit.bind(null, token)}>
+              <Button type="submit" variant="secondary" full>
+                {t("pay.useBenefit")}
+              </Button>
+              {query.benefit ? <p className="mt-2 text-sm text-slate-600">{t("pay.benefitNot")}</p> : null}
+            </form>
+          ) : null}
           {/* 🔴 64.1: by card through the Egyptian gateway, once it is contracted. */}
           {cardReady ? (
             <form action={payByCard.bind(null, token)}>
@@ -357,6 +372,14 @@ export default async function PayPage({
       <div className="mx-auto max-w-md px-4 pt-8">
         <BenefitNote shortfall={shortfall} />
       </div>
+    ) : null}
+    {inPerson ? (
+      <form action={coverWithBenefit.bind(null, token)} className="mx-auto max-w-md px-4 pt-8">
+        <Button type="submit" variant="secondary" full>
+          {t("pay.useBenefit")}
+        </Button>
+        {query.benefit ? <p className="mt-2 text-sm text-slate-600">{t("pay.benefitNot")}</p> : null}
+      </form>
     ) : null}
     <PayFlow
       locale={tag}

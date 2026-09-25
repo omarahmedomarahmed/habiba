@@ -15,7 +15,9 @@ import {
   patients,
   sessions,
   users,
+  SLOT_PLACES,
   type AvailabilitySlot,
+  type SlotPlace,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
@@ -96,6 +98,8 @@ export async function publishHours(input: {
   toHour: number;
   /** IANA. Required: there is no "publish in whatever zone the server is in". */
   zone: string;
+  /** 🔴 Ruling 5c: online (the default), in person at the practice, or either. */
+  place?: SlotPlace;
 }): Promise<PublishResult> {
   if (input.days.length === 0) return { ok: false, error: "Pick at least one day." };
   if (input.days.length > 60) return { ok: false, error: "Publish up to 60 days at a time." };
@@ -141,6 +145,15 @@ export async function publishHours(input: {
     return { ok: false, error: "Those hours are all in the past." };
   }
 
+  /*
+   * 🔴 An in-person hour needs somewhere to meet: a confirmed practice address,
+   * which is what the patient is shown when they book it.
+   */
+  const place: SlotPlace = input.place && SLOT_PLACES.includes(input.place) ? input.place : "online";
+  if (place !== "online" && !(await practiceFor(input.actor.userId))) {
+    return { ok: false, error: "Add and confirm your practice address first, so patients know where to come." };
+  }
+
   const inserted = await db
     .insert(availabilitySlots)
     .values(
@@ -148,6 +161,7 @@ export async function publishHours(input: {
         therapistUserId: input.actor.userId,
         organizationId: input.actor.organizationId,
         startsAt,
+        place,
       })),
     )
     // An hour that already exists — open, held, booked or blocked — is left
@@ -201,7 +215,26 @@ export async function myHours(actor: Actor, days = 28): Promise<AvailabilitySlot
     .orderBy(asc(availabilitySlots.startsAt));
 }
 
-export type PublicSlot = { id: string; startsAt: Date };
+export type PublicSlot = { id: string; startsAt: Date; place: SlotPlace };
+
+/**
+ * 🔴 Ruling 5c: where a clinician meets patients in person, when they have
+ * said and confirmed it. Null otherwise, and then no hour can be in person.
+ */
+export async function practiceFor(therapistUserId: string): Promise<{ name: string | null; address: string } | null> {
+  const { therapistRadar } = await import("@/lib/db/schema");
+  const [row] = await db
+    .select({
+      name: therapistRadar.practiceName,
+      address: therapistRadar.practiceAddress,
+      confirmedAt: therapistRadar.practiceConfirmedAt,
+    })
+    .from(therapistRadar)
+    .where(eq(therapistRadar.userId, therapistUserId))
+    .limit(1);
+  if (!row?.address || !row.confirmedAt) return null;
+  return { name: row.name ?? null, address: row.address };
+}
 
 /**
  * What a patient may book on a public profile. 11.3.
@@ -215,7 +248,7 @@ export async function openHours(therapistUserId: string, days = 21): Promise<Pub
   const until = new Date(now.getTime() + days * 24 * 3_600_000);
 
   const rows = await db
-    .select({ id: availabilitySlots.id, startsAt: availabilitySlots.startsAt })
+    .select({ id: availabilitySlots.id, startsAt: availabilitySlots.startsAt, place: availabilitySlots.place })
     .from(availabilitySlots)
     .where(
       and(
@@ -485,6 +518,8 @@ export async function bookSlot(input: {
    * practice's hour and hand that practice the patient's file.
    */
   bookedBy?: string | null;
+  /** 🔴 Ruling 5c: for an "either" hour, where the patient chose to meet. */
+  place?: "online" | "in_person" | null;
 }): Promise<BookResult> {
   const now = new Date();
 
@@ -494,6 +529,7 @@ export async function bookSlot(input: {
       startsAt: availabilitySlots.startsAt,
       status: availabilitySlots.status,
       heldUntil: availabilitySlots.heldUntil,
+      place: availabilitySlots.place,
       therapistUserId: availabilitySlots.therapistUserId,
       organizationId: availabilitySlots.organizationId,
       therapistFirstName: users.firstName,
@@ -553,7 +589,13 @@ export async function bookSlot(input: {
       therapistId: slot.therapistUserId,
       patientId,
       status: "scheduled",
-      modality: "video",
+      /*
+       * 🔴 Ruling 5c: the hour's place, or the patient's choice on an "either"
+       * hour. An in-person booking is paid in advance like an online one, and
+       * its start is locked until paid (`unpaidInPerson`).
+       */
+      modality:
+        slot.place === "in_person" || (slot.place === "either" && input.place === "in_person") ? "in_person" : "video",
       // 11.2 / C57. `startedAt` stays null until somebody actually joins.
       scheduledAt: slot.startsAt,
       /*

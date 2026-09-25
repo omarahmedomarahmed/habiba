@@ -127,6 +127,8 @@ const PORTALS: Record<string, readonly string[]> = {
   clinician: [
     /* The seat manager, on the clinician's own billing page (`app/(app)/billing`). */
     "seats",
+    /* The in-person pay screen the therapist shows (`app/(app)/sessions/[id]/collect`). */
+    "collect",
     "portal",
     "import",
     "note",

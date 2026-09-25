@@ -9,6 +9,7 @@ import { domainProved, domainsFor } from "@/lib/data/sponsor-domains";
 import { identifierFields } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
+import { formatDate } from "@/lib/utils";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 
 export const metadata: Metadata = { title: "How people join", robots: { index: false } };
@@ -24,7 +25,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function SponsorSettingsPage() {
   const actor = await requireSponsor();
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   const settings = await getSettings();
 
   const [saved, domains, list] = await Promise.all([
@@ -65,7 +66,7 @@ export default async function SponsorSettingsPage() {
       {actor.role === "admin" && fields.some((field) => field.kind === "listed_email") ? (
         <StaffList
           onList={list.onList}
-          lastUpload={list.lastUpload ? list.lastUpload.toISOString().slice(0, 10) : null}
+          lastUpload={list.lastUpload ? formatDate(list.lastUpload, "UTC", locale) : null}
           graceDays={settings.rules.enrolment.listRemovalGraceDays}
         />
       ) : null}

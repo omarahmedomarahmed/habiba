@@ -15,9 +15,11 @@ export type RadarFilter = {
   country: string;
   /** Only meaningful with a country set. */
   region: string;
+  /** 🔴 Ruling 5c: only clinicians who see people at a confirmed practice address. */
+  inPerson?: boolean;
 };
 
-export const NO_FILTER: RadarFilter = { language: "", specialty: "", country: "", region: "" };
+export const NO_FILTER: RadarFilter = { language: "", specialty: "", country: "", region: "", inPerson: false };
 
 /** One place where "does this clinician match" is decided. */
 export function matches(entry: RadarEntry, filter: RadarFilter): boolean {
@@ -25,6 +27,7 @@ export function matches(entry: RadarEntry, filter: RadarFilter): boolean {
   if (filter.specialty && !entry.specialties.includes(filter.specialty)) return false;
   if (filter.country && entry.country !== filter.country) return false;
   if (filter.region && entry.region !== filter.region) return false;
+  if (filter.inPerson && !entry.practice) return false;
   return true;
 }
 
@@ -70,8 +73,9 @@ export function RadarFilters({
     );
   }, [entries, value]);
 
-  const active = Boolean(value.language || value.specialty || value.country || value.region);
-  if (languages.length === 0 && specialties.length === 0 && !active) return null;
+  const active = Boolean(value.language || value.specialty || value.country || value.region || value.inPerson);
+  const inPersonCount = entries.filter((entry) => entry.practice && matches(entry, { ...value, inPerson: false })).length;
+  if (languages.length === 0 && specialties.length === 0 && inPersonCount === 0 && !active) return null;
 
   const set = (patch: Partial<RadarFilter>) => onChange({ ...value, ...patch });
 
@@ -109,6 +113,21 @@ export function RadarFilters({
                 </Chip>
               ))
             : null}
+        </div>
+      ) : null}
+
+      {/* 🔴 Ruling 5c: someone who wants to sit in a room with their therapist. */}
+      {inPersonCount > 0 || value.inPerson ? (
+        <div className="flex flex-wrap gap-1.5">
+          <Chip
+            dark={dark}
+            active={Boolean(value.inPerson)}
+            count={inPersonCount}
+            onClick={() => set({ inPerson: !value.inPerson })}
+          >
+            <MapPin className="h-2.5 w-2.5" aria-hidden />
+            {t("radar.inPerson")}
+          </Chip>
         </div>
       ) : null}
 

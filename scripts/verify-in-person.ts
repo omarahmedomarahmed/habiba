@@ -104,7 +104,7 @@ async function main() {
       /NOT \(\$\{sessions\.modality\} = 'in_person' AND \$\{sessions\.priceCents\} > 0 AND \$\{sessions\.paymentStatus\} <> 'paid'\)/.test(source),
     );
     const pay = read("app/pay/[token]/page.tsx");
-    check("the pay page offers no bank transfer in person, and the benefit only to the patient", /if \(inPerson\) \{/.test(pay) && /coverWithBenefit/.test(pay));
+    check("the pay page offers no bank transfer in the room (booked ahead keeps it), and the benefit only to the patient", /if \(inRoom\) \{/.test(pay) && /2 \* 60 \* 60 \* 1000/.test(pay) && /coverWithBenefit/.test(pay));
     const actions = read("app/(app)/sessions/actions.ts");
     check("🔴 the price may be lowered and never raised above the therapist's own", /above your price per session/.test(actions));
   } finally {

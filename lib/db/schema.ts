@@ -5185,6 +5185,9 @@ export type AssistantMessage = typeof assistantMessages.$inferSelect;
 export const SLOT_STATES = ["open", "held", "booked", "blocked"] as const;
 export type SlotState = (typeof SLOT_STATES)[number];
 
+export const SLOT_PLACES = ["online", "in_person", "either"] as const;
+export type SlotPlace = (typeof SLOT_PLACES)[number];
+
 export const availabilitySlots = pgTable(
   "availability_slots",
   {
@@ -5198,6 +5201,8 @@ export const availabilitySlots = pgTable(
 
     /** Always on the hour. The constraint is in the migration. */
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    /** 🔴 0164 / ruling 5c: where this hour can be booked for. */
+    place: text("place").$type<SlotPlace>().notNull().default("online"),
     /** One hour. A column rather than a constant so a 90-minute slot is a data change. */
     durationMinutes: integer("duration_minutes").notNull().default(60),
 

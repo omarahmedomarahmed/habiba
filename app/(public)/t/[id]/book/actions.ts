@@ -34,6 +34,8 @@ export async function book(input: {
   note?: string;
   /** The reader's own zone, so the confirmation is rendered in it. 11R.3. */
   timezone?: string;
+  /** 🔴 Ruling 5c: where they chose to meet, on an "either" hour. */
+  place?: "online" | "in_person";
 }): Promise<BookState> {
   /*
    * Throttled on the caller. The side effects are real — each accepted booking
@@ -135,6 +137,7 @@ export async function book(input: {
     note: input.note?.trim() || null,
     personId: signedIn?.personId ?? null,
     accountId: signedIn?.accountId ?? null,
+    place: input.place === "in_person" ? "in_person" : "online",
   });
 
   if (!result.ok) return { error: result.error };

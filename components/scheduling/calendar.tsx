@@ -73,6 +73,8 @@ export function Calendar({
   const [selected, setSelected] = useState<string[]>([]);
   const [fromHour, setFromHour] = useState(9);
   const [toHour, setToHour] = useState(17);
+  /* 🔴 Ruling 5c: where these hours can be booked for. */
+  const [place, setPlace] = useState<"online" | "in_person" | "either">("online");
   const [invitee, setInvitee] = useState(patients[0]?.id ?? "");
   const [state, setState] = useState<BookingState>({});
   const [pending, startTransition] = useTransition();
@@ -108,7 +110,7 @@ export function Calendar({
   const publish = () =>
     startTransition(async () => {
       setState({});
-      const result = await openHoursOn({ days: selected, fromHour, toHour, zone });
+      const result = await openHoursOn({ days: selected, fromHour, toHour, zone, place });
       setState(result);
       if (result.ok) setSelected([]);
     });
@@ -279,6 +281,19 @@ export function Calendar({
                     {String(hour).padStart(2, "0")}:00
                   </option>
                 ))}
+              </select>
+            </label>
+
+            <label className="text-xs text-slate-600">
+              <span className="block">{t("portal.book.place")}</span>
+              <select
+                value={place}
+                onChange={(event) => setPlace(event.target.value as typeof place)}
+                className="mt-1 h-11 rounded-xl border border-slate-200 px-2 text-sm"
+              >
+                <option value="online">{t("portal.book.placeOnline")}</option>
+                <option value="in_person">{t("portal.book.placeInPerson")}</option>
+                <option value="either">{t("portal.book.placeEither")}</option>
               </select>
             </label>
 
