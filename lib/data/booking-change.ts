@@ -247,6 +247,14 @@ export async function patientCancel(input: {
     .set({ status: "open", sessionId: null, bookedByAccountId: null, note: null, remindedAt: null, updatedAt: now })
     .where(and(eq(availabilitySlots.sessionId, booking.id), eq(availabilitySlots.status, "booked")));
 
+  /*
+   * 🔴 K20 (PE24): a transfer they declared and staff have not confirmed stays
+   * in the queue, and confirming it would mark nothing paid. It is raised now
+   * as money to give back (a refund or the wallet), on the staff screen.
+   */
+  const { flagTransfersForCancelled } = await import("@/lib/billing/rail-exceptions");
+  await flagTransfersForCancelled(booking.id);
+
   let refund: "refunded" | "queued" | "none" | "held" = "none";
   if (paymentId && free) {
     refund = await refundPatient({

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, isNotNull, isNull, lt } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 import { manualPayments, type ManualPayment, type ManualPaymentException } from "@/lib/db/schema";
@@ -48,6 +48,44 @@ export async function flagException(
     })
     .where(eq(manualPayments.id, paymentId));
   log.warn("transfer rail exception raised", { paymentId, kind, detail: detail.slice(0, 120) });
+}
+
+/**
+ * 🔴 K20: A BOOKING CANCELLED WHILE ITS TRANSFER WAITED.
+ *
+ * The patient declared a transfer and then the booking went (they cancelled,
+ * the clinician did, a new hold replaced it). The transfer stayed in the
+ * operator queue looking like any other, and confirming it marked nothing
+ * paid and refunded nothing. Now it is raised at once as work under Needs a
+ * decision, saying what happened and what is owed, whether or not anybody has
+ * confirmed it yet: the money is the patient's, to go back to them or to
+ * their wallet.
+ *
+ * Only a payment with no exception already raised is touched, so running it
+ * again, or from the hourly backstop, changes nothing.
+ */
+export async function flagTransfersForCancelled(sessionId?: string): Promise<number> {
+  const rows = await db.execute(sql`
+    UPDATE manual_payments m
+       SET exception = 'not_payable',
+           exception_detail = 'The booking was cancelled while this transfer waited. If the money arrived, refund it or credit it to the patient''s wallet.',
+           exception_at = now(),
+           exception_resolved_at = NULL,
+           exception_resolved_by = NULL,
+           exception_resolution = NULL
+      FROM sessions s
+     WHERE s.id = m.ref_id
+       AND m.purpose IN ('session', 'payg_session')
+       AND m.state IN ('submitted', 'confirmed')
+       AND m.exception IS NULL
+       AND s.status = 'cancelled'
+       AND s.payment_status <> 'paid'
+       ${sessionId ? sql`AND s.id = ${sessionId}` : sql``}
+    RETURNING m.id`);
+  if (rows.rows.length > 0) {
+    log.warn("transfers for cancelled bookings raised", { count: rows.rows.length });
+  }
+  return rows.rows.length;
 }
 
 /** Everything waiting for a decision, oldest first because they are waiting. */
@@ -144,6 +182,9 @@ export async function discardCart(paymentId: string): Promise<boolean> {
     .delete(manualPayments)
     .where(and(eq(manualPayments.id, paymentId), eq(manualPayments.state, "awaiting_proof")))
     .returning({ id: manualPayments.id });
+  /* K4: a request to credit this cart without proof closes with it. */
+  const { voidApprovalsFor } = await import("./approvals");
+  await voidApprovalsFor("transfer_without_proof", gone.map((g) => g.id));
   return gone.length > 0;
 }
 
@@ -161,5 +202,8 @@ export async function expireOpenCarts(now = new Date()): Promise<number> {
     .where(and(eq(manualPayments.state, "awaiting_proof"), lt(manualPayments.createdAt, cutoff)))
     .returning({ id: manualPayments.id });
   if (gone.length > 0) log.info("open carts expired", { count: gone.length });
+  /* K4: and the requests to credit them without proof, which had nothing left to credit. */
+  const { voidApprovalsFor } = await import("./approvals");
+  await voidApprovalsFor("transfer_without_proof", gone.map((g) => g.id));
   return gone.length;
 }

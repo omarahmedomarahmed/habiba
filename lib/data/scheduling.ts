@@ -745,6 +745,9 @@ export async function cancelBooking(input: {
       /* 🔴 0168: who cancelled, and when. */
       .set({ status: "cancelled", cancelledBy: input.by, cancelledAt: now, updatedAt: now })
       .where(and(eq(sessions.id, cancelled.sessionId), eq(sessions.status, "scheduled")));
+    /* 🔴 K20: a transfer declared for it is now money to give back, on the staff screen. */
+    const { flagTransfersForCancelled } = await import("@/lib/billing/rail-exceptions");
+    await flagTransfersForCancelled(cancelled.sessionId);
   }
 
   await audit({

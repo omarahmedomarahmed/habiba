@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 import {
@@ -87,10 +87,22 @@ async function payerOf(
      * read the balance and cannot move money, and telling somebody about a
      * payment they had no part in is how a sender gets filtered.
      */
+    /*
+     * 🔴 ME69: the comment above said admins and the query did not ask. It took
+     * the first login of any role, deleted ones included, so a payment notice
+     * could go to a viewer or to somebody who had left the company.
+     */
     const [admin] = await db
       .select({ email: sponsorUsers.email })
       .from(sponsorUsers)
-      .where(eq(sponsorUsers.sponsorId, payment.sponsorId))
+      .where(
+        and(
+          eq(sponsorUsers.sponsorId, payment.sponsorId),
+          eq(sponsorUsers.role, "admin"),
+          isNull(sponsorUsers.deletedAt),
+        ),
+      )
+      .orderBy(sponsorUsers.createdAt)
       .limit(1);
     const [sponsor] = await db
       .select({ name: sponsors.name })
@@ -165,11 +177,16 @@ async function payerOf(
  * Every message about this rail names the amount, and naming it in dollars
  * would be naming a number the payer never saw: they chose pounds in a banking
  * app and the statement line is in pounds.
+ *
+ * 🔴 K16g (ME39): the pounds stored on the row, the figure the sheet quoted
+ * and the payer sent. Converting `settles_cents` at today's rate quoted a
+ * different number the moment an operator changed the rate in between.
  */
-async function poundsFor(settlesCents: number): Promise<string> {
-  const { egpMinorFor, egpRateMicro } = await import("./manual");
+async function poundsFor(payment: Pick<ManualPayment, "amountCents" | "currency" | "settlesCents">): Promise<string> {
   const { formatMoney } = await import("./plans");
-  return formatMoney(egpMinorFor(settlesCents, await egpRateMicro()), "EGP", "en-US");
+  if (payment.currency.toUpperCase() === "EGP") return formatMoney(payment.amountCents, "EGP", "en-US");
+  const { egpMinorFor, egpRateMicro } = await import("./manual");
+  return formatMoney(egpMinorFor(payment.settlesCents, await egpRateMicro()), "EGP", "en-US");
 }
 
 /** The join link, for the one payer whose purchase is a door. */
@@ -204,7 +221,7 @@ export async function noticePaymentSubmitted(paymentId: string): Promise<void> {
     const who = await recipientFor(payment);
     if (!who) return;
 
-    const amount = await poundsFor(payment.settlesCents);
+    const amount = await poundsFor(payment);
     const { t } = who.words;
 
     await notify(who.to, {
@@ -239,7 +256,7 @@ export async function noticePaymentConfirmed(paymentId: string): Promise<void> {
     if (!who) return;
 
     const join = await joinLinkFor(payment);
-    const amount = await poundsFor(payment.settlesCents);
+    const amount = await poundsFor(payment);
     const { t } = who.words;
 
     await notify(who.to, {
@@ -285,7 +302,7 @@ export async function noticePaymentRejected(paymentId: string): Promise<void> {
     if (!who) return;
 
     const join = await joinLinkFor(payment);
-    const amount = await poundsFor(payment.settlesCents);
+    const amount = await poundsFor(payment);
     const { t } = who.words;
     await notify(who.to, {
       kind: "payment.rejected",

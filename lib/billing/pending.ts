@@ -108,6 +108,8 @@ export async function pendingPaymentFor(
       refId: manualPayments.refId,
       state: manualPayments.state,
       settlesCents: manualPayments.settlesCents,
+      amountCents: manualPayments.amountCents,
+      currency: manualPayments.currency,
       decidedAt: manualPayments.decidedAt,
     })
     .from(manualPayments)
@@ -157,7 +159,15 @@ export async function pendingPaymentFor(
    * 🔴 The figure in POUNDS, because that is what left their bank, and
    * formatted here because a client component may not format money (C84).
    */
-  const amount = formatMoney(egpMinorFor(row.settlesCents, await egpRateMicro()), "EGP", locale);
+  /*
+   * 🔴 K16g (ME39): the pounds stored on the row, which is what the sheet
+   * quoted and what they sent. Recomputing from `settles_cents` at today's
+   * rate named a different figure the moment an operator moved the rate.
+   */
+  const amount =
+    row.currency.toUpperCase() === "EGP"
+      ? formatMoney(row.amountCents, "EGP", locale)
+      : formatMoney(egpMinorFor(row.settlesCents, await egpRateMicro()), "EGP", locale);
 
   /*
    * 🔴 The key each surface already uses, and they differ because the payers do.

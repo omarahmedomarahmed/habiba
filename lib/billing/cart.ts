@@ -108,6 +108,9 @@ export async function openCart(input: {
       kept: opened.id,
       retired: retired.length,
     });
+    /* K4: a request to credit a retired cart without proof has nothing left to credit. */
+    const { voidApprovalsFor } = await import("./approvals");
+    await voidApprovalsFor("transfer_without_proof", retired.map((r) => r.id));
   }
 
   return opened;
@@ -195,6 +198,9 @@ export async function cancelCart(
 
   if (gone.length > 0) {
     log.info("a payer cancelled their open payment", { cancelled: gone.length });
+    /* K4: and any request to credit it without proof closes with it. */
+    const { voidApprovalsFor } = await import("./approvals");
+    await voidApprovalsFor("transfer_without_proof", gone.map((g) => g.id));
   }
 
   return { cancelled: gone.length };

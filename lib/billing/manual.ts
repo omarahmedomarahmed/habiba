@@ -38,6 +38,7 @@ import { controlDb as db } from "@/lib/db";
 import {
   manualPayments,
   type ManualPayment,
+  type ManualPaymentException,
   type ManualPaymentPurpose,
   users,
 } from "@/lib/db/schema";
@@ -495,7 +496,19 @@ export async function livePaymentFor(
   return row ?? null;
 }
 
-export type Decision = { ok?: true; error?: string };
+/**
+ * `confirmed` is true whenever the row moved to `confirmed`, including when the
+ * grant after it failed and `error` says so. K5: the caller audits the
+ * confirmation on that, not on `ok`, because a person did decide the money
+ * arrived whatever the follow-on step did.
+ */
+export type Decision = {
+  ok?: true;
+  error?: string;
+  confirmed?: true;
+  /** K5: the grant ran and raised this exception instead of delivering. */
+  flagged?: ManualPaymentException;
+};
 
 /**
  * An operator confirms the money arrived, and the thing being paid for happens.
@@ -595,7 +608,25 @@ export async function confirmPayment(input: {
        */
       const { flagException } = await import("./rail-exceptions");
       await flagException(payment.id, "grant_failed", String(error));
-      return { error: "The payment was recorded but the account was not updated. It is under Needs a decision." };
+      return {
+        confirmed: true,
+        error: "The payment was recorded but the account was not updated. It is under Needs a decision.",
+      };
+    }
+
+    /*
+     * 🔴 K5: a grant that did not throw can still have found the thing it paid
+     * for gone and raised that instead (not payable, paid twice, over the
+     * bill). Staff are told so here rather than "they can carry on", and the
+     * payer is not told their session is ready; `retryGrant` asks the same.
+     */
+    const [after] = await db
+      .select({ exception: manualPayments.exception })
+      .from(manualPayments)
+      .where(eq(manualPayments.id, payment.id))
+      .limit(1);
+    if (after?.exception) {
+      return { ok: true, confirmed: true, flagged: after.exception };
     }
   }
 
@@ -610,7 +641,7 @@ export async function confirmPayment(input: {
   const { noticePaymentConfirmed } = await import("./payment-notices");
   await noticePaymentConfirmed(payment.id);
 
-  return { ok: true };
+  return { ok: true, confirmed: true };
 }
 
 /**
@@ -739,6 +770,13 @@ export async function rejectPayment(input: {
       decidedAt: sql`now()`,
       decidedBy: input.byUserId,
       rejectReason: reason,
+      /*
+       * K20: a rejected transfer never arrived, so a question raised about it
+       * while it waited (its booking was cancelled) is answered by this.
+       */
+      exceptionResolvedAt: sql`CASE WHEN ${manualPayments.exception} IS NOT NULL THEN now() END`,
+      exceptionResolvedBy: sql`CASE WHEN ${manualPayments.exception} IS NOT NULL THEN ${input.byUserId}::uuid END`,
+      exceptionResolution: sql`CASE WHEN ${manualPayments.exception} IS NOT NULL THEN ${`Rejected: ${reason}`.slice(0, 500)} END`,
     })
     .where(and(eq(manualPayments.id, input.paymentId), eq(manualPayments.state, "submitted")))
     .returning({ id: manualPayments.id });

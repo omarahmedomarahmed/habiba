@@ -96,6 +96,32 @@ export async function closeApproval(input: {
   return closed.length > 0;
 }
 
+/**
+ * 🔴 K4 (0171): a request whose subject is gone is closed as `void`, by nobody.
+ *
+ * A "credit without proof" request names an open cart. When the payer cancels
+ * it, an operator discards it or retention expires it, there is nothing left
+ * to credit, and Complete used to fail on it for ever while the request sat
+ * open at the top of the transfers screen. `void` needs no decider, because
+ * no person decided: the thing it asked about stopped existing.
+ */
+export async function voidApprovalsFor(kind: PendingApprovalKind, subjectIds: string[]): Promise<number> {
+  if (subjectIds.length === 0) return 0;
+  const { inArray } = await import("drizzle-orm");
+  const voided = await db
+    .update(pendingApprovals)
+    .set({ state: "void", decidedAt: new Date() })
+    .where(
+      and(
+        eq(pendingApprovals.kind, kind),
+        eq(pendingApprovals.state, "asked"),
+        inArray(pendingApprovals.subjectId, subjectIds),
+      ),
+    )
+    .returning({ id: pendingApprovals.id });
+  return voided.length;
+}
+
 export type PendingApprovalRow = {
   id: string;
   kind: PendingApprovalKind;
@@ -234,6 +260,20 @@ export async function sendOneHandDigest(now = new Date()): Promise<{ lines: numb
   for (const v of verified) lines.push(`Verification ${v.state} by ${await name(v.by)}`);
 
   if (lines.length === 0) return { lines: 0 };
+
+  /*
+   * 🔴 K26 (ME48): ONCE A DAY, however often the billing job runs. Everything
+   * else in that job does nothing the second time; this sent the whole digest
+   * again. Claimed in `ops_alerts` (the watchdog's once-a-day table) before
+   * anything is sent, so two runs at once send one.
+   */
+  const { opsAlerts } = await import("@/lib/db/schema");
+  const [claimed] = await db
+    .insert(opsAlerts)
+    .values({ key: "digest:one-hand", day: now.toISOString().slice(0, 10) })
+    .onConflictDoNothing()
+    .returning({ key: opsAlerts.key });
+  if (!claimed) return { lines: 0 };
 
   const { notify } = await import("@/lib/notify");
   const founders = await db
