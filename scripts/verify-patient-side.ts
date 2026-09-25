@@ -16,7 +16,9 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 import {
+  assessmentAssignments,
   historyGrants,
+  instruments,
   manualPayments,
   notifications,
   patientAuthSessions,
@@ -153,6 +155,7 @@ async function clean() {
 
   if (orgIds.length) {
     await db.delete(manualPayments).where(inArray(manualPayments.organizationId, orgIds));
+    await db.delete(assessmentAssignments).where(inArray(assessmentAssignments.organizationId, orgIds));
     await db.delete(riskAssessments).where(inArray(riskAssessments.organizationId, orgIds));
     await db.delete(sessionFeedback).where(inArray(sessionFeedback.organizationId, orgIds));
     await db.delete(sessions).where(inArray(sessions.organizationId, orgIds));
@@ -618,6 +621,47 @@ async function main() {
       "🔴 K9 the room says thank you only when the save came back ok",
       /if \(result\.ok\)[\s\S]{0,80}setDone\(true\)/.test(room) && !/await rateOnArrival\([^)]*\);\s*setDone\(true\)/.test(room),
     );
+
+    /* ------------------------ questionnaires · only the published languages */
+
+    const [phq] = await db
+      .select({ id: instruments.id, version: instruments.version, questions: instruments.questions, locales: instruments.locales })
+      .from(instruments)
+      .where(eq(instruments.key, "phq9"))
+      .limit(1);
+    if (phq) {
+      const [assigned] = await db
+        .insert(assessmentAssignments)
+        .values({
+          instrumentId: phq.id,
+          instrumentVersion: phq.version,
+          patientId: f.t1p,
+          organizationId: f.orgId,
+          assignedByUserId: f.t1,
+          mode: "homework",
+        })
+        .returning({ id: assessmentAssignments.id });
+      const { assignmentForAnswering } = await import("../lib/data/assessments");
+      const shown = await assignmentForAnswering(assigned!.id, f.p);
+      const drafted = (phq.questions as { text: Record<string, string> }[]).some((q) =>
+        Object.keys(q.text).some((locale) => !phq.locales.includes(locale)),
+      );
+      const leaked = (shown?.questions ?? []).flatMap((q) => [
+        ...Object.keys(q.text),
+        ...q.options.flatMap((o) => Object.keys(o.label)),
+      ]).filter((locale) => !phq.locales.includes(locale));
+      check(
+        "🔴 an unreviewed translation of a questionnaire never reaches the patient's screen",
+        Boolean(shown) && leaked.length === 0,
+        `published ${phq.locales.join("/")}, ${leaked.length} draft string(s) sent`,
+      );
+      check(
+        "CONTROL: the instrument really carries an unpublished draft, so the check above can fail",
+        drafted,
+      );
+    } else {
+      check("the PHQ-9 is seeded, so the questionnaire check has something to read", false, "no phq9 row");
+    }
 
     /* ------------------------------------------ K24 · closing an account (LAST) */
 

@@ -100,9 +100,10 @@ export function PatientQuestionnaire({
   /*
    * 🔴 The instrument's own language, falling back to English.
    *
-   * Not `t`: these strings are the instrument, not the interface. An Arabic
-   * PHQ-9 only reaches this line if somebody reviewed the translation, because
-   * `instruments_translation_reviewed` refuses to publish one otherwise.
+   * Not `t`: these strings are the instrument, not the interface. Only the
+   * languages the instrument is published in reach this component at all
+   * (`assignmentForAnswering` strips the rest), so an unreviewed Arabic draft
+   * falls back to the English it was translated from.
    */
   const say = (text: Record<string, string>) => text[locale] ?? text.en ?? "";
 
