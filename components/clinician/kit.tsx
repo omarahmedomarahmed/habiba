@@ -82,7 +82,11 @@ export function Field({
         {label}
       </label>
       {children}
-      {error ? <p className="text-sm text-red-600">{error}</p> : hint ? <p className="text-xs text-navy-400">{hint}</p> : null}
+      {error ? (
+        <p className="text-sm text-red-600">{error}</p>
+      ) : hint ? (
+        <p className="text-xs text-navy-400">{hint}</p>
+      ) : null}
     </div>
   );
 }
