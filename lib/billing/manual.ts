@@ -508,6 +508,8 @@ export type Decision = {
   confirmed?: true;
   /** K5: the grant ran and raised this exception instead of delivering. */
   flagged?: ManualPaymentException;
+  /** K20: the booking was cancelled; the money is in the patient's wallet. */
+  walletCredited?: true;
 };
 
 /**
@@ -620,10 +622,18 @@ export async function confirmPayment(input: {
      * bill). Staff are told so here rather than "they can carry on".
      */
     const [after] = await db
-      .select({ exception: manualPayments.exception })
+      .select({ exception: manualPayments.exception, resolution: manualPayments.exceptionResolution })
       .from(manualPayments)
       .where(eq(manualPayments.id, payment.id))
       .limit(1);
+    /*
+     * K20: the booking was cancelled and the money went to the patient's
+     * wallet, with its own message to them. Not "your session is ready".
+     */
+    const { WALLET_RESOLUTION } = await import("./transfer-wallet");
+    if (after?.resolution?.startsWith(WALLET_RESOLUTION)) {
+      return { ok: true, confirmed: true, walletCredited: true };
+    }
     /*
      * `not_payable` bought nothing, so nobody is told it is ready. `overpaid`
      * still delivered (the bill was paid, or the session already was) and the

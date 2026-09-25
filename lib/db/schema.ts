@@ -5770,9 +5770,14 @@ export const refundRequests = pgTable(
   "refund_requests",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    sessionPaymentId: uuid("session_payment_id")
-      .notNull()
-      .references(() => sessionPayments.id, { onDelete: "restrict" }),
+    /** Exactly one of this and `manualPaymentId` (0171, CHECK). */
+    sessionPaymentId: uuid("session_payment_id").references(() => sessionPayments.id, { onDelete: "restrict" }),
+    /**
+     * 🔴 K20 (0171): a bank transfer for a booking cancelled before it was paid,
+     * credited to the wallet by default and asked back as a refund instead.
+     * There is no session payment behind it, only the transfer.
+     */
+    manualPaymentId: uuid("manual_payment_id").references(() => manualPayments.id, { onDelete: "restrict" }),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "restrict" }),
@@ -5816,6 +5821,9 @@ export const refundRequests = pgTable(
   (t) => [
     uniqueIndex("refund_requests_one_live_per_payment")
       .on(t.sessionPaymentId)
+      .where(sql`status IN ('owed', 'sent')`),
+    uniqueIndex("refund_requests_one_live_per_transfer")
+      .on(t.manualPaymentId)
       .where(sql`status IN ('owed', 'sent')`),
     index("refund_requests_open_idx")
       .on(t.createdAt)

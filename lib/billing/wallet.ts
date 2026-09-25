@@ -48,6 +48,11 @@ async function expiryFor(now: Date): Promise<Date> {
   return at;
 }
 
+/** When a credit made now expires; for a caller that credits inside its own transaction. */
+export async function walletExpiryFrom(now: Date): Promise<Date> {
+  return expiryFor(now);
+}
+
 /** What a person can spend now: live credits, less what they already drew. */
 export async function walletBalanceCents(personId: string): Promise<number> {
   const [row] = await db

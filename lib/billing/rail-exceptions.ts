@@ -74,7 +74,7 @@ export async function flagTransfersForCancelled(sessionId?: string): Promise<num
   const rows = await db.execute(sql`
     UPDATE manual_payments m
        SET exception = 'not_payable',
-           exception_detail = 'The booking was cancelled while this transfer waited. If the money arrived, refund it or credit it to the patient''s wallet.',
+           exception_detail = 'The booking was cancelled while this transfer waited. Confirm it if the money arrived: it goes to the patient''s wallet, and a refund if they ask.',
            exception_at = now(),
            exception_resolved_at = NULL,
            exception_resolved_by = NULL,
@@ -91,6 +91,26 @@ export async function flagTransfersForCancelled(sessionId?: string): Promise<num
   if (rows.rows.length > 0) {
     log.warn("transfers for cancelled bookings raised", { count: rows.rows.length });
   }
+
+  /*
+   * 🔴 K20 (founder's decision): the ones whose money already ARRIVED go to
+   * the patient's wallet now. A confirmed transfer found here was confirmed
+   * before the booking was cancelled, or its credit failed on confirmation;
+   * `creditCancelledTransfer` credits each once, whoever asks first.
+   */
+  const arrived = await db.execute(sql`
+    SELECT m.id FROM manual_payments m
+      JOIN sessions s ON s.id = m.ref_id
+     WHERE m.purpose IN ('session', 'payg_session')
+       AND m.state = 'confirmed'
+       AND m.exception = 'not_payable'
+       AND m.exception_resolved_at IS NULL
+       AND s.status = 'cancelled'
+       AND s.payment_status <> 'paid'
+       ${sessionId ? sql`AND s.id = ${sessionId}` : sql``}
+     LIMIT 200`);
+  const { creditCancelledTransfer } = await import("./transfer-wallet");
+  for (const row of arrived.rows as { id: string }[]) await creditCancelledTransfer(row.id);
   return rows.rows.length;
 }
 

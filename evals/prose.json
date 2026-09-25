@@ -13,11 +13,11 @@
   },
   "baseline": {
     "shared": 1573,
-    "patient": 6392,
+    "patient": 6449,
     "public": 5718,
     "clinician": 8389,
     "sponsor": 1523,
-    "admin": 3497,
+    "admin": 3502,
     "clinic": 1085,
     "partner": 1658,
     "legal": 1377
@@ -141,7 +141,7 @@
   "merge0925": "The therapist-side and patient-side passes of 2026-09-25 landed together: each measured its own rise from the same starting point, so the combined figure is their sum (clinician 8363, shared 1573). No copy was added in the merge.",
   "patientSide0173": "Patient-side pass (area C, migration 0173): clinician 7861 -> 8034, patient 6115 -> 6394, public 5541 -> 5722, shared 1515 -> 1519. Each allowance above origin was raised by exactly the rise it covers; the reasons are appended to sinceOrigin. Then patient 6394 -> 6392 (the dead-link line stopped promising a 12-hour life the settings do not give every link, PE72, two words shorter) and shared 1519 -> 1546 (PE82's radar literals, keyed).",
   "money0925": {
-    "comment": "Money fixes (2026-09-25): admin 3253 to 3283 for marking a partner month paid, clinician 7861 to 7887 for the renewal reminders (K17), partner 1620 to 1647 for how a partner bill is paid and whether it has been. Each allowance in sinceOrigin carries its paragraph."
+    "comment": "Money fixes (2026-09-25): admin 3253 to 3283 for marking a partner month paid, clinician 7861 to 7887 for the renewal reminders (K17), partner 1620 to 1647 for how a partner bill is paid and whether it has been. Each allowance in sinceOrigin carries its paragraph. Then K20's wallet default: admin 3283 to 3288 and patient 6115 to 6172, each with its paragraph."
   },
   "console0172": {
     "comment": "Console fixes (2026-09-25, migration 0172): admin 3253 to 3467 and partner 1620 to 1631, each allowance raised by exactly the rise it covers and argued in its sinceOrigin entry."

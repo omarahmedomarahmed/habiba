@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import {
+  refundInsteadOfWallet,
   resolveTransferException,
   retryException,
 } from "@/app/(admin)/admin/transfers/exception-actions";
@@ -22,6 +23,8 @@ export type ExceptionRow = {
   kind: ManualPaymentException;
   detail: string | null;
   raisedAt: string | null;
+  /** K20: a cancelled booking's transfer now in the patient's wallet; staff may refund it instead. */
+  walletCredit?: boolean;
 };
 
 const KIND: Record<ManualPaymentException, MessageKey> = {
@@ -60,7 +63,7 @@ function ExceptionItem({ row }: { row: ExceptionRow }) {
   return (
     <li className="space-y-2 rounded-xl border border-slate-100 p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="amber">{t(KIND[row.kind])}</Badge>
+        <Badge tone="amber">{row.walletCredit ? t("arail.inWallet") : t(KIND[row.kind])}</Badge>
         <span className="font-semibold text-slate-900">{row.payer}</span>
         <span className="text-slate-500">{row.what}</span>
         {/*
@@ -105,12 +108,15 @@ function ExceptionItem({ row }: { row: ExceptionRow }) {
           disabled={pending || note.trim().length < 10}
           onClick={() =>
             start(async () => {
-              const result = await resolveTransferException(row.id, note);
+              /* K20: the reason typed is why the patient wants it refunded instead. */
+              const result = row.walletCredit
+                ? await refundInsteadOfWallet(row.id, note)
+                : await resolveTransferException(row.id, note);
               setSaid(result.error ?? null);
             })
           }
         >
-          {t("arail.resolve")}
+          {row.walletCredit ? t("arail.refundInstead") : t("arail.resolve")}
         </Button>
       </div>
     </li>

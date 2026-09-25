@@ -521,9 +521,126 @@ async function main() {
     const k20Row = await one<{ state: string; exception: string | null; detail: string | null }>(sql`
       SELECT state, exception, exception_detail AS detail FROM manual_payments WHERE id = ${k20Pay.id}`);
     check(
-      "🔴 K20 the waiting transfer is raised to staff as money to give back, not silently kept",
-      k20Row.state === "submitted" && k20Row.exception === "not_payable" && /refund it or credit it/.test(k20Row.detail ?? ""),
+      "🔴 K20 the waiting transfer is raised to staff at once, saying where the money will go",
+      k20Row.state === "submitted" && k20Row.exception === "not_payable" && /patient's wallet/.test(k20Row.detail ?? ""),
       JSON.stringify(k20Row),
+    );
+
+    /* ---- the founder's decision: money that arrived goes to the wallet by default */
+
+    const { walletBalanceCents: balanceOf } = await import("../lib/billing/wallet");
+    const { refundTransferInstead, walletCreditedTransfers } = await import("../lib/billing/transfer-wallet");
+    check(
+      "K20 CONTROL nothing is in the wallet while the transfer is only submitted",
+      (await balanceOf(k20.personId)) === 0,
+      String(await balanceOf(k20.personId)),
+    );
+    const k20Confirm = await confirmPayment({ paymentId: k20Pay.id, byUserId: operator.id, onConfirmed: grantFor });
+    const creditedOnce = await balanceOf(k20.personId);
+    await flagTransfersForCancelled(k20.sessionId);
+    await flagTransfersForCancelled();
+    const k20After = await one<{ resolution: string | null; credits: number; wallet: number; cash: number; notices: number }>(sql`
+      SELECT (SELECT exception_resolution FROM manual_payments WHERE id = ${k20Pay.id}) AS resolution,
+             (SELECT count(*)::int FROM patient_credits WHERE person_id = ${k20.personId}) AS credits,
+             (SELECT COALESCE(SUM(amount_cents), 0)::int FROM ledger_entries
+               WHERE ref_type = 'patient_credit' AND account = 'patient_wallet'
+                 AND ref_id IN (SELECT id FROM patient_credits WHERE person_id = ${k20.personId})) AS wallet,
+             (SELECT COALESCE(SUM(amount_cents), 0)::int FROM ledger_entries
+               WHERE ref_type = 'patient_credit' AND account = 'cash'
+                 AND ref_id IN (SELECT id FROM patient_credits WHERE person_id = ${k20.personId})) AS cash,
+             (SELECT count(*)::int FROM patient_notifications
+               WHERE person_id = ${k20.personId} AND message_key = 'pnotice.walletCredited') AS notices`);
+    check(
+      "🔴 K20 confirming it credits the patient's wallet with what arrived, resolving the exception, books balanced",
+      k20Confirm.walletCredited === true && creditedOnce === k20Pay.settlesCents &&
+        (k20After.resolution ?? "").startsWith("Credited to the patient's wallet as credit ") &&
+        k20After.wallet === -k20Pay.settlesCents && k20After.cash === k20Pay.settlesCents,
+      JSON.stringify({ k20Confirm, creditedOnce, k20After }),
+    );
+    check(
+      "🔴 K20 …once: the backstop run twice more credits nothing",
+      k20After.credits === 1 && (await balanceOf(k20.personId)) === creditedOnce,
+      JSON.stringify(k20After),
+    );
+    check(
+      "🔴 K20 the patient is told, in the app (and by message), that it is in their wallet and can be refunded",
+      k20After.notices === 1,
+      `${k20After.notices} notices`,
+    );
+
+    /* A transfer already confirmed when the booking is cancelled: the hourly backstop credits it. */
+    const k20b = await cast("Yasmin");
+    const k20bPay = await submitted(k20b.sessionId, "K20B");
+    await confirmPayment({ paymentId: k20bPay.id, byUserId: operator.id, onConfirmed: async () => {} });
+    check("K20 CONTROL a confirmed transfer on a live booking is not credited", (await balanceOf(k20b.personId)) === 0, "0");
+    await db.execute(sql`UPDATE sessions SET status = 'cancelled', cancelled_by = 'therapist', cancelled_at = now() WHERE id = ${k20b.sessionId}`);
+    await flagTransfersForCancelled();
+    check(
+      "🔴 K20 a transfer that was already confirmed when the booking was cancelled goes to the wallet too",
+      (await balanceOf(k20b.personId)) === k20bPay.settlesCents,
+      String(await balanceOf(k20b.personId)),
+    );
+
+    /* Refund instead. */
+    const shortReason = await refundTransferInstead({ paymentId: k20Pay.id, byUserId: operator.id, reason: "no" });
+    check("K20 CONTROL refund instead needs a reason", Boolean(shortReason.error), JSON.stringify(shortReason));
+    check(
+      "K20 CONTROL the credited transfer is on the staff list with Refund instead",
+      (await walletCreditedTransfers()).some((row) => row.id === k20Pay.id),
+      "listed",
+    );
+    const instead = await refundTransferInstead({
+      paymentId: k20Pay.id,
+      byUserId: operator.id,
+      reason: `The patient asked for a bank refund, ${fixture}`,
+    });
+    const insteadAgain = await refundTransferInstead({
+      paymentId: k20Pay.id,
+      byUserId: operator.id,
+      reason: `The patient asked for a bank refund, ${fixture}`,
+    });
+    const reversed = await one<{ wallet: number; cash: number; refunds: number; amount: number }>(sql`
+      SELECT (SELECT COALESCE(SUM(amount_cents), 0)::int FROM ledger_entries
+               WHERE ref_type = 'patient_credit' AND account = 'patient_wallet'
+                 AND ref_id IN (SELECT id FROM patient_credits WHERE person_id = ${k20.personId})) AS wallet,
+             (SELECT COALESCE(SUM(amount_cents), 0)::int FROM ledger_entries
+               WHERE ref_type = 'patient_credit' AND account = 'cash'
+                 AND ref_id IN (SELECT id FROM patient_credits WHERE person_id = ${k20.personId})) AS cash,
+             (SELECT count(*)::int FROM refund_requests WHERE manual_payment_id = ${k20Pay.id}) AS refunds,
+             (SELECT COALESCE(MAX(amount_cents), 0)::int FROM refund_requests WHERE manual_payment_id = ${k20Pay.id}) AS amount`);
+    check(
+      "🔴 K20 Refund instead reverses the wallet credit on the books and queues ONE refund for the whole amount",
+      instead.ok === true && Boolean(insteadAgain.error) && reversed.wallet === 0 && reversed.cash === 0 &&
+        reversed.refunds === 1 && reversed.amount === k20Pay.settlesCents && (await balanceOf(k20.personId)) === 0,
+      JSON.stringify({ instead, insteadAgain, reversed }),
+    );
+    await db.execute(sql`
+      UPDATE patient_credits SET spent_cents = 100
+       WHERE person_id = ${k20b.personId} AND from_session_id = ${k20b.sessionId}`);
+    const afterSpend = await refundTransferInstead({
+      paymentId: k20bPay.id,
+      byUserId: operator.id,
+      reason: `The patient asked for a bank refund, ${fixture}`,
+    });
+    const k20bRefunds = await one<{ n: number }>(sql`SELECT count(*)::int AS n FROM refund_requests WHERE manual_payment_id = ${k20bPay.id}`);
+    check(
+      "🔴 K20 Refund instead is refused once any of the wallet credit has been spent",
+      Boolean(afterSpend.error) && k20bRefunds.n === 0,
+      JSON.stringify(afterSpend),
+    );
+
+    /* Submitted and then rejected: nothing arrived, nothing moves. */
+    const { rejectPayment } = await import("../lib/billing/manual");
+    const k20c = await cast("Nadia");
+    const k20cPay = await submitted(k20c.sessionId, "K20C");
+    await db.execute(sql`UPDATE sessions SET status = 'cancelled', cancelled_by = 'patient', cancelled_at = now() WHERE id = ${k20c.sessionId}`);
+    await flagTransfersForCancelled(k20c.sessionId);
+    await rejectPayment({ paymentId: k20cPay.id, byUserId: operator.id, reason: "Nothing arrived in the account for this one." });
+    await flagTransfersForCancelled();
+    check(
+      "🔴 K20 a transfer that was only submitted and then rejected credits nothing",
+      (await balanceOf(k20c.personId)) === 0,
+      String(await balanceOf(k20c.personId)),
     );
     check(
       "🔴 K20 every patient and clinician cancel path raises it, and the hourly job is the backstop",
@@ -687,6 +804,7 @@ async function main() {
     await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id IN ${sponsorsOf}`);
     await db.execute(sql`DELETE FROM ledger_entries WHERE ref_type = 'patient_credit' AND ref_id IN
       (SELECT pc.id FROM patient_credits pc JOIN people p ON p.id = pc.person_id WHERE p.email LIKE '%.mfix%@example.com')`);
+    await db.execute(sql`DELETE FROM refund_requests WHERE organization_id IN ${orgs}`);
     await db.execute(sql`DELETE FROM manual_payments WHERE organization_id IN ${orgs}`);
     await db.execute(sql`DELETE FROM manual_payments WHERE ref_id IN (SELECT id FROM sessions WHERE organization_id IN ${orgs})`);
     await db.execute(sql`DELETE FROM invoice_lines WHERE invoice_id IN (SELECT id FROM invoices WHERE organization_id IN ${orgs})`);

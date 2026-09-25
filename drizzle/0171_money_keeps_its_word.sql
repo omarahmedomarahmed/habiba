@@ -36,3 +36,19 @@ ALTER TABLE "patient_credits" ADD COLUMN IF NOT EXISTS "expired_cents" integer D
 -- ME20: one charger per completed session, claimed before credit is spent or
 -- a fee netted.
 ALTER TABLE "sessions" ADD COLUMN IF NOT EXISTS "charge_claimed_at" timestamp with time zone;
+--> statement-breakpoint
+-- K20 (founder decision): a transfer for a booking cancelled before it was paid
+-- goes to the patient's wallet by default, and a patient who asks gets it back
+-- as a refund instead. That refund has no session payment behind it, only the
+-- transfer, so a refund row names exactly one of the two.
+ALTER TABLE "refund_requests" ALTER COLUMN "session_payment_id" DROP NOT NULL;
+--> statement-breakpoint
+ALTER TABLE "refund_requests" ADD COLUMN IF NOT EXISTS "manual_payment_id" uuid REFERENCES "manual_payments"("id") ON DELETE RESTRICT;
+--> statement-breakpoint
+ALTER TABLE "refund_requests" DROP CONSTRAINT IF EXISTS "refund_requests_one_subject";
+--> statement-breakpoint
+ALTER TABLE "refund_requests" ADD CONSTRAINT "refund_requests_one_subject"
+  CHECK (num_nonnulls("session_payment_id", "manual_payment_id") = 1);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "refund_requests_one_live_per_transfer"
+  ON "refund_requests" ("manual_payment_id") WHERE status IN ('owed', 'sent');

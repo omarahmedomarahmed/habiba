@@ -199,9 +199,10 @@ export async function returnPotShare(input: {
     .from(refundRequests)
     .where(eq(refundRequests.id, input.requestId))
     .limit(1);
-  if (!row || row.status !== "owed" || row.reason !== POT_SHARE_REFUND) {
+  if (!row || row.status !== "owed" || row.reason !== POT_SHARE_REFUND || !row.sessionPaymentId) {
     return { error: "arefund.errMoved" };
   }
+  const sessionPaymentId = row.sessionPaymentId;
   /* 🔴 0161: the opener may not also return it while refunds need two people. */
   if ((await getSettings()).rules.approvals.refunds && row.requestedByUserId === input.actorUserId) {
     return { error: "arefund.errTwo" };
@@ -209,7 +210,7 @@ export async function returnPotShare(input: {
 
   const { refundToPot } = await import("./pot");
   const pot = await refundToPot({
-    paymentId: row.sessionPaymentId,
+    paymentId: sessionPaymentId,
     reason: "Company share returned from the refund queue",
   });
   if (pot.error) {
@@ -236,7 +237,7 @@ export async function returnPotShare(input: {
 
   const { refundSessionPayment } = await import("./connect");
   const rest = await refundSessionPayment({
-    paymentId: row.sessionPaymentId,
+    paymentId: sessionPaymentId,
     reason: "Company share returned; finishing the refund",
     adminUserId: input.actorUserId,
     why: "admin",
@@ -289,11 +290,10 @@ export async function markRefundSent(input: {
   /* W2-M05: the company's share goes back to its pot (`returnPotShare`), never by transfer. */
   if (row.reason === POT_SHARE_REFUND) return { error: "arefund.errMoved" };
 
-  const [held] = await db
-    .select()
-    .from(sessionPayments)
-    .where(eq(sessionPayments.id, row.sessionPaymentId))
-    .limit(1);
+  /* K20: a refund of a transfer has no session payment; its books moved when it was queued. */
+  const [held] = row.sessionPaymentId
+    ? await db.select().from(sessionPayments).where(eq(sessionPayments.id, row.sessionPaymentId)).limit(1)
+    : [];
 
   /*
    * 🔴 W2-M06: never more than the payer paid. Rows queued for a pot payment
@@ -388,7 +388,7 @@ export async function markRefundSent(input: {
    */
   if (held?.fundingSource === "pot" && held.status === "paid") {
     const { refundToPot } = await import("./pot");
-    const pot = await refundToPot({ paymentId: row.sessionPaymentId, reason: row.reason });
+    const pot = await refundToPot({ paymentId: held.id, reason: row.reason });
     if (pot.error) {
       log.error("refund not sent: the company's share is not back", {
         payment: ref(row.sessionPaymentId),
@@ -423,6 +423,13 @@ export async function markRefundSent(input: {
         .where(and(eq(refundRequests.id, input.requestId), eq(refundRequests.status, "owed")))
         .returning({ id: refundRequests.id });
       if (moved.length === 0) return { error: "arefund.errMoved" as const };
+
+      /*
+       * 🔴 K20: a transfer's refund. The wallet credit it replaced was reversed
+       * when it was queued (`refundTransferInstead`), so the money leaving now
+       * has already left the books; nothing posts twice.
+       */
+      if (!row.sessionPaymentId) return { ok: true };
 
       const [payment] = await tx
         .update(sessionPayments)
@@ -511,7 +518,21 @@ export async function confirmRefund(input: { requestId: string }): Promise<Resul
  * the first step answers with `arefund.cancelAsked`, which the action reads
  * as done. The database refuses a cancel by the person who asked.
  */
+/**
+ * Cancel an owed refund. K20: a transfer's refund that is cancelled puts the
+ * money back in the patient's wallet, where it was before they asked, so
+ * cancelling a refund never loses it. Only the call that cancelled does this.
+ */
 export async function cancelRefund(input: { requestId: string; reason: string; byUserId: string }): Promise<Result> {
+  const result = await cancelRefundRow(input);
+  if (result.ok) {
+    const { rewalletCancelledRefund } = await import("./transfer-wallet");
+    await rewalletCancelledRefund(input.requestId);
+  }
+  return result;
+}
+
+async function cancelRefundRow(input: { requestId: string; reason: string; byUserId: string }): Promise<Result> {
   const [row] = await db
     .select({ status: refundRequests.status, askedBy: refundRequests.cancelAskedByUserId })
     .from(refundRequests)
@@ -605,7 +626,7 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
     .limit(200);
 
   /* The session behind each payment: who it was for, and the transfer that paid it. */
-  const paymentIds = rows.map((row) => row.sessionPaymentId);
+  const paymentIds = rows.map((row) => row.sessionPaymentId).filter((id): id is string => Boolean(id));
   const facts =
     paymentIds.length > 0
       ? await db
@@ -650,6 +671,33 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
     }),
   );
 
+  /*
+   * K20: a transfer asked back instead of kept in the wallet. The pounds it
+   * sent are what goes back, and the name is the session's patient.
+   */
+  const transfersBack = new Map<string, { sendMinor: number | null; sendCurrency: string | null; patientName: string | null }>();
+  for (const row of rows) {
+    if (!row.manualPaymentId) continue;
+    const [fact] = await db
+      .select({
+        amountCents: manualPayments.amountCents,
+        currency: manualPayments.currency,
+        guestName: sessions.guestName,
+        firstName: patients.firstName,
+        lastName: patients.lastName,
+      })
+      .from(manualPayments)
+      .leftJoin(sessions, eq(sessions.id, manualPayments.refId))
+      .leftJoin(patients, eq(patients.id, sessions.patientId))
+      .where(eq(manualPayments.id, row.manualPaymentId))
+      .limit(1);
+    transfersBack.set(row.id, {
+      sendMinor: fact?.amountCents ?? null,
+      sendCurrency: fact?.currency ?? null,
+      patientName: [fact?.firstName, fact?.lastName].filter(Boolean).join(" ") || fact?.guestName || null,
+    });
+  }
+
   return rows.map((row) => ({
     id: row.id,
     amountCents: row.amountCents,
@@ -669,6 +717,10 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
     destinationSetBy: row.payeeSetByUserId,
     cancelAsked: row.cancelAskedByUserId ? row.cancelledReason : null,
     cancelAskedBy: row.cancelAskedByUserId,
-    ...(paid.get(row.sessionPaymentId) ?? { sendMinor: null, sendCurrency: null, patientName: null }),
+    ...((row.sessionPaymentId ? paid.get(row.sessionPaymentId) : transfersBack.get(row.id)) ?? {
+      sendMinor: null,
+      sendCurrency: null,
+      patientName: null,
+    }),
   }));
 }

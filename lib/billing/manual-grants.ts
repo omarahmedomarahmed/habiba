@@ -148,6 +148,16 @@ async function grantSession(payment: ManualPayment): Promise<void> {
         "not_payable",
         `session ${now?.status ?? "gone"}, payment ${now?.paymentStatus ?? "none"}`,
       );
+      /*
+       * 🔴 K20 (founder's decision): the booking was cancelled, so the money
+       * that arrived goes to the patient's wallet by default, resolving this
+       * exception in the same transaction. Nothing when there is no wallet to
+       * hold it; then it stays here for a person.
+       */
+      if (now?.status === "cancelled") {
+        const { creditCancelledTransfer } = await import("./transfer-wallet");
+        await creditCancelledTransfer(payment.id);
+      }
     } else {
       /*
        * 🔴 PAID TWICE. The session was already paid, by card or by another

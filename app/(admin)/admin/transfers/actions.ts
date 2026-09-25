@@ -54,7 +54,9 @@ export async function confirm(
         ? "Bank transfer checked and confirmed; the grant failed and is under Needs a decision"
         : result.flagged
           ? `Bank transfer checked and confirmed; raised as ${result.flagged} under Needs a decision`
-          : "Bank transfer checked and confirmed",
+          : result.walletCredited
+            ? "Bank transfer checked and confirmed; the booking was cancelled, so it was credited to the patient's wallet"
+            : "Bank transfer checked and confirmed",
     });
     revalidatePath("/admin/transfers");
   }
@@ -62,6 +64,9 @@ export async function confirm(
   if (result.error) return { error: result.error };
   if (result.flagged) {
     return { error: flaggedMessage(result.flagged) };
+  }
+  if (result.walletCredited) {
+    return { ok: "Confirmed. The booking was cancelled, so it went to the patient's wallet and they have been told." };
   }
   return { ok: "Confirmed. They can carry on." };
 }
