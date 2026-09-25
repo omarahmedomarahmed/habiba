@@ -92,28 +92,45 @@ export function documentProblem(file: { size: number; type: string } | null): st
 }
 
 /**
- * 8.4's label, in the words the screen uses.
+ * 8.4's label, as a message key the screen renders in the reader's language.
  *
- * "Image — not searchable" rather than "processing failed" or nothing at all.
+ * "Image, not searchable" rather than "processing failed" or nothing at all.
  * The sentence has one job: stop a clinician assuming the copilot read a
  * document it never saw, because a clinician who believes the copilot has seen
  * a discharge summary will not go and read it themselves.
+ *
+ * 🔴 It returned English literals, so the badge stayed English under Arabic,
+ * and it called every `none` "Searchable". `none` means "nothing to extract":
+ * true of typed and dictated text, which is chunked as it is written, and
+ * false of a FILE that was stored and never queued (a row from before the
+ * worker, or one written without the step). A file is known by its type.
  */
 export function searchabilityLabel(input: {
   extraction: "none" | "pending" | "ready" | "unsupported" | "failed";
   mimeType: string | null;
-}): { label: string; searchable: boolean } {
+}): {
+  key:
+    | "tdl.searchable"
+    | "tdl.beingRead"
+    | "tdl.unreadable"
+    | "tdl.imageUnsearchable"
+    | "tdl.storedUnsearchable";
+  searchable: boolean;
+} {
   switch (input.extraction) {
     case "ready":
+      return { key: "tdl.searchable", searchable: true };
     case "none":
-      return { label: "Searchable", searchable: true };
+      return input.mimeType
+        ? { key: isImage(input.mimeType) ? "tdl.imageUnsearchable" : "tdl.storedUnsearchable", searchable: false }
+        : { key: "tdl.searchable", searchable: true };
     case "pending":
-      return { label: "Being read…", searchable: false };
+      return { key: "tdl.beingRead", searchable: false };
     case "failed":
-      return { label: "Could not be read, not searchable", searchable: false };
+      return { key: "tdl.unreadable", searchable: false };
     case "unsupported":
       return {
-        label: isImage(input.mimeType) ? "Image, not searchable" : "Stored, but not searchable",
+        key: isImage(input.mimeType) ? "tdl.imageUnsearchable" : "tdl.storedUnsearchable",
         searchable: false,
       };
   }

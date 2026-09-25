@@ -116,25 +116,41 @@ function DocumentCard({
   const [speaking, setSpeaking] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const { label, searchable } = searchabilityLabel({
+  const { key: labelKey, searchable } = searchabilityLabel({
     extraction: document.extraction,
     mimeType: document.mimeType,
   });
   const image = isImage(document.mimeType);
   const flagged = document.flags.length > 0;
 
+  const [speakFailed, setSpeakFailed] = useState<"busy" | "failed" | null>(null);
+
   const speak = async () => {
     setSpeaking(true);
+    setSpeakFailed(null);
     try {
       // A document id, never text. 8.10 — the words are spoken without ever
       // being in this page.
       const response = await fetch(`/api/documents/${document.id}/speak`, { method: "POST" });
-      if (!response.ok) return;
+      /*
+       * 🔴 A refusal used to `return` with `speaking` still true, so the
+       * button stayed on "Reading…", disabled, until the page was reloaded.
+       */
+      if (!response.ok) {
+        setSpeaking(false);
+        setSpeakFailed(response.status === 429 ? "busy" : "failed");
+        return;
+      }
       const audio = new Audio(URL.createObjectURL(await response.blob()));
       audio.onended = () => setSpeaking(false);
+      audio.onerror = () => {
+        setSpeaking(false);
+        setSpeakFailed("failed");
+      };
       await audio.play();
     } catch {
       setSpeaking(false);
+      setSpeakFailed("failed");
     }
   };
 
@@ -164,10 +180,17 @@ function DocumentCard({
             </p>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <Badge tone={searchable ? "slate" : "amber"}>{label}</Badge>
+              <Badge tone={searchable ? "slate" : "amber"}>{t(labelKey)}</Badge>
               {document.flags.map((flag) => (
                 <Badge key={flag.id} tone="amber">
-                  Flagged: {flag.reason.replace("_", " ")}
+                  {t("tdl.flagged", {
+                    reason:
+                      flag.reason === "not_mine"
+                        ? t("tdl.notMine")
+                        : flag.reason === "outdated"
+                          ? t("tdl.outdated")
+                          : t("tdl.wrong"),
+                  })}
                 </Badge>
               ))}
             </div>
@@ -208,6 +231,12 @@ function DocumentCard({
             </button>
           ) : null}
         </div>
+
+        {speakFailed ? (
+          <p role="alert" className="border-t border-slate-100 px-4 py-2 text-xs text-red-700">
+            {speakFailed === "busy" ? t("tdl.readBusy") : t("tdl.readFailed")}
+          </p>
+        ) : null}
 
         {flagging && onFlag ? (
           <div className="border-t border-slate-100 px-4 py-3">
@@ -287,7 +316,7 @@ function DocumentCard({
                   rel="noreferrer"
                   className="mt-2 inline-flex text-xs font-semibold text-brand-700 hover:underline"
                 >
-                  Open {document.title}
+                  {t("tdl.openNamed", { title: document.title })}
                 </a>
               </div>
             )}

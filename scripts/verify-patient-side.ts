@@ -690,6 +690,21 @@ async function main() {
       !/no appointment schedule/i.test(prompt) && /next booked session/.test(prompt) && /`next \$\{row\.nextSessionAt/.test(assistant),
     );
 
+    /* ------------------------------ reading a document aloud · limit and reset */
+
+    const speakRoute = stripComments(readSource("app/api/documents/[id]/speak/route.ts"));
+    check(
+      "a document is read aloud a bounded number of times per reader, after access and before the paid call",
+      /consume\(subjectKey\("document:speak", reader\)/.test(speakRoute) &&
+        speakRoute.indexOf("consume(") > speakRoute.indexOf("decision.allowed") &&
+        speakRoute.indexOf("consume(") < speakRoute.indexOf("audio.speech.create"),
+    );
+    const list = stripComments(readSource("components/documents/document-list.tsx"));
+    check(
+      "…and a refusal puts the Read aloud button back instead of leaving it on Reading…",
+      /if \(!response\.ok\) \{\s*setSpeaking\(false\);/.test(list) && !/if \(!response\.ok\) return;/.test(list),
+    );
+
     /* ------------------------ questionnaires · only the published languages */
 
     const [phq] = await db

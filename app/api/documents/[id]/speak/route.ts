@@ -11,6 +11,7 @@ import { documentChunks, personDocuments } from "@/lib/db/schema";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 import { documentReadDecision } from "@/lib/documents/read-access";
 import { log, safeErrorMessage } from "@/lib/logger";
+import { consume, subjectKey } from "@/lib/rate-limit";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -26,6 +27,9 @@ const db = dbFor(pinnedToDefaultRegion("app/api/documents/[id]/speak/route.ts", 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/** Readings per reader per hour. A careful reader listens to a document a few times, not thirty. */
+const SPEAK_PER_HOUR = 30;
 
 /**
  * Read a document aloud — **without the text ever reaching the browser.**
@@ -78,6 +82,22 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       patient: await optionalPatient(),
     });
     if (!decision.allowed) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+    /*
+     * 🔴 A speech call is paid per character and this route had no limit, so
+     * one signed-in reader holding a button (or a loop) could spend the model
+     * credit on the same document all night. Per reader, not per network: a
+     * clinic behind one address is many people. Checked after access, so a
+     * refused request does not eat the allowance.
+     */
+    const reader = decision.actor ? `user:${decision.actor.userId}` : `patient:${decision.patientAccountId}`;
+    const verdict = await consume(subjectKey("document:speak", reader), SPEAK_PER_HOUR, 60 * 60);
+    if (!verdict.allowed) {
+      return NextResponse.json(
+        { error: "too_many" },
+        { status: 429, headers: { "retry-after": String(Math.max(1, verdict.retryAfter)) } },
+      );
+    }
 
     /*
      * The text, assembled here and never returned. Chunks rather than `body`
