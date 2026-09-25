@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { TherapistPageBody } from "@/components/radar/therapist-page";
-import { publicProfile } from "@/lib/data/radar";
+import { profileFor } from "./profile";
 import { fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
@@ -26,7 +26,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const profile = await publicProfile(id);
+  const profile = await profileFor(id);
   if (!profile) return { title: "Clinician not found" };
 
   const name = fullName(profile.firstName, profile.lastName, "Clinician");
@@ -47,7 +47,7 @@ export default async function TherapistProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const profile = await publicProfile(id);
+  const profile = await profileFor(id);
   if (!profile) notFound();
 
   /*
