@@ -86,7 +86,7 @@ export async function NoteOriginNote({
   provenance: NoteProvenance;
   offRecordSeconds?: number | null;
   /**
-   * 🔴 B61 — only the clinician's track of a video call was captured. "The
+   * 🔴 B61: only the clinician's track of a video call was captured. "The
    * whole session was captured" was false over a transcript with one voice in
    * it, and let a reader take the patient's side as heard.
    */

@@ -108,7 +108,7 @@ export default async function RadarConsolePage() {
           country={profile.country}
           sessionRateCents={me?.sessionRateCents ?? 0}
           /*
-           * 🔴 B11 — the operator's fee and the figure they typed, the same two
+           * 🔴 B11: the operator's fee and the figure they typed, the same two
            * inputs /settings computes "You keep" from. This card used a fixed 10%
            * on the converted dollars, so one price had two different nets.
            */

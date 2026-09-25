@@ -138,7 +138,7 @@ export async function TherapistPageBody({
       ) : null}
 
       {/*
-        16.4 — every price shows USD with a small EGP toggle beside it, unless
+        16.4: every price shows USD with a small EGP toggle beside it, unless
         the clinician priced in pounds (B10), when their pounds lead. The
         rate is quoted on the server and handed down as a number: a component
         that fetched its own would show a figure the checkout does not agree

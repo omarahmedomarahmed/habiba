@@ -137,7 +137,7 @@ export async function writeVerificationDetails(
   }
 
   /*
-   * 🔴 B13 — only a real change reopens a rejected submission.
+   * 🔴 B13: only a real change reopens a rejected submission.
    *
    * Pressing Save on the untouched form used to move "rejected" to "draft",
    * which is what enables Submit, so the rejected licence could go straight

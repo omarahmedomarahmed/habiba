@@ -156,7 +156,7 @@ function lostTheNumber(error: unknown): boolean {
 }
 
 /**
- * 🔴 B63 — the language to transcribe in when nobody set one in the room.
+ * 🔴 B63: the language to transcribe in when nobody set one in the room.
  *
  * Null used to mean "detect it", and detection on eight seconds of Egyptian
  * Arabic came back in Latin letters ("Jani, sa ba' li tirfudi" for «يعني صعب

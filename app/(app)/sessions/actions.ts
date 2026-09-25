@@ -378,7 +378,7 @@ export async function startNewSession(
 }
 
 /**
- * 🔴 B64 — how far ahead of its booked hour a session starts without a question.
+ * 🔴 B64: how far ahead of its booked hour a session starts without a question.
  *
  * Starting sends the patient "your session has started", so a booking for ten
  * in the morning started at half past midnight woke them for nothing and left

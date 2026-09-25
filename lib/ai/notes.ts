@@ -152,7 +152,7 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
     .limit(1200);
 
   /*
-   * 🔴 B61 — only the clinician's side of a video call, said to the writer.
+   * 🔴 B61: only the clinician's side of a video call, said to the writer.
    *
    * Every line then came from the clinician's own microphone, whatever a guess
    * labelled it, so each is theirs. Without the sentence the model read the
@@ -397,7 +397,7 @@ export async function generateAndStoreNote(opts: {
      * and it never throws: a session that cannot be diarised still gets a note.
      */
     /*
-     * 🔴 B61 / B62 — not when only the clinician's track was captured. Every
+     * 🔴 B61 / B62: not when only the clinician's track was captured. Every
      * line is then from their own microphone, and a guess from the words could
      * only move some of them onto a patient nobody recorded.
      */

@@ -76,7 +76,7 @@ export default async function SettingsPage({
   ]);
 
   /*
-   * 🔴 B14 — the public page link only when there is a public page.
+   * 🔴 B14: the public page link only when there is a public page.
    *
    * `/t/:id` publishes a verified, active, unsuspended clinician and 404s
    * everybody else, so a rejected or pending clinician followed our own link to
@@ -89,7 +89,7 @@ export default async function SettingsPage({
   const verification = await getVerification(actor.userId);
   const locked = licenceLocked(verification);
   /*
-   * 🔴 B12 — once locked, the licence shown is the one an operator CHECKED.
+   * 🔴 B12: once locked, the licence shown is the one an operator CHECKED.
    *
    * Onboarding writes the regulator and number onto `therapist_verifications`;
    * these fields read `users.profile`, which onboarding never touches. So an

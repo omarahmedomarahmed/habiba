@@ -74,7 +74,7 @@ export function ProfileForm({
           </div>
 
           {/*
-            🔴 B12 — a locked field with nothing in it is a blank the clinician
+            🔴 B12: a locked field with nothing in it is a blank the clinician
             can neither fill nor explain, so it is left out rather than shown
             empty. The checked number and regulator come from the verification.
           */}

@@ -254,7 +254,7 @@ export function SessionRoom(props: RoomProps) {
     const recorder = new SessionRecorder({
       onChunk: ({ blob, durationSeconds }) => {
         /*
-         * 🔴 B62 — on video this is the clinician's own microphone, whoever
+         * 🔴 B62: on video this is the clinician's own microphone, whoever
          * else is or is not connected.
          *
          * In person there is one microphone hearing two people, which is
@@ -327,7 +327,7 @@ export function SessionRoom(props: RoomProps) {
          * Say it out loud. This is the "silently" half of PLAN.md 3.4.
          *
          * When the patient's track drops, this microphone is still running, so
-         * recording continues — with the clinician's side only, and nothing
+         * recording continues, with the clinician's side only, and nothing
          * of the patient's reaches the transcript until their track is back
          * (B62). That is invisible: the clinician sees the transcript carry on
          * and has no idea half the conversation stopped being captured.
@@ -395,7 +395,7 @@ export function SessionRoom(props: RoomProps) {
    */
   useEffect(() => {
     /*
-     * 🔴 B66 — and before Start on video, for as long as the room is open.
+     * 🔴 B66: and before Start on video, for as long as the room is open.
      *
      * It used to stop the moment the patient joined, before they had answered,
      * so "Waiting for their yes" stayed on screen beside "in the room" after the
@@ -966,7 +966,7 @@ export function SessionRoom(props: RoomProps) {
           ) : (
             <>
               {/*
-                🔴 B64 — asked, not refused. A clinician may have agreed an
+                🔴 B64: asked, not refused. A clinician may have agreed an
                 earlier time with the patient; what they may not do is wake
                 somebody at midnight for a ten o'clock booking by accident.
               */}

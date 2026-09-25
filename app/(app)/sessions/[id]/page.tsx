@@ -228,7 +228,7 @@ export default async function SessionDetailPage({
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {/*
-              🔴 B64 — the booked hour stays the session's time. It used to
+              🔴 B64: the booked hour stays the session's time. It used to
               lead with the END, so a 10:00 booking started at 00:26 read as a
               00:30 session. A start well away from the booking says both.
             */}

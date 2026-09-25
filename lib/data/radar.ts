@@ -604,7 +604,7 @@ export type PublicProfile = Omit<RadarTherapist, "status"> & {
   verifiedBy: string | null;
   verifiedOn: Date | null;
   /**
-   * 🔴 B10 — the pounds exactly as the clinician typed them, or null when they
+   * 🔴 B10: the pounds exactly as the clinician typed them, or null when they
    * priced in dollars. `sessionRateCents` is dollars re-derived at the operator's
    * rate, so converting it back can land a few piastres off the price they set.
    */
@@ -668,7 +668,7 @@ export async function publicProfile(
       verifiedOn: verifiedOn(),
     })
     /*
-     * 🔴 B4 — FROM the clinician, LEFT JOIN the radar row.
+     * 🔴 B4: FROM the clinician, LEFT JOIN the radar row.
      *
      * The radar row is created lazily, by `ensureRadarProfile` on /on-call. An
      * inner join made the public page, and so every booking from it, a 404 for a

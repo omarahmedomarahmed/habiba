@@ -141,7 +141,7 @@ export function regulatorsFor(
 ): string[] {
   const configured = overrides?.[(country ?? "").toUpperCase()]?.regulators ?? [];
   /*
-   * 🔴 B38 — the operator's list LEADS, it does not replace ours.
+   * 🔴 B38: the operator's list LEADS, it does not replace ours.
    *
    * A configured list used to win outright, and Egypt's seeded row names one
    * body, so the form offered one suggestion and the chips (shown only for two

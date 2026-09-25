@@ -162,7 +162,7 @@ export function VerificationForm({
   const locked = (state === "submitted" && !renewing) || state === "approved";
 
   /*
-   * 🔴 B37 — the checklist follows the uploads on this screen.
+   * 🔴 B37: the checklist follows the uploads on this screen.
    *
    * The list is built from the saved row and only moved when the page's server
    * props came back, so after three uploads each badged "uploaded" it still

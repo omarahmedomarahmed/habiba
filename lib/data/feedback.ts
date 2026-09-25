@@ -576,7 +576,7 @@ export async function noteProvenanceFor(
 }
 
 /**
- * 🔴 B61 — which side of a video call the transcript can speak for.
+ * 🔴 B61: which side of a video call the transcript can speak for.
  *
  * Our own room records two tracks in the clinician's browser: their microphone
  * (`therapist`) and the patient's audio from the call (`patient`). When no line

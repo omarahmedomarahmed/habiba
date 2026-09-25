@@ -222,7 +222,7 @@ export async function submitForReview(): Promise<OnboardingState> {
   const { locale, t } = await getI18n();
 
   /*
-   * 🔴 B13 — a rejection is answered by a change, not by pressing Submit again.
+   * 🔴 B13: a rejection is answered by a change, not by pressing Submit again.
    *
    * This checked only that every field was present, so the same blurred licence
    * went straight back to the queue. Replacing a document or changing a detail

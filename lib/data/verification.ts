@@ -55,7 +55,7 @@ export async function requirementOverrides(): Promise<
   const countries = await getCountries();
 
   /*
-   * 🔴 B36 — a label still equal to what we SHIPPED is not an operator's word.
+   * 🔴 B36: a label still equal to what we SHIPPED is not an operator's word.
    *
    * The seed writes Egypt's document names into `country_settings` in English,
    * and a configured label wins over the dictionary, so an Arabic clinician read
@@ -145,7 +145,7 @@ export async function ensureVerification(actor: Actor) {
 }
 
 /**
- * 🔴 B36 / B37 — an identifier, never English.
+ * 🔴 B36 / B37: an identifier, never English.
  *
  * These were English strings, so an Arabic clinician read "Photo ID" in the
  * list, and the form could not tell which line an upload had just satisfied.

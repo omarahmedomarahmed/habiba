@@ -1,7 +1,7 @@
 import { Money } from "@/components/ui/money";
 
 /**
- * 🔴 B10 — a clinician's session price, in the currency they priced in.
+ * 🔴 B10: a clinician's session price, in the currency they priced in.
  *
  * The public website leads with dollars, which is right for a figure the books
  * keep in dollars and wrong for a clinician in Cairo who typed 1,000 pounds: the

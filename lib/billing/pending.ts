@@ -203,7 +203,7 @@ async function describe(
   refId: string | null,
   t: Translate,
   /**
-   * 🔴 B68 — the bar is on the CLINICIAN's pages, and names the other person.
+   * 🔴 B68: the bar is on the CLINICIAN's pages, and names the other person.
    *
    * A session payment was always described by its clinician, which is right
    * for the patient who paid and read "Session with Amira Demo" to Amira on her

@@ -1375,7 +1375,7 @@ export const sessionNotes = pgTable(
     /** 47.2 — only meaningful on `partial`. Null everywhere else. */
     offRecordSeconds: integer("off_record_seconds"),
     /**
-     * 🔴 B61 / 0176 — `clinician` when a video session captured only the
+     * 🔴 B61 / 0176: `clinician` when a video session captured only the
      * clinician's own track, so the note rests on one side of the call. Null
      * when there is no single side to name. Stamped at save with `provenance`.
      */
