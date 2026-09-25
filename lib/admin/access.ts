@@ -36,6 +36,12 @@ export const ADMIN_PAGES: Record<string, readonly Role[]> = {
   "/admin/patients": STAFF,
   "/admin/patients/[id]": STAFF,
   "/admin/sponsors/[id]": STAFF,
+  /*
+   * B8: the list is the door to the detail page staff already work (pot
+   * top-ups, returns). Staff read it; every act on it stays the owner's,
+   * enforced in `sponsors/actions.ts` and hidden from them on the screen.
+   */
+  "/admin/sponsors": STAFF,
   "/admin/not-yours": STAFF,
   /* 🔴 Task 40: every member sets up their own second step. */
   "/admin/security": STAFF,
@@ -47,7 +53,6 @@ export const ADMIN_PAGES: Record<string, readonly Role[]> = {
   "/admin/radar/investigate/[id]": OWNER,
   "/admin/ratings": OWNER,
   "/admin/vault": OWNER,
-  "/admin/sponsors": OWNER,
   "/admin/benefits": OWNER,
   "/admin/clinics": OWNER,
   "/admin/partners": OWNER,

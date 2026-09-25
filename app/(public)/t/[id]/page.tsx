@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { TherapistPageBody } from "@/components/radar/therapist-page";
-import { publicProfile } from "@/lib/data/radar";
+import { publicProfile } from "./profile";
 import { fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";

@@ -7,6 +7,7 @@ import { AlertTriangle, Send, ShieldCheck } from "lucide-react";
 import { releaseTherapistEarnings } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
+import { useT } from "@/lib/i18n/client";
 import { fullName } from "@/lib/utils";
 
 export type HeldRow = {
@@ -41,10 +42,12 @@ export function HeldBalances({
   totalHeldCents: number;
   outOfBalanceCents: number;
 }) {
+  const t = useT();
   return (
     <section className="space-y-3">
+      {/* B56: the balance row below has its own title for the total; this one is the list. */}
       <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
-        Held for clinicians
+        {t("avault.heldEach")}
       </h2>
 
       {/*

@@ -14,6 +14,7 @@ import { and, asc, eq, inArray, isNotNull, notLike } from "drizzle-orm";
 import { controlDb as db, isDatabaseUnavailable } from "@/lib/db";
 import { contentPages, type ContentBlock } from "@/lib/db/schema";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { DICTIONARIES } from "@/lib/i18n/messages";
 import { log } from "@/lib/logger";
 import { DEFAULT_PAGES, findDefaultPage } from "./defaults";
 
@@ -76,8 +77,10 @@ export const CMS_TAG = "cms";
  *   v2 — 2026-09-05, C60: pricing copy corrected in the row, not the editor.
  *   v3 — 2026-09-06, 17.9: the pricing rewrite — cards in, hero out.
  *   v4 — 2026-09-07, C92: the entries that outlived both of those.
+ *   v5, 2026-09-25, B32: a page says which language it was served in, and
+ *        the Arabic crisis sentences were corrected in the rows.
  */
-export const CACHE_VERSION = "v4";
+export const CACHE_VERSION = "v5";
 
 /**
  * Long enough that the database is out of the request path, short enough that
@@ -136,6 +139,12 @@ export type PublicPage = {
   description: string | null;
   layout: "marketing" | "document";
   blocks: ContentBlock[];
+  /**
+   * 🔴 B32: the language of the row actually served. A reader asking for
+   * Arabic gets the English row when nobody has written an Arabic one, and
+   * the page needs to know that to say so rather than pass it off as theirs.
+   */
+  locale: string;
 };
 
 /**
@@ -207,6 +216,7 @@ async function readPage(
         description: row.description,
         layout: row.layout,
         blocks: row.blocks,
+        locale: row.locale,
       };
     }
     if (row) return null; // exists but is a draft
@@ -223,7 +233,20 @@ async function readPage(
     description: fallback.description,
     layout: fallback.layout,
     blocks: fallback.blocks,
+    locale: DEFAULT_LOCALE,
   };
+}
+
+/**
+ * 🔴 B32: A LINK TO AN UNTRANSLATED PAGE IS STILL LABELLED IN THE READER'S
+ * LANGUAGE. The legal pages have no Arabic rows, so the footer on every Arabic
+ * page printed Privacy, Terms, Compliance and Security from the English row.
+ * The page may be untranslated; the word for it is not.
+ */
+function labelFor(row: { slug: string; locale: string; navLabel: string | null }, locale: string): string {
+  if (row.locale === locale) return row.navLabel!;
+  const dictionary = DICTIONARIES[locale as keyof typeof DICTIONARIES] as Record<string, string> | undefined;
+  return dictionary?.[`page.nav.${row.slug}`] ?? row.navLabel!;
 }
 
 export type NavItem = { slug: string; label: string };
@@ -286,7 +309,7 @@ async function readNav(locale: string): Promise<NavItem[]> {
       .sort((a, b) => (a.navOrder ?? 99) - (b.navOrder ?? 99));
 
     if (published.length > 0) {
-      return published.map((r) => ({ slug: r.slug, label: r.navLabel! }));
+      return published.map((r) => ({ slug: r.slug, label: labelFor(r, locale) }));
     }
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
@@ -295,7 +318,7 @@ async function readNav(locale: string): Promise<NavItem[]> {
   return DEFAULT_PAGES.filter((p) => p.navLabel && (p.navOrder ?? 99) < 10).map(
     (p) => ({
       slug: p.slug,
-      label: p.navLabel!,
+      label: labelFor({ slug: p.slug, locale: DEFAULT_LOCALE, navLabel: p.navLabel }, locale),
     }),
   );
 }
@@ -337,7 +360,7 @@ async function readFooter(locale: string): Promise<NavItem[]> {
       .filter((r) => r.navLabel && (r.navOrder ?? 0) >= 10)
       .sort((a, b) => (a.navOrder ?? 0) - (b.navOrder ?? 0));
     if (legal.length > 0)
-      return legal.map((r) => ({ slug: r.slug, label: r.navLabel! }));
+      return legal.map((r) => ({ slug: r.slug, label: labelFor(r, locale) }));
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
   }
@@ -345,7 +368,7 @@ async function readFooter(locale: string): Promise<NavItem[]> {
   return DEFAULT_PAGES.filter((p) => p.navLabel && (p.navOrder ?? 0) >= 10).map(
     (p) => ({
       slug: p.slug,
-      label: p.navLabel!,
+      label: labelFor({ slug: p.slug, locale: DEFAULT_LOCALE, navLabel: p.navLabel }, locale),
     }),
   );
 }

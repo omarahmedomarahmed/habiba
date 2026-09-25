@@ -179,7 +179,7 @@ function Block({
      * second copy of a number.
      */
     case "pricing":
-      return <PricingTiers compact={block.compact} locale={locale} />;
+      return <PricingTiers compact={block.compact} locale={locale} asPageTitle={first} />;
     /* 🔴 18.3 — help now, on the page, never behind a signup. */
     case "crisis":
       return <Crisis block={block} t={t} />;
@@ -216,6 +216,12 @@ function Audiences({
     <AudienceRotator
       eyebrow={t("nav.whichAreYou")}
       stem={block.stem}
+      live={{
+        checking: t("radar.checking"),
+        online: t("radar.online", { count: "{count}" }),
+        nobody: t("public.nobodyOnline"),
+      }}
+      demoNote={t("public.demoNote")}
       cta={
         block.ctaLabel && block.ctaHref
           ? { label: block.ctaLabel, href: block.ctaHref }
@@ -520,7 +526,11 @@ function Hero({
           frame. It books nothing; see the component.
         */}
         {block.demo === "patient-app" ? (
-          <ComponentShowcase demo="patient-app" content={demo} />
+          <div>
+            <ComponentShowcase demo="patient-app" content={demo} />
+            {/* B30: the clinicians in it are invented, said under it rather than left to be inferred. */}
+            <p className="mt-3 text-center text-xs text-white/70">{t("public.demoNote")}</p>
+          </div>
         ) : null}
         {block.demo === "company" ? <CompanyDemo /> : null}
         {block.demo === "clinic" ? <ClinicDemo /> : null}

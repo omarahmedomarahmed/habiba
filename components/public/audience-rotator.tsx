@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { LiveCount } from "@/components/radar/live-count";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -67,11 +68,17 @@ export function AudienceRotator({
   panels,
   cta,
   eyebrow,
+  live,
+  demoNote,
 }: {
   stem: string;
   panels: Panel[];
   cta?: { label: string; href: string };
   eyebrow: string;
+  /** 🔴 B30: the real radar's count beside the invented phone, zero included. */
+  live?: { checking: string; online: string; nobody: string };
+  /** 🔴 B30: the screens are examples, said under them rather than left to be inferred. */
+  demoNote?: string;
 }) {
   const [at, setAt] = React.useState(0);
   /*
@@ -221,6 +228,8 @@ export function AudienceRotator({
             ) : null}
           </div>
 
+          {live ? <LiveCount strings={live} className="mt-4 text-sm font-medium text-white/85" /> : null}
+
           {/*
             The labels, and the timer made honest. A filling rule shows how
             long you have; a dot hides it. Once stopped they are a plain
@@ -298,6 +307,9 @@ export function AudienceRotator({
               {one.demo}
             </div>
           ))}
+          {demoNote ? (
+            <p className="col-start-1 row-start-2 mt-3 text-center text-xs text-white/70">{demoNote}</p>
+          ) : null}
         </div>
       </div>
     </section>

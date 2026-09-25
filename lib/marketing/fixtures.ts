@@ -141,7 +141,7 @@ export const CLINIC_TEAM: {
   payout: "none" | "requested" | "paid";
 }[] = [
   { name: "Dr Nour Demo", verify: "verified", earnedCents: 214_000, payout: "requested" },
-  { name: "Dr Karim Example", verify: "verified", earnedCents: 176_000, payout: "paid" },
+  { name: "Dr Rami Example", verify: "verified", earnedCents: 176_000, payout: "paid" },
   { name: "Dr Salma Demo", verify: "verified", earnedCents: 143_000, payout: "none" },
   { name: "Dr Youssef Example", verify: "pending", earnedCents: 54_000, payout: "none" },
   { name: "Hana Demo", verify: "none", earnedCents: 0, payout: "none" },
@@ -162,10 +162,10 @@ export const CLINIC_WEEK: {
   patient: string;
 }[] = [
   { day: "Mon", time: "09:00", clinician: "Dr Nour Demo", patient: "Mariam A." },
-  { day: "Mon", time: "11:30", clinician: "Dr Karim Example", patient: "Omar S." },
+  { day: "Mon", time: "11:30", clinician: "Dr Rami Example", patient: "Omar S." },
   { day: "Tue", time: "10:00", clinician: "Dr Nour Demo", patient: "Laila F." },
   { day: "Tue", time: "16:00", clinician: "Dr Salma Demo", patient: "Tarek M." },
-  { day: "Wed", time: "09:30", clinician: "Dr Karim Example", patient: "Dina H." },
+  { day: "Wed", time: "09:30", clinician: "Dr Rami Example", patient: "Dina H." },
   { day: "Thu", time: "14:00", clinician: "Dr Salma Demo", patient: "Adam R." },
 ];
 
@@ -236,13 +236,19 @@ export const RADAR_DEMO: {
    */
   country: string;
 }[] = [
-  { name: "Dr Nour Demo", title: "Psychotherapist", languages: "Arabic, English", priceCents: 6_000, minutes: 50, free: true, country: "EG" },
-  { name: "Dr Karim Example", title: "Clinical psychologist", languages: "Arabic", priceCents: 7_500, minutes: 50, free: true, country: "EG" },
-  { name: "Dr Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 5_000, minutes: 30, free: true, country: "EG" },
+  /*
+   * 🔴 B30: PRICED LIKE THE CLINICIANS WHO ARE REALLY THERE. These were $60,
+   * $75 and $50 while the people on the live radar charged $12 to $20, so the
+   * mockup quoted a market we are not. And the second one was "Dr Karim
+   * Example", a breath away from a real clinician's name; Rami is in no cast.
+   */
+  { name: "Dr Nour Demo", title: "Psychotherapist", languages: "Arabic, English", priceCents: 1_500, minutes: 50, free: true, country: "EG" },
+  { name: "Dr Rami Example", title: "Clinical psychologist", languages: "Arabic", priceCents: 2_000, minutes: 50, free: true, country: "EG" },
+  { name: "Dr Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 1_200, minutes: 30, free: true, country: "EG" },
 ];
 
 /** What the patient's billing tab shows: one settled session and one waiting. */
 export const PATIENT_BILLS: { what: string; when: string; cents: number; paid: boolean }[] = [
-  { what: "Session with Dr Nour Demo", when: "12 March", cents: 6_000, paid: false },
-  { what: "Session with Dr Nour Demo", when: "5 March", cents: 6_000, paid: true },
+  { what: "Session with Dr Nour Demo", when: "12 March", cents: 1_500, paid: false },
+  { what: "Session with Dr Nour Demo", when: "5 March", cents: 1_500, paid: true },
 ];

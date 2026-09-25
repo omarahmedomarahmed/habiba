@@ -49,6 +49,8 @@ export type ReceiptSubject = {
   id: string;
   payer: string;
   purpose: string;
+  /** B57: what it is for, in words. The raw purpose is a code and never shown. */
+  purposeLabel: string;
   reference: string | null;
   /** What they sent, written out by the server. */
   amountLabel: string;
@@ -115,7 +117,7 @@ export function ReceiptModal({
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/70 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`Evidence for ${row.payer}'s ${row.purpose} payment`}
+      aria-label={`What ${row.payer} sent us: ${row.purposeLabel}`}
       /*
        * Clicking the backdrop closes; clicking the panel must not. The check on
        * the target is what stops a drag that ends outside the panel from
@@ -132,7 +134,7 @@ export function ReceiptModal({
               What {row.payer} sent us
             </h2>
             <p className="mt-0.5 text-sm text-slate-500">
-              {row.purpose}
+              {row.purposeLabel}
               {row.waitedLabel ? `, ${row.waitedLabel}` : ""}
             </p>
           </div>

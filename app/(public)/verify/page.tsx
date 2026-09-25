@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { Card } from "@/components/ui";
 import { verifyExtract } from "@/lib/data/export";
+import { localisedPath } from "@/lib/i18n/paths";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 
@@ -41,11 +42,17 @@ export default async function VerifyPage({
   const result = entered ? await verifyExtract(entered) : null;
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-12 sm:px-6">
+    /* B34: a div, because the public layout already wraps every page in the one `<main>`. */
+    <div className="mx-auto max-w-xl px-4 py-12 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("verify.title")}</h1>
       <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("verify.body")}</p>
 
-      <form action="/verify" className="mt-6 flex flex-wrap gap-2">
+      {/*
+        🔴 B34: THE FORM STAYS IN THE READER'S LANGUAGE. It posted to a bare
+        `/verify`, so an Arabic reader who pressed Check was answered in
+        English: the language comes from the path, and the path had lost it.
+      */}
+      <form action={localisedPath("/verify", locale)} className="mt-6 flex flex-wrap gap-2">
         <input
           type="text"
           name="code"
@@ -85,6 +92,6 @@ export default async function VerifyPage({
           </Card>
         )
       ) : null}
-    </main>
+    </div>
   );
 }

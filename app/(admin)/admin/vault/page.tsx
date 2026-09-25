@@ -21,6 +21,7 @@ import { heldBalances, trialBalance, unbalancedTransactions } from "@/lib/billin
 import { reconcileRenewals } from "@/lib/billing/obligations";
 import { adjustableClinicians, allOrganizations } from "@/lib/data/admin";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 import { Money as UsdMoney } from "@/components/ui/money";
 
 export const metadata: Metadata = { title: "Vault", robots: { index: false } };
@@ -28,6 +29,7 @@ export const dynamic = "force-dynamic";
 
 export default async function VaultPage() {
   const actor = await requireRole("super_admin");
+  const { t } = await getI18n();
 
   const [
     ledger,
@@ -120,7 +122,7 @@ export default async function VaultPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-            Held for clinicians
+            {t("avault.owedTotal")}
           </p>
           <p className="mt-1 text-xl font-bold text-slate-900">
             <UsdMoney cents={books.heldForTherapistsCents} />

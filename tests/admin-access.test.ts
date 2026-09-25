@@ -80,7 +80,9 @@ test("the nav is filtered through the table, not through booleans of its own", a
   }
   assert.equal(mayOpen("staff", "/admin/payouts"), true);
   assert.equal(mayOpen("staff", "/admin/patients/5f0c"), true);
-  assert.equal(mayOpen("staff", "/admin/sponsors"), false);
+  // B8: staff work sponsor top-ups, and the list is the way to the sponsor page.
+  assert.equal(mayOpen("staff", "/admin/sponsors"), true);
+  assert.equal(mayOpen("staff", "/admin/clinics"), false, "CONTROL: the other owner lists stay the owner's");
   // Fails closed: a path with no row, or no role, is nobody's.
   assert.equal(mayOpen("super_admin", "/admin/nowhere"), false);
   assert.equal(mayOpen(null, "/admin/payouts"), false);
@@ -209,4 +211,42 @@ test("🔴 A18 the console has its own error and loading boundaries, inside its 
   assert.match(read("app/(admin)/loading.tsx"), /export default/);
   // CONTROL: the global boundary is still the last resort for the layout itself.
   assert.match(read("app/global-error.tsx"), /onClick=\{reset\}/);
+});
+
+test("the console says states and purposes in words, never as codes (B57)", async () => {
+  const schema = await import("../lib/db/schema");
+  const { DICTIONARIES } = await import("../lib/i18n/messages");
+  const families: [string, readonly string[]][] = [
+    ["atransfer.what", schema.MANUAL_PAYMENT_PURPOSES],
+    ["atransfer.state", schema.MANUAL_PAYMENT_STATES],
+    ["admin.state", schema.SPONSOR_STATES],
+    ["admin.state", schema.CLINIC_STATES],
+    ["admin.kind", schema.SPONSOR_KINDS],
+    ["apot.state", schema.POT_RETURN_STATES],
+  ];
+  const missing: string[] = [];
+  for (const [prefix, values] of families) {
+    for (const value of values) {
+      for (const locale of ["en", "ar"] as const) {
+        const key = `${prefix}.${value}`;
+        if (!(DICTIONARIES[locale] as Record<string, string>)[key]) missing.push(`${locale} ${key}`);
+      }
+    }
+  }
+  assert.deepEqual(missing, []);
+
+  // The places that printed the code. Each would match on the old source.
+  assert.doesNotMatch(read("components/admin/receipt-modal.tsx"), /\{row\.purpose\}/);
+  assert.doesNotMatch(read("components/admin/transfer-queue.tsx"), /\?\? row\.purpose/);
+  const sponsor = read("app/(admin)/admin/sponsors/[id]/page.tsx");
+  assert.doesNotMatch(sponsor, />\{p\.state\}</);
+  assert.doesNotMatch(sponsor, /· \$\{row\.state\} ·/);
+  // An opened cart is not a transfer anybody sent.
+  assert.match(sponsor, /ne\(manualPayments\.state, "awaiting_proof"\)/);
+});
+
+test("confirming the last transfer still says it worked (B27)", () => {
+  const queue = read("components/admin/transfer-queue.tsx");
+  const empty = queue.slice(queue.indexOf("if (rows.length === 0)"), queue.indexOf("const shown"));
+  assert.match(empty, /\{outcome\}/, "the empty queue drops the confirmation line");
 });

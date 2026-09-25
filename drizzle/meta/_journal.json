@@ -1163,6 +1163,13 @@
       "when": 1789966066000,
       "tag": "0176_one_side_of_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 178,
+      "version": "7",
+      "when": 1789966078000,
+      "tag": "0178_partners_and_companies_can_write_in",
+      "breakpoints": true
     }
   ]
 }

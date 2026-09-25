@@ -1074,7 +1074,9 @@ export async function clinicsForAdmin() {
 
   const ids = clinics.map((clinic) => clinic.id);
 
-  const counts = await controlDb
+  /* B25: the two reads are independent, so they share one round trip's wait. */
+  const [counts, managers] = await Promise.all([
+    controlDb
     .select({
       organizationId: users.organizationId,
       clinicians: sql<number>`count(*)::int`,
@@ -1087,9 +1089,8 @@ export async function clinicsForAdmin() {
         isNull(users.deletedAt),
       ),
     )
-    .groupBy(users.organizationId);
-
-  const managers = await controlDb
+    .groupBy(users.organizationId),
+    controlDb
     .select({
       id: clinicManagers.id,
       organizationId: clinicManagers.organizationId,
@@ -1098,7 +1099,8 @@ export async function clinicsForAdmin() {
     })
     .from(clinicManagers)
     .where(and(inArray(clinicManagers.organizationId, ids), isNull(clinicManagers.deletedAt)))
-    .orderBy(asc(clinicManagers.email));
+    .orderBy(asc(clinicManagers.email)),
+  ]);
 
   const countBy = new Map(counts.map((row) => [row.organizationId, Number(row.clinicians)]));
 

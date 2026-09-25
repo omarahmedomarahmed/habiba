@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import { Card, PageHeader } from "@/components/ui";
 import { Money } from "@/components/ui/money";
@@ -13,6 +13,8 @@ import { manualPayments, sponsorPots, sponsors } from "@/lib/db/schema";
 import { potTerms } from "@/lib/data/sponsor-admin";
 import { potReturnsFor } from "@/lib/billing/pot-return";
 import { PotReturns } from "@/components/admin/pot-returns";
+import { getI18n } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 export const metadata: Metadata = { title: "Company", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -43,6 +45,7 @@ export default async function SponsorProfilePage({
 }) {
   const actor = await requireStaff();
   const { id } = await params;
+  const { t } = await getI18n();
 
   const [row] = await db
     .select({
@@ -75,6 +78,10 @@ export default async function SponsorProfilePage({
      * A company that has been turned down twice and is sending a third is the
      * single most useful thing this page can tell an operator, and a list that
      * quietly showed only the successes would hide it.
+     *
+     * 🔴 B57: SENT, which an opened cart is not. Pressing Pay now opens an
+     * `awaiting_proof` row before anybody has transferred anything, and it
+     * sat in this list beside real transfers as a stray $114 nobody sent.
      */
     db
       .select({
@@ -88,7 +95,7 @@ export default async function SponsorProfilePage({
         createdAt: manualPayments.createdAt,
       })
       .from(manualPayments)
-      .where(eq(manualPayments.sponsorId, id))
+      .where(and(eq(manualPayments.sponsorId, id), ne(manualPayments.state, "awaiting_proof")))
       .orderBy(desc(manualPayments.createdAt))
       .limit(50),
     /* 🔴 76.29 — where every cent of it went, session by session. */
@@ -111,7 +118,11 @@ export default async function SponsorProfilePage({
     <div className="space-y-5">
       <PageHeader
         title={row.name}
-        subtitle={`${row.kind} · ${row.state} · ${row.entity.toUpperCase()} entity`}
+        subtitle={t("asponsor.subtitle", {
+          kind: t(`admin.kind.${row.kind}` as MessageKey),
+          state: t(`admin.state.${row.state}` as MessageKey),
+          entity: row.entity.toUpperCase(),
+        })}
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -238,7 +249,9 @@ export default async function SponsorProfilePage({
                     <p className="mt-0.5 text-xs text-rose-600">{p.rejectReason}</p>
                   ) : null}
                 </div>
-                <span className="shrink-0 text-xs font-semibold text-slate-600">{p.state}</span>
+                <span className="shrink-0 text-xs font-semibold text-slate-600">
+                  {t(`atransfer.state.${p.state}` as MessageKey)}
+                </span>
               </div>
             ))}
           </Card>

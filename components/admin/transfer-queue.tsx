@@ -7,6 +7,8 @@ import { ReceiptModal } from "@/components/admin/receipt-modal";
 import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { MIN_REASON } from "@/lib/admin/reason";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * The queue an operator works, by the minute.
@@ -100,25 +102,43 @@ const PAYER_TONE: Record<Row["payerType"], string> = {
 
 const TABS = ["all", "patient", "therapist", "clinic", "company"] as const;
 
-const WHAT: Record<string, string> = {
-  session: "A session",
-  payg_session: "A session, pay as you go",
-  subscription: "A subscription",
-  pot_topup: "A pot top-up",
-};
+/*
+ * 🔴 B57: what a payment is for, in words. The keys are the purposes, so a
+ * purpose with no key would print the raw code, and `tests/admin-reasons.test.ts`
+ * checks every purpose in the schema has one.
+ */
+function purposeKey(purpose: string): MessageKey {
+  return `atransfer.what.${purpose}` as MessageKey;
+}
 
 export function TransferQueue({ rows }: { rows: Row[] }) {
   const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
   const [tab, setTab] = useState<(typeof TABS)[number]>("all");
 
+  /*
+   * 🔴 B27: THE OUTCOME IS SAID ABOVE EITHER BRANCH. It used to render only
+   * inside the list, so confirming the LAST row emptied the queue, took the
+   * list branch away, and the only word on the screen was "Nothing waiting":
+   * no sign the confirmation had happened at all.
+   */
+  const outcome = (
+    <>
+      {msg.error ? <p role="alert" className="text-sm text-rose-600">{msg.error}</p> : null}
+      {msg.ok ? <p role="status" className="text-sm text-brand-700">{msg.ok}</p> : null}
+    </>
+  );
+
   if (rows.length === 0) {
     return (
-      <Card className="p-6 text-center">
-        <p className="text-sm font-semibold text-slate-900">Nothing waiting</p>
-        <p className="mt-1 text-sm text-slate-500">
-          They appear the moment somebody says they have sent one.
-        </p>
-      </Card>
+      <div className="space-y-3">
+        {outcome}
+        <Card className="p-6 text-center">
+          <p className="text-sm font-semibold text-slate-900">Nothing waiting</p>
+          <p className="mt-1 text-sm text-slate-500">
+            They appear the moment somebody says they have sent one.
+          </p>
+        </Card>
+      </div>
     );
   }
 
@@ -126,8 +146,7 @@ export function TransferQueue({ rows }: { rows: Row[] }) {
 
   return (
     <div className="space-y-3">
-      {msg.error ? <p className="text-sm text-rose-600">{msg.error}</p> : null}
-      {msg.ok ? <p className="text-sm text-brand-700">{msg.ok}</p> : null}
+      {outcome}
 
       {/*
         🔴 76.11 — ONE PAGE, FOUR VIEWS, AND "ALL" IS THE DEFAULT.
@@ -180,6 +199,7 @@ function TransferRow({
   const [looking, setLooking] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const t = useT();
 
   const waited = row.waitedMinutes ?? null;
 
@@ -211,7 +231,7 @@ function TransferRow({
               ) : (
                 row.payer
               )}{" "}
-              · {WHAT[row.purpose] ?? row.purpose}
+              · {t(purposeKey(row.purpose))}
             </p>
           </div>
           {/*
@@ -240,7 +260,7 @@ function TransferRow({
             </span>
             {waited !== null ? (
               <span className={waited > 15 ? "ms-2 font-semibold text-rose-600" : "ms-2 text-slate-500"}>
-                waiting {waited} min
+                {t("atransfer.waited", { minutes: waited })}
               </span>
             ) : null}
           </p>
@@ -317,7 +337,12 @@ function TransferRow({
            * and the modal cannot disagree about how long somebody has been on a
            * spinner. It is the same `waited` the row prints two lines up.
            */
-          row={{ ...row, waitedLabel: waited === null ? null : `waiting ${String(waited)} min` }}
+          row={{
+            ...row,
+            /* B57: the modal said "pot_topup, waiting 1 min". Words, from the same keys as the row. */
+            purposeLabel: t(purposeKey(row.purpose)),
+            waitedLabel: waited === null ? null : t("atransfer.waited", { minutes: waited }),
+          }}
           pending={pending}
           error={modalError}
           onClose={() => {

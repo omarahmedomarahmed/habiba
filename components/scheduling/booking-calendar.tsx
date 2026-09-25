@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { CalendarDays, Check, Clock } from "lucide-react";
 
 import { book } from "@/app/(public)/t/[id]/book/actions";
@@ -54,6 +54,7 @@ export function BookingCalendar({
   booker?: { firstName: string; email: string | null; phone: string | null } | null;
 }) {
   const t = useT();
+  const ids = useId();
   const locale = useLocale();
   const [picked, setPicked] = useState<{ id: string; startsAt: string; place?: string } | null>(null);
   /* 🔴 Ruling 5c: on an "either" hour the patient chooses. */
@@ -149,17 +150,30 @@ export function BookingCalendar({
             {formatWhen(new Date(picked.startsAt), zone, locale)}
           </p>
 
+          {/*
+            🔴 B60: A LABEL YOU CAN SEE, ABOVE EVERY FIELD. These were
+            placeholder only, so the words vanished at the first keystroke and
+            a screen reader had nothing to name the field by.
+          */}
+          <label htmlFor={`${ids}-name`} className="block text-xs font-medium text-slate-700">
+            {t("pbook.firstName")}
+          </label>
           <input
+            id={`${ids}-name`}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={t("pbook.firstName")}
+            autoComplete="given-name"
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
+          <label htmlFor={`${ids}-email`} className="block text-xs font-medium text-slate-700">
+            {t("pbook.email")}
+          </label>
           <input
+            id={`${ids}-email`}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            placeholder={t("pbook.email")}
+            autoComplete="email"
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
 
@@ -168,12 +182,15 @@ export function BookingCalendar({
             number without one is guessing which country's human being to
             message.
           */}
+          <label htmlFor={`${ids}-phone`} className="block text-xs font-medium text-slate-700">
+            {t("pbook.phone")}
+          </label>
           <PhoneField
+            id={`${ids}-phone`}
             value={phone}
             country={phoneCountry}
             onValueChange={setPhone}
             onCountryChange={setPhoneCountry}
-            placeholder={t("pbook.phone")}
           />
 
           {/*
@@ -183,11 +200,14 @@ export function BookingCalendar({
           <p className="text-xs leading-relaxed text-slate-500">
             {t("pbook.oneOfThese")}
           </p>
+          <label htmlFor={`${ids}-note`} className="block text-xs font-medium text-slate-700">
+            {t("pbook.note")}
+          </label>
           <textarea
+            id={`${ids}-note`}
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder={t("pbook.note")}
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
 

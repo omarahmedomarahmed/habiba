@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { localisedPath } from "@/lib/i18n/paths";
+import { getI18n } from "@/lib/i18n/server";
+
 /**
  * `/verify/<code>` — the URL printed on a record extract's cover page.
  *
@@ -17,5 +20,7 @@ export default async function VerifyCodePage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  redirect(`/verify?code=${encodeURIComponent(code)}`);
+  /* B34: `/ar/verify/<code>` lands on `/ar/verify`, not on the English page. */
+  const { locale } = await getI18n();
+  redirect(`${localisedPath("/verify", locale)}?code=${encodeURIComponent(code)}`);
 }

@@ -66,6 +66,7 @@ export const FOOTING_OF_KIND: Record<MessageKind, Footing> = {
   "licence.expiring": { reader: "clinician", occasion: "account" },
   "renewal.due_soon": { reader: "clinician", occasion: "account" },
   "support.closed": { reader: "patient", occasion: "asked" },
+  "support.received": { reader: "patient", occasion: "asked" },
   "phone.verify": { reader: "patient", occasion: "asked" },
   "password.reset_code": { reader: "patient", occasion: "asked" },
   "staff.second_factor_code": { reader: "staff", occasion: "asked" },
