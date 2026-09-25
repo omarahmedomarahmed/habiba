@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { inArray } from "drizzle-orm";
 
+import { DiagnosisFlag } from "@/components/patient/diagnosis-flag";
 import { OwnProfilePanel } from "@/components/documents/own-profile-panel";
 import { Card } from "@/components/ui";
 import { SeesWhat } from "@/components/visual/primitives";
@@ -94,7 +95,7 @@ export default async function OwnProfilePage() {
 
       <OwnProfilePanel
         documents={rows}
-        watermark={`${actor.firstName} ${actor.lastName ?? ""} · your own record`.trim()}
+        watermark={`${`${actor.firstName} ${actor.lastName ?? ""}`.trim()} · ${t("pprofile.ownRecord")}`}
       />
 
       {diagnoses.filter((d) => d.status === "confirmed").length > 0 ? (
@@ -119,6 +120,7 @@ export default async function OwnProfilePage() {
                   <blockquote className="mt-1 border-s-2 border-slate-200 ps-2.5 text-xs leading-relaxed text-slate-600">
                     “{diagnosis.sourceSentence}”
                   </blockquote>
+                  <DiagnosisFlag diagnosisId={diagnosis.id} />
                 </li>
               ))}
           </ul>

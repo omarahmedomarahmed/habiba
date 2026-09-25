@@ -112,6 +112,10 @@ export function PatientSessionList({
                         <CalendarClock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
                       )}
                       {session.therapistName}
+                      {/* 🔴 W3 / P3: the summary below carries its signer's credentials. */}
+                      {session.therapistCredentials ? (
+                        <span className="font-normal text-slate-500">, {session.therapistCredentials}</span>
+                      ) : null}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
                       {formatWhen(session.at, resolved, locale)}
@@ -181,6 +185,16 @@ export function PatientSessionList({
                         className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
                       >
                         {t(DOOR_LABEL[doors[session.id]!.kind])}
+                      </Link>
+                    ) : null}
+
+                    {/* 🔴 W3: `auth.patient.p3` promised a way back to the same therapist. */}
+                    {group.startsWith("past") ? (
+                      <Link
+                        href={`/t/${session.therapistId}`}
+                        className="mt-3 ms-3 inline-flex h-10 items-center text-sm font-semibold text-brand-700"
+                      >
+                        {t("psessions.bookAgain")}
                       </Link>
                     ) : null}
                   </Card>

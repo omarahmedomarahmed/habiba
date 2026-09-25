@@ -55,6 +55,10 @@ export type PatientSession = {
   /** The instant. Rendered by `lib/scheduling/tz.ts` in the reader's zone. */
   at: Date;
   therapistName: string;
+  /** 🔴 W3 / P3: the summary on the card carries its signer's credentials. */
+  therapistCredentials: string | null;
+  /** 🔴 W3: "Book again" opens this clinician's own page. */
+  therapistId: string;
   /** `video` or `in_person`. Not a clinical fact. */
   modality: string;
   priceCents: number;
@@ -122,8 +126,10 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       priceCurrency: sessions.priceCurrency,
       paymentStatus: sessions.paymentStatus,
       status: sessions.status,
+      therapistId: users.id,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
+      therapistProfile: users.profile,
 
       /*
        * 🔴 The only two columns this module takes from `session_notes`, ever.
@@ -191,6 +197,8 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       }),
       at,
       therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
+      therapistCredentials: row.therapistProfile?.credentials?.trim() || null,
+      therapistId: row.therapistId,
       modality: row.modality,
       priceCents: row.priceCents,
       priceCurrency: row.priceCurrency,

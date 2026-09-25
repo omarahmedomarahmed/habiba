@@ -165,9 +165,17 @@ export async function book(input: {
   const when = formatWhenWithCaveat(result.startsAt, zone, "en");
 
   const delivery = await notify(
-    { email, phone, timezone: input.timezone ?? null },
+    /*
+     * 🔴 W3 / P2: a signed-in patient also finds the booking in their app.
+     * The kind is `session_invited` because no new kind is allowed without a
+     * migration; the key says "booked".
+     */
+    { email, phone, timezone: input.timezone ?? null, personId: signedIn?.personId ?? null },
     {
       kind: "booking.confirmed",
+      notice: signedIn?.personId
+        ? { kind: "session_invited", key: "pnotice.sessionBooked", sessionId: result.sessionId }
+        : undefined,
       subject: `Your session with ${result.therapistName}`,
       body: `Your session with ${result.therapistName} is booked for ${when}.\n\nJoin from the link below a few minutes before. If you need to cancel, tell your therapist as early as you can.`,
       /* 🔴 W2-P05: their own door, not the clinician's session page. */

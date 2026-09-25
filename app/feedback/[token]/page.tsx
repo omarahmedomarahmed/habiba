@@ -77,6 +77,7 @@ export default async function FeedbackPage({
         therapistTimezone={context.therapistTimezone}
         token={token}
         therapistFirstName={context.therapistFirstName}
+        signer={[context.therapistName, context.therapistCredentials].filter(Boolean).join(", ")}
         brief={context.brief}
         briefSteps={context.briefSteps}
         briefNext={context.briefNext}

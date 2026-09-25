@@ -51,6 +51,8 @@ export type FeedbackContext = {
   sessionId: string;
   therapistFirstName: string;
   therapistName: string;
+  /** 🔴 W3 / P3: the summary carries its signer's credentials. */
+  therapistCredentials: string | null;
   sessionDate: Date;
   /** The zone the date is rendered in when the reader's browser cannot say. */
   therapistTimezone: string | null;
@@ -113,6 +115,7 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
       paymentStatus: sessions.paymentStatus,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
+      therapistProfile: users.profile,
       therapistZone: users.timezone,
       noteContent: sessionNotes.content,
       noteLanguage: sessionNotes.language,
@@ -161,6 +164,7 @@ export async function feedbackContext(token: string): Promise<FeedbackContext | 
     sessionId: row.sessionId,
     therapistFirstName: row.therapistFirst,
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
+    therapistCredentials: row.therapistProfile?.credentials?.trim() || null,
     sessionDate: ended,
     // The fallback zone for the heading, used only when the reader's browser
     // cannot tell us its own. 11R.1.

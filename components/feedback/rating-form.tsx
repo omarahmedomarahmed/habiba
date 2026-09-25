@@ -32,6 +32,7 @@ export function RatingForm({
   sessionDateIso,
   therapistTimezone,
   therapistFirstName,
+  signer,
   brief,
   briefSteps,
   briefNext,
@@ -48,6 +49,8 @@ export function RatingForm({
   sessionDateIso: string;
   therapistTimezone: string | null;
   therapistFirstName: string;
+  /** 🔴 W3 / P3: who signed the summary, with their credentials. */
+  signer: string;
   brief: string | null;
   briefSteps: string[];
   briefNext: string;
@@ -144,6 +147,7 @@ export function RatingForm({
       <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
         {t("prating.yourSummary")}
       </p>
+      <p className="mt-0.5 text-xs text-slate-500">{t("prating.from", { name: signer })}</p>
       {/* Same component the clinician approved this on, so what they
           saw and what you are reading cannot drift apart. */}
       <PatientBriefCard className="mt-2" brief={brief} steps={briefSteps} next={briefNext} rtl={rtl} />
