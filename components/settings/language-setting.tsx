@@ -10,10 +10,16 @@ import { getI18n } from "@/lib/i18n/server";
 export async function LanguageSetting({
   action,
   saved,
+  justSaved = false,
 }: {
   action: (formData: FormData) => Promise<void>;
   /** What they chose, or null when they never did. */
   saved: Locale | null;
+  /**
+   * B55: the action redirects back with `?lang=saved`, and the page passes it
+   * here. Still no JavaScript: the confirmation is part of the next render.
+   */
+  justSaved?: boolean;
 }) {
   const { t, locale } = await getI18n();
   const current = saved ?? locale;
@@ -42,6 +48,11 @@ export async function LanguageSetting({
           {t("lang.save")}
         </button>
       </form>
+      {justSaved ? (
+        <p role="status" className="mt-2 text-sm font-medium text-emerald-700">
+          {t("lang.saved")}
+        </p>
+      ) : null}
     </Card>
   );
 }

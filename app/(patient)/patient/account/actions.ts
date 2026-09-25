@@ -222,8 +222,11 @@ export async function confirmEmail(_prev: EmailState, formData: FormData): Promi
 export async function savePatientLanguage(formData: FormData): Promise<void> {
   const actor = await requirePatient();
   const { saveLocale } = await import("@/lib/i18n/preference");
-  await saveLocale({ personId: actor.personId }, String(formData.get("locale") ?? ""));
+  const ok = await saveLocale({ personId: actor.personId }, String(formData.get("locale") ?? ""));
   revalidatePath("/patient", "layout");
+  /* B55: back to the tab they were on, saying so. */
+  const { redirect } = await import("next/navigation");
+  redirect(ok ? "/patient/account?tab=settings&lang=saved" : "/patient/account?tab=settings");
 }
 
 /* ------------------------------------------------- K24 · closing the account */

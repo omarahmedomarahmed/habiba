@@ -65,10 +65,10 @@ export const dynamic = "force-dynamic";
 export default async function PatientAccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; lang?: string }>;
 }) {
   const actor = await requirePatient();
-  const { tab } = await searchParams;
+  const { tab, lang } = await searchParams;
   const active: TabKey = TABS.some((entry) => entry.key === tab) ? (tab as TabKey) : "overview";
 
   const [account] = await db
@@ -299,7 +299,7 @@ export default async function PatientAccountPage({
 
       {active === "settings" ? (
       <>
-      <LanguageSetting action={savePatientLanguage} saved={chosen} />
+      <LanguageSetting action={savePatientLanguage} saved={chosen} justSaved={lang === "saved"} />
 
       {/* 25.7 / C115 — name and picture, both theirs. */}
       <IdentityEditor
