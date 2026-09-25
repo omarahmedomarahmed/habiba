@@ -59,6 +59,15 @@ deliberately and `verify:demo` fails if anything gives her a login.
 | Therapist, clinic (Kareem) | one patient, four sessions |
 | Clinician still applying | **nothing, deliberately.** This is the screen between applying and being let in |
 | Patients | sessions, an approved summary, homework and a journal each |
+| Patient, not enrolled (Omar) | 500 cents in his wallet, spent automatically on his next booking (ruling 7) |
+| Every clinician | mornings bookable online or in person at an invented practice, afternoons online (ruling 5c) |
+
+## 🔴 Console accounts ask for a second step (0167)
+
+After the password, the admin and support accounts ask for a code: from an authenticator
+app once one is added at `/admin/security`, otherwise by email. The support account's
+address is invented, so its email code arrives nowhere. To walk it, add an authenticator
+to it while signed in, or give it an address that receives mail.
 
 ## 🔴 What this replaced, read before it was deleted
 
