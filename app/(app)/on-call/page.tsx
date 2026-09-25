@@ -9,7 +9,7 @@ import { SessionHistory } from "@/components/radar/session-history";
 import { TherapistConsole } from "@/components/radar/therapist-console";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
-import { ensureRadarProfile, radarSessionHistory } from "@/lib/data/radar";
+import { ensureRadarProfile, publicProfile, radarSessionHistory } from "@/lib/data/radar";
 import { myHours } from "@/lib/data/scheduling";
 import { readTimezone } from "@/lib/data/timezone";
 import { dbFor} from "@/lib/db";
@@ -18,6 +18,7 @@ import { users } from "@/lib/db/schema";
 import { feedbackForTherapist } from "@/lib/data/feedback";
 import { activeTaxonomy, closedCodes } from "@/lib/data/taxonomy";
 import { getI18n } from "@/lib/i18n/server";
+import { getSettings } from "@/lib/settings";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -52,11 +53,16 @@ export default async function RadarConsolePage() {
     slots,
     timezone,
     closedCountries,
+    settings,
+    published,
+    needsTransfer,
   ] = await Promise.all([
     ensureRadarProfile(actor),
     db
       .select({
         sessionRateCents: users.sessionRateCents,
+        rateCurrency: users.rateCurrency,
+        rateEgpMinor: users.rateEgpMinor,
         chargesEnabled: users.chargesEnabled,
         profile: users.profile,
       })
@@ -72,11 +78,18 @@ export default async function RadarConsolePage() {
     readTimezone(actor.userId),
     // 50.3 — resolved here, where the taxonomy already is.
     closedCodes("country"),
+    getSettings(),
+    /* B14: the page the link opens, asked the way /t/:id asks it. */
+    publicProfile(actor.userId).then((found) => found !== null),
+    /*
+     * The same question the earnings and settings pages ask (76.34). B40: in
+     * the one round of reads rather than a second one after it; this page is
+     * already a dozen queries and each serial step adds a round trip to Neon.
+     */
+    import("@/lib/billing/manual-entry").then(({ organizationNeedsTransfer }) =>
+      organizationNeedsTransfer(actor.organizationId),
+    ),
   ]);
-
-  /* The same question the earnings and settings pages ask (76.34). */
-  const { organizationNeedsTransfer } = await import("@/lib/billing/manual-entry");
-  const needsTransfer = await organizationNeedsTransfer(actor.organizationId);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -94,6 +107,17 @@ export default async function RadarConsolePage() {
           specialties={profile.specialties}
           country={profile.country}
           sessionRateCents={me?.sessionRateCents ?? 0}
+          /*
+           * 🔴 B11 — the operator's fee and the figure they typed, the same two
+           * inputs /settings computes "You keep" from. This card used a fixed 10%
+           * on the converted dollars, so one price had two different nets.
+           */
+          rateEgpMinor={
+            me && me.rateCurrency.toLowerCase() === "egp" && me.rateEgpMinor !== null && me.rateEgpMinor > 0
+              ? me.rateEgpMinor
+              : null
+          }
+          feeBps={settings.session.platformFeeBps}
           chargesEnabled={me?.chargesEnabled ?? false}
           manualRail={needsTransfer}
           countryClosed={Boolean(profile.country && closedCountries.has(profile.country))}
@@ -165,10 +189,14 @@ export default async function RadarConsolePage() {
                     part,
                   ],
             )}{" "}
-          {/* 🔴 W2-T07: their own page, as a patient finds it. */}
-          <Link href={`/t/${actor.userId}`} className="font-medium text-brand-700">
-            {t("tw2.publicPage")}
-          </Link>
+          {/* 🔴 W2-T07: their own page, as a patient finds it. B14: once there is one. */}
+          {published ? (
+            <Link href={`/t/${actor.userId}`} className="font-medium text-brand-700">
+              {t("tw2.publicPage")}
+            </Link>
+          ) : (
+            t("tw2.publicPageLater")
+          )}
         </p>
       </div>
     </div>

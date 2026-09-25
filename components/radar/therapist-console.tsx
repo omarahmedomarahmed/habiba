@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { Money } from "@/components/ui/money";
+import { platformFeeOn } from "@/lib/settings/defs";
 
 /** An address is the same in every language, so the example is not a message. */
 const URL_EXAMPLE = "https://…";
@@ -41,6 +42,10 @@ export type ConsoleProps = {
   specialties: string[];
   country: string | null;
   sessionRateCents: number;
+  /** B11: the pounds as typed when they priced in pounds, else null. */
+  rateEgpMinor: number | null;
+  /** B11: the operator's platform fee, the one a payment is actually charged. */
+  feeBps: number;
   chargesEnabled: boolean;
   /** Paid out by hand in Egypt: nothing waits on Stripe, so no note says it does. */
   manualRail?: boolean;
@@ -148,6 +153,11 @@ export function TherapistConsole(props: ConsoleProps) {
    * What is left is a disclosure, not a block.
    */
   const held = props.sessionRateCents > 0 && !props.chargesEnabled && !props.manualRail;
+  /* In the currency they priced in, so the net is the one /settings shows (B11). */
+  const priced =
+    props.rateEgpMinor !== null
+      ? { cents: props.rateEgpMinor, currency: "EGP" }
+      : { cents: props.sessionRateCents, currency: "USD" };
 
   return (
     <div className="space-y-4">
@@ -217,14 +227,14 @@ export function TherapistConsole(props: ConsoleProps) {
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/85">{t("trad.rate")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-white">
-                {props.sessionRateCents > 0 ? <Money cents={props.sessionRateCents} /> : t("trad.free")}
+                {props.sessionRateCents > 0 ? <Money cents={priced.cents} currency={priced.currency} /> : t("trad.free")}
               </dd>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
               <dt className="text-xs text-white/85">{t("trad.youKeep")}</dt>
               <dd className="mt-0.5 text-xl font-bold text-teal-300">
                 {props.sessionRateCents > 0
-                  ? <Money cents={props.sessionRateCents - Math.floor((props.sessionRateCents * 1000) / 10_000)} />
+                  ? <Money cents={priced.cents - platformFeeOn(priced.cents, props.feeBps)} currency={priced.currency} />
                   : "-"}
               </dd>
             </div>
