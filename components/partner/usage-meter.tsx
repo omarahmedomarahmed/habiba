@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 
 import { saveLimit } from "@/app/(partner)/partner/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /**
  * The limit they set, and what the month is heading for. PLAN.md 68.15 to 68.18.
@@ -44,6 +46,7 @@ export function UsageMeter({
     totalCents: number;
   } | null;
 }) {
+  const t = useT();
   const [wanted, setWanted] = useState(String(limit));
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -55,10 +58,9 @@ export function UsageMeter({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Usage</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("dev.usage.title")}</h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Sessions we did intelligence for this month, {periodLabel}. Priced per session,
-          never per call: you do the work, we transcribe, write and assist.
+          {t("dev.usage.body", { period: periodLabel })}
         </p>
       </div>
 
@@ -71,14 +73,9 @@ export function UsageMeter({
       */}
       {stopped ? (
         <Card className="border-amber-200 bg-amber-50 p-5">
-          <p className="text-sm font-semibold text-amber-900">
-            We have stopped at the limit you set.
-          </p>
+          <p className="text-sm font-semibold text-amber-900">{t("dev.usage.stopped")}</p>
           <p className="mt-1 text-sm leading-relaxed text-amber-900">
-            Your own platform is unaffected: sessions are happening and are held on your
-            side. What has stopped is our part, so no transcription, no notes, no
-            summaries and no copilot, until you raise the number below. We are not
-            billing you for those sessions, because we did not do them.
+            {t("dev.usage.stoppedBody")}
           </p>
         </Card>
       ) : null}
@@ -87,7 +84,7 @@ export function UsageMeter({
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <p className="text-3xl font-bold tabular-nums text-slate-900">{used}</p>
           <p className="text-sm text-slate-500">
-            of {limit > 0 ? limit : "no limit set"} this month
+            {t("dev.usage.ofLimit", { limit: limit > 0 ? limit : t("dev.usage.noLimitSet") })}
           </p>
         </div>
 
@@ -99,7 +96,7 @@ export function UsageMeter({
               aria-valuenow={percent}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label="Sessions used against the limit"
+              aria-label={t("dev.usage.meter")}
             >
               <div
                 className={
@@ -118,23 +115,21 @@ export function UsageMeter({
               beside a word nobody parses.
             */}
             <p className="mt-3 text-sm text-slate-600">
-              At this rate the month ends at about{" "}
-              <strong className="font-semibold text-slate-900 tabular-nums">{projected}</strong>
-              {projected > limit ? (
-                <>
-                  , which is past your limit. We will stop when you reach {limit} and your
-                  own platform will carry on.
-                </>
-              ) : (
-                <>, which is inside your limit.</>
+              {rich(
+                t(projected > limit ? "dev.usage.projectedOver" : "dev.usage.projectedUnder", {
+                  count: slot(0),
+                  limit,
+                }),
+                [
+                  <strong key="count" className="font-semibold text-slate-900 tabular-nums">
+                    {projected}
+                  </strong>,
+                ],
               )}
             </p>
           </>
         ) : (
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            You have not set a limit, so nothing is capped. Set one and we will never
-            exceed it.
-          </p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">{t("dev.usage.noLimit")}</p>
         )}
       </Card>
 
@@ -151,10 +146,17 @@ export function UsageMeter({
             {lastMonth.label}
           </p>
           <p className="mt-1 text-sm text-slate-700">
-            <strong className="font-semibold tabular-nums text-slate-900">
-              {lastMonth.sessions}
-            </strong>{" "}
-            sessions at ${(lastMonth.perSessionCents / 100).toFixed(2)} each
+            {rich(
+              t("dev.usage.lastMonth", {
+                count: slot(0),
+                price: `$${(lastMonth.perSessionCents / 100).toFixed(2)}`,
+              }),
+              [
+                <strong key="count" className="font-semibold tabular-nums text-slate-900">
+                  {lastMonth.sessions}
+                </strong>,
+              ],
+            )}
           </p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
             ${(lastMonth.totalCents / 100).toFixed(2)}
@@ -164,7 +166,7 @@ export function UsageMeter({
 
       {canChange ? (
         <Card className="p-5">
-          <Field label="Sessions a month" htmlFor="partner-limit">
+          <Field label={t("dev.usage.perMonth")} htmlFor="partner-limit">
             <Input
               id="partner-limit"
               type="number"
@@ -185,18 +187,14 @@ export function UsageMeter({
             support conversation after a month where their therapists lost the
             copilot and nobody could say why.
           */}
-          <p className="mt-3 text-xs leading-relaxed text-slate-500">
-            We alert this account&rsquo;s contact at 80% and again at 90%, with a link
-            back here. At the limit our part stops and yours does not, and we never bill
-            past it: a session we did not do is not one we charge for.
-          </p>
+          <p className="mt-3 text-xs leading-relaxed text-slate-500">{t("dev.usage.rule")}</p>
 
           {error ? (
             <p role="alert" className="mt-3 text-xs text-red-600">
               {error}
             </p>
           ) : null}
-          {saved ? <p className="mt-3 text-xs font-semibold text-brand-700">Saved.</p> : null}
+          {saved ? <p className="mt-3 text-xs font-semibold text-brand-700">{t("common.saved")}</p> : null}
 
           <Button
             type="button"
@@ -210,7 +208,7 @@ export function UsageMeter({
               })
             }
           >
-            {pending ? "Saving…" : "Save the limit"}
+            {pending ? t("common.saving") : t("dev.usage.save")}
           </Button>
         </Card>
       ) : null}

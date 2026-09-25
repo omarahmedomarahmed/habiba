@@ -461,8 +461,8 @@ export function Globe({
           </p>
           <p className="text-[11px] text-teal-300">
             {hoveredCount > 0
-              ? `${hoveredCount} online now, tap to filter`
-              : "Nobody here right now"}
+              ? t("radar.onlineTap", { count: hoveredCount })
+              : t("radar.nobodyHere")}
           </p>
         </div>
       ) : null}

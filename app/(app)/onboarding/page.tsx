@@ -20,7 +20,11 @@ import { uploadsConfigured } from "@/lib/uploads";
 import { IDENTITY_KINDS, identityDocumentPath } from "@/lib/documents/identity-access";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Verify your practice", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.verifyYourPractice"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function OnboardingPage() {

@@ -10,6 +10,7 @@ import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { PhoneField } from "@/components/forms/phone-field";
 import { countryFromE164, readerCountry } from "@/lib/phone/e164";
 import { useLocale, useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /**
  * The booking calendar on a public profile. PLAN.md 11.3.
@@ -108,13 +109,11 @@ export function BookingCalendar({
       <Card className="p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <Check className="h-4 w-4 text-brand-500" aria-hidden />
-          Booked with {therapistName}
+          {t("pbook.bookedWith", { name: therapistName })}
         </p>
         <p className="mt-1 text-sm text-slate-700">{done.when}</p>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          {done.sent
-            ? "We have sent you a confirmation with the link to join."
-            : "🔴 We could not send you a confirmation, write this time down. Your therapist has it too."}
+          {done.sent ? t("pbook.confirmSent") : t("pbook.confirmNotSent")}
         </p>
       </Card>
     );
@@ -128,8 +127,7 @@ export function BookingCalendar({
           {t("pbook.noTimes")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {therapistName} has not published any hours yet. If this is urgent, they may be on the
-          Crisis Radar right now.
+          {t("pbook.noHours", { name: therapistName })}
         </p>
       </Card>
     );
@@ -142,7 +140,7 @@ export function BookingCalendar({
         {t("pbook.bookSession")}
       </p>
       <p className="mt-0.5 text-xs text-slate-500">
-        One hour with {therapistName} · {rateLabel}
+        {rich(t("pbook.sessionWith", { name: therapistName, rate: slot(0) }), [rateLabel])}
       </p>
 
       {picked ? (

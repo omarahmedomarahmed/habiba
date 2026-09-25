@@ -149,16 +149,15 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
         )}
       >
         {bookable
-          ? "Start a session now"
+          ? t("tprofile.start")
           : profile.status === "offline"
-            ? "Not on shift right now"
-            : "With someone else right now"}
+            ? t("tprofile.offShift")
+            : t("tprofile.busy")}
       </button>
 
       {!bookable ? (
         <p className="mt-2 text-center text-xs leading-relaxed text-slate-600">
-          This page updates by itself. Leave it open and the button turns on the moment{" "}
-          {profile.firstName} is free.
+          {t("tprofile.updates", { name: profile.firstName })}
         </p>
       ) : null}
 
@@ -168,7 +167,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
         className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
       >
         {copied ? <Check className="h-4 w-4 text-teal-600" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-        {copied ? "Link copied" : "Copy this page's link"}
+        {copied ? t("tprofile.copied") : t("tprofile.copy")}
       </button>
 
       {booking ? (
@@ -208,12 +207,12 @@ function AvailabilityLine({ status }: { status: ProfileEntry["status"] }) {
    * one anyway, because a public profile is the last place that should be a
    * stack trace.
    */
-  const OFF = { dot: "bg-slate-300", text: "Not on shift", tone: "text-slate-600 bg-slate-100" };
+  const OFF = { dot: "bg-slate-300", text: t("tprofile.statusOff"), tone: "text-slate-600 bg-slate-100" };
   const map =
     {
-      online: { dot: "bg-teal-500 live-dot", text: "Available now", tone: "text-teal-700 bg-teal-50" },
-      pending: { dot: "bg-amber-500", text: "Someone is booking them", tone: "text-amber-700 bg-amber-50" },
-      in_session: { dot: "bg-slate-400", text: "In a session", tone: "text-slate-600 bg-slate-100" },
+      online: { dot: "bg-teal-500 live-dot", text: t("tprofile.statusOn"), tone: "text-teal-700 bg-teal-50" },
+      pending: { dot: "bg-amber-500", text: t("tprofile.statusPending"), tone: "text-amber-700 bg-amber-50" },
+      in_session: { dot: "bg-slate-400", text: t("tprofile.statusInSession"), tone: "text-slate-600 bg-slate-100" },
       offline: OFF,
     }[status] ?? OFF;
 

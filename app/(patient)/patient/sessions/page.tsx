@@ -9,7 +9,11 @@ import { requirePatient } from "@/lib/patient-auth/guard";
 import { cn } from "@/lib/utils";
 import type { MessageKey } from "@/lib/i18n/messages";
 
-export const metadata: Metadata = { title: "Your sessions", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourSessions"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

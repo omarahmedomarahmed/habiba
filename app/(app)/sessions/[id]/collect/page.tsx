@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 
@@ -7,7 +8,11 @@ import { requireVerified } from "@/lib/auth/guard";
 import { getSession } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
 
-export const metadata: Metadata = { title: "Waiting for payment", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.waitingForPayment"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

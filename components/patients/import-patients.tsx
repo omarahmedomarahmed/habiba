@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { commit, preview } from "@/app/(app)/patients/import/actions";
-import { COUNTRY_NAMES } from "@/components/forms/phone-field";
+import { useCountryName } from "@/components/forms/phone-field";
 import { Button, Card, Field } from "@/components/ui";
 import { DIALLING_CODES } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
@@ -41,6 +41,7 @@ function Submit({ label }: { label: string }) {
 
 export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
   const t = useT();
+  const countryName = useCountryName();
   const [state, previewAction] = useActionState(preview, {});
   const [done, commitAction] = useActionState(commit, {});
 
@@ -171,10 +172,10 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
               className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm"
             >
               {Object.keys(DIALLING_CODES)
-                .sort((a, b) => (COUNTRY_NAMES[a] ?? a).localeCompare(COUNTRY_NAMES[b] ?? b))
+                .sort((a, b) => countryName(a).localeCompare(countryName(b)))
                 .map((code) => (
                   <option key={code} value={code}>
-                    {COUNTRY_NAMES[code] ?? code} +{DIALLING_CODES[code]}
+                    {countryName(code)} +{DIALLING_CODES[code]}
                   </option>
                 ))}
             </select>

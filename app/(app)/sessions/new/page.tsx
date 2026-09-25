@@ -12,7 +12,11 @@ import { getCountrySettings, getSettings, sessionVatBpsFor } from "@/lib/setting
 import { fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "New session", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.newSession"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function NewSessionPage({

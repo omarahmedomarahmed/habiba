@@ -11,7 +11,11 @@ import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDateTime, fullName } from "@/lib/utils";
 import { listSeparator } from "@/lib/i18n/config";
 
-export const metadata: Metadata = { title: "Your journal", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourJournal"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

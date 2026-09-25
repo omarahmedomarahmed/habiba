@@ -15,7 +15,11 @@ import { fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
 
-export const metadata: Metadata = { title: "Sessions", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.sessions"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

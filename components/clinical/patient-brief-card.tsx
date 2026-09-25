@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * What the patient actually receives.
@@ -31,8 +32,8 @@ export function PatientBriefCard({
   steps,
   next,
   rtl = false,
-  stepsLabel = "Before we next meet",
-  nextLabel = "Next session",
+  stepsLabel,
+  nextLabel,
   className,
 }: {
   brief: string;
@@ -43,6 +44,7 @@ export function PatientBriefCard({
   nextLabel?: string;
   className?: string;
 }) {
+  const t = useT();
   const paragraphs = brief.split("\n").map((line) => line.trim()).filter(Boolean);
 
   return (
@@ -54,15 +56,13 @@ export function PatientBriefCard({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-600">
-          Nothing written for the patient yet.
-        </p>
+        <p className="text-sm text-slate-600">{t("brief.empty")}</p>
       )}
 
       {steps.length > 0 ? (
         <div className="rounded-2xl bg-brand-50/70 px-4 py-3.5">
           <p className="text-[11px] font-bold tracking-wider text-brand-700 uppercase">
-            {stepsLabel}
+            {stepsLabel ?? t("brief.steps")}
           </p>
           <ul className="mt-2.5 space-y-2.5">
             {steps.map((step, index) => (
@@ -79,7 +79,7 @@ export function PatientBriefCard({
 
       {next ? (
         <p className="border-t border-slate-100 pt-3 text-sm leading-relaxed text-slate-600">
-          <span className="font-semibold text-slate-800">{nextLabel}:</span> {next}
+          <span className="font-semibold text-slate-800">{nextLabel ?? t("brief.next")}:</span> {next}
         </p>
       ) : null}
     </div>

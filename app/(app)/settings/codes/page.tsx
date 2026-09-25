@@ -9,7 +9,11 @@ import { requireUser } from "@/lib/auth/guard";
 import { listCodes } from "@/lib/data/therapist-codes";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Your QR code", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourQRCode"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

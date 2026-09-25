@@ -127,8 +127,7 @@ export function InviteTherapist({
             {state.code}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-brand-900/80">
-            Read it to your therapist. It works until {state.expiresOn}, once, and you will be
-            asked to approve before they can read anything.
+            {t("pinvite.readIt", { date: state.expiresOn ?? "" })}
           </p>
         </div>
       ) : null}

@@ -4,6 +4,7 @@ import { POST as gatewayCallback } from "@/app/api/gateway/callback/route";
 import { Button, Card } from "@/components/ui";
 import { recordFakeOutcome, SIGNATURE_HEADER, signFake } from "@/lib/billing/gateway/fake";
 import { env } from "@/lib/env";
+import { getI18n } from "@/lib/i18n/server";
 
 import { simulatorOn } from "../../simulator";
 
@@ -54,6 +55,7 @@ export default async function SimulatedCheckout({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   if (!simulatorOn("gateway")) notFound();
+  const { t } = await getI18n();
   const { ref } = await params;
   const query = await searchParams;
   const amount = Number(query.amount ?? 0);
@@ -61,19 +63,19 @@ export default async function SimulatedCheckout({
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4">
       <Card className="space-y-3 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Simulated gateway</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{t("sim.gateway")}</p>
         <p className="text-2xl font-bold text-slate-900">{(amount / 100).toFixed(2)} EGP</p>
-        <p className="text-xs text-slate-500">No real card is charged here.</p>
+        <p className="text-xs text-slate-500">{t("sim.noCard")}</p>
         <form action={answer} className="flex gap-2">
           <input type="hidden" name="providerRef" value={ref} />
           <input type="hidden" name="reference" value={query.reference ?? ""} />
           <input type="hidden" name="amount" value={String(amount)} />
           <input type="hidden" name="return" value={query.return ?? "/"} />
           <Button type="submit" name="outcome" value="paid" full>
-            Pay
+            {t("sim.pay")}
           </Button>
           <Button type="submit" name="outcome" value="failed" variant="secondary" full>
-            Decline
+            {t("sim.decline")}
           </Button>
         </form>
       </Card>

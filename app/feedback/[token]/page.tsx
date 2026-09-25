@@ -10,7 +10,11 @@ import { optionalPatient } from "@/lib/patient-auth/guard";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrbServer } from "@/components/patient/sos-orb-server";
 
-export const metadata: Metadata = { title: "Your session", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourSession"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

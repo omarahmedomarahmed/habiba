@@ -5,7 +5,11 @@ import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrbServer } from "@/components/patient/sos-orb-server";
 
-export const metadata: Metadata = { title: "Your message", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourMessage"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -29,15 +33,13 @@ export default async function SupportTicketPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const { t, locale } = await getI18n();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-10">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Your message to us</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          Enter the code we sent you. We keep the conversation here rather than putting it in an
-          email, an email is not a safe place for what people tell us.
-        </p>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("ttk.title")}</h1>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("ttk.body")}</p>
       </div>
 
       <TicketReader token={token} />
@@ -47,7 +49,7 @@ export default async function SupportTicketPage({
         and this page is reached from an email at the moment they decided to
         tell us something. The orb is two taps and a `tel:` link away.
       */}
-      <SosOrbServer country={crisisCountryFor({ locale: (await getI18n()).locale })} />
+      <SosOrbServer country={crisisCountryFor({ locale })} />
     </main>
   );
 }

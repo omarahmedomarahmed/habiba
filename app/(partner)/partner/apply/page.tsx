@@ -3,7 +3,11 @@ import type { Metadata } from "next";
 import { PartnerApplyForm } from "@/components/partner/apply-form";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Build on 24Therapy" };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.buildOn24Therapy") };
+}
 export const dynamic = "force-dynamic";
 
 /**

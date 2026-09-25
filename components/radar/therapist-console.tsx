@@ -25,6 +25,9 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { Money } from "@/components/ui/money";
 
+/** An address is the same in every language, so the example is not a message. */
+const URL_EXAMPLE = "https://…";
+
 const INITIAL: RadarState = {};
 
 /** Slow enough not to be chatty, fast enough that the alarm is not late. */
@@ -349,7 +352,7 @@ export function TherapistConsole(props: ConsoleProps) {
               type="url"
               inputMode="url"
               defaultValue={props.photoUrl ?? ""}
-              placeholder="https://…"
+              placeholder={URL_EXAMPLE}
             />
           </Field>
 

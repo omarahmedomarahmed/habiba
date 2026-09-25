@@ -30,6 +30,7 @@ import { countryName } from "@/lib/geo";
 import { cn, fullName } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 import { useLocale, useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 /** Must match RESERVATION_SECONDS on the server. */
 const HOLD_SECONDS = 60;
@@ -49,10 +50,12 @@ function Submit({ sessionRateCents }: { sessionRateCents: number }) {
     >
       {sessionRateCents > 0 ? <CreditCard className="h-4 w-4" aria-hidden /> : null}
       {pending
-        ? "Connecting…"
+        ? t("pbook.connecting")
         : sessionRateCents > 0
-          ? <>Pay <Money cents={sessionRateCents} /> and start now</>
-          : "Start now"}
+          ? rich(t("pbook.payAndStart", { amount: slot(0) }), [
+              <Money key="amount" cents={sessionRateCents} />,
+            ])
+          : t("pbook.startNow")}
     </button>
   );
 }
@@ -206,14 +209,14 @@ export function BookingSheet({
 
         <dl className="mt-4 space-y-2.5 text-sm">
           <Row icon={<Languages className="h-3.5 w-3.5" aria-hidden />} label={t("radar.speaks")}>
-            {entry.languages.join(", ") || "Not listed"}
+            {entry.languages.join(", ") || t("pbook.notListed")}
           </Row>
           <Row icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />} label={t("radar.worksWith")}>
-            {entry.specialties.join(", ") || "Not listed"}
+            {entry.specialties.join(", ") || t("pbook.notListed")}
           </Row>
           <Row icon={<Globe2 className="h-3.5 w-3.5" aria-hidden />} label={t("radar.basedIn")}>
             {[entry.city, entry.region, countryName(entry.country, locale)].filter(Boolean).join(", ") ||
-              "Not shared"}
+              t("pbook.notShared")}
           </Row>
         </dl>
 
@@ -259,7 +262,7 @@ export function BookingSheet({
                 <div className="flex items-center justify-between gap-3">
                   <p className="flex items-center gap-1.5 text-xs font-semibold text-teal-900">
                     <Clock className="h-3.5 w-3.5" aria-hidden />
-                    Held for you · {secondsLeft}s
+                    {t("pbook.heldFor", { seconds: secondsLeft })}
                   </p>
                   <p className="text-[11px] text-teal-700">{t("pbook.onlyYou")}</p>
                 </div>

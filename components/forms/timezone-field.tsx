@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Field } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { zoneLabel } from "@/lib/scheduling/tz";
 
@@ -28,6 +29,7 @@ import { zoneLabel } from "@/lib/scheduling/tz";
  */
 export function TimezoneField({ name = "timezone" }: { name?: string }) {
   const detected = useReaderZone();
+  const t = useT();
   const [chosen, setChosen] = useState<string | null>(null);
 
   const value = chosen ?? detected ?? "";
@@ -42,7 +44,7 @@ export function TimezoneField({ name = "timezone" }: { name?: string }) {
   const options = [...new Set([...(value ? [value] : []), "UTC", ...zones])].sort();
 
   return (
-    <Field label="Time zone" htmlFor={name}>
+    <Field label={t("phone.timezone")} htmlFor={name}>
       <select
         id={name}
         name={name}
@@ -54,7 +56,7 @@ export function TimezoneField({ name = "timezone" }: { name?: string }) {
           Empty until the effect runs, so the server pass and the first client
           pass render the same option list. It fills in a frame later.
         */}
-        {value === "" ? <option value="">Detecting…</option> : null}
+        {value === "" ? <option value="">{t("phone.detecting")}</option> : null}
         {options.map((zone) => (
           <option key={zone} value={zone}>
             {zone}
@@ -62,9 +64,7 @@ export function TimezoneField({ name = "timezone" }: { name?: string }) {
         ))}
       </select>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
-        {value
-          ? `We will show your appointments and reminders in ${zoneLabel(value)} time. Change it if that is wrong.`
-          : "So your appointment times are shown in your own clock."}
+        {value ? t("phone.zoneShown", { zone: zoneLabel(value) }) : t("phone.zoneWhy")}
       </p>
     </Field>
   );

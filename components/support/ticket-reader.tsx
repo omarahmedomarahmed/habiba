@@ -19,9 +19,10 @@ const INITIAL: ReaderState = {};
  */
 function Open() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" full disabled={pending}>
-      {pending ? "Checking…" : "Read the reply"}
+      {pending ? t("ttk.checking") : t("ttk.readReply")}
     </Button>
   );
 }
@@ -34,7 +35,7 @@ export function TicketReader({ token }: { token: string }) {
     return (
       <div className="space-y-3">
         <Card className="p-4">
-          <p className="text-xs text-slate-500">Reference {state.ticket.reference}</p>
+          <p className="text-xs text-slate-500">{t("ttk.reference", { reference: state.ticket.reference })}</p>
           <p className="mt-2 text-sm font-semibold text-slate-900">{t("ttk.whatYouWrote")}</p>
           <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">
             {state.ticket.message}
@@ -44,7 +45,7 @@ export function TicketReader({ token }: { token: string }) {
         {state.ticket.events.map((event, i) => (
           <Card key={i} className="p-4">
             <p className="text-sm font-semibold text-slate-900">
-              {event.kind === "closed" ? "Our reply" : "Update"}
+              {event.kind === "closed" ? t("ttk.ourReply") : t("ttk.update")}
             </p>
             <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">
               {event.note}
@@ -64,7 +65,7 @@ export function TicketReader({ token }: { token: string }) {
     <Card className="p-5">
       <form action={action} className="space-y-3">
         <input type="hidden" name="token" value={token} />
-        <Field label="Your six-digit code" htmlFor="code">
+        <Field label={t("ttk.code")} htmlFor="code">
           <Input
             id="code"
             name="code"

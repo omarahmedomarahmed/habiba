@@ -54,7 +54,7 @@ export function ResidencyNotice({
   return (
     <Card className={agreedAt ? "p-5" : "border-amber-200 bg-amber-50 p-5"}>
       <p className="text-sm font-semibold text-slate-900">
-        Your record is kept in {servingLabel}, not {homeLabel}
+        {t("residency.keptIn", { serving: servingLabel, home: homeLabel })}
       </p>
       <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{wording}</p>
 
@@ -66,7 +66,7 @@ export function ResidencyNotice({
 
       {agreedAt ? (
         <div className="mt-4">
-          <p className="text-sm text-slate-600">You agreed to this on {agreedAt}.</p>
+          <p className="text-sm text-slate-600">{t("residency.agreedOn", { date: agreedAt })}</p>
           <button
             type="button"
             disabled={pending}

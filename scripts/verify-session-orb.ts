@@ -36,6 +36,7 @@
  *
  * Every absence assertion here has a planted-offender control. §6.
  */
+import { ar, en } from "../lib/i18n/messages";
 import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
@@ -180,9 +181,15 @@ function main() {
    * say something they would not say into a live room, and that is a worse
    * failure than the notice not existing at all.
    */
+  /*
+   * 🔴 W3: the sentences moved to the dictionary (troom.minimised*), so the
+   * check reads them there, in both languages, and asserts the room renders them.
+   */
+  const awayKeys = ["troom.minimised", "troom.minimisedOne", "troom.minimisedMany"] as const;
   check(
     "🔴 76.35 …and the notice says they can still hear you",
-    /They can still hear you/.test(therapistRoom),
+    awayKeys.every((key) => therapistRoom.includes(`"${key}"`)) &&
+      awayKeys.every((key) => /They can still hear you/.test(en[key]) && /يسمعك/.test(ar[key])),
     "a clinician who thinks the room is deaf may say something they would not say into a live one",
   );
 
@@ -193,7 +200,8 @@ function main() {
    */
   check(
     "🔴 76.35 …and it states a fact without telling a clinician what to do about it",
-    !/check in with them|ask them if|you should/i.test(therapistRoom),
+    !/check in with them|ask them if|you should/i.test(therapistRoom) &&
+      awayKeys.every((key) => !/check in with them|ask them if|you should/i.test(en[key])),
     "what a silence means is a clinical judgement this product does not get to make",
   );
 

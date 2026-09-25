@@ -68,6 +68,12 @@ function fill(
   );
 }
 
+/**
+ * 🔴 W3: the honeypot's label is read by bots and never by a person (the field
+ * is hidden and aria-hidden), so it is not a message and is not translated.
+ */
+const HONEYPOT_LABEL = "Leave this empty";
+
 export function ContactForm({
   countries,
   heading,
@@ -156,7 +162,7 @@ export function ContactForm({
       <form action={action} className="mt-4 space-y-3">
         {/* 18R.5 — the honeypot. Hidden from people, not from bots. */}
         <div aria-hidden className="hidden">
-          <label htmlFor="website">Leave this empty</label>
+          <label htmlFor="website">{HONEYPOT_LABEL}</label>
           <input id="website" name="website" tabIndex={-1} autoComplete="off" />
         </div>
 
@@ -169,7 +175,7 @@ export function ContactForm({
             <Input
               name="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder={s("room.emailPlaceholder")}
               autoComplete="email"
             />
             <div className="flex gap-2">

@@ -7,7 +7,11 @@ import { asksForTherapist } from "@/lib/data/portability";
 import { formatDate, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Connect", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.connect"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -40,7 +44,7 @@ export default async function ConnectPage({
         <HistoryAsks
           asks={asks.map((ask) => ({
             id: ask.id,
-            name: fullName(ask.firstName, ask.lastName, "A former patient"),
+            name: fullName(ask.firstName, ask.lastName, t("connect.formerPatient")),
             note: ask.note,
             on: formatDate(ask.createdAt, actor.timezone, locale),
           }))}

@@ -33,11 +33,11 @@ import { callerKey, releaseHold } from "@/lib/rate-limit";
 const db = dbFor(pinnedToDefaultRegion("app/join/[token]/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = {
-  title: "Join your session",
-  // A join link must never be indexed, and the page must never be cached.
-  robots: { index: false, follow: false },
-};
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.joinSession"), robots: { index: false, follow: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function JoinPage({
@@ -177,8 +177,8 @@ export default async function JoinPage({
       <JoinFlow
         feedbackToken={await feedbackTokenForJoin(token)}
         therapist={{
-          name: [clinician?.firstName, clinician?.lastName].filter(Boolean).join(" ") || "Your therapist",
-          firstName: clinician?.firstName ?? "your therapist",
+          name: [clinician?.firstName, clinician?.lastName].filter(Boolean).join(" ") || t("join.yourTherapist"),
+          firstName: clinician?.firstName ?? t("join.yourTherapistLower"),
           credentials: clinician?.profile?.credentials ?? null,
           languages: clinician?.languages ?? [],
         }}

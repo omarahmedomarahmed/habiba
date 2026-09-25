@@ -13,7 +13,11 @@ import { Money } from "@/components/ui/money";
  * listed beside it, so a finance team is never handed two invoices for one
  * top-up.
  */
-export const metadata: Metadata = { title: "Payment receipt", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.paymentReceipt"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

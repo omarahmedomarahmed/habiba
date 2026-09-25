@@ -112,13 +112,11 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
                 onlineCount > 0 ? "live-dot bg-teal-400" : "bg-slate-500",
               )}
             />
-            {onlineCount > 0
-              ? `${onlineCount} ${onlineCount === 1 ? "therapist" : "therapists"} available now`
-              : "No one on the radar this minute"}
+            {onlineCount > 0 ? t("radar.online", { count: onlineCount }) : t("radar.nobody")}
           </p>
           <p className="hidden items-center gap-1.5 text-xs text-white/85 sm:flex">
             {refreshing ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
-            Drag to spin · tap a country
+            {t("radar.dragSpin")}
           </p>
         </div>
       </div>
@@ -127,7 +125,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
         <div className="space-y-2">
           <RadarFilters entries={entries} value={filter} onChange={setFilter} />
           <p className="text-xs text-slate-600">
-            Showing {visible.length} of {entries.length}
+            {t("radar.showing", { shown: visible.length, total: entries.length })}
           </p>
         </div>
       ) : null}
@@ -143,8 +141,7 @@ export function PublicRadar({ initial }: { initial: RadarEntry[] }) {
         <Card className="p-6 text-center">
           <p className="text-sm font-semibold text-slate-900">{t("radar.nobodyMatchingTitle")}</p>
           <p className="mt-1.5 text-sm text-slate-600">
-            {onlineCount} other {onlineCount === 1 ? "clinician is" : "clinicians are"} available
-            right now.
+            {t("radar.othersAvailable", { count: onlineCount })}
           </p>
           <button
             type="button"

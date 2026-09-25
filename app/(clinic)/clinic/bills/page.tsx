@@ -16,7 +16,11 @@ import { formatDate } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
 
-export const metadata: Metadata = { title: "Your bills", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourBills"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

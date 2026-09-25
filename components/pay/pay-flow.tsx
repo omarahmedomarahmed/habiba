@@ -105,8 +105,8 @@ export function PayFlow({
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pay.title")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {therapistName ? `With ${therapistName}.` : ""} You will not be charged until you confirm
-          on the next screen.
+          {therapistName ? `${t("pay.with", { name: therapistName })} ` : ""}
+          {t("pay.notYet")}
         </p>
       </div>
 
@@ -212,7 +212,7 @@ export function PayFlow({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("room.emailPlaceholder")}
               />
             </Field>
           </>

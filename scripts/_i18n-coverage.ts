@@ -217,6 +217,15 @@ function isVisibleEnglish(text: string): boolean {
    * genuine label ending in a colon is still counted.
    */
   if (/^,\s*[A-Za-z][A-Za-z0-9_]*\s*:$/.test(text)) return false;
+  /*
+   * 🔴 W3: THE FOURTH PHANTOM FAMILY, AND A ROUTE. Same shape as the third, one
+   * layer out: `withLinks(t(...), { terms: (<Link>…</Link>), privacy: (` gives
+   * `), privacy: (` between two elements. No rendered sentence starts with a
+   * closing parenthesis and ends with an opening one. And `/login` printed as a
+   * link's own text is a path, which is the same string in every language.
+   */
+  if (/^\).*\($/.test(text)) return false;
+  if (/^\/[a-z0-9/-]*$/.test(text)) return false;
   /* Two words, or one word of four letters or more. A lone "OK" is not a
      sentence anybody notices; "Continue" is. */
   if (!/[A-Za-z]{4}/.test(text)) return false;

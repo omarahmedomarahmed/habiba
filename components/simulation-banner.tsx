@@ -1,4 +1,5 @@
 import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, SIMULATION_RUNNING, env } from "@/lib/env";
+import { getI18n } from "@/lib/i18n/server";
 
 /**
  * 🔴 76.47 — THE SIMULATION SAYS SO, ON EVERY PAGE.
@@ -41,7 +42,7 @@ import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, SIMULATION_RUNNING, env } from 
  * not discipline: it is that every page grows a violet bar naming the database,
  * so a deployment left in this state announces itself.
  */
-export function SimulationBanner() {
+export async function SimulationBanner() {
   /*
    * 🔴 TWO WAYS TO BE A SIMULATION, and they are different arrangements.
    *
@@ -56,6 +57,7 @@ export function SimulationBanner() {
    */
   const onBranch = process.env.VERCEL_GIT_COMMIT_REF === SIMULATION_BRANCH;
   if (!onBranch && !SIMULATION_RUNNING) return null;
+  const { t } = await getI18n();
 
   /*
    * 🔴 THE ENDPOINT IS READ BACK OUT OF THE URL, not assumed from the branch.
@@ -74,7 +76,7 @@ export function SimulationBanner() {
       role="note"
       className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 bg-violet-700 px-3 py-1.5 text-center text-xs font-medium text-white"
     >
-      <span>Simulation. Everybody here is invented.</span>
+      <span>{t("sim.banner")}</span>
       <span className="font-mono text-[11px] text-violet-200">{on}</span>
     </div>
   );

@@ -9,9 +9,14 @@ import { env, features } from "@/lib/env";
 import { capSeconds } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
 import { fullName } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 import { createMeetingToken } from "@/lib/video";
 
-export const metadata: Metadata = { title: "Session", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.session"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function RoomPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,7 +41,8 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
 
   // Private Daily rooms cannot be entered without a per-participant token, and
   // the clinician's is minted server-side and never leaves this render.
-  const therapistName = fullName(actor.firstName, actor.lastName, "Therapist");
+  const { t } = await getI18n();
+  const therapistName = fullName(actor.firstName, actor.lastName, t("portal.session.therapist"));
   let videoUrl: string | null = null;
   let videoToken: string | null = null;
   /*
@@ -70,7 +76,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
   const patientLabel =
     fullName(row.patient?.firstName, row.patient?.lastName, "") ||
     row.session.guestName ||
-    "New patient";
+    t("portal.session.newPatient");
 
   return (
     <SessionRoom

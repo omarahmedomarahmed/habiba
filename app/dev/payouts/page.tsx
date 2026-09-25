@@ -8,6 +8,7 @@ import { recordFakePayout, SIGNATURE_HEADER, signFake } from "@/lib/billing/gate
 import { controlDb } from "@/lib/db";
 import { payoutRequests } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { getI18n } from "@/lib/i18n/server";
 
 import { simulatorOn } from "../simulator";
 
@@ -43,6 +44,7 @@ async function answer(formData: FormData) {
 
 export default async function SimulatedPayouts() {
   if (!simulatorOn("payouts")) notFound();
+  const { t } = await getI18n();
   const sending = await controlDb
     .select({
       id: payoutRequests.id,
@@ -56,8 +58,8 @@ export default async function SimulatedPayouts() {
 
   return (
     <main className="mx-auto max-w-lg space-y-3 px-4 py-8">
-      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Simulated payouts provider</p>
-      {sending.length === 0 ? <p className="text-sm text-slate-500">Nothing is being sent.</p> : null}
+      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{t("sim.payouts")}</p>
+      {sending.length === 0 ? <p className="text-sm text-slate-500">{t("sim.nothingSending")}</p> : null}
       {sending.map((row) => (
         <Card key={row.id} className="flex items-center justify-between gap-3 p-4">
           <div>
@@ -68,10 +70,10 @@ export default async function SimulatedPayouts() {
             <input type="hidden" name="providerRef" value={row.providerRef ?? ""} />
             <input type="hidden" name="reference" value={row.id} />
             <Button type="submit" name="outcome" value="sent" className="h-8 px-3 text-xs">
-              Arrived
+              {t("sim.arrived")}
             </Button>
             <Button type="submit" name="outcome" value="failed" variant="secondary" className="h-8 px-3 text-xs">
-              Failed
+              {t("sim.failed")}
             </Button>
           </form>
         </Card>

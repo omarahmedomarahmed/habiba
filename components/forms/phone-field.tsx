@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { DIALLING_CODES } from "@/lib/phone/e164";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * A phone number, with the country it belongs to. PLAN.md 11R.12.
@@ -27,41 +29,50 @@ import { DIALLING_CODES } from "@/lib/phone/e164";
  * exactly the reason this field needs one per number. Two lists of country names would drift,
  * and the drift would show as a country that can be picked on one screen and not the other.
  */
-export const COUNTRY_NAMES: Record<string, string> = {
-  EG: "Egypt",
-  SA: "Saudi Arabia",
-  AE: "UAE",
-  KW: "Kuwait",
-  QA: "Qatar",
-  BH: "Bahrain",
-  OM: "Oman",
-  JO: "Jordan",
-  LB: "Lebanon",
-  IQ: "Iraq",
-  MA: "Morocco",
-  DZ: "Algeria",
-  TN: "Tunisia",
-  LY: "Libya",
-  SD: "Sudan",
-  PS: "Palestine",
-  TR: "Türkiye",
-  GB: "United Kingdom",
-  US: "United States",
-  CA: "Canada",
-  DE: "Germany",
-  FR: "France",
-  IT: "Italy",
-  NL: "Netherlands",
-  SE: "Sweden",
-  AU: "Australia",
+export const COUNTRY_KEYS: Record<string, MessageKey> = {
+  EG: "cc.eg",
+  SA: "cc.sa",
+  AE: "cc.ae",
+  KW: "cc.kw",
+  QA: "cc.qa",
+  BH: "cc.bh",
+  OM: "cc.om",
+  JO: "cc.jo",
+  LB: "cc.lb",
+  IQ: "cc.iq",
+  MA: "cc.ma",
+  DZ: "cc.dz",
+  TN: "cc.tn",
+  LY: "cc.ly",
+  SD: "cc.sd",
+  PS: "cc.ps",
+  TR: "cc.tr",
+  GB: "cc.gb",
+  US: "cc.us",
+  CA: "cc.ca",
+  DE: "cc.de",
+  FR: "cc.fr",
+  IT: "cc.it",
+  NL: "cc.nl",
+  SE: "cc.se",
+  AU: "cc.au",
 };
+
+/**
+ * 🔴 W3: a country's name in the reader's language. The names were English on
+ * the Arabic sign-up form, next to Arabic labels.
+ */
+export function useCountryName(): (code: string) => string {
+  const t = useT();
+  return (code: string) => (COUNTRY_KEYS[code] ? t(COUNTRY_KEYS[code]!) : code);
+}
 
 export function PhoneField({
   value,
   country,
   onValueChange,
   onCountryChange,
-  placeholder = "Phone or WhatsApp number",
+  placeholder,
   id = "phone",
   name,
   countryName,
@@ -77,22 +88,24 @@ export function PhoneField({
   countryName?: string;
 }) {
   const [touched, setTouched] = useState(false);
+  const t = useT();
+  const nameOf = useCountryName();
 
   return (
     <div>
       <div className="flex gap-2">
         <select
-          aria-label="Country"
+          aria-label={t("phone.country")}
           name={countryName}
           value={country}
           onChange={(e) => onCountryChange(e.target.value)}
           className="h-11 w-32 shrink-0 rounded-xl border border-slate-200 px-2 text-sm"
         >
           {Object.keys(DIALLING_CODES)
-            .sort((a, b) => (COUNTRY_NAMES[a] ?? a).localeCompare(COUNTRY_NAMES[b] ?? b))
+            .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
             .map((code) => (
               <option key={code} value={code}>
-                {COUNTRY_NAMES[code] ?? code} +{DIALLING_CODES[code]}
+                {nameOf(code)} +{DIALLING_CODES[code]}
               </option>
             ))}
         </select>
@@ -106,7 +119,7 @@ export function PhoneField({
           value={value}
           onBlur={() => setTouched(true)}
           onChange={(e) => onValueChange(e.target.value)}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("phone.placeholder")}
           className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-3 text-sm"
         />
       </div>
@@ -118,7 +131,7 @@ export function PhoneField({
       */}
       {touched && value.trim() ? (
         <p className="mt-1 text-xs text-slate-500">
-          We will read this as a {COUNTRY_NAMES[country] ?? country} number.
+          {t("phone.readAs", { country: nameOf(country) })}
         </p>
       ) : null}
     </div>

@@ -4,7 +4,11 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { SponsorSignInForm } from "@/components/sponsor/sign-in-form";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Your organisation's account", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourOrganisationsAccount"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

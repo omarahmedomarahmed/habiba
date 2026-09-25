@@ -44,7 +44,11 @@ import { getI18n } from "@/lib/i18n/server";
 const db = dbFor(pinnedToDefaultRegion("app/(app)/patients/[id]/documents/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = { title: "Profile", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.profile"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -161,10 +165,12 @@ export default async function PatientDocumentsPage({
     documentDate: document.documentDate?.toISOString() ?? null,
     createdAt: document.createdAt.toISOString(),
     addedBy: document.uploadedByAccountId
-      ? "Added by the patient"
+      ? t("tdl.byPatient")
       : document.uploadedByUserId === actor.userId
-        ? "Added by you"
-        : `Added by ${nameOf.get(document.uploadedByUserId ?? "") ?? "another clinician"}`,
+        ? t("tdl.byYou")
+        : t("tdl.byName", {
+            name: nameOf.get(document.uploadedByUserId ?? "") ?? t("tdl.anotherClinician"),
+          }),
     flags: document.flags,
   }));
 

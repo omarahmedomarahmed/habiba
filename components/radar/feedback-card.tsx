@@ -52,10 +52,9 @@ export async function FeedbackCard({
     return (
       <Card className="p-4">
         <p className="text-sm font-semibold text-slate-900">{t("radar.ratings")}</p>
+        {/* 🔴 W3: this said a rating unlocks the summary; W2-P10 made the rating optional. */}
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          After a radar session your patient rates you to unlock their summary, so almost all of
-          them do. Nothing here yet, your score appears publicly once{" "}
-          {RATINGS_VISIBLE_AFTER} people have rated you.
+          {t("radar.ratingsEmpty", { count: RATINGS_VISIBLE_AFTER })}
         </p>
       </Card>
     );
@@ -70,19 +69,18 @@ export async function FeedbackCard({
           {therapistAverage.toFixed(1)}
         </span>
         <span className="text-xs text-slate-600">
-          from {total} {total === 1 ? "session" : "sessions"}
+          {total === 1 ? t("radar.fromOne") : t("radar.fromMany", { count: total })}
         </span>
         {serviceAverage > 0 ? (
           <span className="text-xs text-slate-600">
-            they rated 24Therapy {serviceAverage.toFixed(1)}
+            {t("radar.ratedUs", { score: serviceAverage.toFixed(1) })}
           </span>
         ) : null}
       </div>
 
       {total < RATINGS_VISIBLE_AFTER ? (
         <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-          Not shown to patients yet. A score goes public at {RATINGS_VISIBLE_AFTER} ratings, one
-          bad night should not follow you around at 1.0 stars, and one good one proves nothing.
+          {t("radar.notPublicYet", { count: RATINGS_VISIBLE_AFTER })}
         </p>
       ) : null}
 
@@ -90,7 +88,7 @@ export async function FeedbackCard({
         {recent.slice(0, 6).map((entry) => (
           <li key={entry.id} className="border-t border-slate-100 pt-2.5 first:border-0 first:pt-0">
             <div className="flex items-center gap-2">
-              <span className="flex" aria-label={`${entry.stars} out of 5`}>
+              <span className="flex" aria-label={t("radar.starsOf", { stars: entry.stars })}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
