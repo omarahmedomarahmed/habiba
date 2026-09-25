@@ -1,4 +1,4 @@
-import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, SIMULATION_RUNNING, env } from "@/lib/env";
+import { SIMULATION_BRANCH, SIMULATION_RUNNING } from "@/lib/env";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -16,18 +16,15 @@ import { getI18n } from "@/lib/i18n/server";
  * is a screen somebody eventually quotes. Nothing else on the page can tell
  * them, because nothing else is different.
  *
- * ## 🔴 AND IT IS THE CONFIRMATION THAT THE WIRING IS RIGHT
+ * ## 🔴 IT NAMES NO INFRASTRUCTURE (B1)
  *
- * `lib/env.ts` refuses to boot when the branch and the database disagree, so a
- * simulation deployment that renders at all is already proof it reached
- * `simulation-q1`. This makes that proof visible rather than inferred: the
- * strip names the branch and the endpoint it is actually on, so confirming the
- * deployment is wired correctly is opening it once and reading one line.
- *
- * The endpoint is not a secret. `scripts/_environments.ts` says so and why: the
- * host is in HAZARDS.md, in the Neon console and in half the comments in
- * `scripts/`. The password is the secret and it lives in an environment
- * variable that never reaches a page.
+ * It used to print the database endpoint as proof of the wiring. During a run
+ * on PRODUCTION that put production's database host in front of every visitor,
+ * signed in or not. The page never needed the proof: `lib/env.ts` refuses to
+ * boot when the branch and the database disagree, so a simulation deployment
+ * that renders at all already reached `simulation-q1`. The strip says the
+ * people are invented and nothing else, and `tests/safety.test.ts` fails if
+ * this file reads the connection string again.
  *
  * ## Where it renders, and the second case is deliberate
  *
@@ -39,8 +36,8 @@ import { getI18n } from "@/lib/i18n/server";
  *
  * 🔴 That second case is the one worth being loud about. A flag that changes
  * how production behaves is a flag somebody leaves on, and the mitigation is
- * not discipline: it is that every page grows a violet bar naming the database,
- * so a deployment left in this state announces itself.
+ * not discipline: it is that every page grows a violet bar, so a deployment
+ * left in this state announces itself.
  */
 export async function SimulationBanner() {
   /*
@@ -59,25 +56,12 @@ export async function SimulationBanner() {
   if (!onBranch && !SIMULATION_RUNNING) return null;
   const { t } = await getI18n();
 
-  /*
-   * 🔴 THE ENDPOINT IS READ BACK OUT OF THE URL, not assumed from the branch.
-   *
-   * The boot guard has already refused anything else, so this can only ever
-   * print the simulation's own endpoint. It reads it rather than printing the
-   * constant, because a line that prints what it was told is a line that would
-   * keep saying the right thing after the guard was weakened.
-   */
-  const on = env.databaseUrl.includes(SIMULATION_ENDPOINT)
-    ? SIMULATION_ENDPOINT
-    : env.databaseUrl.match(/@(ep-[a-z0-9-]+)/)?.[1] ?? "an unknown database";
-
   return (
     <div
       role="note"
-      className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 bg-violet-700 px-3 py-1.5 text-center text-xs font-medium text-white"
+      className="bg-violet-700 px-3 py-1.5 text-center text-xs font-medium text-white"
     >
-      <span>{t("sim.banner")}</span>
-      <span className="font-mono text-[11px] text-violet-200">{on}</span>
+      {t("sim.banner")}
     </div>
   );
 }

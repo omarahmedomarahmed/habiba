@@ -274,6 +274,40 @@ test("a machine with no branch name is unaffected, which is every laptop", () =>
   );
 });
 
+test("no page or component can print the database host (B1)", async () => {
+  /*
+   * The simulation banner printed the Neon endpoint on every public page, which
+   * on a run on production was production's database host. Nothing a visitor
+   * can render may read the connection string. The walk is over every file
+   * under app/ and components/, and the control proves it saw the banner.
+   */
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const root = join(__dirname, "..");
+  const seen: string[] = [];
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.tsx?$/.test(entry)) {
+        seen.push(path);
+        const text = readFileSync(path, "utf8");
+        if (/databaseUrl|DATABASE_URL|SIMULATION_ENDPOINT|ep-[a-z]+-[a-z]+-[a-z0-9]{8}/.test(text)) {
+          offenders.push(path);
+        }
+      }
+    }
+  };
+  walk(join(root, "app"));
+  walk(join(root, "components"));
+  assert.ok(
+    seen.some((p) => p.endsWith(join("components", "simulation-banner.tsx"))),
+    "the walk must reach the banner, or it proves nothing",
+  );
+  assert.deepEqual(offenders, []);
+});
+
 /* ------------------------------------------------------------------ billing */
 
 const TIERS = SETTINGS_DEFAULTS.pricing.tiers;
