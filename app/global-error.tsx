@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
 import { LAST_RESORT_HELP } from "@/lib/crisis/line";
 import { LAST_RESORT_ERROR } from "@/lib/i18n/last-resort";
 
@@ -11,7 +14,12 @@ import { LAST_RESORT_ERROR } from "@/lib/i18n/last-resort";
  * clinical detail in its message, and this renders on a page we do not control
  * the audience of.
  */
-export default function GlobalError({ reset }: { error: Error; reset: () => void }) {
+export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+  /* 🔴 B7: see `lib/chunk-recovery.ts`. A first load whose script never arrived reloads once. */
+  useEffect(() => {
+    recoverFromChunkError(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body
