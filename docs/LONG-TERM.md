@@ -44,7 +44,6 @@ These run on the defaults shown. Any of them can change later in settings.
 - In-person paid flow: pay before start (ruled), pot cap 2 a week, price never
   above list, card, benefit and wallet in the room, refund if paid and not
   started, payout-details cooldown 24 hours (`docs/IN-PERSON-PAID.md`).
-- Session length 50 minutes: does it include the 10-minute countdown?
 - Two-person approval on refunds only.
 - Free first session: once per practice.
 - Renewal notices 7, 3 and 1 days before; renewal raised 7 days before.

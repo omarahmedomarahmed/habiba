@@ -30,6 +30,8 @@ entity, the accountant and counsel may change any of these after the fact.
 | 5c | In-person bookings | **New in round two.** A therapist chooses whether bookings can be in person, online, or both, and adds a practice address for in person. Patients can filter for in person on the radar and see it on the profile. Booked in-person sessions are paid in advance like online ones. |
 | 5d | Where our 15% applies | On every session paid **through us**: paid invite link, radar, future booking, and an in-person session the patient pays through us. Never on cash. |
 | 6 | Session length | **One length, 50 minutes, one price set by the therapist**, for every kind of session. The "30 minutes", "half hour" and "one hour" wording is left over and is wrong. The length is a setting. |
+| 6b | The 50 minutes | **50 in total, including the 10-minute countdown** (countdown from minute 40). Bookings stay on the hour with a 10-minute gap. A setting. |
+| 5e | New therapist from a patient QR | **Waits for verification** before the first session. |
 | 7 | Patient credits | **A wallet on the patient's profile.** Spent automatically on the next booking or radar session. A no-show radar therapist replaced by a cheaper one puts the difference in the wallet. No top-up. Collapsed when empty, never shown as zero. |
 | 8 | Language | **Revised in round two.** Patients and therapists choose their language in settings, and every message we send them uses it. |
 | 8b | Patient profile page | **New in round two.** The patient's "You" page becomes a real profile: their summary, each session's summary, tabs for billing and past sessions, an employer badge (or an Enrol button), future bookings, sessions live now and sessions starting in N minutes, hours or days. Editing anything lives under settings on that page, including the language. |
@@ -49,8 +51,6 @@ entity, the accountant and counsel may change any of these after the fact.
 | 3 | Withholding on therapist payouts, and tax a company withholds from its top-up | **Waiting for counsel.** A setting at 0%; nothing is deducted until it is ruled. |
 | 4C | Top-up as a deposit with a monthly invoice | Built behind a setting, left on B until counsel rules. |
 | 11 | ETA live keys, e-seal, signing provider | Waiting for registration. |
-| 6b | Does the 50 minutes include the 10-minute countdown? | Recommended: yes, 50 in total, bookings on the hour with a 10-minute gap. A setting. |
-| 5e | New therapist from a patient QR waits for verification before the first session | Recommended: yes. |
 
 ## Correction on record
 
