@@ -88,8 +88,8 @@ export function contains(haystack: string, needle: string): boolean {
  * So a needle made only of Latin letters, digits and spaces must sit between
  * word edges. Anything else falls back to `contains`. Use this for every list
  * that SUPPRESSES an alert: a stricter match there can only suppress less.
- * Never use it for a list that cancels suppression (PRESENT), where the loose
- * match is the one that errs toward alerting.
+ * PRESENT uses it too, since "now" inside "know" is not the present; the forms
+ * the loose match caught on purpose are listed there as their own markers.
  */
 export function containsWords(haystack: string, needle: string): boolean {
   const folded = fold(needle).trim();

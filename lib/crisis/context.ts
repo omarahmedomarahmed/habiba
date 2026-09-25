@@ -188,6 +188,7 @@ export const RESOLVED = [
  */
 export const PRESENT = [
   "now",
+  "nowadays",
   "today",
   "tonight",
   "this week",
@@ -213,6 +214,19 @@ export const PRESENT = [
   "مرة اخري",
 ];
 
+/**
+ * 🔴 Is there a present-tense marker in this text, as a whole word?
+ *
+ * It was a substring test, so "now" matched inside "know" and "snow", "again"
+ * inside "against", and a sentence that was past and plainly resolved alerted
+ * anyway. Latin markers now sit between word edges; Arabic keeps the substring
+ * match through `containsWords`, because a prefix is written onto the word.
+ * Forms the loose match used to catch by accident ("nowadays") are listed.
+ */
+export function presentIn(text: string): boolean {
+  return PRESENT.some((marker) => containsWords(text, marker));
+}
+
 /** Sentence-ish. Arabic full stops, question marks and newlines all count. */
 export function sentences(text: string): string[] {
   return text
@@ -237,7 +251,7 @@ export function suppressedIn(sentence: string, phrase: string): Suppression {
   if (at < 0) return { suppressed: false, because: null };
 
   /* Rule 2, first and unconditionally. */
-  if (PRESENT.some((marker) => contains(sentence, marker))) {
+  if (presentIn(sentence)) {
     return { suppressed: false, because: null };
   }
 
@@ -298,7 +312,7 @@ export function stillCounts(text: string, phrase: string): boolean {
    * before any suppression, and it errs toward alerting: that is the only
    * direction this file is allowed to be wrong in.
    */
-  if (parts.some((part) => PRESENT.some((marker) => contains(part, marker)))) return true;
+  if (parts.some((part) => presentIn(part))) return true;
 
   return relevant.some(({ part, index }) => {
     if (!suppressedIn(part, phrase).suppressed) {
@@ -320,7 +334,7 @@ export function stillCounts(text: string, phrase: string): boolean {
       if (!past) return true;
 
       const after = parts.slice(index + 1);
-      if (after.some((later) => PRESENT.some((marker) => contains(later, marker)))) return true;
+      if (after.some((later) => presentIn(later))) return true;
       if (after.some((later) => RESOLVED.some((marker) => containsWords(later, marker)))) return false;
 
       return true;
