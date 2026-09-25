@@ -29,9 +29,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function StaffSignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; expired?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string; set?: string }>;
 }) {
   const [params, { t }] = await Promise.all([searchParams, getI18n()]);
+  /* 🔴 B43: `/welcome` lands here with `set=1` once the password is chosen. */
+  const notice = params.expired
+    ? t("tauth.noticeExpired")
+    : params.set === "1"
+      ? t("auth.passwordSet")
+      : undefined;
 
   /*
    * No title: the form's own heading is the page's h1 (AE57). Arriving from
@@ -40,7 +46,7 @@ export default async function StaffSignInPage({
   return (
     <QuietAuthShell>
       <Suspense>
-        <StaffSignInForm next={params.next} notice={params.expired ? t("tauth.noticeExpired") : undefined} />
+        <StaffSignInForm next={params.next} notice={notice} />
       </Suspense>
     </QuietAuthShell>
   );

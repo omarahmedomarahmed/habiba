@@ -26,11 +26,16 @@ export const dynamic = "force-dynamic";
  * and a marketing header offering one reads as a product with a back door. Same
  * reasoning as `/staff/sign-in`.
  */
-export default async function PartnerSignInPage() {
-  const { t } = await getI18n();
+export default async function PartnerSignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ set?: string }>;
+}) {
+  const [{ t }, { set }] = await Promise.all([getI18n(), searchParams]);
 
   return (
     <QuietAuthShell title={t("dev.signInTitle")}>
+      {set === "1" ? <PasswordSet text={t("auth.passwordSet")} /> : null}
       <PartnerSignInForm />
       {/* 🔴 W2-X06: there was no way back in for a developer who forgot their password. */}
       <p className="mt-4 text-sm">
@@ -44,5 +49,14 @@ export default async function PartnerSignInPage() {
         </Link>
       </p>
     </QuietAuthShell>
+  );
+}
+
+/** 🔴 B29 / B43: `/welcome` lands here with `set=1` once the password is chosen. */
+function PasswordSet({ text }: { text: string }) {
+  return (
+    <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+      {text}
+    </p>
   );
 }

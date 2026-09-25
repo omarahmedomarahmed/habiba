@@ -27,7 +27,8 @@ export async function chooseWelcomePassword(
     String(formData.get("password") ?? ""),
   );
   if ("error" in result) {
-    return { error: result.error === "weak" ? (result.message ?? t("tauth.passwordHint")) : t("nf.body") };
+    /* 🔴 B29 / B48: the portal's own floor, in the reader's language. */
+    return { error: result.error === "weak" ? t("welcome.weak", { count: result.minimum }) : t("nf.body") };
   }
 
   await audit({
@@ -37,5 +38,6 @@ export async function chooseWelcomePassword(
     resourceType: result.audience,
     resourceId: result.accountId,
   });
-  redirect(result.signIn);
+  /* 🔴 B29 / B43 / B48: each portal's sign-in reads `set=1` and says the password is set. */
+  redirect(`${result.signIn}?set=1`);
 }

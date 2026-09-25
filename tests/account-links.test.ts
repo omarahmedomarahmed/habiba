@@ -64,6 +64,29 @@ test("a link is stored hashed, spent once, and lands on the right door", async (
   assert.equal(SIGN_IN_FOR.staff, "/staff/sign-in");
 });
 
+test("B29 / B43 / B48 a first password follows the portal's rule and is confirmed on its sign-in", async () => {
+  const { PASSWORD_MIN_FOR } = await import("../lib/auth/account-links");
+  const { SPONSOR_PASSWORD_MIN } = await import("../lib/data/sponsor-users");
+  const { PARTNER_PASSWORD_MIN } = await import("../lib/partner/team");
+  assert.equal(PASSWORD_MIN_FOR.sponsor, SPONSOR_PASSWORD_MIN);
+  assert.equal(PASSWORD_MIN_FOR.partner, PARTNER_PASSWORD_MIN);
+  // Control: the portals' floors really are above the clinician one the page used to state.
+  assert.ok(SPONSOR_PASSWORD_MIN > 10 && PARTNER_PASSWORD_MIN > 10);
+
+  const form = read("components/auth/welcome-form.tsx");
+  assert.doesNotMatch(form, /minLength=\{10\}|tauth\.passwordHint/, "the hint is the clinician rule again");
+  assert.match(read("app/welcome/[token]/actions.ts"), /redirect\(`\$\{result\.signIn\}\?set=1`\)/);
+  for (const page of [
+    "app/(clinic)/clinic/sign-in/page.tsx",
+    "app/(partner)/partner/sign-in/page.tsx",
+    "app/(auth)/staff/sign-in/page.tsx",
+  ]) {
+    assert.match(read(page), /set === "1"[\s\S]*auth\.passwordSet/, `${page} says nothing after /welcome`);
+  }
+  assert.match(read("app/(sponsor)/sponsor/sign-in/page.tsx"), /passwordSet=\{set === "1"\}/);
+  assert.match(read("app/welcome/[token]/page.tsx"), /deadAccountLink\(token\)/);
+});
+
 test("the back office manages its own team, and the owner stays out of reach", async () => {
   const { mayOpen } = await import("../lib/admin/access");
   assert.equal(mayOpen("super_admin", "/admin/team"), true);
