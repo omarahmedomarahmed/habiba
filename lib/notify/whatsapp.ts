@@ -123,6 +123,12 @@ const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: numb
    * whenever both handles exist.
    */
   "payment.confirmed": { name: "payment_confirmed", variables: 1 },
+  /*
+   * 🔴 25 September inventory: a phone change sends its code to the NEW number
+   * and to nothing else, so without a template the code never arrived. An
+   * authentication template, "Your 24Therapy code is {{1}}.", to be approved.
+   */
+  "phone.verify": { name: "phone_verify", variables: 1 },
 };
 
 /** The language a template was approved in. Egypt's WhatsApp is largely Arabic. */

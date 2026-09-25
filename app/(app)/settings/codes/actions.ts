@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireUser } from "@/lib/auth/guard";
+import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { createCode, revokeCode } from "@/lib/data/therapist-codes";
 
 export type CodeState = { error?: string; ok?: boolean };
 
 /** 25.17 — mint a poster. */
 export async function newWallCode(_prev: CodeState, formData: FormData): Promise<CodeState> {
-  const actor = await requireUser();
+  const actor = await requireVerified(); // 🔴 25 September inventory: puts a clinician in front of a patient
 
   const result = await createCode(actor, String(formData.get("label") ?? ""));
   if (result.error) return { error: result.error };

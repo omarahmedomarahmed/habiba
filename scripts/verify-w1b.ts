@@ -665,8 +665,9 @@ async function main() {
     const liveSubject = `live-subject-${fixture}`;
     await db.execute(sql`
       INSERT INTO partner_sessions (partner_id, external_session_ref, external_subject_ref, environment,
-                                    ended_at, note_approved_text)
-      VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'live', now(), 'A real approved note')`);
+                                    ended_at, note_approved_text, note_approved_by_ref, note_approved_at)
+      VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'live', now(),
+              'A real approved note', 'clinician-1', now())`);
     await db.execute(sql`
       INSERT INTO partner_consents (partner_id, external_session_ref, external_subject_ref, state, answered_at)
       VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'given', now())`);

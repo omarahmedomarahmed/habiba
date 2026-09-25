@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireUser } from "@/lib/auth/guard";
+import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { cancelBooking, publishHours, withdrawHour } from "@/lib/data/scheduling";
 import { clinicianZone } from "@/lib/data/timezone";
 import { cleanCancelReason } from "@/lib/sessions/cancel-reason";
@@ -39,7 +39,7 @@ export async function publish(input: {
   /** `Intl.DateTimeFormat().resolvedOptions().timeZone`, used only if nothing is stored. */
   browserZone?: string;
 }): Promise<ScheduleState> {
-  const actor = await requireUser();
+  const actor = await requireVerified(); // 🔴 25 September inventory: puts a clinician in front of a patient
 
   const choice = await clinicianZone(actor.userId, input.browserZone ?? null);
 

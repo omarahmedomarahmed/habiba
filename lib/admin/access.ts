@@ -33,6 +33,7 @@ export const ADMIN_PAGES: Record<string, readonly Role[]> = {
   "/admin/transfers/receipt/[id]": STAFF,
   "/admin/support": STAFF,
   "/admin/numbers": STAFF,
+  "/admin/patients": STAFF,
   "/admin/patients/[id]": STAFF,
   "/admin/sponsors/[id]": STAFF,
   "/admin/not-yours": STAFF,

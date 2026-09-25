@@ -274,7 +274,7 @@ export async function sendChangeCode(input: {
     })
     .where(eq(phoneChangeRequests.id, row.id));
 
-  await notify(
+  const delivery = await notify(
     { phone: row.newPhone, email: null, timezone: null },
     {
       kind: "phone.verify",
@@ -284,6 +284,15 @@ export async function sendChangeCode(input: {
     },
   );
 
+  /*
+   * 🔴 25 September inventory: the screen said "Code sent" whether or not
+   * anything left. The code only goes to the new number, so when WhatsApp is
+   * not set up or refused it, the operator is told, not the opposite.
+   */
+  if (!delivery.sent || !delivery.channels.includes("whatsapp")) {
+    log.warn("phone change code not delivered", { request: ref(row.id), reason: delivery.reason ?? "no channel" });
+    return { error: "The code could not be sent to the new number. WhatsApp is not set up or refused it; try again once it is." };
+  }
   log.info("phone change code sent", { request: ref(row.id) });
   return { ok: true };
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/audit";
 import { requireStaff } from "@/lib/auth/guard";
 import { approveChange, refuseChange, sendChangeCode } from "@/lib/data/phone-change";
 
@@ -25,6 +26,14 @@ export async function approve(_prev: NumberState, formData: FormData): Promise<N
     note: String(formData.get("note") ?? ""),
   });
   if (result.error) return { error: result.error };
+  /* 🔴 25 September inventory: moving somebody's account number is audited, every step. */
+  await audit({
+    actor,
+    category: "admin",
+    action: "phone_change.approved",
+    resourceType: "phone_change_request",
+    resourceId: String(formData.get("requestId") ?? ""),
+  });
   revalidatePath("/admin/numbers");
   return { ok: true, note: "Approved. Send the code when you are ready." };
 }
@@ -36,6 +45,14 @@ export async function sendCode(_prev: NumberState, formData: FormData): Promise<
     actorUserId: actor.userId,
   });
   if (result.error) return { error: result.error };
+  /* 🔴 25 September inventory: moving somebody's account number is audited, every step. */
+  await audit({
+    actor,
+    category: "admin",
+    action: "phone_change.code_sent",
+    resourceType: "phone_change_request",
+    resourceId: String(formData.get("requestId") ?? ""),
+  });
   revalidatePath("/admin/numbers");
   return { ok: true, note: "Code sent to the new number. It lasts 24 hours." };
 }
@@ -48,6 +65,14 @@ export async function refuse(_prev: NumberState, formData: FormData): Promise<Nu
     reason: String(formData.get("reason") ?? ""),
   });
   if (result.error) return { error: result.error };
+  /* 🔴 25 September inventory: moving somebody's account number is audited, every step. */
+  await audit({
+    actor,
+    category: "admin",
+    action: "phone_change.refused",
+    resourceType: "phone_change_request",
+    resourceId: String(formData.get("requestId") ?? ""),
+  });
   revalidatePath("/admin/numbers");
   return { ok: true };
 }

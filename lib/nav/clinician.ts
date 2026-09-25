@@ -59,6 +59,12 @@ export const OPEN_TO_UNVERIFIED = [
   "/support",
   /* 🔴 W2-T06: a billing notice reaches an applicant too. */
   "/notifications",
+  /*
+   * 🔴 Ruling 5e: a therapist a patient invited can enter the patient's code
+   * while waiting for review. It only asks; the database grants nothing to an
+   * unverified clinician (0060), and the first session waits for verification.
+   */
+  "/connect",
 ];
 
 const CLEARED: readonly Destination[] = [

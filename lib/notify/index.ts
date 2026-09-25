@@ -165,6 +165,8 @@ export type Message = {
     | "payout.overdue"
     /** 🔴 0161: once a day, every money act one person did alone, to the super admins. */
     | "ops.oneHandDigest"
+    /** 🔴 A company asked for its unspent money back; the operators start the return. */
+    | "ops.returnAsked"
     /** 🔴 W1-16: a clinician's licence ran out, or will within 30 days. */
     | "licence.expired"
     | "licence.expiring"
@@ -282,7 +284,9 @@ export type Message = {
      */
     | "payment.submitted"
     /** 🔴 And the patient's carries the join link, because that is what they bought. */
-    | "payment.confirmed";
+    | "payment.confirmed"
+    /** 🔴 25 September inventory: a rejected transfer, with the operator's reason. */
+    | "payment.rejected";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;

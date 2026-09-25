@@ -8,7 +8,12 @@ import { invoiceFor } from "@/lib/billing/invoice";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 import { Money } from "@/components/ui/money";
 
-export const metadata: Metadata = { title: "Invoice", robots: { index: false } };
+/*
+ * 🔴 Ruling 4B: ours is a payment receipt. The tax invoice is the ETA document
+ * listed beside it, so a finance team is never handed two invoices for one
+ * top-up.
+ */
+export const metadata: Metadata = { title: "Payment receipt", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 /**

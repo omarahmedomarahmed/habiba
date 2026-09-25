@@ -54,6 +54,12 @@ These run on the defaults shown. Any of them can change later in settings.
 
 ## 4. Features deferred (from the audits)
 
+- Partner invoices and payment instructions (partners are billed monthly to
+  `partner_receivable` but receive no document yet), and partner docs on
+  sandbox vs live keys, approval and per-session price. Not needed for launch.
+- WhatsApp templates to approve with Meta: `phone_verify` (phone-change code),
+  `payment_rejected`, payouts and support messages.
+
 - Patient cancel and reschedule; therapist reschedule.
 - Receipts for patients to download.
 - Earnings export for therapists.

@@ -82,6 +82,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     /* 🔴 20.18 / 20.24: two support queues, never one list. */
     { href: "/admin/support", icon: LifeBuoy, label: t("anav.support"), count: tickets.open + tickets.waiting },
     { href: "/admin/numbers", icon: PhoneCall, label: t("anav.numbers"), count: changes },
+    /* 🔴 25 September inventory: support finds a person by what they give on the call. */
+    { href: "/admin/patients", icon: Users, label: t("anav.patients") },
     { href: "/admin/therapists", icon: Users, label: t("anav.clinicians") },
     { href: "/admin/verifications", icon: ShieldCheck, label: t("anav.verifications"), count: waiting },
     { href: "/admin/radar", icon: Radio, label: t("anav.radar"), count: reports, urgent: true },

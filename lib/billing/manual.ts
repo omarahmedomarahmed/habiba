@@ -744,6 +744,9 @@ export async function rejectPayment(input: {
     .returning({ id: manualPayments.id });
 
   if (decided.length === 0) return { error: "That payment is not waiting for a decision." };
+  /* 🔴 25 September inventory: the payer is told, with the reason, every time. */
+  const { noticePaymentRejected } = await import("./payment-notices");
+  await noticePaymentRejected(decided[0]!.id);
   return { ok: true };
 }
 

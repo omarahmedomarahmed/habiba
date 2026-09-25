@@ -19,6 +19,7 @@ import { topUpHistory } from "@/lib/billing/invoice";
 import { potTerms } from "@/lib/data/sponsor-admin";
 import { coverageFor, potBalance } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
+import { AskMoneyBack } from "@/components/sponsor/ask-money-back";
 import { formatDate } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
@@ -308,6 +309,8 @@ export default async function SponsorPotPage() {
           </ul>
         </Card>
       ) : null}
+
+      {actor.role === "admin" && history.length > 0 ? <AskMoneyBack /> : null}
 
       {/*
         🔴 0147 — THE TAX AUTHORITY'S DOCUMENTS, one per top-up and one per

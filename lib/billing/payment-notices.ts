@@ -255,3 +255,40 @@ export async function noticePaymentConfirmed(paymentId: string): Promise<void> {
     });
   }
 }
+
+/**
+ * 🔴 25 September inventory: a rejected transfer told the payer nothing, while
+ * the operator's screen said "they have been told why". The reason the
+ * operator typed goes to them, with the way back to try again.
+ */
+export async function noticePaymentRejected(paymentId: string): Promise<void> {
+  try {
+    const [payment] = await db
+      .select()
+      .from(manualPayments)
+      .where(eq(manualPayments.id, paymentId))
+      .limit(1);
+    if (!payment || payment.state !== "rejected") return;
+
+    const who = await recipientFor(payment);
+    if (!who) return;
+
+    const join = await joinLinkFor(payment);
+    const amount = await poundsFor(payment.settlesCents);
+    await notify(who.to, {
+      kind: "payment.rejected",
+      subject: "We could not match your transfer",
+      body:
+        `Hi ${who.name},\n\n` +
+        `We could not match your transfer to our account. The reason: ${payment.rejectReason ?? "not given"}.\n\n` +
+        "Nothing was taken from you by us. Check the details and send the reference again from the same page.",
+      link: join ? { label: "Open the payment page", url: join } : { label: "Open your account", url: `${env.appUrl}` },
+      variables: [amount],
+    });
+  } catch (error) {
+    log.warn("could not tell a payer their transfer was rejected", {
+      payment: ref(paymentId),
+      reason: String(error),
+    });
+  }
+}

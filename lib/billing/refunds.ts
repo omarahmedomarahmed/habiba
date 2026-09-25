@@ -236,6 +236,8 @@ export async function returnPotShare(input: {
       payment: ref(row.sessionPaymentId),
       reason: rest.error,
     });
+    /* 🔴 25 September inventory: said, not only logged, so the operator finishes it. */
+    return { error: "arefund.restFailed" };
   }
   return { ok: true };
 }

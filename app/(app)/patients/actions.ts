@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireUser } from "@/lib/auth/guard";
+import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { issueInvite, revokeInvite } from "@/lib/data/claims";
 import { requestAccess } from "@/lib/data/grants";
 import {
@@ -199,7 +199,7 @@ export async function createInviteLink(
   | { url: string; expiresAt: string; sent: boolean; channel: "email" | "whatsapp" | null }
   | { error: string }
 > {
-  const actor = await requireUser();
+  const actor = await requireVerified(); // 🔴 25 September inventory: puts a clinician in front of a patient
 
   const patient = await getPatient(actor, patientId);
   if (!patient) return { error: "That patient is not in your practice." };
@@ -347,7 +347,7 @@ export async function askForAccess(
  * real rows and then read the session it made.
  */
 export async function inviteToPaidSession(patientId: string): Promise<SessionInvite> {
-  const actor = await requireUser();
+  const actor = await requireVerified(); // 🔴 25 September inventory: puts a clinician in front of a patient
 
   const result = await inviteToSession(actor, patientId);
   if (!("error" in result)) revalidatePath(`/patients/${patientId}`);

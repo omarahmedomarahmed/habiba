@@ -298,3 +298,55 @@ export async function saveTaxDetails(_prev: TaxState, formData: FormData): Promi
   revalidatePath("/sponsor/pot");
   return { ok: true };
 }
+
+export type ReturnAskState = { error?: string; ok?: boolean };
+
+/**
+ * 🔴 25 September inventory: a company could see money coming back but had no
+ * way to ask for it. Asking moves no money: it tells the operators, who start
+ * the return from the company's page, where the bank transfer and its credit
+ * note are made. One request a day, so the button is not an alarm to lean on.
+ */
+export async function askForMoneyBack(_prev: ReturnAskState, formData: FormData): Promise<ReturnAskState> {
+  const actor = await requireSponsorAdmin();
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 500);
+  if (reason.length < 5) return { error: "sponsor.returns.errReason" };
+
+  const { consume } = await import("@/lib/rate-limit");
+  const allowed = await consume(`pot-return-ask:${actor.sponsorId}`, 1, 86_400);
+  if (!allowed.allowed) return { error: "sponsor.returns.errSoon" };
+
+  const { controlDb } = await import("@/lib/db");
+  const { sponsors, users, BACK_OFFICE_ROLES } = await import("@/lib/db/schema");
+  const { eq, inArray } = await import("drizzle-orm");
+  const [sponsor] = await controlDb.select({ name: sponsors.name }).from(sponsors).where(eq(sponsors.id, actor.sponsorId)).limit(1);
+  const staff = await controlDb
+    .select({ email: users.email, profile: users.profile, timezone: users.timezone })
+    .from(users)
+    .where(inArray(users.role, [...BACK_OFFICE_ROLES]))
+    .limit(10);
+  const { notify } = await import("@/lib/notify");
+  const { env } = await import("@/lib/env");
+  for (const person of staff) {
+    await notify(
+      { email: person.email, phone: person.profile?.phone ?? null, timezone: person.timezone },
+      {
+        kind: "ops.returnAsked",
+        subject: `${sponsor?.name ?? "A company"} asked for unspent money back`,
+        body: `${sponsor?.name ?? "A company"} asked for money back. Their words: ${reason}`,
+        link: { label: "Open the company", url: `${env.appUrl}/admin/sponsors/${actor.sponsorId}` },
+      },
+    );
+  }
+
+  await audit({
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "pot.return_asked",
+    resourceType: "sponsor",
+    resourceId: actor.sponsorId,
+    reason,
+  });
+  return { ok: true };
+}

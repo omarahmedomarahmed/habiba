@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireUser } from "@/lib/auth/guard";
+import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { accessFor } from "@/lib/data/grants";
 import { getPatient } from "@/lib/data/patients";
 import { bookSlot, publishHours, withdrawHour } from "@/lib/data/scheduling";
@@ -28,7 +28,7 @@ export async function openHoursOn(input: {
   toHour: number;
   zone: string;
 }): Promise<BookingState> {
-  const actor = await requireUser();
+  const actor = await requireVerified(); // 🔴 25 September inventory: puts a clinician in front of a patient
 
   const result = await publishHours({ actor, ...input });
   if (!result.ok) return { error: result.error };
@@ -83,7 +83,7 @@ export async function invitePatient(input: {
   slotId: string;
   patientId: string;
 }): Promise<BookingState> {
-  const actor = await requireUser();
+  const actor = await requireVerified(); // 🔴 25 September inventory: puts a clinician in front of a patient
 
   const patient = await getPatient(actor, input.patientId);
   if (!patient) return { error: "That patient is not in your practice." };

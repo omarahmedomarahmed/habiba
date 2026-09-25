@@ -298,18 +298,24 @@ export async function takeSeat(input: {
   const billableFrom = ends && ends.getTime() > now.getTime() ? ends : now;
 
   /*
-   * 🔴 ONLY INTO A SEAT THE CLINIC HAS PAID FOR. The count is asked in the
-   * same statement as the insert, so two acceptances at once cannot both
-   * take the last one.
+   * 🔴 ONLY INTO A SEAT THE CLINIC HAS PAID FOR, one acceptance at a time.
+   *
+   * The count used to be asked in the same statement as the insert, which
+   * reads as atomic and is not: under READ COMMITTED two acceptances both see
+   * the same count and both insert (25 September inventory). A per-clinic
+   * lock makes the second wait and then count the first.
    */
-  const created = await controlDb.execute(sql`
-    INSERT INTO clinic_seats (organization_id, user_id, billable_from)
-    SELECT ${input.organizationId}, ${input.userId}, ${billableFrom.toISOString()}::timestamptz
-     WHERE (SELECT seats FROM organizations WHERE id = ${input.organizationId})
-           > (SELECT count(*) FROM clinic_seats WHERE organization_id = ${input.organizationId} AND released_at IS NULL)
-    ON CONFLICT DO NOTHING
-    RETURNING id`);
-  const seatId = (created.rows[0] as { id: string } | undefined)?.id ?? null;
+  const seatId = await controlDb.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`seats:${input.organizationId}`}))`);
+    const created = await tx.execute(sql`
+      INSERT INTO clinic_seats (organization_id, user_id, billable_from)
+      SELECT ${input.organizationId}, ${input.userId}, ${billableFrom.toISOString()}::timestamptz
+       WHERE (SELECT seats FROM organizations WHERE id = ${input.organizationId})
+             > (SELECT count(*) FROM clinic_seats WHERE organization_id = ${input.organizationId} AND released_at IS NULL)
+      ON CONFLICT DO NOTHING
+      RETURNING id`);
+    return (created.rows[0] as { id: string } | undefined)?.id ?? null;
+  });
 
   return { seatId, billableFrom };
 }

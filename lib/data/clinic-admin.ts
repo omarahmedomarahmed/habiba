@@ -478,11 +478,24 @@ export async function acceptInvitation(input: {
    * actually bites.
    */
   const { takeSeat } = await import("@/lib/billing/seats");
-  await takeSeat({
+  const seat = await takeSeat({
     organizationId: invitation.organizationId,
     userId: createdUserId,
     ownOrganizationId: null,
   });
+  /*
+   * 🔴 The last seat went to somebody else a moment ago (25 September
+   * inventory). Undo this acceptance rather than leave a clinician with no
+   * seat: the invitation is open again and the account never existed.
+   */
+  if (!seat.seatId) {
+    await controlDb
+      .update(clinicianInvitations)
+      .set({ state: "sent", acceptedAt: null, acceptedUserId: null })
+      .where(eq(clinicianInvitations.id, invitation.id));
+    await controlDb.delete(users).where(eq(users.id, createdUserId));
+    return { error: "This practice has no free seat for you yet. Ask them to add one, then open the invitation again." };
+  }
 
   log.info("clinician accepted a clinic invitation");
   return { ok: true, userId: createdUserId };
@@ -620,11 +633,19 @@ export async function joinWithExistingAccount(input: {
    * whose period we are waiting for and the next statement overwrites it.
    */
   const { takeSeat } = await import("@/lib/billing/seats");
-  await takeSeat({
+  const seat = await takeSeat({
     organizationId: invitation.organizationId,
     userId: existing.id,
     ownOrganizationId: existing.organizationId,
   });
+  /* 🔴 Lost the last seat to a simultaneous acceptance: reopen the invitation, move nobody. */
+  if (!seat.seatId) {
+    await controlDb
+      .update(clinicianInvitations)
+      .set({ state: "sent", acceptedAt: null, acceptedUserId: null })
+      .where(eq(clinicianInvitations.id, invitation.id));
+    return { error: "This practice has no free seat for you yet. Ask them to add one, then open the invitation again." };
+  }
 
   await controlDb
     .update(users)
