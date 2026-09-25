@@ -428,6 +428,16 @@ export const authSessions = pgTable(
     }),
     createdVia: text("created_via").$type<AuditVia>(),
 
+    /**
+     * 🔴 0167: when this session passed the back office's second step.
+     *
+     * Null for every clinician, and for a back office session that has only
+     * given a password, which `lib/auth/session.ts` treats as not signed in
+     * for anything but the second step itself. Asked for again after twelve
+     * hours (`lib/auth/totp.ts`).
+     */
+    secondFactorAt: timestamp("second_factor_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
@@ -435,6 +445,64 @@ export const authSessions = pgTable(
     uniqueIndex("auth_sessions_token_hash_unique").on(t.tokenHash),
     index("auth_sessions_user_idx").on(t.userId),
   ],
+);
+
+/**
+ * 🔴 0167: a back office member's authenticator app. One per person.
+ *
+ * The secret is sealed with `lib/crypto/secretbox.ts`: it must be used again
+ * to check every code, so it cannot be hashed, and a table of plain secrets
+ * would be every console login at once. `confirmed_at` is null while an
+ * enrolment waits for its first code; only a confirmed row retires the email
+ * fallback. `last_step` is the last 30 second step a code passed for, so a
+ * code read over a shoulder cannot be replayed inside its own window.
+ */
+export const staffSecondFactors = pgTable("staff_second_factors", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  secretSealed: text("secret_sealed").notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  lastStep: integer("last_step"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** 🔴 0167: ten per enrolment, shown once, stored as SHA-256, spent by one UPDATE. */
+export const staffRecoveryCodes = pgTable(
+  "staff_recovery_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("staff_recovery_codes_hash_unique").on(t.userId, t.codeHash)],
+);
+
+/**
+ * 🔴 0167: the fallback until an app is enrolled: six digits by email, bound
+ * to the one session that asked, ten minutes, used once.
+ */
+export const staffEmailCodes = pgTable(
+  "staff_email_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => authSessions.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("staff_email_codes_session_idx").on(t.sessionId)],
 );
 
 /**

@@ -10,6 +10,7 @@ import {
   Globe2,
   HeartPulse,
   Hospital,
+  KeyRound,
   PauseCircle,
   Plug,
   LayoutDashboard,
@@ -125,6 +126,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/settings", icon: SlidersHorizontal, label: t("anav.settings") },
     /* W2-A06: who can open the console, invited by link. */
     { href: "/admin/team", icon: UserCog, label: t("anav.team") },
+    /* 🔴 Task 40: everybody's, because it is how each of them signs in. */
+    { href: "/admin/security", icon: KeyRound, label: t("anav.security") },
     { href: "/admin/strings", icon: Languages, label: t("anav.strings") },
     { href: "/admin/audit", icon: ScrollText, label: t("anav.audit") },
     /*

@@ -91,6 +91,8 @@ export type TeamMember = {
   email: string;
   role: Role;
   active: boolean;
+  /** Task 40: an authenticator app is enrolled, rather than codes by email. Never the secret. */
+  app: boolean;
 };
 
 /** Everybody who can open the console, the owner first. */
@@ -110,6 +112,8 @@ export async function listBackOffice(): Promise<TeamMember[]> {
     .limit(200);
 
   const rank = (role: Role) => (role === "super_admin" ? 0 : role === "manager" ? 1 : 2);
+  const { enrolledAmong } = await import("@/lib/auth/second-factor");
+  const withApp = await enrolledAmong(rows.map((row) => row.id));
   return rows
     .map((row) => ({
       id: row.id,
@@ -117,6 +121,7 @@ export async function listBackOffice(): Promise<TeamMember[]> {
       email: row.email,
       role: row.role,
       active: row.status === "active",
+      app: withApp.has(row.id),
     }))
     .sort((a, b) => rank(a.role) - rank(b.role));
 }

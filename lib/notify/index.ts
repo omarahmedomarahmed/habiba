@@ -186,6 +186,13 @@ export type Message = {
      */
     | "password.reset_code"
     /**
+     * 🔴 Task 40: the back office's second step, until an authenticator app
+     * is enrolled. Email only: the caller passes no phone, because the
+     * address is the one the member was invited on and a staff WhatsApp
+     * number is not something this product holds.
+     */
+    | "staff.second_factor_code"
+    /**
      * 🔴 26.10 / C128 — the link to a full record extract.
      *
      * Email only. This is the most sensitive document the platform produces,

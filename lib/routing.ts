@@ -140,6 +140,15 @@ export function patientBounce(hasCookie: boolean, path: string): string {
 export const STAFF_SIGN_IN = "/staff/sign-in";
 
 /**
+ * 🔴 Task 40: where a back office session that has only given its password
+ * is sent. Owned by no principal on purpose: it needs the clinician cookie to
+ * mean anything, and it is not a door a signed in holder should be bounced
+ * away from, which is what an `authRoutes` entry would do. The page resolves
+ * the pending session itself and sends everybody else on.
+ */
+export const STAFF_SECOND_STEP = "/staff/second-step";
+
+/**
  * 🔴 53.4 / C230 — the sponsor's own door and its own paths.
  *
  * A sponsor is never an `Actor` and never inside clinical tenancy, so they do

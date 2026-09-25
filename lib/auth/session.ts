@@ -18,6 +18,7 @@ import { authSessions, organizations, users } from "@/lib/db/schema";
 import { isRegion, DEFAULT_REGION, type Region } from "@/lib/db/region";
 import type { Role } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { needsSecondFactor, secondFactorCurrent } from "./totp";
 
 export const SESSION_COOKIE = "24t_session";
 
@@ -106,12 +107,69 @@ export async function createSession(userId: string): Promise<string> {
  * or a revoked session stops working on the very next request. The old JWT
  * design also hit the database on every request (to load the identity) but
  * could not revoke, so it paid the cost without getting the benefit.
+ *
+ * 🔴 Null, too, for a back office session still owing its second step. See
+ * `SessionState`.
  */
 export async function getActor(): Promise<Actor | null> {
+  const state = await getSessionState();
+  return state && !state.pendingSecondFactor ? state.actor : null;
+}
+
+/**
+ * 🔴 TASK 40: a session, with what the second step needs to know about it.
+ *
+ * `pendingSecondFactor` is true for a back office session that has given its
+ * password and not yet passed the second step (or passed it more than twelve
+ * hours ago). Such a session is NOT signed in for anything but the second
+ * step itself: `getActor` returns null for it, and `requireUser` sends it to
+ * `/staff/second-step`. That is why the check lives here rather than in the
+ * admin guards. `requireStaff`, `requireRole` and `requireElevated` all pass
+ * through it, and so do the routes that read documents and uploads with
+ * `getActor()` and the clinician screens that widen a query for a
+ * `super_admin`, none of which call an admin guard at all.
+ */
+export type SessionState = {
+  actor: Actor;
+  sessionId: string;
+  secondFactorAt: Date | null;
+  pendingSecondFactor: boolean;
+};
+
+export type Admission = "admit" | "sign_in" | "second_step" | "refuse";
+
+/**
+ * The decision `requireUser` makes (and `requireRole`, with its list), with
+ * no request in hand. Here rather than in `guard.ts` because that file pulls
+ * in `next/navigation`, which a script cannot load, and the point is that
+ * `scripts/verify-staff-2fa.ts` puts a real session from the dev database
+ * through THIS function rather than through a copy of it.
+ */
+export function admission(state: SessionState | null, allowed?: readonly Role[]): Admission {
+  if (!state) return "sign_in";
+  if (state.pendingSecondFactor) return "second_step";
+  if (allowed && !allowed.includes(state.actor.role)) return "refuse";
+  return "admit";
+}
+
+/**
+ * The session behind the cookie, pending or not. Only the guard and the
+ * second step's own page and actions may read a pending one; everything else
+ * asks `getActor`.
+ */
+export async function getSessionState(): Promise<SessionState | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
+  return sessionStateForToken(token);
+}
 
+/**
+ * The same resolution from a raw token, with no request in hand. Split out so
+ * `scripts/verify-staff-2fa.ts` proves the rule on the dev database through
+ * the very function every request runs, rather than through a copy of it.
+ */
+export async function sessionStateForToken(token: string): Promise<SessionState | null> {
   const tokenHash = hashToken(token);
   const now = new Date();
 
@@ -119,6 +177,7 @@ export async function getActor(): Promise<Actor | null> {
     .select({
       sessionId: authSessions.id,
       lastSeenAt: authSessions.lastSeenAt,
+      secondFactorAt: authSessions.secondFactorAt,
       userId: users.id,
       organizationId: users.organizationId,
       region: organizations.region,
@@ -172,7 +231,7 @@ export async function getActor(): Promise<Actor | null> {
       .where(eq(authSessions.id, row.sessionId));
   }
 
-  return {
+  const actor: Actor = {
     userId: row.userId,
     organizationId: row.organizationId,
     role: row.role,
@@ -182,6 +241,13 @@ export async function getActor(): Promise<Actor | null> {
     verificationStatus: row.verificationStatus,
     region: isRegion(row.region) ? row.region : DEFAULT_REGION,
     timezone: row.timezone,
+  };
+
+  return {
+    actor,
+    sessionId: row.sessionId,
+    secondFactorAt: row.secondFactorAt,
+    pendingSecondFactor: needsSecondFactor(row.role) && !secondFactorCurrent(row.secondFactorAt, now),
   };
 }
 

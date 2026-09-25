@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
 import type { Role } from "@/lib/db/schema";
-import { getActor, SESSION_COOKIE, type Actor } from "./session";
+import { admission, getSessionState, SESSION_COOKIE, type Actor } from "./session";
 import { env } from "@/lib/env";
+import { STAFF_SECOND_STEP } from "@/lib/routing";
 
 export class AuthorizationError extends Error {
   constructor(message = "Not authorized") {
@@ -24,9 +25,32 @@ export class AuthorizationError extends Error {
  * forging one cookie value reads other people's charts.
  */
 export async function requireUser(): Promise<Actor> {
-  const actor = await getActor();
-  if (!actor) await bounceToLogin();
-  return actor!;
+  const state = await getSessionState();
+  const verdict = admission(state);
+  if (verdict === "sign_in") await bounceToLogin();
+  /*
+   * 🔴 TASK 40: the back office's second step, checked HERE and nowhere else.
+   *
+   * `requireStaff`, `requireManager`, `requireRole` and `requireElevated` all
+   * come through this function, as does every clinician screen that widens a
+   * query for a `super_admin`, so no admin page, admin action or wider read
+   * can skip it by calling a different guard. A password alone gets a back
+   * office member exactly one page: the second step.
+   */
+  if (verdict === "second_step") await toSecondStep();
+  return state!.actor;
+}
+
+/**
+ * A back office session that has given its password and not yet passed the
+ * second step, or passed it more than twelve hours ago. Sent to the step,
+ * carrying the page it was on so the step can return it there.
+ */
+async function toSecondStep(): Promise<never> {
+  const hdrs = await headers();
+  const path = hdrs.get("x-pathname") ?? hdrs.get("x-invoke-path") ?? "";
+  const next = path.startsWith("/admin") ? path : "";
+  redirect(`${STAFF_SECOND_STEP}${next ? `?next=${encodeURIComponent(next)}` : ""}`);
 }
 
 /**
@@ -127,9 +151,11 @@ export async function requireVerified(): Promise<Actor> {
 
 /** Same checks, but throws instead of redirecting — for route handlers. */
 export async function requireUserApi(): Promise<Actor> {
-  const actor = await getActor();
-  if (!actor) throw new AuthorizationError("Not signed in");
-  return actor;
+  const state = await getSessionState();
+  if (!state) throw new AuthorizationError("Not signed in");
+  // 🔴 Task 40: the same second step as `requireUser`, as a 401 rather than a redirect.
+  if (state.pendingSecondFactor) throw new AuthorizationError("Second step required");
+  return state.actor;
 }
 
 export async function requireRoleApi(...allowed: Role[]): Promise<Actor> {
