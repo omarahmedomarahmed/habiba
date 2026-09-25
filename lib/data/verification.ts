@@ -51,16 +51,31 @@ export async function requirementOverrides(): Promise<
   import("@/lib/regulators").RequirementOverrides
 > {
   const { getCountries } = await import("@/lib/settings");
+  const { COUNTRY_SEED } = await import("@/lib/settings/defs");
   const countries = await getCountries();
+
+  /*
+   * 🔴 B36 — a label still equal to what we SHIPPED is not an operator's word.
+   *
+   * The seed writes Egypt's document names into `country_settings` in English,
+   * and a configured label wins over the dictionary, so an Arabic clinician read
+   * "Practising licence or syndicate card" on an Arabic form. The shipped names
+   * are in the dictionary in both languages; only a label somebody changed is
+   * theirs to show as typed.
+   */
+  const operatorsOwn = (code: string, field: "idLabelFront" | "idLabelBack" | "licenceLabel", value: string | null) => {
+    const shipped = COUNTRY_SEED.find((seed) => seed.code === code)?.[field] ?? null;
+    return value && value !== shipped ? value : null;
+  };
 
   return Object.fromEntries(
     countries.map((country) => [
       country.code,
       {
         regulators: country.regulators,
-        idLabelFront: country.idLabelFront,
-        idLabelBack: country.idLabelBack,
-        licenceLabel: country.licenceLabel,
+        idLabelFront: operatorsOwn(country.code, "idLabelFront", country.idLabelFront),
+        idLabelBack: operatorsOwn(country.code, "idLabelBack", country.idLabelBack),
+        licenceLabel: operatorsOwn(country.code, "licenceLabel", country.licenceLabel),
         sampleImageUrl: country.sampleImageUrl,
       },
     ]),
@@ -130,6 +145,23 @@ export async function ensureVerification(actor: Actor) {
 }
 
 /**
+ * 🔴 B36 / B37 — an identifier, never English.
+ *
+ * These were English strings, so an Arabic clinician read "Photo ID" in the
+ * list, and the form could not tell which line an upload had just satisfied.
+ * The words are `tver.missing.<item>` in the dictionary.
+ */
+export type MissingItem =
+  | "country"
+  | "regulator"
+  | "licenceNumber"
+  | "specialty"
+  | "language"
+  | "photoId"
+  | "licenceDoc"
+  | "headshot";
+
+/**
  * What is still missing, in the order the form asks for it.
  *
  * Returned as a list rather than a boolean so the onboarding page can show
@@ -145,16 +177,16 @@ export function missingFrom(row: {
   idFrontUrl: string | null;
   licenseDocUrl: string | null;
   headshotUrl: string | null;
-}): string[] {
-  const missing: string[] = [];
-  if (!row.country) missing.push("Country");
-  if (!row.licenseBody?.trim()) missing.push("Regulator or licensing body");
-  if (!row.licenseNumber?.trim()) missing.push("Licence number");
-  if (row.specialties.length === 0) missing.push("At least one specialty");
-  if (row.languages.length === 0) missing.push("At least one language");
-  if (!row.idFrontUrl) missing.push("Photo ID");
-  if (!row.licenseDocUrl) missing.push("Licence document");
-  if (!row.headshotUrl) missing.push("Headshot");
+}): MissingItem[] {
+  const missing: MissingItem[] = [];
+  if (!row.country) missing.push("country");
+  if (!row.licenseBody?.trim()) missing.push("regulator");
+  if (!row.licenseNumber?.trim()) missing.push("licenceNumber");
+  if (row.specialties.length === 0) missing.push("specialty");
+  if (row.languages.length === 0) missing.push("language");
+  if (!row.idFrontUrl) missing.push("photoId");
+  if (!row.licenseDocUrl) missing.push("licenceDoc");
+  if (!row.headshotUrl) missing.push("headshot");
   return missing;
 }
 

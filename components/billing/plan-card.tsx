@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { cancelPlan, resumePlan, upgradeAndPay } from "@/app/(app)/billing/actions";
 import { Badge, Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
+import { tierName } from "@/lib/billing/tier-name";
 import { useT } from "@/lib/i18n/client";
 import { rich, slot } from "@/lib/i18n/rich";
 
@@ -320,7 +321,7 @@ export function PlanCard({
                   }
                 >
                   <span className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-slate-900">{tier.name}</span>
+                    <span className="text-sm font-semibold text-slate-900">{tierName(tier, t)}</span>
                     {isCurrent ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-navy-600">
                         <Check className="h-2.5 w-2.5" aria-hidden />
@@ -366,7 +367,7 @@ export function PlanCard({
                   <>
                     <p className="text-sm font-bold text-slate-900">
                       {up
-                        ? t("tplan.confirmTitle", { name: tier.name })
+                        ? t("tplan.confirmTitle", { name: tierName(tier, t) })
                         : t("tplan.confirmDownTitle")}
                     </p>
                     <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-slate-600">

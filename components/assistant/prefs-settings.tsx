@@ -97,7 +97,7 @@ export function AssistantPrefsSettings({
 
         <label className="block">
           <span className="block text-xs font-medium text-slate-600">
-            Speed · {speed.toFixed(1)}×
+            {t("tcop.speed", { rate: speed.toFixed(1) })}
           </span>
           <input
             type="range"

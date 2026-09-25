@@ -6,6 +6,7 @@ import { SeatLadder, type SeatBandRow } from "@/components/public/seat-ladder";
 import { SeatSlider } from "@/components/public/seat-slider";
 import { Button } from "@/components/ui";
 import { egpRateMicro } from "@/lib/billing/manual";
+import { tierName as nameOfTier } from "@/lib/billing/tier-name";
 /*
  * 🔴 19.4 — `formatMoney` with the reader's tag, never `formatUsd`.
  *
@@ -121,16 +122,8 @@ export async function PricingTiers({
     : await getI18n();
   const { locale, t } = resolved;
 
-  /*
-   * The three tiers this product ships are named in the dictionary; anything
-   * an admin adds later keeps the name they typed. Falling back to their
-   * English beats inventing an Arabic name for a tier nobody translated.
-   */
-  const SHIPPED = ["payg", "practice", "clinic"] as const;
-  const tierName = (tier: { key: string; name: string }) =>
-    (SHIPPED as readonly string[]).includes(tier.key)
-      ? t(`pricing.tier.${tier.key}` as "pricing.tier.payg")
-      : tier.name;
+  /* Shipped tiers from the dictionary, an admin's own by the name they typed. */
+  const tierName = (tier: { key: string; name: string }) => nameOfTier(tier, t);
   const tag = localeTag(locale);
 
   const tiers = settings.pricing.tiers;
