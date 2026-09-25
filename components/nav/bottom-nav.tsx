@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Building2, Home, MoreHorizontal, Plus, X } from "lucide-react";
 
 import { switchToClinic } from "@/app/(app)/switch-principal/actions";
-import { destinationsFor } from "@/lib/nav/clinician";
+import { destinationsFor, groupOf } from "@/lib/nav/clinician";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 
@@ -45,8 +45,10 @@ export function BottomNav({
   // asked for.
   useEffect(() => setOpen(false), [pathname]);
 
+  /* 🔴 Ruling 14b: a group reads as active on any page inside it. */
+  const current = groupOf(pathname, cleared)?.href ?? null;
   const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+    current === href || (href === "/dashboard" ? pathname === href : pathname.startsWith(href));
 
   const moreActive = more.some((item) => isActive(item.href));
 

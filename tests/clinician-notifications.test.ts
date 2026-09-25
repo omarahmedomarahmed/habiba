@@ -33,6 +33,8 @@ test("the dashboard asks for crisis alerts by kind, so newer rows cannot hide on
 });
 
 test("the list is a destination on both screens", async () => {
-  const { destinationsFor } = await import("../lib/nav/clinician");
-  assert.ok(destinationsFor(true).some((item) => item.href === "/notifications"));
+  /* Ruling 14b: a tab inside Settings, one tap from every page of it. */
+  const { pagesFor } = await import("../lib/nav/clinician");
+  assert.ok(pagesFor(true).includes("/notifications"));
+  assert.ok(pagesFor(false).includes("/notifications"));
 });

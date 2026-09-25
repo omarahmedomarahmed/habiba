@@ -6,6 +6,7 @@ import { Home, LogOut, Building2, Plus } from "lucide-react";
 import { signOut } from "@/lib/auth/actions";
 import { switchToClinic } from "@/app/(app)/switch-principal/actions";
 import { BottomNav } from "@/components/nav/bottom-nav";
+import { SectionTabs } from "@/components/nav/section-tabs";
 import { destinationsFor, OPEN_TO_UNVERIFIED } from "@/lib/nav/clinician";
 import { RadarPresence } from "@/components/radar/presence";
 import { requireUser } from "@/lib/auth/guard";
@@ -265,7 +266,11 @@ export default async function AppLayout({
           </div>
         ) : null}
         {/* Content gets bottom padding on mobile so the nav never covers a control. */}
-        <div className="pb-24 lg:pb-8">{children}</div>
+        <div className="pb-24 lg:pb-8">
+          {/* 🔴 Ruling 14b: the pages inside this group, one tap away. */}
+          <SectionTabs cleared={cleared} />
+          {children}
+        </div>
       </div>
 
       {/* 🔴 W2-T07: the practice switch reaches the phone too. */}

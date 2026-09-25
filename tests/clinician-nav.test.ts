@@ -15,18 +15,15 @@ import { test } from "node:test";
  */
 
 test("T01: support is open to a clinician who is not cleared yet", async () => {
-  const { OPEN_TO_UNVERIFIED, destinationsFor } = await import("../lib/nav/clinician");
+  const { OPEN_TO_UNVERIFIED, pagesFor } = await import("../lib/nav/clinician");
 
   assert.ok(OPEN_TO_UNVERIFIED.includes("/support"), "the shell bounces an applicant off /support");
-  assert.ok(
-    destinationsFor(false).some((item) => item.href === "/support"),
-    "an applicant has no link to support",
-  );
-  // Every link an applicant is shown must be a page the shell lets them open.
-  for (const item of destinationsFor(false)) {
+  assert.ok(pagesFor(false).includes("/support"), "an applicant has no link to support");
+  // Every link an applicant is shown, groups and their tabs, must be a page the shell lets them open.
+  for (const href of pagesFor(false)) {
     assert.ok(
-      OPEN_TO_UNVERIFIED.some((prefix) => item.href.startsWith(prefix)),
-      `${item.href} is linked for an applicant and bounces them`,
+      OPEN_TO_UNVERIFIED.some((prefix) => href.startsWith(prefix)),
+      `${href} is linked for an applicant and bounces them`,
     );
   }
 });
@@ -54,17 +51,28 @@ test("T07: the sidebar and the phone bar render the same list", () => {
   assert.doesNotMatch(bottom, /const (PRIMARY|MORE) = \[/, "the phone bar keeps its own list");
 });
 
-test("T07: every destination a clinician needs is on the list", async () => {
-  const { destinationsFor } = await import("../lib/nav/clinician");
-  const cleared = destinationsFor(true).map((item) => item.href);
+test("T07 / ruling 14b: six places, and every page still in one of them", async () => {
+  const { destinationsFor, pagesFor } = await import("../lib/nav/clinician");
+  const cleared = pagesFor(true);
 
-  for (const href of ["/bookings", "/assistant", "/connect", "/support", "/earnings"]) {
+  for (const href of [
+    "/dashboard", "/copilot", "/assistant", "/sessions", "/bookings", "/patients", "/notes",
+    "/connect", "/earnings", "/billing", "/on-call", "/settings", "/notifications", "/support",
+  ]) {
     assert.ok(cleared.includes(href), `${href} is missing from the navigation`);
   }
-  // CONTROL: the list is the whole product, not a handful.
-  assert.ok(cleared.length >= 12, `only ${cleared.length} destinations`);
+  // 🔴 Ruling 14b: fourteen places became six, and none was lost on the way.
+  assert.equal(destinationsFor(true).length, 6, "the navigation grew past six places");
+  assert.ok(cleared.length >= 14, `only ${cleared.length} pages are reachable from it`);
   // An applicant keeps Earnings on the phone as on desktop.
-  assert.ok(destinationsFor(false).some((item) => item.href === "/earnings"));
+  assert.ok(pagesFor(false).includes("/earnings"));
+});
+
+test("ruling 14b: every group's pages are drawn as tabs on each of them", () => {
+  const layout = readFileSync("app/(app)/layout.tsx", "utf8");
+  const tabs = readFileSync("components/nav/section-tabs.tsx", "utf8");
+  assert.match(layout, /<SectionTabs /, "the shell draws no tab row, so grouped pages have no way in");
+  assert.match(tabs, /groupOf\(/, "the tab row keeps its own list");
 });
 
 test("T07: the practice switch is on the phone too", () => {
