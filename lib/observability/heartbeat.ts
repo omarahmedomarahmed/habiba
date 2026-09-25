@@ -169,7 +169,7 @@ export async function findProblems(now = new Date()): Promise<WatchdogProblem[]>
         `Last run of any kind: ${lastRun}.`,
         beat?.failedSteps ? `Steps that failed on that run: ${beat.failedSteps}.` : null,
         "",
-        "Check the Vercel cron log for /api/cron/" + job + " and the CRON_SECRET on the deployment.",
+        "Check the Vercel cron log for the " + job + " job, and the CRON_SECRET on the deployment.",
         job === "crisis"
           ? "This job re-delivers crisis alerts whose notification failed. Treat it as urgent."
           : null,

@@ -142,7 +142,7 @@ function signedValue(value: unknown): string {
 }
 
 /** The hex HMAC of one transaction object. Exported for the tests and the sandbox run. */
-export function paymobTransactionHmac(obj: Json, secret: string): string {
+function paymobTransactionHmac(obj: Json, secret: string): string {
   const signed = PAYMOB_HMAC_FIELDS.map((field) => signedValue(pick(obj, field))).join("");
   return createHmac("sha512", secret).update(signed).digest("hex");
 }
@@ -452,7 +452,7 @@ function bankDestination(identifier: string): { code: string; account: string } 
 type Disbursement = Record<string, string | number | boolean>;
 
 /** The request body for one payout, or the reason there cannot be one. */
-export function paymobDisbursement(input: PayoutInstruction): { ok: true; body: Disbursement } | ProviderRefusal {
+function paymobDisbursement(input: PayoutInstruction): { ok: true; body: Disbursement } | ProviderRefusal {
   if (input.currency !== "egp") return { ok: false, reason: "Paymob Send pays out in pounds only." };
   if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) return { ok: false, reason: "Nothing to send." };
   const common = {

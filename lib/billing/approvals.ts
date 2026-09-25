@@ -108,7 +108,7 @@ export type PendingApprovalRow = {
 };
 
 /** What is waiting for a second person, newest first. */
-export async function openApprovals(kind?: PendingApprovalKind): Promise<PendingApprovalRow[]> {
+async function openApprovals(kind?: PendingApprovalKind): Promise<PendingApprovalRow[]> {
   const rows = await db
     .select({
       id: pendingApprovals.id,
