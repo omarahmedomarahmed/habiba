@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patients, people } from "@/lib/db/schema";
+import { people } from "@/lib/db/schema";
+import { clinicianMaySeeFace } from "@/lib/data/people";
 import { getActor } from "@/lib/auth/session";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 
@@ -40,8 +41,10 @@ export const dynamic = "force-dynamic";
  * all, and the access control is a question asked on every request:
  *
  *   - the patient themselves, or
- *   - a clinician with a live patient record for that person in their own
- *     organisation, or
+ *   - a clinician with a patient record for that person in their own
+ *     organisation AND a live grant from them (the "live profile" of PA6.5:
+ *     a clinician the patient chose not to keep holds the record but not the
+ *     face), or
  *   - a super admin, who has to be able to look at what they are removing.
  *
  * Anyone else gets a 404 rather than a 403, because "this person exists and
@@ -100,18 +103,6 @@ async function mayRead(personId: string): Promise<boolean> {
   if (!actor) return false;
   if (actor.role === "super_admin") return true;
 
-  const [record] = await db
-    .select({ id: patients.id })
-    .from(patients)
-    .where(
-      and(
-        eq(patients.personId, personId),
-        eq(patients.organizationId, actor.organizationId),
-        eq(patients.therapistId, actor.userId),
-        isNull(patients.deletedAt),
-      ),
-    )
-    .limit(1);
-
-  return Boolean(record);
+  /* 🔴 PE80 — a patient row AND a live grant. See `clinicianMaySeeFace`. */
+  return clinicianMaySeeFace(personId, actor.userId, actor.organizationId);
 }
