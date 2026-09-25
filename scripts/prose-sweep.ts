@@ -361,6 +361,12 @@ const PORTALS: Record<string, readonly string[]> = {
     "tprofile",
     "money",
     "sim",
+    /*
+     * B29 / B43 / B48: `/welcome/[token]`, where an invited back office,
+     * clinic, company or partner account chooses its first password. One page
+     * for four portals, so shared, like `auth`.
+     */
+    "welcome",
   ],
 };
 

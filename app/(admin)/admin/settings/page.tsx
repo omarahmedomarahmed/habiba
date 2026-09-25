@@ -248,8 +248,7 @@ export default async function SettingsPage() {
         */}
         {!egIssuer?.legalName || !egIssuer.address || !egIssuer.taxId ? (
           <p className="mt-1 text-sm text-amber-900">
-            Payment receipts for Egyptian companies cannot be issued until the registered name, tax
-            registration number and address are saved below.
+            Egyptian company receipts wait for the registered name, tax number and address below.
           </p>
         ) : null}
         <EtaIssuerEditor

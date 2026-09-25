@@ -1717,7 +1717,6 @@ export const en = {
    * which is the differencing attack in a single subtraction. So the
    * suppressed state says what it is.
    */
-  "sponsor.balanceSuppressed": "Not enough activity to report yet",
   "sponsor.balance": "Left in your pot",
   /*
    * 🔴 B3 — the company's own money in, shown when the balance net of spend is
@@ -1725,7 +1724,7 @@ export const en = {
    * not what remains, and saying otherwise would be a false balance.
    */
   "sponsor.funded": "Put into your pot",
-  "sponsor.fundedHeld": "What has been used is shown once {floor} people have joined, so no figure can point to one person.",
+  "sponsor.fundedHeld": "Use is shown once {floor} people have joined.",
   "sponsor.spendTitle": "What has been spent, by week",
   /* 🔴 C228 / C229 — the sentence a client asking for a daily chart reads. */
   "sponsor.whyWeekly": "Weekly at the finest, and never one session alone.",
@@ -2021,7 +2020,7 @@ export const en = {
   "sponsor.inv.paid": "Paid",
   "sponsor.inv.notYet": "We cannot issue this receipt yet.",
   /* 🔴 B19 — the reason, and a button that reaches a person, not "ask us" into the air. */
-  "sponsor.inv.notYetBody": "Our company details for receipts are still being completed, and we will not send you a receipt your finance team cannot file. Your payment is in your pot; only the paperwork is waiting.",
+  "sponsor.inv.notYetBody": "Our company details for receipts are not complete yet, so we cannot issue one your finance team could file. Your payment is in your pot.",
   "sponsor.inv.ask": "Ask us for this receipt",
   "sponsor.inv.asked": "We have been told. We will email the receipt when it is ready.",
   "sponsor.inv.errAsk": "This receipt can be issued now. Reload the page.",
@@ -2768,7 +2767,7 @@ export const en = {
    * key"), in English inside the Arabic sentence, read as if nothing were
    * needed, and offered nowhere to go.
    */
-  "records.notConfigured": "Connecting a record system is not switched on for 24Therapy yet, so there is nothing to set up on your side. When it is, a Connect button appears here. Until then your notes stay in 24Therapy, where they already are.",
+  "records.notConfigured": "Connecting a record system is not switched on yet, so there is nothing for you to set up. Your notes stay here meanwhile.",
   "records.notConfiguredAsk": "Tell us which system you use",
   "records.filings": "Recent filings",
   "records.filingsEmpty": "No notes have been filed yet.",
@@ -3101,9 +3100,9 @@ export const en = {
   "welcome.hintMin": "At least {count} characters.",
   "welcome.weak": "Use at least {count} characters, with no space at the start or end.",
   "welcome.usedTitle": "This link has already been used",
-  "welcome.usedBody": "Each link sets a password once, and a newer link replaces an older one. If you set your password, sign in with it. If you have forgotten it, ask for a new link from the sign-in page.",
+  "welcome.usedBody": "A link sets a password once. If you set yours, sign in with it; if not, ask for a new link from the sign-in page.",
   "welcome.expiredTitle": "This link has expired",
-  "welcome.expiredBody": "An invitation lasts 7 days and a reset link an hour. Ask for a new one from the sign-in page, or ask whoever invited you.",
+  "welcome.expiredBody": "Ask for a new link from the sign-in page, or ask whoever invited you.",
   "welcome.unknownTitle": "This link does not work",
   "welcome.goSignIn": "Go to sign in",
   /* 🔴 B29 / B43 — the line a portal's sign-in shows after /welcome set the password. */
@@ -6548,10 +6547,9 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.reason.ended": "انتهت الميزة",
   "sponsor.reason.administrative": "تصحيح إداري",
   "sponsor.removeConfirm": "ينتهي تمويله وشارته الآن. ويبقى سجله كما هو، ولا يُخبَر بالسبب.",
-  "sponsor.balanceSuppressed": "لا يوجد نشاط كافٍ لعرض رصيد بعد",
   "sponsor.balance": "المتبقي في محفظتك",
   "sponsor.funded": "ما أضفته إلى محفظتك",
-  "sponsor.fundedHeld": "يظهر ما استُخدم منها بعد انضمام {floor} أشخاص، حتى لا يدل أي رقم على شخص بعينه.",
+  "sponsor.fundedHeld": "يظهر الاستخدام بعد انضمام {floor} أشخاص.",
   "sponsor.spendTitle": "ما أُنفق، أسبوعًا بأسبوع",
   "sponsor.whyWeekly": "أسبوعيًا على الأكثر، ولا تظهر أي جلسة وحدها أبدًا.",
   "sponsor.suppressed": "النشاط لا يكفي للتقرير بعد",
@@ -6789,7 +6787,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.inv.vat": "ضريبة القيمة المضافة {rate}%",
   "sponsor.inv.paid": "مدفوع",
   "sponsor.inv.notYet": "لا يمكننا إصدار هذا الإيصال بعد.",
-  "sponsor.inv.notYetBody": "بيانات شركتنا اللازمة للإيصالات لم تكتمل بعد، ولن نرسل إليك إيصالًا لا يستطيع فريقك المالي حفظه. دفعتك موجودة في محفظتك، والأوراق وحدها هي ما ينتظر.",
+  "sponsor.inv.notYetBody": "بيانات شركتنا اللازمة للإيصالات لم تكتمل بعد، فلا يمكننا إصدار إيصال يقبله فريقك المالي. دفعتك موجودة في محفظتك.",
   "sponsor.inv.ask": "اطلب منا هذا الإيصال",
   "sponsor.inv.asked": "وصلنا طلبك. سنرسل الإيصال بالبريد حين يجهز.",
   "sponsor.inv.errAsk": "يمكن إصدار هذا الإيصال الآن. أعد تحميل الصفحة.",
@@ -7350,7 +7348,7 @@ export const ar: Record<MessageKey, string> = {
   "records.whatWeHold": "نظامك هو السجل. اليوم لا نقرأ منه شيئًا، وحين يُبنى الإيداع سنقرأ شيئًا واحدًا: اسم المريض.",
   "records.whatWeKeep": "نحتفظ بما صنعناه: الجلسة والتفريغ والملاحظة ومن اعتمدها. وهي مسؤولة أمام المريض.",
   "records.severOnDisconnect": "بالفصل نتوقف فورًا عن ترجمة معرّفاتك. ويبقى السجل الذي صنعناه بلا رابط إليك.",
-  "records.notConfigured": "ربط نظام السجلات غير مفعّل في 24Therapy بعد، فلا شيء عليك إعداده. حين يُفعَّل يظهر هنا زر الربط. وحتى ذلك الحين تبقى ملاحظاتك في 24Therapy حيث هي الآن.",
+  "records.notConfigured": "ربط نظام السجلات غير مفعّل بعد، فلا شيء عليك إعداده. وتبقى ملاحظاتك هنا في الأثناء.",
   "records.notConfiguredAsk": "أخبرنا بالنظام الذي تستخدمه",
   "records.filings": "الإيداعات الأخيرة",
   "records.filingsEmpty": "لم تودع أي ملاحظة بعد.",
@@ -7646,9 +7644,9 @@ export const ar: Record<MessageKey, string> = {
   "welcome.hintMin": "{count} حرفًا على الأقل.",
   "welcome.weak": "استخدم {count} حرفًا على الأقل، دون مسافة في أولها أو آخرها.",
   "welcome.usedTitle": "استُخدم هذا الرابط من قبل",
-  "welcome.usedBody": "كل رابط يعيّن كلمة المرور مرة واحدة، والرابط الأحدث يحل محل الأقدم. إن كنت قد عيّنت كلمة مرورك فسجّل الدخول بها. وإن نسيتها فاطلب رابطًا جديدًا من صفحة تسجيل الدخول.",
+  "welcome.usedBody": "يعيّن الرابط كلمة المرور مرة واحدة. إن عيّنت كلمتك فسجّل الدخول بها، وإلا فاطلب رابطًا جديدًا من صفحة تسجيل الدخول.",
   "welcome.expiredTitle": "انتهت صلاحية هذا الرابط",
-  "welcome.expiredBody": "تبقى الدعوة صالحة 7 أيام ورابط إعادة التعيين ساعة واحدة. اطلب رابطًا جديدًا من صفحة تسجيل الدخول، أو اطلبه ممن دعاك.",
+  "welcome.expiredBody": "اطلب رابطًا جديدًا من صفحة تسجيل الدخول، أو ممن دعاك.",
   "welcome.unknownTitle": "هذا الرابط لا يعمل",
   "welcome.goSignIn": "الذهاب إلى تسجيل الدخول",
   "auth.passwordSet": "عُيّنت كلمة المرور. سجّل الدخول بها.",
