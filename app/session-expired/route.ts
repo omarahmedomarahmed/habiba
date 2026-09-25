@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { destroyCurrentSession } from "@/lib/auth/session";
 import { env } from "@/lib/env";
+import { signInDoorFor } from "@/lib/routing";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,13 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const next = url.searchParams.get("next");
 
-  const target = new URL("/login", env.appUrl);
+  /*
+   * 🔴 AE56: the same door the guard picks for a caller with no cookie
+   * (`bounceToLogin` in lib/auth/guard.ts). A staff member who idled out at
+   * /admin was sent to /login, where the practice form refuses a back office
+   * account, so the way back in was a page that turned them away.
+   */
+  const target = new URL(signInDoorFor(next), env.appUrl);
   target.searchParams.set("expired", "1");
   // Only ever a path on this origin — an absolute URL here would be an open
   // redirect handed to anyone who can craft a link.

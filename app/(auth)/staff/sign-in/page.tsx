@@ -29,14 +29,18 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function StaffSignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string }>;
 }) {
-  const params = await searchParams;
+  const [params, { t }] = await Promise.all([searchParams, getI18n()]);
 
+  /*
+   * No title: the form's own heading is the page's h1 (AE57). Arriving from
+   * /session-expired (AE56) says so, as the practice door does.
+   */
   return (
-    <QuietAuthShell title="" >
+    <QuietAuthShell>
       <Suspense>
-        <StaffSignInForm next={params.next} />
+        <StaffSignInForm next={params.next} notice={params.expired ? t("tauth.noticeExpired") : undefined} />
       </Suspense>
     </QuietAuthShell>
   );

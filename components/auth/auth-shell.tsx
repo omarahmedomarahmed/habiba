@@ -213,9 +213,10 @@ export async function QuietAuthShell({
       <main className="flex-1 bg-slate-50">
         <div className={cn("mx-auto max-w-md px-4 py-12 sm:px-6 lg:py-20", className)}>
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <h1 className="text-xl font-bold tracking-tight text-navy-500">{title}</h1>
+            {/* 🔴 AE57: no heading at all when the form carries its own, never an empty one. */}
+            {title ? <h1 className="text-xl font-bold tracking-tight text-navy-500">{title}</h1> : null}
             {subtitle ? <p className="mt-1.5 text-sm text-slate-600">{subtitle}</p> : null}
-            <div className="mt-6">{children}</div>
+            <div className={title || subtitle ? "mt-6" : undefined}>{children}</div>
           </div>
         </div>
       </main>

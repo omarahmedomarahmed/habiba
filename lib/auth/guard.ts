@@ -6,7 +6,7 @@ import { cookies, headers } from "next/headers";
 import type { Role } from "@/lib/db/schema";
 import { admission, getSessionState, SESSION_COOKIE, type Actor } from "./session";
 import { env } from "@/lib/env";
-import { STAFF_SECOND_STEP } from "@/lib/routing";
+import { signInDoorFor, STAFF_SECOND_STEP } from "@/lib/routing";
 
 export class AuthorizationError extends Error {
   constructor(message = "Not authorized") {
@@ -84,7 +84,7 @@ async function bounceToLogin(): Promise<never> {
    * sending an admin to /login would be sending them somewhere that will turn
    * them away.
    */
-  const door = next.startsWith("/admin") ? "/staff/sign-in" : "/login";
+  const door = signInDoorFor(next);
   redirect(hasCookie ? `/session-expired${query}` : `${door}${query}`);
 }
 

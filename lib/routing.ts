@@ -140,6 +140,16 @@ export function patientBounce(hasCookie: boolean, path: string): string {
 export const STAFF_SIGN_IN = "/staff/sign-in";
 
 /**
+ * 🔴 AE56: the sign-in door for a path somebody was bounced from. One answer
+ * for the guard (no cookie) and for /session-expired (a stale one): the
+ * practice form refuses a back office account, so an admin path goes to the
+ * staff door.
+ */
+export function signInDoorFor(path: string | null | undefined): string {
+  return path?.startsWith("/admin") ? STAFF_SIGN_IN : "/login";
+}
+
+/**
  * 🔴 Task 40: where a back office session that has only given its password
  * is sent. Owned by no principal on purpose: it needs the clinician cookie to
  * mean anything, and it is not a door a signed in holder should be bounced
