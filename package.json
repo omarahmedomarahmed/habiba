@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts seed || echo 'settings seed skipped, see above'",
+    "prebuild": "(node --env-file-if-exists=.env.local --import tsx scripts/settings.ts seed || echo 'settings seed skipped, see above') && NODE_OPTIONS=--max-old-space-size=4096 tsc --noEmit -p .",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
     "lint": "node -e \"console.error('No linter is configured here. The static analysis in this repository is: npm run typecheck, then npm run gates. See HAZARDS.md.'); process.exit(1)\"",

@@ -18,6 +18,19 @@ const baseHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /*
+   * 🔴 THE TYPE CHECK RUNS BEFORE THE BUILD, NOT INSIDE IT (25 September 2026).
+   *
+   * Inside `next build` it runs in a worker with its own 4 GB heap while the
+   * compiler's heap is still held, and on Vercel's 8 GB machine the two together
+   * swapped: the step that took 53 seconds on the 24th sat for 22 minutes on the
+   * 25th and was cancelled. `prebuild` now runs `tsc --noEmit` as its own process,
+   * which finishes and frees its memory before the compile starts, and a type
+   * error still fails the deployment there. So nothing is skipped: the same check
+   * runs once, earlier.
+   */
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   /**
    * 🔴 76.61 — TWO GATES NEED OPPOSITE THINGS IN `.next`, AND THEY WERE SHARING IT.
    *
