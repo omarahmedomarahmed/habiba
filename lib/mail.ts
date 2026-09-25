@@ -83,6 +83,12 @@ async function send(opts: {
   bcc?: string;
   attachments?: { filename: string; content: string }[];
 }): Promise<boolean> {
+  /* 🔴 0170: an invented address reaches nobody. Kept in the outbox, reported as sent. */
+  const { isInventedEmail, keep } = await import("@/lib/notify/outbox");
+  if (isInventedEmail(opts.to)) {
+    await keep({ channel: "email", to: opts.to, subject: opts.subject, body: opts.html, reason: "invented address" });
+    return true;
+  }
   const mailer = client();
   if (!mailer) {
     log.warn("email skipped: RESEND_API_KEY not configured", { subject: opts.subject });

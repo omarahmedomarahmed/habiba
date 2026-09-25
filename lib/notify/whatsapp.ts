@@ -70,6 +70,24 @@ export async function sendWhatsapp(
   /** 🔴 Ruling 8: the recipient's language, used when Meta approved the template in it. */
   locale?: string | null,
 ): Promise<boolean> {
+  /*
+   * 🔴 0170: while the simulation runs, an invented number may be a real
+   * stranger's. Kept in the outbox instead, and answered exactly as the live
+   * rail would (not configured means not sent), so `notify()` falls back the
+   * same way it would for a real person.
+   */
+  const { keep, simulationRunning } = await import("./outbox");
+  if (simulationRunning()) {
+    await keep({
+      channel: "whatsapp",
+      to: phone,
+      subject: message.subject,
+      body: [message.body, ...(message.variables ?? [])].filter(Boolean).join("\n"),
+      kind: message.kind,
+      reason: "simulation running",
+    });
+    return whatsappConfigured() && templateStatus(message.kind) === "approved";
+  }
   if (!whatsappConfigured()) return false;
 
   const template = templateFor(message.kind);

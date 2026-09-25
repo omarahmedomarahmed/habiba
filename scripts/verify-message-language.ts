@@ -142,27 +142,38 @@ async function main() {
     const { notifyPatientOfGrant } = await import("../lib/data/portability");
     const { noticePaymentConfirmed } = await import("../lib/billing/payment-notices");
 
+    /*
+     * 🔴 0170: mail to an invented address never reaches the provider; it is kept
+     * in `sim_outbox`. So the message is read back from there, newest first.
+     */
+    const keptFor = async (to: string, since: Date): Promise<Mail | undefined> => {
+      const [row] = await rows<{ subject: string; body: string }>(sql`
+        SELECT subject, body FROM sim_outbox
+         WHERE to_address = ${to.toLowerCase()} AND channel = 'email' AND created_at >= ${since}
+         ORDER BY created_at DESC LIMIT 1`);
+      return row ? { to, subject: row.subject, html: row.body } : undefined;
+    };
     const send = async (who: typeof laila) => {
-      const before = mails.length;
+      let at = new Date();
       await noticeSessionStarted(who.started);
-      const started = mails.slice(before).find((m) => m.to === who.email);
+      const started = await keptFor(who.email, at);
 
-      const mark = mails.length;
+      at = new Date();
       await afterClinicianCancel({ actorUserId: therapist.id, sessionId: who.cancelled, reason: "Fixture reason" });
-      const cancelled = mails.slice(mark).find((m) => m.to === who.email);
+      const cancelled = await keptFor(who.email, at);
 
-      const paidMark = mails.length;
+      at = new Date();
       const payment = await one<{ id: string }>(sql`
         INSERT INTO manual_payments (purpose, ref_id, amount_cents, currency, settles_cents, payer_kind,
           patient_account_id, organization_id, state, decided_at)
         VALUES ('session', ${who.started}, 2000, 'USD', 2000, 'patient', ${who.accountId}, ${org.id}, 'confirmed', now())
         RETURNING id`);
       await noticePaymentConfirmed(payment.id);
-      const paid = mails.slice(paidMark).find((m) => m.to === who.email);
+      const paid = await keptFor(who.email, at);
 
-      const grantMark = mails.length;
+      at = new Date();
       await notifyPatientOfGrant({ personId: who.personId, therapistUserId: therapist.id });
-      const granted = mails.slice(grantMark).find((m) => m.to === who.email);
+      const granted = await keptFor(who.email, at);
 
       return { started, cancelled, paid, granted };
     };
@@ -259,6 +270,7 @@ async function main() {
       else process.env[name] = value;
     }
     if (orgId) {
+      await db.execute(sql`DELETE FROM sim_outbox WHERE to_address LIKE ${`%.${fixture}@example.com`}`);
       await db.execute(sql`DELETE FROM refund_requests WHERE organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM ledger_entries WHERE organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM manual_payments WHERE organization_id = ${orgId}`);

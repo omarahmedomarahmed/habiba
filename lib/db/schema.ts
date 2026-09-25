@@ -4111,6 +4111,26 @@ export const walletHolds = pgTable(
 
 export type WalletHold = typeof walletHolds.$inferSelect;
 
+/**
+ * 🔴 0170: a message the product meant to send to nobody, kept instead.
+ * Email to an invented address is never sent; while the simulation runs,
+ * WhatsApp is not sent either. See `lib/notify/outbox.ts`.
+ */
+export const simOutbox = pgTable(
+  "sim_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channel: text("channel").$type<"email" | "whatsapp">().notNull(),
+    toAddress: text("to_address").notNull(),
+    subject: text("subject"),
+    body: text("body").notNull(),
+    kind: text("kind"),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("sim_outbox_to_idx").on(t.toAddress, t.createdAt)],
+);
+
 export const sessionCredits = pgTable(
   "session_credits",
   {

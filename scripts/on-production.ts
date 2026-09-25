@@ -161,6 +161,8 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
     why: "checks the benchmark the fifty minute figure is measured against, at these prices",
   },
   "settings:show": { writes: false, why: "what production actually holds" },
+  /* 🔴 0170: what the product sent to an invented person, for the simulated cast to read. */
+  "sim:inbox": { writes: false, why: "reads the kept messages to one invented address or number" },
   "settings:check": { writes: false, why: "whether it holds what it should" },
   "verify:migrations": { writes: false, why: "journal and ledger agree, every CHECK validated" },
   "verify:board": { writes: false, why: "the founders' board, and none of its nine queries writes" },

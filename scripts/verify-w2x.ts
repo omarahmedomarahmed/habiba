@@ -451,8 +451,11 @@ async function main() {
       VALUES (${partner.id}, ${`admin.${fixture}@example.com`}, 'Mona Admin',
               ${await hashPassword("the-first-password-1")}, 'admin')
       RETURNING id`);
-    const linkIn = (to: string) => {
-      const found = [...mail].reverse().find((m) => m.to === to);
+    /* 🔴 0170: mail to an invented address is kept in `sim_outbox`, never sent. */
+    const linkIn = async (to: string) => {
+      const kept = (await db.execute(sql`
+        SELECT body AS html FROM sim_outbox WHERE to_address = ${to.toLowerCase()} ORDER BY created_at DESC LIMIT 1`)).rows as { html: string }[];
+      const found = [...mail].reverse().find((m) => m.to === to) ?? kept[0];
       const match = found?.html.match(/\/partner\/reset\?token=([^"&\s]+)/);
       return match ? decodeURIComponent(match[1]!) : null;
     };
@@ -467,7 +470,7 @@ async function main() {
           byPartnerUserId: admin.id,
         })
       : { error: "no team module" };
-    const inviteToken = linkIn(colleague);
+    const inviteToken = await linkIn(colleague);
     const tooShort = team && inviteToken ? await team.setPartnerPassword(inviteToken, "short") : null;
     const chosen = team && inviteToken ? await team.setPartnerPassword(inviteToken, "karims-own-password") : null;
     const reused = team && inviteToken ? await team.setPartnerPassword(inviteToken, "somebody-elses-pass") : null;
@@ -485,11 +488,13 @@ async function main() {
     );
 
     const adminEmail = `admin.${fixture}@example.com`;
-    const before = mail.length;
+    const nobodyKept = async () =>
+      Number(((await db.execute(sql`SELECT count(*)::int AS n FROM sim_outbox WHERE to_address = ${`nobody.${fixture}@example.com`}`)).rows[0] as { n: number }).n);
+    const before = mail.length + (await nobodyKept());
     if (team) await team.requestPartnerReset(`nobody.${fixture}@example.com`);
-    const unknownSent = mail.length - before;
+    const unknownSent = mail.length + (await nobodyKept()) - before;
     if (team) await team.requestPartnerReset(adminEmail);
-    const resetToken = linkIn(adminEmail);
+    const resetToken = await linkIn(adminEmail);
     await db.execute(sql`
       INSERT INTO partner_auth_sessions (partner_user_id, token_hash, absolute_expires_at)
       VALUES (${admin.id}, ${`w2x-${fixture}`}, now() + interval '1 hour')`);
@@ -801,6 +806,7 @@ async function main() {
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM partner_auth_sessions WHERE partner_user_id IN
       (SELECT u.id FROM partner_users u JOIN partners p ON p.id = u.partner_id WHERE p.slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM sim_outbox WHERE to_address LIKE ${`%.${fixture}@example.com`}`);
     await db.execute(sql`DELETE FROM partner_users WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     /* The key and team audit rows name the partner in `reason`, so they go by it. */
