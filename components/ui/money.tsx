@@ -77,8 +77,14 @@ export function Money({
       onMouseLeave={onLeave}
       onFocus={reveal}
       onBlur={onLeave}
-      /* A phone has no hover. A tap toggles. */
+      /*
+       * A phone has no hover. A tap toggles, but only where the figure is the
+       * only thing to tap. Inside a link or a button (a radar card is one) the
+       * tap belongs to that control: swallowing it here meant tapping the price
+       * on a card flipped the currency and never opened the booking.
+       */
       onClick={(event) => {
+        if (event.currentTarget.parentElement?.closest("a, button, [role='button']")) return;
         event.stopPropagation();
         setOpen((was) => !was);
       }}
