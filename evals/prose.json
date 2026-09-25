@@ -18,7 +18,7 @@
     "clinician": 7197,
     "sponsor": 1508,
     "admin": 3250,
-    "clinic": 1080,
+    "clinic": 1081,
     "partner": 1620,
     "legal": 1377
   },
@@ -130,5 +130,6 @@
   "launch0925": "clinician 6621 -> 6692 is the staff second step's sign-in screen, which renders under the clinician's auth prefix (tauth.second*), 70 words of code, email and recovery-code labels. patient 4018 -> 4031 is the check-in reminder line that now reaches Egypt by WhatsApp (8) and the card fee and total-by-card labels on the pay page (5), both required by rulings: the patient pays the card fee and must see it before paying.",
   "profile0925": "patient 4031 -> 4085 is ruling 8b's profile: four tab names, the employer badge and the Enrol link, live now, the empty and booked states, the wallet line (ruling 7, shown only when there is money in it), the summary card and the billing rows. Each is a label of one to seven words; the paragraphs the old You page carried moved under Settings unchanged.",
   "launch40": "patient 4085 -> 4294 and clinician 6692 -> 6772 are task 40's launch blockers, each ruled: ruling 16's patient cancel and move screens with the 24-hour window stated where the choice is made, the printable receipt in both languages (which must say it is a payment receipt and not a tax invoice, ruling 4), the therapist's late-cancellation list with Refund anyway and the Move control, and the in-app notices for a cancelled or moved session. Strings were cut before this was recorded; the patient app is still 9 per cent under its origin.",
-  "wave3": "🔴 WAVE 3 OF takeover/FIX-PLAN.md, and most of it is the instrument seeing what was always on the screen. The sweep counts the dictionary and JSX text; a sentence inside a ternary, a template string or an aria-label expression was invisible to it. Wave 3 moved every such sentence into lib/i18n/messages.ts with its Arabic, so words that readers already met are now counted. Genuinely new words are about 60: three notices in the patient app, the partner docs' 'not live yet' note (ruling D6), 'Book again', 'From {name}' and 'Flagged'. Shared and public went DOWN in the same wave. clinician 6772 -> 7197 is the same measurement: the room banners, the risk card and the note screens were template strings."
+  "wave3": "🔴 WAVE 3 OF takeover/FIX-PLAN.md, and most of it is the instrument seeing what was always on the screen. The sweep counts the dictionary and JSX text; a sentence inside a ternary, a template string or an aria-label expression was invisible to it. Wave 3 moved every such sentence into lib/i18n/messages.ts with its Arabic, so words that readers already met are now counted. Genuinely new words are about 60: three notices in the patient app, the partner docs' 'not live yet' note (ruling D6), 'Book again', 'From {name}' and 'Flagged'. Shared and public went DOWN in the same wave. clinician 6772 -> 7197 is the same measurement: the room banners, the risk card and the note screens were template strings.",
+  "nav14b": "clinic 1080 -> 1081 is one word, 'Money', the name of the group ruling 14b made from bills, earnings and seats. Clinician's new group names reuse words already counted."
 }
