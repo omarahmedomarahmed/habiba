@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { CalendarClock, FileText, Zap } from "lucide-react";
 
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import type { PatientSession, SessionDoor, SessionGroup } from "@/lib/data/patient-view";
 import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -80,8 +80,8 @@ export function PatientSessionList({
   if (sessions.length === 0) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("psessions.none")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("psessions.none")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("psessions.noneBody")}
         </p>
       </Card>
@@ -98,26 +98,26 @@ export function PatientSessionList({
 
         return (
           <section key={group}>
-            <h2 className="text-sm font-semibold text-slate-900">{t(HEADINGS[group].title)}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">{t(HEADINGS[group].blurb)}</p>
+            <h2 className="text-[17px] font-bold text-navy-700">{t(HEADINGS[group].title)}</h2>
+            <p className="mt-0.5 text-[13px] text-navy-400">{t(HEADINGS[group].blurb)}</p>
 
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-3 space-y-2.5">
               {rows.map((session) => (
                 <li key={session.id}>
-                  <Card className="p-3.5">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Card className="p-4">
+                    <p className="flex items-center gap-2 text-[15px] font-bold text-navy-700">
                       {group === "past_instant" ? (
                         <Zap className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
                       ) : (
-                        <CalendarClock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+                        <CalendarClock className="h-4 w-4 shrink-0 text-navy-400" aria-hidden />
                       )}
                       {session.therapistName}
                       {/* 🔴 W3 / P3: the summary below carries its signer's credentials. */}
                       {session.therapistCredentials ? (
-                        <span className="font-normal text-slate-500">, {session.therapistCredentials}</span>
+                        <span className="font-normal text-navy-400">, {session.therapistCredentials}</span>
                       ) : null}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 text-xs text-navy-400">
                       {formatWhen(session.at, resolved, locale)}
                       {session.priceCents > 0
                         ? /*
@@ -154,26 +154,26 @@ export function PatientSessionList({
                     ) : null}
 
                     {session.brief ? (
-                      <p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
+                      <p className="mt-3 rounded-2xl bg-navy-50 p-3.5 text-sm leading-relaxed text-navy-600">
                         {session.brief}
                       </p>
                     ) : null}
 
                     {/* 🔴 W1-03: what their clinician added after releasing it. */}
                     {session.briefAddenda.map((line, index) => (
-                      <div key={index} className="mt-2 rounded-xl bg-slate-50 p-3">
-                        <p className="text-xs text-slate-500">
+                      <div key={index} className="mt-3 rounded-2xl bg-navy-50 p-3.5">
+                        <p className="text-xs text-navy-400">
                           {t("psessions.addedLater", { name: line.by })} ·{" "}
                           {formatWhen(line.at, resolved, locale)}
                         </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-navy-600">
                           {line.body}
                         </p>
                       </div>
                     ))}
 
                     {session.briefPending ? (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-navy-400">
                         <FileText className="h-3 w-3" aria-hidden />
                         {t("psessions.writing")}
                       </p>
@@ -182,7 +182,7 @@ export function PatientSessionList({
                     {doors[session.id] ? (
                       <Link
                         href={doors[session.id]!.href}
-                        className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+                        className="mt-3 inline-flex h-11 items-center rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-navy-700 shadow-[0_8px_24px_-10px_rgba(46,196,182,0.7)] hover:bg-brand-400"
                       >
                         {t(DOOR_LABEL[doors[session.id]!.kind])}
                       </Link>
@@ -192,7 +192,7 @@ export function PatientSessionList({
                     {session.changeable ? (
                       <Link
                         href={`/patient/sessions/${session.id}/change`}
-                        className="ms-2 mt-3 inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-slate-600 hover:underline"
+                        className="ms-2 mt-3 inline-flex h-11 items-center rounded-2xl border border-navy-200 bg-white px-4 text-sm font-semibold text-navy-600 hover:bg-navy-50"
                       >
                         {t("pchange.open")}
                       </Link>

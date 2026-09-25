@@ -4,7 +4,7 @@ import { inArray } from "drizzle-orm";
 
 import { DiagnosisFlag } from "@/components/patient/diagnosis-flag";
 import { OwnProfilePanel } from "@/components/documents/own-profile-panel";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { PatientBack } from "@/components/patient/back";
 import { listDiagnoses } from "@/lib/data/diagnoses";
@@ -85,14 +85,14 @@ export default async function OwnProfilePage() {
   }));
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <div className="flex items-center gap-1">
         <PatientBack />
       </div>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pprofile.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pprofile.title")}</h1>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("pprofile.body")}
         </p>
       </div>
@@ -104,8 +104,8 @@ export default async function OwnProfilePage() {
 
       {diagnoses.filter((d) => d.status === "confirmed").length > 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("pprofile.diagnoses")}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          <p className="text-sm font-semibold text-navy-700">{t("pprofile.diagnoses")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
             {t("pprofile.diagnosesBody")}
           </p>
           <ul className="mt-3 space-y-3">
@@ -113,15 +113,15 @@ export default async function OwnProfilePage() {
               .filter((d) => d.status === "confirmed")
               .map((diagnosis) => (
                 <li key={diagnosis.id}>
-                  <p className="text-sm font-medium text-slate-900">
+                  <p className="text-sm font-medium text-navy-700">
                     {diagnosis.label}
                     {diagnosis.code ? (
-                      <span className="ms-1.5 font-mono text-xs text-slate-500">
+                      <span className="ms-1.5 font-mono text-xs text-navy-400">
                         {diagnosis.code}
                       </span>
                     ) : null}
                   </p>
-                  <blockquote className="mt-1 border-s-2 border-slate-200 ps-2.5 text-xs leading-relaxed text-slate-600">
+                  <blockquote className="mt-1 border-s-2 border-navy-100 ps-2.5 text-xs leading-relaxed text-navy-400">
                     “{diagnosis.sourceSentence}”
                   </blockquote>
                   <DiagnosisFlag diagnosisId={diagnosis.id} />

@@ -11,7 +11,8 @@ import {
   reconfirmBenefit,
   type BenefitState,
 } from "@/app/(patient)/patient/benefit/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -130,7 +131,7 @@ export function BenefitForm({
         <div className="space-y-2">
           {benefits.map((benefit) => (
             <Card key={benefit.enrolmentId} className="p-4">
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-navy-700">
                 {benefit.paused || benefit.held
                   ? t("benefit.paused")
                   : !benefit.verified
@@ -139,17 +140,17 @@ export function BenefitForm({
               </p>
 
               {benefit.paused ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                <p className="mt-1 text-sm leading-relaxed text-navy-400">
                   {t("benefit.pausedBody")}
                 </p>
               ) : benefit.held ? (
                 /* W2-S11: the organisation paused it; a code cannot restart it. */
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                <p className="mt-1 text-sm leading-relaxed text-navy-400">
                   {t("benefit.heldBody")}
                 </p>
               ) : benefit.verified && benefit.coverage ? (
                 /* 🔴 P17: what it pays, so the rest of a session is not a surprise. */
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                <p className="mt-1 text-sm leading-relaxed text-navy-400">
                   {t("benefit.covers", { percent: benefit.coverage })}
                 </p>
               ) : null}
@@ -163,8 +164,8 @@ export function BenefitForm({
                 stopped and who cannot restart it.
               */}
               {!benefit.verified || benefit.paused ? (
-                <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
-                  <p className="text-xs leading-relaxed text-slate-500">
+                <div className="mt-3 space-y-2 border-t border-navy-100 pt-3">
+                  <p className="text-xs leading-relaxed text-navy-400">
                     {benefit.paused && !sentTo[benefit.enrolmentId]
                       ? t("benefit.resendPrompt")
                       : t("benefit.codeSent")}
@@ -197,7 +198,7 @@ export function BenefitForm({
                         type="button"
                         disabled={pending || !again[benefit.enrolmentId]}
                         onClick={() => reconfirm(benefit.enrolmentId)}
-                        className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
+                        className="tap-target h-10 rounded-xl bg-navy-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
                       >
                         {benefit.kind !== "id_number" ? t("pfield.sendMeACode") : t("benefit.confirm")}
                       </button>
@@ -246,7 +247,7 @@ export function BenefitForm({
                     type="button"
                     disabled={pending}
                     onClick={() => pick(benefit.enrolmentId)}
-                    className="tap-target mt-2 h-10 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                    className="tap-target mt-2 h-10 rounded-xl bg-navy-50 px-3 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
                   >
                     {t("benefit.makePrimary")}
                   </button>
@@ -256,7 +257,7 @@ export function BenefitForm({
           ))}
 
           {benefits.length > 1 ? (
-            <p className="text-xs leading-relaxed text-slate-500">
+            <p className="text-xs leading-relaxed text-navy-400">
               {t("benefit.choosePrimaryBody")}
             </p>
           ) : null}
@@ -266,10 +267,10 @@ export function BenefitForm({
       {/* ------------------------------------------------- activating a new one -- */}
 
       <Card className="p-5">
-        <p className="text-base font-bold tracking-tight text-slate-900">
+        <p className="text-base font-bold tracking-tight text-navy-700">
           {t("benefit.title")}
         </p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("benefit.body")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("benefit.body")}</p>
 
         <div className="mt-4 space-y-4">
           <Field label={t("benefit.codeLabel")} htmlFor="benefit-code">
@@ -324,7 +325,7 @@ export function BenefitForm({
                 🔴 53.18b — the sentence somebody hesitating over this field
                 actually needs, beside the field rather than on a help page.
               */}
-              <p className="text-xs leading-relaxed text-slate-500">
+              <p className="text-xs leading-relaxed text-navy-400">
                 {t("benefit.identifierNeverShared")}
               </p>
 
@@ -342,7 +343,7 @@ export function BenefitForm({
               type="button"
               disabled={pending || !code}
               onClick={look}
-              className="tap-target h-12 w-full rounded-2xl bg-slate-900 text-sm font-semibold text-white disabled:opacity-50"
+              className="tap-target h-12 w-full rounded-2xl bg-navy-900 text-sm font-semibold text-white disabled:opacity-50"
             >
               {pending ? t("benefit.activating") : t("benefit.activate")}
             </button>
@@ -365,14 +366,14 @@ export function BenefitForm({
         nobody opens.
       */}
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("benefit.whatTheySee")}</p>
-        <ul className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("benefit.whatTheySee")}</p>
+        <ul className="mt-2 space-y-2 text-sm leading-relaxed text-navy-400">
           <li>{t("benefit.theySeeName")}</li>
           <li>{t("benefit.theyNeverSee")}</li>
           <li>{t("benefit.ifRemoved")}</li>
         </ul>
         {/* 🔴 C250 — somebody who enrolled yesterday will ask about last week. */}
-        <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
+        <p className="mt-3 border-t border-navy-100 pt-3 text-xs leading-relaxed text-navy-400">
           {t("benefit.startsNow")}
         </p>
       </Card>
@@ -406,7 +407,7 @@ export function AskAboutEmployer() {
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("benefit.notSure")}</p>
+      <p className="text-sm font-semibold text-navy-700">{t("benefit.notSure")}</p>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <Input
@@ -432,7 +433,7 @@ export function AskAboutEmployer() {
       </div>
 
       {answer ? (
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">{answer}</p>
+        <p className="mt-3 text-sm leading-relaxed text-navy-400">{answer}</p>
       ) : null}
     </Card>
   );

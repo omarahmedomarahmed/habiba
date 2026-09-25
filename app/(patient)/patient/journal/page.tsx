@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { PatientBack } from "@/components/patient/back";
 import { JournalWriter } from "@/components/patient/journal-writer";
 import { grantsForPerson } from "@/lib/data/grants";
@@ -53,12 +53,12 @@ export default async function JournalPage() {
     .map((grant) => fullName(grant.therapistFirstName, grant.therapistLastName, "A therapist"));
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <PatientBack />
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("journal.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("journal.title")}</h1>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("journal.body")}
         </p>
       </div>
@@ -67,9 +67,9 @@ export default async function JournalPage() {
         Who can read it, named. Not a promise that they do, and not a promise
         that anybody is reading now: a list of who has access, which is a fact.
       */}
-      <Card className="border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("journal.whoCanOpen")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+      <Card className="border-navy-100 bg-navy-50 p-4">
+        <p className="text-sm font-semibold text-navy-700">{t("journal.whoCanOpen")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {readers.length === 0
             ? t("journal.nobody")
             : t("journal.readers", { names: readers.join(listSeparator(locale)) })}
@@ -89,11 +89,11 @@ export default async function JournalPage() {
           {entries.map((entry) => (
             <li key={entry.id}>
               <Card className="p-4">
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-navy-400">
                   {formatDateTime(entry.createdAt, actor.timezone, locale)}
                   {entry.source === "dictated" ? ` · ${t("pjournal.spoken")}` : ""}
                 </p>
-                <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-navy-600">
                   {entry.body}
                 </p>
               </Card>

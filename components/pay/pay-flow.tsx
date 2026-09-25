@@ -6,7 +6,8 @@ import { useT } from "@/lib/i18n/client";
 import { Globe, Loader2, ShieldCheck } from "lucide-react";
 
 import { priceFor, startPayment, type Breakdown } from "@/app/pay/[token]/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
 
@@ -101,27 +102,27 @@ export function PayFlow({
   /** 19.4 — every figure on this screen, in the reader's language. */
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-5 px-5 pt-16 pb-10">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pay.title")}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">{t("pay.title")}</h1>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
           {therapistName ? `${t("pay.with", { name: therapistName })} ` : ""}
           {t("pay.notYet")}
         </p>
       </div>
 
-      <Card className="space-y-4 p-4">
+      <Card className="space-y-4 p-5">
         <Field label={t("pay.whereFrom")} htmlFor="country">
           <div className="relative">
             <Globe
-              className="pointer-events-none absolute inset-y-0 start-3 my-auto h-4 w-4 text-slate-500"
+              className="pointer-events-none absolute inset-y-0 start-3 my-auto h-4 w-4 text-navy-400"
               aria-hidden
             />
             <select
               id="country"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white ps-9 pe-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
+              className="h-12 w-full rounded-2xl border border-navy-100 bg-white ps-9 pe-3 text-navy-700 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
             >
               <option value="">{t("pay.chooseCountry")}</option>
               {countries.map((c) => (
@@ -131,55 +132,55 @@ export function PayFlow({
               ))}
             </select>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-navy-400">
             {t("pay.setsCurrency")}
           </p>
         </Field>
 
         {loading ? (
-          <p className="flex items-center gap-2 text-sm text-slate-500">
+          <p className="flex items-center gap-2 text-sm text-navy-400">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t("pay.working")}
           </p>
         ) : null}
 
         {breakdown ? (
-          <div className="rounded-2xl bg-slate-50 p-4">
+          <div className="rounded-2xl bg-navy-50 p-4">
             {/*
               Three lines with reasons. Never one number.
               H8: this region changes when the country changes, which is a
               user-initiated update rather than an announcement, so it carries
               no live region — the page has one and it belongs to errors.
             */}
-            <dl className="space-y-1.5 text-sm">
+            <dl className="space-y-2 text-[15px]">
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-600">{t("pay.session")}</dt>
-                <dd className="tabular-nums text-slate-900">
+                <dt className="text-navy-400">{t("pay.session")}</dt>
+                <dd className="tabular-nums text-navy-700">
                   <Money cents={breakdown.presentedGrossCents} currency={breakdown.currency} />
                 </dd>
               </div>
               {breakdown.vatCents > 0 ? (
                 <div className="flex justify-between gap-3">
-                  <dt className="text-slate-600">
+                  <dt className="text-navy-400">
                     VAT ({(breakdown.vatBps / 100).toFixed(breakdown.vatBps % 100 === 0 ? 0 : 1)}%)
-                    <span className="block text-xs text-slate-500">
+                    <span className="block text-xs text-navy-400">
                       {t("pay.vatTo", { country: breakdown.countryName })}
                     </span>
                   </dt>
-                  <dd className="tabular-nums text-slate-900">
+                  <dd className="tabular-nums text-navy-700">
                     <Money cents={breakdown.presentedVatCents} currency={breakdown.currency} />
                   </dd>
                 </div>
               ) : null}
-              <div className="flex justify-between gap-3 border-t border-slate-200 pt-1.5 font-semibold">
-                <dt className="text-slate-900">{t("pay.total")}</dt>
-                <dd className="tabular-nums text-slate-900">
+              <div className="flex items-baseline justify-between gap-3 border-t-2 border-navy-200 pt-2.5">
+                <dt className="text-[16px] font-bold text-navy-700">{t("pay.total")}</dt>
+                <dd className="text-[24px] font-bold tabular-nums text-navy-700">
                   <Money cents={breakdown.presentedTotalCents} currency={breakdown.currency} />
                 </dd>
               </div>
             </dl>
 
             {breakdown.currency !== "usd" ? (
-              <p className="mt-3 text-xs leading-relaxed text-slate-500">
+              <p className="mt-3 text-xs leading-relaxed text-navy-400">
                 {rich(t("pay.converted", {
                   amount: slot(0),
                   rate: (breakdown.rateMicro / 1_000_000).toFixed(2),
@@ -243,7 +244,7 @@ export function PayFlow({
           )}
         </Button>
 
-        <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
+        <p className="flex items-start gap-2 text-xs leading-relaxed text-navy-400">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" aria-hidden />
           {t("pay.stripeNote")}
         </p>

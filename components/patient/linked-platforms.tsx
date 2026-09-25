@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { Plug, PlugZap } from "lucide-react";
 
 import { unlinkPlatform } from "@/app/(patient)/patient/consent/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
@@ -52,8 +53,8 @@ export function LinkedPlatforms({
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <Plug className="h-4 w-4 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900">{t("plat.title")}</h2>
+        <Plug className="h-4 w-4 text-navy-400" />
+        <h2 className="text-sm font-semibold text-navy-700">{t("plat.title")}</h2>
       </div>
 
       {/*
@@ -79,17 +80,17 @@ export function LinkedPlatforms({
         <p className="mt-3 text-sm font-semibold text-red-700">{error}</p>
       ) : null}
 
-      <ul className="mt-3 divide-y divide-slate-100">
+      <ul className="mt-3 divide-y divide-navy-100">
         {links.map((link) => (
           <li
             key={link.subjectId}
             className="flex flex-wrap items-center justify-between gap-3 py-2.5"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-slate-900">
+              <p className="truncate text-sm font-medium text-navy-700">
                 {link.partnerName}
               </p>
-              <p className="text-xs text-slate-500">{t("plat.connected", { date: link.linkedLabel })}</p>
+              <p className="text-xs text-navy-400">{t("plat.connected", { date: link.linkedLabel })}</p>
             </div>
 
             <Button

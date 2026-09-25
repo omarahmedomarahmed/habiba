@@ -4,7 +4,7 @@ import Link from "next/link";
 import { InviteFlow } from "@/components/patient/invite-flow";
 import { resolveInvite } from "@/lib/data/claims";
 import { optionalPatient } from "@/lib/patient-auth/guard";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { getI18n } from "@/lib/i18n/server";
 
 /** W3: the tab title in the reader's language. A join or pay link is never indexed. */
@@ -42,16 +42,16 @@ export default async function InvitePage({
 
   if (!invite) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-8">
+      <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("pinvite.usedTitle")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="text-sm font-semibold text-navy-700">{t("pinvite.usedTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("pinvite.usedBody")}
           </p>
           {/* 🔴 W2-P16: a dead link was a dead end. Home, which signs in whoever is not. */}
           <Link
             href="/patient"
-            className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-700"
+            className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-navy-50 text-sm font-semibold text-navy-600"
           >
             {t("tab.home")}
           </Link>
@@ -62,9 +62,9 @@ export default async function InvitePage({
 
   if (!patient) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-8">
+      <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("pinvite.title")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("pinvite.title")}</p>
           {/*
             🔴 13.8 — the therapist's name, and nothing about the record.
             -------------------------------------------------------------
@@ -78,7 +78,7 @@ export default async function InvitePage({
             real patient already knows, and tells a stranger nothing they can
             act on.
           */}
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          <p className="mt-2 text-sm leading-relaxed text-navy-400">
             {t("pinvite.body", { name: invite.therapistName })}
           </p>
           {/*
@@ -92,7 +92,7 @@ export default async function InvitePage({
             does not need and a person in the middle of signing up can easily
             fail at.
           */}
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+          <p className="mt-3 text-sm leading-relaxed text-navy-400">
             {t("pinvite.signedOut")}
           </p>
           <div className="mt-4 space-y-2">
@@ -104,7 +104,7 @@ export default async function InvitePage({
             </Link>
             <Link
               href={`/patient/login?next=/patient/invite/${token}`}
-              className="flex h-11 w-full items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-700"
+              className="flex h-11 w-full items-center justify-center rounded-xl bg-navy-50 text-sm font-semibold text-navy-600"
             >
               {t("pinvite.signIn")}
             </Link>
@@ -115,7 +115,7 @@ export default async function InvitePage({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-8">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <InviteFlow token={token} redactedName={invite.redactedName} therapistName={invite.therapistName} />
     </main>
   );

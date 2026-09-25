@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Mail } from "lucide-react";
 
 import { exportMyRecord, type ExportState } from "@/app/(patient)/patient/record/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
@@ -28,8 +29,8 @@ export function ExportRecord({ email }: { email: string | null }) {
   if (!email) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("pexport.title")}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("pexport.title")}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-navy-400">
           {t("precord.copyBody")}
         </p>
         <Link
@@ -45,7 +46,7 @@ export function ExportRecord({ email }: { email: string | null }) {
 
   return (
     <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-900">{t("pexport.title")}</p>
+      <p className="text-sm font-semibold text-navy-700">{t("pexport.title")}</p>
 
       {/*
         🔴 65.5 / 65.23 — WHAT IS IN IT, AND WHAT IT IS NOT, IN ONE SHAPE.
@@ -71,7 +72,7 @@ export function ExportRecord({ email }: { email: string | null }) {
         />
       </div>
 
-      <p className="mt-3 text-sm leading-relaxed text-slate-600">
+      <p className="mt-3 text-sm leading-relaxed text-navy-400">
         {t("pexport.delivery", { email })}
       </p>
 

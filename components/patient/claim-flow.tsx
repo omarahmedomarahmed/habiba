@@ -6,7 +6,8 @@ import { Check, ShieldCheck } from "lucide-react";
 
 import { confirmClaim, declineClaim, sendClaimCode } from "@/app/(patient)/patient/claim/actions";
 import type { ClaimSuggestion } from "@/lib/data/claims";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { KeepsAccess } from "@/components/patient/keeps-access";
 import { useT } from "@/lib/i18n/client";
 
@@ -50,11 +51,11 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
   if (suggestions.length === 0 && step === "list") {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("pclaim.noneTitle")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("pclaim.noneTitle")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("pclaim.noneBody")}
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">
+        <p className="mt-3 text-sm leading-relaxed text-navy-400">
           {t("pclaim.noneAsk")}
         </p>
         <Link href="/patient" className="mt-4 block">
@@ -69,11 +70,11 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
   if (step === "done") {
     return (
       <Card className="p-5">
-        <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
           <Check className="h-4 w-4 text-brand-600" aria-hidden />
           {t("pclaim.doneTitle")}
         </p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {keepsAccess ? t("pclaim.doneKept") : t("pclaim.doneDropped")}
         </p>
         {/* W2-P16: the label says sessions, so the link goes there. */}
@@ -88,10 +89,10 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
     return (
       <Card className="space-y-4 p-5">
         <div>
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-navy-700">
             {sentBy?.channel === "whatsapp" ? t("pclaim.checkWhatsapp") : t("pclaim.checkEmail")}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-navy-400">
             {t("pclaim.codeSent")}
           </p>
           {sentBy?.fellBack ? (
@@ -149,7 +150,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
 
         <button
           type="button"
-          className="w-full text-center text-xs text-slate-500 hover:text-slate-800"
+          className="w-full text-center text-xs text-navy-400 hover:text-navy-700"
           onClick={() =>
             startTransition(async () => {
               if (claimId) await declineClaim(claimId);
@@ -168,7 +169,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
     <div className="space-y-3">
       {suggestions.map((s) => (
         <Card key={s.personId} className="p-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-navy-400">
             {s.matchedOn === "email" ? t("pclaim.matchedEmail") : t("pclaim.matchedPhone")}
           </p>
           {/*
@@ -176,10 +177,10 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
             because they have proved nothing yet: a full name would tell whoever
             typed an address exactly who it belongs to in our records.
           */}
-          <p className="mt-2 font-mono text-lg font-semibold tracking-wider text-slate-900">
+          <p className="mt-2 font-mono text-lg font-semibold tracking-wider text-navy-700">
             {s.redactedName}
           </p>
-          <p className="mt-2 text-xs text-slate-500">{t("pclaim.isThatYou")}</p>
+          <p className="mt-2 text-xs text-navy-400">{t("pclaim.isThatYou")}</p>
 
           {error ? (
             <p role="alert" aria-live="assertive" className="mt-2 text-sm text-red-600">
@@ -211,7 +212,7 @@ export function ClaimFlow({ suggestions }: { suggestions: ClaimSuggestion[] }) {
         </Card>
       ))}
 
-      <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-slate-500">
+      <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-navy-400">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" aria-hidden />
         {t("pclaim.initialsOnly")}
       </p>

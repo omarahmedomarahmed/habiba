@@ -51,7 +51,7 @@ export function EmailEditor({
     return (
       <form action={confirm} className="mt-3 space-y-3">
         <input type="hidden" name="email" value={sentTo} />
-        <p className="text-xs text-slate-600">{t("paccount.emailCodeSent", { email: sentTo })}</p>
+        <p className="text-xs text-navy-400">{t("paccount.emailCodeSent", { email: sentTo })}</p>
         <Field label={t("pfield.sixDigitCode")} htmlFor="email-code">
           <Input
             id="email-code"

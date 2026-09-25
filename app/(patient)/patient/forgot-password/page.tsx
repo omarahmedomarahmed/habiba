@@ -24,10 +24,10 @@ export default async function PatientForgotPasswordPage() {
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4 py-8">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-6 px-5 pt-16 pb-10">
       <PatientResetForm />
 
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-navy-400">
         {t("pauth.areYouTherapist")}{" "}
         <Link href="/forgot-password" className="font-semibold text-brand-700 hover:underline">
           {t("pauth.practiceReset")}

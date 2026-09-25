@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { ShieldQuestion } from "lucide-react";
 
 import { sayName, saySeen } from "@/app/(patient)/patient/claim/challenge-actions";
-import { Button, Card, Input } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import type { Challenge } from "@/lib/data/challenge";
 import { useT } from "@/lib/i18n/client";
 
@@ -46,8 +47,8 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
   if (!current) {
     return done.length > 0 ? (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("pclaim.everything")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("pclaim.everything")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {done.length === 1
             ? t("pclaim.yoursNow")
             : t("pclaim.manyYours", { count: done.length })}{" "}
@@ -59,17 +60,17 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
 
   return (
     <Card className="p-5">
-      <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <ShieldQuestion className="h-4 w-4 text-slate-500" aria-hidden />
+      <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+        <ShieldQuestion className="h-4 w-4 text-navy-400" aria-hidden />
         {challenges.length > 1 ? `Question ${index + 1} of ${challenges.length}` : t("pclaim.oneQuestion")}
       </p>
 
       {stage === "seen" ? (
         <>
-          <p className="mt-2 text-base leading-relaxed text-slate-800">
+          <p className="mt-2 text-base leading-relaxed text-navy-700">
             {t("pclaim.seenBefore", { name: current.therapistName })}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 text-xs leading-relaxed text-navy-400">
             {t("pclaim.seenBeforeBody")}
           </p>
 
@@ -97,7 +98,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
                   next();
                 })
               }
-              className="tap-target h-11 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
+              className="tap-target h-11 rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
             >
               {t("pclaim.noHaveNot")}
             </button>
@@ -105,10 +106,10 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
         </>
       ) : (
         <>
-          <p className="mt-2 text-base leading-relaxed text-slate-800">
+          <p className="mt-2 text-base leading-relaxed text-navy-700">
             {t("pclaim.whatName", { name: current.therapistName })}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 text-xs leading-relaxed text-navy-400">
             {t("pclaim.typeName")}
           </p>
 
@@ -142,7 +143,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
                 type="button"
                 disabled={pending}
                 onClick={next}
-                className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-slate-600"
+                className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-navy-400"
               >
                 {t("pclaim.skip")}
               </button>

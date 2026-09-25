@@ -8,7 +8,8 @@ import {
   finishNumberChange,
   type AccountState,
 } from "@/app/(patient)/patient/account/actions";
-import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Button, Field, Input, Textarea } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 const INITIAL: AccountState = {};
@@ -62,8 +63,8 @@ export function ChangeNumber({
   if (awaitingCode) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("pnumber.yours")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("pnumber.requestedBody")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("pnumber.yours")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("pnumber.requestedBody")}</p>
         <form action={finish} className="mt-3 space-y-3">
           <Field label={t("pfield.sixDigitCode")} htmlFor="number-code">
             <Input
@@ -101,15 +102,15 @@ export function ChangeNumber({
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("pnumber.yours")}</p>
-      <p className="mt-1 font-mono text-sm text-slate-700">{current ?? "-"}</p>
+      <p className="text-sm font-semibold text-navy-700">{t("pnumber.yours")}</p>
+      <p className="mt-1 font-mono text-sm text-navy-600">{current ?? "-"}</p>
 
-      <p className="mt-2 text-xs leading-relaxed text-slate-500">
+      <p className="mt-2 text-xs leading-relaxed text-navy-400">
         {t("pnumber.body")}
       </p>
 
       {lockedUntilLabel ? (
-        <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+        <p className="mt-3 rounded-xl bg-navy-50 p-3 text-sm text-navy-400">
           {t("pnumber.locked", { date: lockedUntilLabel })}
         </p>
       ) : (
@@ -120,7 +121,7 @@ export function ChangeNumber({
                 name="country"
                 aria-label={t("pnumber.country")}
                 defaultValue=""
-                className="h-12 w-32 rounded-xl border border-slate-200 bg-white px-2 text-sm"
+                className="h-12 w-32 rounded-xl border border-navy-100 bg-white px-2 text-sm"
               >
                 <option value="">{t("pnumber.country")}</option>
                 {countries.map((country) => (
@@ -137,7 +138,7 @@ export function ChangeNumber({
             <Textarea name="reason" rows={3} required minLength={10} />
           </Field>
 
-          <label className="flex items-start gap-2 text-sm text-slate-700">
+          <label className="flex items-start gap-2 text-sm text-navy-600">
             <input type="checkbox" name="consent" className="mt-1" required />
             {t("pnumber.mayCall")}
           </label>

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { dismiss } from "@/app/(patient)/patient/notices/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -68,7 +68,7 @@ export function PatientNotices({ notices }: { notices: NoticeView[] }) {
   if (notices.length === 0) {
     return (
       <Card className="p-5">
-        <p className="text-sm leading-relaxed text-slate-600">{t("pnotice.none")}</p>
+        <p className="text-sm leading-relaxed text-navy-400">{t("pnotice.none")}</p>
       </Card>
     );
   }
@@ -79,19 +79,19 @@ export function PatientNotices({ notices }: { notices: NoticeView[] }) {
         <div className="space-y-2">
           {current.map((notice) => (
             <Card key={notice.id} className="p-4">
-              <p className="text-sm leading-relaxed text-slate-900">{t(notice.messageKey)}</p>
+              <p className="text-sm leading-relaxed text-navy-700">{t(notice.messageKey)}</p>
               {notice.reason ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                <p className="mt-1 text-sm leading-relaxed text-navy-400">
                   {t("w1a.cancelReasonGiven", { reason: notice.reason })}
                 </p>
               ) : null}
               <div className="mt-2 flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-500">{notice.when}</span>
+                <span className="text-xs text-navy-400">{notice.when}</span>
                 <button
                   type="button"
                   disabled={pending}
                   onClick={() => hide(notice.id)}
-                  className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                  className="tap-target h-9 rounded-xl bg-navy-50 px-3 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
                 >
                   {t("pnotice.dismiss")}
                 </button>
@@ -101,27 +101,27 @@ export function PatientNotices({ notices }: { notices: NoticeView[] }) {
         </div>
       ) : (
         <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("pnotice.none")}</p>
+          <p className="text-sm leading-relaxed text-navy-400">{t("pnotice.none")}</p>
         </Card>
       )}
 
       {/* 🔴 Dismissed, not deleted, and said where the dismissing happens. */}
-      <p className="text-xs leading-relaxed text-slate-500">{t("pnotice.keptBody")}</p>
+      <p className="text-xs leading-relaxed text-navy-400">{t("pnotice.keptBody")}</p>
 
       {earlier.length > 0 ? (
         <div className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-navy-400">
             {t("pnotice.earlier")}
           </h2>
           {earlier.map((notice) => (
             <Card key={notice.id} className="p-4 opacity-70">
-              <p className="text-sm leading-relaxed text-slate-700">{t(notice.messageKey)}</p>
+              <p className="text-sm leading-relaxed text-navy-600">{t(notice.messageKey)}</p>
               {notice.reason ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                <p className="mt-1 text-sm leading-relaxed text-navy-400">
                   {t("w1a.cancelReasonGiven", { reason: notice.reason })}
                 </p>
               ) : null}
-              <p className="mt-2 text-xs text-slate-500">{notice.when}</p>
+              <p className="mt-2 text-xs text-navy-400">{notice.when}</p>
             </Card>
           ))}
         </div>

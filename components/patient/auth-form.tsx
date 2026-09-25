@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { patientSignIn, patientSignUp } from "@/lib/patient-auth/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { PhoneField } from "@/components/forms/phone-field";
 import { TimezoneField } from "@/components/forms/timezone-field";
 import { readerCountry } from "@/lib/phone/e164";
@@ -114,7 +115,7 @@ export function PatientAuthForm({
                   countryName="phoneCountry"
                   placeholder={t("pauth.phonePlaceholder")}
                 />
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                <p className="mt-1 text-xs leading-relaxed text-navy-400">
                   {t(invitePhone ? "pauth.invitePhoneNote" : "pauth.phoneNote")}
                 </p>
               </>

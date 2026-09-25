@@ -60,7 +60,7 @@ export async function SessionOrb({
          * SOS orb exactly as the payment orb does. Two orbs agreeing on one
          * number is how they stay agreeing.
          */
-        "fixed end-3 bottom-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full shadow-lg",
+        "fixed end-3 bottom-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full shadow-[0_10px_24px_-8px_rgba(10,35,66,0.45)] ring-4 ring-white/80",
         session.state === "owes" ? "bg-amber-400 text-navy-600" : "bg-brand-500 text-navy-600",
       )}
     >

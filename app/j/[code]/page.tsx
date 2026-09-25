@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { PatientAuthForm } from "@/components/patient/auth-form";
 import { ConnectCodeForm } from "@/components/patient/connect-code-form";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrbServer } from "@/components/patient/sos-orb-server";
@@ -49,23 +49,23 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-5 px-4 py-8">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-5 px-5 pt-16 pb-10">
       {scanned.state === "live" ? (
         <>
           <Card className="border-brand-200 bg-brand-50 p-4">
             <p className="text-xs font-semibold tracking-wide text-brand-800 uppercase">
               {t("pcode.youAreJoining")}
             </p>
-            <p className="mt-1 text-base font-bold tracking-tight text-slate-900">
+            <p className="mt-1 text-base font-bold tracking-tight text-navy-700">
               {scanned.therapistName}
               {scanned.credentials ? (
-                <span className="ms-1.5 text-sm font-medium text-slate-500">
+                <span className="ms-1.5 text-sm font-medium text-navy-400">
                   {scanned.credentials}
                 </span>
               ) : null}
             </p>
             {scanned.practiceName ? (
-              <p className="mt-0.5 text-sm text-slate-600">{scanned.practiceName}</p>
+              <p className="mt-0.5 text-sm text-navy-400">{scanned.practiceName}</p>
             ) : null}
           </Card>
 
@@ -80,15 +80,15 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
           ) : (
             <>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
                   {t("pcode.createAccount")}
                 </h1>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("pauth.signUpBody")}</p>
+                <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("pauth.signUpBody")}</p>
               </div>
 
               <PatientAuthForm mode="signup" wallCode={code} />
 
-              <p className="text-center text-sm text-slate-500">
+              <p className="text-center text-sm text-navy-400">
                 {t("nav.haveAccount")}{" "}
                 <Link
                   href={`/patient/login?next=${encodeURIComponent(`/j/${code}`)}`}
@@ -102,10 +102,10 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
         </>
       ) : (
         <Card className="p-5">
-          <h1 className="text-lg font-bold tracking-tight text-slate-900">
+          <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
             {scanned.state === "revoked" ? t("pcode.revoked") : t("pcode.unknown")}
           </h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+          <p className="mt-1.5 text-sm leading-relaxed text-navy-400">
             {scanned.state === "revoked" ? t("pcode.revokedBody") : t("pcode.unknownBody")}
           </p>
           <Link

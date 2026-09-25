@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { PatientBack } from "@/components/patient/back";
 import { TherapistCard } from "@/components/patient/therapist-card";
 import { categories, search } from "@/lib/data/discover";
@@ -43,14 +43,14 @@ export default async function BrowsePage({
   ]);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <PatientBack />
 
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("browse.title")}</h1>
+      <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("browse.title")}</h1>
 
       <form action="/patient/browse" className="relative">
         <Search
-          className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+          className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400"
           aria-hidden
         />
         <input
@@ -59,7 +59,7 @@ export default async function BrowsePage({
           defaultValue={query}
           placeholder={t("browse.placeholder")}
           aria-label={t("browse.searchAria")}
-          className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pe-4 ps-10 text-sm text-slate-900 outline-none focus:border-brand-400"
+          className="w-full rounded-2xl border border-navy-100 bg-white py-3.5 pe-4 ps-10 text-sm text-navy-700 outline-none focus:border-brand-400"
         />
       </form>
 
@@ -74,7 +74,7 @@ export default async function BrowsePage({
           </ul>
         ) : (
           <Card className="p-4">
-            <p className="text-sm leading-relaxed text-slate-600">
+            <p className="text-sm leading-relaxed text-navy-400">
               {t("browse.nothingMatched")}
             </p>
           </Card>
@@ -83,8 +83,8 @@ export default async function BrowsePage({
 
       {cats.length > 0 ? (
         <section>
-          <h2 className="text-sm font-semibold text-slate-900">{t("browse.areas")}</h2>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          <h2 className="text-[17px] font-bold text-navy-700">{t("browse.areas")}</h2>
+          <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
             {t("browse.areasBody")}
           </p>
           <ul className="mt-3 flex flex-wrap gap-2">
@@ -92,10 +92,10 @@ export default async function BrowsePage({
               <li key={category.code}>
                 <Link
                   href={`/patient/browse?q=${encodeURIComponent(category.code)}`}
-                  className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700"
+                  className="flex items-center gap-1.5 rounded-full border border-navy-100 bg-white px-3.5 py-2 text-sm font-medium text-navy-600"
                 >
                   {category.label}
-                  <span className="text-xs text-slate-500">{category.count}</span>
+                  <span className="text-xs text-navy-400">{category.count}</span>
                 </Link>
               </li>
             ))}
@@ -103,7 +103,7 @@ export default async function BrowsePage({
         </section>
       ) : (
         <Card className="p-4">
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-sm leading-relaxed text-navy-400">
             {t("browse.none")} {t("browse.noneBody")}
           </p>
         </Card>

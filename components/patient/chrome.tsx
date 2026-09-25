@@ -62,7 +62,7 @@ export async function PatientChrome({
   country?: string | null;
 }) {
   return (
-    <div className="min-h-dvh bg-slate-50">
+    <div className="min-h-dvh bg-navy-50">
       <div className={nav || liveSession ? "pb-24" : undefined}>{children}</div>
       {nav || liveSession ? <PatientBottomNav liveSession={liveSession} /> : null}
       {/*

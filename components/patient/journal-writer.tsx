@@ -5,7 +5,8 @@ import { useFormStatus } from "react-dom";
 import { Mic } from "lucide-react";
 
 import { addJournal } from "@/app/(patient)/patient/journal/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -91,7 +92,7 @@ export function JournalWriter() {
             setDictated(false);
           }}
           placeholder={t("pjournal.placeholder")}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-relaxed"
+          className="w-full rounded-xl border border-navy-100 px-3 py-2.5 text-sm leading-relaxed"
           required
         />
 
@@ -100,7 +101,7 @@ export function JournalWriter() {
             type="button"
             onClick={dictate}
             className={`tap-target mt-2 flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${
-              listening ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"
+              listening ? "bg-red-50 text-red-700" : "bg-navy-50 text-navy-600"
             }`}
           >
             <Mic className="h-3.5 w-3.5" aria-hidden />

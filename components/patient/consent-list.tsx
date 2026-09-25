@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { Clock, ShieldOff, UserCheck } from "lucide-react";
 
 import { answerRequest, revoke } from "@/app/(patient)/patient/consent/actions";
-import { Badge, Card } from "@/components/ui";
+import { Badge } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT, useLocale } from "@/lib/i18n/client";
 import { REJECTION_REASON_KEYS, REJECTION_REASONS } from "@/lib/access/state";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
@@ -64,10 +65,10 @@ export function ConsentList({
   return (
     <div className="space-y-4">
       <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">{t("consent.waiting")}</h2>
+        <h2 className="px-1 pb-2 text-sm font-semibold text-navy-700">{t("consent.waiting")}</h2>
         {requests.length === 0 ? (
           <Card className="px-4 py-5">
-            <p className="text-sm text-slate-500">{t("consent.nobodyAsked")}</p>
+            <p className="text-sm text-navy-400">{t("consent.nobodyAsked")}</p>
           </Card>
         ) : (
           <ul className="space-y-3">
@@ -79,10 +80,10 @@ export function ConsentList({
       </section>
 
       <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">{t("consent.whoHasAccess")}</h2>
+        <h2 className="px-1 pb-2 text-sm font-semibold text-navy-700">{t("consent.whoHasAccess")}</h2>
         {grants.length === 0 ? (
           <Card className="px-4 py-5">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-navy-400">
               {t("consent.nobodyCanRead")}
             </p>
           </Card>
@@ -128,26 +129,26 @@ function RequestRow({
   return (
     <li>
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{request.therapistName}</p>
+        <p className="text-sm font-semibold text-navy-700">{request.therapistName}</p>
         {request.requestedAt ? (
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-navy-400">
             Asked on {formatDate(request.requestedAt, zone, locale)}
           </p>
         ) : null}
 
         {request.requestNote ? (
-          <blockquote className="mt-2 border-s-2 border-slate-200 ps-3 text-sm leading-relaxed text-slate-600">
+          <blockquote className="mt-2 border-s-2 border-navy-100 ps-3 text-sm leading-relaxed text-navy-400">
             {request.requestNote}
           </blockquote>
         ) : null}
 
         {declining ? (
           <div className="mt-3 space-y-2">
-            <p className="text-xs font-medium text-slate-600">
+            <p className="text-xs font-medium text-navy-400">
               {t("consent.sayWhy")}
             </p>
             {REJECTION_REASONS.map((preset) => (
-              <label key={preset} className="flex items-start gap-2 text-sm text-slate-700">
+              <label key={preset} className="flex items-start gap-2 text-sm text-navy-600">
                 <input
                   type="radio"
                   name={`reason-${request.id}`}
@@ -164,14 +165,14 @@ function RequestRow({
                 type="button"
                 disabled={pending}
                 onClick={() => answer("rejected")}
-                className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                className="tap-target h-10 rounded-xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {pending ? t("common.working") : t("common.decline")}
               </button>
               <button
                 type="button"
                 onClick={() => setDeclining(false)}
-                className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600"
+                className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-navy-400"
               >
                 {t("common.back")}
               </button>
@@ -191,7 +192,7 @@ function RequestRow({
               type="button"
               disabled={pending}
               onClick={() => answer("granted", "open")}
-              className="tap-target h-10 rounded-xl bg-white px-4 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
+              className="tap-target h-10 rounded-xl bg-white px-4 text-sm font-semibold text-navy-600 ring-1 ring-navy-100 hover:bg-navy-50 disabled:opacity-50"
             >
               {t("consent.yesUntil")}
             </button>
@@ -199,7 +200,7 @@ function RequestRow({
               type="button"
               disabled={pending}
               onClick={() => setDeclining(true)}
-              className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-navy-400 hover:bg-navy-50"
             >
               {t("consent.no")}
             </button>
@@ -244,15 +245,15 @@ function GrantRow({
       <Card className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-navy-700">
               {live ? (
                 <UserCheck className="h-4 w-4 shrink-0 text-brand-500" aria-hidden />
               ) : (
-                <ShieldOff className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+                <ShieldOff className="h-4 w-4 shrink-0 text-navy-400" aria-hidden />
               )}
               {grant.therapistName}
             </p>
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-navy-400">
               {live && grant.expiresAt ? (
                 <>
                   <Clock className="h-3 w-3" aria-hidden />
@@ -287,7 +288,7 @@ function GrantRow({
                 if (result.error) setError(result.error);
               })
             }
-            className="tap-target mt-3 h-10 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-50"
+            className="tap-target mt-3 h-10 w-full rounded-xl bg-navy-50 text-sm font-semibold text-navy-700 hover:bg-navy-100 disabled:opacity-50"
           >
             {pending ? t("common.working") : t("consent.stop")}
           </button>

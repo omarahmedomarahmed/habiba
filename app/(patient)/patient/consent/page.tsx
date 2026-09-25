@@ -93,13 +93,13 @@ export default async function ConsentPage() {
     fullName(row.therapistFirstName, row.therapistLastName);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <div className="flex items-center gap-1">
         <PatientBack />
       </div>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
           {t("consent.pageTitle")}
         </h1>
       </div>

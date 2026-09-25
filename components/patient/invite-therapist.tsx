@@ -9,7 +9,8 @@ import {
   type InviteState,
   inviteMyTherapistNow,
 } from "@/app/(patient)/patient/consent/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { FlowStrip } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
@@ -52,7 +53,7 @@ export function InviteTherapist({
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("consent.newTherapist")}</p>
+      <p className="text-sm font-semibold text-navy-700">{t("consent.newTherapist")}</p>
 
       {/*
         🔴 65.5 / 65.22 — A SEQUENCE, SO IT IS NUMBERED.
@@ -81,13 +82,13 @@ export function InviteTherapist({
           {live.map((invite) => (
             <li
               key={invite.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3.5 py-3"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-navy-50 px-3.5 py-3"
             >
               <span>
-                <span className="block font-mono text-lg font-bold tracking-[0.2em] text-slate-900">
+                <span className="block font-mono text-lg font-bold tracking-[0.2em] text-navy-700">
                   {invite.code}
                 </span>
-                <span className="block text-xs text-slate-500">
+                <span className="block text-xs text-navy-400">
                   {/*
                     🔴 37R.25 — this said "Look for their request above" whether
                     or not a request was still there to look at, so a patient
@@ -111,7 +112,7 @@ export function InviteTherapist({
                       router.refresh();
                     })
                   }
-                  className="text-sm font-semibold text-slate-500"
+                  className="text-sm font-semibold text-navy-400"
                 >
                   {t("consent.cancelIt")}
                 </button>
@@ -139,10 +140,10 @@ export function InviteTherapist({
       ) : null}
 
       {quick.svg ? (
-        <div className="mt-3 rounded-xl bg-white p-3 text-center ring-1 ring-slate-200">
+        <div className="mt-3 rounded-xl bg-white p-3 text-center ring-1 ring-navy-100">
           <div className="mx-auto w-52" dangerouslySetInnerHTML={{ __html: quick.svg }} />
-          <p className="mt-2 font-mono text-lg font-bold tracking-[0.2em] text-slate-900">{quick.code}</p>
-          <p className="mt-1 text-xs text-slate-500">{t("consent.qrBody")}</p>
+          <p className="mt-2 font-mono text-lg font-bold tracking-[0.2em] text-navy-700">{quick.code}</p>
+          <p className="mt-1 text-xs text-navy-400">{t("consent.qrBody")}</p>
         </div>
       ) : null}
       {quick.error ? (

@@ -5,7 +5,8 @@ import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import { requestSignInCode, signInWithCode } from "@/lib/patient-auth/code-signin";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
@@ -50,8 +51,8 @@ export function CodeSignInForm({ next = null }: { next?: string | null }) {
     return (
       <Card className="space-y-4 p-5">
         <div>
-          <h2 className="text-base font-bold tracking-tight text-slate-900">{t("pcode.title")}</h2>
-          <p className="mt-1 text-sm leading-relaxed text-slate-500">
+          <h2 className="text-base font-bold tracking-tight text-navy-700">{t("pcode.title")}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("pcode.body")} {t("pcode.expires")}
           </p>
         </div>
@@ -96,10 +97,10 @@ export function CodeSignInForm({ next = null }: { next?: string | null }) {
   return (
     <Card className="space-y-4 p-5">
       <div>
-        <h2 className="text-base font-bold tracking-tight text-slate-900">
+        <h2 className="text-base font-bold tracking-tight text-navy-700">
           {t("pcode.useCode")}
         </h2>
-        <p className="mt-1 text-sm leading-relaxed text-slate-500">
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("pcode.useCodeBody")}
         </p>
       </div>

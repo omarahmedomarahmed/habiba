@@ -8,7 +8,7 @@ import {
   moveMyBooking,
   type ChangeState,
 } from "@/app/(patient)/patient/sessions/[id]/change/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -36,13 +36,13 @@ export function BookingChange({
   if (state.done) {
     return (
       <Card className="p-4" role="status">
-        <p className="text-sm font-semibold text-slate-900">
+        <p className="text-sm font-semibold text-navy-700">
           {state.done === "moved" ? t("pchange.moved") : t("pchange.cancelled")}
         </p>
-        {state.refund === "refunded" ? <p className="mt-1 text-sm text-slate-600">{t("pchange.refunded")}</p> : null}
-        {state.refund === "queued" ? <p className="mt-1 text-sm text-slate-600">{t("pchange.refundQueued")}</p> : null}
+        {state.refund === "refunded" ? <p className="mt-1 text-sm text-navy-400">{t("pchange.refunded")}</p> : null}
+        {state.refund === "queued" ? <p className="mt-1 text-sm text-navy-400">{t("pchange.refundQueued")}</p> : null}
         {state.refund === "held" ? (
-          <p className="mt-1 text-sm text-slate-600">{t("pchange.held", { hours: windowHours })}</p>
+          <p className="mt-1 text-sm text-navy-400">{t("pchange.held", { hours: windowHours })}</p>
         ) : null}
         <Link href="/patient/sessions" className="mt-3 inline-flex text-sm font-semibold text-brand-700">
           {t("psessions.title")}
@@ -54,18 +54,18 @@ export function BookingChange({
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("pchange.move")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("pchange.move")}</p>
         {!canMove ? (
-          <p className="mt-1 text-sm text-slate-600">{t("pchange.moveClosed")}</p>
+          <p className="mt-1 text-sm text-navy-400">{t("pchange.moveClosed")}</p>
         ) : slots.length === 0 ? (
-          <p className="mt-1 text-sm text-slate-600">{t("pchange.moveNone")}</p>
+          <p className="mt-1 text-sm text-navy-400">{t("pchange.moveNone")}</p>
         ) : (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <select
               value={slot}
               onChange={(event) => setSlot(event.target.value)}
               aria-label={t("pchange.move")}
-              className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 px-2 text-sm"
+              className="h-11 min-w-0 flex-1 rounded-xl border border-navy-100 px-2 text-sm"
             >
               {slots.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -96,7 +96,7 @@ export function BookingChange({
           </button>
         ) : (
           <div>
-            <p className="text-sm font-semibold text-slate-900">{t("pchange.cancelSure")}</p>
+            <p className="text-sm font-semibold text-navy-700">{t("pchange.cancelSure")}</p>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
@@ -109,7 +109,7 @@ export function BookingChange({
               <button
                 type="button"
                 onClick={() => setSure(false)}
-                className="h-11 rounded-xl px-4 text-sm font-semibold text-slate-600"
+                className="h-11 rounded-xl px-4 text-sm font-semibold text-navy-400"
               >
                 {t("pchange.keep")}
               </button>

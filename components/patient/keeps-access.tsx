@@ -35,15 +35,15 @@ export function KeepsAccess({
   const t = useT();
 
   return (
-    <div className="rounded-2xl border border-slate-200 p-4">
+    <div className="rounded-2xl border border-navy-100 p-4">
       <label className="flex cursor-pointer items-start gap-3">
         <input
           type="checkbox"
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
+          className="mt-0.5 h-4 w-4 rounded border-navy-200 text-brand-700 focus:ring-brand-600"
         />
-        <span className="min-w-0 text-sm font-medium text-slate-800">{label}</span>
+        <span className="min-w-0 text-sm font-medium text-navy-700">{label}</span>
       </label>
 
       <div className="mt-3">
@@ -55,7 +55,7 @@ export function KeepsAccess({
         />
       </div>
 
-      <p className="mt-2 text-xs text-slate-500">{t("pkeep.change")}</p>
+      <p className="mt-2 text-xs text-navy-400">{t("pkeep.change")}</p>
     </div>
   );
 }

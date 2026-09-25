@@ -49,7 +49,7 @@ export default async function PatientMessagesPage() {
       </div>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
           {t("checkin.settingsTitle")}
         </h1>
       </div>
@@ -77,7 +77,7 @@ export default async function PatientMessagesPage() {
         mutedOn={mutedAt ? formatDate(mutedAt, "UTC", locale) : null}
       />
 
-      <p className="text-sm leading-relaxed text-slate-600">{t("checkin.howToStopHere")}</p>
+      <p className="text-sm leading-relaxed text-navy-400">{t("checkin.howToStopHere")}</p>
     </div>
   );
 }

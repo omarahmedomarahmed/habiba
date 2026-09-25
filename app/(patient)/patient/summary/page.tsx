@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { PatientBack } from "@/components/patient/back";
 import { summariesForPerson } from "@/lib/data/summaries";
 import { getI18n } from "@/lib/i18n/server";
@@ -41,20 +41,20 @@ export default async function PatientSummaryPage() {
   const versions = await summariesForPerson(actor.personId);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <PatientBack />
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("psummary.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("psummary.title")}</h1>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("psummary.body")}
         </p>
       </div>
 
       {versions.length === 0 ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("psummary.none")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="text-sm font-semibold text-navy-700">{t("psummary.none")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("psummary.noneBody")}
           </p>
         </Card>
@@ -64,15 +64,15 @@ export default async function PatientSummaryPage() {
             <li key={version.id}>
               <Card className="p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-navy-700">
                     {version.approvedByName}
                     {version.approvedByCredentials ? (
-                      <span className="ms-1.5 text-xs font-medium text-slate-500">
+                      <span className="ms-1.5 text-xs font-medium text-navy-400">
                         {version.approvedByCredentials}
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-navy-400">
                     {t("psummary.version", {
                       n: version.version,
                       date: formatDate(version.approvedAt, actor.timezone, locale),
@@ -80,12 +80,12 @@ export default async function PatientSummaryPage() {
                   </p>
                 </div>
 
-                <p className="mt-2.5 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                <p className="mt-2.5 text-sm leading-relaxed whitespace-pre-wrap text-navy-600">
                   {version.body}
                 </p>
 
                 {version.approvedByLicenseBody ? (
-                  <p className="mt-3 text-xs text-slate-500">
+                  <p className="mt-3 text-xs text-navy-400">
                     {version.approvedByLicenseBody}
                     {version.approvedByLicenseNumber ? ` ${version.approvedByLicenseNumber}` : ""}
                   </p>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { Money } from "@/components/ui/money";
 import { BeforeAfter } from "@/components/visual/primitives";
 import { dbFor} from "@/lib/db";
@@ -143,17 +143,17 @@ export default async function PatientBillingPage() {
   );
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pbilling.title")}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pbilling.title")}</h1>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
           {t("pbilling.body")}
         </p>
       </div>
 
       {creditCents > 0 ? (
         <Card className="border-brand-200 bg-brand-50 p-4">
-          <p className="text-sm font-semibold text-brand-900">
+          <p className="text-[17px] font-bold text-brand-900">
             <Money cents={creditCents} /> {t("pbill.inCredit")}
           </p>
           {/* 🔴 0169 / ruling 7: the wallet is spent now, after any benefit and before anything asked of them. */}
@@ -165,23 +165,23 @@ export default async function PatientBillingPage() {
 
       {open.length > 0 ? (
         <section>
-          <h2 className="text-sm font-semibold text-slate-900">{t("pbilling.open")}</h2>
+          <h2 className="text-[17px] font-bold text-navy-700">{t("pbilling.open")}</h2>
           <ul className="mt-2 space-y-2">
             {open.map((row) => (
               <li key={row.sessionId}>
-                <Card className="p-3.5">
+                <Card className="p-4 ring-2 ring-amber-400">
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-900">{row.therapistName}</p>
-                    <p className="text-sm font-semibold tabular-nums text-slate-900">
+                    <p className="text-[15px] font-bold text-navy-700">{row.therapistName}</p>
+                    <p className="text-[20px] font-bold tabular-nums text-navy-700">
                       <Money cents={row.owed} />
                     </p>
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-navy-400">
                     {formatDate(row.at, actor.timezone, locale)}
                   </p>
                   <Link
                     href={row.door!.href}
-                    className="mt-3 inline-flex h-10 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+                    className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-2xl bg-amber-400 px-4 text-[15px] font-semibold text-navy-700 hover:bg-amber-300"
                   >
                     {row.door!.kind === "checking" ? t("transfer.checking") : t("porb.pay")}
                   </Link>
@@ -194,26 +194,26 @@ export default async function PatientBillingPage() {
 
       {paid.length === 0 && open.length === 0 ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("pbilling.none")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="text-sm font-semibold text-navy-700">{t("pbilling.none")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("pbilling.noneBody")}
           </p>
         </Card>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-2.5">
           {paid.map((row) => (
             <li key={row.sessionId}>
-              <Card className="p-3.5">
+              <Card className="p-4">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-[15px] font-bold text-navy-700">
                     {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
                     {row.status === "refunded" ? (
-                      <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                      <span className="ms-2 rounded-full bg-navy-50 px-2 py-0.5 text-xs font-medium text-navy-400">
                         {t("pbilling.refunded")}
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-sm font-semibold tabular-nums text-slate-900">
+                  <p className="text-[17px] font-bold tabular-nums text-navy-700">
                     {/*
                       🔴 "Covered" only when the company paid all of it. A
                       half-covered session showed "Covered" while the patient
@@ -228,7 +228,7 @@ export default async function PatientBillingPage() {
                         : <Money cents={(row.gross ?? 0) + (row.vat ?? 0)} currency={row.currency ?? "usd"} />}
                   </p>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-navy-400">
                   {formatDate(row.at, actor.timezone, locale)}
                   {/* 🔴 P3: in the reader's language, like every other line on this page. */}
                   {row.presented !== null && row.rateMicro
@@ -249,11 +249,11 @@ export default async function PatientBillingPage() {
                   the kind of thing somebody reads as a bill they owe.
                 */}
                 {row.fundingSource === "pot" ? (
-                  <p className="mt-2 border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-500">
+                  <p className="mt-3 rounded-2xl bg-navy-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-navy-500">
                     {t("pbilling.coveredBody")}
                   </p>
                 ) : (
-                <dl className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs">
+                <dl className="mt-3 space-y-1.5 rounded-2xl bg-navy-50 px-3.5 py-2.5 text-[13px]">
                   <Row label={t("pbill.therapistFee")}>
                     <Money cents={row.gross ?? 0} currency={row.currency ?? "usd"} />
                   </Row>
@@ -270,7 +270,7 @@ export default async function PatientBillingPage() {
                 {row.fundingSource !== "pot" || (row.patientShare ?? 0) > 0 ? (
                   <Link
                     href={`/patient/billing/receipt/${row.paymentId}`}
-                    className="mt-2 inline-flex text-xs font-semibold text-brand-700 hover:underline"
+                    className="mt-3 inline-flex text-[14px] font-semibold text-brand-700 hover:underline"
                   >
                     {t("preceipt.open")}
                   </Link>
@@ -301,8 +301,8 @@ export default async function PatientBillingPage() {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="tabular-nums text-slate-700">{children}</dd>
+      <dt className="text-navy-400">{label}</dt>
+      <dd className="tabular-nums text-navy-600">{children}</dd>
     </div>
   );
 }

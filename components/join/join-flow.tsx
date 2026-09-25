@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { CreditCard, Loader2, ShieldCheck, Star } from "lucide-react";
+import { CalendarClock, CheckCircle2, CreditCard, Loader2, Mic, ShieldCheck, Star } from "lucide-react";
 
 import {
   answerConsent,
@@ -12,7 +12,8 @@ import {
   submitJoin,
   type JoinState,
 } from "@/app/join/[token]/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
 import type { ClockStage } from "@/lib/session-clock";
@@ -245,8 +246,11 @@ export function JoinFlow({
      */
     return (
       <Card className="p-6 text-center">
-        <p className="text-base font-semibold text-slate-900">{t("room.ended")}</p>
-        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
+        <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-navy-700">
+          <CheckCircle2 className="h-6 w-6" aria-hidden />
+        </span>
+        <p className="text-[21px] font-bold text-navy-700">{t("room.ended")}</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-navy-400">
           {t("room.endedBody")}
         </p>
         <a
@@ -262,12 +266,15 @@ export function JoinFlow({
   if (notYet && booking) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-base font-semibold text-slate-900">
+        <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy-600 text-brand-300">
+          <CalendarClock className="h-6 w-6" aria-hidden />
+        </span>
+        <p className="text-[21px] leading-snug font-bold text-navy-700">
           {opening === "soon"
             ? t("join.startingSoon", { time: booking.label })
             : t("join.bookedFor", { time: booking.label })}
         </p>
-        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
+        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-navy-400">
           {t("join.opensBefore", { minutes: booking.rule.joinEarlyMinutes })}
         </p>
         {/* Paying is not joining, so a price owed can be settled ahead. */}
@@ -291,8 +298,8 @@ export function JoinFlow({
     return (
       <Card className="p-6 text-center">
         <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-700" aria-hidden />
-        <p className="mt-3 text-base font-semibold text-slate-900">{t("join.paymentReceived")}</p>
-        <p className="mt-1.5 text-sm text-slate-600">{t("join.takingYouIn")}</p>
+        <p className="mt-3 text-[19px] font-bold text-navy-700">{t("join.paymentReceived")}</p>
+        <p className="mt-1.5 text-sm text-navy-400">{t("join.takingYouIn")}</p>
       </Card>
     );
   }
@@ -329,14 +336,14 @@ export function JoinFlow({
   return (
     <form action={action} className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("join.title")}</h1>
+        <h1 className="text-[28px] leading-tight font-bold tracking-tight text-navy-700">{t("join.title")}</h1>
         {/*
           B54: "No account needed. Just tell us what to call you." sat over
           "Joining as Salma." for a signed-in patient. With a name already known,
           only the step that is left is said.
         */}
         {knownName && !owes ? null : (
-          <p className="mt-1.5 text-sm text-slate-600">
+          <p className="mt-1.5 text-sm text-navy-400">
             {knownName
               ? t("join.subtitleKnownPaid")
               : owes
@@ -347,15 +354,15 @@ export function JoinFlow({
       </div>
 
       {owes ? (
-        <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3.5 text-white">
-          <span className="text-sm text-white/70">{t("join.thisSession")}</span>
-          <span className="text-2xl font-bold tracking-tight"><Money cents={priceCents} /></span>
+        <div className="flex items-baseline justify-between rounded-3xl bg-navy-900 px-5 py-4 text-white">
+          <span className="text-[15px] text-white/75">{t("join.thisSession")}</span>
+          <span className="text-[26px] font-bold tracking-tight"><Money cents={priceCents} /></span>
         </div>
       ) : null}
       {owes ? benefitNote : null}
 
       {cancelled ? (
-        <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
+        <p className="rounded-xl bg-navy-50 px-3.5 py-2.5 text-sm text-navy-400">
           {t("join.payCancelled")}
         </p>
       ) : null}
@@ -379,7 +386,7 @@ export function JoinFlow({
       {knownName ? (
         <>
           <input type="hidden" name="name" value={knownName} />
-          <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">
+          <p className="rounded-2xl bg-white px-4 py-3 text-[15px] font-semibold text-navy-600 ring-1 ring-navy-100">
             {t("join.joiningAs", { name: knownName })}
           </p>
         </>
@@ -418,7 +425,7 @@ export function JoinFlow({
       */}
       <Submit priceCents={owes ? priceCents : 0} early={opening === "early"} />
 
-      <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
+      <p className="flex items-start gap-2 rounded-2xl bg-white px-4 py-3 text-xs leading-relaxed text-navy-500 ring-1 ring-navy-100">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         {owes ? t("join.privateNotePaid") : t("join.privateNote")}
       </p>
@@ -485,8 +492,11 @@ function ConsentGate({
 
   return (
     <Card className="p-5">
-      <p className="text-lg font-bold tracking-tight text-slate-900">{t("consent.gate.title")}</p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-500">
+      <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy-600 text-brand-300">
+        <Mic className="h-6 w-6" aria-hidden />
+      </span>
+      <p className="text-[21px] leading-snug font-bold tracking-tight text-navy-700">{t("consent.gate.title")}</p>
+      <p className="mt-1.5 text-[15px] leading-relaxed text-navy-500">
         {t("consent.gate.body")}
       </p>
 
@@ -525,8 +535,8 @@ function ConsentStep() {
   const [choice, setChoice] = useState<"granted" | "declined" | null>(null);
 
   return (
-    <fieldset className="rounded-2xl border border-slate-200 p-4">
-      <legend className="px-1.5 text-sm font-semibold text-slate-900">
+    <fieldset className="rounded-2xl bg-navy-50 p-4">
+      <legend className="px-1.5 text-sm font-semibold text-navy-700">
         {t("consent.question")}
       </legend>
 
@@ -539,22 +549,22 @@ function ConsentStep() {
         price is one that looks like a condition of service. It is one line and
         it is what the ordering ruling was reaching for.
       */}
-      <p className="mt-1.5 px-1.5 text-xs leading-relaxed font-medium text-slate-700">
+      <p className="mt-1.5 px-1.5 text-xs leading-relaxed font-medium text-navy-600">
         {t("consent.noCost")}
       </p>
 
       <ul className="mt-1 space-y-1.5">
         {(["consent.point.notes", "consent.point.private", "consent.point.changeMind"] as const).map(
           (key) => (
-            <li key={key} className="flex gap-2 text-xs leading-relaxed text-slate-600">
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" aria-hidden />
+            <li key={key} className="flex gap-2 text-xs leading-relaxed text-navy-400">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-navy-300" aria-hidden />
               {t(key)}
             </li>
           ),
         )}
       </ul>
 
-      <p className="mt-2.5 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
+      <p className="mt-2.5 rounded-xl bg-white px-3 py-2 text-xs leading-relaxed text-navy-500">
         {t("consent.refusal")}
       </p>
 
@@ -568,10 +578,10 @@ function ConsentStep() {
           <label
             key={value}
             className={cn(
-              "flex cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm font-medium transition-colors",
+              "flex h-14 cursor-pointer items-center gap-2.5 rounded-2xl border bg-white px-4 text-[15px] font-semibold transition-colors",
               choice === value
                 ? "border-brand-500 bg-brand-50 text-brand-900"
-                : "border-slate-200 text-slate-700 hover:bg-slate-50",
+                : "border-navy-100 text-navy-600 hover:bg-navy-50",
             )}
           >
             <input
@@ -581,7 +591,7 @@ function ConsentStep() {
               required
               checked={choice === value}
               onChange={() => setChoice(value)}
-              className="h-4 w-4 border-slate-300 text-brand-600 focus:ring-brand-500"
+              className="h-4 w-4 border-navy-200 text-brand-600 focus:ring-brand-500"
             />
             {label}
           </label>
