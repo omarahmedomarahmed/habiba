@@ -26,6 +26,7 @@ import {
   sessionFeedback,
   sessions,
   therapistVerifications,
+  transcriptSegments,
   users,
 } from "../lib/db/schema";
 import { stripComments } from "./_dashes";
@@ -332,6 +333,46 @@ async function main() {
       "…and the message carries the link to the switch that does stop them",
       /link: \{ label: t\("checkin\.stopLink"\), url: `\$\{env\.appUrl\}\/patient\/messages` \}/.test(sendSource),
     );
+
+    /* ------------------------------ K11 · no distinct chunk is ever dropped */
+
+    const { appendTranscriptSegment } = await import("../lib/data/transcript");
+    const chunk = (chunkId: string, words: string) =>
+      appendTranscriptSegment({
+        sessionId: before,
+        organizationId: f!.orgId,
+        therapistId: f!.t1,
+        patientId: f!.t1p,
+        chunkId,
+        speaker: "therapist",
+        text: words,
+        startMs: 0,
+        endMs: 8000,
+      });
+    /*
+     * The shape that used to lose words: a rejoin or a second tab sends a NEW
+     * chunk whose client number collides with a stored one, and three chunks
+     * from two recorders arrive at once.
+     */
+    await chunk("room-tab-one-0001", "First chunk from the first tab.");
+    const raced = await Promise.all([
+      chunk("room-tab-two-0001", "Same number, second tab."),
+      chunk("room-tab-two-0002", "Another from the second tab."),
+      chunk("room-tab-one-0002", "And the first tab carries on."),
+    ]);
+    const retry = await chunk("room-tab-one-0001", "First chunk from the first tab.");
+    const stored = await db
+      .select({ sequence: transcriptSegments.sequence, text: transcriptSegments.text })
+      .from(transcriptSegments)
+      .where(eq(transcriptSegments.sessionId, before));
+    check(
+      "🔴 K11 four distinct chunks, three of them racing, are ALL kept with distinct numbers",
+      raced.every((r) => r.inserted) &&
+        stored.length === 4 &&
+        new Set(stored.map((row) => row.sequence)).size === 4,
+      `${stored.length} stored: ${stored.map((row) => row.sequence).sort().join(", ")}`,
+    );
+    check("K11 CONTROL: a retried chunk (same id) is still a no-op", retry.inserted === false);
 
     /* ----------------------------------------- K9 · the arrival rating */
 

@@ -173,12 +173,13 @@ export function SessionRoom(props: RoomProps) {
   liveRef.current = live;
 
   /**
-   * One sequence counter shared by both recorders.
+   * One counter shared by both recorders, for TIMING only.
    *
-   * `(session_id, sequence)` is unique in the database — it is what makes a
-   * retried chunk a no-op instead of a duplicate. Two recorders each keeping
-   * their own count would collide on every single chunk, so the number is
-   * assigned here, once, at upload time.
+   * 🔴 K11 — it is no longer what identifies a chunk. It started at the count
+   * of lines loaded, so after a rejoin or in a second tab two chunks carried
+   * the same number and the server dropped the second as a retry. Each upload
+   * now carries its own random id (`chunk`) and the server assigns the stored
+   * sequence; this number only places the chunk on the session's clock.
    */
   const sequence = useRef(props.initialLines.length);
 
@@ -191,6 +192,7 @@ export function SessionRoom(props: RoomProps) {
       const form = new FormData();
       form.append("audio", blob, `chunk-${seq}.wav`);
       form.append("sequence", String(seq));
+      form.append("chunk", crypto.randomUUID());
       form.append("duration", String(durationSeconds));
       form.append("speaker", speaker);
 

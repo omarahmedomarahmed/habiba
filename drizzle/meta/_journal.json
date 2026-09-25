@@ -1121,6 +1121,13 @@
       "when": 1789966055000,
       "tag": "0169_the_wallet_is_spent",
       "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1789966063000,
+      "tag": "0173_the_patient_hears_back",
+      "breakpoints": true
     }
   ]
 }

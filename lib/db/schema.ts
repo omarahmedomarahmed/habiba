@@ -1152,11 +1152,25 @@ export const transcriptSegments = pgTable(
     /** Silence between the previous segment ending and this one starting. */
     pauseBeforeMs: integer("pause_before_ms"),
 
+    /**
+     * 🔴 0173 (K11): the recorder's own id for the chunk this came from.
+     *
+     * `sequence` is assigned by the server now. The room used to number chunks
+     * from the count of lines it loaded, so after a rejoin or in a second tab
+     * two different chunks carried the same number and the second was dropped
+     * as a retry. A retry is recognised by this id instead; the ingest bot's
+     * rows carry `seq:N`, its own number, as before.
+     */
+    chunkId: text("chunk_id"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     // The client retries chunks; the same sequence must never land twice.
     uniqueIndex("transcript_segments_session_seq_unique").on(t.sessionId, t.sequence),
+    uniqueIndex("transcript_segments_session_chunk_unique")
+      .on(t.sessionId, t.chunkId)
+      .where(sql`chunk_id IS NOT NULL`),
     index("transcript_segments_session_idx").on(t.sessionId, t.sequence),
   ],
 );
@@ -4509,8 +4523,13 @@ export const patientAuthTokens = pgTable(
     patientAccountId: uuid("patient_account_id")
       .notNull()
       .references(() => patientAccounts.id, { onDelete: "cascade" }),
+    /**
+     * 🔴 0173 (K19): one purpose per kind of code. `sign_in` and `email_add`
+     * shared `handle_verify` with the claim's handle code, and each reads the
+     * newest live row of its purpose, so asking for one cancelled the other.
+     */
     purpose: text("purpose")
-      .$type<"password_reset" | "handle_verify">()
+      .$type<"password_reset" | "handle_verify" | "sign_in" | "email_add">()
       .notNull()
       .default("password_reset"),
     /** SHA-256 of the code or link token. The raw value is never stored. */
@@ -7896,6 +7915,11 @@ export const PATIENT_NOTICE_KINDS = [
   "session_rescheduled",
   /** 🔴 0168: a message no channel could carry (an unapproved WhatsApp template, no email). */
   "message_fallback",
+  /** 🔴 0173 (K10): a transfer claim reached us, told to a signed-in payer's app too. */
+  "payment_submitted",
+  /** 🔴 0173 (K18): a clinician set a step, or sent a questionnaire. */
+  "homework_set",
+  "assessment_sent",
 ] as const;
 export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
 
