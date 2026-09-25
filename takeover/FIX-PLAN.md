@@ -224,3 +224,78 @@ Updated as each item lands: `open`, `confirmed`, `fixed <commit>`, `not a defect
 | W2-A01 to A11 | fixed a264fb7e to 49194b93 (0140 to 0142) |
 | S1 found in Wave 2 | ac4e4e02, 3d3c1ed3: the patient's email and rating page never carry the clinician's summary |
 | Earnings | bd402d6e: a sent payout no longer subtracted twice from "available" |
+| **Wave 3** | Commits 365d4b72 (copy), c74ff0b3 (built), 17717fb4 (both languages), a82882b1 (not-found), d5b3f8b2 (second pass). Rows below walk `takeover/inventory/*.md` section 4 in order |
+| W3-P01 P1 three taps, `auth.patient.p1`, `crisis.noAccountLine`, home card | copy corrected 365d4b72: a paid session is paid first (ruling 5b); value statement P1 rewritten |
+| W3-P02 P2 nothing only in email | built c74ff0b3: booking, new grant and history answer write an in-app notice (existing kinds, no migration); `room.endedBody` already "Rating is optional." |
+| W3-P03 P3 signer on the summary | built c74ff0b3: session card and rating page name the signer with credentials |
+| W3-P04 P5 SOS reach and dial | fixed 6eb07d9c (W1-09) |
+| W3-P05 E5 who to ask | fixed 51471c65 (W2-P15) |
+| W3-P06 T4 "Joining as" | fixed 78445cfe (W2-P04) |
+| W3-P07 FP own screens after claiming | fixed 78445cfe (W2-P04) |
+| W3-P08 FP record emailed, `paccount.addEmailBody` | fixed fb5a9208 (W2-P03) |
+| W3-P09 FP reminder link | fixed b7f7f2e6 (W2-P05) |
+| W3-P10 FP five minutes, someone else or money back | fixed 6da0f57f (W2-P11) |
+| W3-P11 FP stop recording vs `jconsent.cannotUndo` | not a defect now: the key was removed in fb5a9208 |
+| W3-P12 FP price in both currencies; home "price with the tax on it" | not a defect now: neither sentence is in the source copy; CMS "VAT shown" rows corrected 365d4b72 (ruling 2) |
+| W3-P13 `pbook.noAccount`, `join.privateNotePaid` "Stripe" | `pbook.noAccount` already "No account needed."; `join.privateNotePaid` and `pay.stripeNote` corrected 365d4b72 (ruling 17) |
+| W3-P14 `auth.patient.p3` same therapist next week | built c74ff0b3: "Book again" on every past session |
+| W3-P15 `paccount.billingBody` | fixed b759bb17 (W2-P14) |
+| W3-P16 `pnumber.requestedBody` | fixed 75fce9fa (W2-P07) |
+| W3-P17 `benefit.resendPrompt` | fixed 5de21b51 (W2-P08) |
+| W3-P18 `pinvite.signedOut` | fixed 086a1cd9 (W2-P02) |
+| W3-P19 `pprofile.empty`, `paccount.ownDocumentsBody` upload | copy corrected 365d4b72; patient upload stays Wave 4 |
+| W3-P20 `pprofile.flag*` with no control | built c74ff0b3: a flag on each diagnosis |
+| W3-P21 `consent.askCannotIgnore` | copy corrected 365d4b72: "Say no without a reason", which the database refuses |
+| W3-P22 `room.tellUsBody` never stored | fixed 292c60b6 (W1-11) |
+| W3-P23 `/records` expired page | fixed 20fdf0b1 (W2-P16) |
+| W3-T01 `ft.closeBody`, signup metadata "under a minute" | copy corrected 365d4b72: verification first |
+| W3-T02 `tnew.welcome` | not a defect now: removed with the dead banner in 65bf8ad8 |
+| W3-T03 `portal.dash.startBlurb` | not a defect now: reads "In person or video" |
+| W3-T04 `ft.f2` any format | fixed f1ef2612 (W2-F01); `pricing.feature.note` no longer says SOAP, 365d4b72 |
+| W3-T05 T1 draft state on history rows | fixed f1ef2612 (W2-F01) |
+| W3-T06 P4 every version kept | fixed 46919970 (W1-03) |
+| W3-T07 T3 held minus owed | no product copy promises it (messages and CMS checked); stays Wave 4 |
+| W3-T08 `pricing.feature.baa` | removed 365d4b72 (D8) |
+| W3-T09 `ft.also5` Arabic throughout | components and pages 17717fb4; open: server action errors, notify and email bodies, invoice descriptions in `lib/` are still English |
+| W3-T10 `clinic.join.sees.*` vs C2 | fixed 599de67d, 879f9b8f (D2) |
+| W3-T11 C4 clinician not told | fixed 65bf8ad8 (W2-T05) |
+| W3-T12 `ft.f5` invite link to `/sessions/{id}` | fixed b7f7f2e6 (W2-P05) |
+| W3-T13 cancel instead of complete, patient not refunded | fixed 3935ce80 (W1-13) |
+| W3-C01 C1 radar the same hour | copy corrected 365d4b72: after verification; value statement C1 rewritten |
+| W3-C02 C2, C5 names | fixed 599de67d (D2) |
+| W3-C03 C3 one invoice per seat | fixed d063346a (W2-C03) |
+| W3-C04 C4 release a seat; `auth.clinic.p1` prorated | fixed 4c073fbe (W2-C02) |
+| W3-C05 `auth.clinic.p3` move a patient | copy corrected d5b3f8b2 |
+| W3-C06 join page radar and prices | not a defect now: the lines are gone |
+| W3-C07 `clinic.join.verifyFirst` | not a defect now: reads "You verify your own licence with us first." |
+| W3-C08 `clinic.exportWatermark` | fixed 94b260ff (W2-C06) |
+| W3-C09 `seats.manage` delegable | fixed 582685c1 (W1-02) |
+| W3-C10 `/for-clinics` understates | copy corrected 365d4b72 |
+| W3-S01 names vs "never who they are" | D1 (220fb6d2): names of the enrolled, never who went; `sponsor.neverIndividual` already says exactly that |
+| W3-S02 "how many people used it" | no product copy says it; the demo's count is gone 365d4b72 |
+| W3-S03 E5 | fixed 51471c65 (W2-P15) |
+| W3-S04 `auth.company.p1` "Add employees" | copy corrected 365d4b72 |
+| W3-S05 `auth.company.p2` take-up | copy corrected 365d4b72; monthly spend is W2-S10 |
+| W3-S06 public demo headcount, per-therapist spend, cap, per-year | demo corrected 365d4b72 (D1) |
+| W3-S07 expiry not enforced | fixed 043d271a (W2-S08) |
+| W3-S08 terms beside top-up on the transfer rail (C233) | built 365d4b72 |
+| W3-S09 A1 card top-up with no payment | fixed f9a6af0e (W1-01) |
+| W3-S10 balance lags top-ups | fixed add276bc (W2-S02) |
+| W3-S11 `sint.step2Body`, `sint.step4Body` | tab hidden d9fc09b4 (D4) |
+| W3-S12 `sponsor.listedBody` | removed c723cdea (D5) |
+| W3-S13 domain confirm behind login | fixed 2909d124 (W2-S01) |
+| W3-S14 `sint.attemptsBody` | fixed d9fc09b4 |
+| W3-S15 `benefit.active` at 0% | not a defect now: reads "Your benefit from {name}" |
+| W3-X01 record layer (`useCase3`, launch, write-back, note delivery, widget, all webhook events) | marked not live on `/developers` and the webhook form 365d4b72 (D6); kept in the docs so verify:sprint55 still resolves every printed path |
+| W3-X02 `devs.copilotBody`, no end-session | fixed 0d1eea53 (W2-X02) |
+| W3-X03 `devs.flow.s2` stream, `s3` diarised | copy corrected 365d4b72 |
+| W3-X04 `devs.flow.s6` summary never shown | not a defect: the partner delivers it on its own screen; ours is the record |
+| W3-X05 `devs.promise4` audit | copy corrected 365d4b72; key audit is 30131397 (W2-X04) |
+| W3-X06 `devs.keysNote`, `devs.rateNote` | fixed 30131397 (W2-X04), 2380c20a (W2-X01) |
+| W3-X07 `devs.limitBody` billing and alerts | fixed 3fe4db54 (W2-X05) |
+| W3-X08 `dev.apply.sentBody` | not a defect now: "We set up your account on the call." |
+| W3-X09 "Five things", docs examples | copy corrected 365d4b72; examples sit under the not-live note, not re-read field by field |
+| W3-A admin section 4 (stuck, not promised) | W2-A03 112c58f5 (grant failed, cancelled, overpaid, carts), fc598552 (rail refunds), W2-A04 dad1a072, W2-A01 a264fb7e (staff, thresholds), W2-A02 bffa3f53, 2967c5cc (licence expiry), W2-A08 51705216, fd0f7ed4 (pot returns) and 043d271a (expiry), W2-A06 e5973a4d (portal and back office accounts), W2-A07 fdc1fc71; open: pot terms after opening, and claims or history asks with no admin view |
+| W3 rulings | 365d4b72: no Stripe on the patient's card path, no VAT promised on a session, BAA gone; 17717fb4: "One hour with" became "A session with" (ruling 6); d5b3f8b2: `pricing.netting`. Open: clinician Stripe screens (`tpay.*`, `tearn.*`, `tled.*`) still show for a practice set to the US region |
+| W3 both languages | 17717fb4: ratchet shared 69, auth 4, portal 1 to 0 (patient 0); admin untouched, 37L.6 still red at 804 against 756 from Wave 2 |
+| W3 not-found | a82882b1: all nine groups; loading and error were already in every group, added to four token routes |
