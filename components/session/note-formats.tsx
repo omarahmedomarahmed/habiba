@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { alsoWriteNote } from "@/app/(app)/sessions/actions";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/clinician/kit";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -51,15 +51,15 @@ export function NoteFormats({
               className={cn(
                 "rounded-xl border px-3 py-1.5 text-sm font-semibold",
                 note.id === selectedId
-                  ? "border-navy-500 bg-white text-slate-900"
-                  : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                  ? "border-navy-500 bg-white text-navy-700"
+                  : "border-navy-100 text-navy-400 hover:bg-navy-50",
               )}
             >
               {name(note)}
               <span
                 className={cn(
                   "ms-1.5 text-xs font-medium",
-                  note.signed ? "text-emerald-600" : "text-amber-600",
+                  note.signed ? "text-brand-700" : "text-amber-600",
                 )}
               >
                 {note.signed ? t("tnote.stateSigned") : t("tnote.stateDraft")}
@@ -71,14 +71,14 @@ export function NoteFormats({
 
       {options.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="also-write" className="text-sm text-slate-600">
+          <label htmlFor="also-write" className="text-sm text-navy-400">
             {t("tnf.alsoWrite")}
           </label>
           <select
             id="also-write"
             value={choice}
             onChange={(event) => setChoice(event.target.value)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-2 text-sm"
+            className="h-9 rounded-xl border border-navy-100 bg-white px-2 text-sm"
           >
             {options.map((option) => (
               <option key={option.key} value={option.key}>

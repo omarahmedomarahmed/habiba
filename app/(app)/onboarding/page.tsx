@@ -5,7 +5,7 @@ import { Lock, ShieldCheck } from "lucide-react";
 import { VerificationForm } from "@/components/onboarding/verification-form";
 import { LicenceChangeForm } from "@/components/onboarding/licence-change-form";
 import { licenceChangeView } from "@/lib/data/licence-change";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { isBackOffice, landingFor } from "@/lib/admin/access";
 import { requireUser } from "@/lib/auth/guard";
@@ -87,12 +87,12 @@ export default async function OnboardingPage() {
           <ShieldCheck className="h-5 w-5" aria-hidden />
         </span>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-navy-700">
             {verification.state === "approved"
               ? t("portal.onboarding.verified")
               : t("portal.onboarding.verify")}
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {verification.state === "approved"
               ? t("portal.onboarding.verifiedBody")
               : t("portal.onboarding.verifyBody")}
@@ -121,8 +121,8 @@ export default async function OnboardingPage() {
       */}
       {verification.state !== "approved" ? (
         <div className="mt-5">
-          <p className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <Lock className="h-4 w-4 text-slate-500" aria-hidden />
+          <p className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-navy-700">
+            <Lock className="h-4 w-4 text-navy-400" aria-hidden />
             {t("portal.onboarding.whyWeAsk")}
           </p>
           <SeesWhat
@@ -138,7 +138,7 @@ export default async function OnboardingPage() {
               t("portal.onboarding.notElse"),
             ]}
           />
-          <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
+          <p className="mt-2.5 text-sm leading-relaxed text-navy-400">
             {t("portal.onboarding.publicOnly")}
           </p>
         </div>

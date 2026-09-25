@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui";
+import { Badge } from "@/components/clinician/kit";
 import { getI18n } from "@/lib/i18n/server";
 
 /**

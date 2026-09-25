@@ -5,7 +5,7 @@ import { useT } from "@/lib/i18n/client";
 import { Lock, Send } from "lucide-react";
 
 import { askForAccess } from "@/app/(app)/patients/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import type { AccessState } from "@/lib/access/state";
 
 /**
@@ -60,7 +60,7 @@ export function AccessBanner({
   const tone =
     state === "revoked"
       ? "border-amber-200 bg-amber-50 text-amber-900"
-      : "border-slate-200 bg-slate-50 text-slate-700";
+      : "border-navy-100 bg-navy-50 text-navy-600";
 
   return (
     <Card className={`border ${tone}`}>
@@ -91,14 +91,14 @@ export function AccessBanner({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={t("pban.example")}
-                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500"
+                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-navy-700 placeholder:text-navy-400"
               />
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   disabled={pending || !note.trim()}
                   onClick={send}
-                  className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                  className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-navy-600 px-3 text-sm font-semibold text-white hover:bg-navy-500 disabled:opacity-50"
                 >
                   <Send className="h-3.5 w-3.5" aria-hidden />
                   {pending ? t("common.sending") : t("pban.sendRequest")}

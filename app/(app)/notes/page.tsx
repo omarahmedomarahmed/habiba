@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, FileText } from "lucide-react";
 
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { listRecentNotes } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
@@ -79,26 +79,26 @@ export default async function NotesPage() {
               <li key={note.id}>
                 <Link
                   href={`/sessions/${note.sessionId}?note=${note.id}`}
-                  className="block rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:bg-slate-50"
+                  className="block rounded-3xl border border-navy-100/80 bg-white px-4 py-3.5 active:bg-navy-50"
                 >
                   <div className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold text-slate-900">
+                      <p className="truncate text-[15px] font-semibold text-navy-700">
                         {fullName(note.patientFirstName, note.patientLastName, "") ||
                           note.guestName ||
                           t("portal.unnamedPatient")}
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-navy-400">
                         {relativeDay(note.sessionEndedAt ?? note.createdAt, actor.timezone, locale, t)}
                         {several.has(note.sessionId) ? ` · ${formatName(note.format)}` : ""}
                       </p>
                     </div>
                     <NoteBadge status={note.status} patientStatus={note.patientStatus} />
-                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-navy-200" aria-hidden />
                   </div>
 
                   {note.content?.summary ? (
-                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-navy-400">
                       {note.content.summary}
                     </p>
                   ) : null}

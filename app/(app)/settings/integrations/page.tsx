@@ -51,7 +51,7 @@ export default async function IntegrationsSettingsPage() {
       <div className="mb-4 flex items-center gap-1">
         <Link
           href="/settings"
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-navy-400 hover:text-navy-700"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           {t("portal.nav.settings")}
@@ -59,10 +59,10 @@ export default async function IntegrationsSettingsPage() {
       </div>
 
       <div className="mb-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-2xl font-bold tracking-tight text-navy-700">
           {t("portal.meet.title")}
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("portal.meet.body")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("portal.meet.body")}</p>
       </div>
 
       <MeetingAccounts

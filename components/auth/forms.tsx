@@ -11,7 +11,7 @@ import {
   signUp,
   type ActionState,
 } from "@/lib/auth/actions";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 const INITIAL: ActionState = {};
@@ -65,7 +65,7 @@ function ErrorNote({ message }: { message?: string }) {
 function PatientDoor() {
   const t = useT();
   return (
-    <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
+    <p className="border-t border-navy-100 pt-4 text-center text-sm text-navy-400">
       {t("tauth.patientDoor")}{" "}
       <Link href="/patient/login" className="font-medium text-brand-700 hover:text-brand-800">
         {t("tauth.patientDoorLink")}
@@ -81,7 +81,7 @@ export function SignInForm({ next, notice }: { next?: string; notice?: string })
   return (
     <form action={action} className="space-y-4">
       {notice ? (
-        <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">{notice}</p>
+        <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">{notice}</p>
       ) : null}
       <ErrorNote message={state.error} />
 
@@ -130,10 +130,10 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
   return (
     <form action={action} className="space-y-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-2xl font-bold tracking-tight text-navy-700">
           {t("tauth.staffConsole")}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-navy-400">
           {withLinks(t("tauth.staffBody"), {
             link: (
               <Link href="/login" className="font-medium text-brand-700 hover:text-brand-800">
@@ -145,7 +145,7 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
       </div>
 
       {notice ? (
-        <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">{notice}</p>
+        <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">{notice}</p>
       ) : null}
       <ErrorNote message={state.error} />
 
@@ -178,7 +178,7 @@ export function StaffSignInForm({ next, notice }: { next?: string; notice?: stri
 
       {/* 21R.5 — this door carries its reset too. It is the same one. */}
       <p className="pt-1 text-center text-sm">
-        <Link href="/forgot-password" className="text-slate-500 hover:text-slate-800">
+        <Link href="/forgot-password" className="text-navy-400 hover:text-navy-700">
           {t("tauth.forgot")}
         </Link>
       </p>
@@ -221,7 +221,7 @@ export function SignUpForm() {
 
       <Submit>{t("tauth.createAccount")}</Submit>
 
-      <p className="text-center text-xs leading-relaxed text-slate-500">
+      <p className="text-center text-xs leading-relaxed text-navy-400">
         {withLinks(t("tauth.terms"), {
           terms: (
             <Link href="/terms" className="underline">
@@ -249,7 +249,7 @@ export function ForgotPasswordForm() {
         <p className="text-base font-bold tracking-tight text-navy-500">
           {t("tauth.checkInbox")}
         </p>
-        <p className="text-sm leading-relaxed text-slate-600">
+        <p className="text-sm leading-relaxed text-navy-400">
           {t("tauth.checkInboxBody")}
         </p>
         <Link href="/login">
@@ -272,7 +272,7 @@ export function ForgotPasswordForm() {
       <Submit>{t("tauth.sendResetLink")}</Submit>
 
       <p className="pt-1 text-center text-sm">
-        <Link href="/login" className="text-slate-500 hover:text-slate-800">
+        <Link href="/login" className="text-navy-400 hover:text-navy-700">
           {t("tauth.backToSignIn")}
         </Link>
       </p>
@@ -299,7 +299,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       <Submit>{t("tauth.updatePassword")}</Submit>
 
       <p className="pt-1 text-center text-sm">
-        <Link href="/login" className="text-slate-500 hover:text-slate-800">
+        <Link href="/login" className="text-navy-400 hover:text-navy-700">
           {t("tauth.backToSignIn")}
         </Link>
       </p>

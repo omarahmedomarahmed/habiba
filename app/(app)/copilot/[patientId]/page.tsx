@@ -5,7 +5,7 @@ import { ArrowLeft, FileText, User } from "lucide-react";
 
 import { CopilotChat } from "@/components/copilot/chat";
 import { AccessBanner } from "@/components/patient/access-banner";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { PROMPT_TEMPLATES, promptTemplateKeys } from "@/lib/ai/case-copilot";
 import { requireUser } from "@/lib/auth/guard";
 import { explain } from "@/lib/access/state";
@@ -56,7 +56,7 @@ export default async function CopilotThreadPage({
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href="/copilot"
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-navy-400 hover:text-navy-700"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           {t("portal.copilot.title")}
@@ -65,8 +65,8 @@ export default async function CopilotThreadPage({
 
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 pb-4 sm:px-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{name}</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-bold tracking-tight text-navy-700">{name}</h1>
+          <p className="mt-1 text-sm text-navy-400">
             {history.length === 1
               ? t("portal.patient.sessionsOne")
               : t("portal.patient.sessionsMany", { count: history.length })}
@@ -80,9 +80,9 @@ export default async function CopilotThreadPage({
         */}
         <Link
           href={`/patients/${patientId}`}
-          className="tap-target flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="tap-target flex items-center gap-1.5 rounded-lg border border-navy-100 px-3 py-2 text-sm font-medium text-navy-600 hover:bg-navy-50"
         >
-          <User className="h-4 w-4 text-slate-500" aria-hidden />
+          <User className="h-4 w-4 text-navy-400" aria-hidden />
           {t("portal.copilot.openProfile")}
         </Link>
       </div>
@@ -107,28 +107,28 @@ export default async function CopilotThreadPage({
         {history.length > 0 ? (
           <Card className="mb-4">
             <details>
-              <summary className="tap-target flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-800">
-                <FileText className="h-4 w-4 text-slate-500" aria-hidden />
+              <summary className="tap-target flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-navy-700">
+                <FileText className="h-4 w-4 text-navy-400" aria-hidden />
                 {t("portal.copilot.history")}
-                <span className="ms-auto text-xs font-normal text-slate-500">
+                <span className="ms-auto text-xs font-normal text-navy-400">
                   {history.length}
                 </span>
               </summary>
-              <ul className="divide-y divide-slate-100 border-t border-slate-100">
+              <ul className="divide-y divide-navy-100/70 border-t border-navy-100/70">
                 {history.map((session) => (
                   <li key={session.id}>
                     <Link
                       href={`/sessions/${session.id}`}
-                      className="block px-4 py-3 active:bg-slate-50"
+                      className="block px-4 py-3 active:bg-navy-50"
                     >
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-sm font-medium text-navy-700">
                         {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                         {session.durationMinutes
                           ? ` · ${t("portal.minutes", { count: session.durationMinutes })}`
                           : ""}
                       </p>
                       {session.noteSummary?.summary ? (
-                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-navy-400">
                           {session.noteSummary.summary}
                         </p>
                       ) : null}

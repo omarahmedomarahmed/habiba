@@ -9,7 +9,7 @@ import {
   createInviteLink,
   releaseClaimLock,
 } from "@/app/(app)/patients/actions";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card } from "@/components/clinician/kit";
 import { formatDate } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n/client";
 
@@ -154,10 +154,10 @@ export function RecordAccess({
         </div>
       ) : null}
 
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+      <div className="flex items-start justify-between gap-3 border-b border-navy-100/70 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{t("pracc.ownAccessTitle")}</p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="text-sm font-semibold text-navy-700">{t("pracc.ownAccessTitle")}</p>
+          <p className="mt-0.5 text-xs text-navy-400">
             {t("pracc.ownAccessBody")}
           </p>
         </div>
@@ -166,7 +166,7 @@ export function RecordAccess({
 
       <div className="space-y-3 px-4 py-3">
         {claimed ? (
-          <p className="flex items-start gap-2 text-sm text-slate-600">
+          <p className="flex items-start gap-2 text-sm text-navy-400">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden />
             <span>
               {claimedAt
@@ -176,7 +176,7 @@ export function RecordAccess({
           </p>
         ) : link ? (
           <>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-navy-400">
               {t("pracc.linkOnce")}
             </p>
             <div className="flex items-center gap-2">
@@ -184,12 +184,12 @@ export function RecordAccess({
                 readOnly
                 value={link}
                 onFocus={(e) => e.currentTarget.select()}
-                className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700"
+                className="min-w-0 flex-1 rounded-lg border border-navy-100 bg-navy-50 px-3 py-2 font-mono text-xs text-navy-600"
               />
               <button
                 type="button"
                 onClick={copy}
-                className="tap-target flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800"
+                className="tap-target flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-navy-600 px-3 text-sm font-semibold text-white hover:bg-navy-500"
               >
                 {copied ? (
                   <Check className="h-4 w-4" aria-hidden />
@@ -199,14 +199,14 @@ export function RecordAccess({
                 {copied ? t("common.copied") : t("common.copy")}
               </button>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-navy-400">
               {t("pracc.copyNow")}
             </p>
           </>
         ) : openInvite ? (
           <>
-            <p className="flex items-start gap-2 text-sm text-slate-600">
-              <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+            <p className="flex items-start gap-2 text-sm text-navy-400">
+              <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" aria-hidden />
               <span>
                 {t("precord.openLink", {
                   issued: formatDate(openInvite.issuedAt, zone, locale),
@@ -219,7 +219,7 @@ export function RecordAccess({
                 type="button"
                 disabled={pending}
                 onClick={() => cancel(openInvite.id)}
-                className="tap-target h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="tap-target h-10 rounded-lg border border-navy-100 px-3 text-sm font-semibold text-navy-600 hover:bg-navy-50 disabled:opacity-60"
               >
                 {pending ? t("common.working") : t("pracc.cancelLink")}
               </button>
@@ -227,7 +227,7 @@ export function RecordAccess({
                 type="button"
                 disabled={pending}
                 onClick={issue}
-                className="tap-target h-10 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                className="tap-target h-10 rounded-lg bg-navy-600 px-3 text-sm font-semibold text-white hover:bg-navy-500 disabled:opacity-60"
               >
                 {t("pracc.issueNew")}
               </button>
@@ -235,14 +235,14 @@ export function RecordAccess({
           </>
         ) : (
           <>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-navy-400">
               {t("pracc.inviteBody")}
             </p>
             <button
               type="button"
               disabled={pending}
               onClick={issue}
-              className="tap-target flex h-10 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+              className="tap-target flex h-10 items-center gap-1.5 rounded-lg bg-navy-600 px-3 text-sm font-semibold text-white hover:bg-navy-500 disabled:opacity-60"
             >
               <Link2 className="h-4 w-4" aria-hidden />
               {pending ? t("common.working") : t("pracc.createLink")}

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { EvidencePanel, type PanelFact } from "@/components/clinical/evidence-panel";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { accessFor } from "@/lib/data/grants";
 import { contestedFields, evidenceFor, factsFor } from "@/lib/data/facts";
@@ -65,7 +65,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <Back id={id} label={t("portal.evidence.back")} />
         <Card className="mt-4 p-6">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-navy-400">
             {personId
               ? t(explain(access.state, access.gated) ?? "portal.evidence.noGrant")
               : t("portal.evidence.noPerson")}
@@ -116,12 +116,12 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <Back id={id} label={t("portal.evidence.back")} />
-      <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
+      <h1 className="mt-4 text-2xl font-bold tracking-tight text-navy-700">
         {t("portal.evidence.title", {
           name: fullName(patient.firstName, patient.lastName, t("portal.evidence.thisPatient")),
         })}
       </h1>
-      <p className="mt-1 max-w-prose text-sm text-slate-500">
+      <p className="mt-1 max-w-prose text-sm text-navy-400">
         {t("portal.evidence.blurb")}
       </p>
 
@@ -136,7 +136,7 @@ function Back({ id, label }: { id: string; label: string }) {
   return (
     <Link
       href={`/patients/${id}`}
-      className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"
+      className="inline-flex items-center gap-1.5 text-sm text-navy-400 hover:text-navy-700"
     >
       <ArrowLeft className="h-4 w-4" aria-hidden />
       {label}

@@ -11,7 +11,7 @@ import {
   updatePaymentSettings,
   type SettingsState,
 } from "@/app/(app)/settings/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { FlowStrip, SplitBar } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
@@ -142,11 +142,11 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         as an identity rather than as a preference. Neither of those is editable
         here; the profile form on the same page owns them.
       */}
-      <div className="-m-4 mb-4 rounded-t-2xl border-b border-slate-200 bg-slate-50 p-4">
+      <div className="-m-4 mb-4 rounded-t-2xl border-b border-navy-100 bg-navy-50 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className="text-base font-bold tracking-tight text-slate-900">{state.name}</p>
+          <p className="text-base font-bold tracking-tight text-navy-700">{state.name}</p>
           {state.license ? (
-            <p className="text-xs text-slate-500">{state.license}</p>
+            <p className="text-xs text-navy-400">{state.license}</p>
           ) : null}
         </div>
 
@@ -154,7 +154,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           <div className="mt-3">
             <label
               htmlFor="practice-region"
-              className="text-xs font-semibold text-slate-700"
+              className="text-xs font-semibold text-navy-600"
             >
               {t("tpay.whereYouPractise")}
             </label>
@@ -164,12 +164,12 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
               form="payment-settings"
               value={region}
               onChange={(event) => setRegion(event.target.value)}
-              className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="mt-1 h-11 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
             >
               <option value="us">{t("tpay.regionUs")}</option>
               <option value="eg">{t("tpay.regionEg")}</option>
             </select>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1 text-xs leading-relaxed text-navy-400">
               {t("tpay.whereYouPractiseBody")}
             </p>
             {/*
@@ -192,14 +192,14 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           <Wallet className="h-4 w-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">{t("tpay.title")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("tpay.title")}</p>
           {/*
             The old line — "the money goes straight to your own Stripe account,
             we never hold it" — was a promise the product can no longer make
             unconditionally, and a promise that is true most of the time is the
             worst kind to leave on a screen about money.
           */}
-          <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+          <p className="mt-0.5 text-sm leading-relaxed text-navy-400">
             {/*
               🔴 76.34 — ON THE MANUAL RAIL NONE OF THE THREE STRIPE SENTENCES
               IS TRUE, and "payouts are not switched on" is the worst of them:
@@ -282,11 +282,11 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         wanted them.
       */}
       {manualRail ? (
-        <div className="mt-4 rounded-2xl border border-slate-200 p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("tpay.egMethod")}</p>
+        <div className="mt-4 rounded-2xl border border-navy-100 p-4">
+          <p className="text-sm font-semibold text-navy-700">{t("tpay.egMethod")}</p>
           {state.payoutMethod ? (
             <>
-              <p className="mt-1 text-sm text-slate-700">
+              <p className="mt-1 text-sm text-navy-600">
                 {t(`tpay.method.${state.payoutMethod.method}` as "tpay.method.instapay")}
                 {" · "}
                 <span className="font-mono text-xs select-all">
@@ -299,10 +299,10 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
                 Ali Hassan" bounces after a person has already done the work, so
                 the name is shown back rather than assumed correct.
               */}
-              <p className="mt-0.5 text-xs text-slate-500">{state.payoutMethod.accountName}</p>
+              <p className="mt-0.5 text-xs text-navy-400">{state.payoutMethod.accountName}</p>
             </>
           ) : (
-            <p className="mt-1 text-sm leading-relaxed text-slate-500">{t("tpay.egMethodNone")}</p>
+            <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("tpay.egMethodNone")}</p>
           )}
           <a
             href="/earnings"
@@ -319,7 +319,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             <Banknote className="h-4 w-4" aria-hidden />
             {pending ? t("tpay.openingStripe") : t("tpay.setUp")}
           </Button>
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          <p className="mt-2 text-xs leading-relaxed text-navy-400">
             {t("tpay.setUpBody")}
           </p>
         </div>
@@ -348,18 +348,18 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
 
           {state.availableCents !== null ? (
             <dl className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                <dt className="text-xs text-slate-500">{t("tpay.available")}</dt>
-                <dd className="mt-0.5 text-2xl font-bold text-slate-900">
+              <div className="rounded-2xl bg-navy-50 px-4 py-3">
+                <dt className="text-xs text-navy-400">{t("tpay.available")}</dt>
+                <dd className="mt-0.5 text-2xl font-bold text-navy-700">
                   <Money cents={state.availableCents} />
                 </dd>
               </div>
-              <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                <dt className="flex items-center gap-1 text-xs text-slate-500">
+              <div className="rounded-2xl bg-navy-50 px-4 py-3">
+                <dt className="flex items-center gap-1 text-xs text-navy-400">
                   <Clock className="h-3 w-3" aria-hidden />
                   {t("tpay.clearing")}
                 </dt>
-                <dd className="mt-0.5 text-2xl font-bold text-slate-900">
+                <dd className="mt-0.5 text-2xl font-bold text-navy-700">
                   <Money cents={state.pendingCents ?? 0} />
                 </dd>
               </div>
@@ -380,7 +380,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
             </Button>
           </div>
 
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          <p className="mt-2 text-xs leading-relaxed text-navy-400">
             {t("tpay.dailyNote")}
           </p>
         </>
@@ -395,9 +395,9 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
       <form
         id="payment-settings"
         action={formAction}
-        className="mt-5 space-y-4 border-t border-slate-100 pt-4"
+        className="mt-5 space-y-4 border-t border-navy-100/70 pt-4"
       >
-        {formState.ok ? <p className="text-sm text-emerald-700">{t("common.saved")}</p> : null}
+        {formState.ok ? <p className="text-sm text-brand-800">{t("common.saved")}</p> : null}
         {formState.error ? <p className="text-sm text-red-600">{formState.error}</p> : null}
 
         <Field
@@ -407,7 +407,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
         >
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-slate-500">
+              <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-navy-400">
                 {currency === "egp" ? "E£" : "$"}
               </span>
               <Input
@@ -434,7 +434,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
               value={currency}
               onChange={(event) => setCurrency(event.target.value)}
               aria-label={t("tpay.currency")}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="h-11 rounded-xl border border-navy-100 bg-white px-3 text-sm"
             >
               <option value="usd">USD</option>
               <option value="egp">EGP</option>
@@ -463,7 +463,7 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           have to read a table the second time.
         */}
         {sessionRateCents > 0 ? (
-          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+          <div className="rounded-2xl bg-navy-50 px-4 py-3">
             <SplitBar
               parts={[
                 { label: <>{t("tpay.youKeep")} <Money cents={keep} currency={currency} /></>, value: keep, kind: "keep" },
@@ -477,18 +477,18 @@ export function PayoutSettings({ state }: { state: PayoutState }) {
           </div>
         ) : null}
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-navy-50 px-4 py-3">
           <input
             type="checkbox"
             name="autoSettle"
             defaultChecked={state.autoSettleFromEarnings}
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
+            className="mt-0.5 h-4 w-4 rounded border-navy-200 text-brand-700 focus:ring-brand-600"
           />
           <span className="min-w-0">
-            <span className="block text-sm font-medium text-slate-800">
+            <span className="block text-sm font-medium text-navy-700">
               {t("tpay.autoSettle")}
             </span>
-            <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+            <span className="mt-0.5 block text-xs leading-relaxed text-navy-400">
               {t("tpay.autoSettleBody")}
               {state.outstandingCents > 0 ? (
                 <> {rich(t("tpay.owedNow", { amount: slot(0) }), [<Money cents={state.outstandingCents} />])}</>
@@ -516,7 +516,7 @@ function StatusChip({
     <span
       className={
         ok
-          ? "inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+          ? "inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-800"
           : "inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
       }
     >

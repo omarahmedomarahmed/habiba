@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { listConnections } from "@/lib/data/meeting-connections";
 import { PROVIDERS } from "@/lib/meetings/providers";
 import { NewSessionForm } from "@/components/session/new-session-form";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { getConnectAccount } from "@/lib/billing/connect";
 import { currentTier } from "@/lib/billing/credits";

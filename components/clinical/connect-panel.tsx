@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { answerHistoryAsk, useInviteCode } from "@/app/(app)/connect/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -21,8 +21,8 @@ export function RedeemInvite({ initialCode = "" }: { initialCode?: string }) {
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("tcon.gaveCode")}</p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">
+      <p className="text-sm font-semibold text-navy-700">{t("tcon.gaveCode")}</p>
+      <p className="mt-1 text-sm leading-relaxed text-navy-400">
         {t("tcon.gaveCodeBody")}
       </p>
 
@@ -96,10 +96,10 @@ export function HistoryAsks({
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">
+      <p className="text-sm font-semibold text-navy-700">
         {t("tcon.asking")}
       </p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">
+      <p className="mt-1 text-sm leading-relaxed text-navy-400">
         {t("tcon.askingBody")}
       </p>
 
@@ -111,11 +111,11 @@ export function HistoryAsks({
 
       <ul className="mt-3 space-y-3">
         {asks.map((ask) => (
-          <li key={ask.id} className="rounded-xl border border-slate-200 p-3.5">
-            <p className="text-sm font-medium text-slate-900">{ask.name}</p>
-            <p className="text-xs text-slate-600">{t("tcon.askedOn", { date: ask.on })}</p>
+          <li key={ask.id} className="rounded-xl border border-navy-100 p-3.5">
+            <p className="text-sm font-medium text-navy-700">{ask.name}</p>
+            <p className="text-xs text-navy-400">{t("tcon.askedOn", { date: ask.on })}</p>
             {ask.note ? (
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">“{ask.note}”</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-navy-400">“{ask.note}”</p>
             ) : null}
 
             <form action={submit} className="mt-3 space-y-2">
@@ -123,7 +123,7 @@ export function HistoryAsks({
               <input
                 name="reason"
                 placeholder={t("tcon.declinePlaceholder")}
-                className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"
+                className="h-10 w-full rounded-xl border border-navy-100 px-3 text-sm"
               />
               <div className="flex flex-wrap gap-2">
                 <button
@@ -138,7 +138,7 @@ export function HistoryAsks({
                   type="submit"
                   name="decision"
                   value="declined"
-                  className="tap-target h-10 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
+                  className="tap-target h-10 rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
                 >
                   {t("tcon.decline")}
                 </button>

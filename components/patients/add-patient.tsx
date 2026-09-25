@@ -7,7 +7,7 @@ import { UserPlus } from "lucide-react";
 
 import { addPatient } from "@/app/(app)/patients/actions";
 import { PhoneField } from "@/components/forms/phone-field";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { readerCountry } from "@/lib/phone/e164";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { LOCALE_NAMES, LOCALES } from "@/lib/i18n/config";
@@ -57,9 +57,9 @@ export function AddPatient() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="tap-target flex w-full items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 py-3.5 text-sm font-semibold text-slate-600 hover:border-slate-400 hover:bg-slate-50"
+        className="tap-target flex w-full items-center gap-2 rounded-2xl border border-dashed border-navy-200 px-4 py-3.5 text-sm font-semibold text-navy-400 hover:border-navy-300 hover:bg-navy-50"
       >
-        <UserPlus className="h-4 w-4 text-slate-500" aria-hidden />
+        <UserPlus className="h-4 w-4 text-navy-400" aria-hidden />
         {t("tap.addPatient")}
       </button>
     );
@@ -90,14 +90,14 @@ export function AddPatient() {
             §3b's own words. The reason is on the form, before they type — not
             in an error after they have already skipped it.
           */}
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 text-xs leading-relaxed text-navy-400">
             {t("tap.phoneHint")}
           </p>
         </Field>
 
         <Field label={t("tap.emailOptional")} htmlFor="email">
           <Input id="email" name="email" type="email" autoComplete="off" />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-navy-400">
             {t("tap.emailHint")}
           </p>
         </Field>
@@ -112,7 +112,7 @@ export function AddPatient() {
             id="locale"
             name="locale"
             defaultValue={locale}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
+            className="w-full rounded-xl border border-navy-100 bg-white px-3 py-2.5 text-sm text-navy-700"
           >
             {LOCALES.map((code) => (
               <option key={code} value={code} lang={code}>
@@ -120,7 +120,7 @@ export function AddPatient() {
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">{t("tap.languageHint")}</p>
+          <p className="mt-1 text-xs text-navy-400">{t("tap.languageHint")}</p>
         </Field>
 
         {state.error ? (
@@ -161,7 +161,7 @@ export function AddPatient() {
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-slate-600"
+            className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-navy-400"
           >
             {t("common.cancel")}
           </button>

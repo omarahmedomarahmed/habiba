@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { AlertTriangle, Check, FileText, MessageSquare, NotebookPen, User } from "lucide-react";
 
 import { confirmFact, rejectFact } from "@/app/(app)/patients/[id]/evidence/actions";
-import { Badge, Button, Card, Textarea } from "@/components/ui";
+import { Badge, Button, Card, Textarea } from "@/components/clinician/kit";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -83,7 +83,7 @@ export function EvidencePanel({
   if (facts.length === 0) {
     return (
       <Card className="p-6">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-navy-400">
           {t("tev.none")}
         </p>
       </Card>
@@ -96,7 +96,7 @@ export function EvidencePanel({
     <div className="space-y-8">
       {domains.map((domain) => (
         <section key={domain}>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-navy-400">
             {domain}
           </h2>
           <div className="space-y-3">
@@ -125,8 +125,8 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
     <Card className={cn("p-4", fact.status === "disputed" && "border-amber-300 bg-amber-50/40")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-wide text-slate-600">{fact.field}</p>
-          <p className="text-[15px] font-medium text-slate-900">{fact.value}</p>
+          <p className="text-[11px] uppercase tracking-wide text-navy-400">{fact.field}</p>
+          <p className="text-[15px] font-medium text-navy-700">{fact.value}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -150,27 +150,27 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
       </div>
 
       {/* The evidence. Always visible, never behind a disclosure. */}
-      <figure className="mt-3 border-s-2 border-slate-200 ps-3">
-        <blockquote className="text-sm italic leading-relaxed text-slate-700">
+      <figure className="mt-3 border-s-2 border-navy-100 ps-3">
+        <blockquote className="text-sm italic leading-relaxed text-navy-600">
           “{fact.quote}”
         </blockquote>
-        <figcaption className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-600">
+        <figcaption className="mt-1.5 flex items-center gap-1.5 text-xs text-navy-400">
           <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {fact.evidenceWhere}
         </figcaption>
       </figure>
 
       {fact.context.length > 1 ? (
-        <div className="mt-3 space-y-1 rounded-lg bg-slate-50 p-3">
+        <div className="mt-3 space-y-1 rounded-lg bg-navy-50 p-3">
           {fact.context.map((line, index) => (
             <p
               key={index}
               className={cn(
                 "text-xs leading-relaxed",
-                line.self ? "font-medium text-slate-900" : "text-slate-600",
+                line.self ? "font-medium text-navy-700" : "text-navy-400",
               )}
             >
-              <span className="text-slate-600">
+              <span className="text-navy-400">
                 {line.speaker === "patient"
                   ? t("tev.speakerPatient")
                   : line.speaker === "therapist"
@@ -185,11 +185,11 @@ function FactCard({ patientId, fact }: { patientId: string; fact: PanelFact }) {
       ) : null}
 
       {fact.contradicts.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-slate-200 p-3">
-          <p className="text-xs font-medium text-slate-600">{t("tev.contradicts")}</p>
+        <div className="mt-3 rounded-lg border border-navy-100 p-3">
+          <p className="text-xs font-medium text-navy-400">{t("tev.contradicts")}</p>
           <ul className="mt-1 space-y-1">
             {fact.contradicts.map((other, index) => (
-              <li key={index} className="text-xs text-slate-600">
+              <li key={index} className="text-xs text-navy-400">
                 “{other.value}” · {other.sourceType} · {other.ageLabel}
               </li>
             ))}

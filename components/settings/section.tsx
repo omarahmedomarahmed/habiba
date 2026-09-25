@@ -33,8 +33,8 @@ export function SettingsSection({
   return (
     <section id={id} className="scroll-mt-20 space-y-3">
       <div>
-        <h2 className="text-sm font-bold tracking-wide text-slate-900 uppercase">{title}</h2>
-        <p className="mt-0.5 text-sm leading-relaxed text-slate-500">{why}</p>
+        <h2 className="text-sm font-bold tracking-wide text-navy-700 uppercase">{title}</h2>
+        <p className="mt-0.5 text-sm leading-relaxed text-navy-400">{why}</p>
       </div>
       {children}
     </section>
@@ -64,7 +64,7 @@ export async function SettingsNav({
         <Link
           key={section.id}
           href={`#${section.id}`}
-          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          className="shrink-0 rounded-full border border-navy-100 bg-white px-3 py-1.5 text-xs font-semibold text-navy-400 hover:bg-navy-50"
         >
           {section.title}
         </Link>

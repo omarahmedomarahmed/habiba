@@ -67,10 +67,10 @@ export default async function BookingsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-2xl font-bold tracking-tight text-navy-700">
           {t("portal.book.title")}
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("portal.book.body")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("portal.book.body")}</p>
       </div>
 
       <LateCancellations

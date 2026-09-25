@@ -8,7 +8,7 @@ import {
   removeNoteTemplate,
   saveNoteFormat,
 } from "@/app/(app)/settings/actions";
-import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, Textarea } from "@/components/clinician/kit";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { useT } from "@/lib/i18n/client";
 
@@ -43,8 +43,8 @@ export function NoteFormatSettings({
     <Card className="space-y-4 p-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="block min-w-0 flex-1">
-          <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <FileText className="h-4 w-4 text-slate-500" aria-hidden />
+          <span className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+            <FileText className="h-4 w-4 text-navy-400" aria-hidden />
             {t("tnf.format")}
           </span>
           <select
@@ -53,7 +53,7 @@ export function NoteFormatSettings({
               setFormat(event.target.value);
               setSaved(false);
             }}
-            className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            className="mt-1.5 h-10 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
           >
             {formats.map((f) => (
               <option key={f.key} value={f.key}>
@@ -79,13 +79,13 @@ export function NoteFormatSettings({
         </Button>
       </div>
 
-      <div className="space-y-2.5 border-t border-slate-100 pt-4">
-        <p className="text-sm font-semibold text-slate-900">{t("tnf.own")}</p>
+      <div className="space-y-2.5 border-t border-navy-100/70 pt-4">
+        <p className="text-sm font-semibold text-navy-700">{t("tnf.own")}</p>
         {templates.length > 0 ? (
           <ul className="space-y-1.5">
             {templates.map((template) => (
               <li key={template.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="truncate text-slate-800">{template.label}</span>
+                <span className="truncate text-navy-700">{template.label}</span>
                 <button
                   type="button"
                   disabled={pending}
@@ -95,7 +95,7 @@ export function NoteFormatSettings({
                       await removeNoteTemplate(template.id);
                     })
                   }
-                  className="tap-target flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-red-600"
+                  className="tap-target flex h-9 w-9 items-center justify-center rounded-xl text-navy-400 hover:bg-navy-50 hover:text-red-600"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>

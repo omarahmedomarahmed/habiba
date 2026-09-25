@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { CalendarPlus, Check, Copy } from "lucide-react";
 
 import { inviteToPaidSession } from "@/app/(app)/patients/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
 
@@ -78,15 +78,15 @@ export function InviteToSession({
 
   return (
     <Card>
-      <div className="border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900">{t("pinv.title")}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{t("pinv.blurb")}</p>
+      <div className="border-b border-navy-100/70 px-4 py-3">
+        <p className="text-sm font-semibold text-navy-700">{t("pinv.title")}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-navy-400">{t("pinv.blurb")}</p>
       </div>
 
       <div className="space-y-3 px-4 py-3">
         {done ? (
           <>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-navy-600">
               {done.sent ? t("pinv.sent") : t("pinv.notSent")}{" "}
               <span className="font-semibold">
                 <Money cents={done.priceCents} />
@@ -97,12 +97,12 @@ export function InviteToSession({
                 readOnly
                 value={done.url}
                 onFocus={(e) => e.currentTarget.select()}
-                className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700"
+                className="min-w-0 flex-1 rounded-lg border border-navy-100 bg-navy-50 px-3 py-2 font-mono text-xs text-navy-600"
               />
               <button
                 type="button"
                 onClick={copy}
-                className="tap-target flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800"
+                className="tap-target flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-navy-600 px-3 text-sm font-semibold text-white hover:bg-navy-500"
               >
                 {copied ? (
                   <Check className="h-4 w-4" aria-hidden />
@@ -115,14 +115,14 @@ export function InviteToSession({
           </>
         ) : (
           <>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-navy-400">
               {reachable ? t("pinv.willSend") : t("pinv.needsHandle")}
             </p>
             <button
               type="button"
               disabled={pending || !reachable}
               onClick={invite}
-              className="tap-target flex h-10 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              className="tap-target flex h-10 items-center gap-1.5 rounded-lg bg-navy-600 px-3 text-sm font-semibold text-white hover:bg-navy-500 disabled:opacity-50"
             >
               <CalendarPlus className="h-4 w-4" aria-hidden />
               {pending ? t("common.working") : t("pinv.cta")}

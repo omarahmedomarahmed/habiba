@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { EarningsCard } from "@/components/billing/earnings";
 import { PaymentHistory } from "@/components/billing/payment-history";
 import { Withdraw } from "@/components/billing/withdraw";
-import { Card, PageHeader } from "@/components/ui";
+import { Card, PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { availableToWithdraw } from "@/lib/billing/available";
 import {
@@ -109,10 +109,10 @@ export default async function EarningsPage() {
         */}
         {earnings.heldCents > 0 ? (
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-navy-700">
               {t("portal.earnings.heldPays")}
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-500">
+            <p className="mt-1 text-sm leading-relaxed text-navy-400">
               {rich(t("portal.earnings.heldBody", { amount: slot(0) }), [<Money cents={earnings.heldCents} />])}
             </p>
             <Link

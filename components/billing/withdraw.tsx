@@ -9,7 +9,7 @@ import {
   savePayoutDestination,
   type EarningsState,
 } from "@/app/(app)/earnings/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { useMoneyDisplay } from "@/components/money/display";
 import { isReceiptLink } from "@/lib/billing/transfer-receipt";
@@ -112,7 +112,7 @@ export function Withdraw({
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("twd.holding")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("twd.holding")}</p>
 
         <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Figure label={t("twd.held")} cents={heldCents} />
@@ -121,25 +121,25 @@ export function Withdraw({
           <Figure label={t("twd.availableNow")} cents={availableCents} strong />
         </dl>
 
-        <p className="mt-3 text-xs leading-relaxed text-slate-500">
+        <p className="mt-3 text-xs leading-relaxed text-navy-400">
           {t("twd.availableNote")}
         </p>
       </Card>
 
       <Card className="p-4">
-        <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <Banknote className="h-4 w-4 text-slate-500" aria-hidden />
+        <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+          <Banknote className="h-4 w-4 text-navy-400" aria-hidden />
           {t("twd.where")}
         </p>
 
         {method ? (
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-navy-400">
             {method.method === "instapay" ? t("twd.instapay") : t("twd.wallet")} ·{" "}
             {method.identifier} ·{" "}
             {method.accountName}
           </p>
         ) : (
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-navy-400">
             {t("twd.notSet")}
           </p>
         )}
@@ -149,7 +149,7 @@ export function Withdraw({
             <select
               name="method"
               defaultValue={method?.method ?? methods[0]}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
             >
               {methods.map((m) => (
                 <option key={m} value={m}>
@@ -177,7 +177,7 @@ export function Withdraw({
 
       {availableCents > 0 && method ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("twd.withdraw")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("twd.withdraw")}</p>
           <form action={askAction} className="mt-3 flex items-end gap-2">
             {/* 🔴 Pounds, like every figure they read; the whole balance is one exact figure. */}
             <input type="hidden" name="wholeCents" value={availableCents} />
@@ -198,7 +198,7 @@ export function Withdraw({
           {askState.error ? (
             <p className="mt-2 text-sm text-rose-600">{askState.error}</p>
           ) : null}
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-navy-400">
             {t("twd.rateNote")}
           </p>
         </Card>
@@ -206,23 +206,23 @@ export function Withdraw({
 
       {history.length > 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("twd.yours")}</p>
-          <ul className="mt-2 divide-y divide-slate-100">
+          <p className="text-sm font-semibold text-navy-700">{t("twd.yours")}</p>
+          <ul className="mt-2 divide-y divide-navy-100/70">
             {history.map((row) => {
               const state = STATUS[row.status];
               const Icon = state.icon;
               return (
                 <li key={row.id} className="py-2.5">
-                  <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
-                    <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+                  <p className="flex items-center gap-2 text-sm font-medium text-navy-700">
+                    <Icon className="h-4 w-4 shrink-0 text-navy-400" aria-hidden />
                     <Money cents={row.amountCents} />
-                    <span className="text-slate-500">→</span>
+                    <span className="text-navy-400">→</span>
                     <Money cents={row.payoutAmountMinor} currency={row.payoutCurrency.toUpperCase()} />
-                    <span className="ml-auto text-xs font-normal text-slate-500">
+                    <span className="ml-auto text-xs font-normal text-navy-400">
                       {t(state.label)}
                     </span>
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-navy-400">
                     {t(state.blurb)} {t("twd.requestedOn", { date: row.requestedAtLabel })}
                     {row.movedAtLabel
                       ? ` · ${t("twd.updatedOn", { date: row.movedAtLabel })}`
@@ -247,7 +247,7 @@ export function Withdraw({
                       {t("twd.receipt")}
                     </a>
                   ) : row.proofUrl ? (
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-navy-400">
                       {t("twd.reference", { ref: row.proofUrl })}
                     </p>
                   ) : null}
@@ -264,10 +264,10 @@ export function Withdraw({
 function Figure({ label, cents, strong }: { label: string; cents: number; strong?: boolean }) {
   return (
     <div>
-      <dt className="text-xs text-slate-500">{label}</dt>
+      <dt className="text-xs text-navy-400">{label}</dt>
       <dd
         className={
-          strong ? "text-lg font-semibold text-slate-900" : "text-lg font-medium text-slate-700"
+          strong ? "text-lg font-semibold text-navy-700" : "text-lg font-medium text-navy-600"
         }
       >
         <Money cents={cents} />

@@ -8,7 +8,7 @@ import { PasswordForm, ProfileForm } from "@/components/settings/settings-forms"
 import { TimezoneSettings } from "@/components/settings/timezone-settings";
 import { NoteFormatSettings } from "@/components/settings/note-format-settings";
 import { formatsFor } from "@/lib/data/note-formats";
-import { Card, PageHeader } from "@/components/ui";
+import { Card, PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { getSettings } from "@/lib/settings";
 import { accountBalance, getConnectAccount, refreshAccountStatus } from "@/lib/billing/connect";
@@ -173,8 +173,8 @@ export default async function SettingsPage({
             onboarding page they are redirected away from once they pass.
           */}
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">{t("portal.settings.practice")}</p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+            <p className="text-sm font-semibold text-navy-700">{t("portal.settings.practice")}</p>
+            <p className="mt-1 text-sm leading-relaxed text-navy-400">
               {practice === "approved"
                 ? t("portal.settings.practiceApproved")
                 : practice === "submitted"
@@ -207,8 +207,8 @@ export default async function SettingsPage({
 
           {/* 25.17 / C120 — the clinic-wall code lives with the rest of "you". */}
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">{t("portal.settings.qr")}</p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+            <p className="text-sm font-semibold text-navy-700">{t("portal.settings.qr")}</p>
+            <p className="mt-1 text-sm leading-relaxed text-navy-400">
               {t("portal.settings.qrBlurb")}
             </p>
             {/* 🔴 W2-T07: the page the code opens, which nothing linked. */}
@@ -221,7 +221,7 @@ export default async function SettingsPage({
                   {t("tw2.publicPage")}
                 </Link>
               ) : (
-                <span className="text-sm text-slate-600">{t("tw2.publicPageLater")}</span>
+                <span className="text-sm text-navy-400">{t("tw2.publicPageLater")}</span>
               )}
             </div>
           </Card>
@@ -234,8 +234,8 @@ export default async function SettingsPage({
             product teaches people to stop reading it.
           */}
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">{t("portal.meet.title")}</p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+            <p className="text-sm font-semibold text-navy-700">{t("portal.meet.title")}</p>
+            <p className="mt-1 text-sm leading-relaxed text-navy-400">
               {t("portal.meet.body")}
             </p>
             {/* 🔴 W2-T07: the record system page existed and nothing linked it. */}
@@ -347,8 +347,8 @@ export default async function SettingsPage({
             why={t("portal.settings.whyAdmin")}
           >
             <Card className="p-4">
-              <p className="text-sm font-semibold text-slate-900">{t("portal.settings.admin")}</p>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <p className="text-sm font-semibold text-navy-700">{t("portal.settings.admin")}</p>
+              <p className="mt-0.5 text-sm text-navy-400">
                 {t("portal.settings.adminBlurb")}
               </p>
               <Link

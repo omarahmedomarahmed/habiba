@@ -1,6 +1,6 @@
 import { AlertTriangle, Clock, Quote } from "lucide-react";
 
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card } from "@/components/clinician/kit";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -60,7 +60,7 @@ const LEVEL_TONE = {
   critical: "border-red-300 bg-red-50",
   high: "border-red-200 bg-red-50/70",
   elevated: "border-amber-300 bg-amber-50",
-  moderate: "border-slate-200 bg-white",
+  moderate: "border-navy-100 bg-white",
 } as const;
 
 export async function RiskAssessment({
@@ -109,11 +109,11 @@ export async function RiskAssessment({
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-navy-700">
             {t("risk.assessedTitle", { level: levelWord(level) })}
           </p>
           {recommendedAction ? (
-            <p className="mt-0.5 text-sm leading-relaxed text-slate-700">{recommendedAction}</p>
+            <p className="mt-0.5 text-sm leading-relaxed text-navy-600">{recommendedAction}</p>
           ) : null}
 
           {/*
@@ -122,7 +122,7 @@ export async function RiskAssessment({
             finding a plan across four turns are different evidence, and a
             clinician who cannot tell them apart learns to treat both as noise.
           */}
-          <p className="mt-1 text-xs text-slate-600">
+          <p className="mt-1 text-xs text-navy-400">
             {source === "model" ? t("risk.fromModel") : t("risk.fromKeyword")}
           </p>
         </div>
@@ -131,19 +131,19 @@ export async function RiskAssessment({
       {risks.length > 0 ? (
         <ul className="mt-3 space-y-2">
           {risks.map((finding, index) => (
-            <li key={index} className="rounded-lg border border-slate-200 bg-white p-3">
+            <li key={index} className="rounded-lg border border-navy-100 bg-white p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="red">
                   {INDICATOR_LABEL[finding.indicator]
                     ? t(INDICATOR_LABEL[finding.indicator]!)
                     : finding.indicator}
                 </Badge>
-                <span className="text-xs text-slate-600">
+                <span className="text-xs text-navy-400">
                   {t("risk.confidence", { value: finding.confidence.toFixed(2) })}
                 </span>
               </div>
-              <p className="mt-1.5 flex gap-1.5 text-sm italic leading-relaxed text-slate-700">
-                <Quote className="mt-1 h-3 w-3 shrink-0 text-slate-300" aria-hidden />
+              <p className="mt-1.5 flex gap-1.5 text-sm italic leading-relaxed text-navy-600">
+                <Quote className="mt-1 h-3 w-3 shrink-0 text-navy-200" aria-hidden />
                 {finding.quote}
               </p>
             </li>
@@ -152,7 +152,7 @@ export async function RiskAssessment({
       ) : null}
 
       {keywordIndicators.length > 0 && risks.length === 0 ? (
-        <p className="mt-3 text-xs text-slate-600">
+        <p className="mt-3 text-xs text-navy-400">
           {t("risk.matched")} <span className="font-medium">{keywordIndicators.join(", ")}</span>
         </p>
       ) : null}
@@ -171,27 +171,27 @@ export async function RiskAssessment({
       ) : null}
 
       {prior.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        <div className="mt-3 rounded-lg border border-navy-100 bg-white p-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-navy-400">
             <Clock className="h-3.5 w-3.5" aria-hidden />
             {t("risk.before")}
           </p>
           <ul className="mt-1 space-y-1">
             {prior.map((row, index) => (
-              <li key={index} className="text-xs text-slate-600">
+              <li key={index} className="text-xs text-navy-400">
                 {formatDate(row.createdAt, zone, locale)}{" "}
                 · {levelWord(row.level)} · {sourceWord(row.source)}
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-navy-400">
             {t("risk.historyNote")}
           </p>
         </div>
       ) : null}
 
       {unquoted > 0 ? (
-        <p className="mt-3 text-[11px] text-slate-600">
+        <p className="mt-3 text-[11px] text-navy-400">
           {unquoted === 1 ? t("risk.unquotedOne") : t("risk.unquotedMany", { count: unquoted })}
         </p>
       ) : null}

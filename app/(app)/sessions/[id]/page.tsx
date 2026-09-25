@@ -10,7 +10,7 @@ import { SessionApproval } from "@/components/session/session-approval";
 import { AttributeTranscript } from "@/components/clinical/attribute-transcript";
 import { SourcePanel } from "@/components/session/source-panel";
 import { VoicesPanel } from "@/components/session/voices-panel";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { personIdForPatient } from "@/lib/data/people";
@@ -195,7 +195,7 @@ export default async function SessionDetailPage({
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href="/sessions"
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-navy-400 hover:text-navy-700"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           {t("portal.nav.sessions")}
@@ -214,11 +214,11 @@ export default async function SessionDetailPage({
             it stays plain text in that one case rather than becoming a link
             that 404s.
           */}
-          <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="truncate text-2xl font-bold tracking-tight text-navy-700">
             {row.session.patientId ? (
               <Link
                 href={`/patients/${row.session.patientId}`}
-                className="underline decoration-slate-200 decoration-2 underline-offset-4 hover:decoration-slate-400"
+                className="underline decoration-navy-100 decoration-2 underline-offset-4 hover:decoration-navy-300"
               >
                 {patientLabel}
               </Link>
@@ -226,7 +226,7 @@ export default async function SessionDetailPage({
               patientLabel
             )}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-navy-400">
             {/*
               🔴 B64: the booked hour stays the session's time. It used to
               lead with the END, so a 10:00 booking started at 00:26 read as a
@@ -264,10 +264,10 @@ export default async function SessionDetailPage({
         {live ? (
           <Card className="flex flex-col items-start gap-3 p-4">
             <div>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-navy-700">
                 {t("portal.session.unfinished")}
               </p>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <p className="mt-0.5 text-sm text-navy-400">
                 {t("portal.session.unfinishedBody")}
               </p>
             </div>
@@ -457,10 +457,10 @@ export default async function SessionDetailPage({
         ) : null}
 
         {transcript.length > 0 ? (
-          <details className="group rounded-2xl border border-slate-200 bg-white">
-            <summary className="tap-target flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-800">
+          <details className="group rounded-3xl border border-navy-100/80 bg-white">
+            <summary className="tap-target flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-navy-700">
               {t("portal.session.transcript")}
-              <span className="text-xs font-normal text-slate-500">
+              <span className="text-xs font-normal text-navy-400">
                 {t("portal.session.segments", { count: transcript.length })}
               </span>
             </summary>
@@ -478,7 +478,7 @@ export default async function SessionDetailPage({
               the half a model cannot do: a clinician who was in the room saying
               which of them it got wrong.
             */}
-            <div className="border-t border-slate-100 px-4 py-4">
+            <div className="border-t border-navy-100/70 px-4 py-4">
               {lateNotice ? (
                 <p className="mb-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-800">
                   {lateNotice}
@@ -502,7 +502,7 @@ export default async function SessionDetailPage({
             </div>
           </details>
         ) : row.session.status === "completed" ? (
-          <p className="px-1 text-sm text-slate-500">
+          <p className="px-1 text-sm text-navy-400">
             {t("portal.session.noTranscript")}
           </p>
         ) : null}

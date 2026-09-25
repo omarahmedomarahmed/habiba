@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
 
 import { cancelPlan, resumePlan, upgradeAndPay } from "@/app/(app)/billing/actions";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { tierName } from "@/lib/billing/tier-name";
 import { useT } from "@/lib/i18n/client";
@@ -151,7 +151,7 @@ export function PlanCard({
     <Card className="p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{current.name}</p>
+          <p className="text-sm font-semibold text-navy-700">{current.name}</p>
 
           {/*
             🔴 76.34 — THE PRICES MOVED TO THE CARDS AND ARE NOT SAID TWICE.
@@ -173,11 +173,11 @@ export function PlanCard({
           */}
           {unlimited ? (
             <>
-              <p className="mt-0.5 text-sm text-slate-600">{t("tplan.unlimitedNoMeter")}</p>
+              <p className="mt-0.5 text-sm text-navy-400">{t("tplan.unlimitedNoMeter")}</p>
             </>
           ) : (
             <>
-              <p className="mt-0.5 text-sm text-slate-500">{t("tplan.aiNever")}</p>
+              <p className="mt-0.5 text-sm text-navy-400">{t("tplan.aiNever")}</p>
             </>
           )}
         </div>
@@ -197,32 +197,32 @@ export function PlanCard({
         quietly emptying (C221).
       */}
       <dl className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <dt className="text-xs text-slate-500">{t("tplan.spentPlatform")}</dt>
-          <dd className="mt-0.5 text-2xl font-bold text-slate-900">
+        <div className="rounded-2xl bg-navy-50 px-4 py-3">
+          <dt className="text-xs text-navy-400">{t("tplan.spentPlatform")}</dt>
+          <dd className="mt-0.5 text-2xl font-bold text-navy-700">
             <Money cents={spentPlatformCents} />
           </dd>
         </div>
-        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <dt className="text-xs text-slate-500">{t("tplan.spentAi")}</dt>
-          <dd className="mt-0.5 text-2xl font-bold text-slate-900"><Money cents={spentAiCents} /></dd>
+        <div className="rounded-2xl bg-navy-50 px-4 py-3">
+          <dt className="text-xs text-navy-400">{t("tplan.spentAi")}</dt>
+          <dd className="mt-0.5 text-2xl font-bold text-navy-700"><Money cents={spentAiCents} /></dd>
         </div>
-        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <dt className="text-xs text-slate-500">{t("tplan.creditBalance")}</dt>
-          <dd className="mt-0.5 text-2xl font-bold text-slate-900">
+        <div className="rounded-2xl bg-navy-50 px-4 py-3">
+          <dt className="text-xs text-navy-400">{t("tplan.creditBalance")}</dt>
+          <dd className="mt-0.5 text-2xl font-bold text-navy-700">
             <Money cents={creditRemainingCents} />
           </dd>
         </div>
-        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <dt className="text-xs text-slate-500">{t("tplan.heldEarnings")}</dt>
-          <dd className="mt-0.5 text-2xl font-bold text-slate-900">
+        <div className="rounded-2xl bg-navy-50 px-4 py-3">
+          <dt className="text-xs text-navy-400">{t("tplan.heldEarnings")}</dt>
+          <dd className="mt-0.5 text-2xl font-bold text-navy-700">
             <Money cents={heldEarningsCents} />
           </dd>
         </div>
       </dl>
 
       {creditRemainingCents > 0 && creditsExpireOn ? (
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-navy-400">
           {t("tplan.creditExpiresOn", { date: creditsExpireOn })}
         </p>
       ) : null}
@@ -237,13 +237,13 @@ export function PlanCard({
         both, because "upgrade" and "manage" are different questions.
       */}
       {unlimited ? (
-        <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+        <div className="mt-5 rounded-2xl border border-navy-100 p-4">
           {endsOn ? (
             <>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-navy-700">
                 {t("tplan.endsOn", { date: endsOn })}
               </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+              <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
                 {rich(t("tplan.endsBody", { amount: slot(0) }), [<Money cents={platformFeeCents} />])}
               </p>
               <Button
@@ -257,12 +257,12 @@ export function PlanCard({
             </>
           ) : (
             <>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-navy-700">
                 {renewsOn
                   ? rich(t("tplan.renewsOn", { date: renewsOn, amount: slot(0) }), [<Money cents={current.monthlyCents} />])
                   : rich(t("tplan.renewsMonthly", { amount: slot(0) }), [<Money cents={current.monthlyCents} />])}
               </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+              <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
                 {t("tplan.cancelKeepsMonth")}
               </p>
               <div className="mt-4">
@@ -299,7 +299,7 @@ export function PlanCard({
             per session", which is exactly what each card now says about itself,
             on the card, beside its own price.
           */}
-          <p className="text-sm font-semibold text-slate-900">{t("tplan.plansTitle")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("tplan.plansTitle")}</p>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             {[payg, ...plans].map((tier) => {
@@ -316,12 +316,12 @@ export function PlanCard({
                     isCurrent
                       ? "rounded-2xl border-2 border-brand-600 bg-brand-50 p-3.5 text-start"
                       : chosen
-                        ? "rounded-2xl border-2 border-slate-900 bg-white p-3.5 text-start"
-                        : "rounded-2xl border border-slate-200 bg-white p-3.5 text-start"
+                        ? "rounded-2xl border-2 border-navy-700 bg-white p-3.5 text-start"
+                        : "rounded-3xl border border-navy-100/80 bg-white p-3.5 text-start"
                   }
                 >
                   <span className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-slate-900">{tierName(tier, t)}</span>
+                    <span className="text-sm font-semibold text-navy-700">{tierName(tier, t)}</span>
                     {isCurrent ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-navy-600">
                         <Check className="h-2.5 w-2.5" aria-hidden />
@@ -329,12 +329,12 @@ export function PlanCard({
                       </span>
                     ) : null}
                   </span>
-                  <span className="mt-1 block text-lg font-bold tracking-tight text-slate-900">
+                  <span className="mt-1 block text-lg font-bold tracking-tight text-navy-700">
                     {tier.monthlyCents > 0
                       ? rich(t("tplan.monthlyEvery", { amount: slot(0) }), [<Money cents={tier.monthlyCents} />])
                       : rich(t("tplan.paygPrice", { amount: slot(0) }), [<Money cents={platformFeeCents} />])}
                   </span>
-                  <span className="mt-1 block text-xs leading-relaxed text-slate-600">
+                  <span className="mt-1 block text-xs leading-relaxed text-navy-400">
                     {tier.monthlyCents > 0
                       ? t("tplan.unlimitedNoMeter")
                       : rich(t("tplan.aiRate", { amount: slot(0) }), [<Money cents={tier.aiRateCents} />])}
@@ -358,19 +358,19 @@ export function PlanCard({
             that is not coming.
           */}
           {considering && considering !== current.key ? (
-            <div className="mt-3 rounded-2xl border-2 border-slate-900 bg-white p-4">
+            <div className="mt-3 rounded-2xl border-2 border-navy-700 bg-white p-4">
               {(() => {
                 const tier = tiers.find((row) => row.key === considering);
                 if (!tier) return null;
                 const up = tier.monthlyCents > 0;
                 return (
                   <>
-                    <p className="text-sm font-bold text-slate-900">
+                    <p className="text-sm font-bold text-navy-700">
                       {up
                         ? t("tplan.confirmTitle", { name: tierName(tier, t) })
                         : t("tplan.confirmDownTitle")}
                     </p>
-                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-slate-600">
+                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-navy-400">
                       <li>
                         {up
                           ? rich(t("tplan.confirmCost", { amount: slot(0) }), [<Money cents={tier.monthlyCents} />])

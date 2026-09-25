@@ -45,7 +45,7 @@ export default async function LoginPage({
       promise={t("auth.therapist.promise")}
       points={[t("auth.therapist.p1"), t("auth.therapist.p2"), t("auth.therapist.p3")]}
       belowForm={
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-navy-400">
           <Link href="/forgot-password" className="hover:text-navy-500">
             {t("tauth.forgot")}
           </Link>

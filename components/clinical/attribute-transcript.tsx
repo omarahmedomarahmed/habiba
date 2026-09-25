@@ -105,11 +105,11 @@ export function AttributeTranscript({
   return (
     <div className="space-y-3">
       {mostlyUnknown ? (
-        <p className="rounded-xl bg-slate-100 px-3 py-2.5 text-xs leading-relaxed text-slate-700">
+        <p className="rounded-xl bg-navy-50 px-3 py-2.5 text-xs leading-relaxed text-navy-600">
           {t("tattr.oneMic")}
         </p>
       ) : null}
-      <p className="text-xs leading-relaxed text-slate-600">{t("tattr.blurb")}</p>
+      <p className="text-xs leading-relaxed text-navy-400">{t("tattr.blurb")}</p>
       {error ? (
         <p role="alert" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {error}
@@ -120,8 +120,8 @@ export function AttributeTranscript({
         {lines.map((line) => {
           const speaker = local[line.id] ?? line.speaker;
           return (
-            <li key={line.id} className="border-b border-slate-100 pb-3 last:border-b-0">
-              <p className="text-sm leading-relaxed text-slate-700">{line.text}</p>
+            <li key={line.id} className="border-b border-navy-100/70 pb-3 last:border-b-0">
+              <p className="text-sm leading-relaxed text-navy-600">{line.text}</p>
 
               {line.voiceBound ? (
                 /*
@@ -130,7 +130,7 @@ export function AttributeTranscript({
                  * the product is broken rather than that attribution lives one
                  * panel up.
                  */
-                <p className="mt-1.5 text-[11px] font-medium text-slate-600">
+                <p className="mt-1.5 text-[11px] font-medium text-navy-400">
                   {speaker === "patient"
                     ? t("tattr.them")
                     : speaker === "therapist"
@@ -151,8 +151,8 @@ export function AttributeTranscript({
                       className={cn(
                         "rounded-full px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50",
                         speaker === choice.key
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-100 text-slate-600",
+                          ? "bg-navy-600 text-white"
+                          : "bg-navy-50 text-navy-400",
                       )}
                     >
                       {choice.label}
@@ -166,7 +166,7 @@ export function AttributeTranscript({
                     one attribution here with a person behind it.
                   */}
                   {line.inferred && !local[line.id] ? (
-                    <span className="text-[11px] text-slate-600 italic">{t("tattr.guessed")}</span>
+                    <span className="text-[11px] text-navy-400 italic">{t("tattr.guessed")}</span>
                   ) : null}
                 </div>
               )}
