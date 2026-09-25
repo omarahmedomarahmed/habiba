@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { dbFor } from "@/lib/db";
@@ -162,13 +162,18 @@ async function alertGrantHolders(
   const db = dbFor(await regionOfPerson(personId));
 
   const holders = await db
-    .select({ userId: historyGrants.therapistUserId })
+    .selectDistinct({ userId: historyGrants.therapistUserId })
     .from(historyGrants)
     .where(
       and(
         eq(historyGrants.personId, personId),
         eq(historyGrants.status, "granted"),
-        gte(historyGrants.expiresAt, now),
+        /*
+         * An open-ended grant ("until I change my mind") has a NULL expiry and
+         * is the most live grant there is. `gte` alone is false against NULL,
+         * so those clinicians were never told. Same rule as `isLiveGrant`.
+         */
+        or(isNull(historyGrants.expiresAt), gt(historyGrants.expiresAt, now)),
       ),
     );
 
