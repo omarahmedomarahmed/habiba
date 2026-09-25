@@ -131,3 +131,45 @@ test("🔴 B24: an invitation names the organisation, the role and the portal, i
   /* The partner portal's own invitation goes through the same builder. */
   assert.match(read("lib/partner/team.ts"), /sendAccountLink\(\{[\s\S]*reader: "partner"[\s\S]*role,/);
 });
+
+test("🔴 B24 the practice's own invitations use the same builder: its staff and its clinicians", async () => {
+  /* The team page: the practice and the role from the row, the custom role by its name, the manager's footer. */
+  const team = read("app/(clinic)/clinic/team/actions.ts");
+  const staff = team.slice(team.indexOf("async function sendStaffInvite("), team.indexOf("export async function saveRole("));
+  assert.match(staff, /accountFor\("clinic", input\.clinicManagerId\)/);
+  assert.match(staff, /sendAccountLink\(\{[\s\S]*reader: "manager"[\s\S]*organisation: account\.organisation,\s*role: account\.role,\s*roleName: account\.roleName/);
+  assert.match(staff, /locale: await getLocale\(\)/, "the invitation is in the practice's language, not always English");
+  /* CONTROL the English sentence that named the practice and no role is gone. */
+  assert.doesNotMatch(team, /has added you to their practice's team on 24Therapy/);
+
+  const links = read("lib/auth/account-links.ts");
+  assert.match(links, /roleName: clinicRoles\.name/, "a custom role is read by the name the practice gave it");
+
+  /* The people page: a clinician invited to the practice, no longer a patient's claim.invite. */
+  const people = read("app/(clinic)/clinic/people/actions.ts");
+  const invite = people.slice(people.indexOf("export async function invite("), people.indexOf("export async function cancelInvitation"));
+  assert.match(invite, /sendAccountLink\(\{[\s\S]*reader: "clinician"[\s\S]*purpose: "join"[\s\S]*organisation: actor\.clinicName,\s*role: "therapist"/);
+  assert.doesNotMatch(invite, /kind: "claim\.invite"/, "a clinician's job invitation ended 'sent by your therapist'");
+
+  const { en, ar } = await import("../lib/i18n/messages");
+  for (const key of ["mail.account.invite.clinician", "mail.account.joinNext", "mail.account.openInvitation", "mail.role.clinician", "mail.footer.invited"] as const) {
+    assert.ok(en[key] && /[\u0600-\u06FF]/.test(ar[key]), key);
+  }
+  assert.match(en["mail.account.invite.clinician"], /\{org\}[\s\S]*\{role\}/);
+  assert.match(ar["mail.account.invite.clinician"], /\{org\}[\s\S]*\{role\}/);
+
+  const { footerKeys } = await import("../lib/notify/readers");
+  const invited = footerKeys({ reader: "clinician", occasion: "invited" }).map((k) => en[k]).join(" ");
+  assert.match(invited, /a practice invited this address/);
+  assert.doesNotMatch(invited, /therapist|appointment|your clinician account/);
+});
+
+test("CONTROL the session invitation was already the patient's, in their language, with their clinician's footer", async () => {
+  /* Named beside the two above and checked rather than changed: it is a patient's door to a session, not an account. */
+  const source = read("lib/data/session-invite.ts");
+  assert.match(source, /wordsFor\(patient\.personId/);
+  assert.match(source, /locale: words\.locale/);
+  assert.match(source, /kind: "session\.invite"/);
+  const { footingFor, footerKeys } = await import("../lib/notify/readers");
+  assert.deepEqual(footerKeys(footingFor("session.invite")), ["pmsg.mail.fromTherapist", "pmsg.mail.ignore"]);
+});

@@ -9,6 +9,7 @@ import { controlDb } from "@/lib/db";
 import {
   accountLinks,
   clinicManagers,
+  clinicRoles,
   organizations,
   partnerUsers,
   partners,
@@ -256,6 +257,7 @@ export async function emailAccountLink(input: {
     purpose,
     organisation: account.organisation,
     role: account.role,
+    roleName: account.roleName,
     name: account.name,
     signIn: `${env.appUrl}${SIGN_IN_FOR[input.audience]}`,
     days: purpose === "invite" ? INVITE_DAYS : 0,
@@ -274,12 +276,16 @@ const READER_FOR: Record<AccountAudience, "staff" | "company" | "manager" | "par
 /**
  * 🔴 B24: whose account this is and in what role, so the invitation can say.
  * Read from the row the link was minted for, never from the form, so it names
- * what was actually created.
+ * what was actually created. A practice's own role (`clinic_roles`) comes back
+ * by the name the practice gave it, since that is what the person was given.
+ *
+ * Exported for the clinic team page, which mints its own link
+ * (`issueClinicToken`) and sends the same invitation through `sendAccountLink`.
  */
-async function accountFor(
+export async function accountFor(
   audience: AccountAudience,
   accountId: string,
-): Promise<{ organisation: string | null; role: string; name: string | null }> {
+): Promise<{ organisation: string | null; role: string; roleName?: string | null; name: string | null }> {
   if (audience === "staff") {
     const [row] = await db
       .select({ role: users.role, name: users.firstName })
@@ -299,12 +305,23 @@ async function accountFor(
   }
   if (audience === "clinic") {
     const [row] = await db
-      .select({ organisation: organizations.name, role: clinicManagers.role, name: clinicManagers.name })
+      .select({
+        organisation: organizations.name,
+        role: clinicManagers.role,
+        roleName: clinicRoles.name,
+        name: clinicManagers.name,
+      })
       .from(clinicManagers)
       .innerJoin(organizations, eq(organizations.id, clinicManagers.organizationId))
+      .leftJoin(clinicRoles, eq(clinicRoles.id, clinicManagers.roleId))
       .where(eq(clinicManagers.id, accountId))
       .limit(1);
-    return { organisation: row?.organisation ?? null, role: row?.role ?? "viewer", name: row?.name ?? null };
+    return {
+      organisation: row?.organisation ?? null,
+      role: row?.role ?? "viewer",
+      roleName: row?.roleName ?? null,
+      name: row?.name ?? null,
+    };
   }
   const [row] = await db
     .select({ organisation: partners.name, role: partnerUsers.role, name: partnerUsers.name })

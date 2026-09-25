@@ -26,8 +26,10 @@ export type Reader = (typeof READERS)[number];
  *   booking    about an appointment; a patient's booking line.
  *   therapist  sent on their clinician's behalf; a patient only.
  *   account    about the account they hold, in the reader's own words.
+ *   invited    a practice gave this address to invite them, and they hold no
+ *              account with us yet; a clinician asked to join a practice.
  */
-export type Occasion = "asked" | "booking" | "therapist" | "account";
+export type Occasion = "asked" | "booking" | "therapist" | "account" | "invited";
 
 export type Footing = { reader: Reader; occasion: Occasion };
 
@@ -115,6 +117,7 @@ const ACCOUNT_LINE: Record<Reader, MessageKey> = {
 /** The two footer lines for one footing, as dictionary keys. */
 export function footerKeys(footing: Footing): [MessageKey, MessageKey] {
   if (footing.occasion === "asked") return ["mail.footer.asked", "mail.footer.askedIgnore"];
+  if (footing.occasion === "invited") return ["mail.footer.invited", "pmsg.mail.ignore"];
   if (footing.reader === "patient" && footing.occasion === "therapist") {
     return ["pmsg.mail.fromTherapist", "pmsg.mail.ignore"];
   }

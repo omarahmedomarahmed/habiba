@@ -34,7 +34,7 @@ import { log, ref } from "@/lib/logger";
  * functions that could breach it live together and nothing else does.
  */
 
-const INVITE_TTL_DAYS = 14;
+export const INVITE_TTL_DAYS = 14;
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");

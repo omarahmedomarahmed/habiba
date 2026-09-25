@@ -88,26 +88,39 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
   }
 
   /*
-   * 🔴 Sent by us, to the clinician, on both channels. Best effort.
+   * 🔴 Sent by us, to the clinician. Best effort.
    *
    * The link is ALSO returned to the manager, and that is deliberate rather than a
-   * convenience: our mail domain is not verified yet (11.7), so `notify` reports
-   * `sent: false` rather than delivering, and a practice onboarding six people on a
+   * convenience: our mail domain is not verified yet (11.7), so a send can report
+   * failure rather than delivering, and a practice onboarding six people on a
    * Tuesday needs a way through that does not depend on us. Telling them the link
    * exists is more honest than a screen that says "invitation sent" when nothing was.
    *
-   * 🔴 The message names the practice and says nothing about therapy, patients or
-   * anybody's care. It is an invitation to a job account.
+   * 🔴 The message names the practice and the role and says nothing about therapy,
+   * patients or anybody's care. It is an invitation to a job account.
+   *
+   * 🔴 B24, the practice's own copy. This went out in English as a patient's
+   * `claim.invite`, so a clinician's job offer ended "sent by your therapist", and
+   * its WhatsApp copy was that patient template with none of its one variable, so
+   * it was refused every time. It now goes through the account invitation builder
+   * every portal uses, with a footer for somebody a practice invited, in the
+   * language this admin is working in: the invitee has no saved language yet.
    */
-  await notify(
-    { email: email.trim().toLowerCase(), phone: String(formData.get("phone") ?? "") || null },
-    {
-      kind: "claim.invite",
-      subject: "You have been invited to a practice on 24Therapy",
-      body: `${actor.clinicName} has invited you to join their practice on 24Therapy. Open the link to set a password. You verify your own licence with us afterwards.`,
-      link: { label: "Open the invitation", url: link },
-    },
-  );
+  const { getLocale } = await import("@/lib/i18n/server");
+  const { sendAccountLink } = await import("@/lib/mail");
+  const { INVITE_TTL_DAYS } = await import("@/lib/data/clinic-admin");
+  await sendAccountLink({
+    to: email.trim().toLowerCase(),
+    url: link,
+    reader: "clinician",
+    purpose: "join",
+    organisation: actor.clinicName,
+    role: "therapist",
+    name: String(formData.get("firstName") ?? "").trim() || null,
+    signIn: link,
+    days: INVITE_TTL_DAYS,
+    locale: await getLocale(),
+  });
 
   /*
    * 🔴 0086 — INVITING SOMEBODY COMMITS THE PRACTICE TO PAYING FOR THEIR SESSIONS.

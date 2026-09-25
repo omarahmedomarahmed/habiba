@@ -432,13 +432,15 @@ const ROLE_KEY: Record<string, MessageKey> = {
   staff: "mail.role.staff",
   manager: "mail.role.manager",
   super_admin: "mail.role.owner",
+  therapist: "mail.role.clinician",
 };
 
-const INVITE_KEY: Record<"staff" | "manager" | "company" | "partner", MessageKey> = {
+const INVITE_KEY: Record<"staff" | "manager" | "company" | "partner" | "clinician", MessageKey> = {
   staff: "mail.account.invite.staff",
   manager: "mail.account.invite.manager",
   company: "mail.account.invite.company",
   partner: "mail.account.invite.partner",
+  clinician: "mail.account.invite.clinician",
 };
 
 /**
@@ -457,11 +459,21 @@ const INVITE_KEY: Record<"staff" | "manager" | "company" | "partner", MessageKey
 export async function sendAccountLink(opts: {
   to: string;
   url: string;
-  reader: "staff" | "manager" | "company" | "partner";
-  purpose: "invite" | "reset";
+  reader: "staff" | "manager" | "company" | "partner" | "clinician";
+  /**
+   * `join` is a practice inviting a clinician, who signs up or signs in with an
+   * account of their own to accept, so it chooses no password and names no
+   * portal sign-in: the link is the invitation page itself.
+   */
+  purpose: "invite" | "reset" | "join";
   /** The practice, company or partner. Unused for our own staff. */
   organisation: string | null;
   role: string;
+  /**
+   * A practice's own role, by the name it gave it ("Reception"), which wins
+   * over `role`: the custom role is what the person was actually given.
+   */
+  roleName?: string | null;
   /** Their own name, for the greeting, when the console was given one. */
   name?: string | null;
   /** The full address of the sign-in page for their portal. */
@@ -472,7 +484,7 @@ export async function sendAccountLink(opts: {
   const words = await mailWords(opts.locale);
   const { t } = words;
   const org = opts.organisation?.trim() || "24Therapy";
-  const role = t(ROLE_KEY[opts.role] ?? "mail.role.member");
+  const role = opts.roleName?.trim() || t(ROLE_KEY[opts.role] ?? "mail.role.member");
   const lead =
     opts.purpose === "reset"
       ? t("mail.account.reset", { org })
@@ -480,16 +492,20 @@ export async function sendAccountLink(opts: {
   const next =
     opts.purpose === "reset"
       ? t("mail.account.resetNext")
-      : t("mail.account.inviteNext", { days: opts.days, signIn: opts.signIn });
+      : opts.purpose === "join"
+        ? t("mail.account.joinNext", { days: opts.days })
+        : t("mail.account.inviteNext", { days: opts.days, signIn: opts.signIn });
   const subject =
     opts.purpose === "reset" ? t("tmsg.reset.subject") : t("mail.account.subject", { org });
+  /* Somebody invited to join has no account with us yet, so the footer says why the address was used. */
+  const occasion = opts.purpose === "reset" ? "asked" : opts.purpose === "join" ? "invited" : "account";
   const html = layout(
     subject,
     `<p style="margin:0 0 12px;font-size:18px;font-weight:700;">${esc(opts.name ? t("pmsg.hi", { name: opts.name }) : t("pmsg.hiThere"))}</p>
      <p style="margin:0 0 12px;color:#334155;font-size:15px;line-height:1.6;">${esc(lead)}</p>
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">${esc(next)}</p>
-     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("mail.account.button"))}</a>`,
-    footerFor(words, { reader: opts.reader, occasion: opts.purpose === "reset" ? "asked" : "account" }),
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t(opts.purpose === "join" ? "mail.account.openInvitation" : "mail.account.button"))}</a>`,
+    footerFor(words, { reader: opts.reader, occasion }),
     words,
   );
   return send({ to: opts.to, subject, html });

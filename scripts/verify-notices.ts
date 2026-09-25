@@ -57,9 +57,6 @@ const OUTBOUND_ONLY: Record<string, string> = {
   /* W2-P03 */
   "lib/patient-auth/email.ts":
     "a code that proves an address is worth nothing after it is used and dangerous while it is not, the same as a sign-in code, so it is never written down",
-  /* W2-C04 */
-  "app/(clinic)/clinic/team/actions.ts":
-    "a staff invitation is a link that sets a password; a copy of it sitting in a log is a second place to steal it from, and the recipient is a clinic manager, who has no patient notice log",
   /* W1-16 */
   "lib/data/licence-expiry.ts":
     "the recipient is a clinician, who has no person row and so no patient notice log; the portal banner is read from the verification row itself, which is the in-app home",

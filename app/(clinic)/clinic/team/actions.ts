@@ -30,27 +30,39 @@ export type TeamState = { error?: string; ok?: boolean; link?: string };
  * verified yet, so a practice adding a receptionist needs a way through that
  * does not depend on us. The link lets its holder choose THEIR OWN password
  * once; the admin never types or sees one.
+ *
+ * 🔴 B24, the practice's own copy. It went out in English with the practice's
+ * name and no role, while the console's invitation to the same kind of account
+ * named both. It now goes through the same builder (`sendAccountLink`): the
+ * practice and the role read from the row the link is for, the custom role by
+ * the name the practice gave it, the manager's footer, and the language this
+ * admin is working in, since somebody just added has no saved language yet and
+ * the practice's own is the best guess at theirs.
  */
-async function sendStaffInvite(input: {
-  clinicManagerId: string;
-  email: string;
-  clinicName: string;
-}): Promise<string> {
-  const { issueClinicToken } = await import("@/lib/clinic-auth/tokens");
+async function sendStaffInvite(input: { clinicManagerId: string; email: string }): Promise<string> {
+  const { INVITE_TTL_MS, issueClinicToken } = await import("@/lib/clinic-auth/tokens");
   const { env } = await import("@/lib/env");
-  const { notify } = await import("@/lib/notify");
+  const { accountFor } = await import("@/lib/auth/account-links");
+  const { getLocale } = await import("@/lib/i18n/server");
+  const { sendAccountLink } = await import("@/lib/mail");
+  const { CLINIC_SIGN_IN } = await import("@/lib/routing");
 
   const token = await issueClinicToken(input.clinicManagerId, "invite");
   const link = `${env.appUrl}/clinic/set-password?token=${token}`;
-  await notify(
-    { email: input.email, phone: null },
-    {
-      kind: "clinic.staff_invite",
-      subject: `${input.clinicName} has added you on 24Therapy`,
-      body: `${input.clinicName} has added you to their practice's team on 24Therapy. Open the link to choose your password. It works once, for fourteen days.`,
-      link: { label: "Choose your password", url: link },
-    },
-  );
+  const account = await accountFor("clinic", input.clinicManagerId);
+  await sendAccountLink({
+    to: input.email,
+    url: link,
+    reader: "manager",
+    purpose: "invite",
+    organisation: account.organisation,
+    role: account.role,
+    roleName: account.roleName,
+    name: account.name,
+    signIn: `${env.appUrl}${CLINIC_SIGN_IN}`,
+    days: INVITE_TTL_MS / 86_400_000,
+    locale: await getLocale(),
+  });
   return link;
 }
 
@@ -159,7 +171,6 @@ export async function inviteStaff(_prev: TeamState, formData: FormData): Promise
   const link = await sendStaffInvite({
     clinicManagerId: result.id,
     email: email.trim().toLowerCase(),
-    clinicName: actor.clinicName,
   });
 
   /* 🔴 58.7 — a new principal inside a tenancy is the most auditable thing here. */
@@ -191,7 +202,6 @@ export async function reinviteStaff(clinicManagerId: string): Promise<TeamState>
   const link = await sendStaffInvite({
     clinicManagerId: staff.id,
     email: staff.email,
-    clinicName: actor.clinicName,
   });
 
   await audit({
