@@ -32,10 +32,14 @@ const db = dbFor(pinnedToDefaultRegion("lib/patient-auth/email.ts", "not routed 
  * `hash(code:address)`, the form sends both back, and the column is written
  * only when they match. No migration, and no pending address stored anywhere.
  *
- * Same table, same purpose and same attempt ceiling as the claim's handle code
- * (0053, 0055), because a second implementation of a bounded code is a second
- * place to get the bound wrong. A claim code cannot finish this, nor this one a
- * claim: their hashes cover different strings.
+ * Same table and same attempt ceiling as the claim's handle code (0053, 0055),
+ * because a second implementation of a bounded code is a second place to get
+ * the bound wrong. A claim code cannot finish this, nor this one a claim: their
+ * hashes cover different strings.
+ *
+ * 🔴 K19 — but its OWN purpose, `email_add` (0173). It shared `handle_verify`
+ * with the sign-in code, and each reads the newest live row of its purpose, so
+ * asking for one made the other "wrong or expired".
  */
 
 const CODE_MINUTES = 15;
@@ -83,7 +87,7 @@ export async function issueEmailCode(
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   await db.insert(patientAuthTokens).values({
     patientAccountId: accountId,
-    purpose: "handle_verify",
+    purpose: "email_add",
     tokenHash: bound(code, email),
     channel: "email",
     expiresAt: new Date(Date.now() + CODE_MINUTES * 60 * 1000),
@@ -129,7 +133,7 @@ export async function confirmEmailCode(
     .where(
       and(
         eq(patientAuthTokens.patientAccountId, accountId),
-        eq(patientAuthTokens.purpose, "handle_verify"),
+        eq(patientAuthTokens.purpose, "email_add"),
         eq(patientAuthTokens.channel, "email"),
         isNull(patientAuthTokens.usedAt),
         gt(patientAuthTokens.expiresAt, new Date()),

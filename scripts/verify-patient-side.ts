@@ -19,6 +19,7 @@ import {
   historyGrants,
   manualPayments,
   notifications,
+  patientAuthTokens,
   patientNotifications,
   organizations,
   patientAccounts,
@@ -470,9 +471,9 @@ async function main() {
     ]) {
       const source = stripComments(readSource(file));
       if (!/tellPatientOfWork\(/.test(source)) stale.push(`${file} tells nobody`);
-      for (const [, path] of source.matchAll(/revalidatePath\(`([^`]+)`\)|revalidatePath\("([^"]+)"\)/g).map(
-        (m) => [m[0], m[1] ?? m[2]] as const,
-      )) {
+      for (const [, path] of [
+        ...source.matchAll(/revalidatePath\(`([^`]+)`\)|revalidatePath\("([^"]+)"\)/g),
+      ].map((m) => [m[0], m[1] ?? m[2]] as const)) {
         const route = path!.replace(/^\/patients\/\$\{patientId\}/, "/patients/[id]");
         const group = route.startsWith("/patients/") ? "(app)" : "(patient)";
         if (!existsSync(`app/${group}${route}/page.tsx`)) stale.push(`${path} has no page`);
@@ -482,6 +483,114 @@ async function main() {
       "🔴 K18 both actions tell the patient and revalidate only paths that have a page",
       stale.length === 0,
       stale.join("; ") || "every path is a real page",
+    );
+
+    /* ----------------- K19 · a claim after a booking, and codes that coexist */
+
+    /*
+     * PE43: A signed up (their own person S), booked T2 (a chart on S) and
+     * wrote a journal, THEN claimed T1's record C by invite. The account used
+     * to stay on S ("kept"), with C's sessions out of the app.
+     */
+    const phone = "+201555000175";
+    const [s43] = await db
+      .insert(people)
+      .values({ firstName: `${TAG}-S`, phone })
+      .returning({ id: people.id });
+    const [c43] = await db
+      .insert(people)
+      .values({ firstName: `${TAG}-C`, phone })
+      .returning({ id: people.id });
+    const [a43] = await db
+      .insert(patientAccounts)
+      .values({ personId: s43!.id, phone, phoneVerifiedAt: new Date(), passwordHash: null })
+      .returning({ id: patientAccounts.id });
+    await db.insert(patients).values([
+      { organizationId: f.orgId, therapistId: f.t2, personId: s43!.id, firstName: `${TAG}-booked`, phone },
+      { organizationId: f.orgId, therapistId: f.t1, personId: c43!.id, firstName: `${TAG}-kept`, phone },
+    ]);
+    await writeJournal({ personId: s43!.id, accountId: a43!.id, body: "Wrote this before claiming.", source: "typed" });
+
+    const { issueInvite, redeemInvite } = await import("../lib/data/claims");
+    const invite = await issueInvite({ personId: c43!.id, issuedByUserId: f.t1 });
+    const redeemed =
+      "token" in invite
+        ? await redeemInvite({ token: invite.token, accountId: a43!.id, therapistKeepsAccess: false })
+        : { ok: false as const, error: invite.error };
+    const [after] = await db
+      .select({ personId: patientAccounts.personId })
+      .from(patientAccounts)
+      .where(eq(patientAccounts.id, a43!.id));
+    const charts = await db
+      .select({ therapistId: patients.therapistId })
+      .from(patients)
+      .where(eq(patients.personId, c43!.id));
+    const [journal43] = await db.execute(
+      sql`SELECT count(*)::int AS n FROM journals WHERE person_id = ${c43!.id}`,
+    ).then((r) => r.rows as { n: number }[]);
+    check(
+      "🔴 PE43 claiming after a booking moves the account onto the claimed record, with both charts",
+      redeemed.ok === true && after?.personId === c43!.id && charts.length === 2,
+      redeemed.ok ? `${charts.length} chart(s) on the claimed record` : redeemed.error,
+    );
+    check(
+      "PE43 …and what they wrote before claiming comes with them",
+      journal43?.n === 1,
+      `${journal43?.n ?? 0} journal(s) on the claimed record`,
+    );
+    const { accessFor } = await import("../lib/data/grants");
+    const [bookedChart] = await db
+      .select({ id: patients.id })
+      .from(patients)
+      .where(and(eq(patients.personId, c43!.id), eq(patients.therapistId, f.t2)));
+    const t2Access = await accessFor(
+      { userId: f.t2, organizationId: f.orgId, role: "therapist" } as never,
+      bookedChart!.id,
+    );
+    check(
+      "PE43 CONTROL: the fold grants nobody anything; an unticked claim leaves the booked clinician without the live profile",
+      !t2Access.capabilities.liveProfile,
+      t2Access.state,
+    );
+
+    /* PE42: the person is taken first and the invite spent second, in one transaction. */
+    const claimsSource = stripComments(readSource("lib/data/claims.ts"));
+    const redeem = claimsSource.slice(claimsSource.indexOf("export async function redeemInvite"));
+    check(
+      "🔴 PE42 an invite is spent only by the claim it makes (person first, invite second, a lost race rolls back)",
+      redeem.indexOf(".update(people)") > 0 &&
+        redeem.indexOf(".update(people)") < redeem.indexOf(".update(personInvites)") &&
+        /throw new InviteRaceLost\(\)/.test(redeem),
+    );
+
+    /* The add-email code and the sign-in code no longer cancel each other. */
+    const { issueEmailCode, confirmEmailCode } = await import("../lib/patient-auth/email");
+    const address = `${TAG}@example.com`;
+    const issued = await issueEmailCode(a43!.id, address);
+    /* A sign-in code asked for AFTER it, as `requestSignInCode` writes one. */
+    await db.insert(patientAuthTokens).values({
+      patientAccountId: a43!.id,
+      purpose: "sign_in",
+      tokenHash: randomBytes(32).toString("hex"),
+      channel: "email",
+      expiresAt: new Date(Date.now() + 900_000),
+    });
+    const confirmed =
+      issued.ok && issued.code ? await confirmEmailCode(a43!.id, address, issued.code) : { ok: false as const, error: "no code issued" };
+    check(
+      "🔴 K19 asking for a sign-in code does not cancel the add-an-email code already sent",
+      confirmed.ok === true,
+      confirmed.ok ? "the email code still confirms" : confirmed.error,
+    );
+    const purposes = [
+      stripComments(readSource("lib/patient-auth/code-signin.ts")),
+      stripComments(readSource("lib/patient-auth/email.ts")),
+      stripComments(readSource("lib/patient-auth/handle.ts")),
+    ].map((source) => [...new Set([...source.matchAll(/purpose(?:: |, )"([a-z_]+)"/g)].map((m) => m[1]))].join("/"));
+    check(
+      "K19 CONTROL: sign-in, add-email and the claim's handle code each use their own purpose",
+      new Set(purposes).size === 3 && purposes.every((p) => p.length > 0 && !p.includes("/")),
+      purposes.join(", "),
     );
 
     /* ----------------------------------------- K9 · the arrival rating */
