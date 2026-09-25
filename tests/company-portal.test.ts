@@ -181,6 +181,23 @@ test("🔴 K6 every company screen reads the pot through the headcount gate", ()
   assert.match(body, /balanceCents: null, published: null/);
 });
 
+test("🔴 B3 / B18 a held-back balance shows what the company put in, never a blank or a zero", () => {
+  for (const file of ["app/(sponsor)/sponsor/page.tsx", "app/(sponsor)/sponsor/pot/page.tsx"]) {
+    const page = readSource(file);
+    assert.match(page, /fmt\(pot\.fundedCents\)/, `${file} hides the company's own money in`);
+    assert.doesNotMatch(page, /sponsor\.balanceSuppressed/, `${file} still says there is nothing to report`);
+  }
+  const pot = readSource("app/(sponsor)/sponsor/pot/page.tsx");
+  assert.doesNotMatch(pot, /balanceCents \?\? 0/, "a held-back balance rendered as zero");
+  const gate = readSource("lib/data/sponsors.ts");
+  const body = gate.slice(gate.indexOf("export async function reportablePot"));
+  // The funded figure is the company's own acts only: no session kind in its sum.
+  const pots = readSource("lib/billing/pot.ts");
+  const funded = pots.slice(pots.indexOf("export async function potFundedCents"));
+  assert.match(funded.slice(0, funded.indexOf("\n}\n")), /\["pot_topup", "pot_return"\]/);
+  assert.match(body, /underHeadcount: true, fundedCents/);
+});
+
 test("W2-S10 the reporting floor applies to every aggregate", async () => {
   const l = (await ledgerModule())!;
   const floor = 5;

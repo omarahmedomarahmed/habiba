@@ -159,7 +159,7 @@ export default async function SponsorOverviewPage() {
         <Card className="p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t("sponsor.balance")}
+              {balanceCents === null ? t("sponsor.funded") : t("sponsor.balance")}
             </p>
             {/*
               🔴 37L.9 — THROUGH `formatDate`, BECAUSE AN ISO SLICE IS NOT A DATE
@@ -187,9 +187,20 @@ export default async function SponsorOverviewPage() {
             ) : null}
           </div>
 
+          {/*
+            🔴 B3 — with the balance held back, what the company paid in, under
+            its own label. That figure is its own acts and moves on no session,
+            so it passes both floors; nothing derived below (bar, percentage,
+            runway) is drawn from it.
+          */}
           <p className="mt-1.5 text-3xl font-bold tracking-tight tabular-nums text-navy-500">
-            {balanceCents === null ? t("sponsor.balanceSuppressed") : fmt(balanceCents)}
+            {balanceCents === null ? fmt(pot.fundedCents) : fmt(balanceCents)}
           </p>
+          {balanceCents === null && underFloor ? (
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              {t("sponsor.fundedHeld", { floor })}
+            </p>
+          ) : null}
 
           {/*
             The bar only exists when the balance does. A bar drawn from a

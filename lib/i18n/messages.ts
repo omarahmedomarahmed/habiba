@@ -1719,6 +1719,13 @@ export const en = {
    */
   "sponsor.balanceSuppressed": "Not enough activity to report yet",
   "sponsor.balance": "Left in your pot",
+  /*
+   * 🔴 B3 — the company's own money in, shown when the balance net of spend is
+   * held back. Its own label, never "Left in your pot": it is what was paid in,
+   * not what remains, and saying otherwise would be a false balance.
+   */
+  "sponsor.funded": "Put into your pot",
+  "sponsor.fundedHeld": "What has been used is shown once {floor} people have joined, so no figure can point to one person.",
   "sponsor.spendTitle": "What has been spent, by week",
   /* 🔴 C228 / C229 — the sentence a client asking for a daily chart reads. */
   "sponsor.whyWeekly": "Weekly at the finest, and never one session alone.",
@@ -1838,6 +1845,7 @@ export const en = {
   "sponsor.cov.moveIt": "Move it, then save",
   "sponsor.cov.zero": "Your people pay for their own. Nothing is drawn from your balance.",
   "sponsor.cov.buys": "At {percent}% you pay {share} of a {price} session, so your balance of {balance} covers about {count} sessions.",
+  "sponsor.cov.buysFunded": "At {percent}% you pay {share} of a {price} session, so the {balance} you have put in covers about {count} sessions.",
   "sponsor.cov.edit": "Edit what you cover",
   "sponsor.cov.raiseNow": "Raising it happens now.",
   "sponsor.cov.lowerTakes": "Lowering it takes {days} days, so nobody pays more on a session already booked.",
@@ -6498,6 +6506,8 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.removeConfirm": "ينتهي تمويله وشارته الآن. ويبقى سجله كما هو، ولا يُخبَر بالسبب.",
   "sponsor.balanceSuppressed": "لا يوجد نشاط كافٍ لعرض رصيد بعد",
   "sponsor.balance": "المتبقي في محفظتك",
+  "sponsor.funded": "ما أضفته إلى محفظتك",
+  "sponsor.fundedHeld": "يظهر ما استُخدم منها بعد انضمام {floor} أشخاص، حتى لا يدل أي رقم على شخص بعينه.",
   "sponsor.spendTitle": "ما أُنفق، أسبوعًا بأسبوع",
   "sponsor.whyWeekly": "أسبوعيًا على الأكثر، ولا تظهر أي جلسة وحدها أبدًا.",
   "sponsor.suppressed": "النشاط لا يكفي للتقرير بعد",
@@ -6594,6 +6604,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.cov.moveIt": "حرّكه ثم احفظ",
   "sponsor.cov.zero": "يدفع موظفوك لأنفسهم، ولا يُسحب شيء من رصيدك.",
   "sponsor.cov.buys": "عند {percent}% تدفع {share} من جلسة سعرها {price}، فيغطي رصيدك البالغ {balance} نحو {count} جلسة.",
+  "sponsor.cov.buysFunded": "عند {percent}% تدفع {share} من جلسة سعرها {price}، فيغطي ما أضفته وقدره {balance} نحو {count} جلسة.",
   "sponsor.cov.edit": "عدّل ما تغطّيه",
   "sponsor.cov.raiseNow": "الزيادة تسري فورًا.",
   "sponsor.cov.lowerTakes": "أما التخفيض فيستغرق {days} يومًا، فلا يدفع أحد أكثر في جلسة حجزها بالفعل.",

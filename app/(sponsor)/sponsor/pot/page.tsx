@@ -158,11 +158,20 @@ export default async function SponsorPotPage() {
         are refusing to publish would be a picture of a number that does not exist.
       */}
       {pot.balanceCents === null ? (
+        /*
+          🔴 B3 — what the company paid in, under its own label, because its own
+          money in names nobody. Still no meter: a bar needs the spend.
+        */
         <Card className="p-4">
-          <p className="text-xs font-medium text-slate-500">{t("sponsor.balance")}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-            {t("sponsor.balanceSuppressed")}
+          <p className="text-xs font-medium text-slate-500">{t("sponsor.funded")}</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-slate-900">
+            {fmt(pot.fundedCents)}
           </p>
+          {pot.underHeadcount ? (
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              {t("sponsor.fundedHeld", { floor: settings.sponsor.activityFloor })}
+            </p>
+          ) : null}
         </Card>
       ) : (
         <Card className="p-4">
@@ -201,7 +210,13 @@ export default async function SponsorPotPage() {
               : null
           }
           noticeDays={settings.sponsor.coverageNoticeDays}
-          balanceUsd={(pot.balanceCents ?? 0) / 100}
+          /*
+            🔴 B18 — null is not zero. This passed `balanceCents ?? 0`, so a pot
+            holding $100 read "your balance of EGP 0 covers about 0 sessions".
+            With the balance held back, the preview counts what they put in.
+          */
+          balanceUsd={pot.balanceCents === null ? null : pot.balanceCents / 100}
+          fundedUsd={pot.fundedCents / 100}
           sessionPriceUsd={settings.sponsor.averageSessionCents / 100}
         />
       ) : null}

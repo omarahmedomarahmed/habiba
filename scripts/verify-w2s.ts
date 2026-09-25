@@ -173,6 +173,16 @@ async function balanceAfterTopUp(db: Db) {
       opened.balanceCents !== null && gated.balanceCents === null && gated.published === null && gated.underHeadcount,
       `raw ${String(opened.balanceCents)}, shown ${String(gated.balanceCents)}`,
     );
+    /*
+     * 🔴 B3: …and what it put in is still shown to it. Under the floor every
+     * company read "Not enough activity to report yet" after paying in, so its
+     * own welcome credit and top-ups vanished from every screen.
+     */
+    check(
+      "🔴 B3 under the headcount floor a company still sees what it put in",
+      gated.fundedCents === 10_000,
+      `put in ${String(gated.fundedCents)}, credit 10000`,
+    );
 
     /*
      * The differencing half: sessions have been spent since the last
@@ -229,6 +239,25 @@ async function balanceAfterTopUp(db: Db) {
         "C21 CONTROL …and a session spent from the pot is still not in it, so nothing can be differenced",
         published !== 10_000 + 5_000 - 3_000 - 2_000,
         `published ${published}`,
+      );
+
+      /*
+       * 🔴 B3: the figure shown under the headcount floor is credits less
+       * returns, and a session spent from the pot does not move it. The control
+       * is the live ledger balance beside it, which the spend does move.
+       */
+      const underFloor = await reportablePot(sponsorId);
+      const { ledgerPotBalance } = await import("../lib/billing/pot");
+      const live = await ledgerPotBalance(sponsorId);
+      check(
+        "🔴 B3 what a company put in is credits less returns, never net of a session",
+        underFloor.underHeadcount && underFloor.balanceCents === null && underFloor.fundedCents === 12_000,
+        `put in ${String(underFloor.fundedCents)}; credits 15000, returned 3000, spent 2000`,
+      );
+      check(
+        "B3 CONTROL …and the live balance, which a spend does move, differs from it by exactly that spend",
+        live === 10_000 && live !== underFloor.fundedCents,
+        `live ${String(live)}`,
       );
     }
 

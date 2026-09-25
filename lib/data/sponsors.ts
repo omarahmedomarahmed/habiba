@@ -367,19 +367,31 @@ export async function enrolledCount(sponsorId: string): Promise<number> {
  *
  * `potBalance` itself stays ungated for the money paths (the pot alerts),
  * which never render a session count.
+ *
+ * 🔴 B3 — AND WHAT THE COMPANY PUT IN IS NEVER HIDDEN FROM IT. A company under
+ * the floor read "Not enough activity to report yet" after its welcome credit
+ * and after a confirmed $500 top-up: its own money, which it had just paid,
+ * vanished from every screen. `fundedCents` is credits less returns, the
+ * company's own acts only, so it is shown whatever the headcount. The balance
+ * net of spend stays behind both floors, because at a company of three any fall
+ * in it says somebody is in therapy.
  */
 export async function reportablePot(
   sponsorId: string,
-): Promise<Awaited<ReturnType<typeof potBalance>> & { underHeadcount: boolean }> {
-  const [pot, headcount, settings] = await Promise.all([
+): Promise<
+  Awaited<ReturnType<typeof potBalance>> & { underHeadcount: boolean; fundedCents: number }
+> {
+  const { potFundedCents } = await import("@/lib/billing/pot");
+  const [pot, headcount, settings, fundedCents] = await Promise.all([
     potBalance(sponsorId),
     enrolledCount(sponsorId),
     getSettings(),
+    potFundedCents(sponsorId),
   ]);
   if (headcount < settings.sponsor.activityFloor) {
-    return { ...pot, balanceCents: null, published: null, underHeadcount: true };
+    return { ...pot, balanceCents: null, published: null, underHeadcount: true, fundedCents };
   }
-  return { ...pot, underHeadcount: false };
+  return { ...pot, underHeadcount: false, fundedCents };
 }
 
 /** 53.9 — the live joining code, or none. */
