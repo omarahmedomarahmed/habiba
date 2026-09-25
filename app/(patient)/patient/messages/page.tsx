@@ -77,7 +77,7 @@ export default async function PatientMessagesPage() {
         mutedOn={mutedAt ? formatDate(mutedAt, "UTC", locale) : null}
       />
 
-      <p className="text-sm leading-relaxed text-slate-600">{t("checkin.howToStop")}</p>
+      <p className="text-sm leading-relaxed text-slate-600">{t("checkin.howToStopHere")}</p>
     </div>
   );
 }

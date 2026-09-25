@@ -286,6 +286,53 @@ async function main() {
       (await priorRiskFor(now, null, f.t1, f.orgId)).length === 0,
     );
 
+    /* -------------------------- check-ins · who is woken, and how to stop */
+
+    const day = 86_400_000;
+    const [qSeen] = await db
+      .insert(sessions)
+      .values({
+        organizationId: f.orgId,
+        therapistId: f.t1,
+        patientId: f.t1q,
+        status: "completed",
+        modality: "video",
+        feedbackToken: randomBytes(16).toString("hex"),
+        scheduledAt: new Date(Date.now() - 3 * day),
+        startedAt: new Date(Date.now() - 3 * day),
+      })
+      .returning({ id: sessions.id });
+    await db.insert(sessions).values([
+      {
+        organizationId: f.orgId,
+        therapistId: f.t1,
+        patientId: f.t1q,
+        status: "cancelled",
+        modality: "video",
+        feedbackToken: randomBytes(16).toString("hex"),
+        scheduledAt: new Date(Date.now() + day),
+      },
+    ]);
+    const { mostRecentSessionFor } = await import("../lib/checkins/receive");
+    const woken = await mostRecentSessionFor(f.q);
+    check(
+      "🔴 a worrying check-in reply wakes the clinician who last SAW them, not a cancelled or unscheduled row",
+      woken?.sessionId === qSeen!.id,
+      woken?.sessionId === qSeen!.id ? "the session three days ago" : `picked ${woken?.sessionId ?? "nothing"}`,
+    );
+
+    const { en, ar } = await import("../lib/i18n/messages");
+    const sendSource = stripComments(readSource("lib/checkins/send.ts"));
+    check(
+      "🔴 no check-in tells a person to reply stop, because nothing receives a reply",
+      !/reply/i.test(en["checkin.howToStop"]) && !/ردّ|رد /.test(ar["checkin.howToStop"]),
+      en["checkin.howToStop"],
+    );
+    check(
+      "…and the message carries the link to the switch that does stop them",
+      /link: \{ label: t\("checkin\.stopLink"\), url: `\$\{env\.appUrl\}\/patient\/messages` \}/.test(sendSource),
+    );
+
     /* ----------------------------------------- K9 · the arrival rating */
 
     const joinToken = randomBytes(16).toString("hex");

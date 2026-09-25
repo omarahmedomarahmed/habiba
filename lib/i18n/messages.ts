@@ -2614,8 +2614,18 @@ export const en = {
   "checkin.10": "{name}, how are you holding up?",
   "checkin.11": "Just asking after you, {name}. How are you today?",
   "checkin.12": "{name}, how are you at the moment?",
-  /* 🔴 The opt-out, in the message, in words rather than in capitals. */
-  "checkin.howToStop": "Reply with the word stop and they end.",
+  /*
+   * 🔴 The opt-out, in the message, in words rather than in capitals.
+   *
+   * It said "Reply with the word stop and they end", and nothing receives a
+   * reply: there is no inbound route for any channel, so a person who did as
+   * told kept getting them. It now names the switch that exists, and the
+   * message carries the link to it (`checkin.stopLink`).
+   */
+  "checkin.howToStop": "You can turn these messages off at any time in your app, under Messages asking how you are.",
+  "checkin.stopLink": "Turn these off",
+  /* Beside the switch itself, where "in your app" would be pointing at the screen you are on. */
+  "checkin.howToStopHere": "Turn this off and they stop at once. Nothing else changes.",
   "checkin.subject": "How are you?",
   /* The patient's own screen, for the people who prefer a switch to a reply. */
   "checkin.settingsTitle": "Messages asking how you are",
@@ -7025,7 +7035,9 @@ export const ar: Record<MessageKey, string> = {
   "checkin.10": "{name}، كيف تتحمل هذه الأيام؟",
   "checkin.11": "نسأل عن أحوالك يا {name}. كيف أنت اليوم؟",
   "checkin.12": "{name}، كيف أنت في هذه اللحظة؟",
-  "checkin.howToStop": "ردّ بكلمة إيقاف فتتوقف.",
+  "checkin.howToStop": "يمكنك إيقاف هذه الرسائل في أي وقت من التطبيق، في قسم رسائل السؤال عن حالك.",
+  "checkin.stopLink": "أوقفها",
+  "checkin.howToStopHere": "أوقف هذا الخيار فتتوقف فورًا. ولا يتغير شيء آخر.",
   "checkin.subject": "كيف حالك؟",
   "checkin.settingsTitle": "رسائل تسأل عن حالك",
   "checkin.whoReply": "ردك على رسالة الاطمئنان",

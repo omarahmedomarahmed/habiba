@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
 import { patientFacingCrisisMessage, raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/crisis/alerts";
 import { controlDb } from "@/lib/db";
@@ -155,7 +155,7 @@ export async function handleReply(input: {
  * across both is the right answer: the person who saw them last week knows more than the person who
  * saw them last year.
  */
-async function mostRecentSessionFor(personId: string): Promise<
+export async function mostRecentSessionFor(personId: string): Promise<
   | {
       sessionId: string;
       therapistId: string;
@@ -173,8 +173,24 @@ async function mostRecentSessionFor(personId: string): Promise<
     })
     .from(sessions)
     .innerJoin(patients, eq(patients.id, sessions.patientId))
-    .where(and(eq(patients.personId, personId), isNull(patients.deletedAt)))
-    .orderBy(desc(sessions.scheduledAt))
+    .where(
+      and(
+        eq(patients.personId, personId),
+        isNull(patients.deletedAt),
+        /* A cancelled session is not somebody who saw them. */
+        ne(sessions.status, "cancelled"),
+      ),
+    )
+    /*
+     * 🔴 A session that took place first, newest first; then the rest by when
+     * they were for. `ORDER BY scheduled_at DESC` put a walk-in with no
+     * scheduled time (NULL sorts first descending) ahead of last week's
+     * session, and a cancelled booking ahead of both.
+     */
+    .orderBy(
+      sql`${sessions.startedAt} DESC NULLS LAST`,
+      sql`COALESCE(${sessions.scheduledAt}, ${sessions.createdAt}) DESC`,
+    )
     .limit(1);
 
   return row ?? null;
