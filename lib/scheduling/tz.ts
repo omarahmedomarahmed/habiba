@@ -136,7 +136,7 @@ export function zoneLabel(zone: string, locale: string = "en"): string {
   const city = last.replace(/_/g, " ");
   if (locale === "en") return city;
   /*
-   * 🔴 B50 — in any other language, the zone's own generic name ("توقيت مصر")
+   * 🔴 B50: in any other language, the zone's own generic name ("توقيت مصر")
    * from the runtime's CLDR data, because an Arabic sentence ending "(Cairo)"
    * is the one English word on the line. An offset ("غرينتش+2") is the
    * unreadable answer this function exists to avoid, so that and an unknown

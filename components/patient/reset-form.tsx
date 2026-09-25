@@ -47,7 +47,7 @@ export function PatientResetForm() {
 
   const [handle, setHandle] = useState("");
   /*
-   * 🔴 B53 — uncontrolled, and read back once hydrated. A controlled input is
+   * 🔴 B53: uncontrolled, and read back once hydrated. A controlled input is
    * reset to state on hydration, so a number typed while the page was still
    * loading was wiped and "Send me a code" then submitted an empty field and
    * sent nothing. The DOM keeps what was typed; this copies it into state for

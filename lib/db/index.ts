@@ -64,7 +64,7 @@ function poolFor(url: string): Pool {
   if (existing) return existing;
 
   /*
-   * 🔴 B49 — more than one connection per instance. At `max: 1` every query in
+   * 🔴 B49: more than one connection per instance. At `max: 1` every query in
    * the process queued behind the one before it: each `Promise.all` in a page
    * ran in series, and on Fluid compute every OTHER request on the same
    * instance queued behind it too. /patient/sessions spent 2.6 s of a warm load

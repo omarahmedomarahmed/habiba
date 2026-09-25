@@ -43,7 +43,7 @@ export function TimezoneField({ name = "timezone" }: { name?: string }) {
       : [];
 
   /*
-   * 🔴 B50 — the value is the IANA name, the label is in the reader's language.
+   * 🔴 B50: the value is the IANA name, the label is in the reader's language.
    * An Arabic signup listed four hundred English zone names. Sorted by what is
    * read, so the Arabic list is in Arabic order.
    */

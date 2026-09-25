@@ -301,7 +301,7 @@ export function PayByTransfer({
         {askAmount ? (
           <>
             {/*
-              🔴 B46 — the least they SEND, tax included, which is the first rung
+              🔴 B46: the least they SEND, tax included, which is the first rung
               of the stepper below. The credit floor alone read EGP 5,000 over a
               stepper whose smallest transfer is EGP 5,700.
             */}

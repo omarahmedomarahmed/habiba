@@ -160,7 +160,7 @@ export async function transferDetails(audience: Audience): Promise<TransferDetai
 
   return {
     /*
-     * 🔴 B22 — a key, and one that promises no rail by name. "InstaPay / Bank
+     * 🔴 B22: a key, and one that promises no rail by name. "InstaPay / Bank
      * Transfer" headed a sheet whose only line was an InstaPay handle: which
      * rails appear is the operator's `transferFields`, so the heading cannot
      * name them. A company still reads "Bank transfer", as above.

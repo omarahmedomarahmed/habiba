@@ -143,7 +143,7 @@ async function suggestionsFor(input: {
   if (unclaimed.length === 0) return [];
 
   /*
-   * 🔴 B6 — only a record a clinician actually keeps, and only one that CAN be
+   * 🔴 B6: only a record a clinician actually keeps, and only one that CAN be
    * claimed.
    *
    * A claim moves the account onto the claimed record and leaves its signup

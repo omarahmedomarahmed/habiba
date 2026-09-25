@@ -177,7 +177,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
   /* 🔴 The pay page's figure for each unpaid one, never the list price. */
   const { patientOwesTotal } = await import("@/lib/billing/manual-entry");
   /*
-   * 🔴 B49 — side by side, not one after another. Each figure is five or six
+   * 🔴 B49: side by side, not one after another. Each figure is five or six
    * round trips, and they were awaited in a loop, so a patient with a few
    * unpaid sessions waited for all of them in series before the list drew.
    */
@@ -472,7 +472,7 @@ export function groupOf(input: {
   /** A cancelled session is never coming up, whatever its date (walkthrough). */
   cancelled?: boolean;
   /**
-   * 🔴 B65 — nor is one that has ended. A session held early, before the hour
+   * 🔴 B65: nor is one that has ended. A session held early, before the hour
    * it was booked for, sat under "Today" after it finished while Past said
    * "No sessions yet": the booked hour decided and the status was never read.
    */

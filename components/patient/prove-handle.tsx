@@ -47,7 +47,7 @@ export function ProveHandle({ handle }: { handle: string }) {
   const t = useT();
   const router = useRouter();
   /*
-   * 🔴 B53 — a form with the server action, not a button with an onClick. A
+   * 🔴 B53: a form with the server action, not a button with an onClick. A
    * press before the page hydrated did nothing at all (thirty seconds of
    * "Send me a code" not responding on a phone); a form posts either way.
    */

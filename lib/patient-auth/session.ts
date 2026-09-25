@@ -154,7 +154,7 @@ export async function getPatientActor(): Promise<PatientActor | null> {
 }
 
 /*
- * 🔴 B49 — once per render, keyed on the token. The patient layout asks
+ * 🔴 B49: once per render, keyed on the token. The patient layout asks
  * (`optionalPatient`) and so does every page under it (`requirePatient`), so a
  * page view ran this join and its throttled write twice in a row before any
  * of its own queries started. `cache` only memoises inside a server render;

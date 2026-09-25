@@ -185,7 +185,7 @@ export function PaymentPopup({
    * paint is always the server's answer and this only ever corrects it.
    */
   /*
-   * 🔴 B46 — AND READ ONCE. The key is the bar's request to open the sheet on
+   * 🔴 B46: AND READ ONCE. The key is the bar's request to open the sheet on
    * the page it navigates to, so it is spent here. It used to stay set from the
    * first press, and the sheet then reopened over the page on every load, with
    * the Pay now button nowhere to be seen.

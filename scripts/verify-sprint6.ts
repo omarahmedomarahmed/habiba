@@ -311,7 +311,7 @@ async function main() {
     await db.update(people).set({ phone: matcher!.phone }).where(eq(people.id, matchTarget));
 
     /*
-     * 🔴 B6 — and a clinician keeps a chart on it. The screen says "a therapist
+     * 🔴 B6: and a clinician keeps a chart on it. The screen says "a therapist
      * keeps notes for someone with your number", and a person with no chart is
      * the signup row a claim leaves behind, which is no longer offered.
      */

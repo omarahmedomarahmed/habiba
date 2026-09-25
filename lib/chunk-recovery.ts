@@ -1,5 +1,5 @@
 /**
- * 🔴 B7 — A PAGE WHOSE SCRIPT DID NOT ARRIVE IS RELOADED ONCE, not shown as broken.
+ * 🔴 B7: A PAGE WHOSE SCRIPT DID NOT ARRIVE IS RELOADED ONCE, not shown as broken.
  *
  * The first load of a patient's invite link, on a phone, showed the last-resort
  * error page. The server had answered 200 and logged no error; that load was the
