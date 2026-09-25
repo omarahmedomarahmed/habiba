@@ -312,18 +312,24 @@ function ClinicWeek() {
           />
         </div>
 
+        {/*
+          🔴 THE ROTA HAS THE REAL ROTA'S COLUMNS, and a "Where" column is not one.
+
+          `app/(clinic)/clinic/page.tsx` shows who, with whom, and when. It
+          never showed video or in person, so the demo was advertising a column
+          a practice would go looking for and not find (65.17's rule).
+        */}
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 border-b border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] font-bold tracking-wide text-slate-600 uppercase">
+          <div className="grid grid-cols-[auto_1fr_1fr] gap-2 border-b border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] font-bold tracking-wide text-slate-600 uppercase">
             <span>{t("dpo.when")}</span>
             <span>{t("dpo.clinician")}</span>
             <span>{t("dpo.patient")}</span>
-            <span>{t("dpo.where")}</span>
           </div>
           <ul className="divide-y divide-slate-100">
             {CLINIC_WEEK.map((row) => (
               <li
                 key={`${row.day}${row.time}${row.clinician}`}
-                className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2 px-3 py-2.5 text-[13px]"
+                className="grid grid-cols-[auto_1fr_1fr] items-center gap-2 px-3 py-2.5 text-[13px]"
               >
                 <span className="flex items-center gap-1.5 tabular-nums text-slate-600">
                   <Clock className="h-3 w-3 text-slate-600" aria-hidden />
@@ -331,7 +337,6 @@ function ClinicWeek() {
                 </span>
                 <span className="font-medium break-words">{row.clinician}</span>
                 <span className="text-slate-700 break-words">{row.patient}</span>
-                <Pill tone="grey">{row.modality === "video" ? t("dpo.video") : t("dpo.inPerson")}</Pill>
               </li>
             ))}
           </ul>

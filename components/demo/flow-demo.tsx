@@ -185,19 +185,47 @@ const CLAIM: Step[] = [
   {
     label: "dfl.claimStep1",
     why: "dfl.claimWhy1",
-    screen: ({ t, next }) => (
-      <Screen title={t("pclaim.title")}>
-        <Tile>
-          {t("dfl.recordFound")}
-          <p className="mt-1.5 text-lg font-bold tracking-wide text-slate-900">{t("dfl.initials")}</p>
-          <p className="mt-1 text-[11px] text-slate-600">{t("pclaim.initialsOnly")}</p>
-        </Tile>
-        <Tap onClick={next}>{t("pclaim.yesSendCode")}</Tap>
-        <Tap variant="secondary" onClick={next}>
-          {t("pclaim.notMe")}
-        </Tap>
-      </Screen>
-    ),
+    /*
+     * 🔴 "This is not me" DECLINES, as it does in `claim-flow.tsx`.
+     *
+     * It used to call `next`, so saying no walked the reader into the code
+     * screen exactly as if they had said yes. That demonstrates the one thing
+     * this step exists to prevent. The product declines the match and shows the
+     * empty list; so does this, and "Skip for now" puts the record back so the
+     * reader can try the other answer.
+     */
+    screen: ({ t, next, state, set }) =>
+      state.declined ? (
+        <Screen title={t("pclaim.noneTitle")}>
+          <Tile tone="muted">{t("pclaim.noneBody")}</Tile>
+          <Tile tone="muted">{t("pclaim.noneAsk")}</Tile>
+          <Tap
+            variant="secondary"
+            onClick={() => {
+              set("declined", false);
+            }}
+          >
+            {t("pclaim.skip")}
+          </Tap>
+        </Screen>
+      ) : (
+        <Screen title={t("pclaim.title")}>
+          <Tile>
+            {t("dfl.recordFound")}
+            <p className="mt-1.5 text-lg font-bold tracking-wide text-slate-900">{t("dfl.initials")}</p>
+            <p className="mt-1 text-[11px] text-slate-600">{t("pclaim.initialsOnly")}</p>
+          </Tile>
+          <Tap onClick={next}>{t("pclaim.yesSendCode")}</Tap>
+          <Tap
+            variant="secondary"
+            onClick={() => {
+              set("declined", true);
+            }}
+          >
+            {t("pclaim.notMe")}
+          </Tap>
+        </Screen>
+      ),
   },
   {
     label: "dfl.claimStep2",
