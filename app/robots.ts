@@ -38,8 +38,35 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
+        /*
+         * 🔴 Every door that is not the public site, not only the clinician's.
+         *
+         * The list stopped at the therapist app, so the patient's record, the
+         * capability links that authenticate by the URL itself (`/pay/`,
+         * `/feedback/`, `/records/`, `/support/`, `/welcome/`, `/j/`, H33) and
+         * the clinic, sponsor and partner portals were all crawlable. A token
+         * URL in an index is the same leak as a join link in one.
+         */
         disallow: [
           "/join/",
+          "/j/",
+          "/pay/",
+          "/feedback/",
+          "/records/",
+          "/support",
+          "/welcome/",
+          "/patient",
+          "/clinic",
+          "/sponsor",
+          "/partner",
+          "/assistant",
+          "/bookings",
+          "/connect",
+          "/earnings",
+          "/notifications",
+          "/onboarding",
+          "/switch-principal",
+          "/staff",
           "/dashboard",
           "/sessions",
           "/patients",
