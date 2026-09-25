@@ -101,12 +101,6 @@ export function scanReachability(): { tables: number; orphans: Orphan[] } {
  */
 export const NO_SCREEN_BY_DESIGN: Record<string, string> = {
   /*
-   * 🔴 0165: a lock with a time on it, held for seconds by a sweep so two
-   * overlapping runs cannot both send. There is nothing in a row for a person to
-   * act on; the jobs it protects are shown on /admin/errors.
-   */
-  cron_leases: "a lease a sweep holds for seconds; the jobs it guards are on /admin/errors",
-  /*
    * 🔴 W1-07 — `patient_auth_sessions` IS NO LONGER EXEMPT, for the reason the entry itself
    * predicted: a screen now reads it. The no-show recovery actions accept a signed-in
    * patient who owns the session as proof (`getPatientActor`), so the table is reached from

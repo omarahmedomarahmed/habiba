@@ -40,10 +40,10 @@ const clockAt = (minutes: number, opts: { lastActivity?: Date | null } = {}) =>
   });
 
 test("the seeded defaults are the shape §3 asks for", () => {
-  // 50 running, a 10-minute countdown, a hard stop at 60.
-  assert.equal(DEFAULT_CLOCK_LIMITS.runningMinutes, 50);
+  // 40 running, a 10-minute countdown, a hard stop at 50 (ruling: 50 minutes in total, 0163).
+  assert.equal(DEFAULT_CLOCK_LIMITS.runningMinutes, 40);
   assert.equal(DEFAULT_CLOCK_LIMITS.countdownMinutes, 10);
-  assert.equal(capSeconds(DEFAULT_CLOCK_LIMITS), 60 * 60);
+  assert.equal(capSeconds(DEFAULT_CLOCK_LIMITS), 50 * 60);
 });
 
 test("a session that has not started shows no countdown", () => {

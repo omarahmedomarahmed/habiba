@@ -267,7 +267,7 @@ async function main() {
      */
     const route = stripComments(readSource("app/api/uploads/[id]/route.ts"));
     const auditAt = route.indexOf("await audit(");
-    const fetchAt = route.indexOf("await fetch(");
+    const fetchAt = route.indexOf("await fetchStored(");
 
     check(
       "🔴 29.1 the read is audited BEFORE the bytes, not after",
