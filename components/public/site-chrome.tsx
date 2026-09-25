@@ -116,7 +116,9 @@ export async function SiteHeader() {
                 aria-current={on ? "page" : undefined}
                 className={cn(
                   "rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors",
-                  on ? "bg-brand-500 text-navy-700" : "text-white/85 hover:bg-white/10 hover:text-white",
+                  on
+                    ? "bg-brand-500 text-navy-700"
+                    : "text-white/85 hover:bg-white/10 hover:text-white",
                 )}
               >
                 {t(item.key)}

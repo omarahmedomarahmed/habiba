@@ -477,7 +477,9 @@ export function AudienceRotator({
                   }}
                   className={cn(
                     "inline-flex h-10 shrink-0 items-center rounded-full px-4 text-[14px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-400",
-                    i === at ? "bg-brand-500 text-navy-700" : "bg-white/[0.08] text-white/85 ring-1 ring-white/15 hover:text-white",
+                    i === at
+                      ? "bg-brand-500 text-navy-700"
+                      : "bg-white/[0.08] text-white/85 ring-1 ring-white/15 hover:text-white",
                   )}
                 >
                   {one.label}
