@@ -277,6 +277,11 @@ async function main() {
       groupOf({ at: new Date(now + 3_600_000), now, scheduled: true, fromRadar: false, cancelled: true }) ===
         "past_scheduled",
     );
+    check(
+      "🔴 B65 a session that has ENDED before its booked hour is in the past list, not under Today",
+      groupOf({ at: new Date(now + 3_600_000), now, scheduled: true, fromRadar: false, finished: true }) ===
+        "past_scheduled",
+    );
 
     /* ---------------------------------------------------------- C16 */
 
