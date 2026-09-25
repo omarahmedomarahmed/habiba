@@ -205,7 +205,7 @@ export function ClinicJoinForm({
         <Field label={t("clinic.lastName")} htmlFor="join-last">
           <Input id="join-last" name="lastName" defaultValue={lastName ?? ""} />
         </Field>
-        <Field label={t("clinic.password")} htmlFor="join-password">
+        <Field label={t("clinic.password")} htmlFor="join-password" hint={t("tauth.passwordHint")}>
           <Input
             id="join-password"
             name="password"

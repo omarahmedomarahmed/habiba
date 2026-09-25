@@ -141,7 +141,8 @@ export async function exportSchedule(input: {
          its own, because a second implementation is a second thing to get wrong. */
       row.patientName,
       row.therapistName,
-      row.status,
+      /* 🔴 K7 / CE32: what the screen shows, the word or nothing. */
+      row.cancelled ? "cancelled" : "",
     ]),
   ]);
 
@@ -220,12 +221,13 @@ export async function exportBills(input: {
        */
       bill.sessions === null ? "withheld" : bill.sessions,
       bill.currency,
-      amount(bill.platformFeeCents),
-      amount(bill.aiFeeCents),
+      /* K7: the split is withheld with the count, as a word for the same reason. */
+      bill.platformFeeCents === null ? "withheld" : amount(bill.platformFeeCents),
+      bill.aiFeeCents === null ? "withheld" : amount(bill.aiFeeCents),
       amount(bill.totalCents),
       perDollar,
-      egp(bill.platformFeeCents),
-      egp(bill.aiFeeCents),
+      bill.platformFeeCents === null ? "withheld" : egp(bill.platformFeeCents),
+      bill.aiFeeCents === null ? "withheld" : egp(bill.aiFeeCents),
       egp(bill.totalCents),
     ]),
   ]);

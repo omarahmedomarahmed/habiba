@@ -65,7 +65,7 @@ export async function sendAssessment(
 
   if (result.error) return { error: result.error };
 
-  revalidatePath(`/patients/${patientId}/assessments`);
+  revalidatePath(`/patients/${patientId}/documents`);
   return { ok: true };
 }
 

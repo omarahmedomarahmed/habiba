@@ -920,7 +920,7 @@ async function main() {
   const overview = readSource("app/(clinic)/clinic/page.tsx");
   check(
     "🔴 T16 'Booked this week' counts the rows that are not cancelled",
-    /const booked = rows\.filter\(\(row\) => row\.status !== "cancelled"\)/.test(overview) &&
+    /const booked = rows\.filter\(\(row\) => !row\.cancelled\)/.test(overview) &&
       /\{booked\.length\}/.test(overview) &&
       !/\{rows\.length\}/.test(overview),
     "a cancelled row stays in the table, marked, and out of the figure",

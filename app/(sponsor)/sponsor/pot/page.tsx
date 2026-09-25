@@ -17,7 +17,7 @@ import { Meter } from "@/components/visual/primitives";
 import { topUpHistory } from "@/lib/billing/invoice";
 
 import { potTerms } from "@/lib/data/sponsor-admin";
-import { coverageFor, potBalance } from "@/lib/data/sponsors";
+import { coverageFor, reportablePot } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { AskMoneyBack } from "@/components/sponsor/ask-money-back";
 import { formatDate } from "@/lib/utils";
@@ -92,7 +92,8 @@ export default async function SponsorPotPage() {
   });
 
   const [pot, terms, history, coverage, tax, etaDocs, returns] = await Promise.all([
-    potBalance(actor.sponsorId),
+    /* K6: behind the headcount floor as well as the session floor. */
+    reportablePot(actor.sponsorId),
     potTerms(actor.sponsorId),
     topUpHistory(actor.sponsorId),
     /* 🔴 60.1 / C311 — the live percentage and any pending change, separately. */

@@ -162,6 +162,19 @@ async function balanceAfterTopUp(db: Db) {
     );
 
     /*
+     * 🔴 K6: this planted company has nobody enrolled, under the headcount
+     * floor, so no company screen may show that balance. The control is the
+     * check above: `potBalance` alone publishes it.
+     */
+    const { reportablePot } = await import("../lib/data/sponsors");
+    const gated = await reportablePot(sponsorId);
+    check(
+      "🔴 K6 under the headcount floor a company screen shows no balance and no session count",
+      opened.balanceCents !== null && gated.balanceCents === null && gated.published === null && gated.underHeadcount,
+      `raw ${String(opened.balanceCents)}, shown ${String(gated.balanceCents)}`,
+    );
+
+    /*
      * The differencing half: sessions have been spent since the last
      * publication (the live balance is lower than the published one), and a
      * top-up must move the published figure by the top-up alone.

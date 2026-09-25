@@ -29,6 +29,7 @@ import { closedCodes } from "@/lib/data/taxonomy";
 import { log, ref } from "@/lib/logger";
 import { getCountries } from "@/lib/settings";
 import { radarProblem } from "@/lib/settings/defs";
+import { isUuid } from "@/lib/uuid";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -606,6 +607,8 @@ export async function publicProfile(
   userId: string,
   viewer?: string | null,
 ): Promise<PublicProfile | null> {
+  /* TE56: `/t/not-a-uuid` is a 404, not the public error page. */
+  if (!isUuid(userId)) return null;
   const now = new Date();
   const viewerHash = viewer ? hashViewer(viewer) : null;
 
@@ -1090,8 +1093,13 @@ export async function claimTherapist(opts: {
  * Scoped to the claiming session id, so a late release from an abandoned
  * booking cannot cancel the *next* patient's claim — the classic way a
  * time-based lock releases someone else's lock.
+ *
+ * 🔴 K12: `therapistUserId`, when given, scopes it to that clinician's own
+ * radar row too. A session id is not a secret between colleagues, and a
+ * release keyed on it alone let one clinician put another back "online"
+ * mid-session.
  */
-export async function releaseClaim(sessionId: string): Promise<void> {
+export async function releaseClaim(sessionId: string, therapistUserId?: string): Promise<void> {
   await db
     .update(therapistRadar)
     .set({
@@ -1105,6 +1113,7 @@ export async function releaseClaim(sessionId: string): Promise<void> {
       and(
         eq(therapistRadar.pendingSessionId, sessionId),
         or(eq(therapistRadar.status, "pending"), eq(therapistRadar.status, "in_session")),
+        therapistUserId ? eq(therapistRadar.userId, therapistUserId) : undefined,
       ),
     );
 }

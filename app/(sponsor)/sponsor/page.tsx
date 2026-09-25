@@ -4,7 +4,7 @@ import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
 import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
 import { Card } from "@/components/ui";
 import { potTerms } from "@/lib/data/sponsor-admin";
-import { potBalance, roster, weeklySpend } from "@/lib/data/sponsors";
+import { reportablePot, weeklySpend } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
@@ -39,11 +39,15 @@ export const dynamic = "force-dynamic";
  *
  * ## 🔴 The headcount floor is read here and the roster is counted for it
  *
- * *Below a headcount setting the sponsor sees the balance and nothing else,
- * cohorts included.* So this page counts the roster and, under the floor, renders
- * the balance and the explanation and no series at all. Not a filtered series: a
- * filtered series with one row left in it is the leak wearing a suppression
- * label.
+ * Under the floor this page renders the explanation and no series at all. Not a
+ * filtered series: a filtered series with one row left in it is the leak wearing
+ * a suppression label.
+ *
+ * 🔴 K6: and no balance, no spend and no session count either. This used to
+ * keep the balance and the all-time count under the floor, and at a company of
+ * three "Sessions paid for: 4" says that somebody on a roster of three names is
+ * in therapy. `reportablePot` applies the headcount gate, so the overview, the
+ * pot page and the ledger cannot disagree about it.
  */
 export default async function SponsorOverviewPage() {
   const actor = await requireSponsor();
@@ -60,15 +64,12 @@ export default async function SponsorOverviewPage() {
    * on two days differences them and learns what one named person's session
    * cost, which is the attack the heatmap below is already suppressed to stop.
    *
-   * `potBalance` applies the same floor the heatmap uses and can return NULL,
+   * `potBalance` (inside `reportablePot`) applies the same floor the heatmap
+   * uses and can return NULL,
    * which means "not enough has happened to report a balance" and is a
    * different fact from zero.
    */
-  const [pot, people, terms] = await Promise.all([
-    potBalance(actor.sponsorId),
-    roster(actor.sponsorId),
-    potTerms(actor.sponsorId),
-  ]);
+  const [pot, terms] = await Promise.all([reportablePot(actor.sponsorId), potTerms(actor.sponsorId)]);
   /*
    * 🔴 E1 — "Spent so far" and "Sessions paid for" come from the SAME
    * publication as the balance, never from `potTotals`. Live, they moved by one
@@ -84,7 +85,7 @@ export default async function SponsorOverviewPage() {
    * a server component's props and in any log that touched them. The cheapest
    * way to not leak a number is to not read it.
    */
-  const underFloor = people.length < floor;
+  const underFloor = pot.underHeadcount;
   const weeks = underFloor ? [] : await weeklySpend(actor.sponsorId, floor);
 
   const fmt = (cents: number) => <Money cents={cents} />;

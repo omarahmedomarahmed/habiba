@@ -324,3 +324,14 @@ test("resolveVoices counts what it could not name", () => {
   });
   assert.equal(report.unnamed, 5);
 });
+
+/*
+ * 🔴 TE77: nothing writes `session_voices` until the provider in 37.4 exists,
+ * so the session page must not show a Voices panel promising separation it
+ * cannot do. It renders only when a recording produced voices.
+ */
+test("TE77 the Voices panel is shown only when there are voices", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("app/(app)/sessions/[id]/page.tsx", "utf8");
+  assert.match(page, /\{voices\.length > 0 \? \(\s*<VoicesPanel/, "the panel renders with no voices");
+});

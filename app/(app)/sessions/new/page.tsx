@@ -6,6 +6,7 @@ import { NewSessionForm } from "@/components/session/new-session-form";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guard";
 import { getConnectAccount } from "@/lib/billing/connect";
+import { currentTier } from "@/lib/billing/credits";
 import { organizationNeedsTransfer } from "@/lib/billing/manual-entry";
 import { listPatients } from "@/lib/data/patients";
 import { getCountrySettings, getSettings, sessionVatBpsFor } from "@/lib/settings";
@@ -30,7 +31,7 @@ export default async function NewSessionPage({
    * W2-T05 (words): `?welcome=1` was read here and nothing ever sent it
    * (signup lands on /onboarding), so its banner never rendered.
    */
-  const [, patients, connect, settings, connections, onTransferRail] =
+  const [, patients, connect, settings, connections, onTransferRail, tier] =
     await Promise.all([
       searchParams,
       listPatients(actor),
@@ -38,6 +39,7 @@ export default async function NewSessionPage({
       getSettings(),
       listConnections(actor),
       organizationNeedsTransfer(actor.organizationId),
+      currentTier(actor.organizationId),
     ]);
 
   /*
@@ -117,6 +119,15 @@ export default async function NewSessionPage({
                   held: !connect.chargesEnabled,
                 }
               : undefined
+          }
+          /*
+            🔴 K22: the fees `sessionLines` will bill, from the same settings
+            and tier; a monthly plan raises both at zero.
+          */
+          ourFees={
+            tier.monthlyCents > 0
+              ? null
+              : { platformCents: settings.session.platformFeeCents, aiCents: tier.aiRateCents }
           }
           patients={patients.map((p) => ({
             id: p.id,

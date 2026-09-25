@@ -137,11 +137,16 @@ export function RecordsPanel({
         </p>
       </div>
 
-      {outcome === "connected" ? (
+      {/*
+        TE53: "connected" only when a live connection is there to show. The word
+        came from the query string alone, so /settings/records?ehr=connected
+        typed by hand announced a connection that did not exist.
+      */}
+      {outcome === "connected" && live.length > 0 ? (
         <p role="status" className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
           {t("records.outcomeConnected")}
         </p>
-      ) : outcome ? (
+      ) : outcome && outcome !== "connected" ? (
         <p role="alert" className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
           {t("records.outcomeFailed")}
         </p>

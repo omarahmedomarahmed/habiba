@@ -379,16 +379,31 @@ export async function startNewSession(
 
 export async function goLive(sessionId: string): Promise<SessionActionState> {
   const actor = await requireUser();
+  /*
+   * 🔴 TE21: a clinician who may not practise starts nothing. An expired
+   * licence sends them back to review, and every (app) page but the open list
+   * redirects, but the room is its own route group and this action took
+   * `requireUser`. A session already live is re-entry, not a start, so it
+   * stays allowed: `startSession` returns early for it before anything moves.
+   */
+  const { getVerification, isCleared } = await import("@/lib/data/verification");
+  if (!isCleared(actor, (await getVerification(actor.userId))?.state ?? null)) {
+    const live = await getSession(actor, sessionId);
+    if (live?.session.status !== "in_progress") {
+      return { error: (await getI18n()).t("tlic.mayNotStart") };
+    }
+  }
   try {
-    await startSession(actor, sessionId);
+    const startedNow = await startSession(actor, sessionId);
     /*
-     * Recorded after the transition succeeds, never before.
+     * Recorded after the transition succeeds, never before, and once (TE12):
+     * a second tap or a second tab changes nothing and records nothing.
      *
      * An audit line for something that then failed is worse than no line: it
      * puts an event in the record that did not happen, and the record's whole
      * value is that it did not need to be believed.
      */
-    await audit({
+    if (startedNow) await audit({
       actor,
       category: "clinical",
       action: "session.start",
@@ -473,11 +488,17 @@ export async function abandonSession(
     return { error: (await getI18n()).t("tcancel.reasonNeeded") };
   }
 
+  /*
+   * 🔴 K12: the radar claim is released only when THIS clinician's cancel
+   * matched, and only on their own radar row. It ran unconditionally, so a
+   * colleague who knew a session id could flip its clinician from "in
+   * session" back to "online" with a cancel that matched nothing.
+   */
   if (await cancelSession(actor, sessionId)) {
     const { afterClinicianCancel } = await import("@/lib/data/clinician-cancel");
     await afterClinicianCancel({ actorUserId: actor.userId, sessionId, reason });
+    await releaseClaim(sessionId, actor.userId);
   }
-  await releaseClaim(sessionId);
   revalidatePath("/sessions");
   redirect("/sessions");
 }

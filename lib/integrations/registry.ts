@@ -132,22 +132,24 @@ export const INTEGRATIONS: Integration[] = [
     name: "Your clinic's own system",
     category: "Records",
     /*
-     * 🔴 `partial`, not `live`, and the difference is the one thing that matters here.
+     * 🔴 `partial`, not `live`, and the half that works is small.
      *
-     * The flow is built and walkable: a practice connects, a clinician is launched from a chart,
-     * and an approved note files back as a DocumentReference. What is not built is any real
-     * tenant. Epic, Oracle Health and athenahealth each require the hospital to register us in
-     * its own tenant first, which is the hospital's decision and its timeline, so "live" would
-     * claim something no customer has done yet.
+     * This said "the SMART on FHIR flow works end to end against a sandbox ... and
+     * the note you approve is filed back". It did not: `fileNote`, `recordLaunch`
+     * and `readPatientName` had no caller and there is no launch route, so a
+     * clinician can never be opened from a chart and no note is ever filed. What
+     * exists is the practice's connection (the OAuth dance and its callback).
+     * The copy now says that, and names the missing half as what it waits on.
      */
     state: "partial",
     summary:
-      "An approved note files into the record system you already use, as a document on the patient's chart.",
+      "A practice can connect its record system. Filing approved notes back into it is not built yet.",
     today:
-      "The SMART on FHIR flow works end to end against a sandbox: connect once for the practice, open us from a patient's chart, and the note you approve is filed back. No hospital has registered us in its own tenant yet, and each one has to before anything connects there. The identity problem is solved by never treating your patient id as ours: it is resolved only within the connection that issued it, so P123 at your hospital and P123 at another are two rows that cannot reach each other.",
+      "A practice can connect its SMART on FHIR record system to us once, from its records settings, against a sandbox. Opening us from a patient's chart and filing an approved note back as a document on that chart are not built yet, so today nothing is read from your chart and nothing is filed into it. No hospital has registered us in its own tenant either, and each one has to before anything connects there. When the launch is built, your patient id will be resolved only within the connection that issued it, so P123 at your hospital and P123 at another stay two rows that cannot reach each other.",
     limits:
-      "Your system is the record and ours is not. We read one thing from your chart, the patient's name, so a schedule row is not blank; we read and keep no date of birth, record number, address, payer, problem list, medication or allergy, and there is nowhere in our database to put one. What we keep is what we made: the session, the transcript recorded under the patient's consent, the note and who approved it. That stays on our schedule rather than yours, because the person it answers to is the patient, and disconnecting stops us resolving your patient identifiers the same moment while leaving their record with us.",
-    waitingOn: "a hospital tenant registration, which is theirs to grant rather than ours to build",
+      "Your system is the record and ours is not. When the launch is built we will read one thing from your chart, the patient's name, so a schedule row is not blank; we will read and keep no date of birth, record number, address, payer, problem list, medication or allergy, and there is nowhere in our database to put one. What we keep is what we made: the session, the transcript recorded under the patient's consent, the note and who approved it. Disconnecting stops us using the connection the same moment and leaves the patient's record with us.",
+    waitingOn:
+      "the launch from a patient's chart and filing notes back, which are ours to build, then a hospital tenant registration, which is theirs to grant",
   },
 ];
 

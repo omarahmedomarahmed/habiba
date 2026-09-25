@@ -323,6 +323,24 @@ async function clinicNames(db: ReturnType<typeof connect>["db"]) {
     rota.map((row) => row.patientName).join(", ") || "no rows",
   );
 
+  /*
+   * 🔴 K7 / CE32: the screen marks a cancelled row and says nothing else about
+   * a session's state, so the file may not either. The planted session is
+   * stored `scheduled` (the control); the export wrote that word, and would
+   * have written `completed` for one the patient attended.
+   */
+  const stored = (
+    await db.execute(sql`SELECT status FROM sessions WHERE feedback_token = ${`${fixture}-c`}`)
+  ).rows as { status: string }[];
+  const body = exported.csv.split("\r\n").slice(3).join("\n");
+  check(
+    "🔴 K7 the week export's State column says no more than the screen: cancelled or nothing",
+    stored[0]?.status === "scheduled" &&
+      !/\b(scheduled|in_progress|completed)\b/.test(body) &&
+      !("status" in (rota[0] ?? {})),
+    body,
+  );
+
   const audited = (
     await db.execute(sql`
       SELECT category FROM audit_log

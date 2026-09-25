@@ -380,6 +380,10 @@ export async function raiseCrisisAlert(opts: {
 
   if (recent.length > 0) return;
 
+  /* 🔴 K22: in the clinician's own language (Ruling 8), not English for all. */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const { t } = await wordsFor({ userId: opts.therapistId });
+
   const inserted = await db
     .insert(riskAssessments)
     .values({
@@ -391,8 +395,7 @@ export async function raiseCrisisAlert(opts: {
       source: opts.source,
       indicators: opts.indicators,
       recommendedAction:
-        opts.recommendedAction ??
-        "Pause and assess directly. If there is imminent risk, follow your local emergency protocol.",
+        opts.recommendedAction ?? t("talert.riskAction"),
       alertStatus: "pending",
     })
     .returning({ id: riskAssessments.id });
@@ -406,8 +409,8 @@ export async function raiseCrisisAlert(opts: {
     await db.insert(notifications).values({
       userId: opts.therapistId,
       kind: "crisis",
-      title: "Risk language detected",
-      body: "Language associated with risk was detected in a live session. Open the session to review.",
+      title: t("talert.riskTitle"),
+      body: t("talert.riskBodyLive"),
       actionUrl: `/sessions/${opts.sessionId}`,
     });
 
@@ -449,11 +452,13 @@ export async function sweepUndeliveredAlerts(): Promise<number> {
   let delivered = 0;
   for (const row of stale) {
     try {
+      const { wordsFor } = await import("@/lib/i18n/message-words");
+      const { t } = await wordsFor({ userId: row.therapistId });
       await db.insert(notifications).values({
         userId: row.therapistId,
         kind: "crisis",
-        title: "Risk language detected",
-        body: "Language associated with risk was detected in a session. Open the session to review.",
+        title: t("talert.riskTitle"),
+        body: t("talert.riskBody"),
         actionUrl: `/sessions/${row.sessionId}`,
       });
       await db

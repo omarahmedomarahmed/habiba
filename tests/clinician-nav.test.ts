@@ -91,6 +91,54 @@ test("T07: the orphan pages are linked", () => {
   assert.match(onCall, /href=\{`\/t\/\$\{actor\.userId\}`\}/, "the radar page does not link their public page");
 });
 
+/*
+ * TE47: the homework and questionnaire actions revalidated
+ * `/patients/<id>/homework` and `/patients/<id>/assessments`, which are
+ * folders of actions with no page, so the list on /documents stayed stale.
+ * Every path a clinician action revalidates must be a page that exists.
+ */
+test("TE47 every path a clinician action revalidates is a real page", async () => {
+  const { existsSync, readdirSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.tsx?$/.test(name)) files.push(path);
+    }
+  };
+  walk("app/(app)");
+
+  const matchIn = (dir: string, rest: string[]): boolean => {
+    if (!existsSync(dir)) return false;
+    if (rest.length === 0 && existsSync(join(dir, "page.tsx"))) return true;
+    const [head, ...tail] = rest;
+    return readdirSync(dir).some((name) => {
+      const path = join(dir, name);
+      if (!statSync(path).isDirectory()) return false;
+      if (head !== undefined && name === head) return matchIn(path, tail);
+      if (head === ":dynamic" && /^\[[^.\]]+\]$/.test(name)) return matchIn(path, tail);
+      return /^\(.+\)$/.test(name) && matchIn(path, rest);
+    });
+  };
+  const exists = (route: string) => matchIn("app", route.split("/").filter(Boolean));
+
+  const paths = new Set<string>();
+  for (const file of files) {
+    for (const match of readFileSync(file, "utf8").matchAll(/revalidatePath\(\s*[`"]([^`"]+)[`"]/g)) {
+      paths.add(match[1]!.replace(/\$\{[^}]+\}/g, ":dynamic"));
+    }
+  }
+  assert.ok(paths.size > 10, `read ${paths.size} paths, the scan is too narrow`);
+  // Control: the old targets are caught, the new one is found.
+  assert.equal(exists("/patients/:dynamic/homework"), false);
+  assert.equal(exists("/patients/:dynamic/documents"), true);
+  const missing = [...paths].filter((path) => !exists(path));
+  assert.deepEqual(missing, [], `revalidated but no page: ${missing.join(", ")}`);
+});
+
 test("ruling 14b: the clinic's seven pages are four places, every page still in one", () => {
   const chrome = readFileSync("components/clinic/chrome.tsx", "utf8");
   const block = chrome.slice(chrome.indexOf("export const CLINIC_GROUPS"), chrome.indexOf("export const CLINIC_PAGES"));

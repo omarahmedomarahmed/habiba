@@ -105,6 +105,16 @@ export async function TherapistPageBody({
             : t("radar.verifiedPlain", { when: approvedOn })}
         </p>
         <p className="mt-0.5 text-xs text-slate-600">{t("radar.verifiedMeans")}</p>
+        {/*
+          🔴 63.13 / C327: the practice that can see an appointment exists, on the
+          page as on the radar card. A sentence rather than a dialog (C354), and
+          the way out beside it for somebody who would rather no practice did.
+        */}
+        {profile.clinicName ? (
+          <p className="mt-2 text-xs text-slate-600">
+            {t("radar.inPractice", { practice: profile.clinicName })} {t("pclinic.orAlone")}
+          </p>
+        ) : null}
       </div>
 
       {/*
@@ -119,8 +129,10 @@ export async function TherapistPageBody({
       {reliability.rate !== null ? (
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
           <p className="text-xs text-slate-600">
-            Turned up to {Math.round(reliability.rate * 100)}% of {reliability.sessions} booked
-            sessions.
+            {t("radar.turnedUp", {
+              percent: Math.round(reliability.rate * 100),
+              count: reliability.sessions,
+            })}
           </p>
         </div>
       ) : null}
@@ -146,7 +158,7 @@ export async function TherapistPageBody({
           practice={practice}
           therapistName={profile.firstName}
           therapistTimezone={profile.timezone}
-          rateLabel={profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : "Free"}
+          rateLabel={profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : t("radar.freeSession")}
           booker={booker}
         />
       </div>

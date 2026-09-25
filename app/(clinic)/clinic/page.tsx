@@ -130,7 +130,7 @@ export default async function ClinicOverviewPage({
    * count only what is still going ahead, and a clinician whose only session was
    * cancelled is not on the rota.
    */
-  const booked = rows.filter((row) => row.status !== "cancelled");
+  const booked = rows.filter((row) => !row.cancelled);
   const onTheRota = new Set(booked.map((row) => row.therapistName)).size;
 
   return (
@@ -233,7 +233,7 @@ export default async function ClinicOverviewPage({
                       {when(row.scheduledAt)}
                     </span>
                     {/* 🔴 T19: the word, in their language, not the stored code. */}
-                    {row.status === "cancelled" ? (
+                    {row.cancelled ? (
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                         {t("clinic.cancelled")}
                       </span>

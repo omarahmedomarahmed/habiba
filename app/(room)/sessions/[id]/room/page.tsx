@@ -33,6 +33,18 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
     redirect(`/sessions/${id}`);
   }
 
+  /*
+   * 🔴 TE21: the (room) group has no clearance gate of its own, so a clinician
+   * whose licence expired (sent back to review) could still open a booked
+   * session's room and start it. Only a session already under way may be
+   * finished; anything else goes where every other page sends them. `goLive`
+   * refuses the same start on the server.
+   */
+  if (row.session.status !== "in_progress") {
+    const { getVerification, isCleared } = await import("@/lib/data/verification");
+    if (!isCleared(actor, (await getVerification(actor.userId))?.state ?? null)) redirect("/onboarding");
+  }
+
   const transcript = await getTranscript(actor, id);
 
   // A radar booking sends the clinician straight here; the alarm banner has

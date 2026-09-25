@@ -585,6 +585,36 @@ test("standing down loses to a booking that lands in the same instant", async ()
   await releaseClaim(sessionId);
 });
 
+test("🔴 K12 a release scoped to another clinician leaves this one's claim alone", async () => {
+  await setStatus({
+    status: "online",
+    pendingSessionId: null,
+    pendingUntil: null,
+    reservedBy: null,
+    lastSeenAt: new Date(),
+  });
+  const sessionId = await newSession();
+  assert.equal(await claimTherapist({ therapistUserId: therapistId, sessionId }), true);
+
+  await releaseClaim(sessionId, crypto.randomUUID());
+  assert.equal((await currentStatus()).status, "pending", "a colleague's release moved this clinician");
+
+  // Control: the owner's release is the one that frees them.
+  await releaseClaim(sessionId, therapistId);
+  assert.equal((await currentStatus()).status, "online");
+
+  // And the cancel door releases only inside a matched cancel.
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync("app/(app)/sessions/actions.ts", "utf8");
+  const door = source.slice(source.indexOf("export async function abandonSession("));
+  const body = door.slice(0, door.indexOf("\nexport "));
+  assert.match(
+    body,
+    /if \(await cancelSession\(actor, sessionId\)\) \{[\s\S]*?releaseClaim\(sessionId, actor\.userId\);\s*\}/,
+    "abandonSession releases a claim outside a matched cancel",
+  );
+});
+
 /**
  * Feedback has to outlive the session, or nobody is ever rated.
  *

@@ -2,9 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { csvCell } from "@/lib/csv";
 import { publishedLedger } from "@/lib/data/sponsor-ledger";
+import { enrolledCount } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
+import { getSettings } from "@/lib/settings";
 import { getSponsorActor } from "@/lib/sponsor-auth/session";
-import { filterLedger, ledgerCsvRows, parseLedgerQuery, sortLedger } from "@/lib/sponsor/ledger";
+import { filterToFloor, ledgerCsvRows, parseLedgerQuery, sortLedger } from "@/lib/sponsor/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +26,17 @@ export async function GET(request: NextRequest) {
   const { t } = await getI18n();
   const params = Object.fromEntries(request.nextUrl.searchParams.entries());
   const query = parseLedgerQuery(params);
-  const { entries } = await publishedLedger(actor.sponsorId);
+  const [{ entries }, headcount, settings] = await Promise.all([
+    publishedLedger(actor.sponsorId),
+    enrolledCount(actor.sponsorId),
+    getSettings(),
+  ]);
+  const floor = settings.sponsor.activityFloor;
+  /* 🔴 K6: the same two gates as the screen: headcount, then a filter's floor. */
+  const shown = headcount < floor ? [] : filterToFloor(entries, query, floor).entries;
 
   const rows = ledgerCsvRows(
-    sortLedger(filterLedger(entries, query), query),
+    sortLedger(shown, query),
     [
       t("sponsor.ledgerWeek"),
       t("sponsor.ledgerKind"),
