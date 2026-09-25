@@ -3,7 +3,6 @@ import { test } from "node:test";
 
 import { accessStateFor, capabilitiesFor, explain, isLiveGrant } from "../lib/access/state";
 import { lateRecordingStamp, lateRecordingStart, LATE_RECORDING_THRESHOLD_MS } from "../lib/consent";
-import { readFileSync } from "node:fs";
 
 /**
  * §3's four states, and the two consent controls, as arithmetic.
