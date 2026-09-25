@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { ledgerEntries, sponsors } from "@/lib/db/schema";
 import { getSettings } from "@/lib/settings";
+import { isUuid } from "@/lib/uuid";
 
 /**
  * The corporate invoice. PLAN.md 53.15, C232, C241.
@@ -60,6 +61,8 @@ export async function invoiceFor(
   sponsorId: string,
   txnId: string,
 ): Promise<Invoice | InvoiceProblem | null> {
+  /* EE32: `/sponsor/pot/<malformed>` is a 404, not "Something went wrong". */
+  if (!isUuid(txnId)) return null;
   const [sponsor] = await controlDb
     .select({
       name: sponsors.name,

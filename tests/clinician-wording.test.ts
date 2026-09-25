@@ -86,6 +86,25 @@ test("the record-system copy claims no filing while nothing calls fileNote", asy
   }
 });
 
+test("TE56 / EE32 a malformed id from a URL is not found before it reaches a uuid column", async () => {
+  const { isUuid } = await import("../lib/uuid");
+  assert.equal(isUuid("not-a-uuid"), false);
+  assert.equal(isUuid("1b4e28ba-2fa1-11d2-883f-0016d3cca427"), true);
+  assert.equal(isUuid(undefined), false);
+  for (const [file, fn, arg] of [
+    ["lib/data/patients.ts", "getPatient", "patientId"],
+    ["lib/data/sessions.ts", "getSession", "sessionId"],
+    ["lib/data/radar.ts", "publicProfile", "userId"],
+    ["lib/billing/invoice.ts", "invoiceFor", "txnId"],
+  ] as const) {
+    const source = readFileSync(file, "utf8");
+    const body = source.slice(source.indexOf(`export async function ${fn}(`));
+    const guard = body.indexOf(`if (!isUuid(${arg})) return null;`);
+    const query = body.search(/await (db|controlDb)/);
+    assert.ok(guard > 0 && guard < query, `${fn} queries before it checks the id`);
+  }
+});
+
 test("K22 a clinic seat's region change is refused before the rate is saved", () => {
   const actions = strip(readFileSync("app/(app)/settings/actions.ts", "utf8"));
   const body = actions.slice(actions.indexOf("export async function updatePaymentSettings("));

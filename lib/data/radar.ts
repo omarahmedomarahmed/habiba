@@ -29,6 +29,7 @@ import { closedCodes } from "@/lib/data/taxonomy";
 import { log, ref } from "@/lib/logger";
 import { getCountries } from "@/lib/settings";
 import { radarProblem } from "@/lib/settings/defs";
+import { isUuid } from "@/lib/uuid";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -606,6 +607,8 @@ export async function publicProfile(
   userId: string,
   viewer?: string | null,
 ): Promise<PublicProfile | null> {
+  /* TE56: `/t/not-a-uuid` is a 404, not the public error page. */
+  if (!isUuid(userId)) return null;
   const now = new Date();
   const viewerHash = viewer ? hashViewer(viewer) : null;
 

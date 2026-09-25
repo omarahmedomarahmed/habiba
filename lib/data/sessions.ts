@@ -23,6 +23,7 @@ import { ensurePersonForPatient, normalisePhone } from "@/lib/data/people";
 import { log, ref } from "@/lib/logger";
 import { capSeconds, sessionClock, type SessionClock } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
+import { isUuid } from "@/lib/uuid";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -267,6 +268,8 @@ export async function formerSessions(actor: Pick<Actor, "userId" | "organization
 }
 
 export async function getSession(actor: Actor, sessionId: string) {
+  /* TE56: a malformed id from the URL is "not found", not a Postgres error. */
+  if (!isUuid(sessionId)) return null;
   const [row] = await db
     .select({
       session: sessions,

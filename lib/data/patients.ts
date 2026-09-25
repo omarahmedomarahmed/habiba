@@ -8,6 +8,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { ensurePersonForPatient } from "@/lib/data/people";
 import { patients, sessionNotes, sessions, type PatientClinical } from "@/lib/db/schema";
+import { isUuid } from "@/lib/uuid";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -117,6 +118,8 @@ export async function listPatients(actor: Actor) {
 }
 
 export async function getPatient(actor: Actor, patientId: string) {
+  /* TE56: a malformed id from the URL is "not found", not a Postgres error. */
+  if (!isUuid(patientId)) return null;
   const [patient] = await db
     .select()
     .from(patients)
