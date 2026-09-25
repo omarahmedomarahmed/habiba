@@ -331,6 +331,34 @@ export const env = {
   egyptPayoutsKey: process.env.EGYPT_PAYOUTS_KEY || "",
   egyptPayoutsHmac: process.env.EGYPT_PAYOUTS_HMAC || "",
   /*
+   * 🔴 RULINGS 12 AND 13b: PAYMOB, READY FOR THE KEYS, AND NONE OF THEM HERE.
+   *
+   * Which provider is a setting (`rules.providers`); what it signs in with is
+   * the environment's, and never the repository's, which is public. Every one
+   * is optional: a deployment without them boots, and the adapter says which
+   * are missing on /admin/settings instead of taking a card it cannot settle.
+   *
+   *   collection  the secret key creates a checkout and refunds; the public
+   *               key opens Unified Checkout; the integration id is the card
+   *               method; the HMAC secret verifies the callback; the API key
+   *               buys the short-lived token a status read needs
+   *   payouts     Paymob Send's OAuth client and its API user
+   *
+   * The base URLs are for a sandbox or a region, and default to Egypt's live
+   * hosts (payouts: its staging host anywhere but the live deployment).
+   */
+  paymobSecretKey: process.env.PAYMOB_SECRET_KEY || "",
+  paymobPublicKey: process.env.PAYMOB_PUBLIC_KEY || "",
+  paymobIntegrationId: (process.env.PAYMOB_INTEGRATION_ID || "").trim(),
+  paymobHmacSecret: process.env.PAYMOB_HMAC_SECRET || "",
+  paymobApiKey: process.env.PAYMOB_API_KEY || "",
+  paymobBaseUrl: (process.env.PAYMOB_BASE_URL || "").trim(),
+  paymobPayoutsClientId: process.env.PAYMOB_PAYOUTS_CLIENT_ID || "",
+  paymobPayoutsClientSecret: process.env.PAYMOB_PAYOUTS_CLIENT_SECRET || "",
+  paymobPayoutsUsername: process.env.PAYMOB_PAYOUTS_USERNAME || "",
+  paymobPayoutsPassword: process.env.PAYMOB_PAYOUTS_PASSWORD || "",
+  paymobPayoutsBaseUrl: (process.env.PAYMOB_PAYOUTS_BASE_URL || "").trim(),
+  /*
    * 🔴 0147: Egyptian e-invoicing. `ETA_MODE` is empty (off), `fake` (the
    * simulator, never on the live deployment), `preprod` (the Authority's test
    * environment) or `prod`. The client id and secret are the ERP system's,

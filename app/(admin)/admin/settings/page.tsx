@@ -92,8 +92,7 @@ export default async function SettingsPage() {
   const unreachable = countries.filter(hasNoRail);
 
   /* 🔴 64.1 — what the Egyptian rail is waiting for, which is paperwork not code. */
-  const gatewayNeeds = whatTheGatewayNeeds();
-  const payoutsNeed = whatPayoutsNeed();
+  const [gatewayNeeds, payoutsNeed] = await Promise.all([whatTheGatewayNeeds(), whatPayoutsNeed()]);
   const etaNeeds = whatEtaNeeds();
   const etaStuck = await documentsNeedingAttention();
   const egIssuer = settings.invoice.entities.find((e) => e.entity === "eg");

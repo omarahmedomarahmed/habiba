@@ -42,7 +42,7 @@ export const dynamic = "force-dynamic";
 export default async function PayoutsPage() {
   const actor = await requireStaff();
   const { payoutProvider } = await import("@/lib/billing/gateway");
-  const providerReady = payoutProvider() !== null;
+  const providerReady = (await payoutProvider()) !== null;
   const { simulatorOn } = await import("@/app/dev/simulator");
   const simulator = simulatorOn("payouts");
   const { getSettings } = await import("@/lib/settings");

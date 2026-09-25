@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
  * same shape as the gateway's callback beside it.
  */
 export async function POST(request: Request) {
-  const provider = payoutProvider();
+  const provider = await payoutProvider();
   if (!provider) return NextResponse.json({ error: "not_configured" }, { status: 404 });
 
   const rawBody = await request.text();
-  const event = await provider.verifyCallback({ rawBody, headers: request.headers });
+  const event = await provider.verifyCallback({ rawBody, headers: request.headers, url: request.url });
   if (!event) {
     log.warn("payouts callback rejected", { provider: provider.name });
     return NextResponse.json({ error: "invalid" }, { status: 400 });

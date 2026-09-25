@@ -18,11 +18,12 @@ export const dynamic = "force-dynamic";
  * gateway that retries on anything else retries into an idempotent claim.
  */
 export async function POST(request: Request) {
-  const gateway = collectionGateway();
+  const gateway = await collectionGateway();
   if (!gateway) return NextResponse.json({ error: "not_configured" }, { status: 404 });
 
   const rawBody = await request.text();
-  const event = await gateway.verifyCallback({ rawBody, headers: request.headers });
+  /* The URL too: Paymob signs into the query string (`?hmac=`). */
+  const event = await gateway.verifyCallback({ rawBody, headers: request.headers, url: request.url });
   if (!event) {
     log.warn("gateway callback rejected", { gateway: gateway.name });
     return NextResponse.json({ error: "invalid" }, { status: 400 });

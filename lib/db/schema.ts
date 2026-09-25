@@ -2687,6 +2687,15 @@ export const LEDGER_TXN_KINDS = [
    * of positive `sponsor_pot` legs as sessions excludes this kind.
    */
   "pot_return",
+  /**
+   * 🔴 0166 / ruling 12: the card fee a patient paid on top of a session,
+   * which is the gateway's and never ours. Posted gross so the trail shows it
+   * arriving and leaving: in and straight out of `cash`, and a cost in
+   * `platform_expense` met by the patient's payment of it. Every account nets
+   * to zero on a payment; a refund that hands the fee back while the gateway
+   * keeps its own is the one posting that costs us. No CHECK, no migration.
+   */
+  "card_fee",
 ] as const;
 export type LedgerTxnKind = (typeof LEDGER_TXN_KINDS)[number];
 
@@ -5619,6 +5628,14 @@ export const gatewayPayments = pgTable(
     currency: text("currency").$type<"egp">().notNull(),
     usdCents: integer("usd_cents").notNull(),
     vatCents: integer("vat_cents").notNull().default(0),
+    /**
+     * 🔴 0166 / ruling 12: the card fee the patient paid on top, frozen when the
+     * checkout opened. Inside `amountMinor`, outside `usdCents`: the fee is the
+     * gateway's, not the session's, and it is never our revenue.
+     */
+    cardFeeMinor: integer("card_fee_minor").notNull().default(0),
+    /** The same fee in dollars at the checkout's rate, for the ledger. */
+    cardFeeCents: integer("card_fee_cents").notNull().default(0),
     providerRef: text("provider_ref").notNull(),
     providerTxnId: text("provider_txn_id"),
     /** 🔴 0156 — a refund in flight, claimed before the gateway is asked. */

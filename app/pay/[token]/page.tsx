@@ -205,7 +205,17 @@ export default async function PayPage({
    * 🔴 NOT BOTH. Once a transfer is declared the card button goes: a patient
    * who paid by card as well would have paid twice.
    */
-  const cardReady = railIsReady() && rail.live.state !== "submitted";
+  const cardReady = (await railIsReady()) && rail.live.state !== "submitted";
+
+  /*
+   * 🔴 RULING 12: BY CARD, THE PATIENT ALSO PAYS THE CARD FEE, and it is shown
+   * as its own line where the VAT line used to be, before they press. Worked
+   * out by the same function and from the same figure the checkout charges
+   * (`gateway/session.ts`): what they owe after any benefit, VAT included, in
+   * pounds at the operator's rate. A transfer carries no fee, so the popup's
+   * figure below is untouched.
+   */
+  const cardQuote = cardReady ? await cardFeeQuote(money.settlesCents, tag) : null;
 
   if (rail.needed) {
     return (
@@ -230,6 +240,18 @@ export default async function PayPage({
               <Button type="submit" full>
                 {t("pay.byCard")}
               </Button>
+              {cardQuote && cardQuote.feeLabel ? (
+                <dl className="mt-2 space-y-1 text-sm text-slate-600">
+                  <div className="flex justify-between gap-3">
+                    <dt>{t("pay.cardFee")}</dt>
+                    <dd className="tabular-nums">{cardQuote.feeLabel}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3 font-semibold text-slate-900">
+                    <dt>{t("pay.cardTotal")}</dt>
+                    <dd className="tabular-nums">{cardQuote.totalLabel}</dd>
+                  </div>
+                </dl>
+              ) : null}
               {query.card === "unavailable" ? (
                 <p className="mt-2 text-sm text-rose-600">{t("pay.cardFailed")}</p>
               ) : null}
@@ -317,4 +339,22 @@ export default async function PayPage({
     />
     </>
   );
+}
+
+/**
+ * The card fee line and the total by card, formatted on the server (C84), or
+ * no fee label when the rule is off or nothing is owed.
+ */
+async function cardFeeQuote(settlesCents: number, locale: string): Promise<{ feeLabel: string; totalLabel: string }> {
+  const [{ cardFeeMinorFor, getSettings }, { egpMinorFor, egpRateMicro }, { formatMoney }] = await Promise.all([
+    import("@/lib/settings"),
+    import("@/lib/billing/manual"),
+    import("@/lib/billing/plans"),
+  ]);
+  const sessionMinor = egpMinorFor(settlesCents, await egpRateMicro());
+  const fee = cardFeeMinorFor((await getSettings()).rules, sessionMinor);
+  return {
+    feeLabel: fee > 0 ? formatMoney(fee, "EGP", locale) : "",
+    totalLabel: formatMoney(sessionMinor + fee, "EGP", locale),
+  };
 }
