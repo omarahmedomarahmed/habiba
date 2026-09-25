@@ -49,7 +49,7 @@ async function main() {
     "🔴 starting a session is one atomic statement, and the status is in the WHERE",
     /eq\(sessions\.status, "scheduled"\)/.test(starter) &&
       /\.returning\(\{ id: sessions\.id \}\)/.test(starter) &&
-      /if \(started\.length === 0\) return;/.test(starter),
+      /if \(started\.length === 0\) return( false)?;/.test(starter),
     "a read-then-write lets two taps both pass, and a message rides out on the second",
   );
 
