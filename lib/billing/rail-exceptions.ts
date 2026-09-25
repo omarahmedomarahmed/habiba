@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import {
   manualPayments,
   pendingApprovals,
@@ -197,7 +198,7 @@ export async function expireOpenCarts(now = new Date()): Promise<number> {
          */
         sql`NOT EXISTS (SELECT 1 FROM pending_approvals pa
                          WHERE pa.kind = 'transfer_without_proof' AND pa.state = 'asked'
-                           AND pa.subject_id = ${manualPayments.id}::text)`,
+                           AND pa.subject_id = ${qualified(manualPayments.id)}::text)`,
       ),
     )
     .returning({ id: manualPayments.id });
