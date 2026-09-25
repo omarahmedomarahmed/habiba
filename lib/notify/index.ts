@@ -5,6 +5,8 @@ import { log, safeErrorMessage } from "@/lib/logger";
 import type { MessageKey } from "@/lib/i18n/messages";
 import type { PatientNoticeKind } from "@/lib/db/schema";
 
+import type { Reader } from "./readers";
+
 /**
  * One place a message to a patient goes out from. PLAN.md 11.7, and C43.
  *
@@ -82,6 +84,13 @@ export type Recipient = {
    * Absent means the default language, which is what every send was before.
    */
   locale?: string | null;
+  /**
+   * 🔴 B23: WHO THEY ARE, when the kind alone does not say: a payment reaches
+   * a patient, a clinician or a company, and a renewal a clinician or a
+   * practice manager. Absent means the kind's usual reader
+   * (`FOOTING_OF_KIND` in `./readers.ts`), which decides the email's footer.
+   */
+  reader?: Reader | null;
 };
 
 export type Message = {
@@ -434,7 +443,9 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
 
     if (channel === "email" && to.email) {
       const { sendNotificationEmail } = await import("./email");
-      if (await sendNotificationEmail(to.email, message, to.locale)) sent.push("email");
+      const { footingFor } = await import("./readers");
+      const footing = footingFor(message.kind, to.reader);
+      if (await sendNotificationEmail(to.email, message, to.locale, footing)) sent.push("email");
     }
   }
 

@@ -203,11 +203,19 @@ export async function inviteColleague(input: {
     .where(eq(partners.id, input.partnerId))
     .limit(1);
 
-  const { sendPartnerInvite } = await import("@/lib/mail");
-  await sendPartnerInvite({
+  /* 🔴 B24: the partner and the role, the same invitation every portal sends. */
+  const { sendAccountLink } = await import("@/lib/mail");
+  const { PARTNER_SIGN_IN } = await import("@/lib/routing");
+  await sendAccountLink({
     to: email,
     url: passwordUrl(tokenFor({ id: created.id, passwordHash: null }, INVITE_MS)),
-    partnerName: partner?.name ?? "",
+    reader: "partner",
+    purpose: "invite",
+    organisation: partner?.name ?? null,
+    role,
+    name: input.name.trim() || null,
+    signIn: `${env.appUrl}${PARTNER_SIGN_IN}`,
+    days: INVITE_MS / 86_400_000,
   });
 
   await auditTeam("partner.user.invite", input.partnerId, created.id, input.byPartnerUserId, role);

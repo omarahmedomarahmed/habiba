@@ -3,7 +3,7 @@ import "server-only";
 import { log, safeErrorMessage } from "@/lib/logger";
 
 import type { Message } from "./index";
-import { templateFor, templateLanguage, templateStatus } from "./templates";
+import { buttonSuffix, renderTemplate, templateFor, templateLanguage, templateStatus } from "./templates";
 
 /**
  * WhatsApp, via the Meta Cloud API. C43, and the second half of PLAN.md 11.7.
@@ -51,7 +51,7 @@ import { templateFor, templateLanguage, templateStatus } from "./templates";
  * approved each, live in `./templates.ts`. The notes that used to sit here
  * (76.17, 11R.10, 13.3, 76.40, 21R.4, 76.14, phone change) still hold: an
  * authentication template carries one code and no link, and a join link is
- * never a variable because it is forwardable in one tap.
+ * never a text variable: it goes in the template's link button (B5, B9).
  */
 export function whatsappConfigured(): boolean {
   return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
@@ -77,12 +77,25 @@ export async function sendWhatsapp(
    * same way it would for a real person.
    */
   const { keep, simulationRunning } = await import("./outbox");
+  const template = templateFor(message.kind);
+  /* Meta's language for this reader: theirs when approved in it, else the default. */
+  const language = templateLanguage(message.kind, locale) ?? (locale === "en" ? "en" : "ar");
   if (simulationRunning()) {
+    /*
+     * 🔴 B5 / B9: KEPT AS IT WOULD ARRIVE. This kept the caller's email body and
+     * the raw variables, so a kept message read "Use the link below" with no
+     * link under it and an Arabic body ending in an English amount, while what
+     * Meta would actually show is the template. The template, filled, in the
+     * reader's language, with its button's address; a kind with no template
+     * keeps the body and the link.
+     */
     await keep({
       channel: "whatsapp",
       to: phone,
       subject: message.subject,
-      body: [message.body, ...(message.variables ?? [])].filter(Boolean).join("\n"),
+      body: template
+        ? renderTemplate(template, language, message.variables ?? [], message.link?.url)
+        : [message.body, message.link?.url].filter(Boolean).join("\n"),
       kind: message.kind,
       reason: "simulation running",
     });
@@ -90,7 +103,6 @@ export async function sendWhatsapp(
   }
   if (!whatsappConfigured()) return false;
 
-  const template = templateFor(message.kind);
   if (!template) {
     log.info("no whatsapp template for message kind", { kind: message.kind });
     return false;
@@ -116,6 +128,17 @@ export async function sendWhatsapp(
       expected: template.variables,
       got: variables.length,
     });
+    return false;
+  }
+
+  /*
+   * 🔴 B5 / B9: a template with a link button needs the path, or Meta would
+   * send a button to the bare app address. Refused, so the email carries it.
+   */
+  const { env } = await import("@/lib/env");
+  const suffix = buttonSuffix(message.link?.url, env.appUrl);
+  if (template.button && !suffix) {
+    log.warn("whatsapp template needs a link it was not given", { kind: message.kind });
     return false;
   }
 
@@ -156,12 +179,15 @@ export async function sendWhatsapp(
            * 🔴 Ruling 8: their language when Meta approved the template in it,
            * otherwise `WHATSAPP_TEMPLATE_LANGUAGE` (default `ar`) as before.
            */
-          language: { code: templateLanguage(message.kind, locale) ?? "ar" },
+          language: { code: language },
           components: [
             {
               type: "body",
               parameters: variables.map((text) => ({ type: "text", text })),
             },
+            ...(template.button && suffix
+              ? [{ type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: suffix }] }]
+              : []),
           ],
         },
       }),

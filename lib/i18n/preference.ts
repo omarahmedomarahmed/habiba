@@ -1,9 +1,9 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
-import { people, users } from "@/lib/db/schema";
+import { patients, people, users } from "@/lib/db/schema";
 
 import { DEFAULT_LOCALE, isLocale, type Locale } from "./config";
 
@@ -25,10 +25,29 @@ export async function savedLocale(who: Who): Promise<Locale | null> {
   return isLocale(row?.locale) ? row.locale : null;
 }
 
-/** What a message to them is written in: their choice, else the default. */
+/**
+ * What a message to them is written in: their choice, else what a clinician
+ * noted they read (0174, B39), else the default.
+ */
 export async function recipientLocale(who: Who | null | undefined): Promise<Locale> {
   if (!who) return DEFAULT_LOCALE;
-  return (await savedLocale(who)) ?? DEFAULT_LOCALE;
+  return (await savedLocale(who)) ?? (await notedLocale(who)) ?? DEFAULT_LOCALE;
+}
+
+/**
+ * 🔴 B39: the language a clinician wrote on one of this person's charts, the
+ * newest first. Only for messages: it never sets their screen, because it is
+ * somebody else's note about them rather than their own choice.
+ */
+export async function notedLocale(who: Who): Promise<Locale | null> {
+  if (!("personId" in who)) return null;
+  const [row] = await db
+    .select({ locale: patients.locale })
+    .from(patients)
+    .where(and(eq(patients.personId, who.personId), isNotNull(patients.locale)))
+    .orderBy(desc(patients.createdAt))
+    .limit(1);
+  return isLocale(row?.locale) ? row.locale : null;
 }
 
 /** Saved with them, and the cookie too, so this browser switches at once. */

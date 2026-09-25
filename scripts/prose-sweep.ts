@@ -361,6 +361,12 @@ const PORTALS: Record<string, readonly string[]> = {
     "tprofile",
     "money",
     "sim",
+    /*
+     * 🔴 B23 / B24: `mail` is the footer and the account invitation every email
+     * shares, by grep `lib/mail.ts` and `lib/notify/readers.ts`, read by a
+     * patient, a clinician, a manager, a company, a partner and our own staff.
+     */
+    "mail",
   ],
 };
 

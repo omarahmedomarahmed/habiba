@@ -8,6 +8,7 @@ import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import type { Words } from "@/lib/i18n/message-words";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { footerKeys, type Footing } from "@/lib/notify/readers";
 
 /**
  * 🔴 Ruling 8: the words for one email, in the language the caller resolved
@@ -21,6 +22,11 @@ async function mailWords(locale: string | null | undefined): Promise<Words> {
 /** A footer of two dictionary lines, escaped, the way the shell sets them. */
 function footerOf(words: Words, first: MessageKey, second: MessageKey): string {
   return `${esc(words.t(first))}<br>${esc(words.t(second))}`;
+}
+
+/** 🔴 B23: the footer for this reader and this occasion (`lib/notify/readers.ts`). */
+function footerFor(words: Words, footing: Footing): string {
+  return footerOf(words, ...footerKeys(footing));
 }
 
 let resend: Resend | null = null;
@@ -49,17 +55,16 @@ function esc(value: unknown): string {
 }
 
 /**
- * `footer` exists because the default line ("sent by your therapist") is a lie
- * on a message we send to a therapist ourselves — and a mismatched footer on a
- * transactional email is exactly what makes a real one look like a phish.
+ * 🔴 `footer` IS REQUIRED. It used to default to "sent by your therapist",
+ * which was a lie on every message we send ourselves: a clinician's own
+ * password reset went out with it (B41). A mismatched footer on a
+ * transactional email is exactly what makes a real one look like a phish, so
+ * every sender names its reader (`footerFor`) or writes its own line.
  */
-function layout(title: string, body: string, footer?: string, words?: Words): string {
+function layout(title: string, body: string, footer: string, words?: Words): string {
   /* 🔴 Ruling 8: an Arabic message reads right to left, shell and all. */
   const rtl = words?.locale === "ar";
   const content = rtl ? `<div dir="rtl" style="text-align:right;">${body}</div>` : body;
-  const fallback = words
-    ? `${esc(words.t("pmsg.mail.fromTherapist"))}<br>${esc(words.t("pmsg.mail.ignore"))}`
-    : undefined;
   return `<!doctype html>
 <html${rtl ? ' dir="rtl" lang="ar"' : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
@@ -69,7 +74,7 @@ function layout(title: string, body: string, footer?: string, words?: Words): st
       ${content}
     </div>
     <p style="text-align:center;color:#64748b;font-size:12px;line-height:1.6;margin:20px 0 0;">
-      ${footer ?? fallback ?? "This message was sent by your therapist through 24Therapy.<br>If you were not expecting it, you can safely ignore it."}
+      ${footer}
     </p>
   </div>
 </body></html>`;
@@ -358,6 +363,12 @@ export async function sendTherapistMessage(opts: {
    * An admin's own subject and body go as they were typed.
    */
   locale?: string | null;
+  /**
+   * 🔴 B42: the page a body sends them to. "Sign in and update your details"
+   * arrived with nothing to press, while the reset email had a button. Our own
+   * address only: the caller builds it, never an admin's typed text.
+   */
+  link?: { label: string; url: string } | null;
 }): Promise<boolean> {
   const words = await mailWords(opts.locale);
   const { t } = words;
@@ -377,6 +388,11 @@ export async function sendTherapistMessage(opts: {
       opts.firstName ? t("tmsg.mail.hi", { name: opts.firstName }) : t("tmsg.mail.hiThere"),
     )}</p>
      ${paragraphs}
+     ${
+       opts.link
+         ? `<a href="${esc(opts.link.url)}" style="display:inline-block;margin:6px 0 0;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(opts.link.label)}</a>`
+         : ""
+     }
      <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
        ${esc(opts.announcement ? t("tmsg.mail.announcement") : t("tmsg.mail.reply"))}
      </p>`,
@@ -401,28 +417,82 @@ export async function sendPasswordReset(opts: {
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(t("tmsg.reset.expiry"))}</p>
      <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("tmsg.reset.button"))}</a>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;">${esc(t("tmsg.reset.ignore"))}</p>`,
-    undefined,
+    /* 🔴 B41: they asked for it. Clinicians, staff, managers and partners share this template. */
+    footerFor(words, { reader: "clinician", occasion: "asked" }),
     words,
   );
   return send({ to: opts.to, subject: t("tmsg.reset.subject"), html });
 }
 
+/** The role an account link names, as its dictionary key. */
+const ROLE_KEY: Record<string, MessageKey> = {
+  admin: "mail.role.admin",
+  viewer: "mail.role.viewer",
+  developer: "mail.role.developer",
+  staff: "mail.role.staff",
+  manager: "mail.role.manager",
+  super_admin: "mail.role.owner",
+};
+
+const INVITE_KEY: Record<"staff" | "manager" | "company" | "partner", MessageKey> = {
+  staff: "mail.account.invite.staff",
+  manager: "mail.account.invite.manager",
+  company: "mail.account.invite.company",
+  partner: "mail.account.invite.partner",
+};
+
 /**
- * W2-X06: a colleague added to a partner's developer account chooses their own
- * password from this link. Nobody else ever types it, operators included.
+ * 🔴 B24: AN ACCOUNT INVITATION SAYS WHOSE ACCOUNT, AND IN WHAT ROLE.
+ *
+ * The console's invitations to a practice manager, a company admin, a partner
+ * developer and a member of our own staff all read "Choose your password. The
+ * link works once." and nothing else, so the person could not tell which
+ * organisation had added them, as what, or where they would sign in. Unsolicited
+ * mail that asks for a password and names nobody is the shape of a phish. One
+ * builder for every portal, so a fifth invitation cannot drift back to that.
+ *
+ * W2-X06: the link sets the reader's own password. Nobody else ever types it,
+ * operators included.
  */
-export async function sendPartnerInvite(opts: {
+export async function sendAccountLink(opts: {
   to: string;
   url: string;
-  partnerName: string;
+  reader: "staff" | "manager" | "company" | "partner";
+  purpose: "invite" | "reset";
+  /** The practice, company or partner. Unused for our own staff. */
+  organisation: string | null;
+  role: string;
+  /** Their own name, for the greeting, when the console was given one. */
+  name?: string | null;
+  /** The full address of the sign-in page for their portal. */
+  signIn: string;
+  days: number;
+  locale?: string | null;
 }): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
+  const org = opts.organisation?.trim() || "24Therapy";
+  const role = t(ROLE_KEY[opts.role] ?? "mail.role.member");
+  const lead =
+    opts.purpose === "reset"
+      ? t("mail.account.reset", { org })
+      : t(INVITE_KEY[opts.reader], { org, role });
+  const next =
+    opts.purpose === "reset"
+      ? t("mail.account.resetNext")
+      : t("mail.account.inviteNext", { days: opts.days, signIn: opts.signIn });
+  const subject =
+    opts.purpose === "reset" ? t("tmsg.reset.subject") : t("mail.account.subject", { org });
   const html = layout(
-    "Your developer account",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">You were added to ${esc(opts.partnerName)}'s developer account</p>
-     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">Choose a password to sign in. This link works once and expires in seven days.</p>
-     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Choose a password</a>`,
+    subject,
+    `<p style="margin:0 0 12px;font-size:18px;font-weight:700;">${esc(opts.name ? t("pmsg.hi", { name: opts.name }) : t("pmsg.hiThere"))}</p>
+     <p style="margin:0 0 12px;color:#334155;font-size:15px;line-height:1.6;">${esc(lead)}</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">${esc(next)}</p>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("mail.account.button"))}</a>`,
+    footerFor(words, { reader: opts.reader, occasion: opts.purpose === "reset" ? "asked" : "account" }),
+    words,
   );
-  return send({ to: opts.to, subject: "Your 24Therapy developer account", html });
+  return send({ to: opts.to, subject, html });
 }
 
 /**
@@ -448,7 +518,8 @@ export async function sendClaimCode(opts: {
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(t("pmsg.claimMail.expiry"))}</p>
      <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:6px;" dir="ltr">${esc(opts.code)}</p>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;">${esc(t("pmsg.claimMail.ignore"))}</p>`,
-    undefined,
+    /* 🔴 B52: a code they asked for, not an appointment they booked. */
+    footerFor(words, { reader: "patient", occasion: "asked" }),
     words,
   );
   return send({ to: opts.to, subject: t("pmsg.code.verifySubject"), html });
@@ -499,7 +570,7 @@ export async function sendSessionInvite(opts: {
          : ""
      }
      <p style="margin:${paid ? "10px" : "20px"} 0 0;color:#64748b;font-size:13px;">${esc(t("pmsg.inviteMail.expiry"))}</p>`,
-    undefined,
+    footerFor(words, { reader: "patient", occasion: "therapist" }),
     words,
   );
 
@@ -658,10 +729,9 @@ export async function sendWalkInDirections(opts: {
  * not become a second mail implementation with its own idea of a footer, a
  * from-address and an escaping rule.
  *
- * The footer is overridden: these are messages **24Therapy** sends about a
- * booking, not messages a therapist sends, and the default line ("sent by your
- * therapist") on a booking reminder is the mismatch that makes a real
- * transactional email look like a phish.
+ * 🔴 B23: the footer follows `footing`, who reads it and why. It was one line
+ * for everybody, "about an appointment you booked", which a practice manager's
+ * invitation, a company's receipt and the back office's code all carried.
  */
 export async function sendNotification(opts: {
   to: string;
@@ -671,6 +741,8 @@ export async function sendNotification(opts: {
   link?: { label: string; url: string } | null;
   /** 🔴 Ruling 8: the language the caller wrote the subject and body in. */
   locale?: string | null;
+  /** Who reads it and why, for the footer: `footingFor(kind)` in `lib/notify/readers.ts`. */
+  footing: Footing;
 }): Promise<boolean> {
   const words = await mailWords(opts.locale);
   const paragraphs = opts.body
@@ -688,7 +760,7 @@ export async function sendNotification(opts: {
     html: layout(
       opts.subject,
       paragraphs + button,
-      footerOf(words, "pmsg.mail.aboutBooking", "pmsg.mail.ignore"),
+      footerFor(words, opts.footing),
       words,
     ),
   });

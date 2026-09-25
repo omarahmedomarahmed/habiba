@@ -8,6 +8,7 @@ import { EXPORT_TTL_HOURS, type NoteContent } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { whenFor } from "@/lib/i18n/message-words";
 import { translator } from "@/lib/i18n/server";
+import { footingFor } from "@/lib/notify/readers";
 import { limitAlertMessage } from "@/lib/partner/usage";
 import { recordExportPath } from "@/lib/routing";
 import { patientSessionLink } from "@/lib/sessions/patient-link";
@@ -204,6 +205,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("session.invite"),
           subject: t("pmsg.payLink.subject"),
           body: t("pmsg.payLink.body", { therapist }),
           link: { label: t("pmsg.payLink.link"), url: `${app}/pay/DEMO-TOKEN` },
@@ -280,6 +282,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("booking.confirmed"),
           subject: t("pmsg.booked.subject", { therapist }),
           body: t("pmsg.booked.body", { therapist, when }),
           link: door ? { ...door, label: t("pmsg.openSession") } : undefined,
@@ -292,6 +295,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("booking.reminder"),
           subject: t("pmsg.sessionWith", { therapist }),
           body: t("pmsg.reminder.body", { therapist, when }),
           link: door ? { ...door, label: t("pmsg.openSession") } : undefined,
@@ -304,6 +308,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("session.started"),
           subject: t("pmsg.started.subject"),
           body: `${t("pmsg.hi", { name: "Mariam" })}\n\n${t("pmsg.started.body", { therapist })}`,
           link: { label: t("pmsg.started.link"), url: `${app}/join/DEMO-TOKEN` },
@@ -316,6 +321,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("booking.cancelled"),
           subject: t("w1a.noShowCancelled"),
           body: [t("w1a.cancelledByClinician"), t("w1a.cancelReasonGiven", { reason: "I am unwell this week." })].join(
             "\n\n",
@@ -329,6 +335,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("claim.invite"),
           subject: t("pmsg.claimInvite.subject", { who: therapist }),
           body: t("pmsg.claimInvite.body", { who: therapist }),
           link: { label: t("pmsg.claimInvite.link"), url: `${app}/patient/invite/DEMO-TOKEN` },
@@ -341,6 +348,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("consent.granted"),
           subject: t("pmsg.granted.subject"),
           body: t("pmsg.granted.body", { name: "Dr Sara Demo" }),
           link: { label: t("pmsg.granted.link"), url: `${app}/patient/consent` },
@@ -353,6 +361,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("history.answered"),
           subject: t("pmsg.history.addedSubject"),
           body: t("pmsg.history.added"),
           link: { label: t("pmsg.openRecord"), url: `${app}/patient/profile` },
@@ -365,6 +374,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("checkin.asking"),
           subject: t("checkin.subject"),
           body: `${t("checkin.1", { name: "Mariam" })}\n\n${t("checkin.howToStop")}`,
         }),
@@ -376,6 +386,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("benefit.verify_code"),
           subject: t("pmsg.code.benefitSubject"),
           body: t("pmsg.code.benefit", { code: "604118", minutes: CODE_TTL_MINUTES }),
         }),
@@ -387,6 +398,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("support.closed"),
           subject: t("pmsg.support.subject"),
           body: t("pmsg.support.body", {
             reference: "SUP-DEMO-01",
@@ -406,6 +418,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("payout.sent"),
           subject: t("tmsg.payout.sentSubject"),
           body: t("tmsg.payout.sent", { amount: "1840.00 EGP", account: "Nour Demo" }),
         }),
@@ -417,6 +430,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("payout.rejected"),
           subject: t("tmsg.payout.rejectedSubject"),
           /* The real body is the operator's reason, word for word. */
           body: "The account name on the transfer did not match the name on the account. Correct it on your earnings page and ask again.",
@@ -440,7 +454,13 @@ export function previewMessages(): PreviewMessage[] {
       when: "the fund empties and their people start being asked to pay",
       send: (to) => {
         const message = potAlertMessage("empty", "Acme Demo");
-        return sendNotification({ to, subject: message.subject, body: message.body, link: potAlertLink(false) });
+        return sendNotification({
+          to,
+          footing: footingFor("sponsor.pot_empty"),
+          subject: message.subject,
+          body: message.body,
+          link: potAlertLink(false),
+        });
       },
     },
     {
@@ -450,6 +470,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("sponsor.domain_confirm"),
           ...domainConfirmMessage("example.com", `${app}/sponsor/domains/confirm/DEMO-ID?t=DEMO-TOKEN`),
         }),
     },
@@ -463,6 +484,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
+          footing: footingFor("partner.limit_approaching"),
           ...limitAlertMessage({ name: "Health Demo", at: 80, used: 400, limit: 500, projected: 470 }),
         }),
     },
@@ -474,7 +496,7 @@ export function previewMessages(): PreviewMessage[] {
       audience: "our staff",
       when: "a clinician's withdrawal has sat unworked too long",
       /* 24 hours is the shipped `alertAfterHours`; the real one reads the setting. */
-      send: (to) => sendNotification({ to, ...overdueAlertMessage(25_500, 24, false) }),
+      send: (to) => sendNotification({ to, footing: footingFor("payout.overdue"), ...overdueAlertMessage(25_500, 24, false) }),
     },
   ];
 }

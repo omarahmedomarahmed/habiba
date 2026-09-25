@@ -152,6 +152,39 @@ async function main() {
     /templateStatus\(message\.kind\) !== "approved"\) \{[\s\S]{0,200}return false;/.test(whatsapp) && !/const TEMPLATES/.test(whatsapp),
   );
 
+  /* ------------------------------------------ B5 / B9: the link button -- */
+  const { buttonSuffix, renderTemplate, templateFor } = await import("../lib/notify/templates");
+  const needsDoor = ["claim.invite", "payment.confirmed", "payment.rejected"];
+  const doorless = needsDoor.filter((kind) => {
+    const button = templateFor(kind)?.button;
+    return !button || !button.en || !/[؀-ۿ]/.test(button.ar);
+  });
+  check(
+    "🔴 B5 / B9: the record invitation and the payment messages carry a link button, labelled in both languages",
+    doorless.length === 0,
+    doorless.join(", "),
+  );
+  const badButtonAuth = entries.filter(([, t]) => t.category === "authentication" && "button" in t);
+  check("…and no authentication template has one", badButtonAuth.length === 0, badButtonAuth.map(([k]) => k).join(", "));
+  check(
+    "the button is filled with the link's path on our own address, and refuses anybody else's",
+    buttonSuffix("https://24therapy.app/patient/invite/abc", "https://24therapy.app") === "patient/invite/abc" &&
+      buttonSuffix("https://24therapy.app/join/x", "https://24therapy.app/") === "join/x" &&
+      buttonSuffix("https://evil.example.com/patient/invite/abc", "https://24therapy.app") === null &&
+      buttonSuffix("https://24therapy.app", "https://24therapy.app") === null &&
+      buttonSuffix(null, "https://24therapy.app") === null,
+  );
+  const shown = renderTemplate(templateFor("payment.confirmed")!, "ar", ["‏1,000 ج.م.‏"], "https://24therapy.app/join/t1");
+  check(
+    "what the phone shows: the Arabic body with the amount in place, then the button and its address",
+    shown.startsWith("تم تأكيد دفعتك بقيمة ‏1,000 ج.م.‏") && shown.includes("افتح: https://24therapy.app/join/t1") && !/\{\{/.test(shown),
+    shown,
+  );
+  check(
+    "🔴 CONTROL a template with no button shows no address, even when the message had a link",
+    !renderTemplate(templateFor("payment.submitted")!, "en", ["EGP 5"], "https://24therapy.app/x").includes("https://"),
+  );
+
   /* ------------------------------------------------- the fallback, live -- */
   if (process.env.DATABASE_URL) {
     writesTo();
@@ -198,6 +231,65 @@ async function main() {
         "…and the reason is written down, not only logged",
         attempt.length === 1 && attempt[0]!.reason === "whatsapp template not approved",
         JSON.stringify(attempt),
+      );
+
+      /*
+       * 🔴 B5: an approved invitation reaches Meta WITH its button, filled with
+       * the invite's path; and without a link it is refused, so the email
+       * carries it rather than a button to nowhere.
+       */
+      process.env.WHATSAPP_APPROVED_TEMPLATES = "claim_invite";
+      const savedSim = process.env.SIMULATION_RUNNING;
+      process.env.SIMULATION_RUNNING = "";
+      const { env } = await import("../lib/env");
+      const { sendWhatsapp } = await import("../lib/notify/whatsapp");
+      const toMeta: { template?: { components?: { type: string; parameters?: { text: string }[] }[] } }[] = [];
+      globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+        if (String(args[0]).includes("graph.facebook.com")) {
+          toMeta.push(JSON.parse(String(args[1]?.body ?? "{}")));
+          return new Response(JSON.stringify({ messages: [{ id: "verify" }] }), { status: 200 });
+        }
+        return realFetch(...args);
+      }) as typeof fetch;
+      const invite = {
+        kind: "claim.invite" as const,
+        subject: "Invite",
+        body: "Open the link below to set up your account.",
+        variables: ["Dr Nour Demo"],
+      };
+      const withLink = await sendWhatsapp(
+        "+201001234567",
+        { ...invite, link: { label: "Set up", url: `${env.appUrl}/patient/invite/${fixture}` } },
+        "ar",
+      );
+      const withoutLink = await sendWhatsapp("+201001234567", invite, "ar");
+      globalThis.fetch = realFetch;
+      const button = toMeta[0]?.template?.components?.find((c) => c.type === "button");
+      check(
+        "🔴 B5: the invitation goes to Meta with a button that opens the invite, and one with no link is refused",
+        withLink && !withoutLink && toMeta.length === 1 && button?.parameters?.[0]?.text === `patient/invite/${fixture}`,
+        JSON.stringify({ withLink, withoutLink, calls: toMeta.length, button }),
+      );
+
+      /* 🔴 B5 / B9: and the simulation keeps what the phone would show, link and all. */
+      process.env.SIMULATION_RUNNING = "1";
+      const simPhone = `+2010${String(Date.now()).slice(-8)}`;
+      await sendWhatsapp(
+        simPhone,
+        { kind: "payment.confirmed", subject: "Paid", body: "Use the link below.", link: { label: "Join", url: `${env.appUrl}/join/${fixture}` }, variables: ["‏1,000 ج.م.‏"] },
+        "ar",
+      );
+      process.env.SIMULATION_RUNNING = savedSim ?? "";
+      const kept = (await db.execute(sql`SELECT body FROM sim_outbox WHERE to_address = ${simPhone}`)).rows as { body: string }[];
+      await db.execute(sql`DELETE FROM sim_outbox WHERE to_address = ${simPhone}`);
+      check(
+        "🔴 B9: the kept Arabic payment message is the Arabic template with its amount and the join link",
+        kept.length === 1 &&
+          kept[0]!.body.includes("تم تأكيد دفعتك بقيمة ‏1,000 ج.م.‏") &&
+          kept[0]!.body.includes(`${env.appUrl}/join/${fixture}`) &&
+          !kept[0]!.body.includes("Use the link below") &&
+          !/EGP/.test(kept[0]!.body),
+        JSON.stringify(kept),
       );
     } finally {
       process.env.WHATSAPP_TOKEN = saved.token;

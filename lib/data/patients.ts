@@ -8,6 +8,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { ensurePersonForPatient } from "@/lib/data/people";
 import { patients, sessionNotes, sessions, type PatientClinical } from "@/lib/db/schema";
+import type { Locale } from "@/lib/i18n/config";
 import { isUuid } from "@/lib/uuid";
 
 /*
@@ -186,7 +187,14 @@ export async function getPatientHistory(actor: Actor, patientId: string) {
  */
 export async function createPatient(
   actor: Actor,
-  input: { firstName: string; lastName?: string; email?: string; phone: string },
+  input: {
+    firstName: string;
+    lastName?: string;
+    email?: string;
+    phone: string;
+    /** 🔴 B39: the language the clinician says they read; messages use it until they choose. */
+    locale?: Locale | null;
+  },
 ) {
   const phone = input.phone.trim();
   if (!/^\+[1-9][0-9]{6,14}$/.test(phone)) {
@@ -202,6 +210,7 @@ export async function createPatient(
       lastName: input.lastName?.trim() || null,
       email: input.email?.trim().toLowerCase() || null,
       phone,
+      locale: input.locale ?? null,
       source: "therapist",
     })
     .returning();

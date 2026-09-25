@@ -16,6 +16,7 @@ import {
 import { ensurePersonForPatient } from "@/lib/data/people";
 import { inviteToSession, type SessionInvite } from "@/lib/data/session-invite";
 import { env } from "@/lib/env";
+import { isLocale } from "@/lib/i18n/config";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { notify } from "@/lib/notify";
 import { releaseLock } from "@/lib/data/challenge";
@@ -82,11 +83,14 @@ export async function addPatient(
     }
   }
 
+  const reads = formData.get("locale");
   const patient = await createPatient(actor, {
     firstName,
     lastName: String(formData.get("lastName") ?? "").trim() || undefined,
     email: String(formData.get("email") ?? "").trim() || undefined,
     phone: parsed.e164,
+    /* 🔴 B39: so the invitation and every message before they choose is in their language. */
+    locale: isLocale(reads) ? reads : null,
   });
 
   revalidatePath("/patients");

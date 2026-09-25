@@ -31,6 +31,19 @@ export type WhatsappTemplate = {
   variables: number;
   en: string;
   ar: string;
+  /**
+   * 🔴 B5 / B9: A LINK BUTTON, for a message whose whole point is a door.
+   *
+   * The record invitation and the payment confirmation both went out with no
+   * link at all: the email carried it, the template did not, and a patient
+   * with only a phone could neither claim their record nor join the session
+   * they had paid for. A per message URL belongs in a button rather than in
+   * the text (the note 76.14 left on `payment_confirmed`): Meta approves the
+   * button as `<app>/{{1}}` and each message supplies the path, which is
+   * `Message.link` with the app's address taken off. The label is the
+   * template's own, in both languages.
+   */
+  button?: { en: string; ar: string };
 };
 
 /** Keyed by `Message.kind`. A kind with no entry is email and in-app only. */
@@ -111,6 +124,7 @@ export const WHATSAPP_TEMPLATES = {
     variables: 1,
     en: "{{1}} has invited you to set up your 24Therapy account.",
     ar: "دعاك {{1}} إلى إعداد حسابك في 24Therapy.",
+    button: { en: "Set up my account", ar: "إعداد حسابي" },
   },
   "password.reset_code": {
     name: "password_reset_code",
@@ -153,6 +167,8 @@ export const WHATSAPP_TEMPLATES = {
     variables: 1,
     en: "Your payment of {{1}} is confirmed.",
     ar: "تم تأكيد دفعتك بقيمة {{1}}.",
+    /* The join link for a session, their own account page for anything else. */
+    button: { en: "Open", ar: "افتح" },
   },
   "payment.rejected": {
     name: "payment_rejected",
@@ -160,6 +176,8 @@ export const WHATSAPP_TEMPLATES = {
     variables: 1,
     en: "We could not match your transfer of {{1}}. Open the payment page to send the details again.",
     ar: "لم نتمكن من مطابقة تحويلك بقيمة {{1}}. افتح صفحة الدفع لإرسال التفاصيل مرة أخرى.",
+    /* It tells them to open the payment page, so it carries it. */
+    button: { en: "Open the payment page", ar: "افتح صفحة الدفع" },
   },
   "payout.sent": {
     name: "payout_sent",
@@ -199,6 +217,34 @@ export const WHATSAPP_TEMPLATES = {
 } as const satisfies Record<string, WhatsappTemplate>;
 
 export type TemplatedKind = keyof typeof WHATSAPP_TEMPLATES;
+
+/**
+ * What fills a link button's `{{1}}`: the message's link with the app's own
+ * address taken off. Null when there is no link or it is somewhere else, and
+ * then the template cannot be sent: Meta would build a broken address.
+ */
+export function buttonSuffix(url: string | null | undefined, appUrl: string): string | null {
+  if (!url) return null;
+  const base = `${appUrl.replace(/\/+$/, "")}/`;
+  if (!url.startsWith(base)) return null;
+  return url.slice(base.length) || null;
+}
+
+/**
+ * The words one template puts on the phone, in one language: the body with its
+ * variables in place, then the button's label and the address it opens. What
+ * the simulation keeps in the outbox, so the cast reads what Meta would show.
+ */
+export function renderTemplate(
+  template: WhatsappTemplate,
+  language: string,
+  variables: readonly string[],
+  url?: string | null,
+): string {
+  const lang = language.split("_")[0] === "en" ? "en" : "ar";
+  const body = template[lang].replace(/\{\{(\d+)\}\}/g, (_, n: string) => variables[Number(n) - 1] ?? "");
+  return template.button && url ? `${body}\n${template.button[lang]}: ${url}` : body;
+}
 
 /** The template for a message kind, or null when it has none. */
 export function templateFor(kind: string): WhatsappTemplate | null {
