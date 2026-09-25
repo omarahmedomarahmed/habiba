@@ -467,37 +467,19 @@ async function main() {
         : `missing or at the wrong role: ${wrongRole.map((p) => p.email).join(", ")}`,
     );
 
-    /* ------------------------------------------------------- the spend cap -- */
+    /* ------------------------------------------------------- the copilot quota -- */
 
     /*
-     * 🔴 THE BUDGET, ENFORCED BY THE PRODUCT RATHER THAN PROMISED IN A DOCUMENT.
-     *
-     * The run has $10 of OpenAI credit and must not stop halfway. The largest
-     * variable cost per session is the in-session copilot, which the product caps
-     * with `copilot.messagesPerPatientPerSession` and which ships at ten. Ten
-     * times sixty-two sessions is a large share of the budget spent on
-     * suggestions nobody in a simulation reads.
-     *
-     * Four is enough to exercise every path the copilot has: it still asks, it
-     * still cites, it still refuses, and the quota screen still says what is
-     * left. What it cannot do is quietly spend the run.
-     *
-     * A quota is the honest lever here because it is a real product feature used
-     * for its real purpose, on one branch. Nothing about the model calls
-     * themselves changes, so the measured cost per session is still a true
-     * measurement of this product at this setting.
+     * The run tests the product as it ships, so the in-session copilot keeps its
+     * shipped quota. The month holds a few dozen sessions, and `spend` reports
+     * what they cost; nothing here lowers a setting to save money.
      */
-    await db.execute(sql`
-      UPDATE platform_settings
-         SET value = jsonb_set(value, '{messagesPerPatientPerSession}', '4'::jsonb)
-       WHERE key = 'copilot'`);
-
     const quota = await db.execute<{ q: string }>(sql`
       SELECT value->>'messagesPerPatientPerSession' AS q FROM platform_settings WHERE key = 'copilot'`);
 
     check(
-      "🔴 the in-session copilot quota is 4, not the shipped 10, because the run has $10",
-      quota.rows[0]?.q === "4",
+      "the in-session copilot quota is left as the product ships it",
+      quota.rows[0]?.q === "10",
       `messagesPerPatientPerSession = ${quota.rows[0]?.q ?? "missing"}`,
     );
 

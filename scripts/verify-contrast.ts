@@ -222,7 +222,7 @@ const SIGNED_IN = [
   {
     who: "admin",
     door: "/staff/sign-in",
-    email: "omar@24therapy.app",
+    email: "omarabdelgawad001@gmail.com",
     paths: [
       "/admin",
       "/admin/usage",

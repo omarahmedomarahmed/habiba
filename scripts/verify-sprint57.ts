@@ -462,12 +462,19 @@ async function main() {
      */
     "scripts/seed-demo.ts",
     "scripts/settings.ts",
+    /*
+     * The seventh door: the one-month simulation's clock. It moves every
+     * timestamp back by the gap between rounds, on the run's own database,
+     * which is production. It deletes nothing, runs in one transaction, and
+     * `verify:clock` proves the move on a scratch table.
+     */
+    "scripts/sim-clock.ts",
     "scripts/simulate-seed.ts",
     "scripts/sync-blocks.ts",
   ];
 
   check(
-    "🔴 76.62 exactly SIX scripts anywhere under scripts/ may be let through to production",
+    "🔴 76.62 exactly SEVEN scripts anywhere under scripts/ may be let through to production",
     opened.length === DOORS.length && DOORS.every((d) => opened.includes(d)),
     opened.join(", ") || "none, which means the seed cannot run where it is meant to",
   );

@@ -30,7 +30,7 @@
  * scanner is a function, it is run against a planted line as well as against
  * the tree, and a pass is only reported when the plant is caught.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 
 import robots from "../app/robots";
 import { potAlertLink } from "../lib/billing/pot-alerts";
@@ -681,7 +681,7 @@ function main() {
 
   check(
     "🔴 E the Arabic contact default carries no admin instruction as an address",
-    !/اضبط العنوان/.test(readFileSync("lib/content/defaults-ar.ts", "utf8")),
+    !/اضبط العنوان/.test(readSource("lib/content/defaults-ar.ts")),
     "the Arabic page printed 'set the registered address from the console' as each company's address",
   );
 

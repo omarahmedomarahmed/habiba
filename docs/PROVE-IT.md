@@ -42,7 +42,7 @@ boundary working and also the easiest way to confuse yourself all day.
 
 | # | Tester | Signs in at | Address |
 | --- | --- | --- | --- |
-| 1 | **Operator** (founder) | `/staff/sign-in` | `omar@24therapy.app` |
+| 1 | **Operator** (founder) | `/staff/sign-in` | `omarabdelgawad001@gmail.com` |
 | 1b | **Support** (same person, second window) | `/staff/sign-in` | `staff.demo@example.com` |
 | 2 | **Patient A**, Omar Ahmad | `/patient/login` | `mr.3omar.a7mad@gmail.com` |
 | 3 | **Patient B**, Mariam | `/patient/login` | `mariam.demo@example.com` |

@@ -1328,7 +1328,12 @@ async function moneyGaps(db: Db) {
 async function domainProofAndChrome(db: Db) {
   const sponsorId = await plantSponsor(db, "domain");
   const otherId = await plantSponsor(db, "domain-other");
-  const domain = `${fixture}.example.com`;
+  /*
+   * example.org, not example.com: any address at example.com is kept in the
+   * simulation outbox and never reaches the provider this check catches. Both
+   * are reserved (RFC 2606), so neither can reach a real mailbox.
+   */
+  const domain = `${fixture}.example.org`;
   const { env } = await import("../lib/env");
   const { subjectKey } = await import("../lib/rate-limit");
   const heldKey = env.resendApiKey;
