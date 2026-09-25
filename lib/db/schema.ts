@@ -3961,7 +3961,8 @@ export const settingsHistory = pgTable(
  * different person carries out exactly that, or declines it. The database
  * refuses the same person twice and a second open request for the same thing.
  */
-export const PENDING_APPROVAL_KINDS = ["transfer_without_proof", "ledger_adjustment"] as const;
+/* 🔴 0172: `owner_invite`, a further super admin once a second one exists. */
+export const PENDING_APPROVAL_KINDS = ["transfer_without_proof", "ledger_adjustment", "owner_invite"] as const;
 export type PendingApprovalKind = (typeof PENDING_APPROVAL_KINDS)[number];
 
 export const pendingApprovals = pgTable(
@@ -9876,6 +9877,13 @@ export const potReturns = pgTable(
     requestedBy: uuid("requested_by").notNull(),
     decidedBy: uuid("decided_by"),
     txnId: uuid("txn_id"),
+    /**
+     * 🔴 0172: a cancel carries its reason, and who asked for it. While company
+     * returns need two people, a different person carries the cancel out.
+     */
+    cancelReason: text("cancel_reason"),
+    cancelAskedBy: uuid("cancel_asked_by"),
+    cancelAskedAt: timestamp("cancel_asked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
   },

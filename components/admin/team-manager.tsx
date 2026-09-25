@@ -6,12 +6,15 @@ import { useFormStatus } from "react-dom";
 import {
   changeRole,
   inviteMember,
+  inviteOwner,
   resetMemberSecondFactor,
   sendPasswordLink,
   setActive,
   type TeamState,
 } from "@/app/(admin)/admin/team/actions";
+import { PendingApprovals, type PendingApprovalView } from "@/components/admin/pending-approvals";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
+import { MIN_REASON } from "@/lib/admin/reason";
 import type { TeamMember } from "@/lib/data/admin-team";
 import { useT } from "@/lib/i18n/client";
 
@@ -43,7 +46,15 @@ function Said({ state, done }: { state: TeamState; done?: string }) {
  * away and give it back, send a password link. The owner's row and your own
  * are shown and cannot be changed here.
  */
-export function TeamManager({ members, actorUserId }: { members: TeamMember[]; actorUserId: string }) {
+export function TeamManager({
+  members,
+  actorUserId,
+  ownerInvites,
+}: {
+  members: TeamMember[];
+  actorUserId: string;
+  ownerInvites: PendingApprovalView[];
+}) {
   const t = useT();
   const [state, action] = useActionState(inviteMember, INITIAL);
 
@@ -72,12 +83,66 @@ export function TeamManager({ members, actorUserId }: { members: TeamMember[]; a
         </form>
       </Card>
 
+      <OwnerInvite />
+      <PendingApprovals rows={ownerInvites} />
+
       <Card className="divide-y divide-slate-100">
         {members.map((member) => (
           <MemberRow key={member.id} member={member} own={member.id === actorUserId} />
         ))}
       </Card>
     </div>
+  );
+}
+
+/**
+ * 🔴 K3: another owner, with a reason on the record. The server checks the
+ * reason at the length this enables at, and asks a second owner when one exists.
+ */
+function OwnerInvite() {
+  const t = useT();
+  const [state, action] = useActionState(inviteOwner, INITIAL);
+  const [why, setWhy] = useState("");
+  return (
+    <Card className="p-4">
+      <p className="text-sm font-semibold text-slate-900">{t("ateam.ownerTitle")}</p>
+      <p className="mt-1 text-xs text-slate-500">{t("ateam.ownerBody")}</p>
+      <form action={action} className="mt-3 grid gap-2 sm:grid-cols-2">
+        <Field label={t("ateam.first")} htmlFor="ownerFirst">
+          <Input id="ownerFirst" name="firstName" required />
+        </Field>
+        <Field label={t("ateam.last")} htmlFor="ownerLast">
+          <Input id="ownerLast" name="lastName" required />
+        </Field>
+        <Field label={t("ateam.email")} htmlFor="ownerEmail">
+          <Input id="ownerEmail" name="email" type="email" required />
+        </Field>
+        <Field label={t("ateam.ownerWhy")} htmlFor="ownerWhy">
+          <Input
+            id="ownerWhy"
+            name="reason"
+            required
+            minLength={MIN_REASON}
+            value={why}
+            onChange={(event) => setWhy(event.target.value)}
+          />
+        </Field>
+        <div className="space-y-2 sm:col-span-2">
+          <Said state={state} done={state.asked ? t("ateam.ownerAsked") : t("ateam.linkSent")} />
+          <OwnerGo label={t("ateam.ownerAdd")} ready={why.trim().length >= MIN_REASON} />
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function OwnerGo({ label, ready }: { label: string; ready: boolean }) {
+  const { pending } = useFormStatus();
+  const t = useT();
+  return (
+    <Button type="submit" size="sm" disabled={pending || !ready}>
+      {pending ? t("common.working") : label}
+    </Button>
   );
 }
 

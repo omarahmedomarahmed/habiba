@@ -24,10 +24,16 @@ import { log, ref } from "@/lib/logger";
  *
  * ## The rules this deliberately keeps
  *
- * **A super_admin is not creatable here**, and not demotable or deactivatable
- * either. Elevating somebody to the role that can create roles, or taking it
- * away, is a decision that should cost a database session, not a form.
- * `staff` and `manager` are the two this mints and the enum is closed.
+ * **A super_admin is not demotable or deactivatable here.** Taking the role
+ * that can create roles away is a decision that should cost a database
+ * session, not a form. `staff` and `manager` are what `inviteMember` mints.
+ *
+ * 🔴 K3: **a super_admin IS invitable, by a separate act.** A ledger
+ * adjustment needs a second super admin, and with no way to make one a
+ * company with one founder could never post one. `inviteOwner` asks for a
+ * reason, is audited, and once a second owner exists a further one waits for
+ * one of the others (`pending_approvals` kind `owner_invite`). The new owner
+ * signs in through the same door and second step as every back office member.
  *
  * **They join OUR organisation**, found by slug rather than passed in, so a
  * back-office account cannot be created inside a customer's clinic by getting
@@ -54,13 +60,13 @@ export async function createBackOfficeUser(input: {
   email: string;
   firstName: string;
   lastName: string;
-  role: "staff" | "manager";
+  role: "staff" | "manager" | "super_admin";
 }): Promise<{ ok?: true; error?: string; id?: string; email?: string }> {
   const email = input.email.trim().toLowerCase();
   if (!email.includes("@")) return { error: "That email address does not look right." };
 
-  if (input.role !== "staff" && input.role !== "manager") {
-    return { error: "A back office account is staff or manager. Nothing else is set here." };
+  if (input.role !== "staff" && input.role !== "manager" && input.role !== "super_admin") {
+    return { error: "A back office account is staff, manager or owner. Nothing else is set here." };
   }
 
   const orgId = await platformOrgId();
@@ -181,6 +187,23 @@ export async function setBackOfficeActive(input: {
     await revokeAllSessionsForUser(input.userId);
   }
   return { ok: true };
+}
+
+/** Active owners other than this one: none means a new owner is the second, and needs nobody else. */
+export async function otherActiveOwners(actorUserId: string): Promise<number> {
+  const rows = await controlDb
+    .select({ id: users.id })
+    .from(users)
+    .where(
+      and(
+        eq(users.role, "super_admin"),
+        eq(users.status, "active"),
+        ne(users.id, actorUserId),
+        isNull(users.deletedAt),
+      ),
+    )
+    .limit(10);
+  return rows.length;
 }
 
 /** A member whose password the owner may send a link for. */

@@ -162,7 +162,9 @@ export async function approvalViews(kind: PendingApprovalKind, readerUserId: str
         ? payment
           ? money(payment.amountCents, payment.currency)
           : r.subjectId.slice(0, 8)
-        : `${String(r.payload.account ?? "")} ${money(Number(r.payload.amountCents ?? 0), "USD")}`;
+        : kind === "owner_invite"
+          ? `${String(r.payload.firstName ?? "")} ${String(r.payload.lastName ?? "")} ${String(r.payload.email ?? "")}`.trim()
+          : `${String(r.payload.account ?? "")} ${money(Number(r.payload.amountCents ?? 0), "USD")}`;
     return {
       id: r.id,
       kind: r.kind,

@@ -198,8 +198,42 @@ async function main() {
       byAsker === false && forged === "refused" && bySecond === true,
       JSON.stringify({ byAsker, forged, bySecond }),
     );
+
+    /*
+     * 🔴 K3 / 0172: with one owner a ledger adjustment could never be posted,
+     * because nothing could make a second. An owner invite is now a kind the
+     * database accepts (before 0172 its CHECK refused the insert and this
+     * threw), and once another owner exists the invite waits for them.
+     */
+    const { otherActiveOwners } = await import("../lib/data/admin-team");
+    const others = await otherActiveOwners(required(a, "a").id);
+    const invite = (actor: string) =>
+      secondPersonGate({
+        kind: "owner_invite",
+        subjectId: `owner.${fixture}@example.com`,
+        payload: { email: `owner.${fixture}@example.com`, firstName: "Owner", lastName: "Three" },
+        reason: "A third owner to share the approvals",
+        actorUserId: actor,
+        enabled: others > 0,
+      });
+    const ownerAsked = await invite(required(a, "a").id);
+    const ownerSecond = await invite(required(b, "b").id);
+    check(
+      "🔴 K3: an owner invite is recorded, and a second owner completes it",
+      others >= 1 && ownerAsked.go === false && ownerSecond.go === true && Boolean(ownerSecond.approvalId),
+      JSON.stringify({ others, asked: ownerAsked.go, second: ownerSecond.go }),
+    );
+    const team = read("app/(admin)/admin/team/actions.ts");
+    const inviteBody = team.slice(team.indexOf("export async function inviteOwner("));
+    check(
+      "K3: the owner invite needs a reason, and a second owner whenever another one exists",
+      /reasonProblem\(reason\)/.test(inviteBody) &&
+        /kind: "owner_invite"[\s\S]*enabled: \(await otherActiveOwners\(actor\.userId\)\) > 0/.test(inviteBody) &&
+        /role: "super_admin"/.test(inviteBody),
+    );
   } finally {
     await db.delete(pendingApprovals).where(eq(pendingApprovals.subjectId, fixture));
+    await db.delete(pendingApprovals).where(eq(pendingApprovals.subjectId, `owner.${fixture}@example.com`));
     await db.execute(sql`DELETE FROM settings_history WHERE changed_by IN (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);
     await db.execute(sql`DELETE FROM users WHERE email LIKE ${`%.${fixture}@example.com`}`);
     await db.execute(sql`DELETE FROM organizations WHERE slug = ${fixture}`);

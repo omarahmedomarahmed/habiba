@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { TeamManager } from "@/components/admin/team-manager";
 import { requireRole } from "@/lib/auth/guard";
+import { approvalViews } from "@/lib/billing/approvals";
 import { listBackOffice } from "@/lib/data/admin-team";
 
 export const metadata: Metadata = { title: "Team", robots: { index: false } };
@@ -18,5 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function TeamPage() {
   const actor = await requireRole("super_admin");
   const members = await listBackOffice();
-  return <TeamManager members={members} actorUserId={actor.userId} />;
+  /* 🔴 K3: an owner invite waiting for one of the other owners. */
+  const ownerInvites = await approvalViews("owner_invite", actor.userId);
+  return <TeamManager members={members} actorUserId={actor.userId} ownerInvites={ownerInvites} />;
 }
