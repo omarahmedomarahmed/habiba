@@ -166,6 +166,8 @@ async function sweepUnderLease(limit: number): Promise<SweepResult> {
 
     const delivery = await notify(
       {
+        /* Task 40: so a message no channel carries still lands in the app. */
+        personId: person.personId,
         email: person.email,
         phone: person.phone,
         timezone: person.timezone,
@@ -174,6 +176,8 @@ async function sweepUnderLease(limit: number): Promise<SweepResult> {
         kind: "checkin.asking",
         subject: t("checkin.subject"),
         body,
+        /* Task 40: the one variable `checkin_asking` takes. */
+        variables: [person.firstName ?? ""],
       },
     );
 

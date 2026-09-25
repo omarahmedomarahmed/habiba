@@ -111,7 +111,7 @@ export async function createGatewaySessionCheckout(input: {
     const { crossingFor, payoutRailFor } = await import("@/lib/billing/money");
     const settings = await getSettings();
     /*
-     * 🔴 0170: the session is booked at the patient's WHOLE share; the wallet's
+     * 🔴 0169: the session is booked at the patient's WHOLE share; the wallet's
      * part of it is corrected on the books when the hold is spent.
      */
     const shareCents = owed.grossCents + owed.walletCents;

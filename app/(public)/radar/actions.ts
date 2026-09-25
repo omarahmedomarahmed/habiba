@@ -408,7 +408,7 @@ export async function bookFromRadar(
     if (signedIn) {
       const { payFromPot } = await import("@/lib/billing/pot");
       await payFromPot(session.id);
-      /* 🔴 0170: benefit first, then the patient's wallet (ruling 7b). */
+      /* 🔴 0169: benefit first, then the patient's wallet (ruling 7b). */
       const { holdWallet } = await import("@/lib/billing/wallet");
       await holdWallet(session.id);
       const [after] = await db

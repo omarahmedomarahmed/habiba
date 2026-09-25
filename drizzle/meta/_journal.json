@@ -1109,10 +1109,17 @@
       "breakpoints": true
     },
     {
-      "idx": 170,
+      "idx": 168,
       "version": "7",
-      "when": 1789966056000,
-      "tag": "0170_the_wallet_is_spent",
+      "when": 1789966054000,
+      "tag": "0168_a_booking_can_move",
+      "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1789966055000,
+      "tag": "0169_the_wallet_is_spent",
       "breakpoints": true
     }
   ]

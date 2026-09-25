@@ -95,7 +95,7 @@ export async function candidates(limit = 500): Promise<Candidate[]> {
     email: row.email,
     phone: row.phone,
     timezone: row.timezone,
-    /* 🔴 0170 / ruling 8: the language they chose; English is the floor, as everywhere. */
+    /* 🔴 0169 / ruling 8: the language they chose; English is the floor, as everywhere. */
     locale: row.locale === "ar" || row.locale === "en" ? row.locale : "en",
     muted: row.mutedId !== null,
     lastSentAt: lastByPerson.get(row.personId)?.sentAt ?? null,

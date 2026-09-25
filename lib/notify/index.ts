@@ -105,6 +105,11 @@ export type Message = {
     | "booking.confirmed"
     | "booking.reminder"
     | "booking.cancelled"
+    /** 🔴 Ruling 16: a clinician moved the patient's booking; to the patient. */
+    | "booking.rescheduled"
+    /** 🔴 Ruling 16: the patient cancelled or moved; to the clinician, a time and no name. */
+    | "booking.patient_cancelled"
+    | "booking.patient_moved"
     /**
      * 🔴 76.17 — THE DOOR IS OPEN, sent the instant a clinician presses Start.
      *
@@ -370,10 +375,23 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
     }
   }
 
+  /*
+   * 🔴 Task 40: why WhatsApp could not carry it, when a number was there to
+   * carry it to. An unapproved template used to make a phone-only person's
+   * message vanish with nothing but a log line.
+   */
+  let whatsappRefused: string | null = null;
+  if (to.phone) {
+    const { templateStatus } = await import("./templates");
+    const status = templateStatus(message.kind);
+    if (status === "none") whatsappRefused = "no whatsapp template for this message";
+    else if (status === "not_approved") whatsappRefused = "whatsapp template not approved";
+  }
+
   for (const channel of order(to)) {
     if (channel === "whatsapp") {
       const { whatsappConfigured, sendWhatsapp } = await import("./whatsapp");
-      if (!whatsappConfigured() || !to.phone) continue;
+      if (!whatsappConfigured() || !to.phone || whatsappRefused) continue;
 
       try {
         if (await sendWhatsapp(to.phone, message)) sent.push("whatsapp");
@@ -407,8 +425,31 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
    * a confirmation must still be a booking. The clinician's screen says
    * whether the patient was reachable — see `Delivery.reason`.
    */
-  const reason = !to.email && !to.phone ? "no contact details on file" : "no channel available";
+  const reason = !to.email && !to.phone
+    ? "no contact details on file"
+    : (whatsappRefused ?? "no channel available");
   log.info("notification not sent", { kind: message.kind, reason });
+
+  /*
+   * 🔴 Task 40: NEVER DROPPED SILENTLY. Nothing left the building, so the one
+   * place the person can always come back to gets a line: the message's own
+   * notice was written above when it had one, and otherwise a general one
+   * that sends them to their sessions and payments.
+   */
+  if (to.personId && !message.notice) {
+    try {
+      const { controlDb } = await import("@/lib/db");
+      const { patientNotifications } = await import("@/lib/db/schema");
+      await controlDb.insert(patientNotifications).values({
+        personId: to.personId,
+        kind: "message_fallback",
+        messageKey: "pnotice.messageFallback",
+        sessionId: null,
+      });
+    } catch (error) {
+      log.warn("fallback notice not written", { kind: message.kind, reason: safeErrorMessage(error) });
+    }
+  }
   await record(to, message, [], reason);
   return { sent: false, channel: null, channels: [], reason };
 }

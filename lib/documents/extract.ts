@@ -126,7 +126,8 @@ async function fetchDocument(blobUrl: string): Promise<Uint8Array> {
     );
   }
 
-  const response = await fetch(blobUrl);
+  const { fetchStored } = await import("@/lib/uploads");
+  const response = await fetchStored(blobUrl);
   if (!response.ok) throw new Error(`document fetch failed: ${response.status}`);
   return new Uint8Array(await response.arrayBuffer());
 }

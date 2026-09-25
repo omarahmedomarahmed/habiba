@@ -630,6 +630,8 @@ async function recordSent(
       kind: "payout.sent",
       subject: "Your withdrawal is on its way",
       body: `We have sent ${(row.payoutAmountMinor / 100).toFixed(2)} ${row.payoutCurrency.toUpperCase()} to ${row.accountName}. The transfer receipt is on your earnings page.`,
+      /* Task 40: the one variable `payout_sent` takes. */
+      variables: [`${(row.payoutAmountMinor / 100).toFixed(2)} ${row.payoutCurrency.toUpperCase()}`],
     },
   );
 
@@ -900,6 +902,8 @@ export async function markPayoutReturned(input: {
       kind: "payout.returned",
       subject: "Your withdrawal did not arrive",
       body: `${reason} The money is back in your balance, so you can ask for it again.`,
+      /* Task 40: the one variable `payout_returned` takes. */
+      variables: [`$${(row.amountCents / 100).toFixed(2)}`],
     },
   );
 
@@ -946,7 +950,7 @@ export async function rejectPayout(input: {
   if (result.error) return result;
 
   const [row] = await db
-    .select({ email: users.email, profile: users.profile, timezone: users.timezone })
+    .select({ email: users.email, profile: users.profile, timezone: users.timezone, amountCents: payoutRequests.amountCents })
     .from(payoutRequests)
     .innerJoin(users, eq(users.id, payoutRequests.therapistId))
     .where(eq(payoutRequests.id, input.requestId))
@@ -959,6 +963,8 @@ export async function rejectPayout(input: {
         kind: "payout.rejected",
         subject: "We could not process your withdrawal",
         body: reason,
+        /* Task 40: the one variable `payout_rejected` takes. */
+        variables: [`$${(row.amountCents / 100).toFixed(2)}`],
       },
     );
   }

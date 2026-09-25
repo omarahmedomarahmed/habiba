@@ -88,7 +88,7 @@ export async function employeeHalfOf(payment: FrozenSplit & {
     gatewayPaid,
   }).employee;
   /*
-   * 🔴 0170: the part their wallet paid goes back to the wallet
+   * 🔴 0169: the part their wallet paid goes back to the wallet
    * (`returnSpentHold`), so only the rest is sent. All of it from the wallet
    * means nothing to send.
    */
@@ -476,7 +476,7 @@ export async function markRefundSent(input: {
       throw error;
     });
 
-  /* 🔴 0170: the part the wallet paid goes back to the wallet. After the transaction, which held the connection. */
+  /* 🔴 0169: the part the wallet paid goes back to the wallet. After the transaction, which held the connection. */
   if ("ok" in sent && sent.ok && held) {
     const { returnSpentHold } = await import("./wallet");
     await returnSpentHold(held.sessionId, row.reason);

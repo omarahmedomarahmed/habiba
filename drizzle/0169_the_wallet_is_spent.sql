@@ -1,4 +1,4 @@
--- 🔴 0170: THE PATIENT'S WALLET IS SPENT (founder rulings 7 and 7b).
+-- 🔴 0169: THE PATIENT'S WALLET IS SPENT (founder rulings 7 and 7b).
 --
 -- `patient_credits` has held money a patient is owed since sprint 14, and
 -- nothing ever spent it. A hold is the wallet's share of one session: taken at

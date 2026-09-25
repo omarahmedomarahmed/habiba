@@ -262,7 +262,7 @@ export async function postPatientSettlement(input: {
    * case is unchanged by this.
    */
   /*
-   * 🔴 0170: LESS WHAT THE WALLET PAID. The quote was taken after the wallet's
+   * 🔴 0169: LESS WHAT THE WALLET PAID. The quote was taken after the wallet's
    * hold, so the tax is derived against the same smaller base.
    */
   const { walletCentsOn } = await import("./wallet");

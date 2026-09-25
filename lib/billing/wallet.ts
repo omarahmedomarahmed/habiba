@@ -9,7 +9,7 @@ import { log, ref } from "@/lib/logger";
 import { journal } from "./ledger";
 
 /**
- * 🔴 0170 / RULINGS 7 AND 7b: THE PATIENT'S WALLET.
+ * 🔴 0169 / RULINGS 7 AND 7b: THE PATIENT'S WALLET.
  *
  * Money we hold for a patient: the difference when a replacement clinician
  * costs less than the one who did not come (their own share; the company's goes

@@ -3,7 +3,7 @@ import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
- * 🔴 0170 / RULING 8: the language this person reads in, and every message we
+ * 🔴 0169 / RULING 8: the language this person reads in, and every message we
  * send them. A plain form, no JavaScript: it works on the phones this product
  * is used on. Each language is named in itself (`LOCALE_NAMES`).
  */

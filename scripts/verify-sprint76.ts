@@ -76,8 +76,9 @@ async function main() {
   check(
     "🔴 …and the kind is registered on BOTH sides, so it can leave by either channel",
     /"session\.started"/.test(readSource("lib/notify/index.ts")) &&
-      /"session\.started": \{ name: "session_started", variables: 1 \}/.test(
-        readSource("lib/notify/whatsapp.ts"),
+      /* Task 40: the templates moved to their own catalog, with both languages. */
+      /"session\.started": \{\s*name: "session_started",\s*category: "utility",\s*variables: 1,/.test(
+        readSource("lib/notify/templates.ts"),
       ),
     "an unregistered kind does not typecheck; an untemplated one quietly drops to email only",
   );

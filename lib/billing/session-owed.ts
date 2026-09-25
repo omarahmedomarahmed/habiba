@@ -35,7 +35,7 @@ export async function claimSessionPaid(sessionId: string): Promise<boolean> {
     )
     .returning({ id: sessions.id });
   if (moved.length === 0) return false;
-  /* 🔴 0170: the wallet's hold is spent by the same claim, whichever rail made it. */
+  /* 🔴 0169: the wallet's hold is spent by the same claim, whichever rail made it. */
   const { spendHold } = await import("./wallet");
   await spendHold(sessionId);
   return true;
@@ -81,7 +81,7 @@ export type SessionOwed = {
   coveredCents: number;
   /** The full price, for the line that says what the session cost. */
   priceCents: number;
-  /** 🔴 0170: what the patient's wallet holds or paid for it, already out of `grossCents`. */
+  /** 🔴 0169: what the patient's wallet holds or paid for it, already out of `grossCents`. */
   walletCents: number;
 };
 

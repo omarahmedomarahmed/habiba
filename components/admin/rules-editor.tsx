@@ -156,7 +156,7 @@ export function RulesEditor({ rules, history }: { rules: RulesSettings; history:
             label="Free cancellation (hours)"
             name="patientCancelWindowHours"
             value={rules.refunds.patientCancelWindowHours}
-            status="stored"
+            status="applied"
           />
         </Section>
 

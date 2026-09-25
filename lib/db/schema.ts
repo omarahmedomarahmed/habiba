@@ -295,7 +295,7 @@ export const users = pgTable(
     lastName: text("last_name").notNull(),
     role: text("role").$type<Role>().notNull().default("therapist"),
     status: text("status").$type<"active" | "suspended">().notNull().default("active"),
-    /** 🔴 0170 / ruling 8: the language they chose. Null: never chose, the browser decides. */
+    /** 🔴 0169 / ruling 8: the language they chose. Null: never chose, the browser decides. */
     locale: text("locale"),
 
     /** License details etc. Collected lazily in settings, never at signup. */
@@ -834,6 +834,18 @@ export const sessions = pgTable(
      * so the notice log itself carries no prose (C231).
      */
     cancelledReason: text("cancelled_reason"),
+    /**
+     * 🔴 0168 / ruling 16: who cancelled, and when. `late_cancel` is `held`
+     * while a patient's late cancellation leaves the money with the clinician,
+     * and `refunded` once the clinician agreed to return it. One conditional
+     * UPDATE moves it, so the refund happens once.
+     */
+    cancelledBy: text("cancelled_by").$type<"patient" | "therapist" | "us">(),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    lateCancel: text("late_cancel").$type<"held" | "refunded">(),
+    /** 🔴 0168: a booking moved to another hour, never charged again. */
+    rescheduledAt: timestamp("rescheduled_at", { withTimezone: true }),
+    rescheduleCount: integer("reschedule_count").notNull().default(0),
 
     /** Patient join link. Random, expiring, revocable. */
     joinToken: text("join_token"),
@@ -1079,6 +1091,8 @@ export const sessions = pgTable(
     index("sessions_org_idx").on(t.organizationId),
     index("sessions_therapist_idx").on(t.therapistId, t.createdAt),
     index("sessions_patient_idx").on(t.patientId),
+    /* 🔴 0168: late cancellations still holding money, per clinician. */
+    index("sessions_late_cancel_idx").on(t.therapistId).where(sql`late_cancel = 'held'`),
   ],
 );
 
@@ -2643,7 +2657,7 @@ export const LEDGER_ACCOUNTS = [
    */
   "sponsor_pot",
   /**
-   * 🔴 0170 / RULING 7: MONEY WE HOLD FOR A PATIENT, a liability like the pot.
+   * 🔴 0169 / RULING 7: MONEY WE HOLD FOR A PATIENT, a liability like the pot.
    * Credited when a replacement clinician costs less than they paid (their own
    * share only, ruling 7b), spent on their next session, never paid out.
    */
@@ -2725,11 +2739,11 @@ export const CLINICIAN_ALLOWED_ACCOUNTS = [
 ] as const satisfies readonly LedgerAccount[];
 
 export const LEDGER_TXN_KINDS = [
-  /** 🔴 0170: money into, out of, and back into a patient's wallet. */
+  /** 🔴 0169: money into, out of, and back into a patient's wallet. */
   "wallet_credit",
   "wallet_spend",
   "wallet_return",
-  /** 🔴 0170: a paid session that cost less in the end (a cheaper clinician stepped in). */
+  /** 🔴 0169: a paid session that cost less in the end (a cheaper clinician stepped in). */
   "session_repriced",
   "session_payment",
   "session_refund",
@@ -4062,7 +4076,7 @@ export const patientCredits = pgTable(
 export type PatientCredit = typeof patientCredits.$inferSelect;
 
 /**
- * 🔴 0170 / RULINGS 7 AND 7b: THE WALLET'S SHARE OF ONE SESSION.
+ * 🔴 0169 / RULINGS 7 AND 7b: THE WALLET'S SHARE OF ONE SESSION.
  *
  * Taken at booking after any company benefit, `spent` when the rest of the
  * session is paid, `released` when it never was, `returned` when a paid session
@@ -4268,7 +4282,7 @@ export const people = pgTable(
      */
     region: text("region").$type<Region>().notNull().default("us"),
 
-    /** 🔴 0170 / ruling 8: the language they chose. Null: never chose, the browser decides. */
+    /** 🔴 0169 / ruling 8: the language they chose. Null: never chose, the browser decides. */
     locale: text("locale"),
 
     /**
@@ -7878,6 +7892,10 @@ export const PATIENT_NOTICE_KINDS = [
    * `enrolments.ledger_told_at` records when.
    */
   "benefit_terms",
+  /** 🔴 0168: a booked session moved to another hour. */
+  "session_rescheduled",
+  /** 🔴 0168: a message no channel could carry (an unapproved WhatsApp template, no email). */
+  "message_fallback",
 ] as const;
 export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
 

@@ -411,7 +411,7 @@ export async function coverWithBenefit(token: string): Promise<void> {
   }
   const { payFromPot } = await import("@/lib/billing/pot");
   const spent = await payFromPot(session.id, { byPersonId: actor.personId });
-  /* 🔴 0170: then the wallet, on the same word of the patient's. */
+  /* 🔴 0169: then the wallet, on the same word of the patient's. */
   const { holdWallet } = await import("@/lib/billing/wallet");
   const wallet = await holdWallet(session.id, { byPersonId: actor.personId });
   redirect(`/pay/${token}${spent.paid || wallet.heldCents > 0 ? "" : `?benefit=${spent.reason}`}`);

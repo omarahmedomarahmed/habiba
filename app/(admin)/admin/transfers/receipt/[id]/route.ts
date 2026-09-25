@@ -5,7 +5,7 @@ import { audit } from "@/lib/audit";
 import { requireStaff } from "@/lib/auth/guard";
 import { controlDb as db } from "@/lib/db";
 import { manualPayments } from "@/lib/db/schema";
-import { documentUrl } from "@/lib/uploads";
+import { documentUrl, fetchStored } from "@/lib/uploads";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +106,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
    * because nothing in a gate opens a picture.
    */
   const absolute = url.startsWith("http") ? url : new URL(url, request.url).toString();
-  const upstream = await fetch(absolute, {
+  const upstream = await fetchStored(absolute, {
     cache: "no-store",
     /* The local route is behind the same guard, so the cookie has to travel. */
     headers: url.startsWith("http") ? {} : { cookie: request.headers.get("cookie") ?? "" },

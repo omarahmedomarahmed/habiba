@@ -91,7 +91,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
       return NextResponse.redirect(new URL(local, _request.url));
     }
 
-    const upstream = await fetch(decision.storedUrl);
+    /* 🔴 Task 40: private blobs are read with the token, after the decision above. */
+    const { fetchStored } = await import("@/lib/uploads");
+    const upstream = await fetchStored(decision.storedUrl);
     if (!upstream.ok || !upstream.body) {
       log.warn("identity document fetch failed", {
         verification: ref(reference.verificationId),

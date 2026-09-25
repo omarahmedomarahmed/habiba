@@ -30,7 +30,7 @@ export type RefundQueueItem = {
   currency: string;
   payeeName: string | null;
   status: string;
-  why: "no_show" | "clinician_cancel" | "pot_share" | "other";
+  why: "no_show" | "clinician_cancel" | "patient_cancel" | "pot_share" | "other";
   owned: boolean;
   needsTwoPeople: boolean;
   openedLabel: string;

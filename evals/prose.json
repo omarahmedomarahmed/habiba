@@ -13,9 +13,9 @@
   },
   "baseline": {
     "shared": 1535,
-    "patient": 4085,
+    "patient": 4294,
     "public": 5621,
-    "clinician": 6692,
+    "clinician": 6772,
     "sponsor": 1150,
     "admin": 3250,
     "clinic": 1080,
@@ -116,5 +116,6 @@
     "comment": "Rulings 5b and 5e (2026-09-25), pay before start: clinician 6545 to 6585 for the in-person payment choice, the pay-as-you-go notice and the payment screen the therapist turns to the patient; patient 3939 to 4009 for the in-person pay page (company benefit, card, paid) and the QR a patient shows their therapist. Both stay below origin (7625, 4719)."
   },
   "launch0925": "clinician 6621 -> 6692 is the staff second step's sign-in screen, which renders under the clinician's auth prefix (tauth.second*), 70 words of code, email and recovery-code labels. patient 4018 -> 4031 is the check-in reminder line that now reaches Egypt by WhatsApp (8) and the card fee and total-by-card labels on the pay page (5), both required by rulings: the patient pays the card fee and must see it before paying.",
-  "profile0925": "patient 4031 -> 4085 is ruling 8b's profile: four tab names, the employer badge and the Enrol link, live now, the empty and booked states, the wallet line (ruling 7, shown only when there is money in it), the summary card and the billing rows. Each is a label of one to seven words; the paragraphs the old You page carried moved under Settings unchanged."
+  "profile0925": "patient 4031 -> 4085 is ruling 8b's profile: four tab names, the employer badge and the Enrol link, live now, the empty and booked states, the wallet line (ruling 7, shown only when there is money in it), the summary card and the billing rows. Each is a label of one to seven words; the paragraphs the old You page carried moved under Settings unchanged.",
+  "launch40": "patient 4085 -> 4294 and clinician 6692 -> 6772 are task 40's launch blockers, each ruled: ruling 16's patient cancel and move screens with the 24-hour window stated where the choice is made, the printable receipt in both languages (which must say it is a payment receipt and not a tax invoice, ruling 4), the therapist's late-cancellation list with Refund anyway and the Move control, and the in-app notices for a cancelled or moved session. Strings were cut before this was recorded; the patient app is still 9 per cent under its origin."
 }

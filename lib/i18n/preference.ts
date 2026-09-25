@@ -8,7 +8,7 @@ import { people, users } from "@/lib/db/schema";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "./config";
 
 /**
- * 🔴 0170 / RULING 8: THE LANGUAGE A PERSON CHOSE, KEPT WITH THEM.
+ * 🔴 0169 / RULING 8: THE LANGUAGE A PERSON CHOSE, KEPT WITH THEM.
  *
  * The cookie is how a browser remembers; this is how WE do. A patient or a
  * therapist chooses once in their settings, and a new phone (signing in sets

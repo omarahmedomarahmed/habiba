@@ -218,7 +218,7 @@ export async function confirmEmail(_prev: EmailState, formData: FormData): Promi
   return { added: done.email };
 }
 
-/** 🔴 0170 / ruling 8: the language they read in, and every message we send them. */
+/** 🔴 0169 / ruling 8: the language they read in, and every message we send them. */
 export async function savePatientLanguage(formData: FormData): Promise<void> {
   const actor = await requirePatient();
   const { saveLocale } = await import("@/lib/i18n/preference");

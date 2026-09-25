@@ -151,3 +151,39 @@ export async function invitePatient(input: {
 
   return { ok: true, message: name };
 }
+
+/**
+ * 🔴 Ruling 16: move a booked hour to another of the clinician's open hours.
+ * Never charged again; the patient is told (`rescheduleBooking`). Answers are
+ * dictionary keys, said in the clinician's language by the calendar.
+ */
+export async function moveBookedHour(input: {
+  fromSlotId: string;
+  toSlotId: string;
+}): Promise<{ ok?: boolean; errorKey?: import("@/lib/i18n/messages").MessageKey }> {
+  const actor = await requireVerified();
+  const { rescheduleBooking, sessionInMyHour } = await import("@/lib/data/booking-change");
+  const sessionId = await sessionInMyHour(actor, input.fromSlotId);
+  if (!sessionId) return { errorKey: "pchange.errGone" };
+  const result = await rescheduleBooking({
+    sessionId,
+    toSlotId: input.toSlotId,
+    by: { kind: "therapist", actor },
+  });
+  if (!result.ok) return { errorKey: result.error };
+  revalidatePath("/bookings");
+  return { ok: true };
+}
+
+/** 🔴 Ruling 16: the clinician agrees to refund a late cancellation anyway. */
+export async function refundLateCancellation(
+  sessionId: string,
+): Promise<{ ok?: boolean; errorKey?: import("@/lib/i18n/messages").MessageKey }> {
+  /* Giving money back never waits on a licence. */
+  const actor = await requireUser();
+  const { agreeLateRefund } = await import("@/lib/data/booking-change");
+  const result = await agreeLateRefund(actor, sessionId);
+  if (!result.ok) return { errorKey: result.error };
+  revalidatePath("/bookings");
+  return { ok: true };
+}

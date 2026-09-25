@@ -133,7 +133,7 @@ export default async function SettingsPage({
           title={t("portal.settings.tabYou")}
           why={t("portal.settings.whyYou")}
         >
-          {/* 🔴 0170 / ruling 8: the language they work in, and every message we send them. */}
+          {/* 🔴 0169 / ruling 8: the language they work in, and every message we send them. */}
           <LanguageSetting action={saveMyLanguage} saved={await savedLocale({ userId: actor.userId })} />
           {/*
             24.4 — the verification state belongs here, and it was on no screen

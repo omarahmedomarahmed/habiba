@@ -1281,7 +1281,7 @@ async function main() {
    * zero, and the tax disappeared.
    */
   check(
-    "🔴 …and the base it subtracts is the payer's SHARE, never the session's price (less what their wallet paid, 0170)",
+    "🔴 …and the base it subtracts is the payer's SHARE, never the session's price (less what their wallet paid, 0169)",
     /\(priorPayment\?\.patientShareCents \?\? row\.priceCents\) - \(await walletCentsOn\(/.test(grants) &&
       /(payment|input)\.settlesCents - patientShareCents/.test(grants),
     "subtracting the whole price from a part payment makes the tax negative, and a clamp makes it vanish",
@@ -1879,6 +1879,13 @@ async function main() {
      * we removed is the outcome this check exists to prevent, not this.
      */
     ["lib/data/radar-admin.ts", "an operator removing a clinician mid-booking; refunded through clinician-cancel"],
+    /*
+     * Task 40 / ruling 16: the PATIENT cancelling their own paid booking, on
+     * purpose. Guarded on `scheduled` and no start in its WHERE; the money is
+     * refunded inside the window (a setting) or held for the clinician after
+     * it, and `verify:booking-change` proves both happen once.
+     */
+    ["lib/data/booking-change.ts", "the patient cancelling their own booking; refunded or held by ruling 16"],
     /* 0147: the state sent to the Tax Authority when a tax document is withdrawn. No session. */
     ["lib/billing/eta/client.ts", "cancels a tax document at the Tax Authority, never a session"],
   ]);

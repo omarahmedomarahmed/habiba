@@ -1244,7 +1244,7 @@ export async function refundSessionPayment(opts: {
         .update(sessions)
         .set({ paymentStatus: "pending", updatedAt: new Date() })
         .where(eq(sessions.id, payment.sessionId));
-      /* 🔴 0170: the gateway returned the card part; the wallet part goes back to the wallet. */
+      /* 🔴 0169: the gateway returned the card part; the wallet part goes back to the wallet. */
       const { returnSpentHold } = await import("./wallet");
       await returnSpentHold(payment.sessionId, opts.reason);
     }
@@ -1259,7 +1259,7 @@ export async function refundSessionPayment(opts: {
    * automatic paths opened a queue row, so an operator's own refund was stuck.
    */
   /*
-   * 🔴 0170: PAID ENTIRELY FROM THE WALLET. Nothing came by card or transfer,
+   * 🔴 0169: PAID ENTIRELY FROM THE WALLET. Nothing came by card or transfer,
    * so nothing is sent: the books reverse and the wallet gets it back.
    */
   if (!payment.stripePaymentIntentId) {
@@ -1499,7 +1499,7 @@ async function refundSplit(
     .update(sessions)
     .set({ paymentStatus: "pending", updatedAt: new Date() })
     .where(eq(sessions.id, payment.sessionId));
-  /* 🔴 0170: what the wallet paid goes back to it; a hold never spent is released. */
+  /* 🔴 0169: what the wallet paid goes back to it; a hold never spent is released. */
   const { returnSpentHold, releaseHold } = await import("./wallet");
   await returnSpentHold(payment.sessionId, opts.reason);
   await releaseHold(payment.sessionId);

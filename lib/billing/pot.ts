@@ -1010,7 +1010,7 @@ export async function refundToPot(input: {
 type Tx = Parameters<Parameters<typeof controlDb.transaction>[0]>[0];
 
 /**
- * 🔴 0170 / RULING 7b: PART of a pot's share back, when a session it paid for
+ * 🔴 0169 / RULING 7b: PART of a pot's share back, when a session it paid for
  * cost less in the end (a cheaper clinician stepped in for one who did not
  * come). The company's part of the difference goes to its pot, the patient's
  * to their wallet. Its own transaction, so `refundToPot` still returns the

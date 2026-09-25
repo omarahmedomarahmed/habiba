@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   closeHour,
   invitePatient,
+  moveBookedHour,
   openHoursOn,
   type BookingState,
 } from "@/app/(app)/bookings/actions";
@@ -119,6 +120,17 @@ export function Calendar({
     startTransition(async () => {
       setState({});
       setState(await closeHour(slotId));
+    });
+
+  /* 🔴 Ruling 16: a booked hour moves to an open one; never charged again. */
+  const [moveTo, setMoveTo] = useState("");
+  const openAhead = parsed.filter((slot) => slot.status === "open" && slot.at.getTime() > Date.now());
+  const move = (fromSlotId: string) =>
+    startTransition(async () => {
+      setState({});
+      const target = moveTo || openAhead[0]?.id || "";
+      const result = await moveBookedHour({ fromSlotId, toSlotId: target });
+      setState(result.ok ? { ok: true, message: t("tchange.moved") } : { error: t(result.errorKey ?? "pchange.errGone") });
     });
 
   const invite = (slotId: string) =>
@@ -350,6 +362,35 @@ export function Calendar({
                             clinician learns to distrust the screen. A booked
                             hour is cancelled with a message, elsewhere.
                           */}
+                          {slot.status === "booked" && slot.at.getTime() > Date.now() ? (
+                            openAhead.length === 0 ? (
+                              <span className="text-xs text-slate-500">{t("tchange.noOpen")}</span>
+                            ) : (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                  value={moveTo || openAhead[0]?.id}
+                                  onChange={(event) => setMoveTo(event.target.value)}
+                                  aria-label={t("tchange.moveTo")}
+                                  className="h-9 rounded-lg border border-slate-200 px-2 text-xs"
+                                >
+                                  {openAhead.map((option) => (
+                                    <option key={option.id} value={option.id}>
+                                      {dayKey(option.at, zone)} {formatTime(option.at, zone)}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => move(slot.id)}
+                                  className="tap-target h-9 rounded-lg bg-slate-900 px-2.5 text-xs font-semibold text-white disabled:opacity-50"
+                                >
+                                  {t("tchange.move")}
+                                </button>
+                              </div>
+                            )
+                          ) : null}
+
                           {slot.status === "open" ? (
                             <div className="flex flex-wrap items-center gap-2">
                               {patients.length > 0 ? (
@@ -396,6 +437,12 @@ export function Calendar({
               );
             })
         : null}
+
+      {state.ok && state.message === t("tchange.moved") ? (
+        <p role="status" className="text-xs text-emerald-700">
+          {state.message}
+        </p>
+      ) : null}
 
       {state.error ? (
         <p role="alert" className="text-xs text-red-600">

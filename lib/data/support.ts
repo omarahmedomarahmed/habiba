@@ -558,6 +558,8 @@ export async function closeTicket(input: {
       subject: "Your message to 24Therapy",
       body: `We have answered your message (reference ${ticket.reference}). Open ${link} and enter the code ${code} to read the reply and anything attached to it. The code lasts seven days.`,
       link: { label: "Read the reply", url: link },
+      /* Task 40: the three variables `support_reply` takes. */
+      variables: [ticket.reference, link, code],
     },
   );
 
@@ -625,6 +627,8 @@ export async function replyToTicket(input: {
       subject: "Your message to 24Therapy",
       body: `We have answered your message (reference ${ticket.reference}). Open ${link} and enter the code ${code} to read the reply and anything attached to it. The code lasts seven days.`,
       link: { label: "Read the reply", url: link },
+      /* Task 40: the three variables `support_reply` takes. */
+      variables: [ticket.reference, link, code],
     },
   );
   return { ok: true };

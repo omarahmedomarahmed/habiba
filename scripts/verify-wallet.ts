@@ -1,5 +1,5 @@
 /**
- * 🔴 0170 / RULINGS 7 AND 7b: THE WALLET IS SPENT, AND GIVEN BACK EXACTLY.
+ * 🔴 0169 / RULINGS 7 AND 7b: THE WALLET IS SPENT, AND GIVEN BACK EXACTLY.
  *
  * Proves, against the dev database:
  *   - a booking holds the wallet's share after the benefit, and the patient is

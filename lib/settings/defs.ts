@@ -596,7 +596,7 @@ export type RulesSettings = {
     bookingLinkHoursAfterStart: number;
   };
   refunds: {
-    /** Ruling 16: a paid booking cancelled this long before its start is refunded in full. */
+    /** Ruling 16, APPLIED (`lib/data/booking-change.ts`): cancelled this long before the start, refunded in full; a patient may move a booking inside the same window. */
     patientCancelWindowHours: number;
   };
   /** Rulings 5b to 5e. Applied by the in-person paid flow. */

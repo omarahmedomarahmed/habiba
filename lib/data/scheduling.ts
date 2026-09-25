@@ -691,7 +691,7 @@ export async function bookSlot(input: {
    */
   const { payFromPot } = await import("@/lib/billing/pot");
   await payFromPot(created.id);
-  /* 🔴 0170: benefit first, then the patient's wallet (ruling 7b). */
+  /* 🔴 0169: benefit first, then the patient's wallet (ruling 7b). */
   const { holdWallet } = await import("@/lib/billing/wallet");
   await holdWallet(created.id);
 
@@ -742,7 +742,8 @@ export async function cancelBooking(input: {
   if (cancelled.sessionId) {
     await db
       .update(sessions)
-      .set({ status: "cancelled", updatedAt: now })
+      /* 🔴 0168: who cancelled, and when. */
+      .set({ status: "cancelled", cancelledBy: input.by, cancelledAt: now, updatedAt: now })
       .where(and(eq(sessions.id, cancelled.sessionId), eq(sessions.status, "scheduled")));
   }
 

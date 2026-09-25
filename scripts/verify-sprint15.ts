@@ -220,11 +220,15 @@ async function main() {
      * list showed a cancelled session as booked and the list price instead of
      * what they owe after their benefit, and these two are that fix.
      */
+    /*
+     * 🔴 `changeable` (task 40, ruling 16): a boolean, whether the booking is
+     * still ahead so the patient may cancel or move it. It cannot hold a sentence.
+     */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
       keys ===
-        "at,brief,briefAddenda,briefPending,cancelled,group,id,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
+        "at,brief,briefAddenda,briefPending,cancelled,changeable,group,id,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
           "provenance,therapistName",
       keys,
     );

@@ -58,6 +58,8 @@ export default async function PatientBillingPage() {
     db
       .select({
         sessionId: sessions.id,
+        /* 🔴 Task 40: the receipt's address. */
+        paymentId: sessionPayments.id,
         at: sessionPayments.paidAt,
         gross: sessionPayments.grossCents,
         vat: sessionPayments.vatCents,
@@ -150,7 +152,7 @@ export default async function PatientBillingPage() {
           <p className="text-sm font-semibold text-brand-900">
             <Money cents={creditCents} /> {t("pbill.inCredit")}
           </p>
-          {/* 🔴 0170 / ruling 7: the wallet is spent now, after any benefit and before anything asked of them. */}
+          {/* 🔴 0169 / ruling 7: the wallet is spent now, after any benefit and before anything asked of them. */}
           <p className="mt-1 text-xs leading-relaxed text-brand-800">
             {t("pyou.walletBody")}
           </p>
@@ -259,6 +261,16 @@ export default async function PatientBillingPage() {
                   </Row>
                 </dl>
                 )}
+
+                {/* 🔴 Task 40: a receipt for what THEY paid; a session covered in full has none. */}
+                {row.fundingSource !== "pot" || (row.patientShare ?? 0) > 0 ? (
+                  <Link
+                    href={`/patient/billing/receipt/${row.paymentId}`}
+                    className="mt-2 inline-flex text-xs font-semibold text-brand-700 hover:underline"
+                  >
+                    {t("preceipt.open")}
+                  </Link>
+                ) : null}
               </Card>
             </li>
           ))}

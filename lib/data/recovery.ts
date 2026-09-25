@@ -409,7 +409,7 @@ export async function reassignSession(input: {
     }
 
     /*
-     * 🔴 0170 / RULINGS 7 AND 7b: CHEAPER, AND ALREADY PAID. The session now
+     * 🔴 0169 / RULINGS 7 AND 7b: CHEAPER, AND ALREADY PAID. The session now
      * costs what the replacement charges. The difference goes back: the
      * company's part to its pot, the patient's to their wallet, spent on their
      * next session. Only on a session wholly paid, with a patient who has a
