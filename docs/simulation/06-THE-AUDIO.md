@@ -31,7 +31,7 @@ their own browser, not just their own context.
 
 | Session | Therapist's browser plays | Patient's browser plays | Why |
 |---|---|---|---|
-| Online (`TH8`, `TH9`) | `<name>.wav` in this run (the network here carries no WebSocket, so video never connects and only the therapist side records); `<name>-t.wav` on a normal network | nothing in this run; `<name>-p.wav` on a normal network | The room records two tracks: the therapist's microphone as "You" and the patient's video track as "Them" (`TH8.4`). One side each is what a real call sounds like, and it tests the speaker labels |
+| Online (`TH8`, `TH9`) | `<name>-t.wav` | `<name>-p.wav` is sent by `postPatientTrack` in `scripts/sim-drive.mjs`, the same upload the clinician's room makes for the patient's track, because this run's network carries no WebSocket and the video call itself never connects | Two real speakers, each on its own track, so the note, the speaker labels and the copilot are tested on the patient's own words |
 | In person (`TH6`, `TH7`) | `<name>.wav` | nobody joins | One microphone in one room hears both voices, which is the case the speaker guessing exists for |
 | Declined consent | nothing | nothing | No transcript, no note from audio, no AI fee: that is the test |
 
