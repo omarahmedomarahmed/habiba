@@ -495,7 +495,7 @@ async function profileFor(
   if (!profile || profile.sections.length === 0) return "";
 
   /*
-   * 🔴 C373 — a profile rebuilt during the live session is not what came
+   * 🔴 C373: a profile rebuilt during the live session is not what came
    * before it. `before` used to be accepted and thrown away (`void before`),
    * so a rebuild that read this session's own material reached the in-room
    * copilot, which promises it knows only what came before. There is one

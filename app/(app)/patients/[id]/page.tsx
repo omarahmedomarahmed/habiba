@@ -152,7 +152,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       <div className="flex items-start gap-4 px-4 pt-3 pb-4 sm:px-6">
         {consent.capabilities.liveProfile && personId ? (
           /*
-           * 🔴 PE80 — the face is part of the live profile, so it follows the
+           * 🔴 PE80: the face is part of the live profile, so it follows the
            * grant rather than the claim. The avatar route asks the same thing.
            */
           /*

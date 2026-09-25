@@ -8,7 +8,7 @@ import { historyGrants, patientAccounts } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
 /**
- * 🔴 K24 — A PATIENT CLOSES THEIR ACCOUNT.
+ * 🔴 K24: A PATIENT CLOSES THEIR ACCOUNT.
  *
  * There was no way to. What closing does, and deliberately does not do:
  *

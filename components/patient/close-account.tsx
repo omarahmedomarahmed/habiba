@@ -18,7 +18,7 @@ function Submit() {
 }
 
 /**
- * 🔴 K24 — "Delete my account", with a word to type first.
+ * 🔴 K24: "Delete my account", with a word to type first.
  *
  * Folded shut until asked for, then two plain paragraphs: what goes, and what
  * stays with the clinicians. The second is the one people get wrong about

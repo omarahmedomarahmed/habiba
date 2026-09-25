@@ -455,7 +455,7 @@ export const en = {
   "radar.ratedUs": "they rated 24Therapy {score}",
   "radar.notPublicYet": "Not shown to patients yet. A score goes public at {count} ratings: one bad night should not follow you around at 1.0 stars, and one good one proves nothing.",
   "radar.starsOf": "{stars} out of 5",
-  /* PE82 — radar and public profile words that were English literals. */
+  /* PE82: radar and public profile words that were English literals. */
   "radar.fromRated": "from {count} rated sessions",
   "radar.fromRatedOne": "from 1 rated session",
   "radar.clinicianFallback": "Clinician",
@@ -1654,7 +1654,7 @@ export const en = {
   "pnotice.paymentConfirmed": "Your payment is confirmed.",
   "pnotice.paymentSubmitted": "Your transfer details reached us. We check it against the bank and tell you when it lands.",
   /*
-   * 🔴 K24 — closing an account. What goes and what stays, before the button:
+   * 🔴 K24: closing an account. What goes and what stays, before the button:
    * the clinical record staying with the clinicians is the part people expect
    * the opposite of, so it is said plainly and first.
    */
@@ -3614,13 +3614,13 @@ export const en = {
   "risk.level.elevated": "elevated",
   "risk.level.high": "high",
   "risk.level.critical": "critical",
-  /* 7.7 — the consent banner, from `explain()` in lib/access/state.ts. */
+  /* 7.7: the consent banner, from `explain()` in lib/access/state.ts. */
   "pracc.explain.gated": "The copilot is waiting on two things for this person: a diagnosis, and a history you type or dictate. Add both and it opens on this record.",
   "pracc.explain.revoked": "This person has not granted you access to their profile. You can still see your own sessions, your own notes and your earlier copilot conversation, but not their live profile, their files, or their current diagnosis.",
   "pracc.explain.unclaimed": "This record is yours alone until the person it describes claims it. Add a diagnosis and a history to get the most out of the copilot.",
   "pracc.explain.noRelationship": "You have no record for this person, so the copilot only has this session's transcript.",
   "pracc.copilotRefused": "You cannot use the copilot for this patient.",
-  /* 7.4 — the preset reasons for declining, as the patient reads them. */
+  /* 7.4: the preset reasons for declining, as the patient reads them. */
   "consent.reason.private": "I would rather keep my history private",
   "consent.reason.dontRemember": "I do not remember seeing this therapist",
   "consent.reason.noLonger": "I am no longer seeing them",
@@ -3984,13 +3984,13 @@ export const en = {
   "tdl.readBusy": "That has been read aloud a lot this hour. Try again later.",
   "tdl.flagged": "Flagged: {reason}",
   "tdl.openNamed": "Open {title}",
-  /* 8.4 — whether the copilot can read a document, in the reader's language. */
+  /* 8.4: whether the copilot can read a document, in the reader's language. */
   "tdl.searchable": "Searchable",
   "tdl.beingRead": "Being read…",
   "tdl.unreadable": "Could not be read, not searchable",
   "tdl.imageUnsearchable": "Image, not searchable",
   "tdl.storedUnsearchable": "Stored, but not searchable",
-  /* K21 / PE66 — words the patient app left in English under Arabic. */
+  /* K21 / PE66: words the patient app left in English under Arabic. */
   "pbook.booking": "Booking…",
   "pjournal.spoken": "spoken",
   "pclaim.yourNumber": "your number",
@@ -4360,7 +4360,7 @@ export const en = {
   "note.origin.transcriptWhy": "The whole session was captured and this note was drafted from it.",
   "note.origin.partial": "Partly from the recording",
   "note.origin.partialWhy": "{minutes} minutes were not recorded. Those parts come from the clinician's own notes.",
-  /* 7.8 — a recording switched on part way through, said where it is read. */
+  /* 7.8: a recording switched on part way through, said where it is read. */
   "note.origin.lateStart": "Recording began at {clock}. The first {minutes} minutes of this session were not captured and do not exist.",
   "note.origin.clinician": "From the clinician's notes",
   "note.origin.clinicianWhy": "Not recorded. This is the clinician's own account, which is what every record was before recordings.",
@@ -4935,7 +4935,7 @@ export const en = {
   "pmsg.granted.subject": "Somebody can now read your history",
   "pmsg.granted.body": "{name} can read your history from now on. If that is not what you meant, you can stop it in one tap, and nobody is told why.",
   "pmsg.granted.link": "Who can read my history",
-  /* 🔴 K18 — a step or a questionnaire set for them. A name and a link, no clinical content. */
+  /* 🔴 K18: a step or a questionnaire set for them. A name and a link, no clinical content. */
   "pmsg.homework.subject": "Something to try before your next session",
   "pmsg.homework.body": "{name} has set you something to try before your next session. It is waiting in your app.",
   "pmsg.homework.link": "Open it",

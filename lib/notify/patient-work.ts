@@ -9,7 +9,7 @@ import { log, ref } from "@/lib/logger";
 import { fullName } from "@/lib/utils";
 
 /**
- * 🔴 K18 — A CLINICIAN SET SOMETHING, AND THE PATIENT IS TOLD.
+ * 🔴 K18: A CLINICIAN SET SOMETHING, AND THE PATIENT IS TOLD.
  *
  * Setting a step or sending a questionnaire as homework wrote a row and told
  * nobody, so a patient learned about it only by opening the right screen on

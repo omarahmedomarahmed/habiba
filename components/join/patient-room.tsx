@@ -604,7 +604,7 @@ function SummaryAndRating({
         onClick={() =>
           startTransition(async () => {
             /*
-             * 🔴 K9 — thanks only for a rating that was kept. The room used to
+             * 🔴 K9: thanks only for a rating that was kept. The room used to
              * say thank you whatever came back, including a refusal.
              */
             const result = await rateOnArrival(token, stars, email).catch(() => ({ ok: false }));

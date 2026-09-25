@@ -160,7 +160,7 @@ async function payerOf(
       .limit(1);
 
     /*
-     * 🔴 K10 — A SIGNED-IN PATIENT PAYS THROUGH THE SAME LINK, and is a person.
+     * 🔴 K10: A SIGNED-IN PATIENT PAYS THROUGH THE SAME LINK, and is a person.
      *
      * The session payer carries no account, so this used to reach only the
      * receipt email typed on the page: a patient in the app who typed none was
@@ -244,7 +244,7 @@ export async function noticePaymentSubmitted(paymentId: string): Promise<void> {
     const { t } = who.words;
 
     await notify(who.to, {
-      /* 🔴 K10 — and in the app, so a payer with no inbox still sees it arrived. */
+      /* 🔴 K10: and in the app, so a payer with no inbox still sees it arrived. */
       notice: {
         kind: "payment_submitted",
         key: "pnotice.paymentSubmitted",

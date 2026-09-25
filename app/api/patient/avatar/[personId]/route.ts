@@ -103,6 +103,6 @@ async function mayRead(personId: string): Promise<boolean> {
   if (!actor) return false;
   if (actor.role === "super_admin") return true;
 
-  /* 🔴 PE80 — a patient row AND a live grant. See `clinicianMaySeeFace`. */
+  /* 🔴 PE80: a patient row AND a live grant. See `clinicianMaySeeFace`. */
   return clinicianMaySeeFace(personId, actor.userId, actor.organizationId);
 }

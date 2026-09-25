@@ -145,7 +145,7 @@ export async function POST(
     const file = form.get("audio");
     const sequenceRaw = Number(form.get("sequence") ?? 0);
     /*
-     * 🔴 K11 — the recorder's id for this chunk, which is what makes a retry a
+     * 🔴 K11: the recorder's id for this chunk, which is what makes a retry a
      * no-op. The ingest bot sends only its number and never restarts it, so
      * its number is its id. The stored sequence is assigned by the writer.
      */

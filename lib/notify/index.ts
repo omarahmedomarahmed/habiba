@@ -235,7 +235,7 @@ export type Message = {
      */
     | "consent.granted"
     /**
-     * 🔴 K18 — a clinician set a step, or sent a questionnaire as homework.
+     * 🔴 K18: a clinician set a step, or sent a questionnaire as homework.
      * The clinician's name and a link; never the step or the instrument.
      */
     | "homework.set"

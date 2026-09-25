@@ -37,7 +37,7 @@ const db = dbFor(pinnedToDefaultRegion("lib/patient-auth/email.ts", "not routed 
  * the bound wrong. A claim code cannot finish this, nor this one a claim: their
  * hashes cover different strings.
  *
- * 🔴 K19 — but its OWN purpose, `email_add` (0173). It shared `handle_verify`
+ * 🔴 K19: but its OWN purpose, `email_add` (0173). It shared `handle_verify`
  * with the sign-in code, and each reads the newest live row of its purpose, so
  * asking for one made the other "wrong or expired".
  */

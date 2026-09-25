@@ -46,7 +46,7 @@ export type Candidate = {
  * state of this product today and should be visible as a count rather than discovered later.
  */
 /**
- * 🔴 PE81 — the zone the quiet window is read in, when they never saved one.
+ * 🔴 PE81: the zone the quiet window is read in, when they never saved one.
  *
  * An unknown zone is treated as night (lib/checkins/policy.ts), which is the
  * direction that cannot wake anybody, and it meant a patient who left the zone

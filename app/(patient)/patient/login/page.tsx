@@ -49,7 +49,7 @@ export default async function PatientLoginPage({
       points={[t("auth.patient.p1"), t("auth.patient.p2"), t("auth.patient.p3")]}
     >
       <div className="space-y-4">
-        {/* 🔴 K24 — the one thing said after an account is closed. */}
+        {/* 🔴 K24: the one thing said after an account is closed. */}
         {params.closed === "1" ? (
           <p role="status" className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
             {t("pclose.done")}

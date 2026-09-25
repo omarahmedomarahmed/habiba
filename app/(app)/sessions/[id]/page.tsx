@@ -65,7 +65,7 @@ export default async function SessionDetailPage({
   ]);
 
   /*
-   * 7.8 — a recording switched on part way through. The minutes before it do
+   * 7.8: a recording switched on part way through. The minutes before it do
    * not exist, and a reader of the note or the transcript is told so in place.
    */
   const late = lateRecordingStart({

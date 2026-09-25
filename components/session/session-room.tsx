@@ -175,7 +175,7 @@ export function SessionRoom(props: RoomProps) {
   /**
    * One counter shared by both recorders, for TIMING only.
    *
-   * 🔴 K11 — it is no longer what identifies a chunk. It started at the count
+   * 🔴 K11: it is no longer what identifies a chunk. It started at the count
    * of lines loaded, so after a rejoin or in a second tab two chunks carried
    * the same number and the server dropped the second as a retry. Each upload
    * now carries its own random id (`chunk`) and the server assigns the stored

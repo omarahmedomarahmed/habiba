@@ -204,7 +204,7 @@ async function bindAccountToPerson(
 }
 
 /**
- * 🔴 PE43 — the account's own record FOLDS INTO the record it just claimed.
+ * 🔴 PE43: the account's own record FOLDS INTO the record it just claimed.
  *
  * `bindAccountToPerson` leaves the account where it is when its signup person
  * already carries a chart, which is what happens to anybody who booked, or
@@ -583,7 +583,7 @@ export async function verifyClaim(input: {
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
 
-  /* 🔴 PE43 — the account's own record folds into the one it claimed. */
+  /* 🔴 PE43: the account's own record folds into the one it claimed. */
   await foldIntoClaimed(claim.accountId, claim.personId);
 
   /*
@@ -788,7 +788,7 @@ export async function redeemInvite(input: {
   await db
     .transaction(async (tx) => {
       /*
-       * 🔴 PE42 — the PERSON first, the invite second. It was the other way
+       * 🔴 PE42: the PERSON first, the invite second. It was the other way
        * round, and a record somebody else had claimed in the meantime returned
        * from the transaction after the invite was spent, so the link was burned
        * against an account that got nothing. Now an invite is only spent by
@@ -833,7 +833,7 @@ export async function redeemInvite(input: {
       .where(eq(patients.personId, resolved.personId));
     patientsMoved = moved[0]?.n ?? 0;
 
-      /* 🔴 22R — and the account moves onto the record it just claimed. */
+      /* 🔴 22R: and the account moves onto the record it just claimed. */
       await bindAccountToPerson(tx as never, input.accountId, resolved.personId);
     })
     .catch((error) => {
@@ -851,7 +851,7 @@ export async function redeemInvite(input: {
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
 
-  /* 🔴 PE43 — and anything the account had before claiming comes with it. */
+  /* 🔴 PE43: and anything the account had before claiming comes with it. */
   await foldIntoClaimed(input.accountId, resolved.personId);
 
   /* 🔴 The same telling as the matching route. §3: from step 7 they are identical. */

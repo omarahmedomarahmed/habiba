@@ -424,7 +424,7 @@ export default async function PatientAccountPage({
         </button>
       </form>
 
-      {/* 🔴 K24 — there was no way to leave. See `lib/data/account-closure.ts`. */}
+      {/* 🔴 K24: there was no way to leave. See `lib/data/account-closure.ts`. */}
       <CloseAccount />
       </>
       ) : null}

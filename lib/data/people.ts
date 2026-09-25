@@ -227,7 +227,7 @@ export async function hasAvatar(personId: string): Promise<boolean> {
 }
 
 /**
- * 🔴 PE80 — may this clinician see this person's face?
+ * 🔴 PE80: may this clinician see this person's face?
  *
  * A patient row on their own caseload AND a live grant from the person. The
  * row alone is a record, not a relationship: a patient who claimed with "let

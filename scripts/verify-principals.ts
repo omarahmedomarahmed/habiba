@@ -115,7 +115,7 @@ const SCOPE: Record<string, Scope> = {
   "session-invite": { who: ["clinician"], clinical: true },
   journals: { who: ["clinician", "patient"], clinical: true },
   /*
-   * K24 — a patient closing their own account. Clinical because it withdraws
+   * K24: a patient closing their own account. Clinical because it withdraws
    * the history grants on their record; the patient's alone, since nobody else
    * may close it.
    */

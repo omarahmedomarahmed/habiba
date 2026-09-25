@@ -58,7 +58,7 @@ export async function setStep(
 
   if (!result.ok) return { error: result.error };
 
-  /* 🔴 K18 — the patient is told; the row alone reached nobody. */
+  /* 🔴 K18: the patient is told; the row alone reached nobody. */
   await tellPatientOfWork({ personId: g.personId, therapistUserId: g.actor.userId, what: "homework" });
 
   revalidateBothSides(patientId);
@@ -66,7 +66,7 @@ export async function setStep(
 }
 
 /*
- * 🔴 K18 — the pages that show homework, which is where a revalidation has to
+ * 🔴 K18: the pages that show homework, which is where a revalidation has to
  * land. `/patients/<id>/homework` has no page (the list lives on the documents
  * page), so revalidating it refreshed nothing.
  */

@@ -231,7 +231,7 @@ export async function savePatientLanguage(formData: FormData): Promise<void> {
 export type CloseState = { error?: string };
 
 /**
- * 🔴 K24 — "Delete my account". The typed word is the confirm step; either
+ * 🔴 K24: "Delete my account". The typed word is the confirm step; either
  * language's word is accepted, whichever the screen showed. The work is
  * `closePatientAccount`; this signs the browser out and leaves.
  */

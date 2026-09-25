@@ -125,7 +125,7 @@ export async function requestSignInCode(
     await db.insert(patientAuthTokens).values({
       patientAccountId: account.id,
       /*
-       * 🔴 K19 — its own purpose (0173). It shared `handle_verify` with the
+       * 🔴 K19: its own purpose (0173). It shared `handle_verify` with the
        * add-an-email code and the claim's handle code, and each reads only the
        * newest live row, so asking for one of them cancelled this one.
        */

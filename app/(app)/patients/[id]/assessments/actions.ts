@@ -68,7 +68,7 @@ export async function sendAssessment(
   if (result.error) return { error: result.error };
 
   /*
-   * 🔴 K18 — left as homework, the patient is told. In the room they are
+   * 🔴 K18: left as homework, the patient is told. In the room they are
    * looking at it already, so a message would only arrive after the fact.
    */
   if (input.mode === "homework") {

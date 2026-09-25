@@ -56,7 +56,7 @@ export async function appendTranscriptSegment(input: {
   therapistId: string;
   patientId: string | null;
   /**
-   * 🔴 K11 — the recorder's own id for this chunk, which is how a RETRY is
+   * 🔴 K11: the recorder's own id for this chunk, which is how a RETRY is
    * recognised. The stored `sequence` is assigned here, never by a client.
    *
    * It used to be the other way round: the room numbered chunks from the count
