@@ -27,6 +27,13 @@ export type ProviderRefusal = {
   reason: string;
 };
 
+/**
+ * What a callback route hands an adapter. `url` is the full request URL,
+ * because some providers sign into the query string rather than a header
+ * (Paymob puts its HMAC in `?hmac=`).
+ */
+export type CallbackInput = { rawBody: string; headers: Headers; url?: string };
+
 /* ------------------------------------------------------------ collection -- */
 
 export type CheckoutRequest = {
@@ -34,7 +41,7 @@ export type CheckoutRequest = {
   reference: string;
   amountMinor: number;
   currency: "egp";
-  /** Lines the payer sees: the session, the benefit's share, the tax. */
+  /** Lines the payer sees: the session, the tax, the card fee. They sum to `amountMinor`. */
   items: { name: string; amountMinor: number }[];
   payer: { name: string; email: string | null; phone: string | null };
   /** Where the payer's browser comes back to, success or not. */
@@ -66,7 +73,7 @@ export type CollectionGateway = {
    * 🔴 The only way a callback becomes an event. Returns null for anything whose
    * signature does not verify, so a forged "paid" is not an event at all.
    */
-  verifyCallback(input: { rawBody: string; headers: Headers }): Promise<CollectionEvent | null>;
+  verifyCallback(input: CallbackInput): Promise<CollectionEvent | null>;
   /** For the payer who returns before the callback: ask, never assume. */
   fetchStatus(providerRef: string): Promise<CollectionEvent | ProviderRefusal>;
   refund(input: {
@@ -98,7 +105,14 @@ export type PayoutEvent = {
 
 export type PayoutProvider = {
   readonly name: string;
-  send(input: PayoutInstruction): Promise<{ ok: true; providerRef: string } | ProviderRefusal>;
-  verifyCallback(input: { rawBody: string; headers: Headers }): Promise<PayoutEvent | null>;
+  /**
+   * `settled` is for a provider that answers the send with the outcome itself
+   * (a wallet disbursement usually does, and sends no callback for it). The
+   * caller applies it exactly as it would the callback.
+   */
+  send(
+    input: PayoutInstruction,
+  ): Promise<{ ok: true; providerRef: string; settled?: PayoutEvent } | ProviderRefusal>;
+  verifyCallback(input: CallbackInput): Promise<PayoutEvent | null>;
   fetchStatus(providerRef: string): Promise<PayoutEvent | ProviderRefusal>;
 };

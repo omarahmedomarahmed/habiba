@@ -49,7 +49,7 @@ export async function createGatewaySessionCheckout(input: {
   payerEmail: string | null;
   payerPhone: string | null;
 }): Promise<Result> {
-  const gateway = collectionGateway();
+  const gateway = await collectionGateway();
   if (!gateway) return { ok: false, error: NOT_READY };
 
   const [row] = await db
@@ -80,7 +80,19 @@ export async function createGatewaySessionCheckout(input: {
     priceCents: owed.grossCents,
   });
   const rate = await egpRateMicro();
-  const amountMinor = egpMinorFor(money.settlesCents, rate);
+  /* What settles the session, in pounds: their share after any benefit, and its VAT. */
+  const sessionMinor = egpMinorFor(money.settlesCents, rate);
+  /*
+   * 🔴 RULING 12: THE PATIENT PAYS THE CARD FEE, on this card part only, since
+   * `owed` is already after the company's share. Frozen onto the attempt below,
+   * so a rule changed while the card page is open prices the next checkout,
+   * not this one. The same function prices the line on the pay page.
+   */
+  const { cardFeeMinorFor, getSettings: rulesNow } = await import("@/lib/settings");
+  const { usdCentsFor } = await import("@/lib/money/convert");
+  const cardFeeMinor = cardFeeMinorFor((await rulesNow()).rules, sessionMinor);
+  const cardFeeCents = usdCentsFor(cardFeeMinor, rate);
+  const amountMinor = sessionMinor + cardFeeMinor;
 
   const [existing] = await db
     .select()
@@ -114,7 +126,8 @@ export async function createGatewaySessionCheckout(input: {
       vatCents: money.vatCents,
       vatBps: money.vatBps,
       payerCountry: "EG",
-      presentedCents: amountMinor,
+      /* The session's figure; the card fee is the gateway's and lives on the attempt. */
+      presentedCents: sessionMinor,
       presentedCurrency: "egp",
       fxRateMicro: rate,
       fxQuotedAt: new Date(),
@@ -158,9 +171,11 @@ export async function createGatewaySessionCheckout(input: {
     reference,
     amountMinor,
     currency: "egp",
+    /* 🔴 They sum to `amountMinor`, which Paymob checks. */
     items: [
       { name: therapist ? `Therapy session with ${therapist}` : "Therapy session", amountMinor: egpMinorFor(money.grossCents, rate) },
-      ...(money.vatCents > 0 ? [{ name: "VAT", amountMinor: amountMinor - egpMinorFor(money.grossCents, rate) }] : []),
+      ...(money.vatCents > 0 ? [{ name: "VAT", amountMinor: sessionMinor - egpMinorFor(money.grossCents, rate) }] : []),
+      ...(cardFeeMinor > 0 ? [{ name: "Card fee", amountMinor: cardFeeMinor }] : []),
     ],
     payer: { name: input.payerName, email: input.payerEmail, phone: input.payerPhone },
     returnUrl: `${env.appUrl}/pay/${input.token}?gateway=${reference}`,
@@ -181,6 +196,8 @@ export async function createGatewaySessionCheckout(input: {
     currency: "egp",
     usdCents: money.settlesCents,
     vatCents: money.vatCents,
+    cardFeeMinor,
+    cardFeeCents,
     providerRef: created.providerRef,
   });
 
@@ -283,6 +300,8 @@ export async function applyGatewayEvent(
     }
   }
 
+  await postCardFee(claimed, payment.organizationId);
+
   const { markInSession } = await import("@/lib/data/radar");
   await markInSession(claimed.refId);
   log.info("gateway payment settled", { attempt: ref(claimed.id) });
@@ -359,7 +378,75 @@ async function refundAttempt(attemptId: string): Promise<{ ok: true; usdCents: n
     .where(and(eq(gatewayPayments.id, attempt.id), eq(gatewayPayments.state, "paid")))
     .returning({ id: gatewayPayments.id });
   if (!moved) return { ok: false, error: "The payment moved on while it was being returned." };
-  return { ok: true, usdCents: attempt.usdCents };
+  await postCardFeeReturned(attempt);
+  /* What went back to the payer, in dollars: the session's share and the card fee they paid on it. */
+  return { ok: true, usdCents: attempt.usdCents + attempt.cardFeeCents };
+}
+
+/**
+ * 🔴 RULING 12: THE CARD FEE ON THE BOOKS, AND WHY IT NEEDS NO NEW ACCOUNT.
+ *
+ * The patient paid the fee on top of the session; the gateway keeps it before
+ * it settles, so it never becomes ours. Posted gross so the trail shows it:
+ * the patient's money in and straight back out of `cash` to the gateway, and
+ * the gateway's charge as a cost in `platform_expense` met in full by the
+ * patient's payment of it. Every account nets to zero, nothing reaches
+ * `platform_revenue`, and the session's own legs (price, VAT, our fee, the
+ * clinician's share) are untouched. A payable to the gateway would be a new
+ * account holding a balance for no time at all, because the gateway settles
+ * net, so it is not added.
+ *
+ * Its own transaction kind, `card_fee`, so the per-payment sums that reverse a
+ * session on a refund (`session_payment`, `session_refund`) never see it.
+ */
+async function postCardFee(attempt: { id: string; cardFeeCents: number }, organizationId: string): Promise<void> {
+  const fee = attempt.cardFeeCents;
+  if (fee <= 0) return;
+  const { journal } = await import("@/lib/billing/ledger");
+  await journal({
+    kind: "card_fee",
+    refType: "gateway_payment",
+    refId: attempt.id,
+    legs: [
+      { account: "cash", amountCents: fee, organizationId, memo: "Card fee paid by the patient on top of the session" },
+      { account: "cash", amountCents: -fee, organizationId, memo: "Card fee kept by the gateway before it settles" },
+      { account: "platform_expense", amountCents: fee, organizationId, memo: "The gateway's card fee" },
+      { account: "platform_expense", amountCents: -fee, organizationId, memo: "Met by the patient, so it costs us nothing" },
+    ],
+  });
+}
+
+/**
+ * 🔴 A REFUND HANDS THE PATIENT BACK EVERYTHING, CARD FEE INCLUDED (ruling 16
+ * is a full refund), while the gateway keeps the fee it charged on the
+ * payment. That fee is now ours to bear: out of `cash`, into
+ * `platform_expense`. The one card-fee posting that is not a wash.
+ */
+// PAYMOB-CONFIRM: that Paymob keeps its fee when a payment is refunded; if it returns it, this posting is not owed and should go.
+async function postCardFeeReturned(attempt: {
+  id: string;
+  cardFeeCents: number;
+  sessionPaymentId: string | null;
+}): Promise<void> {
+  const fee = attempt.cardFeeCents;
+  if (fee <= 0) return;
+  const [payment] = attempt.sessionPaymentId
+    ? await db
+        .select({ organizationId: sessionPayments.organizationId })
+        .from(sessionPayments)
+        .where(eq(sessionPayments.id, attempt.sessionPaymentId))
+        .limit(1)
+    : [];
+  const { journal } = await import("@/lib/billing/ledger");
+  await journal({
+    kind: "card_fee",
+    refType: "gateway_payment",
+    refId: attempt.id,
+    legs: [
+      { account: "cash", amountCents: -fee, organizationId: payment?.organizationId ?? null, memo: "Card fee returned to the patient with their refund" },
+      { account: "platform_expense", amountCents: fee, organizationId: payment?.organizationId ?? null, memo: "The gateway keeps its fee on a refunded payment" },
+    ],
+  });
 }
 
 /** Another caller holds the refund claim on this attempt. */

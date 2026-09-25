@@ -652,7 +652,7 @@ export async function sendViaProvider(input: {
   senderUserId: string;
 }): Promise<{ ok?: boolean; error?: string }> {
   const { payoutProvider, PROVIDER_METHODS } = await import("./gateway");
-  const provider = payoutProvider();
+  const provider = await payoutProvider();
   if (!provider) return { error: "No payouts provider is switched on. Send it by hand." };
 
   const row = await requestRow(input.requestId);
@@ -732,6 +732,16 @@ export async function sendViaProvider(input: {
     actorUserId: input.senderUserId,
     note: `Sent through ${provider.name}; waiting for it to confirm`,
   });
+  /*
+   * 🔴 THE ANSWER WAS THE OUTCOME. Paymob Send answers a wallet payout with
+   * "successful" at once and sends no callback for it, so waiting for one
+   * would leave the request `sending` for ever. The outcome in the answer is
+   * applied exactly as the callback would be, through the same guarded path,
+   * once the provider's reference is saved above.
+   */
+  if (sent.settled) {
+    await applyPayoutEvent(provider.name, { ...sent.settled, providerRef: sent.providerRef, reference: row.id });
+  }
   return { ok: true };
 }
 
@@ -750,11 +760,22 @@ export async function applyPayoutEvent(
    * Matching on its own ref missed a callback that beat the save of that ref;
    * a ref that is already saved must still agree.
    */
-  if (!/^[0-9a-f-]{36}$/i.test(event.reference)) return { applied: "ignored" };
+  /*
+   * A provider that does not echo our reference (Paymob Send's inquiry may
+   * not) is matched on its own, which by then is saved: a callback for a
+   * payout comes long after the send that stored it.
+   */
+  const byOurs = /^[0-9a-f-]{36}$/i.test(event.reference);
+  if (!byOurs && (!event.providerRef || event.providerRef.startsWith("claim:"))) return { applied: "ignored" };
   const [row] = await db
     .select()
     .from(payoutRequests)
-    .where(and(eq(payoutRequests.provider, providerName), eq(payoutRequests.id, event.reference)))
+    .where(
+      and(
+        eq(payoutRequests.provider, providerName),
+        byOurs ? eq(payoutRequests.id, event.reference) : eq(payoutRequests.providerRef, event.providerRef),
+      ),
+    )
     .limit(1);
   if (!row) return { applied: "ignored" };
   if (row.providerRef && !row.providerRef.startsWith("claim:") && row.providerRef !== event.providerRef) {

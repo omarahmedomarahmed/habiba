@@ -572,6 +572,15 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
   if (!Number.isFinite(withholdingPercent) || withholdingPercent < 0 || withholdingPercent > 50) {
     return { error: "Withholding is a percentage between 0 and 50." };
   }
+  /* 🔴 Ruling 12: typed as a percentage and in pounds, stored as basis points and piastres. */
+  const cardFeePercent = Number(text("cardFeePercent"));
+  const cardFeeFixedPounds = Number(text("cardFeeFixedPounds"));
+  if (!Number.isFinite(cardFeePercent) || cardFeePercent < 0 || cardFeePercent > 10) {
+    return { error: "The card fee is a percentage between 0 and 10." };
+  }
+  if (!Number.isFinite(cardFeeFixedPounds) || cardFeeFixedPounds < 0 || cardFeeFixedPounds > 100) {
+    return { error: "The fixed card fee is between EGP 0 and EGP 100." };
+  }
   const numbers = {
     cooldown: whole("payoutDetailsCooldownHours", 0, 24 * 14),
     sessionLink: whole("sessionLinkHours", 1, 24 * 7),
@@ -608,6 +617,11 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
       cardGateway: text("cardGateway") || RULES_DEFAULTS.providers.cardGateway,
       payouts: text("payoutsProvider") || RULES_DEFAULTS.providers.payouts,
       etaSigner: text("etaSigner") || RULES_DEFAULTS.providers.etaSigner,
+    },
+    payments: {
+      patientPaysCardFee: on("patientPaysCardFee"),
+      cardFeeBps: Math.round(cardFeePercent * 100),
+      cardFeeFixedMinor: Math.round(cardFeeFixedPounds * 100),
     },
     links: {
       sessionLinkHours: numbers.sessionLink,

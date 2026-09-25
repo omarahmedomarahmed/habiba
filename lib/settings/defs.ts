@@ -564,11 +564,30 @@ export type RulesSettings = {
     /** Hours a changed payout destination waits before the next payout. APPLIED. */
     payoutDetailsCooldownHours: number;
   };
-  /** Ruling 12 and 13b. Names only; keys stay in the environment. */
+  /**
+   * Ruling 12 and 13b, APPLIED. Names only; keys stay in the environment.
+   * `cardGateway` and `payouts` choose the adapter in `lib/billing/gateway`
+   * (`paymob`), and that adapter says which keys it still needs.
+   */
   providers: {
     cardGateway: string;
     payouts: string;
     etaSigner: string;
+  };
+  /**
+   * 🔴 Ruling 12, APPLIED: the patient pays the card gateway's fee.
+   *
+   * On the CARD part of a price only, after any company benefit, and never on
+   * a transfer. Shown as its own line where the VAT line used to be, added to
+   * what the gateway is asked for, and frozen onto the attempt so a change here
+   * prices the next checkout and never one already open.
+   */
+  payments: {
+    patientPaysCardFee: boolean;
+    /** The gateway's percentage, in basis points: 275 is 2.75%. */
+    cardFeeBps: number;
+    /** The gateway's fixed part, in EGP minor units: 300 is EGP 3.00. */
+    cardFeeFixedMinor: number;
   };
   /** How long a link works, APPLIED. */
   links: {
@@ -619,6 +638,7 @@ export const RULES_DEFAULTS: RulesSettings = {
     payoutDetailsCooldownHours: 24,
   },
   providers: { cardGateway: "paymob", payouts: "paymob", etaSigner: "external" },
+  payments: { patientPaysCardFee: true, cardFeeBps: 275, cardFeeFixedMinor: 300 },
   links: { sessionLinkHours: 12, radarLinkHours: 3, bookingLinkHoursAfterStart: 4 },
   refunds: { patientCancelWindowHours: 24 },
   inPerson: {
@@ -650,6 +670,7 @@ function parseRules(value: unknown): RulesSettings {
   const documents = record(v.documents);
   const approvals = record(v.approvals);
   const providers = record(v.providers);
+  const payments = record(v.payments);
   const links = record(v.links);
   const refunds = record(v.refunds);
   const inPerson = record(v.inPerson);
@@ -690,6 +711,11 @@ function parseRules(value: unknown): RulesSettings {
       cardGateway: str(providers.cardGateway, d.providers.cardGateway),
       payouts: str(providers.payouts, d.providers.payouts),
       etaSigner: str(providers.etaSigner, d.providers.etaSigner),
+    },
+    payments: {
+      patientPaysCardFee: bool(payments.patientPaysCardFee, d.payments.patientPaysCardFee),
+      cardFeeBps: int(payments.cardFeeBps, d.payments.cardFeeBps, { min: 0, max: 1_000 }),
+      cardFeeFixedMinor: int(payments.cardFeeFixedMinor, d.payments.cardFeeFixedMinor, { min: 0, max: 10_000 }),
     },
     links: {
       sessionLinkHours: int(links.sessionLinkHours, d.links.sessionLinkHours, { min: 1, max: 24 * 7 }),
@@ -739,6 +765,22 @@ function parseRules(value: unknown): RulesSettings {
  */
 export function sessionVatBpsFor(rules: RulesSettings, countryVatBps: number): number {
   return rules.tax.sessionVat === "exempt" ? 0 : Math.max(0, countryVatBps);
+}
+
+/**
+ * 🔴 Ruling 12: the card fee a patient pays, in EGP minor units, on the part
+ * of the price they pay by card.
+ *
+ * One function, so the pay page's line and the amount the gateway is asked for
+ * can never disagree. `cardMinor` is what the card pays for AFTER any company
+ * benefit: the fee is the gateway's charge on the money it moves, and it moves
+ * only the patient's share. Zero when the rule is off or nothing is owed, so a
+ * covered session with no patient share never carries a fee on its own.
+ */
+export function cardFeeMinorFor(rules: RulesSettings, cardMinor: number): number {
+  const p = rules.payments;
+  if (!p.patientPaysCardFee || cardMinor <= 0) return 0;
+  return Math.round((cardMinor * p.cardFeeBps) / 10_000) + p.cardFeeFixedMinor;
 }
 
 /** The VAT on a company top-up or its return, from the rule and the country. */

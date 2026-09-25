@@ -114,10 +114,33 @@ export function RulesEditor({ rules, history }: { rules: RulesSettings; history:
         </Section>
 
         <Section title="Providers">
-          <Text label="Card gateway" name="cardGateway" value={rules.providers.cardGateway} status="stored" />
-          <Text label="Payouts" name="payoutsProvider" value={rules.providers.payouts} status="stored" />
+          <Text label="Card gateway" name="cardGateway" value={rules.providers.cardGateway} status="applied" />
+          <Text label="Payouts" name="payoutsProvider" value={rules.providers.payouts} status="applied" />
           <Text label="ETA signer" name="etaSigner" value={rules.providers.etaSigner} status="stored" />
           <p className="text-xs text-slate-500">Keys stay in the environment.</p>
+        </Section>
+
+        <Section title="Card fee">
+          <Check
+            label="Patient pays"
+            name="patientPaysCardFee"
+            checked={rules.payments.patientPaysCardFee}
+            status="applied"
+          />
+          <NumberRow
+            label="Percent"
+            name="cardFeePercent"
+            value={rules.payments.cardFeeBps / 100}
+            step="0.01"
+            status="applied"
+          />
+          <NumberRow
+            label="Fixed (EGP)"
+            name="cardFeeFixedPounds"
+            value={rules.payments.cardFeeFixedMinor / 100}
+            step="0.01"
+            status="applied"
+          />
         </Section>
 
         <Section title="Links and refunds">

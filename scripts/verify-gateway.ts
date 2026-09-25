@@ -15,8 +15,12 @@
  *   payouts     four eyes before sending, one instruction for two presses, a
  *               forged callback refused, a failure that leaves it approved to
  *               try again, "sent" that posts the ledger once
- *   readiness   nothing without an adapter; the simulator never on the live
- *               deployment
+ *   card fee    ruling 12: on, the patient's card part carries the fee as its
+ *               own line and in the amount, the books take it gross and
+ *               balance, and a refund bears it; off, no line and no fee
+ *   readiness   nothing without an adapter, the setting names the provider and
+ *               Paymob says which keys it lacks; the simulator never on the
+ *               live deployment
  */
 process.env.EGYPT_GATEWAY = "fake";
 process.env.EGYPT_PAYOUTS = "fake";
@@ -206,7 +210,7 @@ async function main() {
     const heldSecret = liveEnv.egyptGatewayHmac;
     Object.assign(liveEnv, { egyptGatewayHmac: "" });
     const { collectionGateway: gatewayNow } = await import("../lib/billing/gateway");
-    const unconfigured = gatewayNow();
+    const unconfigured = await gatewayNow();
     const noSecret = await deliver(gatewayRoute, "collection", paid(a1!), () => `t=${Math.floor(Date.now() / 1000)},v1=${"0".repeat(64)}`);
     let signedWithout = "signed";
     try {
@@ -329,6 +333,76 @@ async function main() {
       JSON.stringify({ declined, status: await status(s4.sessionId) }),
     );
 
+    /* ------------------------------------------------ 5. ruling 12: the card fee */
+    const { FAKE_GATEWAY } = await import("../lib/billing/gateway/fake");
+    const { egpMinorFor, egpRateMicro } = await import("../lib/billing/manual");
+    const { usdCentsFor } = await import("../lib/money/convert");
+    let seenItems: { name: string; amountMinor: number }[] = [];
+    const openCheckout = FAKE_GATEWAY.createCheckout;
+    FAKE_GATEWAY.createCheckout = async (input) => {
+      seenItems = input.items;
+      return openCheckout(input);
+    };
+    const feeLine = () => seenItems.find((item) => item.name === "Card fee");
+    const itemsSum = () => seenItems.reduce((total, item) => total + item.amountMinor, 0);
+    const rate = await egpRateMicro();
+    const sessionMinor = egpMinorFor(2_280, rate);
+    const expectedFee = Math.round((sessionMinor * 275) / 10_000) + 300;
+
+    setRulesForThisCheck({ ...RULES_HERE, payments: { patientPaysCardFee: true, cardFeeBps: 275, cardFeeFixedMinor: 300 } });
+    const patient5 = await person("Laila", false);
+    const s5 = await book(patient5, 2_000);
+    const feeBefore = await books();
+    await gw.createGatewaySessionCheckout({ sessionId: s5.sessionId, token: s5.token, payerName: "Laila Demo", payerEmail: null, payerPhone: null });
+    const a5 = await attempt(s5.sessionId);
+    const onLine = feeLine();
+    const onSum = itemsSum();
+
+    setRulesForThisCheck({ ...RULES_HERE, payments: { patientPaysCardFee: false } });
+    const patient6 = await person("Dina", false);
+    const s6 = await book(patient6, 2_000);
+    await gw.createGatewaySessionCheckout({ sessionId: s6.sessionId, token: s6.token, payerName: "Dina Demo", payerEmail: null, payerPhone: null });
+    const a6 = await attempt(s6.sessionId);
+    const offLine = feeLine();
+    check(
+      "🔴 ruling 12 with the rule on, the card fee is its own line, on the card part only, and inside what the gateway is asked for; with it off there is no line and no fee",
+      Boolean(onLine) && onLine!.amountMinor === expectedFee && onSum === Number(a5!.amount_minor) &&
+        Number(a5!.amount_minor) === sessionMinor + expectedFee && Number(a5!.card_fee_minor) === expectedFee &&
+        Number(a5!.usd_cents) === 2_280 &&
+        offLine === undefined && Number(a6!.amount_minor) === sessionMinor && Number(a6!.card_fee_minor) === 0,
+      JSON.stringify({ onLine, onSum, amount: a5?.amount_minor, fee: a5?.card_fee_minor, expectedFee, offLine, off: a6?.amount_minor, sessionMinor }),
+    );
+    FAKE_GATEWAY.createCheckout = openCheckout;
+
+    await deliver(gatewayRoute, "collection", paid(a5!));
+    const feeBooked = moved(feeBefore, await books());
+    const feeCents = usdCentsFor(expectedFee, rate);
+    const feeLegs = (
+      await db.execute(sql`
+        SELECT account, amount_cents FROM ledger_entries WHERE txn_kind = 'card_fee' AND ref_id = ${String(a5!.id)}`)
+    ).rows as { account: string; amount_cents: number }[];
+    check(
+      "🔴 ruling 12 a paid card fee is on the books gross, never as our revenue, and every account still says what the session alone would",
+      (await status(s5.sessionId)) === "paid" && feeBooked.cash === 2_280 && feeBooked.platform_revenue === -300 &&
+        feeBooked.platform_expense === undefined && feeLegs.length === 4 &&
+        feeLegs.filter((leg) => leg.account === "platform_expense" && Number(leg.amount_cents) === feeCents).length === 1 &&
+        (await unbalanced()) === 0,
+      JSON.stringify({ feeBooked, feeLegs, feeCents }),
+    );
+
+    const payment5 = (
+      await db.execute(sql`SELECT id FROM session_payments WHERE session_id = ${s5.sessionId}`)
+    ).rows[0] as { id: string };
+    const r5 = await refundSessionPayment({ paymentId: payment5.id, reason: "ruling 12 refund", adminUserId: null });
+    const feeAfter = moved(feeBefore, await books());
+    check(
+      "🔴 ruling 12 …a refund returns the fee with the session, and the fee the gateway keeps is ours to bear, and the books balance",
+      Boolean(r5.ok) && r5.toPayerCents === 2_280 + feeCents && (await attempt(s5.sessionId))!.state === "refunded" &&
+        feeAfter.cash === -feeCents && feeAfter.platform_expense === feeCents &&
+        Object.keys(feeAfter).length === 2 && (await unbalanced()) === 0,
+      JSON.stringify({ r5, feeAfter, feeCents }),
+    );
+
     /* --------------------------------------------------------------- payouts */
     const txn = crypto.randomUUID();
     await db.execute(sql`
@@ -385,22 +459,45 @@ async function main() {
 
     /* ------------------------------------------------------------- readiness */
     const { env } = await import("../lib/env");
-    const { collectionGateway, payoutProvider, whatTheGatewayNeeds } = await import("../lib/billing/gateway");
-    const saved = { g: env.egyptGateway, live: env.liveDeployment };
-    Object.assign(env, { egyptGateway: "" });
-    const none = collectionGateway();
-    const needs = whatTheGatewayNeeds();
-    Object.assign(env, { egyptGateway: "fake", liveDeployment: true });
-    const onLive = collectionGateway();
-    const payoutsOnLive = payoutProvider();
-    Object.assign(env, { egyptGateway: "somegateway", liveDeployment: false });
-    const noAdapter = whatTheGatewayNeeds();
-    Object.assign(env, { egyptGateway: saved.g, liveDeployment: saved.live });
+    const { collectionGateway, payoutProvider, whatTheGatewayNeeds, whatPayoutsNeed } = await import("../lib/billing/gateway");
+    const saved = { ...env };
+    /* No Paymob key in this process, whatever the machine holds, so "not ready" is what is measured. */
+    Object.assign(env, {
+      egyptGateway: "",
+      egyptPayouts: "",
+      paymobSecretKey: "",
+      paymobPublicKey: "",
+      paymobIntegrationId: "",
+      paymobHmacSecret: "",
+      paymobApiKey: "",
+      paymobPayoutsClientId: "",
+      paymobPayoutsClientSecret: "",
+      paymobPayoutsUsername: "",
+      paymobPayoutsPassword: "",
+    });
+    setRulesForThisCheck({ ...RULES_HERE, providers: { cardGateway: "paymob", payouts: "paymob" } });
+    const none = await collectionGateway();
+    const needs = await whatTheGatewayNeeds();
+    const payoutNeeds = await whatPayoutsNeed();
+    setRulesForThisCheck({ ...RULES_HERE, providers: { cardGateway: "somegateway", payouts: "paymob" } });
+    const noAdapter = await whatTheGatewayNeeds();
+    Object.assign(env, { egyptGateway: "fake", egyptPayouts: "fake", liveDeployment: true });
+    const onLive = await collectionGateway();
+    const payoutsOnLive = await payoutProvider();
+    /* 🔴 On the live deployment only the setting names a provider: an override other than the simulator is ignored. */
+    Object.assign(env, { egyptGateway: "somegateway" });
+    setRulesForThisCheck({ ...RULES_HERE, providers: { cardGateway: "paymob", payouts: "paymob" } });
+    const overrideOnLive = await whatTheGatewayNeeds();
+    Object.assign(env, saved);
+    setRulesForThisCheck(RULES_HERE);
     check(
-      "🔴 64.1 no adapter means no card rail and a sentence saying why; the simulator is refused on the live deployment",
-      none === null && needs.length === 1 && onLive === null && payoutsOnLive === null &&
-        noAdapter.some((line) => line.includes("no adapter")),
-      JSON.stringify({ needs, noAdapter }),
+      "🔴 64.1 the setting names the provider and Paymob without its keys is no card rail, with a sentence per missing key; an unknown name says there is no adapter; the simulator is refused on the live deployment",
+      none === null && needs.some((line) => line.includes("PAYMOB_SECRET_KEY")) &&
+        needs.some((line) => line.includes("PAYMOB_HMAC_SECRET")) &&
+        payoutNeeds.some((line) => line.includes("PAYMOB_PAYOUTS_CLIENT_ID")) &&
+        noAdapter.some((line) => line.includes("no adapter")) && onLive === null && payoutsOnLive === null &&
+        overrideOnLive.some((line) => line.includes("PAYMOB_SECRET_KEY")),
+      JSON.stringify({ needs, payoutNeeds, noAdapter, overrideOnLive }),
     );
   } finally {
     await db.execute(sql`DELETE FROM payout_request_events WHERE request_id IN (SELECT id FROM payout_requests WHERE organization_id = ${org.id})`);
@@ -433,6 +530,8 @@ async function main() {
 
 /* 🔴 0161: these checks were written for two people on every queue, so they say so. */
 /* …and the VAT legs are part of what it proves, so it runs on the country rate (ruling 2 is proven in verify:rules). */
-setRulesForThisCheck({ ...TWO_PEOPLE_EVERYWHERE, tax: { sessionVat: "standard" } });
+/* …and the card fee off, so the figures above are the session's alone; section 5 turns it on (ruling 12). */
+const RULES_HERE = { ...TWO_PEOPLE_EVERYWHERE, tax: { sessionVat: "standard" }, payments: { patientPaysCardFee: false } };
+setRulesForThisCheck(RULES_HERE);
 
 void main();

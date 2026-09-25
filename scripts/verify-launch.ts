@@ -240,7 +240,6 @@ async function main() {
   const migration = migrations[0] ? read(join("drizzle", migrations[0])) : "";
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as { entries: { tag: string; when: number }[] };
   const entry = journal.entries.find((e) => e.tag === migrations[0]?.replace(/\.sql$/, ""));
-  const last = journal.entries[journal.entries.length - 1];
   check(
     "🔴 migration 0165 creates the heartbeat, alert and lease tables",
     migrations.length === 1 &&
@@ -248,8 +247,12 @@ async function main() {
     migrations.join(", ") || "no 0165 file",
   );
   check(
-    "…and is in the journal, after every entry before it",
-    Boolean(entry) && journal.entries.every((e) => e === entry || e.when < entry!.when) && last === entry,
+    "…and is in the journal, after every entry before it and before every one after",
+    Boolean(entry) &&
+      journal.entries.every((e, i) => {
+        const at = journal.entries.indexOf(entry!);
+        return i === at || (i < at ? e.when < entry!.when : e.when > entry!.when);
+      }),
     entry ? `${entry.tag} @ ${entry.when}` : "missing",
   );
   check(

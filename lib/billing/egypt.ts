@@ -24,11 +24,11 @@ import { whatPayoutsNeed, whatTheGatewayNeeds } from "./gateway";
  */
 
 /** Everything the Egyptian card rail and automated payouts still need, for the operator. */
-export function whatTheRailNeeds(): string[] {
-  return [...whatTheGatewayNeeds(), ...whatPayoutsNeed()];
+export async function whatTheRailNeeds(): Promise<string[]> {
+  return [...(await whatTheGatewayNeeds()), ...(await whatPayoutsNeed())];
 }
 
 /** Can an Egyptian patient pay by card? Asked by a screen before it offers the option. */
-export function railIsReady(): boolean {
-  return whatTheGatewayNeeds().length === 0;
+export async function railIsReady(): Promise<boolean> {
+  return (await whatTheGatewayNeeds()).length === 0;
 }
