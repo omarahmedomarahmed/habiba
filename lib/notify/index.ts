@@ -200,6 +200,12 @@ export type Message = {
      * (§6), and this is the only place that rule could be broken.
      */
     | "support.closed"
+    /**
+     * 🔴 B33 — a ticket was filed. The reference, the first reply's clock and
+     * the same link and code as the answer, so the sender has a way back to it.
+     * Under the 20.22 rule: not one word of what they wrote.
+     */
+    | "support.received"
     /** 20.16 — the code that proves somebody holds the NEW number. */
     | "phone.verify"
     /**

@@ -180,10 +180,13 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
 
   const dueAt = new Date(Date.now() + FIRST_REPLY_HOURS * 3_600_000);
   const reference = newReference();
+  /* B33: the sender's way back, minted with the ticket and sent below. */
+  const access = await freshAccess();
 
   const [row] = await db
     .insert(supportTickets)
     .values({
+      ...access.set,
       reference,
       source: input.source ?? "contact_form",
       name: name.slice(0, 120),
@@ -219,7 +222,73 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
    */
   log.info("support ticket filed", { ticket: ref(row?.id ?? ""), topic, entity: input.entity });
 
+  /*
+   * 🔴 B33 — THE SENDER HEARS BACK AT ONCE. The reference used to exist only
+   * on the screen that showed it, so somebody who closed the tab had nothing
+   * to quote and no way back. Now they get it, the first reply's clock, and
+   * the same link and code a reply uses, and under the same rule: not one word
+   * of what they wrote. Never fatal: the ticket is filed whatever happens here.
+   */
+  if (row) {
+    try {
+      await tellReceived({
+        email,
+        phone,
+        locale: input.locale,
+        patientAccountId: input.patientAccountId ?? null,
+        userId: input.userId ?? null,
+        reference,
+        hours: FIRST_REPLY_HOURS,
+        link: `${env.appUrl}/support/${access.token}`,
+        code: access.code,
+      });
+    } catch (error) {
+      log.warn("support acknowledgement not sent", { ticket: ref(row.id), error: String(error).slice(0, 200) });
+    }
+  }
+
   return { ok: true, reference, dueAt, id: row?.id ?? "" };
+}
+
+/** B33: the acknowledgement, in the sender's language, carrying nothing they wrote. */
+async function tellReceived(input: {
+  email: string | null;
+  phone: string | null;
+  locale: string;
+  patientAccountId: string | null;
+  userId: string | null;
+  reference: string;
+  hours: number;
+  link: string;
+  code: string;
+}): Promise<void> {
+  let personId: string | null = null;
+  if (input.patientAccountId) {
+    const [account] = await controlDb
+      .select({ personId: patientAccounts.personId })
+      .from(patientAccounts)
+      .where(eq(patientAccounts.id, input.patientAccountId))
+      .limit(1);
+    personId = account?.personId ?? null;
+  }
+  const who = personId ? { personId } : input.userId ? { userId: input.userId } : null;
+  const { t, locale } = await wordsFor(who, input.locale);
+
+  await notify(
+    { personId, email: input.email, phone: input.phone, timezone: null, locale },
+    {
+      kind: "support.received",
+      subject: t("pmsg.supportIn.subject", { reference: input.reference }),
+      body: t("pmsg.supportIn.body", {
+        reference: input.reference,
+        hours: input.hours,
+        link: input.link,
+        code: input.code,
+      }),
+      link: { label: t("pmsg.supportIn.link"), url: input.link },
+      variables: [input.reference, input.link, input.code],
+    },
+  );
 }
 
 /* ------------------------------------------------------------- the queue -- */

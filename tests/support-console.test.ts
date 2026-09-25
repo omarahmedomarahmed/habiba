@@ -45,6 +45,55 @@ test("a ticket moved to WhatsApp can be closed, with what was agreed", () => {
   assert.match(bodyOf(read("app/(admin)/admin/support/actions.ts"), "close"), /whatsappSummary:/);
 });
 
+test("the contact form acknowledges with the reference and a way back, and nothing they wrote (B33)", async () => {
+  /*
+   * Against the database: files a ticket under one of the two new topics
+   * (0178) from an example.com address, which the outbox keeps rather than
+   * sends, then reads the acknowledgement, opens the ticket with its own link
+   * and code, and removes everything. The old code sent nothing, so the
+   * outbox read below is the control.
+   */
+  const { eq, like } = await import("drizzle-orm");
+  const { controlDb: db } = await import("../lib/db");
+  const { simOutbox, supportTicketEvents, supportTickets } = await import("../lib/db/schema");
+  const { fileTicket, readByToken } = await import("../lib/data/support");
+
+  const address = `b33-${Date.now()}@example.com`;
+  const words = "A private sentence about my employer that must not travel.";
+  const filed = await fileTicket({
+    name: "Contact Example",
+    email: address,
+    phone: null,
+    country: null,
+    topic: "a_company",
+    message: words,
+    locale: "en",
+    entity: "us",
+  });
+  try {
+    assert.equal(filed.ok, true, filed.ok ? "" : filed.error);
+    if (!filed.ok) return;
+    const kept = await db.select().from(simOutbox).where(eq(simOutbox.toAddress, address));
+    assert.equal(kept.length, 1, "no acknowledgement reached the sender");
+    const body = `${kept[0]!.subject ?? ""} ${kept[0]!.body}`;
+    assert.match(body, new RegExp(filed.reference));
+    assert.doesNotMatch(body, /private sentence/, "the acknowledgement quotes the message");
+
+    const token = /\/support\/([A-Za-z0-9_-]+)/.exec(body)?.[1];
+    const code = /\b(\d{6})\b/.exec(kept[0]!.body)?.[1];
+    assert.ok(token && code, "the acknowledgement carries no link or no code");
+    const opened = await readByToken({ token: token!, code: code! });
+    assert.equal(opened.ticket?.reference, filed.reference, "the link and code do not open the ticket");
+  } finally {
+    await db.delete(simOutbox).where(eq(simOutbox.toAddress, address));
+    const rows = await db.select({ id: supportTickets.id }).from(supportTickets).where(like(supportTickets.email, address));
+    for (const row of rows) {
+      await db.delete(supportTicketEvents).where(eq(supportTicketEvents.ticketId, row.id));
+      await db.delete(supportTickets).where(eq(supportTickets.id, row.id));
+    }
+  }
+});
+
 test("every queue button is on the record", () => {
   const actions = read("app/(admin)/admin/support/actions.ts");
   for (const fn of ["takeTicket", "waitOnThem", "extend", "moveToWhatsapp", "close", "reply"]) {

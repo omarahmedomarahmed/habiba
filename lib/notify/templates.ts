@@ -189,6 +189,14 @@ export const WHATSAPP_TEMPLATES = {
     en: "We have answered your message {{1}}. Read the reply at {{2}} with the code {{3}}.",
     ar: "رددنا على رسالتك {{1}}. اقرأ الرد على {{2}} باستخدام الرمز {{3}}.",
   },
+  /* B33: the acknowledgement. Email goes at once; WhatsApp once this name is approved. */
+  "support.received": {
+    name: "support_received",
+    category: "utility",
+    variables: 3,
+    en: "We have your message {{1}}. See where it stands at {{2}} with the code {{3}}.",
+    ar: "وصلتنا رسالتك {{1}}. اعرف أين وصلت على {{2}} باستخدام الرمز {{3}}.",
+  },
   "checkin.asking": {
     name: "checkin_asking",
     category: "utility",

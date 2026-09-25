@@ -5968,6 +5968,9 @@ export const TICKET_TOPICS = [
   "a_session",
   "a_therapist",
   "joining_as_a_therapist",
+  /* 🔴 0178 / B33: an integrator and an employer each had only "Something else". */
+  "a_partnership",
+  "a_company",
   "something_else",
 ] as const;
 export type TicketTopic = (typeof TICKET_TOPICS)[number];
