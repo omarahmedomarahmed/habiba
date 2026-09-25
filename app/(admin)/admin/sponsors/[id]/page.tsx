@@ -41,7 +41,7 @@ export default async function SponsorProfilePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireStaff();
+  const actor = await requireStaff();
   const { id } = await params;
 
   const [row] = await db
@@ -184,7 +184,19 @@ export default async function SponsorProfilePage({
       {terms?.refundPolicy ? (
         <PotReturns
           sponsorId={id}
-          open={asked ? { id: asked.id, netCents: asked.netCents, egpMinor: asked.egpMinor, reason: asked.reason } : null}
+          open={
+            asked
+              ? {
+                  id: asked.id,
+                  netCents: asked.netCents,
+                  egpMinor: asked.egpMinor,
+                  reason: asked.reason,
+                  /* 🔴 K23: a cancel waiting for a second person, and whether it is this reader's. */
+                  cancelAsked: asked.cancelReason,
+                  cancelAskedByMe: asked.cancelAskedBy === actor.userId,
+                }
+              : null
+          }
           history={returns
             .filter((r) => r.state !== "requested")
             .map((r) => ({

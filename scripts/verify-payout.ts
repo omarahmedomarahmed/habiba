@@ -327,6 +327,13 @@ async function main() {
       Boolean(noWhy.error),
       noWhy.error ?? "reversed with nothing for the clinician to read",
     );
+    /* 🔴 K23: nine characters passed the old five-character floor and reversed the payout. */
+    const nineWhy = await markPayoutReturned({ requestId, actorUserId: approverId!, reason: "Bounced!!" });
+    check(
+      "🔴 K23 'did not arrive' with a nine character reason is refused, at the console's ten",
+      nineWhy.error === "aconfirm.tooShort",
+      JSON.stringify(nineWhy),
+    );
 
     const returned = await Promise.all(
       [0, 1].map(() =>
@@ -371,6 +378,12 @@ async function main() {
       "🔴 a rejection with no sentence in it is refused",
       Boolean(noReason.error),
       noReason.error ?? "rejected with no reason, which looks like an answer and is not one",
+    );
+    const nineReject = await rejectPayout({ requestId, actorUserId: approverId, reason: "Wrong acc" });
+    check(
+      "🔴 K23 a rejection with a nine character reason is refused for its length, before anything else is read",
+      nineReject.error === "aconfirm.tooShort",
+      JSON.stringify(nineReject),
     );
 
     /* -------------------------------------- a receipt cannot be deleted -- */

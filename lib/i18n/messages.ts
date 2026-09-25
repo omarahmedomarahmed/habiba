@@ -4423,7 +4423,13 @@ export const en = {
   "arefund.cancelAsked": "Asked. A second person cancels it.",
   "arefund.cancelAskedLabel": "Cancel asked",
   "arefund.cancelConfirm": "Cancel it",
-  "arefund.errReason": "Say why.",
+  /* 🔴 K23: a pot return is cancelled with a reason, and by two people while returns need two. */
+  "apot.cancelWhy": "Why it is cancelled",
+  "apot.cancelAsk": "Cancel the return",
+  "apot.cancelAsked": "Cancel asked: {reason}",
+  "apot.cancelConfirm": "Cancel it",
+  "apot.cancelTwo": "A second person cancels what you asked.",
+  "apot.cancelAskedDone": "Asked. A second person cancels it.",
   // W2F notes
   "tnf.data": "Data",
   "tnf.behavior": "Behaviour",
@@ -8622,7 +8628,12 @@ export const ar: Record<MessageKey, string> = {
   "arefund.cancelAsked": "طُلب. يلغيه شخص آخر.",
   "arefund.cancelAskedLabel": "طُلب الإلغاء",
   "arefund.cancelConfirm": "ألغِه",
-  "arefund.errReason": "اذكر السبب.",
+  "apot.cancelWhy": "سبب الإلغاء",
+  "apot.cancelAsk": "ألغِ الإعادة",
+  "apot.cancelAsked": "طُلب الإلغاء: {reason}",
+  "apot.cancelConfirm": "ألغِها",
+  "apot.cancelTwo": "يلغي شخص ثانٍ ما طلبته أنت.",
+  "apot.cancelAskedDone": "طُلب. يلغيها شخص ثانٍ.",
   // W2F notes
   "tnf.data": "البيانات",
   "tnf.behavior": "السلوك",

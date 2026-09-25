@@ -15,7 +15,7 @@ import {
 } from "@/lib/data/sponsor-admin";
 import { ENTITIES, SPONSOR_STATES, type Entity, type SponsorState } from "@/lib/db/schema";
 
-export type AdminSponsorState = { error?: string; ok?: boolean };
+export type AdminSponsorState = { error?: string; ok?: boolean; asked?: boolean };
 
 /**
  * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
@@ -245,14 +245,31 @@ export async function sendAskedReturn(_prev: AdminSponsorState, formData: FormDa
   return { ok: true };
 }
 
+/**
+ * 🔴 K23: a cancel carries a reason, and while returns need two people the
+ * first press asks and a different person cancels (`cancelPotReturn`).
+ */
 export async function cancelAskedReturn(_prev: AdminSponsorState, formData: FormData): Promise<AdminSponsorState> {
   const actor = await requireStaff();
   const id = String(formData.get("returnId") ?? "");
   const sponsorId = String(formData.get("sponsorId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
   const { cancelPotReturn } = await import("@/lib/billing/pot-return");
-  const result = await cancelPotReturn(id, actor.userId);
-  if ("error" in result) return { error: result.error };
-  await audit({ actor, category: "admin", action: "sponsor.pot_return_cancelled", resourceType: "sponsor", resourceId: sponsorId });
+  const result = await cancelPotReturn({ id, by: actor.userId, reason });
+  if ("error" in result) {
+    const { en } = await import("@/lib/i18n/messages");
+    if (!(result.error in en)) return { error: result.error };
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t(result.error as keyof typeof en) };
+  }
+  await audit({
+    actor,
+    category: "admin",
+    action: result.asked ? "sponsor.pot_return_cancel_asked" : "sponsor.pot_return_cancelled",
+    resourceType: "sponsor",
+    resourceId: sponsorId,
+    reason: reason.trim() ? reasonText(reason) : undefined,
+  });
   revalidatePath(`/admin/sponsors/${sponsorId}`);
-  return { ok: true };
+  return { ok: true, asked: result.asked };
 }

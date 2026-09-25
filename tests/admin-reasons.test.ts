@@ -40,6 +40,10 @@ test("every destructive or customer-visible act checks the reason on the server"
         "applyUpcomingDiscount",
         "setTaxonomyState",
         "removeTaxonomy",
+        // 🔴 K23: these took one, four or no characters.
+        "refundPatient",
+        "resolveReport",
+        "decideTherapistVerification",
       ],
     ],
     ["app/(admin)/admin/sponsors/actions.ts", ["activate", "mintCode"]],

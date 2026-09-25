@@ -328,8 +328,10 @@ export async function decideTherapistVerification(
   }
 
   const trimmed = note.trim();
-  if (!approve && !trimmed) {
-    return { error: "Say what is wrong. They see this word for word." };
+  /* 🔴 K23: they read a rejection word for word, so it is a sentence, not a letter. */
+  if (!approve) {
+    const refused = await reasonRefused(trimmed);
+    if (refused) return { error: refused };
   }
 
   const decided = await decideVerification({
@@ -546,8 +548,10 @@ export async function refundPatient(
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
 
-  const trimmed = reason.trim();
-  if (!trimmed) return { error: "Say why, this ends up in the audit log." };
+  /* 🔴 K23: the console's one length for a reason, as every other money act. */
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+  const trimmed = reasonText(reason);
 
   const result = await refundSessionPayment({
     paymentId,
@@ -1020,8 +1024,10 @@ export async function resolveReport(
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
 
+  /* 🔴 K23: a decision on a complaint carries a real sentence, ten characters or more. */
+  const refused = await reasonRefused(resolution);
+  if (refused) return { error: refused };
   const note = resolution.trim();
-  if (note.length < 4) return { error: "Say what you decided." };
 
   const { sessionReports } = await import("@/lib/db/schema");
   await db

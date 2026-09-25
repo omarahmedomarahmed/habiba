@@ -77,7 +77,9 @@ test("did not arrive rides on the guarded move from sent, like Mark sent", () =>
   assert.match(body, /from: \["sent"\]/);
   assert.match(body, /to: "returned"/);
   assert.match(body, /alsoPost: \(tx\) =>\s*postManualPayoutReturned\(/, "the reversal is not on the won move");
-  assert.match(body, /reason\.length < 5/, "a reversal with no reason the clinician can read");
+  // 🔴 K23: the console's one length for a reason, not five characters.
+  assert.match(body, /reason\.length < MIN_REASON/, "a reversal with no reason the clinician can read");
+  assert.doesNotMatch(body, /reason\.length < 5\b/);
 
   const actions = stripCommentsKeepingLines(readFileSync("app/(admin)/admin/payouts/actions.ts", "utf8"));
   assert.match(actions, /export async function didNotArrive[\s\S]*?markPayoutReturned\(/);

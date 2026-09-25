@@ -15,6 +15,7 @@ import {
   type PayoutRequest,
   type PayoutStatus,
 } from "@/lib/db/schema";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { wordsFor } from "@/lib/i18n/message-words";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -863,7 +864,8 @@ export async function markPayoutReturned(input: {
   reason: string;
 }): Promise<{ ok?: boolean; error?: string }> {
   const reason = input.reason.trim();
-  if (reason.length < 5) return { error: "Say why, so the clinician knows what to fix." };
+  /* 🔴 K23: the console's one length for a reason, which the clinician reads. */
+  if (reason.length < MIN_REASON) return { error: "aconfirm.tooShort" };
 
   const row = await requestRow(input.requestId);
   if (!row) return { error: "That request no longer exists." };
@@ -933,7 +935,8 @@ export async function rejectPayout(input: {
   reason: string;
 }): Promise<{ ok?: boolean; error?: string }> {
   const reason = input.reason.trim();
-  if (reason.length < 5) return { error: "Say why, so the clinician knows what to fix." };
+  /* 🔴 K23: the console's one length for a reason, which the clinician reads. */
+  if (reason.length < MIN_REASON) return { error: "aconfirm.tooShort" };
 
   const current = await requestRow(input.requestId);
   if (!current) return { error: "That request no longer exists." };
