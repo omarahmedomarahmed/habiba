@@ -49,6 +49,8 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
   const t = useT();
   const [state, formAction] = useActionState(addWebhook, {});
   const [open, setOpen] = useState(false);
+  /* The endpoint whose Disable is being asked about, as a key's revoke is. */
+  const [asking, setAsking] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,15 +85,39 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
                   <TryButton action={sendTest} id={hook.id} labelKey="dev.sendTest" />
                 ) : null}
 
-                {canEdit && !hook.disabled ? (
-                  <form action={disable} className="mt-3">
+                {/*
+                  🔴 DISABLE ASKS FIRST, as revoking a key does (W2-X04). It was one
+                  tap that stopped every delivery to a production endpoint.
+                */}
+                {canEdit && !hook.disabled && asking !== hook.id ? (
+                  <button
+                    type="button"
+                    onClick={() => setAsking(hook.id)}
+                    className="tap-target mt-3 h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    {t("dev.disable")}
+                  </button>
+                ) : null}
+
+                {canEdit && !hook.disabled && asking === hook.id ? (
+                  <form action={disable} className="mt-3 space-y-2">
                     <input type="hidden" name="webhookId" value={hook.id} />
-                    <button
-                      type="submit"
-                      className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
-                    >
-                      {t("dev.disable")}
-                    </button>
+                    <p className="text-xs text-slate-700">{t("dev.disableConfirm")}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        {t("dev.disableYes")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAsking(null)}
+                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        {t("dev.cancel")}
+                      </button>
+                    </div>
                   </form>
                 ) : null}
               </Card>

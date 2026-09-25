@@ -343,6 +343,14 @@ async function main() {
         keyList.indexOf("action={revoke}") > keyList.indexOf('asking.act === "revoke"'),
       "a one-tap revoke stops a production integration with no question asked",
     );
+    /* 🔴 …and so does disabling a webhook endpoint, which was one tap that stopped every delivery. */
+    const hookList = readSource("components/partner/webhook-list.tsx");
+    check(
+      "🔴 Disable on a webhook asks first: the form that disables is only on the confirm step, beside a Cancel",
+      /asking === hook\.id \?/.test(hookList) && /dev\.disableConfirm/.test(hookList) && /dev\.cancel/.test(hookList) &&
+        hookList.indexOf("action={disable}") > hookList.indexOf("asking === hook.id ?"),
+      "a one-tap disable stops a production endpoint with no question asked",
+    );
 
     /* ================================================================ */
     /*  W2-X05 · BILLED AT FIRST AUDIO; ALERTS RESET MONTHLY, ABSOLUTE   */

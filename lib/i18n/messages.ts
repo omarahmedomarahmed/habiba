@@ -4464,6 +4464,9 @@ export const en = {
   "dev.stopsAt": "Stops working {date}",
   "dev.revokeConfirm": "It stops working at once, for every call.",
   "dev.revokeYes": "Revoke it",
+  /* 🔴 Disabling an endpoint asks first, like revoking a key. */
+  "dev.disableConfirm": "Nothing is delivered to it again, from now on.",
+  "dev.disableYes": "Disable it",
   "dev.cancel": "Cancel",
   "dev.forgot": "Forgot your password?",
   "dev.forgotTitle": "Reset your password",
@@ -8674,6 +8677,8 @@ export const ar: Record<MessageKey, string> = {
   "dev.stopsAt": "يتوقف عن العمل {date}",
   "dev.revokeConfirm": "سيتوقف عن العمل فورًا، في كل الطلبات.",
   "dev.revokeYes": "ألغِه",
+  "dev.disableConfirm": "لن يُرسل إليه شيء بعد الآن.",
+  "dev.disableYes": "عطّله",
   "dev.cancel": "إلغاء",
   "dev.forgot": "نسيت كلمة المرور؟",
   "dev.forgotTitle": "أعد تعيين كلمة المرور",
