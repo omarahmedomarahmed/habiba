@@ -1,9 +1,29 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
-import { enrolments, patients, sessionPayments, sessions, sponsors, users } from "@/lib/db/schema";
+import { qualified } from "@/lib/db/qualified";
+import { sessionPayments, sessions, sponsors, users } from "@/lib/db/schema";
+
+/**
+ * 🔴 AE58 / AE59: WHOSE POT PAID FOR THIS PAYMENT, READ OFF THE BOOKS.
+ *
+ * `payFromPot` posts the pot's leg (`sponsor_pot`, ref the sponsor) and the
+ * payment's legs (ref the session payment) under ONE txn id, which is how
+ * `refundToPot` finds the pot a session was paid from. This reads the same
+ * link. It used to go through `enrolments`, which is who a person is enrolled
+ * with NOW: somebody enrolled with two companies had every session listed
+ * under both, and somebody enrolled twice with one had each session twice.
+ */
+export function paidFromPotOf(sponsorId: SQL | string): SQL {
+  return sql`EXISTS (
+    SELECT 1 FROM ledger_entries paid
+      JOIN ledger_entries pot ON pot.txn_id = paid.txn_id
+     WHERE paid.ref_type = 'session_payment' AND paid.ref_id = ${qualified(sessionPayments.id)}
+       AND pot.ref_type = 'sponsor' AND pot.account = 'sponsor_pot' AND pot.amount_cents > 0
+       AND pot.txn_kind <> 'pot_return' AND pot.ref_id = ${sponsorId})`;
+}
 
 /**
  * 🔴 76.29 — WHERE EVERY POT CENT WENT, AND THE ONE THING IT WILL NOT SAY.
@@ -91,23 +111,18 @@ export async function potTrace(
     })
     .from(sessionPayments)
     .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
-    .innerJoin(patients, eq(patients.id, sessions.patientId))
-    /*
-     * 🔴 THE JOIN THAT TIES A SESSION TO A POT, and it is not a column.
-     *
-     * `session_payments` carries the frozen SPLIT but no sponsor, because
-     * `payFromPot` deliberately writes no payer identity onto it: C243, and the
-     * `payerName: null` three lines from where the split is written says so.
-     *
-     * The link is the enrolment, which is how `payFromPot` found the pot in the
-     * first place. Reading it the same way here means this screen and the spend
-     * cannot disagree about whose money paid for what.
-     */
-    .innerJoin(enrolments, eq(enrolments.personId, patients.personId))
     .leftJoin(users, eq(users.id, sessionPayments.therapistId))
     .where(
       and(
-        eq(enrolments.sponsorId, sponsorId),
+        /*
+         * 🔴 THE LINK THAT TIES A SESSION TO A POT, and it is not a column.
+         *
+         * `session_payments` carries the frozen SPLIT but no sponsor, because
+         * `payFromPot` deliberately writes no payer identity onto it: C243. The
+         * spend's shared txn id is the link (`paidFromPotOf`), so this screen and
+         * the ledger cannot disagree about whose money paid for what.
+         */
+        paidFromPotOf(sponsorId),
         /*
          * 🔴 AND IT WAS ACTUALLY FUNDED FROM THE POT. A `session_payments` row
          * exists for every paid session, sponsored or not, so without this the

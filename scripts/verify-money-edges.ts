@@ -507,6 +507,46 @@ async function main() {
       `${trace.rows.length} rows, every patient an eight character reference`,
     );
 
+    /*
+     * 🔴 AE58 / AE59: WHOSE POT, FROM THE BOOKS, NOT FROM WHO THEY ARE ENROLLED WITH.
+     *
+     * Nour's session was paid from this pot. Enrol Nour with a second company
+     * too, and give Nour a removed enrolment with this one from an earlier
+     * spell. Read through `enrolments`, the session appeared under the second
+     * company and twice under this one; read off the spend's txn id it is
+     * once, here, and nowhere else. The board's "sessions covered" is the same
+     * count.
+     */
+    const otherCo = await one<{ id: string }>(sql`
+      INSERT INTO sponsors (name, kind, entity, currency, state)
+      VALUES ('Edge Demo Other Co', 'company', 'eg', 'EGP', 'active') RETURNING id`);
+    await db.execute(sql`
+      INSERT INTO enrolments (sponsor_id, person_id, state, is_primary, identifier_hash, identifier_kind, last_verified_at)
+      VALUES (${otherCo.id}, ${half.personId}, 'active', false, ${`other-Nour-${fixture}`}, 'domain_email', now())`);
+    await db.execute(sql`
+      INSERT INTO enrolments (sponsor_id, person_id, state, is_primary, identifier_hash, identifier_kind,
+                              last_verified_at, removed_at, removal_reason)
+      VALUES (${sponsor.id}, ${half.personId}, 'removed', false, ${`earlier-Nour-${fixture}`}, 'domain_email',
+              now() - interval '60 days', now() - interval '30 days', 'left')`);
+    const traceAgain = await potTrace(sponsor.id);
+    const otherTrace = await potTrace(otherCo.id);
+    const ids = traceAgain.rows.map((row) => row.sessionId);
+    const { companiesBoard } = await import("../lib/console/board");
+    const boardRows = (await companiesBoard()).rows;
+    const onBoard = boardRows.find((row) => row.id === sponsor.id)?.sessionsThisMonth;
+    const otherOnBoard = boardRows.find((row) => row.id === otherCo.id)?.sessionsThisMonth;
+    check(
+      "🔴 AE58/AE59 a pot-funded session is listed once, under the pot that paid, whatever else the person is enrolled with",
+      ids.length === trace.rows.length && new Set(ids).size === ids.length && ids.includes(half.sessionId) &&
+        otherTrace.rows.length === 0 && (await potSpendAgrees(sponsor.id)).agrees,
+      `${ids.length} rows (${new Set(ids).size} sessions), ${otherTrace.rows.length} under the other company`,
+    );
+    check(
+      "🔴 …and the board counts the sessions each pot paid for, not every session of the people enrolled",
+      onBoard === ids.length && otherOnBoard === 0,
+      `this pot ${String(onBoard)}, the other company ${String(otherOnBoard)}, trace ${ids.length}`,
+    );
+
     /* ================================================================ */
     /*  12 · "I opened it and then decided not to pay"                   */
     /* ================================================================ */
@@ -777,7 +817,7 @@ async function main() {
     await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Edge Demo Foundry')`);
     await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Edge Demo Foundry')`);
     await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE name = 'Edge Demo Foundry')`);
-    await db.execute(sql`DELETE FROM sponsors WHERE name = 'Edge Demo Foundry'`);
+    await db.execute(sql`DELETE FROM sponsors WHERE name IN ('Edge Demo Foundry', 'Edge Demo Other Co')`);
     await db.execute(sql`DELETE FROM people WHERE id IN
       (SELECT person_id FROM patients WHERE email LIKE ${`%${fixture}%`})`);
     await db.execute(sql`DELETE FROM patients WHERE email LIKE ${`%${fixture}%`}`);

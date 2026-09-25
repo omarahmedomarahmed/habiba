@@ -260,6 +260,34 @@ async function totalView(db: ReturnType<typeof connect>["db"]) {
     mine && !someoneElse && !otherSession && !forged && !stale,
     JSON.stringify({ mine, someoneElse, otherSession, forged, stale }),
   );
+
+  /*
+   * 🔴 THE BOARD'S ACTIVITY CARD: A CLINICIAN IS NOT OUR STAFF.
+   *
+   * "By our own staff" counted every row with an `actor_user_id`, and every
+   * clinician is a `users` row. Five acts by the planted clinician move the
+   * clinician count by five and leave staff where it was (other verifiers may
+   * be writing too, so the staff side is "not by five", not "by nothing").
+   */
+  const { activityBoard } = await import("../lib/console/board");
+  const beforeActs = (await activityBoard()).actors as Record<string, number>;
+  for (let i = 0; i < 5; i += 1) {
+    await audit({
+      actor: { userId: therapist.id, organizationId: orgId },
+      category: "clinical",
+      action: "verifier.clinician_act",
+      resourceType: "session",
+      resourceId: session.id,
+    });
+  }
+  const afterActs = (await activityBoard()).actors as Record<string, number>;
+  const clinicianMoved = (afterActs.clinician ?? 0) - (beforeActs.clinician ?? 0);
+  const staffMoved = (afterActs.staff ?? 0) - (beforeActs.staff ?? 0);
+  check(
+    "🔴 the board counts a clinician's acts as a clinician's, not as our staff's",
+    clinicianMoved >= 5 && staffMoved < 5,
+    `clinician +${clinicianMoved}, staff +${staffMoved}`,
+  );
 }
 
 /* ================================================================== */
