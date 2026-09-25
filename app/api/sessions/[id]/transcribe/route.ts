@@ -8,7 +8,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { sessions } from "@/lib/db/schema";
 import { recordSessionSuggestions } from "@/lib/data/copilot";
-import { appendTranscriptSegment } from "@/lib/data/transcript";
+import { appendTranscriptSegment, spokenLanguageFor } from "@/lib/data/transcript";
 import { recordIngestUse, sourceForIngest } from "@/lib/data/session-sources";
 import { bearerFrom, ingestDecision } from "@/lib/ingest/token";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -178,10 +178,10 @@ export async function POST(
       organizationId: session.organizationId,
       userId: actorUserId,
       sessionId: session.id,
-      // Null until somebody sets it in the room, and null means "detect it".
-      // Either is better than the "en" that used to be hardcoded one layer
-      // down, which asserted English over every Arabic session on the platform.
-      language: session.transcriptLanguage,
+      // Set in the room, else Arabic when either person works in Arabic (B63),
+      // else null, which means "detect it". Any is better than the "en" that
+      // used to be hardcoded one layer down.
+      language: await spokenLanguageFor(session),
     });
 
     if (!text) {

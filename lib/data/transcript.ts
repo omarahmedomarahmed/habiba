@@ -154,3 +154,27 @@ function lostTheNumber(error: unknown): boolean {
       ),
   );
 }
+
+/**
+ * 🔴 B63 — the language to transcribe in when nobody set one in the room.
+ *
+ * Null used to mean "detect it", and detection on eight seconds of Egyptian
+ * Arabic came back in Latin letters ("Jani, sa ba' li tirfudi" for «يعني صعب
+ * عليكي ترفضي»), which no reader, search or note writer can use. When either
+ * person in the session works in Arabic, the chunk is transcribed as Arabic.
+ * Anybody else is still detected, and a language set in the room always wins.
+ */
+export async function spokenLanguageFor(session: {
+  therapistId: string;
+  patientId: string | null;
+  transcriptLanguage: string | null;
+}): Promise<string | null> {
+  if (session.transcriptLanguage) return session.transcriptLanguage;
+  const { rows } = await db.execute(sql`
+    SELECT
+      (SELECT u.locale FROM users u WHERE u.id = ${session.therapistId}) AS clinician,
+      (SELECT pe.locale FROM patients p JOIN people pe ON pe.id = p.person_id
+        WHERE p.id = ${session.patientId}) AS patient`);
+  const found = rows[0] as { clinician: string | null; patient: string | null } | undefined;
+  return found?.clinician === "ar" || found?.patient === "ar" ? "ar" : null;
+}

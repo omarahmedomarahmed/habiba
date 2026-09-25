@@ -254,22 +254,24 @@ export function SessionRoom(props: RoomProps) {
     const recorder = new SessionRecorder({
       onChunk: ({ blob, durationSeconds }) => {
         /*
-         * This track is only the therapist if somebody else's track is also
-         * being recorded.
+         * 🔴 B62 — on video this is the clinician's own microphone, whoever
+         * else is or is not connected.
          *
-         * In person there is one microphone hearing two people, which was
-         * always labelled `unknown`. On video the label used to be `therapist`
-         * unconditionally — but if the patient never connects, or their track
-         * drops, this microphone is still the only one running and it is
-         * picking up whatever it can hear. Calling that "the therapist" put the
-         * patient's words in the clinician's mouth, in a clinical record,
-         * silently.
+         * In person there is one microphone hearing two people, which is
+         * `unknown` and resolved afterwards from the words (`lib/ai/diarise.ts`).
          *
-         * `unknown` is not a worse answer. It is the true one, and
-         * `lib/ai/diarise.ts` resolves it afterwards from the words themselves.
+         * On video it used to be `therapist` only while the patient's track was
+         * also recording, on the reasoning that without it this microphone
+         * "picks up whatever it can hear". The reasoning was backwards: the
+         * patient's voice reaches this browser only through the call, which is
+         * captured on its own track and removed from this one by echo
+         * cancellation, and with no call audio there is nothing of theirs here
+         * to hear. Labelling it `unknown` handed the clinician's own words to a
+         * guess, which put a quarter of them in the patient's mouth (R1b: 8 of
+         * 32 "Them", 9 "Not sure"). A session with no patient track now says
+         * so on the note instead (B61, `capturedSideFor`).
          */
-        const twoTrack = props.modality === "video" && remoteRecorder.current !== null;
-        void uploadChunk(blob, durationSeconds, twoTrack ? "therapist" : "unknown");
+        void uploadChunk(blob, durationSeconds, props.modality === "video" ? "therapist" : "unknown");
       },
       /*
        * 🔴 C370 — the recorder starts in the state the SCREEN is already in.
@@ -324,16 +326,14 @@ export function SessionRoom(props: RoomProps) {
         /*
          * Say it out loud. This is the "silently" half of PLAN.md 3.4.
          *
-         * When the patient's track drops, this microphone is still running and
-         * still hearing the room, so recording continues — but every chunk from
-         * here on is labelled `unknown` rather than `therapist`, because it is
-         * no longer certain whose voice it is. That is the correct label and it
-         * is invisible: the clinician sees the transcript carry on and has no
-         * idea the attribution stopped being measured.
+         * When the patient's track drops, this microphone is still running, so
+         * recording continues — with the clinician's side only, and nothing
+         * of the patient's reaches the transcript until their track is back
+         * (B62). That is invisible: the clinician sees the transcript carry on
+         * and has no idea half the conversation stopped being captured.
          *
-         * `lib/ai/diarise.ts` fills those rows in afterwards from the words, so
-         * this is a degradation rather than a loss — which is exactly what the
-         * message should say, and why it is not an error.
+         * A degradation rather than a loss, which is exactly what the message
+         * should say, and why it is not an error.
          */
         if (had && liveRef.current) {
           setError(
@@ -394,7 +394,14 @@ export function SessionRoom(props: RoomProps) {
    * the session is over.
    */
   useEffect(() => {
-    if (!live && (props.modality !== "video" || patientJoined)) return;
+    /*
+     * 🔴 B66 — and before Start on video, for as long as the room is open.
+     *
+     * It used to stop the moment the patient joined, before they had answered,
+     * so "Waiting for their yes" stayed on screen beside "in the room" after the
+     * yes was given. The answer rides on this poll and nothing else carries it.
+     */
+    if (!live && props.modality !== "video") return;
     const poll = setInterval(async () => {
       try {
         const response = await fetch(`/api/sessions/${props.sessionId}/state`, {
@@ -432,10 +439,18 @@ export function SessionRoom(props: RoomProps) {
 
   /* ---------------------------------------------------------- transitions -- */
 
-  const handleStart = () => {
+  /* B64: the booked hour, when Start was pressed well before it. */
+  const [earlyFor, setEarlyFor] = useState<string | null>(null);
+
+  const handleStart = (confirmEarly = false) => {
     setError(null);
     startTransition(async () => {
-      const result = await goLive(props.sessionId);
+      const result = await goLive(props.sessionId, { confirmEarly });
+      if (result.early) {
+        setEarlyFor(result.early);
+        return;
+      }
+      setEarlyFor(null);
       if (result.error) {
         setError(result.error);
         return;
@@ -949,9 +964,27 @@ export function SessionRoom(props: RoomProps) {
               </button>
             </div>
           ) : (
-            <Button size="lg" variant="primary" full onClick={handleStart} disabled={pending}>
-              {pending ? t("troom.starting") : t("troom.startSession")}
-            </Button>
+            <>
+              {/*
+                🔴 B64 — asked, not refused. A clinician may have agreed an
+                earlier time with the patient; what they may not do is wake
+                somebody at midnight for a ten o'clock booking by accident.
+              */}
+              {earlyFor ? (
+                <p role="alert" className="mb-2 rounded-xl bg-amber-500/15 px-3.5 py-2.5 text-sm text-amber-100">
+                  {t("troom.earlyStart", { time: earlyFor, name: props.patientLabel })}
+                </p>
+              ) : null}
+              <Button
+                size="lg"
+                variant="primary"
+                full
+                onClick={() => handleStart(earlyFor !== null)}
+                disabled={pending}
+              >
+                {pending ? t("troom.starting") : earlyFor ? t("troom.startAnyway") : t("troom.startSession")}
+              </Button>
+            </>
           )}
 
           <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">

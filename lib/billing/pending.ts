@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
-import { manualPayments, sessions, users } from "@/lib/db/schema";
+import { manualPayments, patients, sessions, users } from "@/lib/db/schema";
 
 import type { Translate } from "@/lib/i18n/server";
 
@@ -183,7 +183,7 @@ export async function pendingPaymentFor(
 
   return {
     paymentId: row.id,
-    what: await describe(row.purpose, row.refId, t),
+    what: await describe(row.purpose, row.refId, t, who.kind === "organization"),
     amount,
     href: hrefFor(row.purpose, row.refId),
     stage,
@@ -202,17 +202,35 @@ async function describe(
   purpose: string,
   refId: string | null,
   t: Translate,
+  /**
+   * 🔴 B68 — the bar is on the CLINICIAN's pages, and names the other person.
+   *
+   * A session payment was always described by its clinician, which is right
+   * for the patient who paid and read "Session with Amira Demo" to Amira on her
+   * own screens. On the practice's bar the other person is the patient.
+   */
+  forPractice: boolean,
 ): Promise<string> {
   if (purpose === "pot_topup") return t("transfer.subjectPot");
   if (purpose === "subscription") return t("transfer.subjectBill");
 
   if (purpose === "session" && refId) {
-    const [row] = await db
-      .select({ first: users.firstName, last: users.lastName })
-      .from(sessions)
-      .leftJoin(users, eq(users.id, sessions.therapistId))
-      .where(eq(sessions.id, refId))
-      .limit(1);
+    const [row] = forPractice
+      ? await db
+          .select({
+            first: sql<string | null>`coalesce(${patients.firstName}, ${sessions.guestName})`,
+            last: patients.lastName,
+          })
+          .from(sessions)
+          .leftJoin(patients, eq(patients.id, sessions.patientId))
+          .where(eq(sessions.id, refId))
+          .limit(1)
+      : await db
+          .select({ first: users.firstName, last: users.lastName })
+          .from(sessions)
+          .leftJoin(users, eq(users.id, sessions.therapistId))
+          .where(eq(sessions.id, refId))
+          .limit(1);
 
     const name = [row?.first, row?.last].filter(Boolean).join(" ");
     if (name) return t("transfer.subjectSessionWith", { name });
