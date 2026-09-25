@@ -347,6 +347,31 @@ async function main() {
     leaky.length === 0 && !/error\.message|error\.stack/.test(routeError),
     leaky.length === 0 ? "digest only" : leaky.join(", "),
   );
+  /*
+   * 🔴 W3: a not-found in every route group, inside that group's layout, and it
+   * keeps the SOS orb. Only the patient group turns its own orb off, because its
+   * chrome already draws one; that exception is asserted rather than assumed.
+   */
+  const parenGroups = groups.filter((group) => group.startsWith("("));
+  const noNotFound = parenGroups.filter((group) => {
+    const file = join("app", group, "not-found.tsx");
+    return !existsSync(file) || !/<RouteNotFound\b/.test(readSource(file));
+  });
+  const orbOff = parenGroups.filter((group) => {
+    const file = join("app", group, "not-found.tsx");
+    return existsSync(file) && /withOrb=\{false\}/.test(readSource(file));
+  });
+  check(
+    "🔴 every route group has a not-found that keeps the SOS orb",
+    noNotFound.length === 0 &&
+      /<SosOrbServer\b/.test(readSource("components/patient/route-not-found.tsx")) &&
+      orbOff.join(",") === "(patient)" &&
+      /<SosOrb\b/.test(readSource("components/patient/chrome.tsx")),
+    noNotFound.length === 0
+      ? `${parenGroups.length} groups; only (patient) leaves the orb to its chrome`
+      : `missing: ${noNotFound.join(", ")}`,
+  );
+
   const room = readSource("app/(room)/error.tsx");
   check(
     "the new screens read their words from the dictionary, in both languages",

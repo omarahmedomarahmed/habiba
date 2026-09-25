@@ -596,7 +596,7 @@ function CompanyOverview() {
           session's money without names, and never a therapist.
         */}
         {/*
-         * 🔴 C227 — THE SENTENCE THAT IS THE PRODUCT. What it cost, never who
+         * 🔴 C227: THE SENTENCE THAT IS THE PRODUCT. What it cost, never who
          * went and never with whom (D1).
          */}
         <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-600">
