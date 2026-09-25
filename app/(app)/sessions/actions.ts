@@ -473,11 +473,17 @@ export async function abandonSession(
     return { error: (await getI18n()).t("tcancel.reasonNeeded") };
   }
 
+  /*
+   * 🔴 K12 — the radar claim is released only when THIS clinician's cancel
+   * matched, and only on their own radar row. It ran unconditionally, so a
+   * colleague who knew a session id could flip its clinician from "in
+   * session" back to "online" with a cancel that matched nothing.
+   */
   if (await cancelSession(actor, sessionId)) {
     const { afterClinicianCancel } = await import("@/lib/data/clinician-cancel");
     await afterClinicianCancel({ actorUserId: actor.userId, sessionId, reason });
+    await releaseClaim(sessionId, actor.userId);
   }
-  await releaseClaim(sessionId);
   revalidatePath("/sessions");
   redirect("/sessions");
 }

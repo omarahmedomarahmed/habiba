@@ -1090,8 +1090,13 @@ export async function claimTherapist(opts: {
  * Scoped to the claiming session id, so a late release from an abandoned
  * booking cannot cancel the *next* patient's claim — the classic way a
  * time-based lock releases someone else's lock.
+ *
+ * 🔴 K12 — `therapistUserId`, when given, scopes it to that clinician's own
+ * radar row too. A session id is not a secret between colleagues, and a
+ * release keyed on it alone let one clinician put another back "online"
+ * mid-session.
  */
-export async function releaseClaim(sessionId: string): Promise<void> {
+export async function releaseClaim(sessionId: string, therapistUserId?: string): Promise<void> {
   await db
     .update(therapistRadar)
     .set({
@@ -1105,6 +1110,7 @@ export async function releaseClaim(sessionId: string): Promise<void> {
       and(
         eq(therapistRadar.pendingSessionId, sessionId),
         or(eq(therapistRadar.status, "pending"), eq(therapistRadar.status, "in_session")),
+        therapistUserId ? eq(therapistRadar.userId, therapistUserId) : undefined,
       ),
     );
 }
