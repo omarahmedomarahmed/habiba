@@ -96,14 +96,14 @@ function Step({
               type="button"
               disabled={pending}
               onClick={() => answer(answering)}
-              className="tap-target h-11 rounded-xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              className="tap-target h-11 rounded-2xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
               {pending ? "Saving…" : "Send"}
             </button>
             <button
               type="button"
               onClick={() => setAnswering(null)}
-              className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-navy-400"
+              className="tap-target h-11 rounded-2xl px-3 text-sm font-medium text-navy-400"
             >
               {t("common.back")}
             </button>
@@ -115,7 +115,7 @@ function Step({
             type="button"
             disabled={pending}
             onClick={() => setAnswering("done")}
-            className="tap-target flex h-11 items-center gap-1.5 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
+            className="tap-target flex h-11 items-center gap-1.5 rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
           >
             <Check className="h-4 w-4" aria-hidden />
             {t("psteps.didThis")}
@@ -128,7 +128,7 @@ function Step({
             type="button"
             disabled={pending}
             onClick={() => setAnswering("skipped")}
-            className="tap-target h-11 rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
+            className="tap-target h-11 rounded-2xl bg-navy-50 px-4 text-sm font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
           >
             {t("psteps.couldNot")}
           </button>

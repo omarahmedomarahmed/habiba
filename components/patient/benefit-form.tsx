@@ -212,7 +212,7 @@ export function BenefitForm({
                         type="button"
                         disabled={pending || !again[benefit.enrolmentId]}
                         onClick={() => reconfirm(benefit.enrolmentId)}
-                        className="tap-target h-10 rounded-xl bg-navy-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
+                        className="tap-target h-10 rounded-2xl bg-navy-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
                       >
                         {benefit.kind !== "id_number" ? t("pfield.sendMeACode") : t("benefit.confirm")}
                       </button>
@@ -239,7 +239,7 @@ export function BenefitForm({
                     type="button"
                     disabled={pending || !codes[benefit.enrolmentId]}
                     onClick={() => confirm(benefit.enrolmentId)}
-                    className="tap-target h-10 rounded-xl bg-brand-500 px-4 text-xs font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
+                    className="tap-target h-10 rounded-2xl bg-brand-500 px-4 text-xs font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
                   >
                     {t("benefit.confirm")}
                   </button>

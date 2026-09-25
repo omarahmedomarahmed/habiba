@@ -170,14 +170,14 @@ function RequestRow({
                 type="button"
                 disabled={pending}
                 onClick={() => answer("rejected")}
-                className="tap-target h-10 rounded-xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                className="tap-target h-10 rounded-2xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {pending ? t("common.working") : t("common.decline")}
               </button>
               <button
                 type="button"
                 onClick={() => setDeclining(false)}
-                className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-navy-400"
+                className="tap-target h-10 rounded-2xl px-3 text-sm font-medium text-navy-400"
               >
                 {t("common.back")}
               </button>

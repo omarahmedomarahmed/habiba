@@ -98,7 +98,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
                   next();
                 })
               }
-              className="tap-target h-11 rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
+              className="tap-target h-11 rounded-2xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
             >
               {t("pclaim.noHaveNot")}
             </button>
@@ -143,7 +143,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
                 type="button"
                 disabled={pending}
                 onClick={next}
-                className="tap-target h-11 rounded-xl px-3 text-sm font-medium text-navy-400"
+                className="tap-target h-11 rounded-2xl px-3 text-sm font-medium text-navy-400"
               >
                 {t("pclaim.skip")}
               </button>
