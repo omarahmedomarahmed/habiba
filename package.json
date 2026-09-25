@@ -256,6 +256,7 @@
     "test:clinician-notifications": "node --env-file-if-exists=.env.local --import tsx --test tests/clinician-notifications.test.ts",
     "test:qualified": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/qualified.test.ts",
     "verify:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money.ts",
+    "verify:money-fixes": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-fixes.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
     "verify:notices": "node --import tsx scripts/verify-notices.ts",
     "verify:message-language": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-message-language.ts",
