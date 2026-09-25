@@ -309,7 +309,7 @@ export const en = {
    * subscription while a tier carries a monthly price.
    */
   "pricing.free": "Joining is free. Pay per session, or a flat price a month.",
-  "pricing.freeBody": "No seat fee, no setup fee, no minimum, and your first session is on us.",
+  "pricing.freeBody": "No setup fee, no minimum, and your first session is on us.",
   "pricing.perSession": "/ session",
   "pricing.tier.payg": "Pay as you go",
   "pricing.tier.practice": "Therapist",
@@ -326,7 +326,7 @@ export const en = {
     "Get paid by patients, through the Crisis Radar and paid session links",
   "pricing.signUp": "Sign up free",
   "pricing.noFees":
-    "Joining is free. No seat fee, no setup fee, no minimum.",
+    "Joining is free. No setup fee, no minimum.",
   "pricing.credits": "Charged only when you run a session, and your first is free. Credit lasts {months} months and is spent before anything new is billed.",
   "pricing.radarLead": "Get booked on the Crisis Radar.",
   "pricing.radarBody":
@@ -615,7 +615,7 @@ export const en = {
   "ft.costLabel": "[ 07 ] What it costs",
   "ft.costHeading": "Pay for the sessions you hold, or a flat month.",
   "ft.costBody":
-    "No seat fee and no minimum. Your first session is free, and a patient never pays us anything for the software.",
+    "No setup fee and no minimum. Your first session is free, and a patient never pays us anything for the software.",
 
   "ft.closeHeading": "Your next session could write itself up.",
   "ft.closeBody": "Sign up and verify your licence. The first session is free.",
@@ -699,6 +699,7 @@ export const en = {
   "home.liveOne": "One therapist is free this minute",
   "home.liveMany": "{count} therapists are free this minute",
   "home.nobodyOnline": "Nobody is online right now. Every clinician also has a calendar you can book.",
+  "radar.pageTitle": "Crisis Radar: therapists free to talk now",
   "home.demoNote": "An example screen. The clinicians and prices in it are invented.",
   "home.liveNone": "Nobody is online right now",
   "home.liveNoneBody": "Book a session with someone instead",
@@ -5416,7 +5417,7 @@ export const ar: Record<MessageKey, string> = {
 
   /* pricing — 21R.8. Written as Arabic, not rendered from the English. */
   "pricing.free": "الانضمام مجاني. ادفع عن كل جلسة، أو سعرًا ثابتًا شهريًا.",
-  "pricing.freeBody": "بلا رسوم مقعد ولا إعداد ولا حد أدنى، وجلستك الأولى علينا.",
+  "pricing.freeBody": "بلا رسوم إعداد ولا حد أدنى، وجلستك الأولى علينا.",
   "pricing.perSession": "/ الجلسة",
   "pricing.tier.payg": "الدفع عند الاستخدام",
   "pricing.tier.practice": "معالج فردي",
@@ -5433,7 +5434,7 @@ export const ar: Record<MessageKey, string> = {
     "تقاضَ أجرك من المرضى، عبر رادار الأزمات وروابط الجلسات المدفوعة",
   "pricing.signUp": "أنشئ حسابك مجانًا",
   "pricing.noFees":
-    "الانضمام مجاني. بلا رسوم مقعد، وبلا رسوم تجهيز، وبلا حد أدنى.",
+    "الانضمام مجاني. بلا رسوم تجهيز، وبلا حد أدنى.",
   "pricing.credits": "لا تُحاسَب إلا حين تجري جلسة، وأولاها مجانية. ويدوم الرصيد {months} شهرًا ويُنفَق قبل أي محاسبة جديدة.",
   "pricing.radarLead": "احجز مكانك على رادار الأزمات.",
   "pricing.radarBody":
@@ -5636,7 +5637,7 @@ export const ar: Record<MessageKey, string> = {
   "ft.costLabel": "[ ٠٧ ] التكلفة",
   "ft.costHeading": "ادفع مقابل الجلسات التي تعقدها، أو اشترك شهريًا.",
   "ft.costBody":
-    "لا رسوم مقعد ولا حد أدنى. جلستك الأولى مجانية، والمريض لا يدفع لنا شيئًا مقابل البرنامج.",
+    "لا رسوم إعداد ولا حد أدنى. جلستك الأولى مجانية، والمريض لا يدفع لنا شيئًا مقابل البرنامج.",
 
   "ft.closeHeading": "جلستك القادمة يمكن أن تكتب نفسها.",
   "ft.closeBody": "سجّل ووثّق ترخيصك. الجلسة الأولى مجانية.",
@@ -5686,6 +5687,7 @@ export const ar: Record<MessageKey, string> = {
   "home.liveOne": "معالج واحد متاح في هذه اللحظة",
   "home.liveMany": "{count} معالجين متاحون في هذه اللحظة",
   "home.nobodyOnline": "لا أحد متصل الآن. ولكل معالج أيضًا تقويم يمكنك الحجز فيه.",
+  "radar.pageTitle": "رادار الأزمات: معالجون متاحون للحديث الآن",
   "home.demoNote": "شاشة للتوضيح. المعالجون والأسعار فيها متخيَّلة.",
   "home.liveNone": "لا أحد متصل الآن",
   "home.liveNoneBody": "احجز موعدًا مع أحدهم بدلًا من ذلك",

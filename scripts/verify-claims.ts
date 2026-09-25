@@ -473,6 +473,50 @@ check(
 );
 
 /*
+ * 🔴 B31 — THE SAME SHAPE, ONE ROW OVER: A SEAT FEE.
+ *
+ * "Joining is free. No seat fee, no setup fee, no minimum." sat directly under
+ * the clinic plan at "$72 a seat, a month". A clinic pays per seat the moment
+ * the ladder has a price in it, so while it does no published string may deny
+ * a seat fee.
+ */
+const DENIES_SEAT_FEE = /\bno\s+seat\s+fees?\b|رسوم\s+مقعد|رسوم\s+مقاعد|رسوم\s+للمقعد/i;
+const chargesPerSeat = SETTINGS_DEFAULTS.pricing.seatBands.some((band) => band.perSeatCents > 0 || band.flatCents > 0);
+const seatDenials = ALL_COPY.filter((s) => DENIES_SEAT_FEE.test(s.text));
+check(
+  `🔴 B31 the copy and the seat ladder agree about whether a seat costs money (it ${chargesPerSeat ? "does" : "does not"})`,
+  chargesPerSeat ? seatDenials.length === 0 : true,
+  seatDenials.map((s) => `${s.path}: "${s.text.slice(0, 60)}"`).join(" · "),
+);
+check(
+  "🔴 B31 CONTROL the seat fee rule catches the sentences we shipped, in both languages",
+  DENIES_SEAT_FEE.test("Joining is free. No seat fee, no setup fee, no minimum.") &&
+    DENIES_SEAT_FEE.test("الانضمام مجاني. بلا رسوم مقعد، وبلا رسوم تجهيز، وبلا حد أدنى.") &&
+    !DENIES_SEAT_FEE.test("Joining is free. No setup fee, no minimum."),
+);
+
+/*
+ * 🔴 B30 — WHETHER ANYBODY IS ONLINE IS A FACT OF THIS MINUTE, NOT OF THE COPY.
+ *
+ * The crisis block told every visitor "the radar has clinicians online this
+ * minute" while `/radar` said nobody was there. Only the live count may say
+ * somebody is online; a sentence written once may say where to look.
+ */
+const PROMISES_SOMEBODY_ONLINE =
+  /radar\s+has\s+(?:clinicians|therapists|someone|somebody)\s+online|فعلى\s+الرادار\s+معالجون\s+متاحون/i;
+const onlinePromises = ALL_COPY.filter((s) => PROMISES_SOMEBODY_ONLINE.test(s.text));
+check(
+  "🔴 B30 no written sentence promises that somebody is online right now",
+  onlinePromises.length === 0,
+  onlinePromises.map((s) => `${s.path}: "${s.text.slice(0, 60)}"`).join(" · "),
+);
+check(
+  "🔴 B30 CONTROL the rule catches the crisis sentence we shipped, in both languages",
+  PROMISES_SOMEBODY_ONLINE.test("If you can wait a few minutes, the radar has clinicians online this minute") &&
+    PROMISES_SOMEBODY_ONLINE.test("وإن كان بإمكانك الانتظار دقائق، فعلى الرادار معالجون متاحون في هذه اللحظة"),
+);
+
+/*
  * 🔴 And the reverse: a product that sells a subscription must SAY SO somewhere
  * a visitor can read, or we have shipped a price nobody can find. An absence
  * check on its own would pass against a pricing page that mentions no plan at

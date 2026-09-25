@@ -76,6 +76,7 @@ export async function PricingTiers({
   only,
   heading,
   body,
+  asPageTitle = false,
 }: {
   compact?: boolean;
   /**
@@ -101,8 +102,11 @@ export async function PricingTiers({
    * no cookie and picks its row by locale.
    */
   locale?: string;
+  /** B31: the first block on `/pricing`, whose heading is the page's only h1. */
+  asPageTitle?: boolean;
 }) {
   const settings = await getSettings();
+  const Title = asPageTitle ? "h1" : "h2";
   const egpRate = await egpRateMicro();
 
   /*
@@ -374,9 +378,9 @@ export async function PricingTiers({
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
         <div className={only ? "max-w-2xl" : "mx-auto max-w-2xl text-center"}>
-          <h2 className="text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <Title className="text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             {heading ?? (compact ? t("pricing.free") : t("pr2.title"))}
-          </h2>
+          </Title>
           <p className="mt-2.5 text-[15px] leading-relaxed text-slate-600">
             {body ?? (compact ? t("pricing.freeBody") : t("pr2.body"))}
           </p>

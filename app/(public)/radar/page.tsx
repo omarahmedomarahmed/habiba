@@ -36,9 +36,15 @@ export const dynamic = "force-dynamic";
 export default async function RadarPage() {
   /* 🔴 W2-P12: what to book when nobody is on shift, so an empty radar is not a dead end. */
   const [therapists, firstHours] = await Promise.all([listRadar(), firstOpenHours()]);
+  const { t, locale } = await getI18n();
 
   return (
     <div className="bg-[#04101f]">
+      {/*
+        B31: still no visible heading, for the reason above, but the page has
+        a title a screen reader and an outline can find.
+      */}
+      <h1 className="sr-only">{t("radar.pageTitle")}</h1>
       <RadarConsole initial={therapists} firstHours={firstHours} />
       <RadarSafetyLine />
       {/*
@@ -54,7 +60,7 @@ export default async function RadarPage() {
         That is the honest answer rather than a degraded one, and it is a
         plain `tel:` away from a dialler either way.
       */}
-      <SosOrbServer country={crisisCountryFor({ locale: (await getI18n()).locale })} />
+      <SosOrbServer country={crisisCountryFor({ locale })} />
     </div>
   );
 }
