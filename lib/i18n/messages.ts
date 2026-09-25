@@ -4726,6 +4726,8 @@ export const en = {
   "arail.errNote": "Say what you did.",
   "aconfirm.why": "Why? It is audited.",
   "aconfirm.tooShort": "Give a reason of ten characters or more.",
+  /* 🔴 An investigation opens on its reason for a window, then asks again. */
+  "ainv.expired": "That reading is over ({minutes} minutes). Say why again to read it again.",
   "aconfirm.delete": "Delete",
   "aconfirm.off": "Off",
   "aconfirm.on": "On",
@@ -8923,6 +8925,7 @@ export const ar: Record<MessageKey, string> = {
   "arail.errNote": "اذكر ما فعلته.",
   "aconfirm.why": "لماذا؟ يُسجَّل ذلك.",
   "aconfirm.tooShort": "اذكر سببًا من عشرة أحرف أو أكثر.",
+  "ainv.expired": "انتهت تلك القراءة ({minutes} دقيقة). اذكر السبب مجددًا لتقرأها مرة أخرى.",
   "aconfirm.delete": "احذف",
   "aconfirm.off": "أوقف",
   "aconfirm.on": "شغّل",

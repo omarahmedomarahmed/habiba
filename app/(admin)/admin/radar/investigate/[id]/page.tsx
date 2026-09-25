@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, EyeOff, ShieldAlert } from "lucide-react";
 
 import { Card } from "@/components/ui";
-import { audit } from "@/lib/audit";
+import { INVESTIGATION_WINDOW_MINUTES, investigationGrantHolds } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/guard";
-import { MIN_REASON, reasonProblem, reasonText } from "@/lib/admin/reason";
-import { investigate } from "@/lib/data/radar-admin";
+import { MIN_REASON } from "@/lib/admin/reason";
+import { investigate, reportSubject } from "@/lib/data/radar-admin";
+
+import { openInvestigation } from "./actions";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, formatDuration } from "@/lib/utils";
 
@@ -34,31 +36,51 @@ export default async function InvestigatePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ why?: string }>;
+  searchParams: Promise<{ grant?: string; short?: string }>;
 }) {
   const actor = await requireRole("super_admin");
   const { id } = await params;
-  const { why } = await searchParams;
+  const { grant, short } = await searchParams;
   const { t } = await getI18n();
+
+  const subject = await reportSubject(id);
+  if (!subject) notFound();
 
   /*
    * 🔴 W2-A10: the reader says why before a word renders, and the reason is
    * in the break-glass row. Any report used to open the whole transcript on
    * a click, with only the report's id standing for a reason nobody typed.
+   *
+   * The reason is POSTed (`openInvestigation`), which writes the one row and
+   * hands back its id; this page renders on that id for
+   * INVESTIGATION_WINDOW_MINUTES and writes nothing itself. It was `?why=`,
+   * so the reason sat in the URL and the request log, and each reload wrote
+   * another row.
    */
-  if (reasonProblem(why)) {
+  const granted = await investigationGrantHolds({
+    grantId: grant,
+    actorUserId: actor.userId,
+    sessionId: subject.sessionId,
+  });
+  if (!granted) {
     return (
-      <form method="get" className="mx-auto mt-6 max-w-md space-y-3">
+      <form action={openInvestigation.bind(null, id)} className="mx-auto mt-6 max-w-md space-y-3">
         <Card className="space-y-3 border-amber-200 bg-amber-50 p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
             <ShieldAlert className="h-4 w-4" aria-hidden />
             You are reading a therapy transcript
           </p>
+          {short ? (
+            <p role="alert" className="text-sm text-rose-700">
+              {t("aconfirm.tooShort")}
+            </p>
+          ) : grant ? (
+            <p className="text-sm text-amber-900">{t("ainv.expired", { minutes: INVESTIGATION_WINDOW_MINUTES })}</p>
+          ) : null}
           <input
             name="why"
             required
             minLength={MIN_REASON}
-            defaultValue={why ?? ""}
             placeholder={t("aconfirm.why")}
             aria-label={t("aconfirm.why")}
             className="h-10 w-full rounded-lg border border-amber-200 bg-white px-3 text-sm"
@@ -75,16 +97,6 @@ export default async function InvestigatePage({
   if (!found) notFound();
 
   const { report, gaps, transcript } = found;
-
-  await audit({
-    actor,
-    category: "phi_access",
-    action: "break_glass.investigate",
-    resourceType: "session",
-    resourceId: report.sessionId,
-    patientId: report.patientId,
-    reason: `Report ${report.id}, ${report.kind}: ${reasonText(why!)}`,
-  });
 
   return (
     <div className="space-y-5">

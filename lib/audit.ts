@@ -69,7 +69,8 @@ function isUuid(value: string | null | undefined): value is string {
   return typeof value === "string" && UUID.test(value);
 }
 
-export async function audit(input: AuditInput): Promise<void> {
+/** Returns the row's id, for the one caller that hands it on as proof of a read (the investigation grant). */
+export async function audit(input: AuditInput): Promise<string | null> {
   const [ip, ua] = await Promise.all([clientIp(), clientUserAgent()]);
 
   /*
@@ -104,7 +105,7 @@ export async function audit(input: AuditInput): Promise<void> {
     throw new Error("audit: a clinic manager's act never names a patient");
   }
 
-  await db.insert(auditLog).values({
+  const [row] = await db.insert(auditLog).values({
     organizationId: input.actor?.organizationId ?? null,
     actorUserId: input.actor?.userId ?? null,
     actorAccountId: input.patientAccountId ?? null,
@@ -132,7 +133,39 @@ export async function audit(input: AuditInput): Promise<void> {
     reason: input.reason ?? null,
     ipAddress: ip,
     userAgent: ua,
-  });
+  }).returning({ id: auditLog.id });
+  return row?.id ?? null;
+}
+
+/**
+ * 🔴 An investigation's grant: the break-glass row written when the reader gave
+ * their reason, by this reader, for this session, within the window. The page
+ * renders on it without writing another, so a reload is not a second read on
+ * the record, and the reason never travels in a URL.
+ */
+export const INVESTIGATION_WINDOW_MINUTES = 15;
+
+export async function investigationGrantHolds(input: {
+  grantId: string | null | undefined;
+  actorUserId: string;
+  sessionId: string;
+}): Promise<boolean> {
+  if (!isUuid(input.grantId)) return false;
+  const { and, eq, gt } = await import("drizzle-orm");
+  const [row] = await db
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.id, input.grantId),
+        eq(auditLog.action, "break_glass.investigate"),
+        eq(auditLog.actorUserId, input.actorUserId),
+        eq(auditLog.resourceId, input.sessionId),
+        gt(auditLog.createdAt, new Date(Date.now() - INVESTIGATION_WINDOW_MINUTES * 60_000)),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
 }
 
 /**

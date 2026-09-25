@@ -226,6 +226,40 @@ async function totalView(db: ReturnType<typeof connect>["db"]) {
     kinds.has("copilot.therapist") && kinds.has("risk") && kinds.has("rating"),
     [...kinds].join(", "),
   );
+
+  /*
+   * 🔴 THE INVESTIGATION PAGE READS ON A GRANT, NOT ON A REASON IN THE URL.
+   *
+   * `/admin/radar/investigate/[id]` took `?why=` and wrote a break-glass row
+   * on every render. The reason is POSTed now and its one row is the grant:
+   * this reader, this session, for a window. Anybody else's grant, another
+   * session's, or one past the window opens nothing.
+   */
+  const { audit, investigationGrantHolds, INVESTIGATION_WINDOW_MINUTES } = await import("../lib/audit");
+  const grantId = await audit({
+    actor: { userId: operator.id, organizationId: orgId },
+    category: "phi_access",
+    action: "break_glass.investigate",
+    resourceType: "session",
+    resourceId: session.id,
+    patientId: patient.id,
+    reason: `Report verifier, abuse: ${reason}`,
+  });
+  const holds = (grant: string | null, actorUserId: string, sessionId: string) =>
+    investigationGrantHolds({ grantId: grant, actorUserId, sessionId });
+  const mine = await holds(grantId, operator.id, session.id);
+  const someoneElse = await holds(grantId, therapist.id, session.id);
+  const otherSession = await holds(grantId, operator.id, patient.id);
+  const forged = await holds("00000000-0000-4000-8000-000000000000", operator.id, session.id);
+  await db.execute(sql`
+    UPDATE audit_log SET created_at = now() - make_interval(mins => ${INVESTIGATION_WINDOW_MINUTES + 1})
+     WHERE id = ${grantId}`);
+  const stale = await holds(grantId, operator.id, session.id);
+  check(
+    "🔴 an investigation opens on this reader's own break-glass row for this session, and only inside its window",
+    mine && !someoneElse && !otherSession && !forged && !stale,
+    JSON.stringify({ mine, someoneElse, otherSession, forged, stale }),
+  );
 }
 
 /* ================================================================== */

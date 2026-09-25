@@ -336,6 +336,22 @@ export async function countOpenReports(): Promise<number> {
   return Number(row?.total ?? 0);
 }
 
+/** What an investigation's audit row names: the report, its session and patient. Nothing clinical. */
+export async function reportSubject(reportId: string) {
+  const [report] = await db
+    .select({
+      id: sessionReports.id,
+      sessionId: sessionReports.sessionId,
+      kind: sessionReports.kind,
+      patientId: sessions.patientId,
+    })
+    .from(sessionReports)
+    .innerJoin(sessions, eq(sessions.id, sessionReports.sessionId))
+    .where(eq(sessionReports.id, reportId))
+    .limit(1);
+  return report ?? null;
+}
+
 /**
  * Everything about one reported session, for an investigation.
  *
