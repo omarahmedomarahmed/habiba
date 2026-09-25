@@ -28,6 +28,7 @@ import {
   patientAccounts,
   patients,
   people,
+  personProfiles,
   riskAssessments,
   sessionFeedback,
   sessions,
@@ -621,6 +622,66 @@ async function main() {
       "🔴 K9 the room says thank you only when the save came back ok",
       /if \(result\.ok\)[\s\S]{0,80}setDone\(true\)/.test(room) && !/await rateOnArrival\([^)]*\);\s*setDone\(true\)/.test(room),
     );
+
+    /* ----------------------- the case copilot · the newest twelve, and `before` */
+
+    const [t2q] = await db
+      .insert(patients)
+      .values({ organizationId: f.orgId, therapistId: f.t2, personId: f.q, firstName: `${TAG}-t2q`, phone: "+201555000174" })
+      .returning({ id: patients.id });
+    for (let n = 1; n <= 14; n += 1) {
+      const at = new Date(Date.now() - (20 - n) * day);
+      const [s] = await db
+        .insert(sessions)
+        .values({
+          organizationId: f.orgId,
+          therapistId: f.t2,
+          patientId: t2q!.id,
+          status: "completed",
+          modality: "video",
+          feedbackToken: randomBytes(16).toString("hex"),
+          createdAt: at,
+          startedAt: at,
+          endedAt: at,
+        })
+        .returning({ id: sessions.id });
+      await db.insert(transcriptSegments).values({
+        sessionId: s!.id,
+        organizationId: f.orgId,
+        sequence: 1,
+        speaker: "patient",
+        text: `marker-session-${n}-end`,
+      });
+    }
+    const { __patientContextForTest, __profileForTest } = await import("../lib/ai/case-copilot");
+    const context = await __patientContextForTest(t2q!.id);
+    check(
+      "🔴 the case copilot reads the NEWEST twelve sessions, not the first twelve",
+      context.sessionCount === 12 &&
+        context.transcript.includes("marker-session-14-end") &&
+        !context.transcript.includes("marker-session-2-end"),
+      `${context.sessionCount} sessions read`,
+    );
+    check(
+      "…in the order they happened",
+      context.transcript.indexOf("marker-session-3-end") < context.transcript.indexOf("marker-session-14-end") &&
+        context.transcript.indexOf("marker-session-3-end") >= 0,
+    );
+
+    await db.insert(personProfiles).values({
+      personId: f.q,
+      sections: [{ heading: "Rebuilt", body: "marker-profile-body", refs: ["S1:1"] }] as never,
+      sessionCount: 1,
+    });
+    const liveStarted = new Date(Date.now() - 3_600_000);
+    const inRoom = await __profileForTest(t2q!.id, undefined, liveStarted);
+    const afterwards = await __profileForTest(t2q!.id, undefined, null);
+    check(
+      "🔴 C373 a profile rebuilt during the live session does not reach the in-room copilot",
+      inRoom === "",
+      inRoom ? "the rebuilt profile was handed over" : "left out",
+    );
+    check("C373 CONTROL: with no live bound the same profile is read", afterwards.includes("marker-profile-body"));
 
     /* ------------------------ questionnaires · only the published languages */
 

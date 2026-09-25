@@ -237,7 +237,7 @@ async function buildPatientContext(
   index: Map<string, IndexedSegment>;
   sessionCount: number;
 }> {
-  const patientSessions = await db
+  const newestFirst = await db
     .select({
       id: sessions.id,
       endedAt: sessions.endedAt,
@@ -274,8 +274,15 @@ async function buildPatientContext(
           )
         : eq(sessions.patientId, patientId),
     )
-    .orderBy(asc(sessions.createdAt))
+    /*
+     * 🔴 The NEWEST twelve, then read oldest first. This took `ORDER BY
+     * created_at ASC LIMIT 12`, so a patient in their thirtieth session had
+     * the copilot reading sessions one to twelve and nothing since. The prompt
+     * wants time running forward, so the window is reversed after the limit.
+     */
+    .orderBy(desc(sessions.createdAt))
     .limit(MAX_SESSIONS);
+  const patientSessions = newestFirst.reverse();
 
   const index = new Map<string, IndexedSegment>();
   const parts: string[] = [];
@@ -470,8 +477,6 @@ async function profileFor(
   before?: Date | null,
 ): Promise<string> {
   if (capabilities && !capabilities.liveProfile) return "";
-  // 🔴 C373. A profile edited during the live session is not what came before it.
-  void before;
 
   const [row] = await db
     .select({ personId: patients.personId })
@@ -488,6 +493,16 @@ async function profileFor(
     .limit(1);
 
   if (!profile || profile.sections.length === 0) return "";
+
+  /*
+   * 🔴 C373 — a profile rebuilt during the live session is not what came
+   * before it. `before` used to be accepted and thrown away (`void before`),
+   * so a rebuild that read this session's own material reached the in-room
+   * copilot, which promises it knows only what came before. There is one
+   * profile row per person and no earlier version to fall back to, so a
+   * profile newer than the bound is left out entirely.
+   */
+  if (before && profile.generatedAt.getTime() >= before.getTime()) return "";
 
   const parts = [
     `Standing profile, rebuilt ${profile.generatedAt.toISOString().slice(0, 10)} from ${profile.sessionCount} session(s) and ${profile.documentCount} document(s). Every line carries the references it came from:`,
@@ -510,6 +525,10 @@ async function profileFor(
 }
 
 export const __documentsForTest = documentsFor;
+
+/** Exposed for `verify:patient-side`, which asserts the window and the bound. */
+export const __patientContextForTest = buildPatientContext;
+export const __profileForTest = profileFor;
 
 export async function askPatientCopilot(opts: {
   threadId: string;
