@@ -144,7 +144,7 @@ export function filterLedger(entries: LedgerEntry[], query: LedgerQuery): Ledger
 }
 
 /** Whether any filter narrows the ledger (sorting is not a filter). */
-export function isFiltered(query: LedgerQuery): boolean {
+function isFiltered(query: LedgerQuery): boolean {
   return (
     query.from !== null ||
     query.to !== null ||
