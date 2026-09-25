@@ -21,12 +21,13 @@ import {
   emailPatientRecordToPatient,
   emailTherapist,
   suspendUser,
-  verifyUser,
   type AdminActionState,
 } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
+import Link from "next/link";
 
 type Patient = {
   id: string;
@@ -770,6 +771,7 @@ function Manage({
   credentials: string | null;
   licence: string;
 }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -806,31 +808,22 @@ function Manage({
           two presses and a reason on the record, checked by the server at the
           same length the screen enables at.
         */}
+        {/*
+          🔴 K2: "Verify" and "Reject" used to live here and wrote the verdict
+          straight to the row: no documents read, no second reviewer, no email.
+          The verdict is given on the queue, which does all three.
+        */}
+        <p className="mt-3 text-sm text-slate-600">{t("aaccess.reviewInQueueHint")}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <ConfirmWithReason
-            label={
-              <>
-                <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-                Verify
-              </>
-            }
-            variant="primary"
-            disabled={pending || verification === "verified"}
-            onConfirm={async (reason) => {
-              const result = await verifyUser(therapistId, "verified", reason);
-              if (!result.error) setDone("Marked verified");
-              return result;
-            }}
-          />
-          <ConfirmWithReason
-            label="Reject"
-            disabled={pending || verification === "rejected"}
-            onConfirm={async (reason) => {
-              const result = await verifyUser(therapistId, "rejected", reason);
-              if (!result.error) setDone("Marked rejected");
-              return result;
-            }}
-          />
+          {verification === "pending" ? (
+            <Link
+              href="/admin/verifications"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-navy-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-navy-600"
+            >
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+              {t("aaccess.reviewInQueue")}
+            </Link>
+          ) : null}
           <ConfirmWithReason
             label={
               <>

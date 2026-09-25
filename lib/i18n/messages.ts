@@ -4656,6 +4656,9 @@ export const en = {
   "aaccess.fourPayee": "This money is yours.",
   "aaccess.fourEditor": "You last edited where it goes.",
   "aaccess.ownVerification": "Not your own.",
+  /* 🔴 K2: a verdict is given on the queue, where the documents and the second reviewer are. */
+  "aaccess.reviewInQueue": "Review on Verifications",
+  "aaccess.reviewInQueueHint": "Verification is decided on the Verifications page, with their documents in front of you and the second reviewer rule applied.",
   "aaccess.notYours": "Not your role's page. Recorded.",
   "aaccess.back": "Your work",
   "apayout.reason": "Reason the clinician reads",
@@ -8839,6 +8842,8 @@ export const ar: Record<MessageKey, string> = {
   "aaccess.fourPayee": "هذا المبلغ لك.",
   "aaccess.fourEditor": "أنت آخر من عدّل وجهته.",
   "aaccess.ownVerification": "ليس طلبك أنت.",
+  "aaccess.reviewInQueue": "المراجعة في صفحة التحقّق",
+  "aaccess.reviewInQueueHint": "يُحسم التحقّق في صفحة التحقّق، ووثائقهم أمامك وقاعدة المراجِع الثاني مطبّقة.",
   "aaccess.notYours": "هذه الصفحة ليست لدورك. سُجّل ذلك.",
   "aaccess.back": "عملك",
   "apayout.reason": "السبب الذي سيقرؤه المعالج",

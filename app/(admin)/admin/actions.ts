@@ -12,7 +12,7 @@ import { requireRole, requireStaff } from "@/lib/auth/guard";
 import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
-import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/data/admin";
+import { allTherapistRecipients, setUserStatus } from "@/lib/data/admin";
 import { decideVerification } from "@/lib/data/verification";
 import { sanitiseBlocks } from "@/lib/content/sanitise";
 import { dbFor} from "@/lib/db";
@@ -74,28 +74,6 @@ export async function suspendUser(
     reason: reasonText(reason),
   });
   revalidatePath("/admin/therapists");
-  return { ok: true };
-}
-
-export async function verifyUser(
-  userId: string,
-  status: "verified" | "rejected" | "pending",
-  reason: string,
-): Promise<AdminActionState> {
-  const actor = await requireRole("super_admin");
-  const refused = await reasonRefused(reason);
-  if (refused) return { error: refused };
-  await setVerification(userId, status, actor.userId);
-  await audit({
-    actor,
-    category: "admin",
-    action: `user.verification.${status}`,
-    resourceType: "user",
-    resourceId: userId,
-    reason: reasonText(reason),
-  });
-  revalidatePath("/admin/therapists");
-  revalidatePath("/admin/verifications");
   return { ok: true };
 }
 

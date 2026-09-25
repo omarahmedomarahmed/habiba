@@ -33,7 +33,6 @@ test("every destructive or customer-visible act checks the reason on the server"
       "app/(admin)/admin/actions.ts",
       [
         "suspendUser",
-        "verifyUser",
         "applyInvoiceDiscount",
         "editInvoice",
         "releaseTherapistEarnings",
@@ -69,7 +68,7 @@ test("no console screen throws away what an act returned", () => {
   const dir = "components/admin";
   const voided = readdirSync(dir)
     .filter((f) => f.endsWith(".tsx"))
-    .filter((f) => /void \(await (setState|activate|mintCode|liftPause|suspendUser|verifyUser)\(/.test(read(join(dir, f))));
+    .filter((f) => /void \(await (setState|activate|mintCode|liftPause|suspendUser)\(/.test(read(join(dir, f))));
   assert.deepEqual(voided, []);
 
   // The one-press versions are gone from the screens the inventory named.
@@ -77,4 +76,18 @@ test("no console screen throws away what an act returned", () => {
   assert.match(read("components/admin/taxonomy-editor.tsx"), /<ConfirmWithReason/);
   assert.match(read("components/admin/paused-benefits.tsx"), /<ConfirmWithReason/);
   assert.match(read("components/admin/sponsor-manager.tsx"), /mintCode\(sponsor\.id, reason\)/);
+});
+
+test("K2: no console shortcut gives a verification verdict outside the queue", () => {
+  const actions = read("app/(admin)/admin/actions.ts");
+  // The shortcut wrote therapist_verifications directly: no documents, no second reviewer, no email.
+  assert.doesNotMatch(actions, /export async function verifyUser\(/);
+  assert.doesNotMatch(read("lib/data/admin.ts"), /export async function setVerification\(/);
+  for (const screen of ["components/admin/clinician-row.tsx", "components/admin/therapist-panel.tsx"]) {
+    const source = read(screen);
+    assert.doesNotMatch(source, /verifyUser/, `${screen} still decides a verification`);
+    assert.match(source, /href="\/admin\/verifications"/, `${screen} does not send the reviewer to the queue`);
+  }
+  // The only verdict path left is the queue's, which runs decideVerification.
+  assert.match(bodyOf(actions, "decideTherapistVerification"), /decideVerification\(/);
 });
