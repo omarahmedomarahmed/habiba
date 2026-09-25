@@ -12,6 +12,7 @@ import { Button, Card, Field, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { MIN_REASON } from "@/lib/admin/reason";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * 🔴 0148: money back out of a pot. One person asks; a different person makes
@@ -108,7 +109,7 @@ export function PotReturns({
         <ul className="mt-3 space-y-1 text-xs text-slate-500">
           {history.map((h) => (
             <li key={h.id}>
-              {h.day} {h.state} <Money cents={h.egpMinor} currency="EGP" asIs />
+              {h.day} {t(`apot.state.${h.state}` as MessageKey)} <Money cents={h.egpMinor} currency="EGP" asIs />
               {h.reference ? ` · ${h.reference}` : ""}
             </li>
           ))}
