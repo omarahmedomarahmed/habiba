@@ -392,6 +392,14 @@ export default async function SessionDetailPage({
           canIssue={live}
         />
 
+        {/*
+          🔴 TE77 — only when a recording produced voices. Nothing writes
+          `session_voices` yet: the diarisation provider is the named gap in
+          `lib/diarisation/provider.ts` (37.4), so every session read "No
+          separate voices were detected", a promise with nothing behind it.
+          The panel returns the day `recordVoices` has a caller.
+        */}
+        {voices.length > 0 ? (
         <VoicesPanel
           sessionId={id}
           voices={voices.map((voice) => ({
@@ -406,13 +414,14 @@ export default async function SessionDetailPage({
           }))}
           canEdit={!live}
         />
+        ) : null}
 
         {transcript.length > 0 ? (
           <details className="group rounded-2xl border border-slate-200 bg-white">
             <summary className="tap-target flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-800">
               {t("portal.session.transcript")}
               <span className="text-xs font-normal text-slate-500">
-                {transcript.length} segments
+                {t("portal.session.segments", { count: transcript.length })}
               </span>
             </summary>
             {/*

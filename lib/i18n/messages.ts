@@ -1534,6 +1534,7 @@ export const en = {
   "portal.session.cancelYes": "Yes, cancel it",
   "portal.session.openRoom": "Open room",
   "portal.session.transcript": "Transcript",
+  "portal.session.segments": "{count} segments",
   "portal.session.noTranscript": "No transcript was captured for this session.",
   /*
    * 51.6 — `session_sources` and `session_voices` both had a table, a service,
@@ -6218,6 +6219,7 @@ export const ar: Record<MessageKey, string> = {
   "portal.session.cancelYes": "نعم، ألغِها",
   "portal.session.openRoom": "افتح الغرفة",
   "portal.session.transcript": "نصّ الجلسة",
+  "portal.session.segments": "{count} مقطعًا",
   "portal.session.noTranscript": "لم يُسجَّل نصّ لهذه الجلسة.",
   "portal.source.title": "مصدر صوت هذه الجلسة",
   "portal.source.none": "لا يوجد مصدر مسجل لهذه الجلسة.",
