@@ -57,7 +57,7 @@ export async function setStep(
 
   if (!result.ok) return { error: result.error };
 
-  revalidatePath(`/patients/${patientId}/homework`);
+  revalidatePath(`/patients/${patientId}/documents`);
   return { ok: true };
 }
 
@@ -77,6 +77,6 @@ export async function removeStep(patientId: string, itemId: string): Promise<Hom
     return { error: "That step has already been answered, so it stays on the record." };
   }
 
-  revalidatePath(`/patients/${patientId}/homework`);
+  revalidatePath(`/patients/${patientId}/documents`);
   return { ok: true };
 }
