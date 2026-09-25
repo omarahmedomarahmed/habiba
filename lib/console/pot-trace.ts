@@ -1,9 +1,10 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
-import { enrolments, patients, sessionPayments, sessions, sponsors, users } from "@/lib/db/schema";
+import { qualified } from "@/lib/db/qualified";
+import { patients, sessionPayments, sessions, sponsors, users } from "@/lib/db/schema";
 
 /**
  * 🔴 76.29 — WHERE EVERY POT CENT WENT, AND THE ONE THING IT WILL NOT SAY.
@@ -103,11 +104,47 @@ export async function potTrace(
      * first place. Reading it the same way here means this screen and the spend
      * cannot disagree about whose money paid for what.
      */
-    .innerJoin(enrolments, eq(enrolments.personId, patients.personId))
     .leftJoin(users, eq(users.id, sessionPayments.therapistId))
     .where(
       and(
-        eq(enrolments.sponsorId, sponsorId),
+        /*
+         * 🔴 KEYED ON THE POT'S OWN LEDGER LEGS, not on the enrolment.
+         *
+         * The enrolment join listed another sponsor's funded sessions for
+         * anybody enrolled with two companies, and every session twice for
+         * somebody who re-enrolled (two enrolment rows, one session). The pot
+         * leg that paid a session shares its transaction with that session's
+         * own posting (`payFromPot`, 53.16), and names the sponsor it came
+         * from: that is the fact, so it is what this asks. A row booked before
+         * the shared transaction existed is matched the way `potSpendOf`
+         * matches it, a pot leg for this sponsor within a minute of the
+         * payment, for a person enrolled with them.
+         */
+        sql`(
+          EXISTS (
+            SELECT 1 FROM ledger_entries pot
+              JOIN ledger_entries leg ON leg.txn_id = pot.txn_id
+             WHERE pot.account = 'sponsor_pot' AND pot.ref_type = 'sponsor'
+               AND pot.ref_id = ${sponsorId}::uuid AND pot.amount_cents > 0
+               AND pot.txn_kind <> 'pot_return'
+               AND leg.ref_type = 'session_payment' AND leg.ref_id = ${qualified(sessionPayments.id)})
+          OR (
+            NOT EXISTS (
+              SELECT 1 FROM ledger_entries pot
+                JOIN ledger_entries leg ON leg.txn_id = pot.txn_id
+               WHERE pot.account = 'sponsor_pot' AND pot.ref_type = 'sponsor'
+                 AND leg.ref_type = 'session_payment' AND leg.ref_id = ${qualified(sessionPayments.id)})
+            AND EXISTS (
+              SELECT 1 FROM enrolments e
+               WHERE e.person_id = ${qualified(patients.personId)} AND e.sponsor_id = ${sponsorId}::uuid)
+            AND EXISTS (
+              SELECT 1 FROM ledger_entries pot
+               WHERE pot.account = 'sponsor_pot' AND pot.ref_type = 'sponsor'
+                 AND pot.ref_id = ${sponsorId}::uuid AND pot.amount_cents > 0
+                 AND pot.txn_kind <> 'pot_return'
+                 AND abs(extract(epoch FROM (pot.created_at - ${qualified(sessionPayments.paidAt)}))) <= 60)
+          )
+        )`,
         /*
          * 🔴 AND IT WAS ACTUALLY FUNDED FROM THE POT. A `session_payments` row
          * exists for every paid session, sponsored or not, so without this the

@@ -62,8 +62,26 @@ export async function sweepInPerson(now = new Date()): Promise<{ expired: number
       )
       .limit(100);
 
-    const { refundSessionPayment } = await import("@/lib/billing/connect");
+    const { refundSessionPayment, refundSessionToWallet } = await import("@/lib/billing/connect");
     for (const row of stale) {
+      const reason = "Paid in person and never started before the link ran out";
+      /*
+       * 🔴 K16d (ME47): `rules.inPerson.refundTo` decides where it goes, and it
+       * was never read. `wallet` credits what the patient paid to their wallet
+       * where the money is ours to hold; anything else, and a payment that
+       * cannot go that way, takes the ordinary refund.
+       */
+      if (rules.refundTo === "wallet") {
+        const toWallet = await refundSessionToWallet({ paymentId: row.paymentId, reason });
+        if (toWallet.ok) {
+          await controlDb
+            .update(sessions)
+            .set({ status: "cancelled", joinToken: null, joinTokenExpiresAt: null, updatedAt: now })
+            .where(and(eq(sessions.id, row.sessionId), eq(sessions.status, "scheduled"), isNull(sessions.patientJoinedAt), isNull(sessions.startedAt)));
+          refunded += 1;
+          continue;
+        }
+      }
       /*
        * `refundSessionPayment` returns the company's share to its pot and the
        * patient's to them (card back through the gateway, or the refund queue),
@@ -71,7 +89,7 @@ export async function sweepInPerson(now = new Date()): Promise<{ expired: number
        */
       const back = await refundSessionPayment({
         paymentId: row.paymentId,
-        reason: "Paid in person and never started before the link ran out",
+        reason,
         adminUserId: null,
         why: "not_started",
       });

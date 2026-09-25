@@ -526,8 +526,26 @@ export async function createSessionPaymentCheckout(opts: {
    * the therapist is paid on the full price, and a fee that moved with the
    * split would make a clinician's revenue depend on their patient's employer.
    */
-  const patientGross = covered ? covered.patientShareCents : gross;
+  const patientShare = covered ? covered.patientShareCents : gross;
   const money = sessionMoney({ grossCents: gross, feeBps, vatBps: 0 });
+
+  /*
+   * 🔴 K16e (ME22): WHAT THE PATIENT'S WALLET ALREADY HOLDS FOR THIS SESSION.
+   *
+   * The hold was taken at booking and every other screen asks for the rest,
+   * but this checkout charged the whole share, and the Stripe settlement never
+   * spent the hold, so the patient paid twice and the credit sat held for ever.
+   *
+   * On a destination charge the clinician's part leaves with the charge, so
+   * the wallet's part comes out of OUR application fee: the clinician still
+   * receives the price less our cut, and the books spend the wallet against
+   * the fee (`spendHold`: less cash came in). A wallet larger than the fee
+   * cannot be routed that way, so that hold is released and the card pays the
+   * share; the credit stays in the wallet for the next session.
+   */
+  const { walletCentsOn, releaseHold } = await import("./wallet");
+  const walletCents = Math.min(patientShare, await walletCentsOn(opts.sessionId));
+  const patientGross = patientShare - walletCents;
   /* 🔴 Ruling 2: exempt by default; the country's rate only when the rule says so. */
   const sessionVatBps = sessionVatBpsFor(settings.rules, country.vatBps);
   const patientVatCents = vatOn(patientGross, sessionVatBps);
@@ -670,7 +688,17 @@ export async function createSessionPaymentCheckout(opts: {
         platformFeeCents: cut,
       }).employee.feeCents
     : null;
-  const applicationFee = convertAtRate(coveredFee ?? cut + settlement, quote.rateMicro);
+  const baseFee = coveredFee ?? cut + settlement;
+  if (walletCents > 0 && walletCents >= baseFee) {
+    /* K16e: more wallet than fee; see above. The card pays the share. */
+    await releaseHold(opts.sessionId);
+    log.info("wallet hold released: larger than the fee a card charge can carry", { session: ref(opts.sessionId) });
+    return { error: "Your wallet credit changed. Reload this page to see the amount to pay." };
+  }
+  if (patientGross <= 0) return { error: "This session is already paid for." };
+  /* K16e: the wallet's part comes out of our fee; the books keep the whole fee. */
+  const applicationFee = convertAtRate(baseFee - walletCents, quote.rateMicro);
+  const bookedFee = convertAtRate(baseFee, quote.rateMicro);
 
   try {
     const checkout = await client.checkout.sessions.create({
@@ -800,7 +828,7 @@ export async function createSessionPaymentCheckout(opts: {
       presentedCurrency: collectionCurrency,
       fxRateMicro: quote.rateMicro,
       fxQuotedAt: quote.quotedAt,
-      applicationFeeCents: applicationFee,
+      applicationFeeCents: bookedFee,
       feeBps,
       settledInvoiceCents: settlement,
       checkoutId: checkout.id,
@@ -1011,6 +1039,14 @@ export async function settleSessionPayment(checkout: {
       therapistNetCents: row.therapistNetCents,
     });
 
+    /*
+     * 🔴 K16e (ME22): and the wallet's hold is spent, as every other rail's
+     * claim spends it. This path marks the session paid itself rather than
+     * through `claimSessionPaid`, so the hold stayed `held` for ever.
+     */
+    const { spendHold } = await import("./wallet");
+    await spendHold(row.sessionId);
+
     // How they paid, for the clinician's records and for a dispute. Best
     // effort: a missing card brand must never hold up a session starting.
     await recordPaymentMethod(row.id, checkout.paymentIntentId);
@@ -1119,6 +1155,87 @@ async function recordPaymentMethod(paymentId: string, paymentIntentId: string | 
   } catch (error) {
     log.warn("payment method read failed", { reason: safeErrorMessage(error) });
   }
+}
+
+/**
+ * 🔴 K16d (ME47): A REFUND TO THE PATIENT'S WALLET, where the rule says so.
+ *
+ * `rules.inPerson.refundTo` has shipped as `wallet` and nothing read it, so a
+ * paid in-person session that never started went back to the rail it came
+ * by. This is the wallet route: the payment is claimed `refunded` once, its
+ * books reverse exactly as a card refund's would, and what the patient paid
+ * becomes a wallet credit instead of cash leaving us (`cash` in, the wallet
+ * liability up, so no money moves). The wallet's own part goes back through
+ * `returnSpentHold`, as on every refund.
+ *
+ * Only where the money is ours to hold: a payment we captured (`platform`)
+ * that is not a company's pot row, for a patient with a person to credit. A
+ * destination charge already paid the clinician, and a pot row is two payers,
+ * so those take the ordinary refund (`fallback`).
+ */
+export async function refundSessionToWallet(opts: {
+  paymentId: string;
+  reason: string;
+}): Promise<{ ok?: true; fallback?: true; toWalletCents?: number }> {
+  const [payment] = await db
+    .select()
+    .from(sessionPayments)
+    .where(eq(sessionPayments.id, opts.paymentId))
+    .limit(1);
+  if (!payment || payment.status !== "paid") return { fallback: true };
+  if (payment.fundingSource === "pot" || payment.capture !== "platform") return { fallback: true };
+
+  const { patients } = await import("@/lib/db/schema");
+  const [who] = await db
+    .select({ personId: patients.personId })
+    .from(sessions)
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .where(eq(sessions.id, payment.sessionId))
+    .limit(1);
+  if (!who?.personId) return { fallback: true };
+
+  const { walletSpentOn, returnSpentHold, creditWallet } = await import("./wallet");
+  const { refundOwedCents } = await import("./split-refund");
+  const cents = Math.max(
+    0,
+    refundOwedCents({ ...payment, coverageBps: payment.coverageBps ?? 0 }) - (await walletSpentOn(payment.sessionId)),
+  );
+
+  const [refunded] = await db
+    .update(sessionPayments)
+    .set({ status: "refunded" })
+    .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")))
+    .returning({ id: sessionPayments.id });
+  if (!refunded) return { ok: true, toWalletCents: 0 };
+
+  const { postSessionRefund } = await import("./ledger");
+  await postSessionRefund({
+    id: payment.id,
+    organizationId: payment.organizationId,
+    therapistId: payment.therapistId,
+    capture: payment.capture,
+    grossCents: payment.grossCents,
+    vatCents: payment.vatCents,
+    platformFeeCents: payment.platformFeeCents,
+    settledInvoiceCents: payment.settledInvoiceCents,
+    therapistNetCents: payment.therapistNetCents,
+  });
+  /* The reversal took the cash out; it stays with us as the patient's wallet. */
+  await creditWallet({
+    personId: who.personId,
+    cents,
+    reason: opts.reason,
+    fromSessionId: payment.sessionId,
+    kind: "wallet_return",
+    from: [{ account: "cash", amountCents: cents, organizationId: payment.organizationId, memo: "Refunded to the patient's wallet" }],
+  });
+  await db
+    .update(sessions)
+    .set({ paymentStatus: "pending", updatedAt: new Date() })
+    .where(eq(sessions.id, payment.sessionId));
+  await returnSpentHold(payment.sessionId, opts.reason);
+  log.info("session refunded to the wallet", { payment: ref(payment.id), cents });
+  return { ok: true, toWalletCents: cents };
 }
 
 /**
@@ -1574,23 +1691,49 @@ export async function releaseHeldEarnings(
   // The row exists before the transfer does, so a crash between the two leaves
   // a `pending` record to investigate rather than money moved with nothing
   // saying so.
-  const [transfer] = await db
-    .insert(earningsTransfers)
-    .values({
-      organizationId: row.organizationId,
-      therapistId,
-      amountCents: held,
-      stripeAccountId: account.accountId,
-      releasedBy: opts.adminUserId ?? null,
-    })
-    .returning({ id: earningsTransfers.id });
+  /*
+   * 🔴 K16f (ME19): ONE RELEASE AT A TIME PER CLINICIAN, AND NEVER OF MONEY
+   * ALREADY ON ITS WAY.
+   *
+   * The nightly sweep and an admin (or the webhook) could both read the same
+   * held balance and both insert a transfer for it, each with its own Stripe
+   * idempotency key, so the clinician was paid twice. The amount is now read
+   * under a per-clinician lock, less every release still `pending`, and the
+   * pending row is written before the lock is let go: the second caller waits,
+   * then finds nothing left to send.
+   */
+  const claimed = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`earnings-release:${therapistId}`}))`);
+    const found = await tx.execute(sql`
+      SELECT
+        (SELECT COALESCE(-SUM(amount_cents), 0)::int FROM ledger_entries
+          WHERE account = 'therapist_payable' AND user_id = ${therapistId}) AS held,
+        (SELECT COALESCE(SUM(amount_cents), 0)::int FROM earnings_transfers
+          WHERE therapist_id = ${therapistId} AND status = 'pending') AS in_flight`);
+    const figures = found.rows[0] as { held: number; in_flight: number } | undefined;
+    const available = Math.max(0, Number(figures?.held ?? 0) - Number(figures?.in_flight ?? 0));
+    if (available <= 0) return null;
+    const [inserted] = await tx
+      .insert(earningsTransfers)
+      .values({
+        organizationId: row.organizationId,
+        therapistId,
+        amountCents: available,
+        stripeAccountId: account.accountId!,
+        releasedBy: opts.adminUserId ?? null,
+      })
+      .returning({ id: earningsTransfers.id, amountCents: earningsTransfers.amountCents });
+    return inserted ?? null;
+  });
 
-  if (!transfer) return { movedCents: 0, error: "Could not record the release." };
+  if (!claimed) return { movedCents: 0 };
+  const transfer = { id: claimed.id };
+  const releasing = claimed.amountCents;
 
   try {
     const created = await client.transfers.create(
       {
-        amount: held,
+        amount: releasing,
         currency: "usd",
         destination: account.accountId,
         description: "24Therapy, session earnings held during payout setup",
@@ -1601,20 +1744,25 @@ export async function releaseHeldEarnings(
       { idempotencyKey: `earnings-release-${transfer.id}` },
     );
 
+    /*
+     * K16f: the books first, then the row out of `pending`. The other way
+     * round, a release reading between the two would see the money neither in
+     * flight nor gone from the balance, and send it again.
+     */
+    await postEarningsTransfer({
+      transferId: transfer.id,
+      organizationId: row.organizationId,
+      therapistId,
+      amountCents: releasing,
+    });
+
     await db
       .update(earningsTransfers)
       .set({ status: "paid", stripeTransferId: created.id, paidAt: new Date() })
       .where(eq(earningsTransfers.id, transfer.id));
 
-    await postEarningsTransfer({
-      transferId: transfer.id,
-      organizationId: row.organizationId,
-      therapistId,
-      amountCents: held,
-    });
-
-    log.info("held earnings released", { user: ref(therapistId), amount: held });
-    return { movedCents: held };
+    log.info("held earnings released", { user: ref(therapistId), amount: releasing });
+    return { movedCents: releasing };
   } catch (error) {
     await db
       .update(earningsTransfers)
