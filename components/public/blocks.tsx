@@ -898,7 +898,6 @@ async function ContactBlock({
   return (
     <section className="bg-navy-50 px-5 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto max-w-2xl">
-        <SiteCard className="p-5 sm:p-8">
           <ContactForm
             heading={block.heading}
             body={block.body}
@@ -908,7 +907,6 @@ async function ContactBlock({
             }))}
             strings={strings}
           />
-        </SiteCard>
       </div>
     </section>
   );

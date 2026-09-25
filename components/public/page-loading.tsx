@@ -23,10 +23,10 @@ export async function PageLoading() {
     <div role="status" aria-busy="true" className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <span className="sr-only">{t("common.loading")}</span>
       <div aria-hidden className="animate-pulse space-y-4">
-        <div className="h-8 w-2/3 max-w-md rounded-lg bg-slate-200" />
-        <div className="h-4 w-full max-w-xl rounded-lg bg-slate-100" />
-        <div className="h-32 rounded-2xl bg-slate-100" />
-        <div className="h-32 rounded-2xl bg-slate-100" />
+        <div className="h-10 w-2/3 max-w-md rounded-2xl bg-navy-100" />
+        <div className="h-4 w-full max-w-xl rounded-full bg-navy-50" />
+        <div className="h-32 rounded-[28px] bg-navy-50" />
+        <div className="h-32 rounded-[28px] bg-navy-50" />
       </div>
     </div>
   );

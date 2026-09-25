@@ -91,7 +91,7 @@ export function ContactForm({
 
   if (state.ok) {
     return (
-      <Card className="border-brand-200 bg-brand-50 p-5">
+      <Card className="rounded-[28px] border-brand-200 bg-brand-50 p-6 sm:p-8">
         <p className="flex items-center gap-2 text-sm font-semibold text-brand-900">
           <CheckCircle2 className="h-4 w-4" aria-hidden />
           {s("contact.received")}
@@ -119,15 +119,15 @@ export function ContactForm({
   }
 
   return (
-    <Card className="p-5">
+    <Card className="rounded-[28px] border-0 p-6 ring-1 ring-navy-100 shadow-[0_20px_50px_-40px_rgba(10,35,66,0.5)] sm:p-8">
       {heading ? (
-        <h2 className="text-lg font-bold text-slate-900">{heading}</h2>
+        <h2 className="text-[24px] font-bold tracking-tight text-navy-700">{heading}</h2>
       ) : null}
       {body ? (
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{body}</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-navy-500">{body}</p>
       ) : null}
 
-      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3">
+      <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 p-4">
         <AlertTriangle
           className="mt-0.5 h-4 w-4 shrink-0 text-rose-600"
           aria-hidden
