@@ -1,44 +1,40 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 
-import { Button } from "@/components/ui";
+import { DarkBand, Eyebrow, Lede, Rise, SiteCard, SiteTitle, btn } from "@/components/public/site-ui";
 import type { DoorKey } from "@/lib/auth/doors";
 import type { Translate } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 
 /**
- * One shape, used by all four audience pages. Task 155.
+ * One shape, used by all four audience pages. Task 155, drawn to the mockups'
+ * audience template (`app/design/website/_site/audience.tsx`).
  *
  * ## What it replaces
  *
  * Three pages in three shapes. `/for-companies` opened with a navy hero and
  * then became a two column essay; `/for-clinics` opened with the same hero and
- * then became four questions in a narrow column; `/for-patients` is a CMS row
- * whose feature tiles render an icon and a title and **discard the body**, so
- * fourteen claims on that page are a heading with nothing under it. There was
- * no `/for-therapists` at all, which is the audience that pays us.
+ * then became four questions in a narrow column; `/for-patients` is a CMS row.
+ * There was no `/for-therapists` at all, which is the audience that pays us.
  *
  * ## The rule that keeps it honest
  *
  * **A feature only gets a band if a working component can go in it.** Not a
  * screenshot, not an illustration: the component the product renders, fed
- * fixtures. A feature with nothing to show gets a line in the ruled list at the
- * foot of the nearest band instead.
+ * fixtures. A feature with nothing to show gets a card in the list at the foot
+ * of the bands instead.
  *
  * That rule is what stops this becoming the thing it replaces. A page that
  * renders the product cannot describe a product we do not have: delete the
  * feature and the build breaks, which is the only kind of marketing claim that
- * maintains itself. `components/public/audience-demos.tsx` has been doing this
- * for two sprints and it is the precedent.
+ * maintains itself.
  *
  * ## Why the ground alternates
  *
  * Eight bands on one ground read as a list, and a reader scrolls past a list.
- * White, then `slate-50`, and the side the component sits on swaps with it, so
- * the eye has to move to follow the argument. The navy ground is spent twice
- * and only twice, at the top and at the bottom, which is what makes it mean
- * anything: the homepage currently stacks five navy heroes and the ground has
- * stopped meaning anything at all there.
+ * White, then navy-50, and the side the component sits on swaps with it, so
+ * the eye has to move to follow the argument. The dark ground is spent at the
+ * top and at the bottom, which is what makes it mean anything.
  */
 
 export type Feature = {
@@ -65,33 +61,33 @@ export function FeatureBands({ features }: { features: Feature[] }) {
         return (
           <section
             key={feature.heading}
-            className={cn("px-4 py-14 sm:px-6 sm:py-20", mirrored ? "bg-slate-50" : "bg-white")}
+            className={cn("px-5 py-16 sm:px-6 sm:py-24", mirrored ? "bg-navy-50" : "bg-white")}
           >
-            <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
               {/*
                 `lg:order-2` on the text when mirrored, rather than two separate
-                markup branches. The DOM order stays "picture, then words" in
+                markup branches. The DOM order stays "words, then picture" in
                 both, so a screen reader and a phone get the same sequence
                 every time and only the wide layout swaps.
               */}
-              <div className={cn("min-w-0", mirrored && "lg:order-2")}>
-                <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
-                  [ {String(index + 1).padStart(2, "0")} ] {feature.label}
-                </p>
-                <h2 className="mt-3 text-balance text-2xl font-bold leading-tight tracking-tight text-navy-500 sm:text-[1.75rem]">
-                  {feature.heading}
-                </h2>
-                <p className="mt-3 max-w-[60ch] leading-relaxed text-slate-700">{feature.body}</p>
+              <Rise className={cn("min-w-0", mirrored && "lg:order-2")}>
+                <Eyebrow>
+                  <span className="tabular-nums text-navy-400">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="mx-2.5 inline-block h-1 w-1 rounded-full bg-navy-200 align-middle" aria-hidden />
+                  {feature.label}
+                </Eyebrow>
+                <SiteTitle className="mt-3 text-[28px] sm:text-[38px]">{feature.heading}</SiteTitle>
+                <Lede className="mt-4">{feature.body}</Lede>
                 {feature.link ? (
                   <Link
                     href={feature.link.href}
-                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-800"
+                    className="mt-6 inline-flex items-center gap-1.5 text-[15px] font-semibold text-brand-700 hover:text-brand-800"
                   >
                     {feature.link.label}
-                    <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
+                    <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
                   </Link>
                 ) : null}
-              </div>
+              </Rise>
 
               <div className={cn("min-w-0", mirrored && "lg:order-1")}>{feature.demo}</div>
             </div>
@@ -105,23 +101,25 @@ export function FeatureBands({ features }: { features: Feature[] }) {
 /**
  * The things that are true and have nothing to render.
  *
- * A ruled list, not a grid of cards with icons. Each one is a fact with no
- * screen behind it, and dressing a fact up as a feature tile is exactly how
- * `/for-patients` ended up with fourteen headings and no product.
+ * The mockups' "what you get" cards, with a tick rather than an invented icon:
+ * each one is a fact with no screen behind it, and dressing a fact up as a
+ * feature with its own illustration is how `/for-patients` ended up with
+ * fourteen headings and no product.
  */
 export function AlsoIncluded({ title, items }: { title: string; items: string[] }) {
   return (
-    <section className="bg-white px-4 py-12 sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
-          {title}
-        </h2>
-        <ul className="mt-5 grid gap-x-10 border-t border-slate-200 sm:grid-cols-2">
+    <section className="bg-white px-5 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-7xl">
+        <Eyebrow>{title}</Eyebrow>
+        <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
             <li
               key={item}
-              className="border-b border-slate-200 py-3.5 text-sm leading-relaxed text-slate-700"
+              className="flex gap-4 rounded-[24px] bg-navy-50 p-5 text-[16px] leading-relaxed text-navy-600 ring-1 ring-navy-100"
             >
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy-900 text-brand-300">
+                <Check className="h-4 w-4" aria-hidden />
+              </span>
               {item}
             </li>
           ))}
@@ -153,23 +151,17 @@ export function CostPanel({
   cta?: { label: string; href: string };
 }) {
   return (
-    <section className="bg-slate-50 px-4 py-14 sm:px-6 sm:py-20">
+    <section className="bg-navy-50 px-5 py-16 sm:px-6 sm:py-24">
       <div className="mx-auto max-w-6xl">
-        <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
-          {label}
-        </p>
-        <h2 className="mt-3 text-2xl font-bold tracking-tight text-navy-500 sm:text-[1.75rem]">
-          {heading}
-        </h2>
-        {body ? <p className="mt-3 max-w-[60ch] leading-relaxed text-slate-700">{body}</p> : null}
+        <Eyebrow>{label}</Eyebrow>
+        <SiteTitle className="mt-3">{heading}</SiteTitle>
+        {body ? <Lede className="mt-4">{body}</Lede> : null}
 
-        <div className="mt-7 rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
-          {children}
-        </div>
+        <SiteCard className="mt-8">{children}</SiteCard>
 
         {cta ? (
-          <Link href={cta.href} className="mt-6 inline-block">
-            <Button size="lg">{cta.label}</Button>
+          <Link href={cta.href} className={cn(btn.dark, "mt-8")}>
+            {cta.label}
           </Link>
         ) : null}
       </div>
@@ -180,9 +172,11 @@ export function CostPanel({
 /**
  * The closing band, and the way to the other three pages.
  *
- * The cross links are a hairline row rather than a grid of cards, because a
- * reader who is on the right page should not be offered three equally weighted
- * alternatives to it. They are for the reader who is on the wrong one.
+ * The mockups' closing call: the dark band, the slow light behind it, one
+ * teal button. The cross links sit under it as a quiet row rather than a grid
+ * of cards, because a reader who is on the right page should not be offered
+ * three equally weighted alternatives to it. They are for the reader who is on
+ * the wrong one.
  */
 export function AudienceClose({
   who,
@@ -209,46 +203,51 @@ export function AudienceClose({
   ).filter((row) => row.key !== who);
 
   return (
-    <section className="bg-navy-500 px-4 py-16 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-6xl">
-        <h2 className="max-w-2xl text-balance text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
-          {heading}
-        </h2>
+    <DarkBand className="px-5 pt-20 pb-10 sm:px-6 sm:pt-28">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute start-1/2 top-[40%] -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 animate-[spin_18s_linear_infinite] rounded-full motion-reduce:animate-none rtl:translate-x-1/2"
+        style={{
+          background:
+            "conic-gradient(from 0deg, rgba(46,196,182,0.0), rgba(46,196,182,0.35), rgba(46,196,182,0.0) 40%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-3xl text-center">
+        <SiteTitle dark>{heading}</SiteTitle>
         {body ? (
-          <p className="mt-3 max-w-xl leading-relaxed text-white/85">{body}</p>
+          <Lede dark className="mx-auto mt-4">
+            {body}
+          </Lede>
         ) : null}
 
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-          <Link href={cta.href}>
-            <Button size="lg" variant="primary" full className="sm:w-auto">
-              {cta.label}
-              <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
-            </Button>
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link href={cta.href} className={cn(btn.primary, btn.lg)}>
+            {cta.label}
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
           </Link>
           {secondary ? (
-            <Link href={secondary.href}>
-              <Button size="lg" variant="ghost" full className="text-white hover:bg-white/10 sm:w-auto">
-                {secondary.label}
-              </Button>
+            <Link href={secondary.href} className={cn(btn.light, btn.lg)}>
+              {secondary.label}
             </Link>
           ) : null}
         </div>
-
-        <div className="mt-12 flex flex-wrap items-baseline gap-x-5 gap-y-2 border-t border-white/15 pt-6">
-          <span className="font-mono text-xs uppercase tracking-[0.14em] text-white/60">
-            {t("nav.notYou")}
-          </span>
-          {others.map((row) => (
-            <Link
-              key={row.key}
-              href={row.href}
-              className="text-sm font-medium text-white/85 hover:text-white"
-            >
-              {row.label}
-            </Link>
-          ))}
-        </div>
       </div>
-    </section>
+
+      <div className="relative mx-auto mt-20 flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-2 border-t border-white/10 pt-6">
+        <span className="me-2 text-[13px] font-bold uppercase tracking-[0.16em] text-white/60 rtl:tracking-normal">
+          {t("nav.notYou")}
+        </span>
+        {others.map((row) => (
+          <Link
+            key={row.key}
+            href={row.href}
+            className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[14px] font-semibold text-white/85 ring-1 ring-white/15 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            {row.label}
+            <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" aria-hidden />
+          </Link>
+        ))}
+      </div>
+    </DarkBand>
   );
 }

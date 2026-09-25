@@ -53,11 +53,15 @@ export function LanguageSwitch({
   className,
   offered,
   pathname,
+  tone = "light",
 }: {
   className?: string;
   offered?: { code: string; nativeName: string }[];
   pathname?: string;
+  /** The website's header is navy; everywhere else sits on a light ground. */
+  tone?: "light" | "dark";
 }) {
+  const dark = tone === "dark";
   const current = useLocale();
   const router = useRouter();
   const routerPath = usePathname();
@@ -76,11 +80,15 @@ export function LanguageSwitch({
 
   return (
     <div
-      className={cn("inline-flex items-center gap-1 rounded-full bg-slate-100 p-0.5", className)}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full p-0.5",
+        dark ? "bg-white/10 ring-1 ring-white/15" : "bg-slate-100",
+        className,
+      )}
       role="group"
       aria-label={current === "ar" ? "اللغة" : "Language"}
     >
-      <Languages className="ms-2 h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
+      <Languages className={cn("ms-2 h-3.5 w-3.5 shrink-0", dark ? "text-white/85" : "text-slate-600")} aria-hidden />
       {(offered?.map((row) => row.code as Locale) ?? LOCALES).map((locale) => (
         <button
           key={locale}
@@ -94,8 +102,12 @@ export function LanguageSwitch({
             // WCAG exemption for links in a sentence does not cover it.
             "flex min-h-11 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50",
             locale === current
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-600 hover:text-slate-900",
+              ? dark
+                ? "bg-white text-navy-700 shadow-sm"
+                : "bg-white text-slate-900 shadow-sm"
+              : dark
+                ? "text-white/85 hover:text-white"
+                : "text-slate-600 hover:text-slate-900",
           )}
         >
           {LOCALE_NAMES[locale]}

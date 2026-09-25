@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Phone } from "lucide-react";
 
 import { AudienceRotator } from "@/components/public/audience-rotator";
 import { ComponentShowcase } from "@/components/demo/component-showcase";
@@ -25,7 +25,9 @@ async function stringsForLocale(
 import { getCountries } from "@/lib/settings";
 import { PricingTiers } from "@/components/public/pricing-tiers";
 import { RadarHero } from "@/components/radar/radar-hero";
-import { Button } from "@/components/ui";
+import { DarkBand, Glow, Lede, Rise, SiteCard, SiteTitle, btn } from "@/components/public/site-ui";
+import { FaqList } from "@/components/public/site-motion";
+import { cn } from "@/lib/utils";
 import { safeImageUrl } from "@/lib/content/url";
 import type { ContentBlock, ContentDemo } from "@/lib/db/schema";
 
@@ -375,216 +377,180 @@ function Hero({
 
   const image = safeImageUrl(block.backgroundImage);
 
+  /* The demos this band can draw beside its words. Anything else is words alone, full width. */
+  const hasDemo =
+    block.demo === "session-room" ||
+    block.demo === "patient-app" ||
+    block.demo === "company" ||
+    block.demo === "clinic" ||
+    block.demo === "fee-split";
+
   return (
-    <section className="relative overflow-hidden bg-navy-500 px-4 pt-14 pb-16 sm:px-6 sm:pt-20 sm:pb-24">
+    <DarkBand className="px-5 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-24">
       {image ? (
         <>
           <div
             aria-hidden
-            className="absolute inset-0 bg-cover bg-center opacity-25"
+            className="absolute inset-0 -z-10 bg-cover bg-center opacity-20"
             style={{ backgroundImage: `url(${image})` }}
           />
           {/* Keeps text contrast usable whatever image an admin chooses. */}
           <div
             aria-hidden
-            className="absolute inset-0 bg-gradient-to-br from-navy-600/95 via-navy-500/85 to-navy-600/95"
+            className="absolute inset-0 -z-10 bg-gradient-to-b from-navy-900/90 via-navy-900/80 to-navy-900"
           />
         </>
       ) : null}
+      <Glow className="-start-40 top-10 h-[520px] w-[520px] opacity-60" />
 
       <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 -end-32 h-96 w-96 rounded-full bg-brand-500/20 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-40 -start-32 h-96 w-96 rounded-full bg-brand-500/15 blur-3xl"
-      />
-
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
-        <div>
+        className={cn(
+          "relative mx-auto grid max-w-7xl items-center gap-12",
+          hasDemo ? "lg:grid-cols-2 lg:gap-16" : "max-w-4xl",
+        )}
+      >
+        <div className="min-w-0 animate-[fade-rise_0.5s_ease-out_both]">
           {/*
             🔴 C95 / 21R.10 — the icon sits WITH the text, never on a line of
-            its own.
+            its own. It shares a row with the eyebrow, and when there is no
+            eyebrow it shares one with the heading itself, so there is no
+            arrangement of hero content that puts it alone.
 
-            It used to render as a block between the eyebrow and the heading,
-            so every hero opened with a floating square: the founder found it
-            by looking at the live site, which is the whole argument for 22R.
-            It now shares a row with the eyebrow, and when there is no eyebrow
-            it shares one with the heading itself — so there is no arrangement
-            of hero content that puts it alone.
-
-            The row is `flex`, not a margin: `gap` and `items-center` are
-            direction-agnostic, so Arabic gets the icon on the right of the
-            text without a second rule. Anything using `ms-`/`me-` would have
-            been correct too; anything using `ml-`/`mr-` would have looked
-            fixed in English and wrong in Arabic, which is where this kind of
-            thing hides (19.3).
+            The row is `flex` with `gap`, which is direction-agnostic, so
+            Arabic gets the icon on the right of the text without a second rule
+            (19.3).
           */}
           {block.eyebrow ? (
             <div className="flex flex-wrap items-center gap-3">
-              {block.icon ? (
-                <ContentIconMark name={block.icon} tone="light" />
-              ) : null}
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/85">
+              {block.icon ? <ContentIconMark name={block.icon} tone="light" /> : null}
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-white/15">
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
                 {block.eyebrow}
               </span>
             </div>
           ) : null}
 
-          <div className="mt-5 flex items-center gap-3">
-            {block.icon && !block.eyebrow ? (
-              <ContentIconMark name={block.icon} tone="light" />
-            ) : null}
+          <div className="mt-6 flex items-center gap-3">
+            {block.icon && !block.eyebrow ? <ContentIconMark name={block.icon} tone="light" /> : null}
             {first ? (
-              <h1 className="text-balance text-[2.1rem] leading-[1.1] font-bold tracking-tight text-white sm:text-5xl">
+              <h1 className="text-balance text-[38px] leading-[1.04] font-bold tracking-tight text-white sm:text-[56px]">
                 {block.heading}
               </h1>
             ) : (
-              <h2 className="text-balance text-3xl leading-tight font-bold tracking-tight text-white sm:text-4xl">
+              <h2 className="text-balance text-[30px] leading-[1.1] font-bold tracking-tight text-white sm:text-[44px]">
                 {block.heading}
               </h2>
             )}
           </div>
 
           {block.body ? (
-            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-white/85">
-              {block.body}
-            </p>
+            <p className="mt-6 max-w-xl text-pretty text-[18px] leading-relaxed text-white/85">{block.body}</p>
           ) : null}
 
           {block.ctaLabel && block.ctaHref ? (
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href={block.ctaHref}>
-                <Button size="lg" variant="primary" full className="sm:w-auto">
-                  {block.ctaLabel}
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Button>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href={block.ctaHref} className={cn(btn.primary, btn.lg)}>
+                {block.ctaLabel}
+                <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
               </Link>
-              <Link href="/login">
-                <Button
-                  size="lg"
-                  variant="ghost"
-                  full
-                  className="text-white hover:bg-white/10 sm:w-auto"
-                >
-                  {t("nav.signIn")}
-                </Button>
+              <Link href="/login" className={cn(btn.light, btn.lg)}>
+                {t("nav.signIn")}
               </Link>
             </div>
           ) : null}
         </div>
 
         {/*
-          🔴 65.15 / 65.17 — THE HERO'S DEMO IS THE AUDIENCE'S OWN COMPONENT.
+          🔴 65.15 / 65.17 — THE HERO'S DEMO IS THE AUDIENCE'S OWN COMPONENT,
+          fed synthetic fixtures (65.19), so a hero cannot outlive the feature
+          it is about.
 
-          Four heroes, four audiences, and each one shows the thing that audience would
-          actually be looking at: the session room for a therapist, the spend chart and
-          the wall for a company, seats and the wall for a clinic, the radar card for a
-          patient. Every one of them is the component the portal renders, fed synthetic
-          fixtures (65.19), so a hero cannot outlive the feature it is about.
-        */}
-        {/*
-          🔴 76.32 — AND THE DEMO INSIDE IT SPEAKS THE PAGE'S LANGUAGE.
-
-          It rendered `components/demo/fixtures.ts` directly, so an Arabic
-          reader got an Arabic hero wrapped around an English conversation
-          producing an English SOAP note. Both halves come from here now: the
-          content from `lib/content/demo.ts`, the chrome from the dictionary.
-
-          Strings, not `t` itself. `SessionDemo` is a client component and
-          `verify:boundary` refuses a function crossing that line.
+          🔴 76.32 — AND THE DEMO INSIDE IT SPEAKS THE PAGE'S LANGUAGE. The
+          content comes from `lib/content/demo.ts`, the chrome from the
+          dictionary. Strings, not `t` itself: `SessionDemo` is a client
+          component and `verify:boundary` refuses a function crossing that line.
         */}
         {block.demo === "session-room" ? (
-          <SessionDemo
-            content={demo}
-            labels={{
-              inProgress: t("hdemo.inProgress"),
-              ended: t("hdemo.ended"),
-              meta: t("hdemo.meta"),
-              play: t("hdemo.play"),
-              pause: t("hdemo.pause"),
-              replay: t("hdemo.replay"),
-              recording: t("hdemo.recording"),
-              endSession: t("hdemo.endSession"),
-              waiting: t("hdemo.waiting"),
-              generated: t("hdemo.generated"),
-              disclaimer: t("hdemo.disclaimer"),
-              patientLabel: t("hdemo.patientLabel"),
-            }}
-          />
-        ) : null}
-        {/*
-          🔴 76.81 — THE PATIENT'S APP, IN A HERO, WORKING.
-
-          Every other demo on this page is a screen a reader looks at. This one
-          is a sequence a reader RUNS: open the radar, pick somebody, see the
-          price with the tax on it, go in — and the session then appears on the
-          Sessions tab, because the claim being made is that it takes three taps
-          and no account, and a claim about a sequence cannot be made by a still
-          frame. It books nothing; see the component.
-        */}
-        {block.demo === "patient-app" ? (
-          <div>
-            <ComponentShowcase demo="patient-app" content={demo} />
-            {/* B30: the clinicians in it are invented, said under it rather than left to be inferred. */}
-            <p className="mt-3 text-center text-xs text-white/70">{t("public.demoNote")}</p>
+          <div className="min-w-0 text-navy-700">
+            <SessionDemo
+              content={demo}
+              labels={{
+                inProgress: t("hdemo.inProgress"),
+                ended: t("hdemo.ended"),
+                meta: t("hdemo.meta"),
+                play: t("hdemo.play"),
+                pause: t("hdemo.pause"),
+                replay: t("hdemo.replay"),
+                recording: t("hdemo.recording"),
+                endSession: t("hdemo.endSession"),
+                waiting: t("hdemo.waiting"),
+                generated: t("hdemo.generated"),
+                disclaimer: t("hdemo.disclaimer"),
+                patientLabel: t("hdemo.patientLabel"),
+              }}
+            />
           </div>
         ) : null}
-        {block.demo === "company" ? <CompanyDemo /> : null}
-        {block.demo === "clinic" ? <ClinicDemo /> : null}
-        {block.demo === "fee-split" ? <TherapistSplitDemo /> : null}
+        {/*
+          🔴 76.81 — THE PATIENT'S APP, IN A HERO, WORKING. A sequence a reader
+          RUNS: open the radar, pick somebody, see the price with the tax on
+          it, go in. It books nothing; see the component.
+        */}
+        {block.demo === "patient-app" ? (
+          <div className="min-w-0">
+            <ComponentShowcase demo="patient-app" content={demo} />
+            {/* B30: the clinicians in it are invented, said under it rather than left to be inferred. */}
+            <p className="mt-4 text-center text-[13px] text-white/70">{t("public.demoNote")}</p>
+          </div>
+        ) : null}
+        {block.demo === "company" ? <div className="min-w-0 text-navy-700"><CompanyDemo /></div> : null}
+        {block.demo === "clinic" ? <div className="min-w-0 text-navy-700"><ClinicDemo /></div> : null}
+        {block.demo === "fee-split" ? <div className="min-w-0 text-navy-700"><TherapistSplitDemo /></div> : null}
       </div>
-    </section>
+    </DarkBand>
   );
 }
 
 /**
- * 🔴 76.74 — THE GRID IS SIZED BY ITS COUNT, and it carries no paragraph.
- *
- * ## The count
+ * 🔴 76.74 — THE GRID IS SIZED BY ITS COUNT.
  *
  * Four tiles in a three-column grid is three and a lonely one; six in a
- * two-column grid is a tall list nobody reaches the bottom of. The rule asked
- * for is simple and it is the one a designer would use anyway: four go two by
- * two, six go two by three. Anything else falls back to three across, which is
- * the least-bad arrangement for a count nobody planned — and a section landing
- * there is a section whose count is worth fixing in the CMS.
+ * two-column grid is a tall list nobody reaches the bottom of. Four go two by
+ * two, six go three by two, and anything else three across, which is the
+ * least-bad arrangement for a count nobody planned.
  *
- * ## The missing paragraph
- *
- * Icon, title, paragraph, thirty-seven times down a website is the shape that
- * made this site read as a template. The title is the claim; the paragraph
- * under it was restating the title at greater length, and the reader was
- * skipping both.
- *
- * 🔴 `item.body` IS NOT DELETED. It is still in the row, still editable, still
- * returned by the API, and a later decision to draw it again is one line here
- * rather than a re-authoring of fourteen paragraphs in two languages. Not
- * drawing content is reversible; deleting it is not, and this is the second
- * time this sprint that the difference has mattered.
+ * The mockups' card: a tinted tile, the icon on a white badge, the claim in
+ * bold and the line under it quiet. `item.body` is drawn when it is there and
+ * stays editable in the row either way (76.74: not drawing content is
+ * reversible; deleting it is not).
  */
 function Features({
   block,
 }: {
   block: Extract<ContentBlock, { type: "features" }>;
 }) {
+  const count = block.items.length;
   return (
-    <section className="bg-white px-4 py-14 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-6xl">
-        {block.heading ? (
-          <h2 className="max-w-2xl text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {block.heading}
-          </h2>
-        ) : null}
-        <ul className="mt-8 grid gap-x-12 border-t border-slate-200 sm:grid-cols-2">
+    <section className="bg-white px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-7xl">
+        {block.heading ? <SiteTitle className="max-w-3xl">{block.heading}</SiteTitle> : null}
+        <ul
+          className={cn(
+            "mt-10 grid gap-4 sm:grid-cols-2",
+            count === 4 ? "" : count % 3 === 0 || count > 4 ? "lg:grid-cols-3" : "",
+          )}
+        >
           {block.items.map((item, i) => (
-            <li key={i} className="border-b border-slate-200 py-4">
-              <p className="text-[15px] font-semibold leading-snug text-slate-900">{item.title}</p>
-              {item.body ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-700">{item.body}</p>
-              ) : null}
+            <li key={i}>
+              <Rise delay={(i % 3) * 0.06} className="h-full">
+                <div className="h-full rounded-[26px] bg-navy-50 p-6 ring-1 ring-navy-100">
+                  <ContentIconMark name={item.icon} tone="card" />
+                  <p className="mt-5 text-[18px] font-bold leading-snug text-navy-700">{item.title}</p>
+                  {item.body ? (
+                    <p className="mt-2 text-[15px] leading-relaxed text-navy-500">{item.body}</p>
+                  ) : null}
+                </div>
+              </Rise>
             </li>
           ))}
         </ul>
@@ -609,43 +575,29 @@ function Showcase({
 }) {
   const head = (
     <>
-      {block.heading ? (
-        <h2 className="max-w-2xl text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          {block.heading}
-        </h2>
-      ) : null}
-      {block.body ? (
-        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-600">{block.body}</p>
-      ) : null}
+      {block.heading ? <SiteTitle className="max-w-3xl">{block.heading}</SiteTitle> : null}
+      {block.body ? <Lede className="mt-4">{block.body}</Lede> : null}
     </>
   );
 
   /*
    * 🔴 SCREENS BESIDE EACH OTHER, for the case where a reader is comparing two
-   * rather than being argued at about one.
-   *
-   * The band layout below gives every item a full-width row with its own
-   * paragraph opposite it, which is right for "here is the note, and here is
-   * why the note matters" and wrong for "here are two tabs of the same app".
-   * /for-patients had three bands of the SAME phone across two sections and
-   * 3,138px, on a page whose hero is that phone. Side by side, the caption
-   * goes under the screen it describes and the section is half as tall.
+   * rather than being argued at about one. Side by side, the caption goes
+   * under the screen it describes and the section is half as tall.
    */
   if (block.side) {
     return (
-      <section className="px-4 py-14 sm:px-6 sm:py-20">
-        <div className="mx-auto max-w-6xl">
+      <section className="bg-navy-50 px-5 py-16 sm:px-6 sm:py-24">
+        <div className="mx-auto max-w-7xl">
           {head}
-          <div className="mt-10 grid gap-10 sm:grid-cols-2 sm:gap-8 lg:gap-12">
+          <div className="mt-12 grid gap-10 sm:grid-cols-2 sm:gap-8 lg:gap-12">
             {block.items.map((item, i) => (
               <figure key={i} className="m-0 min-w-0">
                 <DemoFor name={item.demo} demo={demo} t={t} />
-                <figcaption className="mt-5">
-                  <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "navy" : "brand"} />
-                  <h3 className="mt-3 text-lg font-bold tracking-tight text-slate-900">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-slate-600">{item.body}</p>
+                <figcaption className="mt-6">
+                  <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "dark" : "card"} />
+                  <h3 className="mt-4 text-[20px] font-bold tracking-tight text-navy-700">{item.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-navy-500">{item.body}</p>
                 </figcaption>
               </figure>
             ))}
@@ -656,30 +608,22 @@ function Showcase({
   }
 
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-6xl">
+    <section className="bg-white px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-7xl">
         {head}
 
-        <div className="mt-10 space-y-14 sm:space-y-20">
+        <div className="mt-12 space-y-16 sm:space-y-24">
           {block.items.map((item, i) => (
-            <div
-              key={i}
-              className="grid items-center gap-6 lg:grid-cols-2 lg:gap-14"
-            >
-              <div className={i % 2 === 1 ? "lg:order-2" : undefined}>
-                <ContentIconMark
-                  name={item.icon}
-                  tone={i % 2 === 1 ? "navy" : "brand"}
-                />
-                <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            <div key={i} className="grid items-center gap-8 lg:grid-cols-2 lg:gap-16">
+              <div className={cn("min-w-0", i % 2 === 1 && "lg:order-2")}>
+                <ContentIconMark name={item.icon} tone={i % 2 === 1 ? "dark" : "card"} />
+                <h3 className="mt-5 text-balance text-[24px] font-bold leading-tight tracking-tight text-navy-700 sm:text-[30px]">
                   {item.title}
                 </h3>
-                <p className="mt-2.5 max-w-lg text-[15px] leading-relaxed text-slate-600">
-                  {item.body}
-                </p>
+                <p className="mt-3 max-w-lg text-[17px] leading-relaxed text-navy-500">{item.body}</p>
               </div>
 
-              <div className={i % 2 === 1 ? "lg:order-1" : undefined}>
+              <div className={cn("min-w-0", i % 2 === 1 && "lg:order-1")}>
                 <DemoFor name={item.demo} demo={demo} t={t} />
               </div>
             </div>
@@ -690,27 +634,13 @@ function Showcase({
   );
 }
 
+/** The mockups' questions: the heading on one side, one answer open at a time on the other. */
 function Faq({ block }: { block: Extract<ContentBlock, { type: "faq" }> }) {
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-3xl">
-        {block.heading ? (
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {block.heading}
-          </h2>
-        ) : null}
-        <dl className="mt-8 divide-y divide-slate-200 border-t border-slate-200">
-          {block.items.map((item, i) => (
-            <div key={i} className="py-5">
-              <dt className="text-base font-semibold text-slate-900">
-                {item.q}
-              </dt>
-              <dd className="mt-1.5 text-sm leading-relaxed text-slate-600">
-                {item.a}
-              </dd>
-            </div>
-          ))}
-        </dl>
+    <section className="bg-white px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1fr_1.4fr]">
+        <div>{block.heading ? <SiteTitle>{block.heading}</SiteTitle> : null}</div>
+        <FaqList items={block.items.map((item) => ({ q: item.q, a: item.a }))} />
       </div>
     </section>
   );
@@ -720,52 +650,51 @@ function Cta({ block }: { block: Extract<ContentBlock, { type: "cta" }> }) {
   const image = safeImageUrl(block.backgroundImage);
 
   return (
-    <section className="px-4 pb-16 sm:px-6 sm:pb-24">
-      <div className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl bg-navy-500 px-6 py-12 text-center sm:px-10">
-        {image ? (
-          <>
-            <div
-              aria-hidden
-              className="absolute inset-0 bg-cover bg-center opacity-25"
-              style={{ backgroundImage: `url(${image})` }}
-            />
-            <div aria-hidden className="absolute inset-0 bg-navy-600/80" />
-          </>
-        ) : null}
+    <DarkBand className="px-5 py-20 sm:px-6 sm:py-28">
+      {image ? (
+        <>
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10 bg-cover bg-center opacity-20"
+            style={{ backgroundImage: `url(${image})` }}
+          />
+          <div aria-hidden className="absolute inset-0 -z-10 bg-navy-900/80" />
+        </>
+      ) : null}
+      {/* The mockups' slow turning light behind the last call on the page. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute start-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 animate-[spin_18s_linear_infinite] rounded-full motion-reduce:animate-none rtl:translate-x-1/2"
+        style={{
+          background:
+            "conic-gradient(from 0deg, rgba(46,196,182,0.0), rgba(46,196,182,0.35), rgba(46,196,182,0.0) 40%)",
+        }}
+      />
 
-        <div className="relative">
-          <h2 className="text-balance text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {block.heading}
-          </h2>
-          {block.body ? (
-            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/85">
-              {block.body}
-            </p>
-          ) : null}
-          <Link href={block.ctaHref} className="mt-7 inline-block">
-            <Button size="lg" variant="primary">
-              {block.ctaLabel}
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Button>
-          </Link>
-        </div>
+      <div className="relative mx-auto max-w-3xl text-center">
+        <SiteTitle dark>{block.heading}</SiteTitle>
+        {block.body ? (
+          <Lede dark className="mx-auto mt-4">
+            {block.body}
+          </Lede>
+        ) : null}
+        <Link href={block.ctaHref} className={cn(btn.primary, btn.lg, "mt-8")}>
+          {block.ctaLabel}
+          <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
+        </Link>
       </div>
-    </section>
+    </DarkBand>
   );
 }
 
 function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
   return (
-    <section className="px-4 sm:px-6">
+    <section className="px-5 sm:px-6">
       <div className="mx-auto max-w-3xl py-5">
         {block.heading ? (
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900">
-            {block.heading}
-          </h2>
+          <h2 className="text-[20px] font-bold tracking-tight text-navy-700">{block.heading}</h2>
         ) : null}
-        <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
-          {block.body}
-        </p>
+        <p className="mt-2 text-[16px] leading-relaxed text-navy-500">{block.body}</p>
       </div>
     </section>
   );
@@ -779,6 +708,9 @@ function Prose({ block }: { block: Extract<ContentBlock, { type: "prose" }> }) {
  * is a clinician in minutes, and the local emergency number, which is what to
  * do when minutes are too long.
  *
+ * The mockups' red band, the loudest thing on any page: red is spent on help
+ * and on nothing else on this site.
+ *
  * The words are editable (they are wrong in some countries and a person who
  * knows better must be able to fix them without a deploy) but the block itself
  * carries no configurable *destination*: a fire exit does not move.
@@ -791,25 +723,34 @@ function Crisis({
   t: Translate;
 }) {
   return (
-    <section className="px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-3xl rounded-3xl border-2 border-rose-200 bg-rose-50 p-6">
-        <h2 className="text-lg font-bold tracking-tight text-rose-900">
-          {block.heading ?? t("crisis.headingDefault")}
-        </h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-rose-900/90">
-          {block.body ?? t("crisis.bodyDefault")}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2.5">
-          <Link href="/radar">
-            <Button>{t("crisis.findSomeone")}</Button>
+    <section className="bg-red-600 px-5 py-8 text-white sm:px-6 sm:py-10">
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-center lg:gap-8">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15">
+          <Phone className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[20px] font-bold tracking-tight sm:text-[22px]">
+            {block.heading ?? t("crisis.headingDefault")}
+          </h2>
+          <p className="mt-1.5 max-w-3xl text-[16px] leading-relaxed text-white">
+            {block.body ?? t("crisis.bodyDefault")}
+          </p>
+          <p className="mt-2 text-[13px] font-semibold text-white">{t("crisis.noAccountLine")}</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2.5">
+          <Link
+            href="/radar"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-[15px] font-bold text-red-700 transition-transform hover:-translate-y-px"
+          >
+            {t("crisis.findSomeone")}
           </Link>
-          <Link href="/for-patients">
-            <Button variant="secondary">{t("crisis.whatHappens")}</Button>
+          <Link
+            href="/for-patients"
+            className="inline-flex h-12 items-center justify-center rounded-full border border-white/60 px-5 text-[15px] font-semibold text-white transition-colors hover:bg-white/10"
+          >
+            {t("crisis.whatHappens")}
           </Link>
         </div>
-        <p className="mt-3 text-xs text-rose-900/70">
-          {t("crisis.noAccountLine")}
-        </p>
       </div>
     </section>
   );
@@ -820,9 +761,7 @@ function Crisis({
  *
  * Every field is content: name, address, phone, email, hours, and what to
  * write to each about. Nothing here is hardcoded, so 19 translates it and 21
- * lets an administrator correct an address without a deploy — which matters,
- * because a wrong address on a page like this is the kind of error nobody
- * files a ticket about, they just stop trusting the company.
+ * lets an administrator correct an address without a deploy.
  *
  * International sorts first, the same rule the currency follows (§3c), and
  * **both always render**. A reader who cannot tell which entity they are
@@ -842,49 +781,33 @@ function Companies({
   });
 
   return (
-    <section className="px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-4xl">
-        {block.heading ? (
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            {block.heading}
-          </h2>
-        ) : null}
+    <section className="bg-navy-50 px-5 py-14 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-5xl">
+        {block.heading ? <SiteTitle className="text-[26px] sm:text-[34px]">{block.heading}</SiteTitle> : null}
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {ordered.map((company) => (
-            <div
-              key={company.title}
-              className="rounded-3xl border border-slate-200 bg-white p-5"
-            >
-              <p className="text-sm font-bold text-slate-900">
-                {company.title}
-              </p>
+            <SiteCard key={company.title}>
+              <p className="text-[18px] font-bold text-navy-700">{company.title}</p>
               {company.body ? (
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  {company.body}
-                </p>
+                <p className="mt-1.5 text-[15px] leading-relaxed text-navy-500">{company.body}</p>
               ) : null}
 
-              <dl className="mt-3 space-y-1.5 text-sm">
+              <dl className="mt-5 space-y-3 border-t border-navy-100 pt-5 text-[15px]">
                 {company.address ? (
                   <div>
-                    <dt className="text-xs text-slate-600">
-                      {t("blocks.address")}
-                    </dt>
-                    <dd className="whitespace-pre-line text-slate-700">
-                      {company.address}
-                    </dd>
+                    <dt className="text-[13px] font-semibold text-navy-400">{t("blocks.address")}</dt>
+                    <dd className="mt-0.5 whitespace-pre-line text-navy-600">{company.address}</dd>
                   </div>
                 ) : null}
                 {company.phone ? (
                   <div>
-                    <dt className="text-xs text-slate-600">
-                      {t("blocks.phone")}
-                    </dt>
-                    <dd>
+                    <dt className="text-[13px] font-semibold text-navy-400">{t("blocks.phone")}</dt>
+                    <dd className="mt-0.5">
                       <a
                         href={`tel:${company.phone.replace(/\s/g, "")}`}
-                        className="text-brand-700"
+                        dir="ltr"
+                        className="font-semibold text-brand-700 hover:text-brand-800"
                       >
                         {company.phone}
                       </a>
@@ -893,13 +816,11 @@ function Companies({
                 ) : null}
                 {company.email ? (
                   <div>
-                    <dt className="text-xs text-slate-600">
-                      {t("blocks.email")}
-                    </dt>
-                    <dd>
+                    <dt className="text-[13px] font-semibold text-navy-400">{t("blocks.email")}</dt>
+                    <dd className="mt-0.5">
                       <a
                         href={`mailto:${company.email}`}
-                        className="text-brand-700"
+                        className="break-all font-semibold text-brand-700 hover:text-brand-800"
                       >
                         {company.email}
                       </a>
@@ -908,14 +829,12 @@ function Companies({
                 ) : null}
                 {company.hours ? (
                   <div>
-                    <dt className="text-xs text-slate-600">
-                      {t("blocks.hours")}
-                    </dt>
-                    <dd className="text-slate-700">{company.hours}</dd>
+                    <dt className="text-[13px] font-semibold text-navy-400">{t("blocks.hours")}</dt>
+                    <dd className="mt-0.5 text-navy-600">{company.hours}</dd>
                   </div>
                 ) : null}
               </dl>
-            </div>
+            </SiteCard>
           ))}
         </div>
       </div>
@@ -977,17 +896,19 @@ async function ContactBlock({
   );
 
   return (
-    <section className="px-4 py-8 sm:px-6">
+    <section className="bg-navy-50 px-5 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto max-w-2xl">
-        <ContactForm
-          heading={block.heading}
-          body={block.body}
-          countries={countries.map((country) => ({
-            code: country.code,
-            name: country.name,
-          }))}
-          strings={strings}
-        />
+        <SiteCard className="p-5 sm:p-8">
+          <ContactForm
+            heading={block.heading}
+            body={block.body}
+            countries={countries.map((country) => ({
+              code: country.code,
+              name: country.name,
+            }))}
+            strings={strings}
+          />
+        </SiteCard>
       </div>
     </section>
   );
@@ -1002,11 +923,9 @@ async function ContactBlock({
  */
 function Section({ heading, children }: { heading?: string; children: React.ReactNode }) {
   return (
-    <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+    <section className="mx-auto max-w-5xl px-5 py-14 sm:px-6 sm:py-20">
       {heading ? (
-        <h2 className="mb-6 text-balance text-2xl font-bold tracking-tight text-slate-900">
-          {heading}
-        </h2>
+        <SiteTitle className="mb-8 text-[26px] sm:text-[34px]">{heading}</SiteTitle>
       ) : null}
       {children}
     </section>

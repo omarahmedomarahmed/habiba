@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ChevronDown } from "lucide-react";
+
 import { BlockRenderer } from "@/components/public/blocks";
+import { ContentIconMark } from "@/components/public/icons";
+import { DarkBand, Eyebrow, Glow } from "@/components/public/site-ui";
 import { DEFAULT_PAGES } from "@/lib/content/defaults";
 import { getPublicPage } from "@/lib/content/service";
 import { DICTIONARIES } from "@/lib/i18n/messages";
@@ -67,39 +71,102 @@ export default async function ContentPage({ params }: { params: Promise<{ slug: 
   const page = await getPublicPage(slug);
   if (!page) notFound();
 
+  /*
+   * 🔴 A DOCUMENT OPENS ON ONE HEADING, NOT TWO.
+   *
+   * A legal page's first block is a `hero` whose heading is the page title
+   * again, and it rendered as a second `h1` under the first. The dark band at
+   * the top now carries the title, and the hero's eyebrow and icon with it, so
+   * nothing the row holds is lost and the reader meets the title once. The
+   * rest of the blocks follow on white, at reading width.
+   */
+  const [lead, ...rest] = page.blocks;
+  const leadHero = page.layout === "document" && lead?.type === "hero" ? lead : null;
+  const body = leadHero ? rest : page.blocks;
+
   const shell = page.layout === "document" ? await untranslatedShell(slug, page.locale) : null;
   if (shell) {
     return (
-      <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{shell.title}</h1>
-        {shell.description ? <p className="mt-2 text-[15px] text-slate-600">{shell.description}</p> : null}
-        <p className="mt-6 rounded-2xl bg-amber-50 p-4 text-[15px] leading-relaxed text-amber-900 ring-1 ring-amber-200">
-          {shell.notice}
-        </p>
-        <details className="mt-6">
-          <summary className="tap-target cursor-pointer text-sm font-semibold text-brand-700">{shell.show}</summary>
-          <div lang="en" dir="ltr" className="mt-4 -mx-4 text-start sm:-mx-6">
-            <h2 className="px-4 text-2xl font-bold tracking-tight text-slate-900 sm:px-6">{page.title}</h2>
-            <BlockRenderer blocks={page.blocks} slug={slug} />
-          </div>
-        </details>
+      <article>
+        <DocumentHead
+          eyebrow={leadHero?.eyebrow}
+          icon={leadHero?.icon}
+          title={shell.title}
+          description={shell.description}
+        />
+        <div className="mx-auto max-w-3xl px-5 py-12 sm:px-6 sm:py-16">
+          <p className="rounded-2xl bg-amber-50 p-5 text-[16px] leading-relaxed text-amber-900 ring-1 ring-amber-200">
+            {shell.notice}
+          </p>
+          <details className="group mt-6 rounded-2xl bg-navy-50 ring-1 ring-navy-100">
+            <summary className="tap-target flex cursor-pointer items-center justify-between gap-3 p-5 text-[15px] font-semibold text-navy-700">
+              {shell.show}
+              <ChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" aria-hidden />
+            </summary>
+            <div lang="en" dir="ltr" className="-mx-5 pb-4 text-start sm:-mx-6">
+              <h2 className="px-10 text-[26px] font-bold tracking-tight text-navy-700 sm:px-12">{page.title}</h2>
+              <BlockRenderer blocks={body} slug={slug} />
+            </div>
+          </details>
+        </div>
       </article>
     );
   }
 
   if (page.layout === "document") {
     return (
-      <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{page.title}</h1>
-        {page.description ? (
-          <p className="mt-2 text-[15px] text-slate-600">{page.description}</p>
-        ) : null}
-        <div className="mt-6 -mx-4 sm:-mx-6">
-          <BlockRenderer blocks={page.blocks} slug={slug} />
+      <article>
+        <DocumentHead
+          eyebrow={leadHero?.eyebrow}
+          icon={leadHero?.icon}
+          title={page.title}
+          description={page.description}
+          body={leadHero?.body}
+        />
+        <div className="mx-auto max-w-3xl py-10 sm:py-14">
+          <BlockRenderer blocks={body} slug={slug} />
         </div>
       </article>
     );
   }
 
   return <BlockRenderer blocks={page.blocks} slug={slug} />;
+}
+
+/** The dark band a document opens on: the mockups' hero, quieter, with no picture beside it. */
+function DocumentHead({
+  eyebrow,
+  icon,
+  title,
+  description,
+  body,
+}: {
+  eyebrow?: string;
+  icon?: string;
+  title: string;
+  description?: string | null;
+  body?: string;
+}) {
+  return (
+    <DarkBand className="px-5 pt-12 pb-14 sm:px-6 sm:pt-20 sm:pb-20">
+      <Glow className="-start-40 -top-20 h-[440px] w-[440px] opacity-50" />
+      <div className="mx-auto max-w-3xl">
+        {eyebrow || icon ? (
+          <div className="flex flex-wrap items-center gap-3">
+            {icon ? <ContentIconMark name={icon} tone="light" /> : null}
+            {eyebrow ? <Eyebrow dark>{eyebrow}</Eyebrow> : null}
+          </div>
+        ) : null}
+        <h1 className="mt-5 text-balance text-[34px] font-bold leading-[1.08] tracking-tight text-white sm:text-[48px]">
+          {title}
+        </h1>
+        {description ? (
+          <p className="mt-4 max-w-2xl text-pretty text-[17px] leading-relaxed text-white/85">{description}</p>
+        ) : null}
+        {body && body !== description ? (
+          <p className="mt-3 max-w-2xl text-pretty text-[16px] leading-relaxed text-white/85">{body}</p>
+        ) : null}
+      </div>
+    </DarkBand>
+  );
 }

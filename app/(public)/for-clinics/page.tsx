@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ClinicDemo } from "@/components/public/audience-demos";
+import { ArrowRight } from "lucide-react";
+
 import { AudienceHero } from "@/components/public/audience-hero";
-import { Card } from "@/components/ui";
+import { btn } from "@/components/public/site-ui";
+import { cn } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { CLINIC_APPLY } from "@/lib/routing";
 
@@ -65,36 +68,46 @@ export default async function ForClinicsPage() {
         demo={<ClinicDemo />}
       />
 
-      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-        <Question q={t("marketing.clinics.q1")} a={t("marketing.clinics.a1")} />
-        <Question q={t("marketing.clinics.q2")} a={t("marketing.clinics.a2")} />
-        <Question q={t("marketing.clinics.q3")} a={t("marketing.clinics.a3")} />
-        <Question q={t("marketing.clinics.q4")} a={t("marketing.clinics.a4")} />
+      {/*
+        The four questions as the mockups' cards, two by two, each one the
+        answer a practice manager would otherwise have to ask for.
+      */}
+      <section className="bg-navy-50 px-5 py-16 sm:px-6 sm:py-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Question n={1} q={t("marketing.clinics.q1")} a={t("marketing.clinics.a1")} />
+            <Question n={2} q={t("marketing.clinics.q2")} a={t("marketing.clinics.a2")} />
+            <Question n={3} q={t("marketing.clinics.q3")} a={t("marketing.clinics.a3")} />
+            <Question n={4} q={t("marketing.clinics.q4")} a={t("marketing.clinics.a4")} />
+          </div>
 
-        <Card className="mt-8 border-slate-200 bg-slate-50 p-5">
-          <p className="text-sm font-semibold text-slate-900">
-            {t("marketing.clinics.notYetTitle")}
-          </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-700">
-            {t("marketing.clinics.notYet")}
-          </p>
-          <Link
-            href="/integrations"
-            className="mt-2 inline-block text-sm font-semibold text-brand-700 underline"
-          >
-            {t("nav.integrations")}
-          </Link>
-        </Card>
-      </div>
+          {/* What is not built yet, said as plainly as what is. */}
+          <div className="mt-4 flex flex-col gap-5 rounded-[28px] bg-navy-900 p-6 text-white sm:flex-row sm:items-center sm:p-8">
+            <div className="min-w-0 flex-1">
+              <p className="text-[18px] font-bold">{t("marketing.clinics.notYetTitle")}</p>
+              <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-white/85">
+                {t("marketing.clinics.notYet")}
+              </p>
+            </div>
+            <Link href="/integrations" className={cn(btn.light, "shrink-0")}>
+              {t("nav.integrations")}
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
 
-function Question({ q, a }: { q: string; a: string }) {
+function Question({ n, q, a }: { n: number; q: string; a: string }) {
   return (
-    <section className="mt-7">
-      <h2 className="text-base font-bold tracking-tight text-slate-900">{q}</h2>
-      <p className="mt-1.5 leading-relaxed text-slate-700">{a}</p>
+    <section className="rounded-[28px] bg-white p-6 ring-1 ring-navy-100 shadow-[0_20px_50px_-40px_rgba(10,35,66,0.5)] sm:p-7">
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-navy-900 text-[15px] font-bold tabular-nums text-brand-300">
+        {n}
+      </span>
+      <h2 className="mt-5 text-[19px] font-bold leading-snug tracking-tight text-navy-700">{q}</h2>
+      <p className="mt-2 text-[15px] leading-relaxed text-navy-500">{a}</p>
     </section>
   );
 }

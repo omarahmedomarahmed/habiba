@@ -7,6 +7,7 @@ import type { ContentBlock } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { safeLogoUrl } from "@/lib/content/url";
+import { DarkBand, Glow, SiteTitle } from "@/components/public/site-ui";
 
 type Block = Extract<ContentBlock, { type: "competitors" }>;
 
@@ -41,20 +42,17 @@ export function Comparison({ block }: { block: Block }) {
   if (!current) return null;
 
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-5xl">
-        {block.heading ? (
-          <h2 className="max-w-2xl text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            {block.heading}
-          </h2>
-        ) : null}
+    <DarkBand className="px-5 py-16 sm:px-6 sm:py-24">
+      <Glow className="-end-40 top-20 h-[480px] w-[480px] opacity-40" />
+      <div className="mx-auto max-w-6xl">
+        {block.heading ? <SiteTitle dark className="max-w-3xl">{block.heading}</SiteTitle> : null}
 
         {/* The tabs. Horizontally scrollable rather than wrapped, so a phone
             shows one row of names instead of three. */}
         <div
           role="tablist"
           aria-label={t("cmp.against")}
-          className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1"
+          className="no-scrollbar mt-8 flex gap-2 overflow-x-auto pb-1"
         >
           {block.items.map((item, i) => (
             <button
@@ -64,10 +62,10 @@ export function Comparison({ block }: { block: Block }) {
               aria-selected={i === active}
               onClick={() => { setActive(i); }}
               className={cn(
-                "tap-target shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                "tap-target inline-flex h-10 shrink-0 items-center rounded-full px-4 text-[14px] font-semibold transition-colors",
                 i === active
-                  ? "bg-navy-500 text-white"
-                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  ? "bg-brand-500 text-navy-700"
+                  : "bg-white/[0.08] text-white/85 ring-1 ring-white/15 hover:text-white",
               )}
             >
               {item.name}
@@ -75,8 +73,8 @@ export function Comparison({ block }: { block: Block }) {
           ))}
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div className="mt-6 overflow-hidden rounded-[28px] bg-white/[0.04] ring-1 ring-white/10">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 p-6">
             <div className="flex min-w-0 items-center gap-3">
               {safeLogoUrl(current.logo) ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -84,23 +82,23 @@ export function Comparison({ block }: { block: Block }) {
               ) : (
                 <span
                   aria-hidden
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-sm font-bold text-slate-600"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-[18px] font-bold text-white"
                 >
                   {current.name.slice(0, 1)}
                 </span>
               )}
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900">{current.name}</p>
+                <p className="text-[18px] font-bold text-white">{current.name}</p>
                 {current.who ? (
-                  <p className="mt-0.5 max-w-xl text-xs leading-relaxed text-slate-600">
+                  <p className="mt-0.5 max-w-xl text-[14px] leading-relaxed text-white/70">
                     {current.who}
                   </p>
                 ) : null}
               </div>
             </div>
             {current.price ? (
-              <p className="text-xs text-slate-600">
-                <span className="font-semibold text-slate-900">{t("cmp.theirPrice")}</span> ·{" "}
+              <p className="text-[13px] text-white/70">
+                <span className="font-semibold text-white/90">{t("cmp.theirPrice")}</span> ·{" "}
                 {current.price}
               </p>
             ) : null}
@@ -108,17 +106,17 @@ export function Comparison({ block }: { block: Block }) {
 
           {/* The header row is hidden on a phone, where each row stacks and
               carries its own labels instead. */}
-          <div className="hidden grid-cols-[1fr_1fr_1fr] gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 sm:grid">
-            <p className="text-[11px] font-bold tracking-wider text-slate-600 uppercase">&nbsp;</p>
-            <p className="text-[11px] font-bold tracking-wider text-brand-800 uppercase">
+          <div className="hidden grid-cols-[1fr_1.3fr_1.3fr] gap-6 border-b border-white/10 px-6 py-3 sm:grid">
+            <p className="text-[12px] font-bold tracking-[0.14em] text-white/60 uppercase">&nbsp;</p>
+            <p className="text-[12px] font-bold tracking-[0.14em] text-brand-300 uppercase">
               {t("cmp.us")}
             </p>
-            <p className="text-[11px] font-bold tracking-wider text-slate-600 uppercase">
+            <p className="text-[12px] font-bold tracking-[0.14em] text-white/60 uppercase">
               {current.name}
             </p>
           </div>
 
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-white/5">
             {current.rows.map((row) => {
               /*
                * 🔴 THE MARK FOLLOWS THE SENTENCE, NOT THE COLUMN.
@@ -133,25 +131,25 @@ export function Comparison({ block }: { block: Block }) {
               return (
                 <li
                   key={row.claim}
-                  className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_1fr_1fr] sm:gap-4"
+                  className={cn("grid gap-2 px-6 py-4 sm:grid-cols-[1fr_1.3fr_1.3fr] sm:gap-6", row.concede && "bg-white/[0.04]")}
                 >
-                  <p className="text-sm font-semibold text-slate-900">{row.claim}</p>
+                  <p className="text-[14px] font-bold text-white/90">{row.claim}</p>
 
                   <div className="flex gap-2">
                     <OursIcon
                       className={cn(
                         "mt-0.5 h-4 w-4 shrink-0",
-                        row.concede ? "text-slate-600" : "text-brand-700",
+                        row.concede ? "text-white/60" : "text-brand-300",
                       )}
                       aria-hidden
                     />
                     <p
                       className={cn(
-                        "text-sm leading-relaxed",
-                        row.concede ? "text-slate-600" : "text-slate-800",
+                        "text-[15px] leading-relaxed",
+                        row.concede ? "text-white/70" : "text-white",
                       )}
                     >
-                      <span className="font-semibold text-brand-800 sm:hidden">{t("cmp.us")}: </span>
+                      <span className="font-semibold text-brand-300 sm:hidden">{t("cmp.us")}: </span>
                       {row.ours}
                     </p>
                   </div>
@@ -160,17 +158,17 @@ export function Comparison({ block }: { block: Block }) {
                     <TheirsIcon
                       className={cn(
                         "mt-0.5 h-4 w-4 shrink-0",
-                        row.concede ? "text-emerald-600" : "text-slate-600",
+                        row.concede ? "text-brand-300" : "text-white/60",
                       )}
                       aria-hidden
                     />
                     <p
                       className={cn(
-                        "text-sm leading-relaxed",
-                        row.concede ? "text-slate-800" : "text-slate-600",
+                        "text-[15px] leading-relaxed",
+                        row.concede ? "text-white" : "text-white/70",
                       )}
                     >
-                      <span className="font-semibold text-slate-700 sm:hidden">
+                      <span className="font-semibold text-white/80 sm:hidden">
                         {current.name}:{" "}
                       </span>
                       {row.theirs}
@@ -188,12 +186,12 @@ export function Comparison({ block }: { block: Block }) {
           without saying when is the sentence a reader cannot use.
         */}
         {block.checkedOn ? (
-          <p className="mt-3 text-xs leading-relaxed text-slate-600">
+          <p className="mt-4 text-[13px] leading-relaxed text-white/60">
             {t("cmp.checked", { date: block.checkedOn })}
           </p>
         ) : null}
       </div>
-    </section>
+    </DarkBand>
   );
 }
 
