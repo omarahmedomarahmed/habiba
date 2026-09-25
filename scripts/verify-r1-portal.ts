@@ -42,6 +42,7 @@ async function main() {
   );
 
   let sessionId: string | null = null;
+  const planted: string[] = [];
   try {
     const { publicProfile } = await import("../lib/data/radar");
 
@@ -363,14 +364,192 @@ async function main() {
       "it passed session.transcriptLanguage, null unless somebody pressed a button",
     );
 
-    /* ------------------------------------------------ B64 · early start asks */
+    /* ------------------------------------------------ the start ruling · one clock */
 
-    const sessionActions = readSource("app/(app)/sessions/actions.ts");
+    /*
+     * Replaces B64's "Start now anyway". A booked session: more than
+     * `soonMinutes` ahead shows the time and nothing to press, then "Starting
+     * soon", then "Join early" in the last `joinEarlyMinutes`, on both sides and
+     * on the server. Each refusal below is bracketed by the start or join it
+     * must not refuse, so a gate that refused everything would fail too (H25).
+     */
+    const { startWindow, windowFor } = await import("../lib/sessions/start-window");
+    const { getSettings } = await import("../lib/settings");
+    const { parseGroup } = await import("../lib/settings/defs");
+    const rule = (await getSettings()).rules.start;
+    const minute = 60_000;
+    const t0 = Date.now();
     check(
-      "B64 starting well before the booked hour returns the hour instead of starting",
-      /if \(!confirmEarly\) \{[\s\S]{0,400}bookedFor\.getTime\(\) - Date\.now\(\) > EARLY_START_MS[\s\S]{0,300}return \{ early:/.test(sessionActions) &&
-        /goLive\(props\.sessionId, \{ confirmEarly \}\)/.test(room),
-      "started at 00:26 for a 10:00 booking with no question",
+      "START the rule is a setting, 15 and 5 by default",
+      parseGroup("rules", {}).start.soonMinutes === 15 && parseGroup("rules", {}).start.joinEarlyMinutes === 5,
+      JSON.stringify(parseGroup("rules", {}).start),
+    );
+    check(
+      "START CONTROL a Join early wider than Starting soon is pulled back to it",
+      parseGroup("rules", { start: { soonMinutes: 5, joinEarlyMinutes: 10 } }).start.joinEarlyMinutes === 5,
+    );
+    const at = (m: number) => new Date(t0 + m * minute);
+    const windows = [
+      startWindow(at(rule.soonMinutes + 45), t0, rule),
+      startWindow(at((rule.soonMinutes + rule.joinEarlyMinutes) / 2), t0, rule),
+      startWindow(at(rule.joinEarlyMinutes / 2), t0, rule),
+      startWindow(at(-1), t0, rule),
+      startWindow(null, t0, rule),
+    ];
+    check(
+      "START the three windows: booked, soon, early; then open, and open when nothing was booked",
+      windows.join(",") === "booked,soon,early,open,open",
+      windows.join(","),
+    );
+    check(
+      "START CONTROL the windows move with the setting, not a constant",
+      startWindow(at(20), t0, { soonMinutes: 30, joinEarlyMinutes: 10 }) === "soon" &&
+        startWindow(at(20), t0, { soonMinutes: 15, joinEarlyMinutes: 5 }) === "booked",
+    );
+    check(
+      "START a session already under way is never held by the clock",
+      windowFor({ status: "in_progress", scheduledAt: at(60) }, t0, rule) === "open",
+    );
+
+    /* The server: startSession, on four planted sessions. */
+    const { startSession, TooEarlyError } = await import("../lib/data/sessions");
+    const starter = {
+      userId: user.id,
+      organizationId: org.id,
+      role: "therapist" as const,
+      email: `${tag}@example.com`,
+      timezone: "UTC",
+    };
+    const plant = async (minutesAhead: number | null, token: string | null = null) => {
+      const row = required(
+        (
+          await db.execute(sql`
+            INSERT INTO sessions (organization_id, therapist_id, status, modality, guest_name, feedback_token,
+                                  scheduled_at, join_token, join_token_expires_at)
+            VALUES (${org.id}, ${user.id}, 'scheduled', 'in_person', 'Layla Fixture',
+                    ${`fb-${tag}-${randomBytes(6).toString("hex")}`},
+                    ${minutesAhead === null ? null : at(minutesAhead).toISOString()}::timestamptz,
+                    ${token}, ${token ? new Date(t0 + 24 * 60 * minute).toISOString() : null}::timestamptz)
+            RETURNING id`)
+        ).rows[0] as { id: string } | undefined,
+        "fixture booked session",
+      );
+      planted.push(row.id);
+      return row.id;
+    };
+    const tryStart = async (id: string) => {
+      try {
+        return (await startSession(starter as never, id)) ? "started" : "unchanged";
+      } catch (error) {
+        return error instanceof TooEarlyError ? `refused:${error.window}` : `error:${(error as Error).message}`;
+      }
+    };
+    const statusOf = async (id: string) =>
+      ((await db.execute(sql`SELECT status FROM sessions WHERE id = ${id}`)).rows[0] as { status: string }).status;
+
+    const far = await plant(rule.soonMinutes + 45);
+    const soon = await plant((rule.soonMinutes + rule.joinEarlyMinutes) / 2);
+    const early = await plant(rule.joinEarlyMinutes / 2);
+    const walkIn = await plant(null);
+    const farStart = await tryStart(far);
+    check(
+      "START the server refuses a start more than Starting soon ahead, and nothing moves",
+      farStart === "refused:booked" && (await statusOf(far)) === "scheduled",
+      farStart,
+    );
+    const soonStart = await tryStart(soon);
+    check(
+      "START the server refuses a start inside Starting soon, and nothing moves",
+      soonStart === "refused:soon" && (await statusOf(soon)) === "scheduled",
+      soonStart,
+    );
+    const earlyStart = await tryStart(early);
+    check(
+      "START CONTROL inside Join early the same call starts it",
+      earlyStart === "started" && (await statusOf(early)) === "in_progress",
+      earlyStart,
+    );
+    const walkInStart = await tryStart(walkIn);
+    check(
+      "START CONTROL a session nobody booked starts at once, as before",
+      walkInStart === "started" && (await statusOf(walkIn)) === "in_progress",
+      walkInStart,
+    );
+
+    /* The patient's side of the server: the join actions, on a planted join link. */
+    const joinActions = await import("../app/join/[token]/actions");
+    const { translator: words } = await import("../lib/i18n/server");
+    const tooEarlyText = words("en")("join.opensBefore", { minutes: rule.joinEarlyMinutes });
+    const joinToken = `r1p-join-${randomBytes(12).toString("hex")}`;
+    const booked = await plant(rule.soonMinutes + 45, joinToken);
+    const joinRow = async () =>
+      (
+        await db.execute(sql`
+          SELECT patient_joined_at AS joined, recording_consent AS consent FROM sessions WHERE id = ${booked}`)
+      ).rows[0] as { joined: string | null; consent: string | null };
+
+    const consentFar = await joinActions.answerConsent(joinToken, "granted");
+    const resumeFar = await joinActions.resumeAfterPayment(joinToken);
+    const afterFar = await joinRow();
+    check(
+      "START the server refuses a join more than Starting soon ahead: no consent written, not marked in the room",
+      consentFar.error === tooEarlyText && resumeFar.error === tooEarlyText && !afterFar.joined && !afterFar.consent,
+      JSON.stringify({ consentFar, resumeFar, afterFar }),
+    );
+    await db.execute(sql`
+      UPDATE sessions SET scheduled_at = ${at((rule.soonMinutes + rule.joinEarlyMinutes) / 2).toISOString()}::timestamptz
+       WHERE id = ${booked}`);
+    const consentSoon = await joinActions.answerConsent(joinToken, "granted");
+    check(
+      "START the server refuses a join inside Starting soon",
+      consentSoon.error === tooEarlyText && !(await joinRow()).consent,
+      JSON.stringify(consentSoon),
+    );
+    await db.execute(sql`
+      UPDATE sessions SET scheduled_at = ${at(rule.joinEarlyMinutes / 2).toISOString()}::timestamptz
+       WHERE id = ${booked}`);
+    const consentEarly = await joinActions.answerConsent(joinToken, "granted");
+    check(
+      "START CONTROL inside Join early the same join goes through the gate",
+      consentEarly.error !== tooEarlyText && (await joinRow()).consent === "granted",
+      JSON.stringify(consentEarly),
+    );
+
+    const joinSource = readSource("app/join/[token]/actions.ts");
+    const bodyOf = (name: string) => {
+      const from = joinSource.indexOf(`async function ${name}(`);
+      return joinSource.slice(from, joinSource.indexOf("\n}\n", from));
+    };
+    const before = (body: string, first: string, then: string) =>
+      body.indexOf(first) > 0 && body.indexOf(first) < body.indexOf(then);
+    check(
+      "START every patient entrance asks the clock before it writes: the form, the return from paying, the consent, the room key",
+      before(bodyOf("submitJoin"), "notOpenYet(", "joinByToken(") &&
+        before(bodyOf("resumeAfterPayment"), "notOpenYet(", "joinByToken(") &&
+        before(bodyOf("answerConsent"), "notOpenYet(", "recordConsent(") &&
+        before(bodyOf("admit"), "notOpenYet(", "createMeetingToken("),
+    );
+
+    const flow = readSource("components/join/join-flow.tsx");
+    check(
+      "START the join page shows the time or Starting soon with nothing to press, then Join early",
+      /if \(notYet && booking\) \{[\s\S]{0,600}join\.startingSoon[\s\S]{0,200}join\.bookedFor/.test(flow) &&
+        !/if \(notYet && booking\) \{[\s\S]{0,1400}<Submit/.test(flow) &&
+        /early \? t\("join\.joinEarly"\)/.test(flow.replace(/\s+/g, " ")),
+    );
+    check(
+      "START the room shows the time or Starting soon with no Start, then Join early, and asks nothing to confirm",
+      /opening === "booked" \|\| opening === "soon"\) \? \([\s\S]{0,500}troom\.startingSoon[\s\S]{0,120}troom\.bookedFor[\s\S]{0,120}\) : \([\s\S]{0,300}troom\.joinEarly/.test(room) &&
+        !/confirmEarly|startAnyway|earlyStart/.test(room + readSource("app/(app)/sessions/actions.ts")),
+    );
+    const startKeys = [
+      "troom.bookedFor", "troom.startingSoon", "troom.joinEarly",
+      "join.bookedFor", "join.startingSoon", "join.opensBefore", "join.joinEarly", "join.payAhead",
+    ];
+    check(
+      "START every new line is in English and Arabic",
+      startKeys.every((k) => dict.en?.[k] && dict.ar?.[k] && /[\u0600-\u06FF]/.test(dict.ar[k]!)),
+      startKeys.filter((k) => !(dict.en?.[k] && dict.ar?.[k])).join(", "),
     );
     check(
       "B64 the session page keeps the booked hour",
@@ -409,6 +588,9 @@ async function main() {
       `"${onPayer?.what}"`,
     );
   } finally {
+    for (const id of planted) {
+      await db.execute(sql`DELETE FROM sessions WHERE id = ${id}`);
+    }
     if (sessionId) {
       await db.execute(sql`DELETE FROM manual_payments WHERE ref_id = ${sessionId}`);
       await db.execute(sql`DELETE FROM transcript_segments WHERE session_id = ${sessionId}`);

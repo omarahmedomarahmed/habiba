@@ -8,7 +8,7 @@ import { ensureRoom, getSession, getTranscript, unpaidInPerson } from "@/lib/dat
 import { env, features } from "@/lib/env";
 import { capSeconds } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
-import { fullName } from "@/lib/utils";
+import { formatDateTime, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { createMeetingToken } from "@/lib/video";
 
@@ -53,7 +53,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
 
   // Private Daily rooms cannot be entered without a per-participant token, and
   // the clinician's is minted server-side and never leaves this render.
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
   const therapistName = fullName(actor.firstName, actor.lastName, t("portal.session.therapist"));
   let videoUrl: string | null = null;
   let videoToken: string | null = null;
@@ -131,6 +131,16 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
       */
       recordingConsent={row.session.recordingConsent}
       transcriptLanguage={row.session.transcriptLanguage}
+      /* 🔴 The start ruling: the booked time in the clinician's zone, and when Start appears. */
+      booking={
+        row.session.status === "scheduled" && row.session.scheduledAt
+          ? {
+              at: row.session.scheduledAt.toISOString(),
+              label: formatDateTime(row.session.scheduledAt, actor.timezone, locale),
+              rule: (await getSettings()).rules.start,
+            }
+          : null
+      }
       initialLines={transcript.map((segment) => ({
         id: segment.id,
         speaker: segment.speaker,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Link2, Loader2, Mic, MicOff, Square, Video, X } from "lucide-react";
+import { Clock, Copy, Link2, Loader2, Mic, MicOff, Square, Video, X } from "lucide-react";
 
 import { RiskBanner } from "@/components/clinical/risk-banner";
 import { TranscriptPanel, type TranscriptLine } from "@/components/clinical/transcript-panel";
@@ -22,6 +22,7 @@ import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { callMicMuted } from "@/lib/sessions/may-record";
 import { sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { pressOffRecord } from "@/lib/sessions/off-record";
+import { startWindow, type StartRule, type StartWindow } from "@/lib/sessions/start-window";
 import { cn, formatDuration } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { rich, slot } from "@/lib/i18n/rich";
@@ -85,6 +86,12 @@ type RoomProps = {
    * clinician stops that happening to them.
    */
   transcriptLanguage: string | null;
+  /**
+   * 🔴 THE START RULING: the booked instant, written out in the clinician's
+   * zone, and the thresholds from `rules.start`. Null for a session nobody
+   * booked or one already under way, whose Start is what it always was.
+   */
+  booking: { at: string; label: string; rule: StartRule } | null;
 };
 
 export function SessionRoom(props: RoomProps) {
@@ -439,18 +446,24 @@ export function SessionRoom(props: RoomProps) {
 
   /* ---------------------------------------------------------- transitions -- */
 
-  /* B64: the booked hour, when Start was pressed well before it. */
-  const [earlyFor, setEarlyFor] = useState<string | null>(null);
+  /*
+   * 🔴 THE START RULING, ticking on the room's own clock. Before the "Join
+   * early" window of a booked session there is nothing to press: the booked
+   * time, then "Starting soon". It replaced B64's "Start now anyway", which
+   * asked and then let a ten o'clock booking start at midnight. `startSession`
+   * refuses the same start on the server.
+   */
+  useEffect(() => {
+    if (live || !props.booking) return;
+    const tick = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(tick);
+  }, [live, props.booking]);
+  const opening: StartWindow = props.booking ? startWindow(props.booking.at, now, props.booking.rule) : "open";
 
-  const handleStart = (confirmEarly = false) => {
+  const handleStart = () => {
     setError(null);
     startTransition(async () => {
-      const result = await goLive(props.sessionId, { confirmEarly });
-      if (result.early) {
-        setEarlyFor(result.early);
-        return;
-      }
-      setEarlyFor(null);
+      const result = await goLive(props.sessionId);
       if (result.error) {
         setError(result.error);
         return;
@@ -963,28 +976,22 @@ export function SessionRoom(props: RoomProps) {
                 )}
               </button>
             </div>
+          ) : props.booking && (opening === "booked" || opening === "soon") ? (
+            <p className="flex h-13 items-center justify-center gap-2 rounded-2xl bg-white/10 px-3.5 text-center text-sm font-semibold text-white"
+            >
+              <Clock className="h-4 w-4 shrink-0" aria-hidden />
+              {opening === "soon"
+                ? t("troom.startingSoon", { time: props.booking.label })
+                : t("troom.bookedFor", { time: props.booking.label })}
+            </p>
           ) : (
-            <>
-              {/*
-                🔴 B64: asked, not refused. A clinician may have agreed an
-                earlier time with the patient; what they may not do is wake
-                somebody at midnight for a ten o'clock booking by accident.
-              */}
-              {earlyFor ? (
-                <p role="alert" className="mb-2 rounded-xl bg-amber-500/15 px-3.5 py-2.5 text-sm text-amber-100">
-                  {t("troom.earlyStart", { time: earlyFor, name: props.patientLabel })}
-                </p>
-              ) : null}
-              <Button
-                size="lg"
-                variant="primary"
-                full
-                onClick={() => handleStart(earlyFor !== null)}
-                disabled={pending}
-              >
-                {pending ? t("troom.starting") : earlyFor ? t("troom.startAnyway") : t("troom.startSession")}
-              </Button>
-            </>
+            <Button size="lg" variant="primary" full onClick={handleStart} disabled={pending}>
+              {pending
+                ? t("troom.starting")
+                : opening === "early"
+                  ? t("troom.joinEarly")
+                  : t("troom.startSession")}
+            </Button>
           )}
 
           <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">

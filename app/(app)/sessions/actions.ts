@@ -31,6 +31,7 @@ import {
   createSession,
   getSession,
   startSession,
+  TooEarlyError,
   TransitionError,
 } from "@/lib/data/sessions";
 import { dbFor} from "@/lib/db";
@@ -378,29 +379,16 @@ export async function startNewSession(
 }
 
 /**
- * 🔴 B64: how far ahead of its booked hour a session starts without a question.
+ * Start a session, from the room's button.
  *
- * Starting sends the patient "your session has started", so a booking for ten
- * in the morning started at half past midnight woke them for nothing and left
- * the booked hour empty. Fifteen minutes is early enough to open a room for
- * somebody who is already waiting and short of a different part of the day.
+ * 🔴 The founder's start ruling replaced B64's "Start now anyway" here. A
+ * booked session starts only from its "Join early" window on
+ * (`lib/sessions/start-window.ts`, thresholds in `rules.start`), the room
+ * offers nothing to press before that, and `startSession` refuses it on the
+ * server whatever the screen showed. There is no confirmation to press past.
  */
-const EARLY_START_MS = 15 * 60 * 1000;
-
-export async function goLive(
-  sessionId: string,
-  { confirmEarly = false }: { confirmEarly?: boolean } = {},
-): Promise<SessionActionState & { early?: string }> {
+export async function goLive(sessionId: string): Promise<SessionActionState> {
   const actor = await requireUser();
-  if (!confirmEarly) {
-    const found = await getSession(actor, sessionId);
-    const bookedFor = found?.session.status === "scheduled" ? found.session.scheduledAt : null;
-    if (bookedFor && bookedFor.getTime() - Date.now() > EARLY_START_MS) {
-      const { locale } = await getI18n();
-      /* Formatted here, in the clinician's zone, so the room never reads a clock of its own. */
-      return { early: formatDateTime(bookedFor, actor.timezone, locale) };
-    }
-  }
   /*
    * 🔴 TE21: a clinician who may not practise starts nothing. An expired
    * licence sends them back to review, and every (app) page but the open list
@@ -435,6 +423,12 @@ export async function goLive(
     revalidatePath(`/sessions/${sessionId}/room`);
     return { ok: true };
   } catch (error) {
+    if (error instanceof TooEarlyError) {
+      /* Formatted here, in the clinician's zone, so the room never reads a clock of its own. */
+      const { locale, t } = await getI18n();
+      const time = formatDateTime(error.scheduledAt, actor.timezone, locale);
+      return { error: t(error.window === "soon" ? "troom.startingSoon" : "troom.bookedFor", { time }) };
+    }
     if (error instanceof TransitionError) return { error: error.message };
     return { error: "Could not start the session." };
   }

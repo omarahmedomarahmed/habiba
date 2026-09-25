@@ -611,6 +611,9 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
     radarLink: whole("radarLinkHours", 1, 48),
     bookingLink: whole("bookingLinkHoursAfterStart", 1, 48),
     cancelWindow: whole("patientCancelWindowHours", 0, 24 * 14),
+    startSoon: whole("startSoonMinutes", 0, 24 * 60),
+    /* Never wider than Starting soon: "Join early" cannot open first. */
+    joinEarly: whole("joinEarlyMinutes", 0, Math.min(24 * 60, whole("startSoonMinutes", 0, 24 * 60) ?? 0)),
     potWeekly: whole("potSessionsPerWeek", 0, 14),
     walletExpiry: whole("walletExpiryMonths", 0, 120),
     listGrace: whole("listRemovalGraceDays", 0, 120),
@@ -652,6 +655,7 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
       radarLinkHours: numbers.radarLink,
       bookingLinkHoursAfterStart: numbers.bookingLink,
     },
+    start: { soonMinutes: numbers.startSoon, joinEarlyMinutes: numbers.joinEarly },
     refunds: { patientCancelWindowHours: numbers.cancelWindow },
     inPerson: {
       payThroughUs: on("inPersonPayThroughUs"),

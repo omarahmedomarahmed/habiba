@@ -21,6 +21,8 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patients, therapistRadar, users } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { callerKey, releaseHold } from "@/lib/rate-limit";
+import { getSettings } from "@/lib/settings";
+import { formatDateTime } from "@/lib/utils";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -152,11 +154,38 @@ export default async function JoinPage({
       lastName: users.lastName,
       profile: users.profile,
       languages: therapistRadar.languages,
+      timezone: users.timezone,
     })
     .from(users)
     .leftJoin(therapistRadar, eq(therapistRadar.userId, users.id))
     .where(eq(users.id, session.therapistId))
     .limit(1);
+
+  /*
+   * 🔴 THE START RULING: a booked session opens on one clock for both sides
+   * (`lib/sessions/start-window.ts`). The booked instant and the thresholds go
+   * to the browser so the page moves from the time, to "Starting soon", to
+   * "Join early" while they sit on it; the actions refuse an early join
+   * whatever the page shows. The time is written here, in the reader's zone:
+   * their own, then the one this record keeps, then their clinician's (13.13).
+   */
+  let booking: React.ComponentProps<typeof JoinFlow>["booking"] = null;
+  if (session.status === "scheduled" && session.scheduledAt) {
+    const [record] = session.patientId
+      ? await db
+          .select({ timezone: patients.timezone })
+          .from(patients)
+          .where(eq(patients.id, session.patientId))
+          .limit(1)
+      : [];
+    const zone = signedIn?.timezone || record?.timezone || clinician?.timezone || null;
+    booking = {
+      at: session.scheduledAt.toISOString(),
+      label: formatDateTime(session.scheduledAt, zone, locale),
+      rule: (await getSettings()).rules.start,
+      serverNow: Date.now(),
+    };
+  }
 
   return (
     /*
@@ -242,6 +271,7 @@ export default async function JoinPage({
           once, so a room opened before the five minutes never offered anybody.
           The booked instant goes in; the component keeps the clock.
         */
+        booking={booking}
         recoveryFrom={
           session.scheduledAt && !session.startedAt ? session.scheduledAt.toISOString() : null
         }

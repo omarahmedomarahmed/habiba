@@ -20,10 +20,11 @@ import { cn } from "@/lib/utils";
 import { PatientRoom, type Therapist } from "@/components/join/patient-room";
 import { NoShowRecovery } from "@/components/session/no-show-recovery";
 import { rich, slot } from "@/lib/i18n/rich";
+import { startWindow, type StartRule, type StartWindow } from "@/lib/sessions/start-window";
 
 const INITIAL: JoinState = {};
 
-function Submit({ priceCents }: { priceCents: number }) {
+function Submit({ priceCents, early }: { priceCents: number; early: boolean }) {
   const { pending } = useFormStatus();
   const t = useT();
   const paid = priceCents > 0;
@@ -36,7 +37,9 @@ function Submit({ priceCents }: { priceCents: number }) {
           : t("join.joining")
         : paid
           ? rich(t("join.submitPaid", { amount: slot(0) }), [<Money cents={priceCents} />])
-          : t("join.submitFree")}
+          : early
+            ? t("join.joinEarly")
+            : t("join.submitFree")}
     </Button>
   );
 }
@@ -61,7 +64,16 @@ export function JoinFlow({
   knownName,
   recoveryFrom = null,
   benefitNote = null,
+  booking = null,
 }: {
+  /**
+   * 🔴 THE START RULING: a booked session's instant, written out in the
+   * reader's zone, and the thresholds from `rules.start`. Null for a session
+   * nobody booked or one already under way, which opens as it always has.
+   * `serverNow` is the render's instant, so the first client render matches
+   * the HTML; the page's own clock takes over after that.
+   */
+  booking?: { at: string; label: string; rule: StartRule; serverNow: number } | null;
   /** 🔴 W2-P15 / E5: rendered on the server, shown beside the price when one is owed. */
   benefitNote?: React.ReactNode;
   /**
@@ -137,14 +149,29 @@ export function JoinFlow({
   const current = resumed ?? state;
   const owes = priceCents > 0 && paymentStatus !== "paid";
 
+  /*
+   * 🔴 The start ruling, ticking. Before the "Join early" window there is
+   * nothing to press, and the page moves on by itself while they wait on it.
+   */
+  const [now, setNow] = useState(() => booking?.serverNow ?? 0);
+  useEffect(() => {
+    if (!booking) return;
+    setNow(Date.now());
+    const tick = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(tick);
+  }, [booking]);
+  const opening: StartWindow = booking ? startWindow(booking.at, now, booking.rule) : "open";
+  const notYet = !current.joined && (opening === "booked" || opening === "soon");
+
   // Stripe's success_url is a full page load, so everything the client knew is
   // gone. The name was stored server-side before leaving, which is what makes
   // walking straight back into the room possible.
   useEffect(() => {
-    if (!resumeAfterPayment || resuming.current) return;
+    /* Not before the window: coming back from paying early is not arriving early. */
+    if (!resumeAfterPayment || resuming.current || notYet) return;
     resuming.current = true;
     void resumeAction(token).then(setResumed);
-  }, [resumeAfterPayment, token]);
+  }, [resumeAfterPayment, token, notYet]);
 
   // A payment link is a redirect, not a fetch — the action returns the URL and
   // the browser leaves.
@@ -228,6 +255,34 @@ export function JoinFlow({
         >
           {t("room.rateAndGet")}
         </a>
+      </Card>
+    );
+  }
+
+  if (notYet && booking) {
+    return (
+      <Card className="p-6 text-center">
+        <p className="text-base font-semibold text-slate-900">
+          {opening === "soon"
+            ? t("join.startingSoon", { time: booking.label })
+            : t("join.bookedFor", { time: booking.label })}
+        </p>
+        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
+          {t("join.opensBefore", { minutes: booking.rule.joinEarlyMinutes })}
+        </p>
+        {/* Paying is not joining, so a price owed can be settled ahead. */}
+        {owes ? (
+          <>
+            <a
+              href={`/pay/${token}`}
+              className="mt-4 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-5 text-sm font-semibold text-navy-600 hover:bg-brand-400"
+            >
+              <CreditCard className="h-4 w-4" aria-hidden />
+              {rich(t("join.payAhead", { amount: slot(0) }), [<Money cents={priceCents} />])}
+            </a>
+            {benefitNote}
+          </>
+        ) : null}
       </Card>
     );
   }
@@ -361,7 +416,7 @@ export function JoinFlow({
         else on it, and a sentence saying the answer changes nothing about
         being seen or about what they pay.
       */}
-      <Submit priceCents={owes ? priceCents : 0} />
+      <Submit priceCents={owes ? priceCents : 0} early={opening === "early"} />
 
       <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

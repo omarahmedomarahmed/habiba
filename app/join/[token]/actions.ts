@@ -66,9 +66,32 @@ async function externalMeetingFor(sessionId: string): Promise<string | null> {
   return source.externalMeetingId;
 }
 
+/**
+ * 🔴 THE START RULING, ON THE PATIENT'S SIDE OF THE SERVER.
+ *
+ * A booked session is not joined before its "Join early" window
+ * (`lib/sessions/start-window.ts`, thresholds in `rules.start`), the same
+ * clock the clinician's Start follows. The join page offers nothing to press
+ * before then, and this is what makes that a rule rather than a missing
+ * button: every entrance below asks it before anything is written, so an early
+ * arrival neither marks the patient as in the room nor mints a room key.
+ *
+ * Null when they may come in. A session nobody booked is never held.
+ */
+async function notOpenYet(session: { status: string; scheduledAt: Date | null }): Promise<string | null> {
+  const { mayEnter, windowFor } = await import("@/lib/sessions/start-window");
+  const rule = (await getSettings()).rules.start;
+  if (mayEnter(windowFor(session, Date.now(), rule))) return null;
+  const { getI18n } = await import("@/lib/i18n/server");
+  return (await getI18n()).t("join.opensBefore", { minutes: rule.joinEarlyMinutes });
+}
+
 async function admit(token: string, name: string): Promise<JoinState> {
   const session = await resolveJoinToken(token);
   if (!session) return { joined: true, videoUrl: null };
+
+  const early = await notOpenYet(session);
+  if (early) return { error: early };
 
   if (session.priceCents > 0 && session.paymentStatus !== "paid") {
     return { error: "This session has not been paid for yet." };
@@ -171,6 +194,11 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
     return { error: "Too many attempts. Wait a moment and try again." };
   }
 
+  /* 🔴 The start ruling: nothing is written for an arrival before the window. */
+  const arriving = await resolveJoinToken(token);
+  const early = arriving ? await notOpenYet(arriving) : null;
+  if (early) return { error: early };
+
   /* 🔴 W2-P04: a signed-in patient joins as themselves, never as a new stranger. */
   const { optionalPatient } = await import("@/lib/patient-auth/guard");
   /* 🔴 P13: and the receipt address the form asked for is kept, not dropped. */
@@ -259,6 +287,10 @@ export async function resumeAfterPayment(token: string): Promise<JoinState> {
   const name = session.guestName?.trim();
   if (!name) return {};
 
+  /* 🔴 The start ruling: back from paying early is not in the room early. */
+  const early = await notOpenYet(session);
+  if (early) return { error: early };
+
   await joinByToken(token, name);
 
   /*
@@ -315,6 +347,9 @@ export async function answerConsent(token: string, consent: string): Promise<Joi
 
   const session = await resolveJoinToken(token);
   if (!session) return { error: "This link is no longer valid." };
+
+  const early = await notOpenYet(session);
+  if (early) return { error: early };
 
   await recordConsent(session.id, consent);
   return admit(token, session.guestName?.trim() || "Patient");

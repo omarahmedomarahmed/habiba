@@ -564,6 +564,20 @@ const CANCELLABLE_FROM = Object.entries(TRANSITIONS)
 
 export class TransitionError extends Error {}
 
+/**
+ * 🔴 The start ruling: a booked session asked to start before its "Join early"
+ * window. Carries the window and the booked instant so the caller can say it
+ * in the reader's language and zone; the message is only for a log.
+ */
+export class TooEarlyError extends TransitionError {
+  constructor(
+    readonly window: "booked" | "soon",
+    readonly scheduledAt: Date,
+  ) {
+    super(`Booked for ${scheduledAt.toISOString()}; it cannot start yet.`);
+  }
+}
+
 /** 🔴 An in-person session with a price that has not been paid. It cannot start. */
 export function unpaidInPerson(row: { modality: string | null; priceCents: number | null; paymentStatus: string | null }): boolean {
   return row.modality === "in_person" && (row.priceCents ?? 0) > 0 && row.paymentStatus !== "paid";
@@ -580,11 +594,27 @@ export async function startSession(actor: Actor, sessionId: string): Promise<boo
       modality: sessions.modality,
       priceCents: sessions.priceCents,
       paymentStatus: sessions.paymentStatus,
+      scheduledAt: sessions.scheduledAt,
     })
     .from(sessions)
     .where(and(scope(actor), eq(sessions.id, sessionId)))
     .limit(1);
   if (!current) throw new TransitionError("Session not found");
+
+  /*
+   * 🔴 THE START RULING, ON THE SERVER. The room offers no Start before the
+   * "Join early" window of a booked session, and this is what makes that a
+   * rule rather than a missing button: a second tab, an old page or a hand
+   * built request is refused here too. It replaced B64's "Start now anyway",
+   * which asked and then let a ten o'clock booking begin at midnight.
+   *
+   * Nothing booked (on the spot, the radar) has no window and is not held.
+   */
+  if (current.status === "scheduled" && current.scheduledAt) {
+    const { startWindow } = await import("@/lib/sessions/start-window");
+    const window = startWindow(current.scheduledAt, Date.now(), (await getSettings()).rules.start);
+    if (window === "booked" || window === "soon") throw new TooEarlyError(window, current.scheduledAt);
+  }
 
   /*
    * 🔴 PAY BEFORE START (docs/IN-PERSON-PAID.md). An in-person session the

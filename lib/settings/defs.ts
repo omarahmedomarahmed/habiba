@@ -595,6 +595,20 @@ export type RulesSettings = {
     radarLinkHours: number;
     bookingLinkHoursAfterStart: number;
   };
+  /**
+   * 🔴 The founder's start ruling, APPLIED (`lib/sessions/start-window.ts`).
+   *
+   * A BOOKED session follows one clock on both sides. Earlier than
+   * `soonMinutes` before the booked time the clinician's room and the
+   * patient's join page show the time and nothing to press; from then until
+   * `joinEarlyMinutes` before, both say "Starting soon"; after that both may
+   * join early. The server refuses a start or a join the screen would not
+   * offer. A session nobody booked (on the spot, the radar) is not held.
+   */
+  start: {
+    soonMinutes: number;
+    joinEarlyMinutes: number;
+  };
   refunds: {
     /** Ruling 16, APPLIED (`lib/data/booking-change.ts`): cancelled this long before the start, refunded in full; a patient may move a booking inside the same window. */
     patientCancelWindowHours: number;
@@ -640,6 +654,7 @@ export const RULES_DEFAULTS: RulesSettings = {
   providers: { cardGateway: "paymob", payouts: "paymob", etaSigner: "external" },
   payments: { patientPaysCardFee: true, cardFeeBps: 275, cardFeeFixedMinor: 300 },
   links: { sessionLinkHours: 12, radarLinkHours: 3, bookingLinkHoursAfterStart: 4 },
+  start: { soonMinutes: 15, joinEarlyMinutes: 5 },
   refunds: { patientCancelWindowHours: 24 },
   inPerson: {
     payThroughUs: true,
@@ -672,6 +687,7 @@ function parseRules(value: unknown): RulesSettings {
   const providers = record(v.providers);
   const payments = record(v.payments);
   const links = record(v.links);
+  const start = record(v.start);
   const refunds = record(v.refunds);
   const inPerson = record(v.inPerson);
   const wallet = record(v.wallet);
@@ -726,6 +742,7 @@ function parseRules(value: unknown): RulesSettings {
         { min: 1, max: 48 },
       ),
     },
+    start: parseStart(start, d.start),
     refunds: {
       patientCancelWindowHours: int(
         refunds.patientCancelWindowHours,
@@ -755,6 +772,16 @@ function parseRules(value: unknown): RulesSettings {
       }),
     },
   };
+}
+
+/**
+ * The start windows, kept in order: "Join early" can never open before
+ * "Starting soon" does, whatever was typed.
+ */
+function parseStart(start: Record<string, unknown>, d: RulesSettings["start"]): RulesSettings["start"] {
+  const soonMinutes = int(start.soonMinutes, d.soonMinutes, { min: 0, max: 24 * 60 });
+  const joinEarlyMinutes = int(start.joinEarlyMinutes, d.joinEarlyMinutes, { min: 0, max: 24 * 60 });
+  return { soonMinutes, joinEarlyMinutes: Math.min(joinEarlyMinutes, soonMinutes) };
 }
 
 /**

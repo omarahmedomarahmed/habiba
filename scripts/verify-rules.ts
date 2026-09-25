@@ -374,6 +374,8 @@ async function main() {
     ["the card fee line on the pay page", "app/pay/[token]/page.tsx", /cardFeeMinorFor\(/],
     ["session and radar link lifetimes", "lib/data/sessions.ts", /rules\.links\.sessionLinkHours[\s\S]*rules\.links\.radarLinkHours/],
     ["booking link lifetime", "lib/data/scheduling.ts", /rules\.links\.bookingLinkHoursAfterStart/],
+    ["when a booked session may start", "lib/data/sessions.ts", /rules\.start\b/],
+    ["when a booked session may be joined", "app/join/[token]/actions.ts", /rules\.start\b/],
     ["the daily one-person digest runs", "app/api/cron/[job]/route.ts", /sendOneHandDigest/],
   ];
   for (const [what, path, pattern] of reads) {

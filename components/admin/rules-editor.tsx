@@ -160,6 +160,21 @@ export function RulesEditor({ rules, history }: { rules: RulesSettings; history:
           />
         </Section>
 
+        <Section title="Booked sessions">
+          <NumberRow
+            label="Starting soon (minutes)"
+            name="startSoonMinutes"
+            value={rules.start.soonMinutes}
+            status="applied"
+          />
+          <NumberRow
+            label="Join early (minutes)"
+            name="joinEarlyMinutes"
+            value={rules.start.joinEarlyMinutes}
+            status="applied"
+          />
+        </Section>
+
         <Section title="In person">
           <Check label="Pay through us" name="inPersonPayThroughUs" checked={rules.inPerson.payThroughUs} status="stored" />
           <Check label="Company cover" name="inPersonPotCover" checked={rules.inPerson.potCover} status="stored" />
