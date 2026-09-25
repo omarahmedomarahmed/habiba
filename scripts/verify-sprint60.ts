@@ -97,7 +97,9 @@ async function main() {
   check(
     "🔴 60.8 / C312 VAT is on the patient's share alone",
     coverageSplit({ grossCents: 10_000, coverageBps: 6_000, vatBps: 1_400 }).vatCents === 560 &&
-      /vatOn\(patientGross, country\.vatBps\)/.test(connectSource),
+      /* 0161: the rate is the country's, through the rules (`sessionVatBpsFor`), still on the patient's share. */
+      /vatOn\(patientGross, (country\.vatBps|sessionVatBps)\)/.test(connectSource) &&
+      /sessionVatBpsFor\(/.test(connectSource),
     "the employer's share was taxed when the pot was funded, in a jurisdiction the patient is not in",
   );
 

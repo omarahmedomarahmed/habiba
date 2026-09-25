@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth/guard";
 import { ListControls } from "@/components/admin/list-controls";
 import { PAGE_SIZE, paging, searchTerm } from "@/lib/admin/paging";
 import { ERROR_RETENTION_DAYS, recentErrors } from "@/lib/observability/errors";
+import { jobHealth } from "@/lib/observability/heartbeat";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Errors", robots: { index: false } };
@@ -34,6 +35,7 @@ export default async function AdminErrorsPage({
   const { page, offset } = paging(params);
   const fetched = await recentErrors(PAGE_SIZE * 4 + 1, { offset: offset * 4, q });
   const hasMore = fetched.length > PAGE_SIZE * 4;
+  const health = await jobHealth();
   const rows = fetched.slice(0, PAGE_SIZE * 4);
 
   const groups = new Map<string, { rows: typeof rows; first: Date; last: Date }>();
@@ -58,6 +60,28 @@ export default async function AdminErrorsPage({
           recorded once.
         </p>
       </div>
+
+      {/* 🔴 0165 / 51.6: the scheduled jobs the watchdog emails about, and what it sent. */}
+      <Card className="p-4">
+        <p className="text-sm font-semibold text-slate-900">Scheduled jobs</p>
+        <ul className="mt-2 divide-y divide-slate-100 text-sm">
+          {health.jobs.map((job) => (
+            <li key={job.job} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span className="font-mono text-slate-800">{job.job}</span>
+              <span className="flex items-center gap-2 text-xs text-slate-500">
+                {job.failedSteps ? <Badge tone="amber">{job.failedSteps}</Badge> : null}
+                {job.overdue ? <Badge tone="red">Overdue</Badge> : null}
+                {job.lastSuccessAt ? formatDateTime(job.lastSuccessAt, actor.timezone, "en") : "Never"}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {health.alerts.length > 0 ? (
+          <p className="mt-2 text-xs text-slate-500">
+            Alerts this week: {health.alerts.map((a) => a.key).join(", ")}
+          </p>
+        ) : null}
+      </Card>
 
       <ListControls base="/admin/errors" params={{}} q={q} page={page} hasMore={hasMore} />
 
