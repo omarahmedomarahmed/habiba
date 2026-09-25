@@ -19,6 +19,7 @@ import {
   historyGrants,
   manualPayments,
   notifications,
+  patientAuthSessions,
   patientAuthTokens,
   patientNotifications,
   organizations,
@@ -616,6 +617,59 @@ async function main() {
     check(
       "🔴 K9 the room says thank you only when the save came back ok",
       /if \(result\.ok\)[\s\S]{0,80}setDone\(true\)/.test(room) && !/await rateOnArrival\([^)]*\);\s*setDone\(true\)/.test(room),
+    );
+
+    /* ------------------------------------------ K24 · closing an account (LAST) */
+
+    await db.update(patientAccounts).set({ email: `${TAG}-p@example.com` }).where(eq(patientAccounts.id, f.account));
+    await db.insert(patientAuthSessions).values({
+      patientAccountId: f.account,
+      tokenHash: randomBytes(32).toString("hex"),
+      absoluteExpiresAt: new Date(Date.now() + 86_400_000),
+    });
+    const chartsBefore = (
+      await db.select({ id: patients.id }).from(patients).where(eq(patients.personId, f.p))
+    ).length;
+    const { closePatientAccount } = await import("../lib/data/account-closure");
+    const closedResult = await closePatientAccount({ accountId: f.account, personId: f.p });
+    const [row24] = await db
+      .select({ deletedAt: patientAccounts.deletedAt, email: patientAccounts.email, hash: patientAccounts.passwordHash })
+      .from(patientAccounts)
+      .where(eq(patientAccounts.id, f.account));
+    const liveSessions = await db
+      .select({ id: patientAuthSessions.id })
+      .from(patientAuthSessions)
+      .where(and(eq(patientAuthSessions.patientAccountId, f.account), sql`${patientAuthSessions.revokedAt} IS NULL`));
+    const grants24 = await db
+      .select({ status: historyGrants.status })
+      .from(historyGrants)
+      .where(and(eq(historyGrants.personId, f.p), eq(historyGrants.therapistUserId, f.t1)));
+    const chartsAfter = (
+      await db.select({ id: patients.id }).from(patients).where(eq(patients.personId, f.p))
+    ).length;
+    check(
+      "🔴 K24 closing an account ends the login: closed, email released, no password, every session revoked",
+      closedResult.ok === true &&
+        row24?.deletedAt !== null &&
+        row24?.email === null &&
+        row24?.hash === null &&
+        liveSessions.length === 0,
+    );
+    check(
+      "🔴 K24 …and the clinician holding an open-ended grant loses it",
+      grants24.every((grant) => grant.status !== "granted") && grants24.length > 0,
+      grants24.map((grant) => grant.status).join(", "),
+    );
+    check(
+      "K24 CONTROL: the clinical record the clinicians hold is untouched",
+      chartsAfter === chartsBefore && chartsBefore > 0,
+      `${chartsAfter} chart(s)`,
+    );
+    const page24 = stripComments(readSource("app/(patient)/patient/account/page.tsx"));
+    check(
+      "K24 the account page offers it, with the typed-word confirm",
+      /<CloseAccount \/>/.test(page24) &&
+        /accepted\.includes\(typed\)/.test(stripComments(readSource("app/(patient)/patient/account/actions.ts"))),
     );
   } finally {
     await clean();

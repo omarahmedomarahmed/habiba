@@ -32,11 +32,12 @@ export const dynamic = "force-dynamic";
 export default async function PatientLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; closed?: string }>;
 }) {
   const { t } = await getI18n();
+  const params = await searchParams;
   /* 🔴 W2-P02: carried by both forms, checked again by `patientLanding` on the server. */
-  const next = patientLanding((await searchParams).next);
+  const next = patientLanding(params.next);
 
   return (
     <AuthShell
@@ -48,6 +49,12 @@ export default async function PatientLoginPage({
       points={[t("auth.patient.p1"), t("auth.patient.p2"), t("auth.patient.p3")]}
     >
       <div className="space-y-4">
+        {/* 🔴 K24 — the one thing said after an account is closed. */}
+        {params.closed === "1" ? (
+          <p role="status" className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            {t("pclose.done")}
+          </p>
+        ) : null}
         <PatientAuthForm mode="signin" next={next} />
         <p className="text-sm text-slate-600">
           <Link href="/patient/forgot-password" className="hover:text-navy-500">
