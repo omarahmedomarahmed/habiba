@@ -126,6 +126,20 @@ export const WHATSAPP_TEMPLATES = {
     en: "Your 24Therapy code is {{1}}.",
     ar: "رمزك في 24Therapy هو {{1}}.",
   },
+  "homework.set": {
+    name: "homework_set",
+    category: "utility",
+    variables: 1,
+    en: "{{1}} has set you something to try before your next session. It is in your 24Therapy app.",
+    ar: "ترك لك {{1}} شيئًا تجربه قبل جلستك القادمة. تجده في تطبيق 24Therapy.",
+  },
+  "assessment.sent": {
+    name: "assessment_sent",
+    category: "utility",
+    variables: 1,
+    en: "{{1}} has sent you a few questions to answer in your 24Therapy app.",
+    ar: "أرسل لك {{1}} بعض الأسئلة لتجيب عنها في تطبيق 24Therapy.",
+  },
   "payment.submitted": {
     name: "payment_submitted",
     category: "utility",

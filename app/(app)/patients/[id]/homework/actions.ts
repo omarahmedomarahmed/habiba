@@ -7,6 +7,7 @@ import { accessFor } from "@/lib/data/grants";
 import { assignStep, withdrawStep } from "@/lib/data/homework";
 import { getPatient } from "@/lib/data/patients";
 import { ensurePersonForPatient } from "@/lib/data/people";
+import { tellPatientOfWork } from "@/lib/notify/patient-work";
 
 export type HomeworkActionState = { error?: string; ok?: boolean };
 
@@ -57,8 +58,22 @@ export async function setStep(
 
   if (!result.ok) return { error: result.error };
 
-  revalidatePath(`/patients/${patientId}/homework`);
+  /* 🔴 K18 — the patient is told; the row alone reached nobody. */
+  await tellPatientOfWork({ personId: g.personId, therapistUserId: g.actor.userId, what: "homework" });
+
+  revalidateBothSides(patientId);
   return { ok: true };
+}
+
+/*
+ * 🔴 K18 — the pages that show homework, which is where a revalidation has to
+ * land. `/patients/<id>/homework` has no page (the list lives on the documents
+ * page), so revalidating it refreshed nothing.
+ */
+function revalidateBothSides(patientId: string) {
+  revalidatePath(`/patients/${patientId}/documents`);
+  revalidatePath("/patient/homework");
+  revalidatePath("/patient");
 }
 
 /**
@@ -77,6 +92,6 @@ export async function removeStep(patientId: string, itemId: string): Promise<Hom
     return { error: "That step has already been answered, so it stays on the record." };
   }
 
-  revalidatePath(`/patients/${patientId}/homework`);
+  revalidateBothSides(patientId);
   return { ok: true };
 }

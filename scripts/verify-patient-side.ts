@@ -442,6 +442,48 @@ async function main() {
       kinds.join(", ") || "nothing",
     );
 
+    /* ------------------------------ K18 · homework and questionnaires reach them */
+
+    const { tellPatientOfWork } = await import("../lib/notify/patient-work");
+    await tellPatientOfWork({ personId: f.p, therapistUserId: f.t1, what: "homework" });
+    await tellPatientOfWork({ personId: f.p, therapistUserId: f.t1, what: "assessment" });
+    await tellPatientOfWork({ personId: f.q, therapistUserId: f.t1, what: "homework" });
+    const told18 = await db
+      .select({ personId: patientNotifications.personId, kind: patientNotifications.kind })
+      .from(patientNotifications)
+      .where(inArray(patientNotifications.personId, [f.p, f.q]));
+    check(
+      "🔴 K18 a step or a questionnaire set for a patient lands in their app",
+      told18.some((row) => row.personId === f!.p && row.kind === "homework_set") &&
+        told18.some((row) => row.personId === f!.p && row.kind === "assessment_sent"),
+      told18.map((row) => row.kind).join(", "),
+    );
+    check(
+      "K18 CONTROL: a person with no account is not addressed as if they had an app",
+      !told18.some((row) => row.personId === f!.q),
+    );
+    const { existsSync } = await import("node:fs");
+    const stale: string[] = [];
+    for (const file of [
+      "app/(app)/patients/[id]/homework/actions.ts",
+      "app/(app)/patients/[id]/assessments/actions.ts",
+    ]) {
+      const source = stripComments(readSource(file));
+      if (!/tellPatientOfWork\(/.test(source)) stale.push(`${file} tells nobody`);
+      for (const [, path] of source.matchAll(/revalidatePath\(`([^`]+)`\)|revalidatePath\("([^"]+)"\)/g).map(
+        (m) => [m[0], m[1] ?? m[2]] as const,
+      )) {
+        const route = path!.replace(/^\/patients\/\$\{patientId\}/, "/patients/[id]");
+        const group = route.startsWith("/patients/") ? "(app)" : "(patient)";
+        if (!existsSync(`app/${group}${route}/page.tsx`)) stale.push(`${path} has no page`);
+      }
+    }
+    check(
+      "🔴 K18 both actions tell the patient and revalidate only paths that have a page",
+      stale.length === 0,
+      stale.join("; ") || "every path is a real page",
+    );
+
     /* ----------------------------------------- K9 · the arrival rating */
 
     const joinToken = randomBytes(16).toString("hex");
