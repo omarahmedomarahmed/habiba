@@ -64,7 +64,20 @@ async function main() {
     const after = await count(phone);
     check("🔴 CONTROL with the simulation off, WhatsApp keeps nothing", before === 0, String(before));
     check("🔴 while the simulation runs, WhatsApp is kept, not sent", after === 1 && !calls.some((u) => /graph\.facebook/.test(u)), String(after));
+
+    /* A phone-only person reached through notify() is kept even with WhatsApp unconfigured. */
+    const phone2 = `${phone}9`;
+    const { notify } = await import("../lib/notify");
+    await notify({ email: null, phone: phone2 }, { kind: "claim.code", subject: "Your code", body: "Code 771204", variables: ["771204"] } as never);
+    check("🔴 notify() keeps a phone-only message while the simulation runs, configured or not", (await count(phone2)) === 1, String(await count(phone2)));
+    await db.execute(sql`DELETE FROM sim_outbox WHERE to_address = ${phone2}`);
     process.env.SIMULATION_RUNNING = "";
+
+    const { isInventedEmail } = await import("../lib/notify/outbox");
+    check(
+      "🔴 a subdomain of example.com is invented too, and a lookalike is not",
+      isInventedEmail("hoda@staff.example.com") && isInventedEmail("A@EXAMPLE.COM") && !isInventedEmail("x@example.com.eg") && !isInventedEmail("x@notexample.com"),
+    );
 
     await sendNotification({ to: real, subject: "Hello", body: "A real address." });
     check("🔴 CONTROL an email to a real address is never written to the outbox", (await count(real)) === 0);

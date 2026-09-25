@@ -399,7 +399,15 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
   for (const channel of order(to)) {
     if (channel === "whatsapp") {
       const { whatsappConfigured, sendWhatsapp } = await import("./whatsapp");
-      if (!whatsappConfigured() || !to.phone || whatsappRefused) continue;
+      const { simulationRunning } = await import("./outbox");
+      /*
+       * 🔴 While the simulation runs, a phone-only person's message is kept in
+       * the outbox even with WhatsApp unconfigured or the template unapproved.
+       * `sendWhatsapp` keeps it and still answers "not sent", so the fallback
+       * below behaves exactly as it would for a real person.
+       */
+      if (!to.phone) continue;
+      if (!simulationRunning() && (!whatsappConfigured() || whatsappRefused)) continue;
 
       try {
         if (await sendWhatsapp(to.phone, message, to.locale)) sent.push("whatsapp");

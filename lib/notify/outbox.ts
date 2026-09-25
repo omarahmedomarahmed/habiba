@@ -18,7 +18,7 @@ import { log, safeErrorMessage } from "@/lib/logger";
  * the report can count every message the product meant to send.
  */
 export function isInventedEmail(to: string): boolean {
-  return /@example\.com$/i.test(to.trim());
+  return /@(?:[a-z0-9-]+\.)*example\.com$/i.test(to.trim());
 }
 
 export function simulationRunning(): boolean {
