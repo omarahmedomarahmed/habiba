@@ -278,7 +278,7 @@ export async function sendRenewalReminders(
 }
 
 /** K17: the smallest reminder threshold `daysLeft` has reached, or null. */
-export function reminderThreshold(daysLeft: number): number | null {
+function reminderThreshold(daysLeft: number): number | null {
   if (daysLeft < 1) return null;
   const reached = DUNNING_DAYS_BEFORE.filter((t) => daysLeft <= t);
   return reached.length > 0 ? Math.min(...reached) : null;

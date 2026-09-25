@@ -95,7 +95,7 @@ export function seatMonth(now: Date): { periodStart: Date; periodEnd: Date } {
  *   3. otherwise the calendar month, which is the month `raiseSeatMonths`
  *      bills seats in. A seat added on the 25th costs the days to the 1st.
  */
-export async function seatPeriod(
+async function seatPeriod(
   organizationId: string,
   now: Date,
 ): Promise<{ periodStart: Date; periodEnd: Date }> {

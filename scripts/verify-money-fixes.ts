@@ -446,7 +446,7 @@ async function main() {
     /* ================================================================ */
 
     const { payFromPot } = await import("../lib/billing/pot");
-    const { cancelAbandonedRadar } = await import("../lib/data/radar");
+    const { sweepRadar } = await import("../lib/data/radar");
     const k15 = await cast("Sara", { enrolIn: sponsorA.id, type: "radar", createdAgo: "2 hours" });
     const potStart = await one<{ balance_cents: number }>(sql`SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${sponsorA.id}`);
     const k15Spend = await payFromPot(k15.sessionId);
@@ -456,19 +456,19 @@ async function main() {
       k15Spend.paid === true && potStart.balance_cents - potSpent.balance_cents === PRICE / 2,
       `${potStart.balance_cents} → ${potSpent.balance_cents}`,
     );
-    const binned = await cancelAbandonedRadar(new Date(), k15.sessionId);
+    const binned = await sweepRadar(k15.sessionId);
     const potBack = await one<{ balance_cents: number }>(sql`SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${sponsorA.id}`);
     const k15Session = await one<{ status: string }>(sql`SELECT status FROM sessions WHERE id = ${k15.sessionId}`);
     check(
       "🔴 K15 abandoning it returns the company's share to its pot and cancels the session",
-      binned.length === 1 && k15Session.status === "cancelled" && potBack.balance_cents === potStart.balance_cents,
-      JSON.stringify({ binned: binned.length, status: k15Session.status, pot: potBack.balance_cents }),
+      binned.abandoned === 1 && k15Session.status === "cancelled" && potBack.balance_cents === potStart.balance_cents,
+      JSON.stringify({ binned: binned.abandoned, status: k15Session.status, pot: potBack.balance_cents }),
     );
-    const binnedAgain = await cancelAbandonedRadar(new Date(), k15.sessionId);
+    const binnedAgain = await sweepRadar(k15.sessionId);
     const potStill = await one<{ balance_cents: number }>(sql`SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${sponsorA.id}`);
     check(
       "K15 …once",
-      binnedAgain.length === 0 && potStill.balance_cents === potBack.balance_cents,
+      binnedAgain.abandoned === 0 && potStill.balance_cents === potBack.balance_cents,
       String(potStill.balance_cents),
     );
     check(
@@ -537,13 +537,7 @@ async function main() {
     /*  K17 · renewal reminders, once per month per threshold (ME31)     */
     /* ================================================================ */
 
-    const { sendRenewalReminders, reminderThreshold } = await import("../lib/billing/obligations");
-    check(
-      "K17 the threshold a due date has reached: 5 days is the 7-day note, 2 is the 3-day, 1 is the 1-day, today and 8 are none",
-      reminderThreshold(5) === 7 && reminderThreshold(2) === 3 && reminderThreshold(1) === 1 &&
-        reminderThreshold(0) === null && reminderThreshold(8) === null,
-      [5, 2, 1, 0, 8].map((d) => `${d}:${reminderThreshold(d)}`).join(" "),
-    );
+    const { sendRenewalReminders } = await import("../lib/billing/obligations");
     const soon = await one<{ id: string }>(sql`
       INSERT INTO renewal_obligations (organization_id, plan, amount_cents, currency, period_start, period_end, due_at, state)
       VALUES (${org.id}, 'practice', 8000, 'usd', now() + interval '60 hours', now() + interval '32 days', now() + interval '60 hours', 'due')

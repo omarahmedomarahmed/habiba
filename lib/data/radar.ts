@@ -1194,12 +1194,18 @@ export async function notifyIncomingBooking(opts: {
  * expired pending. This exists so the *public list* stops advertising someone
  * whose claim lapsed, and so a closed laptop eventually reads as offline.
  */
-export async function sweepRadar(): Promise<{
+export async function sweepRadar(
+  /** K15: one session's abandoned-checkout step only, so a verifier sweeps nobody else. */
+  onlySessionId?: string,
+): Promise<{
   released: number;
   offline: number;
   abandoned: number;
 }> {
   const now = new Date();
+  if (onlySessionId) {
+    return { released: 0, offline: 0, abandoned: (await cancelAbandonedRadar(now, onlySessionId)).length };
+  }
 
   const released = await db
     .update(therapistRadar)
@@ -1261,10 +1267,10 @@ export async function sweepRadar(): Promise<{
  * clinician's session list as bookings that never happened, and each one
  * carries a token that still works for its full three hours.
  *
- * Part of `sweepRadar`; its own function so a verifier can ask about one
- * session without sweeping everybody else's (`onlySessionId`).
+ * Part of `sweepRadar`, which passes `onlySessionId` through so a verifier
+ * can ask about one session without sweeping everybody else's.
  */
-export async function cancelAbandonedRadar(
+async function cancelAbandonedRadar(
   now = new Date(),
   onlySessionId?: string,
 ): Promise<{ id: string }[]> {
