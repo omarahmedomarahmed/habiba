@@ -48,8 +48,29 @@ const db = dbFor(pinnedToDefaultRegion("lib/data/admin.ts", "not routed yet: thi
 export async function platformStats() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const [orgs] = await db.select({ value: count() }).from(organizations).where(isNull(organizations.deletedAt));
-  const [clinicians] = await db.select({ value: count() }).from(users).where(isNull(users.deletedAt));
+  /*
+   * 🔴 B26 — `users` is not a list of clinicians, and an organisation is not
+   * a practice. Every back office account (staff, managers, the founders) is a
+   * `users` row with a solo organisation of its own, so the bare counts put
+   * the whole console team on the overview as clinicians running practices.
+   * A practice is a clinic, or a solo organisation somebody practises in.
+   */
+  const [orgs] = await db
+    .select({ value: count() })
+    .from(organizations)
+    .where(
+      and(
+        isNull(organizations.deletedAt),
+        or(
+          eq(organizations.kind, "clinic"),
+          sql`exists (select 1 from ${users} where ${users.organizationId} = ${organizations.id} and ${users.role} = 'therapist' and ${users.deletedAt} is null)`,
+        ),
+      ),
+    );
+  const [clinicians] = await db
+    .select({ value: count() })
+    .from(users)
+    .where(and(isNull(users.deletedAt), eq(users.role, "therapist")));
   const [charts] = await db.select({ value: count() }).from(patients).where(isNull(patients.deletedAt));
   const [completed] = await db
     .select({ value: count() })

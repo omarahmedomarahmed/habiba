@@ -56,3 +56,50 @@ test("the audit search finds a row by the words in its reason", async () => {
     await db.delete(auditLog).where(eq(auditLog.id, row!.id));
   }
 });
+
+test("the overview counts clinicians and practices, not the console team (B26)", async () => {
+  const { controlDb: db } = await import("../lib/db");
+  const { organizations, users } = await import("../lib/db/schema");
+  const { platformStats } = await import("../lib/data/admin");
+
+  /*
+   * Plants a staff account with the solo organisation every back office sign
+   * up gets, an empty solo organisation, and one practising clinician. Only
+   * the clinician and their practice may move the tiles. The old counts moved
+   * by two clinicians and three practices, which is the control.
+   */
+  const tag = `b26-${Date.now()}`;
+  const before = await platformStats();
+  const orgIds: string[] = [];
+  const userIds: string[] = [];
+  try {
+    for (const suffix of ["staff", "empty", "clinician"]) {
+      const [org] = await db
+        .insert(organizations)
+        .values({ name: `${tag}-${suffix}`, slug: `${tag}-${suffix}` })
+        .returning({ id: organizations.id });
+      orgIds.push(org!.id);
+    }
+    for (const [index, role] of [[0, "staff"], [2, "therapist"]] as const) {
+      const [user] = await db
+        .insert(users)
+        .values({
+          organizationId: orgIds[index]!,
+          email: `${tag}-${role}@example.com`,
+          passwordHash: "x",
+          firstName: "Tile",
+          lastName: "Example",
+          role,
+        })
+        .returning({ id: users.id });
+      userIds.push(user!.id);
+    }
+
+    const after = await platformStats();
+    assert.equal(after.clinicians - before.clinicians, 1, "a staff account counted as a clinician");
+    assert.equal(after.organizations - before.organizations, 1, "a console account's organisation counted as a practice");
+  } finally {
+    for (const id of userIds) await db.delete(users).where(eq(users.id, id));
+    for (const id of orgIds) await db.delete(organizations).where(eq(organizations.id, id));
+  }
+});
