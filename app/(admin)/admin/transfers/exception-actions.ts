@@ -60,7 +60,9 @@ export async function resolveTransferException(
 
 export async function discardOpenCart(paymentId: string): Promise<ExceptionState> {
   const actor = await requireStaff();
-  if (!(await discardCart(paymentId))) return { error: await say("arefund.errMoved") };
+  const discarded = await discardCart(paymentId, actor.userId);
+  if (discarded === "asked") return { error: await say("atransfer.discardAsked") };
+  if (!discarded) return { error: await say("arefund.errMoved") };
 
   await audit({
     actor,

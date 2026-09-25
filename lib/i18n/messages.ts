@@ -4770,6 +4770,8 @@ export const en = {
   "appr.transfer": "Transfer with no proof",
   "appr.ledger": "Ledger adjustment",
   "appr.owner": "New owner",
+  /* 🔴 AE10: a cart waiting on a second person's credit is theirs to complete or decline. */
+  "atransfer.discardAsked": "You asked a second person to credit this. They complete or decline it; it cannot be discarded under them.",
   "appr.askedBy": "Asked by {name}",
   "appr.complete": "Complete",
   "appr.decline": "Decline",
@@ -8980,6 +8982,7 @@ export const ar: Record<MessageKey, string> = {
   "appr.transfer": "تحويل بلا إثبات",
   "appr.ledger": "تعديل في الدفاتر",
   "appr.owner": "مالك جديد",
+  "atransfer.discardAsked": "طلبت من شخص ثانٍ أن يقيّد هذا. هو من يكمله أو يرفضه، ولا يمكن التخلص منه قبل ذلك.",
   "appr.askedBy": "طلبه {name}",
   "appr.complete": "أكمِله",
   "appr.decline": "ارفضه",

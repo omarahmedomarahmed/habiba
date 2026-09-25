@@ -71,7 +71,8 @@ test("the retry is claimed once, and the cart rules match the payer's own", asyn
   const lib = read("lib/billing/rail-exceptions.ts");
   const retry = around(lib, "export async function retryGrant(", 900);
   assert.match(retry, /\.update\(manualPayments\)[\s\S]*eq\(manualPayments\.exception, "grant_failed"\)/);
-  const discard = around(lib, "export async function discardCart(", 400);
+  // AE10 put the second-person check first, so the window reaches the delete.
+  const discard = around(lib, "export async function discardCart(", 1200);
   assert.match(discard, /eq\(manualPayments\.state, "awaiting_proof"\)/);
 
   const { CART_EXPIRY_DAYS } = await import("../lib/billing/rail-exceptions");

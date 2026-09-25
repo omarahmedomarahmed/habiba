@@ -277,7 +277,52 @@ async function main() {
       afterNumber?.by === required(b, "b").id && afterNumber?.at !== checkedByA?.at,
       JSON.stringify(afterNumber),
     );
+
+    /*
+     * 🔴 AE10: a cart somebody asked a second person to credit. Discarding it,
+     * or the retention job expiring it, left that request asked for ever. Now
+     * the asker cannot discard it, the expiry leaves it, and a second person's
+     * discard declines the request with it.
+     */
+    const manual = await import("../lib/billing/manual");
+    const rail = await import("../lib/billing/rail-exceptions");
+    const cart = await manual.openManualPayment({
+      purpose: "subscription",
+      refId: required(org, "org").id,
+      amountCents: 10_000,
+      settlesCents: 200,
+      payer: { kind: "user", userId: required(a, "a").id, organizationId: required(org, "org").id },
+    });
+    const cartId = required(cart.id ?? null, "a cart");
+    await secondPersonGate({
+      kind: "transfer_without_proof",
+      subjectId: cartId,
+      payload: { paymentId: cartId },
+      reason: "The bank shows it and the payer never pressed submit",
+      actorUserId: required(a, "a").id,
+      enabled: true,
+    });
+    const discardByAsker = await rail.discardCart(cartId, required(a, "a").id);
+    await db.execute(sql`UPDATE manual_payments SET created_at = now() - interval '31 days' WHERE id = ${cartId}`);
+    await rail.expireOpenCarts();
+    const survived = (await db.execute(sql`SELECT 1 FROM manual_payments WHERE id = ${cartId}`)).rows.length === 1;
+    const discardBySecond = await rail.discardCart(cartId, required(b, "b").id);
+    const request = (
+      await db.execute<{ state: string; decided_by: string | null }>(
+        sql`SELECT state, decided_by::text FROM pending_approvals WHERE subject_id = ${cartId}`,
+      )
+    ).rows[0];
+    check(
+      "🔴 AE10 a cart waiting on a second person's credit is not discarded by the asker nor expired, and a second person's discard declines the request",
+      discardByAsker === "asked" && survived && discardBySecond === true && request?.state === "declined" &&
+        request.decided_by === required(b, "b").id,
+      JSON.stringify({ discardByAsker, survived, discardBySecond, request }),
+    );
   } finally {
+    await db.execute(sql`DELETE FROM pending_approvals WHERE kind = 'transfer_without_proof' AND asked_by IN
+      (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);
+    await db.execute(sql`DELETE FROM manual_payments WHERE user_id IN
+      (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);
     await db.execute(sql`DELETE FROM country_settings WHERE code = ${CRISIS_CODE}`);
     await db.execute(sql`DELETE FROM settings_history WHERE scope = 'country' AND key = ${CRISIS_CODE}`);
     await db.delete(pendingApprovals).where(eq(pendingApprovals.subjectId, fixture));
