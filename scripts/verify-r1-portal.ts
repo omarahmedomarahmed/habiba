@@ -3,7 +3,8 @@
  *
  *   npm run verify:r1-portal
  *
- * B4, B10, B11, B12, B13, B14, B36, B37 and B38 from docs/simulation-run/BUGS.md.
+ * B4, B10, B11, B12, B13, B14, B36, B37 and B38 from docs/simulation-run/BUGS.md,
+ * and the session-side B61, B62, B63, B64, B66 and B68 from round 1b.
  * Everything below is planted and removed by this run (H29), on an organisation
  * and a clinician nobody else uses. Each absence is bracketed by its control.
  */
@@ -40,6 +41,7 @@ async function main() {
     "fixture clinician",
   );
 
+  let sessionId: string | null = null;
   try {
     const { publicProfile } = await import("../lib/data/radar");
 
@@ -254,7 +256,164 @@ async function main() {
       regulatorsFor("ZZ", {}).length === 0,
       "free text, no suggestions",
     );
+
+    /* ------------------------------------------------ B61 · one side of the call */
+
+    const session = required(
+      (
+        await db.execute(sql`
+          INSERT INTO sessions (organization_id, therapist_id, status, modality, feedback_token,
+                                guest_name, started_at, ended_at, recording_consent)
+          VALUES (${org.id}, ${user.id}, 'completed', 'video', ${`fb-${tag}`}, 'Layla Fixture',
+                  now() - interval '1 hour', now() - interval '10 minutes', 'granted')
+          RETURNING id`)
+      ).rows[0] as { id: string } | undefined,
+      "fixture session",
+    );
+    sessionId = session.id;
+    const segment = (n: number, speaker: string, inferred: boolean) =>
+      db.execute(sql`
+        INSERT INTO transcript_segments (session_id, organization_id, sequence, speaker, speaker_inferred,
+                                         text, start_ms, end_ms)
+        VALUES (${session.id}, ${org.id}, ${n}, ${speaker}, ${inferred},
+                'How has the month been since we last spoke, and what happens at work in the evenings?',
+                ${(n - 1) * 8000}, ${n * 8000})`);
+    await segment(1, "therapist", false);
+    /* A line diarisation GUESSED to be the patient's: not their track, so still one side. */
+    await segment(2, "patient", true);
+
+    const { capturedSideFor, noteProvenanceFor } = await import("../lib/data/feedback");
+    const origin = await noteProvenanceFor(session.id);
+    check(
+      "B61 a video session with no line on the patient's track is stamped as one side",
+      (await capturedSideFor(session.id)) === "clinician" && origin.capturedSide === "clinician",
+      `provenance ${origin.provenance}; the page said "the whole session was captured"`,
+    );
+    await segment(3, "patient", false);
+    check(
+      "B61 CONTROL one line heard on the patient's track and the session has both sides",
+      (await capturedSideFor(session.id)) === null,
+      "without this the check above could pass on a rule that always says one side",
+    );
+    await db.execute(sql`DELETE FROM transcript_segments WHERE session_id = ${session.id} AND sequence = 3`);
+    await db.execute(sql`UPDATE sessions SET modality = 'in_person' WHERE id = ${session.id}`);
+    check(
+      "B61 CONTROL in person one microphone hears the room, so there is no side to name",
+      (await capturedSideFor(session.id)) === null,
+      "the sentence is about a call",
+    );
+    await db.execute(sql`UPDATE sessions SET modality = 'video' WHERE id = ${session.id}`);
+    const notesSource = readSource("lib/ai/notes.ts");
+    check(
+      "B61 the note writer is told every line is the therapist's, and diarisation does not guess",
+      /only the therapist's side of this video call was captured/.test(notesSource) &&
+        /oneSide\s*\?\s*`Therapist: \$\{s\.text\}`/.test(notesSource) &&
+        /capturedSideFor\(opts\.sessionId\)\) !== "clinician"\) \{\s*const \{ diariseSession \}/.test(notesSource),
+      "it read the clinician's reflections as the patient's account",
+    );
+    const column = (
+      await db.execute(sql`
+        SELECT count(*)::int AS n FROM information_schema.columns
+         WHERE table_name = 'session_notes' AND column_name = 'captured_side'`)
+    ).rows[0] as { n: number };
+    check(
+      "B61 session_notes.captured_side exists (0176), so the fact outlives the segments",
+      Number(column.n) === 1,
+      "H1: the migration runner's success line is not evidence",
+    );
+    check(
+      "B61 the provenance line says one side, in both languages",
+      Boolean(dict.en?.["note.origin.oneSideWhy"] && dict.ar?.["note.origin.oneSideWhy"]) &&
+        /capturedSide=\{note\.capturedSide\}/.test(readSource("app/(app)/sessions/[id]/page.tsx")),
+      "note.origin.oneSideWhy",
+    );
+
+    /* ------------------------------------------------ B62 · the clinician's own track */
+
+    const room = readSource("components/session/session-room.tsx");
+    check(
+      "B62 on video the clinician's own recorder is labelled as the clinician",
+      /uploadChunk\(blob, durationSeconds, props\.modality === "video" \? "therapist" : "unknown"\)/.test(room) &&
+        !/twoTrack \? "therapist" : "unknown"/.test(room),
+      "it was 'unknown' whenever the patient's track was not recording, and a guess took 17 of 32 lines",
+    );
+
+    /* ------------------------------------------------ B63 · Arabic in Arabic */
+
+    const { spokenLanguageFor } = await import("../lib/data/transcript");
+    check(
+      "B63 CONTROL a clinician and patient who never chose Arabic are still detected",
+      (await spokenLanguageFor({ therapistId: user.id, patientId: null, transcriptLanguage: null })) === null,
+      "null means detect",
+    );
+    await db.execute(sql`UPDATE users SET locale = 'ar' WHERE id = ${user.id}`);
+    check(
+      "B63 a clinician who works in Arabic has their sessions transcribed as Arabic",
+      (await spokenLanguageFor({ therapistId: user.id, patientId: null, transcriptLanguage: null })) === "ar",
+      "detection returned «يعني صعب عليكي ترفضي» as 'Jani, sa ba' li tirfudi'",
+    );
+    check(
+      "B63 …and a language set in the room still wins",
+      (await spokenLanguageFor({ therapistId: user.id, patientId: null, transcriptLanguage: "en" })) === "en",
+      "the room's choice is the person's",
+    );
+    check(
+      "B63 the transcription route asks it",
+      /language: await spokenLanguageFor\(session\)/.test(readSource("app/api/sessions/[id]/transcribe/route.ts")),
+      "it passed session.transcriptLanguage, null unless somebody pressed a button",
+    );
+
+    /* ------------------------------------------------ B64 · early start asks */
+
+    const sessionActions = readSource("app/(app)/sessions/actions.ts");
+    check(
+      "B64 starting well before the booked hour returns the hour instead of starting",
+      /if \(!confirmEarly\) \{[\s\S]{0,400}bookedFor\.getTime\(\) - Date\.now\(\) > EARLY_START_MS[\s\S]{0,300}return \{ early:/.test(sessionActions) &&
+        /goLive\(props\.sessionId, \{ confirmEarly \}\)/.test(room),
+      "started at 00:26 for a 10:00 booking with no question",
+    );
+    check(
+      "B64 the session page keeps the booked hour",
+      /const sessionTime = row\.session\.scheduledAt \?\? row\.session\.endedAt/.test(
+        readSource("app/(app)/sessions/[id]/page.tsx"),
+      ),
+      "it led with the end time, so the booking read as 00:30",
+    );
+
+    /* ------------------------------------------------ B66 · the yes arrives */
+
+    check(
+      "B66 the room keeps asking for the patient's answer after they join, before Start",
+      /if \(!live && props\.modality !== "video"\) return;/.test(room),
+      "the poll stopped at 'joined', so 'Waiting for their yes' outlived the yes",
+    );
+
+    /* ------------------------------------------------ B68 · the banner names the patient */
+
+    await db.execute(sql`
+      INSERT INTO manual_payments (purpose, ref_id, amount_cents, currency, settles_cents, payer_kind,
+                                   organization_id, state, submitted_at)
+      VALUES ('session', ${session.id}, 100000, 'EGP', 2000, 'session', ${org.id}, 'submitted', now())`);
+    const { pendingPaymentFor } = await import("../lib/billing/pending");
+    const { translator } = await import("../lib/i18n/server");
+    const onPractice = await pendingPaymentFor({ kind: "organization", organizationId: org.id }, translator("en"), "en");
+    const onPayer = await pendingPaymentFor({ kind: "session", sessionId: session.id }, translator("en"), "en");
+    check(
+      "B68 the clinician's bar names the patient",
+      Boolean(onPractice?.what.includes("Layla Fixture")) && !onPractice?.what.includes("Rone"),
+      `"${onPractice?.what}"; it said "Session with" the clinician on her own pages`,
+    );
+    check(
+      "B68 CONTROL the patient's own bar still names the clinician",
+      Boolean(onPayer?.what.includes("Rone Fixture")),
+      `"${onPayer?.what}"`,
+    );
   } finally {
+    if (sessionId) {
+      await db.execute(sql`DELETE FROM manual_payments WHERE ref_id = ${sessionId}`);
+      await db.execute(sql`DELETE FROM transcript_segments WHERE session_id = ${sessionId}`);
+      await db.execute(sql`DELETE FROM sessions WHERE id = ${sessionId}`);
+    }
     await db.execute(sql`DELETE FROM therapist_radar WHERE user_id = ${user.id}`);
     await db.execute(sql`DELETE FROM therapist_verifications WHERE user_id = ${user.id}`);
     await db.execute(sql`DELETE FROM users WHERE id = ${user.id}`);
