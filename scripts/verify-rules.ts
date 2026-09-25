@@ -325,7 +325,8 @@ async function main() {
      * counted over organisations holding credits, so adding a subscription
      * moved nothing and repricing a tier moved nothing either.
      */
-    const { monthlyRecurringCents } = await import("../lib/data/vault");
+    const { tractionMetrics } = await import("../lib/data/vault");
+    const monthlyRecurringCents = async () => (await tractionMetrics()).mrrCents;
     const { getSettings } = await import("../lib/settings");
     const practice = (await getSettings()).pricing.tiers.find((tier) => tier.key === "practice");
     const mrrBefore = await monthlyRecurringCents();

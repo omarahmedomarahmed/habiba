@@ -492,9 +492,10 @@ async function monthRange(maxMonths: number): Promise<string[]> {
  * 🔴 It kept the OLDEST: the loop walked forward from the first record and
  * stopped at the cap, so after three years the page ended at month 36 and
  * never showed the month the founder was living in. Walked the whole way,
- * then cut from the front.
+ * then cut from the front; `verify:actuals` asks for two months and expects
+ * this one last.
  */
-export function monthsUpTo(first: string, now: Date, maxMonths: number): string[] {
+function monthsUpTo(first: string, now: Date, maxMonths: number): string[] {
   const out: string[] = [];
   const [startYear, startMonth] = first.split("-").map(Number) as [number, number];
 

@@ -16,7 +16,7 @@ import { sessionPayments, sessions, sponsors, users } from "@/lib/db/schema";
  * with NOW: somebody enrolled with two companies had every session listed
  * under both, and somebody enrolled twice with one had each session twice.
  */
-export function paidFromPotOf(sponsorId: SQL | string): SQL {
+function paidFromPotOf(sponsorId: SQL | string): SQL {
   return sql`EXISTS (
     SELECT 1 FROM ledger_entries paid
       JOIN ledger_entries pot ON pot.txn_id = paid.txn_id

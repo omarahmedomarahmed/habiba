@@ -467,7 +467,7 @@ export async function tractionMetrics(): Promise<Traction> {
  * tier in the settings (`pricing.tiers[].monthlyCents`), so changing a price
  * on /admin/settings moves this figure, and a pay-as-you-go plan adds nothing.
  */
-export async function monthlyRecurringCents(): Promise<number> {
+async function monthlyRecurringCents(): Promise<number> {
   const plans = await db
     .select({ plan: subscriptions.plan, count: sql<number>`count(*)::int` })
     .from(subscriptions)
