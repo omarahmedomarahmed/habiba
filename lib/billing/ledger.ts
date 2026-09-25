@@ -190,6 +190,25 @@ export async function heldForTherapist(therapistId: string): Promise<number> {
 }
 
 /**
+ * 🔴 K16b (ME21): the same balance, split by the entity whose books hold it.
+ * An Egyptian clinician's earnings sit on `eg`, and a fee netted against them
+ * has to come off the same books or `us` revenue and `eg` payable disagree.
+ */
+export async function heldForTherapistByEntity(therapistId: string): Promise<Record<Entity, number>> {
+  const rows = await db
+    .select({
+      entity: ledgerEntries.entity,
+      total: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int`,
+    })
+    .from(ledgerEntries)
+    .where(and(eq(ledgerEntries.account, "therapist_payable"), eq(ledgerEntries.userId, therapistId)))
+    .groupBy(ledgerEntries.entity);
+  const out = { us: 0, eg: 0 } as Record<Entity, number>;
+  for (const row of rows) out[row.entity as Entity] = zero(-Number(row.total));
+  return out;
+}
+
+/**
  * 🔴 46.7 — the same balance, for a whole practice.
  *
  * The plan page shows a therapist what we hold for them beside what they owe

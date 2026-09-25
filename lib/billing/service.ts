@@ -93,6 +93,30 @@ export async function chargeForSession(opts: {
 
     const aiConsented = session?.consent === "granted";
 
+    /*
+     * 🔴 ME20: ONE CHARGER PER SESSION, CLAIMED BEFORE ANY MONEY MOVES.
+     *
+     * The invoice insert was idempotent and everything before it was not: a
+     * completion and the reconciler racing both spent credit, and both could
+     * net the fee from held earnings, with one invoice to show for it. The
+     * claim is one conditional UPDATE on the session (0171). A claim older
+     * than ten minutes with still no invoice is a charger that died part way,
+     * and the next one takes it over.
+     */
+    const [claim] = await db
+      .update(sessions)
+      .set({ chargeClaimedAt: new Date() })
+      .where(
+        and(
+          eq(sessions.id, opts.sessionId),
+          sql`NOT EXISTS (SELECT 1 FROM invoices i WHERE i.session_id = ${opts.sessionId})`,
+          sql`(${sessions.chargeClaimedAt} IS NULL
+               OR ${sessions.chargeClaimedAt} < now() - interval '10 minutes')`,
+        ),
+      )
+      .returning({ id: sessions.id });
+    if (!claim) return null;
+
     const settings = await getSettings();
     const tier = await currentTier(opts.organizationId);
     const { lines, totalCents } = sessionLines({
@@ -234,11 +258,18 @@ async function netFeeFromEarnings(input: {
     .limit(1);
   if (!session?.therapistId) return false;
 
-  const { heldForTherapist, postFeeNettedFromHeld } = await import("./ledger");
-  const held = await heldForTherapist(session.therapistId);
-  if (held < input.amountCents) return false;
+  /*
+   * 🔴 K16b (ME21): FROM THE BOOKS THE MONEY IS ON. This was always posted to
+   * `us`, so an Egyptian clinician's fee came off `us` revenue while their
+   * earnings sat on `eg`, and the two entities' books stopped agreeing. The
+   * fee is netted on the one entity holding enough; none alone, no netting.
+   */
+  const { heldForTherapistByEntity, postFeeNettedFromHeld } = await import("./ledger");
+  const heldBy = await heldForTherapistByEntity(session.therapistId);
+  const entity = heldBy.eg >= input.amountCents ? "eg" : heldBy.us >= input.amountCents ? "us" : null;
+  if (!entity) return false;
 
-  await raiseInvoice({
+  const netted = await raiseInvoice({
     organizationId: input.organizationId,
     kind: "session",
     sessionId: input.sessionId,
@@ -248,13 +279,15 @@ async function netFeeFromEarnings(input: {
     postToLedger: false,
     lines: input.lines,
   });
+  /* ME20: only the call that wrote this session's invoice nets its fee. */
+  if (!netted.id) return true;
 
   await postFeeNettedFromHeld({
     sessionId: input.sessionId,
     organizationId: input.organizationId,
     therapistId: session.therapistId,
     amountCents: input.amountCents,
-    entity: "us",
+    entity,
   });
 
   return true;
@@ -285,7 +318,9 @@ async function raiseInvoice(input: {
    * comment in the schema.
    */
   lines?: { kind: "platform" | "ai"; amountCents: number; tierKey?: string | null }[];
-}) {
+  /** K14: spend a waiting seat credit on this bill once it is raised. */
+  spendSeatCredit?: boolean;
+}): Promise<{ id: string | null; creditCents: number }> {
   const [created] = await db
     .insert(invoices)
     .values({
@@ -359,6 +394,16 @@ async function raiseInvoice(input: {
       });
     }
   }
+
+  const creditCents =
+    created && input.spendSeatCredit && input.status === "due"
+      ? await spendUpcomingDiscount({
+          organizationId: input.organizationId,
+          invoiceId: created.id,
+          amountCents: input.amountCents,
+        })
+      : 0;
+  return { id: created?.id ?? null, creditCents };
 }
 
 /**
@@ -825,6 +870,92 @@ export async function setUpcomingDiscount(opts: {
     .where(eq(subscriptions.organizationId, opts.organizationId));
 }
 
+/**
+ * 🔴 K14: A SEAT CREDIT IS ADDED TO WHAT IS WAITING, NEVER WRITTEN OVER IT.
+ *
+ * `setUpcomingDiscount` sets the figure, which is right for an administrator
+ * stating one. Two seat reductions in a month went through it too, so the
+ * second replaced the first and the clinic lost the first credit. One UPDATE,
+ * so two reductions racing both land.
+ */
+export async function addUpcomingDiscount(opts: {
+  organizationId: string;
+  discountCents: number;
+  reason: string;
+}): Promise<void> {
+  const cents = Math.max(0, Math.round(opts.discountCents));
+  if (cents === 0) return;
+  await getSubscription(opts.organizationId);
+  const reason = opts.reason.trim() || "Credit";
+  await db
+    .update(subscriptions)
+    .set({
+      upcomingDiscountCents: sql`${subscriptions.upcomingDiscountCents} + ${cents}`,
+      upcomingDiscountReason: sql`left(CASE WHEN ${subscriptions.upcomingDiscountCents} > 0
+        AND ${subscriptions.upcomingDiscountReason} IS NOT NULL
+        THEN ${subscriptions.upcomingDiscountReason} || '; ' || ${reason}
+        ELSE ${reason} END, 500)`,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.organizationId, opts.organizationId));
+}
+
+/**
+ * 🔴 K14: AND IT IS SPENT ON THE NEXT SEAT BILL.
+ *
+ * The credit a seat reduction books was consumed only by
+ * `recordCreditPurchaseInvoice`, which nothing calls, so it sat on /billing
+ * for ever. This takes what is waiting, up to the bill, off a bill just
+ * raised: the invoice carries it as a discount, a full cover waives the bill,
+ * and the part given is written off in the books as every discount is.
+ *
+ * The take is one conditional UPDATE reading the balance it changes, so two
+ * bills raised at once cannot both spend the same credit.
+ */
+async function spendUpcomingDiscount(input: {
+  organizationId: string;
+  invoiceId: string;
+  amountCents: number;
+}): Promise<number> {
+  if (input.amountCents <= 0) return 0;
+  const taken = await db.execute(sql`
+    WITH before AS (
+      SELECT id, upcoming_discount_cents AS had, upcoming_discount_reason AS why
+        FROM subscriptions
+       WHERE organization_id = ${input.organizationId} AND upcoming_discount_cents > 0
+       FOR UPDATE
+    )
+    UPDATE subscriptions s
+       SET upcoming_discount_cents = before.had - LEAST(before.had, ${input.amountCents}),
+           upcoming_discount_reason = CASE WHEN before.had > ${input.amountCents} THEN before.why ELSE NULL END,
+           updated_at = now()
+      FROM before
+     WHERE s.id = before.id
+    RETURNING LEAST(before.had, ${input.amountCents})::int AS used, before.why AS why`);
+  const row = taken.rows[0] as { used: number; why: string | null } | undefined;
+  const used = row?.used ?? 0;
+  if (used <= 0) return 0;
+
+  await db
+    .update(invoices)
+    .set({
+      discountCents: used,
+      discountReason: row?.why ?? "Seat credit",
+      status: used >= input.amountCents ? "waived" : "due",
+    })
+    .where(eq(invoices.id, input.invoiceId));
+
+  const { postInvoiceWrittenOff } = await import("./ledger");
+  await postInvoiceWrittenOff({
+    invoiceId: input.invoiceId,
+    organizationId: input.organizationId,
+    amountCents: used,
+    memo: row?.why ?? "Seat credit applied",
+    adminUserId: null,
+  });
+  return used;
+}
+
 /* ================================================= 74 · the transfer rail == */
 
 /**
@@ -1040,7 +1171,7 @@ export async function raiseManualRenewals(
       });
       if (!obligation.id) continue;
 
-      await raiseInvoice({
+      const bill = await raiseInvoice({
         organizationId: month.organizationId,
         kind: "subscription",
         amountCents,
@@ -1048,7 +1179,22 @@ export async function raiseManualRenewals(
         description: seats.seats > 0 ? `${tier.name}, ${seats.seats} seats, monthly` : `${tier.name}, monthly`,
         periodStart,
         periodEnd,
+        /* K14: a seat credit from last month comes off this one. */
+        spendSeatCredit: true,
       });
+      /*
+       * K14: a credit that covered the whole month paid it; the month is
+       * settled rather than left due to lapse over a bill nobody owes.
+       */
+      if (bill.id && bill.creditCents >= amountCents) {
+        const { settleObligation } = await import("./obligations");
+        await settleObligation({
+          organizationId: month.organizationId,
+          periodStart,
+          via: "manual",
+          ref: bill.id,
+        });
+      }
       raised += 1;
     } catch (error) {
       log.error("renewal not raised", { organization: ref(month.organizationId), reason: safeErrorMessage(error) });
@@ -1293,5 +1439,133 @@ export async function billSeatProration(input: {
     amountCents: input.amountCents,
     status: "due",
     description: `${input.toSeats} seats from ${input.fromSeats}, for the ${input.daysRemaining} days left of this month`,
+    /* K14: a credit from an earlier reduction is spent here first. */
+    spendSeatCredit: true,
   });
+}
+
+/**
+ * 🔴 K14: THE MONTHLY SEAT BILL, WHICH NOTHING RAISED.
+ *
+ * A clinic paid a prorated bill the day it added seats and never again: the
+ * only recurring bill on the transfer rail was `raiseManualRenewals`, which
+ * needs a paid plan month to renew from, and a clinic that bought seats
+ * without a plan has none. So every clinic's seats were free from their
+ * second month.
+ *
+ * The daily billing job calls this. For each practice with seats and no other
+ * recurring bill (no plan month still in force or waiting, no running Stripe
+ * subscription), it raises one `due` subscription invoice for the calendar
+ * month at today's seat price, with any seat credit taken off it.
+ *
+ *   - Only in the first `SEAT_BILL_DAYS` of the month, so a seat bought on the
+ *     25th is paid by its proration and next month's bill, never twice.
+ *   - Not when seats were first bought this month: the proration already
+ *     charged those days (`seatPeriod` prorates to the month's end).
+ *   - A seat whose clinician is still inside a month they paid for themselves
+ *     (62.6, `billable_from` after the month starts) is not counted.
+ *
+ * Idempotent: the month's bill is looked for under a per-practice lock before
+ * it is raised, so a second run, or two at once, raises nothing.
+ */
+export const SEAT_BILL_DAYS = 3;
+
+export async function raiseSeatMonths(
+  now = new Date(),
+  /** One practice only: how a verifier asks without billing everybody else. */
+  onlyOrganizationId?: string,
+): Promise<{ raised: number }> {
+  const { seatMonth } = await import("./seats");
+  const { periodStart, periodEnd } = seatMonth(now);
+  if (now.getTime() >= periodStart.getTime() + SEAT_BILL_DAYS * 86_400_000) return { raised: 0 };
+
+  const { organizations } = await import("@/lib/db/schema");
+  const candidates = await db
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(
+      and(
+        sql`${organizations.seats} > 0`,
+        onlyOrganizationId ? eq(organizations.id, onlyOrganizationId) : undefined,
+        sql`NOT EXISTS (
+          SELECT 1 FROM renewal_obligations o
+           WHERE o.organization_id = ${qualified(organizations.id)}
+             AND o.state IN ('due', 'paid')
+             AND o.period_end > ${now})`,
+        sql`NOT EXISTS (
+          SELECT 1 FROM subscriptions s
+           WHERE s.organization_id = ${qualified(organizations.id)}
+             AND s.stripe_subscription_id IS NOT NULL
+             AND s.status <> 'cancelled')`,
+      ),
+    )
+    .limit(500);
+
+  const settings = await getSettings();
+  const { seatMonthlyCents } = await import("@/lib/settings/defs");
+  let raised = 0;
+
+  for (const org of candidates) {
+    try {
+      const claimed = await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`seat-month:${org.id}`}))`);
+        const found = await tx.execute(sql`
+          SELECT
+            (SELECT seats FROM organizations WHERE id = ${org.id}) AS seats,
+            (SELECT count(*)::int FROM clinic_seats
+              WHERE organization_id = ${org.id} AND released_at IS NULL
+                AND billable_from > ${periodStart.toISOString()}::timestamptz) AS waiting,
+            EXISTS (SELECT 1 FROM invoices
+                     WHERE organization_id = ${org.id} AND kind = 'subscription'
+                       AND status <> 'void'
+                       AND period_start = ${periodStart.toISOString()}::timestamptz AND period_end = ${periodEnd.toISOString()}::timestamptz) AS billed,
+            EXISTS (SELECT 1 FROM invoices
+                     WHERE organization_id = ${org.id} AND kind = 'subscription'
+                       AND status <> 'void' AND issued_at >= ${periodStart.toISOString()}::timestamptz
+                       AND description LIKE '% seats from 0,%') AS started_this_month`);
+        const row = found.rows[0] as
+          | { seats: number; waiting: number; billed: boolean; started_this_month: boolean }
+          | undefined;
+        if (!row || row.billed || row.started_this_month) return null;
+        const seats = Math.max(0, Number(row.seats) - Number(row.waiting));
+        const amountCents = seatMonthlyCents(seats, settings.pricing.seatBands);
+        if (seats === 0 || amountCents <= 0) return null;
+
+        /*
+         * The invoice is written inside the lock, so a second run finds it.
+         * Its ledger legs and the credit follow outside, as `raiseInvoice`
+         * posts them, keyed on the invoice this call made.
+         */
+        const [invoice] = await tx
+          .insert(invoices)
+          .values({
+            organizationId: org.id,
+            kind: "subscription",
+            amountCents,
+            status: "due",
+            description: `Seats, ${seats}, monthly`,
+            periodStart,
+            periodEnd,
+          })
+          .returning({ id: invoices.id });
+        return invoice ? { id: invoice.id, amountCents, seats } : null;
+      });
+      if (!claimed) continue;
+
+      const { postInvoiceRaised } = await import("./ledger");
+      await postInvoiceRaised({
+        id: claimed.id,
+        organizationId: org.id,
+        amountCents: claimed.amountCents,
+        description: `Seats, ${claimed.seats}, monthly`,
+      });
+      await spendUpcomingDiscount({ organizationId: org.id, invoiceId: claimed.id, amountCents: claimed.amountCents });
+      raised += 1;
+    } catch (error) {
+      log.error("seat month not raised", { organization: ref(org.id), reason: safeErrorMessage(error) });
+    }
+  }
+
+  if (raised > 0) log.info("seat months raised", { raised });
+  return { raised };
 }

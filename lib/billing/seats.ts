@@ -46,9 +46,11 @@ export async function currentSeatBill(organizationId: string): Promise<{
  * it cost would satisfy every sentence in the sprint except the one that
  * matters.
  *
- * 🔴 The period comes from the subscription, and a clinic with no period yet
- * gets a full month: it has nothing to prorate against, and charging a
- * fraction of a period nobody has started is a figure nobody can check.
+ * 🔴 K14: THE PERIOD IS THE ONE THE SEATS ARE BILLED IN. It used to come from
+ * `subscriptions.current_period_end` alone, which a clinic on the transfer
+ * rail never has, so every seat added on the 25th was charged a full thirty
+ * days from that day and then again by the month's seat bill. See
+ * `seatPeriod` for the three cases.
  */
 export async function quoteSeatChange(input: {
   organizationId: string;
@@ -64,14 +66,7 @@ export async function quoteSeatChange(input: {
     .where(eq(organizations.id, input.organizationId))
     .limit(1);
 
-  const [sub] = await controlDb
-    .select({ currentPeriodEnd: subscriptions.currentPeriodEnd })
-    .from(subscriptions)
-    .where(eq(subscriptions.organizationId, input.organizationId))
-    .limit(1);
-
-  const periodEnd = sub?.currentPeriodEnd ?? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const periodStart = new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const { periodStart, periodEnd } = await seatPeriod(input.organizationId, now);
 
   return seatChange({
     fromSeats: org?.seats ?? 0,
@@ -81,6 +76,47 @@ export async function quoteSeatChange(input: {
     periodStart,
     periodEnd,
   });
+}
+
+/** The calendar month `now` falls in, in UTC: the seat bill's own month. */
+export function seatMonth(now: Date): { periodStart: Date; periodEnd: Date } {
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return { periodStart, periodEnd };
+}
+
+/**
+ * 🔴 K14: the period a seat change is prorated against, in order:
+ *
+ *   1. a PAID plan month covering now (the transfer rail): the next month is
+ *      raised by `raiseManualRenewals` at the new seat count, so a change is
+ *      owed only to that month's end.
+ *   2. a Stripe period still running.
+ *   3. otherwise the calendar month, which is the month `raiseSeatMonths`
+ *      bills seats in. A seat added on the 25th costs the days to the 1st.
+ */
+export async function seatPeriod(
+  organizationId: string,
+  now: Date,
+): Promise<{ periodStart: Date; periodEnd: Date }> {
+  const { obligationCovering } = await import("./obligations");
+  const covering = await obligationCovering(organizationId, now);
+  if (covering && covering.state === "paid") {
+    return { periodStart: covering.periodStart, periodEnd: covering.periodEnd };
+  }
+
+  const [sub] = await controlDb
+    .select({ currentPeriodEnd: subscriptions.currentPeriodEnd, status: subscriptions.status })
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, organizationId))
+    .limit(1);
+  if (sub?.currentPeriodEnd && sub.status !== "cancelled" && sub.currentPeriodEnd > now) {
+    const periodStart = new Date(sub.currentPeriodEnd);
+    periodStart.setUTCMonth(periodStart.getUTCMonth() - 1);
+    return { periodStart, periodEnd: sub.currentPeriodEnd };
+  }
+
+  return seatMonth(now);
 }
 
 /**
@@ -167,8 +203,9 @@ export async function applySeatChange(input: {
       daysRemaining: change.daysRemaining,
     });
   } else if (change.proratedCents < 0) {
-    const { setUpcomingDiscount } = await import("./service");
-    await setUpcomingDiscount({
+    /* K14: added to any credit already waiting, and spent on the next seat bill. */
+    const { addUpcomingDiscount } = await import("./service");
+    await addUpcomingDiscount({
       organizationId: input.organizationId,
       discountCents: -change.proratedCents,
       reason: `${change.fromSeats} seats to ${change.toSeats}, for the ${change.daysRemaining} days left of this month`,
