@@ -1,6 +1,6 @@
 import { MessageSquareQuote, Star } from "lucide-react";
 
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { RATINGS_VISIBLE_AFTER } from "@/lib/data/feedback";
 import { cn, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
@@ -51,9 +51,9 @@ export async function FeedbackCard({
   if (total === 0) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("radar.ratings")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("radar.ratings")}</p>
         {/* 🔴 W3: this said a rating unlocks the summary; W2-P10 made the rating optional. */}
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("radar.ratingsEmpty", { count: RATINGS_VISIBLE_AFTER })}
         </p>
       </Card>
@@ -63,30 +63,30 @@ export async function FeedbackCard({
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <p className="text-sm font-semibold text-slate-900">{t("radar.ratings")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("radar.ratings")}</p>
         <span className="flex items-center gap-1 text-lg font-bold text-amber-500">
           <Star className="h-4 w-4 fill-current" aria-hidden />
           {therapistAverage.toFixed(1)}
         </span>
-        <span className="text-xs text-slate-600">
+        <span className="text-xs text-navy-400">
           {total === 1 ? t("radar.fromOne") : t("radar.fromMany", { count: total })}
         </span>
         {serviceAverage > 0 ? (
-          <span className="text-xs text-slate-600">
+          <span className="text-xs text-navy-400">
             {t("radar.ratedUs", { score: serviceAverage.toFixed(1) })}
           </span>
         ) : null}
       </div>
 
       {total < RATINGS_VISIBLE_AFTER ? (
-        <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+        <p className="mt-1.5 text-xs leading-relaxed text-navy-400">
           {t("radar.notPublicYet", { count: RATINGS_VISIBLE_AFTER })}
         </p>
       ) : null}
 
       <ul className="mt-3 space-y-2.5">
         {recent.slice(0, 6).map((entry) => (
-          <li key={entry.id} className="border-t border-slate-100 pt-2.5 first:border-0 first:pt-0">
+          <li key={entry.id} className="border-t border-navy-100/70 pt-2.5 first:border-0 first:pt-0">
             <div className="flex items-center gap-2">
               <span className="flex" aria-label={t("radar.starsOf", { stars: entry.stars })}>
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -94,13 +94,13 @@ export async function FeedbackCard({
                     key={star}
                     className={cn(
                       "h-3 w-3",
-                      star <= entry.stars ? "fill-amber-400 text-amber-400" : "text-slate-200",
+                      star <= entry.stars ? "fill-amber-400 text-amber-400" : "text-navy-100",
                     )}
                     aria-hidden
                   />
                 ))}
               </span>
-              <span className="text-[11px] text-slate-600">{relativeDay(entry.createdAt, zone, locale, t)}</span>
+              <span className="text-[11px] text-navy-400">{relativeDay(entry.createdAt, zone, locale, t)}</span>
             </div>
 
             {entry.tags.length > 0 ? (
@@ -108,7 +108,7 @@ export async function FeedbackCard({
                 {entry.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+                    className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-medium text-navy-400"
                   >
                     {tag}
                   </span>
@@ -117,8 +117,8 @@ export async function FeedbackCard({
             ) : null}
 
             {entry.comment ? (
-              <p className="mt-1.5 flex gap-1.5 text-sm leading-relaxed text-slate-700">
-                <MessageSquareQuote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
+              <p className="mt-1.5 flex gap-1.5 text-sm leading-relaxed text-navy-600">
+                <MessageSquareQuote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-navy-200" aria-hidden />
                 {entry.comment}
               </p>
             ) : null}
