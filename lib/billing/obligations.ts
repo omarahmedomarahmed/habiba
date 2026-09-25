@@ -347,6 +347,8 @@ async function tellRenewalDue(row: {
         timezone: person.timezone,
         organizationId: row.organizationId,
         locale,
+        /* 🔴 B23: a practice's plan goes to its managers, and the footer says so. */
+        reader: org.kind === "solo" ? "clinician" : "manager",
       },
       {
         kind: "renewal.due_soon",

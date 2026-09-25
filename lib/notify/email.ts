@@ -3,6 +3,7 @@ import "server-only";
 import { sendNotification } from "@/lib/mail";
 
 import type { Message } from "./index";
+import type { Footing } from "./readers";
 
 /**
  * The email channel. PLAN.md 11.7.
@@ -28,7 +29,9 @@ export async function sendNotificationEmail(
   to: string,
   message: Message,
   /** 🔴 Ruling 8: the language the words are in, so the shell and its direction match. */
-  locale?: string | null,
+  locale: string | null | undefined,
+  /** 🔴 B23: who reads it and why, so the footer fits them. */
+  footing: Footing,
 ): Promise<boolean> {
   return sendNotification({
     to,
@@ -36,5 +39,6 @@ export async function sendNotificationEmail(
     body: message.body,
     link: message.link ?? null,
     locale,
+    footing,
   });
 }

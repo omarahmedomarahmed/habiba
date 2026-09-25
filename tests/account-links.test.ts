@@ -84,3 +84,27 @@ test("the back office manages its own team, and the owner stays out of reach", a
   // Deactivating signs them out at once rather than when a cookie expires.
   assert.match(team.slice(team.indexOf("setBackOfficeActive")), /revokeAllSessionsForUser/);
 });
+
+test("🔴 B24: an invitation names the organisation, the role and the portal, in both languages", async () => {
+  const { en, ar } = await import("../lib/i18n/messages");
+  for (const reader of ["manager", "company", "partner"] as const) {
+    const key = `mail.account.invite.${reader}` as const;
+    assert.match(en[key], /\{org\}/, key);
+    assert.match(en[key], /\{role\}/, key);
+    assert.match(ar[key], /\{org\}/, key);
+    assert.match(ar[key], /\{role\}/, key);
+  }
+  assert.match(en["mail.account.invite.staff"], /\{role\}/);
+  assert.match(en["mail.account.inviteNext"], /\{signIn\}/);
+
+  /* Read from the row the link was minted for, never from the form. */
+  const links = read("lib/auth/account-links.ts");
+  const send = links.slice(links.indexOf("export async function emailAccountLink("));
+  assert.match(send, /accountFor\(input\.audience, input\.accountId\)/);
+  assert.match(send, /organisation: account\.organisation,\s*role: account\.role/);
+  /* CONTROL the old body, which named nobody, is gone from the dictionary. */
+  assert.equal((en as Record<string, string>)["aaccess.linkBody"], undefined);
+
+  /* The partner portal's own invitation goes through the same builder. */
+  assert.match(read("lib/partner/team.ts"), /sendAccountLink\(\{[\s\S]*reader: "partner"[\s\S]*role,/);
+});

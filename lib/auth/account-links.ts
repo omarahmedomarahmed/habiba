@@ -9,8 +9,11 @@ import { controlDb } from "@/lib/db";
 import {
   accountLinks,
   clinicManagers,
+  organizations,
   partnerUsers,
+  partners,
   sponsorUsers,
+  sponsors,
   users,
   type AccountAudience,
 } from "@/lib/db/schema";
@@ -185,15 +188,76 @@ export async function emailAccountLink(input: {
   createdByUserId: string | null;
 }): Promise<boolean> {
   const url = await mintAccountLink(input);
-  const { stringsFor } = await import("@/lib/i18n/strings");
-  const { t } = await stringsFor("en");
-  const { sendNotification } = await import("@/lib/mail");
-  return sendNotification({
+  const account = await accountFor(input.audience, input.accountId);
+  const purpose = input.purpose ?? "invite";
+  /* 🔴 Ruling 8: our own staff have a saved language; the portal accounts do not yet. */
+  const { recipientLocale } = await import("@/lib/i18n/preference");
+  const locale = input.audience === "staff" ? await recipientLocale({ userId: input.accountId }) : null;
+  const { sendAccountLink } = await import("@/lib/mail");
+  return sendAccountLink({
     to: input.email,
-    subject: t("aaccess.linkSubject"),
-    body: t("aaccess.linkBody"),
-    link: { label: t("aaccess.linkButton"), url },
+    url,
+    reader: READER_FOR[input.audience],
+    purpose,
+    organisation: account.organisation,
+    role: account.role,
+    name: account.name,
+    signIn: `${env.appUrl}${SIGN_IN_FOR[input.audience]}`,
+    days: purpose === "invite" ? INVITE_DAYS : 0,
+    locale,
   });
+}
+
+/** The reader each kind of account is, for the words and the footer. */
+const READER_FOR: Record<AccountAudience, "staff" | "company" | "manager" | "partner"> = {
+  staff: "staff",
+  sponsor: "company",
+  clinic: "manager",
+  partner: "partner",
+};
+
+/**
+ * 🔴 B24: whose account this is and in what role, so the invitation can say.
+ * Read from the row the link was minted for, never from the form, so it names
+ * what was actually created.
+ */
+async function accountFor(
+  audience: AccountAudience,
+  accountId: string,
+): Promise<{ organisation: string | null; role: string; name: string | null }> {
+  if (audience === "staff") {
+    const [row] = await db
+      .select({ role: users.role, name: users.firstName })
+      .from(users)
+      .where(eq(users.id, accountId))
+      .limit(1);
+    return { organisation: null, role: row?.role ?? "staff", name: row?.name ?? null };
+  }
+  if (audience === "sponsor") {
+    const [row] = await db
+      .select({ organisation: sponsors.name, role: sponsorUsers.role, name: sponsorUsers.name })
+      .from(sponsorUsers)
+      .innerJoin(sponsors, eq(sponsors.id, sponsorUsers.sponsorId))
+      .where(eq(sponsorUsers.id, accountId))
+      .limit(1);
+    return { organisation: row?.organisation ?? null, role: row?.role ?? "viewer", name: row?.name ?? null };
+  }
+  if (audience === "clinic") {
+    const [row] = await db
+      .select({ organisation: organizations.name, role: clinicManagers.role, name: clinicManagers.name })
+      .from(clinicManagers)
+      .innerJoin(organizations, eq(organizations.id, clinicManagers.organizationId))
+      .where(eq(clinicManagers.id, accountId))
+      .limit(1);
+    return { organisation: row?.organisation ?? null, role: row?.role ?? "viewer", name: row?.name ?? null };
+  }
+  const [row] = await db
+    .select({ organisation: partners.name, role: partnerUsers.role, name: partnerUsers.name })
+    .from(partnerUsers)
+    .innerJoin(partners, eq(partners.id, partnerUsers.partnerId))
+    .where(eq(partnerUsers.id, accountId))
+    .limit(1);
+  return { organisation: row?.organisation ?? null, role: row?.role ?? "developer", name: row?.name ?? null };
 }
 
 /**

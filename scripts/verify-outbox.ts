@@ -43,6 +43,7 @@ async function main() {
       subject: "Set your password",
       body: "Your code is 482913.\n\nOr open the link.",
       link: { label: "Set password", url: `https://24therapy.app/set-password?token=${tag}` },
+      footing: { reader: "patient", occasion: "asked" },
     });
     const [row] = (await db.execute(sql`SELECT channel, subject, body, reason FROM sim_outbox WHERE to_address = ${invented}`)).rows as {
       channel: string; subject: string; body: string; reason: string;
@@ -79,7 +80,7 @@ async function main() {
       isInventedEmail("hoda@staff.example.com") && isInventedEmail("A@EXAMPLE.COM") && !isInventedEmail("x@example.com.eg") && !isInventedEmail("x@notexample.com"),
     );
 
-    await sendNotification({ to: real, subject: "Hello", body: "A real address." });
+    await sendNotification({ to: real, subject: "Hello", body: "A real address.", footing: { reader: "patient", occasion: "account" } });
     check("🔴 CONTROL an email to a real address is never written to the outbox", (await count(real)) === 0);
 
     const inbox = execFileSync("node", ["--env-file-if-exists=.env.local", "--import", "tsx", "scripts/sim-inbox.ts", invented], { encoding: "utf8" });
