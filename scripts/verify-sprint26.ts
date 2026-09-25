@@ -490,7 +490,8 @@ async function main() {
 
   check(
     "🔴 26.10 / C128 a record extract is never sent over WhatsApp, enforced by passing no phone",
-    /\{ email, phone: null, timezone: null \}/.test(exportSource),
+    /* Ruling 8 adds the person and their language after; the phone stays null. */
+    /\{ email, phone: null, timezone: null(, [^}]*)? \}/.test(exportSource),
     "the fallback cannot fire because the call is not given a number",
   );
 

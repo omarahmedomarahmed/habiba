@@ -13,6 +13,7 @@ import {
   people,
   sponsors,
 } from "@/lib/db/schema";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
 import { notify } from "@/lib/notify";
@@ -103,7 +104,17 @@ export async function sendEnrolmentCode(
    *
    * So it says a code, and where to type it, and nothing else. The word "benefit"
    * is doing the work 53.2 asks it to do.
+   *
+   * 🔴 Ruling 8: in the language the PERSON chose. The address is theirs to
+   * type, not a place their choice is stored.
    */
+  const [enrolment] = await controlDb
+    .select({ personId: enrolments.personId })
+    .from(enrolments)
+    .where(eq(enrolments.id, enrolmentId))
+    .limit(1);
+  const { t, locale } = await wordsFor(enrolment?.personId ? { personId: enrolment.personId } : null);
+
   const delivery = await notify(
     /*
      * 🔴 `phone: null`, so the WhatsApp fallback cannot fire.
@@ -114,11 +125,11 @@ export async function sendEnrolmentCode(
      * nothing to do with their employer's gate and sending a benefit code to it
      * would make their personal channel part of an employment check.
      */
-    { email: emailAddress, phone: null },
+    { email: emailAddress, phone: null, locale },
     {
       kind: "benefit.verify_code",
-      subject: "Your confirmation code",
-      body: `Your code is ${code}. Type it into the app to confirm your benefit. It lasts ${CODE_TTL_MINUTES} minutes.`,
+      subject: t("pmsg.code.benefitSubject"),
+      body: t("pmsg.code.benefit", { code, minutes: CODE_TTL_MINUTES }),
       variables: [code],
     },
   );

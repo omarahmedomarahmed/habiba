@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { patients, sessionPayments, sessions } from "@/lib/db/schema";
-import { en } from "@/lib/i18n/messages";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 
@@ -25,7 +25,7 @@ export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
  *     contact us. Never called refunded when it was not (W1-12).
  *   - Never paid: the message alone.
  *
- * English, like every other message `notify` sends; the words live in the
+ * In the patient's own language (ruling 8); the words live in the
  * dictionary. The in-app notice (W1-28b) is a key plus the session it is about,
  * so it reads in the patient's own language, and the reason is read from the
  * session rather than stored in the notice log (C231).
@@ -103,11 +103,14 @@ export async function afterClinicianCancel(input: {
     .where(eq(sessions.id, input.sessionId))
     .limit(1);
 
+  /* 🔴 Ruling 8: in the patient's own language, with admin overrides. */
+  const words = await wordsFor(to?.personId ? { personId: to.personId } : null);
+  const { t } = words;
   const moneyLine =
     outcome === "refunded"
-      ? en["tshow.refundedBody"]
+      ? t("tshow.refundedBody")
       : outcome === "refund_owed"
-        ? en["w1a.refundOwedBody"]
+        ? t("w1a.refundOwedBody")
         : "";
 
   if (to) {
@@ -117,6 +120,7 @@ export async function afterClinicianCancel(input: {
         email: to.email ?? to.guestEmail ?? null,
         phone: to.phone ?? null,
         timezone: to.timezone ?? null,
+        locale: words.locale,
       },
       {
         kind: "booking.cancelled",
@@ -126,10 +130,10 @@ export async function afterClinicianCancel(input: {
           key: input.byUs ? "w2a.cancelledByUs" : "w1a.cancelledByClinician",
           sessionId: input.sessionId,
         },
-        subject: en["w1a.noShowCancelled"],
+        subject: t("w1a.noShowCancelled"),
         body: [
-          input.byUs ? en["w2a.cancelledByUs"] : en["w1a.cancelledByClinician"],
-          input.byUs ? "" : en["w1a.cancelReasonGiven"].replace("{reason}", input.reason),
+          input.byUs ? t("w2a.cancelledByUs") : t("w1a.cancelledByClinician"),
+          input.byUs ? "" : t("w1a.cancelReasonGiven", { reason: input.reason }),
           moneyLine,
         ]
           .filter(Boolean)

@@ -479,7 +479,10 @@ export async function emailDirections(
   const { sendWalkInDirections } = await import("@/lib/mail");
   const { directionsUrl } = await import("@/lib/geocode");
 
+  /* 🔴 Ruling 8: an anonymous visitor's language is the page they asked from. */
+  const { getLocale } = await import("@/lib/i18n/server");
   const sent = await sendWalkInDirections({
+    locale: await getLocale(),
     to: address,
     therapistName: fullName(entry.firstName, entry.lastName),
     practiceName: entry.practice.name,

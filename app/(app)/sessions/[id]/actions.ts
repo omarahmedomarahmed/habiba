@@ -250,13 +250,21 @@ export async function sendPayLink(sessionId: string): Promise<{ error?: string; 
   if (!email && !phone) return { error: "This patient has no email or phone yet." };
   const { notify } = await import("@/lib/notify");
   const { env } = await import("@/lib/env");
+  /* 🔴 Ruling 8: in the patient's own language. */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const personId = row.patient?.personId ?? null;
+  const { t, locale } = await wordsFor(personId ? { personId } : null);
+  const therapist = [actor.firstName, actor.lastName].filter(Boolean).join(" ");
   const delivery = await notify(
-    { email, phone, timezone: row.patient?.timezone ?? null },
+    { personId, email, phone, timezone: row.patient?.timezone ?? null, locale },
     {
+      notice: { kind: "session_invited", key: "pnotice.payLink", sessionId },
       kind: "session.invite",
-      subject: "Pay for your session",
-      body: `Your therapist ${actor.firstName} ${actor.lastName} is ready. Pay on your phone and the session starts.`,
-      link: { label: "Pay for the session", url: `${env.appUrl}/pay/${row.session.joinToken}` },
+      subject: t("pmsg.payLink.subject"),
+      body: t("pmsg.payLink.body", { therapist }),
+      link: { label: t("pmsg.payLink.link"), url: `${env.appUrl}/pay/${row.session.joinToken}` },
+      /* The one variable `session_invite` takes. */
+      variables: [therapist],
     },
   );
   return delivery.sent ? { ok: true } : { error: "It could not be sent. Show the QR code instead." };

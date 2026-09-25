@@ -41,9 +41,12 @@ const { check, finish } = reporter();
 /**
  * 🔴 How many `notify()` calls still have no in-app home.
  *
- * Measured on the commit that built the seam. It may only fall.
+ * Measured on the commit that built the seam. It may only fall. Ruling 8 took
+ * it from 18 (23 found on arrival) to 14: bookings, reminders, releases, pay
+ * links, the no-show apology, record invites and exports, history grants and
+ * answers, and support replies now land in the app too.
  */
-const UNWIRED_BASELINE = 18;
+const UNWIRED_BASELINE = 14;
 
 /** Sends that are deliberately outbound only, each with the reason. */
 const OUTBOUND_ONLY: Record<string, string> = {

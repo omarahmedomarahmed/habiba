@@ -246,11 +246,14 @@ export async function emailTherapist(
     reason: subject.trim().slice(0, 200),
   });
 
+  /* 🔴 Ruling 8: the admin's words as typed; the greeting and footer in theirs. */
+  const { recipientLocale } = await import("@/lib/i18n/preference");
   const sent = await sendTherapistMessage({
     to: recipient.email,
     firstName: recipient.firstName,
     subject: subject.trim(),
     body,
+    locale: await recipientLocale({ userId }),
   });
 
   if (!sent) {
@@ -282,6 +285,7 @@ export async function announceToAllTherapists(
   const trimmedSubject = subject.trim();
 
   after(async () => {
+    const { recipientLocale } = await import("@/lib/i18n/preference");
     for (const recipient of recipients) {
       // Sequential, not Promise.all: a few hundred simultaneous sends is how
       // you get rate-limited by the provider and silently drop half the list.
@@ -291,6 +295,8 @@ export async function announceToAllTherapists(
         subject: trimmedSubject,
         body,
         announcement: true,
+        /* 🔴 Ruling 8: the greeting and footer in their language. */
+        locale: await recipientLocale({ userId: recipient.id }),
       });
     }
     log.info("announcement sent", { recipients: recipients.length });
@@ -394,14 +400,16 @@ export async function decideTherapistVerification(
     .where(eq(users.id, decided.userId))
     .limit(1);
 
+  /* 🔴 Ruling 8: in the clinician's own language; the reviewer's note as typed. */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const { t, locale } = await wordsFor({ userId: decided.userId });
+
   if (person && decided.recheck) {
     /*
      * 🔴 W1-23: a licence change on somebody already approved. They were
      * cleared throughout, so neither answer is "you are verified" or "we need
      * something else"; it is about the change.
      */
-    const { stringsFor } = await import("@/lib/i18n/strings");
-    const { t } = await stringsFor("en");
     after(() =>
       sendTherapistMessage({
         to: person.email,
@@ -410,6 +418,7 @@ export async function decideTherapistVerification(
         body: approve
           ? t("tlic.changeApproved")
           : t("tlic.changeRejected", { note: trimmed }),
+        locale,
       }),
     );
   } else if (person) {
@@ -417,9 +426,9 @@ export async function decideTherapistVerification(
       sendTherapistMessage({
         to: person.email,
         firstName: person.firstName,
-        subject: approve ? "You are verified on 24Therapy" : "We need something else from you",
+        subject: t(approve ? "tmsg.verified.subject" : "tmsg.unverified.subject"),
         body: approve
-          ? `Your practice has been verified. You can start sessions, go on the Crisis Radar and take payments from patients right away.\n\nYour first completed session is on us.`
+          ? t("tmsg.verified.body")
           : /*
              * 🔴 C351 — the second no tells them what it cost, in the same
              * message that gives the reason. Discovering that the documents are
@@ -427,8 +436,9 @@ export async function decideTherapistVerification(
              * made on purpose reads as a product that lost their files.
              */
             decided.documentsCleared
-            ? `We could not verify your practice.\n\n${trimmed}\n\nThis is the second time we have looked, so we have not kept the documents you sent. If you want us to look again, sign in and upload them fresh along with anything that answers the above.`
-            : `We could not verify your practice yet.\n\n${trimmed}\n\nSign in and update your details. It goes straight back to the front of our queue.`,
+            ? t("tmsg.unverified.cleared", { note: trimmed })
+            : t("tmsg.unverified.body", { note: trimmed }),
+        locale,
       }),
     );
   }
@@ -767,12 +777,14 @@ export async function emailPatientRecordToPatient(
   const { env } = await import("@/lib/env");
   const { EXPORT_TTL_HOURS } = await import("@/lib/db/schema");
 
+  /* 🔴 Ruling 8: in the patient's own language. */
+  const { recipientLocale } = await import("@/lib/i18n/preference");
   const sent = await sendRecordExport({
     to: result.email,
     patientName: result.patientName,
-    clinicianName: "your therapist",
     url: `${env.appUrl}${exportPath(result.token)}`,
     expiresInHours: EXPORT_TTL_HOURS,
+    locale: await recipientLocale(result.personId ? { personId: result.personId } : null),
   });
 
   if (!sent) return { error: "The link was created but the email was rejected." };
@@ -930,11 +942,18 @@ export async function setRadarSuspension(
       .limit(1);
 
     if (therapist) {
+      /* 🔴 Ruling 8: in the clinician's own language; the operator's reason as typed. */
+      const { wordsFor } = await import("@/lib/i18n/message-words");
+      const { t, locale } = await wordsFor({ userId: therapistUserId });
       await sendTherapistMessage({
         to: therapist.email,
         firstName: therapist.firstName,
-        subject: "You have been taken off the Crisis Radar",
-        body: `You are off the Crisis Radar for ${hours >= 24 * 365 ? "the time being" : `${hours} hours`}.\n\nReason given: ${note}\n\nYour own patients and everything in your portal are unaffected, this only stops new bookings from strangers on the radar. Reply to this email if you think it is wrong.`,
+        subject: t("tmsg.radarOff.subject"),
+        body: t("tmsg.radarOff.admin", {
+          period: hours >= 24 * 365 ? t("tmsg.period.now") : t("tmsg.period.hours", { hours }),
+          note,
+        }),
+        locale,
       });
     }
   }

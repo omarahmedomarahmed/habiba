@@ -358,7 +358,7 @@ export async function notifyPatientOfGrant(input: {
     .where(eq(users.id, input.therapistUserId))
     .limit(1);
 
-  const name = fullName(clinician?.firstName, clinician?.lastName, "A therapist");
+  const name = fullName(clinician?.firstName, clinician?.lastName, "");
 
   /*
    * Sent to the patient's own handle rather than written into `notifications`,
@@ -378,15 +378,28 @@ export async function notifyPatientOfGrant(input: {
 
   if (!account) return;
 
+  /* 🔴 Ruling 8: in the patient's own language. */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const { t, locale } = await wordsFor({ personId: input.personId });
+  const who = name || t("pmsg.aTherapist");
+
   const { notify } = await import("@/lib/notify");
   await notify(
-    { email: account.email, phone: account.phone, timezone: account.timezone },
     {
+      /* So the grant is also on the patient's own list, where it can be undone. */
+      personId: input.personId,
+      email: account.email,
+      phone: account.phone,
+      timezone: account.timezone,
+      locale,
+    },
+    {
+      notice: { kind: "access_requested", key: "pnotice.accessGranted" },
       kind: "consent.granted",
-      subject: "Somebody can now read your history",
-      body: `${name} can read your history from now on. If that is not what you meant, you can stop it in one tap, and nobody is told why.`,
-      link: { label: "Who can read my history", url: `${env.appUrl}/patient/consent` },
-      variables: [name],
+      subject: t("pmsg.granted.subject"),
+      body: t("pmsg.granted.body", { name: who }),
+      link: { label: t("pmsg.granted.link"), url: `${env.appUrl}/patient/consent` },
+      variables: [who],
     },
   );
 }
@@ -565,20 +578,27 @@ export async function answerAsk(
     .limit(1);
 
   if (account) {
+    /* 🔴 Ruling 8: in the patient's own language; their reason goes as written. */
+    const { wordsFor } = await import("@/lib/i18n/message-words");
+    const { t, locale } = await wordsFor({ personId: row.personId });
     const { notify } = await import("@/lib/notify");
     await notify(
-      { email: account.email, phone: account.phone, timezone: account.timezone },
       {
+        personId: row.personId,
+        email: account.email,
+        phone: account.phone,
+        timezone: account.timezone,
+        locale,
+      },
+      {
+        notice: { kind: "access_requested", key: "pnotice.historyAnswered" },
         kind: "history.answered",
-        subject:
-          input.decision === "added"
-            ? "Your old therapist added to your record"
-            : "Your old therapist has answered",
+        subject: t(input.decision === "added" ? "pmsg.history.addedSubject" : "pmsg.history.answeredSubject"),
         body:
           input.decision === "added"
-            ? "What they hold has been added to the record you own. It is in your profile."
-            : `They said no. In their words: "${input.reason!.trim()}"`,
-        link: { label: "Open your record", url: `${env.appUrl}/patient/profile` },
+            ? t("pmsg.history.added")
+            : t("pmsg.history.declined", { reason: input.reason!.trim() }),
+        link: { label: t("pmsg.openRecord"), url: `${env.appUrl}/patient/profile` },
         variables: [input.decision === "added" ? "added" : "declined"],
       },
     );

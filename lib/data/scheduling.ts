@@ -846,6 +846,8 @@ export type ReleasedBooking = {
   patientEmail: string | null;
   patientPhone: string | null;
   patientTimezone: string | null;
+  /** 🔴 Ruling 8: whose language the release notice is in. Null for a guest. */
+  personId: string | null;
   therapistFirstName: string;
   therapistLastName: string | null;
   therapistTimezone: string | null;
@@ -885,6 +887,7 @@ export async function releaseUnconfirmedBookings(now = new Date()): Promise<Rele
       patientEmail: sql<string | null>`COALESCE(${patients.email}, ${sessions.guestEmail})`,
       patientPhone: patients.phone,
       patientTimezone: patients.timezone,
+      personId: patients.personId,
       therapistFirstName: users.firstName,
       therapistLastName: users.lastName,
       therapistTimezone: users.timezone,
@@ -1049,6 +1052,8 @@ export async function bookingsNeedingReminder(fromHours = 20, toHours = 24) {
       patientPhone: patients.phone,
       patientFirstName: patients.firstName,
       patientTimezone: patients.timezone,
+      /* 🔴 Ruling 8: whose language the reminder is in, and whose app it lands in. */
+      personId: patients.personId,
       practice: organizations.name,
     })
     .from(availabilitySlots)
@@ -1092,6 +1097,8 @@ export async function sameDayNeedingReminder() {
       patientPhone: patients.phone,
       patientFirstName: patients.firstName,
       patientTimezone: patients.timezone,
+      /* 🔴 Ruling 8: whose language the reminder is in, and whose app it lands in. */
+      personId: patients.personId,
       practice: organizations.name,
     })
     .from(availabilitySlots)

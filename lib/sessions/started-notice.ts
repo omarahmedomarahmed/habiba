@@ -5,6 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { controlDb as db } from "@/lib/db";
 import { patients, sessions, users } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 
@@ -84,15 +85,20 @@ export async function noticeSessionStarted(sessionId: string): Promise<void> {
 
     if (!row?.joinToken) return;
 
+    if (!(row.patientEmail ?? row.email) && !row.patientPhone) return;
+    /* 🔴 Ruling 8: in the language the patient chose. */
+    const words = await wordsFor(row.personId ? { personId: row.personId } : null);
+    const { t } = words;
     const to = {
       personId: row.personId,
       email: row.patientEmail ?? row.email ?? null,
       phone: row.patientPhone ?? null,
+      locale: words.locale,
     };
-    if (!to.email && !to.phone) return;
 
-    const name = row.patientFirst ?? row.guestName ?? "there";
-    const therapist = [row.therapistFirst, row.therapistLast].filter(Boolean).join(" ");
+    const name = row.patientFirst ?? row.guestName;
+    const therapist =
+      [row.therapistFirst, row.therapistLast].filter(Boolean).join(" ") || t("pmsg.yourTherapist");
     const url = `${env.appUrl}/join/${row.joinToken}`;
 
     await notify(to, {
@@ -100,21 +106,16 @@ export async function noticeSessionStarted(sessionId: string): Promise<void> {
          product says, and it used to exist only in an inbox. */
       notice: { kind: "session_started", key: "pnotice.sessionStarted" },
       kind: "session.started",
-      subject: "Your session has started",
-      body:
-        `Hi ${name},\n\n` +
-        (therapist
-          ? `${therapist} is in the room and waiting for you.`
-          : "Your therapist is in the room and waiting for you.") +
-        "\n\nUse the link below to go in.",
-      link: { label: "Go in now", url },
+      subject: t("pmsg.started.subject"),
+      body: `${name ? t("pmsg.hi", { name }) : t("pmsg.hiThere")}\n\n${t("pmsg.started.body", { therapist })}`,
+      link: { label: t("pmsg.started.link"), url },
       /*
        * 🔴 ONE VARIABLE, THE THERAPIST'S NAME, and the template has to agree.
        * `sendWhatsapp` refuses a count mismatch rather than sending a message
        * with a hole in it, which is the right failure and is worth knowing
        * about: the email still goes.
        */
-      variables: [therapist || "Your therapist"],
+      variables: [therapist],
     });
   } catch (error) {
     log.warn("could not tell a patient their session had started", {

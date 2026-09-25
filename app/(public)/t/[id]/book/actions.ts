@@ -2,7 +2,8 @@
 
 import { bookSlot, holdSlot, slotOwner } from "@/lib/data/scheduling";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
-import { formatWhenWithCaveat, resolveZone } from "@/lib/scheduling/tz";
+import { resolveZone } from "@/lib/scheduling/tz";
+import { whenFor, wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { env } from "@/lib/env";
 import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
@@ -162,17 +163,27 @@ export async function book(input: {
    * trust while deciding when to leave the house.
    */
   const zone = resolveZone(input.timezone, result.therapistTimezone);
-  const when = formatWhenWithCaveat(result.startsAt, zone, "en");
+  /*
+   * 🔴 Ruling 8: the language they chose, and for a guest with no saved choice
+   * the language of the page they booked on.
+   */
+  const { getLocale } = await import("@/lib/i18n/server");
+  const personId = signedIn?.personId ?? null;
+  const words = await wordsFor(personId ? { personId } : null, await getLocale());
+  const therapist = result.therapistName;
+  const when = whenFor(result.startsAt, zone, words);
+  const door = patientSessionLink(env.appUrl, result.joinToken);
 
   const delivery = await notify(
-    { email, phone, timezone: input.timezone ?? null },
+    { personId, email, phone, timezone: input.timezone ?? null, locale: words.locale },
     {
+      notice: { kind: "session_invited", key: "pnotice.booked", sessionId: result.sessionId },
       kind: "booking.confirmed",
-      subject: `Your session with ${result.therapistName}`,
-      body: `Your session with ${result.therapistName} is booked for ${when}.\n\nJoin from the link below a few minutes before. If you need to cancel, tell your therapist as early as you can.`,
+      subject: words.t("pmsg.sessionWith", { therapist }),
+      body: words.t("pmsg.bookedSelf.body", { therapist, when }),
       /* 🔴 W2-P05: their own door, not the clinician's session page. */
-      link: patientSessionLink(env.appUrl, result.joinToken),
-      variables: [result.therapistName, when],
+      link: door ? { ...door, label: words.t("pmsg.openSession") } : null,
+      variables: [therapist, when],
     },
   );
 

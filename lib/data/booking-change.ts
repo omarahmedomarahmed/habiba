@@ -13,11 +13,12 @@ import {
   sessions,
   users,
 } from "@/lib/db/schema";
-import { en, type MessageKey } from "@/lib/i18n/messages";
+import { whenFor, wordsFor } from "@/lib/i18n/message-words";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { insideFreeWindow, placeFits } from "@/lib/scheduling/cancel-window";
-import { formatWhenWithCaveat, resolveZone } from "@/lib/scheduling/tz";
+import { resolveZone } from "@/lib/scheduling/tz";
 import { getSettings } from "@/lib/settings";
 
 /**
@@ -157,30 +158,36 @@ async function therapistContact(therapistId: string) {
 async function tellTherapist(input: {
   therapistId: string;
   kind: "booking.patient_cancelled" | "booking.patient_moved";
-  title: string;
-  body: string;
+  title: MessageKey;
+  body: MessageKey;
   when: Date;
 }): Promise<void> {
   const therapist = await therapistContact(input.therapistId);
   if (!therapist) return;
+  /* 🔴 Ruling 8: in the clinician's own language, in the app and outside it. */
+  const words = await wordsFor({ userId: input.therapistId });
+  const { t } = words;
+  const title = t(input.title);
+  const body = t(input.body);
   await db.insert(notifications).values({
     userId: input.therapistId,
     kind: "system",
-    title: input.title,
-    body: input.body,
+    title,
+    body,
     actionUrl: "/bookings",
   });
-  const when = formatWhenWithCaveat(input.when, resolveZone(therapist.timezone), "en");
+  const when = whenFor(input.when, resolveZone(therapist.timezone), words);
   await notify(
     {
       email: therapist.email,
       phone: therapist.profile?.phone ?? null,
       timezone: therapist.timezone,
+      locale: words.locale,
     },
     {
       kind: input.kind,
-      subject: input.title,
-      body: `${input.body}\n\n${when}`,
+      subject: title,
+      body: `${body}\n\n${when}`,
       /* The template carries the time only: no patient name on a lock screen. */
       variables: [when],
     },
@@ -265,8 +272,8 @@ export async function patientCancel(input: {
   await tellTherapist({
     therapistId: booking.therapistId,
     kind: "booking.patient_cancelled",
-    title: en["tchange.patientCancelled"],
-    body: refund === "held" ? en["tchange.patientCancelledLate"] : en["tchange.patientCancelledFree"],
+    title: "tchange.patientCancelled",
+    body: refund === "held" ? "tchange.patientCancelledLate" : "tchange.patientCancelledFree",
     when: booking.scheduledAt,
   });
 
@@ -313,6 +320,7 @@ export async function agreeLateRefund(actor: Actor, sessionId: string): Promise<
 
   const booking = await bookingFor(sessionId);
   if (booking) {
+    const { t, locale } = await wordsFor(booking.personId ? { personId: booking.personId } : null);
     await notify(
       {
         personId: booking.personId,
@@ -320,12 +328,13 @@ export async function agreeLateRefund(actor: Actor, sessionId: string): Promise<
         phone: booking.patientPhone,
         timezone: booking.patientTimezone,
         organizationId: booking.organizationId,
+        locale,
       },
       {
         kind: "booking.cancelled",
         notice: { kind: "session_cancelled", key: "pnotice.lateRefunded", sessionId },
-        subject: en["pnotice.lateRefunded"],
-        body: [en["pnotice.lateRefunded"], refund === "queued" ? en["w1a.refundOwedBody"] : ""]
+        subject: t("pnotice.lateRefunded"),
+        body: [t("pnotice.lateRefunded"), refund === "queued" ? t("w1a.refundOwedBody") : ""]
           .filter(Boolean)
           .join("\n\n"),
       },
@@ -488,11 +497,10 @@ export async function rescheduleBooking(input: {
     /* The patient is told, in the app and by every channel that reaches them. */
     const therapist = await therapistContact(booking.therapistId);
     const name = [therapist?.firstName, therapist?.lastName].filter(Boolean).join(" ");
-    const when = formatWhenWithCaveat(
-      target.startsAt,
-      resolveZone(booking.patientTimezone, therapist?.timezone),
-      "en",
-    );
+    /* 🔴 Ruling 8: the patient's language, the time included. */
+    const words = await wordsFor(booking.personId ? { personId: booking.personId } : null);
+    const { t } = words;
+    const when = whenFor(target.startsAt, resolveZone(booking.patientTimezone, therapist?.timezone), words);
     await notify(
       {
         personId: booking.personId,
@@ -500,12 +508,13 @@ export async function rescheduleBooking(input: {
         phone: booking.patientPhone,
         timezone: booking.patientTimezone,
         organizationId: booking.organizationId,
+        locale: words.locale,
       },
       {
         kind: "booking.rescheduled",
         notice: { kind: "session_rescheduled", key: "pnotice.rescheduled", sessionId: booking.id },
-        subject: en["pnotice.rescheduled"],
-        body: `${en["pnotice.rescheduled"]}\n\n${name}, ${when}`,
+        subject: t("pnotice.rescheduled"),
+        body: `${t("pnotice.rescheduled")}\n\n${name}, ${when}`,
         variables: [name, when],
       },
     );
@@ -513,8 +522,8 @@ export async function rescheduleBooking(input: {
     await tellTherapist({
       therapistId: booking.therapistId,
       kind: "booking.patient_moved",
-      title: en["tchange.patientMoved"],
-      body: en["tchange.patientMovedBody"],
+      title: "tchange.patientMoved",
+      body: "tchange.patientMovedBody",
       when: target.startsAt,
     });
   }

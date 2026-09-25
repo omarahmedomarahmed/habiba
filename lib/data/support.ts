@@ -5,9 +5,10 @@ import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { hashPassword as hashCode, verifyPassword as verifyCode } from "@/lib/auth/password";
-import { dbFor} from "@/lib/db";
+import { controlDb, dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
+  patientAccounts,
   supportAttachments,
   supportTicketEvents,
   supportTickets,
@@ -19,6 +20,7 @@ import {
   type TicketTopic,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
@@ -551,19 +553,43 @@ export async function closeTicket(input: {
    * ticket**. Not the topic, not the summary, not their own message quoted
    * back. That is the rule, and this is the only place it could be broken.
    */
+  await tellAnswered(ticket, link, code);
+
+  return { ok: true, link };
+}
+
+/**
+ * The link and the code, and not one word of the ticket (20.22).
+ *
+ * 🔴 Ruling 8: in the language they chose if they have an account, otherwise
+ * the language they wrote in (18R.8). A patient also gets an in-app line that
+ * says a reply exists, again without a word of it.
+ */
+async function tellAnswered(ticket: SupportTicket, link: string, code: string): Promise<void> {
+  let personId: string | null = null;
+  if (ticket.patientAccountId) {
+    const [account] = await controlDb
+      .select({ personId: patientAccounts.personId })
+      .from(patientAccounts)
+      .where(eq(patientAccounts.id, ticket.patientAccountId))
+      .limit(1);
+    personId = account?.personId ?? null;
+  }
+  const who = personId ? { personId } : ticket.userId ? { userId: ticket.userId } : null;
+  const { t, locale } = await wordsFor(who, ticket.locale);
+
   await notify(
-    { email: ticket.email, phone: ticket.phone, timezone: null },
+    { personId, email: ticket.email, phone: ticket.phone, timezone: null, locale },
     {
+      notice: { kind: "message_fallback", key: "pnotice.supportReplied" },
       kind: "support.closed",
-      subject: "Your message to 24Therapy",
-      body: `We have answered your message (reference ${ticket.reference}). Open ${link} and enter the code ${code} to read the reply and anything attached to it. The code lasts seven days.`,
-      link: { label: "Read the reply", url: link },
+      subject: t("pmsg.support.subject"),
+      body: t("pmsg.support.body", { reference: ticket.reference, link, code }),
+      link: { label: t("pmsg.support.link"), url: link },
       /* Task 40: the three variables `support_reply` takes. */
       variables: [ticket.reference, link, code],
     },
   );
-
-  return { ok: true, link };
 }
 
 /** A link token and a code for the sender's page, and the columns that hold them. */
@@ -620,17 +646,7 @@ export async function replyToTicket(input: {
   });
 
   const link = `${env.appUrl}/support/${token}`;
-  await notify(
-    { email: ticket.email, phone: ticket.phone, timezone: null },
-    {
-      kind: "support.closed",
-      subject: "Your message to 24Therapy",
-      body: `We have answered your message (reference ${ticket.reference}). Open ${link} and enter the code ${code} to read the reply and anything attached to it. The code lasts seven days.`,
-      link: { label: "Read the reply", url: link },
-      /* Task 40: the three variables `support_reply` takes. */
-      variables: [ticket.reference, link, code],
-    },
-  );
+  await tellAnswered(ticket, link, code);
   return { ok: true };
 }
 

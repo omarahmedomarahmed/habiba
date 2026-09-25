@@ -168,13 +168,16 @@ export async function remove(
    * where their account stands and where their sessions went.
    */
   if (result.clinicianEmail) {
+    /* 🔴 Ruling 8: in the clinician's own language. */
+    const { wordsFor } = await import("@/lib/i18n/message-words");
+    const { t, locale } = await wordsFor({ userId });
     await notify(
-      { email: result.clinicianEmail, phone: null },
+      { email: result.clinicianEmail, phone: null, locale },
       {
         kind: "clinic.removed",
-        subject: `You are no longer part of ${actor.clinicName} on 24Therapy`,
-        body: `${actor.clinicName} has removed you from their practice. Your account carries on as a practice of your own, on pay as you go. The sessions you ran there are listed under Sessions; their notes stay with the practice.`,
-        link: { label: "Sign in", url: `${env.appUrl}/login` },
+        subject: t("tmsg.removed.subject", { clinic: actor.clinicName }),
+        body: t("tmsg.removed.body", { clinic: actor.clinicName }),
+        link: { label: t("tmsg.signIn"), url: `${env.appUrl}/login` },
       },
     );
   }

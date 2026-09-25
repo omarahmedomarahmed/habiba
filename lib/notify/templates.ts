@@ -191,7 +191,12 @@ export function templateFor(kind: string): WhatsappTemplate | null {
   return (WHATSAPP_TEMPLATES as Record<string, WhatsappTemplate>)[kind] ?? null;
 }
 
-/** The template names Meta has approved, from `WHATSAPP_APPROVED_TEMPLATES`. */
+/**
+ * The template names Meta has approved, from `WHATSAPP_APPROVED_TEMPLATES`.
+ *
+ * A bare name is approved in the default language (`WHATSAPP_TEMPLATE_LANGUAGE`);
+ * `name:en` says it is approved in that language as well. Ruling 8.
+ */
 function approvedTemplates(env: string | undefined = process.env.WHATSAPP_APPROVED_TEMPLATES): Set<string> {
   return new Set(
     (env ?? "")
@@ -201,11 +206,52 @@ function approvedTemplates(env: string | undefined = process.env.WHATSAPP_APPROV
   );
 }
 
+/** The language a bare approval is in. Egypt's WhatsApp is largely Arabic. */
+function defaultTemplateLanguage(env: string | undefined = process.env.WHATSAPP_TEMPLATE_LANGUAGE): string {
+  return env?.trim() || "ar";
+}
+
 export type TemplateStatus = "approved" | "not_approved" | "none";
 
-/** Whether this kind can go by WhatsApp today. */
+/** Whether this kind can go by WhatsApp today, in any language. */
 export function templateStatus(kind: string, approved = approvedTemplates()): TemplateStatus {
   const template = templateFor(kind);
   if (!template) return "none";
-  return approved.has(template.name) ? "approved" : "not_approved";
+  return approvedLanguages(template.name, approved).length > 0 ? "approved" : "not_approved";
+}
+
+/** Every language one template name is approved in. */
+function approvedLanguages(name: string, approved: Set<string>, fallback = defaultTemplateLanguage()): string[] {
+  const out: string[] = [];
+  for (const entry of approved) {
+    const [entryName, language] = entry.split(":").map((part) => part.trim());
+    if (entryName !== name) continue;
+    const code = language || fallback;
+    if (!out.includes(code)) out.push(code);
+  }
+  return out;
+}
+
+/**
+ * 🔴 RULING 8: THE LANGUAGE CODE META IS ASKED FOR.
+ *
+ * The recipient's own language when the template is approved in it (`ar`
+ * matches `ar` or `ar_EG`), otherwise the default language exactly as before,
+ * so a template approved only in Arabic still reaches an English reader
+ * rather than being refused. Null when it is not approved at all.
+ */
+export function templateLanguage(
+  kind: string,
+  locale: string | null | undefined,
+  approved = approvedTemplates(),
+  fallback = defaultTemplateLanguage(),
+): string | null {
+  const template = templateFor(kind);
+  if (!template) return null;
+  const languages = approvedLanguages(template.name, approved, fallback);
+  if (languages.length === 0) return null;
+  const own = locale
+    ? languages.find((code) => code === locale || code.split("_")[0] === locale)
+    : undefined;
+  return own ?? (languages.includes(fallback) ? fallback : languages[0]!);
 }

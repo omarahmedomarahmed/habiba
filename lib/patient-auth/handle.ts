@@ -6,6 +6,7 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { whatsappConfigured } from "@/lib/notify/whatsapp";
 import { callerKey, consume } from "@/lib/rate-limit";
@@ -90,6 +91,7 @@ export async function requestHandleCode(): Promise<HandleState> {
       id: patientAccounts.id,
       phone: patientAccounts.phone,
       email: patientAccounts.email,
+      personId: patientAccounts.personId,
       phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
       emailVerifiedAt: patientAccounts.emailVerifiedAt,
     })
@@ -111,12 +113,14 @@ export async function requestHandleCode(): Promise<HandleState> {
     expiresAt: new Date(Date.now() + CODE_MINUTES * 60 * 1000),
   });
 
+  /* 🔴 Ruling 8: in the language they chose. */
+  const { t, locale } = await wordsFor(account.personId ? { personId: account.personId } : null);
   await notify(
-    { email: account.email, phone: account.phone },
+    { email: account.email, phone: account.phone, locale },
     {
       kind: "claim.code",
-      subject: "Your 24Therapy code",
-      body: `${code} is your code. It expires in ${CODE_MINUTES} minutes. If you did not ask for it, ignore this message.`,
+      subject: t("pmsg.code.subject"),
+      body: t("pmsg.code.plain", { code, minutes: CODE_MINUTES }),
       variables: [code],
     },
   );

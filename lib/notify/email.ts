@@ -24,11 +24,17 @@ import type { Message } from "./index";
  * `docs/EMAIL-DNS.md` records what is actually published and what is not.
  * What is not, as of the audit, is DMARC.
  */
-export async function sendNotificationEmail(to: string, message: Message): Promise<boolean> {
+export async function sendNotificationEmail(
+  to: string,
+  message: Message,
+  /** 🔴 Ruling 8: the language the words are in, so the shell and its direction match. */
+  locale?: string | null,
+): Promise<boolean> {
   return sendNotification({
     to,
     subject: message.subject,
     body: message.body,
     link: message.link ?? null,
+    locale,
   });
 }

@@ -171,6 +171,8 @@ async function sweepUnderLease(limit: number): Promise<SweepResult> {
         email: person.email,
         phone: person.phone,
         timezone: person.timezone,
+        /* 🔴 Ruling 8: so the email is laid out, and WhatsApp asked for, in it too. */
+        locale: person.locale,
       },
       {
         kind: "checkin.asking",

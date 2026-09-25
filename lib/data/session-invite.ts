@@ -6,6 +6,7 @@ import { getConnectAccount } from "@/lib/billing/connect";
 import { getPatient } from "@/lib/data/patients";
 import { createSession, ensureRoom } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { fullName } from "@/lib/utils";
 
@@ -120,6 +121,9 @@ export async function inviteToSession(actor: Actor, patientId: string): Promise<
 
   const url = `${env.appUrl}/join/${session.joinToken}`;
   const who = fullName(actor.firstName, actor.lastName);
+  /* 🔴 Ruling 8: in the language the patient chose. */
+  const words = await wordsFor(patient.personId ? { personId: patient.personId } : null);
+  const { t } = words;
 
   /*
    * 🔴 NO CLINICAL CONTENT AND NO REASON. A name, a price and a door. The same
@@ -143,13 +147,14 @@ export async function inviteToSession(actor: Actor, patientId: string): Promise<
       email: patient.email,
       phone: patient.phone,
       timezone: patient.timezone,
+      locale: words.locale,
     },
     {
       notice: { kind: "session_invited", key: "pnotice.sessionInvited" },
       kind: "session.invite",
-      subject: `${who} has invited you to a session`,
-      body: `${who} would like to see you on 24Therapy.\n\nOpen the link below to join. You will be asked to pay for the session first, and you do not need an account.`,
-      link: { label: "Open my session", url },
+      subject: t("pmsg.invite.subject", { who }),
+      body: t("pmsg.invite.body", { who }),
+      link: { label: t("pmsg.invite.link"), url },
       variables: [who],
     },
   );

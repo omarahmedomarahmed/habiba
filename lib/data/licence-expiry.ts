@@ -115,13 +115,20 @@ export async function sweepLicences(now = new Date()): Promise<{ expired: number
 
 /** The existing channel: `notify()`, email and WhatsApp both. */
 async function tell(
-  row: { expiry: string | null; email: string | null; timezone: string | null; organizationId: string },
+  row: {
+    userId: string;
+    expiry: string | null;
+    email: string | null;
+    timezone: string | null;
+    organizationId: string;
+  },
   standing: "expired" | "expiring",
 ) {
   try {
     const { notify } = await import("@/lib/notify");
-    const { stringsFor } = await import("@/lib/i18n/strings");
-    const { t } = await stringsFor("en");
+    /* 🔴 Ruling 8: in the clinician's own language. */
+    const { wordsFor } = await import("@/lib/i18n/message-words");
+    const { t, locale } = await wordsFor({ userId: row.userId });
     const { env } = await import("@/lib/env");
     const date = licenceValidUntil(row.expiry);
     const last = date ? new Date(date.getTime() - 86_400_000).toISOString().slice(0, 10) : row.expiry ?? "";
@@ -133,6 +140,7 @@ async function tell(
         phone: null,
         timezone: row.timezone,
         organizationId: row.organizationId,
+        locale,
       },
       {
         kind: standing === "expired" ? "licence.expired" : "licence.expiring",

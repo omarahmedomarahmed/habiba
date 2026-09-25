@@ -15,6 +15,8 @@ import {
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
+import { wordsFor, type Words } from "@/lib/i18n/message-words";
+import type { Who } from "@/lib/i18n/preference";
 import { notify, type Recipient } from "@/lib/notify";
 
 /**
@@ -60,10 +62,25 @@ import { notify, type Recipient } from "@/lib/notify";
  * operator would press Confirm again.
  */
 
-/** Who to tell, resolved from whichever payer column the row carries. */
-async function recipientFor(
+/**
+ * Who to tell, resolved from whichever payer column the row carries, and the
+ * words to tell them in (ruling 8): a patient's or a clinician's own choice.
+ * A company login has no saved language, so it gets the default.
+ */
+async function recipientFor(payment: ManualPayment): Promise<{ to: Recipient; words: Words; hi: string } | null> {
+  const found = await payerOf(payment);
+  if (!found) return null;
+  const words = await wordsFor(found.who);
+  return {
+    to: { ...found.to, locale: words.locale },
+    words,
+    hi: found.name ? words.t("pmsg.hi", { name: found.name }) : words.t("pmsg.hiThere"),
+  };
+}
+
+async function payerOf(
   payment: ManualPayment,
-): Promise<{ to: Recipient; name: string } | null> {
+): Promise<{ to: Recipient; name: string | null; who: Who | null } | null> {
   if (payment.sponsorId) {
     /*
      * Admins only, the same rule `alertPots` follows: a viewer can
@@ -82,7 +99,7 @@ async function recipientFor(
       .limit(1);
 
     if (!admin?.email) return null;
-    return { to: { email: admin.email, phone: null }, name: sponsor?.name ?? "your company" };
+    return { to: { email: admin.email, phone: null }, name: sponsor?.name ?? null, who: null };
   }
 
   if (payment.userId) {
@@ -98,7 +115,7 @@ async function recipientFor(
       .limit(1);
 
     if (!row?.email) return null;
-    return { to: { email: row.email, phone: null }, name: row.first ?? "there" };
+    return { to: { email: row.email, phone: null }, name: row.first ?? null, who: { userId: payment.userId } };
   }
 
   if (payment.patientAccountId) {
@@ -118,7 +135,8 @@ async function recipientFor(
     if (!row?.email && !row?.phone) return null;
     return {
       to: { personId: row.personId, email: row.email ?? null, phone: row.phone ?? null },
-      name: row.first ?? "there",
+      name: row.first ?? null,
+      who: row.personId ? { personId: row.personId } : null,
     };
   }
 
@@ -135,7 +153,7 @@ async function recipientFor(
       .limit(1);
 
     if (!row?.email) return null;
-    return { to: { email: row.email, phone: null }, name: row.name ?? "there" };
+    return { to: { email: row.email, phone: null }, name: row.name ?? null, who: null };
   }
 
   return null;
@@ -187,16 +205,13 @@ export async function noticePaymentSubmitted(paymentId: string): Promise<void> {
     if (!who) return;
 
     const amount = await poundsFor(payment.settlesCents);
+    const { t } = who.words;
 
     await notify(who.to, {
       kind: "payment.submitted",
-      subject: "We have your transfer",
-      body:
-        `Hi ${who.name},\n\n` +
-        `Thank you. We have your transfer of ${amount} and somebody is checking it against our ` +
-        "bank now. You do not need to send anything again.\n\n" +
-        "We will message you the moment it is confirmed.",
-      link: { label: "Track it", url: `${env.appUrl}` },
+      subject: t("pmsg.pay.submittedSubject"),
+      body: `${who.hi}\n\n${t("pmsg.pay.submitted", { amount })}`,
+      link: { label: t("pmsg.pay.track"), url: `${env.appUrl}` },
       /* The one variable the approved WhatsApp template takes. */
       variables: [amount],
     });
@@ -225,6 +240,7 @@ export async function noticePaymentConfirmed(paymentId: string): Promise<void> {
 
     const join = await joinLinkFor(payment);
     const amount = await poundsFor(payment.settlesCents);
+    const { t } = who.words;
 
     await notify(who.to, {
       /*
@@ -236,16 +252,11 @@ export async function noticePaymentConfirmed(paymentId: string): Promise<void> {
        */
       notice: { kind: "payment_confirmed", key: "pnotice.paymentConfirmed" },
       kind: "payment.confirmed",
-      subject: join ? "Your session is paid for" : "Your payment is confirmed",
-      body:
-        `Hi ${who.name},\n\n` +
-        (join
-          ? "Your transfer is confirmed and your session is ready. Use the link below when it is " +
-            "time, and keep it: it is the same link every time."
-          : "Your transfer is confirmed and your account is up to date. Thank you."),
+      subject: t(join ? "pmsg.pay.sessionPaidSubject" : "pmsg.pay.confirmedSubject"),
+      body: `${who.hi}\n\n${t(join ? "pmsg.pay.sessionPaid" : "pmsg.pay.confirmed")}`,
       link: join
-        ? { label: "Join your session", url: join }
-        : { label: "Open your account", url: `${env.appUrl}` },
+        ? { label: t("pmsg.pay.join"), url: join }
+        : { label: t("pmsg.pay.account"), url: `${env.appUrl}` },
       variables: [amount],
     });
   } catch (error) {
@@ -275,14 +286,14 @@ export async function noticePaymentRejected(paymentId: string): Promise<void> {
 
     const join = await joinLinkFor(payment);
     const amount = await poundsFor(payment.settlesCents);
+    const { t } = who.words;
     await notify(who.to, {
       kind: "payment.rejected",
-      subject: "We could not match your transfer",
-      body:
-        `Hi ${who.name},\n\n` +
-        `We could not match your transfer to our account. The reason: ${payment.rejectReason ?? "not given"}.\n\n` +
-        "Nothing was taken from you by us. Check the details and send the reference again from the same page.",
-      link: join ? { label: "Open the payment page", url: join } : { label: "Open your account", url: `${env.appUrl}` },
+      subject: t("pmsg.pay.rejectedSubject"),
+      body: `${who.hi}\n\n${t("pmsg.pay.rejected", { reason: payment.rejectReason ?? t("pmsg.pay.noReason") })}`,
+      link: join
+        ? { label: t("pmsg.pay.page"), url: join }
+        : { label: t("pmsg.pay.account"), url: `${env.appUrl}` },
       variables: [amount],
     });
   } catch (error) {

@@ -74,6 +74,14 @@ export type Recipient = {
    * table with a hole exactly where the interesting cases are.
    */
   organizationId?: string | null;
+  /**
+   * 🔴 RULING 8: THE LANGUAGE THE WORDS ARE IN, from `wordsFor`.
+   *
+   * The caller writes the subject and body in it; this tells the email to lay
+   * itself out that way and WhatsApp which approved template to ask Meta for.
+   * Absent means the default language, which is what every send was before.
+   */
+  locale?: string | null;
 };
 
 export type Message = {
@@ -394,7 +402,7 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
       if (!whatsappConfigured() || !to.phone || whatsappRefused) continue;
 
       try {
-        if (await sendWhatsapp(to.phone, message)) sent.push("whatsapp");
+        if (await sendWhatsapp(to.phone, message, to.locale)) sent.push("whatsapp");
       } catch (error) {
         // Logged, not thrown, and email still goes. A failed WhatsApp send must
         // not lose the message — a reminder that silently did not arrive is
@@ -408,7 +416,7 @@ export async function notify(to: Recipient, message: Message): Promise<Delivery>
 
     if (channel === "email" && to.email) {
       const { sendNotificationEmail } = await import("./email");
-      if (await sendNotificationEmail(to.email, message)) sent.push("email");
+      if (await sendNotificationEmail(to.email, message, to.locale)) sent.push("email");
     }
   }
 

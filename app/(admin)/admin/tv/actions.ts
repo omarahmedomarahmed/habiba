@@ -123,12 +123,14 @@ export async function mailRecordToPerson(
   const { env } = await import("@/lib/env");
   const { EXPORT_TTL_HOURS } = await import("@/lib/db/schema");
   const { sendRecordExport } = await import("@/lib/mail");
+  /* 🔴 Ruling 8: in the patient's own language. */
+  const { recipientLocale } = await import("@/lib/i18n/preference");
   const sent = await sendRecordExport({
     to: request.email,
     patientName: request.patientName,
-    clinicianName: "your clinician",
     url: `${env.appUrl}${exportPath(request.token)}`,
     expiresInHours: EXPORT_TTL_HOURS,
+    locale: await recipientLocale(request.personId ? { personId: request.personId } : null),
   });
 
   await audit({

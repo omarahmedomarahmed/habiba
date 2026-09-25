@@ -344,9 +344,12 @@ export async function requestPasswordReset(
       tokenHash: createHash("sha256").update(token).digest("hex"),
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     });
+    /* 🔴 Ruling 8: in the language they chose. */
+    const { recipientLocale } = await import("@/lib/i18n/preference");
     await sendPasswordReset({
       to: email,
       url: `${env.appUrl}/reset-password?token=${token}`,
+      locale: await recipientLocale({ userId: user.id }),
     });
     log.info("password reset requested", { user: ref(user.id) });
   }

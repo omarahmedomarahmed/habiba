@@ -38,7 +38,7 @@ test("force offline cancels a booking in flight and tells the patient, as ours",
   const cancel = read("lib/data/clinician-cancel.ts");
   assert.match(cancel, /input\.byUs \? "w2a\.cancelledByUs" : "w1a\.cancelledByClinician"/);
   // The operator's reason is ours; the patient is not sent it as "their reason".
-  assert.match(cancel, /input\.byUs \? "" : en\["w1a\.cancelReasonGiven"\]/);
+  assert.match(cancel, /input\.byUs \? "" : t\("w1a\.cancelReasonGiven"/);
 });
 
 test("the transcript asks why before a word of it renders, and the reason is audited", () => {

@@ -3,7 +3,7 @@ import "server-only";
 import { log, safeErrorMessage } from "@/lib/logger";
 
 import type { Message } from "./index";
-import { templateFor, templateStatus } from "./templates";
+import { templateFor, templateLanguage, templateStatus } from "./templates";
 
 /**
  * WhatsApp, via the Meta Cloud API. C43, and the second half of PLAN.md 11.7.
@@ -53,9 +53,6 @@ import { templateFor, templateStatus } from "./templates";
  * authentication template carries one code and no link, and a join link is
  * never a variable because it is forwardable in one tap.
  */
-/** The language a template was approved in. Egypt's WhatsApp is largely Arabic. */
-const TEMPLATE_LANGUAGE = process.env.WHATSAPP_TEMPLATE_LANGUAGE ?? "ar";
-
 export function whatsappConfigured(): boolean {
   return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
 }
@@ -67,7 +64,12 @@ export function whatsappConfigured(): boolean {
  * configuration — so `notify()` falls through to email quietly. Only a real
  * transport failure throws, which is the case worth logging loudly.
  */
-export async function sendWhatsapp(phone: string, message: Message): Promise<boolean> {
+export async function sendWhatsapp(
+  phone: string,
+  message: Message,
+  /** 🔴 Ruling 8: the recipient's language, used when Meta approved the template in it. */
+  locale?: string | null,
+): Promise<boolean> {
   if (!whatsappConfigured()) return false;
 
   const template = templateFor(message.kind);
@@ -132,7 +134,11 @@ export async function sendWhatsapp(phone: string, message: Message): Promise<boo
         type: "template",
         template: {
           name: template.name,
-          language: { code: TEMPLATE_LANGUAGE },
+          /*
+           * 🔴 Ruling 8: their language when Meta approved the template in it,
+           * otherwise `WHATSAPP_TEMPLATE_LANGUAGE` (default `ar`) as before.
+           */
+          language: { code: templateLanguage(message.kind, locale) ?? "ar" },
           components: [
             {
               type: "body",

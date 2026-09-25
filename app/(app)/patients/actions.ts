@@ -228,14 +228,20 @@ export async function createInviteLink(
    *
    * 🔴 No clinical content. A first name, a therapist's name and a link.
    */
+  /* 🔴 Ruling 8: in the patient's own language. */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const { t, locale } = await wordsFor({ personId });
+  const who = fullName(actor.firstName, actor.lastName);
   const delivery = await notify(
-    { email: patient.email, phone: patient.phone, timezone: patient.timezone },
+    { personId, email: patient.email, phone: patient.phone, timezone: patient.timezone, locale },
     {
+      /* Waiting in their app for the day they open it. */
+      notice: { kind: "access_requested", key: "pnotice.recordInvited" },
       kind: "claim.invite",
-      subject: `${fullName(actor.firstName, actor.lastName)} has invited you to 24Therapy`,
-      body: `${fullName(actor.firstName, actor.lastName)} would like to give you access to your own record on 24Therapy.\n\nOpen the link below to set up your account. It is yours, and you decide what happens to it.`,
-      link: { label: "Set up my account", url },
-      variables: [fullName(actor.firstName, actor.lastName)],
+      subject: t("pmsg.claimInvite.subject", { who }),
+      body: t("pmsg.claimInvite.body", { who }),
+      link: { label: t("pmsg.claimInvite.link"), url },
+      variables: [who],
     },
   );
 
