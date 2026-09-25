@@ -12,7 +12,7 @@ import { sql } from "drizzle-orm";
 
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
-import { shiftDatabase, shiftFor } from "./sim-clock";
+import { shiftDatabase, shiftFor } from "./_sim-clock";
 
 const { check, finish } = reporter();
 const T = `_clock_check_${Date.now().toString(36)}`;

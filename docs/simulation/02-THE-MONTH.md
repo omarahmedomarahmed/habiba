@@ -23,8 +23,10 @@ move by the same amount, and no trigger stamps the real time.
 1. **Never move it with a session in progress.** Every room is ended and every agent has
    posted `DONE` for the round before the lead moves the clock. A session left live would come
    back days long.
-2. **After every move, fire every job, in this order**, then run
-   `npm run on:production -- verify:migrations`:
+2. **Fire every job at the end of each round, and again after every move, in this order**, then
+   run `npm run on:production -- verify:migrations`. Before the move, so what the round did is
+   charged and reminded inside the jobs' own windows (`ME61`); after it, so the new day's
+   deadlines are acted on:
 
    | Job | What it must show after the move |
    |---|---|
@@ -57,7 +59,12 @@ move by the same amount, and no trigger stamps the real time.
 | R4 | 14 | `--to-day 14` | Mid-month: payouts, refunds, a risk session, no-show recovery, a cheaper replacement, in-person paid |
 | R5 | 21 | `--to-day 21` | Change of employer, a pot runs dry, a clinician leaves, the vault, support queues |
 | R6 | 28 | `--to-day 28` | Late arrivals, the month's bills, money back to a company, partner usage |
-| R7 | 30 | `--to-day 30` | Month end: bills raised, reports read, every proof in `07-THE-RECORD.md` |
+| R7 | 31 | `--to-day 31` | The month closed: the coverage notice from day 1 in force, reports read, every proof in `07-THE-RECORD.md` |
+
+The simulated month is the thirty days before the real date of the last round, so it crosses
+the start of a real calendar month. Monthly bills, the partner bill and monthly allowances turn
+over at that boundary, in whichever round's jobs first run after it; the lead notes which in
+`ROUNDS.md`.
 
 A re-run round for failed flows is named after the round it repeats (`R3b`) and runs at that
 round's day, after the fix is deployed.
@@ -102,12 +109,13 @@ transfer queue) runs again in later rounds as the story needs, and the board sho
 | `CL1`, `AD12` | R1 | OPS `OP` activates Nile Practice; CLINIC `C1-M` sets the password | `C1-M` waits on `OP` |
 | `CO1`, `AD7` | R1 | `OP` activates Cairo Foundry and opens its pot; COMPANIES `E1-HR` signs in | `E1-HR` waits on `OP` |
 | `CO7` | R1 | `E1-HR` tops up by transfer; OPS `SU3` confirms | `E1-HR` waits on `SU3` |
+| `CO8` | R1 | `E1-HR` sets 100% coverage, then lowers it to 80% with 30 days' notice (`EE14`): 100% all month, 80% from day 31 | checked in R7 |
 | `PT1`, `PT2`, `PT3`, `PT4` | R1 | PARTNER-WEB `D1` applies; LEAD approves | `D1` waits on the founder |
 | `CL3`, `CL4`, `CL5`, `CL6`, `CL8`, `TH20` | R2 | `C1-M` invites `C1-A`, cancels a second invite, sets seats, delegates to `C1-S` | `C1-A` waits on the invite |
 | `CL2`, `CO2` | R2 | `C1-S`, `E1-HR` reset their passwords | the reset code from the outbox |
 | `CO3`, `CO4`, `CO5`, `CO6` | R2 | `E1-HR` adds a teammate, makes a joining code, uploads the staff email list, tries a domain | `P3` `P4` wait on the list |
 | `PA25`, `WB15` | R2 | PATIENTS-A `P3`, PATIENTS-B `P4` enrol; `P4` is refused by staff number first | `E1-HR`'s list |
-| `PA13`, `CO8` | R2 | `P3` books `T1` covered 100% | the pot from R1 |
+| `PA13` | R2 | `P3` books `T1` covered 100% | the pot from R1 |
 | `PA19`, `TH18` | R2 | `P2` changes one booking and cancels another; `T2` cancels one with a reason | each other |
 | `TH6` | R2 | `T3` holds an in-person session, paid directly, recorded with consent | nobody |
 | `TH9` | R2 | `T1` invites `P3` to a paid video session from the chart | `P3` |
@@ -134,7 +142,6 @@ transfer queue) runs again in later rounds as the story needs, and the board sho
 | `ME87`, `CL6` | R4 | `C1-M` adds a seat mid-month for `T5` and reads the quote first | `T5` |
 | `CO11`, `PE13`, `PE14` | R5 | E1's pot runs low, then dry, as `P3` and `P4` book within a minute | `E1-HR` reads the alerts |
 | `CO9`, `AD13` | R5 | `E2-HR` ends `P5`'s benefit; `P5` enrols with Delta Logistics | `E3-HR` |
-| `CO8` again | R5 | `E1-HR` lowers coverage; the 30-day notice starts | runs out by R7 |
 | `CL7`, `CL9`, `CL11` | R5 | `C1-M` removes `C1-A`; reads the week and exports it | `C1-A` |
 | `AD11`, `AD6` | R5 | `OP` and `OP2` post a ledger adjustment (two people); `SU1` matches money with no claim | each other |
 | `AD16`, `AD17` | R5 | LEAD reviews clinician accounts; `SU5` works the support and number-change queues | `P1` asks to change the phone number |
@@ -167,4 +174,4 @@ The lead checks these after each clock move and the jobs, before the round's age
 | 14 | Licence warnings for any licence within 30 days; payouts past their window flagged overdue |
 | 21 | Company pot alerts sent once each; old carts cleared by retention |
 | 28 | Plans due in the next days listed in billing; the reduced coverage still pending |
-| 30 | Month-end bills raised, the coverage reduction from day 21 in force if its 30 days are up, the vault shows the month's income and model spend |
+| 31 | The coverage reduction from day 1 in force; the vault shows the month's income and model spend |
