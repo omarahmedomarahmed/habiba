@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Field } from "@/components/ui";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { zoneLabel } from "@/lib/scheduling/tz";
 
@@ -30,6 +30,7 @@ import { zoneLabel } from "@/lib/scheduling/tz";
 export function TimezoneField({ name = "timezone" }: { name?: string }) {
   const detected = useReaderZone();
   const t = useT();
+  const locale = useLocale();
   const [chosen, setChosen] = useState<string | null>(null);
 
   const value = chosen ?? detected ?? "";
@@ -41,7 +42,14 @@ export function TimezoneField({ name = "timezone" }: { name?: string }) {
         )
       : [];
 
-  const options = [...new Set([...(value ? [value] : []), "UTC", ...zones])].sort();
+  /*
+   * 🔴 B50 — the value is the IANA name, the label is in the reader's language.
+   * An Arabic signup listed four hundred English zone names. Sorted by what is
+   * read, so the Arabic list is in Arabic order.
+   */
+  const options = [...new Set([...(value ? [value] : []), "UTC", ...zones])]
+    .map((zone) => ({ zone, label: locale === "en" ? zone : zoneLabel(zone, locale) }))
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
 
   return (
     <Field label={t("phone.timezone")} htmlFor={name}>
@@ -57,14 +65,14 @@ export function TimezoneField({ name = "timezone" }: { name?: string }) {
           pass render the same option list. It fills in a frame later.
         */}
         {value === "" ? <option value="">{t("phone.detecting")}</option> : null}
-        {options.map((zone) => (
+        {options.map(({ zone, label }) => (
           <option key={zone} value={zone}>
-            {zone}
+            {label}
           </option>
         ))}
       </select>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
-        {value ? t("phone.zoneShown", { zone: zoneLabel(value) }) : t("phone.zoneWhy")}
+        {value ? t("phone.zoneShown", { zone: zoneLabel(value, locale) }) : t("phone.zoneWhy")}
       </p>
     </Field>
   );

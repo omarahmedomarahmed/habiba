@@ -624,6 +624,10 @@ export const en = {
   "footer.audiences": "Who it is for",
   "footer.product": "The product",
   "footer.legal": "Trust and legal",
+  "footer.privacy": "Privacy",
+  "footer.terms": "Terms",
+  "footer.compliance": "Compliance",
+  "footer.security": "Security",
 
   /*
    * 🔴 What is behind each door, in three concrete lines. Task 154.
@@ -5653,6 +5657,10 @@ export const ar: Record<MessageKey, string> = {
   "footer.audiences": "لمن هذا",
   "footer.product": "المنتج",
   "footer.legal": "الثقة والشروط",
+  "footer.privacy": "الخصوصية",
+  "footer.terms": "الشروط",
+  "footer.compliance": "الامتثال",
+  "footer.security": "الأمان",
 
   "auth.therapist.promise": "ملاحظاتك تُكتب وأنت تعمل.",
   "auth.therapist.p1": "ملاحظة سريرية داخل الغرفة قبل أن تنتهي الجلسة",

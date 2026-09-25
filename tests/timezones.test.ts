@@ -166,6 +166,16 @@ test("the label is a city, not an offset", () => {
   assert.equal(zoneLabel("UTC"), "UTC");
 });
 
+test("B50: an Arabic reader gets the zone's Arabic name, never an offset", () => {
+  assert.equal(zoneLabel("Africa/Cairo", "ar"), "توقيت مصر");
+  assert.doesNotMatch(zoneLabel("America/New_York", "ar"), /[A-Za-z]/);
+  // An offset zone keeps its honest label rather than "غرينتش-3".
+  assert.equal(zoneLabel("Etc/GMT+3", "ar"), "GMT+3");
+  // And the sentence an Arabic session card ends with carries no English city.
+  const card = formatWhen(new Date("2026-09-26T07:00:00Z"), { name: "Africa/Cairo", source: "reader" }, "ar");
+  assert.doesNotMatch(card, /Cairo/);
+});
+
 /* ------------------------------------------------ 11R.16 the quiet window -- */
 
 test("nothing is sent between 22:00 and 07:00 where the reader is", () => {

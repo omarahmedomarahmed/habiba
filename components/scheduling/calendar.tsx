@@ -208,7 +208,7 @@ export function Calendar({
         wall clock, and saying which clock removes the only ambiguity left.
       */}
       <p className="text-xs text-slate-500">
-        {t("portal.book.zone", { zone: zoneLabel(zone) })}
+        {t("portal.book.zone", { zone: zoneLabel(zone, locale) })}
       </p>
 
       {/* ---------------------------------------------------------- the grid */}

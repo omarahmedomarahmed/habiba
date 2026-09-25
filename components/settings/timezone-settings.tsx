@@ -7,7 +7,7 @@ import { saveTimezone } from "@/app/(app)/settings/actions";
 import { Card } from "@/components/ui";
 import { formatTime, zoneLabel } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 
 /**
  * The clinician's own time zone. PLAN.md 11R.2.
@@ -38,6 +38,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
    */
   const detected = useReaderZone();
   const t = useT();
+  const locale = useLocale();
 
   const [zone, setZone] = useState(initial ?? detected ?? "UTC");
   const [saved, setSaved] = useState(false);
@@ -111,7 +112,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
         here, before a patient does.
       */}
       <p className="mt-2 text-xs text-slate-500">
-        {t("tset.zoneNow", { time: formatTime(now, zone), place: zoneLabel(zone) })}
+        {t("tset.zoneNow", { time: formatTime(now, zone), place: zoneLabel(zone, locale) })}
         {initial === null && detected
           ? ` ${t("tset.zoneNotSaved", { zone: detected })}`
           : ""}

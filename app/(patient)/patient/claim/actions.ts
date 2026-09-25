@@ -80,7 +80,8 @@ export async function sendClaimCode(
   const { notify } = await import("@/lib/notify");
   /* 🔴 Ruling 8: in the language the signed-in patient chose. */
   const { wordsFor } = await import("@/lib/i18n/message-words");
-  const { t, locale } = await wordsFor({ personId: actor.personId });
+  /* 🔴 B50: a code they asked for on this screen comes in this screen's language until they save one. */
+  const { t, locale } = await wordsFor({ personId: actor.personId }, await (await import("@/lib/i18n/server")).getLocale());
 
   const delivery = await notify(
     {

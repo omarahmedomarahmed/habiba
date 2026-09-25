@@ -90,6 +90,19 @@ export default async function PatientAccountPage({
   const locked = account ? lockUntil(account) : null;
   const { t, locale } = await getI18n();
   const tag = localeTag(locale);
+  /*
+   * 🔴 B50: the operator's country names are English. On the server, where the
+   * runtime's region names are the same on every pass, an Arabic reader gets
+   * "مصر" rather than "Egypt"; anything it cannot name keeps the operator's.
+   */
+  const regions = locale === "en" ? null : new Intl.DisplayNames([tag], { type: "region" });
+  const countryName = (code: string, fallback: string) => {
+    try {
+      return regions?.of(code.toUpperCase()) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
 
   const [{ myBenefits }, { sessionDoors, sessionsForPatient }, { summariesForPerson }, { walletBalanceCents }, { savedLocale }] =
     await Promise.all([
@@ -311,7 +324,7 @@ export default async function PatientAccountPage({
 
       <ChangeNumber
         current={actor.phone}
-        countries={countries.map((c) => ({ code: c.code, name: c.name }))}
+        countries={countries.map((c) => ({ code: c.code, name: countryName(c.code, c.name) }))}
         lockedUntilLabel={locked ? locked.toISOString().slice(0, 10) : null}
         awaitingCode={await awaitingChangeCode(actor.accountId)}
       />
@@ -337,7 +350,7 @@ export default async function PatientAccountPage({
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-slate-500">{t("paccount.timezone")}</dt>
             <dd className="text-slate-800">
-              {actor.timezone ? zoneLabel(actor.timezone) : t("paccount.notSet")}
+              {actor.timezone ? zoneLabel(actor.timezone, locale) : t("paccount.notSet")}
             </dd>
           </div>
         </dl>
