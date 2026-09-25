@@ -225,3 +225,33 @@ export async function savePatientLanguage(formData: FormData): Promise<void> {
   await saveLocale({ personId: actor.personId }, String(formData.get("locale") ?? ""));
   revalidatePath("/patient", "layout");
 }
+
+/* ------------------------------------------------- K24 · closing the account */
+
+export type CloseState = { error?: string };
+
+/**
+ * 🔴 K24: "Delete my account". The typed word is the confirm step; either
+ * language's word is accepted, whichever the screen showed. The work is
+ * `closePatientAccount`; this signs the browser out and leaves.
+ */
+export async function closeMyAccount(_prev: CloseState, formData: FormData): Promise<CloseState> {
+  const actor = await requirePatient();
+  const { getI18n } = await import("@/lib/i18n/server");
+  const { t } = await getI18n();
+
+  const typed = String(formData.get("word") ?? "").trim().toLowerCase();
+  const { en, ar } = await import("@/lib/i18n/messages");
+  const accepted = [en["pclose.word"], ar["pclose.word"], t("pclose.word")].map((word) => word.toLowerCase());
+  if (!accepted.includes(typed)) return { error: t("pclose.wrongWord", { word: t("pclose.word") }) };
+
+  const { closePatientAccount } = await import("@/lib/data/account-closure");
+  const result = await closePatientAccount({ accountId: actor.accountId, personId: actor.personId });
+  if (!result.ok) return { error: t("pclose.already") };
+
+  const { destroyPatientSession } = await import("@/lib/patient-auth/session");
+  await destroyPatientSession();
+  const { redirect } = await import("next/navigation");
+  redirect("/patient/login?closed=1");
+  return {};
+}

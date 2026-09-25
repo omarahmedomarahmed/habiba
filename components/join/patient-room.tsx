@@ -515,6 +515,7 @@ function SummaryAndRating({
   const [stars, setStars] = useState(0);
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (!live) {
@@ -558,7 +559,7 @@ function SummaryAndRating({
             type="button"
             role="radio"
             aria-checked={stars === value}
-            aria-label={`${value} out of 5`}
+            aria-label={t("radar.starsOf", { stars: value })}
             onClick={() => setStars(value)}
             className="tap-target flex items-center justify-center"
           >
@@ -590,18 +591,33 @@ function SummaryAndRating({
         />
       </div>
 
+      {failed ? (
+        <p role="alert" className="text-xs leading-relaxed text-red-700">
+          {t("room.ratingFailed")}
+        </p>
+      ) : null}
+
       <Button
         full
         size="sm"
         disabled={pending || stars === 0}
         onClick={() =>
           startTransition(async () => {
-            await rateOnArrival(token, stars, email);
-            setDone(true);
+            /*
+             * 🔴 K9: thanks only for a rating that was kept. The room used to
+             * say thank you whatever came back, including a refusal.
+             */
+            const result = await rateOnArrival(token, stars, email).catch(() => ({ ok: false }));
+            if (result.ok) {
+              setFailed(false);
+              setDone(true);
+            } else {
+              setFailed(true);
+            }
           })
         }
       >
-        {pending ? "Saving…" : "Save"}
+        {pending ? t("common.saving") : t("common.save")}
       </Button>
     </Card>
   );

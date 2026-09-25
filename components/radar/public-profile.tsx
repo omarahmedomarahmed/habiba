@@ -57,7 +57,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
     return () => clearInterval(timer);
   }, [profile.userId, viewer]);
 
-  const name = fullName(profile.firstName, profile.lastName, "Clinician");
+  const name = fullName(profile.firstName, profile.lastName, t("radar.clinicianFallback"));
   const bookable = profile.status === "online";
 
   const copyLink = async () => {
@@ -86,7 +86,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
               <Star className="h-3.5 w-3.5 fill-current" aria-hidden />
               {profile.rating.average.toFixed(1)}
               <span className="font-normal text-slate-600">
-                from {profile.rating.count} rated {profile.rating.count === 1 ? "session" : "sessions"}
+                {t(profile.rating.count === 1 ? "radar.fromRatedOne" : "radar.fromRated", { count: profile.rating.count })}
               </span>
             </p>
           ) : null}
@@ -123,7 +123,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
           <Row
             icon={MapPin}
             label={t("radar.walkIns")}
-            value={`${profile.practice.name ?? "Practice"}, ${profile.practice.address}`}
+            value={`${profile.practice.name ?? t("radar.practiceFallback")}, ${profile.practice.address}`}
           />
         ) : null}
       </dl>
@@ -133,7 +133,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
         <span className="text-sm">{t("radar.thirtyMinutes")}</span>
         <span className="text-xl font-bold">
           {/* Pounds in the app, dollars on the website, the other on hover (27). */}
-          {profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : "Free"}
+          {profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : t("radar.freeTitle")}
         </span>
       </div>
 

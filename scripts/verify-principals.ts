@@ -114,6 +114,12 @@ const SCOPE: Record<string, Scope> = {
    */
   "session-invite": { who: ["clinician"], clinical: true },
   journals: { who: ["clinician", "patient"], clinical: true },
+  /*
+   * K24: a patient closing their own account. Clinical because it withdraws
+   * the history grants on their record; the patient's alone, since nobody else
+   * may close it.
+   */
+  "account-closure": { who: ["patient"], clinical: true },
   facts: { who: ["clinician"], clinical: true },
   memory: { who: ["clinician"], clinical: true },
   /*
@@ -643,6 +649,13 @@ function main() {
     // A guard inside the page's own callee rather than at the top of the file
     // is still a guard. Entries here name where it is, and are the reason this
     // list is enumerated rather than a threshold.
+    /*
+     * PE80: the patient's photo. `mayRead` asks `optionalPatient` (their own
+     * face) and `getActor` (a clinician, then `clinicianMaySeeFace`: a chart
+     * AND a live grant), and answers 404 to anybody else. The route reaches
+     * lib/data/people for that question and for nothing else.
+     */
+    "app/api/patient/avatar/[personId]/route.ts",
   ]);
   const unguardedReal = unguarded.filter((u) => !knownUnguarded.has(u.entry));
 

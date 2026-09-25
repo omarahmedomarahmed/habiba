@@ -288,6 +288,24 @@ test("🔴 …but the present beats the past, ANYWHERE in the text", () => {
   );
 });
 
+test("a present marker is a whole word: \"now\" inside \"know\" is not the present", () => {
+  // It was a substring test, so a resolved past alerted whenever the text had
+  // "know", "snow" or "against" in it. The control proves the real word still wins.
+  const known = "You know, when I was nineteen I used to cut myself. That is over and it has not come back.";
+  assert.deepEqual(scanForCrisisLanguage(known), [], known);
+  assert.ok(
+    scanForCrisisLanguage(
+      "When I was nineteen I used to cut myself. That is over, but I feel it again now.",
+    ).length > 0,
+    "CONTROL: the whole word still beats the past",
+  );
+  assert.ok(
+    scanForCrisisLanguage("When I was nineteen I used to cut myself. That is over, nowadays it is worse.")
+      .length > 0,
+    "a form the loose match used to catch is listed on its own",
+  );
+});
+
 test("🔴 a past tense ALONE never suppresses: only an explicit ending does", () => {
   assert.ok(scanForCrisisLanguage("I tried to kill myself last year.").length > 0);
   assert.ok(scanForCrisisLanguage("حاولت أنهي حياتي السنة الماضية.").length > 0);

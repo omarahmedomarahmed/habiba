@@ -1,5 +1,6 @@
 import "server-only";
 
+import { env } from "@/lib/env";
 import { notify, reachable } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 import { log } from "@/lib/logger";
@@ -180,6 +181,12 @@ async function sweepUnderLease(limit: number): Promise<SweepResult> {
         body,
         /* Task 40: the one variable `checkin_asking` takes. */
         variables: [person.firstName ?? ""],
+        /*
+         * 🔴 The way to stop, one tap from the message. Nothing receives a reply
+         * on any channel, so the switch is the real opt-out and the link is how
+         * it stays reachable without finding a screen.
+         */
+        link: { label: t("checkin.stopLink"), url: `${env.appUrl}/patient/messages` },
       },
     );
 

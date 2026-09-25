@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patients, people, type Person } from "@/lib/db/schema";
+import { isLiveGrant } from "@/lib/access/state";
+import { historyGrants, patients, people, type Person } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
 /*
@@ -223,6 +224,44 @@ export async function hasAvatar(personId: string): Promise<boolean> {
     .where(eq(people.id, personId))
     .limit(1);
   return Boolean(row?.avatarUrl);
+}
+
+/**
+ * 🔴 PE80: may this clinician see this person's face?
+ *
+ * A patient row on their own caseload AND a live grant from the person. The
+ * row alone is a record, not a relationship: a patient who claimed with "let
+ * this therapist keep seeing my profile" unticked, or revoked later, leaves
+ * the clinician their notes and takes the live profile away, and the photo is
+ * part of the live profile (§3). It used to check the row only.
+ */
+export async function clinicianMaySeeFace(
+  personId: string,
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const [record] = await db
+    .select({ id: patients.id })
+    .from(patients)
+    .where(
+      and(
+        eq(patients.personId, personId),
+        eq(patients.organizationId, organizationId),
+        eq(patients.therapistId, userId),
+        isNull(patients.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!record) return false;
+
+  const [grant] = await db
+    .select({ status: historyGrants.status, expiresAt: historyGrants.expiresAt })
+    .from(historyGrants)
+    .where(and(eq(historyGrants.personId, personId), eq(historyGrants.therapistUserId, userId)))
+    .orderBy(desc(historyGrants.createdAt))
+    .limit(1);
+
+  return isLiveGrant(grant ?? null, new Date());
 }
 
 export async function personIdForPatient(patientId: string): Promise<string | null> {

@@ -10,7 +10,11 @@ import { requirePatient } from "@/lib/patient-auth/guard";
 import { freeUntil } from "@/lib/scheduling/cancel-window";
 import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
 
-export const metadata: Metadata = { title: "Change or cancel", robots: { index: false } };
+/** K21: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.changeOrCancel"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

@@ -12,6 +12,8 @@ import {
 } from "@/lib/data/assessments";
 import { accessFor } from "@/lib/data/grants";
 import { getPatient } from "@/lib/data/patients";
+import { personIdForPatient } from "@/lib/data/people";
+import { tellPatientOfWork } from "@/lib/notify/patient-work";
 
 export type AssessmentActionState = { error?: string; ok?: boolean };
 
@@ -65,7 +67,21 @@ export async function sendAssessment(
 
   if (result.error) return { error: result.error };
 
+  /*
+   * 🔴 K18: left as homework, the patient is told. In the room they are
+   * looking at it already, so a message would only arrive after the fact.
+   */
+  if (input.mode === "homework") {
+    const personId = await personIdForPatient(patientId);
+    if (personId) {
+      await tellPatientOfWork({ personId, therapistUserId: g.actor.userId, what: "assessment" });
+    }
+  }
+
+  /* The questionnaires live on the documents page; `/assessments` has no page. */
   revalidatePath(`/patients/${patientId}/documents`);
+  revalidatePath("/patient/assessments");
+  revalidatePath("/patient");
   return { ok: true };
 }
 

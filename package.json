@@ -152,6 +152,7 @@
     "db:reset": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/reset.ts",
     "whatsapp:check": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/whatsapp-check.ts",
     "verify:sprint26": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint26.ts",
+    "verify:patient-side": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-patient-side.ts",
     "verify:sprint27": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint27.ts",
     "verify:sprint28": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint28.ts",
     "verify:sprint29": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint29.ts",

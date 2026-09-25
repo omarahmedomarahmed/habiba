@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { accessStateFor, capabilitiesFor, explain, isLiveGrant } from "../lib/access/state";
-import { lateRecordingStamp, LATE_RECORDING_THRESHOLD_MS } from "../lib/consent";
+import {
+  accessStateFor,
+  capabilitiesFor,
+  explain,
+  isLiveGrant,
+  REJECTION_REASON_KEYS,
+  REJECTION_REASONS,
+} from "../lib/access/state";
+import { ar, en } from "../lib/i18n/messages";
+import { lateRecordingStamp, lateRecordingStart, LATE_RECORDING_THRESHOLD_MS } from "../lib/consent";
 
 /**
  * §3's four states, and the two consent controls, as arithmetic.
@@ -114,9 +122,22 @@ test("revoking stops new reading and takes nothing away that was already theirs"
 });
 
 test("the banner never accuses the patient", () => {
-  const message = explain("revoked")!;
+  const message = en[explain("revoked")!];
   assert.match(message, /has not granted/);
   assert.doesNotMatch(message, /revoked|refused|denied/i);
+});
+
+test("the consent banner and the decline presets are in Arabic too", () => {
+  // They were English sentences returned from this pure module, so every
+  // banner stayed English under Arabic.
+  for (const state of ["revoked", "unclaimed_bare", "no_relationship"] as const) {
+    const key = explain(state)!;
+    assert.match(ar[key], /[\u0600-\u06FF]/, state);
+  }
+  for (const preset of REJECTION_REASONS) {
+    assert.match(ar[REJECTION_REASON_KEYS[preset]], /[\u0600-\u06FF]/, preset);
+    assert.equal(en[REJECTION_REASON_KEYS[preset]], preset, "the English words are the stored value");
+  }
 });
 
 /* ------------------------------------------------------------- expiry -- */
@@ -269,7 +290,7 @@ test("a gated record keeps everything except the copilot, and keeps the way out"
   // Adding the diagnosis is how they leave this state; the gate must not
   // remove the door.
   assert.equal(gated.diagnosisChanges, true);
-  assert.match(explain("unclaimed_bare", true) ?? "", /diagnosis, and a history/);
+  assert.match(en[explain("unclaimed_bare", true)!], /diagnosis, and a history/);
 });
 
 test("copilot settings no longer carry a gate date at all", async () => {
@@ -315,4 +336,23 @@ test("the clinician is heard in the call whatever the patient says about recordi
   // A standing yes and the clinician's own pause: the call goes quiet, as designed.
   assert.equal(callMicMuted({ offRecord: true, recordingConsent: "granted" }), true);
   assert.equal(callMicMuted({ offRecord: false, recordingConsent: "granted" }), false);
+});
+
+test("7.8 the late start reaches a screen: the session page shows it above the note and the transcript", () => {
+  // lateRecordingStamp was written, tested and called by nothing, so a
+  // recording switched on ten minutes in carried no notice anywhere.
+  const parts = lateRecordingStart({
+    startedAt: started,
+    recordingStartedAt: new Date("2026-09-05T10:32:00Z"),
+    timeZone: "Africa/Cairo",
+  });
+  assert.deepEqual(parts, { clock: "13:32", minutes: 10, utc: false });
+  assert.equal(
+    lateRecordingStart({ startedAt: started, recordingStartedAt: started, timeZone: "UTC" }),
+    null,
+  );
+
+  const page = readFileSync("app/(app)/sessions/[id]/page.tsx", "utf8");
+  assert.match(page, /lateRecordingStart\(/);
+  assert.equal((page.match(/\{lateNotice\}/g) ?? []).length, 2, "above the note and at the head of the transcript");
 });

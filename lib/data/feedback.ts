@@ -316,7 +316,16 @@ export async function recordArrival(input: {
   token: string;
   serviceStars: number;
   email: string;
+  /*
+   * 🔴 K9: which link the token is, as in `fileReport`. The room holds the
+   * JOIN token and this only ever looked up the feedback token, so every
+   * arrival rating was refused while the room said thank you. Named rather
+   * than guessed, so neither link opens the other's door.
+   */
+  via?: "feedback" | "join";
 }): Promise<{ ok?: boolean; error?: string }> {
+  if (typeof input.token !== "string" || !input.token) return { error: "This link is no longer valid." };
+
   const [row] = await db
     .select({
       id: sessions.id,
@@ -324,7 +333,11 @@ export async function recordArrival(input: {
       therapistId: sessions.therapistId,
     })
     .from(sessions)
-    .where(eq(sessions.feedbackToken, input.token))
+    .where(
+      input.via === "join"
+        ? eq(sessions.joinToken, input.token)
+        : eq(sessions.feedbackToken, input.token),
+    )
     .limit(1);
 
   if (!row) return { error: "This link is no longer valid." };

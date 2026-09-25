@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { ar, en } from "../lib/i18n/messages";
 
 import { verbatimIn, parseRef } from "../lib/ai/diagnoses";
 import {
@@ -192,7 +193,9 @@ test("8.4, an image is stored but never claimed to be searchable", () => {
   assert.equal(label.searchable, false);
   // The exact words §3 asks for. A clinician who believes the copilot read a
   // discharge summary will not go and read it themselves.
-  assert.match(label.label, /Image, not searchable/);
+  assert.match(en[label.key], /Image, not searchable/);
+  // And in Arabic, which the badge used to leave in English.
+  assert.match(ar[label.key], /[\u0600-\u06FF]/);
 });
 
 test("8.4, 'cannot read this format' and 'reading failed' are different screens", () => {
@@ -201,7 +204,7 @@ test("8.4, 'cannot read this format' and 'reading failed' are different screens"
     mimeType: "application/pdf",
   });
   const failed = searchabilityLabel({ extraction: "failed", mimeType: "text/plain" });
-  assert.notEqual(unsupported.label, failed.label);
+  assert.notEqual(unsupported.key, failed.key);
   assert.equal(unsupported.searchable, false);
   assert.equal(failed.searchable, false);
 });
@@ -209,6 +212,15 @@ test("8.4, 'cannot read this format' and 'reading failed' are different screens"
 test("typed text is searchable the moment it is written", () => {
   const label = searchabilityLabel({ extraction: "none", mimeType: null });
   assert.equal(label.searchable, true);
+});
+
+test("a stored FILE that was never read is not called searchable", () => {
+  // `none` said "Searchable" whatever it was on. On a file it means the file
+  // was stored and never queued, and nothing has read a word of it.
+  const file = searchabilityLabel({ extraction: "none", mimeType: "application/pdf" });
+  assert.equal(file.searchable, false);
+  assert.equal(file.key, "tdl.storedUnsearchable");
+  assert.equal(searchabilityLabel({ extraction: "none", mimeType: "image/jpeg" }).key, "tdl.imageUnsearchable");
 });
 
 /* -------------------------------------------------------------- diagnoses -- */

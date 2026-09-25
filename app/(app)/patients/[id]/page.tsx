@@ -104,7 +104,8 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   // page with the diagnosis field on it, and that field is the one the revoked
   // state actually refuses to save.
   const consent = await accessFor(actor, id);
-  const consentMessage = explain(consent.state, consent.gated);
+  const consentKey = explain(consent.state, consent.gated);
+  const consentMessage = consentKey ? t(consentKey) : null;
 
   /*
    * 🔴 THE SAME LOADER THE COPILOT PAGE USES. Two surfaces, one thread. It
@@ -149,7 +150,11 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       {/*  1 · WHO                                                       */}
       {/* ============================================================= */}
       <div className="flex items-start gap-4 px-4 pt-3 pb-4 sm:px-6">
-        {claimed && personId ? (
+        {consent.capabilities.liveProfile && personId ? (
+          /*
+           * 🔴 PE80: the face is part of the live profile, so it follows the
+           * grant rather than the claim. The avatar route asks the same thing.
+           */
           /*
            * 🔴 79.4 — `PatientAvatar`, not a second hand-rolled `<img>`.
            *

@@ -124,7 +124,12 @@ export async function requestSignInCode(
 
     await db.insert(patientAuthTokens).values({
       patientAccountId: account.id,
-      purpose: "handle_verify",
+      /*
+       * 🔴 K19: its own purpose (0173). It shared `handle_verify` with the
+       * add-an-email code and the claim's handle code, and each reads only the
+       * newest live row, so asking for one of them cancelled this one.
+       */
+      purpose: "sign_in",
       tokenHash: hash(code),
       channel,
       expiresAt: new Date(Date.now() + CODE_MINUTES * 60 * 1000),
@@ -182,7 +187,7 @@ export async function signInWithCode(
     .where(
       and(
         eq(patientAuthTokens.patientAccountId, account.id),
-        eq(patientAuthTokens.purpose, "handle_verify"),
+        eq(patientAuthTokens.purpose, "sign_in"),
         isNull(patientAuthTokens.usedAt),
         gt(patientAuthTokens.expiresAt, new Date()),
       ),

@@ -8,10 +8,11 @@ import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button full size="lg" type="submit" disabled={pending}>
-      {pending ? "Working…" : label}
+      {pending ? t("common.working") : label}
     </Button>
   );
 }

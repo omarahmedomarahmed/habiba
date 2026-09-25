@@ -47,6 +47,7 @@ export default async function CopilotThreadPage({
     getPatientHistory(actor, patientId),
     accessFor(actor, patientId),
   ]);
+  const accessKey = explain(access.state, access.gated);
 
   const name = fullName(view.patientFirstName, view.patientLastName);
 
@@ -92,12 +93,12 @@ export default async function CopilotThreadPage({
           beside it. A therapist who does not know the copilot has been
           degraded reads a thin answer as the copilot being unhelpful.
         */}
-        {explain(access.state, access.gated) ? (
+        {accessKey ? (
           <div className="mb-4">
             <AccessBanner
               patientId={patientId}
               state={access.state}
-              message={explain(access.state, access.gated)!}
+              message={t(accessKey)}
               canRequest={access.capabilities.canRequestAccess}
               pendingSince={access.grant?.status === "pending" ? access.grant.requestedAt : null}
             />

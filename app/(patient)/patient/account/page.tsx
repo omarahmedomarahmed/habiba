@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { ChangeNumber } from "@/components/patient/change-number";
 import { PatientSessionList } from "@/components/patient/session-list";
 import { LanguageSetting } from "@/components/settings/language-setting";
+import { CloseAccount } from "@/components/patient/close-account";
 import { EmailEditor } from "@/components/patient/email-editor";
 import { IdentityEditor } from "@/components/patient/identity-editor";
 import { Card } from "@/components/ui";
@@ -422,6 +423,9 @@ export default async function PatientAccountPage({
           {t("paccount.signOut")}
         </button>
       </form>
+
+      {/* 🔴 K24: there was no way to leave. See `lib/data/account-closure.ts`. */}
+      <CloseAccount />
       </>
       ) : null}
     </main>

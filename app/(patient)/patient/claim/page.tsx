@@ -101,7 +101,7 @@ export default async function ClaimPage() {
       </div>
 
       {proven ? null : (
-        <ProveHandle handle={account?.phone ?? account?.email ?? "your number"} />
+        <ProveHandle handle={account?.phone ?? account?.email ?? t("pclaim.yourNumber")} />
       )}
 
       {challenges.length > 0 ? <ClaimChallenge challenges={challenges} /> : null}

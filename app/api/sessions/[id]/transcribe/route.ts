@@ -144,6 +144,13 @@ export async function POST(
     const form = await request.formData();
     const file = form.get("audio");
     const sequenceRaw = Number(form.get("sequence") ?? 0);
+    /*
+     * 🔴 K11: the recorder's id for this chunk, which is what makes a retry a
+     * no-op. The ingest bot sends only its number and never restarts it, so
+     * its number is its id. The stored sequence is assigned by the writer.
+     */
+    const chunkRaw = String(form.get("chunk") ?? "").trim();
+    const chunkId = /^[A-Za-z0-9-]{8,64}$/.test(chunkRaw) ? chunkRaw : `seq:${sequenceRaw}`;
     const durationRaw = Number(form.get("duration") ?? 8);
     const speakerRaw = String(form.get("speaker") ?? "unknown");
     // On a video call each participant is captured on their own track, so the
@@ -186,7 +193,7 @@ export async function POST(
       organizationId: session.organizationId,
       therapistId: session.therapistId,
       patientId: session.patientId,
-      sequence: sequenceRaw,
+      chunkId,
       speaker,
       text,
       startMs: (sequenceRaw - 1) * 8000,
@@ -209,7 +216,7 @@ export async function POST(
      * that was happening anyway — which is why this app needs no WebSocket.
      */
     const suggestions =
-      !viaToken && result.inserted && shouldRunCopilot(sequenceRaw)
+      !viaToken && result.inserted && shouldRunCopilot(result.sequence ?? sequenceRaw)
         ? await generateCopilot({
             sessionId: session.id,
             organizationId: session.organizationId,
@@ -246,7 +253,7 @@ export async function POST(
     return NextResponse.json({
       text,
       speaker,
-      sequence: sequenceRaw,
+      sequence: result.sequence ?? sequenceRaw,
       crisis: result.crisis,
       suggestions,
     });

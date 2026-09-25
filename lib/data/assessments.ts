@@ -568,11 +568,20 @@ export async function instrumentNames(ids: string[]): Promise<Map<string, Record
   if (ids.length === 0) return new Map();
 
   const rows = await controlDb
-    .select({ id: instruments.id, name: instruments.name })
+    .select({ id: instruments.id, name: instruments.name, locales: instruments.locales })
     .from(instruments)
     .where(inArray(instruments.id, ids));
 
-  return new Map(rows.map((row) => [row.id, row.name as Record<string, string>]));
+  /* Only the published languages, as `assignmentForAnswering` does for the questions. */
+  return new Map(
+    rows.map((row) => {
+      const published = new Set(row.locales.length > 0 ? row.locales : ["en"]);
+      const name = Object.fromEntries(
+        Object.entries(row.name as Record<string, string>).filter(([locale]) => published.has(locale)),
+      );
+      return [row.id, name];
+    }),
+  );
 }
 
 /** 56.3 / 56.6 — what is waiting for this person to answer. */
@@ -614,11 +623,25 @@ export async function assignmentForAnswering(assignmentId: string, personId: str
       name: instruments.name,
       attribution: instruments.attribution,
       questions: instruments.questions,
+      locales: instruments.locales,
     })
     .from(instruments)
     .where(eq(instruments.id, owned.instrumentId))
     .limit(1);
   if (!instrument) return null;
+
+  /*
+   * 🔴 Only the languages the instrument is PUBLISHED in leave the server.
+   *
+   * The seeds carry Arabic drafts of the PHQ-9 and GAD-7 beside the English
+   * and publish them at `locales: ["en"]`, because nobody has reviewed the
+   * Arabic (56.11). The screen picked `text[locale]`, so an Arabic reader was
+   * answering an unreviewed translation of a validated instrument. A draft
+   * that is not sent cannot be shown, whatever the component does with it.
+   */
+  const published = new Set(instrument.locales.length > 0 ? instrument.locales : ["en"]);
+  const only = (text: Record<string, string>) =>
+    Object.fromEntries(Object.entries(text).filter(([locale]) => published.has(locale)));
 
   const answers = await db
     .select({
@@ -632,9 +655,13 @@ export async function assignmentForAnswering(assignmentId: string, personId: str
     id: owned.id,
     status: owned.status,
     instrumentKey: instrument.key,
-    name: instrument.name as Record<string, string>,
+    name: only(instrument.name as Record<string, string>),
     attribution: instrument.attribution,
-    questions: instrument.questions as InstrumentQuestion[],
+    questions: (instrument.questions as InstrumentQuestion[]).map((question) => ({
+      ...question,
+      text: only(question.text),
+      options: question.options.map((option) => ({ ...option, label: only(option.label) })),
+    })),
     answers: Object.fromEntries(answers.map((a) => [a.questionKey, a.value])),
   };
 }

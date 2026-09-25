@@ -5,13 +5,38 @@ import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
+import { audit } from "@/lib/audit";
 import {
+  checkinMutes,
+  checkinReplies,
+  checkins,
+  clinicalSummaries,
+  contentFlags,
+  crossBorderConsents,
+  dataExports,
+  documentChunks,
+  enrolments,
+  historyAsks,
+  historyGrants,
+  homeworkItems,
+  journals,
+  observations,
+  partnerSessions,
+  partnerSubjects,
   patientAccounts,
+  patientClinicalFacts,
+  patientCredits,
+  patientInvites,
+  patientNotifications,
   patients,
   people,
   personClaims,
+  personDiagnoses,
+  personDocuments,
   personInvites,
+  personProfiles,
   users,
+  walletHolds,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
 
@@ -176,6 +201,111 @@ async function bindAccountToPerson(
     .where(eq(patientAccounts.id, accountId));
 
   return "moved";
+}
+
+/**
+ * 🔴 PE43: the account's own record FOLDS INTO the record it just claimed.
+ *
+ * `bindAccountToPerson` leaves the account where it is when its signup person
+ * already carries a chart, which is what happens to anybody who booked, or
+ * scanned a clinic's wall code, before claiming. The claim then succeeded and
+ * the claimed record's sessions sat on another person, out of their app.
+ *
+ * The rule that says never merge silently is about two people who MIGHT be one
+ * human. These are proven to be one: the signup person was created by this
+ * account for itself, and the claim has just verified the same account is the
+ * claimed record's person (an invite from the clinician who saw them, or a code
+ * to a handle they proved). So everything on the signup person moves across in
+ * one transaction, and the account with it. All or nothing: a row that cannot
+ * move (a published summary is append only; two live grants to one clinician
+ * cannot both stand) rolls the whole fold back, the account stays as it was,
+ * and that is logged and audited rather than half done.
+ *
+ * Runs after `applyClaimDecision`, so the "keep seeing my profile" answer
+ * covers the clinicians who held the claimed record and nobody the fold brings.
+ * Their own grants, if the person gave any, travel with them.
+ */
+const FOLDED = [
+  patients,
+  historyGrants,
+  historyAsks,
+  journals,
+  homeworkItems,
+  patientNotifications,
+  patientCredits,
+  walletHolds,
+  checkins,
+  checkinReplies,
+  checkinMutes,
+  enrolments,
+  crossBorderConsents,
+  dataExports,
+  partnerSessions,
+  partnerSubjects,
+  patientInvites,
+  personInvites,
+  personClaims,
+  personDiagnoses,
+  personDocuments,
+  documentChunks,
+  observations,
+  patientClinicalFacts,
+  clinicalSummaries,
+  contentFlags,
+  personProfiles,
+] as const;
+
+async function foldIntoClaimed(
+  accountId: string,
+  claimedPersonId: string,
+): Promise<"folded" | "nothing" | "refused"> {
+  const [account] = await db
+    .select({ personId: patientAccounts.personId })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, accountId))
+    .limit(1);
+  if (!account || account.personId === claimedPersonId) return "nothing";
+  const from = account.personId;
+
+  try {
+    await db.transaction(async (tx) => {
+      for (const table of FOLDED) {
+        await tx.execute(
+          sql`UPDATE ${table} SET person_id = ${claimedPersonId} WHERE person_id = ${from}`,
+        );
+      }
+      await tx
+        .update(patientAccounts)
+        .set({ personId: claimedPersonId, updatedAt: new Date() })
+        .where(and(eq(patientAccounts.id, accountId), eq(patientAccounts.personId, from)));
+    });
+  } catch (error) {
+    log.warn("claim fold refused, the account stays on its own record", {
+      person: ref(claimedPersonId),
+      reason: String(error),
+    });
+    await audit({
+      patientAccountId: accountId,
+      actor: null,
+      category: "clinical",
+      action: "claim.fold_refused",
+      resourceType: "person",
+      resourceId: claimedPersonId,
+      reason: "the account's own record could not move onto the claimed one",
+    }).catch(() => undefined);
+    return "refused";
+  }
+
+  await audit({
+    patientAccountId: accountId,
+    actor: null,
+    category: "clinical",
+    action: "claim.folded",
+    resourceType: "person",
+    resourceId: claimedPersonId,
+    reason: "the account's own record moved onto the record it claimed",
+  });
+  return "folded";
 }
 
 /**
@@ -453,6 +583,9 @@ export async function verifyClaim(input: {
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
 
+  /* 🔴 PE43: the account's own record folds into the one it claimed. */
+  await foldIntoClaimed(claim.accountId, claim.personId);
+
   /*
    * 🔴 55.10 / C277 — every platform holding a live link is told the record was claimed.
    *
@@ -612,6 +745,9 @@ export function inviteFits(
   return true;
 }
 
+/** Thrown inside the invite transaction to roll a claim back when the invite was spent first. */
+class InviteRaceLost extends Error {}
+
 /**
  * Spend the invite and hand the record over.
  *
@@ -648,27 +784,39 @@ export async function redeemInvite(input: {
   let patientsMoved = 0;
   let claimed = false;
 
-  await db.transaction(async (tx) => {
-    const [spent] = await tx
-      .update(personInvites)
-      .set({ usedAt: now, usedByAccountId: input.accountId })
-      .where(and(eq(personInvites.id, resolved.inviteId), isNull(personInvites.usedAt)))
-      .returning({ id: personInvites.id });
+  let alreadyClaimed = false;
+  await db
+    .transaction(async (tx) => {
+      /*
+       * 🔴 PE42: the PERSON first, the invite second. It was the other way
+       * round, and a record somebody else had claimed in the meantime returned
+       * from the transaction after the invite was spent, so the link was burned
+       * against an account that got nothing. Now an invite is only spent by
+       * the claim it makes, and a lost race on the invite rolls the claim back.
+       */
+      const [took] = await tx
+        .update(people)
+        .set({
+          claimedAt: now,
+          claimedByAccountId: input.accountId,
+          updatedAt: now,
+        })
+        .where(and(eq(people.id, resolved.personId), isNull(people.claimedAt)))
+        .returning({ id: people.id });
 
-    if (!spent) return;
+      if (!took) {
+        alreadyClaimed = true;
+        return;
+      }
 
-    const [took] = await tx
-      .update(people)
-      .set({
-        claimedAt: now,
-        claimedByAccountId: input.accountId,
-        updatedAt: now,
-      })
-      .where(and(eq(people.id, resolved.personId), isNull(people.claimedAt)))
-      .returning({ id: people.id });
+      const [spent] = await tx
+        .update(personInvites)
+        .set({ usedAt: now, usedByAccountId: input.accountId })
+        .where(and(eq(personInvites.id, resolved.inviteId), isNull(personInvites.usedAt)))
+        .returning({ id: personInvites.id });
 
-    if (!took) return;
-    claimed = true;
+      if (!spent) throw new InviteRaceLost();
+      claimed = true;
 
     await tx.insert(personClaims).values({
       personId: resolved.personId,
@@ -685,10 +833,14 @@ export async function redeemInvite(input: {
       .where(eq(patients.personId, resolved.personId));
     patientsMoved = moved[0]?.n ?? 0;
 
-    /* 🔴 22R — and the account moves onto the record it just claimed. */
-    await bindAccountToPerson(tx as never, input.accountId, resolved.personId);
-  });
+      /* 🔴 22R: and the account moves onto the record it just claimed. */
+      await bindAccountToPerson(tx as never, input.accountId, resolved.personId);
+    })
+    .catch((error) => {
+      if (!(error instanceof InviteRaceLost)) throw error;
+    });
 
+  if (alreadyClaimed) return { ok: false, error: "That record has already been claimed." };
   if (!claimed) return { ok: false, error: "That link has already been used." };
 
   // §3: from step 7 the invite route is identical to the matching one,
@@ -698,6 +850,9 @@ export async function redeemInvite(input: {
     accountId: input.accountId,
     therapistKeepsAccess: input.therapistKeepsAccess,
   });
+
+  /* 🔴 PE43: and anything the account had before claiming comes with it. */
+  await foldIntoClaimed(input.accountId, resolved.personId);
 
   /* 🔴 The same telling as the matching route. §3: from step 7 they are identical. */
   const { notifyRecordClaimed: tellPartners } = await import("@/lib/partner/webhooks");

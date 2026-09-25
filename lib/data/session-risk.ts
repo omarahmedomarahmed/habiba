@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, or } from "drizzle-orm";
 
 import { classifyRisk } from "@/lib/ai/risk";
 import { logUsage } from "@/lib/ai/client";
@@ -8,7 +8,7 @@ import { levelFor, recommendedAction, shouldAlert } from "@/lib/crisis/level";
 import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/crisis/alerts";
 import { dbFor } from "@/lib/db";
 import { regionOfOrganization, regionOfPatient } from "@/lib/db/directory";
-import { riskAssessments, transcriptSegments } from "@/lib/db/schema";
+import { patients, riskAssessments, transcriptSegments } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 /**
@@ -244,27 +244,58 @@ export async function latestAssessment(
  */
 export async function priorRiskFor(
   sessionId: string,
+  patientId: string | null,
   therapistId: string,
   organizationId: string,
   limit = 5,
 ): Promise<{ level: string; createdAt: Date; indicators: string[]; source: string }[]> {
-  const db = dbFor(await regionOfOrganization(organizationId));
+  /*
+   * 🔴 Scoped to THIS patient. It used to filter on the therapist alone, so
+   * "Before this session" listed every alert the clinician had ever had, other
+   * people's included. A session nobody has named yet has no history to show.
+   *
+   * The patient is widened to the same person's other rows on this clinician's
+   * caseload (a duplicate chart is still the same human), and never to another
+   * clinician's rows: their history travels by grant, not through this list.
+   */
+  if (!patientId) return [];
+  const db = dbFor(await regionFor(patientId, organizationId));
 
-  const rows = await db
+  const [chart] = await db
+    .select({ personId: patients.personId })
+    .from(patients)
+    .where(eq(patients.id, patientId))
+    .limit(1);
+
+  const sameHuman = db
+    .select({ id: patients.id })
+    .from(patients)
+    .where(
+      and(
+        eq(patients.therapistId, therapistId),
+        eq(patients.organizationId, organizationId),
+        chart?.personId
+          ? or(eq(patients.id, patientId), eq(patients.personId, chart.personId))
+          : eq(patients.id, patientId),
+      ),
+    );
+
+  return db
     .select({
       level: riskAssessments.level,
       createdAt: riskAssessments.createdAt,
       indicators: riskAssessments.indicators,
       source: riskAssessments.source,
-      sessionId: riskAssessments.sessionId,
     })
     .from(riskAssessments)
-    .where(eq(riskAssessments.therapistId, therapistId))
-    .orderBy(asc(riskAssessments.createdAt));
-
-  return rows
-    .filter((row) => row.sessionId !== sessionId)
-    .reverse()
-    .slice(0, limit)
-    .map(({ sessionId: _ignored, ...row }) => row);
+    .where(
+      and(
+        eq(riskAssessments.therapistId, therapistId),
+        eq(riskAssessments.organizationId, organizationId),
+        inArray(riskAssessments.patientId, sameHuman),
+        ne(riskAssessments.sessionId, sessionId),
+      ),
+    )
+    .orderBy(desc(riskAssessments.createdAt))
+    .limit(limit);
 }

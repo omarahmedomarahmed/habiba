@@ -48,7 +48,11 @@ export function PatientBriefCard({
   const paragraphs = brief.split("\n").map((line) => line.trim()).filter(Boolean);
 
   return (
-    <div dir={rtl ? "rtl" : "ltr"} className={cn("space-y-4", rtl && "text-end", className)}>
+    /*
+     * `dir` alone aligns it. `text-end` beside `dir="rtl"` meant the LEFT edge,
+     * so an Arabic brief sat against the wrong margin.
+     */
+    <div dir={rtl ? "rtl" : "ltr"} className={cn("space-y-4 text-start", className)}>
       {paragraphs.length > 0 ? (
         <div className="space-y-3 text-[15px] leading-relaxed text-slate-800">
           {paragraphs.map((paragraph, index) => (

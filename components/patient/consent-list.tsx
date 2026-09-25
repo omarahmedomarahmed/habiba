@@ -6,7 +6,7 @@ import { Clock, ShieldOff, UserCheck } from "lucide-react";
 import { answerRequest, revoke } from "@/app/(patient)/patient/consent/actions";
 import { Badge, Card } from "@/components/ui";
 import { useT, useLocale } from "@/lib/i18n/client";
-import { REJECTION_REASONS } from "@/lib/access/state";
+import { REJECTION_REASON_KEYS, REJECTION_REASONS } from "@/lib/access/state";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { formatDate } from "@/lib/utils";
 
@@ -156,7 +156,7 @@ function RequestRow({
                   onChange={() => setReason(preset)}
                   className="mt-0.5"
                 />
-                {preset}
+                {t(REJECTION_REASON_KEYS[preset])}
               </label>
             ))}
             <div className="flex flex-wrap gap-2 pt-1">

@@ -643,7 +643,8 @@ export async function rateOnArrival(
   email: string,
 ): Promise<{ ok?: boolean; error?: string }> {
   const { recordArrival } = await import("@/lib/data/feedback");
-  return recordArrival({ token, serviceStars, email });
+  /* 🔴 K9: the room holds the join token, so it is looked up as one. */
+  return recordArrival({ token, serviceStars, email, via: "join" });
 }
 
 /* --------------------------------------------- 7.8: turning a control on -- */

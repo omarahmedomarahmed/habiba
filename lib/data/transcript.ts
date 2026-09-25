@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, lt } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/crisis/alerts";
 import { dbFor} from "@/lib/db";
@@ -55,55 +55,75 @@ export async function appendTranscriptSegment(input: {
   organizationId: string;
   therapistId: string;
   patientId: string | null;
-  sequence: number;
+  /**
+   * 🔴 K11: the recorder's own id for this chunk, which is how a RETRY is
+   * recognised. The stored `sequence` is assigned here, never by a client.
+   *
+   * It used to be the other way round: the room numbered chunks from the count
+   * of lines it had loaded, so after a rejoin, or with the room open in two
+   * tabs, two different chunks carried the same number and the second was
+   * dropped as a duplicate, silently, out of the clinical record.
+   */
+  chunkId: string;
   speaker: "therapist" | "patient" | "unknown";
   text: string;
   startMs: number;
   endMs: number;
-}): Promise<{ inserted: boolean; crisis: boolean }> {
+}): Promise<{ inserted: boolean; crisis: boolean; sequence: number | null }> {
   const text = input.text.trim();
-  if (!text) return { inserted: false, crisis: false };
+  if (!text) return { inserted: false, crisis: false, sequence: null };
+
+  let inserted = false;
+  let sequence: number | null = null;
 
   /*
-   * Descriptors, computed here because this is the only writer.
-   *
-   * The previous segment's end is read rather than passed in: the caller is an
-   * upload handler that knows about one chunk, and asking it to track the last
-   * one would put the same state in two places and let them drift. One indexed
-   * lookup on `(session_id, sequence)`, which is the index that already exists.
+   * Next number after the highest stored one. Two chunks of one session can
+   * race for the same number (two recorders, two tabs); the loser hits the
+   * `(session_id, sequence)` index and takes the next. A conflict on the CHUNK
+   * id is a retry, and that one is the only thing ever dropped.
    */
-  const [previous] = await db
-    .select({ endMs: transcriptSegments.endMs })
-    .from(transcriptSegments)
-    .where(
-      and(
-        eq(transcriptSegments.sessionId, input.sessionId),
-        lt(transcriptSegments.sequence, input.sequence),
-      ),
-    )
-    .orderBy(desc(transcriptSegments.sequence))
-    .limit(1);
+  for (let attempt = 0; attempt < 8 && !inserted; attempt += 1) {
+    /*
+     * Descriptors, computed here because this is the only writer. The previous
+     * segment is read rather than passed in: the caller knows about one chunk.
+     */
+    const [previous] = await db
+      .select({ endMs: transcriptSegments.endMs, sequence: transcriptSegments.sequence })
+      .from(transcriptSegments)
+      .where(eq(transcriptSegments.sessionId, input.sessionId))
+      .orderBy(desc(transcriptSegments.sequence))
+      .limit(1);
+    const next = (previous?.sequence ?? 0) + 1;
 
-  const result = await db
-    .insert(transcriptSegments)
-    .values({
-      sessionId: input.sessionId,
-      organizationId: input.organizationId,
-      sequence: input.sequence,
-      speaker: input.speaker,
-      text,
-      startMs: input.startMs,
-      endMs: input.endMs,
-      wordsPerMinute: wordsPerMinute(text, input.endMs - input.startMs),
-      pauseBeforeMs: pauseBeforeMs(input.startMs, previous?.endMs ?? null),
-    })
-    // A retried chunk must not duplicate the segment.
-    .onConflictDoNothing({
-      target: [transcriptSegments.sessionId, transcriptSegments.sequence],
-    })
-    .returning({ id: transcriptSegments.id });
+    try {
+      const result = await db
+        .insert(transcriptSegments)
+        .values({
+          sessionId: input.sessionId,
+          organizationId: input.organizationId,
+          sequence: next,
+          chunkId: input.chunkId,
+          speaker: input.speaker,
+          text,
+          startMs: input.startMs,
+          endMs: input.endMs,
+          wordsPerMinute: wordsPerMinute(text, input.endMs - input.startMs),
+          pauseBeforeMs: pauseBeforeMs(input.startMs, previous?.endMs ?? null),
+        })
+        // A retried chunk must not duplicate the segment.
+        .onConflictDoNothing({
+          target: [transcriptSegments.sessionId, transcriptSegments.chunkId],
+          where: sql`chunk_id IS NOT NULL`,
+        })
+        .returning({ id: transcriptSegments.id });
 
-  const inserted = result.length > 0;
+      if (result.length === 0) break;
+      inserted = true;
+      sequence = next;
+    } catch (error) {
+      if (!lostTheNumber(error)) throw error;
+    }
+  }
 
   const matches = scanForCrisisLanguage(text);
   if (inserted && matches.length > 0) {
@@ -118,5 +138,19 @@ export async function appendTranscriptSegment(input: {
     });
   }
 
-  return { inserted, crisis: matches.length > 0 };
+  return { inserted, crisis: matches.length > 0, sequence };
+}
+
+/** Another chunk of this session took the number first; take the next one. */
+function lostTheNumber(error: unknown): boolean {
+  const seen = [error, (error as { cause?: unknown } | null)?.cause];
+  return seen.some(
+    (e) =>
+      typeof e === "object" &&
+      e !== null &&
+      (e as { code?: string }).code === "23505" &&
+      String((e as { constraint?: string }).constraint ?? (e as Error).message).includes(
+        "transcript_segments_session_seq_unique",
+      ),
+  );
 }

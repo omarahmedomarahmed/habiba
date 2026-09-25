@@ -1,11 +1,12 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
 import {
   manualPayments,
   patientAccounts,
+  patients,
   people,
   sessions,
   sponsorUsers,
@@ -132,7 +133,8 @@ async function payerOf(
       .where(eq(patientAccounts.id, payment.patientAccountId))
       .limit(1);
 
-    if (!row?.email && !row?.phone) return null;
+    /* A person with no handle still has an app to be told in (K10). */
+    if (!row?.email && !row?.phone && !row?.personId) return null;
     return {
       to: { personId: row.personId, email: row.email ?? null, phone: row.phone ?? null },
       name: row.first ?? null,
@@ -147,10 +149,44 @@ async function payerOf(
    */
   if (payment.purpose === "session" && payment.refId) {
     const [row] = await db
-      .select({ name: sessions.guestName, email: sessions.guestEmail })
+      .select({
+        name: sessions.guestName,
+        email: sessions.guestEmail,
+        personId: patients.personId,
+      })
       .from(sessions)
+      .leftJoin(patients, eq(patients.id, sessions.patientId))
       .where(eq(sessions.id, payment.refId))
       .limit(1);
+
+    /*
+     * 🔴 K10: A SIGNED-IN PATIENT PAYS THROUGH THE SAME LINK, and is a person.
+     *
+     * The session payer carries no account, so this used to reach only the
+     * receipt email typed on the page: a patient in the app who typed none was
+     * told nothing when their claim arrived or their money landed. When the
+     * session's chart belongs to a person with a live account, they are told
+     * like any account holder: their app, their phone or address, their language.
+     */
+    if (row?.personId) {
+      const [account] = await db
+        .select({ email: patientAccounts.email, phone: patientAccounts.phone, first: people.firstName, personPhone: people.phone })
+        .from(patientAccounts)
+        .innerJoin(people, eq(people.id, patientAccounts.personId))
+        .where(and(eq(patientAccounts.personId, row.personId), isNull(patientAccounts.deletedAt)))
+        .limit(1);
+      if (account) {
+        return {
+          to: {
+            personId: row.personId,
+            email: account.email ?? row.email ?? null,
+            phone: account.phone ?? account.personPhone ?? null,
+          },
+          name: account.first ?? row.name ?? null,
+          who: { personId: row.personId },
+        };
+      }
+    }
 
     if (!row?.email) return null;
     return { to: { email: row.email, phone: null }, name: row.name ?? null, who: null };
@@ -208,6 +244,12 @@ export async function noticePaymentSubmitted(paymentId: string): Promise<void> {
     const { t } = who.words;
 
     await notify(who.to, {
+      /* 🔴 K10: and in the app, so a payer with no inbox still sees it arrived. */
+      notice: {
+        kind: "payment_submitted",
+        key: "pnotice.paymentSubmitted",
+        ...(payment.purpose === "session" && payment.refId ? { sessionId: payment.refId } : {}),
+      },
       kind: "payment.submitted",
       subject: t("pmsg.pay.submittedSubject"),
       body: `${who.hi}\n\n${t("pmsg.pay.submitted", { amount })}`,
