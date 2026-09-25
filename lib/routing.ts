@@ -136,6 +136,15 @@ export function patientBounce(hasCookie: boolean, path: string): string {
   return hasCookie ? `/patient/session-expired${query}` : `/patient/login${query}`;
 }
 
+/**
+ * Where a record export is collected, as a URL path. Here rather than in
+ * `lib/data/export.ts` so the admin mail previews can link it without reaching
+ * a module that reads clinical data (58.6).
+ */
+export function recordExportPath(token: string): string {
+  return `/records/${token}`;
+}
+
 /** 21R.1 / C94 — where an unauthenticated caller at an admin route is sent. */
 export const STAFF_SIGN_IN = "/staff/sign-in";
 

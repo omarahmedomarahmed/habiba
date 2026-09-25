@@ -33,9 +33,9 @@
 import { readdirSync, statSync } from "node:fs";
 
 import { potAlertLink } from "../lib/billing/pot-alerts";
-import { exportPath } from "../lib/data/export";
 import { CONTENT_DEMOS } from "../lib/db/schema";
 import { limitAlertMessage } from "../lib/partner/usage";
+import { recordExportPath } from "../lib/routing";
 import { patientSessionLink } from "../lib/sessions/patient-link";
 import { readSource, reporter } from "./_verify";
 
@@ -477,7 +477,7 @@ function main() {
   walkRoutes("app", []);
   const answered = (link: string) => routes.some((route) => route.test(link.split("?")[0] ?? ""));
   const helperLinks = [
-    exportPath("DEMO-TOKEN"),
+    recordExportPath("DEMO-TOKEN"),
     new URL(patientSessionLink("https://example.com", "DEMO-TOKEN")?.url ?? "https://example.com/none").pathname,
     new URL(potAlertLink(false).url).pathname,
     new URL(limitAlertMessage({ name: "x", at: 80, used: 1, limit: 2, projected: 2 }).link.url).pathname,

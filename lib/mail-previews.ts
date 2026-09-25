@@ -3,13 +3,13 @@ import "server-only";
 import { potAlertLink, potAlertMessage } from "@/lib/billing/pot-alerts";
 import { overdueAlertMessage } from "@/lib/billing/payouts";
 import { CODE_TTL_MINUTES } from "@/lib/data/enrolment-verify";
-import { exportPath } from "@/lib/data/export";
 import { domainConfirmMessage } from "@/lib/data/sponsor-domains";
 import { EXPORT_TTL_HOURS, type NoteContent } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { whenFor } from "@/lib/i18n/message-words";
 import { translator } from "@/lib/i18n/server";
 import { limitAlertMessage } from "@/lib/partner/usage";
+import { recordExportPath } from "@/lib/routing";
 import { patientSessionLink } from "@/lib/sessions/patient-link";
 import {
   sendClaimCode,
@@ -256,7 +256,7 @@ export function previewMessages(): PreviewMessage[] {
           to,
           patientName: "Mariam Demo",
           clinicianName: therapist,
-          url: `${app}${exportPath("DEMO-TOKEN")}`,
+          url: `${app}${recordExportPath("DEMO-TOKEN")}`,
           expiresInHours: EXPORT_TTL_HOURS,
         }),
     },

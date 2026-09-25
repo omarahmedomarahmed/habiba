@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { POST as payoutsCallback } from "@/app/api/payouts/callback/route";
 import { Button, Card } from "@/components/ui";
+import { requireRole } from "@/lib/auth/guard";
 import { recordFakePayout, SIGNATURE_HEADER, signFake } from "@/lib/billing/gateway/fake";
 import { controlDb } from "@/lib/db";
 import { payoutRequests } from "@/lib/db/schema";
@@ -24,6 +25,8 @@ export const dynamic = "force-dynamic";
 async function answer(formData: FormData) {
   "use server";
   if (!simulatorOn("payouts")) notFound();
+  /* The owner's desk: it answers as the provider and moves a payout. */
+  await requireRole("super_admin");
   const event = {
     providerRef: String(formData.get("providerRef") ?? ""),
     reference: String(formData.get("reference") ?? ""),
@@ -44,6 +47,7 @@ async function answer(formData: FormData) {
 
 export default async function SimulatedPayouts() {
   if (!simulatorOn("payouts")) notFound();
+  await requireRole("super_admin");
   const { t } = await getI18n();
   const sending = await controlDb
     .select({
