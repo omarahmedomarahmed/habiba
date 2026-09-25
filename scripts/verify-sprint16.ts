@@ -25,7 +25,11 @@ import {
 import { writesTo } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
-import { REQUIRED_IN_PRODUCTION } from "../lib/env";
+import {
+  REQUIRED_IN_PRODUCTION,
+  REQUIRED_ON_LIVE_DEPLOYMENT,
+  REQUIRED_WHEN_STRIPE_ENABLED,
+} from "../lib/env";
 import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 /*
@@ -483,7 +487,6 @@ async function main() {
             ...process.env,
             NODE_ENV: "production",
             AUTH_SECRET: process.env.AUTH_SECRET ?? "0".repeat(64),
-            STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? "whsec_verify16",
             APP_URL: process.env.APP_URL ?? "https://verify16.test",
             /*
              * 🔴 ADDED BY 57.8 / C284. The dummy list was incomplete, so this
@@ -509,9 +512,18 @@ async function main() {
              * exported and read here, so a var added next sprint is supplied by
              * a file nobody edited. Exactly the rule `scripts/age.ts` follows
              * about columns, for the same reason.
+             *
+             * 🔴 0165: and the two conditional lists. `STRIPE_WEBHOOK_SECRET`
+             * left the unconditional one (ruling 17: Stripe is not used) and is
+             * required only while `STRIPE_ENABLED` is on; `RESEND_API_KEY` is
+             * required on the live deployment. Either can be switched on by the
+             * operator's shell, so both are supplied for the same reason as
+             * the rest: the child's boot must not depend on the machine.
              */
             ...Object.fromEntries(
-              REQUIRED_IN_PRODUCTION.map((key) => [key, process.env[key] ?? `verify16-${key}`]),
+              [...REQUIRED_IN_PRODUCTION, ...REQUIRED_WHEN_STRIPE_ENABLED, ...REQUIRED_ON_LIVE_DEPLOYMENT].map(
+                (key) => [key, process.env[key] ?? `verify16-${key}`],
+              ),
             ),
           },
           encoding: "utf8",

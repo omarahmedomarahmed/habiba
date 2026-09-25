@@ -3678,6 +3678,44 @@ export const errorEvents = pgTable(
   ],
 );
 
+/**
+ * 🔴 0165: when each scheduled job last ran, and when it last ran CLEAN.
+ *
+ * Written by the cron route after every run (`lib/observability/heartbeat.ts`)
+ * and read by the hourly watchdog, which emails the super admins when a job is
+ * twice its interval late. `lastSuccessAt` moves only when no step failed, so a
+ * job that runs and fails the same step every hour still goes overdue.
+ */
+export const cronHeartbeats = pgTable("cron_heartbeats", {
+  job: text("job").primaryKey(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+  /** The steps that failed on the last run, comma separated, or null. */
+  failedSteps: text("failed_steps"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * 🔴 0165: one row per alert per day, inserted BEFORE the email goes. The
+ * primary key is the "at most once a day" rule, so two runs in one minute
+ * cannot both send it.
+ */
+export const opsAlerts = pgTable(
+  "ops_alerts",
+  {
+    key: text("key").notNull(),
+    day: date("day").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.key, table.day] })],
+);
+
+/** 🔴 0165: a lease a sweep takes so two overlapping runs cannot both send. */
+export const cronLeases = pgTable("cron_leases", {
+  name: text("name").primaryKey(),
+  heldUntil: timestamp("held_until", { withTimezone: true }).notNull(),
+});
+
 /* ---------------------------------------------------------------- settings -- */
 
 /**

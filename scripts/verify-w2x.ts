@@ -554,21 +554,26 @@ async function main() {
 
     /*
      * The queue was drained inside the daily `billing` job. It must be drained on
-     * the hourly wake, and that wake must still be the only hourly one (the cron
+     * the hourly wake, and that wake must still be ONE wake an hour (the cron
      * route's header: jobs share wakes because a wake is what costs).
+     *
+     * 🔴 0165: `crisis` went hourly as a launch blocker, on the SAME minute as
+     * `reminders`, so the two share the wake. The rule this checks is one
+     * minute an hour, not one entry: two entries on one minute cost one wake.
      */
     const cron = readSource("app/api/cron/[job]/route.ts");
     const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as {
       crons: { path: string; schedule: string }[];
     };
     const hourly = vercel.crons.filter((c) => /^\d+ \* \* \* \*$/.test(c.schedule));
+    const hourlyMinutes = new Set(hourly.map((c) => c.schedule));
     const remindersBody = cron.slice(cron.indexOf("async reminders()"), cron.indexOf("async webhooks()"));
     const billingBody = cron.slice(cron.indexOf("async billing()"), cron.indexOf("async radar()"));
     check(
       "🔴 W2-X03 the webhook queue drains on the hourly wake, not inside the daily billing job",
-      hourly.length === 1 && hourly[0]!.path === "/api/cron/reminders" &&
+      hourlyMinutes.size === 1 && hourly.some((c) => c.path === "/api/cron/reminders") &&
         /deliverPending\(/.test(remindersBody) && !/deliverPending\(/.test(billingBody),
-      `hourly: ${hourly.map((c) => c.path).join(", ")}`,
+      `hourly: ${hourly.map((c) => `${c.path} ${c.schedule}`).join(", ")}`,
     );
 
     const hasColumns = await one<{ n: number }>(sql`
