@@ -238,7 +238,7 @@ export function BookingCalendar({
               }
               className="tap-target h-11 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {pending ? "Booking…" : "Confirm"}
+              {pending ? t("pbook.booking") : t("common.confirm")}
             </button>
             <button
               type="button"

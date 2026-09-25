@@ -56,7 +56,7 @@ export async function askCopilot(patientId: string, question: string): Promise<A
   if (!access.capabilities.copilot) {
     const { getI18n } = await import("@/lib/i18n/server");
     const { t } = await getI18n();
-    return { error: t(explain(access.state, access.gated) ?? "access.copilotRefused") };
+    return { error: t(explain(access.state, access.gated) ?? "pracc.copilotRefused") };
   }
 
   /*

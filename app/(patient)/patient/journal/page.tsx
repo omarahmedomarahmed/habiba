@@ -91,7 +91,7 @@ export default async function JournalPage() {
               <Card className="p-4">
                 <p className="text-xs text-slate-500">
                   {formatDateTime(entry.createdAt, actor.timezone, locale)}
-                  {entry.source === "dictated" ? " · spoken" : ""}
+                  {entry.source === "dictated" ? ` · ${t("pjournal.spoken")}` : ""}
                 </p>
                 <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
                   {entry.body}

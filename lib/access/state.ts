@@ -222,20 +222,20 @@ export function explain(
   state: AccessState,
   gated = false,
 ):
-  | "access.explain.gated"
-  | "access.explain.revoked"
-  | "access.explain.unclaimed"
-  | "access.explain.noRelationship"
+  | "pracc.explain.gated"
+  | "pracc.explain.revoked"
+  | "pracc.explain.unclaimed"
+  | "pracc.explain.noRelationship"
   | null {
-  if (state === "unclaimed_bare" && gated) return "access.explain.gated";
+  if (state === "unclaimed_bare" && gated) return "pracc.explain.gated";
 
   switch (state) {
     case "revoked":
-      return "access.explain.revoked";
+      return "pracc.explain.revoked";
     case "unclaimed_bare":
-      return "access.explain.unclaimed";
+      return "pracc.explain.unclaimed";
     case "no_relationship":
-      return "access.explain.noRelationship";
+      return "pracc.explain.noRelationship";
     case "unclaimed_documented":
     case "granted":
       return null;

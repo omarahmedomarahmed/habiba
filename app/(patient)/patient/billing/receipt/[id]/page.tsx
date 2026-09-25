@@ -14,7 +14,11 @@ import { requirePatient } from "@/lib/patient-auth/guard";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Receipt", robots: { index: false } };
+/** K21: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.receipt"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

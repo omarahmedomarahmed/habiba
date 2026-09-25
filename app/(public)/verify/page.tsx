@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 
 import { Card } from "@/components/ui";
 import { verifyExtract } from "@/lib/data/export";
+import { getI18n } from "@/lib/i18n/server";
+import { formatDate } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Check a 24Therapy record extract",
-  description:
-    "Confirm that a record extract was produced by 24Therapy, and what it contained when it was made.",
-};
+/** K21: the whole page was English; the title and description too. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("verify.metaTitle"), description: t("verify.metaDescription") };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -34,18 +36,14 @@ export default async function VerifyPage({
   searchParams: Promise<{ code?: string }>;
 }) {
   const { code } = await searchParams;
+  const { t, locale } = await getI18n();
   const entered = (code ?? "").trim();
   const result = entered ? await verifyExtract(entered) : null;
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12 sm:px-6">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-        Check a record extract
-      </h1>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">
-        A 24Therapy record extract carries a code on its cover page. Enter it here to confirm that
-        we produced the document and what it contained on the day it was made.
-      </p>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("verify.title")}</h1>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("verify.body")}</p>
 
       <form action="/verify" className="mt-6 flex flex-wrap gap-2">
         <input
@@ -53,48 +51,37 @@ export default async function VerifyPage({
           name="code"
           defaultValue={entered}
           placeholder="XXXX-XXXX-XXXX"
-          aria-label="Extract code"
+          aria-label={t("verify.codeLabel")}
           className="h-12 min-w-[14rem] flex-1 rounded-xl border border-slate-200 px-3.5 font-mono tracking-widest text-slate-900 uppercase outline-none focus:border-brand-400"
         />
         <button
           type="submit"
           className="h-12 rounded-xl bg-brand-500 px-5 text-sm font-semibold text-navy-600"
         >
-          Check it
+          {t("verify.check")}
         </button>
       </form>
 
       {result ? (
         result.known ? (
           <Card className="mt-6 p-5">
-            <p className="text-sm font-semibold text-slate-900">
-              24Therapy produced a record extract with this code.
-            </p>
+            <p className="text-sm font-semibold text-slate-900">{t("verify.known")}</p>
             <dl className="mt-3 grid grid-cols-[10rem_1fr] gap-x-3 gap-y-1.5 text-sm">
-              <dt className="text-slate-600">Produced on</dt>
-              <dd className="text-slate-800">{result.issuedAt.toISOString().slice(0, 10)}</dd>
-              <dt className="text-slate-600">Sessions in it</dt>
+              <dt className="text-slate-600">{t("verify.producedOn")}</dt>
+              <dd className="text-slate-800">{formatDate(result.issuedAt, "UTC", locale)}</dd>
+              <dt className="text-slate-600">{t("verify.sessions")}</dt>
               <dd className="text-slate-800">{result.sessions}</dd>
-              <dt className="text-slate-600">Notes signed by a clinician</dt>
+              <dt className="text-slate-600">{t("verify.signedNotes")}</dt>
               <dd className="text-slate-800">{result.signedNotes}</dd>
-              <dt className="text-slate-600">Summary versions</dt>
+              <dt className="text-slate-600">{t("verify.summaries")}</dt>
               <dd className="text-slate-800">{result.summaryVersions}</dd>
             </dl>
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">
-              That is everything we are able to tell you. We do not confirm who the document is
-              about, and we do not say that any clinical judgement inside it is right. A note in
-              that extract carries the name and licence of the clinician who signed it, and they
-              are the person to ask.
-            </p>
+            <p className="mt-4 text-sm leading-relaxed text-slate-600">{t("verify.limits")}</p>
           </Card>
         ) : (
           <Card className="mt-6 p-5">
-            <p className="text-sm font-semibold text-slate-900">We do not recognise that code.</p>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-              Check the twelve characters on the cover page. There is no letter O and no number 0
-              in a code we issue. A code that was never issued and one that is not yours look the
-              same here, on purpose.
-            </p>
+            <p className="text-sm font-semibold text-slate-900">{t("verify.unknown")}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("verify.unknownBody")}</p>
           </Card>
         )
       ) : null}

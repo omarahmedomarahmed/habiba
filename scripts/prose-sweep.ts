@@ -263,6 +263,13 @@ const PORTALS: Record<string, readonly string[]> = {
      */
     "ft",
     "footer",
+    /*
+     * K21 — `verify` is the public page a record extract's code is checked on,
+     * keyed this pass (it was English markup the sweep counted nowhere):
+     *
+     *   grep -rn 't("verify\.' app components lib -> app/(public)/verify/page.tsx
+     */
+    "verify",
   ],
   admin: ["admin", "aclinic", "apartner", "asponsor", "acheckin"],
   /*
