@@ -67,6 +67,18 @@ const nextConfig: NextConfig = {
    * up in a production build, never in dev.
    */
   serverExternalPackages: ["@neondatabase/serverless", "ws"],
+  /*
+   * 🔴 NO WEBPACK CACHE ON VERCEL. Two deploys after a 150-file change were
+   * killed for memory mid-compile, with and without the memory optimisations,
+   * while the same commit compiled from nothing here in 89s at a 4.9 GB peak.
+   * The difference is the half-gigabyte cache Vercel restores: loading it and
+   * then invalidating most of it costs more than compiling from scratch. A
+   * cold compile is the one we have measured, so it is the one Vercel runs.
+   */
+  webpack(config) {
+    if (process.env.VERCEL) config.cache = false;
+    return config;
+  },
   experimental: {
     // Server Actions carry PHI-mutating writes; keep bodies small.
     serverActions: { bodySizeLimit: "2mb" },
