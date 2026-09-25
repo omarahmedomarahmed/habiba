@@ -110,3 +110,8 @@ captures/
 docs/screens/
 evidence/
 .sim-audio/
+
+# The one-month run: the board, bugs and report are committed; the screenshots are not. The
+# founder plays the console under their own name, and this repository is public.
+docs/simulation-run/shots/
+.simulation-clock.json.bak

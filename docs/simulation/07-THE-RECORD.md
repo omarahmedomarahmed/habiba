@@ -1,6 +1,9 @@
 # What the run writes down, and how "no bugs" is proved
 
-Everything the run produces goes in `docs/simulation-run/`, committed at the end of each round.
+Everything the run produces goes in `docs/simulation-run/`. The board, the bugs, the rounds and
+the report are committed at the end of each round. The screenshots are not: the founder plays
+the console under their own name and the repository is public, so `shots/` is ignored by git
+and stays on the machine that ran the round.
 
 | File | Written by | When |
 |---|---|---|
