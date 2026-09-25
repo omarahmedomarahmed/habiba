@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { profileFor } from "./profile";
 
 /**
- * 🔴 B35 — A PROFILE THAT DOES NOT EXIST IS A 404, DECIDED ABOVE THE BOUNDARY.
+ * 🔴 B35: A PROFILE THAT DOES NOT EXIST IS A 404, DECIDED ABOVE THE BOUNDARY.
  *
  * `loading.tsx` beside this file puts a Suspense boundary around the page, so
  * a `notFound()` from the page arrives after the response has started with a

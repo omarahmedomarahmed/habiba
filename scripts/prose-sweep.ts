@@ -244,6 +244,16 @@ const PORTALS: Record<string, readonly string[]> = {
     "pat",
     "pr2",
     /*
+     * 🔴 B32: the Arabic shell of the legal pages and the integrations page:
+     *
+     *   grep -rn 'page\.' 'app/(public)/[slug]/page.tsx' lib/content/service.ts
+     *   grep -rn 'integ\.' 'app/(public)/integrations/page.tsx'
+     *
+     * Both render only on the marketing site.
+     */
+    "page",
+    "integ",
+    /*
      * 🔴 405 WORDS WERE SITTING IN `other`, WHICH HAS NO RATCHET.
      *
      * Both arrived with the audience-page work and neither was mapped, so the

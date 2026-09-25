@@ -77,7 +77,7 @@ export const CMS_TAG = "cms";
  *   v2 — 2026-09-05, C60: pricing copy corrected in the row, not the editor.
  *   v3 — 2026-09-06, 17.9: the pricing rewrite — cards in, hero out.
  *   v4 — 2026-09-07, C92: the entries that outlived both of those.
- *   v5 — 2026-09-25, B32: a page says which language it was served in, and
+ *   v5, 2026-09-25, B32: a page says which language it was served in, and
  *        the Arabic crisis sentences were corrected in the rows.
  */
 export const CACHE_VERSION = "v5";
@@ -140,7 +140,7 @@ export type PublicPage = {
   layout: "marketing" | "document";
   blocks: ContentBlock[];
   /**
-   * 🔴 B32 — the language of the row actually served. A reader asking for
+   * 🔴 B32: the language of the row actually served. A reader asking for
    * Arabic gets the English row when nobody has written an Arabic one, and
    * the page needs to know that to say so rather than pass it off as theirs.
    */
@@ -238,7 +238,7 @@ async function readPage(
 }
 
 /**
- * 🔴 B32 — A LINK TO AN UNTRANSLATED PAGE IS STILL LABELLED IN THE READER'S
+ * 🔴 B32: A LINK TO AN UNTRANSLATED PAGE IS STILL LABELLED IN THE READER'S
  * LANGUAGE. The legal pages have no Arabic rows, so the footer on every Arabic
  * page printed Privacy, Terms, Compliance and Security from the English row.
  * The page may be untranslated; the word for it is not.

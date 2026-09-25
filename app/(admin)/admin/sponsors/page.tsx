@@ -36,7 +36,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AdminSponsorsPage() {
   /*
-   * 🔴 B8 — staff read this list, because it is the way to the sponsor page
+   * 🔴 B8: staff read this list, because it is the way to the sponsor page
    * where the top-ups queue is worked. Every act on it stays the owner's:
    * `sponsors/actions.ts` refuses anybody else, and the controls are not
    * rendered for them.

@@ -38,7 +38,7 @@ export async function generateMetadata({
 }
 
 /**
- * 🔴 B32 — AN UNTRANSLATED DOCUMENT IS SAID TO BE ONE, IN THE READER'S LANGUAGE.
+ * 🔴 B32: AN UNTRANSLATED DOCUMENT IS SAID TO BE ONE, IN THE READER'S LANGUAGE.
  *
  * `/ar/privacy` served the English row, because no Arabic legal row exists,
  * and the reader got an English page under an Arabic header and footer. The

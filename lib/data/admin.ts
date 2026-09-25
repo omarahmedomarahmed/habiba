@@ -49,7 +49,7 @@ export async function platformStats() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   /*
-   * 🔴 B26 — `users` is not a list of clinicians, and an organisation is not
+   * 🔴 B26: `users` is not a list of clinicians, and an organisation is not
    * a practice. Every back office account (staff, managers, the founders) is a
    * `users` row with a solo organisation of its own, so the bare counts put
    * the whole console team on the overview as clinicians running practices.

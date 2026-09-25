@@ -473,7 +473,7 @@ check(
 );
 
 /*
- * 🔴 B31 — THE SAME SHAPE, ONE ROW OVER: A SEAT FEE.
+ * 🔴 B31: THE SAME SHAPE, ONE ROW OVER: A SEAT FEE.
  *
  * "Joining is free. No seat fee, no setup fee, no minimum." sat directly under
  * the clinic plan at "$72 a seat, a month". A clinic pays per seat the moment
@@ -496,7 +496,7 @@ check(
 );
 
 /*
- * 🔴 B30 — WHETHER ANYBODY IS ONLINE IS A FACT OF THIS MINUTE, NOT OF THE COPY.
+ * 🔴 B30: WHETHER ANYBODY IS ONLINE IS A FACT OF THIS MINUTE, NOT OF THE COPY.
  *
  * The crisis block told every visitor "the radar has clinicians online this
  * minute" while `/radar` said nobody was there. Only the live count may say

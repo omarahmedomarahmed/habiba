@@ -81,7 +81,7 @@ export function SponsorManager({
 }: {
   sponsors: AdminSponsorRow[];
   /**
-   * 🔴 B8 — false for staff, who read this list on the way to a sponsor's
+   * 🔴 B8: false for staff, who read this list on the way to a sponsor's
    * page. The actions refuse them anyway; this only stops the screen offering
    * buttons that would bounce.
    */
@@ -201,7 +201,7 @@ function SponsorRow({ sponsor, canManage }: { sponsor: AdminSponsorRow; canManag
             another company's books.
           */}
           {/*
-            🔴 B25 — THE CURRENT ONE FIRST, SAID AS THE CURRENT ONE. The row
+            🔴 B25: THE CURRENT ONE FIRST, SAID AS THE CURRENT ONE. The row
             used to print only the entity it could move TO, so "Billed from US"
             read as the answer for an Egyptian customer.
           */}

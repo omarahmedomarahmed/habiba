@@ -237,7 +237,7 @@ export const RADAR_DEMO: {
   country: string;
 }[] = [
   /*
-   * 🔴 B30 — PRICED LIKE THE CLINICIANS WHO ARE REALLY THERE. These were $60,
+   * 🔴 B30: PRICED LIKE THE CLINICIANS WHO ARE REALLY THERE. These were $60,
    * $75 and $50 while the people on the live radar charged $12 to $20, so the
    * mockup quoted a market we are not. And the second one was "Dr Karim
    * Example", a breath away from a real clinician's name; Rami is in no cast.

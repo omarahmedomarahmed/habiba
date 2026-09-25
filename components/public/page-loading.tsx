@@ -8,7 +8,7 @@ import { getI18n } from "@/lib/i18n/server";
  * site's own `<main>`, so the header and footer stay put and this is a `div`
  * rather than a second `main`. Its one word is for a screen reader.
  *
- * 🔴 B35 — AND IT IS MOUNTED ON THOSE TWO ROUTES, NOT ON THE WHOLE SITE. As
+ * 🔴 B35: AND IT IS MOUNTED ON THOSE TWO ROUTES, NOT ON THE WHOLE SITE. As
  * `app/(public)/loading.tsx` it put a Suspense boundary above every public
  * page, so the response had started streaming, with its 200, before any page
  * could call `notFound()`. Every missing page on the site answered 200 with

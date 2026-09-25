@@ -103,7 +103,7 @@ const PAYER_TONE: Record<Row["payerType"], string> = {
 const TABS = ["all", "patient", "therapist", "clinic", "company"] as const;
 
 /*
- * 🔴 B57 — what a payment is for, in words. The keys are the purposes, so a
+ * 🔴 B57: what a payment is for, in words. The keys are the purposes, so a
  * purpose with no key would print the raw code, and `tests/admin-reasons.test.ts`
  * checks every purpose in the schema has one.
  */
@@ -116,7 +116,7 @@ export function TransferQueue({ rows }: { rows: Row[] }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("all");
 
   /*
-   * 🔴 B27 — THE OUTCOME IS SAID ABOVE EITHER BRANCH. It used to render only
+   * 🔴 B27: THE OUTCOME IS SAID ABOVE EITHER BRANCH. It used to render only
    * inside the list, so confirming the LAST row emptied the queue, took the
    * list branch away, and the only word on the screen was "Nothing waiting":
    * no sign the confirmation had happened at all.

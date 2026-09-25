@@ -75,9 +75,9 @@ export function AudienceRotator({
   panels: Panel[];
   cta?: { label: string; href: string };
   eyebrow: string;
-  /** 🔴 B30 — the real radar's count beside the invented phone, zero included. */
+  /** 🔴 B30: the real radar's count beside the invented phone, zero included. */
   live?: { checking: string; online: string; nobody: string };
-  /** 🔴 B30 — the screens are examples, said under them rather than left to be inferred. */
+  /** 🔴 B30: the screens are examples, said under them rather than left to be inferred. */
   demoNote?: string;
 }) {
   const [at, setAt] = React.useState(0);

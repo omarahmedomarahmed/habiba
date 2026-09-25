@@ -48,7 +48,7 @@ export default async function VerifyPage({
       <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("verify.body")}</p>
 
       {/*
-        🔴 B34 — THE FORM STAYS IN THE READER'S LANGUAGE. It posted to a bare
+        🔴 B34: THE FORM STAYS IN THE READER'S LANGUAGE. It posted to a bare
         `/verify`, so an Arabic reader who pressed Check was answered in
         English: the language comes from the path, and the path had lost it.
       */}

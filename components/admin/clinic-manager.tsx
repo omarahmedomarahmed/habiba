@@ -148,7 +148,7 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
             paid on, and which company's books it sits in.
           */}
           {/*
-            🔴 B25 — THE CURRENT REGION FIRST, SAID AS THE CURRENT ONE. The
+            🔴 B25: THE CURRENT REGION FIRST, SAID AS THE CURRENT ONE. The
             row used to print only the region it could move TO, so an Egyptian
             practice read as "Billed from US".
           */}

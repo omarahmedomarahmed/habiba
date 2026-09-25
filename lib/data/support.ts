@@ -223,7 +223,7 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
   log.info("support ticket filed", { ticket: ref(row?.id ?? ""), topic, entity: input.entity });
 
   /*
-   * 🔴 B33 — THE SENDER HEARS BACK AT ONCE. The reference used to exist only
+   * 🔴 B33: THE SENDER HEARS BACK AT ONCE. The reference used to exist only
    * on the screen that showed it, so somebody who closed the tab had nothing
    * to quote and no way back. Now they get it, the first reply's clock, and
    * the same link and code a reply uses, and under the same rule: not one word
@@ -278,14 +278,14 @@ async function tellReceived(input: {
     { personId, email: input.email, phone: input.phone, timezone: null, locale },
     {
       kind: "support.received",
-      subject: t("pmsg.supportIn.subject", { reference: input.reference }),
-      body: t("pmsg.supportIn.body", {
+      subject: t("contact.ack.subject", { reference: input.reference }),
+      body: t("contact.ack.body", {
         reference: input.reference,
         hours: input.hours,
         link: input.link,
         code: input.code,
       }),
-      link: { label: t("pmsg.supportIn.link"), url: input.link },
+      link: { label: t("contact.ack.link"), url: input.link },
       variables: [input.reference, input.link, input.code],
     },
   );

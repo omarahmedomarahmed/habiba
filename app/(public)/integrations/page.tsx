@@ -56,7 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 
 /*
- * 🔴 B32 — THE SHELL IS IN THE READER'S LANGUAGE. `/ar/integrations` was
+ * 🔴 B32: THE SHELL IS IN THE READER'S LANGUAGE. `/ar/integrations` was
  * English from the title down. The title, the lede, every section heading
  * and every state label are keys now; the technical detail under them stays
  * English, the language of the API it documents, and an Arabic reader is told

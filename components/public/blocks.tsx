@@ -219,9 +219,9 @@ function Audiences({
       live={{
         checking: t("radar.checking"),
         online: t("radar.online", { count: "{count}" }),
-        nobody: t("home.nobodyOnline"),
+        nobody: t("public.nobodyOnline"),
       }}
-      demoNote={t("home.demoNote")}
+      demoNote={t("public.demoNote")}
       cta={
         block.ctaLabel && block.ctaHref
           ? { label: block.ctaLabel, href: block.ctaHref }
@@ -529,7 +529,7 @@ function Hero({
           <div>
             <ComponentShowcase demo="patient-app" content={demo} />
             {/* B30: the clinicians in it are invented, said under it rather than left to be inferred. */}
-            <p className="mt-3 text-center text-xs text-white/70">{t("home.demoNote")}</p>
+            <p className="mt-3 text-center text-xs text-white/70">{t("public.demoNote")}</p>
           </div>
         ) : null}
         {block.demo === "company" ? <CompanyDemo /> : null}

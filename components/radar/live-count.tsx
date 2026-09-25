@@ -6,7 +6,7 @@ import type { RadarEntry } from "@/components/radar/types";
 import { viewerId } from "@/lib/viewer";
 
 /**
- * 🔴 B30 — HOW MANY ARE ONLINE, READ FROM THE RADAR ITSELF.
+ * 🔴 B30: HOW MANY ARE ONLINE, READ FROM THE RADAR ITSELF.
  *
  * The home page is a static CMS page, and beside a phone full of invented
  * clinicians marked "Free now" it said nothing about the real radar, so a

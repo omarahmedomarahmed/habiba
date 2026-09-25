@@ -151,7 +151,7 @@ export function BookingCalendar({
           </p>
 
           {/*
-            🔴 B60 — A LABEL YOU CAN SEE, ABOVE EVERY FIELD. These were
+            🔴 B60: A LABEL YOU CAN SEE, ABOVE EVERY FIELD. These were
             placeholder only, so the words vanished at the first keystroke and
             a screen reader had nothing to name the field by.
           */}

@@ -79,7 +79,7 @@ export default async function SponsorProfilePage({
      * single most useful thing this page can tell an operator, and a list that
      * quietly showed only the successes would hide it.
      *
-     * 🔴 B57 — SENT, which an opened cart is not. Pressing Pay now opens an
+     * 🔴 B57: SENT, which an opened cart is not. Pressing Pay now opens an
      * `awaiting_proof` row before anybody has transferred anything, and it
      * sat in this list beside real transfers as a stray $114 nobody sent.
      */

@@ -201,7 +201,7 @@ export type Message = {
      */
     | "support.closed"
     /**
-     * 🔴 B33 — a ticket was filed. The reference, the first reply's clock and
+     * 🔴 B33: a ticket was filed. The reference, the first reply's clock and
      * the same link and code as the answer, so the sender has a way back to it.
      * Under the 20.22 rule: not one word of what they wrote.
      */
