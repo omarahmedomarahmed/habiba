@@ -50,7 +50,7 @@ export default async function BenefitPage({
   });
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <div className="flex items-center gap-1">
         <PatientBack />
       </div>
@@ -59,7 +59,7 @@ export default async function BenefitPage({
         <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
           {t("benefit.title")}
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("benefit.body")}</p>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">{t("benefit.body")}</p>
       </div>
 
       <BenefitForm

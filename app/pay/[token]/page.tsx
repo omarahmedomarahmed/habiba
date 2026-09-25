@@ -105,7 +105,7 @@ export default async function PayPage({
   if (inPerson && session.paymentStatus === "paid") {
     const { t: tt } = await getI18n();
     return (
-      <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-3 px-5 pt-16 pb-10">
+      <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-3 px-5 pt-16 pb-10">
         <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{tt("pay.inPersonPaid")}</h1>
         <p className="text-sm text-navy-400">{tt("pay.inPersonPaidBody")}</p>
       </main>
@@ -246,7 +246,7 @@ export default async function PayPage({
       <>
         <SosOrbServer country={sosCountry} />
         <LanguageCorner />
-        <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+        <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-16 pb-10">
           <div>
             <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pay.title")}</h1>
             {therapist ? (
@@ -297,7 +297,7 @@ export default async function PayPage({
         <SosOrbServer country={sosCountry} />
         {/* 🔴 75.3 — and the one where reading the wrong language costs money. */}
         <LanguageCorner />
-        <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+        <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-16 pb-10">
           <div>
             <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pay.title")}</h1>
             {therapist ? (

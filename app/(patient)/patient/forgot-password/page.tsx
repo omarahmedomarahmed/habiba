@@ -24,7 +24,7 @@ export default async function PatientForgotPasswordPage() {
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-6 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-6 px-5 pt-16 pb-10">
       <PatientResetForm />
 
       <p className="text-center text-sm text-navy-400">

@@ -42,7 +42,7 @@ export default async function InvitePage({
 
   if (!invite) {
     return (
-      <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+      <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-16 pb-10">
         <Card className="p-5">
           <p className="text-sm font-semibold text-navy-700">{t("pinvite.usedTitle")}</p>
           <p className="mt-1 text-sm leading-relaxed text-navy-400">
@@ -62,7 +62,7 @@ export default async function InvitePage({
 
   if (!patient) {
     return (
-      <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+      <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-16 pb-10">
         <Card className="p-5">
           <p className="text-sm font-semibold text-navy-700">{t("pinvite.title")}</p>
           {/*
@@ -115,7 +115,7 @@ export default async function InvitePage({
   }
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-16 pb-10">
       <InviteFlow token={token} redactedName={invite.redactedName} therapistName={invite.therapistName} />
     </main>
   );

@@ -93,7 +93,7 @@ export default async function ConsentPage() {
     fullName(row.therapistFirstName, row.therapistLastName);
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <div className="flex items-center gap-1">
         <PatientBack />
       </div>

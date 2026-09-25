@@ -43,7 +43,7 @@ export default async function BrowsePage({
   ]);
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <PatientBack />
 
       <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("browse.title")}</h1>

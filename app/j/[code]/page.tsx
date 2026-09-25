@@ -49,7 +49,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-5 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-5 px-5 pt-16 pb-10">
       {scanned.state === "live" ? (
         <>
           <Card className="border-brand-200 bg-brand-50 p-4">
@@ -83,7 +83,7 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
                 <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
                   {t("pcode.createAccount")}
                 </h1>
-                <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("pauth.signUpBody")}</p>
+                <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">{t("pauth.signUpBody")}</p>
               </div>
 
               <PatientAuthForm mode="signup" wallCode={code} />

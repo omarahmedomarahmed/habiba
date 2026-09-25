@@ -56,8 +56,8 @@ export default async function PatientLoginPage({
           </p>
         ) : null}
         <PatientAuthForm mode="signin" next={next} />
-        <p className="text-sm text-navy-400">
-          <Link href="/patient/forgot-password" className="hover:text-navy-500">
+        <p className="text-sm">
+          <Link href="/patient/forgot-password" className="font-semibold text-brand-700 hover:underline">
             {t("pauth.forgot")}
           </Link>
         </p>

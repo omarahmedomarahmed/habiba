@@ -87,7 +87,7 @@ export default async function ClaimPage() {
   const nothing = proven && suggestions.length === 0 && challenges.length === 0;
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       {/* 🔴 37R.25 / C185 — claiming is reached from the home screen and had
           no way back to it. */}
       <PatientBack />
@@ -95,7 +95,7 @@ export default async function ClaimPage() {
         <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
           {t("pclaim.title")}
         </h1>
-        <p className="mt-1 text-sm text-navy-400">
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
           {t("pclaim.body", { name: actor.firstName })}
         </p>
       </div>

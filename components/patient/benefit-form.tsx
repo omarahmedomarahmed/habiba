@@ -14,6 +14,7 @@ import {
 import { Button, Field, Input } from "@/components/ui";
 import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
 
 /**
  * Activating a benefit. PLAN.md 53.2, 53.18, 53.19c, 53.22, C234, C248, C250.
@@ -129,9 +130,22 @@ export function BenefitForm({
 
       {benefits.length > 0 ? (
         <div className="space-y-2">
-          {benefits.map((benefit) => (
-            <Card key={benefit.enrolmentId} className="p-4">
-              <p className="text-sm font-semibold text-navy-700">
+          {benefits.map((benefit) => {
+            /* The sample's benefit card: dark, with the teal light, while it is working. */
+            const working = benefit.verified && !benefit.paused && !benefit.held;
+            return (
+            <Card
+              key={benefit.enrolmentId}
+              className={cn("p-4", working && "relative overflow-hidden border-0 bg-navy-900 p-5 text-white")}
+            >
+              {working ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -end-16 -top-16 h-56 w-56 rounded-full blur-3xl"
+                  style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+                />
+              ) : null}
+              <p className={cn("relative", working ? "text-[18px] font-bold text-white" : "text-sm font-semibold text-navy-700")}>
                 {benefit.paused || benefit.held
                   ? t("benefit.paused")
                   : !benefit.verified
@@ -150,7 +164,7 @@ export function BenefitForm({
                 </p>
               ) : benefit.verified && benefit.coverage ? (
                 /* 🔴 P17: what it pays, so the rest of a session is not a surprise. */
-                <p className="mt-1 text-sm leading-relaxed text-navy-400">
+                <p className="relative mt-1.5 text-[15px] leading-relaxed text-white/80">
                   {t("benefit.covers", { percent: benefit.coverage })}
                 </p>
               ) : null}
@@ -239,7 +253,7 @@ export function BenefitForm({
               */}
               {benefits.length > 1 ? (
                 benefit.isPrimary ? (
-                  <p className="mt-1.5 text-xs font-medium text-brand-700">
+                  <p className={cn("relative mt-1.5 text-xs font-semibold", working ? "text-brand-300" : "text-brand-700")}>
                     {t("benefit.primary")}
                   </p>
                 ) : (
@@ -247,14 +261,15 @@ export function BenefitForm({
                     type="button"
                     disabled={pending}
                     onClick={() => pick(benefit.enrolmentId)}
-                    className="tap-target mt-2 h-10 rounded-xl bg-navy-50 px-3 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
+                    className="tap-target relative mt-2 h-10 rounded-xl bg-navy-50 px-3 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
                   >
                     {t("benefit.makePrimary")}
                   </button>
                 )
               ) : null}
             </Card>
-          ))}
+            );
+          })}
 
           {benefits.length > 1 ? (
             <p className="text-xs leading-relaxed text-navy-400">

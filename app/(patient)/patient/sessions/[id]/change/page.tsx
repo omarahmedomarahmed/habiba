@@ -36,7 +36,7 @@ export default async function ChangeBookingPage({ params }: { params: Promise<{ 
   const zone = resolveZone(actor.timezone, view.therapistTimezone);
 
   return (
-    <main className="mx-auto flex flex-col min-h-dvh w-full max-w-lg gap-4 px-5 pt-16 pb-10">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <PatientBack fallback="/patient/sessions" />
       <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pchange.title")}</h1>
 
