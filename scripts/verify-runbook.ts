@@ -349,8 +349,15 @@ function main() {
   walk("app");
   const flowsDoc = files.find((d) => d.name === "03-THE-FLOWS.md")?.body ?? "";
   const coverageDoc = files.find((d) => d.name === "08-COVERAGE.md")?.body ?? "";
-  const named = (route: string, body: string) =>
-    new RegExp("`" + route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "`").test(body);
+  /* Bounded on both sides, so `/admin` is not found inside `/admin/actuals`. */
+  /* A dynamic segment may be written `[id]`, `<id>` or a real value. */
+  const named = (route: string, body: string) => {
+    const pattern = route
+      .split("/")
+      .map((seg) => (/^\[.+\]$/.test(seg) ? "(?:\\[[^\\]/]+\\]|<[^>/]+>|[A-Za-z0-9_-]+)" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+      .join("/");
+    return new RegExp("(^|[\\s`|(])" + pattern + "(?=[\\s`|?,)#.;:]|$)", "m").test(body);
+  };
   const unwalked = pages.filter((r) => !named(r, flowsDoc) && !named(r, coverageDoc));
   check(
     `🔴 every one of the ${String(pages.length)} pages in app/ is a step, or excused in 08-COVERAGE.md`,
@@ -374,6 +381,7 @@ function main() {
   const defined = new Set<string>();
   for (const d of files.filter((f) => f.name === "03-THE-FLOWS.md" || f.name === "04-THE-EDGES.md")) {
     for (const m of d.body.matchAll(/^\|\s*`?([A-Z]{2}\d+(?:\.\d+)?)`?\s*\|/gm)) defined.add(m[1]!);
+    for (const m of d.body.matchAll(/^### ([A-Z]{2}\d+)\b/gm)) defined.add(m[1]!);
   }
   const ID = /`([A-Z]{2}\d+(?:\.\d+)?)`/g;
   const dangling_ids: string[] = [];

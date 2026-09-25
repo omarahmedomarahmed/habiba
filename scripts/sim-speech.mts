@@ -5,7 +5,8 @@
  *   npm run sim:speech                 # every script not already on disk
  *   npm run sim:speech -- risk-en      # one script
  *
- * Written to `.sim-audio/<name>.wav`, which git ignores. A file on disk is never synthesised
+ * Written to `.sim-audio/<name>.wav` (both voices, for a session in a room with one device) and
+ * `<name>-t.wav` / `<name>-p.wav` (one side each, for an online call), which git ignores. A file on disk is never synthesised
  * again, because synthesis is the part that costs money and the text does not change.
  * `docs/simulation/06-THE-AUDIO.md` says which session plays which file.
  *
@@ -157,12 +158,21 @@ async function main() {
       console.error("OPENAI_API_KEY is missing or a placeholder.");
       process.exit(1);
     }
+    const turns = SCRIPTS[name]!.turns;
     const parts: Wav[] = [];
-    for (const turn of SCRIPTS[name]!.turns) parts.push(await speak(key, turn.voice, turn.text));
+    for (const turn of turns) parts.push(await speak(key, turn.voice, turn.text));
     const out = buildWav(parts);
     writeFileSync(file, out);
+    /*
+     * And one file per side, time-aligned: the other speaker's turns become silence of the same
+     * length. Online, the therapist's browser plays `-t` and the patient's plays `-p`, so the
+     * room's two recorders each hear one person, as they would in a real call.
+     */
+    const muted = (w: Wav): Wav => ({ ...w, data: Buffer.alloc(w.data.length) });
+    writeFileSync(join(OUT, `${name}-t.wav`), buildWav(parts.map((w, i) => (turns[i]!.voice === T ? w : muted(w)))));
+    writeFileSync(join(OUT, `${name}-p.wav`), buildWav(parts.map((w, i) => (turns[i]!.voice === P ? w : muted(w)))));
     const { rate, channels, bits } = parts[0]!;
-    console.log(`${file} ${((out.length - 44) / ((rate * channels * bits) / 8)).toFixed(0)}s`);
+    console.log(`${file} ${((out.length - 44) / ((rate * channels * bits) / 8)).toFixed(0)}s, with -t and -p sides`);
   }
 }
 

@@ -126,7 +126,7 @@ export function document(): string[] {
     "npm run on:production -- verify:demo -- --scenario=<name>",
     "```",
     "",
-    "| Position | What the database is put into | Proves | Edges from `09-THE-EDGES.md` |",
+    "| Position | What the database is put into | Proves | Edges from `04-THE-EDGES.md` |",
     "| --- | --- | --- | --- |",
     ...SCENARIOS.map(
       (s) =>

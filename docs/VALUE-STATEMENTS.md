@@ -120,7 +120,7 @@ Signs in at `/clinic/sign-in`. 1 tester, the person who runs the practice.
 
 ### C4 · A seat that leaves mid-month lowers the next bill by exactly one seat, and that clinician keeps working.
 
-**Where we say it.** `docs/simulation/09-THE-EDGES.md` `PL6`
+**Where we say it.** `docs/simulation/04-THE-EDGES.md` `CE14`
 
 **Proved when.** Release a seat: the next bill is lower by one seat and the clinician lands on pay-as-you-go by themselves. Nobody is suspended.
 
@@ -148,19 +148,19 @@ Signs in at `/sponsor/sign-in`. 1 tester, the person who funds the pot.
 
 ### E3 · A price somebody was shown is a price they are owed.
 
-**Where we say it.** `docs/simulation/09-THE-EDGES.md` `CV7`
+**Where we say it.** `docs/simulation/04-THE-EDGES.md` `EE13`
 
 **Proved when.** Lower coverage after a session is booked: that session still splits at the old share, and the next one is offered at the new one.
 
 ### E4 · Setting coverage to zero is not removing somebody.
 
-**Where we say it.** C345, `docs/simulation/09-THE-EDGES.md` `CV6`
+**Where we say it.** C345, `docs/simulation/04-THE-EDGES.md` `EE17`
 
 **Proved when.** At 0% the employee keeps their badge and their place on the roster, owes the whole price, and no screen says they were removed.
 
 ### E5 · When the pot runs out the patient is told to ask HR, not shown a payment error.
 
-**Where we say it.** `docs/simulation/09-THE-EDGES.md` `CV9`
+**Where we say it.** `docs/simulation/04-THE-EDGES.md` `PE13`
 
 **Proved when.** A booking against an empty pot: the pot takes nothing, the ordinary pay link is offered, and the patient's screen says who to ask.
 
@@ -176,19 +176,19 @@ Signs in at `/staff/sign-in`. 1 tester, doing the work of all our staff.
 
 ### A2 · Pressing Confirm twice moves the money once.
 
-**Where we say it.** `docs/simulation/09-THE-EDGES.md` `RA3`, held by `verify:edges`
+**Where we say it.** `docs/simulation/04-THE-EDGES.md` `ME2`, held by `verify:edges`
 
 **Proved when.** Confirm, watch nothing obvious change, confirm again. No second ledger leg, no second settlement, and the screen says which.
 
 ### A3 · A rejection is a sentence in the operator's own words, and the payer reads it verbatim.
 
-**Where we say it.** `docs/simulation/09-THE-EDGES.md` `RA4`
+**Where we say it.** `docs/simulation/04-THE-EDGES.md` `PE5`
 
 **Proved when.** Reject a transfer with a specific reason, then read that exact sentence on the payer's own screen.
 
 ### A4 · Money that arrives with no claim is a line somebody has to decide about, never silently kept.
 
-**Where we say it.** `docs/simulation/09-THE-EDGES.md` `RA6`, `RA8`
+**Where we say it.** `docs/simulation/04-THE-EDGES.md` `ME82`, `AD6`
 
 **Proved when.** An overpayment and an unmatchable bank line both appear on `/admin/transfers` as work, with the difference visible.
 
@@ -208,13 +208,13 @@ npm run on:production -- seed:demo -- --scenario=<name>
 npm run on:production -- verify:demo -- --scenario=<name>
 ```
 
-| Position | What the database is put into | Proves | Edges from `09-THE-EDGES.md` |
+| Position | What the database is put into | Proves | Edges from `04-THE-EDGES.md` |
 | --- | --- | --- | --- |
-| `live` | The everyday one: a clinician invites a patient to a paid session, and they meet. | P1, P2, P3, T1, T2, T4, A1 | RA1, RA10, RA11 |
-| `money` | The covered employee, the part payment, and money nobody can match. | E1, E2, E3, T3, A2, A3, A4 | CV1, CV2, CV4, CV11, CV12, RA3, RA4, RA6, RA7, RA8, RA9 |
-| `continuity` | A record that moves between clinicians, and one nobody has claimed. | P3, P4, T5, C2, C5 | RR2 |
-| `crisis` | Somebody in trouble with an unpaid bill, and every dead end in the product. | P5, A3, A5 | RR4, RA2, RA5 |
-| `growth` | A practice taking somebody on, a pot running dry, and a seat leaving. | C1, C3, C4, E4, E5 | CV6, CV9, PL6, PL7, RR9 |
+| `live` | The everyday one: a clinician invites a patient to a paid session, and they meet. | P1, P2, P3, T1, T2, T4, A1 | ME79, ME85, ME86 |
+| `money` | The covered employee, the part payment, and money nobody can match. | E1, E2, E3, T3, A2, A3, A4 | ME74, ME75, ME76, ME77, ME78, ME2, PE5, ME82, ME83, AD6, ME84 |
+| `continuity` | A record that moves between clinicians, and one nobody has claimed. | P3, P4, T5, C2, C5 | ME88 |
+| `crisis` | Somebody in trouble with an unpaid bill, and every dead end in the product. | P5, A3, A5 | ME89, ME80, ME81 |
+| `growth` | A practice taking somebody on, a pot running dry, and a seat leaving. | C1, C3, C4, E4, E5 | EE17, PE13, CE14, ME87, PE14 |
 
 ### `live`
 
@@ -258,7 +258,7 @@ operator's own `.env.local`, never committed. `docs/DEMO-LOGINS.md` says more.
 
 | Who | Sign-in page | Address |
 | --- | --- | --- |
-| Platform admin (private password) | `/staff/sign-in` | `omar@24therapy.app` |
+| Platform admin (private password) | `/staff/sign-in` | `omarabdelgawad001@gmail.com` |
 | Support, not a founder (private password) | `/staff/sign-in` | `staff.demo@example.com` |
 | Company (Habiba Holdings) (private password) | `/sponsor/sign-in` | `habiba@24therapy.app` |
 | Clinic manager (Nile Practice) | `/clinic/sign-in` | `habibaheikal27@gmail.com` |
@@ -271,7 +271,7 @@ operator's own `.env.local`, never committed. `docs/DEMO-LOGINS.md` says more.
 | Patient, record handed on | `/patient/login` | `tarek.demo@example.com` |
 | Patient, Dr Kareem's | `/patient/login` | `nadia.demo@example.com` |
 
-🔴 **7 of these are at `example.com` and cannot receive email:** `staff.demo@example.com`, `dr.sara.demo@example.com`, `dr.kareem.example@example.com`, `dr.yasmin.example@example.com`, `mariam.demo@example.com`, `tarek.demo@example.com`, `nadia.demo@example.com`.
+🔴 **8 of these are at `example.com` and cannot receive email:** `staff.demo@example.com`, `dr.omar.demo@example.com`, `dr.sara.demo@example.com`, `dr.kareem.example@example.com`, `dr.yasmin.example@example.com`, `mariam.demo@example.com`, `tarek.demo@example.com`, `nadia.demo@example.com`.
 They sign in like everybody else, and anything the product would have
 emailed them goes nowhere. That is deliberate, because RFC 2606 reserves the domain so a
 message that escapes a test reaches nobody, and it means **the email half of any promise must be

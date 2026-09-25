@@ -31,7 +31,7 @@
  * A thing a person can SEE on a screen, not a row they could query. The whole
  * reason this is walked by people rather than by `verify:demo` is that a
  * verifier holds an invariant about a row and cannot tell you the screen above
- * it does not say enough for somebody to act on. `docs/simulation/09-THE-EDGES.md`
+ * it does not say enough for somebody to act on. `docs/simulation/04-THE-EDGES.md`
  * makes the same argument about its own twelve gated cases.
  */
 
@@ -180,7 +180,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     id: "C4",
     audience: "clinic",
     says: "A seat that leaves mid-month lowers the next bill by exactly one seat, and that clinician keeps working.",
-    where: "`docs/simulation/09-THE-EDGES.md` `PL6`",
+    where: "`docs/simulation/04-THE-EDGES.md` `CE14`",
     proof:
       "Release a seat: the next bill is lower by one seat and the clinician lands on pay-as-you-go by themselves. Nobody is suspended.",
   },
@@ -213,7 +213,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     id: "E3",
     audience: "company",
     says: "A price somebody was shown is a price they are owed.",
-    where: "`docs/simulation/09-THE-EDGES.md` `CV7`",
+    where: "`docs/simulation/04-THE-EDGES.md` `EE13`",
     proof:
       "Lower coverage after a session is booked: that session still splits at the old share, and the next one is offered at the new one.",
   },
@@ -221,7 +221,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     id: "E4",
     audience: "company",
     says: "Setting coverage to zero is not removing somebody.",
-    where: "C345, `docs/simulation/09-THE-EDGES.md` `CV6`",
+    where: "C345, `docs/simulation/04-THE-EDGES.md` `EE17`",
     proof:
       "At 0% the employee keeps their badge and their place on the roster, owes the whole price, and no screen says they were removed.",
   },
@@ -229,7 +229,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     id: "E5",
     audience: "company",
     says: "When the pot runs out the patient is told to ask HR, not shown a payment error.",
-    where: "`docs/simulation/09-THE-EDGES.md` `CV9`",
+    where: "`docs/simulation/04-THE-EDGES.md` `PE13`",
     proof:
       "A booking against an empty pot: the pot takes nothing, the ordinary pay link is offered, and the patient's screen says who to ask.",
   },
@@ -247,7 +247,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     id: "A2",
     audience: "admin",
     says: "Pressing Confirm twice moves the money once.",
-    where: "`docs/simulation/09-THE-EDGES.md` `RA3`, held by `verify:edges`",
+    where: "`docs/simulation/04-THE-EDGES.md` `ME2`, held by `verify:edges`",
     proof:
       "Confirm, watch nothing obvious change, confirm again. No second ledger leg, no second settlement, and the screen says which.",
   },
@@ -255,14 +255,14 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
     id: "A3",
     audience: "admin",
     says: "A rejection is a sentence in the operator's own words, and the payer reads it verbatim.",
-    where: "`docs/simulation/09-THE-EDGES.md` `RA4`",
+    where: "`docs/simulation/04-THE-EDGES.md` `PE5`",
     proof: "Reject a transfer with a specific reason, then read that exact sentence on the payer's own screen.",
   },
   {
     id: "A4",
     audience: "admin",
     says: "Money that arrives with no claim is a line somebody has to decide about, never silently kept.",
-    where: "`docs/simulation/09-THE-EDGES.md` `RA6`, `RA8`",
+    where: "`docs/simulation/04-THE-EDGES.md` `ME82`, `AD6`",
     proof:
       "An overpayment and an unmatchable bank line both appear on `/admin/transfers` as work, with the difference visible.",
   },
@@ -290,7 +290,7 @@ export type Scenario = {
   why: string;
   /** The statements this position is walked to prove. */
   proves: string[];
-  /** The edge cases from `09-THE-EDGES.md` it puts the product into. */
+  /** The edge cases from `04-THE-EDGES.md` it puts the product into. */
   edges: string[];
 };
 
@@ -313,7 +313,7 @@ export const SCENARIOS: Scenario[] = [
       "within the last week: the patient was told nothing, the pay link asked a signed-in person " +
       "their own name, and the room threw a client-side exception the clinician could not read.",
     proves: ["P1", "P2", "P3", "T1", "T2", "T4", "A1"],
-    edges: ["RA1", "RA10", "RA11"],
+    edges: ["ME79", "ME85", "ME86"],
   },
   {
     name: "money",
@@ -322,7 +322,7 @@ export const SCENARIOS: Scenario[] = [
       "The path with the most moving parts in this product. Sprint 76 found four defects in it " +
       "in one afternoon, and all four were invisible to every gate that claimed to cover it.",
     proves: ["E1", "E2", "E3", "T3", "A2", "A3", "A4"],
-    edges: ["CV1", "CV2", "CV4", "CV11", "CV12", "RA3", "RA4", "RA6", "RA7", "RA8", "RA9"],
+    edges: ["ME74", "ME75", "ME76", "ME77", "ME78", "ME2", "PE5", "ME82", "ME83", "AD6", "ME84"],
   },
   {
     name: "continuity",
@@ -331,7 +331,7 @@ export const SCENARIOS: Scenario[] = [
       "Portability is the claim the whole patient site rests on, and it is the one thing that " +
       "cannot be shown on a database where everybody saw one person.",
     proves: ["P3", "P4", "T5", "C2", "C5"],
-    edges: ["RR2"],
+    edges: ["ME88"],
   },
   {
     name: "crisis",
@@ -341,7 +341,7 @@ export const SCENARIOS: Scenario[] = [
       "the honest half: the rejected transfer, the expired claim link and the applicant who is " +
       "waiting, which are the three ways this product currently strands a person.",
     proves: ["P5", "A3", "A5"],
-    edges: ["RR4", "RA2", "RA5"],
+    edges: ["ME89", "ME80", "ME81"],
   },
   {
     name: "growth",
@@ -350,7 +350,7 @@ export const SCENARIOS: Scenario[] = [
       "Everything that changes shape rather than state. The pot emptying mid-week and the seat " +
       "released mid-month are the two the product has never been walked through.",
     proves: ["C1", "C3", "C4", "E4", "E5"],
-    edges: ["CV6", "CV9", "PL6", "PL7", "RR9"],
+    edges: ["EE17", "PE13", "CE14", "ME87", "PE14"],
   },
 ];
 
@@ -381,8 +381,8 @@ export type Tuning = {
    *
    * `growth` funds it to $100 (EGP 5,000) with no welcome credit, against six
    * fully covered sessions that want $144 (EGP 7,200), so the pot genuinely
-   * runs out partway through its own history. That is `CV9`
-   * and `RR9`, and it cannot be faked by editing a balance: `payFromPot`
+   * runs out partway through its own history. That is `PE13`
+   * and `PE14`, and it cannot be faked by editing a balance: `payFromPot`
    * refuses the spend, and the sessions it refused stay unpaid, which is the
    * position a person has to walk.
    */

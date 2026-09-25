@@ -71,6 +71,10 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
     writes: true,
     why: "moves the clock at the end of a wave, and only rows created since the marker opened",
   },
+  "sim:clock": {
+    writes: true,
+    why: "moves every timestamp back by the simulated gap between rounds, so the month passes",
+  },
   "settings:seed": {
     writes: true,
     why: "fills in missing settings defaults. Idempotent, and it writes no people",
@@ -126,7 +130,7 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
    * accounts, two organisations, three sponsor applications at `held`, one test
    * person with one completed session, four ledger legs. `verify:cast` reads
    * red from the moment this runs, and that is correct rather than broken.
-   * `docs/simulation/12-THE-LOGINS.md` and `docs/DEMO-LOGINS.md` both say so.
+   * `docs/simulation/00-START-HERE.md` and `docs/DEMO-LOGINS.md` both say so.
    */
   "seed:demo": {
     writes: true,

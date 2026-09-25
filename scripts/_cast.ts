@@ -133,7 +133,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "seeded",
     record:
-      "the whole console. Every approval, every rejection, every transfer she cleared, and the audit log with her name on it",
+      "activates the practice and the companies, approves the partner, and with Sherif posts the month's two-person ledger adjustment and sends a company its money back",
     payroll: {
       title: "Founder, clinical and operations",
       queue: "verifications, payments and the settings",
@@ -149,7 +149,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "seeded",
     record:
-      "the founder-only half of the console: the board, the radar, the benefits screen, the error log and the actuals. The screens Heba is refused, so the refusal means something",
+      "the second pair of hands on every two-person decision, and the radar report reviewed in round 3",
     payroll: {
       title: "Founder, product and engineering",
       queue: "the board, the radar, benefits, errors and the actuals",
@@ -164,7 +164,8 @@ export const CAST: CastMember[] = [
     as: "staff",
     wave: 1,
     arrives: "seeded",
-    record: "the transfer queue she worked, and the payments she confirmed or rejected with a reason",
+    record:
+      "the patients' transfers confirmed or rejected, the refunds sent, and the money with no claim matched in round 5",
     payroll: {
       title: "Support, the transfer queue",
       queue: "transfers",
@@ -179,7 +180,8 @@ export const CAST: CastMember[] = [
     as: "staff",
     wave: 1,
     arrives: "seeded",
-    record: "the same queue, shared with Heba, which is where one transfer gets picked up twice",
+    record:
+      "the clinicians' and the practice's bill payments: a plan paid by transfer, a part payment, an overpayment",
     payroll: {
       title: "Support, the transfer queue and onboarding",
       queue: "transfers",
@@ -195,7 +197,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "seeded",
     record:
-      "the companies she sold to and the pot top-ups she cleared for them, each one with her name on the row rather than the operator's",
+      "the company top-ups confirmed, each with this staff member's name on the row",
     payroll: {
       title: "Sales, companies and universities",
       queue: "sponsors and their pot top-ups",
@@ -211,7 +213,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "seeded",
     record:
-      "the licences he checked and the payouts he stamped. Both rejections of Dr Omar carry a name, and it can be his rather than everybody's",
+      "every licence check: three approvals on day 1, Dr Omar rejected twice then approved, and the payout approved and marked sent",
     payroll: {
       title: "Sales, clinics and therapists",
       queue: "verifications and payouts",
@@ -227,7 +229,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "seeded",
     record:
-      "the support inbox and the crisis numbers directory. In a company of seven the marketer answers the inbox, which is not a compromise in the fiction, it is what seven people means",
+      "the support inbox and the number-change queue, answering the tickets the cast writes",
     payroll: {
       title: "Marketing",
       queue: "support and the crisis numbers directory",
@@ -243,7 +245,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "signs up",
     record:
-      "six months of patients, a practice seat from wave 2, her held earnings and the payout she requested in wave 3",
+      "the main caseload: Layla in Arabic, Mostafa weekly with the copilot, an in-person session paid by wall code, homework, and a payout requested mid-month",
   },
   {
     key: "T2",
@@ -253,7 +255,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "signs up",
     record:
-      "metered until wave 4, then a subscription paid by bank transfer, then the cancellation in wave 5",
+      "Salma's sessions paid by transfer, the risk session with Mostafa, the cheaper replacement a waiting patient moves to, and a plan bought by transfer",
   },
   {
     key: "T3",
@@ -262,7 +264,8 @@ export const CAST: CastMember[] = [
     as: "therapist",
     wave: 1,
     arrives: "signs up",
-    record: "the radar work, mostly strangers in crisis, and the bill he let lapse in wave 4",
+    record:
+      "on call on the crisis radar, an in-person session paid directly, the no-show, and bills paid in part",
   },
   {
     key: "T4",
@@ -272,7 +275,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "signs up",
     record:
-      "two rejections with the reasons in the operator's own words, documents cleared, and a practice seat that still did not let him see a patient",
+      "rejected twice with the reason in the reviewer's own words, documents cleared, approved on day 14",
   },
   {
     key: "P1",
@@ -283,7 +286,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "signs up",
     record:
-      "the whole product in Arabic: sessions found on the radar with no account, the record she claimed afterwards, and the access she revoked in wave 3",
+      "the whole product in Arabic: invited, claimed, booked, a crisis radar booking, homework, and the access revoked on day 21",
   },
   {
     key: "P2",
@@ -294,7 +297,7 @@ export const CAST: CastMember[] = [
     wave: 1,
     arrives: "signs up",
     record:
-      "appointments booked on a calendar and paid by bank transfer, each one waiting for an operator to clear it",
+      "sessions paid by bank transfer, one changed and one cancelled, a refund, and a support ticket",
   },
 
   /* ------------------------------------------------------------ wave 2 -- */
@@ -303,10 +306,10 @@ export const CAST: CastMember[] = [
     name: "Hana Example",
     email: "hana.example@example.com",
     as: "practice manager",
-    wave: 2,
+    wave: 1,
     arrives: "signs up",
     record:
-      "Nile Practice: the seats she bought, the clinicians she invited, and not one clinical note anywhere",
+      "Nile Practice: activated on day 1, one clinician invited and later removed, a seat bought mid-month with the quote read first, the practice bill paid by transfer",
   },
   {
     key: "C1-S",
@@ -315,7 +318,8 @@ export const CAST: CastMember[] = [
     as: "practice staff",
     wave: 2,
     arrives: "signs up",
-    record: "what she was delegated and what she was refused, both of them captured",
+    record:
+      "delegated staff: what was allowed and what was refused",
   },
   {
     key: "C1-A",
@@ -324,17 +328,18 @@ export const CAST: CastMember[] = [
     as: "therapist",
     wave: 2,
     arrives: "signs up",
-    record: "invited, verified his own licence, joined the practice, and left again in wave 4",
+    record:
+      "invited into the practice, verified, working, and removed on day 21",
   },
   {
     key: "E1-HR",
     name: "Dalia Example",
     email: "dalia.example@example.com",
     as: "employer",
-    wave: 2,
+    wave: 1,
     arrives: "signs up",
     record:
-      "Cairo Foundry's pot at 100% coverage, funded once and spent to nothing in wave 4, and a roster she can count but never name",
+      "Cairo Foundry: a pot topped up by transfer, a staff email list, 100% coverage lowered on day 21 with 30 days' notice, and the alerts as the pot runs dry",
   },
   {
     key: "P3",
@@ -345,7 +350,7 @@ export const CAST: CastMember[] = [
     wave: 2,
     arrives: "signs up",
     record:
-      "🔴 THE DEEP RECORD. Covered at 100%, weekly, two therapists, the most journal entries on the platform, and the copilot exam is mostly about him",
+      "the deep record: covered 100%, weekly with Dr Amira, the copilot's subject, the risk session on day 14",
   },
   {
     key: "P4",
@@ -356,7 +361,7 @@ export const CAST: CastMember[] = [
     wave: 2,
     arrives: "signs up",
     record:
-      "an enrolment that was refused on a staff number the employer did not recognise, and a second that worked off her work email",
+      "refused at enrolment by staff number, accepted by work email, left waiting by a clinician who never came, and paid in person by wall code",
   },
 
   /* ------------------------------------------------------------ wave 3 -- */
@@ -368,7 +373,7 @@ export const CAST: CastMember[] = [
     wave: 3,
     arrives: "signs up",
     record:
-      "Alexandria Textiles at 10% coverage, the slider she had to press Edit to move, and the notice period she could not shorten",
+      "Alexandria Textiles at 10%: the split every session shows, and ending Nadia's benefit on leaving",
   },
   {
     key: "E3-HR",
@@ -377,7 +382,8 @@ export const CAST: CastMember[] = [
     as: "employer",
     wave: 3,
     arrives: "signs up",
-    record: "Delta Logistics, a pot funded by transfer in wave 5, and the employee they hired away",
+    record:
+      "Delta Logistics: a top-up rejected twice then confirmed, Nadia's new employer, and money asked back on day 28",
   },
   {
     key: "P5",
@@ -388,7 +394,7 @@ export const CAST: CastMember[] = [
     wave: 3,
     arrives: "signs up",
     record:
-      "🔴 READ THIS ONE FIRST. She changed employer mid-treatment. One continuous course of care, two payers, and neither employer learns the other exists",
+      "changes employer mid-month: one course of care, two payers, and neither employer learns of the other",
   },
   {
     key: "P6",
@@ -398,17 +404,17 @@ export const CAST: CastMember[] = [
     wave: 3,
     arrives: "never signs up",
     record:
-      "three sessions through join links and no account at all. Reachable from his clinician's side only, which is the product working rather than a gap",
+      "sessions joined by link with no account, reachable only from the clinician's side",
   },
   {
     key: "D1",
     name: "Tamer Example",
     email: "tamer.example@example.com",
     as: "partner",
-    wave: 3,
+    wave: 1,
     arrives: "signs up",
     record:
-      "Helio Health's developer account: the keys he minted, the scopes they carry, the rate limit he hit, and the sessions his platform opened. Not one patient he did not bring",
+      "Helio Health's developer: applies, keys, API sessions, webhooks, a teammate, and the production approval",
   },
 
   /* ------------------------------------------------------------ wave 4 -- */
@@ -420,7 +426,7 @@ export const CAST: CastMember[] = [
     wave: 4,
     arrives: "signs up",
     record:
-      "the country she set wrong and corrected before saving, one free month then the full $80, and the mid month upgrade from one seat to three quoted for the days remaining before she agreed",
+      "arrives mid-month with the wrong country corrected before saving, and takes the practice's new seat",
   },
 
   /* ------------------------------------------------------------ wave 5 -- */
@@ -429,10 +435,10 @@ export const CAST: CastMember[] = [
     name: "Dr Sameh Demo",
     email: "sameh.demo@example.com",
     as: "therapist",
-    wave: 5,
+    wave: 6,
     arrives: "signs up",
     record:
-      "one free month, then a first real bill he overpaid, paid twice, and declined the plan against with the confirmation panel open. He never subscribes, and at three sessions a month he is right not to",
+      "arrives on day 28 on pay as you go, overpays the first bill by transfer",
   },
   {
     key: "P7",
@@ -440,10 +446,10 @@ export const CAST: CastMember[] = [
     email: "yousra.demo@example.com",
     phone: "+20 100 900 0047",
     as: "patient",
-    wave: 5,
+    wave: 6,
     arrives: "signs up",
     record:
-      "three self paid sessions with the metered therapist, charged her session price both before and after his free month ended. The trial is his fee and was never her price",
+      "three self-paid sessions with Dr Sameh, and a search for a way to delete the account",
   },
 ];
 

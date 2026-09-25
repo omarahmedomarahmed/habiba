@@ -13,8 +13,8 @@ Everything the run produces goes in `docs/simulation-run/`, committed at the end
 ## A bug entry
 
 ```
-### B7 · P2 cannot see the transfer she paid after it was confirmed
-round R3 · step PA6.4 · board row 212 · shot shots/R3/P2-PA6.4.png
+### B7 · P2 cannot see the paid transfer after it was confirmed
+round R3 · step PA12.4 · board row 212 · shot shots/R3/P2-PA12.4.png
 expected: /patient/billing lists the session as paid, 1,200 EGP, confirmed
 saw:      still "waiting for us to check the transfer" after SU1 confirmed it (board row 209)
 where:    lib/billing/manual.ts confirmPayment, or the page reads a stale column

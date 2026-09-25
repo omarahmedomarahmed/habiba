@@ -195,6 +195,8 @@
     "verify:in-person": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-in-person.ts",
     "sim:inbox": "node --env-file-if-exists=.env.local --import tsx scripts/sim-inbox.ts",
     "sim:board": "node --import tsx scripts/sim-board.ts",
+    "sim:clock": "node --env-file-if-exists=.env.local --import tsx scripts/sim-clock.ts",
+    "verify:clock": "node --env-file-if-exists=.env.local --import tsx scripts/verify-clock.ts",
     "sim:speech": "node --env-file-if-exists=.env.local --import tsx scripts/sim-speech.mts",
     "verify:outbox": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-outbox.ts",
     "verify:wallet": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-wallet.ts",
