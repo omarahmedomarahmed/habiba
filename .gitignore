@@ -115,3 +115,5 @@ evidence/
 # founder plays the console under their own name, and this repository is public.
 docs/simulation-run/shots/
 .simulation-clock.json.bak
+.sim-state/
+.simulation-clock.json.bak
