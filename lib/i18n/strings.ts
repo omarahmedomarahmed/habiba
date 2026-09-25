@@ -299,6 +299,12 @@ export async function completeness(locale: string): Promise<Completeness> {
     drafts: draftRows.length,
     machineDrafts: draftRows.filter((r) => r.source === "machine").length,
     missingKeys,
-    percent: keys.length === 0 ? 100 : Math.round((done / keys.length) * 100),
+    /*
+     * 🔴 AE65: rounded DOWN. Rounded to nearest, 5 missing of ~2,000 read as
+     * 100%, which the launch check then compared with 100 and passed. The
+     * check reads `missingKeys` now; this is only what the bar shows, and a
+     * bar at 100 has nothing missing.
+     */
+    percent: keys.length === 0 ? 100 : Math.floor((done / keys.length) * 100),
   };
 }

@@ -267,6 +267,37 @@ async function main() {
       ),
     );
 
+    /*
+     * 🔴 AE65: three keys short of complete. Rounded to the nearest percent
+     * that read as 100, and the launch check compared the rounded figure with
+     * 100, so a language went live with English in it. Planted as published
+     * human strings for every key but the last three.
+     */
+    await db.delete(uiStrings).where(eq(uiStrings.locale, TEST_LOCALE));
+    const almost = keys.slice(0, -3);
+    for (let i = 0; i < almost.length; i += 500) {
+      await db
+        .insert(uiStrings)
+        .values(almost.slice(i, i + 500).map((key) => ({ key, locale: TEST_LOCALE, value: `Testish ${key}`, status: "published" as const })))
+        .onConflictDoNothing();
+    }
+    const nearly = await completeness(TEST_LOCALE);
+    const nearlyLive = await saveLanguage({
+      code: TEST_LOCALE,
+      name: "Testish",
+      nativeName: "Testish",
+      direction: "ltr",
+      authoringEnabled: true,
+      publicEnabled: true,
+      actor,
+    });
+    check(
+      "🔴 AE65 three strings short of complete is refused, and never shown as 100%",
+      nearly.missingKeys.length === 3 && nearly.percent < 100 && nearlyLive.error !== undefined &&
+        Math.round((nearly.done / nearly.total) * 100) === 100,
+      `${nearly.percent}% shown, ${nearly.missingKeys.length} missing, ${nearlyLive.error ?? "WENT LIVE"}`,
+    );
+
     /* --------------------------------------------------- 21.12 · the ruling */
 
     /*

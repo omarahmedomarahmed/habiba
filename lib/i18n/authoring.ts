@@ -215,7 +215,8 @@ export async function saveLanguage(input: {
    */
   if (input.publicEnabled) {
     const state = await completeness(code);
-    if (state.percent < 100) {
+    /* 🔴 AE65: the exact count, never a rounded percentage. */
+    if (state.missingKeys.length > 0) {
       return {
         error: `${input.name} is ${state.percent}% translated, ${state.missingKeys.length} strings still missing${state.machineDrafts > 0 ? `, and ${state.machineDrafts} machine drafts nobody has approved` : ""}. A language goes live complete or not at all.`,
       };
