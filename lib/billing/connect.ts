@@ -1244,6 +1244,9 @@ export async function refundSessionPayment(opts: {
         .update(sessions)
         .set({ paymentStatus: "pending", updatedAt: new Date() })
         .where(eq(sessions.id, payment.sessionId));
+      /* 🔴 0170: the gateway returned the card part; the wallet part goes back to the wallet. */
+      const { returnSpentHold } = await import("./wallet");
+      await returnSpentHold(payment.sessionId, opts.reason);
     }
     return { ok: true, toPayerCents: viaGateway.usdCents };
   }
@@ -1255,6 +1258,42 @@ export async function refundSessionPayment(opts: {
    * to answer "no Stripe charge" to an admin, which queued nothing: only the
    * automatic paths opened a queue row, so an operator's own refund was stuck.
    */
+  /*
+   * 🔴 0170: PAID ENTIRELY FROM THE WALLET. Nothing came by card or transfer,
+   * so nothing is sent: the books reverse and the wallet gets it back.
+   */
+  if (!payment.stripePaymentIntentId) {
+    const { walletSpentOn, returnSpentHold } = await import("./wallet");
+    const { refundOwedCents } = await import("./split-refund");
+    const walletPart = await walletSpentOn(payment.sessionId);
+    if (walletPart > 0 && refundOwedCents({ ...payment, coverageBps: payment.coverageBps ?? 0 }) - walletPart <= 0) {
+      const [refunded] = await db
+        .update(sessionPayments)
+        .set({ status: "refunded" })
+        .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "paid")))
+        .returning({ id: sessionPayments.id });
+      if (!refunded) return { ok: true, toPayerCents: 0 };
+      const { postSessionRefund } = await import("./ledger");
+      await postSessionRefund({
+        id: payment.id,
+        organizationId: payment.organizationId,
+        therapistId: payment.therapistId,
+        capture: payment.capture,
+        grossCents: payment.grossCents,
+        vatCents: payment.vatCents,
+        platformFeeCents: payment.platformFeeCents,
+        settledInvoiceCents: payment.settledInvoiceCents,
+        therapistNetCents: payment.therapistNetCents,
+      });
+      await db
+        .update(sessions)
+        .set({ paymentStatus: "pending", updatedAt: new Date() })
+        .where(eq(sessions.id, payment.sessionId));
+      await returnSpentHold(payment.sessionId, opts.reason);
+      return { ok: true, toPayerCents: 0 };
+    }
+  }
+
   if (!payment.stripePaymentIntentId) {
     const { openRefundRequest } = await import("./refunds");
     const queued = await openRefundRequest({
@@ -1339,8 +1378,10 @@ export async function refundSessionPayment(opts: {
     .update(sessions)
     .set({ paymentStatus: "pending", updatedAt: new Date() })
     .where(eq(sessions.id, payment.sessionId));
+  const { returnSpentHold: backToWallet } = await import("./wallet");
+  const walletBack = await backToWallet(payment.sessionId, opts.reason);
 
-  return { ok: true, toPayerCents: payment.grossCents + Math.max(0, payment.vatCents) };
+  return { ok: true, toPayerCents: payment.grossCents + Math.max(0, payment.vatCents) - walletBack };
 }
 
 /**
@@ -1458,6 +1499,10 @@ async function refundSplit(
     .update(sessions)
     .set({ paymentStatus: "pending", updatedAt: new Date() })
     .where(eq(sessions.id, payment.sessionId));
+  /* 🔴 0170: what the wallet paid goes back to it; a hold never spent is released. */
+  const { returnSpentHold, releaseHold } = await import("./wallet");
+  await returnSpentHold(payment.sessionId, opts.reason);
+  await releaseHold(payment.sessionId);
 
   log.info("pot session refunded", { session: ref(payment.sessionId), employee: employee.rail });
   return { ok: true, toPayerCents: employee.cents };

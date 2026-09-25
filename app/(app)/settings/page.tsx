@@ -21,6 +21,9 @@ import { getVerification, practiceState } from "@/lib/data/verification";
 import { licenceLocked } from "@/lib/data/licence-change";
 import { invoices, organizations, users } from "@/lib/db/schema";
 import { getI18n } from "@/lib/i18n/server";
+import { saveMyLanguage } from "./actions";
+import { LanguageSetting } from "@/components/settings/language-setting";
+import { savedLocale } from "@/lib/i18n/preference";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -130,6 +133,8 @@ export default async function SettingsPage({
           title={t("portal.settings.tabYou")}
           why={t("portal.settings.whyYou")}
         >
+          {/* 🔴 0170 / ruling 8: the language they work in, and every message we send them. */}
+          <LanguageSetting action={saveMyLanguage} saved={await savedLocale({ userId: actor.userId })} />
           {/*
             24.4 — the verification state belongs here, and it was on no screen
             a verified clinician ever visits again. "Am I approved?" is a

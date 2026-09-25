@@ -236,6 +236,7 @@ export async function reassignSession(input: {
       patientId: sessions.patientId,
       personId: patients.personId,
       status: sessions.status,
+      paymentStatus: sessions.paymentStatus,
       startedAt: sessions.startedAt,
       scheduledAt: sessions.scheduledAt,
       patientJoinedAt: sessions.patientJoinedAt,
@@ -374,19 +375,30 @@ export async function reassignSession(input: {
    * them earns it; where it had not, the price already moved above (P3).
    */
   const [paid] = await db
-    .select({ id: sessionPayments.id, net: sessionPayments.therapistNetCents, therapistId: sessionPayments.therapistId, organizationId: sessionPayments.organizationId })
+    .select({
+      id: sessionPayments.id,
+      net: sessionPayments.therapistNetCents,
+      therapistId: sessionPayments.therapistId,
+      organizationId: sessionPayments.organizationId,
+      fundingSource: sessionPayments.fundingSource,
+      sponsorShareCents: sessionPayments.sponsorShareCents,
+      patientShareCents: sessionPayments.patientShareCents,
+      platformFeeBps: sessionPayments.platformFeeBps,
+    })
     .from(sessionPayments)
     .where(and(eq(sessionPayments.sessionId, input.sessionId), eq(sessionPayments.status, "paid")))
     .limit(1);
+  let creditCents = 0;
   if (paid) {
     await db
       .update(sessionPayments)
       .set({ therapistId: input.toUserId, organizationId: replacement.organizationId })
       .where(eq(sessionPayments.id, paid.id));
+    const { journal } = await import("@/lib/billing/ledger");
     if (paid.net > 0 && paid.therapistId && paid.therapistId !== input.toUserId) {
-      const { journal } = await import("@/lib/billing/ledger");
+      /* `session_repriced`, so a later refund's reversal (`bookedLegs`) sees the move too. */
       await journal({
-        kind: "adjustment",
+        kind: "session_repriced",
         refType: "session_payment",
         refId: paid.id,
         legs: [
@@ -395,6 +407,67 @@ export async function reassignSession(input: {
         ],
       });
     }
+
+    /*
+     * 🔴 0170 / RULINGS 7 AND 7b: CHEAPER, AND ALREADY PAID. The session now
+     * costs what the replacement charges. The difference goes back: the
+     * company's part to its pot, the patient's to their wallet, spent on their
+     * next session. Only on a session wholly paid, with a patient who has a
+     * wallet to hold it; otherwise the price stays and the replacement earns it.
+     */
+    const difference = moved.priceCents - rate;
+    const { getSettings, sessionMoney } = await import("@/lib/settings");
+    const settings = await getSettings();
+    if (difference > 0 && row.personId && row.paymentStatus === "paid" && settings.rules.wallet.enabled) {
+      const shares = paid.fundingSource === "pot" ? paid.sponsorShareCents + paid.patientShareCents : 0;
+      const toPot = shares > 0 ? Math.round((difference * paid.sponsorShareCents) / shares) : 0;
+      const toWallet = difference - toPot;
+      const { returnPartToPot } = await import("@/lib/billing/pot");
+      const potBack = await returnPartToPot({ paymentId: paid.id, cents: toPot, reason: "A cheaper clinician held the session" });
+      if (potBack.error) {
+        log.error("repricing skipped: the company's part could not go back to its pot", { session: ref(input.sessionId), reason: potBack.error });
+      } else {
+        const newNet = sessionMoney({
+          grossCents: rate,
+          feeBps: paid.platformFeeBps || settings.session.platformFeeBps,
+          vatBps: 0,
+        }).therapistNetCents;
+        const lessNet = Math.max(0, Math.min(difference, paid.net - newNet));
+        const lessFee = difference - lessNet;
+        await journal({
+          kind: "session_repriced",
+          refType: "session_payment",
+          refId: paid.id,
+          legs: [
+            { account: "therapist_payable", amountCents: lessNet, organizationId: replacement.organizationId, userId: input.toUserId, memo: "Held at their own, lower price" },
+            { account: "platform_revenue", amountCents: lessFee, organizationId: replacement.organizationId, memo: "Our fee on the lower price" },
+            { account: "cash", amountCents: -difference, organizationId: replacement.organizationId, memo: "The difference, going back" },
+          ],
+        });
+        await db
+          .update(sessionPayments)
+          .set({
+            grossCents: sql`${sessionPayments.grossCents} - ${difference}`,
+            platformFeeCents: sql`${sessionPayments.platformFeeCents} - ${lessFee}`,
+            therapistNetCents: sql`${sessionPayments.therapistNetCents} - ${lessNet}`,
+            sponsorShareCents: sql`GREATEST(0, ${sessionPayments.sponsorShareCents} - ${toPot})`,
+            patientShareCents: sql`GREATEST(0, ${sessionPayments.patientShareCents} - ${toWallet})`,
+          })
+          .where(eq(sessionPayments.id, paid.id));
+        await db.update(sessions).set({ priceCents: rate, updatedAt: new Date() }).where(eq(sessions.id, input.sessionId));
+        if (toWallet > 0) {
+          const { creditWallet } = await import("@/lib/billing/wallet");
+          await creditWallet({
+            personId: row.personId,
+            cents: toWallet,
+            reason: "A cheaper clinician held your session",
+            fromSessionId: input.sessionId,
+            from: [{ account: "cash", amountCents: toWallet, organizationId: replacement.organizationId, memo: "Into the patient's wallet" }],
+          });
+          creditCents = toWallet;
+        }
+      }
+    }
   }
 
   log.info("session reassigned", {
@@ -402,7 +475,7 @@ export async function reassignSession(input: {
     repriced: moved.priceCents !== row.priceCents,
   });
 
-  return { ok: true, outcome: "reassigned", creditCents: 0 };
+  return { ok: true, outcome: "reassigned", creditCents };
 }
 
 /**

@@ -61,6 +61,8 @@ These run on the defaults shown. Any of them can change later in settings.
   `payment_rejected`, payouts and support messages.
 
 - Patient cancel and reschedule; therapist reschedule.
+- Wallet: built (0170). Held at booking after the benefit, spent when paid, back to the wallet on refund. Only source today: a cheaper replacement clinician on a paid session.
+- Language: saved per patient and therapist (0170); check-ins use it. Email and WhatsApp bodies are still written in English in about 40 places.
 - Receipts for patients to download.
 - Earnings export for therapists.
 - A "today" view for therapists.

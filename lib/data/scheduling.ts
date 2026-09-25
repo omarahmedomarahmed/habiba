@@ -691,6 +691,9 @@ export async function bookSlot(input: {
    */
   const { payFromPot } = await import("@/lib/billing/pot");
   await payFromPot(created.id);
+  /* 🔴 0170: benefit first, then the patient's wallet (ruling 7b). */
+  const { holdWallet } = await import("@/lib/billing/wallet");
+  await holdWallet(created.id);
 
   log.info("slot booked", { slot: ref(input.slotId), session: ref(created.id) });
 

@@ -1010,6 +1010,62 @@ export async function refundToPot(input: {
 type Tx = Parameters<Parameters<typeof controlDb.transaction>[0]>[0];
 
 /**
+ * 🔴 0170 / RULING 7b: PART of a pot's share back, when a session it paid for
+ * cost less in the end (a cheaper clinician stepped in for one who did not
+ * come). The company's part of the difference goes to its pot, the patient's
+ * to their wallet. Its own transaction, so `refundToPot` still returns the
+ * rest of the share if the session is later refunded.
+ */
+export async function returnPartToPot(input: {
+  paymentId: string;
+  cents: number;
+  reason: string;
+}): Promise<{ ok?: true; error?: string }> {
+  if (input.cents <= 0) return { ok: true };
+  return controlDb.transaction(async (tx) => {
+    const [payment] = await tx
+      .select({
+        id: sessionPayments.id,
+        sessionId: sessionPayments.sessionId,
+        organizationId: sessionPayments.organizationId,
+        grossCents: sessionPayments.grossCents,
+        coverageBps: sessionPayments.coverageBps,
+        sponsorShareCents: sessionPayments.sponsorShareCents,
+        patientShareCents: sessionPayments.patientShareCents,
+        paidAt: sessionPayments.paidAt,
+      })
+      .from(sessionPayments)
+      .where(eq(sessionPayments.id, input.paymentId))
+      .limit(1)
+      .for("update");
+    if (!payment) return { error: "Payment not found." };
+    const spend = await potSpendOf(tx, payment);
+    if (!spend) return { error: "No pot spend is on the books for that session." };
+    const [pot] = await tx
+      .select({ id: sponsorPots.id })
+      .from(sponsorPots)
+      .where(eq(sponsorPots.sponsorId, spend.sponsorId))
+      .limit(1);
+    if (!pot) return { error: "That sponsor no longer has a pot." };
+    await tx
+      .update(sponsorPots)
+      .set({ balanceCents: sql`${sponsorPots.balanceCents} + ${input.cents}`, updatedAt: new Date() })
+      .where(eq(sponsorPots.id, pot.id));
+    await journal({
+      kind: "session_repriced",
+      refType: "sponsor",
+      refId: spend.sponsorId,
+      executor: tx,
+      legs: [
+        { account: "sponsor_pot", amountCents: -input.cents, organizationId: payment.organizationId, memo: input.reason.slice(0, 200) },
+        { account: "cash", amountCents: input.cents, organizationId: payment.organizationId, memo: "Part returned to the pot" },
+      ],
+    });
+    return { ok: true as const };
+  });
+}
+
+/**
  * The pot a session was paid from, walked out of the ledger.
  *
  * `ledger_entries` has no session id, deliberately: it keys on

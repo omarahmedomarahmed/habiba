@@ -295,6 +295,8 @@ export const users = pgTable(
     lastName: text("last_name").notNull(),
     role: text("role").$type<Role>().notNull().default("therapist"),
     status: text("status").$type<"active" | "suspended">().notNull().default("active"),
+    /** 🔴 0170 / ruling 8: the language they chose. Null: never chose, the browser decides. */
+    locale: text("locale"),
 
     /** License details etc. Collected lazily in settings, never at signup. */
     profile: jsonb("profile").$type<TherapistProfile>().default({}).notNull(),
@@ -2641,6 +2643,12 @@ export const LEDGER_ACCOUNTS = [
    */
   "sponsor_pot",
   /**
+   * 🔴 0170 / RULING 7: MONEY WE HOLD FOR A PATIENT, a liability like the pot.
+   * Credited when a replacement clinician costs less than they paid (their own
+   * share only, ruling 7b), spent on their next session, never paid out.
+   */
+  "patient_wallet",
+  /**
    * 🔴 TAX WE COLLECTED AND HAVE NOT REMITTED. A liability, like the two above it.
    *
    * The patient's own bill says, in both languages, *"VAT, paid to the
@@ -2717,6 +2725,12 @@ export const CLINICIAN_ALLOWED_ACCOUNTS = [
 ] as const satisfies readonly LedgerAccount[];
 
 export const LEDGER_TXN_KINDS = [
+  /** 🔴 0170: money into, out of, and back into a patient's wallet. */
+  "wallet_credit",
+  "wallet_spend",
+  "wallet_return",
+  /** 🔴 0170: a paid session that cost less in the end (a cheaper clinician stepped in). */
+  "session_repriced",
   "session_payment",
   "session_refund",
   "invoice_raised",
@@ -4047,6 +4061,42 @@ export const patientCredits = pgTable(
 
 export type PatientCredit = typeof patientCredits.$inferSelect;
 
+/**
+ * 🔴 0170 / RULINGS 7 AND 7b: THE WALLET'S SHARE OF ONE SESSION.
+ *
+ * Taken at booking after any company benefit, `spent` when the rest of the
+ * session is paid, `released` when it never was, `returned` when a paid session
+ * is refunded. `draws` is which credits it came from, so a release gives back
+ * exactly what was taken. See `lib/billing/wallet.ts`.
+ */
+export const WALLET_HOLD_STATES = ["held", "spent", "released", "returned"] as const;
+export type WalletHoldState = (typeof WALLET_HOLD_STATES)[number];
+
+export const walletHolds = pgTable(
+  "wallet_holds",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    cents: integer("cents").notNull(),
+    state: text("state").$type<WalletHoldState>().notNull().default("held"),
+    draws: jsonb("draws").$type<{ creditId: string; cents: number }[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    spentAt: timestamp("spent_at", { withTimezone: true }),
+    returnedAt: timestamp("returned_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("wallet_holds_session_unique").on(t.sessionId),
+    index("wallet_holds_person_idx").on(t.personId, t.state),
+  ],
+);
+
+export type WalletHold = typeof walletHolds.$inferSelect;
+
 export const sessionCredits = pgTable(
   "session_credits",
   {
@@ -4217,6 +4267,9 @@ export const people = pgTable(
      * wrong jurisdiction while every test passed.
      */
     region: text("region").$type<Region>().notNull().default("us"),
+
+    /** 🔴 0170 / ruling 8: the language they chose. Null: never chose, the browser decides. */
+    locale: text("locale"),
 
     /**
      * When this person took ownership of their own record. Null means nobody

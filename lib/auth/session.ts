@@ -97,6 +97,14 @@ export async function createSession(userId: string): Promise<string> {
     maxAge: Math.floor(ABSOLUTE_MS / 1000),
   });
 
+  /* 🔴 0170 / ruling 8: a new device reads in the language they chose. Never blocks signing in. */
+  try {
+    const { applySavedLocale } = await import("@/lib/i18n/preference");
+    await applySavedLocale({ userId });
+  } catch {
+    /* The language is a preference; the sign-in is not. */
+  }
+
   return token;
 }
 

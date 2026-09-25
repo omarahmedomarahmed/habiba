@@ -82,11 +82,20 @@ export async function employeeHalfOf(payment: FrozenSplit & {
 
   const { paidAttemptFor } = await import("./gateway/session");
   const gatewayPaid = Boolean(await paidAttemptFor(payment.id));
-  return splitRefundPlan({
+  const employee = splitRefundPlan({
     ...payment,
     employeePaid: session?.paymentStatus === "paid" || Boolean(transfer) || gatewayPaid,
     gatewayPaid,
   }).employee;
+  /*
+   * 🔴 0170: the part their wallet paid goes back to the wallet
+   * (`returnSpentHold`), so only the rest is sent. All of it from the wallet
+   * means nothing to send.
+   */
+  if (employee.rail === "none" || employee.rail === "unpaid") return employee;
+  const { walletSpentOn } = await import("./wallet");
+  const cents = Math.max(0, employee.cents - (await walletSpentOn(payment.sessionId)));
+  return cents > 0 ? { ...employee, cents } : { rail: "none", cents: 0 };
 }
 
 /**
@@ -136,7 +145,7 @@ export async function openRefundRequest(input: {
       ? sharesOf({ ...payment, coverageBps: payment.coverageBps ?? 0 }).potCents
       : payment.fundingSource === "pot"
         ? (await employeeHalfOf(payment)).cents
-        : refundOwedCents(payment);
+        : Math.max(0, refundOwedCents(payment) - (await walletSpentOnSession(payment.sessionId)));
   if (amountCents <= 0) return { error: "arefund.errPaid" };
 
   const [row] = await db
@@ -298,7 +307,11 @@ export async function markRefundSent(input: {
             ...held,
             coverageBps: held.coverageBps ?? 0,
           })).cents
-        : refundOwedCents({ ...held, coverageBps: held.coverageBps ?? 0 });
+        : Math.max(
+            0,
+            refundOwedCents({ ...held, coverageBps: held.coverageBps ?? 0 }) -
+              (await walletSpentOnSession(held.sessionId)),
+          );
     if (row.amountCents > ceiling) {
       log.error("refund not sent: the queued amount is more than the payer paid", {
         request: ref(row.id),
@@ -387,7 +400,7 @@ export async function markRefundSent(input: {
   const txnId = crypto.randomUUID();
   const now = new Date();
 
-  return db
+  const sent = await db
     .transaction(async (tx) => {
       /*
        * The status is in the WHERE, so two operators pressing "sent" together
@@ -462,9 +475,21 @@ export async function markRefundSent(input: {
       if (error instanceof PaymentNotHeld) return { error: "arefund.errPaid" as const };
       throw error;
     });
+
+  /* 🔴 0170: the part the wallet paid goes back to the wallet. After the transaction, which held the connection. */
+  if ("ok" in sent && sent.ok && held) {
+    const { returnSpentHold } = await import("./wallet");
+    await returnSpentHold(held.sessionId, row.reason);
+  }
+  return sent;
 }
 
 class PaymentNotHeld extends Error {}
+
+async function walletSpentOnSession(sessionId: string): Promise<number> {
+  const { walletSpentOn } = await import("./wallet");
+  return walletSpentOn(sessionId);
+}
 
 /** It arrived. */
 export async function confirmRefund(input: { requestId: string }): Promise<Result> {

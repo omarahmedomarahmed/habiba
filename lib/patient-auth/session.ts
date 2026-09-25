@@ -116,6 +116,23 @@ export async function createPatientSession(accountId: string): Promise<string> {
     maxAge: Math.floor(ABSOLUTE_MS / 1000),
   });
 
+  /* 🔴 0170 / ruling 8: a new phone reads in the language they chose. Never blocks signing in. */
+  try {
+    const { patientAccounts } = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const [account] = await db
+      .select({ personId: patientAccounts.personId })
+      .from(patientAccounts)
+      .where(eq(patientAccounts.id, accountId))
+      .limit(1);
+    if (account?.personId) {
+      const { applySavedLocale } = await import("@/lib/i18n/preference");
+      await applySavedLocale({ personId: account.personId });
+    }
+  } catch {
+    /* The language is a preference; the sign-in is not. */
+  }
+
   return token;
 }
 

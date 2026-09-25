@@ -209,6 +209,7 @@ export default async function PayPage({
         ? t("transfer.subjectSessionWith", { name: therapistName })
         : t("transfer.subjectSession"),
       benefitLabel: t("pay.benefitPaid"),
+      walletLabel: t("pay.fromWallet"),
       vatLabel: t("topup.vat"),
     }),
     locale: tag,

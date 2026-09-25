@@ -150,25 +150,9 @@ export default async function PatientBillingPage() {
           <p className="text-sm font-semibold text-brand-900">
             <Money cents={creditCents} /> {t("pbill.inCredit")}
           </p>
-          {/*
-            🔴 P3: WHAT IS TRUE OF IT, AND NOTHING MORE.
-
-            This promised the credit came off a next session, first
-            automatically and then "tell us when you book", and nothing in the
-            product has ever spent a `patient_credits` row: no pay screen reads
-            one, no grant consumes one and no operator screen lists one.
-            `reassignSession` no longer writes them, so what a patient can
-            still see here is an old row, and what is true of it is that we owe
-            it and it stays on their account until it lapses.
-
-            The words are a dictionary key rather than the row's `reason`,
-            which is English stored for an operator and was printed as is to an
-            Arabic reader. Every row was written with that same reason.
-          */}
+          {/* 🔴 0170 / ruling 7: the wallet is spent now, after any benefit and before anything asked of them. */}
           <p className="mt-1 text-xs leading-relaxed text-brand-800">
-            {t("pbill.creditBody", {
-              date: formatDate(credits[0]?.expiresAt ?? null, actor.timezone, locale),
-            })}
+            {t("pyou.walletBody")}
           </p>
         </Card>
       ) : null}

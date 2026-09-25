@@ -465,6 +465,9 @@ export async function createSession(
   if (!inPersonPaid) {
     const { payFromPot } = await import("@/lib/billing/pot");
     await payFromPot(created!.id);
+    /* 🔴 0170: benefit first, then the patient's wallet (ruling 7b). */
+    const { holdWallet } = await import("@/lib/billing/wallet");
+    await holdWallet(created!.id);
   }
 
   await auditPhi(actor, "session.create", {

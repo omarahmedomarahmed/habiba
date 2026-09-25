@@ -1265,7 +1265,7 @@ async function main() {
    */
   check(
     "🔴 …and the ledger posts the VAT that ARRIVED, derived from the money rather than a rate",
-    /const vatCents = Math\.max\(0, payment\.settlesCents - \w+\)/.test(grants) &&
+    /const vatCents = Math\.max\(0, (payment|input)\.settlesCents - \w+\)/.test(grants) &&
       !/vatBps:\s*country\.vatBps/.test(grants) &&
       /vatCents,/.test(grants),
     "a rate an operator changed between the quote and the confirmation must not move a posted figure",
@@ -1281,9 +1281,9 @@ async function main() {
    * zero, and the tax disappeared.
    */
   check(
-    "🔴 …and the base it subtracts is the payer's SHARE, never the session's price",
-    /patientShareCents = priorPayment\?\.patientShareCents \?\? row\.priceCents/.test(grants) &&
-      /payment\.settlesCents - patientShareCents/.test(grants),
+    "🔴 …and the base it subtracts is the payer's SHARE, never the session's price (less what their wallet paid, 0170)",
+    /\(priorPayment\?\.patientShareCents \?\? row\.priceCents\) - \(await walletCentsOn\(/.test(grants) &&
+      /(payment|input)\.settlesCents - patientShareCents/.test(grants),
     "subtracting the whole price from a part payment makes the tax negative, and a clamp makes it vanish",
   );
 

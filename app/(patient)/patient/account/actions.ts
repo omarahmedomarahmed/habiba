@@ -217,3 +217,11 @@ export async function confirmEmail(_prev: EmailState, formData: FormData): Promi
   revalidatePath("/patient/record");
   return { added: done.email };
 }
+
+/** 🔴 0170 / ruling 8: the language they read in, and every message we send them. */
+export async function savePatientLanguage(formData: FormData): Promise<void> {
+  const actor = await requirePatient();
+  const { saveLocale } = await import("@/lib/i18n/preference");
+  await saveLocale({ personId: actor.personId }, String(formData.get("locale") ?? ""));
+  revalidatePath("/patient", "layout");
+}

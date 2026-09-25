@@ -51,6 +51,7 @@ export async function candidates(limit = 500): Promise<Candidate[]> {
       email: patientAccounts.email,
       phone: patientAccounts.phone,
       timezone: patientAccounts.timezone,
+      locale: people.locale,
       mutedId: checkinMutes.id,
     })
     .from(people)
@@ -94,8 +95,8 @@ export async function candidates(limit = 500): Promise<Candidate[]> {
     email: row.email,
     phone: row.phone,
     timezone: row.timezone,
-    /* The locale a person reads in is not on `people`; English is the floor, as everywhere. */
-    locale: "en",
+    /* 🔴 0170 / ruling 8: the language they chose; English is the floor, as everywhere. */
+    locale: row.locale === "ar" || row.locale === "en" ? row.locale : "en",
     muted: row.mutedId !== null,
     lastSentAt: lastByPerson.get(row.personId)?.sentAt ?? null,
     lastBody: lastByPerson.get(row.personId)?.body ?? null,

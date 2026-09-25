@@ -705,6 +705,11 @@ const JOBS = {
     await sweepInPerson(now).catch((error) =>
       log.error("in-person sweep failed", { reason: safeErrorMessage(error) }),
     );
+    /* 🔴 0170: a wallet hold on a session that ended unpaid goes back to the wallet. */
+    const { sweepWalletHolds } = await import("@/lib/billing/wallet");
+    await sweepWalletHolds().catch((error) =>
+      log.error("wallet sweep failed", { reason: safeErrorMessage(error) }),
+    );
 
     const { releaseUnconfirmedBookings } = await import("@/lib/data/scheduling");
     const released = await releaseUnconfirmedBookings(now);

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Receipt, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Radio, Receipt, ShieldCheck, Wallet } from "lucide-react";
 
 import { eq } from "drizzle-orm";
 
 import { ChangeNumber } from "@/components/patient/change-number";
+import { PatientSessionList } from "@/components/patient/session-list";
+import { LanguageSetting } from "@/components/settings/language-setting";
 import { EmailEditor } from "@/components/patient/email-editor";
 import { IdentityEditor } from "@/components/patient/identity-editor";
 import { Card } from "@/components/ui";
@@ -12,8 +14,13 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, people } from "@/lib/db/schema";
 import { awaitingChangeCode, lockUntil } from "@/lib/data/phone-change";
+import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
+import { cn } from "@/lib/utils";
+import { Money } from "@/components/ui/money";
 import { patientSignOut } from "@/lib/patient-auth/actions";
+
+import { savePatientLanguage } from "./actions";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { zoneLabel } from "@/lib/scheduling/tz";
 import { getCountries } from "@/lib/settings";
@@ -29,7 +36,16 @@ import { getCountries } from "@/lib/settings";
 const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/account/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = { title: "Your account", robots: { index: false } };
+export const metadata: Metadata = { title: "You", robots: { index: false } };
+
+/** 🔴 Ruling 8b: the "You" page is a profile, with editing under Settings. */
+const TABS = [
+  { key: "overview", label: "pyou.tabOverview" },
+  { key: "sessions", label: "pyou.tabSessions" },
+  { key: "billing", label: "pyou.tabBilling" },
+  { key: "settings", label: "pyou.tabSettings" },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
 export const dynamic = "force-dynamic";
 
 /**
@@ -41,8 +57,14 @@ export const dynamic = "force-dynamic";
  * code to the new number finishes it. Everything else on this screen is either
  * a handle or a door to something that is genuinely self-service.
  */
-export default async function PatientAccountPage() {
+export default async function PatientAccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const actor = await requirePatient();
+  const { tab } = await searchParams;
+  const active: TabKey = TABS.some((entry) => entry.key === tab) ? (tab as TabKey) : "overview";
 
   const [account] = await db
     .select({
@@ -61,16 +83,218 @@ export default async function PatientAccountPage() {
 
   const countries = await getCountries();
   const locked = account ? lockUntil(account) : null;
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
+  const tag = localeTag(locale);
+
+  const [{ myBenefits }, { sessionDoors, sessionsForPatient }, { summariesForPerson }, { walletBalanceCents }, { savedLocale }] =
+    await Promise.all([
+      import("@/lib/data/enrolment"),
+      import("@/lib/data/patient-view"),
+      import("@/lib/data/summaries"),
+      import("@/lib/billing/wallet"),
+      import("@/lib/i18n/preference"),
+    ]);
+  const [benefits, sessionsList, doors, summaries, walletCents, chosen] = await Promise.all([
+    myBenefits(actor.personId),
+    sessionsForPatient(actor.personId),
+    sessionDoors(actor.personId),
+    summariesForPerson(actor.personId),
+    walletBalanceCents(actor.personId),
+    savedLocale({ personId: actor.personId }),
+  ]);
+  const doorOf = Object.fromEntries(doors.map((row) => [row.sessionId, row.door]));
+  const benefit = benefits.find((b) => b.isPrimary) ?? benefits[0] ?? null;
+  const now = Date.now();
+  const next = sessionsList
+    .filter((s) => !s.cancelled && (s.group === "today" || s.group === "upcoming"))
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
+  const past = sessionsList.filter((s) => s.group === "past_scheduled" || s.group === "past_instant");
+  const latestSummary = summaries[0] ?? null;
+
+  /* "in 12 minutes", "in 3 hours", "in 2 days", in the reader's language. */
+  const relative = new Intl.RelativeTimeFormat(tag, { numeric: "auto" });
+  const startsIn = (at: Date) => {
+    const minutes = Math.round((at.getTime() - now) / 60_000);
+    if (Math.abs(minutes) < 60) return relative.format(minutes, "minute");
+    const hours = Math.round(minutes / 60);
+    if (Math.abs(hours) < 24) return relative.format(hours, "hour");
+    return relative.format(Math.round(hours / 24), "day");
+  };
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {actor.firstName} {actor.lastName ?? ""}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">{t("paccount.body")}</p>
+      {/* 🔴 Ruling 8b: who they are, and their employer benefit or the way to add one. */}
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white"
+        >
+          {(actor.firstName?.[0] ?? "").toUpperCase()}
+          {(actor.lastName?.[0] ?? "").toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold tracking-tight text-slate-900">
+            {actor.firstName} {actor.lastName ?? ""}
+          </h1>
+          {benefit ? (
+            <Link
+              href="/patient/benefit"
+              className={cn(
+                "mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                benefit.pausedAt || benefit.state === "paused"
+                  ? "bg-amber-50 text-amber-800"
+                  : "bg-emerald-50 text-emerald-800",
+              )}
+            >
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+              {benefit.pausedAt || benefit.state === "paused"
+                ? t("pyou.benefitPaused", { name: benefit.sponsorName })
+                : t("pyou.benefitBadge", { name: benefit.sponsorName })}
+            </Link>
+          ) : (
+            <Link href="/patient/benefit" className="mt-1 inline-block text-xs font-semibold text-slate-900 underline">
+              {t("pyou.enrol")}
+            </Link>
+          )}
+        </div>
       </div>
+
+      <nav aria-label={t("pyou.tabSettings")}>
+        <ul className="flex gap-1 rounded-2xl bg-slate-100 p-1">
+          {TABS.map((entry) => (
+            <li key={entry.key} className="flex-1">
+              <Link
+                href={`/patient/account?tab=${entry.key}`}
+                aria-current={entry.key === active ? "page" : undefined}
+                className={cn(
+                  "block rounded-xl py-2 text-center text-xs font-semibold",
+                  entry.key === active ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
+                )}
+              >
+                {t(entry.label)}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {active === "overview" ? (
+        <>
+          {/* Live now, starting soon, and what is booked after. */}
+          <Card className="divide-y divide-slate-100 p-0">
+            <p className="px-4 pt-3.5 pb-2 text-sm font-semibold text-slate-900">{t("psessions.upcoming")}</p>
+            {next.length === 0 ? (
+              <div className="px-4 py-3.5 text-sm text-slate-600">
+                {t("pyou.nothingNext")}{" "}
+                <Link href="/patient/browse" className="font-semibold text-slate-900 underline">
+                  {t("pyou.book")}
+                </Link>
+              </div>
+            ) : (
+              next.slice(0, 5).map((session) => {
+                const door = doorOf[session.id] ?? null;
+                const live = door?.kind === "join" && session.at.getTime() <= now;
+                return (
+                  <div key={session.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{session.therapistName}</p>
+                      <p className={cn("text-xs", live ? "font-semibold text-rose-600" : "text-slate-500")}>
+                        {live ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Radio className="h-3.5 w-3.5" aria-hidden />
+                            {t("pyou.liveNow")}
+                          </span>
+                        ) : (
+                          startsIn(session.at)
+                        )}
+                      </p>
+                    </div>
+                    {door ? (
+                      <Link
+                        href={door.href}
+                        className="shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+                      >
+                        {door.kind === "join" ? t("psessions.join") : t("pyou.open")}
+                      </Link>
+                    ) : null}
+                  </div>
+                );
+              })
+            )}
+          </Card>
+
+          {/* 🔴 Ruling 7: shown only when there is something in it, never as zero. */}
+          {walletCents > 0 ? (
+            <Card className="flex items-center gap-3 p-4">
+              <Wallet className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900">{t("pyou.wallet")}</p>
+                <p className="text-xs text-slate-500">{t("pyou.walletBody")}</p>
+              </div>
+              <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+                <Money cents={walletCents} />
+              </p>
+            </Card>
+          ) : null}
+
+          <Card className="p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-900">{t("pyou.summary")}</p>
+              <Link href="/patient/summary" className="text-xs font-semibold text-slate-900 underline">
+                {t("pyou.readAll")}
+              </Link>
+            </div>
+            <p className="mt-2 line-clamp-4 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+              {latestSummary ? latestSummary.body : t("pyou.summaryNone")}
+            </p>
+          </Card>
+        </>
+      ) : null}
+
+      {active === "sessions" ? (
+        past.length === 0 ? (
+          <Card className="p-4 text-sm text-slate-600">{t("pyou.noPast")}</Card>
+        ) : (
+          <PatientSessionList sessions={past} zone={actor.timezone} doors={doorOf} />
+        )
+      ) : null}
+
+      {active === "billing" ? (
+        <>
+          {walletCents > 0 ? (
+            <Card className="flex items-center justify-between gap-3 p-4">
+              <p className="text-sm font-semibold text-slate-900">{t("pyou.wallet")}</p>
+              <p className="text-sm font-semibold tabular-nums text-slate-900"><Money cents={walletCents} /></p>
+            </Card>
+          ) : null}
+          <Card className="divide-y divide-slate-100 p-0">
+            {sessionsList
+              .filter((s) => s.priceCents > 0 && !s.cancelled)
+              .slice(0, 8)
+              .map((session) => (
+                <div key={session.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                  <span className="min-w-0 truncate text-slate-900">{session.therapistName}</span>
+                  <span className="shrink-0 text-xs text-slate-500">
+                    {session.paymentStatus === "paid" ? t("pyou.paid") : t("pyou.owed")}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-slate-900">
+                    <Money cents={session.priceCents} currency={session.priceCurrency} />
+                  </span>
+                </div>
+              ))}
+          </Card>
+          <Link href="/patient/billing">
+            <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
+              <Receipt className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
+              <span className="block text-sm font-semibold text-slate-900">{t("pyou.allBilling")}</span>
+            </Card>
+          </Link>
+        </>
+      ) : null}
+
+      {active === "settings" ? (
+      <>
+      <LanguageSetting action={savePatientLanguage} saved={chosen} />
 
       {/* 25.7 / C115 — name and picture, both theirs. */}
       <IdentityEditor
@@ -128,24 +352,6 @@ export default async function PatientAccountPage() {
             <span className="block text-xs text-slate-500">
               {t("paccount.whoCanSeeBody")}
             </span>
-          </span>
-        </Card>
-      </Link>
-
-      {/*
-        🔴 BILLING LIVES HERE NOW, because it came off the bar. Option A puts
-        Therapists in its place, and a destination removed from the navigation
-        without being given a home is the drawer the bar's own comment warns
-        about. Money is an account thing, so this is the account.
-      */}
-      <Link href="/patient/billing">
-        <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
-          <Receipt className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-slate-900">
-              {t("paccount.billing")}
-            </span>
-            <span className="block text-xs text-slate-500">{t("paccount.billingBody")}</span>
           </span>
         </Card>
       </Link>
@@ -212,6 +418,8 @@ export default async function PatientAccountPage() {
           {t("paccount.signOut")}
         </button>
       </form>
+      </>
+      ) : null}
     </main>
   );
 }

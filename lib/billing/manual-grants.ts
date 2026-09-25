@@ -124,6 +124,37 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     return;
   }
 
+  const outcome = await postPatientSettlement({
+    sessionId: payment.refId,
+    settlesCents: payment.settlesCents,
+    paidAt: payment.decidedAt ?? new Date(),
+    logRef: payment.id,
+  });
+  if (outcome === "duplicate") {
+    log.warn("manual session payment: a payment row already existed", {
+      paymentId: payment.id,
+      sessionId: payment.refId,
+    });
+    // W2-A03: paid twice, once another way. The transfer is ours and bought nothing.
+    const { flagException } = await import("./rail-exceptions");
+    await flagException(payment.id, "not_payable", "the session was already paid another way");
+  }
+}
+
+/**
+ * The books for a session whose patient share has just been paid, after the
+ * claim to `paid` succeeded. A bank transfer lands here, and so does a session
+ * the patient's wallet paid for whole (`settlesCents` 0), which is why it is
+ * its own function: two rails, one posting.
+ */
+export async function postPatientSettlement(input: {
+  sessionId: string;
+  /** What the payer was asked for and paid: their share after benefit and wallet, plus VAT. */
+  settlesCents: number;
+  paidAt: Date;
+  /** For the logs: the transfer, or the wallet hold. */
+  logRef: string;
+}): Promise<"posted" | "duplicate"> {
   /*
    * 🔴 AND THE BOOKS, WHICH FOR TWO SPRINTS THIS DID NOT DO AT ALL.
    *
@@ -171,19 +202,19 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.therapistId))
     .leftJoin(therapistVerifications, eq(therapistVerifications.userId, users.id))
-    .where(eq(sessions.id, payment.refId))
+    .where(eq(sessions.id, input.sessionId))
     .limit(1);
 
   if (!row) {
     log.error("manual session payment confirmed for a session that vanished", {
-      paymentId: payment.id,
-      sessionId: payment.refId,
+      paymentId: input.logRef,
+      sessionId: input.sessionId,
     });
-    return;
+    return "posted";
   }
 
   /* A free session has nothing to split. The room still opened; nobody paid. */
-  if (row.priceCents <= 0) return;
+  if (row.priceCents <= 0) return "posted";
 
   const { getSettings, sessionMoney } = await import("@/lib/settings");
   const settings = await getSettings();
@@ -218,7 +249,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
       vatCents: sessionPayments.vatCents,
     })
     .from(sessionPayments)
-    .where(eq(sessionPayments.sessionId, payment.refId))
+    .where(eq(sessionPayments.sessionId, input.sessionId))
     .limit(1);
 
   /*
@@ -230,7 +261,15 @@ async function grantSession(payment: ManualPayment): Promise<void> {
    * With no prior row the two are the same number, which is why the uncovered
    * case is unchanged by this.
    */
-  const patientShareCents = priorPayment?.patientShareCents ?? row.priceCents;
+  /*
+   * 🔴 0170: LESS WHAT THE WALLET PAID. The quote was taken after the wallet's
+   * hold, so the tax is derived against the same smaller base.
+   */
+  const { walletCentsOn } = await import("./wallet");
+  const patientShareCents = Math.max(
+    0,
+    (priorPayment?.patientShareCents ?? row.priceCents) - (await walletCentsOn(input.sessionId)),
+  );
 
   /*
    * 🔴 75.7 — THE VAT THAT ACTUALLY ARRIVED, DERIVED FROM THE MONEY ITSELF.
@@ -251,7 +290,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
    * Posting a liability for money we had not collected would have invented a
    * debt. Now it is collected, so it is recorded.
    */
-  const vatCents = Math.max(0, payment.settlesCents - patientShareCents);
+  const vatCents = Math.max(0, input.settlesCents - patientShareCents);
 
   /*
    * 🔴 76.33 — THE COVERED CASE, WHICH USED TO BE A WARNING AND A RETURN.
@@ -288,13 +327,13 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     await bookEmployeeShare({ paymentId: priorPayment.id, capture: "platform", vatCents });
 
     log.info("manual session payment settled a sponsored session's patient share", {
-      paymentId: payment.id,
-      sessionId: payment.refId,
+      paymentId: input.logRef,
+      sessionId: input.sessionId,
       patientShareCents,
       sponsorShareCents: priorPayment.sponsorShareCents,
       vatCents,
     });
-    return;
+    return "posted";
   }
 
   const money = sessionMoney({
@@ -315,7 +354,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     .values({
       organizationId: row.organizationId,
       therapistId: row.therapistId,
-      sessionId: payment.refId,
+      sessionId: input.sessionId,
       payerName: null,
       payerEmail: null,
       grossCents: row.priceCents,
@@ -348,7 +387,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
         }),
       }),
       status: "paid",
-      paidAt: payment.decidedAt ?? new Date(),
+      paidAt: input.paidAt,
       /*
        * ⚠️ `card` is the wrong WORD and the right BEHAVIOUR. The column allows
        * only `card` and `pot`, every reader in the product asks it exactly one
@@ -365,14 +404,11 @@ async function grantSession(payment: ManualPayment): Promise<void> {
 
   if (!created) {
     /* Something else already booked this session's money. Do not post twice. */
-    log.warn("manual session payment: a payment row already existed", {
-      paymentId: payment.id,
-      sessionId: payment.refId,
+    log.warn("session settlement: a payment row already existed", {
+      paymentId: input.logRef,
+      sessionId: input.sessionId,
     });
-    // W2-A03: paid twice, once another way. The transfer is ours and bought nothing.
-    const { flagException } = await import("./rail-exceptions");
-    await flagException(payment.id, "not_payable", "the session was already paid another way");
-    return;
+    return "duplicate";
   }
 
   const { postSessionPayment } = await import("./ledger");
@@ -389,12 +425,13 @@ async function grantSession(payment: ManualPayment): Promise<void> {
   });
 
   log.info("manual session payment posted to the ledger", {
-    paymentId: payment.id,
-    sessionId: payment.refId,
+    paymentId: input.logRef,
+    sessionId: input.sessionId,
     ourFeeCents: money.platformCutCents,
     therapistNetCents: money.therapistNetCents,
     vatCents,
   });
+  return "posted";
 }
 
 /* ---------------------------------------------------------- subscription -- */

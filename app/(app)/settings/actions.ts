@@ -337,3 +337,11 @@ export async function updatePaymentSettings(
   revalidatePath("/billing");
   return { ok: true };
 }
+
+/** 🔴 0170 / ruling 8: the language they work in, and every message we send them. */
+export async function saveMyLanguage(formData: FormData): Promise<void> {
+  const actor = await requireUser();
+  const { saveLocale } = await import("@/lib/i18n/preference");
+  await saveLocale({ userId: actor.userId }, String(formData.get("locale") ?? ""));
+  revalidatePath("/", "layout");
+}

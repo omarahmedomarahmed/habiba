@@ -317,6 +317,10 @@ const SCOPE: Record<string, Scope> = {
    * person the company funds, so a sponsor may call it for its own account.
    */
   "sponsor-users": { who: ["sponsor"] },
+  /* 0162 / ruling 15: a company's own staff list, stored hashed. Its admins upload it; the cron pauses. */
+  "sponsor-email-list": { who: ["sponsor", "admin"] },
+  /* Pay before start: the hourly sweep of unpaid and never-started in-person sessions. */
+  "in-person": { who: ["clinician", "admin"] },
   /*
    * W2-S10: the company's money ledger, C244's one sanctioned exception. It
    * reads `sponsor_money_entries` alone, which carries money and a week and no

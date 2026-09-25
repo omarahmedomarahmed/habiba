@@ -199,6 +199,9 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
    */
   const { payFromPot } = await import("@/lib/billing/pot");
   await payFromPot(sessionId);
+  /* 🔴 0170: benefit first, then the patient's wallet (ruling 7b). */
+  const { holdWallet } = await import("@/lib/billing/wallet");
+  await holdWallet(sessionId);
 
   const session = await resolveJoinToken(token);
   if (!session) return { joined: true, videoUrl: null };

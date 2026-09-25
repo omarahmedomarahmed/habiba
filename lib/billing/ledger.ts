@@ -630,7 +630,7 @@ async function bookedLegs(paymentId: string, executor: LedgerReader = db) {
       and(
         eq(ledgerEntries.refType, "session_payment"),
         eq(ledgerEntries.refId, paymentId),
-        sql`${ledgerEntries.txnKind} IN ('session_payment', 'session_refund')`,
+        sql`${ledgerEntries.txnKind} IN ('session_payment', 'session_refund', 'session_repriced')`,
       ),
     )
     .groupBy(

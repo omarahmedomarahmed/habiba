@@ -110,8 +110,13 @@ export async function createGatewaySessionCheckout(input: {
     const { getSettings, sessionMoney } = await import("@/lib/settings");
     const { crossingFor, payoutRailFor } = await import("@/lib/billing/money");
     const settings = await getSettings();
+    /*
+     * 🔴 0170: the session is booked at the patient's WHOLE share; the wallet's
+     * part of it is corrected on the books when the hold is spent.
+     */
+    const shareCents = owed.grossCents + owed.walletCents;
     const split = sessionMoney({
-      grossCents: owed.grossCents,
+      grossCents: shareCents,
       feeBps: settings.session.platformFeeBps,
       vatBps: 0,
     });
@@ -121,7 +126,7 @@ export async function createGatewaySessionCheckout(input: {
       sessionId: input.sessionId,
       payerName: input.payerName.slice(0, 80),
       payerEmail: input.payerEmail?.trim().toLowerCase() || null,
-      grossCents: owed.grossCents,
+      grossCents: shareCents,
       currency: "usd",
       vatCents: money.vatCents,
       vatBps: money.vatBps,
@@ -133,7 +138,7 @@ export async function createGatewaySessionCheckout(input: {
       fxQuotedAt: new Date(),
       coverageBps: 0,
       sponsorShareCents: 0,
-      patientShareCents: owed.grossCents,
+      patientShareCents: shareCents,
       platformFeeCents: split.platformCutCents,
       platformFeeBps: settings.session.platformFeeBps,
       settledInvoiceCents: 0,

@@ -34,7 +34,11 @@ export async function claimSessionPaid(sessionId: string): Promise<boolean> {
       ),
     )
     .returning({ id: sessions.id });
-  return moved.length > 0;
+  if (moved.length === 0) return false;
+  /* 🔴 0170: the wallet's hold is spent by the same claim, whichever rail made it. */
+  const { spendHold } = await import("./wallet");
+  await spendHold(sessionId);
+  return true;
 }
 
 /**
@@ -77,9 +81,18 @@ export type SessionOwed = {
   coveredCents: number;
   /** The full price, for the line that says what the session cost. */
   priceCents: number;
+  /** 🔴 0170: what the patient's wallet holds or paid for it, already out of `grossCents`. */
+  walletCents: number;
 };
 
 export async function patientOwesFor(sessionId: string): Promise<SessionOwed> {
+  const before = await owedBeforeWallet(sessionId);
+  const { walletCentsOn } = await import("./wallet");
+  const walletCents = Math.min(before.grossCents, await walletCentsOn(sessionId));
+  return { ...before, grossCents: before.grossCents - walletCents, walletCents };
+}
+
+async function owedBeforeWallet(sessionId: string): Promise<Omit<SessionOwed, "walletCents">> {
   const [row] = await db
     .select({ priceCents: sessions.priceCents })
     .from(sessions)
@@ -158,13 +171,16 @@ export function sessionLines(input: {
   benefitLabel: string;
   /** "VAT", translated. */
   vatLabel: string;
+  /** "From your wallet", translated. */
+  walletLabel?: string;
 }): PaymentLine[] {
-  if (input.owed.coveredCents <= 0) return [];
+  if (input.owed.coveredCents <= 0 && input.owed.walletCents <= 0) return [];
 
   return [
     { label: input.sessionLabel, cents: input.owed.priceCents },
-    /* Negative, so the three lines sum to the figure above them. */
-    { label: input.benefitLabel, cents: -input.owed.coveredCents },
+    /* Negative, so the lines sum to the figure above them. */
+    ...(input.owed.coveredCents > 0 ? [{ label: input.benefitLabel, cents: -input.owed.coveredCents }] : []),
+    ...(input.owed.walletCents > 0 ? [{ label: input.walletLabel ?? input.benefitLabel, cents: -input.owed.walletCents }] : []),
     ...(input.vatCents > 0 ? [{ label: input.vatLabel, cents: input.vatCents }] : []),
   ];
 }
