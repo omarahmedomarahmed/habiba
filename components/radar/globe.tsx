@@ -435,7 +435,7 @@ export function Globe({
                 strokeWidth="1.4"
                 filter="url(#globe-glow)"
               />
-              <title>{`${entry.firstName}, ${entry.status === "online" ? "available now" : entry.status === "pending" ? "being booked" : "in a session"}`}</title>
+              <title>{`${entry.firstName}, ${t(entry.status === "online" ? "radar.dotOnline" : entry.status === "pending" ? "radar.dotPending" : "radar.dotBusy")}`}</title>
             </g>
           ))}
         </g>

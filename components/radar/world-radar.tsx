@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { countryPoint, landDots } from "@/lib/geo";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 export type RadarDot = {
@@ -57,6 +58,7 @@ export function WorldRadar({
    */
   scale?: number;
 }) {
+  const t = useT();
   const land = useMemo(() => landDots(), []);
 
   // Two clinicians in the same country would sit on the same pixel. Fan them
@@ -85,7 +87,7 @@ export function WorldRadar({
     <svg
       viewBox="0 0 1000 500"
       role="img"
-      aria-label={`${dots.length} clinicians on the radar`}
+      aria-label={t("radar.onTheRadar", { count: dots.length })}
       className={cn("h-full w-full", className)}
       preserveAspectRatio="xMidYMid slice"
     >

@@ -64,7 +64,7 @@ export function TherapistCard({
                 "inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold",
                 dark ? "text-amber-300" : "text-amber-600",
               )}
-              title={`${entry.rating.average} from ${entry.rating.count} sessions`}
+              title={t("radar.ratingTitle", { average: entry.rating.average, count: entry.rating.count })}
             >
               <Star className="h-3 w-3 fill-current" aria-hidden />
               {entry.rating.average.toFixed(1)}
