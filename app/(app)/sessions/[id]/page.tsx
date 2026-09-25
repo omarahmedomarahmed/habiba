@@ -27,6 +27,7 @@ import { formatDateTime, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
 import { NoteOriginNote } from "@/components/notes/provenance";
+import { lateRecordingStart } from "@/lib/consent";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -62,6 +63,22 @@ export default async function SessionDetailPage({
     // has done its job and stops shouting.
     markSessionNotificationsRead(actor, id),
   ]);
+
+  /*
+   * 7.8 — a recording switched on part way through. The minutes before it do
+   * not exist, and a reader of the note or the transcript is told so in place.
+   */
+  const late = lateRecordingStart({
+    startedAt: row.session.startedAt,
+    recordingStartedAt: row.session.recordingStartedAt,
+    timeZone: actor.timezone,
+  });
+  const lateNotice = late
+    ? t("note.origin.lateStart", {
+        clock: late.utc ? `${late.clock} UTC` : late.clock,
+        minutes: late.minutes,
+      })
+    : null;
 
   const patientLabel =
     fullName(row.patient?.firstName, row.patient?.lastName, "") ||
@@ -163,7 +180,7 @@ export default async function SessionDetailPage({
    */
   const assessment = live ? null : await latestAssessment(id, actor, row.session.patientId);
   const priorRisk = assessment
-    ? await priorRiskFor(id, row.session.therapistId, actor.organizationId)
+    ? await priorRiskFor(id, row.session.patientId, row.session.therapistId, actor.organizationId)
     : [];
 
   return (
@@ -322,6 +339,11 @@ export default async function SessionDetailPage({
               offRecordSeconds={note.offRecordSeconds}
             />
           ) : null}
+          {note && lateNotice ? (
+            <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-800">
+              {lateNotice}
+            </p>
+          ) : null}
 
           <NoteReview
             key={note?.id ?? "none"}
@@ -430,6 +452,11 @@ export default async function SessionDetailPage({
               which of them it got wrong.
             */}
             <div className="border-t border-slate-100 px-4 py-4">
+              {lateNotice ? (
+                <p className="mb-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-800">
+                  {lateNotice}
+                </p>
+              ) : null}
               <AttributeTranscript
                 sessionId={id}
                 lines={transcript.map((segment) => ({

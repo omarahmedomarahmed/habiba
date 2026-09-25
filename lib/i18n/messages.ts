@@ -4272,6 +4272,8 @@ export const en = {
   "note.origin.transcriptWhy": "The whole session was captured and this note was drafted from it.",
   "note.origin.partial": "Partly from the recording",
   "note.origin.partialWhy": "{minutes} minutes were not recorded. Those parts come from the clinician's own notes.",
+  /* 7.8 — a recording switched on part way through, said where it is read. */
+  "note.origin.lateStart": "Recording began at {clock}. The first {minutes} minutes of this session were not captured and do not exist.",
   "note.origin.clinician": "From the clinician's notes",
   "note.origin.clinicianWhy": "Not recorded. This is the clinician's own account, which is what every record was before recordings.",
   "note.origin.patientTranscript": "You turned the AI on for this session",
@@ -8497,6 +8499,7 @@ export const ar: Record<MessageKey, string> = {
   "note.origin.transcriptWhy": "تم تسجيل الجلسة بالكامل وصيغت هذه الملاحظة منها.",
   "note.origin.partial": "جزئيًا من التسجيل",
   "note.origin.partialWhy": "{minutes} دقيقة لم تُسجَّل. وتلك الأجزاء من ملاحظات المعالج نفسه.",
+  "note.origin.lateStart": "بدأ التسجيل الساعة {clock}. أول {minutes} دقيقة من هذه الجلسة لم تُلتقط وليست موجودة.",
   "note.origin.clinician": "من ملاحظات المعالج",
   "note.origin.clinicianWhy": "لم تُسجَّل. هذه رواية المعالج نفسه، وهي ما كان عليه كل سجل قبل التسجيلات.",
   "note.origin.patientTranscript": "شغّلت الذكاء الاصطناعي في هذه الجلسة",

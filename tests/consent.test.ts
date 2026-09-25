@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { accessStateFor, capabilitiesFor, explain, isLiveGrant } from "../lib/access/state";
-import { lateRecordingStamp, LATE_RECORDING_THRESHOLD_MS } from "../lib/consent";
+import { lateRecordingStamp, lateRecordingStart, LATE_RECORDING_THRESHOLD_MS } from "../lib/consent";
+import { readFileSync } from "node:fs";
 
 /**
  * §3's four states, and the two consent controls, as arithmetic.
@@ -315,4 +316,23 @@ test("the clinician is heard in the call whatever the patient says about recordi
   // A standing yes and the clinician's own pause: the call goes quiet, as designed.
   assert.equal(callMicMuted({ offRecord: true, recordingConsent: "granted" }), true);
   assert.equal(callMicMuted({ offRecord: false, recordingConsent: "granted" }), false);
+});
+
+test("7.8 the late start reaches a screen: the session page shows it above the note and the transcript", () => {
+  // lateRecordingStamp was written, tested and called by nothing, so a
+  // recording switched on ten minutes in carried no notice anywhere.
+  const parts = lateRecordingStart({
+    startedAt: started,
+    recordingStartedAt: new Date("2026-09-05T10:32:00Z"),
+    timeZone: "Africa/Cairo",
+  });
+  assert.deepEqual(parts, { clock: "13:32", minutes: 10, utc: false });
+  assert.equal(
+    lateRecordingStart({ startedAt: started, recordingStartedAt: started, timeZone: "UTC" }),
+    null,
+  );
+
+  const page = readFileSync("app/(app)/sessions/[id]/page.tsx", "utf8");
+  assert.match(page, /lateRecordingStart\(/);
+  assert.equal((page.match(/\{lateNotice\}/g) ?? []).length, 2, "above the note and at the head of the transcript");
 });

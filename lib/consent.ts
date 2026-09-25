@@ -83,6 +83,24 @@ export function lateRecordingStamp(input: {
   recordingStartedAt: Date | null;
   timeZone?: string | null;
 }): string | null {
+  const late = lateRecordingStart(input);
+  if (!late) return null;
+  const { clock, minutes, utc } = late;
+  return `Recording began at ${clock}${utc ? " UTC" : ""}; the first ${minutes} minute${minutes === 1 ? "" : "s"} of this session were not captured and do not exist.`;
+}
+
+/**
+ * The same fact as parts, for a screen that says it in the reader's language.
+ *
+ * The session page shows it above the note and at the head of the transcript
+ * through `note.origin.lateStart`, so a recording switched on ten minutes in
+ * says so where somebody reads what was captured.
+ */
+export function lateRecordingStart(input: {
+  startedAt: Date | null;
+  recordingStartedAt: Date | null;
+  timeZone?: string | null;
+}): { clock: string; minutes: number; utc: boolean } | null {
   const { startedAt, recordingStartedAt } = input;
   if (!startedAt || !recordingStartedAt) return null;
 
@@ -97,8 +115,7 @@ export function lateRecordingStamp(input: {
     timeZone: zone ?? "UTC",
   }).format(recordingStartedAt);
 
-  const minutes = Math.round(gap / 60000);
-  return `Recording began at ${clock}${zone ? "" : " UTC"}; the first ${minutes} minute${minutes === 1 ? "" : "s"} of this session were not captured and do not exist.`;
+  return { clock, minutes: Math.round(gap / 60000), utc: !zone };
 }
 
 /** Null when the zone is missing or not one this runtime knows. */
