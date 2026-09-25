@@ -1859,14 +1859,28 @@ export const en = {
   /* 🔴 53.15 — the documents, rendered from the ledger rather than stored. */
   /* The clinic's seats (62.2), keyed so an Arabic clinic reads its own bill. */
   "seats.title": "Seats",
-  "seats.solo": "Your own plan. Add seats to bring colleagues onto one account.",
+  /*
+   * 🔴 B16 — a count has its forms: "1 seats" was on the screen. One, Two and
+   * Many exist for Arabic (مقعد واحد، مقعدان، ١١ مقعدًا); English reads the
+   * same in all but One. The solo-plan sentence is gone: only a practice with
+   * no seats yet ever saw it, and it described somebody else's plan.
+   */
   "seats.now": "{count} seats, {monthly} a month.",
+  "seats.nowOne": "1 seat, {monthly} a month.",
+  "seats.nowTwo": "2 seats, {monthly} a month.",
+  "seats.nowMany": "{count} seats, {monthly} a month.",
   "seats.slider": "Number of seats",
-  "seats.quote": "{count} seats: {to} a month, up from {from}.",
+  "seats.quote": "{count} seats: {to} a month, instead of {from}.",
+  "seats.quoteOne": "1 seat: {to} a month, instead of {from}.",
+  "seats.quoteTwo": "2 seats: {to} a month, instead of {from}.",
+  "seats.quoteMany": "{count} seats: {to} a month, instead of {from}.",
   "seats.payNow": "You pay {amount} now for the {days} days left this month.",
   "seats.noRefund": "Removing seats refunds nothing this month; the smaller bill starts at renewal.",
   "seats.nothingNow": "Nothing to pay now. The new figure starts at renewal.",
   "seats.change": "Change to {count} seats",
+  "seats.changeOne": "Change to 1 seat",
+  "seats.changeTwo": "Change to 2 seats",
+  "seats.changeMany": "Change to {count} seats",
   "sponsor.invoices": "Payment receipts",
   /* 🔴 0147: the company's tax details and its ETA tax invoices. */
   "sponsor.tax.title": "Tax details",
@@ -6618,14 +6632,22 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.coverageNow": "يدفع موظفوك الآن {percent}% من قيمة الجلسة.",
   "sponsor.coverageFrom": "تم الحفظ. يسري في {date}؛ ومن حجز بالفعل يحتفظ بنسبته.",
   "seats.title": "المقاعد",
-  "seats.solo": "خطتك الفردية. أضف مقاعد لضم زملائك إلى حساب واحد.",
   "seats.now": "{count} مقاعد، {monthly} شهريًا.",
+  "seats.nowOne": "مقعد واحد، {monthly} شهريًا.",
+  "seats.nowTwo": "مقعدان، {monthly} شهريًا.",
+  "seats.nowMany": "{count} مقعدًا، {monthly} شهريًا.",
   "seats.slider": "عدد المقاعد",
   "seats.quote": "{count} مقاعد: {to} شهريًا، بدلًا من {from}.",
+  "seats.quoteOne": "مقعد واحد: {to} شهريًا، بدلًا من {from}.",
+  "seats.quoteTwo": "مقعدان: {to} شهريًا، بدلًا من {from}.",
+  "seats.quoteMany": "{count} مقعدًا: {to} شهريًا، بدلًا من {from}.",
   "seats.payNow": "تدفع {amount} الآن عن {days} يومًا متبقية من هذا الشهر.",
   "seats.noRefund": "إزالة المقاعد لا تسترد شيئًا هذا الشهر؛ الفاتورة الأصغر تبدأ عند التجديد.",
   "seats.nothingNow": "لا شيء للدفع الآن. يبدأ المبلغ الجديد عند التجديد.",
   "seats.change": "التغيير إلى {count} مقاعد",
+  "seats.changeOne": "التغيير إلى مقعد واحد",
+  "seats.changeTwo": "التغيير إلى مقعدين",
+  "seats.changeMany": "التغيير إلى {count} مقعدًا",
   "sponsor.invoices": "إيصالات الدفع",
   "sponsor.tax.title": "بيانات الضرائب لفواتيركم الإلكترونية",
   "sponsor.tax.legalName": "اسم الشركة المسجل",
