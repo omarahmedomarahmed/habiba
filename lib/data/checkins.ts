@@ -5,6 +5,8 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { checkinMutes, checkinReplies, checkins, patientAccounts, people } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
+import { countryFromE164 } from "@/lib/phone/e164";
+import { REGION_ZONES } from "@/lib/scheduling/tz";
 
 /**
  * Everything the check-in channel reads and writes. PLAN.md 44.1, 44.2, C97.
@@ -43,6 +45,22 @@ export type Candidate = {
  * 🔴 It also means the check-in channel is EMPTY until patients claim records, which is the honest
  * state of this product today and should be visible as a count rather than discovered later.
  */
+/**
+ * 🔴 PE81 — the zone the quiet window is read in, when they never saved one.
+ *
+ * An unknown zone is treated as night (lib/checkins/policy.ts), which is the
+ * direction that cannot wake anybody, and it meant a patient who left the zone
+ * empty at signup was never checked on at all. Their phone's country, then
+ * their record's region, answers it where the country keeps ONE zone
+ * (`REGION_ZONES`, Egypt today); a country with several has no entry, so it is
+ * still refused rather than guessed.
+ */
+function zoneFor(row: { timezone: string | null; phone: string | null; region: string | null }): string | null {
+  if (row.timezone) return row.timezone;
+  const country = countryFromE164(row.phone)?.toLowerCase();
+  return (country && REGION_ZONES[country]) || (row.region && REGION_ZONES[row.region]) || null;
+}
+
 export async function candidates(limit = 500): Promise<Candidate[]> {
   const rows = await controlDb
     .select({
@@ -51,6 +69,7 @@ export async function candidates(limit = 500): Promise<Candidate[]> {
       email: patientAccounts.email,
       phone: patientAccounts.phone,
       timezone: patientAccounts.timezone,
+      region: people.region,
       locale: people.locale,
       mutedId: checkinMutes.id,
     })
@@ -94,7 +113,7 @@ export async function candidates(limit = 500): Promise<Candidate[]> {
     firstName: row.firstName,
     email: row.email,
     phone: row.phone,
-    timezone: row.timezone,
+    timezone: zoneFor(row),
     /* 🔴 0169 / ruling 8: the language they chose; English is the floor, as everywhere. */
     locale: row.locale === "ar" || row.locale === "en" ? row.locale : "en",
     muted: row.mutedId !== null,

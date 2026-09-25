@@ -746,6 +746,30 @@ async function main() {
       check("the PHQ-9 is seeded, so the questionnaire check has something to read", false, "no phq9 row");
     }
 
+    /* ---------------------------- PE81 · a check-in for somebody with no zone */
+
+    const { candidates } = await import("../lib/data/checkins");
+    const pool = await candidates(5000);
+    const mine = pool.find((c) => c.personId === f!.p);
+    check(
+      "🔴 PE81 a patient who never saved a zone, on an Egyptian number, is checked on in Cairo time",
+      mine?.timezone === "Africa/Cairo",
+      mine ? `zone ${mine.timezone ?? "none"}` : "not a candidate",
+    );
+    const { shouldSend } = await import("../lib/checkins/policy");
+    check(
+      "PE81 CONTROL: an unknown zone is still refused, so the fallback is what changed",
+      shouldSend({
+        settings: { enabled: true, everyHours: 24, quietFromHour: 21, quietToHour: 9, muteRateHalt: 0.5 },
+        muteRate: 0,
+        muted: false,
+        timezone: null,
+        lastSentAt: null,
+        reachable: true,
+        now: new Date(),
+      }).send === false,
+    );
+
     /* ------------------------------------------ K24 · closing an account (LAST) */
 
     await db.update(patientAccounts).set({ email: `${TAG}-p@example.com` }).where(eq(patientAccounts.id, f.account));
