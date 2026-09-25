@@ -9,7 +9,11 @@ import { listPatients } from "@/lib/data/patients";
 import { fullName, initials, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Patients", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.patients"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function PatientsPage() {

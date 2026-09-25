@@ -148,7 +148,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        aria-label="Dismiss"
+        aria-label={t("pnotice.dismiss")}
         className="tap-target -my-1 -me-1 flex shrink-0 items-center justify-center rounded-lg text-white/40 hover:text-white"
       >
         <X className="h-4 w-4" aria-hidden />

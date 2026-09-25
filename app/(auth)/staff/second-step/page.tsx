@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 
 import { QuietAuthShell } from "@/components/auth/auth-shell";
@@ -9,10 +10,11 @@ import { getSessionState } from "@/lib/auth/session";
 import { needsSecondFactor } from "@/lib/auth/totp";
 import { STAFF_SIGN_IN } from "@/lib/routing";
 
-export const metadata: Metadata = {
-  title: "One more step",
-  robots: { index: false, follow: false },
-};
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.oneMoreStep"), robots: { index: false, follow: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

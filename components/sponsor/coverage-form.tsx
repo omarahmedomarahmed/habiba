@@ -6,6 +6,8 @@ import { useFormStatus } from "react-dom";
 import { setCoveragePercent, type CoverageState } from "@/app/(sponsor)/sponsor/pot/actions";
 import { Button, Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
+import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 
 const INITIAL: CoverageState = {};
 
@@ -51,6 +53,7 @@ export function CoverageForm({
   /** The average a session costs, from settings. Not guessed here. */
   sessionPriceUsd: number;
 }) {
+  const t = useT();
   const [state, action] = useActionState(setCoveragePercent, INITIAL);
   const current = Math.round(coverageBps / 100);
   const [editing, setEditing] = useState(false);
@@ -58,12 +61,12 @@ export function CoverageForm({
 
   return (
     <Card className="p-5">
-      <h2 className="text-sm font-semibold text-slate-900">What you cover</h2>
+      <h2 className="text-sm font-semibold text-slate-900">{t("sponsor.cov.title")}</h2>
 
       <div className="mt-3 flex items-baseline gap-2">
         <span className="text-3xl font-bold tracking-tight text-slate-900">{current}%</span>
         <span className="text-sm text-slate-500">
-          of a session. Your people pay the other {100 - current}%.
+          {t("sponsor.cov.ofSession", { rest: 100 - current })}
         </span>
       </div>
 
@@ -74,8 +77,10 @@ export function CoverageForm({
       */}
       {pendingCoverageBps !== null && pendingFromLabel ? (
         <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">
-          Changing to {Math.round(pendingCoverageBps / 100)}% on {pendingFromLabel}. Anybody
-          who has already booked keeps the percentage they agreed to.
+          {t("sponsor.cov.pending", {
+            percent: Math.round(pendingCoverageBps / 100),
+            date: pendingFromLabel,
+          })}
         </p>
       ) : null}
 
@@ -91,7 +96,7 @@ export function CoverageForm({
       {editing ? (
         <form action={action} className="mt-4 rounded-2xl bg-slate-50 p-4">
           <label htmlFor="coverage-slider" className="text-xs font-medium text-slate-600">
-            Move it, then save
+            {t("sponsor.cov.moveIt")}
           </label>
           <input type="hidden" name="percent" value={String(draft)} />
           <div className="mt-2 flex items-center gap-3">
@@ -118,20 +123,22 @@ export function CoverageForm({
             they would do on paper before agreeing to anything.
           */}
           <p className="mt-3 rounded-xl bg-white p-3 text-sm leading-relaxed text-slate-700">
-            {draft === 0 ? (
-              <>Your people pay for their own. Nothing is drawn from your balance.</>
-            ) : (
-              <>
-                At {draft}% you pay{" "}
-                <strong className="text-slate-900"><Money cents={Math.round(((sessionPriceUsd * draft) / 100) * 100)} /></strong>{" "}
-                of a <Money cents={Math.round(sessionPriceUsd * 100)} /> session, so your balance of{" "}
-                <strong className="text-slate-900"><Money cents={Math.round(balanceUsd * 100)} /></strong> covers about{" "}
-                <strong className="text-slate-900">
-                  {Math.floor(balanceUsd / ((sessionPriceUsd * draft) / 100))} sessions
-                </strong>
-                .
-              </>
-            )}
+            {draft === 0
+              ? t("sponsor.cov.zero")
+              : rich(
+                  t("sponsor.cov.buys", {
+                    percent: draft,
+                    share: slot(0),
+                    price: slot(1),
+                    balance: slot(2),
+                    count: Math.floor(balanceUsd / ((sessionPriceUsd * draft) / 100)),
+                  }),
+                  [
+                    <strong key="share" className="text-slate-900"><Money cents={Math.round(((sessionPriceUsd * draft) / 100) * 100)} /></strong>,
+                    <Money key="price" cents={Math.round(sessionPriceUsd * 100)} />,
+                    <strong key="balance" className="text-slate-900"><Money cents={Math.round(balanceUsd * 100)} /></strong>,
+                  ],
+                )}
           </p>
 
           <div className="mt-3 flex gap-2">
@@ -144,7 +151,7 @@ export function CoverageForm({
               }}
               className="h-12 rounded-xl px-4 text-sm font-semibold text-slate-600"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </form>
@@ -154,25 +161,20 @@ export function CoverageForm({
           onClick={() => setEditing(true)}
           className="mt-4 h-12 rounded-xl bg-slate-100 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
         >
-          Edit what you cover
+          {t("sponsor.cov.edit")}
         </button>
       )}
 
       <div className="mt-4 space-y-2 text-xs leading-relaxed text-slate-500">
         <p>
-          <strong className="font-semibold text-slate-700">Raising it happens now.</strong>{" "}
-          Lowering it takes {noticeDays} days, so nobody is asked for more than they agreed
-          to on a session they have already booked.
+          <strong className="font-semibold text-slate-700">{t("sponsor.cov.raiseNow")}</strong>{" "}
+          {t("sponsor.cov.lowerTakes", { days: noticeDays })}
         </p>
         <p>
-          <strong className="font-semibold text-slate-700">0% is allowed.</strong> Your people
-          stay on your list and keep their access; you simply stop paying for it. Removing
-          somebody is a different thing and is done from your people page.
+          <strong className="font-semibold text-slate-700">{t("sponsor.cov.zeroAllowed")}</strong>{" "}
+          {t("sponsor.cov.zeroBody")}
         </p>
-        <p>
-          You cover the session price your people are quoted. Nothing else is charged, and we
-          never say who used it.
-        </p>
+        <p>{t("sponsor.cov.quoted")}</p>
       </div>
 
       {state.error ? (
@@ -188,9 +190,10 @@ export function CoverageForm({
 
 function Save() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" disabled={pending} className="h-12">
-      {pending ? "Saving…" : "Save"}
+      {pending ? t("common.saving") : t("common.save")}
     </Button>
   );
 }

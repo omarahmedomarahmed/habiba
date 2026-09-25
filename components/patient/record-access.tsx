@@ -169,9 +169,9 @@ export function RecordAccess({
           <p className="flex items-start gap-2 text-sm text-slate-600">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden />
             <span>
-              This person took ownership of their record
-              {claimedAt ? ` on ${formatDate(claimedAt, zone, locale)}` : ""}. Your notes stay yours; what they
-              see is their own profile and the briefs you share.
+              {claimedAt
+                ? t("precord.claimedOn", { date: formatDate(claimedAt, zone, locale) })
+                : t("precord.claimed")}
             </span>
           </p>
         ) : link ? (
@@ -208,8 +208,10 @@ export function RecordAccess({
             <p className="flex items-start gap-2 text-sm text-slate-600">
               <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
               <span>
-                A link issued on {formatDate(openInvite.issuedAt, zone, locale)} is still unused. It expires{" "}
-                {formatDate(openInvite.expiresAt, zone, locale)}. We cannot show it again.
+                {t("precord.openLink", {
+                  issued: formatDate(openInvite.issuedAt, zone, locale),
+                  expires: formatDate(openInvite.expiresAt, zone, locale),
+                })}
               </span>
             </p>
             <div className="flex flex-wrap gap-2">

@@ -6,7 +6,11 @@ import { ResetPasswordForm } from "@/components/auth/forms";
 import { Button } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Reset password", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.resetPassword"), robots: { index: false } };
+}
 
 export default async function ResetPasswordPage({
   searchParams,
@@ -22,13 +26,13 @@ export default async function ResetPasswordPage({
       <AuthShell
         who="therapist"
         kind="signin"
-        title="Link not valid"
-        subtitle="This reset link is missing its token. Request a fresh one."
+        title={t("tauth.linkInvalid")}
+        subtitle={t("tauth.linkInvalidBody")}
         promise={t("auth.therapist.promise")}
         points={points}
       >
         <Link href="/forgot-password">
-          <Button full>Request a new link</Button>
+          <Button full>{t("tauth.requestNew")}</Button>
         </Link>
       </AuthShell>
     );

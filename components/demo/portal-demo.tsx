@@ -32,7 +32,6 @@ import {
   CLINIC_TEAM,
   CLINIC_WEEK,
   COMPANY_CODE,
-  COMPANY_PAID,
   POT,
   SPEND_CURVE,
 } from "@/lib/marketing/fixtures";
@@ -551,22 +550,17 @@ function CompanyOverview() {
         action={<Primary icon={Plus}>{t("sponsor.topUp")}</Primary>}
       />
       <div className="space-y-3 p-4">
-        <div className="grid grid-cols-3 gap-2.5">
+        {/*
+          🔴 W3: no headcount and no count of who used it. A company sees who
+          enrolled (D1), never how many went, so the demo shows neither.
+        */}
+        <div className="grid grid-cols-2 gap-2.5">
           <Stat
             label={t("sponsor.balance")}
             value={money(POT.remainingCents)}
             note={t("sponsor.ofLastTopUp", { amount: money(POT.addedCents) })}
           />
-          <Stat
-            label={t("dpo.joined")}
-            value={String(COMPANY_CODE.joined)}
-            note={t("dpo.ofStaff", { count: COMPANY_CODE.employees })}
-          />
-          <Stat
-            label={t("dpo.usedIt")}
-            value={String(COMPANY_CODE.usedThisMonth)}
-            note={t("dpo.thisMonth")}
-          />
+          <Stat label={t("dpo.joined")} value={String(COMPANY_CODE.joined)} />
         </div>
 
         {/*
@@ -597,48 +591,13 @@ function CompanyOverview() {
           />
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-3 py-2">
-            <span className="text-[10px] font-bold tracking-wide text-slate-600 uppercase">
-              {t("dpo.whereMoneyWent")}
-            </span>
-            <span className="text-[10px] font-bold tracking-wide text-slate-600 uppercase">
-              {t("dpo.paid")}
-            </span>
-          </div>
-          <ul className="divide-y divide-slate-100">
-            {COMPANY_PAID.map((row) => (
-              <li
-                key={row.therapist}
-                className="flex items-center justify-between gap-3 px-3 py-2.5 text-[13px]"
-              >
-                <span className="truncate font-medium">{row.therapist}</span>
-                {/*
-                  🔴 THE AMOUNT, NOT THE COUNT. This column was "14 · $840".
-                  
-                  `app/(sponsor)/sponsor/page.tsx:26` states the rule: SPEND,
-                  NEVER SESSION COUNTS, NEVER PEOPLE (C228), with one exception
-                  that is an all-time organisation-wide total identifying
-                  nobody. A count beside a named clinician is neither.
-                  
-                  And the real portal cannot produce this column at all:
-                  `lib/data/sponsors.ts:96` calls its select list "THE WALL" and
-                  says in as many words that there is no therapist and no count
-                  in it, with `verify:sprint53` asserting against that list by
-                  name. The amount stays, because C227 below is right that you
-                  are paying these clinicians and may see what you paid them.
-                */}
-                <span className="shrink-0 font-bold tabular-nums text-slate-900">
-                  {money(row.cents)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
         {/*
-         * 🔴 C227 — THE SENTENCE THAT IS THE PRODUCT. Therapists and amounts,
-         * because you are paying them. Not one name of anybody who went.
+          🔴 W3 / D1: the per-therapist list is gone. A company sees each
+          session's money without names, and never a therapist.
+        */}
+        {/*
+         * 🔴 C227: THE SENTENCE THAT IS THE PRODUCT. What it cost, never who
+         * went and never with whom (D1).
          */}
         <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-600">
           <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
@@ -733,7 +692,7 @@ function CompanyCode() {
               {t("dpo.scanIt", { domain: COMPANY_CODE.domain })}
             </p>
             <p className="mt-2 text-[11px] text-slate-600">
-              {t("dpo.joinedOf", { joined: COMPANY_CODE.joined, total: COMPANY_CODE.employees })}
+              {t("dpo.joinedOf", { joined: COMPANY_CODE.joined })}
             </p>
           </div>
         </div>
@@ -754,8 +713,7 @@ function CompanySettings() {
       <Head title={t("sponsor.nav.settings")} />
       <div className="space-y-2.5 p-4">
         {[
-          { label: t("dpo.coveredPerYear"), value: "12" },
-          { label: t("dpo.capPerSession"), value: money(6_000) },
+          { label: t("sponsor.cov.title"), value: "80%" },
           { label: t("dpo.whoEligible"), value: t("dpo.anyoneOn", { domain: COMPANY_CODE.domain }) },
           { label: t("dpo.whenPotEmpty"), value: t("dpo.payOwnWay") },
         ].map((row) => (

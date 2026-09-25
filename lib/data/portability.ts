@@ -380,9 +380,11 @@ export async function notifyPatientOfGrant(input: {
 
   const { notify } = await import("@/lib/notify");
   await notify(
-    { email: account.email, phone: account.phone, timezone: account.timezone },
+    /* 🔴 W3 / P2: the grant is in their app too, not only in a message. */
+    { email: account.email, phone: account.phone, timezone: account.timezone, personId: input.personId },
     {
       kind: "consent.granted",
+      notice: { kind: "access_requested", key: "pnotice.accessGranted" },
       subject: "Somebody can now read your history",
       body: `${name} can read your history from now on. If that is not what you meant, you can stop it in one tap, and nobody is told why.`,
       link: { label: "Who can read my history", url: `${env.appUrl}/patient/consent` },
@@ -567,9 +569,11 @@ export async function answerAsk(
   if (account) {
     const { notify } = await import("@/lib/notify");
     await notify(
-      { email: account.email, phone: account.phone, timezone: account.timezone },
+      /* 🔴 W3 / P2: the answer is in their app too, not only in a message. */
+      { email: account.email, phone: account.phone, timezone: account.timezone, personId: row.personId },
       {
         kind: "history.answered",
+        notice: { kind: "access_requested", key: "pnotice.historyAnswered" },
         subject:
           input.decision === "added"
             ? "Your old therapist added to your record"

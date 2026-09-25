@@ -24,6 +24,7 @@ import { sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { pressOffRecord } from "@/lib/sessions/off-record";
 import { cn, formatDuration } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 import { AskPanel } from "@/components/session/ask-panel";
 import { Money } from "@/components/ui/money";
 
@@ -558,8 +559,9 @@ export function SessionRoom(props: RoomProps) {
           */}
           {nextBooking ? (
             <p className="mx-auto w-full px-3 pt-1 text-center text-xs text-amber-700 lg:max-w-3xl">
-              Your next appointment starts in {nextBooking.minutes} minute
-              {nextBooking.minutes === 1 ? "" : "s"}.
+              {nextBooking.minutes === 1
+                ? t("troom.nextInOne")
+                : t("troom.nextInMany", { count: nextBooking.minutes })}
             </p>
           ) : null}
 
@@ -583,10 +585,10 @@ export function SessionRoom(props: RoomProps) {
           {patientAway !== null ? (
             <p className="mx-auto w-full px-3 pt-1 text-center text-xs text-amber-700 lg:max-w-3xl">
               {patientAway < 60
-                ? "Your patient minimised the session. They can still hear you."
-                : `Your patient minimised the session ${Math.floor(patientAway / 60)} minute${
-                    Math.floor(patientAway / 60) === 1 ? "" : "s"
-                  } ago. They can still hear you.`}
+                ? t("troom.minimised")
+                : Math.floor(patientAway / 60) === 1
+                  ? t("troom.minimisedOne")
+                  : t("troom.minimisedMany", { count: Math.floor(patientAway / 60) })}
             </p>
           ) : null}
         </>
@@ -643,9 +645,9 @@ export function SessionRoom(props: RoomProps) {
           <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           <span>
             <strong className="font-semibold">
-              {props.patientLabel} asked not to be recorded.
+              {t("troom.declined", { name: props.patientLabel })}
             </strong>{" "}
-            The room is off record and no audio is being kept, for the rest of this session.
+            {t("troom.declinedBody")}
           </span>
         </p>
       ) : null}
@@ -721,7 +723,7 @@ export function SessionRoom(props: RoomProps) {
                 className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-teal-300"
                 aria-hidden
               />
-              {props.patientLabel} is in the room, waiting for you to start.
+              {t("troom.patientIn", { name: props.patientLabel })}
             </p>
           ) : null}
 
@@ -731,11 +733,11 @@ export function SessionRoom(props: RoomProps) {
               data-join-url={props.joinUrl}
             >
               <p className="text-xs font-medium text-slate-300">
-                Waiting for your patient
+                {t("troom.waitingPatient")}
                 {props.priceCents > 0
                   ? props.paymentStatus === "paid"
-                    ? " · paid"
-                    : <> · <Money cents={props.priceCents} /> due before they join</>
+                    ? ` · ${t("troom.paid")}`
+                    : <> · {rich(t("troom.dueBefore", { amount: slot(0) }), [<Money key="due" cents={props.priceCents} />])}</>
                   : ""}
               </p>
               <div className="mt-2 flex gap-2">

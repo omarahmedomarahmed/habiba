@@ -6,7 +6,11 @@ import { ClinicSetPasswordForm } from "@/components/clinic/password-forms";
 import { clinicTokenView } from "@/lib/clinic-auth/tokens";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Choose a password", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.chooseAPassword"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

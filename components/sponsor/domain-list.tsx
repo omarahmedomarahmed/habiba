@@ -41,6 +41,9 @@ export type DomainRow = {
  * So an unfinished domain says what is still missing, in words IT can act on,
  * rather than showing a grey pill that says pending.
  */
+/** A domain is the same in every language, so the example is not a message. */
+const DOMAIN_EXAMPLE = "acme.com";
+
 export function DomainList({
   rows,
   canEdit,
@@ -50,6 +53,7 @@ export function DomainList({
   canEdit: boolean;
   recordName: string;
 }) {
+  const t = useT();
   const [state, action] = useActionState(addSponsorDomain, INITIAL);
   const [pending, start] = useTransition();
   const [checking, setChecking] = useState<string | null>(null);
@@ -60,8 +64,8 @@ export function DomainList({
       {rows.length === 0 ? (
         <Card>
           <EmptyState
-            title="No domains yet"
-            body="Add the domain your people's email addresses end in. We will give you a record for your IT team to publish, and email a code to somebody at that domain."
+            title={t("sponsor.domain.none")}
+            body={t("sponsor.domain.noneBody")}
           />
         </Card>
       ) : (
@@ -71,15 +75,15 @@ export function DomainList({
               <p className="font-mono text-sm font-semibold text-slate-900">{row.domain}</p>
               {row.byAgreement ? (
                 <span className="text-xs font-medium text-brand-700">
-                  Proved by signed agreement
+                  {t("sponsor.domain.byAgreement")}
                 </span>
               ) : null}
             </div>
 
             {!row.byAgreement ? (
               <ul className="mt-3 space-y-1.5">
-                <Step done={row.mailboxProved} label="Somebody at this domain answered our code" />
-                <Step done={row.dnsProved} label="The DNS record is published and we can see it" />
+                <Step done={row.mailboxProved} label={t("sponsor.domain.stepMailbox")} />
+                <Step done={row.dnsProved} label={t("sponsor.domain.stepDns")} />
               </ul>
             ) : null}
 
@@ -93,7 +97,7 @@ export function DomainList({
               </p>
             ) : (
               <p className="mt-3 text-sm font-medium text-brand-700">
-                Proved. This domain can issue joining codes.
+                {t("sponsor.domain.proved")}
               </p>
             )}
 
@@ -104,7 +108,7 @@ export function DomainList({
             */}
             <div className="mt-3 rounded-xl bg-slate-50 p-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                TXT record
+                {t("sponsor.domain.txt")}
               </p>
               <p className="mt-1 font-mono text-xs break-all text-slate-700">
                 {recordName}.{row.domain}
@@ -129,13 +133,13 @@ export function DomainList({
                         const result = await checkDnsRecord(row.id);
                         setCheckResult((prev) => ({
                           ...prev,
-                          [row.id]: result.error ?? "Found it. This half is proved.",
+                          [row.id]: result.error ?? t("sponsor.domain.found"),
                         }));
                         setChecking(null);
                       });
                     }}
                   >
-                    {pending && checking === row.id ? "Looking…" : "Check the record now"}
+                    {pending && checking === row.id ? t("sponsor.domain.looking") : t("sponsor.domain.check")}
                   </Button>
                   {checkResult[row.id] ? (
                     <p className="mt-2 text-xs leading-relaxed text-slate-600">
@@ -151,12 +155,12 @@ export function DomainList({
 
       {canEdit ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">Add a domain</p>
+          <p className="text-sm font-semibold text-slate-900">{t("sponsor.domain.add")}</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            One organisation often has several. Each is proved on its own.
+            {t("sponsor.domain.addBody")}
           </p>
           <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
-            <Input name="domain" placeholder="acme.com" className="max-w-xs" />
+            <Input name="domain" placeholder={DOMAIN_EXAMPLE} className="max-w-xs" />
             {/* 🔴 C18: where the first code goes, from the admin names only. */}
             <MailboxSelect name="mailbox" suffix="@" />
             <Add />
@@ -166,8 +170,7 @@ export function DomainList({
           ) : null}
           {state.ok ? (
             <p className="mt-2 text-sm font-semibold text-brand-700">
-              Added. Publish the record above, and we will email a code to an address at that
-              domain.
+              {t("sponsor.domain.added")}
             </p>
           ) : null}
         </Card>
@@ -265,9 +268,10 @@ function Step({ done, label }: { done: boolean; label: string }) {
 
 function Add() {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button type="submit" disabled={pending} className="h-12">
-      {pending ? "Adding…" : "Add"}
+      {pending ? t("sponsor.domain.adding") : t("sponsor.domain.addButton")}
     </Button>
   );
 }

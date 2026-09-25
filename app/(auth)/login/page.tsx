@@ -5,17 +5,22 @@ import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignInForm } from "@/components/auth/forms";
 import { getI18n } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/messages";
 
-export const metadata: Metadata = { title: "Sign in", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.signIn"), robots: { index: false } };
+}
 
-const NOTICES: Record<string, string> = {
-  reset: "Your password has been updated. Sign in with your new password.",
-  changed: "Password changed. Please sign in again.",
+const NOTICES = {
+  reset: "tauth.noticeReset",
+  changed: "tauth.noticeChanged",
   // Arriving from /session-expired, which has already revoked the session and
   // deleted the cookie. Saying so is the difference between "the app is broken"
   // and "I have been away a while".
-  expired: "You were signed out after a period of inactivity. Sign in to pick up where you left off.",
-};
+  expired: "tauth.noticeExpired",
+} as const satisfies Record<string, MessageKey>;
 
 export default async function LoginPage({
   searchParams,
@@ -24,11 +29,11 @@ export default async function LoginPage({
 }) {
   const [params, { t }] = await Promise.all([searchParams, getI18n()]);
   const notice = params.reset
-    ? NOTICES.reset
+    ? t(NOTICES.reset)
     : params.changed
-      ? NOTICES.changed
+      ? t(NOTICES.changed)
       : params.expired
-        ? NOTICES.expired
+        ? t(NOTICES.expired)
         : undefined;
 
   return (

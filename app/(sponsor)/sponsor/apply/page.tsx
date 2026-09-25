@@ -4,7 +4,11 @@ import { SponsorApplyForm } from "@/components/sponsor/apply-form";
 import { SeesWhat } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Cover therapy for your people" };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.coverTherapyForYourPeople") };
+}
 export const dynamic = "force-dynamic";
 
 /**

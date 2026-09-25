@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
 import { Suspense } from "react";
 
 import { QuietAuthShell } from "@/components/auth/auth-shell";
@@ -19,10 +20,11 @@ import { StaffSignInForm } from "@/components/auth/forms";
  * reached by URL and by nothing else. `QuietAuthShell` has no switcher for the
  * same reason.
  */
-export const metadata: Metadata = {
-  title: "Staff sign in",
-  robots: { index: false, follow: false },
-};
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.staffSignIn"), robots: { index: false, follow: false } };
+}
 
 export default async function StaffSignInPage({
   searchParams,

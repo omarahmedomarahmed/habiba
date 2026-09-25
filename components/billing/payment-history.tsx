@@ -78,7 +78,7 @@ export function PaymentHistory({
       {payments.length > 0 ? (
         <Card className="overflow-hidden">
           <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-            Patient payments
+            {t("tph.title")}
           </p>
           <ul className="divide-y divide-slate-100">
             {payments.map((payment) => (

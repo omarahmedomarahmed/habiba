@@ -50,8 +50,8 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {done.length === 1
             ? t("pclaim.yoursNow")
-            : `${done.length} records are yours now.`}{" "}
-          Next you will be asked what your therapist may still see.
+            : t("pclaim.manyYours", { count: done.length })}{" "}
+          {t("pclaim.nextAsk")}
         </p>
       </Card>
     ) : null;
@@ -106,7 +106,7 @@ export function ClaimChallenge({ challenges }: { challenges: Challenge[] }) {
       ) : (
         <>
           <p className="mt-2 text-base leading-relaxed text-slate-800">
-            What first name did you give {current.therapistName}?
+            {t("pclaim.whatName", { name: current.therapistName })}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
             {t("pclaim.typeName")}

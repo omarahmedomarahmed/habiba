@@ -7,7 +7,7 @@ import { useState } from "react";
 import { formatMoney } from "@/lib/billing/plans";
 import { convert } from "@/lib/billing/money";
 import { cn } from "@/lib/utils";
-import { Money } from "@/components/ui/money";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * A price in USD. Hover it to see the pounds, press it to keep them.
@@ -87,6 +87,7 @@ export function PriceTag({
   unit?: string;
 }) {
   /* Pounds lead wherever the page says they do (every signed-in screen); dollars on the website. */
+  const t = useT();
   const [egp, setEgp] = useState(useMoneyDisplay().primary === "EGP");
   const [peeking, setPeeking] = useState(false);
   const showEgp = egp && rateMicro !== null;
@@ -139,7 +140,7 @@ export function PriceTag({
          * price card that never says the price.
          */
         aria-label={`${shown}. ${
-          showEgp ? "Show this price in dollars" : "Show this price in Egyptian pounds"
+          showEgp ? t("money.showUsd") : t("money.showEgp")
         }`}
         className={cn(
           "relative cursor-pointer underline decoration-dotted decoration-from-font underline-offset-4",
@@ -182,52 +183,5 @@ export function PriceTag({
 
       {unit ? <span className="text-sm font-normal text-slate-500">{unit}</span> : null}
     </span>
-  );
-}
-
-/**
- * 🔴 16.6b / C76 — the EGP settlement disclosure, on the screen with the button.
- *
- * The therapist absorbs the exchange difference when they choose to pay in
- * EGP. That is only a fair deal if the rate and the dollar amount it settles
- * are visible **before** they press the button, so this component takes both
- * and renders both. It is deliberately not collapsible and deliberately not a
- * tooltip: a disclosure somebody has to open is a disclosure they discover
- * afterwards, which is the thing C76 forbids.
- */
-export function EgpDisclosure({
-  payMinor,
-  settlesCents,
-  rateMicro,
-  spreadBps,
-  quotedAtLabel,
-  locale,
-}: {
-  payMinor: number;
-  settlesCents: number;
-  rateMicro: number;
-  spreadBps: number;
-  /** Formatted on the server, in the reader's zone. C84 — never a Date here. */
-  quotedAtLabel: string;
-  /** 19.4 — from the server, like the zone. */
-  locale: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-      <p className="font-semibold text-slate-900">
-        You pay {formatMoney(payMinor, "EGP", locale)}
-      </p>
-      <p className="mt-1 leading-relaxed">
-        That settles <Money cents={settlesCents} /> at{" "}
-        {(rateMicro / 1_000_000).toFixed(2)} EGP to the dollar, quoted {quotedAtLabel}.
-        {spreadBps > 0
-          ? ` Includes a ${(spreadBps / 100).toFixed(2)}% conversion charge.`
-          : " We add nothing to the rate."}
-      </p>
-      <p className="mt-1 text-xs text-slate-500">
-        The dollar price is the price. Paying in pounds is a convenience at today&apos;s rate, and
-        the difference is yours.
-      </p>
-    </div>
   );
 }

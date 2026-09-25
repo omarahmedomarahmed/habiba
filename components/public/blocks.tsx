@@ -961,6 +961,7 @@ async function ContactBlock({
         "contact.received",
         "contact.reference",
         "contact.attachmentFailed",
+        "room.emailPlaceholder",
       ] as const
     ).map((key) => [key, t(key)]),
   );

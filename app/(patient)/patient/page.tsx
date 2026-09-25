@@ -41,7 +41,11 @@ const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/page.tsx", "not ro
  * list lives at /patient/sessions. Option A gives that list its own tab,
  * which only reads correctly once this one stops claiming to be it.
  */
-export const metadata: Metadata = { title: "Home", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.home"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

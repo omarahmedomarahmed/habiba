@@ -6,7 +6,11 @@ import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 
-export const metadata: Metadata = { title: "Who is on your list", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.whoIsOnYourList"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

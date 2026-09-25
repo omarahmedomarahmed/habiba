@@ -5,7 +5,11 @@ import { ClinicApplyForm } from "@/components/clinic/apply-form";
 import { SeesWhat } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Bring your practice to 24Therapy" };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.bringYourPracticeTo24Therapy") };
+}
 export const dynamic = "force-dynamic";
 
 /**

@@ -20,6 +20,7 @@ import { Button, Card, Input, Textarea } from "@/components/ui";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn, initials } from "@/lib/utils";
 import { useLocale, useT } from "@/lib/i18n/client";
+import { rich, slot } from "@/lib/i18n/rich";
 import { listSeparator } from "@/lib/i18n/config";
 
 export type Therapist = {
@@ -418,11 +419,11 @@ function PatientClockNote({
       <p className="flex items-center gap-2 text-sm text-slate-700">
         <Clock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         <span>
-          About{" "}
-          <span className="font-semibold text-slate-900">
-            {minutes} minute{minutes === 1 ? "" : "s"}
-          </span>{" "}
-          left in this session. Your therapist sees the same countdown.
+          {rich(t("room.minutesLeft", { minutes: slot(0) }), [
+            <span key="m" className="font-semibold text-slate-900">
+              {minutes === 1 ? t("room.oneMinute") : t("room.manyMinutes", { count: minutes })}
+            </span>,
+          ])}
         </span>
       </p>
     </Card>
@@ -472,7 +473,7 @@ function WhoYouAreWith({
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">{therapist.name}</p>
           <p className="truncate text-xs text-slate-500">
-            {therapist.credentials ?? "Licensed clinician"}
+            {therapist.credentials ?? t("room.licensed")}
           </p>
         </div>
       </div>
@@ -524,8 +525,7 @@ function SummaryAndRating({
           {t("room.summaryTitle")}
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-500">
-          When {therapist.firstName} joins we will ask where to send it, a plain-language note of
-          what you talked about and what you agreed.
+          {t("room.summaryWhen", { name: therapist.firstName })}
         </p>
       </Card>
     );
@@ -536,8 +536,7 @@ function SummaryAndRating({
       <Card className="border-brand-200 bg-brand-50/60 p-4">
         <p className="text-sm font-semibold text-brand-900">{t("room.thanks")}</p>
         <p className="mt-1 text-xs leading-relaxed text-brand-800">
-          Your summary will come to that address once {therapist.firstName} has written up the
-          session.
+          {t("room.summaryComing", { name: therapist.firstName })}
         </p>
       </Card>
     );
@@ -548,8 +547,7 @@ function SummaryAndRating({
       <div>
         <p className="text-sm font-semibold text-slate-900">{t("room.howEasy")}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-          Just about 24Therapy, not about {therapist.firstName}. You rate the session and your
-          therapist afterwards.
+          {t("room.appOnly", { name: therapist.firstName })}
         </p>
       </div>
 
@@ -631,8 +629,7 @@ function StayHere({ therapist }: { therapist: Therapist }) {
       </p>
 
       <p className="mt-2 text-base leading-snug font-semibold text-slate-800">
-        You get to rate {therapist.firstName} and this session as soon as it ends, right here, on
-        this page.
+        {t("room.rateAfter", { name: therapist.firstName })}
       </p>
 
       <p className="mt-2.5 text-xs leading-relaxed text-slate-600">

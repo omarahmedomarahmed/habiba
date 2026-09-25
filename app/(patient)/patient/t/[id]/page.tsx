@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 
 import { PatientBack } from "@/components/patient/back";
@@ -6,7 +7,11 @@ import { TherapistPageBody } from "@/components/radar/therapist-page";
 import { publicProfile } from "@/lib/data/radar";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
-export const metadata: Metadata = { title: "Therapist", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.therapist"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 
 import { ConfirmDomain } from "@/components/sponsor/confirm-domain";
 import { PageHeader } from "@/components/ui";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Confirm your domain", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.confirmYourDomain"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -35,15 +40,16 @@ export default async function ConfirmDomainPage({
   searchParams: Promise<{ t?: string }>;
 }) {
   const { id } = await params;
-  const { t } = await searchParams;
+  const { t: token } = await searchParams;
+  const { t } = await getI18n();
 
   return (
     <main className="mx-auto max-w-md px-4 py-12 sm:px-6">
       <PageHeader
-        title="Confirm your domain"
-        subtitle="One of the two things we need before your organisation can issue joining codes."
+        title={t("sponsor.confirm.title")}
+        subtitle={t("sponsor.confirm.subtitle")}
       />
-      <ConfirmDomain domainId={id} token={t ?? ""} />
+      <ConfirmDomain domainId={id} token={token ?? ""} />
     </main>
   );
 }

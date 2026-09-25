@@ -28,7 +28,11 @@ import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
 import { NoteOriginNote } from "@/components/notes/provenance";
 
-export const metadata: Metadata = { title: "Session", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.session"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function SessionDetailPage({
@@ -62,7 +66,7 @@ export default async function SessionDetailPage({
   const patientLabel =
     fullName(row.patient?.firstName, row.patient?.lastName, "") ||
     row.session.guestName ||
-    "Unnamed patient";
+    t("portal.session.unnamed");
 
   /*
    * 26.1 — the summary is filed against the PERSON, so a session whose patient
@@ -214,8 +218,8 @@ export default async function SessionDetailPage({
           {row.session.autoEndedReason ? (
             <p className="mt-1 text-xs text-amber-700">
               {row.session.autoEndedReason === "cap"
-                ? `Ended automatically at the ${clockTotal} minute limit.`
-                : "Ended automatically, the room went quiet after the paid time."}
+                ? t("portal.session.endedCap", { minutes: clockTotal })
+                : t("portal.session.endedQuiet")}
             </p>
           ) : null}
         </div>

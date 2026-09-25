@@ -5,10 +5,11 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/forms";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Create your account",
-  description: "Start documenting sessions in under a minute. Your first session is free.",
-};
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.createYourAccount"), description: t("meta.signupDescription") };
+}
 
 /**
  * The clinician's signup, and the only one of the four that creates an account

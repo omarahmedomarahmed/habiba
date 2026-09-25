@@ -36,7 +36,11 @@ import { savedLocale } from "@/lib/i18n/preference";
 const db = dbFor(pinnedToDefaultRegion("app/(app)/settings/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = { title: "Settings", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.settings"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage({

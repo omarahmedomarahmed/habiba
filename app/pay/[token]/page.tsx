@@ -36,10 +36,11 @@ import { SosOrbServer } from "@/components/patient/sos-orb-server";
 const db = dbFor(pinnedToDefaultRegion("app/pay/[token]/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = {
-  title: "Pay for your session",
-  robots: { index: false, follow: false },
-};
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.payForSession"), robots: { index: false, follow: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

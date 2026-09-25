@@ -125,6 +125,12 @@ const PORTALS: Record<string, readonly string[]> = {
    * hiding work in the wrong column twice over.
    */
   clinician: [
+    /*
+     * 🔴 W3: `precord` is `components/patient/record-access.tsx`, the clinician's
+     * view of a patient's record; `connect` is `app/(app)/connect`. Both by grep.
+     */
+    "precord",
+    "connect",
     /* The seat manager, on the clinician's own billing page (`app/(app)/billing`). */
     "seats",
     /* The in-person pay screen the therapist shows (`app/(app)/sessions/[id]/collect`). */
@@ -333,6 +339,21 @@ const PORTALS: Record<string, readonly string[]> = {
     "pop",
     "bar",
     "ctk",
+    /*
+     * 🔴 W3: new prefixes from keying the last English, each on more than one
+     * surface by grep. `meta` is every page's tab title; `cc` and `phone` are
+     * the phone and time zone fields (patient sign-up, public booking, clinician
+     * add-patient); `brief` is the patient copy on the rating page and the
+     * clinician's review; `tprofile` is `/t/[id]` and `/patient/t/[id]`, like
+     * `radar`; `money` is the price toggle; `sim` is the development simulators.
+     */
+    "meta",
+    "cc",
+    "phone",
+    "brief",
+    "tprofile",
+    "money",
+    "sim",
   ],
 };
 

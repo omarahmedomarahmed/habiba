@@ -9,7 +9,11 @@ import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDate } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Where your record is kept", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.whereYourRecordIsKept"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

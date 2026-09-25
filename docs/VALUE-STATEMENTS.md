@@ -32,11 +32,11 @@ somebody to act on.
 
 Signs in at `/patient/login`. 2 testers.
 
-### P1 · Three taps from opening it to being in a session.
+### P1 · Pick someone free, pay, and you are in a session.
 
 **Where we say it.** `/`, the radar card: “Somebody who is free now”
 
-**Proved when.** From the app's home screen to a live video room, counting the taps out loud. If it is more than three, the number is the finding.
+**Proved when.** From the app's home screen to a live video room, counting the taps out loud. Every step that is not picking, paying or going in is the finding.
 
 ### P2 · Nothing the product tells you is only in an email.
 
@@ -100,11 +100,11 @@ Signs in at `/login`. 3 testers: one on pay as you go, two on clinic seats.
 
 Signs in at `/clinic/sign-in`. 1 tester, the person who runs the practice.
 
-### C1 · Add a clinician and they are on the radar the same hour.
+### C1 · Add a clinician and they reach the radar once their licence is verified.
 
 **Where we say it.** `/`, the clinic card: “Seats and the people on them”
 
-**Proved when.** A seat added in the clinic portal puts that clinician on the public radar, with their verification state on the row.
+**Proved when.** A seat added in the clinic portal puts that clinician on the public radar once verified, with their verification state on the row.
 
 ### C2 · The practice sees a patient as a first name and a last initial, and nothing clinical.
 

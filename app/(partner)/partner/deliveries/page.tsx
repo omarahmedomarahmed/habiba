@@ -8,7 +8,11 @@ import { requirePartner } from "@/lib/partner-auth/guard";
 import { deliveriesFor } from "@/lib/partner/webhooks";
 import { formatDateTime } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Recent deliveries", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.recentDeliveries"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

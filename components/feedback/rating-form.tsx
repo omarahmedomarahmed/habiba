@@ -32,6 +32,7 @@ export function RatingForm({
   sessionDateIso,
   therapistTimezone,
   therapistFirstName,
+  signer,
   brief,
   briefSteps,
   briefNext,
@@ -48,6 +49,8 @@ export function RatingForm({
   sessionDateIso: string;
   therapistTimezone: string | null;
   therapistFirstName: string;
+  /** 🔴 W3 / P3: who signed the summary, with their credentials. */
+  signer: string;
   brief: string | null;
   briefSteps: string[];
   briefNext: string;
@@ -144,6 +147,7 @@ export function RatingForm({
       <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
         {t("prating.yourSummary")}
       </p>
+      <p className="mt-0.5 text-xs text-slate-500">{t("prating.from", { name: signer })}</p>
       {/* Same component the clinician approved this on, so what they
           saw and what you are reading cannot drift apart. */}
       <PatientBriefCard className="mt-2" brief={brief} steps={briefSteps} next={briefNext} rtl={rtl} />
@@ -217,7 +221,7 @@ export function RatingForm({
         <p className="text-xs text-slate-500">{t("prating.oneMinute")}</p>
         <div>
           <p className="text-sm font-semibold text-slate-900">
-            How was your session with {therapistFirstName}?
+            {t("prating.howWas", { name: therapistFirstName })}
           </p>
           <Stars value={therapistStars} onChange={setTherapistStars} label={t("prating.rateTherapist")} />
           <TagRow
@@ -230,9 +234,7 @@ export function RatingForm({
         <div className="border-t border-slate-100 pt-4">
           <p className="text-sm font-semibold text-slate-900">{t("prating.andSession")}</p>
           <p className="text-xs text-slate-500">
-            Whether this session was any use to you, a different question from whether
-            {" "}
-            {therapistFirstName} was the right person.
+            {t("prating.sessionUse", { name: therapistFirstName })}
           </p>
           <Stars value={sessionStars} onChange={setSessionStars} label={t("prating.rateSession")} />
         </div>
@@ -489,7 +491,7 @@ function ReportBox({
        */
       setReported(
         reporting !== "no_show"
-          ? "This has gone straight to 24Therapy, not to your therapist. Someone will read it today and will contact you if you left an address."
+          ? t("prating.reportSent")
           : result.noShow === "refunded"
             ? t("prating.noShowRefunded")
             : t("prating.noShowReview"),
@@ -500,12 +502,12 @@ function ReportBox({
   return (
     <Card className="space-y-3 p-4">
       <p className="text-sm font-semibold text-slate-900">
-        {reporting === "no_show" ? "They did not join" : "Tell us what happened"}
+        {reporting === "no_show" ? t("prating.noShowTitle") : t("prating.reportTitle")}
       </p>
       <p className="text-xs leading-relaxed text-slate-500">
         {reporting === "no_show"
           ? t("prating.noShowIntro")
-          : "This goes to 24Therapy, not to your therapist. Nobody at their practice sees it. If it concerns what was said or done during the session, say so. We can look at the session record, including any period the recording was paused."}
+          : t("prating.reportIntro")}
       </p>
 
       {reporting === "abuse" ? (
@@ -534,7 +536,7 @@ function ReportBox({
 
       <div className="flex gap-2">
         <Button variant="danger" disabled={pending} onClick={send}>
-          {pending ? "Sending…" : "Send to 24Therapy"}
+          {pending ? t("common.sending") : t("prating.reportSend")}
         </Button>
         <Button variant="secondary" onClick={() => setReporting(null)}>
           {t("common.cancel")}

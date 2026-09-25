@@ -99,7 +99,7 @@ export function TranscriptPanel({
       <div className="flex items-center justify-between border-b border-slate-800/60 px-4 py-2.5">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold tracking-wide text-slate-300 uppercase">
-            Transcript
+            {t("ttr.transcript")}
           </span>
           {live ? (
             <span className="flex items-center gap-1.5">

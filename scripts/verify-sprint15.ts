@@ -224,12 +224,17 @@ async function main() {
      * 🔴 `changeable` (task 40, ruling 16): a boolean, whether the booking is
      * still ahead so the patient may cancel or move it. It cannot hold a sentence.
      */
+    /*
+     * 🔴 `therapistId` and `therapistCredentials` (Wave 3): an id for "Book
+     * again", and the letters after the signing clinician's name on the
+     * summary. Both describe the clinician, never the patient.
+     */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
       keys ===
         "at,brief,briefAddenda,briefPending,cancelled,changeable,group,id,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
-          "provenance,therapistName",
+          "provenance,therapistCredentials,therapistId,therapistName",
       keys,
     );
 

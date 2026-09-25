@@ -9,6 +9,7 @@ import Daily, {
 import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The video call, in Daily's call-object mode.
@@ -44,6 +45,7 @@ export function VideoCall({
   onPatientPresence: (present: boolean) => void;
   onError?: (message: string) => void;
 }) {
+  const t = useT();
   const callRef = useRef<DailyCall | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -133,7 +135,7 @@ export function VideoCall({
       try {
         await call.join({ url: roomUrl, ...(token ? { token } : {}), userName });
       } catch {
-        if (!cancelled) onError?.("Could not connect to the video room.");
+        if (!cancelled) onError?.(t("troom.videoConnect"));
       }
     };
 
@@ -167,7 +169,7 @@ export function VideoCall({
     call.on("track-started", onTrack);
     call.on("track-stopped", onTrack);
     call.on("error", (event) => {
-      onError?.(event?.errorMsg ?? "The video call hit a problem.");
+      onError?.(event?.errorMsg ?? t("troom.videoProblem"));
     });
 
     };
@@ -215,11 +217,9 @@ export function VideoCall({
       {!remotePresent ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-6 text-center">
           <p className="text-sm font-medium text-slate-300">
-            {joined ? "Waiting for your patient to join" : "Connecting…"}
+            {joined ? t("troom.waitingPatientJoin") : t("pbook.connecting")}
           </p>
-          <p className="max-w-xs text-xs text-slate-500">
-            Share the join link below. They need no account.
-          </p>
+          <p className="max-w-xs text-xs text-slate-500">{t("troom.shareLink")}</p>
         </div>
       ) : null}
 
@@ -239,7 +239,7 @@ export function VideoCall({
           type="button"
           onClick={toggleCamera}
           aria-pressed={cameraOff}
-          aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}
+          aria-label={cameraOff ? t("troom.cameraOn") : t("troom.cameraOff")}
           className="tap-target flex items-center justify-center rounded-xl bg-black/50 px-3 text-white backdrop-blur active:bg-black/70"
         >
           {cameraOff ? (
@@ -253,7 +253,7 @@ export function VideoCall({
             "tap-target flex items-center justify-center rounded-xl px-3 backdrop-blur",
             micMuted ? "bg-amber-500/80 text-white" : "bg-black/50 text-white",
           )}
-          aria-label={micMuted ? "Microphone muted" : "Microphone live"}
+          aria-label={micMuted ? t("troom.micMuted") : t("troom.micLive")}
         >
           {micMuted ? <MicOff className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
         </span>

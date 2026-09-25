@@ -182,16 +182,15 @@ export function RadarHero({
               ? strings.checking
               : online.length > 0
                 ? strings.online.replace("{count}", String(online.length))
-                : eyebrow || "Crisis Radar"}
+                : eyebrow}
           </span>
 
           <h1 className="mt-5 text-balance text-[2.1rem] leading-[1.08] font-bold tracking-tight text-white sm:text-[3.25rem]">
-            {heading || "Talk to a real therapist in the next sixty seconds"}
+            {heading}
           </h1>
 
           <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-white/85">
-            {body ||
-              "Every dot is a licensed clinician who is online this minute. Pick one, tell them what to call you, and you are in a session. No account, no waiting list, no form about your insurance."}
+            {body}
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/85">

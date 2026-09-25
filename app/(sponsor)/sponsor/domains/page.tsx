@@ -4,8 +4,13 @@ import { DomainList } from "@/components/sponsor/domain-list";
 import { PageHeader } from "@/components/ui";
 import { DNS_RECORD_NAME, domainProblem, domainsFor } from "@/lib/data/sponsor-domains";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Your domains", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourDomains"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -26,13 +31,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function SponsorDomainsPage() {
   const actor = await requireSponsor();
+  const { t } = await getI18n();
   const domains = await domainsFor(actor.sponsorId);
 
   return (
     <div>
       <PageHeader
-        title="Your domains"
-        subtitle="Two proofs for each one. Neither on its own issues a joining code."
+        title={t("sponsor.domains.title")}
+        subtitle={t("sponsor.domains.subtitle")}
       />
 
       <div className="px-4 pb-10 sm:px-6">

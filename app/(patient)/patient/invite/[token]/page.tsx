@@ -7,7 +7,11 @@ import { optionalPatient } from "@/lib/patient-auth/guard";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Your record", robots: { index: false, follow: false } };
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourRecord"), robots: { index: false, follow: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

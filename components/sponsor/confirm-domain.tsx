@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { confirmDomainMailbox } from "@/app/(sponsor)/sponsor/domains/actions";
 import { Button, Card } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * 🔴 C318's mailbox half, confirmed by the person who received the mail.
@@ -14,34 +15,25 @@ import { Button, Card } from "@/components/ui";
  * than by a person who read the sentence above it.
  */
 export function ConfirmDomain({ domainId, token }: { domainId: string; token: string }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [done, setDone] = useState<null | boolean>(null);
 
   if (done === true) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-brand-700">Thank you. That half is done.</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          We still need the DNS record published before joining codes work. Whoever set this up
-          can see both on their own domains page.
-        </p>
+        <p className="text-sm font-semibold text-brand-700">{t("sponsor.confirm.done")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sponsor.confirm.doneBody")}</p>
       </Card>
     );
   }
 
   return (
     <Card className="p-5">
-      <p className="text-sm leading-relaxed text-slate-600">
-        Somebody at your organisation asked us to set up mental health cover for your people.
-        Clicking below confirms that this mailbox is real and that a person here saw the
-        request. It commits you to nothing and it is not a signature.
-      </p>
+      <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.confirm.body")}</p>
 
       {done === false ? (
-        <p className="mt-3 text-sm font-semibold text-red-700">
-          That link is not valid, or this domain has already been confirmed. Ask whoever set it
-          up to send a fresh one.
-        </p>
+        <p className="mt-3 text-sm font-semibold text-red-700">{t("sponsor.confirm.invalid")}</p>
       ) : null}
 
       <Button
@@ -55,7 +47,7 @@ export function ConfirmDomain({ domainId, token }: { domainId: string; token: st
           });
         }}
       >
-        {pending ? "Confirming…" : "Yes, this mailbox is ours"}
+        {pending ? t("sponsor.confirm.confirming") : t("sponsor.confirm.yes")}
       </Button>
     </Card>
   );

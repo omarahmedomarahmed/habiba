@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
 
 import { UsageMeter } from "@/components/partner/usage-meter";
 import { requirePartner } from "@/lib/partner-auth/guard";
 import { closedMonthBill } from "@/lib/partner/billing";
 import { usageFor } from "@/lib/partner/usage";
 
-export const metadata: Metadata = { title: "Usage", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.usage"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

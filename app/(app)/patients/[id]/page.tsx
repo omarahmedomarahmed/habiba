@@ -28,10 +28,11 @@ import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
 import { NoteOrigin } from "@/components/notes/provenance";
 
-export const metadata: Metadata = {
-  title: "Patient profile",
-  robots: { index: false },
-};
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.patientProfile"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

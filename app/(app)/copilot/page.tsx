@@ -10,7 +10,11 @@ import { getSettings } from "@/lib/settings";
 import { fullName, initials, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Copilot", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.copilot"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

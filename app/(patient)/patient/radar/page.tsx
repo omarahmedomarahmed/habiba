@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { getI18n } from "@/lib/i18n/server";
 
 import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console";
 import { listRadar } from "@/lib/data/radar";
 import { firstOpenHours } from "@/lib/data/scheduling";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
-export const metadata: Metadata = { title: "Find someone now", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.findSomeoneNow"), robots: { index: false } };
+}
 
 /**
  * The radar, inside the app. PLAN.md 25.3, 25.2.

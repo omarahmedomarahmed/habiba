@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { inArray } from "drizzle-orm";
 
+import { DiagnosisFlag } from "@/components/patient/diagnosis-flag";
 import { OwnProfilePanel } from "@/components/documents/own-profile-panel";
 import { Card } from "@/components/ui";
 import { SeesWhat } from "@/components/visual/primitives";
@@ -26,7 +27,11 @@ import { fullName } from "@/lib/utils";
 const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/profile/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = { title: "Your profile", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourProfile"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -94,7 +99,7 @@ export default async function OwnProfilePage() {
 
       <OwnProfilePanel
         documents={rows}
-        watermark={`${actor.firstName} ${actor.lastName ?? ""} · your own record`.trim()}
+        watermark={`${`${actor.firstName} ${actor.lastName ?? ""}`.trim()} · ${t("pprofile.ownRecord")}`}
       />
 
       {diagnoses.filter((d) => d.status === "confirmed").length > 0 ? (
@@ -119,6 +124,7 @@ export default async function OwnProfilePage() {
                   <blockquote className="mt-1 border-s-2 border-slate-200 ps-2.5 text-xs leading-relaxed text-slate-600">
                     “{diagnosis.sourceSentence}”
                   </blockquote>
+                  <DiagnosisFlag diagnosisId={diagnosis.id} />
                 </li>
               ))}
           </ul>

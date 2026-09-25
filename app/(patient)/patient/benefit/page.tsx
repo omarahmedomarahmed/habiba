@@ -8,7 +8,11 @@ import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 /** 🔴 53.2 — a benefit title, never a therapy one. Even in the browser tab. */
-export const metadata: Metadata = { title: "Your benefit", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourBenefit"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

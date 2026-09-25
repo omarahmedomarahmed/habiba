@@ -36,7 +36,11 @@ import { getCountries } from "@/lib/settings";
 const db = dbFor(pinnedToDefaultRegion("app/(patient)/patient/account/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = { title: "You", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourAccount"), robots: { index: false } };
+}
 
 /** 🔴 Ruling 8b: the "You" page is a profile, with editing under Settings. */
 const TABS = [

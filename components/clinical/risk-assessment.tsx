@@ -3,6 +3,7 @@ import { AlertTriangle, Clock, Quote } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,18 +30,30 @@ import { cn } from "@/lib/utils";
 
 export type AssessmentFinding = { indicator: string; quote: string; confidence: number };
 
-const INDICATOR_LABEL: Record<string, string> = {
-  ideation: "Thoughts of dying",
-  intent: "Stated intent",
-  plan: "A plan",
-  means: "Access to means",
-  timeframe: "A timeframe",
-  previous_attempt: "A previous attempt",
-  self_harm: "Self-harm",
-  homicidal_ideation: "Risk to somebody else",
-  psychosis: "Psychosis",
-  abuse: "Being harmed by somebody",
-  protective_factor: "Protective factor",
+const INDICATOR_LABEL: Record<string, MessageKey> = {
+  ideation: "risk.ind.ideation",
+  intent: "risk.ind.intent",
+  plan: "risk.ind.plan",
+  means: "risk.ind.means",
+  timeframe: "risk.ind.timeframe",
+  previous_attempt: "risk.ind.previousAttempt",
+  self_harm: "risk.ind.selfHarm",
+  homicidal_ideation: "risk.ind.homicidal",
+  psychosis: "risk.ind.psychosis",
+  abuse: "risk.ind.abuse",
+  protective_factor: "risk.ind.protective",
+};
+
+/** W3: the level and the source were printed as the raw enum value. */
+const LEVEL_LABEL: Record<string, MessageKey> = {
+  moderate: "risk.lvl.moderate",
+  elevated: "risk.lvl.elevated",
+  high: "risk.lvl.high",
+  critical: "risk.lvl.critical",
+};
+const SOURCE_LABEL: Record<string, MessageKey> = {
+  keyword: "risk.src.keyword",
+  model: "risk.src.model",
 };
 
 const LEVEL_TONE = {
@@ -84,7 +97,9 @@ export async function RiskAssessment({
    * prop is a thing a call site can forget and this component has one call site
    * today and will have more.
    */
-  const { locale } = await getI18n();
+  const { locale, t } = await getI18n();
+  const levelWord = (value: string) => (LEVEL_LABEL[value] ? t(LEVEL_LABEL[value]!) : value);
+  const sourceWord = (value: string) => (SOURCE_LABEL[value] ? t(SOURCE_LABEL[value]!) : value);
 
   const protective = findings.filter((f) => f.indicator === "protective_factor");
   const risks = findings.filter((f) => f.indicator !== "protective_factor");
@@ -95,7 +110,7 @@ export async function RiskAssessment({
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-900">
-            Risk assessed for this session · {level}
+            {t("risk.assessedTitle", { level: levelWord(level) })}
           </p>
           {recommendedAction ? (
             <p className="mt-0.5 text-sm leading-relaxed text-slate-700">{recommendedAction}</p>
@@ -108,9 +123,7 @@ export async function RiskAssessment({
             clinician who cannot tell them apart learns to treat both as noise.
           */}
           <p className="mt-1 text-xs text-slate-600">
-            {source === "model"
-              ? "Read from the whole session, then checked against the transcript."
-              : "Matched against the crisis phrase list."}
+            {source === "model" ? t("risk.fromModel") : t("risk.fromKeyword")}
           </p>
         </div>
       </div>
@@ -120,9 +133,13 @@ export async function RiskAssessment({
           {risks.map((finding, index) => (
             <li key={index} className="rounded-lg border border-slate-200 bg-white p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone="red">{INDICATOR_LABEL[finding.indicator] ?? finding.indicator}</Badge>
+                <Badge tone="red">
+                  {INDICATOR_LABEL[finding.indicator]
+                    ? t(INDICATOR_LABEL[finding.indicator]!)
+                    : finding.indicator}
+                </Badge>
                 <span className="text-xs text-slate-600">
-                  confidence {finding.confidence.toFixed(2)}
+                  {t("risk.confidence", { value: finding.confidence.toFixed(2) })}
                 </span>
               </div>
               <p className="mt-1.5 flex gap-1.5 text-sm italic leading-relaxed text-slate-700">
@@ -136,13 +153,13 @@ export async function RiskAssessment({
 
       {keywordIndicators.length > 0 && risks.length === 0 ? (
         <p className="mt-3 text-xs text-slate-600">
-          Matched: <span className="font-medium">{keywordIndicators.join(", ")}</span>
+          {t("risk.matched")} <span className="font-medium">{keywordIndicators.join(", ")}</span>
         </p>
       ) : null}
 
       {protective.length > 0 ? (
         <div className="mt-3 rounded-lg border border-brand-200 bg-brand-50/60 p-3">
-          <p className="text-xs font-medium text-brand-900">Also said, for the safety plan:</p>
+          <p className="text-xs font-medium text-brand-900">{t("risk.safetyPlan")}</p>
           <ul className="mt-1 space-y-1">
             {protective.map((finding, index) => (
               <li key={index} className="text-xs italic text-brand-800">
@@ -157,27 +174,25 @@ export async function RiskAssessment({
         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
           <p className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
             <Clock className="h-3.5 w-3.5" aria-hidden />
-            Before this session
+            {t("risk.before")}
           </p>
           <ul className="mt-1 space-y-1">
             {prior.map((row, index) => (
               <li key={index} className="text-xs text-slate-600">
                 {formatDate(row.createdAt, zone, locale)}{" "}
-                · {row.level} · {row.source}
+                · {levelWord(row.level)} · {sourceWord(row.source)}
               </li>
             ))}
           </ul>
           <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
-            This history is for you. It was not shown to the system that read the session, so
-            what it found is about today.
+            {t("risk.historyNote")}
           </p>
         </div>
       ) : null}
 
       {unquoted > 0 ? (
         <p className="mt-3 text-[11px] text-slate-600">
-          {unquoted} finding{unquoted === 1 ? " was" : "s were"} discarded for quoting something
-          the transcript does not contain.
+          {unquoted === 1 ? t("risk.unquotedOne") : t("risk.unquotedMany", { count: unquoted })}
         </p>
       ) : null}
     </Card>

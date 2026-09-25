@@ -255,6 +255,21 @@ function main() {
     "rejecting every colon would blind the scanner instead of correcting it",
   );
 
+  /* 🔴 W3: the fourth phantom family and a route, asserted both ways like 65's. */
+  check(
+    "🔴 W3 code between two elements and a bare route are not visible English",
+    literalsIn('{ terms: (<a x="1">T</a>), privacy: (<b x="1" />) }').length === 0 &&
+      literalsIn('<a href="/login">/login</a>').length === 0,
+    "`), privacy: (` is code and `/login` is the same in every language",
+  );
+
+  check(
+    "🔴 W3 CONTROL …and a sentence with parentheses or a route inside it is still counted",
+    literalsIn("<p>Notes (optional) go here</p>").length === 1 &&
+      literalsIn("<p>Sign in at /login today</p>").length === 1,
+    "the rules match whole shapes, not every parenthesis or slash",
+  );
+
   /* -------------------------------------------------- 🔴 37L.5 · safety copy */
 
   const safetyKeys = enKeys.filter((key) => isSafetyKey(key));

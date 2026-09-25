@@ -11,7 +11,11 @@ import { requireSponsor } from "@/lib/sponsor-auth/guard";
 import { formatDate } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 
-export const metadata: Metadata = { title: "Your account", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.yourAccount"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**

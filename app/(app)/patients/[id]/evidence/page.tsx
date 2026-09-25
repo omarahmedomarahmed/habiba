@@ -13,9 +13,13 @@ import { personIdForPatient } from "@/lib/data/people";
 import { explain } from "@/lib/access/state";
 import { formatDate, fullName } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n/config";
-import { getI18n } from "@/lib/i18n/server";
+import { getI18n, type Translate } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Evidence", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.evidence"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -63,9 +67,8 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
         <Card className="mt-4 p-6">
           <p className="text-sm text-slate-600">
             {personId
-              ? (explain(access.state, access.gated) ??
-                "This person has not granted you access to their record.")
-              : "This patient record has no person attached yet, so nothing has been recorded about them."}
+              ? (explain(access.state, access.gated) ?? t("portal.evidence.noGrant"))
+              : t("portal.evidence.noPerson")}
           </p>
         </Card>
       </div>
@@ -103,7 +106,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
         current: fact.current,
         quote: evidence.quote,
         evidenceKind: evidence.kind,
-        evidenceWhere: whereFrom(evidence, actor.timezone, locale),
+        evidenceWhere: whereFrom(evidence, actor.timezone, locale, t),
         context: evidence.kind === "segment" ? evidence.context : [],
         contradicts: contradictionsFor(fact.id),
       };
@@ -148,16 +151,17 @@ function whereFrom(
   zone: string | null,
   /* 37L.9 — and so is the language, for the same reason. */
   locale: Locale,
+  t: Translate,
 ): string {
   switch (evidence.kind) {
     case "segment":
-      return "From the session transcript";
+      return t("portal.evidence.fromTranscript");
     case "chunk":
-      return `From ${evidence.documentName}`;
+      return t("portal.evidence.fromDocument", { name: evidence.documentName });
     case "journal":
-      return `From the patient's journal, ${formatDate(evidence.writtenAt, zone, locale)}`;
+      return t("portal.evidence.fromJournal", { date: formatDate(evidence.writtenAt, zone, locale) });
     case "clinician":
-      return `Entered by ${evidence.name}`;
+      return t("portal.evidence.enteredBy", { name: evidence.name });
     case "gone":
       return evidence.reason;
   }

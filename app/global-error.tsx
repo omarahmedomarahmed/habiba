@@ -1,6 +1,7 @@
 "use client";
 
 import { LAST_RESORT_HELP } from "@/lib/crisis/line";
+import { LAST_RESORT_ERROR } from "@/lib/i18n/last-resort";
 
 /**
  * Last-resort error boundary. It replaces the root layout, so it has to ship
@@ -27,9 +28,11 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
         }}
       >
         <div style={{ textAlign: "center", maxWidth: "24rem" }}>
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>Something went wrong</h1>
+          <h1 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>
+            {LAST_RESORT_ERROR.title.en} · <span lang="ar">{LAST_RESORT_ERROR.title.ar}</span>
+          </h1>
           <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#64748b" }}>
-            The page could not be displayed. Nothing was lost.
+            {LAST_RESORT_ERROR.body.en} <span lang="ar">{LAST_RESORT_ERROR.body.ar}</span>
           </p>
           <button
             onClick={reset}
@@ -50,7 +53,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
               cursor: "pointer",
             }}
           >
-            Try again
+            {LAST_RESORT_ERROR.retry.en} · <span lang="ar">{LAST_RESORT_ERROR.retry.ar}</span>
           </button>
           {/*
             🔴 W1-29: help does not wait for the page to come back (P5).

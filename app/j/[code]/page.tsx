@@ -10,10 +10,11 @@ import { SosOrbServer } from "@/components/patient/sos-orb-server";
 import { resolveCode } from "@/lib/data/therapist-codes";
 import { optionalPatient } from "@/lib/patient-auth/guard";
 
-export const metadata: Metadata = {
-  title: "Join 24Therapy",
-  robots: { index: false, follow: false },
-};
+/** W3: the tab title in the reader's language. A join or pay link is never indexed. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.join24"), robots: { index: false, follow: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -102,18 +103,16 @@ export default async function ScanPage({ params }: { params: Promise<{ code: str
       ) : (
         <Card className="p-5">
           <h1 className="text-lg font-bold tracking-tight text-slate-900">
-            {scanned.state === "revoked" ? "This code is no longer in use" : "We do not know that code"}
+            {scanned.state === "revoked" ? t("pcode.revoked") : t("pcode.unknown")}
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            {scanned.state === "revoked"
-              ? "The poster it came from is out of date. Ask at the desk for a current one, or create an account here and find your therapist afterwards."
-              : "Check the eight characters on the poster. It has no letter O and no number 0."}
+            {scanned.state === "revoked" ? t("pcode.revokedBody") : t("pcode.unknownBody")}
           </p>
           <Link
             href="/patient/signup"
             className="mt-4 inline-flex text-sm font-semibold text-brand-700"
           >
-            Create an account anyway
+            {t("pcode.anyway")}
           </Link>
         </Card>
       )}

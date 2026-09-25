@@ -122,6 +122,8 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
 
               <fieldset className="space-y-2">
                 <legend className="text-xs font-semibold text-slate-700">{t("dev.events")}</legend>
+                {/* 🔴 W3 / D6: every event needs a linked patient, and nothing links one yet. */}
+                <p className="text-xs text-amber-800">{t("devs.needsLink")}</p>
                 {WEBHOOK_EVENTS.map((event) => (
                   <label key={event} className="flex items-center gap-2 text-sm text-slate-700">
                     <input

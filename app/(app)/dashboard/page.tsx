@@ -16,7 +16,11 @@ import { radarProblem } from "@/lib/settings/defs";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
 
-export const metadata: Metadata = { title: "Home", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.home"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
@@ -94,7 +98,7 @@ export default async function DashboardPage() {
         {railProblem ? (
           <Card className="border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-semibold text-amber-900">
-              The radar is not open in your country yet
+              {t("portal.dash.radarNotOpen")}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-amber-900/90">{railProblem}</p>
           </Card>

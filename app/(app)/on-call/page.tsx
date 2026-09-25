@@ -30,7 +30,11 @@ import { getI18n } from "@/lib/i18n/server";
 const db = dbFor(pinnedToDefaultRegion("app/(app)/on-call/page.tsx", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export const metadata: Metadata = { title: "Crisis Radar", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.crisisRadar"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function RadarConsolePage() {

@@ -5,7 +5,11 @@ import { getI18n } from "@/lib/i18n/server";
 
 import { PatientResetForm } from "@/components/patient/reset-form";
 
-export const metadata: Metadata = { title: "Get back in", robots: { index: false } };
+/** W3: the tab title in the reader's language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("meta.getBackIn"), robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 /**
