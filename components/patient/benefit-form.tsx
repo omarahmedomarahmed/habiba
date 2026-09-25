@@ -80,6 +80,8 @@ export function BenefitForm({
   const [again, setAgain] = useState<Record<string, string>>({});
   const [sentTo, setSentTo] = useState<Record<string, boolean>>({});
   const [identifier, setIdentifier] = useState("");
+  /* 🔴 Ruling 15: asked only when the company also asks for an employee ID. */
+  const [employeeId, setEmployeeId] = useState("");
   const [state, setState] = useState<BenefitState>({});
   /** One code per enrolment row, because several may be waiting at once. */
   const [codes, setCodes] = useState<Record<string, string>>({});
@@ -92,11 +94,12 @@ export function BenefitForm({
 
   const activate = () =>
     startTransition(async () => {
-      const result = await activateBenefit(code, identifier);
+      const result = await activateBenefit(code, identifier, employeeId);
       setState(result);
       if (result.ok) {
         setCode("");
         setIdentifier("");
+        setEmployeeId("");
       }
     });
 
@@ -196,7 +199,7 @@ export function BenefitForm({
                         onClick={() => reconfirm(benefit.enrolmentId)}
                         className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
                       >
-                        {benefit.kind === "domain_email" ? t("pfield.sendMeACode") : t("benefit.confirm")}
+                        {benefit.kind !== "id_number" ? t("pfield.sendMeACode") : t("benefit.confirm")}
                       </button>
                     </>
                   ) : null}
@@ -289,16 +292,33 @@ export function BenefitForm({
                   The domain may be named, because a domain is public. A sample
                   local part may not, and the database refuses one.
                 */
-                hint={state.found.fields[0]?.shapeHint ?? undefined}
+                hint={state.found.fields.find((field) => field.kind === "domain_email")?.shapeHint ?? undefined}
               >
                 <Input
                   id="benefit-identifier"
+                  type="email"
                   value={identifier}
                   onChange={(event) => setIdentifier(event.target.value)}
                   autoCapitalize="none"
-                  autoComplete="off"
+                  autoComplete="email"
                 />
               </Field>
+
+              {state.found.fields.some((field) => field.kind === "id_number") ? (
+                <Field
+                  label={t("benefit.employeeIdLabel")}
+                  htmlFor="benefit-employee-id"
+                  hint={state.found.fields.find((field) => field.kind === "id_number")?.shapeHint ?? undefined}
+                >
+                  <Input
+                    id="benefit-employee-id"
+                    value={employeeId}
+                    onChange={(event) => setEmployeeId(event.target.value)}
+                    autoCapitalize="none"
+                    autoComplete="off"
+                  />
+                </Field>
+              ) : null}
 
               {/*
                 🔴 53.18b — the sentence somebody hesitating over this field

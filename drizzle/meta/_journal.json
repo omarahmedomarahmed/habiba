@@ -1065,6 +1065,13 @@
       "when": 1789966047000,
       "tag": "0161_every_rule_is_a_setting",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1789966048000,
+      "tag": "0162_email_is_always_asked",
+      "breakpoints": true
     }
   ]
 }

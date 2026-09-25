@@ -22,7 +22,7 @@ export async function addGate(_prev: GateState, formData: FormData): Promise<Gat
 
   const kind = String(formData.get("kind") ?? "");
   if (!IDENTIFIER_KINDS.includes(kind as IdentifierKind)) {
-    return { error: "Pick one of the two." };
+    return { error: "Pick one of the three." };
   }
 
   /*
@@ -71,7 +71,8 @@ export async function addGate(_prev: GateState, formData: FormData): Promise<Gat
 
 export async function dropGate(fieldId: string): Promise<GateState> {
   const actor = await requireSponsorAdmin();
-  await removeIdentifierField(actor.sponsorId, fieldId);
+  const removed = await removeIdentifierField(actor.sponsorId, fieldId);
+  if (removed.error) return { error: removed.error };
 
   await audit({
     /* Explicit, like every other call site: this act has no clinician actor. */
@@ -85,4 +86,45 @@ export async function dropGate(fieldId: string): Promise<GateState> {
 
   revalidatePath("/sponsor/settings");
   return { ok: true };
+}
+
+export type ListState = { error?: string; ok?: boolean; onList?: number; removed?: number; skipped?: number };
+
+/** A list is a few megabytes at most; a larger file is not a staff list. */
+const MAX_LIST_BYTES = 2_000_000;
+
+/**
+ * 🔴 0162 / ruling 15 — upload the staff list: emails only, replacing the last.
+ *
+ * Read from a CSV file or pasted text, turned into hashes before anything is
+ * stored, and answered with counts only. Nobody at the company learns from
+ * this who has joined or who was turned away.
+ */
+export async function uploadStaffList(_prev: ListState, formData: FormData): Promise<ListState> {
+  const actor = await requireSponsorAdmin();
+
+  const file = formData.get("file");
+  let text = String(formData.get("emails") ?? "");
+  if (file && typeof file === "object" && "size" in file && file.size > 0) {
+    if (file.size > MAX_LIST_BYTES) return { error: "sponsor.list.errTooBig" };
+    text = `${text}\n${await file.text()}`;
+  }
+
+  const { parseEmailList, replaceEmailList } = await import("@/lib/data/sponsor-email-list");
+  const { emails, skipped } = parseEmailList(text);
+  if (emails.length === 0) return { error: "sponsor.list.errEmpty" };
+
+  const result = await replaceEmailList(actor.sponsorId, emails);
+  await audit({
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "staff_list.uploaded",
+    resourceType: "sponsor",
+    resourceId: actor.sponsorId,
+    reason: `${result.onList} on the list, ${result.removed} taken off, ${skipped} lines skipped`,
+  });
+
+  revalidatePath("/sponsor/settings");
+  return { ok: true, onList: result.onList, removed: result.removed, skipped };
 }

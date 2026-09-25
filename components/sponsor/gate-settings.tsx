@@ -51,8 +51,10 @@ function Submit({ label }: { label: string }) {
  * instead of naming a constraint.
  */
 
+/* 🔴 0162 / ruling 15: two ways in, both emails, and an employee ID only ever alongside them. */
 const KIND_KEYS: Record<string, MessageKey> = {
   domain_email: "sponsor.kind.domain_email",
+  listed_email: "sponsor.kind.listed_email",
   id_number: "sponsor.kind.id_number",
 };
 
@@ -195,7 +197,7 @@ export function GateSettings({
               </div>
             </fieldset>
 
-            {kind === "domain_email" ? (
+            {kind === "listed_email" ? null : kind === "domain_email" ? (
               <Field label={t("sponsor.domain")} htmlFor="gate-domain">
                 <Input id="gate-domain" name="domain" autoCapitalize="none" placeholder="" />
               </Field>

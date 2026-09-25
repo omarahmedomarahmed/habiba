@@ -34,7 +34,7 @@ import { log, ref } from "@/lib/logger";
  */
 
 /** 53.7 / C238 — the cap. More fields is more of a person's identity collected. */
-export const MAX_IDENTIFIER_FIELDS = 2;
+export const MAX_IDENTIFIER_FIELDS = 3; // 🔴 0162: a domain, a staff list, and an employee ID alongside them
 
 /**
  * 🔴 53.5 — the enquiry, and the account it creates is HELD.
@@ -538,12 +538,24 @@ export async function setIdentifierField(input: {
   }
 
   const existing = await controlDb
-    .select({ id: sponsorIdentifierFields.id })
+    .select({ id: sponsorIdentifierFields.id, kind: sponsorIdentifierFields.kind })
     .from(sponsorIdentifierFields)
     .where(eq(sponsorIdentifierFields.sponsorId, input.sponsorId));
 
   if (existing.length >= MAX_IDENTIFIER_FIELDS) {
-    return { error: "You can ask for two things at most." };
+    return { error: "You can ask for three things at most." };
+  }
+  /*
+   * 🔴 0162 / ruling 15: an employee ID is only ever asked ALONGSIDE an email.
+   * It cannot be added until a work domain or a staff list is, and one of each
+   * kind is enough: a second list or a second ID rule means nothing new.
+   */
+  const hasEmailWay = existing.some((row) => row.kind === "domain_email" || row.kind === "listed_email");
+  if (input.kind === "id_number" && !hasEmailWay) {
+    return { error: "Add a work email domain or a staff list first. An employee ID is asked as well as an email, never instead." };
+  }
+  if ((input.kind === "id_number" || input.kind === "listed_email") && existing.some((row) => row.kind === input.kind)) {
+    return { error: "You already have that one." };
   }
 
   const domain = input.domain?.trim().toLowerCase().replace(/^@+/, "") || null;
@@ -598,7 +610,16 @@ export async function setIdentifierField(input: {
 export async function removeIdentifierField(
   sponsorId: string,
   fieldId: string,
-): Promise<{ ok: true }> {
+): Promise<{ ok?: true; error?: string }> {
+  /* 🔴 0162: the last email way in cannot go while an employee ID rule would be left alone. */
+  const fields = await controlDb
+    .select({ id: sponsorIdentifierFields.id, kind: sponsorIdentifierFields.kind })
+    .from(sponsorIdentifierFields)
+    .where(eq(sponsorIdentifierFields.sponsorId, sponsorId));
+  const left = fields.filter((row) => row.id !== fieldId);
+  if (left.some((row) => row.kind === "id_number") && !left.some((row) => row.kind !== "id_number")) {
+    return { error: "Remove the employee ID rule first. It is asked as well as an email, never alone." };
+  }
   await controlDb
     .delete(sponsorIdentifierFields)
     .where(

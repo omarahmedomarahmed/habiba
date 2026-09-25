@@ -190,6 +190,7 @@
     "verify:raw-sql": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-raw-sql.ts",
     "verify:gateway": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-gateway.ts",
     "verify:month": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-month.ts",
+    "verify:staff-list": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-staff-list.ts",
     "verify:rules": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rules.ts",
     "verify:eta": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-eta.ts",
     "test:eta": "node --env-file-if-exists=.env.local --import tsx --test tests/eta.test.ts",

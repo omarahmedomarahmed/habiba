@@ -597,14 +597,17 @@ async function companyCounters(db: ReturnType<typeof connect>["db"]) {
   const { subjectKey, callerKey } = await import("../lib/rate-limit");
   try {
     await db.execute(sql`INSERT INTO sponsor_codes (sponsor_id, code) VALUES (${sponsorId}, ${code})`);
+    /* 🔴 0162 / ruling 15: every way in is an email, so the code's gate is a staff list. */
     await db.execute(sql`
-      INSERT INTO sponsor_identifier_fields (sponsor_id, kind, pattern, shape_hint)
-      VALUES (${sponsorId}, 'id_number', '[0-9]{6}', 'six digits')`);
+      INSERT INTO sponsor_identifier_fields (sponsor_id, kind) VALUES (${sponsorId}, 'listed_email')`);
+    const staffEmail = `em.${code.toLowerCase()}@example.com`;
+    const { replaceEmailList } = await import("../lib/data/sponsor-email-list");
+    await replaceEmailList(sponsorId, [staffEmail]);
 
     const { enrol } = await import("../lib/data/enrolment");
     const { attemptsOnCode } = await import("../lib/data/sponsors");
 
-    const joined = await enrol({ personId, code, identifier: `${Date.now() % 1_000_000}`.padStart(6, "0") });
+    const joined = await enrol({ personId, code, identifier: staffEmail });
     const afterSuccess = await attemptsOnCode(code);
     check(
       "W1-21 a successful enrolment is not counted as an attempt on the code",
@@ -612,7 +615,7 @@ async function companyCounters(db: ReturnType<typeof connect>["db"]) {
       `${joined.ok ? "enrolled" : "not enrolled"}, count ${afterSuccess}`,
     );
 
-    await enrol({ personId, code, identifier: "not six digits" });
+    await enrol({ personId, code, identifier: "not.on.the.list@example.com" });
     check(
       "W1-21 CONTROL …and a failed attempt is",
       (await attemptsOnCode(code)) === afterSuccess + 1,
@@ -625,6 +628,7 @@ async function companyCounters(db: ReturnType<typeof connect>["db"]) {
     await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsorId}`);
     await db.execute(sql`DELETE FROM patient_notifications WHERE person_id = ${personId}`);
     await db.execute(sql`DELETE FROM sponsor_identifier_fields WHERE sponsor_id = ${sponsorId}`);
+    await db.execute(sql`DELETE FROM sponsor_email_list WHERE sponsor_id = ${sponsorId}`);
     await db.execute(sql`DELETE FROM sponsor_codes WHERE sponsor_id = ${sponsorId}`);
     await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsorId})`);

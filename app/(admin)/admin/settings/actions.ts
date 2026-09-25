@@ -580,6 +580,7 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
     cancelWindow: whole("patientCancelWindowHours", 0, 24 * 14),
     potWeekly: whole("potSessionsPerWeek", 0, 14),
     walletExpiry: whole("walletExpiryMonths", 0, 120),
+    listGrace: whole("listRemovalGraceDays", 0, 120),
   };
   if (Object.values(numbers).some((n) => n === null)) {
     return { error: "Every hour, count and month has to be a whole number in its range." };
@@ -623,6 +624,7 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
       refundTo: text("inPersonRefundTo"),
     },
     wallet: { enabled: on("walletEnabled"), expiryMonths: numbers.walletExpiry },
+    enrolment: { listRemovalGraceDays: numbers.listGrace },
   };
 
   /* A choice outside its list is refused, not quietly replaced by a default. */

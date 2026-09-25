@@ -165,6 +165,15 @@ export function RulesEditor({ rules, history }: { rules: RulesSettings; history:
           />
         </Section>
 
+        <Section title="Company staff lists">
+          <NumberRow
+            label="Days someone taken off keeps the benefit"
+            name="listRemovalGraceDays"
+            value={rules.enrolment.listRemovalGraceDays}
+            status="applied"
+          />
+        </Section>
+
         <Section title="Wallet">
           <Check label="Wallet on" name="walletEnabled" checked={rules.wallet.enabled} status="stored" />
           <NumberRow label="Expiry (months, 0 never)" name="walletExpiryMonths" value={rules.wallet.expiryMonths} status="stored" />

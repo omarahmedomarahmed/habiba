@@ -59,10 +59,12 @@ export async function checkCode(code: string): Promise<BenefitState> {
 export async function activateBenefit(
   code: string,
   identifier: string,
+  /** 🔴 Ruling 15: only when the company also asks for an employee ID. */
+  employeeId?: string,
 ): Promise<BenefitState> {
   const actor = await requirePatient();
 
-  const result = await enrol({ personId: actor.personId, code, identifier });
+  const result = await enrol({ personId: actor.personId, code, identifier, employeeId: employeeId ?? null });
   if (!result.ok) return { error: result.error };
 
   revalidatePath("/patient/benefit");

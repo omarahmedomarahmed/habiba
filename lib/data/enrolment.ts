@@ -240,7 +240,10 @@ export type EnrolResult =
 export async function enrol(input: {
   personId: string;
   code: string;
+  /** 🔴 Ruling 15: always an email. */
   identifier: string;
+  /** Asked for only when the company also asks for an employee ID. */
+  employeeId?: string | null;
 }): Promise<EnrolResult> {
   /*
    * 🔴 53.19 — rate limited per CODE, not per person.
@@ -300,7 +303,26 @@ export async function enrol(input: {
     .from(sponsorIdentifierFields)
     .where(eq(sponsorIdentifierFields.sponsorId, lookup.sponsorId));
 
-  const crossed = fields.find((field) => matchesGate(field, input.identifier));
+  /*
+   * 🔴 0162 / RULING 15: EVERY WAY IN IS AN EMAIL.
+   *
+   * A work-domain email crosses a domain gate; any email crosses a list gate
+   * when it is on the list the company uploaded. An employee ID is never the
+   * way in by itself any more: when the company asks for one, it is checked
+   * here as well as the email, and the email is still what gets the code.
+   */
+  const email = input.identifier.trim().toLowerCase();
+  const idField = fields.find((field) => field.kind === "id_number") ?? null;
+  const idOk = !idField || matchesGate(idField, String(input.employeeId ?? ""));
+  const domainGate = fields.find((field) => field.kind === "domain_email" && matchesGate(field, email)) ?? null;
+  let listGate: (typeof fields)[number] | null = null;
+  if (!domainGate && email.includes("@") && fields.some((field) => field.kind === "listed_email")) {
+    const { onEmailList } = await import("./sponsor-email-list");
+    if (await onEmailList(lookup.sponsorId, email)) {
+      listGate = fields.find((field) => field.kind === "listed_email") ?? null;
+    }
+  }
+  const crossed = idOk ? (domainGate ?? listGate) : null;
   if (!crossed) {
     /*
      * 🔴 The refusal says what shape was expected and NOT what was wrong with
@@ -408,7 +430,8 @@ export async function enrol(input: {
          * nothing. A comment asserting a wiring the code does not have is the
          * second most common defect in this repository; this was one.
          */
-        lastVerifiedAt: crossed.kind === "id_number" ? new Date() : null,
+        /* 🔴 Ruling 15: every way in is an email, so every benefit waits for its code. */
+        lastVerifiedAt: null,
       })
       .returning({ id: enrolments.id });
 
@@ -455,9 +478,9 @@ export async function enrol(input: {
    * `last_verified_at` is null meanwhile, so a failed send is a benefit that has
    * not started rather than a benefit funded without proof.
    */
-  if (crossed.kind === "domain_email" && enrolmentId) {
+  if (enrolmentId) {
     const { sendEnrolmentCode } = await import("./enrolment-verify");
-    await sendEnrolmentCode(enrolmentId, input.identifier);
+    await sendEnrolmentCode(enrolmentId, email);
   }
 
   /*
@@ -483,7 +506,7 @@ export async function enrol(input: {
   });
 
   log.info("enrolment activated", { kind: crossed.kind });
-  return { ok: true, needsVerification: crossed.kind === "domain_email" };
+  return { ok: true, needsVerification: true };
 }
 
 /**
@@ -538,7 +561,13 @@ export async function reconfirmEnrolment(input: {
   };
   if (!row || hashIdentifier(row.sponsorId, input.identifier) !== row.identifierHash) return refused;
 
-  if (row.identifierKind === "domain_email") {
+  /* 🔴 0162: an email from the staff list is confirmed again only while it is still on the list. */
+  if (row.identifierKind === "listed_email") {
+    const { onEmailList } = await import("./sponsor-email-list");
+    if (!(await onEmailList(row.sponsorId, input.identifier))) return refused;
+  }
+
+  if (row.identifierKind === "domain_email" || row.identifierKind === "listed_email") {
     const { sendEnrolmentCode } = await import("./enrolment-verify");
     await sendEnrolmentCode(input.enrolmentId, input.identifier);
     return { ok: true, needsCode: true };

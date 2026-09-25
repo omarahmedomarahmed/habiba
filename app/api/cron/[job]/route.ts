@@ -264,6 +264,13 @@ const JOBS = {
     const { pauseUnverified } = await import("@/lib/data/enrolment-verify");
     const reverified = await step(failed, "pauseUnverified", () => pauseUnverified());
 
+    /* 🔴 0162 / ruling 15: off a company's staff list past the grace period, the benefit pauses. */
+    const { pauseDroppedFromLists } = await import("@/lib/data/sponsor-email-list");
+    const { getSettings: rulesNow } = await import("@/lib/settings");
+    const dropped = await step(failed, "pauseDroppedFromLists", async () =>
+      pauseDroppedFromLists((await rulesNow()).rules.enrolment.listRemovalGraceDays),
+    );
+
     /*
      * 🔴 53.16 / C232 — the pot half of the daily reconciliation, counted here.
      *
@@ -414,6 +421,7 @@ const JOBS = {
       payoutsAlerted: aged?.alerted,
       oneHandActions: oneHand?.lines,
       benefitsPaused: reverified?.paused,
+      droppedFromLists: dropped?.paused,
       potsOutOfBalance: potDrift?.length,
       potAlerts: potAlerts?.alerted,
       ledgerTold: ledgerTold?.told,

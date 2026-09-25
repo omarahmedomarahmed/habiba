@@ -7184,7 +7184,12 @@ export type SponsorCode = typeof sponsorCodes.$inferSelect;
  * C246 prefers an identifier we can prove over one we can only pattern-match,
  * and C247 is that without a roster nothing else can notice somebody has left.
  */
-export const IDENTIFIER_KINDS = ["domain_email", "id_number"] as const;
+/*
+ * 🔴 0162 / ruling 15: every rule asks for an email. `listed_email` is an
+ * email on the staff list the company uploads; `id_number` is now only ever
+ * asked alongside an email, never as the way in by itself.
+ */
+export const IDENTIFIER_KINDS = ["domain_email", "id_number", "listed_email"] as const;
 export type IdentifierKind = (typeof IDENTIFIER_KINDS)[number];
 
 export const sponsorIdentifierFields = pgTable(
@@ -7218,6 +7223,28 @@ export const sponsorIdentifierFields = pgTable(
 );
 
 export type SponsorIdentifierField = typeof sponsorIdentifierFields.$inferSelect;
+
+/**
+ * 🔴 0162 — THE STAFF LIST, WITH NOTHING IN IT ANYBODY CAN READ.
+ *
+ * Each row is `hashIdentifier(sponsorId, email)`, the same salted hash an
+ * enrolment stores, so the list can be checked against and joined to
+ * enrolments and never read back. An upload replaces the list; a row no
+ * longer on it is marked `removedAt`, and the benefit pauses after the grace
+ * period in `rules.enrolment.listRemovalGraceDays`.
+ */
+export const sponsorEmailList = pgTable(
+  "sponsor_email_list",
+  {
+    sponsorId: uuid("sponsor_id")
+      .notNull()
+      .references(() => sponsors.id, { onDelete: "cascade" }),
+    emailHash: text("email_hash").notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow().notNull(),
+    removedAt: timestamp("removed_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.sponsorId, t.emailHash] }), index("sponsor_email_list_removed").on(t.sponsorId, t.removedAt)],
+);
 
 /**
  * 🔴 ENROLMENT. 53.17 to 53.19d. THERE IS NO ROSTER AND NO APPROVAL QUEUE.

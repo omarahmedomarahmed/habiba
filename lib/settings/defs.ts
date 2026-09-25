@@ -594,6 +594,10 @@ export type RulesSettings = {
     enabled: boolean;
     expiryMonths: number;
   };
+  /** Ruling 15. APPLIED: days a person dropped from a staff list keeps the benefit. */
+  enrolment: {
+    listRemovalGraceDays: number;
+  };
 };
 
 export const RULES_DEFAULTS: RulesSettings = {
@@ -626,6 +630,7 @@ export const RULES_DEFAULTS: RulesSettings = {
     refundTo: "wallet",
   },
   wallet: { enabled: true, expiryMonths: 0 },
+  enrolment: { listRemovalGraceDays: 14 },
 };
 
 function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -649,6 +654,7 @@ function parseRules(value: unknown): RulesSettings {
   const refunds = record(v.refunds);
   const inPerson = record(v.inPerson);
   const wallet = record(v.wallet);
+  const enrolment = record(v.enrolment);
   return {
     tax: {
       sellerModel: oneOf(tax.sellerModel, ["agent", "principal"] as const, d.tax.sellerModel),
@@ -715,6 +721,12 @@ function parseRules(value: unknown): RulesSettings {
     wallet: {
       enabled: bool(wallet.enabled, d.wallet.enabled),
       expiryMonths: int(wallet.expiryMonths, d.wallet.expiryMonths, { min: 0, max: 120 }),
+    },
+    enrolment: {
+      listRemovalGraceDays: int(enrolment.listRemovalGraceDays, d.enrolment.listRemovalGraceDays, {
+        min: 0,
+        max: 120,
+      }),
     },
   };
 }
