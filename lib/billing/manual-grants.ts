@@ -86,7 +86,42 @@ async function grantSession(payment: ManualPayment): Promise<void> {
    * card share settles through.
    */
   const { claimSessionPaid } = await import("./session-owed");
-  if (!(await claimSessionPaid(payment.refId))) {
+  const claimed = await claimSessionPaid(payment.refId);
+  if (claimed) {
+    /*
+     * 🔴 K16a (ME3): remembered on the transfer, at once, that THIS payment
+     * made the claim. If anything after this line throws, the Retry below
+     * finds the session paid, and without this it could not tell its own
+     * earlier claim from somebody else's money.
+     */
+    await db
+      .update(manualPayments)
+      .set({ grantedAt: new Date() })
+      .where(and(eq(manualPayments.id, payment.id), sql`${manualPayments.grantedAt} IS NULL`));
+  }
+  if (!claimed) {
+    const [mine] = await db
+      .select({ grantedAt: manualPayments.grantedAt })
+      .from(manualPayments)
+      .where(eq(manualPayments.id, payment.id))
+      .limit(1);
+    if (mine?.grantedAt) {
+      /*
+       * 🔴 K16a (ME3): A RETRY OF OUR OWN CLAIM. The session is paid because
+       * this transfer paid it, and the grant threw after that. It used to be
+       * told "overpaid, refund this transfer", with nothing on the books. The
+       * settlement is finished instead, and `retry` makes every part of it
+       * post only what is not there yet.
+       */
+      await postPatientSettlement({
+        sessionId: payment.refId,
+        settlesCents: payment.settlesCents,
+        paidAt: payment.decidedAt ?? new Date(),
+        logRef: payment.id,
+        retry: true,
+      });
+      return;
+    }
     /*
      * Not an error. Either it was already paid (a second run, which is fine) or
      * the session moved on while the transfer was being checked, which an
@@ -154,6 +189,11 @@ export async function postPatientSettlement(input: {
   paidAt: Date;
   /** For the logs: the transfer, or the wallet hold. */
   logRef: string;
+  /**
+   * K16a: a second run after this one threw part way. Only what the books do
+   * not already hold is posted.
+   */
+  retry?: boolean;
 }): Promise<"posted" | "duplicate"> {
   /*
    * 🔴 AND THE BOOKS, WHICH FOR TWO SPRINTS THIS DID NOT DO AT ALL.
@@ -247,10 +287,47 @@ export async function postPatientSettlement(input: {
       patientShareCents: sessionPayments.patientShareCents,
       sponsorShareCents: sessionPayments.sponsorShareCents,
       vatCents: sessionPayments.vatCents,
+      fundingSource: sessionPayments.fundingSource,
+      grossCents: sessionPayments.grossCents,
+      therapistId: sessionPayments.therapistId,
+      organizationId: sessionPayments.organizationId,
+      capture: sessionPayments.capture,
+      platformFeeCents: sessionPayments.platformFeeCents,
+      therapistNetCents: sessionPayments.therapistNetCents,
     })
     .from(sessionPayments)
     .where(eq(sessionPayments.sessionId, input.sessionId))
     .limit(1);
+
+  /*
+   * 🔴 K16a: ON A RETRY, WHAT IS ALREADY ON THE BOOKS STAYS AS IT IS.
+   *
+   *   - A row this function wrote itself (not a pot's) whose posting never
+   *     happened is posted from its own stored figures, and nothing if it was.
+   *   - A pot row whose employee share is already booked (its cash reaches the
+   *     price) is finished; otherwise the share is booked below as usual.
+   */
+  if (input.retry && priorPayment) {
+    const { bookedFor, postSessionPayment } = await import("./ledger");
+    const booked = await bookedFor(priorPayment.id);
+    if (priorPayment.fundingSource !== "pot") {
+      if ((booked.cash ?? 0) === 0 && (booked.therapist_payable ?? 0) === 0) {
+        await postSessionPayment({
+          id: priorPayment.id,
+          organizationId: priorPayment.organizationId,
+          therapistId: priorPayment.therapistId,
+          capture: priorPayment.capture,
+          grossCents: priorPayment.grossCents,
+          vatCents: priorPayment.vatCents,
+          platformFeeCents: priorPayment.platformFeeCents,
+          settledInvoiceCents: 0,
+          therapistNetCents: priorPayment.therapistNetCents,
+        });
+      }
+      return "posted";
+    }
+    if ((booked.cash ?? 0) >= priorPayment.grossCents) return "posted";
+  }
 
   /*
    * 🔴 WHAT THIS PAYER WAS ASKED FOR, which is the patient's share and not the
@@ -312,7 +389,8 @@ export async function postPatientSettlement(input: {
       await db
         .update(sessionPayments)
         .set({
-          vatCents: priorPayment.vatCents + vatCents,
+          /* K16a: a retry sets rather than adds, so a first run that got this far is not counted twice. */
+          vatCents: input.retry ? vatCents : priorPayment.vatCents + vatCents,
           vatBps: Math.round((vatCents * 10_000) / Math.max(1, patientShareCents)),
         })
         .where(eq(sessionPayments.id, priorPayment.id));
@@ -572,6 +650,8 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
      * somebody tells it how much there was.
      */
     settlesCents: payment.settlesCents,
+    /* K1: only a month whose own invoice this transfer paid. */
+    paidInvoiceIds: settled,
   });
 }
 

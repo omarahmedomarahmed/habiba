@@ -37,19 +37,40 @@ export async function confirm(
     onConfirmed: grantFor,
   });
 
+  /*
+   * 🔴 K5: audited whenever the row moved to confirmed, including when the
+   * grant after it failed. A person decided the money arrived; the audit row
+   * is the record of that decision, and it went missing on exactly the
+   * confirmations somebody would later need to trace.
+   */
+  if (result.confirmed) {
+    await audit({
+      actor,
+      category: "admin",
+      action: "transfer.confirm",
+      resourceType: "manual_payment",
+      resourceId: paymentId,
+      reason: result.error
+        ? "Bank transfer checked and confirmed; the grant failed and is under Needs a decision"
+        : result.flagged
+          ? `Bank transfer checked and confirmed; raised as ${result.flagged} under Needs a decision`
+          : "Bank transfer checked and confirmed",
+    });
+    revalidatePath("/admin/transfers");
+  }
+
   if (result.error) return { error: result.error };
-
-  await audit({
-    actor,
-    category: "admin",
-    action: "transfer.confirm",
-    resourceType: "manual_payment",
-    resourceId: paymentId,
-    reason: "Bank transfer checked and confirmed",
-  });
-
-  revalidatePath("/admin/transfers");
+  if (result.flagged) {
+    return { error: flaggedMessage(result.flagged) };
+  }
   return { ok: "Confirmed. They can carry on." };
+}
+
+/** K5: what staff read when a confirmation delivered nothing. */
+function flaggedMessage(kind: string): string {
+  return kind === "overpaid"
+    ? "Confirmed, but it was more than owed or already paid. It is under Needs a decision."
+    : "Confirmed, but it paid for nothing that could take it. It is under Needs a decision.";
 }
 
 export async function reject(paymentId: string, reason: string): Promise<TransferState> {
@@ -131,11 +152,46 @@ export async function confirmUnclaimed(
     onConfirmed: grantFor,
   });
 
-  if (result.error) return { error: result.error };
-  if (gate.approvalId) {
+  /*
+   * 🔴 K5: the approval closes whenever the money was confirmed, even when the
+   * grant after it failed. Left open, a second Complete found the payment no
+   * longer open and failed on it for ever.
+   */
+  if (result.confirmed && gate.approvalId) {
     await closeApproval({ approvalId: gate.approvalId, decidedBy: actor.userId, state: "done" });
   }
 
+  if (!result.confirmed) {
+    /*
+     * 🔴 K4: THE CART IS GONE OR MOVED ON. The payer cancelled it, retention
+     * expired it, or they submitted proof and it is now an ordinary claim in
+     * the queue. There is nothing left to credit without proof, so the request
+     * closes as void and says so, instead of staying open with a Complete that
+     * can never succeed.
+     */
+    const { controlDb: db } = await import("@/lib/db");
+    const { manualPayments } = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const [still] = await db
+      .select({ state: manualPayments.state })
+      .from(manualPayments)
+      .where(eq(manualPayments.id, paymentId))
+      .limit(1);
+    if (gate.approvalId && still?.state !== "awaiting_proof") {
+      const { voidApprovalsFor } = await import("@/lib/billing/approvals");
+      await voidApprovalsFor("transfer_without_proof", [paymentId]);
+      revalidatePath("/admin/transfers");
+      return {
+        error: still
+          ? "That payment is no longer an open cart. The request is closed; check it in the queue."
+          : "That cart was cancelled or expired. The request is closed and nothing was credited.",
+      };
+    }
+    return { error: result.error ?? "Nothing was credited." };
+  }
+
   revalidatePath("/admin/transfers");
+  if (result.error) return { error: result.error };
+  if (result.flagged) return { error: flaggedMessage(result.flagged) };
   return { ok: "Credited, and the payer has been told." };
 }

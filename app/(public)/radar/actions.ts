@@ -329,7 +329,7 @@ export async function bookFromRadar(
       });
     } else {
       await releaseClaim(previous);
-      await db
+      const [dropped] = await db
         .update(sessions)
         .set({ status: "cancelled", joinToken: null, updatedAt: new Date() })
         .where(
@@ -339,7 +339,20 @@ export async function bookFromRadar(
             ne(sessions.paymentStatus, "paid"),
             isNull(sessions.patientJoinedAt),
           ),
-        );
+        )
+        .returning({ id: sessions.id });
+      if (dropped) {
+        /*
+         * 🔴 K15: a company that covered part of the held session had its share
+         * taken at booking. The hold is gone, so the share goes back to its pot,
+         * and a transfer already declared for it becomes work for staff (K20).
+         * Only the press that cancelled it does this.
+         */
+        const { returnPotShareOfUnpaid } = await import("@/lib/billing/pot");
+        await returnPotShareOfUnpaid(previous, "Radar hold replaced by a new booking before the patient paid");
+        const { flagTransfersForCancelled } = await import("@/lib/billing/rail-exceptions");
+        await flagTransfersForCancelled(previous);
+      }
     }
   }
 

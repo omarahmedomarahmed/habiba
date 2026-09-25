@@ -36,10 +36,12 @@
  */
 import { and, eq } from "drizzle-orm";
 
-import { reporter, writesTo } from "./_verify";
+import { readSource, reporter, writesTo } from "./_verify";
 import { controlDb as db } from "../lib/db";
 import {
+  clinicianInvitations,
   invoices,
+  manualPayments,
   organizations,
   renewalObligations,
   subscriptions,
@@ -220,6 +222,103 @@ async function main() {
       proration?.description ?? "none",
     );
 
+    /* ------------------------------------------------- K14 · seats, properly */
+
+    /*
+     * 🔴 K14: A SEAT ADDED MID-MONTH COSTS THE DAYS LEFT IN THE MONTH IT IS
+     * BILLED IN. A practice with no plan period was charged thirty days from
+     * the day it added the seat, and then the month's seat bill on top.
+     */
+    const { seatMonth } = await import("../lib/billing/seats");
+    const month = seatMonth(new Date());
+    const daysLeft = Math.ceil((month.periodEnd.getTime() - Date.now()) / 86_400_000);
+    check(
+      "🔴 K14 a seat added mid-month is prorated to the end of the calendar month, not thirty days from today",
+      Boolean(proration?.description.includes(`for the ${daysLeft} days`)),
+      `${proration?.description ?? "none"}, expected ${daysLeft} days`,
+    );
+    check(
+      "K14 CONTROL the old figure, thirty days from today, is a different number unless today is the 1st",
+      daysLeft !== 30 || new Date().getUTCDate() === 1,
+      `${daysLeft} days left`,
+    );
+
+    const { applySeatChange: changeSeats } = await import("../lib/billing/seats");
+    await changeSeats({ organizationId: orgId, fromSeats: 3, toSeats: 2 });
+    const [afterOne] = await db
+      .select({ cents: subscriptions.upcomingDiscountCents })
+      .from(subscriptions)
+      .where(eq(subscriptions.organizationId, orgId));
+    await changeSeats({ organizationId: orgId, fromSeats: 2, toSeats: 1 });
+    const [afterTwo] = await db
+      .select({ cents: subscriptions.upcomingDiscountCents, reason: subscriptions.upcomingDiscountReason })
+      .from(subscriptions)
+      .where(eq(subscriptions.organizationId, orgId));
+    check(
+      "🔴 K14 two seat reductions ADD their credits; the second no longer replaces the first",
+      (afterOne?.cents ?? 0) > 0 && (afterTwo?.cents ?? 0) > (afterOne?.cents ?? 0),
+      JSON.stringify({ afterOne, afterTwo }),
+    );
+
+    const { raiseSeatMonths } = await import("../lib/billing/service");
+    const nextMonth = new Date(month.periodEnd.getTime() + 60 * 60 * 1000);
+    const midMonth = new Date(month.periodStart.getTime() + 15 * 86_400_000);
+    const tooLate = await raiseSeatMonths(midMonth, orgId);
+    check("K14 CONTROL no month's seat bill is raised mid-month", tooLate.raised === 0, JSON.stringify(tooLate));
+    const seatRun = await raiseSeatMonths(nextMonth, orgId);
+    const seatRunAgain = await raiseSeatMonths(nextMonth, orgId);
+    const seatBills = await db
+      .select({ amountCents: invoices.amountCents, discountCents: invoices.discountCents, status: invoices.status })
+      .from(invoices)
+      .where(and(eq(invoices.organizationId, orgId), eq(invoices.periodStart, month.periodEnd)));
+    const [creditLeft] = await db
+      .select({ cents: subscriptions.upcomingDiscountCents })
+      .from(subscriptions)
+      .where(eq(subscriptions.organizationId, orgId));
+    const spent = Math.min(afterTwo?.cents ?? 0, seatBills[0]?.amountCents ?? 0);
+    check(
+      "🔴 K14 the billing job raises each month's seat bill, once, and the seat credit comes off it",
+      seatRun.raised === 1 && seatRunAgain.raised === 0 && seatBills.length === 1 &&
+        seatBills[0]!.discountCents === spent && (creditLeft?.cents ?? 0) === (afterTwo?.cents ?? 0) - spent,
+      JSON.stringify({ seatRun, seatRunAgain, seatBills, creditLeft, spent }),
+    );
+    /* Put the credit back to nothing so the renewal checks below price a clean month. */
+    await db
+      .update(subscriptions)
+      .set({ upcomingDiscountCents: 0, upcomingDiscountReason: null })
+      .where(eq(subscriptions.organizationId, orgId));
+
+    const people = readSource("app/(clinic)/clinic/people/actions.ts");
+    check(
+      "🔴 K14 an invitation buys exactly one seat, decided on the server, whatever the form says",
+      /toSeats: from \+ 1/.test(people) && !/formData\.get\("seatTo"\)/.test(people),
+      "the form's seatTo was trusted up to fifty above seatFrom",
+    );
+    check(
+      "K14 CONTROL the scan refuses the old form-trusting line",
+      /formData\.get\("seatTo"\)/.test('const to = Number(formData.get("seatTo") ?? NaN);'),
+      "watched finding it",
+    );
+    const { revokeInvitation, markInvitationBoughtSeat } = await import("../lib/data/clinic-admin");
+    const [invite] = await db
+      .insert(clinicianInvitations)
+      .values({
+        organizationId: orgId,
+        email: `invitee.${tag}@example.com`,
+        tokenHash: `k14-${tag}`,
+        expiresAt: new Date(Date.now() + 86_400_000),
+      })
+      .returning({ id: clinicianInvitations.id });
+    await markInvitationBoughtSeat(invite!.id);
+    const revoked = await revokeInvitation(orgId, invite!.id);
+    const revokedAgain = await revokeInvitation(orgId, invite!.id);
+    check(
+      "🔴 K14 cancelling an invitation that bought a seat says so, once, and the action gives the seat back",
+      revoked.boughtSeat === true && revokedAgain.boughtSeat === false &&
+        /revoked\.boughtSeat[\s\S]{0,600}applySeatChange/.test(people),
+      JSON.stringify({ revoked, revokedAgain }),
+    );
+
     /* ------------------------------------ 0160 · the next month renews itself */
 
     const { raiseManualRenewals, setManualRenewal } = await import("../lib/billing/service");
@@ -294,6 +393,80 @@ async function main() {
       JSON.stringify(farRun),
     );
 
+    /* ------------------- K1 · a transfer confirmed after the billing run ran */
+
+    /*
+     * 🔴 K1: a plan bought by transfer is due the moment it is raised, so the
+     * 03:05 run lapsed it before anybody could confirm the money, and the
+     * confirmation then cleared the bill and never started the plan.
+     */
+    await db.delete(invoices).where(and(eq(invoices.organizationId, orgId), eq(invoices.kind, "subscription")));
+    await db.delete(renewalObligations).where(eq(renewalObligations.organizationId, orgId));
+    const { lapseOverdue } = await import("../lib/billing/obligations");
+    const { grantFor } = await import("../lib/billing/manual-grants");
+    const k1 = await subscribeByTransfer({ organizationId: orgId, tierKey: TIER });
+    const [waiting] = await db
+      .insert(manualPayments)
+      .values({
+        purpose: "subscription",
+        refId: orgId,
+        organizationId: orgId,
+        amountCents: price * 50,
+        currency: "EGP",
+        settlesCents: price,
+        payerKind: "user",
+        state: "submitted",
+        reference: tag,
+        submittedAt: new Date(),
+      })
+      .returning();
+    const heldLapse = await lapseOverdue(new Date(Date.now() + 60_000), orgId);
+    check(
+      "🔴 K1 a plan whose transfer is waiting on an operator does not lapse at the billing run",
+      k1.ok === true && heldLapse.lapsed === 0,
+      JSON.stringify({ k1, heldLapse }),
+    );
+    await db.delete(manualPayments).where(eq(manualPayments.id, waiting!.id));
+    const lapsedNow = await lapseOverdue(new Date(Date.now() + 60_000), orgId);
+    check(
+      "K1 CONTROL …and with no transfer waiting the same run lapses it, so the hold above was the transfer's",
+      lapsedNow.lapsed === 1,
+      JSON.stringify(lapsedNow),
+    );
+    const stillDue = await db
+      .select({ id: renewalObligations.id })
+      .from(renewalObligations)
+      .where(and(eq(renewalObligations.organizationId, orgId), eq(renewalObligations.state, "due")));
+    check(
+      "K1 CONTROL nothing is `due` any more, which is all the old settle looked at",
+      stillDue.length === 0,
+      `${stillDue.length} due`,
+    );
+    const confirmedAt = new Date();
+    await grantFor({ ...waiting!, state: "confirmed", decidedAt: confirmedAt });
+    const k1Month = await db
+      .select({ state: renewalObligations.state, periodStart: renewalObligations.periodStart })
+      .from(renewalObligations)
+      .where(eq(renewalObligations.organizationId, orgId));
+    const k1Bill = await db
+      .select({ status: invoices.status, periodStart: invoices.periodStart })
+      .from(invoices)
+      .where(and(eq(invoices.organizationId, orgId), eq(invoices.kind, "subscription")));
+    check(
+      "🔴 K1 confirming the transfer after the lapse pays the bill AND starts the plan, from the day it was paid",
+      k1Month.length === 1 && k1Month[0]!.state === "paid" &&
+        +k1Month[0]!.periodStart === +confirmedAt &&
+        k1Bill.length === 1 && k1Bill[0]!.status === "paid" && +k1Bill[0]!.periodStart! === +confirmedAt &&
+        (await currentTier(orgId)).key === TIER,
+      JSON.stringify({ k1Month, k1Bill, tier: (await currentTier(orgId)).key }),
+    );
+    const again = await settleOldestObligationByTransfer({ organizationId: orgId, ref: tag, paidInvoiceIds: [] });
+    check(
+      "K1 a second confirm settles nothing, and a transfer that paid no plan invoice grants no plan",
+      again.settled === false,
+      JSON.stringify(again),
+    );
+
     /*
      * 🔴 CONTROL. Every assertion above is about a row appearing; this one
      * watches the same query find nothing, so a check that passes because it
@@ -310,6 +483,8 @@ async function main() {
     );
   } finally {
     /* In a `finally`, so a failed assertion still leaves the database clean. */
+    await db.delete(manualPayments).where(eq(manualPayments.refId, orgId));
+    await db.delete(clinicianInvitations).where(eq(clinicianInvitations.organizationId, orgId));
     await db.delete(invoices).where(eq(invoices.organizationId, orgId));
     await db.delete(renewalObligations).where(eq(renewalObligations.organizationId, orgId));
     await db.delete(subscriptions).where(eq(subscriptions.organizationId, orgId));

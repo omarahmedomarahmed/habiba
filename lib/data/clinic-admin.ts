@@ -290,8 +290,8 @@ export async function inviteClinician(input: {
 export async function revokeInvitation(
   clinicOrganizationId: string,
   invitationId: string,
-): Promise<{ ok: true }> {
-  await controlDb
+): Promise<{ ok: true; boughtSeat: boolean }> {
+  const [revoked] = await controlDb
     .update(clinicianInvitations)
     .set({ state: "revoked" })
     .where(
@@ -301,9 +301,38 @@ export async function revokeInvitation(
         eq(clinicianInvitations.organizationId, clinicOrganizationId),
         eq(clinicianInvitations.state, "sent"),
       ),
-    );
+    )
+    .returning({ boughtSeat: clinicianInvitations.boughtSeat });
 
-  return { ok: true };
+  /* K14: only the press that revoked it can give its seat back, so twice gives back once. */
+  return { ok: true, boughtSeat: Boolean(revoked?.boughtSeat) };
+}
+
+/** K14 (0171): this invitation bought the practice a seat, so cancelling it releases one. */
+export async function markInvitationBoughtSeat(invitationId: string): Promise<void> {
+  await controlDb
+    .update(clinicianInvitations)
+    .set({ boughtSeat: true })
+    .where(eq(clinicianInvitations.id, invitationId));
+}
+
+/** K14: invitations still waiting for somebody, each of which will need a seat. */
+export async function liveInvitationCount(
+  clinicOrganizationId: string,
+  exceptInvitationId: string | null,
+): Promise<number> {
+  const [row] = await controlDb
+    .select({ n: sql<number>`count(*)::int` })
+    .from(clinicianInvitations)
+    .where(
+      and(
+        eq(clinicianInvitations.organizationId, clinicOrganizationId),
+        eq(clinicianInvitations.state, "sent"),
+        sql`${clinicianInvitations.expiresAt} > now()`,
+        exceptInvitationId ? sql`${clinicianInvitations.id} <> ${exceptInvitationId}` : undefined,
+      ),
+    );
+  return row?.n ?? 0;
 }
 
 export type InvitationView = {

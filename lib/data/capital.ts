@@ -288,6 +288,12 @@ export async function setOtherCost(
    * Zero is how a founder removes a line they typed by mistake, rather than a
    * delete button that would need its own confirmation for a number.
    */
+  /*
+   * Nothing to record: zero for a month that has no row changes nothing, and
+   * an audit line saying a cost was set to nothing is a line about nothing.
+   */
+  if (!existing && input.amountCents === 0) return { ok: true };
+
   if (existing && input.amountCents === 0) {
     await db.delete(otherCosts).where(eq(otherCosts.id, existing.id));
   } else if (existing) {

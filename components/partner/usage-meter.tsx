@@ -44,6 +44,10 @@ export function UsageMeter({
     sessions: number;
     perSessionCents: number;
     totalCents: number;
+    /** Posted to the books, so it is an invoice rather than a preview. */
+    posted: boolean;
+    /** When staff marked it paid, formatted on the server (C84), or null. */
+    paidOn: string | null;
   } | null;
 }) {
   const t = useT();
@@ -161,6 +165,16 @@ export function UsageMeter({
           <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
             ${(lastMonth.totalCents / 100).toFixed(2)}
           </p>
+          {/*
+            How this bill is paid, and whether it has been: invoiced at month
+            end, paid by bank transfer, marked paid by our staff when it lands.
+          */}
+          {lastMonth.posted ? (
+            <p className="mt-1 text-xs font-medium text-slate-600">
+              {lastMonth.paidOn ? t("dev.usage.paid", { date: lastMonth.paidOn }) : t("dev.usage.unpaid")}
+            </p>
+          ) : null}
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{t("dev.usage.howPaid")}</p>
         </Card>
       ) : null}
 

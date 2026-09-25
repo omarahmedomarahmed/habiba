@@ -189,6 +189,8 @@ export type Message = {
     /** 🔴 W1-16: a clinician's licence ran out, or will within 30 days. */
     | "licence.expired"
     | "licence.expiring"
+    /** 🔴 K17: a plan month falls due in 7, 3 or 1 days; to whoever runs the account. */
+    | "renewal.due_soon"
     /**
      * 🔴 20.22 — a closed support ticket.
      *

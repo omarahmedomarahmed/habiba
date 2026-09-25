@@ -846,6 +846,8 @@ export const sessions = pgTable(
     /** 🔴 0168: a booking moved to another hour, never charged again. */
     rescheduledAt: timestamp("rescheduled_at", { withTimezone: true }),
     rescheduleCount: integer("reschedule_count").notNull().default(0),
+    /** 🔴 ME20 (0171): the one charger of this session's bill claimed it, and when. */
+    chargeClaimedAt: timestamp("charge_claimed_at", { withTimezone: true }),
 
     /** Patient join link. Random, expiring, revocable. */
     joinToken: text("join_token"),
@@ -2158,6 +2160,8 @@ export const renewalObligations = pgTable(
      * transfer rail turns it off; Resume turns it back on.
      */
     autoRenew: boolean("auto_renew").notNull().default(true),
+    /** 🔴 K17 (0171): the reminder thresholds (7, 3, 1 days) already sent for this month. */
+    remindedDays: integer("reminded_days").array().notNull().default(sql`'{}'::integer[]`),
     settledVia: text("settled_via").$type<RenewalRail>(),
     settledRef: text("settled_ref"),
 
@@ -2757,6 +2761,8 @@ export const LEDGER_TXN_KINDS = [
   "wallet_credit",
   "wallet_spend",
   "wallet_return",
+  /** 🔴 K16c (0171): an expired credit's unspent part, released from the wallet liability. */
+  "wallet_expired",
   /** 🔴 0169: a paid session that cost less in the end (a cheaper clinician stepped in). */
   "session_repriced",
   "session_payment",
@@ -3990,7 +3996,8 @@ export const pendingApprovals = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     askedAt: timestamp("asked_at", { withTimezone: true }).defaultNow().notNull(),
-    state: text("state").$type<"asked" | "done" | "declined">().notNull().default("asked"),
+    /** K4 (0171): `void` is a request whose subject went away; nobody decided it. */
+    state: text("state").$type<"asked" | "done" | "declined" | "void">().notNull().default("asked"),
     decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "restrict" }),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
   },
@@ -4071,6 +4078,8 @@ export const patientCredits = pgTable(
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull().default("usd"),
     spentCents: integer("spent_cents").notNull().default(0),
+    /** 🔴 K16c (0171): the unspent part already released from the books when it expired. */
+    expiredCents: integer("expired_cents").notNull().default(0),
 
     /** Every cent traces to one let-down. */
     fromSessionId: uuid("from_session_id"),
@@ -8385,6 +8394,8 @@ export const clinicianInvitations = pgTable(
     invitedByManagerId: uuid("invited_by_manager_id").references(() => clinicManagers.id, {
       onDelete: "set null",
     }),
+    /** K14 (0171): this invitation bought a seat, so cancelling it gives one back. */
+    boughtSeat: boolean("bought_seat").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

@@ -1007,6 +1007,40 @@ export async function refundToPot(input: {
   return { ok: true, returnedCents: outcome.returnedCents };
 }
 
+/**
+ * 🔴 K15: the company's share of a session nobody finished paying for, back
+ * in its pot. A partly covered booking has the pot's share taken at booking;
+ * when the booking goes (abandoned on the radar, replaced by a new hold,
+ * released unconfirmed) that share must go back, or the company paid for a
+ * session that never happened.
+ *
+ * Nothing to return is `none`. Once-only by `refundToPot`, so a sweep and a
+ * re-book racing return it once.
+ */
+export async function returnPotShareOfUnpaid(
+  sessionId: string,
+  reason: string,
+): Promise<{ returned: "none" | "returned"; error?: string }> {
+  const [row] = await controlDb
+    .select({ id: sessionPayments.id })
+    .from(sessionPayments)
+    .where(
+      and(
+        eq(sessionPayments.sessionId, sessionId),
+        eq(sessionPayments.fundingSource, "pot"),
+        sql`${sessionPayments.status} <> 'refunded'`,
+      ),
+    )
+    .limit(1);
+  if (!row) return { returned: "none" };
+  const back = await refundToPot({ paymentId: row.id, reason });
+  if (back.error) {
+    log.error("company share of an unpaid session not returned", { session: ref(sessionId), reason: back.error });
+    return { returned: "none", error: back.error };
+  }
+  return { returned: "returned" };
+}
+
 type Tx = Parameters<Parameters<typeof controlDb.transaction>[0]>[0];
 
 /**

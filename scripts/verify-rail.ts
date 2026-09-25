@@ -896,9 +896,14 @@ async function main() {
    * The whole rail rests on nothing happening until a person confirms. A
    * subscribe button that set the tier would be the one optimistic grant in it.
    */
+  /*
+   * Ends at the next declaration after it. K14: `raiseManualRenewals`, which
+   * sits between the two, settles a month a seat credit paid in full, and that
+   * is a settlement of money already given, not a subscribe path granting.
+   */
   const subscribeBody = service.slice(
     service.indexOf("export async function subscribeByTransfer"),
-    service.indexOf("export async function settleOldestObligationByTransfer"),
+    service.indexOf("export const RENEW_DAYS_BEFORE"),
   );
   check(
     "🔴 …and subscribing only BILLS: the plan starts when an operator confirms",
@@ -1019,7 +1024,7 @@ async function main() {
 
   check(
     "🔴 …and a downgrade is credit against next month, never a refund",
-    /change\.proratedCents < 0[\s\S]{0,300}setUpcomingDiscount/.test(seats),
+    /change\.proratedCents < 0[\s\S]{0,300}addUpcomingDiscount/.test(seats),
     "C331: otherwise a practice adds five seats on the first, removes them on the last, and pays for none",
   );
 

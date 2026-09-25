@@ -628,7 +628,8 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
           .from(manualPayments)
           .where(
             and(
-              eq(manualPayments.purpose, "session"),
+              /* ME70: a pay-as-you-go session transfer pays a session too, and names it the same way. */
+              inArray(manualPayments.purpose, ["session", "payg_session"]),
               inArray(manualPayments.refId, sessionIds),
               eq(manualPayments.state, "confirmed"),
             ),

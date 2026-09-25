@@ -76,6 +76,35 @@ export async function setState(
   return { ok: true };
 }
 
+/**
+ * A posted partner month, marked paid when the bank transfer is in. The only
+ * way a partner bill leaves `partner_receivable`; see `markPartnerMonthPaid`.
+ * Submitted from a plain form on the partners page, so it answers nothing and
+ * the page re-reads the ledger.
+ */
+export async function markMonthPaid(formData: FormData): Promise<void> {
+  const actor = await requireRole("super_admin");
+  const partnerId = String(formData.get("partnerId") ?? "");
+  const month = String(formData.get("month") ?? "");
+  const reference = String(formData.get("reference") ?? "");
+  if (!/^\d{4}-\d{2}$/.test(month) || !partnerId) return;
+  const periodStart = new Date(`${month}-01T00:00:00.000Z`);
+
+  const { markPartnerMonthPaid } = await import("@/lib/partner/billing");
+  const result = await markPartnerMonthPaid({ partnerId, periodStart, reference, byUserId: actor.userId });
+  if (!result.ok) return;
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "partner.month_paid",
+    resourceType: "partner",
+    resourceId: partnerId,
+    reason: `${month}, ${result.cents} cents, reference ${reference.trim().slice(0, 80)}`,
+  });
+  revalidatePath("/admin/partners");
+}
+
 /** 55.2 — the first portal user, with a password an operator sets on the call. */
 export async function addUser(
   _prev: AdminPartnerState,

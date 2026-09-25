@@ -63,6 +63,9 @@ const OUTBOUND_ONLY: Record<string, string> = {
   /* W1-16 */
   "lib/data/licence-expiry.ts":
     "the recipient is a clinician, who has no person row and so no patient notice log; the portal banner is read from the verification row itself, which is the in-app home",
+  /* K17 */
+  "lib/billing/obligations.ts":
+    "a renewal reminder goes to a clinician or a clinic admin, neither of whom has a person row and so no patient notice log; the month's due bill on their billing page is the in-app home",
   /* W2-S09 */
   "lib/data/sponsor-admin.ts":
     "the recipients are a company that has only enquired and our own back office; neither has a person row, and the enquiry's in-app home is the operator's sponsors page",

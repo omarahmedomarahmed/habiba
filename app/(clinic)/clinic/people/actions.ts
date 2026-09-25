@@ -54,18 +54,27 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
    * refused address never buys a seat.
    */
   const from = Number(formData.get("seatFrom") ?? NaN);
-  const to = Number(formData.get("seatTo") ?? NaN);
   let seatError: string | undefined;
-  /* Only ever upward, and never by more than the form could have quoted. */
-  if (Number.isInteger(from) && Number.isInteger(to) && to > from && to - from <= 50) {
+  /*
+   * 🔴 K14: EXACTLY ONE SEAT, AND ONLY WHEN THE SERVER SAYS NONE IS FREE.
+   *
+   * The form's `seatTo` was trusted up to fifty above `seatFrom`, so an edited
+   * form bought fifty seats for one invitation. The count the admin was quoted
+   * against still guards the write; what is bought is decided here, from the
+   * seats, the people in them and the other live invitations.
+   */
+  if (Number.isInteger(from) && from >= 0 && !(await hasRoomFor(actor.clinicOrganizationId, result.invitationId))) {
     const { applySeatChange } = await import("@/lib/billing/seats");
     const seat = await applySeatChange({
       organizationId: actor.clinicOrganizationId,
       fromSeats: from,
-      toSeats: to,
+      toSeats: from + 1,
     });
     seatError = seat.error;
     if (!seat.error) {
+      /* K14: remembered, so cancelling this invitation gives the seat back. */
+      const { markInvitationBoughtSeat } = await import("@/lib/data/clinic-admin");
+      if (result.invitationId) await markInvitationBoughtSeat(result.invitationId);
       await audit({
         actor: null,
         clinicManagerId: actor.clinicManagerId,
@@ -73,7 +82,7 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
         action: "seats.changed",
         resourceType: "organization",
         resourceId: actor.clinicOrganizationId,
-        reason: `${from} to ${to}, for an invitation`,
+        reason: `${from} to ${from + 1}, for an invitation`,
       });
     }
   }
@@ -127,9 +136,59 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
   return { ok: true, link, ...(seatError ? { error: seatError } : {}) };
 }
 
+/**
+ * K14: whether the practice has a paid seat for one more invitation, counting
+ * the people in seats and every other live invitation. The invitation just
+ * written is left out, because it is the one asking.
+ */
+async function hasRoomFor(organizationId: string, invitationId: string | null | undefined): Promise<boolean> {
+  const { currentSeatBill, seatsFor } = await import("@/lib/billing/seats");
+  const { liveInvitationCount } = await import("@/lib/data/clinic-admin");
+  const [bill, seated, invited] = await Promise.all([
+    currentSeatBill(organizationId),
+    seatsFor(organizationId),
+    liveInvitationCount(organizationId, invitationId ?? null),
+  ]);
+  return seated.length + invited < bill.seats;
+}
+
 export async function cancelInvitation(invitationId: string): Promise<PeopleState> {
   const actor = await requireClinicAdmin();
-  await revokeInvitation(actor.clinicOrganizationId, invitationId);
+  const revoked = await revokeInvitation(actor.clinicOrganizationId, invitationId);
+
+  /*
+   * 🔴 K14: A SEAT THIS INVITATION BOUGHT IS GIVEN BACK WITH IT, when nobody
+   * else needs it. Applied through `applySeatChange` like any reduction, so
+   * the unused days become credit against the next seat bill.
+   */
+  if (revoked.boughtSeat) {
+    const { currentSeatBill, seatsFor, applySeatChange } = await import("@/lib/billing/seats");
+    const { liveInvitationCount } = await import("@/lib/data/clinic-admin");
+    const [bill, seated, invited] = await Promise.all([
+      currentSeatBill(actor.clinicOrganizationId),
+      seatsFor(actor.clinicOrganizationId),
+      liveInvitationCount(actor.clinicOrganizationId, null),
+    ]);
+    if (bill.seats > 0 && seated.length + invited < bill.seats) {
+      const seat = await applySeatChange({
+        organizationId: actor.clinicOrganizationId,
+        fromSeats: bill.seats,
+        toSeats: bill.seats - 1,
+      });
+      if (!seat.error) {
+        await audit({
+          actor: null,
+          clinicManagerId: actor.clinicManagerId,
+          category: "billing",
+          action: "seats.changed",
+          resourceType: "organization",
+          resourceId: actor.clinicOrganizationId,
+          reason: `${bill.seats} to ${bill.seats - 1}, an invitation was cancelled`,
+        });
+      }
+    }
+    revalidatePath("/clinic/seats");
+  }
 
   await audit({
     /* Explicit, like every other call site: this act has no clinician actor. */

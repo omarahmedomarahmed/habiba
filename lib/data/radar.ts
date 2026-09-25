@@ -1203,12 +1203,18 @@ export async function notifyIncomingBooking(opts: {
  * expired pending. This exists so the *public list* stops advertising someone
  * whose claim lapsed, and so a closed laptop eventually reads as offline.
  */
-export async function sweepRadar(): Promise<{
+export async function sweepRadar(
+  /** K15: one session's abandoned-checkout step only, so a verifier sweeps nobody else. */
+  onlySessionId?: string,
+): Promise<{
   released: number;
   offline: number;
   abandoned: number;
 }> {
   const now = new Date();
+  if (onlySessionId) {
+    return { released: 0, offline: 0, abandoned: (await cancelAbandonedRadar(now, onlySessionId)).length };
+  }
 
   const released = await db
     .update(therapistRadar)
@@ -1222,45 +1228,7 @@ export async function sweepRadar(): Promise<{
     .where(and(eq(therapistRadar.status, "pending"), lt(therapistRadar.pendingUntil, now)))
     .returning({ id: therapistRadar.id });
 
-  /*
-   * Bin the sessions nobody ever paid for.
-   *
-   * Every abandoned checkout leaves a `scheduled` session with a live join
-   * token behind it. Harmless individually, but they accumulate in the
-   * clinician's session list as bookings that never happened, and each one
-   * carries a token that still works for its full three hours.
-   */
-  const abandoned = await db
-    .update(sessions)
-    .set({ status: "cancelled", joinToken: null, joinTokenExpiresAt: null, updatedAt: now })
-    .where(
-      and(
-        /*
-         * 🔴 ONLY AN ABANDONED RADAR CHECKOUT, and only with no money moving.
-         *
-         * This matched every unpaid scheduled session, so a calendar booking
-         * for next week was cancelled within the hour, its link killed, and
-         * a company's pot share taken at booking was never put back. A radar
-         * session is a session starting now; anything booked ahead is not
-         * abandoned. And a session somebody is paying for is not abandoned
-         * either: a declared transfer, a card attempt in the last hour, or a
-         * pot share already booked all keep it.
-         */
-        eq(sessions.sessionType, "radar"),
-        eq(sessions.status, "scheduled"),
-        eq(sessions.paymentStatus, "pending"),
-        isNull(sessions.patientJoinedAt),
-        lt(sessions.createdAt, new Date(now.getTime() - CLAIM_MINUTES * 60_000)),
-        sql`NOT EXISTS (SELECT 1 FROM manual_payments m
-                         WHERE m.purpose = 'session' AND m.ref_id = ${qualified(sessions.id)}
-                           AND m.state IN ('awaiting_proof', 'submitted', 'confirmed'))`,
-        sql`NOT EXISTS (SELECT 1 FROM gateway_payments g
-                         WHERE g.ref_id = ${qualified(sessions.id)}
-                           AND (g.state = 'paid' OR g.created_at > now() - interval '1 hour'))`,
-        sql`NOT EXISTS (SELECT 1 FROM session_payments sp WHERE sp.session_id = ${qualified(sessions.id)})`,
-      ),
-    )
-    .returning({ id: sessions.id });
+  const abandoned = await cancelAbandonedRadar(now);
 
   const offline = await db
     .update(therapistRadar)
@@ -1298,6 +1266,87 @@ export async function sweepRadar(): Promise<{
     offline: offline.length,
     abandoned: abandoned.length,
   };
+}
+
+/**
+ * Bin the sessions nobody ever paid for.
+ *
+ * Every abandoned checkout leaves a `scheduled` session with a live join
+ * token behind it. Harmless individually, but they accumulate in the
+ * clinician's session list as bookings that never happened, and each one
+ * carries a token that still works for its full three hours.
+ *
+ * Part of `sweepRadar`, which passes `onlySessionId` through so a verifier
+ * can ask about one session without sweeping everybody else's.
+ */
+async function cancelAbandonedRadar(
+  now = new Date(),
+  onlySessionId?: string,
+): Promise<{ id: string }[]> {
+  const abandonedWhen = (sessionId?: string) =>
+      and(
+        sessionId ? eq(sessions.id, sessionId) : undefined,
+        /*
+         * 🔴 ONLY AN ABANDONED RADAR CHECKOUT, and only with no money moving.
+         *
+         * This matched every unpaid scheduled session, so a calendar booking
+         * for next week was cancelled within the hour, its link killed, and
+         * a company's pot share taken at booking was never put back. A radar
+         * session is a session starting now; anything booked ahead is not
+         * abandoned. And a session somebody is paying for is not abandoned
+         * either: a declared transfer or a card attempt in the last hour keeps
+         * it. A company's share booked at booking does not (K15, below).
+         */
+        eq(sessions.sessionType, "radar"),
+        eq(sessions.status, "scheduled"),
+        eq(sessions.paymentStatus, "pending"),
+        isNull(sessions.patientJoinedAt),
+        lt(sessions.createdAt, new Date(now.getTime() - CLAIM_MINUTES * 60_000)),
+        sql`NOT EXISTS (SELECT 1 FROM manual_payments m
+                         WHERE m.purpose = 'session' AND m.ref_id = ${qualified(sessions.id)}
+                           AND m.state IN ('awaiting_proof', 'submitted', 'confirmed'))`,
+        sql`NOT EXISTS (SELECT 1 FROM gateway_payments g
+                         WHERE g.ref_id = ${qualified(sessions.id)}
+                           AND (g.state = 'paid' OR g.created_at > now() - interval '1 hour'))`,
+        /*
+         * 🔴 K15: a payment row that is only the COMPANY's share does not keep
+         * it. `payFromPot` books that share at booking, before the patient
+         * pays theirs, so this used to keep every partly covered abandoned
+         * session scheduled for ever, holding the company's money. It is
+         * returned below, before the session is cancelled.
+         */
+        sql`NOT EXISTS (SELECT 1 FROM session_payments sp
+                         WHERE sp.session_id = ${qualified(sessions.id)}
+                           AND sp.funding_source <> 'pot')`,
+      );
+
+  const candidates = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(abandonedWhen(onlySessionId))
+    .limit(200);
+
+  const { returnPotShareOfUnpaid } = await import("@/lib/billing/pot");
+  const abandoned: { id: string }[] = [];
+  for (const candidate of candidates) {
+    /*
+     * The company's share first, and nothing is cancelled if it cannot go
+     * back: the same order `releaseUnconfirmedBookings` keeps, because a
+     * cancelled session holding a company's money is the outcome to avoid.
+     */
+    const back = await returnPotShareOfUnpaid(
+      candidate.id,
+      "Radar booking abandoned: the patient's share was never paid",
+    );
+    if (back.error) continue;
+    const [cancelled] = await db
+      .update(sessions)
+      .set({ status: "cancelled", joinToken: null, joinTokenExpiresAt: null, updatedAt: now })
+      .where(abandonedWhen(candidate.id))
+      .returning({ id: sessions.id });
+    if (cancelled) abandoned.push(cancelled);
+  }
+  return abandoned;
 }
 
 /** How many clinicians are bookable this second. Used by the public hero. */

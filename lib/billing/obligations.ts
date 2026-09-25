@@ -214,17 +214,193 @@ export async function obligationsDueWithin(days: number): Promise<
 }
 
 /**
+ * 🔴 K17 (ME31): THE REMINDERS, SENT.
+ *
+ * The billing job counted what was due in 7, 3 and 1 days and told nobody, so
+ * a transfer-rail plan lapsed on the morning it fell due without a word. Each
+ * due month is now told once per threshold, to whoever runs the account, in
+ * their language: the smallest threshold its due date has reached, and never
+ * one it has passed (a job that missed three days sends the nearest, once).
+ *
+ * The claim is one conditional UPDATE on `reminded_days` (0171) before the
+ * message goes, so a second run the same day, or two at once, send nothing.
+ */
+export async function sendRenewalReminders(
+  now = new Date(),
+  /** One organisation only: how a verifier asks without messaging everybody. */
+  onlyOrganizationId?: string,
+): Promise<{ due: number; sent: number }> {
+  const horizon = new Date(now.getTime() + Math.max(...DUNNING_DAYS_BEFORE) * 86_400_000);
+  const rows = await controlDb
+    .select({
+      id: renewalObligations.id,
+      organizationId: renewalObligations.organizationId,
+      plan: renewalObligations.plan,
+      amountCents: renewalObligations.amountCents,
+      currency: renewalObligations.currency,
+      dueAt: renewalObligations.dueAt,
+    })
+    .from(renewalObligations)
+    .where(
+      and(
+        eq(renewalObligations.state, "due"),
+        lte(renewalObligations.dueAt, horizon),
+        sql`${renewalObligations.dueAt} > ${now}`,
+        onlyOrganizationId ? eq(renewalObligations.organizationId, onlyOrganizationId) : undefined,
+      ),
+    )
+    .orderBy(asc(renewalObligations.dueAt))
+    .limit(500);
+
+  let sent = 0;
+  for (const row of rows) {
+    const daysLeft = Math.ceil((row.dueAt.getTime() - now.getTime()) / 86_400_000);
+    const threshold = reminderThreshold(daysLeft);
+    if (threshold === null) continue;
+
+    const claimed = await controlDb.execute(sql`
+      UPDATE renewal_obligations
+         SET reminded_days = array_append(reminded_days, ${threshold}::int)
+       WHERE id = ${row.id}
+         AND state = 'due'
+         AND NOT EXISTS (SELECT 1 FROM unnest(reminded_days) AS d WHERE d <= ${threshold}::int)
+      RETURNING id`);
+    if (claimed.rows.length === 0) continue;
+
+    try {
+      sent += await tellRenewalDue({ ...row, daysLeft: threshold });
+    } catch (error) {
+      /* The claim stands: a message that failed is logged, not sent again every day. */
+      log.warn("renewal reminder not sent", { obligation: ref(row.id), reason: String(error).slice(0, 200) });
+    }
+  }
+  return { due: rows.length, sent };
+}
+
+/** K17: the smallest reminder threshold `daysLeft` has reached, or null. */
+function reminderThreshold(daysLeft: number): number | null {
+  if (daysLeft < 1) return null;
+  const reached = DUNNING_DAYS_BEFORE.filter((t) => daysLeft <= t);
+  return reached.length > 0 ? Math.min(...reached) : null;
+}
+
+/** Who runs the account, and the message in their language. Returns how many were told. */
+async function tellRenewalDue(row: {
+  organizationId: string;
+  plan: string;
+  amountCents: number;
+  currency: string;
+  dueAt: Date;
+  daysLeft: number;
+}): Promise<number> {
+  const { organizations, users, clinicManagers } = await import("@/lib/db/schema");
+  const { isNull: none } = await import("drizzle-orm");
+  const [org] = await controlDb
+    .select({ kind: organizations.kind })
+    .from(organizations)
+    .where(eq(organizations.id, row.organizationId))
+    .limit(1);
+  if (!org) return 0;
+
+  /*
+   * A practice of one is run by its clinician; a clinic by its admins, who
+   * are the only people who can pay its bills (`requireClinicAdmin`).
+   */
+  const people: { email: string; userId: string | null; timezone: string | null }[] =
+    org.kind === "solo"
+      ? (
+          await controlDb
+            .select({ email: users.email, userId: users.id, timezone: users.timezone })
+            .from(users)
+            .where(and(eq(users.organizationId, row.organizationId), none(users.deletedAt)))
+            .limit(5)
+        ).map((u) => ({ email: u.email, userId: u.userId, timezone: u.timezone }))
+      : (
+          await controlDb
+            .select({ email: clinicManagers.email, userId: clinicManagers.linkedUserId })
+            .from(clinicManagers)
+            .where(
+              and(
+                eq(clinicManagers.organizationId, row.organizationId),
+                eq(clinicManagers.role, "admin"),
+                none(clinicManagers.deletedAt),
+              ),
+            )
+            .limit(5)
+        ).map((m) => ({ email: m.email, userId: m.userId, timezone: null }));
+
+  const { getSettings } = await import("@/lib/settings");
+  const tier = (await getSettings()).pricing.tiers.find((t) => t.key === row.plan);
+  const { formatMoney } = await import("./plans");
+  const { formatDate } = await import("@/lib/utils");
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const { notify } = await import("@/lib/notify");
+  const { env } = await import("@/lib/env");
+
+  let told = 0;
+  for (const person of people) {
+    const { t, locale } = await wordsFor(person.userId ? { userId: person.userId } : null);
+    const delivery = await notify(
+      {
+        email: person.email,
+        phone: null,
+        timezone: person.timezone,
+        organizationId: row.organizationId,
+        locale,
+      },
+      {
+        kind: "renewal.due_soon",
+        subject:
+          row.daysLeft === 1
+            ? t("tbill.renewalTitleOne")
+            : t("tbill.renewalTitle", { days: String(row.daysLeft) }),
+        body: t("tbill.renewalBody", {
+          plan: tier?.name ?? row.plan,
+          amount: formatMoney(row.amountCents, row.currency.toUpperCase(), locale),
+          date: formatDate(row.dueAt, person.timezone ?? "UTC", locale),
+        }),
+        link: { label: t("tbill.renewalOpen"), url: `${env.appUrl}${org.kind === "solo" ? "/billing" : "/clinic/bills"}` },
+      },
+    );
+    if (delivery.sent) told += 1;
+  }
+  return told;
+}
+
+/**
  * 🔴 A due date that passed unpaid becomes `lapsed`, and that is the moment the
  * plan ends rather than the moment a gateway says so.
  *
  * Run from the billing cron. One statement, guarded on `due`, so running it
  * twice in the same minute lapses nothing twice.
+ *
+ * 🔴 K1: NOT WHILE A TRANSFER FOR IT WAITS ON AN OPERATOR. A plan bought by
+ * transfer is due the moment it is raised, so the 03:05 run lapsed every one
+ * a person had not confirmed yet. The payer has done their part; the wait is
+ * ours. A `submitted` subscription transfer for the organisation holds the
+ * lapse until it is confirmed (which settles it) or rejected (which lets the
+ * next run lapse it).
  */
-export async function lapseOverdue(now = new Date()): Promise<{ lapsed: number }> {
+export async function lapseOverdue(
+  now = new Date(),
+  /** One organisation only: how a verifier asks without lapsing everybody else. */
+  onlyOrganizationId?: string,
+): Promise<{ lapsed: number }> {
   const rows = await controlDb
     .update(renewalObligations)
     .set({ state: "lapsed", updatedAt: new Date() })
-    .where(and(eq(renewalObligations.state, "due"), lte(renewalObligations.dueAt, now)))
+    .where(
+      and(
+        eq(renewalObligations.state, "due"),
+        onlyOrganizationId ? eq(renewalObligations.organizationId, onlyOrganizationId) : undefined,
+        lte(renewalObligations.dueAt, now),
+        sql`NOT EXISTS (
+          SELECT 1 FROM manual_payments mp
+           WHERE mp.purpose = 'subscription'
+             AND mp.state = 'submitted'
+             AND mp.ref_id = ${qualified(renewalObligations.organizationId)})`,
+      ),
+    )
     .returning({ id: renewalObligations.id });
 
   if (rows.length > 0) log.warn("renewal obligations lapsed", { count: rows.length });

@@ -126,9 +126,9 @@ async function billFor(input: {
  * the `refId` now, and the month lives in the transaction id, so asking the
  * ledger "was this month posted" is one indexed read and needs no new column.
  */
-function billTxnId(partnerId: string, periodStart: Date): string {
+function billTxnId(partnerId: string, periodStart: Date, what = "partner_month"): string {
   const hex = createHash("sha256")
-    .update(`partner_month:${partnerId}:${periodStart.toISOString().slice(0, 7)}`)
+    .update(`${what}:${partnerId}:${periodStart.toISOString().slice(0, 7)}`)
     .digest("hex");
   /* Shaped as an RFC 4122 name-based uuid (version 5 bits, variant 10). */
   const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
@@ -199,6 +199,70 @@ async function postMonthlyBill(input: {
 }
 
 /**
+ * 🔴 A POSTED MONTH IS INVOICED AND SETTLED BY STAFF, AND THIS IS THE SETTLING.
+ *
+ * The bill went to `partner_receivable` and nothing ever took it off: a
+ * partner had no way to pay it in the product, and staff no way to say it
+ * was paid, so every partner owed us every month for ever. A partner is
+ * invoiced at month end and pays by bank transfer outside the product; when
+ * the money is in, a super admin records it here with the bank reference.
+ *
+ * Idempotent through its own transaction id, derived like the bill's, read and
+ * posted under the same kind of lock: a second press settles nothing.
+ */
+export async function markPartnerMonthPaid(input: {
+  partnerId: string;
+  periodStart: Date;
+  reference: string;
+  byUserId: string;
+}): Promise<{ ok?: true; error?: string; cents?: number }> {
+  const reference = input.reference.trim();
+  if (reference.length < 4) return { error: "Give the bank reference the money arrived with." };
+  const billId = billTxnId(input.partnerId, input.periodStart);
+  const paidId = billTxnId(input.partnerId, input.periodStart, "partner_month_paid");
+  return controlDb.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`partner_month_paid:${paidId}`}))`);
+    const [bill] = await tx
+      .select({ cents: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int`, n: sql<number>`count(*)::int` })
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.txnId, billId), eq(ledgerEntries.account, "partner_receivable")));
+    if (!bill || Number(bill.n) === 0) return { error: "That month has not been billed." };
+    const [already] = await tx
+      .select({ id: ledgerEntries.id })
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.txnId, paidId))
+      .limit(1);
+    if (already) return { error: "That month is already marked paid." };
+    const cents = Number(bill.cents);
+    const memo = `Partner month ${input.periodStart.toISOString().slice(0, 7)} paid, reference ${reference.slice(0, 80)}`;
+    await journal({
+      kind: "invoice_settled",
+      refType: "partner_month_paid",
+      refId: input.partnerId,
+      txnId: paidId,
+      createdBy: input.byUserId,
+      executor: tx,
+      legs: [
+        { account: "cash", amountCents: cents, memo },
+        { account: "partner_receivable", amountCents: -cents, memo },
+      ],
+    });
+    return { ok: true as const, cents };
+  });
+}
+
+/** When a posted month was marked paid, or null. */
+async function monthPaidAt(partnerId: string, periodStart: Date): Promise<Date | null> {
+  const paidId = billTxnId(partnerId, periodStart, "partner_month_paid");
+  const [row] = await controlDb
+    .select({ at: ledgerEntries.createdAt })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.txnId, paidId))
+    .limit(1);
+  return row?.at ?? null;
+}
+
+/**
  * 🔴 C15: A CLOSED MONTH, AS IT WAS BILLED. The usage page showed last month
  * through `billFor`, at today's price, so a reprice rewrote a bill already
  * sent. Once the month is posted the total is the ledger's, and the per-session
@@ -208,7 +272,7 @@ async function postMonthlyBill(input: {
 export async function closedMonthBill(input: {
   partnerId: string;
   periodStart: Date;
-}): Promise<(PartnerBill & { posted: boolean }) | null> {
+}): Promise<(PartnerBill & { posted: boolean; paidAt: Date | null }) | null> {
   const preview = await billFor(input);
   if (!preview) return null;
 
@@ -224,7 +288,7 @@ export async function closedMonthBill(input: {
         eq(ledgerEntries.account, "partner_receivable"),
       ),
     );
-  if (!ledger || Number(ledger.legs) === 0) return { ...preview, posted: false };
+  if (!ledger || Number(ledger.legs) === 0) return { ...preview, posted: false, paidAt: null };
 
   const totalCents = Number(ledger.totalCents);
   return {
@@ -232,6 +296,7 @@ export async function closedMonthBill(input: {
     totalCents,
     perSessionCents: preview.sessions > 0 ? Math.round(totalCents / preview.sessions) : 0,
     posted: true,
+    paidAt: await monthPaidAt(input.partnerId, input.periodStart),
   };
 }
 

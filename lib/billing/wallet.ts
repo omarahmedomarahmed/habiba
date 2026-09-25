@@ -36,6 +36,7 @@ import { journal } from "./ledger";
  */
 
 type Draw = { creditId: string; cents: number };
+type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** "0 months" in the rule means a credit never expires. */
 async function expiryFor(now: Date): Promise<Date> {
@@ -87,23 +88,35 @@ export async function creditWallet(input: {
   fromSessionId: string | null;
   /** The legs that balance the wallet leg (together they sum to `+cents`). */
   from: { account: "therapist_payable" | "platform_revenue" | "cash"; amountCents: number; organizationId?: string | null; userId?: string | null; memo: string }[];
+  /**
+   * 🔴 K16c (ME23): `wallet_return` when the money is coming BACK to the
+   * wallet it was spent from (a paid session refunded), so the books tell a
+   * return from new credit. The kind was declared in 0169 and never written.
+   */
+  kind?: "wallet_credit" | "wallet_return";
+  /** K16c (ME25): inside the caller's transaction, so the credit and the move that owes it land together. */
+  executor?: Executor;
+  /** Read before a transaction opens (one connection), so the expiry is not asked inside it. */
+  expiresAt?: Date;
 }): Promise<{ creditId: string } | null> {
   if (input.cents <= 0) return null;
   const now = new Date();
-  const [credit] = await db
+  const run = input.executor ?? db;
+  const [credit] = await run
     .insert(patientCredits)
     .values({
       personId: input.personId,
       amountCents: input.cents,
       reason: input.reason.slice(0, 200),
       fromSessionId: input.fromSessionId,
-      expiresAt: await expiryFor(now),
+      expiresAt: input.expiresAt ?? (await expiryFor(now)),
     })
     .returning({ id: patientCredits.id });
   await journal({
-    kind: "wallet_credit",
+    kind: input.kind ?? "wallet_credit",
     refType: "patient_credit",
     refId: credit!.id,
+    ...(input.executor ? { executor: input.executor } : {}),
     legs: [
       ...input.from,
       {
@@ -277,21 +290,111 @@ export async function releaseHold(sessionId: string): Promise<number> {
  * what went back, which the refund subtracts from what it sends.
  */
 export async function returnSpentHold(sessionId: string, reason: string): Promise<number> {
-  const [hold] = await db
-    .update(walletHolds)
-    .set({ state: "returned", returnedAt: new Date() })
-    .where(and(eq(walletHolds.sessionId, sessionId), eq(walletHolds.state, "spent")))
-    .returning({ id: walletHolds.id, cents: walletHolds.cents, personId: walletHolds.personId });
-  if (!hold) return 0;
-  await creditWallet({
-    personId: hold.personId,
-    cents: hold.cents,
-    reason: `Returned: ${reason}`,
-    fromSessionId: sessionId,
-    from: [{ account: "cash", amountCents: hold.cents, organizationId: await practiceOf(sessionId), memo: "Refunded to the wallet it came from" }],
+  /* Read before the transaction: the pool has one connection and the transaction holds it. */
+  const organizationId = await practiceOf(sessionId);
+  const expiresAt = await expiryFor(new Date());
+  /*
+   * 🔴 K16c (ME25): ONE TRANSACTION. The hold was marked returned and the
+   * credit written in two statements, so a failure between them left a hold
+   * `returned` with no money back in the wallet, and nothing could retry it
+   * because the hold was no longer `spent`.
+   */
+  return db.transaction(async (tx) => {
+    const [hold] = await tx
+      .update(walletHolds)
+      .set({ state: "returned", returnedAt: new Date() })
+      .where(and(eq(walletHolds.sessionId, sessionId), eq(walletHolds.state, "spent")))
+      .returning({ id: walletHolds.id, cents: walletHolds.cents, personId: walletHolds.personId });
+    if (!hold) return 0;
+    await creditWallet({
+      personId: hold.personId,
+      cents: hold.cents,
+      reason: `Returned: ${reason}`,
+      fromSessionId: sessionId,
+      kind: "wallet_return",
+      executor: tx,
+      expiresAt,
+      from: [{ account: "cash", amountCents: hold.cents, organizationId, memo: "Refunded to the wallet it came from" }],
+    });
+    return hold.cents;
   });
-  await db.update(walletHolds).set({ returnedAt: new Date() }).where(eq(walletHolds.id, hold.id));
-  return hold.cents;
+}
+
+/**
+ * 🔴 K16c (ME24): A CREDIT THAT EXPIRED LEAVES THE BOOKS AS WELL AS THE BALANCE.
+ *
+ * `walletBalanceCents` stops counting a credit past `expires_at`, and nothing
+ * posted, so `patient_wallet` went on saying we owed the patient money they
+ * could no longer spend, for ever. Hourly, each expired credit's unspent part
+ * is released from the liability: `patient_wallet` down, and the money is
+ * ours (`platform_revenue`), the same way an expired gift card is.
+ *
+ * `expired_cents` (0171) is what has been released so far, claimed with a
+ * conditional UPDATE, so a second run releases nothing, and a hold released
+ * after the expiry (which gives drawn money back to the credit) is released
+ * on the next run as the difference.
+ */
+export async function expireWalletCredits(
+  now = new Date(),
+  /** One person only: how a verifier asks without expiring everybody else. */
+  onlyPersonId?: string,
+): Promise<{ expired: number; cents: number }> {
+  const rows = await db
+    .select({
+      id: patientCredits.id,
+      amount: patientCredits.amountCents,
+      spent: patientCredits.spentCents,
+      released: patientCredits.expiredCents,
+      fromSessionId: patientCredits.fromSessionId,
+    })
+    .from(patientCredits)
+    .where(
+      and(
+        sql`${patientCredits.expiresAt} <= ${now}`,
+        sql`${patientCredits.amountCents} - ${patientCredits.spentCents} > ${patientCredits.expiredCents}`,
+        onlyPersonId ? eq(patientCredits.personId, onlyPersonId) : undefined,
+      ),
+    )
+    .limit(500);
+
+  let expired = 0;
+  let cents = 0;
+  for (const row of rows) {
+    const due = row.amount - row.spent - row.released;
+    if (due <= 0) continue;
+    const organizationId = row.fromSessionId ? await practiceOf(row.fromSessionId) : null;
+    const done = await db.transaction(async (tx) => {
+      const [claimed] = await tx
+        .update(patientCredits)
+        .set({ expiredCents: sql`${patientCredits.expiredCents} + ${due}`, updatedAt: new Date() })
+        .where(
+          and(
+            eq(patientCredits.id, row.id),
+            eq(patientCredits.expiredCents, row.released),
+            eq(patientCredits.spentCents, row.spent),
+          ),
+        )
+        .returning({ id: patientCredits.id });
+      if (!claimed) return false;
+      await journal({
+        kind: "wallet_expired",
+        refType: "patient_credit",
+        refId: row.id,
+        executor: tx,
+        legs: [
+          { account: "patient_wallet", amountCents: due, organizationId, memo: "Wallet credit expired unspent" },
+          { account: "platform_revenue", amountCents: -due, organizationId, memo: "Expired wallet credit" },
+        ],
+      });
+      return true;
+    });
+    if (done) {
+      expired += 1;
+      cents += due;
+    }
+  }
+  if (expired > 0) log.info("wallet credits expired", { count: expired, cents });
+  return { expired, cents };
 }
 
 /**

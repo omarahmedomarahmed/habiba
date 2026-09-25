@@ -165,15 +165,29 @@ export async function deliverSummary(input: {
     };
   }
 
-  await controlDb
+  /*
+   * 🔴 ONCE. A second call overwrote the text and the delivery time of a
+   * summary the patient had already been given, so what they read and what
+   * the record says they read could differ, and a retried request re-dated
+   * it. `summary_delivered_at IS NULL` is in the WHERE, so only the first
+   * delivery lands; a second is refused and changes nothing.
+   */
+  const [delivered] = await controlDb
     .update(partnerSessions)
     .set({
       summaryText: text,
       summaryDeliveredAt: input.now ?? new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(partnerSessions.id, input.partnerSessionId));
+    .where(
+      and(
+        eq(partnerSessions.id, input.partnerSessionId),
+        isNull(partnerSessions.summaryDeliveredAt),
+      ),
+    )
+    .returning({ id: partnerSessions.id });
 
+  if (!delivered) return { error: "This summary has already been delivered. A delivered summary is not replaced." };
   return { ok: true };
 }
 
