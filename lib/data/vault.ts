@@ -19,6 +19,52 @@ import {
 } from "@/lib/db/schema";
 
 /**
+ * 🔴 MRR FROM WHAT IS ACTUALLY RECURRING, AT TODAY'S PRICES.
+ *
+ * This was `payingOrgs * 9900`: every organisation holding prepaid credit,
+ * priced at a plan that no longer costs $99, which is two wrong numbers
+ * multiplied. It is now each organisation on a plan right now, once, at its
+ * tier's monthly price from settings: a paid month covering today (either
+ * rail), else a Stripe subscription still running. A retired plan key counts
+ * nothing, the same rule `entitledTier` applies.
+ */
+async function recurringMonthlyCents(now = new Date()): Promise<number> {
+  const { getSettings } = await import("@/lib/settings");
+  const { renewalObligations } = await import("@/lib/db/schema");
+  const tiers = (await getSettings()).pricing.tiers;
+  const onPlan = new Map<string, string>();
+
+  const months = await db
+    .select({ organizationId: renewalObligations.organizationId, plan: renewalObligations.plan })
+    .from(renewalObligations)
+    .where(
+      and(
+        eq(renewalObligations.state, "paid"),
+        sql`${renewalObligations.periodStart} <= ${now}`,
+        sql`${renewalObligations.periodEnd} > ${now}`,
+      ),
+    );
+  for (const month of months) onPlan.set(month.organizationId, month.plan);
+
+  const mirrored = await db
+    .select({ organizationId: subscriptions.organizationId, plan: subscriptions.plan })
+    .from(subscriptions)
+    .where(
+      and(
+        sql`${subscriptions.status} IN ('active', 'past_due')`,
+        sql`(${subscriptions.currentPeriodEnd} IS NULL OR ${subscriptions.currentPeriodEnd} > ${now})`,
+      ),
+    );
+  for (const sub of mirrored) if (!onPlan.has(sub.organizationId)) onPlan.set(sub.organizationId, sub.plan);
+
+  let cents = 0;
+  for (const plan of onPlan.values()) {
+    cents += tiers.find((t) => t.key === plan && t.monthlyCents > 0)?.monthlyCents ?? 0;
+  }
+  return cents;
+}
+
+/**
  * The Vault: every dollar in, every dollar out, and the margin between them.
  *
  * Two layers, deliberately. The ledger is the money — it has to reconcile
@@ -426,7 +472,7 @@ export async function tractionMetrics(): Promise<Traction> {
 
   // MRR counts only recurring subscriptions. Metered revenue is real but is not
   // recurring, and folding it in is how a run-rate becomes fiction.
-  const mrrCents = payingOrgs * 9900;
+  const mrrCents = await recurringMonthlyCents();
 
   return {
     signups,

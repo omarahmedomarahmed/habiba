@@ -63,6 +63,8 @@ export default async function PartnerUsagePage() {
               sessions: bill.sessions,
               perSessionCents: bill.perSessionCents,
               totalCents: bill.totalCents,
+              posted: bill.posted,
+              paidOn: bill.paidAt ? bill.paidAt.toISOString().slice(0, 10) : null,
             }
           : null
       }

@@ -405,6 +405,20 @@ async function main() {
       now.error ?? "delivered",
     );
 
+    /* A delivered summary is what the patient read: a second one does not replace it. */
+    const again = await deliverSummary({
+      partnerSessionId: session.id,
+      text: "A different summary, sent a second time by a retry.",
+    });
+    const kept = (
+      await db.execute(sql`SELECT summary_text AS text FROM partner_sessions WHERE id = ${session.id}`)
+    ).rows[0] as { text: string | null } | undefined;
+    check(
+      "🔴 68.9 a SECOND delivery is refused and the first summary stands",
+      Boolean(again.error) && kept?.text === "A summary for the patient, long enough to count.",
+      again.error ?? `replaced with: ${kept?.text ?? "nothing"}`,
+    );
+
     /* 🔴 THE DATABASE HOLDS BOTH RULES TOO. */
     let dbRefusedHalfApproval = false;
     try {
