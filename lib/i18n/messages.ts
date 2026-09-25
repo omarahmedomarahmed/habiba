@@ -178,6 +178,7 @@ export const en = {
   "join.subtitlePaid":
     "No account needed. Tell us what to call you, then pay to enter.",
   "join.firstName": "Your first name",
+  "join.subtitleKnownPaid": "Pay to enter.",
   /* 🔴 79.2 — shown instead of the name field when we already know them. */
   "join.joiningAs": "Joining as {name}.",
   /*
@@ -5322,6 +5323,7 @@ export const ar: Record<MessageKey, string> = {
     "لا حاجة إلى حساب. أخبرنا بما نناديك به، ثم ادفع للدخول.",
   "join.firstName": "اسمك الأول",
   "join.joiningAs": "تنضم باسم {name}.",
+  "join.subtitleKnownPaid": "ادفع للدخول.",
   /* 🔴 79.3 — see the English block: a state and a door, and nothing else. */
   "porb.pay": "ادفع قيمة جلستك",
   "porb.ready": "افتح جلستك",

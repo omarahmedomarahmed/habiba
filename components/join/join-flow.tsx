@@ -275,9 +275,20 @@ export function JoinFlow({
     <form action={action} className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("join.title")}</h1>
-        <p className="mt-1.5 text-sm text-slate-600">
-          {owes ? t("join.subtitlePaid") : t("join.subtitleFree")}
-        </p>
+        {/*
+          B54: "No account needed. Just tell us what to call you." sat over
+          "Joining as Salma." for a signed-in patient. With a name already known,
+          only the step that is left is said.
+        */}
+        {knownName && !owes ? null : (
+          <p className="mt-1.5 text-sm text-slate-600">
+            {knownName
+              ? t("join.subtitleKnownPaid")
+              : owes
+                ? t("join.subtitlePaid")
+                : t("join.subtitleFree")}
+          </p>
+        )}
       </div>
 
       {owes ? (
