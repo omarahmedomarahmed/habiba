@@ -83,14 +83,35 @@ function isPrivateBlobUrl(url: string): boolean {
  * headshot's.
  */
 export async function putPrivate(path: string, body: File | Blob | Buffer, contentType: string): Promise<string> {
-  const blob = await put(path, body, {
-    access: "private",
-    addRandomSuffix: false,
-    contentType,
-    cacheControlMaxAge: 0,
-    token: privateToken(),
-  });
-  return blob.url;
+  try {
+    const blob = await put(path, body, {
+      access: "private",
+      addRandomSuffix: false,
+      contentType,
+      cacheControlMaxAge: 0,
+      token: privateToken(),
+    });
+    return blob.url;
+  } catch (error) {
+    /*
+     * 🔴 NO PRIVATE STORE YET, AND AN UPLOAD MUST NOT FAIL FOR IT. Creating one
+     * is an operator step (`BLOB_PRIVATE_READ_WRITE_TOKEN`, docs/LONG-TERM.md).
+     * Until it is done, a public main store refuses a private write, and a
+     * clinician could not send their licence nor a patient their receipt. So the
+     * file goes where it always went, an unguessable public path, and it is
+     * logged as an error so /admin/errors says the step is still owed. With the
+     * token set, a refusal is a real failure and is thrown.
+     */
+    if (process.env.BLOB_PRIVATE_READ_WRITE_TOKEN) throw error;
+    log.error("private blob store not configured; stored on the public store", { reason: safeErrorMessage(error) });
+    const blob = await put(path, body, {
+      access: "public",
+      addRandomSuffix: true,
+      contentType,
+      cacheControlMaxAge: 0,
+    });
+    return blob.url;
+  }
 }
 
 /**

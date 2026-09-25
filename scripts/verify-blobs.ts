@@ -52,13 +52,20 @@ async function main() {
   const publicWrites = files.flatMap((file) =>
     [...read(file).matchAll(/access:\s*"public"/g)].map(() => file),
   );
+  const uploads = read("lib/uploads.ts");
+  /*
+   * 🔴 Two public writes, both here: the headshot's, and the fallback while no
+   * private store is configured, which a configured store never reaches.
+   */
+  const fallbackAt = uploads.indexOf("if (process.env.BLOB_PRIVATE_READ_WRITE_TOKEN) throw error;");
   check(
-    "🔴 exactly one public write in the product, and it is the headshot's",
-    publicWrites.length === 1 && publicWrites[0] === "lib/uploads.ts",
+    "🔴 public writes are the headshot's and the no-private-store fallback, nowhere else",
+    publicWrites.length === 2 && publicWrites.every((file) => file === "lib/uploads.ts") && fallbackAt > 0 &&
+      uploads.indexOf('access: "public"', fallbackAt) > fallbackAt &&
+      uploads.indexOf('access: "public"', fallbackAt) - fallbackAt < 500,
     publicWrites.join(", "),
   );
-  const uploads = read("lib/uploads.ts");
-  const publicAt = uploads.indexOf('access: "public"');
+  const publicAt = uploads.indexOf('access: "public"', uploads.indexOf("export async function uploadDocument"));
   const before = uploads.slice(Math.max(0, publicAt - 400), publicAt);
   check(
     "…reached only after every private kind has returned",
