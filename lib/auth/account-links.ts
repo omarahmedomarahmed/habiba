@@ -17,8 +17,10 @@ import {
   users,
   type AccountAudience,
 } from "@/lib/db/schema";
+import { SPONSOR_PASSWORD_MIN } from "@/lib/data/sponsor-users";
 import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
+import { PARTNER_PASSWORD_MIN } from "@/lib/partner/team";
 import {
   CLINIC_SIGN_IN,
   PARTNER_SIGN_IN,
@@ -59,6 +61,22 @@ export const SIGN_IN_FOR: Record<AccountAudience, string> = {
   sponsor: SPONSOR_SIGN_IN,
   clinic: CLINIC_SIGN_IN,
   partner: PARTNER_SIGN_IN,
+};
+
+/**
+ * 🔴 B29 / B48 — THE PORTAL'S OWN FLOOR, not the clinician one.
+ *
+ * `/welcome` checked every link against `validatePassword`'s ten characters,
+ * so a company admin or a developer invited by link chose a password their
+ * own portal would refuse on the next change, under a hint that contradicted
+ * the team page ("twelve characters or more"). Each portal's number is read
+ * from where that portal enforces it.
+ */
+export const PASSWORD_MIN_FOR: Record<AccountAudience, number> = {
+  staff: 10,
+  clinic: 10,
+  sponsor: SPONSOR_PASSWORD_MIN,
+  partner: PARTNER_PASSWORD_MIN,
 };
 
 function hashOf(token: string): string {
@@ -106,10 +124,14 @@ export async function mintAccountLink(input: {
 /** The live link a token names, or null. Read-only, for the page that shows the form. */
 export async function peekAccountLink(
   token: string,
-): Promise<{ audience: AccountAudience; accountId: string } | null> {
+): Promise<{ audience: AccountAudience; accountId: string; purpose: "invite" | "reset" } | null> {
   if (!token || token.length > 200) return null;
   const [row] = await db
-    .select({ audience: accountLinks.audience, accountId: accountLinks.accountId })
+    .select({
+      audience: accountLinks.audience,
+      accountId: accountLinks.accountId,
+      purpose: accountLinks.purpose,
+    })
     .from(accountLinks)
     .where(
       and(
@@ -123,6 +145,29 @@ export async function peekAccountLink(
 }
 
 /**
+ * 🔴 B43 — WHY A LINK THAT NO LONGER WORKS STOPPED WORKING, for the page that
+ * says so. Reopening a spent invitation showed "The link may be old, or the
+ * page has moved" with no heading, and a manager who had just set a password
+ * could not tell whether it had taken. Only the portal and the reason come
+ * back, never the account: the token is a capability, and a dead one grants
+ * nothing but a sentence and the right door.
+ */
+export async function deadAccountLink(
+  token: string,
+): Promise<{ reason: "used" | "expired"; audience: AccountAudience } | null> {
+  if (!token || token.length > 200) return null;
+  const [row] = await db
+    .select({ audience: accountLinks.audience, usedAt: accountLinks.usedAt, expiresAt: accountLinks.expiresAt })
+    .from(accountLinks)
+    .where(eq(accountLinks.tokenHash, hashOf(token)))
+    .limit(1);
+  if (!row) return null;
+  if (row.usedAt) return { reason: "used", audience: row.audience };
+  if (row.expiresAt.getTime() <= Date.now()) return { reason: "expired", audience: row.audience };
+  return null;
+}
+
+/**
  * Set the password a link was minted for, once. The link is spent in the same
  * transaction as the password is written, and the spend is guarded on
  * `used_at IS NULL`, so two submissions of one link set it once.
@@ -130,9 +175,19 @@ export async function peekAccountLink(
 export async function redeemAccountLink(
   token: string,
   password: string,
-): Promise<{ ok: true; signIn: string; audience: AccountAudience; accountId: string } | { error: "weak" | "invalid"; message?: string }> {
-  const weak = validatePassword(password);
-  if (weak) return { error: "weak", message: weak };
+): Promise<
+  | { ok: true; signIn: string; audience: AccountAudience; accountId: string }
+  | { error: "weak"; minimum: number }
+  | { error: "invalid" }
+> {
+  /*
+   * 🔴 B29 / B48: the floor is the portal's, so the link is read first to learn
+   * which portal. Only a read: the spend below is still the one guarded write.
+   */
+  const live = await peekAccountLink(token);
+  if (!live) return { error: "invalid" };
+  const minimum = PASSWORD_MIN_FOR[live.audience];
+  if (validatePassword(password) || password.length < minimum) return { error: "weak", minimum };
 
   const passwordHash = await hashPassword(password);
   const now = new Date();

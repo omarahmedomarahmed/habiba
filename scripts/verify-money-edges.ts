@@ -636,6 +636,62 @@ async function main() {
       `cancelled ${refused.cancelled}, the claim is still ${survives.state}`,
     );
 
+    /*
+     * 🔴 B20: opening the sheet again over a claim never rewrites its amount.
+     * A stepper firing its default after the claim went in turned a $500
+     * claim into a $100 one. The control is the declare path, which is meant to
+     * re-state a live claim and still does.
+     */
+    const before = await one<{ amount_cents: number; settles_cents: number }>(sql`
+      SELECT amount_cents, settles_cents FROM manual_payments WHERE id = ${claimedCart.id!}`);
+    const reopened = await openCart({
+      purpose: "session",
+      refId: claimed.sessionId,
+      amountCents: 100,
+      settlesCents: 2,
+      payer: { kind: "session", organizationId: org.id },
+    });
+    const afterReopen = await one<{ amount_cents: number; settles_cents: number; state: string }>(sql`
+      SELECT amount_cents, settles_cents, state FROM manual_payments WHERE id = ${claimedCart.id!}`);
+    check(
+      "🔴 B20 opening the sheet over a submitted claim leaves its amount alone",
+      reopened.id === claimedCart.id &&
+        afterReopen.amount_cents === before.amount_cents &&
+        afterReopen.settles_cents === before.settles_cents &&
+        afterReopen.state === "submitted",
+      `${before.amount_cents} → ${afterReopen.amount_cents}`,
+    );
+    const { openManualPayment } = await import("../lib/billing/manual");
+    await openManualPayment({
+      purpose: "session",
+      refId: claimed.sessionId,
+      amountCents: before.amount_cents + 100,
+      settlesCents: before.settles_cents + 2,
+      payer: { kind: "session", organizationId: org.id },
+    });
+    const restated = await one<{ amount_cents: number }>(sql`
+      SELECT amount_cents FROM manual_payments WHERE id = ${claimedCart.id!}`);
+    check(
+      "B20 CONTROL …while a declaration still corrects the figure on a live claim",
+      restated.amount_cents === before.amount_cents + 100,
+      `${before.amount_cents} → ${restated.amount_cents}`,
+    );
+
+    /*
+     * 🔴 B20: and the stepper saves only a step somebody took. On mount it saved
+     * the floor, so a confirmation refreshing an open sheet opened a fresh $100
+     * cart and a "Sent it? Tap to finish" bar for money nobody meant to send.
+     */
+    const stepper = readSource("components/billing/top-up-stepper.tsx");
+    const potPage = readSource("app/(sponsor)/sponsor/pot/page.tsx");
+    check(
+      "🔴 B20 the top-up stepper opens no cart until a step is taken; the tap on Pay now does",
+      /if \(!onChoose \|\| !chosen \|\| !moved\) return;/.test(stepper) &&
+        /onOpen=\{ladder\?\.steps\[0\] \? openPotPayment\.bind\(null, ladder\.steps\[0\]\.creditCents\)/.test(potPage) &&
+        /onCancel=\{cancelPotPayment\}/.test(potPage),
+      "stepper guard, onOpen and onCancel on the pot sheet",
+    );
+
     /* ================================================================ */
     /*  13 · AND THE BOOKS STILL BALANCE                                 */
     /* ================================================================ */

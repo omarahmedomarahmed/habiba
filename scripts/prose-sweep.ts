@@ -367,6 +367,12 @@ const PORTALS: Record<string, readonly string[]> = {
      * patient, a clinician, a manager, a company, a partner and our own staff.
      */
     "mail",
+    /*
+     * B29 / B43 / B48: `/welcome/[token]`, where an invited back office,
+     * clinic, company or partner account chooses its first password. One page
+     * for four portals, so shared, like `auth`.
+     */
+    "welcome",
   ],
 };
 

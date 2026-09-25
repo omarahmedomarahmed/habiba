@@ -43,6 +43,15 @@ test("an invitation link sets the password once, and a newer link retires the ol
     assert.equal(await peekAccountLink(first), null, "the older link still works");
     assert.ok(await peekAccountLink(second));
 
+    /*
+     * 🔴 B48: a company link takes the company's own floor, twelve. It took
+     * ten, under a hint that contradicted the team page. Eleven characters is
+     * the case that passed before and must not now; the link survives it.
+     */
+    const short = await redeemAccountLink(second, "eleven-char");
+    assert.deepEqual(short, { error: "weak", minimum: 12 }, "a company password below the portal's floor");
+    assert.equal((await peekAccountLink(second))?.purpose, "invite", "a refused password spent the link");
+
     const both = await Promise.all([
       redeemAccountLink(second, "a-long-enough-password-1"),
       redeemAccountLink(second, "a-different-password-22"),
@@ -55,6 +64,12 @@ test("an invitation link sets the password once, and a newer link retires the ol
       await verifyPassword("a-different-password-22", after!.passwordHash!),
     ];
     assert.equal(matches.filter(Boolean).length, 1);
+
+    /* 🔴 B43: a spent link says it was used, and which door to go to; a made-up one says neither. */
+    const { deadAccountLink } = await import("../lib/auth/account-links");
+    assert.deepEqual(await deadAccountLink(second), { reason: "used", audience: "sponsor" });
+    assert.deepEqual(await deadAccountLink(first), { reason: "used", audience: "sponsor" });
+    assert.equal(await deadAccountLink("not-a-real-token"), null);
   } finally {
     if (userId) await db.delete(accountLinks).where(eq(accountLinks.accountId, userId));
     await db.execute(sql`DELETE FROM sponsor_users WHERE sponsor_id = ${sponsor!.id}`);

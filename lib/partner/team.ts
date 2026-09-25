@@ -36,8 +36,9 @@ import { log, ref } from "@/lib/logger";
 const RESET_MS = 60 * 60 * 1000;
 const INVITE_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** The same floor `createPartnerUser` applies. */
-const MIN_PASSWORD = 12;
+/** The same floor `createPartnerUser` applies, and `/welcome` too (B29). */
+export const PARTNER_PASSWORD_MIN = 12;
+const MIN_PASSWORD = PARTNER_PASSWORD_MIN;
 
 function sign(userId: string, expires: number, passwordHash: string | null): string {
   return createHmac("sha256", env.authSecret)

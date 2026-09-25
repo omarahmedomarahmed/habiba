@@ -59,6 +59,7 @@ export const FOOTING_OF_KIND: Record<MessageKind, Footing> = {
   "payout.returned": { reader: "clinician", occasion: "account" },
   "payout.overdue": { reader: "staff", occasion: "account" },
   "ops.oneHandDigest": { reader: "staff", occasion: "account" },
+  "ops.receiptAsked": { reader: "staff", occasion: "account" },
   "ops.returnAsked": { reader: "staff", occasion: "account" },
   "ops.watchdog": { reader: "staff", occasion: "account" },
   "licence.expired": { reader: "clinician", occasion: "account" },

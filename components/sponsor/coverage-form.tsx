@@ -42,14 +42,20 @@ export function CoverageForm({
   pendingFromLabel,
   noticeDays,
   balanceUsd,
+  fundedUsd,
   sessionPriceUsd,
 }: {
   coverageBps: number;
   pendingCoverageBps: number | null;
   pendingFromLabel: string | null;
   noticeDays: number;
-  /** What is in the pot right now, so the slider can say what it buys. */
-  balanceUsd: number;
+  /**
+   * The published balance, so the slider can say what it buys. Null when it is
+   * held back by a floor, and null is not zero (B18).
+   */
+  balanceUsd: number | null;
+  /** What the company has put in, counted instead when the balance is held back. */
+  fundedUsd: number;
   /** The average a session costs, from settings. Not guessed here. */
   sessionPriceUsd: number;
 }) {
@@ -126,17 +132,17 @@ export function CoverageForm({
             {draft === 0
               ? t("sponsor.cov.zero")
               : rich(
-                  t("sponsor.cov.buys", {
+                  t(balanceUsd === null ? "sponsor.cov.buysFunded" : "sponsor.cov.buys", {
                     percent: draft,
                     share: slot(0),
                     price: slot(1),
                     balance: slot(2),
-                    count: Math.floor(balanceUsd / ((sessionPriceUsd * draft) / 100)),
+                    count: Math.floor((balanceUsd ?? fundedUsd) / ((sessionPriceUsd * draft) / 100)),
                   }),
                   [
                     <strong key="share" className="text-slate-900"><Money cents={Math.round(((sessionPriceUsd * draft) / 100) * 100)} /></strong>,
                     <Money key="price" cents={Math.round(sessionPriceUsd * 100)} />,
-                    <strong key="balance" className="text-slate-900"><Money cents={Math.round(balanceUsd * 100)} /></strong>,
+                    <strong key="balance" className="text-slate-900"><Money cents={Math.round((balanceUsd ?? fundedUsd) * 100)} /></strong>,
                   ],
                 )}
           </p>

@@ -54,6 +54,19 @@ export function TopUpStepper({
 }) {
   const t = useT();
   const [i, setI] = useState(0);
+  /*
+   * 🔴 B20 — ONLY A STEP SOMEBODY TOOK IS A CHOICE. This fired on mount too, so
+   * the floor was saved as a choice whenever the stepper appeared: including
+   * when an operator's confirmation refreshed an open sheet, which opened a
+   * fresh cart at $100 and left "Sent it? Tap to finish" on every company page
+   * for money nobody meant to send. The cart for the sheet being opened at all
+   * is the caller's `onOpen`, which runs on a tap.
+   */
+  const [moved, setMoved] = useState(false);
+  const take = (next: (n: number) => number) => {
+    setMoved(true);
+    setI(next);
+  };
 
   /*
    * Fire and forget on a settled choice. A failure costs them the bar, never
@@ -61,10 +74,10 @@ export function TopUpStepper({
    */
   const chosen = steps[Math.min(i, Math.max(0, steps.length - 1))];
   useEffect(() => {
-    if (!onChoose || !chosen) return;
+    if (!onChoose || !chosen || !moved) return;
     const timer = setTimeout(() => void onChoose(chosen.creditCents).catch(() => undefined), 700);
     return () => clearTimeout(timer);
-  }, [chosen, onChoose]);
+  }, [chosen, onChoose, moved]);
 
   /*
    * An empty ladder means an operator has configured a ceiling below the floor.
@@ -92,7 +105,7 @@ export function TopUpStepper({
           label={t("topup.less")}
           sign="minus"
           disabled={atFloor}
-          onClick={() => setI((n) => Math.max(0, n - 1))}
+          onClick={() => take((n) => Math.max(0, n - 1))}
         />
 
         <div className="min-w-0 flex-1 text-center">
@@ -113,7 +126,7 @@ export function TopUpStepper({
           label={t("topup.more")}
           sign="plus"
           disabled={atCeiling}
-          onClick={() => setI((n) => Math.min(steps.length - 1, n + 1))}
+          onClick={() => take((n) => Math.min(steps.length - 1, n + 1))}
         />
       </div>
 

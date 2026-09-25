@@ -273,6 +273,18 @@ export async function openPotPayment(creditCents: number): Promise<void> {
   });
 }
 
+/**
+ * 🔴 B20 — the company's way out of a payment it opened and decided not to
+ * send, which every other payer already had. `cancelCart` deletes only an
+ * `awaiting_proof` row, so a claim with proof in it cannot be removed here.
+ */
+export async function cancelPotPayment(): Promise<void> {
+  const actor = await requireSponsorAdmin();
+  const { cancelCart } = await import("@/lib/billing/cart");
+  await cancelCart({ kind: "sponsor", sponsorId: actor.sponsorId });
+  revalidatePath("/sponsor/pot");
+}
+
 export type TaxState = { ok?: boolean; error?: string };
 
 /**
@@ -347,6 +359,63 @@ export async function askForMoneyBack(_prev: ReturnAskState, formData: FormData)
     resourceType: "sponsor",
     resourceId: actor.sponsorId,
     reason,
+  });
+  return { ok: true };
+}
+
+/**
+ * 🔴 B19: the company's way to ask for a payment receipt we cannot issue yet.
+ *
+ * `invoiceFor` refuses to print a receipt while the issuing entity's registered
+ * name, address or tax number is blank in Settings, rather than put a
+ * placeholder on a document a finance team files. The page used to say "Ask us"
+ * with nothing to ask through. This tells the operators which company is
+ * waiting and exactly which details to fill in; it issues nothing itself.
+ */
+export async function askForReceipt(_prev: ReturnAskState, formData: FormData): Promise<ReturnAskState> {
+  const { requireSponsor } = await import("@/lib/sponsor-auth/guard");
+  const actor = await requireSponsor();
+  const txn = String(formData.get("txn") ?? "");
+
+  const { invoiceFor } = await import("@/lib/billing/invoice");
+  const invoice = await invoiceFor(actor.sponsorId, txn);
+  /* Scoped to this company: another company's transaction is simply not found. */
+  if (!invoice || !("missing" in invoice)) return { error: "sponsor.inv.errAsk" };
+
+  const { consume } = await import("@/lib/rate-limit");
+  const allowed = await consume(`receipt-ask:${actor.sponsorId}`, 3, 86_400);
+  if (!allowed.allowed) return { error: "sponsor.returns.errSoon" };
+
+  const { controlDb } = await import("@/lib/db");
+  const { users, BACK_OFFICE_ROLES } = await import("@/lib/db/schema");
+  const { inArray } = await import("drizzle-orm");
+  const staff = await controlDb
+    .select({ email: users.email, profile: users.profile, timezone: users.timezone })
+    .from(users)
+    .where(inArray(users.role, [...BACK_OFFICE_ROLES]))
+    .limit(10);
+  const { notify } = await import("@/lib/notify");
+  const { env } = await import("@/lib/env");
+  for (const person of staff) {
+    await notify(
+      { email: person.email, phone: person.profile?.phone ?? null, timezone: person.timezone },
+      {
+        kind: "ops.receiptAsked",
+        subject: `${actor.sponsorName} is waiting for a payment receipt`,
+        body: `${actor.sponsorName} asked for the receipt for a pot top-up. It cannot be issued until the issuing entity's ${invoice.missing.join(", ")} are saved in Settings.`,
+        link: { label: "Open Settings", url: `${env.appUrl}/admin/settings` },
+      },
+    );
+  }
+
+  await audit({
+    actor: null,
+    sponsorUserId: actor.sponsorUserId,
+    category: "admin",
+    action: "pot.receipt_asked",
+    resourceType: "sponsor",
+    resourceId: actor.sponsorId,
+    reason: `missing ${invoice.missing.join(", ")}`,
   });
   return { ok: true };
 }

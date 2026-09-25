@@ -10,6 +10,18 @@ import { Button, Card } from "@/components/ui";
 
 export type SeatState = { error?: string; ok?: boolean };
 
+/**
+ * 🔴 B16 — which form of a count's sentence to use. The dictionary holds no
+ * plural logic, so the suffix is chosen here: One and Two are their own words
+ * in Arabic, and eleven and up take the singular accusative.
+ */
+function countForm(n: number): "" | "One" | "Two" | "Many" {
+  if (n === 1) return "One";
+  if (n === 2) return "Two";
+  if (n >= 11) return "Many";
+  return "";
+}
+
 export type SeatQuote = {
   fromSeats: number;
   toSeats: number;
@@ -81,9 +93,12 @@ export function SeatManager({
     <Card className="p-5">
       <h2 className="text-sm font-semibold text-slate-900">{t("seats.title")}</h2>
       <p className="mt-1 text-sm text-slate-600">
-        {seats === 0
-          ? t("seats.solo")
-          : rich(t("seats.now", { count: seats, monthly: slot(0) }), [monthlyLabel])}
+        {/*
+          🔴 B16 — the count and the bill, at every count, zero included. At
+          zero this printed the solo plan's sentence on a practice's page and
+          no price at all.
+        */}
+        {rich(t(`seats.now${countForm(seats)}`, { count: seats, monthly: slot(0) }), [monthlyLabel])}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -108,7 +123,7 @@ export function SeatManager({
       {quote ? (
         <div className="mt-4 rounded-xl bg-slate-50 p-4">
           <p className="text-sm text-slate-700">
-            {rich(t("seats.quote", { count: quote.toSeats, to: slot(0), from: slot(1) }), [
+            {rich(t(`seats.quote${countForm(quote.toSeats)}`, { count: quote.toSeats, to: slot(0), from: slot(1) }), [
               <Money cents={quote.toMonthlyCents} />,
               <Money cents={quote.fromMonthlyCents} />,
             ])}
@@ -147,7 +162,7 @@ export function SeatManager({
             });
           }}
         >
-          {pending ? t("common.saving") : t("seats.change", { count: quote.toSeats })}
+          {pending ? t("common.saving") : t(`seats.change${countForm(quote.toSeats)}`, { count: quote.toSeats })}
         </Button>
       ) : null}
     </Card>

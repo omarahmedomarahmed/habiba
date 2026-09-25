@@ -20,8 +20,12 @@ export const dynamic = "force-dynamic";
  * sprint: the clinician principal's routes ARE the clinical product, and a
  * practice manager holding that cookie would be inside it.
  */
-export default async function ClinicSignInPage() {
-  const { t } = await getI18n();
+export default async function ClinicSignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ set?: string }>;
+}) {
+  const [{ t }, { set }] = await Promise.all([getI18n(), searchParams]);
 
   return (
     <AuthShell
@@ -39,7 +43,17 @@ export default async function ClinicSignInPage() {
         </p>
       }
     >
+      {set === "1" ? <PasswordSet text={t("auth.passwordSet")} /> : null}
       <ClinicSignInForm />
     </AuthShell>
+  );
+}
+
+/** 🔴 B29 / B43: `/welcome` lands here with `set=1` once the password is chosen. */
+function PasswordSet({ text }: { text: string }) {
+  return (
+    <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+      {text}
+    </p>
   );
 }

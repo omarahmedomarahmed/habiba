@@ -166,6 +166,18 @@ test("the label is a city, not an offset", () => {
   assert.equal(zoneLabel("UTC"), "UTC");
 });
 
+test("B44 the label is in the reader's language, and the English one is unchanged", async () => {
+  // Control: English still reads the city, which is what an Arabic page used to print.
+  assert.equal(zoneLabel("Africa/Cairo", "en"), "Cairo");
+  const cairo = zoneLabel("Africa/Cairo", "ar");
+  assert.doesNotMatch(cairo, /[A-Za-z]/, `Arabic reads ${cairo}`);
+  assert.equal(cairo, "مصر");
+  assert.doesNotMatch(zoneLabel("America/New_York", "ar"), /[A-Za-z]|^توقيت/);
+  assert.equal(zoneLabel("UTC", "ar"), "غرينتش");
+  const { ar } = await import("../lib/i18n/messages");
+  assert.equal(ar["clinic.timesIn"].replace("{zone}", cairo), "الأوقات بتوقيت مصر");
+});
+
 /* ------------------------------------------------ 11R.16 the quiet window -- */
 
 test("nothing is sent between 22:00 and 07:00 where the reader is", () => {

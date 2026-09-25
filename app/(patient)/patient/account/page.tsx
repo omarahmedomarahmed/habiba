@@ -337,7 +337,7 @@ export default async function PatientAccountPage({
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-slate-500">{t("paccount.timezone")}</dt>
             <dd className="text-slate-800">
-              {actor.timezone ? zoneLabel(actor.timezone) : t("paccount.notSet")}
+              {actor.timezone ? zoneLabel(actor.timezone, locale) : t("paccount.notSet")}
             </dd>
           </div>
         </dl>

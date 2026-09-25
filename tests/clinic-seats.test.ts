@@ -53,3 +53,21 @@ test("inviting and removing quote the seat change and apply it", () => {
   const page = read("app/(clinic)/clinic/people/page.tsx");
   assert.match(page, /quoteSeatChange\(/, "the admin is not shown the figure before the click");
 });
+
+test("B16 the seat card states the count and the bill at every count, with a count's own words", async () => {
+  const manager = read("components/billing/seat-manager.tsx");
+  assert.doesNotMatch(manager, /seats\.solo/, "a practice read the solo plan's sentence at zero seats");
+  assert.doesNotMatch(manager, /seats === 0/, "zero seats hid the price line");
+
+  const { en, ar } = await import("../lib/i18n/messages");
+  // Control: the plain key is what said "1 seats"; the One form must not.
+  assert.match(en["seats.quote"], /\{count\} seats/);
+  for (const key of ["seats.nowOne", "seats.quoteOne", "seats.changeOne"] as const) {
+    assert.doesNotMatch(en[key], /seats/, `${key} still says "seats" for one`);
+    assert.match(en[key], /1 seat\b/);
+    assert.ok(ar[key].includes("مقعد"), `${key} has no Arabic`);
+  }
+  assert.match(manager, /seats\.now\$\{countForm\(seats\)\}/);
+  assert.match(manager, /seats\.quote\$\{countForm\(quote\.toSeats\)\}/);
+  assert.match(manager, /seats\.change\$\{countForm\(quote\.toSeats\)\}/);
+});

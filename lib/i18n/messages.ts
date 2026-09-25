@@ -1717,8 +1717,14 @@ export const en = {
    * which is the differencing attack in a single subtraction. So the
    * suppressed state says what it is.
    */
-  "sponsor.balanceSuppressed": "Not enough activity to report yet",
   "sponsor.balance": "Left in your pot",
+  /*
+   * 🔴 B3 — the company's own money in, shown when the balance net of spend is
+   * held back. Its own label, never "Left in your pot": it is what was paid in,
+   * not what remains, and saying otherwise would be a false balance.
+   */
+  "sponsor.funded": "Put into your pot",
+  "sponsor.fundedHeld": "Use is shown once {floor} people have joined.",
   "sponsor.spendTitle": "What has been spent, by week",
   /* 🔴 C228 / C229 — the sentence a client asking for a daily chart reads. */
   "sponsor.whyWeekly": "Weekly at the finest, and never one session alone.",
@@ -1838,6 +1844,7 @@ export const en = {
   "sponsor.cov.moveIt": "Move it, then save",
   "sponsor.cov.zero": "Your people pay for their own. Nothing is drawn from your balance.",
   "sponsor.cov.buys": "At {percent}% you pay {share} of a {price} session, so your balance of {balance} covers about {count} sessions.",
+  "sponsor.cov.buysFunded": "At {percent}% you pay {share} of a {price} session, so the {balance} you have put in covers about {count} sessions.",
   "sponsor.cov.edit": "Edit what you cover",
   "sponsor.cov.raiseNow": "Raising it happens now.",
   "sponsor.cov.lowerTakes": "Lowering it takes {days} days, so nobody pays more on a session already booked.",
@@ -1851,14 +1858,28 @@ export const en = {
   /* 🔴 53.15 — the documents, rendered from the ledger rather than stored. */
   /* The clinic's seats (62.2), keyed so an Arabic clinic reads its own bill. */
   "seats.title": "Seats",
-  "seats.solo": "Your own plan. Add seats to bring colleagues onto one account.",
+  /*
+   * 🔴 B16 — a count has its forms: "1 seats" was on the screen. One, Two and
+   * Many exist for Arabic (مقعد واحد، مقعدان، ١١ مقعدًا); English reads the
+   * same in all but One. The solo-plan sentence is gone: only a practice with
+   * no seats yet ever saw it, and it described somebody else's plan.
+   */
   "seats.now": "{count} seats, {monthly} a month.",
+  "seats.nowOne": "1 seat, {monthly} a month.",
+  "seats.nowTwo": "2 seats, {monthly} a month.",
+  "seats.nowMany": "{count} seats, {monthly} a month.",
   "seats.slider": "Number of seats",
-  "seats.quote": "{count} seats: {to} a month, up from {from}.",
+  "seats.quote": "{count} seats: {to} a month, instead of {from}.",
+  "seats.quoteOne": "1 seat: {to} a month, instead of {from}.",
+  "seats.quoteTwo": "2 seats: {to} a month, instead of {from}.",
+  "seats.quoteMany": "{count} seats: {to} a month, instead of {from}.",
   "seats.payNow": "You pay {amount} now for the {days} days left this month.",
   "seats.noRefund": "Removing seats refunds nothing this month; the smaller bill starts at renewal.",
   "seats.nothingNow": "Nothing to pay now. The new figure starts at renewal.",
   "seats.change": "Change to {count} seats",
+  "seats.changeOne": "Change to 1 seat",
+  "seats.changeTwo": "Change to 2 seats",
+  "seats.changeMany": "Change to {count} seats",
   "sponsor.invoices": "Payment receipts",
   /* 🔴 0147: the company's tax details and its ETA tax invoices. */
   "sponsor.tax.title": "Tax details",
@@ -1997,8 +2018,12 @@ export const en = {
   "sponsor.inv.line": "Prepayment for therapy sessions on 24Therapy",
   "sponsor.inv.vat": "VAT at {rate}%",
   "sponsor.inv.paid": "Paid",
-  "sponsor.inv.notYet": "We cannot issue this document yet.",
-  "sponsor.inv.notYetBody": "Ask us and we will send it.",
+  "sponsor.inv.notYet": "We cannot issue this receipt yet.",
+  /* 🔴 B19 — the reason, and a button that reaches a person, not "ask us" into the air. */
+  "sponsor.inv.notYetBody": "Our company details for receipts are not complete yet, so we cannot issue one your finance team could file. Your payment is in your pot.",
+  "sponsor.inv.ask": "Ask us for this receipt",
+  "sponsor.inv.asked": "We have been told. We will email the receipt when it is ready.",
+  "sponsor.inv.errAsk": "This receipt can be issued now. Reload the page.",
   /* 🔴 53.12 — on the document as well as on the screen that took the money. */
   "sponsor.inv.spendableOnly": "Spendable on sessions, not withdrawable. Your refund and expiry terms apply.",
   "sponsor.settingsTitle": "How people join",
@@ -2736,7 +2761,14 @@ export const en = {
   "records.whatWeHold": "Your system is the record. Today we read nothing from it; once filing is built we will read one thing, the patient's name.",
   "records.whatWeKeep": "We keep what we made: the session, the transcript, the note and who approved it. It answers to the patient.",
   "records.severOnDisconnect": "Disconnect and we stop resolving your identifiers the same moment. The record we made stays, with no link back.",
-  "records.notConfigured": "This deployment cannot hold a connection yet. It needs {missing}.",
+  /*
+   * 🔴 B17 — for the manager reading it, not the engineer. This named two
+   * missing environment settings ("no client registration and no token sealing
+   * key"), in English inside the Arabic sentence, read as if nothing were
+   * needed, and offered nowhere to go.
+   */
+  "records.notConfigured": "Connecting a record system is not switched on yet, so there is nothing for you to set up. Your notes stay here meanwhile.",
+  "records.notConfiguredAsk": "Tell us which system you use",
   "records.filings": "Recent filings",
   "records.filingsEmpty": "No notes have been filed yet.",
   "records.filed": "Filed",
@@ -3056,6 +3088,25 @@ export const en = {
   "tauth.resetBody": "We will email you a link.",
   "tauth.sendResetLink": "Send reset link",
   "tauth.chooseNew": "Choose a new password",
+  /*
+   * 🔴 B29 / B43 / B48 — /welcome, where an invited account chooses its first
+   * password. It borrowed the reset page's words ("Choose a new password",
+   * "Update password", ten characters) for every portal, and a spent link got
+   * one line and no heading.
+   */
+  "welcome.firstTitle": "Choose your password",
+  "welcome.password": "Password",
+  "welcome.save": "Set password",
+  "welcome.hintMin": "At least {count} characters.",
+  "welcome.weak": "Use at least {count} characters, with no space at the start or end.",
+  "welcome.usedTitle": "This link has already been used",
+  "welcome.usedBody": "A link sets a password once. If you set yours, sign in with it; if not, ask for a new link from the sign-in page.",
+  "welcome.expiredTitle": "This link has expired",
+  "welcome.expiredBody": "Ask for a new link from the sign-in page, or ask whoever invited you.",
+  "welcome.unknownTitle": "This link does not work",
+  "welcome.goSignIn": "Go to sign in",
+  /* 🔴 B29 / B43 — the line a portal's sign-in shows after /welcome set the password. */
+  "auth.passwordSet": "Password set. Sign in with it.",
   "tauth.chooseNewBody": "This will sign you out everywhere else.",
   "tauth.linkInvalid": "Link not valid",
   "tauth.linkInvalidBody": "This reset link is missing its token. Request a fresh one.",
@@ -6520,8 +6571,9 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.reason.ended": "انتهت الميزة",
   "sponsor.reason.administrative": "تصحيح إداري",
   "sponsor.removeConfirm": "ينتهي تمويله وشارته الآن. ويبقى سجله كما هو، ولا يُخبَر بالسبب.",
-  "sponsor.balanceSuppressed": "لا يوجد نشاط كافٍ لعرض رصيد بعد",
   "sponsor.balance": "المتبقي في محفظتك",
+  "sponsor.funded": "ما أضفته إلى محفظتك",
+  "sponsor.fundedHeld": "يظهر الاستخدام بعد انضمام {floor} أشخاص.",
   "sponsor.spendTitle": "ما أُنفق، أسبوعًا بأسبوع",
   "sponsor.whyWeekly": "أسبوعيًا على الأكثر، ولا تظهر أي جلسة وحدها أبدًا.",
   "sponsor.suppressed": "النشاط لا يكفي للتقرير بعد",
@@ -6618,6 +6670,7 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.cov.moveIt": "حرّكه ثم احفظ",
   "sponsor.cov.zero": "يدفع موظفوك لأنفسهم، ولا يُسحب شيء من رصيدك.",
   "sponsor.cov.buys": "عند {percent}% تدفع {share} من جلسة سعرها {price}، فيغطي رصيدك البالغ {balance} نحو {count} جلسة.",
+  "sponsor.cov.buysFunded": "عند {percent}% تدفع {share} من جلسة سعرها {price}، فيغطي ما أضفته وقدره {balance} نحو {count} جلسة.",
   "sponsor.cov.edit": "عدّل ما تغطّيه",
   "sponsor.cov.raiseNow": "الزيادة تسري فورًا.",
   "sponsor.cov.lowerTakes": "أما التخفيض فيستغرق {days} يومًا، فلا يدفع أحد أكثر في جلسة حجزها بالفعل.",
@@ -6627,14 +6680,22 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.coverageNow": "يدفع موظفوك الآن {percent}% من قيمة الجلسة.",
   "sponsor.coverageFrom": "تم الحفظ. يسري في {date}؛ ومن حجز بالفعل يحتفظ بنسبته.",
   "seats.title": "المقاعد",
-  "seats.solo": "خطتك الفردية. أضف مقاعد لضم زملائك إلى حساب واحد.",
   "seats.now": "{count} مقاعد، {monthly} شهريًا.",
+  "seats.nowOne": "مقعد واحد، {monthly} شهريًا.",
+  "seats.nowTwo": "مقعدان، {monthly} شهريًا.",
+  "seats.nowMany": "{count} مقعدًا، {monthly} شهريًا.",
   "seats.slider": "عدد المقاعد",
   "seats.quote": "{count} مقاعد: {to} شهريًا، بدلًا من {from}.",
+  "seats.quoteOne": "مقعد واحد: {to} شهريًا، بدلًا من {from}.",
+  "seats.quoteTwo": "مقعدان: {to} شهريًا، بدلًا من {from}.",
+  "seats.quoteMany": "{count} مقعدًا: {to} شهريًا، بدلًا من {from}.",
   "seats.payNow": "تدفع {amount} الآن عن {days} يومًا متبقية من هذا الشهر.",
   "seats.noRefund": "إزالة المقاعد لا تسترد شيئًا هذا الشهر؛ الفاتورة الأصغر تبدأ عند التجديد.",
   "seats.nothingNow": "لا شيء للدفع الآن. يبدأ المبلغ الجديد عند التجديد.",
   "seats.change": "التغيير إلى {count} مقاعد",
+  "seats.changeOne": "التغيير إلى مقعد واحد",
+  "seats.changeTwo": "التغيير إلى مقعدين",
+  "seats.changeMany": "التغيير إلى {count} مقعدًا",
   "sponsor.invoices": "إيصالات الدفع",
   "sponsor.tax.title": "بيانات الضرائب لفواتيركم الإلكترونية",
   "sponsor.tax.legalName": "اسم الشركة المسجل",
@@ -6749,8 +6810,11 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.inv.line": "دفعة مقدمة لجلسات علاج نفسي على 24Therapy",
   "sponsor.inv.vat": "ضريبة القيمة المضافة {rate}%",
   "sponsor.inv.paid": "مدفوع",
-  "sponsor.inv.notYet": "لا يمكننا إصدار هذه الوثيقة بعد.",
-  "sponsor.inv.notYetBody": "اطلبها منا وسنرسلها.",
+  "sponsor.inv.notYet": "لا يمكننا إصدار هذا الإيصال بعد.",
+  "sponsor.inv.notYetBody": "بيانات شركتنا اللازمة للإيصالات لم تكتمل بعد، فلا يمكننا إصدار إيصال يقبله فريقك المالي. دفعتك موجودة في محفظتك.",
+  "sponsor.inv.ask": "اطلب منا هذا الإيصال",
+  "sponsor.inv.asked": "وصلنا طلبك. سنرسل الإيصال بالبريد حين يجهز.",
+  "sponsor.inv.errAsk": "يمكن إصدار هذا الإيصال الآن. أعد تحميل الصفحة.",
   "sponsor.inv.spendableOnly": "يُنفَق على الجلسات هنا ولا يُسحب نقدًا. وتسري شروط الاسترداد والانتهاء المتفق عليها.",
   "sponsor.settingsTitle": "كيف ينضم الناس",
   "sponsor.identifierTitle": "ما تطلبونه من الناس",
@@ -7308,7 +7372,8 @@ export const ar: Record<MessageKey, string> = {
   "records.whatWeHold": "نظامك هو السجل. اليوم لا نقرأ منه شيئًا، وحين يُبنى الإيداع سنقرأ شيئًا واحدًا: اسم المريض.",
   "records.whatWeKeep": "نحتفظ بما صنعناه: الجلسة والتفريغ والملاحظة ومن اعتمدها. وهي مسؤولة أمام المريض.",
   "records.severOnDisconnect": "بالفصل نتوقف فورًا عن ترجمة معرّفاتك. ويبقى السجل الذي صنعناه بلا رابط إليك.",
-  "records.notConfigured": "لا يستطيع هذا النشر حفظ ربط بعد. يحتاج {missing}.",
+  "records.notConfigured": "ربط نظام السجلات غير مفعّل بعد، فلا شيء عليك إعداده. وتبقى ملاحظاتك هنا في الأثناء.",
+  "records.notConfiguredAsk": "أخبرنا بالنظام الذي تستخدمه",
   "records.filings": "الإيداعات الأخيرة",
   "records.filingsEmpty": "لم تودع أي ملاحظة بعد.",
   "records.filed": "أُودعت",
@@ -7597,6 +7662,18 @@ export const ar: Record<MessageKey, string> = {
   "tauth.resetBody": "سنرسل إليك رابطًا بالبريد.",
   "tauth.sendResetLink": "أرسل رابط إعادة التعيين",
   "tauth.chooseNew": "اختر كلمة مرور جديدة",
+  "welcome.firstTitle": "اختر كلمة مرورك",
+  "welcome.password": "كلمة المرور",
+  "welcome.save": "تعيين كلمة المرور",
+  "welcome.hintMin": "{count} حرفًا على الأقل.",
+  "welcome.weak": "استخدم {count} حرفًا على الأقل، دون مسافة في أولها أو آخرها.",
+  "welcome.usedTitle": "استُخدم هذا الرابط من قبل",
+  "welcome.usedBody": "يعيّن الرابط كلمة المرور مرة واحدة. إن عيّنت كلمتك فسجّل الدخول بها، وإلا فاطلب رابطًا جديدًا من صفحة تسجيل الدخول.",
+  "welcome.expiredTitle": "انتهت صلاحية هذا الرابط",
+  "welcome.expiredBody": "اطلب رابطًا جديدًا من صفحة تسجيل الدخول، أو ممن دعاك.",
+  "welcome.unknownTitle": "هذا الرابط لا يعمل",
+  "welcome.goSignIn": "الذهاب إلى تسجيل الدخول",
+  "auth.passwordSet": "عُيّنت كلمة المرور. سجّل الدخول بها.",
   "tauth.chooseNewBody": "سيؤدي هذا إلى تسجيل خروجك من كل مكان آخر.",
   "tauth.linkInvalid": "الرابط غير صالح",
   "tauth.linkInvalidBody": "رابط إعادة التعيين هذا ينقصه رمزه. اطلب رابطًا جديدًا.",

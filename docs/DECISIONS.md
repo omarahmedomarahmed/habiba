@@ -53,6 +53,7 @@ entity, the accountant and counsel may change any of these after the fact.
 | 20 | Verifying a clinician | **Only through the verification queue.** The one-click "Verify" on `/admin/therapists` is gone: it approved a licence with no documents, no second reviewer and no email to the clinician. Every approval now carries its documents, the reviewer's name and the two-reviewer rule when it is on. A clinician with no documents asks for them through the queue. Ruled 2026-09-25. |
 | 21 | Adding a second owner | **The first extra owner needs a written reason and is audited; every owner after that needs a second owner's approval.** With one founder there is nobody else to approve the first one, and without a second owner the two-person rules (ledger adjustments, credit without proof) can never be satisfied. The audit row names who added whom and why. Ruled 2026-09-25. |
 | 22 | The simulated checkout page | **Not found on the live site; no admin check on top.** It exists only for testing without real card keys, and the person who uses it is the patient paying, not an admin. On production every `/dev` page answers "not found". Ruled 2026-09-25. |
+| 23 | WhatsApp | **Off until the Meta keys and templates are approved; email carries every message meanwhile.** The three templates that gained a link button (record invite, payment confirmed, payment rejected) are resubmitted to Meta when WhatsApp is set up. The session join link goes in a WhatsApp button, not the message text. Ruled 2026-09-25. |
 
 ## Pending
 

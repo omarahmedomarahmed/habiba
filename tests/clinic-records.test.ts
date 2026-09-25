@@ -65,3 +65,16 @@ test("both records pages say how the connection went", () => {
   assert.match(panel, /records\.outcomeConnected/);
   assert.match(panel, /records\.outcomeFailed/);
 });
+
+test("B17 an unavailable connection is explained to a manager, in their language, with a way on", async () => {
+  const { en, ar } = await import("../lib/i18n/messages");
+  for (const text of [en["records.notConfigured"], ar["records.notConfigured"]]) {
+    assert.doesNotMatch(text, /\{missing\}|deployment|sealing|registration/i, "developer wording on a manager's screen");
+  }
+  // Control: the Arabic sentence has no Latin words left in it but the product name.
+  assert.doesNotMatch(ar["records.notConfigured"].replace(/24Therapy/g, ""), /[A-Za-z]/);
+  const panel = read("components/ehr/records-panel.tsx");
+  assert.doesNotMatch(panel, /\bmissing[,:}]|\{ missing \}/, "the environment's gaps are handed to the screen again");
+  const unavailable = panel.slice(panel.indexOf('t("records.notConfigured")'));
+  assert.match(unavailable.slice(0, 400), /href="\/contact"[\s\S]*records\.notConfiguredAsk/, "a dead end");
+});

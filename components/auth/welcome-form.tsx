@@ -9,18 +9,23 @@ import { useT } from "@/lib/i18n/client";
 
 const INITIAL: WelcomeState = {};
 
-function Submit() {
+function Submit({ first }: { first: boolean }) {
   const { pending } = useFormStatus();
   const t = useT();
   return (
     <Button type="submit" full disabled={pending}>
-      {pending ? t("common.working") : t("tauth.updatePassword")}
+      {pending ? t("common.working") : first ? t("welcome.save") : t("tauth.updatePassword")}
     </Button>
   );
 }
 
-/** W2-A06: the one field an invitation asks for. Its owner types it; nobody else ever does. */
-export function WelcomeForm({ token }: { token: string }) {
+/**
+ * W2-A06: the one field an invitation asks for. Its owner types it; nobody else ever does.
+ *
+ * 🔴 B29 / B48: `minimum` is the portal's own floor, from the server, so the
+ * hint, the browser's check and the server's refusal state one rule.
+ */
+export function WelcomeForm({ token, first, minimum }: { token: string; first: boolean; minimum: number }) {
   const t = useT();
   const [state, action] = useActionState(chooseWelcomePassword, INITIAL);
 
@@ -32,10 +37,21 @@ export function WelcomeForm({ token }: { token: string }) {
         </p>
       ) : null}
       <input type="hidden" name="token" value={token} />
-      <Field label={t("tauth.newPassword")} htmlFor="password" hint={t("tauth.passwordHint")}>
-        <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={10} />
+      <Field
+        label={first ? t("welcome.password") : t("tauth.newPassword")}
+        htmlFor="password"
+        hint={t("welcome.hintMin", { count: minimum })}
+      >
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          required
+          minLength={minimum}
+        />
       </Field>
-      <Submit />
+      <Submit first={first} />
     </form>
   );
 }

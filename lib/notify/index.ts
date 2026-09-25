@@ -189,6 +189,8 @@ export type Message = {
     | "ops.oneHandDigest"
     /** 🔴 A company asked for its unspent money back; the operators start the return. */
     | "ops.returnAsked"
+    /** 🔴 B19: a company is waiting for a payment receipt Settings cannot yet issue. */
+    | "ops.receiptAsked"
     /**
      * 🔴 0165: the hourly watchdog. A scheduled job twice its interval late, or
      * new server errors in the last hour, to the super admins, once per problem

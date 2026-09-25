@@ -1522,6 +1522,33 @@ export async function ledgerPotBalance(sponsorId: string): Promise<number> {
   return row?.cents ?? 0;
 }
 
+/**
+ * 🔴 B3 — WHAT THE COMPANY HAS PUT IN: every credit (`pot_topup`, the welcome
+ * credit included) less every return sent back (`pot_return`). The same sum
+ * `publishTopUp` starts a never-published pot from.
+ *
+ * Only the company's own acts are in it. Session spends and session refunds are
+ * left out, so it moves when the company pays or is paid back and never when an
+ * employee books, and a company under the headcount floor can be shown it
+ * without learning that anybody used the pot.
+ */
+export async function potFundedCents(sponsorId: string): Promise<number> {
+  const [row] = await controlDb
+    .select({
+      cents: sql<number>`GREATEST(0, COALESCE(-SUM(${ledgerEntries.amountCents}), 0))::int`,
+    })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.account, "sponsor_pot"),
+        eq(ledgerEntries.refType, "sponsor"),
+        eq(ledgerEntries.refId, sponsorId),
+        inArray(ledgerEntries.txnKind, ["pot_topup", "pot_return"]),
+      ),
+    );
+  return Number(row?.cents ?? 0);
+}
+
 /** Total spent out of this pot, ever, from the ledger. 53.25, 53.27. */
 export async function potTotals(
   sponsorId: string,

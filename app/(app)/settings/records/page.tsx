@@ -6,7 +6,6 @@ import { mayRunOrgAccount } from "@/lib/auth/org-authority";
 import { connectionsFor, filersOn, isClinicOrganization, writebacksFor } from "@/lib/data/ehr";
 import { orgKindOf } from "@/lib/data/org-kind";
 import { features } from "@/lib/env";
-import { whatIsMissing } from "@/lib/ehr/owner";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
@@ -68,7 +67,6 @@ export default async function SettingsRecordsPage({
         canManage={mayRunOrgAccount(kind)}
         filers={filers}
         configured={features.ehr}
-        missing={whatIsMissing()}
         actions={{ begin, disconnect }}
         filings={filings.map((filing) => ({
           id: filing.id,
