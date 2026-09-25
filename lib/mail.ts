@@ -363,6 +363,12 @@ export async function sendTherapistMessage(opts: {
    * An admin's own subject and body go as they were typed.
    */
   locale?: string | null;
+  /**
+   * 🔴 B42: the page a body sends them to. "Sign in and update your details"
+   * arrived with nothing to press, while the reset email had a button. Our own
+   * address only: the caller builds it, never an admin's typed text.
+   */
+  link?: { label: string; url: string } | null;
 }): Promise<boolean> {
   const words = await mailWords(opts.locale);
   const { t } = words;
@@ -382,6 +388,11 @@ export async function sendTherapistMessage(opts: {
       opts.firstName ? t("tmsg.mail.hi", { name: opts.firstName }) : t("tmsg.mail.hiThere"),
     )}</p>
      ${paragraphs}
+     ${
+       opts.link
+         ? `<a href="${esc(opts.link.url)}" style="display:inline-block;margin:6px 0 0;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(opts.link.label)}</a>`
+         : ""
+     }
      <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
        ${esc(opts.announcement ? t("tmsg.mail.announcement") : t("tmsg.mail.reply"))}
      </p>`,

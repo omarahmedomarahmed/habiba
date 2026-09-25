@@ -28,6 +28,7 @@ import {
   type LedgerAccount,
   type TaxonomyKind,
 } from "@/lib/db/schema";
+import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 import { sendTherapistMessage } from "@/lib/mail";
 
@@ -430,6 +431,14 @@ export async function decideTherapistVerification(
             decided.documentsCleared
             ? t("tmsg.unverified.cleared", { note: trimmed })
             : t("tmsg.unverified.body", { note: trimmed }),
+        /*
+         * 🔴 B42: the body says to sign in and update their details, so it
+         * carries the page where they do. Onboarding sends a signed-out
+         * clinician through sign-in and back.
+         */
+        link: approve
+          ? { label: t("tmsg.verified.open"), url: `${env.appUrl}/dashboard` }
+          : { label: t("tmsg.unverified.open"), url: `${env.appUrl}/onboarding` },
         locale,
       }),
     );
