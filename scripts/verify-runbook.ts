@@ -209,10 +209,7 @@ function main() {
    * is the same stale-exemption rule `verify:reachable` applies to its own
    * allow-list.
    */
-  const NOT_YET: Record<string, string> = {
-    "docs/simulation-run/":
-      "Where the one month run writes its board, bugs, shots and report. The documents name it as an instruction, and it appears the day the run posts its first row.",
-  };
+  const NOT_YET: Record<string, string> = {};
 
   const POINTERS = /`((?:app|components|lib|scripts|docs|drizzle|evals|tests)\/[A-Za-z0-9._/()[\]-]+)`/g;
   const docFiles = [
