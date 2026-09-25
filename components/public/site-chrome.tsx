@@ -135,6 +135,8 @@ export async function SiteHeader() {
           <MobileNav
             radarHref={href("/radar")}
             links={AUDIENCES.map((item) => ({ href: href(item.href), label: t(item.key) }))}
+            offered={offered.map((row) => ({ code: row.code, nativeName: row.nativeName }))}
+            pathname={pathname}
           />
         </div>
       </div>

@@ -16,6 +16,21 @@ import { payoutSettingsChanges } from "@/lib/settings/payout-changes";
 export type SettingsFormState = { error?: string; ok?: string };
 
 /**
+ * 🔴 Every page that can show a price, a fee or a pound figure, refreshed.
+ *
+ * The public pages are built once and served from cache (`revalidate = false`),
+ * so a save that changes a figure they print leaves the old one on the site
+ * until somebody publishes content. Revalidating `/pricing` alone was not
+ * enough: the tiers and the fee split also render on `/for-therapists` and on
+ * any CMS page carrying a `pricing` block, and the root layout reads the pound
+ * rate that every `Money` on every page converts with. So this is the layout
+ * at the root, and `/ar/*` is covered because it is the same route rewritten.
+ */
+function revalidatePublicFigures() {
+  revalidatePath("/", "layout");
+}
+
+/**
  * Every figure in the product, edited by a person. PLAN.md 20.1–20.5.
  *
  * ## 🔴 Why this validates twice, and refuses on the second
@@ -125,7 +140,7 @@ export async function savePricing(
   });
 
   revalidatePath("/admin/settings");
-  revalidatePath("/pricing");
+  revalidatePublicFigures();
   return { ok: "Saved. Every page reading these figures changes on its next request." };
 }
 
@@ -173,6 +188,8 @@ export async function saveSession(
   });
 
   revalidatePath("/admin/settings");
+  /* The cut and the per-session fee are printed on the public site. */
+  revalidatePublicFigures();
   return { ok: "Saved." };
 }
 
@@ -281,6 +298,13 @@ export async function savePayouts(
   });
 
   revalidatePath("/admin/settings");
+  /* The rate converts every pound figure on the site; the rest of this form does not reach it. */
+  if (
+    value.egpRateMicro !== existing.payouts.egpRateMicro ||
+    value.egpSpreadBps !== existing.payouts.egpSpreadBps
+  ) {
+    revalidatePublicFigures();
+  }
   return { ok: "Saved." };
 }
 

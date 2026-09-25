@@ -160,14 +160,13 @@ export const CLINIC_WEEK: {
   time: string;
   clinician: string;
   patient: string;
-  modality: "video" | "in person";
 }[] = [
-  { day: "Mon", time: "09:00", clinician: "Dr Nour Demo", patient: "Mariam A.", modality: "video" },
-  { day: "Mon", time: "11:30", clinician: "Dr Karim Example", patient: "Omar S.", modality: "in person" },
-  { day: "Tue", time: "10:00", clinician: "Dr Nour Demo", patient: "Laila F.", modality: "video" },
-  { day: "Tue", time: "16:00", clinician: "Dr Salma Demo", patient: "Tarek M.", modality: "video" },
-  { day: "Wed", time: "09:30", clinician: "Dr Karim Example", patient: "Dina H.", modality: "in person" },
-  { day: "Thu", time: "14:00", clinician: "Dr Salma Demo", patient: "Adam R.", modality: "video" },
+  { day: "Mon", time: "09:00", clinician: "Dr Nour Demo", patient: "Mariam A." },
+  { day: "Mon", time: "11:30", clinician: "Dr Karim Example", patient: "Omar S." },
+  { day: "Tue", time: "10:00", clinician: "Dr Nour Demo", patient: "Laila F." },
+  { day: "Tue", time: "16:00", clinician: "Dr Salma Demo", patient: "Tarek M." },
+  { day: "Wed", time: "09:30", clinician: "Dr Karim Example", patient: "Dina H." },
+  { day: "Thu", time: "14:00", clinician: "Dr Salma Demo", patient: "Adam R." },
 ];
 
 /**

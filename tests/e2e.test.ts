@@ -512,8 +512,9 @@ test("a stranger can book a therapist off the public radar", async () => {
    *
    * `text=available now` resolved 59 times to a HIDDEN `<title>` inside the globe
    * (`components/radar/globe.tsx:438`) and never to anything visible, so this waited out its
-   * timeout against a product that was working. The visible string is the count in
-   * `components/radar/public-radar.tsx:116` — "N therapists available now".
+   * timeout against a product that was working. The visible string was the count in
+   * `components/radar/public-radar.tsx`, since deleted as unused: `/radar` renders
+   * `radar-console.tsx` now. The pattern below is "N therapists available now".
    *
    * Worth a moment on its own: an accessible label and a visible label saying the same words means
    * a screen reader announces the availability twice. Recorded as a finding rather than fixed here,

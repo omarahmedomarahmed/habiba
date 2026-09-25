@@ -2,6 +2,7 @@ import { DeviceFrame } from "@/components/demo/device-frame";
 import { ClinicConsole, CompanyConsole } from "@/components/demo/portal-demo";
 import { SplitBar } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
+import { getSettings, platformFeeOn } from "@/lib/settings";
 
 /**
  * 🔴 65.17 / 65.20 — THE REAL COMPONENTS, RENDERED, ONE PER AUDIENCE.
@@ -75,19 +76,23 @@ export function ClinicDemo({ initial }: { initial?: string } = {}) {
  * 🔴 A THERAPIST: the fee split, as the bar the portal draws.
  *
  * `SplitBar`'s widths are its figures, so this is the actual proportion rather than a
- * drawing of one. The percentages come from the fixtures for the reason above.
+ * drawing of one. The price is illustrative; the CUT is not. It was a literal 15%
+ * and would have gone on promising 15% the day an admin changed the fee, so it
+ * reads `platformFeeBps` and rounds the way the charge does (`platformFeeOn`).
  */
 export async function TherapistSplitDemo() {
-  const { t } = await getI18n();
+  const [{ t }, settings] = await Promise.all([getI18n(), getSettings()]);
   const price = 6_000;
-  const fee = Math.round(price * 0.15);
+  const feeBps = settings.session.platformFeeBps;
+  const fee = platformFeeOn(price, feeBps);
+  const percent = Number((feeBps / 100).toFixed(2));
 
   return (
     <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-900/5">
       <SplitBar
         parts={[
           { label: t("tnew.youKeep", { amount: money(price - fee) }), value: price - fee, kind: "keep" },
-          { label: t("tnew.ourFee", { amount: money(fee), percent: 15 }), value: fee, kind: "fee" },
+          { label: t("tnew.ourFee", { amount: money(fee), percent }), value: fee, kind: "fee" },
         ]}
         note={t("tnew.vatOnTop")}
       />

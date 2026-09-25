@@ -28,11 +28,16 @@ const Globe = dynamic(
   },
 );
 import type { RadarEntry } from "@/components/radar/types";
-import { formatUsd } from "@/lib/billing/plans";
+import { Money } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 
-/** See the note on REFRESH_MS in public-radar.tsx. */
+/**
+ * Availability changes in seconds, not minutes: four is the difference between
+ * "this clinician is free" and sending someone to a profile already busy. The
+ * endpoint is one indexed query and its read limit is set with this cadence in
+ * mind. Same figure as `radar-console.tsx`.
+ */
 const REFRESH_MS = 4_000;
 
 /**
@@ -134,6 +139,8 @@ export function RadarHero({
     null,
   );
   const selected = all.find((entry) => entry.userId === selectedId) ?? null;
+  /* The sentence around the figure, so the figure itself can be a `Money`. */
+  const [fromBefore = "", fromAfter = ""] = strings.fromPrice.split("{price}");
 
   return (
     <section className="relative isolate overflow-hidden bg-navy-600">
@@ -200,12 +207,19 @@ export function RadarHero({
             </span>
             <span className="flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-teal-400" aria-hidden />
-              {cheapest === null
-                ? strings.noAccount
-                : strings.fromPrice.replace(
-                    "{price}",
-                    cheapest > 0 ? formatUsd(cheapest) : strings.free,
-                  )}
+              {/*
+                Through `Money`, as the cards below are: a bare dollar string here
+                read "From $40" above cards reading pounds for the same person.
+              */}
+              {cheapest === null ? (
+                strings.noAccount
+              ) : (
+                <span>
+                  {fromBefore}
+                  {cheapest > 0 ? <Money cents={cheapest} /> : strings.free}
+                  {fromAfter}
+                </span>
+              )}
             </span>
           </div>
 

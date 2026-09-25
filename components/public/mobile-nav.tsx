@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 
+import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { doors } from "@/lib/auth/doors";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -23,13 +24,24 @@ import { cn } from "@/lib/utils";
  *
  * Without it the page behind scrolls under the sheet on iOS and the reader
  * closes the sheet onto a different part of the page than the one they left.
+ *
+ * ## 🔴 And the language switch is IN it
+ *
+ * The header hides its switch below 640px, and this sheet did not carry one,
+ * so on the launch market's commonest width an Arabic reader who landed on an
+ * English page had no way to change it. The same component, the same offered
+ * list, the same real pathname the header passes.
  */
 export function MobileNav({
   links,
   radarHref,
+  offered,
+  pathname,
 }: {
   links: { href: string; label: string }[];
   radarHref: string;
+  offered: { code: string; nativeName: string }[];
+  pathname: string;
 }) {
   const t = useT();
   const [open, setOpen] = React.useState(false);
@@ -119,6 +131,8 @@ export function MobileNav({
                 <span className="live-dot h-2 w-2 rounded-full bg-brand-400" aria-hidden />
                 {t("nav.openRadar")}
               </Link>
+
+              <LanguageSwitch className="mt-4 ms-3" offered={offered} pathname={pathname} />
 
               <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 {t("nav.whichAreYou")}

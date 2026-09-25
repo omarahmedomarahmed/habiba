@@ -53,7 +53,7 @@ import { DeviceFrame } from "./device-frame";
  * Five tabs, each with its name at the top and its own screen, and the tab you
  * are on is lit in the bar exactly as it is in `components/patient/bottom-nav.tsx`.
  * The radar tab walks the real sequence: who is free, tap one, see the price
- * with VAT, go in. When it completes, the booked session appears on the Sessions
+ * (with VAT only when the product's rule charges it), go in. When it completes, the booked session appears on the Sessions
  * tab, because a demo where the tabs do not affect each other is five demos in
  * a trench coat.
  *
@@ -200,6 +200,7 @@ export function PatientApp({
               <Radar
                 picked={picked}
                 booked={booked}
+                sessionVatBps={content?.sessionVatBps ?? 0}
                 onPick={setPicked}
                 onBook={(i) => { setBooked(i); setPicked(null); }}
                 onSeeSessions={() => { go("sessions"); }}
@@ -414,12 +415,14 @@ function Steps({ content }: { content?: DemoContent }) {
 function Radar({
   picked,
   booked,
+  sessionVatBps,
   onPick,
   onBook,
   onSeeSessions,
 }: {
   picked: number | null;
   booked: number | null;
+  sessionVatBps: number;
   onPick: (i: number | null) => void;
   onBook: (i: number) => void;
   onSeeSessions: () => void;
@@ -451,7 +454,8 @@ function Radar({
   if (picked !== null) {
     const who = RADAR_DEMO[picked];
     if (!who) return null;
-    const vat = Math.round(who.priceCents * 0.14);
+    /* The product's rule, not a literal: sessions are VAT exempt by default. */
+    const vat = Math.round((who.priceCents * sessionVatBps) / 10_000);
     return (
       <div className="animate-fade-rise space-y-3">
         <button
@@ -475,10 +479,13 @@ function Radar({
                 {money(who.priceCents)}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-700">{t("pat.vat")}</span>
-              <span className="text-slate-800 tabular-nums">{money(vat)}</span>
-            </div>
+            {/* Hidden at zero, as the real pay screen hides it (`pay-flow.tsx`). */}
+            {vat > 0 ? (
+              <div className="flex justify-between">
+                <span className="text-slate-700">{t("pat.vat")}</span>
+                <span className="text-slate-800 tabular-nums">{money(vat)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between border-t border-slate-100 pt-1 font-bold">
               <span className="text-slate-900">{t("pat.total")}</span>
               <span className="text-slate-900 tabular-nums">{money(who.priceCents + vat)}</span>

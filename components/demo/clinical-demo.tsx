@@ -157,7 +157,7 @@ export function NoteDemo({ content }: { content?: DemoContent }) {
           note={content?.note ?? DEMO_NOTE}
           status={approved ? "approved" : "draft"}
           compact
-          patientLabel="demo"
+          patientLabel={t("hdemo.patientLabel")}
         />
       </div>
 

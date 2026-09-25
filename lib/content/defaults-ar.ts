@@ -784,6 +784,9 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
       {
         // 18R.6 — الشركتان، كلتاهما ظاهرة دائمًا. كل حقل هنا محتوى قابل
         // للتحرير والترجمة، لا نصًّا مكتوبًا في الكود.
+        // The address was an instruction to the admin, rendered to every
+        // Arabic reader as the company's address. Empty is hidden, exactly as
+        // in the English default, until somebody enters the registered one.
         type: "companies",
         heading: "مع من تتعامل",
         items: [
@@ -791,7 +794,8 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
             title: "24Therapy Inc.",
             entity: "us",
             body: "الكيان الدولي، لكل ما هو خارج مصر.",
-            address: "اضبط العنوان المسجل من لوحة الإدارة ← المحتوى ← تواصل.",
+            address: "",
+            phone: "",
             email: "support@24therapy.app",
             hours: "الأحد إلى الخميس، 09:00-18:00 بتوقيت غرينتش",
           },
@@ -799,7 +803,8 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
             title: "24Therapy Egypt",
             entity: "eg",
             body: "الكيان المصري. الدفع بالجنيه المصري، والتحويل عبر إنستاباي أو المحفظة.",
-            address: "اضبط العنوان المسجل من لوحة الإدارة ← المحتوى ← تواصل.",
+            address: "",
+            phone: "",
             email: "egypt@24therapy.app",
             hours: "الأحد إلى الخميس، 10:00-19:00 بتوقيت القاهرة",
           },
