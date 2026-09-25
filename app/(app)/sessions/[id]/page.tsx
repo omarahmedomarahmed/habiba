@@ -393,7 +393,7 @@ export default async function SessionDetailPage({
         />
 
         {/*
-          🔴 TE77 — only when a recording produced voices. Nothing writes
+          🔴 TE77: only when a recording produced voices. Nothing writes
           `session_voices` yet: the diarisation provider is the named gap in
           `lib/diarisation/provider.ts` (37.4), so every session read "No
           separate voices were detected", a promise with nothing behind it.

@@ -1094,7 +1094,7 @@ export async function claimTherapist(opts: {
  * booking cannot cancel the *next* patient's claim — the classic way a
  * time-based lock releases someone else's lock.
  *
- * 🔴 K12 — `therapistUserId`, when given, scopes it to that clinician's own
+ * 🔴 K12: `therapistUserId`, when given, scopes it to that clinician's own
  * radar row too. A session id is not a secret between colleagues, and a
  * release keyed on it alone let one clinician put another back "online"
  * mid-session.

@@ -281,7 +281,7 @@ export async function updatePaymentSettings(
   if (problem) return { error: problem };
 
   /*
-   * 🔴 K22 / TE30 — the region is VALIDATED before anything is written. It was
+   * 🔴 K22 / TE30: the region is VALIDATED before anything is written. It was
    * checked after the rate had been saved, so a clinician on a clinic seat was
    * told the save failed while half of it had landed. Only a solo practice
    * may move its region (below); a clinic seat asking to is refused whole.

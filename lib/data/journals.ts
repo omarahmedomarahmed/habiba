@@ -182,7 +182,7 @@ async function alertGrantHolders(
 
   const name = [person?.firstName, person?.lastName].filter(Boolean).join(" ");
 
-  /* 🔴 K22 — each clinician in their own language (Ruling 8). */
+  /* 🔴 K22: each clinician in their own language (Ruling 8). */
   const { wordsFor } = await import("@/lib/i18n/message-words");
   await db.insert(notifications).values(
     await Promise.all(

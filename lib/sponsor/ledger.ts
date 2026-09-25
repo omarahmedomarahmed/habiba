@@ -155,7 +155,7 @@ function isFiltered(query: LedgerQuery): boolean {
 }
 
 /**
- * 🔴 K6 — A FILTER NEVER NARROWS THE LEDGER BELOW THE FLOOR.
+ * 🔴 K6: A FILTER NEVER NARROWS THE LEDGER BELOW THE FLOOR.
  *
  * `batchToFloor` publishes entries in batches of at least `floor`, and then a
  * price band or a coverage value picked to match one entry brought the screen

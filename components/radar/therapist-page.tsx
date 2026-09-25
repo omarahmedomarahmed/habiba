@@ -106,7 +106,7 @@ export async function TherapistPageBody({
         </p>
         <p className="mt-0.5 text-xs text-slate-600">{t("radar.verifiedMeans")}</p>
         {/*
-          🔴 63.13 / C327 — the practice that can see an appointment exists, on the
+          🔴 63.13 / C327: the practice that can see an appointment exists, on the
           page as on the radar card. A sentence rather than a dialog (C354), and
           the way out beside it for somebody who would rather no practice did.
         */}

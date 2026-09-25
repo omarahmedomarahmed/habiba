@@ -94,7 +94,7 @@ export async function markClinicVisibilityShown(personId: string): Promise<void>
 }
 
 /*
- * 🔴 63.13 / C354 — THE LABEL ON A RADAR CARD comes with the card itself.
+ * 🔴 63.13 / C354: THE LABEL ON A RADAR CARD comes with the card itself.
  *
  * `clinicAffiliations` answered it here in a second query that nothing called:
  * `listRadar` and `publicProfile` already select `clinicName` (a clinic's name,

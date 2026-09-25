@@ -378,7 +378,7 @@ export function CopilotChat({
                 {t("tcop.exhausted", { limit: quota.limit ?? 0, name: patientName })}
               </p>
               {/*
-                🔴 K22 — the allowance is earned per completed session and rolls
+                🔴 K22: the allowance is earned per completed session and rolls
                 over (`checkQuota`); it never reset monthly and there is no
                 Unlimited plan, so the card no longer says either.
               */}

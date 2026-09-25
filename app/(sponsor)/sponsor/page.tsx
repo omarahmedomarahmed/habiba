@@ -43,7 +43,7 @@ export const dynamic = "force-dynamic";
  * filtered series: a filtered series with one row left in it is the leak wearing
  * a suppression label.
  *
- * 🔴 K6 — and no balance, no spend and no session count either. This used to
+ * 🔴 K6: and no balance, no spend and no session count either. This used to
  * keep the balance and the all-time count under the floor, and at a company of
  * three "Sessions paid for: 4" says that somebody on a roster of three names is
  * in therapy. `reportablePot` applies the headcount gate, so the overview, the

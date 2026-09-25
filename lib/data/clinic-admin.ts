@@ -343,7 +343,7 @@ export async function resolveInvitation(token: string): Promise<InvitationView |
         eq(clinicianInvitations.tokenHash, hashToken(token)),
         eq(clinicianInvitations.state, "sent"),
         /*
-         * 🔴 CE1 — an expired invitation is not rendered. The page drew the whole
+         * 🔴 CE1: an expired invitation is not rendered. The page drew the whole
          * form and only the submit said it had expired, after the person had
          * chosen a password for it.
          */
@@ -837,7 +837,7 @@ export async function removeClinician(input: {
   });
 
   /*
-   * 🔴 CE17 — and nobody on the staff covers them any more. The assignment row
+   * 🔴 CE17: and nobody on the staff covers them any more. The assignment row
    * outlived the clinician, so the team page still listed a departed colleague
    * under "Whose work they cover", and a staff member's scope still named them.
    */

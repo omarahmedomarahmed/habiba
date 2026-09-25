@@ -380,7 +380,7 @@ export async function startNewSession(
 export async function goLive(sessionId: string): Promise<SessionActionState> {
   const actor = await requireUser();
   /*
-   * 🔴 TE21 — a clinician who may not practise starts nothing. An expired
+   * 🔴 TE21: a clinician who may not practise starts nothing. An expired
    * licence sends them back to review, and every (app) page but the open list
    * redirects, but the room is its own route group and this action took
    * `requireUser`. A session already live is re-entry, not a start, so it
@@ -489,7 +489,7 @@ export async function abandonSession(
   }
 
   /*
-   * 🔴 K12 — the radar claim is released only when THIS clinician's cancel
+   * 🔴 K12: the radar claim is released only when THIS clinician's cancel
    * matched, and only on their own radar row. It ran unconditionally, so a
    * colleague who knew a session id could flip its clinician from "in
    * session" back to "online" with a cancel that matched nothing.

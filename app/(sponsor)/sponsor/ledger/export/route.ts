@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     getSettings(),
   ]);
   const floor = settings.sponsor.activityFloor;
-  /* 🔴 K6 — the same two gates as the screen: headcount, then a filter's floor. */
+  /* 🔴 K6: the same two gates as the screen: headcount, then a filter's floor. */
   const shown = headcount < floor ? [] : filterToFloor(entries, query, floor).entries;
 
   const rows = ledgerCsvRows(

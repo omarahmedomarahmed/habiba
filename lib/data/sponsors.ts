@@ -356,7 +356,7 @@ export async function enrolledCount(sponsorId: string): Promise<number> {
 }
 
 /**
- * 🔴 K6 — THE BALANCE A COMPANY SCREEN MAY SHOW, BEHIND THE HEADCOUNT FLOOR TOO.
+ * 🔴 K6: THE BALANCE A COMPANY SCREEN MAY SHOW, BEHIND THE HEADCOUNT FLOOR TOO.
  *
  * `potBalance` floors by sessions since the last publication, which stops a
  * one-session difference. It does not stop a company of three reading

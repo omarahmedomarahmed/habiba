@@ -60,7 +60,7 @@ export default async function SponsorLedgerPage({
   ]);
 
   /*
-   * 🔴 K6 — under the headcount floor nothing is listed, as the overview's
+   * 🔴 K6: under the headcount floor nothing is listed, as the overview's
    * heatmap shows nothing: at a company of three any entry at all says one of
    * three named people is in therapy. And a filter that would leave fewer
    * entries than the floor withholds the whole view (`filterToFloor`).

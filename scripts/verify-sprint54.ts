@@ -578,7 +578,7 @@ async function main() {
     const bill = required(bills[0], "a bill for the clinic");
 
     /*
-     * 🔴 K7 / CE33 — two sessions is under the floor, so the count AND the
+     * 🔴 K7 / CE33: two sessions is under the floor, so the count AND the
      * platform and AI split are withheld, and the total is not: the practice
      * still pays its bill. The AI fee beside a count the practice can read off
      * its rota was one patient's recording consent, priced.
@@ -747,7 +747,7 @@ async function main() {
     );
 
     /*
-     * 🔴 54.8 — now clear the floor with plain one-line invoices, so the split
+     * 🔴 54.8: now clear the floor with plain one-line invoices, so the split
      * is shown and can be checked as REAL figures rather than a CASE that never
      * matched. This month holds three invoices so far. Planted last, after
      * the checks that need this week under the floor, and scheduled long ago so
@@ -780,7 +780,7 @@ async function main() {
     );
 
     /*
-     * 🔴 CONTROL — and the sum of the named kinds is the whole bill.
+     * 🔴 CONTROL: and the sum of the named kinds is the whole bill.
      *
      * This is the half that catches a mistyped kind that HAPPENS to be non-zero. If a
      * third line kind ever arrives and this query does not name it, the two figures a
@@ -1056,7 +1056,7 @@ async function main() {
     );
 
     /*
-     * 🔴 CE1 — an expired invitation is not rendered, so nobody fills in a form
+     * 🔴 CE1: an expired invitation is not rendered, so nobody fills in a form
      * the submit will refuse. The control is the resolve just above.
      */
     await db.execute(sql`

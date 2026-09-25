@@ -121,7 +121,7 @@ export default async function NewSessionPage({
               : undefined
           }
           /*
-            🔴 K22 — the fees `sessionLines` will bill, from the same settings
+            🔴 K22: the fees `sessionLines` will bill, from the same settings
             and tier; a monthly plan raises both at zero.
           */
           ourFees={

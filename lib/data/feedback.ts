@@ -970,7 +970,7 @@ export async function sweepAbandonedPatients(
       const words = await wordsFor({ userId: row.therapistId });
       const { t } = words;
       /*
-       * 🔴 K22 — "booked you on the Crisis Radar" only when they did. The same
+       * 🔴 K22: "booked you on the Crisis Radar" only when they did. The same
        * sweep catches a booked hour or a direct link, and telling a clinician
        * their own patient came from the radar is a sentence they know is false.
        */

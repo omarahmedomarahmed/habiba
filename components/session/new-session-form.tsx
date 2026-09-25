@@ -46,7 +46,7 @@ export function NewSessionForm({
 }: {
   patients: PatientOption[];
   /**
-   * 🔴 K22 — our own per-session fees, read from settings and the clinician's
+   * 🔴 K22: our own per-session fees, read from settings and the clinician's
    * tier by the page. The notice hard-coded $1 and $3, so an operator's change
    * to either fee left this sentence quoting the old ones. Null when their
    * plan covers both.

@@ -34,7 +34,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
   }
 
   /*
-   * 🔴 TE21 — the (room) group has no clearance gate of its own, so a clinician
+   * 🔴 TE21: the (room) group has no clearance gate of its own, so a clinician
    * whose licence expired (sent back to review) could still open a booked
    * session's room and start it. Only a session already under way may be
    * finished; anything else goes where every other page sends them. `goLive`

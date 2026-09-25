@@ -380,7 +380,7 @@ export async function raiseCrisisAlert(opts: {
 
   if (recent.length > 0) return;
 
-  /* 🔴 K22 — in the clinician's own language (Ruling 8), not English for all. */
+  /* 🔴 K22: in the clinician's own language (Ruling 8), not English for all. */
   const { wordsFor } = await import("@/lib/i18n/message-words");
   const { t } = await wordsFor({ userId: opts.therapistId });
 
