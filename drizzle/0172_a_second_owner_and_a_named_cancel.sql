@@ -19,8 +19,17 @@ ALTER TABLE "pot_returns" ADD COLUMN IF NOT EXISTS "cancel_asked_by" uuid;
 --> statement-breakpoint
 ALTER TABLE "pot_returns" ADD COLUMN IF NOT EXISTS "cancel_asked_at" timestamp with time zone;
 --> statement-breakpoint
--- NOT VALID: rows cancelled before this carry no reason and are left as they are.
+-- A return cancelled before this took no reason: it says so, and the person
+-- who cancelled it is the one who asked. Then the rule holds for every row.
+UPDATE "pot_returns"
+   SET "cancel_reason" = COALESCE("cancel_reason", 'Cancelled before 0172, when a cancel took no reason.'),
+       "cancel_asked_by" = COALESCE("cancel_asked_by", "decided_by", "requested_by")
+ WHERE "state" = 'cancelled';
+--> statement-breakpoint
+UPDATE "pot_returns" SET "decided_by" = COALESCE("decided_by", "cancel_asked_by")
+ WHERE "state" = 'cancelled' AND "decided_by" IS NULL;
+--> statement-breakpoint
 ALTER TABLE "pot_returns" DROP CONSTRAINT IF EXISTS "pot_returns_cancel_named";
 --> statement-breakpoint
 ALTER TABLE "pot_returns" ADD CONSTRAINT "pot_returns_cancel_named"
-  CHECK ("state" <> 'cancelled' OR ("cancel_reason" IS NOT NULL AND "cancel_asked_by" IS NOT NULL AND "decided_by" IS NOT NULL)) NOT VALID;
+  CHECK ("state" <> 'cancelled' OR ("cancel_reason" IS NOT NULL AND "cancel_asked_by" IS NOT NULL AND "decided_by" IS NOT NULL));
