@@ -202,7 +202,7 @@ export default async function DashboardPage() {
                         : t("portal.dash.monthMany", { count: billing.sessionsThisMonth })}
                     </span>
                     {billing.outstandingCents > 0 ? (
-                      <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-0.5 text-sm font-semibold text-amber-900 ring-1 ring-amber-200 ring-inset">
+                      <span className="mt-2 inline-block rounded-full bg-amber-50 px-2.5 py-0.5 text-sm font-semibold text-amber-900 ring-1 ring-amber-200 ring-inset">
                         {rich(t("portal.dash.outstanding", { amount: slot(0) }), [<Money cents={billing.outstandingCents} />])}
                       </span>
                     ) : null}

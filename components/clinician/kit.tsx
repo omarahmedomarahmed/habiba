@@ -125,7 +125,7 @@ export function Badge({
     teal: "bg-brand-50 text-brand-700 ring-brand-100",
   };
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset", tones[tone], className)}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-pre-wrap ring-1 ring-inset", tones[tone], className)}>
       {children}
     </span>
   );
