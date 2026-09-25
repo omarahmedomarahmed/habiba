@@ -37,6 +37,8 @@ export const ADMIN_PAGES: Record<string, readonly Role[]> = {
   "/admin/patients/[id]": STAFF,
   "/admin/sponsors/[id]": STAFF,
   "/admin/not-yours": STAFF,
+  /* 🔴 Task 40: every member sets up their own second step. */
+  "/admin/security": STAFF,
   /* W2-A06: who can open the console is the owner's decision. */
   "/admin/team": OWNER,
   "/admin/therapists": OWNER,

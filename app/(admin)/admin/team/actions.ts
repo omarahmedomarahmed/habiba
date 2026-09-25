@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
+import { resetSecondFactor } from "@/lib/auth/second-factor";
 import {
   createBackOfficeUser,
   linkableMember,
@@ -86,6 +87,29 @@ export async function setActive(_prev: TeamState, formData: FormData): Promise<T
     actor,
     category: "admin",
     action: active ? "team.member_reactivated" : "team.member_deactivated",
+    resourceType: "user",
+    resourceId: userId,
+  });
+  revalidatePath("/admin/team");
+  return { ok: true };
+}
+
+/**
+ * 🔴 Task 40: clear another member's authenticator and recovery codes, so
+ * their next sign-in asks for a code by email and they can enrol again. Never
+ * the owner's own: `resetSecondFactor` refuses it and writes the refusal down.
+ */
+export async function resetMemberSecondFactor(_prev: TeamState, formData: FormData): Promise<TeamState> {
+  const actor = await requireRole("super_admin");
+  const userId = String(formData.get("userId") ?? "");
+
+  const result = await resetSecondFactor(actor, userId);
+  if (!result.ok) return { error: (await getI18n()).t(result.error) };
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "second_factor.reset",
     resourceType: "user",
     resourceId: userId,
   });

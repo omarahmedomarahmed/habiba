@@ -25,6 +25,7 @@ import {
   createSession,
   destroyCurrentSession,
   getActor,
+  getSessionState,
   revokeAllSessionsForUser,
 } from "./session";
 
@@ -287,7 +288,13 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
      */
     const { landingFor, mayOpen } = await import("@/lib/admin/access");
     const wantedByStaff = next.startsWith("/admin") && mayOpen(user.role, next) ? next : landingFor(user.role);
-    redirect(wantedByStaff);
+    /*
+     * 🔴 Task 40: the password was step one. The session exists but is
+     * pending, and every guard treats it as signed out until the second step
+     * passes, so the step is where they go, carrying where they were headed.
+     */
+    const { STAFF_SECOND_STEP } = await import("@/lib/routing");
+    redirect(`${STAFF_SECOND_STEP}?next=${encodeURIComponent(wantedByStaff)}`);
   }
 
   const { practiceState, isCleared } = await import("@/lib/data/verification");
@@ -301,7 +308,8 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
 }
 
 export async function signOut(): Promise<void> {
-  const actor = await getActor();
+  // A pending back office session (task 40) signs out too, and is written down like any other.
+  const actor = (await getSessionState())?.actor ?? null;
   await destroyCurrentSession();
   if (actor) {
     await audit({

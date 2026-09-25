@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import {
   changeRole,
   inviteMember,
+  resetMemberSecondFactor,
   sendPasswordLink,
   setActive,
   type TeamState,
@@ -100,6 +101,7 @@ function MemberRow({ member, own }: { member: TeamMember; own: boolean }) {
   const [roleState, roleAction] = useActionState(changeRole, INITIAL);
   const [activeState, activeAction] = useActionState(setActive, INITIAL);
   const [linkState, linkAction] = useActionState(sendPasswordLink, INITIAL);
+  const [resetState, resetAction] = useActionState(resetMemberSecondFactor, INITIAL);
   // A5 / W2-A05: taking access away is confirmed, because it signs them out at once.
   const [confirming, setConfirming] = useState(false);
   const fixed = own || member.role === "super_admin";
@@ -111,7 +113,20 @@ function MemberRow({ member, own }: { member: TeamMember; own: boolean }) {
         <span className="text-xs text-slate-500">{member.email}</span>
         <Badge>{member.role}</Badge>
         {!member.active ? <Badge tone="amber">{t("ateam.inactive")}</Badge> : null}
+        <Badge>{member.app ? t("ateam.onApp") : t("ateam.onEmail")}</Badge>
       </div>
+
+      {/*
+        🔴 Task 40: another owner's second step can be reset too (a lost phone
+        is not a role change), but never your own. The server refuses it as
+        well; hiding the button only saves a refusal.
+      */}
+      {!own && member.app ? (
+        <form action={resetAction} className="flex items-center gap-2">
+          <input type="hidden" name="userId" value={member.id} />
+          <Go label={t("ateam.reset2fa")} tone="quiet" />
+        </form>
+      ) : null}
 
       {fixed ? null : (
         <div className="flex flex-wrap items-end gap-2">
@@ -146,6 +161,7 @@ function MemberRow({ member, own }: { member: TeamMember; own: boolean }) {
       <Said state={roleState} />
       <Said state={activeState} />
       <Said state={linkState} done={t("ateam.linkSent")} />
+      <Said state={resetState} done={t("ateam.reset2faDone")} />
     </div>
   );
 }
