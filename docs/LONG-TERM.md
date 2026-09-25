@@ -41,8 +41,9 @@ in the affected area until it is answered.
 
 These run on the defaults shown. Any of them can change later in settings.
 
-- In-person paid flow: pay window 6 hours, start before paid, pot cap 2 a
-  week, price never above list (`docs/IN-PERSON-PAID.md`, open questions 1 to 4).
+- In-person paid flow: pay before start (ruled), pot cap 2 a week, price never
+  above list, card, benefit and wallet in the room, refund if paid and not
+  started, payout-details cooldown 24 hours (`docs/IN-PERSON-PAID.md`).
 - Session length 50 minutes: does it include the 10-minute countdown?
 - Two-person approval on refunds only.
 - Free first session: once per practice.

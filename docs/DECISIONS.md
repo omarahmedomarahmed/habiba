@@ -26,7 +26,7 @@ entity, the accountant and counsel may change any of these after the fact.
 | 2 | VAT on the session price | **0% for patients.** Healthcare is exempt (VAT Law 67/2016, exempt list item 39). Only verified, licensed clinicians practise here; there is no unlicensed tier. The rate is a setting. |
 | 4 | Company top-up documents | **B now:** our document is a payment receipt, the ETA invoice is the only invoice. **C** (deposit on top-up, one ETA invoice a month for what was spent) is built behind the same setting. |
 | 5 | In-person session, patient paid the therapist directly | **Cash: free through us.** The therapist confirms the patient's consent and the recording. A pay-as-you-go therapist pays $1 (session) and $3 (AI, only if the patient said yes), told before starting; a subscription covers both. No 15%. |
-| 5b | In-person session, patient pays through 24Therapy | **New in round two.** The therapist can charge an in-person session through us, exactly like a paid online session: our 15% applies, the company benefit can cover it, and a pay-as-you-go therapist also pays $1 + $3. Full design in `docs/IN-PERSON-PAID.md`. |
+| 5b | In-person session, patient pays through 24Therapy | The therapist can charge an in-person session through us, exactly like a paid online session: our 15% applies, the company benefit can cover it, and a pay-as-you-go therapist also pays $1 + $3. **Pay before start (25 September): no priced session ever starts unpaid.** The patient pays on their own phone from a QR code; Start unlocks when paid. Design and closed loopholes in `docs/IN-PERSON-PAID.md`. |
 | 5c | In-person bookings | **New in round two.** A therapist chooses whether bookings can be in person, online, or both, and adds a practice address for in person. Patients can filter for in person on the radar and see it on the profile. Booked in-person sessions are paid in advance like online ones. |
 | 5d | Where our 15% applies | On every session paid **through us**: paid invite link, radar, future booking, and an in-person session the patient pays through us. Never on cash. |
 | 6 | Session length | **One length, 50 minutes, one price set by the therapist**, for every kind of session. The "30 minutes", "half hour" and "one hour" wording is left over and is wrong. The length is a setting. |
@@ -49,7 +49,8 @@ entity, the accountant and counsel may change any of these after the fact.
 | 3 | Withholding on therapist payouts, and tax a company withholds from its top-up | **Waiting for counsel.** A setting at 0%; nothing is deducted until it is ruled. |
 | 4C | Top-up as a deposit with a monthly invoice | Built behind a setting, left on B until counsel rules. |
 | 11 | ETA live keys, e-seal, signing provider | Waiting for registration. |
-| 5b | Four details of the in-person paid flow | My recommendations are in `docs/IN-PERSON-PAID.md`, section "Open questions". Each is a setting either way. |
+| 6b | Does the 50 minutes include the 10-minute countdown? | Recommended: yes, 50 in total, bookings on the hour with a 10-minute gap. A setting. |
+| 5e | New therapist from a patient QR waits for verification before the first session | Recommended: yes. |
 
 ## Correction on record
 
