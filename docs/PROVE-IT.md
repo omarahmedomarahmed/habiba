@@ -46,7 +46,7 @@ boundary working and also the easiest way to confuse yourself all day.
 | 1b | **Support** (same person, second window) | `/staff/sign-in` | `staff.demo@example.com` |
 | 2 | **Patient A**, Omar Ahmad | `/patient/login` | `mr.3omar.a7mad@gmail.com` |
 | 3 | **Patient B**, Mariam | `/patient/login` | `mariam.demo@example.com` |
-| 4 | **Dr Omar**, pay as you go, solo | `/login` | `omarabdelgawad001@gmail.com` |
+| 4 | **Dr Omar**, pay as you go, solo | `/login` | `dr.omar.demo@example.com` |
 | 5 | **Dr Sara**, clinic seat | `/login` | `dr.sara.demo@example.com` |
 | 6 | **Dr Kareem**, clinic seat | `/login` | `dr.kareem.example@example.com` |
 | 7 | **Clinic**, Nile Practice | `/clinic/sign-in` | `habibaheikal27@gmail.com` |

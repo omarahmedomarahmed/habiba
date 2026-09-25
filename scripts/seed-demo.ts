@@ -281,7 +281,7 @@ async function main() {
     const solo = await one<{ id: string }>(sql`
       INSERT INTO organizations (name, region, slug, kind, contact_name, contact_email, contact_phone)
       VALUES ('Cairo Counselling', 'eg', 'cairo-counselling', 'solo',
-              'Omar Abdelgawad', 'omarabdelgawad001@gmail.com', '+201000000010')
+              'Omar Abdelgawad', 'dr.omar.demo@example.com', '+201000000010')
       RETURNING id`);
 
     /*
@@ -337,7 +337,7 @@ async function main() {
 
     const admin = await one<{ id: string }>(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status, timezone)
-      VALUES (${platform.id}, 'omar@24therapy.app', 'Omar', 'Abdelgawad', 'super_admin', ${privateHash}, 'active',
+      VALUES (${platform.id}, 'omarabdelgawad001@gmail.com', 'Omar', 'Abdelgawad', 'super_admin', ${privateHash}, 'active',
               'Africa/Cairo')
       RETURNING id`);
 
@@ -371,7 +371,7 @@ async function main() {
     const drOmar = await one<{ id: string }>(sql`
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status,
                          session_rate_cents, rate_egp_minor, rate_currency, timezone)
-      VALUES (${solo.id}, 'omarabdelgawad001@gmail.com', 'Omar', 'Abdelgawad', 'therapist', ${hash}, 'active',
+      VALUES (${solo.id}, 'dr.omar.demo@example.com', 'Omar', 'Abdelgawad', 'therapist', ${hash}, 'active',
               2000, 100000, 'egp', 'Africa/Cairo')
       RETURNING id`);
 

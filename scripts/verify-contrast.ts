@@ -165,7 +165,7 @@ const SIGNED_IN = [
   {
     who: "therapist",
     door: "/login",
-    email: "omarabdelgawad001@gmail.com",
+    email: "dr.omar.demo@example.com",
     paths: [
       "/dashboard",
       "/sessions",

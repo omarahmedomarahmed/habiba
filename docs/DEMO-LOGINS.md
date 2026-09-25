@@ -27,11 +27,11 @@ still produce a caseload the clinician cannot see.
 
 | Who | Sign-in page | Address |
 | --- | --- | --- |
-| Platform admin (private password) | `/staff/sign-in` | `omar@24therapy.app` |
+| Platform admin (private password) | `/staff/sign-in` | `omarabdelgawad001@gmail.com` |
 | Support, not a founder (private password) | `/staff/sign-in` | `staff.demo@example.com` |
 | Company (Habiba Holdings) (private password) | `/sponsor/sign-in` | `habiba@24therapy.app` |
 | Clinic manager (Nile Practice) | `/clinic/sign-in` | `habibaheikal27@gmail.com` |
-| Therapist, solo practice | `/login` | `omarabdelgawad001@gmail.com` |
+| Therapist, solo practice | `/login` | `dr.omar.demo@example.com` |
 | Therapist, clinic, 2 patients | `/login` | `dr.sara.demo@example.com` |
 | Therapist, clinic, 1 patient | `/login` | `dr.kareem.example@example.com` |
 | Clinician still applying | `/login` | `dr.yasmin.example@example.com` |
@@ -74,12 +74,9 @@ to it while signed in, or give it an address that receives mail.
 Not six months of anything. Production was still on the starting position the day this
 ran: nine operator and staff accounts, two organisations, three sponsor applications
 sitting at `held`, one test person with one completed session, and four ledger legs.
-`docs/simulation/12-THE-LOGINS.md` describes the cast that run WOULD have used and is
-marked at the top as no longer describing this database.
-
-🔴 One of those accounts was `omarabdelgawad001@gmail.com` as a **super_admin**. It is
-now a therapist in a solo practice, because that is what it was asked to be. The admin
-account is `omar@24therapy.app`.
+🔴 On 25 September 2026 the founder's own inbox, `omarabdelgawad001@gmail.com`, became
+the platform admin, so the console's emailed sign-in code reaches a person. Dr Omar, the
+solo therapist, moved to the invented `dr.omar.demo@example.com`.
 
 The Neon snapshot `br-nameless-dust-a6ae5e4r` holds the database as it stood, which is
 the undo.

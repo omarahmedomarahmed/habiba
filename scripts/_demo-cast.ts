@@ -46,7 +46,7 @@ export const DEMO_PASSWORD = "Demo2026!Therapy";
  * refusal that stops every dev reseed.
  */
 export const PRIVATE_LOGINS = [
-  "omar@24therapy.app",
+  "omarabdelgawad001@gmail.com",
   "staff.demo@example.com",
   "habiba@24therapy.app",
 ] as const;
@@ -97,7 +97,7 @@ export type DemoLogin = {
  * flow is tested against. `verify:demo` asserts she has no account.
  */
 export const DEMO_LOGINS: DemoLogin[] = [
-  { who: "Platform admin", email: "omar@24therapy.app", table: "users", where: "/staff/sign-in" },
+  { who: "Platform admin", email: "omarabdelgawad001@gmail.com", table: "users", where: "/staff/sign-in" },
   /*
    * 🔴 80.1 — A SECOND CONSOLE ACCOUNT THAT IS NOT A FOUNDER, and without it
    * one of our own promises cannot be walked at all.
@@ -132,7 +132,7 @@ export const DEMO_LOGINS: DemoLogin[] = [
   },
   {
     who: "Therapist, solo practice",
-    email: "omarabdelgawad001@gmail.com",
+    email: "dr.omar.demo@example.com",
     table: "users",
     where: "/login",
   },

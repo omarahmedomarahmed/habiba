@@ -171,11 +171,11 @@ async function main() {
       "dr omar's caseload",
       3,
       sql`SELECT count(*)::int AS n FROM patients
-           WHERE therapist_id = ${userId("omarabdelgawad001@gmail.com")}
+           WHERE therapist_id = ${userId("dr.omar.demo@example.com")}
              AND organization_id = (SELECT id FROM organizations WHERE slug = 'cairo-counselling')
              AND deleted_at IS NULL`,
       sql`SELECT count(*)::int AS n FROM patients
-           WHERE therapist_id = ${userId("omarabdelgawad001@gmail.com")}
+           WHERE therapist_id = ${userId("dr.omar.demo@example.com")}
              AND organization_id = (SELECT id FROM organizations WHERE slug = 'nile-practice')
              AND deleted_at IS NULL`,
     );
@@ -199,7 +199,7 @@ async function main() {
     );
 
     for (const [who, email, atLeast] of [
-      ["dr omar", "omarabdelgawad001@gmail.com", 8],
+      ["dr omar", "dr.omar.demo@example.com", 8],
       ["dr sara", "dr.sara.demo@example.com", 4],
       ["dr kareem", "dr.kareem.example@example.com", 4],
     ] as const) {

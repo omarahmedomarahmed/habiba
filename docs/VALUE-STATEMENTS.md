@@ -262,7 +262,7 @@ operator's own `.env.local`, never committed. `docs/DEMO-LOGINS.md` says more.
 | Support, not a founder (private password) | `/staff/sign-in` | `staff.demo@example.com` |
 | Company (Habiba Holdings) (private password) | `/sponsor/sign-in` | `habiba@24therapy.app` |
 | Clinic manager (Nile Practice) | `/clinic/sign-in` | `habibaheikal27@gmail.com` |
-| Therapist, solo practice | `/login` | `omarabdelgawad001@gmail.com` |
+| Therapist, solo practice | `/login` | `dr.omar.demo@example.com` |
 | Therapist, clinic, 2 patients | `/login` | `dr.sara.demo@example.com` |
 | Therapist, clinic, 1 patient | `/login` | `dr.kareem.example@example.com` |
 | Clinician still applying | `/login` | `dr.yasmin.example@example.com` |
