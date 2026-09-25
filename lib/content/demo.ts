@@ -14,6 +14,7 @@ import { DEMO_NOTE, DEMO_TRANSCRIPT } from "@/components/demo/fixtures";
 import { controlDb as db } from "@/lib/db";
 import { contentPages, type NoteContent } from "@/lib/db/schema";
 import { getLocale } from "@/lib/i18n/server";
+import { getCountrySettings, getSettings, sessionVatBpsFor } from "@/lib/settings";
 
 /**
  * The words inside the live components on the public site. PLAN.md 18.13.
@@ -85,6 +86,16 @@ export type DemoContent = {
   }[];
   /** The phrase the risk banner is demonstrating having caught. */
   riskIndicator: string;
+  /**
+   * 🔴 The VAT the radar demo adds to a session, by the product's own rule.
+   *
+   * Not words, and not CMS-editable: `sessionVatBpsFor` over the live rules
+   * and Egypt's row, exactly as the new-session preview reads it. The demo used
+   * to add a literal 14% while real sessions are exempt by default, so it quoted
+   * a patient a total no checkout would ever charge. Absent means the shipped
+   * default, which is exempt.
+   */
+  sessionVatBps?: number;
 };
 
 /** The shipped default. Every word invented; see the file it comes from. */
@@ -436,9 +447,13 @@ export const DEMO_FALLBACK_AR: DemoContent = {
 /**
  * The demo copy for this reader's language, or the shipped default.
  *
- * Read through the same fallback chain as a page: exact locale, then English,
- * then the constant above. A missing Arabic row is an English demo, never an
- * empty panel.
+ * Read through the same fallback chain as a page, with one difference: a
+ * language that ships its own constant prefers it to another language's row.
+ * So Arabic is the Arabic row, then `DEMO_FALLBACK_AR`, and never the English
+ * row: an English CMS demo used to win over the written Arabic floor, and an
+ * Arabic reader got an English conversation inside an Arabic frame (76.32's
+ * defect, reached by publishing). A language with no constant of its own still
+ * takes the English row before the English constant. Never an empty panel.
  */
 export async function getDemoContent(requested?: string): Promise<DemoContent> {
   /*
@@ -453,6 +468,7 @@ export async function getDemoContent(requested?: string): Promise<DemoContent> {
    */
   const locale = requested ?? (await getLocale().catch(() => "en" as const));
   const floor = locale === "ar" ? DEMO_FALLBACK_AR : DEMO_FALLBACK;
+  const ownFloor = floor !== DEMO_FALLBACK;
 
   try {
 
@@ -463,20 +479,27 @@ export async function getDemoContent(requested?: string): Promise<DemoContent> {
         and(
           eq(contentPages.slug, "demo"),
           eq(contentPages.status, "published"),
-          inArray(contentPages.locale, locale === "en" ? ["en"] : [locale, "en"]),
+          inArray(contentPages.locale, locale === "en" || ownFloor ? [locale] : [locale, "en"]),
         ),
       );
 
     const fallback = floor;
 
     const row = rows.find((r) => r.locale === locale) ?? rows.find((r) => r.locale === "en");
-    if (!row) return fallback;
+    const sessionVatBps = await demoSessionVatBps();
+    if (!row) return { ...fallback, sessionVatBps };
 
-    return fromBlocks(row.blocks, fallback) ?? fallback;
+    return { ...(fromBlocks(row.blocks, fallback) ?? fallback), sessionVatBps };
   } catch {
     // The public site never fails because of the CMS. Same rule as defaults.ts.
     return floor;
   }
+}
+
+/** What a session in Egypt carries in VAT today, by the rule the checkout uses. */
+async function demoSessionVatBps(): Promise<number> {
+  const [settings, egypt] = await Promise.all([getSettings(), getCountrySettings("EG")]);
+  return sessionVatBpsFor(settings.rules, egypt?.vatBps ?? 0);
 }
 
 /**
