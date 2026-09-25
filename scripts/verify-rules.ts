@@ -20,6 +20,8 @@ import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
 
 const fixture = `rules-${Date.now().toString(36)}`;
+/* AE68: a user-assigned ISO code, so no real country's settings are touched. */
+const CRISIS_CODE = "XQ";
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 async function main() {
@@ -231,7 +233,53 @@ async function main() {
         /kind: "owner_invite"[\s\S]*enabled: \(await otherActiveOwners\(actor\.userId\)\) > 0/.test(inviteBody) &&
         /role: "super_admin"/.test(inviteBody),
     );
+
+    /*
+     * 🔴 AE68: the crisis line's "checked by, on" moves only when the line
+     * does. Every country save used to re-stamp it with whoever saved, so a
+     * VAT edit claimed somebody had checked a crisis number they never read.
+     * Planted on a user-assigned code nobody serves.
+     */
+    const { writeCountrySettings } = await import("../lib/settings");
+    const { parseCountry } = defs;
+    const line = (label: string, vatBps: number) =>
+      parseCountry({
+        code: CRISIS_CODE,
+        name: `Verifier ${fixture}`,
+        vatBps,
+        currency: "usd",
+        paymentMethods: [],
+        crisisLineLabel: label,
+        crisisLineTel: label.replace(/ /g, ""),
+        enabled: false,
+      });
+    const stamp = async () =>
+      (
+        await db.execute<{ at: string | null; by: string | null }>(
+          sql`SELECT crisis_line_verified_at::text AS at, crisis_line_verified_by::text AS by
+                FROM country_settings WHERE code = ${CRISIS_CODE}`,
+        )
+      ).rows[0];
+    await writeCountrySettings({ country: line("+100 555 0101", 0), updatedBy: required(a, "a").id });
+    await db.execute(sql`UPDATE country_settings SET crisis_line_verified_at = '2026-01-02T03:04:05Z' WHERE code = ${CRISIS_CODE}`);
+    const checkedByA = await stamp();
+    await writeCountrySettings({ country: line("+100 555 0101", 1400), updatedBy: required(b, "b").id });
+    const afterVat = await stamp();
+    check(
+      "🔴 AE68 saving a country without touching its crisis line keeps who checked the line, and when",
+      afterVat?.by === required(a, "a").id && afterVat?.at === checkedByA?.at,
+      JSON.stringify({ checkedByA, afterVat }),
+    );
+    await writeCountrySettings({ country: line("+100 555 0199", 1400), updatedBy: required(b, "b").id });
+    const afterNumber = await stamp();
+    check(
+      "AE68 CONTROL a new number is stamped with the person who saved it",
+      afterNumber?.by === required(b, "b").id && afterNumber?.at !== checkedByA?.at,
+      JSON.stringify(afterNumber),
+    );
   } finally {
+    await db.execute(sql`DELETE FROM country_settings WHERE code = ${CRISIS_CODE}`);
+    await db.execute(sql`DELETE FROM settings_history WHERE scope = 'country' AND key = ${CRISIS_CODE}`);
     await db.delete(pendingApprovals).where(eq(pendingApprovals.subjectId, fixture));
     await db.delete(pendingApprovals).where(eq(pendingApprovals.subjectId, `owner.${fixture}@example.com`));
     await db.execute(sql`DELETE FROM settings_history WHERE changed_by IN (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);

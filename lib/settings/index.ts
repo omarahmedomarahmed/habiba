@@ -8,7 +8,7 @@
  */
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { controlDb as db } from "@/lib/db";
@@ -230,8 +230,27 @@ export async function writeCountrySettings(input: {
         sampleImageUrl: c.sampleImageUrl,
         crisisLineLabel: c.crisisLineLabel,
         crisisLineTel: c.crisisLineTel,
-        crisisLineVerifiedAt: c.crisisLineTel ? new Date() : null,
-        crisisLineVerifiedBy: c.crisisLineTel ? input.updatedBy : null,
+        /*
+         * 🔴 AE68: only when the line itself changed. Every save of the country
+         * card (a VAT rate, a label) used to re-stamp the line as checked by
+         * whoever saved, so "who last checked this number, and when" named
+         * somebody who never looked at it. Compared against the stored row in
+         * the same statement, so two saves cannot disagree about it.
+         */
+        crisisLineVerifiedAt: sql`CASE
+          WHEN excluded.crisis_line_tel IS NULL THEN NULL
+          WHEN ${countrySettings.crisisLineTel} IS DISTINCT FROM excluded.crisis_line_tel
+            OR ${countrySettings.crisisLineLabel} IS DISTINCT FROM excluded.crisis_line_label
+            OR ${countrySettings.crisisLineVerifiedAt} IS NULL
+          THEN now()
+          ELSE ${countrySettings.crisisLineVerifiedAt} END`,
+        crisisLineVerifiedBy: sql`CASE
+          WHEN excluded.crisis_line_tel IS NULL THEN NULL
+          WHEN ${countrySettings.crisisLineTel} IS DISTINCT FROM excluded.crisis_line_tel
+            OR ${countrySettings.crisisLineLabel} IS DISTINCT FROM excluded.crisis_line_label
+            OR ${countrySettings.crisisLineVerifiedAt} IS NULL
+          THEN ${input.updatedBy}::uuid
+          ELSE ${countrySettings.crisisLineVerifiedBy} END`,
         enabled: c.enabled,
         updatedBy: input.updatedBy,
         updatedAt: new Date(),
