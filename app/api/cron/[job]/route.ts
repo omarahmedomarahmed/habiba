@@ -340,13 +340,17 @@ const JOBS = {
      * and then send a reminder about it, which is worse than saying nothing.
      */
     /* 🔴 0160 — the next month on the transfer rail, raised before the reminders read it. */
-    const { raiseManualRenewals } = await import("@/lib/billing/service");
+    const { raiseManualRenewals, raiseSeatMonths } = await import("@/lib/billing/service");
     const renewals = await step(failed, "raiseManualRenewals", () => raiseManualRenewals());
+    /* 🔴 K14: a practice's seats, billed each month when no plan renewal carries them. */
+    const seatMonths = await step(failed, "raiseSeatMonths", () => raiseSeatMonths());
 
-    const { obligationsDueWithin, lapseOverdue, DUNNING_DAYS_BEFORE } = await import(
+    const { obligationsDueWithin, lapseOverdue, sendRenewalReminders, DUNNING_DAYS_BEFORE } = await import(
       "@/lib/billing/obligations"
     );
     const dueSoon = await step(failed, "obligationsDueWithin", () => obligationsDueWithin(Math.max(...DUNNING_DAYS_BEFORE)));
+    /* 🔴 K17: and they are told, once per month per threshold, before anything lapses. */
+    const reminded = await step(failed, "sendRenewalReminders", () => sendRenewalReminders());
     const lapsed = await step(failed, "lapseOverdue", () => lapseOverdue());
     if ((lapsed?.lapsed ?? 0) > 0) {
       log.warn("renewal obligations lapsed", { count: lapsed?.lapsed });
@@ -442,7 +446,9 @@ const JOBS = {
       potAlerts: potAlerts?.alerted,
       ledgerTold: ledgerTold?.told,
       renewalsRaised: renewals?.raised,
+      seatMonthsRaised: seatMonths?.raised,
       renewalsDueSoon: dueSoon?.length,
+      renewalRemindersSent: reminded?.sent,
       renewalsLapsed: lapsed?.lapsed,
       renewalsPaidNoReference: renewalDrift?.paidWithNoReference.length,
       renewalsInvoiceNoObligation: renewalDrift?.invoicesWithNoObligation.length,
@@ -620,8 +626,9 @@ const JOBS = {
     const { isQuietHour, resolveZone } = await import("@/lib/scheduling/tz");
 
     const now = new Date();
-    const ahead = await bookingsNeedingReminder(20, 24);
-    const sameDay = await sameDayNeedingReminder();
+    /* K26: each piece caught, so a throw here cannot stop the release, webhooks or tax documents. */
+    const ahead = (await step(failed, "bookingsNeedingReminder", () => bookingsNeedingReminder(20, 24))) ?? [];
+    const sameDay = (await step(failed, "sameDayNeedingReminder", () => sameDayNeedingReminder())) ?? [];
 
     // A slot can satisfy both queries at a boundary; `reminded_at` makes the
     // second send a no-op, but deduplicating here saves the wasted call.
@@ -657,7 +664,7 @@ const JOBS = {
       const when = whenFor(booking.startsAt, zone, words);
       const door = patientSessionLink(env.appUrl, booking.joinToken);
 
-      const delivery = await notify(
+      const delivery = await step(failed, "bookingReminder", () => notify(
         {
           personId: booking.personId,
           email: booking.patientEmail,
@@ -674,7 +681,7 @@ const JOBS = {
           link: door ? { ...door, label: words.t("pmsg.openSession") } : null,
           variables: [therapist, when],
         },
-      );
+      ));
 
       /*
        * Stamped whatever happened. A reminder that could not be delivered will
@@ -683,7 +690,7 @@ const JOBS = {
        * into a daily log storm.
        */
       await markReminded(booking.slotId);
-      if (delivery.sent) sent += 1;
+      if (delivery?.sent) sent += 1;
       else unreachable += 1;
     }
 
@@ -703,17 +710,24 @@ const JOBS = {
     /* 🔴 Pay before start: unpaid in-person links expire; paid ones that never started are refunded. */
     const { sweepInPerson } = await import("@/lib/data/in-person");
     /* Isolated: a failure here must not stop the booking release below. */
-    await sweepInPerson(now).catch((error) =>
-      log.error("in-person sweep failed", { reason: safeErrorMessage(error) }),
-    );
+    await step(failed, "sweepInPerson", () => sweepInPerson(now));
     /* 🔴 0169: a wallet hold on a session that ended unpaid goes back to the wallet. */
     const { sweepWalletHolds } = await import("@/lib/billing/wallet");
-    await sweepWalletHolds().catch((error) =>
-      log.error("wallet sweep failed", { reason: safeErrorMessage(error) }),
-    );
+    await step(failed, "sweepWalletHolds", () => sweepWalletHolds());
+    /* 🔴 K16c: expired wallet credit leaves the books as well as the balance. */
+    const { expireWalletCredits } = await import("@/lib/billing/wallet");
+    await step(failed, "expireWalletCredits", () => expireWalletCredits(now));
+    /* 🔴 K20: the backstop for any cancel path that did not raise its own waiting transfer. */
+    const { flagTransfersForCancelled } = await import("@/lib/billing/rail-exceptions");
+    await step(failed, "flagTransfersForCancelled", () => flagTransfersForCancelled());
 
+    /*
+     * 🔴 K26 (ME68): caught like every other step. It was the one call in this
+     * job with no `step`, so a throw here returned 500 and the webhooks and
+     * tax documents below did not run that hour.
+     */
     const { releaseUnconfirmedBookings } = await import("@/lib/data/scheduling");
-    const released = await releaseUnconfirmedBookings(now);
+    const released = (await step(failed, "releaseUnconfirmedBookings", () => releaseUnconfirmedBookings(now))) ?? [];
     let releasesTold = 0;
 
     for (const row of released) {
@@ -723,7 +737,8 @@ const JOBS = {
       const words = await wordsFor(row.personId ? { personId: row.personId } : null);
       const when = whenFor(row.startsAt, zone, words);
 
-      const delivery = await notify(
+      /* K26: one message that fails is named, and the rest of the job still runs. */
+      const delivery = await step(failed, "releaseNotice", () => notify(
         {
           personId: row.personId,
           email: row.patientEmail,
@@ -739,9 +754,9 @@ const JOBS = {
           link: { label: words.t("pmsg.bookAgain"), url: `${env.appUrl}/radar` },
           variables: [therapist, when],
         },
-      );
+      ));
 
-      if (delivery.sent) releasesTold += 1;
+      if (delivery?.sent) releasesTold += 1;
     }
 
     /*
