@@ -141,6 +141,46 @@ test("W2-S10 sorting breaks ties by the shuffle, never by the order paid", async
   assert.equal(l.parseLedgerQuery({ sort: "name" }).sort, "week", "an unknown sort is the default");
 });
 
+test("🔴 K6 a ledger filter never narrows the view below the floor", async () => {
+  const l = (await ledgerModule())!;
+  const batch = [
+    ...[1, 2, 3, 4].map((n) => entry({ shuffle: n })),
+    entry({ priceCents: 9000, shuffle: 5 }),
+  ];
+  const lone = l.parseLedgerQuery({ min: "90" });
+  // Control: the plain filter isolates the one session, which is the leak.
+  assert.equal(l.filterLedger(batch, lone).length, 1);
+  const held = l.filterToFloor(batch, lone, 5);
+  assert.deepEqual(held, { entries: [], heldBack: true });
+  // Unfiltered, the batch is shown whole; a filter matching the floor is shown too.
+  assert.equal(l.filterToFloor(batch, l.parseLedgerQuery({}), 5).entries.length, 5);
+  assert.equal(l.filterToFloor(batch, l.parseLedgerQuery({ max: "90" }), 5).entries.length, 5);
+  // Sorting is not a filter.
+  assert.equal(l.filterToFloor(batch, l.parseLedgerQuery({ sort: "price" }), 5).heldBack, false);
+});
+
+test("🔴 K6 every company screen reads the pot through the headcount gate", () => {
+  for (const file of [
+    "app/(sponsor)/sponsor/page.tsx",
+    "app/(sponsor)/sponsor/pot/page.tsx",
+    "app/(sponsor)/sponsor/ledger/page.tsx",
+  ]) {
+    const page = readSource(file);
+    assert.match(page, /reportablePot\(actor\.sponsorId\)/, `${file} reads the pot without the headcount gate`);
+    assert.doesNotMatch(page, /\bpotBalance\(/, `${file} reads the raw balance`);
+  }
+  const ledger = readSource("app/(sponsor)/sponsor/ledger/page.tsx");
+  const csv = readSource("app/(sponsor)/sponsor/ledger/export/route.ts");
+  for (const source of [ledger, csv]) {
+    assert.match(source, /filterToFloor\(/);
+    assert.doesNotMatch(source, /\bfilterLedger\(/, "a filter that can narrow below the floor");
+  }
+  const gate = readSource("lib/data/sponsors.ts");
+  const body = gate.slice(gate.indexOf("export async function reportablePot"));
+  assert.match(body, /headcount < settings\.sponsor\.activityFloor/);
+  assert.match(body, /balanceCents: null, published: null/);
+});
+
 test("W2-S10 the reporting floor applies to every aggregate", async () => {
   const l = (await ledgerModule())!;
   const floor = 5;

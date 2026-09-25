@@ -346,6 +346,42 @@ export async function potBalance(
   };
 }
 
+/** How many people are enrolled now (not removed), the roster's own count. */
+export async function enrolledCount(sponsorId: string): Promise<number> {
+  const [row] = await controlDb
+    .select({ n: sql<number>`count(*)::int` })
+    .from(enrolments)
+    .where(and(eq(enrolments.sponsorId, sponsorId), isNull(enrolments.removedAt)));
+  return row?.n ?? 0;
+}
+
+/**
+ * 🔴 K6 — THE BALANCE A COMPANY SCREEN MAY SHOW, BEHIND THE HEADCOUNT FLOOR TOO.
+ *
+ * `potBalance` floors by sessions since the last publication, which stops a
+ * one-session difference. It does not stop a company of three reading
+ * "Sessions paid for: 4" and knowing that somebody among three people it can
+ * name is in therapy. The heatmap already goes dark under `activityFloor`
+ * enrolled people; every company-facing figure derived from the pot goes dark
+ * with it, from this one function, so no screen can forget the gate.
+ *
+ * `potBalance` itself stays ungated for the money paths (the pot alerts),
+ * which never render a session count.
+ */
+export async function reportablePot(
+  sponsorId: string,
+): Promise<Awaited<ReturnType<typeof potBalance>> & { underHeadcount: boolean }> {
+  const [pot, headcount, settings] = await Promise.all([
+    potBalance(sponsorId),
+    enrolledCount(sponsorId),
+    getSettings(),
+  ]);
+  if (headcount < settings.sponsor.activityFloor) {
+    return { ...pot, balanceCents: null, published: null, underHeadcount: true };
+  }
+  return { ...pot, underHeadcount: false };
+}
+
 /** 53.9 — the live joining code, or none. */
 export async function liveCode(sponsorId: string): Promise<string | null> {
   const [row] = await controlDb

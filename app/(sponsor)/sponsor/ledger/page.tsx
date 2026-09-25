@@ -4,12 +4,12 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { topUpHistory } from "@/lib/billing/invoice";
 import { publishedLedger } from "@/lib/data/sponsor-ledger";
-import { potBalance } from "@/lib/data/sponsors";
+import { reportablePot } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 import {
-  filterLedger,
+  filterToFloor,
   ledgerAnalytics,
   LEDGER_SORTS,
   parseLedgerQuery,
@@ -55,13 +55,22 @@ export default async function SponsorLedgerPage({
 
   const [{ entries, publishing }, pot, topUps] = await Promise.all([
     publishedLedger(actor.sponsorId),
-    potBalance(actor.sponsorId),
+    reportablePot(actor.sponsorId),
     topUpHistory(actor.sponsorId),
   ]);
 
-  const rows = sortLedger(filterLedger(entries, query), query);
+  /*
+   * 🔴 K6 — under the headcount floor nothing is listed, as the overview's
+   * heatmap shows nothing: at a company of three any entry at all says one of
+   * three named people is in therapy. And a filter that would leave fewer
+   * entries than the floor withholds the whole view (`filterToFloor`).
+   */
+  const { entries: shown, heldBack } = pot.underHeadcount
+    ? { entries: [], heldBack: false }
+    : filterToFloor(entries, query, settings.sponsor.activityFloor);
+  const rows = sortLedger(shown, query);
   const stats = ledgerAnalytics({
-    entries: filterLedger(entries, query),
+    entries: shown,
     floor: settings.sponsor.activityFloor,
     balanceCents: pot.balanceCents,
     topUps,
@@ -205,7 +214,13 @@ export default async function SponsorLedgerPage({
 
       <Card className="overflow-x-auto p-0">
         {rows.length === 0 ? (
-          <p className="p-4 text-sm text-slate-600">{t("sponsor.ledgerEmpty")}</p>
+          <p className="p-4 text-sm text-slate-600">
+            {pot.underHeadcount
+              ? t("sponsor.suppressedBody")
+              : heldBack
+                ? t("sponsor.ledgerNarrow", { floor: settings.sponsor.activityFloor })
+                : t("sponsor.ledgerEmpty")}
+          </p>
         ) : (
           <table className="w-full text-sm tabular-nums">
             <thead>

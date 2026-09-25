@@ -143,6 +143,39 @@ export function filterLedger(entries: LedgerEntry[], query: LedgerQuery): Ledger
   });
 }
 
+/** Whether any filter narrows the ledger (sorting is not a filter). */
+export function isFiltered(query: LedgerQuery): boolean {
+  return (
+    query.from !== null ||
+    query.to !== null ||
+    query.coverage !== null ||
+    query.minCents !== null ||
+    query.maxCents !== null
+  );
+}
+
+/**
+ * 🔴 K6 — A FILTER NEVER NARROWS THE LEDGER BELOW THE FLOOR.
+ *
+ * `batchToFloor` publishes entries in batches of at least `floor`, and then a
+ * price band or a coverage value picked to match one entry brought the screen
+ * and the CSV down to a single row: one session, alone, which is exactly what
+ * the batch exists to prevent. So a filtered view with fewer than `floor`
+ * entries in it is withheld whole, and the screen says to widen the filters.
+ * The unfiltered ledger is already floored by its batches.
+ */
+export function filterToFloor(
+  entries: LedgerEntry[],
+  query: LedgerQuery,
+  floor: number,
+): { entries: LedgerEntry[]; heldBack: boolean } {
+  const filtered = filterLedger(entries, query);
+  if (isFiltered(query) && filtered.length > 0 && filtered.length < Math.max(1, floor)) {
+    return { entries: [], heldBack: true };
+  }
+  return { entries: filtered, heldBack: false };
+}
+
 /**
  * 🔴 Sorted by what the company asked, and ties broken by the SHUFFLE, never by
  * insertion. Two entries in one week with the same price would otherwise come
