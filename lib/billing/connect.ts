@@ -696,6 +696,23 @@ export async function createSessionPaymentCheckout(opts: {
     return { error: "Your wallet credit changed. Reload this page to see the amount to pay." };
   }
   if (patientGross <= 0) return { error: "This session is already paid for." };
+  /*
+   * 🔴 ME41: a destination charge cannot carry VAT on our books
+   * (`postSessionPayment` refuses it), and that refusal used to come AFTER
+   * Stripe had taken the money, leaving a paid session with nothing booked.
+   * Refused here, before anybody is charged, and said to the operator in the
+   * log: the country's VAT rule and the USD card rail disagree.
+   */
+  if (patientVatCents > 0) {
+    log.error("refused a card checkout that would collect VAT on a destination charge", {
+      session: ref(opts.sessionId),
+      country: country.code,
+    });
+    return {
+      error:
+        "Card payments for this country are not set up to charge VAT yet. Ask your therapist for a free link: the session itself works exactly the same.",
+    };
+  }
   /* K16e: the wallet's part comes out of our fee; the books keep the whole fee. */
   const applicationFee = convertAtRate(baseFee - walletCents, quote.rateMicro);
   const bookedFee = convertAtRate(baseFee, quote.rateMicro);
@@ -1328,7 +1345,14 @@ export async function refundSessionPayment(opts: {
      * Now it is queued, so a person sends it back by hand. Not when another
      * caller holds the claim: that one is returning it already.
      */
-    if (viaGateway.error === GATEWAY_REFUND_CLAIMED) return { error: viaGateway.error };
+    /*
+     * 🔴 ME10: another caller is returning it right now. That is not a failure
+     * to act on: every automatic caller read an error as "queue it", and
+     * opened an owed refund for a payment already on its way back. The caller
+     * holding the claim finishes the refund, or queues it if the gateway
+     * refuses, so this one reports nothing back from it.
+     */
+    if (viaGateway.error === GATEWAY_REFUND_CLAIMED) return { ok: true, toPayerCents: 0 };
     const { openRefundRequest } = await import("./refunds");
     const queued = await openRefundRequest({
       sessionPaymentId: payment.id,
@@ -1438,7 +1462,14 @@ export async function refundSessionPayment(opts: {
         reason: opts.reason.slice(0, 200),
         refundedBy: opts.adminUserId ?? "automatic",
       },
-    });
+    },
+    /*
+     * 🔴 ME9: one refund per payment at Stripe. Two refunds racing (a patient
+     * cancel and an admin) used to send two requests; the second failed and
+     * its caller queued a refund that had already happened. With one key
+     * both get the same refund back.
+     */
+    { idempotencyKey: `session-refund-${payment.id}` });
   } catch (error) {
     log.error("refund failed", {
       payment: ref(opts.paymentId),
@@ -1447,10 +1478,17 @@ export async function refundSessionPayment(opts: {
     return { error: "Stripe declined the refund. Check the payment in the dashboard." };
   }
 
-  await db
+  /*
+   * 🔴 ME9: and one reversal on our books. The move to `refunded` is guarded
+   * on `paid`, so of two refunds racing only the first posts anything below;
+   * the second reports the refund done and moves nothing.
+   */
+  const [claimedRefund] = await db
     .update(sessionPayments)
     .set({ status: "refunded" })
-    .where(eq(sessionPayments.id, opts.paymentId));
+    .where(and(eq(sessionPayments.id, opts.paymentId), eq(sessionPayments.status, "paid")))
+    .returning({ id: sessionPayments.id });
+  if (!claimedRefund) return { ok: true, toPayerCents: 0 };
 
   /*
    * And the books, backwards.

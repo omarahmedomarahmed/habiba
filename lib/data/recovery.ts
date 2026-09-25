@@ -384,26 +384,65 @@ export async function reassignSession(input: {
       sponsorShareCents: sessionPayments.sponsorShareCents,
       patientShareCents: sessionPayments.patientShareCents,
       platformFeeBps: sessionPayments.platformFeeBps,
+      capture: sessionPayments.capture,
     })
     .from(sessionPayments)
     .where(and(eq(sessionPayments.sessionId, input.sessionId), eq(sessionPayments.status, "paid")))
     .limit(1);
   let creditCents = 0;
-  if (paid) {
+  /*
+   * 🔴 ME46: A DESTINATION CHARGE NEVER SAT IN WHAT WE OWE. Stripe paid the
+   * absent clinician's share straight into their own account, so moving
+   * `therapist_payable` from them to the replacement debited a balance that
+   * never held it and pushed the replacement's held figure below zero. Our
+   * books cannot move that money; a person has to, in Stripe. The session
+   * still moves; its money is left where it is and said so.
+   */
+  if (paid && paid.capture === "destination") {
+    log.error("reassigned a card-paid session: the absent clinician holds its money in Stripe, move it by hand", {
+      session: ref(input.sessionId),
+      payment: ref(paid.id),
+    });
+  }
+  if (paid && paid.capture !== "destination") {
     await db
       .update(sessionPayments)
       .set({ therapistId: input.toUserId, organizationId: replacement.organizationId })
       .where(eq(sessionPayments.id, paid.id));
     const { journal } = await import("@/lib/billing/ledger");
     if (paid.net > 0 && paid.therapistId && paid.therapistId !== input.toUserId) {
+      /*
+       * 🔴 ME45: EACH LEG ON ITS OWN ENTITY'S BOOKS. The transaction took one
+       * entity from its first leg, so a move between a US and an Egyptian
+       * practice put the replacement's payable on the absent clinician's
+       * books. When the two differ the money crosses as cash between the
+       * entities, the same shape `postEntityTransfer` uses, so each entity's
+       * books balance on their own.
+       */
+      const regionOf = async (organizationId: string) => {
+        const [org] = await db
+          .select({ region: organizations.region })
+          .from(organizations)
+          .where(eq(organizations.id, organizationId))
+          .limit(1);
+        return org?.region === "eg" ? ("eg" as const) : ("us" as const);
+      };
+      const fromEntity = await regionOf(paid.organizationId);
+      const toEntity = await regionOf(replacement.organizationId);
       /* `session_repriced`, so a later refund's reversal (`bookedLegs`) sees the move too. */
       await journal({
         kind: "session_repriced",
         refType: "session_payment",
         refId: paid.id,
         legs: [
-          { account: "therapist_payable", amountCents: paid.net, organizationId: paid.organizationId, userId: paid.therapistId, memo: "Session held by another clinician" },
-          { account: "therapist_payable", amountCents: -paid.net, organizationId: replacement.organizationId, userId: input.toUserId, memo: "Held a session another clinician missed" },
+          { account: "therapist_payable", amountCents: paid.net, organizationId: paid.organizationId, userId: paid.therapistId, entity: fromEntity, memo: "Session held by another clinician" },
+          { account: "therapist_payable", amountCents: -paid.net, organizationId: replacement.organizationId, userId: input.toUserId, entity: toEntity, memo: "Held a session another clinician missed" },
+          ...(fromEntity !== toEntity
+            ? [
+                { account: "cash" as const, amountCents: -paid.net, organizationId: paid.organizationId, entity: fromEntity, memo: "Owed to the replacement's entity" },
+                { account: "cash" as const, amountCents: paid.net, organizationId: replacement.organizationId, entity: toEntity, memo: "From the absent clinician's entity" },
+              ]
+            : []),
         ],
       });
     }

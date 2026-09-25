@@ -622,6 +622,48 @@ async function main() {
         /isNull\(sponsorUsers\.deletedAt\)/.test(readSource("lib/billing/payment-notices.ts")),
       "first sponsor user of any role",
     );
+    /* ---------------------------------------- refunds that race, and repricing */
+
+    const refundBody = connect2.slice(connect2.indexOf("export async function refundSessionPayment"), connect2.indexOf("/* ------------------------------------------------- releasing held earnings"));
+    check(
+      "🔴 ME9 two Stripe refunds of one payment send one refund and post one reversal",
+      /idempotencyKey: `session-refund-\$\{payment\.id\}`/.test(refundBody) &&
+        /eq\(sessionPayments\.status, "paid"\)\)\)\s*\.returning\(\{ id: sessionPayments\.id \}\);\s*if \(!claimedRefund\)/.test(refundBody),
+      "the status move after Stripe had no guard",
+    );
+    check(
+      "🔴 ME10 a gateway refund already in flight is not read as a failure to queue",
+      /GATEWAY_REFUND_CLAIMED\) return \{ ok: true, toPayerCents: 0 \}/.test(refundBody),
+      "every automatic caller queued an owed refund for money already on its way back",
+    );
+    check(
+      "ME9/ME10 CONTROL the old lines fail those scans",
+      !/GATEWAY_REFUND_CLAIMED\) return \{ ok: true/.test("if (viaGateway.error === GATEWAY_REFUND_CLAIMED) return { error: viaGateway.error };"),
+      "watched failing",
+    );
+    check(
+      "🔴 ME41 a destination checkout that would collect VAT is refused before anybody is charged",
+      /if \(patientVatCents > 0\) \{[\s\S]{0,400}return \{/.test(checkout) &&
+        checkout.indexOf("if (patientVatCents > 0)") < checkout.indexOf("client.checkout.sessions.create"),
+      "postSessionPayment threw after Stripe had the money",
+    );
+    const recovery = readSource("lib/data/recovery.ts");
+    check(
+      "🔴 ME45 a reassignment between a US and an Egyptian practice books each leg on its own entity, and the cash crosses",
+      /entity: fromEntity/.test(recovery) && /entity: toEntity/.test(recovery) && /fromEntity !== toEntity/.test(recovery),
+      "the whole move took the first leg's entity",
+    );
+    check(
+      "🔴 ME46 a card-paid (destination) session's money is not moved on books that never held it",
+      /paid\.capture === "destination"/.test(recovery) && /paid && paid\.capture !== "destination"/.test(recovery),
+      "the replacement's held balance went negative",
+    );
+    check(
+      "🔴 ME70 the refund queue finds the pounds a pay-as-you-go session's transfer sent",
+      /inArray\(manualPayments\.purpose, \["session", "payg_session"\]\)/.test(readSource("lib/billing/refunds.ts")),
+      "only purpose session was looked up",
+    );
+
     const { markPartnerMonthPaid } = await import("../lib/partner/billing");
     const notBilled = await markPartnerMonthPaid({
       partnerId: "00000000-0000-0000-0000-000000000000",
