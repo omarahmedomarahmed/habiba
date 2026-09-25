@@ -84,6 +84,22 @@ const PROOF_SENDS_PER_HOUR = 3;
 export type ProofSend = { sent: string } | { error: "wait" | "failed" | "missing" | "proved" };
 
 /**
+ * The words, apart from the send, so the mail previews show exactly these.
+ *
+ * 🔴 NOT ONE WORD ABOUT THERAPY FOR ANY INDIVIDUAL. This lands in a shared
+ * mailbox read by whoever runs IT. It says an organisation asked, and it names
+ * no person, because 53.2's rule about enrolment strings applies with more
+ * force to a message nobody chose to get.
+ */
+export function domainConfirmMessage(domain: string, url: string) {
+  return {
+    subject: `Confirm ${domain} for your organisation's mental health cover`,
+    body: `Somebody at your organisation asked us to set up mental health cover for your people. Confirming this address is one of two checks we do before any joining code works. It commits you to nothing.`,
+    link: { label: "Confirm this domain", url },
+  };
+}
+
+/**
  * Mail the confirm link for one of this company's domains to one admin mailbox.
  * Scoped in the WHERE through the company, so a borrowed domain id sends
  * nothing; refused once the mailbox half is proved, since there is nothing left
@@ -112,18 +128,7 @@ export async function sendDomainProof(input: {
   const link = `${env.appUrl}/sponsor/domains/confirm/${input.domainId}?t=${mailboxToken(input.domainId)}`;
   const delivery = await notify(
     { email: address, phone: null },
-    {
-      kind: "sponsor.domain_confirm",
-      subject: `Confirm ${row.domain} for your organisation's mental health cover`,
-      /*
-       * 🔴 NOT ONE WORD ABOUT THERAPY FOR ANY INDIVIDUAL. This lands in a
-       * shared mailbox read by whoever runs IT. It says an organisation
-       * asked, and it names no person, because 53.2's rule about enrolment
-       * strings applies with more force to a message nobody chose to get.
-       */
-      body: `Somebody at your organisation asked us to set up mental health cover for your people. Confirming this address is one of two checks we do before any joining code works. It commits you to nothing.`,
-      link: { label: "Confirm this domain", url: link },
-    },
+    { kind: "sponsor.domain_confirm", ...domainConfirmMessage(row.domain, link) },
   );
   return delivery.sent ? { sent: address } : { error: "failed" };
 }

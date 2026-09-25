@@ -1,5 +1,6 @@
 import "server-only";
 
+import { recordExportPath } from "@/lib/routing";
 import { egpMinorFor, formatDisplay } from "@/lib/money/convert";
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
@@ -76,9 +77,9 @@ function mintVerificationCode(): string {
   return out;
 }
 
-/** What lands in the patient's inbox as a URL path. */
+/** What lands in the patient's inbox as a URL path. The mail previews read it from `lib/routing`. */
 export function exportPath(token: string): string {
-  return `/records/${token}`;
+  return recordExportPath(token);
 }
 
 /* ------------------------------------------------------------- creating -- */

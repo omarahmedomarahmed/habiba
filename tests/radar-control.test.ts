@@ -43,8 +43,31 @@ test("force offline cancels a booking in flight and tells the patient, as ours",
 
 test("the transcript asks why before a word of it renders, and the reason is audited", () => {
   const page = read("app/(admin)/admin/radar/investigate/[id]/page.tsx");
-  const gate = page.indexOf("reasonProblem(why)");
+  const gate = page.indexOf("investigationGrantHolds(");
   assert.ok(gate > 0, "nothing asks why");
   assert.ok(gate < page.indexOf("await investigate(id)"), "the transcript is read before the reason");
-  assert.match(page, /reason: `Report \$\{report\.id\}, \$\{report\.kind\}: \$\{reasonText\(why!\)\}`/);
+  const action = read("app/(admin)/admin/radar/investigate/[id]/actions.ts");
+  assert.match(action, /reasonProblem\(why\)/);
+  assert.match(action, /reason: `Report \$\{report\.id\}, \$\{report\.kind\}: \$\{reasonText\(why\)\}`/);
+});
+
+test("the reason is POSTed, never in the URL, and a render writes no row of its own", () => {
+  const page = read("app/(admin)/admin/radar/investigate/[id]/page.tsx");
+  // It was `<form method="get">` and `?why=`, so the reason sat in the address bar and the logs.
+  assert.doesNotMatch(page, /method="get"/);
+  assert.doesNotMatch(page, /why\?: string/);
+  assert.match(page, /<form action=\{openInvestigation\.bind\(null, id\)\}/);
+  // One row per reading, written by the action; the page only checks the grant.
+  assert.doesNotMatch(page, /await audit\(/);
+  const action = read("app/(admin)/admin/radar/investigate/[id]/actions.ts");
+  assert.match(action, /^"use server";/);
+  assert.match(action, /const grant = await audit\(/);
+  assert.match(action, /redirect\(`\$\{back\}\?grant=/);
+  assert.doesNotMatch(action, /why=/);
+  // The grant is this reader's row, for this session, and it runs out.
+  const lib = read("lib/audit.ts");
+  const holds = lib.slice(lib.indexOf("export async function investigationGrantHolds"));
+  for (const part of [/eq\(auditLog\.actorUserId, input\.actorUserId\)/, /eq\(auditLog\.resourceId, input\.sessionId\)/, /gt\(auditLog\.createdAt/]) {
+    assert.match(holds, part);
+  }
 });

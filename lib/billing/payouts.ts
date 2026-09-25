@@ -15,6 +15,7 @@ import {
   type PayoutRequest,
   type PayoutStatus,
 } from "@/lib/db/schema";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { wordsFor } from "@/lib/i18n/message-words";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -863,7 +864,8 @@ export async function markPayoutReturned(input: {
   reason: string;
 }): Promise<{ ok?: boolean; error?: string }> {
   const reason = input.reason.trim();
-  if (reason.length < 5) return { error: "Say why, so the clinician knows what to fix." };
+  /* 🔴 K23: the console's one length for a reason, which the clinician reads. */
+  if (reason.length < MIN_REASON) return { error: "aconfirm.tooShort" };
 
   const row = await requestRow(input.requestId);
   if (!row) return { error: "That request no longer exists." };
@@ -933,7 +935,8 @@ export async function rejectPayout(input: {
   reason: string;
 }): Promise<{ ok?: boolean; error?: string }> {
   const reason = input.reason.trim();
-  if (reason.length < 5) return { error: "Say why, so the clinician knows what to fix." };
+  /* 🔴 K23: the console's one length for a reason, which the clinician reads. */
+  if (reason.length < MIN_REASON) return { error: "aconfirm.tooShort" };
 
   const current = await requestRow(input.requestId);
   if (!current) return { error: "That request no longer exists." };
@@ -987,6 +990,14 @@ export async function rejectPayout(input: {
     );
   }
   return result;
+}
+
+/** The alarm's words, apart from the send, so the mail previews show exactly these. */
+export function overdueAlertMessage(amountCents: number, alertAfterHours: number, owned: boolean) {
+  return {
+    subject: "A payout has been waiting too long",
+    body: `A withdrawal of $${(amountCents / 100).toFixed(2)} has been open for more than ${alertAfterHours} hours.${owned ? "" : " Nobody has taken it on."}`,
+  };
 }
 
 /** 16.3b — a named owner. A request nobody owns is a request nobody works. */
@@ -1162,8 +1173,7 @@ export async function alertAgedPayouts(): Promise<{ alerted: number }> {
         { email: person.email, phone: person.profile?.phone ?? null, timezone: person.timezone },
         {
           kind: "payout.overdue",
-          subject: "A payout has been waiting too long",
-          body: `A withdrawal of $${(row.amountCents / 100).toFixed(2)} has been open for more than ${settings.payouts.alertAfterHours} hours.${row.ownerUserId ? "" : " Nobody has taken it on."}`,
+          ...overdueAlertMessage(row.amountCents, settings.payouts.alertAfterHours, Boolean(row.ownerUserId)),
         },
       );
     }

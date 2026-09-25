@@ -5,6 +5,7 @@ import { AlertTriangle, Check, FileSearch, UserX, X } from "lucide-react";
 
 import { resolveReport } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { cn } from "@/lib/utils";
 
 export type ReportRow = {
@@ -141,14 +142,14 @@ function ReportCard({ row }: { row: ReportRow }) {
           />
 
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={pending} onClick={() => decide("actioned")}>
+            <Button size="sm" disabled={pending || note.trim().length < MIN_REASON} onClick={() => decide("actioned")}>
               <Check className="h-3.5 w-3.5" aria-hidden />
               Actioned
             </Button>
             <Button
               size="sm"
               variant="secondary"
-              disabled={pending}
+              disabled={pending || note.trim().length < MIN_REASON}
               onClick={() => decide("dismissed")}
             >
               <X className="h-3.5 w-3.5" aria-hidden />

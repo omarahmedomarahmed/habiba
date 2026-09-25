@@ -16,6 +16,7 @@ import {
   refreshTherapists,
 } from "@/app/(admin)/admin/tv/board-actions";
 import type { WholeBoard } from "@/lib/console/board";
+import { useT } from "@/lib/i18n/client";
 import { Money } from "@/components/ui/money";
 
 /**
@@ -192,6 +193,7 @@ function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
 /* ---------------------------------------------------------------- board -- */
 
 export function Board({ initial }: { initial: WholeBoard }) {
+  const t = useT();
   const [b, setB] = useState(initial);
   const [read, setRead] = useState<Record<string, Date>>(() => {
     const now = new Date();
@@ -513,7 +515,10 @@ export function Board({ initial }: { initial: WholeBoard }) {
       >
         <Row>
           <Stat label="By our own staff, 30d" value={String(b.activity.actors.staff)} />
+          <Stat label={t("aboard.byClinician")} value={String(b.activity.actors.clinician)} />
           <Stat label="By a company, 30d" value={String(b.activity.actors.sponsor)} />
+          <Stat label={t("aboard.byPatient")} value={String(b.activity.actors.patient)} />
+          <Stat label={t("aboard.byClinic")} value={String(b.activity.actors.clinic)} />
           <Stat label="No named actor, 30d" value={String(b.activity.actors.unattributed)} />
         </Row>
         <div className="mt-2">

@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/auth/guard";
 import {
   approveForProduction,
   createPartnerUser,
+  setPartnerDocuments,
   setPartnerState,
   withdrawApproval,
 } from "@/lib/data/partner-admin";
@@ -165,6 +166,40 @@ export async function approveProduction(partnerId: string): Promise<AdminPartner
     resourceType: "partner",
     resourceId: partnerId,
     reason: "their keys may now reach a real person's session",
+  });
+
+  revalidatePath("/admin/partners");
+  return { ok: true };
+}
+
+/**
+ * 🔴 K13: record where their documents are, which production approval needs
+ * and nothing else wrote. The link is not put in the audit row: a storage link
+ * can be a secret (H14), and the partner row holds it.
+ */
+export async function saveDocuments(
+  _prev: AdminPartnerState,
+  formData: FormData,
+): Promise<AdminPartnerState> {
+  const actor = await requireRole("super_admin");
+  const partnerId = String(formData.get("partnerId") ?? "");
+
+  const result = await setPartnerDocuments({
+    partnerId,
+    documentsUrl: String(formData.get("documentsUrl") ?? ""),
+  });
+  if (result.error) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t(result.error) };
+  }
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "partner.documents_recorded",
+    resourceType: "partner",
+    resourceId: partnerId,
+    reason: "where their documents are, read before approving production",
   });
 
   revalidatePath("/admin/partners");

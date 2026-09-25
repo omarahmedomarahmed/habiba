@@ -5,6 +5,7 @@ import { Undo2 } from "lucide-react";
 
 import { refundPatient } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Input } from "@/components/ui";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { Money } from "@/components/ui/money";
 
 /**
@@ -127,7 +128,7 @@ export function VaultPaymentRow(props: {
             <Button
               size="sm"
               variant="danger"
-              disabled={pending}
+              disabled={pending || reason.trim().length < MIN_REASON}
               onClick={() =>
                 startTransition(async () => {
                   setError(null);

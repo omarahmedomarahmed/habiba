@@ -11,6 +11,7 @@ import {
   sessions,
   type RefundRequestStatus,
 } from "@/lib/db/schema";
+import { MIN_REASON } from "@/lib/admin/reason";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
@@ -522,7 +523,7 @@ export async function cancelRefund(input: { requestId: string; reason: string; b
 
   if (!row.askedBy && !twoPeople) {
     const reason = input.reason.trim();
-    if (reason.length < 5) return { error: "arefund.errReason" };
+    if (reason.length < MIN_REASON) return { error: "aconfirm.tooShort" };
     const now = new Date();
     const done = await db
       .update(refundRequests)
@@ -542,7 +543,7 @@ export async function cancelRefund(input: { requestId: string; reason: string; b
 
   if (!row.askedBy) {
     const reason = input.reason.trim();
-    if (reason.length < 5) return { error: "arefund.errReason" };
+    if (reason.length < MIN_REASON) return { error: "aconfirm.tooShort" };
     const asked = await db
       .update(refundRequests)
       .set({ cancelAskedByUserId: input.byUserId, cancelAskedAt: new Date(), cancelledReason: reason.slice(0, 300), updatedAt: new Date() })

@@ -13,6 +13,7 @@ import {
   type RefundState,
 } from "@/app/(admin)/admin/payouts/refund-actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { useT } from "@/lib/i18n/client";
 import { Money } from "@/components/ui/money";
 
@@ -192,7 +193,13 @@ function RefundRow({ row }: { row: RefundQueueItem }) {
         ) : row.status === "owed" ? (
           <form action={cancelAction} className="flex items-end gap-2">
             <input type="hidden" name="requestId" value={row.id} />
-            <Input name="reason" placeholder={t("arefund.cancelWhy")} required className="h-8 w-48 text-xs" />
+            <Input
+              name="reason"
+              placeholder={t("arefund.cancelWhy")}
+              required
+              minLength={MIN_REASON}
+              className="h-8 w-48 text-xs"
+            />
             <Go label={t("arefund.cancelAsk")} quiet />
           </form>
         ) : null}

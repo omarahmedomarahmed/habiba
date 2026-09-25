@@ -72,7 +72,7 @@ async function main() {
     const { FAKE_ETA, FAKE_SIGNER } = await import("../lib/billing/eta/fake");
     const { buildEtaDocument } = await import("../lib/billing/eta/document");
     const { serializeEta, toEtaJson } = await import("../lib/billing/eta/serialize");
-    const { requestPotReturn, sendPotReturn } = await import("../lib/billing/pot-return");
+    const { cancelPotReturn, requestPotReturn, sendPotReturn } = await import("../lib/billing/pot-return");
     const rate = await egpRateMicro();
 
     const docs = async (sponsorId = sponsor.id) =>
@@ -381,6 +381,49 @@ async function main() {
       "🔴 0147 a company lists its own documents and no other company's",
       listed.length === (await docs()).length && listed.length >= 3 && otherListed.length === 0,
       JSON.stringify({ listed: listed.length, all: all.length, other: otherListed.length }),
+    );
+
+    /*
+     * 🔴 K23: a cancel takes a reason at the console's ten characters (it took
+     * none, so the old signature does not even compile here), and while company
+     * returns need two people a different person carries it out. A cancelled
+     * row with no reason is refused by the database whatever the switch says.
+     */
+    const cancelMe = await requestPotReturn({ sponsorId: sponsor.id, netCents: 100, egpMinor: 100, reason: "K23 cancel fixture", requestedBy: opA.id });
+    const cancelId = "ok" in cancelMe ? cancelMe.id : "";
+    const { getSettings: settingsNow } = await import("../lib/settings");
+    const twoOnReturns = (await settingsNow()).rules.approvals.potReturns;
+    const nineChars = await cancelPotReturn({ id: cancelId, by: opA.id, reason: "Not owed." });
+    const forgedCancel = await db
+      .execute(sql`UPDATE pot_returns SET state = 'cancelled', decided_by = ${opB.id}, decided_at = now() WHERE id = ${cancelId}`)
+      .then(() => "written", () => "refused");
+    const firstCancel = await cancelPotReturn({ id: cancelId, by: opA.id, reason: "The company asked us to keep it" });
+    const sameCancel = twoOnReturns ? await cancelPotReturn({ id: cancelId, by: opA.id, reason: "" }) : null;
+    const secondCancel = twoOnReturns ? await cancelPotReturn({ id: cancelId, by: opB.id, reason: "" }) : null;
+    const cancelledRow = await one<{ state: string; cancel_reason: string | null; cancel_asked_by: string | null; decided_by: string | null }>(
+      db,
+      sql`SELECT state, cancel_reason, cancel_asked_by, decided_by FROM pot_returns WHERE id = ${cancelId}`,
+    );
+    check(
+      "🔴 K23 a pot return cancel needs ten characters, and a cancel with no reason is refused by the database",
+      "ok" in cancelMe && "error" in nineChars && nineChars.error === "aconfirm.tooShort" && forgedCancel === "refused",
+      JSON.stringify({ cancelMe, nineChars, forgedCancel }),
+    );
+    check(
+      twoOnReturns
+        ? "🔴 K23 returns need two people: the first press asks, the asker cannot finish it, a second person cancels"
+        : "K23 returns need one person: one press cancels, and the row names who and why",
+      twoOnReturns
+        ? "ok" in firstCancel && Boolean(firstCancel.asked) && sameCancel !== null && "error" in sameCancel &&
+            sameCancel.error === "apot.cancelTwo" && secondCancel !== null && "ok" in secondCancel &&
+            cancelledRow.state === "cancelled" && cancelledRow.decided_by === opB.id
+        : "ok" in firstCancel && !firstCancel.asked && cancelledRow.state === "cancelled",
+      JSON.stringify({ twoOnReturns, firstCancel, sameCancel, secondCancel, cancelledRow }),
+    );
+    check(
+      "K23 the cancelled row keeps the reason and who asked",
+      cancelledRow.cancel_reason === "The company asked us to keep it" && cancelledRow.cancel_asked_by === opA.id,
+      JSON.stringify(cancelledRow),
     );
 
     /* ------------------------------------------------------------- readiness */

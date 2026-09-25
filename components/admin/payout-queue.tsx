@@ -15,6 +15,7 @@ import {
   type QueueState,
 } from "@/app/(admin)/admin/payouts/actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { Money } from "@/components/ui/money";
 // 19.4 — an English-only surface, so the English shorthand, named as such.
 import type { PayoutStatus } from "@/lib/db/schema";
@@ -309,7 +310,7 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
               name="reason"
               placeholder={t("apayout.reason")}
               required
-              minLength={5}
+              minLength={MIN_REASON}
               className="h-8 w-64 text-xs"
             />
             <Go label={row.status === "sent" ? t("apayout.returned") : "Reject"} tone="quiet" />

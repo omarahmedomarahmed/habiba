@@ -306,12 +306,14 @@ export async function signNote(
   const wasPrimary = found.note.isPrimary;
 
   let firstSignature = false;
+  let changed = false;
   await found.db.transaction(async (tx) => {
     const signed = await tx
       .update(sessionNotes)
       .set({ status: "approved", approvedAt: new Date(), approvedBy: actor.userId })
       .where(and(eq(sessionNotes.id, target), eq(sessionNotes.status, "draft")))
       .returning({ id: sessionNotes.id });
+    changed = signed.length > 0;
     if (signed.length > 0) {
       /* The session's first signed note, whichever format: one event per session. */
       const approved = await tx
@@ -339,6 +341,13 @@ export async function signNote(
     await tx.update(sessionNotes).set({ isPrimary: true }).where(eq(sessionNotes.id, target));
   });
 
+  /*
+   * 🔴 Already signed: nothing was approved, so nothing is written down. An
+   * approval row for a press that changed nothing reads, in the PHI audit, as
+   * a second signature by whoever pressed it.
+   */
+  if (!changed) return { ok: true };
+
   await auditPhi(actor, "note.approve", {
     resourceType: "note",
     resourceId: sessionId,
@@ -358,14 +367,18 @@ export async function releasePatientCopy(actor: Actor, sessionId: string): Promi
   if (!found) return { ok: false, reason: "not_found" };
   if (!found.noteId) return { ok: false, reason: "no_note" };
 
-  await found.db
+  const released = await found.db
     .update(sessionNotes)
     .set({
       patientStatus: "approved",
       patientApprovedAt: new Date(),
       patientApprovedBy: actor.userId,
     })
-    .where(and(eq(sessionNotes.id, found.noteId), eq(sessionNotes.patientStatus, "draft")));
+    .where(and(eq(sessionNotes.id, found.noteId), eq(sessionNotes.patientStatus, "draft")))
+    .returning({ id: sessionNotes.id });
+
+  /* 🔴 Already released: the same rule as signing, no row for a press that changed nothing. */
+  if (released.length === 0) return { ok: true };
 
   await auditPhi(actor, "note.patient.approve", {
     resourceType: "note",

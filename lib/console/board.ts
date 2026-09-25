@@ -38,9 +38,10 @@ import {
   clinicSeats,
   invoices,
   manualPayments,
-  enrolments,
   organizations,
   patients,
+  BACK_OFFICE_ROLES,
+  sessionPayments,
   sessions,
   sponsorPots,
   sponsors,
@@ -140,23 +141,29 @@ export async function companiesBoard() {
     .orderBy(sponsors.createdAt);
 
   /*
-   * 🔴 SESSIONS COVERED THIS MONTH, THROUGH THE ENROLMENT AND NOT OFF THE SESSION.
+   * 🔴 SESSIONS THE POT PAID FOR THIS MONTH, READ OFF THE BOOKS.
    *
-   * There is no `sponsor_id` on a patient and there should not be: who funds
-   * somebody is a live relationship on `enrolments`, and a copy on the patient
-   * row would be a second opinion that goes stale the day they change employer.
-   * `P5` in the simulation does exactly that in month 4.
+   * There is no `sponsor_id` on a patient and there should not be. This used
+   * to count every session of anybody actively enrolled, through
+   * `enrolments`: a session they paid for themselves counted, one another
+   * company funded counted under both, and a session from before they joined
+   * counted too. Now it is the pot's own ledger leg, which shares its txn id
+   * with the payment it funded (`paidFromPotOf`), counted once per payment.
    */
   const covered = await db
     .select({
-      sponsorId: enrolments.sponsorId,
-      sessions: sql<number>`count(*)::int`,
+      sponsorId: sql<string>`pot.ref_id`,
+      sessions: sql<number>`count(DISTINCT ${sessionPayments.id})::int`,
     })
-    .from(sessions)
-    .innerJoin(patients, eq(patients.id, sessions.patientId))
-    .innerJoin(enrolments, eq(enrolments.personId, patients.personId))
-    .where(and(gte(sessions.createdAt, month), eq(enrolments.state, "active")))
-    .groupBy(enrolments.sponsorId);
+    .from(sessionPayments)
+    .innerJoin(sql`ledger_entries paid`, sql`paid.ref_type = 'session_payment' AND paid.ref_id = ${sessionPayments.id}`)
+    .innerJoin(
+      sql`ledger_entries pot`,
+      sql`pot.txn_id = paid.txn_id AND pot.ref_type = 'sponsor' AND pot.account = 'sponsor_pot'
+          AND pot.amount_cents > 0 AND pot.txn_kind <> 'pot_return'`,
+    )
+    .where(and(gte(sessionPayments.createdAt, month), eq(sessionPayments.fundingSource, "pot")))
+    .groupBy(sql`pot.ref_id`);
 
   const bySponsor = new Map(covered.map((c) => [c.sponsorId, c.sessions]));
 
@@ -374,19 +381,34 @@ export async function activityBoard() {
     .from(auditLog)
     .groupBy(auditLog.category);
 
-  /* Who is acting: our own staff, a clinician, a company, or a patient. */
+  /*
+   * Who is acting: our own staff, a clinician, a company, a patient or a clinic.
+   *
+   * 🔴 `actor_user_id` is every `users` row, and clinicians are users too, so
+   * "by our own staff" counted every clinician's act. The role says which, and
+   * the other three principals have their own columns (0086).
+   */
+  const backOffice = sql.join(
+    BACK_OFFICE_ROLES.map((role) => sql`${role}`),
+    sql`, `,
+  );
+  const inMonth = sql`${auditLog.createdAt} >= ${month}`;
   const [actors] = await db
     .select({
-      staff: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorUserId} IS NOT NULL AND ${auditLog.createdAt} >= ${month})::int`,
-      sponsor: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorSponsorUserId} IS NOT NULL AND ${auditLog.createdAt} >= ${month})::int`,
-      unattributed: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorUserId} IS NULL AND ${auditLog.actorSponsorUserId} IS NULL AND ${auditLog.createdAt} >= ${month})::int`,
+      staff: sql<number>`COUNT(*) FILTER (WHERE ${users.role} IN (${backOffice}) AND ${inMonth})::int`,
+      clinician: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorUserId} IS NOT NULL AND ${users.role} NOT IN (${backOffice}) AND ${inMonth})::int`,
+      sponsor: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorSponsorUserId} IS NOT NULL AND ${inMonth})::int`,
+      patient: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorAccountId} IS NOT NULL AND ${inMonth})::int`,
+      clinic: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorClinicManagerId} IS NOT NULL AND ${inMonth})::int`,
+      unattributed: sql<number>`COUNT(*) FILTER (WHERE ${auditLog.actorUserId} IS NULL AND ${auditLog.actorSponsorUserId} IS NULL AND ${auditLog.actorAccountId} IS NULL AND ${auditLog.actorClinicManagerId} IS NULL AND ${inMonth})::int`,
     })
-    .from(auditLog);
+    .from(auditLog)
+    .leftJoin(users, eq(users.id, auditLog.actorUserId));
 
   return {
     manageHref: "/admin/audit",
     rows: rows.sort((a, b) => b.month - a.month),
-    actors: actors ?? { staff: 0, sponsor: 0, unattributed: 0 },
+    actors: actors ?? { staff: 0, clinician: 0, sponsor: 0, patient: 0, clinic: 0, unattributed: 0 },
   };
 }
 

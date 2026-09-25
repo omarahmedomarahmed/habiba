@@ -504,6 +504,7 @@ export async function tractionMetrics(): Promise<Traction> {
  * 8.59¢ on 209.41¢, about 4%. Small money, systematic error, and it made two
  * admin screens disagree: the usage page already read microcents.
  */
+
 export async function costByKind(days = 30) {
   return db
     .select({

@@ -49,6 +49,14 @@ const FEE_CLAIMS: RegExp[] = [
   /\bpays?\s+for\s+itself\b/i,
   /\b(one|a\s+single|a)\s+(paid\s+)?session\s+(covers|pays\s+for)\b/i,
   /\bcosts?\s+you\s+nothing\s+if\s+you\s+(see|take)\b/i,
+  /*
+   * 🔴 AE60: THE SAME CLAIMS IN ARABIC. Every rule was an English regex, so
+   * "الاشتراك يغطي نفسه" (the subscription pays for itself) was saved and
+   * published on /ar pages. No `\b`: it is ASCII-only in a JavaScript regex
+   * and never matches beside an Arabic letter.
+   */
+  /(يغطي|تغطي|يدفع\s+ثمن|تدفع\s+ثمن|يسدد|تسدد)\s+(نفسه|نفسها)/,
+  /(الجلسات|الجلسة|جلسة\s+واحدة|جلستان)\s+(المدفوعة\s+)?(تغطي|يغطي|تسدد|يسدد|تدفع|يدفع)\s+[^.؟]{0,40}(الرسوم|رسوم|الاشتراك|اشتراك|التكلفة|تكلفة|رسومنا)/,
 ];
 
 /**
@@ -69,6 +77,12 @@ const EARNINGS_CLAIMS: RegExp[] = [
   /\b(guaranteed|guarantee)\s+(income|earnings|bookings?|patients?)\b/i,
   /\b(fill|filling)\s+your\s+(calendar|diary|caseload)\b/i,
   /\b\d+\s*(x|times)\s+(your\s+)?(income|earnings|bookings?)\b/i,
+  /* 🔴 AE60: in Arabic too; the future and quantified shapes, never the bare noun. */
+  /(ستربح|سيربح|ستكسب|سيكسب|يمكنك\s+أن\s+تربح|يمكنك\s+أن\s+تكسب)/,
+  /(اربح|اكسب)\s+(حتى|ما\s+يصل\s+إلى|أكثر|المزيد|دخلًا\s+إضافيًا)/,
+  /(ضاعف|زد|زِد|ارفع|عظّم)\s+(دخلك|أرباحك|إيراداتك)/,
+  /(دخل|أرباح|حجوزات|مرضى)\s+(مضمون|مضمونة)/,
+  /(املأ|امْلأ)\s+(جدولك|تقويمك)/,
 ];
 
 /** Every string a reader could see, flattened out of a block tree. */

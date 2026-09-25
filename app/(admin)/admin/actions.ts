@@ -12,9 +12,9 @@ import { requireRole, requireStaff } from "@/lib/auth/guard";
 import { reasonProblem, reasonText } from "@/lib/admin/reason";
 import { refundSessionPayment } from "@/lib/billing/connect";
 import { discountInvoice, setUpcomingDiscount } from "@/lib/billing/service";
-import { allTherapistRecipients, setUserStatus, setVerification } from "@/lib/data/admin";
+import { allTherapistRecipients, setUserStatus } from "@/lib/data/admin";
 import { decideVerification } from "@/lib/data/verification";
-import { sanitiseBlocks } from "@/lib/content/sanitise";
+import { droppedImages, sanitiseBlocks } from "@/lib/content/sanitise";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
@@ -77,28 +77,6 @@ export async function suspendUser(
   return { ok: true };
 }
 
-export async function verifyUser(
-  userId: string,
-  status: "verified" | "rejected" | "pending",
-  reason: string,
-): Promise<AdminActionState> {
-  const actor = await requireRole("super_admin");
-  const refused = await reasonRefused(reason);
-  if (refused) return { error: refused };
-  await setVerification(userId, status, actor.userId);
-  await audit({
-    actor,
-    category: "admin",
-    action: `user.verification.${status}`,
-    resourceType: "user",
-    resourceId: userId,
-    reason: reasonText(reason),
-  });
-  revalidatePath("/admin/therapists");
-  revalidatePath("/admin/verifications");
-  return { ok: true };
-}
-
 /**
  * Save a CMS page.
  *
@@ -118,6 +96,18 @@ export async function savePage(
 
   const blocks = sanitiseBlocks(input.blocks);
   if (!blocks) return { error: "The content structure is not valid. Check the block editor." };
+
+  /* 🔴 AE61: an image the sanitiser would drop is refused by name, never dropped in silence. */
+  const [dropped] = droppedImages(input.blocks);
+  if (dropped) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    const { t } = await getI18n();
+    return {
+      error: t(dropped.field === "logo" ? "acontent.badLogo" : "acontent.badBackground", {
+        value: dropped.value.slice(0, 120),
+      }),
+    };
+  }
 
   /*
    * 🔴 28.2 / 28.3 / C109 / C110 — two claims this product may not make.
@@ -350,8 +340,10 @@ export async function decideTherapistVerification(
   }
 
   const trimmed = note.trim();
-  if (!approve && !trimmed) {
-    return { error: "Say what is wrong. They see this word for word." };
+  /* 🔴 K23: they read a rejection word for word, so it is a sentence, not a letter. */
+  if (!approve) {
+    const refused = await reasonRefused(trimmed);
+    if (refused) return { error: refused };
   }
 
   const decided = await decideVerification({
@@ -568,8 +560,10 @@ export async function refundPatient(
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
 
-  const trimmed = reason.trim();
-  if (!trimmed) return { error: "Say why, this ends up in the audit log." };
+  /* 🔴 K23: the console's one length for a reason, as every other money act. */
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+  const trimmed = reasonText(reason);
 
   const result = await refundSessionPayment({
     paymentId,
@@ -1042,8 +1036,10 @@ export async function resolveReport(
 ): Promise<AdminActionState> {
   const actor = await requireRole("super_admin");
 
+  /* 🔴 K23: a decision on a complaint carries a real sentence, ten characters or more. */
+  const refused = await reasonRefused(resolution);
+  if (refused) return { error: refused };
   const note = resolution.trim();
-  if (note.length < 4) return { error: "Say what you decided." };
 
   const { sessionReports } = await import("@/lib/db/schema");
   await db
@@ -1098,9 +1094,9 @@ export async function resolveReport(
  *   - **Invented people only.** Surnames Demo and Example at the domain RFC
  *     2606 reserves. C127 has no preview exemption.
  *   - **Owner only, and written down.** `super_admin`, and an audit row naming
- *     the actor and the address, because "who made us send fourteen emails"
+ *     the actor and the address, because "who made us send all these emails"
  *     is a question somebody will ask.
- *   - **Sequential.** Fourteen simultaneous sends is how a provider rate-limits
+ *   - **Sequential.** Two dozen simultaneous sends is how a provider rate-limits
  *     you and half of them vanish, which is the same reasoning
  *     `announceToAllTherapists` above is built on.
  */

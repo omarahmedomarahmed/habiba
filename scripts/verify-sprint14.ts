@@ -654,6 +654,8 @@ async function main() {
       );
 
       const shortReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "no", byUserId: opA!.id });
+      /* 🔴 K23: nine characters passed the old five-character floor and asked the cancel. */
+      const nineReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "Not owed.", byUserId: opA!.id });
       const asked = await refunds.cancelRefund({
         requestId: cancelRefundRows[0]!.id,
         reason: "The patient took a credit instead",
@@ -670,9 +672,10 @@ async function main() {
       const withReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "", byUserId: opB!.id });
       check(
         "🔴 A16 cancelling needs a reason, one person asks, the same person cannot finish it, and a cancel naming nobody is refused in the database",
-        Boolean(shortReason.error) && asked.error === "arefund.cancelAsked" && askedStatus === "owed" &&
+        Boolean(shortReason.error) && nineReason.error === "aconfirm.tooShort" &&
+          asked.error === "arefund.cancelAsked" && askedStatus === "owed" &&
           sameAgain.error === "arefund.errTwo" && forged === "refused",
-        `${JSON.stringify({ shortReason, asked, askedStatus, sameAgain, forged })}`,
+        `${JSON.stringify({ shortReason, nineReason, asked, askedStatus, sameAgain, forged })}`,
       );
       check(
         "A16 CONTROL …and a second person cancels it",

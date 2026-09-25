@@ -6,6 +6,7 @@ import { Check, Minus } from "lucide-react";
 import type { ContentBlock } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { safeLogoUrl } from "@/lib/content/url";
 
 type Block = Extract<ContentBlock, { type: "competitors" }>;
 
@@ -77,9 +78,9 @@ export function Comparison({ block }: { block: Block }) {
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
             <div className="flex min-w-0 items-center gap-3">
-              {current.logo ? (
+              {safeLogoUrl(current.logo) ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={current.logo} alt="" className="h-9 w-9 rounded-lg object-contain" />
+                <img src={safeLogoUrl(current.logo)!} alt="" className="h-9 w-9 rounded-lg object-contain" />
               ) : (
                 <span
                   aria-hidden
@@ -226,9 +227,9 @@ export function Vendors({ block }: { block: VendorBlock }) {
               key={item.name}
               className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4"
             >
-              {item.logo ? (
+              {safeLogoUrl(item.logo) ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={item.logo} alt="" className="h-8 w-8 rounded-lg object-contain" />
+                <img src={safeLogoUrl(item.logo)!} alt="" className="h-8 w-8 rounded-lg object-contain" />
               ) : (
                 <span
                   aria-hidden

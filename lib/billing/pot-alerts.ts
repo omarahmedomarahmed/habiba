@@ -54,6 +54,11 @@ const LOW_POT_SHARE = 0.2;
 
 type PotAlert = "empty" | "low";
 
+/** Where every pot alert sends them. Shared with the mail previews, so a preview links where the real one does. */
+export function potAlertLink(expiring: boolean) {
+  return { label: expiring ? "Open your pot" : "Top up the fund", url: `${env.appUrl}/sponsor/pot` };
+}
+
 /** Pure, so the thresholds can be read without a database. */
 function potAlertFor(balanceCents: number, lastTopUpCents: number): PotAlert | null {
   if (balanceCents <= 0) return "empty";
@@ -61,8 +66,8 @@ function potAlertFor(balanceCents: number, lastTopUpCents: number): PotAlert | n
   return null;
 }
 
-/** The message. A balance and a verb: no name, no therapist, no time. */
-function potAlertMessage(kind: PotAlert, sponsorName: string) {
+/** The message. A balance and a verb: no name, no therapist, no time. The mail previews read it too. */
+export function potAlertMessage(kind: PotAlert, sponsorName: string) {
   return kind === "empty"
     ? {
         kind: "sponsor.pot_empty" as const,
@@ -245,7 +250,7 @@ async function tellAdmins(
       { email: admin.email, phone: null, timezone: null },
       {
         ...message,
-        link: { label: kind === "expiring" ? "Open your pot" : "Top up the fund", url: `${env.appUrl}/sponsor/pot` },
+        link: potAlertLink(kind === "expiring"),
         variables: ["24Therapy", name],
       },
     );

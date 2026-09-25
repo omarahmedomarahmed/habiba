@@ -136,8 +136,27 @@ export function patientBounce(hasCookie: boolean, path: string): string {
   return hasCookie ? `/patient/session-expired${query}` : `/patient/login${query}`;
 }
 
+/**
+ * Where a record export is collected, as a URL path. Here rather than in
+ * `lib/data/export.ts` so the admin mail previews can link it without reaching
+ * a module that reads clinical data (58.6).
+ */
+export function recordExportPath(token: string): string {
+  return `/records/${token}`;
+}
+
 /** 21R.1 / C94 — where an unauthenticated caller at an admin route is sent. */
 export const STAFF_SIGN_IN = "/staff/sign-in";
+
+/**
+ * 🔴 AE56: the sign-in door for a path somebody was bounced from. One answer
+ * for the guard (no cookie) and for /session-expired (a stale one): the
+ * practice form refuses a back office account, so an admin path goes to the
+ * staff door.
+ */
+export function signInDoorFor(path: string | null | undefined): string {
+  return path?.startsWith("/admin") ? STAFF_SIGN_IN : "/login";
+}
 
 /**
  * 🔴 Task 40: where a back office session that has only given its password

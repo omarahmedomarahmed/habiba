@@ -266,6 +266,32 @@ async function main() {
       `${copies.n} released, from ${copies.format}`,
     );
 
+    /*
+     * 🔴 A second press on a signed note, or on a released copy, changes
+     * nothing, and used to write another approval row anyway: the PHI audit
+     * then showed two signatures by whoever pressed twice.
+     */
+    const approvals = async (action: string) =>
+      (
+        await one<{ n: number }>(sql`
+          SELECT count(*)::int AS n FROM audit_log WHERE action = ${action} AND resource_id = ${session.id}`)
+      ).n;
+    const signedRows = await approvals("note.approve");
+    const releasedRows = await approvals("note.patient.approve");
+    const signedAgain = await signNote(actor as never, session.id, dapRow!.id);
+    const releasedAgain = await releasePatientCopy(actor as never, session.id);
+    check(
+      "🔴 signing a signed note or releasing a released copy again succeeds and writes no second approval row",
+      signedAgain.ok && releasedAgain.ok &&
+        (await approvals("note.approve")) === signedRows && (await approvals("note.patient.approve")) === releasedRows,
+      `${signedRows} signatures and ${releasedRows} release before, ${await approvals("note.approve")} and ${await approvals("note.patient.approve")} after`,
+    );
+    check(
+      "CONTROL …while each real signature and the release wrote exactly one",
+      signedRows === 2 && releasedRows === 1,
+      `${signedRows} signatures, ${releasedRows} release`,
+    );
+
     /* ============================================================ */
     /*  THE HISTORY, THE CHART, THE COPILOT                          */
     /* ============================================================ */

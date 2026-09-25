@@ -1,7 +1,16 @@
 import "server-only";
 
-import type { NoteContent } from "@/lib/db/schema";
+import { potAlertLink, potAlertMessage } from "@/lib/billing/pot-alerts";
+import { overdueAlertMessage } from "@/lib/billing/payouts";
+import { CODE_TTL_MINUTES } from "@/lib/data/enrolment-verify";
+import { domainConfirmMessage } from "@/lib/data/sponsor-domains";
+import { EXPORT_TTL_HOURS, type NoteContent } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { whenFor } from "@/lib/i18n/message-words";
+import { translator } from "@/lib/i18n/server";
+import { limitAlertMessage } from "@/lib/partner/usage";
+import { recordExportPath } from "@/lib/routing";
+import { patientSessionLink } from "@/lib/sessions/patient-link";
 import {
   sendClaimCode,
   sendNotification,
@@ -19,14 +28,14 @@ import {
  *
  * ## Why this is a module rather than a script
  *
- * It was a script, and the script could not run. Fourteen messages go out to
+ * It was a script, and the script could not run. Every message goes out to
  * patients, clinicians and finance teams, and `npm run mail:preview -- --send`
  * renders every one by calling the real functions — but sending needs
  * `RESEND_API_KEY`, and on Vercel that variable is stored as **sensitive**,
  * which is write-only by design. Nobody can read it back: not the dashboard,
  * not the API, not the person who typed it in. So the one process that holds
  * the key is the deployed product, and a tool that lives only in a shell can
- * render the fourteen and never send them.
+ * render them all and never send them.
  *
  * The list lives here so both callers use the same one: the script still
  * renders them to `.render/mail/`, and `/admin/settings` sends them from
@@ -34,7 +43,7 @@ import {
  *
  * ## 🔴 ONE COPY, WHICH IS THE POINT
  *
- * The obvious build is to leave the script alone and write the fourteen out
+ * The obvious build is to leave the script alone and write the list out
  * again in the action. That is C60's shape applied to a message instead of a
  * number: the day a subject line changes, one of the two copies is corrected
  * and the other is the one the founder is reading. A template that changes
@@ -139,17 +148,26 @@ const NOTE: NoteContent = {
 /**
  * Every one of them, grouped by who receives it.
  *
- * Ten come from named functions in `lib/mail.ts`. The rest go through
- * `sendNotification`, which is the shell every other call site builds a subject
- * and a body for; the copy below is lifted from those call sites rather than
- * invented, so what arrives is the sentence that actually goes out.
+ * 🔴 AE69: THE WORDS AND THE LINKS ARE THE REAL SENDS', NOT A COPY OF THEM.
+ *
+ * This list said fourteen in its comments while it held twenty-six, linked
+ * five routes that do not exist (`/reset/…`, `/claim/…`, `/export/…`,
+ * `/sponsor/billing`, `/sponsor/confirm/…`), told a benefit code lasted 15
+ * minutes where the real one lasts 30, and previewed two messages nothing
+ * sends. So each preview now reads the dictionary key, the builder or the link
+ * helper the real call site uses, in English, and `verify:sprint77` fails on
+ * any link here that no route answers. How many there are is counted where it
+ * is shown, never written down.
  *
  * 🔴 THE ORDER IS BY AUDIENCE, because that is the question being answered.
- * Fourteen messages sorted by when they fire looked like a complete survey and
- * was twelve patient messages with two others at the end.
  */
 export function previewMessages(): PreviewMessage[] {
   const app = env.appUrl;
+  const t = translator("en");
+  const words = { locale: "en" as const, t };
+  const therapist = "Dr Nour Demo";
+  const when = whenFor(WHEN, { name: "Africa/Cairo", source: "reader" }, words);
+  const door = patientSessionLink(app, "DEMO-TOKEN");
 
   return [
     {
@@ -160,7 +178,7 @@ export function previewMessages(): PreviewMessage[] {
         sendSessionReport({
           to,
           patientName: "Mariam Demo",
-          therapistName: "Dr Nour Demo",
+          therapistName: therapist,
           note: NOTE,
           sessionDate: WHEN,
           timezone: "Africa/Cairo",
@@ -174,9 +192,21 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendSessionInvite({
           to,
-          therapistName: "Dr Nour Demo",
-          joinUrl: `${app}/j/DEMO1234`,
+          therapistName: therapist,
+          joinUrl: `${app}/join/DEMO-TOKEN`,
           priceCents: 6_000,
+        }),
+    },
+    {
+      name: "pay link",
+      audience: "patient",
+      when: "the clinician sends them the link to pay for a session",
+      send: (to) =>
+        sendNotification({
+          to,
+          subject: t("pmsg.payLink.subject"),
+          body: t("pmsg.payLink.body", { therapist }),
+          link: { label: t("pmsg.payLink.link"), url: `${app}/pay/DEMO-TOKEN` },
         }),
     },
     {
@@ -186,9 +216,9 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendRatingReminder({
           to,
-          therapistName: "Dr Nour Demo",
+          therapistName: therapist,
           therapistFirstName: "Nour",
-          url: `${app}/r/DEMO1234`,
+          url: `${app}/feedback/DEMO-TOKEN`,
           sessionDate: WHEN,
           timezone: "Africa/Cairo",
         }),
@@ -209,7 +239,7 @@ export function previewMessages(): PreviewMessage[] {
       name: "password reset",
       audience: "patient",
       when: "anybody asks to reset a password. The same template for every role",
-      send: (to) => sendPasswordReset({ to, url: `${app}/reset/DEMO-TOKEN` }),
+      send: (to) => sendPasswordReset({ to, url: `${app}/reset-password?token=DEMO-TOKEN` }),
     },
     {
       name: "claim code",
@@ -225,9 +255,9 @@ export function previewMessages(): PreviewMessage[] {
         sendRecordExport({
           to,
           patientName: "Mariam Demo",
-          clinicianName: "Dr Nour Demo",
-          url: `${app}/export/DEMO-TOKEN`,
-          expiresInHours: 24,
+          clinicianName: therapist,
+          url: `${app}${recordExportPath("DEMO-TOKEN")}`,
+          expiresInHours: EXPORT_TTL_HOURS,
         }),
     },
     {
@@ -237,7 +267,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendWalkInDirections({
           to,
-          therapistName: "Dr Nour Demo",
+          therapistName: therapist,
           practiceName: "Nile Practice",
           address: "12 Road 9, Maadi, Cairo",
           mapsUrl: "https://maps.google.com/?q=Maadi+Cairo",
@@ -250,9 +280,9 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "A session with Dr Nour Demo",
-          body: "Dr Nour Demo has kept Thursday 12 March at 17:00 for you.\n\nIf that does not work, tell them as early as you can and the hour goes back on their calendar for somebody else.",
-          link: { label: "Open your session", url: `${app}/sessions/demo` },
+          subject: t("pmsg.booked.subject", { therapist }),
+          body: t("pmsg.booked.body", { therapist, when }),
+          link: door ? { ...door, label: t("pmsg.openSession") } : undefined,
         }),
     },
     {
@@ -262,9 +292,9 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Your session with Dr Nour Demo",
-          body: "A reminder that your session with Dr Nour Demo is tomorrow at 17:00.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.",
-          link: { label: "Open your session", url: `${app}/sessions/demo` },
+          subject: t("pmsg.sessionWith", { therapist }),
+          body: t("pmsg.reminder.body", { therapist, when }),
+          link: door ? { ...door, label: t("pmsg.openSession") } : undefined,
         }),
     },
     {
@@ -274,50 +304,11 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Dr Nour Demo is ready for you",
-          body: "The door is open. Join when you are ready.",
-          link: { label: "Go in", url: `${app}/sessions/demo` },
+          subject: t("pmsg.started.subject"),
+          body: `${t("pmsg.hi", { name: "Mariam" })}\n\n${t("pmsg.started.body", { therapist })}`,
+          link: { label: t("pmsg.started.link"), url: `${app}/join/DEMO-TOKEN` },
         }),
     },
-    {
-      name: "summary ready",
-      audience: "patient",
-      when: "the note is approved and lands on their record",
-      send: (to) =>
-        sendNotification({
-          to,
-          subject: "Your session summary is ready",
-          body: "Dr Nour Demo has approved the summary from your session. It is on your record.",
-          link: { label: "Read it", url: `${app}/patient/sessions` },
-        }),
-    },
-    {
-      name: "payout sent",
-      audience: "clinician",
-      when: "we transfer their earnings out",
-      send: (to) =>
-        sendNotification({
-          to,
-          subject: "Your withdrawal is on its way",
-          body: "We have sent 1,840.00 EGP to Dr Nour Demo. The transfer receipt is on your earnings page.",
-          link: { label: "Your earnings", url: `${app}/billing` },
-        }),
-    },
-    {
-      name: "payment due",
-      audience: "patient",
-      when: "a session ends with a balance on it",
-      send: (to) =>
-        sendNotification({
-          to,
-          subject: "A session is waiting to be paid",
-          body: "Your session on 12 March has an unpaid balance of 60.00 EGP. Nothing about your record changes until it is settled.",
-          link: { label: "Pay for it", url: `${app}/patient/billing` },
-        }),
-    },
-
-    /* ------------------------------------------------ the patient, cont. -- */
-
     {
       name: "booking cancelled",
       audience: "patient",
@@ -325,9 +316,10 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Thursday is free again",
-          body: "Dr Nour Demo has released Thursday 12 March at 17:00. Nothing has been charged.\n\nYou can book another time whenever suits you.",
-          link: { label: "Find another time", url: `${app}/patient/sessions` },
+          subject: t("w1a.noShowCancelled"),
+          body: [t("w1a.cancelledByClinician"), t("w1a.cancelReasonGiven", { reason: "I am unwell this week." })].join(
+            "\n\n",
+          ),
         }),
     },
     {
@@ -337,9 +329,9 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Dr Nour Demo has invited you to your record",
-          body: "The notes from your sessions are yours. Setting up an account takes a minute and moves them to you, where they stay whoever you see next.",
-          link: { label: "Set it up", url: `${app}/claim/DEMO-TOKEN` },
+          subject: t("pmsg.claimInvite.subject", { who: therapist }),
+          body: t("pmsg.claimInvite.body", { who: therapist }),
+          link: { label: t("pmsg.claimInvite.link"), url: `${app}/patient/invite/DEMO-TOKEN` },
         }),
     },
     {
@@ -349,9 +341,9 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Somebody can now read your history",
-          body: "Dr Sara Demo can read your history from now on. If that is not what you meant, you can stop it in one tap, and nobody is told why.",
-          link: { label: "See who can read it", url: `${app}/patient/profile` },
+          subject: t("pmsg.granted.subject"),
+          body: t("pmsg.granted.body", { name: "Dr Sara Demo" }),
+          link: { label: t("pmsg.granted.link"), url: `${app}/patient/consent` },
         }),
     },
     {
@@ -361,9 +353,9 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Your old therapist added to your record",
-          body: "What they hold has been added to the record you own. It is in your profile.",
-          link: { label: "Open your record", url: `${app}/patient/profile` },
+          subject: t("pmsg.history.addedSubject"),
+          body: t("pmsg.history.added"),
+          link: { label: t("pmsg.openRecord"), url: `${app}/patient/profile` },
         }),
     },
     {
@@ -373,9 +365,8 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "How has this week been?",
-          body: "No answer needed. If you want to write something down, it goes on your record and your therapist sees it before your next session.\n\nYou can turn these off in your account at any time.",
-          link: { label: "Write something", url: `${app}/patient/journal` },
+          subject: t("checkin.subject"),
+          body: `${t("checkin.1", { name: "Mariam" })}\n\n${t("checkin.howToStop")}`,
         }),
     },
     {
@@ -385,8 +376,8 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Your confirmation code",
-          body: "Your code is 604118. Type it into the app to confirm your benefit. It lasts 15 minutes.",
+          subject: t("pmsg.code.benefitSubject"),
+          body: t("pmsg.code.benefit", { code: "604118", minutes: CODE_TTL_MINUTES }),
         }),
     },
     {
@@ -396,14 +387,29 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Your message to 24Therapy",
-          body: `We have answered your message (reference SUP-DEMO-01). Open ${app}/support/DEMO-TOKEN and enter the code 730492 to read the reply and anything attached to it. The code lasts seven days.`,
-          link: { label: "Read the reply", url: `${app}/support/DEMO-TOKEN` },
+          subject: t("pmsg.support.subject"),
+          body: t("pmsg.support.body", {
+            reference: "SUP-DEMO-01",
+            link: `${app}/support/DEMO-TOKEN`,
+            code: "730492",
+          }),
+          link: { label: t("pmsg.support.link"), url: `${app}/support/DEMO-TOKEN` },
         }),
     },
 
     /* --------------------------------------------------- the clinician -- */
 
+    {
+      name: "payout sent",
+      audience: "clinician",
+      when: "we transfer their earnings out",
+      send: (to) =>
+        sendNotification({
+          to,
+          subject: t("tmsg.payout.sentSubject"),
+          body: t("tmsg.payout.sent", { amount: "1840.00 EGP", account: "Nour Demo" }),
+        }),
+    },
     {
       name: "payout rejected",
       audience: "clinician",
@@ -411,9 +417,9 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "We could not process your withdrawal",
-          body: "The account name on the transfer did not match the name on the account. Correct it on your earnings page and ask again, and nothing about the amount changes.",
-          link: { label: "Your earnings", url: `${app}/billing` },
+          subject: t("tmsg.payout.rejectedSubject"),
+          /* The real body is the operator's reason, word for word. */
+          body: "The account name on the transfer did not match the name on the account. Correct it on your earnings page and ask again.",
         }),
     },
 
@@ -432,13 +438,10 @@ export function previewMessages(): PreviewMessage[] {
       name: "the pot ran out",
       audience: "company",
       when: "the fund empties and their people start being asked to pay",
-      send: (to) =>
-        sendNotification({
-          to,
-          subject: "Your therapy fund needs topping up",
-          body: "Habiba Holdings's fund has run out, so we have stopped covering sessions and your people are being asked to pay for their own. Topping it up starts the cover again immediately.",
-          link: { label: "Top it up", url: `${app}/sponsor/billing` },
-        }),
+      send: (to) => {
+        const message = potAlertMessage("empty", "Acme Demo");
+        return sendNotification({ to, subject: message.subject, body: message.body, link: potAlertLink(false) });
+      },
     },
     {
       name: "confirm the domain",
@@ -447,9 +450,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Confirm example.com for your organisation's mental health cover",
-          body: "Somebody at your organisation asked us to set up mental health cover for your people. Confirming this address is one of two checks we do before any joining code works. It commits you to nothing.",
-          link: { label: "Confirm it", url: `${app}/sponsor/confirm/DEMO-TOKEN` },
+          ...domainConfirmMessage("example.com", `${app}/sponsor/domains/confirm/DEMO-ID?t=DEMO-TOKEN`),
         }),
     },
 
@@ -462,9 +463,7 @@ export function previewMessages(): PreviewMessage[] {
       send: (to) =>
         sendNotification({
           to,
-          subject: "Demo Health: 80% of this month's session limit",
-          body: "You have used 400 of the 500 sessions this account allows this month, and are on course for about 470. At the limit your own platform keeps working exactly as it does now, and our transcription, notes, summaries and copilot stop until you raise it.",
-          link: { label: "Your usage", url: `${app}/partner/usage` },
+          ...limitAlertMessage({ name: "Health Demo", at: 80, used: 400, limit: 500, projected: 470 }),
         }),
     },
 
@@ -474,13 +473,8 @@ export function previewMessages(): PreviewMessage[] {
       name: "payout overdue",
       audience: "our staff",
       when: "a clinician's withdrawal has sat unworked too long",
-      send: (to) =>
-        sendNotification({
-          to,
-          subject: "A payout has been waiting too long",
-          body: "A withdrawal of $255.00 has been open for more than 24 hours. Nobody has taken it on.",
-          link: { label: "The payouts queue", url: `${app}/admin/payouts` },
-        }),
+      /* 24 hours is the shipped `alertAfterHours`; the real one reads the setting. */
+      send: (to) => sendNotification({ to, ...overdueAlertMessage(25_500, 24, false) }),
     },
   ];
 }

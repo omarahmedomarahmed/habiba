@@ -483,9 +483,20 @@ async function monthRange(maxMonths: number): Promise<string[]> {
 
   const first = found.rows[0]?.first ?? null;
   if (!first) return [];
+  return monthsUpTo(first, new Date(), maxMonths);
+}
 
+/**
+ * The months from `first` to `now`, the NEWEST `maxMonths` of them.
+ *
+ * 🔴 It kept the OLDEST: the loop walked forward from the first record and
+ * stopped at the cap, so after three years the page ended at month 36 and
+ * never showed the month the founder was living in. Walked the whole way,
+ * then cut from the front; `verify:actuals` asks for two months and expects
+ * this one last.
+ */
+function monthsUpTo(first: string, now: Date, maxMonths: number): string[] {
   const out: string[] = [];
-  const now = new Date();
   const [startYear, startMonth] = first.split("-").map(Number) as [number, number];
 
   let year = startYear;
@@ -493,7 +504,7 @@ async function monthRange(maxMonths: number): Promise<string[]> {
   const endYear = now.getUTCFullYear();
   const endMonth = now.getUTCMonth() + 1;
 
-  while ((year < endYear || (year === endYear && month <= endMonth)) && out.length < maxMonths) {
+  while (year < endYear || (year === endYear && month <= endMonth)) {
     out.push(`${year}-${String(month).padStart(2, "0")}`);
     month += 1;
     if (month > 12) {
@@ -502,7 +513,7 @@ async function monthRange(maxMonths: number): Promise<string[]> {
     }
   }
 
-  return out;
+  return maxMonths > 0 ? out.slice(-maxMonths) : [];
 }
 
 type Activity = {

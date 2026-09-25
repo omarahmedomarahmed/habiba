@@ -44,7 +44,8 @@ export default async function PayoutsPage() {
   const { payoutProvider } = await import("@/lib/billing/gateway");
   const providerReady = (await payoutProvider()) !== null;
   const { simulatorOn } = await import("@/app/dev/simulator");
-  const simulator = simulatorOn("payouts");
+  /* The simulator's desk is the owner's (app/dev/payouts), so only they are offered it. */
+  const simulator = simulatorOn("payouts") && actor.role === "super_admin";
   const { getSettings } = await import("@/lib/settings");
   const refundsTwo = (await getSettings()).rules.approvals.refunds;
 

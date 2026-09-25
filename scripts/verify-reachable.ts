@@ -43,6 +43,13 @@ const ACTIONS_BY_DESIGN: Record<string, string> = {
    */
   "app/(sponsor)/sponsor/integrations/actions.ts#mintHrKey":
     "Hidden with the company Integrations page until it is rebuilt (FIX-PLAN D4): its counter showed real joiners by the week. The page is kept in `hidden.tsx`; route it again and this entry goes stale and fails.",
+  /*
+   * Reported when K2 removed the admin clinician row's local `setVerification`
+   * state setter: matched by NAME, it had been standing in for a caller of
+   * this action, which only the hidden page uses.
+   */
+  "app/(sponsor)/sponsor/integrations/actions.ts#setVerification":
+    "Hidden with the company Integrations page until it is rebuilt (FIX-PLAN D4): it turns the HR check on or off, and the page is kept in `hidden.tsx`. Route the page again and this entry goes stale and fails.",
   "app/(sponsor)/sponsor/integrations/actions.ts#revokeHrKey":
     "Hidden with the company Integrations page until it is rebuilt (FIX-PLAN D4). Nothing can mint a key while the page is out of reach, so there is nothing to revoke from it either. Route the page again and this entry goes stale and fails.",
 };

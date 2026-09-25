@@ -3,7 +3,13 @@ import "server-only";
 import { and, asc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
-import { manualPayments, type ManualPayment, type ManualPaymentException } from "@/lib/db/schema";
+import { qualified } from "@/lib/db/qualified";
+import {
+  manualPayments,
+  pendingApprovals,
+  type ManualPayment,
+  type ManualPaymentException,
+} from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 
 /**
@@ -176,15 +182,41 @@ export async function resolveException(input: {
  * An operator throws away an open cart. Only ever an `awaiting_proof` row,
  * the same rule as the payer's own `cancelCart`: the moment proof arrives it
  * is a claim about money and nothing may remove it from the queue.
+ *
+ * 🔴 AE10: A CART SOMEBODY ASKED A SECOND PERSON TO CREDIT. Discarding it left
+ * the "transfer without proof" request asked for ever, its Complete answering
+ * that the payment was gone. A second person who discards it now declines the
+ * request in the same breath; the person who asked may not (the database
+ * refuses anybody closing their own request), so they are told to leave it to
+ * the second person, who can complete or decline it.
  */
-export async function discardCart(paymentId: string): Promise<boolean> {
+export async function discardCart(paymentId: string, byUserId?: string): Promise<boolean | "asked"> {
+  const [open] = await db
+    .select({ id: pendingApprovals.id, askedBy: pendingApprovals.askedBy })
+    .from(pendingApprovals)
+    .where(
+      and(
+        eq(pendingApprovals.kind, "transfer_without_proof"),
+        eq(pendingApprovals.subjectId, paymentId),
+        eq(pendingApprovals.state, "asked"),
+      ),
+    )
+    .limit(1);
+  if (open && (!byUserId || open.askedBy === byUserId)) return "asked";
+
   const gone = await db
     .delete(manualPayments)
     .where(and(eq(manualPayments.id, paymentId), eq(manualPayments.state, "awaiting_proof")))
     .returning({ id: manualPayments.id });
-  /* K4: a request to credit this cart without proof closes with it. */
-  const { voidApprovalsFor } = await import("./approvals");
-  await voidApprovalsFor("transfer_without_proof", gone.map((g) => g.id));
+  if (gone.length > 0 && open && byUserId) {
+    /* A second person discarding it declines the request, under their name (AE10). */
+    const { closeApproval } = await import("./approvals");
+    await closeApproval({ approvalId: open.id, decidedBy: byUserId, state: "declined" });
+  } else {
+    /* K4: otherwise a request to credit this cart without proof closes with it. */
+    const { voidApprovalsFor } = await import("./approvals");
+    await voidApprovalsFor("transfer_without_proof", gone.map((g) => g.id));
+  }
   return gone.length > 0;
 }
 
@@ -199,7 +231,19 @@ export async function expireOpenCarts(now = new Date()): Promise<number> {
   const cutoff = new Date(now.getTime() - CART_EXPIRY_DAYS * 86_400_000);
   const gone = await db
     .delete(manualPayments)
-    .where(and(eq(manualPayments.state, "awaiting_proof"), lt(manualPayments.createdAt, cutoff)))
+    .where(
+      and(
+        eq(manualPayments.state, "awaiting_proof"),
+        lt(manualPayments.createdAt, cutoff),
+        /*
+         * 🔴 AE10: not one a second person has been asked to credit. Deleting it
+         * left that request asked for ever; it waits for them instead.
+         */
+        sql`NOT EXISTS (SELECT 1 FROM pending_approvals pa
+                         WHERE pa.kind = 'transfer_without_proof' AND pa.state = 'asked'
+                           AND pa.subject_id = ${qualified(manualPayments.id)}::text)`,
+      ),
+    )
     .returning({ id: manualPayments.id });
   if (gone.length > 0) log.info("open carts expired", { count: gone.length });
   /* K4: and the requests to credit them without proof, which had nothing left to credit. */

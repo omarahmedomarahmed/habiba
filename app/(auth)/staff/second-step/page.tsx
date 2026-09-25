@@ -43,7 +43,7 @@ export default async function SecondStepPage({
   const status = await secondFactorStatus(state.actor.userId);
 
   return (
-    <QuietAuthShell title="">
+    <QuietAuthShell>
       <SecondStepForm enrolled={status.enrolled} email={state.actor.email} next={next} />
     </QuietAuthShell>
   );

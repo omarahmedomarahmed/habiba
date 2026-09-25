@@ -1,6 +1,8 @@
 import "server-only";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+
+import { reasonProblem } from "@/lib/admin/reason";
 
 import { controlDb as db } from "@/lib/db";
 import { potReturns, sponsorPots, sponsors } from "@/lib/db/schema";
@@ -23,7 +25,8 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
  * a return that happened; if it fails, the hourly ETA job opens it.
  */
 
-export type ReturnResult = { ok: true; id: string } | { error: string };
+/** `asked`: a cancel written down, waiting for a second person (K23). */
+export type ReturnResult = { ok: true; id: string; asked?: boolean } | { error: string };
 
 export async function requestPotReturn(input: {
   sponsorId: string;
@@ -61,13 +64,46 @@ export async function requestPotReturn(input: {
   return { ok: true, id: row.id };
 }
 
-export async function cancelPotReturn(id: string, by: string): Promise<ReturnResult> {
+/**
+ * 🔴 K23: not sent after all, with the reason. It was one press with no reason
+ * and no name but the canceller's. Now the reason is required at the console's
+ * length, and while company returns need two people (`rules.approvals.potReturns`)
+ * the first person asks and a DIFFERENT person cancels, as a refund's cancel
+ * works. The database refuses a cancelled row with no reason or no asker.
+ */
+export async function cancelPotReturn(input: { id: string; by: string; reason: string }): Promise<ReturnResult> {
   const [row] = await db
+    .select({ state: potReturns.state, askedBy: potReturns.cancelAskedBy })
+    .from(potReturns)
+    .where(eq(potReturns.id, input.id))
+    .limit(1);
+  if (!row || row.state !== "requested") return { error: "That return is no longer waiting." };
+  const { getSettings } = await import("@/lib/settings");
+  const twoPeople = (await getSettings()).rules.approvals.potReturns;
+  const now = new Date();
+
+  if (!row.askedBy) {
+    const reason = input.reason.trim();
+    if (reasonProblem(reason)) return { error: "aconfirm.tooShort" };
+    const asking = { cancelReason: reason.slice(0, 500), cancelAskedBy: input.by, cancelAskedAt: now };
+    const [moved] = await db
+      .update(potReturns)
+      .set(twoPeople ? asking : { ...asking, state: "cancelled", decidedBy: input.by, decidedAt: now })
+      .where(and(eq(potReturns.id, input.id), eq(potReturns.state, "requested"), isNull(potReturns.cancelAskedBy)))
+      .returning({ id: potReturns.id });
+    if (!moved) return { error: "That return is no longer waiting." };
+    return twoPeople ? { ok: true, id: moved.id, asked: true } : { ok: true, id: moved.id };
+  }
+
+  if (twoPeople && row.askedBy === input.by) return { error: "apot.cancelTwo" };
+  const [cancelled] = await db
     .update(potReturns)
-    .set({ state: "cancelled", decidedBy: by, decidedAt: new Date() })
-    .where(and(eq(potReturns.id, id), eq(potReturns.state, "requested")))
+    .set({ state: "cancelled", decidedBy: input.by, decidedAt: now })
+    .where(
+      and(eq(potReturns.id, input.id), eq(potReturns.state, "requested"), eq(potReturns.cancelAskedBy, row.askedBy)),
+    )
     .returning({ id: potReturns.id });
-  return row ? { ok: true, id: row.id } : { error: "That return is no longer waiting." };
+  return cancelled ? { ok: true, id: cancelled.id } : { error: "That return is no longer waiting." };
 }
 
 export async function sendPotReturn(input: { id: string; sentBy: string; bankReference: string }): Promise<ReturnResult> {

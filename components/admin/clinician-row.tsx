@@ -4,9 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { suspendUser, verifyUser } from "@/app/(admin)/admin/actions";
+import { suspendUser } from "@/app/(admin)/admin/actions";
 import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
 import { Badge } from "@/components/ui";
+import { useT } from "@/lib/i18n/client";
 
 export function ClinicianRow(props: {
   id: string;
@@ -19,8 +20,9 @@ export function ClinicianRow(props: {
   plan: string;
   sessionCount: number;
 }) {
+  const t = useT();
   const [status, setStatus] = useState(props.status);
-  const [verification, setVerification] = useState(props.verificationStatus);
+  const verification = props.verificationStatus;
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center">
@@ -52,19 +54,20 @@ export function ClinicianRow(props: {
       </div>
 
       {/*
-        W2-A05: both are two presses and a reason, and the row changes only
-        when the server said yes. It used to flip whatever the call returned.
+        W2-A05: suspending is two presses and a reason, and the row changes only
+        when the server said yes.
+        🔴 K2: there is no "Verify" here any more. It wrote the verdict straight
+        to the row, with no documents read, no second reviewer and no email, so
+        a waiting application is sent to the queue that does all three.
       */}
       <div className="flex shrink-0 flex-wrap gap-2">
-        {verification !== "verified" ? (
-          <ConfirmWithReason
-            label="Verify"
-            onConfirm={async (reason) => {
-              const result = await verifyUser(props.id, "verified", reason);
-              if (!result.error) setVerification("verified");
-              return result;
-            }}
-          />
+        {verification === "pending" ? (
+          <Link
+            href="/admin/verifications"
+            className="inline-flex items-center rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700"
+          >
+            {t("aaccess.reviewInQueue")}
+          </Link>
         ) : null}
 
         <ConfirmWithReason

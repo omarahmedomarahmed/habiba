@@ -5,6 +5,7 @@ import { Check, ExternalLink, X } from "lucide-react";
 
 import { decideTherapistVerification } from "@/app/(admin)/admin/actions";
 import { Badge, Button, Card, Input } from "@/components/ui";
+import { MIN_REASON } from "@/lib/admin/reason";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -191,7 +192,12 @@ export function VerificationReview(props: {
               <Check className="h-3.5 w-3.5" aria-hidden />
               {pending ? "Working…" : "Approve"}
             </Button>
-            <Button size="sm" variant="danger" disabled={pending} onClick={() => decide(false)}>
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={pending || note.trim().length < MIN_REASON}
+              onClick={() => decide(false)}
+            >
               <X className="h-3.5 w-3.5" aria-hidden />
               {props.rejectionCount >= props.finalAt - 1 ? "Reject and clear" : "Reject"}
             </Button>

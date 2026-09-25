@@ -23,6 +23,18 @@ export async function completeApproval(id: string): Promise<{ error?: string; ok
     return result.error ? { error: result.error } : { ok: result.ok };
   }
 
+  if (row.kind === "owner_invite") {
+    /* 🔴 K3: the stored invite, carried out by a different owner. */
+    const { inviteOwner } = await import("./team/actions");
+    const form = new FormData();
+    form.set("email", String(row.payload.email ?? ""));
+    form.set("firstName", String(row.payload.firstName ?? ""));
+    form.set("lastName", String(row.payload.lastName ?? ""));
+    form.set("reason", row.reason);
+    const result = await inviteOwner({}, form);
+    return result.error ? { error: result.error } : { ok: result.asked ? "Asked." : "Invited." };
+  }
+
   await requireRole("super_admin");
   const { adjustLedger } = await import("./actions");
   const p = row.payload;
@@ -41,7 +53,7 @@ export async function declineApproval(id: string): Promise<{ error?: string; ok?
   const { approvalById, closeApproval } = await import("@/lib/billing/approvals");
   const row = await approvalById(id);
   if (!row || row.state !== "asked") return { error: "That request has already been decided." };
-  const actor = row.kind === "ledger_adjustment" ? await requireRole("super_admin") : await requireStaff();
+  const actor = row.kind === "transfer_without_proof" ? await requireStaff() : await requireRole("super_admin");
 
   const closed = await closeApproval({ approvalId: id, decidedBy: actor.userId, state: "declined" });
   if (!closed) return { error: "Only a second person can decline it." };
@@ -56,5 +68,6 @@ export async function declineApproval(id: string): Promise<{ error?: string; ok?
   });
   revalidatePath("/admin/transfers");
   revalidatePath("/admin/vault");
+  revalidatePath("/admin/team");
   return { ok: "Declined." };
 }

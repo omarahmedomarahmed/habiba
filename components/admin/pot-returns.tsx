@@ -10,6 +10,8 @@ import {
 } from "@/app/(admin)/admin/sponsors/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Money } from "@/components/ui/money";
+import { MIN_REASON } from "@/lib/admin/reason";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * 🔴 0148: money back out of a pot. One person asks; a different person makes
@@ -21,9 +23,18 @@ export function PotReturns({
   history,
 }: {
   sponsorId: string;
-  open: { id: string; netCents: number; egpMinor: number; reason: string } | null;
+  open: {
+    id: string;
+    netCents: number;
+    egpMinor: number;
+    reason: string;
+    /** K23: the reason a cancel was asked for, and whether this reader asked it. */
+    cancelAsked: string | null;
+    cancelAskedByMe: boolean;
+  } | null;
   history: { id: string; day: string; state: string; egpMinor: number; reference: string | null }[];
 }) {
+  const t = useT();
   const [asked, ask] = useActionState<AdminSponsorState, FormData>(askPotReturn, {});
   const [sent, send] = useActionState<AdminSponsorState, FormData>(sendAskedReturn, {});
   const [cancelled, cancel] = useActionState<AdminSponsorState, FormData>(cancelAskedReturn, {});
@@ -44,13 +55,36 @@ export function PotReturns({
             </Field>
             <Button type="submit">Sent</Button>
           </form>
-          <form action={cancel}>
-            <input type="hidden" name="returnId" value={open.id} />
-            <input type="hidden" name="sponsorId" value={sponsorId} />
-            <button type="submit" className="text-xs text-slate-500 underline">
-              Cancel
-            </button>
-          </form>
+          {/*
+            🔴 K23: a cancel carries a reason at the console's length, and while
+            company returns need two people a different person carries it out.
+          */}
+          {open.cancelAsked !== null ? (
+            <form action={cancel} className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="returnId" value={open.id} />
+              <input type="hidden" name="sponsorId" value={sponsorId} />
+              <span className="text-xs text-slate-600">{t("apot.cancelAsked", { reason: open.cancelAsked })}</span>
+              {open.cancelAskedByMe ? (
+                <span className="text-xs text-amber-700">{t("apot.cancelTwo")}</span>
+              ) : (
+                <Button type="submit" size="sm" variant="secondary">
+                  {t("apot.cancelConfirm")}
+                </Button>
+              )}
+            </form>
+          ) : (
+            <form action={cancel} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="returnId" value={open.id} />
+              <input type="hidden" name="sponsorId" value={sponsorId} />
+              <Field label={t("apot.cancelWhy")} htmlFor="ret-cancel-why">
+                <Input id="ret-cancel-why" name="reason" required minLength={MIN_REASON} />
+              </Field>
+              <Button type="submit" size="sm" variant="secondary">
+                {t("apot.cancelAsk")}
+              </Button>
+            </form>
+          )}
+          {cancelled.asked ? <p className="text-xs text-brand-700">{t("apot.cancelAskedDone")}</p> : null}
         </div>
       ) : (
         <form action={ask} className="mt-2 grid gap-2 sm:grid-cols-3">

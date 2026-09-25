@@ -7,6 +7,7 @@ import { useFormStatus } from "react-dom";
 import {
   addUser,
   approveProduction,
+  saveDocuments,
   setState,
   withdrawProduction,
 } from "@/app/(admin)/admin/partners/actions";
@@ -82,6 +83,7 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [userState, userAction] = useActionState(addUser, {});
+  const [docsState, docsAction] = useActionState(saveDocuments, {});
 
   return (
     <Card className="p-4">
@@ -166,6 +168,35 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
                 "No documents yet. Approving without them is approving a form."
               )}
             </p>
+
+            {/*
+              🔴 K13: where the documents are, recorded by the owner who read them.
+              Approval refuses without it, and nothing wrote it before.
+            */}
+            {partner.approvedAt ? null : (
+              <form action={docsAction} className="mt-2 flex flex-wrap items-end gap-2">
+                <input type="hidden" name="partnerId" value={partner.id} />
+                <div className="min-w-0 flex-1">
+                  <Field label={t("apartner.documents")} htmlFor={`docs-${partner.id}`} hint={t("apartner.documentsHint")}>
+                    <Input
+                      id={`docs-${partner.id}`}
+                      name="documentsUrl"
+                      type="url"
+                      required
+                      defaultValue={partner.documentsUrl ?? ""}
+                    />
+                  </Field>
+                </div>
+                <Submit label={t("apartner.documentsSave")} />
+              </form>
+            )}
+            {docsState.error ? (
+              <p role="alert" className="mt-1 text-xs text-red-600">
+                {docsState.error}
+              </p>
+            ) : docsState.ok ? (
+              <p className="mt-1 text-xs text-brand-700">{t("apartner.documentsSaved")}</p>
+            ) : null}
 
             {partner.approvedAt ? (
               <div className="mt-2">

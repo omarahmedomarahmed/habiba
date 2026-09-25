@@ -20,6 +20,8 @@ import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
 
 const fixture = `rules-${Date.now().toString(36)}`;
+/* AE68: a user-assigned ISO code, so no real country's settings are touched. */
+const CRISIS_CODE = "XQ";
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 async function main() {
@@ -198,8 +200,158 @@ async function main() {
       byAsker === false && forged === "refused" && bySecond === true,
       JSON.stringify({ byAsker, forged, bySecond }),
     );
+
+    /*
+     * 🔴 K3 / 0172: with one owner a ledger adjustment could never be posted,
+     * because nothing could make a second. An owner invite is now a kind the
+     * database accepts (before 0172 its CHECK refused the insert and this
+     * threw), and once another owner exists the invite waits for them.
+     */
+    const { otherActiveOwners } = await import("../lib/data/admin-team");
+    const others = await otherActiveOwners(required(a, "a").id);
+    const invite = (actor: string) =>
+      secondPersonGate({
+        kind: "owner_invite",
+        subjectId: `owner.${fixture}@example.com`,
+        payload: { email: `owner.${fixture}@example.com`, firstName: "Owner", lastName: "Three" },
+        reason: "A third owner to share the approvals",
+        actorUserId: actor,
+        enabled: others > 0,
+      });
+    const ownerAsked = await invite(required(a, "a").id);
+    const ownerSecond = await invite(required(b, "b").id);
+    check(
+      "🔴 K3: an owner invite is recorded, and a second owner completes it",
+      others >= 1 && ownerAsked.go === false && ownerSecond.go === true && Boolean(ownerSecond.approvalId),
+      JSON.stringify({ others, asked: ownerAsked.go, second: ownerSecond.go }),
+    );
+    const team = read("app/(admin)/admin/team/actions.ts");
+    const inviteBody = team.slice(team.indexOf("export async function inviteOwner("));
+    check(
+      "K3: the owner invite needs a reason, and a second owner whenever another one exists",
+      /reasonProblem\(reason\)/.test(inviteBody) &&
+        /kind: "owner_invite"[\s\S]*enabled: \(await otherActiveOwners\(actor\.userId\)\) > 0/.test(inviteBody) &&
+        /role: "super_admin"/.test(inviteBody),
+    );
+
+    /*
+     * 🔴 AE68: the crisis line's "checked by, on" moves only when the line
+     * does. Every country save used to re-stamp it with whoever saved, so a
+     * VAT edit claimed somebody had checked a crisis number they never read.
+     * Planted on a user-assigned code nobody serves.
+     */
+    const { writeCountrySettings } = await import("../lib/settings");
+    const { parseCountry } = defs;
+    const line = (label: string, vatBps: number) =>
+      parseCountry({
+        code: CRISIS_CODE,
+        name: `Verifier ${fixture}`,
+        vatBps,
+        currency: "usd",
+        paymentMethods: [],
+        crisisLineLabel: label,
+        crisisLineTel: label.replace(/ /g, ""),
+        enabled: false,
+      });
+    const stamp = async () =>
+      (
+        await db.execute<{ at: string | null; by: string | null }>(
+          sql`SELECT crisis_line_verified_at::text AS at, crisis_line_verified_by::text AS by
+                FROM country_settings WHERE code = ${CRISIS_CODE}`,
+        )
+      ).rows[0];
+    await writeCountrySettings({ country: line("+100 555 0101", 0), updatedBy: required(a, "a").id });
+    await db.execute(sql`UPDATE country_settings SET crisis_line_verified_at = '2026-01-02T03:04:05Z' WHERE code = ${CRISIS_CODE}`);
+    const checkedByA = await stamp();
+    await writeCountrySettings({ country: line("+100 555 0101", 1400), updatedBy: required(b, "b").id });
+    const afterVat = await stamp();
+    check(
+      "🔴 AE68 saving a country without touching its crisis line keeps who checked the line, and when",
+      afterVat?.by === required(a, "a").id && afterVat?.at === checkedByA?.at,
+      JSON.stringify({ checkedByA, afterVat }),
+    );
+    await writeCountrySettings({ country: line("+100 555 0199", 1400), updatedBy: required(b, "b").id });
+    const afterNumber = await stamp();
+    check(
+      "AE68 CONTROL a new number is stamped with the person who saved it",
+      afterNumber?.by === required(b, "b").id && afterNumber?.at !== checkedByA?.at,
+      JSON.stringify(afterNumber),
+    );
+
+    /*
+     * 🔴 AE10: a cart somebody asked a second person to credit. Discarding it,
+     * or the retention job expiring it, left that request asked for ever. Now
+     * the asker cannot discard it, the expiry leaves it, and a second person's
+     * discard declines the request with it.
+     */
+    const manual = await import("../lib/billing/manual");
+    const rail = await import("../lib/billing/rail-exceptions");
+    const cart = await manual.openManualPayment({
+      purpose: "subscription",
+      refId: required(org, "org").id,
+      amountCents: 10_000,
+      settlesCents: 200,
+      payer: { kind: "user", userId: required(a, "a").id, organizationId: required(org, "org").id },
+    });
+    const cartId = required(cart.id ?? null, "a cart");
+    await secondPersonGate({
+      kind: "transfer_without_proof",
+      subjectId: cartId,
+      payload: { paymentId: cartId },
+      reason: "The bank shows it and the payer never pressed submit",
+      actorUserId: required(a, "a").id,
+      enabled: true,
+    });
+    const discardByAsker = await rail.discardCart(cartId, required(a, "a").id);
+    await db.execute(sql`UPDATE manual_payments SET created_at = now() - interval '31 days' WHERE id = ${cartId}`);
+    await rail.expireOpenCarts();
+    const survived = (await db.execute(sql`SELECT 1 FROM manual_payments WHERE id = ${cartId}`)).rows.length === 1;
+    const discardBySecond = await rail.discardCart(cartId, required(b, "b").id);
+    const request = (
+      await db.execute<{ state: string; decided_by: string | null }>(
+        sql`SELECT state, decided_by::text FROM pending_approvals WHERE subject_id = ${cartId}`,
+      )
+    ).rows[0];
+    check(
+      "🔴 AE10 a cart waiting on a second person's credit is not discarded by the asker nor expired, and a second person's discard declines the request",
+      discardByAsker === "asked" && survived && discardBySecond === true && request?.state === "declined" &&
+        request.decided_by === required(b, "b").id,
+      JSON.stringify({ discardByAsker, survived, discardBySecond, request }),
+    );
+
+    /*
+     * 🔴 AE70: MRR is each active subscription at its own tier's monthly price
+     * from the settings. It was paying organisations times a $99 literal,
+     * counted over organisations holding credits, so adding a subscription
+     * moved nothing and repricing a tier moved nothing either.
+     */
+    const { tractionMetrics } = await import("../lib/data/vault");
+    const monthlyRecurringCents = async () => (await tractionMetrics()).mrrCents;
+    const { getSettings } = await import("../lib/settings");
+    const practice = (await getSettings()).pricing.tiers.find((tier) => tier.key === "practice");
+    const mrrBefore = await monthlyRecurringCents();
+    await db.execute(sql`
+      INSERT INTO subscriptions (organization_id, plan, status) VALUES (${required(org, "org").id}, 'practice', 'active')`);
+    const mrrAfter = await monthlyRecurringCents();
+    check(
+      "🔴 AE70 one more active subscription adds its tier's monthly price to MRR, from the settings",
+      Boolean(practice) && mrrAfter - mrrBefore === (practice?.monthlyCents ?? -1),
+      `${String(mrrBefore)} → ${String(mrrAfter)}, practice tier ${String(practice?.monthlyCents)}`,
+    );
+    check(
+      "AE70 …and no dollar figure is typed into it",
+      !/\* 9900/.test(read("lib/data/vault.ts")),
+    );
   } finally {
+    await db.execute(sql`DELETE FROM subscriptions WHERE organization_id IN (SELECT id FROM organizations WHERE slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM pending_approvals WHERE kind = 'transfer_without_proof' AND asked_by IN
+      (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);
+    await db.execute(sql`DELETE FROM manual_payments WHERE user_id IN
+      (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);
+    await db.execute(sql`DELETE FROM country_settings WHERE code = ${CRISIS_CODE}`);
+    await db.execute(sql`DELETE FROM settings_history WHERE scope = 'country' AND key = ${CRISIS_CODE}`);
     await db.delete(pendingApprovals).where(eq(pendingApprovals.subjectId, fixture));
+    await db.delete(pendingApprovals).where(eq(pendingApprovals.subjectId, `owner.${fixture}@example.com`));
     await db.execute(sql`DELETE FROM settings_history WHERE changed_by IN (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);
     await db.execute(sql`DELETE FROM users WHERE email LIKE ${`%.${fixture}@example.com`}`);
     await db.execute(sql`DELETE FROM organizations WHERE slug = ${fixture}`);

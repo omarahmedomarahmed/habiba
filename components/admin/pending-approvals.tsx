@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n/client";
 
 export type PendingApprovalView = {
   id: string;
-  kind: "transfer_without_proof" | "ledger_adjustment";
+  kind: "transfer_without_proof" | "ledger_adjustment" | "owner_invite";
   /** What the act is, in one line, built on the server. */
   what: string;
   reason: string;
@@ -34,7 +34,14 @@ export function PendingApprovals({ rows }: { rows: PendingApprovalView[] }) {
           <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
             <div className="min-w-0 text-sm">
               <p className="font-medium">
-                {t(row.kind === "ledger_adjustment" ? "appr.ledger" : "appr.transfer")}: {row.what}
+                {t(
+                  row.kind === "ledger_adjustment"
+                    ? "appr.ledger"
+                    : row.kind === "owner_invite"
+                      ? "appr.owner"
+                      : "appr.transfer",
+                )}
+                : {row.what}
               </p>
               <p className="text-slate-600">{row.reason}</p>
               <p className="text-xs text-slate-500">{t("appr.askedBy", { name: row.askedByName })}</p>
