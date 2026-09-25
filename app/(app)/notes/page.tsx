@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, FileText } from "lucide-react";
 
-import { Badge, Card, EmptyState, PageHeader } from "@/components/clinician/kit";
+import { Avatar, Badge, Card, EmptyState, PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { listRecentNotes } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
@@ -49,7 +49,7 @@ export default async function NotesPage() {
   ).length;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader
         title={t("portal.notes.title")}
         subtitle={
@@ -64,47 +64,50 @@ export default async function NotesPage() {
         }
       />
 
-      <div className="px-4 pb-10 sm:px-6">
+      <div className="px-4 sm:px-6">
         {notes.length === 0 ? (
           <Card>
             <EmptyState
-              icon={<FileText className="h-5 w-5" aria-hidden />}
+              icon={<FileText className="h-6 w-6" aria-hidden />}
               title={t("portal.notes.none")}
               body={t("portal.notes.noneBody")}
             />
           </Card>
         ) : (
-          <ul className="space-y-2">
-            {notes.map((note) => (
+          <ul className="space-y-3">
+            {notes.map((note) => {
+              const name =
+                fullName(note.patientFirstName, note.patientLastName, "") ||
+                note.guestName ||
+                t("portal.unnamedPatient");
+              return (
               <li key={note.id}>
                 <Link
                   href={`/sessions/${note.sessionId}?note=${note.id}`}
-                  className="block rounded-3xl border border-navy-100/80 bg-white px-4 py-3.5 active:bg-navy-50"
+                  className="block rounded-3xl border border-navy-100/80 bg-white p-4 shadow-[0_1px_2px_rgba(10,35,66,0.04)] transition-shadow hover:shadow-[0_12px_32px_-12px_rgba(10,35,66,0.2)]"
                 >
                   <div className="flex items-center gap-3">
+                    <Avatar name={name} size={40} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold text-navy-700">
-                        {fullName(note.patientFirstName, note.patientLastName, "") ||
-                          note.guestName ||
-                          t("portal.unnamedPatient")}
-                      </p>
+                      <p className="truncate text-[15px] font-bold text-navy-700">{name}</p>
                       <p className="mt-0.5 text-xs text-navy-400">
                         {relativeDay(note.sessionEndedAt ?? note.createdAt, actor.timezone, locale, t)}
                         {several.has(note.sessionId) ? ` · ${formatName(note.format)}` : ""}
                       </p>
                     </div>
                     <NoteBadge status={note.status} patientStatus={note.patientStatus} />
-                    <ChevronRight className="h-4 w-4 shrink-0 text-navy-200" aria-hidden />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-navy-300 rtl:rotate-180" aria-hidden />
                   </div>
 
                   {note.content?.summary ? (
-                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-navy-400">
+                    <p className="mt-3 line-clamp-2 rounded-2xl bg-navy-50 px-3.5 py-2.5 text-sm leading-relaxed text-navy-500">
                       {note.content.summary}
                     </p>
                   ) : null}
                 </Link>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>
