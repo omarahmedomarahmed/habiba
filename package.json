@@ -242,6 +242,8 @@
     "test:support-console": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/support-console.test.ts",
     "test:rail-exceptions": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/rail-exceptions.test.ts",
     "test:rail-exceptions-db": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/rail-exceptions-db.test.ts",
+    "test:staff-door": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/staff-door.test.ts",
+    "test:dev-pages": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/dev-pages.test.ts",
     "test:admin-reasons": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/admin-reasons.test.ts",
     "test:radar-control": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/radar-control.test.ts",
     "test:cms-draft": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/cms-draft.test.ts",

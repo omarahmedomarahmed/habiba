@@ -141,6 +141,8 @@ function readsSourceRaw(file: string): boolean {
  * contain rather than the cases somebody reasoned about.
  */
 const PATHS_BY_DESIGN: Record<string, string> = {
+  "scripts/verify-sprint77.ts":
+    "Chosen private and public paths that robots.txt must refuse or allow, one per signed-in door and public page kind. They are cases the rule was written for, not an itinerary of pages to visit.",
   "scripts/verify-sprint31.ts":
     "Five chosen examples of the localisable rule, one per shape: a patient page, a clinician page, a dynamic note, a token join link and the back office. Deriving them would test whatever exists rather than the cases the rule was written for.",
 };

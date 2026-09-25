@@ -146,12 +146,19 @@ async function main() {
       SELECT id, state FROM pending_approvals WHERE subject_id = ${k4Cart.id!}`);
     approvalIds.push(asked.id);
     check("K4 CONTROL the request is open while its cart exists", asked.state === "asked", asked.state);
-    await discardCart(k4Cart.id!);
+    /*
+     * The person who asked may not discard it (AE10: they are told to leave it
+     * to the second person); a second person discarding it declines the request
+     * under their own name, and the cart goes with it.
+     */
+    const byAsker = await discardCart(k4Cart.id!, operator.id);
+    check("K4 CONTROL the person who asked cannot discard the cart", byAsker === "asked", String(byAsker));
+    await discardCart(k4Cart.id!, second.id);
     const afterDiscard = await one<{ state: string; decided_at: Date | null }>(sql`
       SELECT state, decided_at FROM pending_approvals WHERE id = ${asked.id}`);
     check(
-      "🔴 K4 discarding the cart closes its credit-without-proof request as void",
-      afterDiscard.state === "void" && afterDiscard.decided_at !== null,
+      "🔴 K4 a second person discarding the cart closes its credit-without-proof request",
+      afterDiscard.state === "declined" && afterDiscard.decided_at !== null,
       afterDiscard.state,
     );
 

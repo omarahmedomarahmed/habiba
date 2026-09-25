@@ -21,7 +21,7 @@ import {
 /**
  * 🔴 MRR FROM WHAT IS ACTUALLY RECURRING, AT TODAY'S PRICES.
  *
- * This was `payingOrgs * 9900`: every organisation holding prepaid credit,
+ * This was paying organisations times a $99 literal: every organisation holding prepaid credit,
  * priced at a plan that no longer costs $99, which is two wrong numbers
  * multiplied. It is now each organisation on a plan right now, once, at its
  * tier's monthly price from settings: a paid month covering today (either
