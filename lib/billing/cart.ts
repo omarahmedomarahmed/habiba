@@ -65,6 +65,29 @@ export async function openCart(input: {
    */
   lineItems?: Parameters<typeof openManualPayment>[0]["lineItems"];
 }): Promise<{ id?: string; error?: string }> {
+  /*
+   * 🔴 B20 — THE RULE ABOVE, ENFORCED. `openManualPayment` re-states the amount
+   * on a live row, and `submitted` counts as live there, because a payer who
+   * DECLARES again must be able to correct their figure. Opening the sheet is
+   * not a declaration: a stepper firing its default after the claim went in
+   * rewrote a $500 claim to $100 with nobody choosing anything. A submitted row
+   * for the same thing is the answer, untouched.
+   */
+  if (input.refId) {
+    const [claimed] = await db
+      .select({ id: manualPayments.id })
+      .from(manualPayments)
+      .where(
+        and(
+          eq(manualPayments.purpose, input.purpose),
+          eq(manualPayments.refId, input.refId),
+          eq(manualPayments.state, "submitted"),
+        ),
+      )
+      .limit(1);
+    if (claimed) return { id: claimed.id };
+  }
+
   const opened = await openManualPayment(input);
   if (!opened.id) return opened;
 

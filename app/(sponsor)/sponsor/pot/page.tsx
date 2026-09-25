@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CoverageForm } from "@/components/sponsor/coverage-form";
-import { declarePotTransfer, openPotPayment } from "./actions";
+import { cancelPotPayment, declarePotTransfer, openPotPayment } from "./actions";
 import { PaymentPopup } from "@/components/billing/payment-popup";
 import { TaxDetails } from "@/components/sponsor/tax-details";
 import { TopUpForm } from "@/components/sponsor/top-up-form";
@@ -251,6 +251,13 @@ export default async function SponsorPotPage() {
           rateLabel={rail.rateLabel}
           steps={ladder?.steps}
           onChoose={openPotPayment}
+          /*
+            🔴 B20 — the cart opens on the TAP, at the rung the stepper starts
+            on, and a step taken moves it. It used to open whenever the stepper
+            mounted, including when a confirmation refreshed the open sheet.
+          */
+          onOpen={ladder?.steps[0] ? openPotPayment.bind(null, ladder.steps[0].creditCents) : undefined}
+          onCancel={cancelPotPayment}
         />
       ) : null}
 

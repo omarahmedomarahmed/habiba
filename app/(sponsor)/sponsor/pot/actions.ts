@@ -273,6 +273,18 @@ export async function openPotPayment(creditCents: number): Promise<void> {
   });
 }
 
+/**
+ * 🔴 B20 — the company's way out of a payment it opened and decided not to
+ * send, which every other payer already had. `cancelCart` deletes only an
+ * `awaiting_proof` row, so a claim with proof in it cannot be removed here.
+ */
+export async function cancelPotPayment(): Promise<void> {
+  const actor = await requireSponsorAdmin();
+  const { cancelCart } = await import("@/lib/billing/cart");
+  await cancelCart({ kind: "sponsor", sponsorId: actor.sponsorId });
+  revalidatePath("/sponsor/pot");
+}
+
 export type TaxState = { ok?: boolean; error?: string };
 
 /**
