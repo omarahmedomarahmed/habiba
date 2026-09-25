@@ -10,12 +10,6 @@ founder's instruction: work without stopping, rule on everything, record every r
 without asking until every stage below is done, rule and record, merge dead agents' work, three
 full gate runs at most after G0. A `send_later` check-in wakes the session every 45 minutes.
 
-## Standing orders
-
-`CLAUDE.md` at the repository root holds the founder's standing orders for every session: keep going
-without asking until every stage below is done, rule and record, merge dead agents' work, three
-full gate runs at most after G0.
-
 ## Gate budget
 
 | Run | When | Status |

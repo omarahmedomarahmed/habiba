@@ -63,7 +63,7 @@ export async function platformStats() {
         isNull(organizations.deletedAt),
         or(
           eq(organizations.kind, "clinic"),
-          sql`exists (select 1 from ${users} where ${users.organizationId} = ${organizations.id} and ${users.role} = 'therapist' and ${users.deletedAt} is null)`,
+          sql`exists (select 1 from ${users} where ${users.organizationId} = ${qualified(organizations.id)} and ${users.role} = 'therapist' and ${users.deletedAt} is null)`,
         ),
       ),
     );
