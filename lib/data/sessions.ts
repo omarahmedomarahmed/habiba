@@ -566,7 +566,11 @@ export function unpaidInPerson(row: { modality: string | null; priceCents: numbe
   return row.modality === "in_person" && (row.priceCents ?? 0) > 0 && row.paymentStatus !== "paid";
 }
 
-export async function startSession(actor: Actor, sessionId: string) {
+/**
+ * Returns true when THIS call started it, false on re-entry or a lost race,
+ * so the caller audits a start once (TE12).
+ */
+export async function startSession(actor: Actor, sessionId: string): Promise<boolean> {
   const [current] = await db
     .select({
       status: sessions.status,
@@ -591,7 +595,7 @@ export async function startSession(actor: Actor, sessionId: string) {
 
   // Re-entering a live room must be a no-op, not an error. The old client had
   // to special-case `in_progress → in_progress` in a string comparison.
-  if (current.status === "in_progress") return;
+  if (current.status === "in_progress") return false;
   if (!TRANSITIONS[current.status]?.includes("in_progress")) {
     throw new TransitionError("This session can no longer be started");
   }
@@ -625,7 +629,7 @@ export async function startSession(actor: Actor, sessionId: string) {
     )
     .returning({ id: sessions.id });
 
-  if (started.length === 0) return;
+  if (started.length === 0) return false;
 
   /*
    * 🔴 AWAITED, THOUGH A CLINICIAN IS WAITING ON IT.
@@ -637,6 +641,7 @@ export async function startSession(actor: Actor, sessionId: string) {
    */
   const { noticeSessionStarted } = await import("@/lib/sessions/started-notice");
   await noticeSessionStarted(sessionId);
+  return true;
 }
 
 /* ---------------------------------------------------------- the clock -- */
