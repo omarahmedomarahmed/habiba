@@ -8,16 +8,19 @@ import {
   EHR_VENDORS,
   HR_VENDORS,
   INTEGRATIONS,
-  STATE_LABEL,
-  VENDOR_STATE_LABEL,
   type Vendor,
 } from "@/lib/integrations/registry";
+import type { MessageKey } from "@/lib/i18n/messages";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "What 24Therapy connects to",
-  description:
-    "The HR and record systems by name, what actually connects today, and the API that does it: authentication, methods, payloads.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return {
+    title: t("integ.title"),
+    description:
+      "The HR and record systems by name, what actually connects today, and the API that does it: authentication, methods, payloads.",
+  };
+}
 
 /**
  * 🔴 76.78 — THE INTEGRATIONS PAGE, AS A DOCUMENTATION PAGE.
@@ -52,16 +55,15 @@ export const metadata: Metadata = {
  * developer's costume: one of them goes stale and there is no way to tell which.
  */
 
-const SECTIONS = [
-  { id: "today", label: "What connects today" },
-  { id: "hr", label: "HR systems" },
-  { id: "ehr", label: "Record systems" },
-  { id: "start", label: "Get started" },
-  { id: "auth", label: "Authentication" },
-  { id: "methods", label: "Supported methods" },
-  { id: "payloads", label: "Payload examples" },
-  { id: "cases", label: "Use cases" },
-];
+/*
+ * 🔴 B32 — THE SHELL IS IN THE READER'S LANGUAGE. `/ar/integrations` was
+ * English from the title down. The title, the lede, every section heading
+ * and every state label are keys now; the technical detail under them stays
+ * English, the language of the API it documents, and an Arabic reader is told
+ * so at the top instead of finding out from the first paragraph.
+ */
+const SECTION_IDS = ["today", "hr", "ehr", "start", "auth", "methods", "payloads", "cases"] as const;
+type SectionId = (typeof SECTION_IDS)[number];
 
 /**
  * The calls an integrator actually makes, in the order they make them.
@@ -81,27 +83,34 @@ const METHODS: { method: string; path: string; what: string }[] = [
   { method: "POST", path: "/api/partner/v1/launch", what: "Open one of our screens inside yours, for one clinician, for one session." },
 ];
 
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
   const groups = ["live", "partial", "planned"] as const;
+  const { t, locale } = await getI18n();
+  const title = (id: SectionId) => t(`integ.s.${id}` as MessageKey);
+  const sections = SECTION_IDS.map((id) => ({ id, label: title(id) }));
+  const vendorLabels = {
+    live: t("integ.vendor.live"),
+    partial: t("integ.vendor.partial"),
+    planned: t("integ.vendor.planned"),
+  };
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    /* A div: the public layout already holds the page's one `<main>`. */
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <div className="lg:grid lg:grid-cols-[13rem_1fr] lg:gap-12">
-        <DocsNav sections={SECTIONS} />
+        <DocsNav sections={sections} />
 
         <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            What this connects to
-          </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-600">
-            Your HR system and your record system by name, what each one can do today, and the
-            calls your engineer would make. Most of the names below say <b>not built</b>, and
-            they are on this page anyway: you finding out from us is better than you finding out
-            after signing something.
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t("integ.title")}</h1>
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-600">{t("integ.lede")}</p>
+          {locale !== "en" ? (
+            <p className="mt-3 max-w-2xl rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">
+              {t("integ.englishNote")}
+            </p>
+          ) : null}
 
           {/* ─────────────────────────────────────────── what connects today ── */}
-          <Section id="today" title="What connects today">
+          <Section id="today" title={title("today")}>
             {groups.map((state) => {
               const rows = INTEGRATIONS.filter((entry) => entry.state === state);
               if (rows.length === 0) return null;
@@ -109,7 +118,7 @@ export default function IntegrationsPage() {
                 <div key={state} className="mt-6 first:mt-0">
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                     <StateDot state={state} />
-                    {STATE_LABEL[state]}
+                    {t(`integ.state.${state}` as MessageKey)}
                   </h3>
                   <ul className="mt-3 space-y-2.5">
                     {rows.map((entry) => (
@@ -136,10 +145,10 @@ export default function IntegrationsPage() {
           {/* ──────────────────────────────────────────────────── HR systems ── */}
           <Section
             id="hr"
-            title="HR systems"
+            title={title("hr")}
             note="A sponsoring employer connects one of these so we can answer one question: is this person still one of yours. We never receive a name, a department, a salary or a leaver reason, and there is nowhere in our database to put one."
           >
-            <VendorGrid vendors={HR_VENDORS} />
+            <VendorGrid vendors={HR_VENDORS} labels={vendorLabels} />
             <p className="mt-4 text-sm leading-relaxed text-slate-600">
               The mechanism is an outbound webhook your system calls with a key you mint and can
               revoke, so a seventh system that is not on this list connects the same way. The
@@ -150,10 +159,10 @@ export default function IntegrationsPage() {
           {/* ──────────────────────────────────────────────── record systems ── */}
           <Section
             id="ehr"
-            title="Record systems"
+            title={title("ehr")}
             note="A clinic opens us from a patient's chart and the note a clinician approves files back as a document on that chart. Your system stays the record and ours does not become one."
           >
-            <VendorGrid vendors={EHR_VENDORS} />
+            <VendorGrid vendors={EHR_VENDORS} labels={vendorLabels} />
             <p className="mt-4 text-sm leading-relaxed text-slate-600">
               SMART on FHIR R4 works end to end against a sandbox. <b>No hospital has registered
               us in its own tenant yet</b>, and each one has to before anything connects there,
@@ -162,7 +171,7 @@ export default function IntegrationsPage() {
           </Section>
 
           {/* ─────────────────────────────────────────────────── get started ── */}
-          <Section id="start" title="Get started">
+          <Section id="start" title={title("start")}>
             <ol className="space-y-3">
               {[
                 ["Ask us for a partner account", "We open it with you on a call. There is no self-serve key, because a key that can open sessions about real people is not a thing to hand out through a form."],
@@ -189,7 +198,7 @@ export default function IntegrationsPage() {
           {/* ───────────────────────────────────────────────── authentication ── */}
           <Section
             id="auth"
-            title="Authentication"
+            title={title("auth")}
             note="One header. Keys are per partner, minted in your console, shown once, and revocable."
           >
             <Code>{`Authorization: Bearer sk_live_...
@@ -204,7 +213,7 @@ Content-Type: application/json`}</Code>
           {/* ────────────────────────────────────────────── supported methods ── */}
           <Section
             id="methods"
-            title="Supported methods"
+            title={title("methods")}
             note="The calls in the order an integration makes them. The full reference, every field and every error, is on the developers page."
           >
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -243,7 +252,7 @@ Content-Type: application/json`}</Code>
           </Section>
 
           {/* ─────────────────────────────────────────────────────── payloads ── */}
-          <Section id="payloads" title="Payload examples">
+          <Section id="payloads" title={title("payloads")}>
             <p className="text-sm font-semibold text-slate-900">Ask for consent</p>
             <Code>{`POST /api/partner/v1/consent
 {
@@ -288,7 +297,7 @@ Content-Type: application/json`}</Code>
           </Section>
 
           {/* ────────────────────────────────────────────────────── use cases ── */}
-          <Section id="cases" title="Use cases">
+          <Section id="cases" title={title("cases")}>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
                 ["A clinic keeps its own record system", "Open us from the chart, record and write the note here, file the approved note back as a document. Your system stays the record."],
@@ -305,7 +314,7 @@ Content-Type: application/json`}</Code>
           </Section>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -338,7 +347,7 @@ const VENDOR_TONE: Record<string, string> = {
   planned: "bg-slate-100 text-slate-600",
 };
 
-function VendorGrid({ vendors }: { vendors: Vendor[] }) {
+function VendorGrid({ vendors, labels }: { vendors: Vendor[]; labels: Record<string, string> }) {
   return (
     <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
       {vendors.map((vendor) => (
@@ -360,7 +369,7 @@ function VendorGrid({ vendors }: { vendors: Vendor[] }) {
             <span
               className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${VENDOR_TONE[vendor.state] ?? VENDOR_TONE.planned}`}
             >
-              {VENDOR_STATE_LABEL[vendor.state]}
+              {labels[vendor.state] ?? labels.planned}
             </span>
             <p className="mt-1 font-mono text-[11px] leading-snug text-slate-600">{vendor.via}</p>
           </div>

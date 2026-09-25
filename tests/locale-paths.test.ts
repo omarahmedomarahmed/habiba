@@ -112,3 +112,52 @@ test("the two languages of one page agree about each other", () => {
   assert.equal(english.canonical, english.languages[DEFAULT_LOCALE]);
   assert.equal(arabic.canonical, arabic.languages.ar);
 });
+
+/* ------------------------------------------ round 1 of the simulation -- */
+
+const source = async (file: string) => {
+  const { readFileSync } = await import("node:fs");
+  const { stripCommentsKeepingLines } = await import("../scripts/_dashes");
+  return stripCommentsKeepingLines(readFileSync(file, "utf8"));
+};
+
+test("🔴 B34 the Arabic verify form and the printed link keep the reader's language", async () => {
+  const form = await source("app/(public)/verify/page.tsx");
+  assert.doesNotMatch(form, /action="\/verify"/, "the form posts to the English page");
+  assert.match(form, /action=\{localisedPath\("\/verify", locale\)\}/);
+  assert.doesNotMatch(form, /<main/, "a second <main> inside the layout's");
+  const code = await source("app/(public)/verify/[code]/page.tsx");
+  assert.match(code, /localisedPath\("\/verify", locale\)/, "the printed link lands on the English page");
+  // The arithmetic the two rely on.
+  assert.equal(localisedPath("/verify", "ar"), "/ar/verify");
+  assert.equal(localisedPath("/verify", "en"), "/verify");
+});
+
+test("🔴 B35 no Suspense boundary sits above every public page, so a missing one is a 404", async () => {
+  const { existsSync } = await import("node:fs");
+  assert.equal(existsSync("app/(public)/loading.tsx"), false, "a site-wide loading boundary makes every 404 a 200");
+  assert.equal(existsSync("app/pay/loading.tsx"), false, "/pay answers 200 with the not-found body");
+  // The two routes that wanted a skeleton still have one, and a profile refuses above its own.
+  assert.ok(existsSync("app/(public)/radar/loading.tsx") && existsSync("app/(public)/t/[id]/loading.tsx"));
+  assert.match(await source("app/(public)/t/[id]/layout.tsx"), /notFound\(\)/);
+});
+
+test("🔴 B32 every legal page has an Arabic title, description and footer label", async () => {
+  const { DICTIONARIES } = await import("../lib/i18n/messages");
+  const { DEFAULT_PAGES } = await import("../lib/content/defaults");
+  const legal = DEFAULT_PAGES.filter((page) => page.layout === "document").map((page) => page.slug);
+  assert.ok(legal.length >= 4, `only ${legal.length} legal pages found`);
+  const missing: string[] = [];
+  for (const slug of legal) {
+    for (const prefix of ["page.title", "page.desc", "page.nav"]) {
+      const ar = (DICTIONARIES.ar as Record<string, string>)[`${prefix}.${slug}`];
+      if (!ar || !/[؀-ۿ]/.test(ar)) missing.push(`${prefix}.${slug}`);
+    }
+  }
+  assert.deepEqual(missing, []);
+  // The page and the footer use them when the row served is not the reader's.
+  assert.match(await source("app/(public)/[slug]/page.tsx"), /page\.englishBinding/);
+  assert.match(await source("lib/content/service.ts"), /label: labelFor\(r, locale\)/);
+  // The integrations page has no English literal heading left.
+  assert.doesNotMatch(await source("app/(public)/integrations/page.tsx"), /What this connects to|title="HR systems"/);
+});
