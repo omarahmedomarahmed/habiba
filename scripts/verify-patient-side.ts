@@ -23,11 +23,13 @@ import {
   patients,
   people,
   riskAssessments,
+  sessionFeedback,
   sessions,
   therapistVerifications,
   users,
 } from "../lib/db/schema";
-import { reporter, writesTo } from "./_verify";
+import { stripComments } from "./_dashes";
+import { readSource, reporter, writesTo } from "./_verify";
 
 const db = dbFor(DEFAULT_REGION);
 const { check, finish } = reporter();
@@ -146,6 +148,7 @@ async function clean() {
 
   if (orgIds.length) {
     await db.delete(riskAssessments).where(inArray(riskAssessments.organizationId, orgIds));
+    await db.delete(sessionFeedback).where(inArray(sessionFeedback.organizationId, orgIds));
     await db.delete(sessions).where(inArray(sessions.organizationId, orgIds));
     await db.delete(patients).where(inArray(patients.organizationId, orgIds));
   }
@@ -281,6 +284,31 @@ async function main() {
     check(
       "prior risk CONTROL: a session nobody has named yet has no history",
       (await priorRiskFor(now, null, f.t1, f.orgId)).length === 0,
+    );
+
+    /* ----------------------------------------- K9 · the arrival rating */
+
+    const joinToken = randomBytes(16).toString("hex");
+    await db.update(sessions).set({ joinToken, status: "in_progress" }).where(eq(sessions.id, now));
+    const { recordArrival } = await import("../lib/data/feedback");
+    const rated = await recordArrival({ token: joinToken, serviceStars: 4, email: "", via: "join" });
+    const [kept] = await db
+      .select({ stars: sessionFeedback.serviceStars })
+      .from(sessionFeedback)
+      .where(eq(sessionFeedback.sessionId, now));
+    check(
+      "🔴 K9 a rating given in the room with the JOIN token is saved",
+      rated.ok === true && kept?.stars === 4,
+      rated.error ?? `stored ${kept?.stars ?? "nothing"}`,
+    );
+    check(
+      "K9 CONTROL: the join token is not a feedback link, so neither opens the other's door",
+      Boolean((await recordArrival({ token: joinToken, serviceStars: 2, email: "" })).error),
+    );
+    const room = stripComments(readSource("components/join/patient-room.tsx"));
+    check(
+      "🔴 K9 the room says thank you only when the save came back ok",
+      /if \(result\.ok\)[\s\S]{0,80}setDone\(true\)/.test(room) && !/await rateOnArrival\([^)]*\);\s*setDone\(true\)/.test(room),
     );
   } finally {
     await clean();
