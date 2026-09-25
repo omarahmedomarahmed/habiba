@@ -111,6 +111,14 @@ const nextConfig: NextConfig = {
      * One process, one heap, one cap that means what it says.
      */
     webpackBuildWorker: false,
+    /*
+     * 🔴 AND THE ONE PROCESS KEEPS LESS. A deploy after a 150-file change sat in
+     * the compile for ten minutes on Vercel and was killed for memory, while the
+     * same commit compiled locally in 87s at a 4.2 GB peak: the restored cache
+     * plus a mostly invalidated module graph pushed the container into swap.
+     * Next's memory optimisations trade a little compile time for a lower peak.
+     */
+    webpackMemoryOptimizations: true,
   },
   async headers() {
     return [
