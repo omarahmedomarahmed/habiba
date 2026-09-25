@@ -56,11 +56,24 @@ const globalForDb = globalThis as unknown as { __24t_pools?: Map<string, Pool> }
 const registry = globalForDb.__24t_pools ?? pools;
 if (!env.isProduction) globalForDb.__24t_pools = registry;
 
+/** Connections per instance per database. See `poolFor`. */
+export const POOL_MAX = 8;
+
 function poolFor(url: string): Pool {
   const existing = registry.get(url);
   if (existing) return existing;
 
-  const created = new Pool({ connectionString: url, max: 1 });
+  /*
+   * 🔴 B49 — more than one connection per instance. At `max: 1` every query in
+   * the process queued behind the one before it: each `Promise.all` in a page
+   * ran in series, and on Fluid compute every OTHER request on the same
+   * instance queued behind it too. /patient/sessions spent 2.6 s of a warm load
+   * waiting its turn for one socket. The endpoint is Neon's pooler, which is
+   * built to take many client connections, so a handful here costs nothing
+   * there, and a transaction no longer holds the only connection a call inside
+   * it could have used (C40).
+   */
+  const created = new Pool({ connectionString: url, max: POOL_MAX });
   registry.set(url, created);
   return created;
 }

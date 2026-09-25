@@ -176,12 +176,17 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
 
   /* 🔴 The pay page's figure for each unpaid one, never the list price. */
   const { patientOwesTotal } = await import("@/lib/billing/manual-entry");
-  const owed = new Map<string, number>();
-  for (const row of rows) {
-    if (row.priceCents > 0 && row.paymentStatus === "pending" && row.status !== "cancelled") {
-      owed.set(row.id, await patientOwesTotal(row.id));
-    }
-  }
+  /*
+   * 🔴 B49 — side by side, not one after another. Each figure is five or six
+   * round trips, and they were awaited in a loop, so a patient with a few
+   * unpaid sessions waited for all of them in series before the list drew.
+   */
+  const unpaid = rows.filter(
+    (row) => row.priceCents > 0 && row.paymentStatus === "pending" && row.status !== "cancelled",
+  );
+  const owed = new Map<string, number>(
+    await Promise.all(unpaid.map(async (row) => [row.id, await patientOwesTotal(row.id)] as const)),
+  );
 
   return rows.map((row) => {
     const at = row.scheduledAt ?? row.endedAt ?? row.startedAt ?? row.createdAt;
