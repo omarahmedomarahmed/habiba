@@ -572,8 +572,21 @@ async function main() {
 
   check(
     "🔴 …and it says how many sessions the balance covers at that percentage",
-    /balanceUsd \/ \(\(sessionPriceUsd \* draft\) \/ 100\)/.test(coverage),
+    /\(balanceUsd \?\? fundedUsd\) \/ \(\(sessionPriceUsd \* draft\) \/ 100\)/.test(coverage),
     "the same sum a finance team would do on paper before agreeing to anything",
+  );
+
+  /*
+   * 🔴 B18: a held-back balance reached the editor as `balanceCents ?? 0`, so a
+   * pot holding $100 read "your balance of EGP 0 covers about 0 sessions".
+   */
+  const potPage = readSource("app/(sponsor)/sponsor/pot/page.tsx");
+  check(
+    "🔴 B18 …and a held-back balance is never counted as zero: it counts what they put in, and says so",
+    !/balanceCents \?\? 0/.test(potPage) &&
+      /balanceUsd=\{pot\.balanceCents === null \? null/.test(potPage) &&
+      /balanceUsd === null \? "sponsor\.cov\.buysFunded"/.test(coverage),
+    "null balance, funded figure, its own sentence",
   );
 
   check(
