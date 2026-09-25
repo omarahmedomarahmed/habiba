@@ -241,6 +241,17 @@ export default async function SettingsPage() {
             ))}
           </ul>
         ) : null}
+        {/*
+          🔴 B19 — the same three details print every Egyptian company's payment
+          receipt, and `invoiceFor` refuses one while any is blank. Said here,
+          where they are filled in, not only on the company's screen.
+        */}
+        {!egIssuer?.legalName || !egIssuer.address || !egIssuer.taxId ? (
+          <p className="mt-1 text-sm text-amber-900">
+            Payment receipts for Egyptian companies cannot be issued until the registered name, tax
+            registration number and address are saved below.
+          </p>
+        ) : null}
         <EtaIssuerEditor
           legalName={egIssuer?.legalName ?? ""}
           taxId={egIssuer?.taxId ?? ""}

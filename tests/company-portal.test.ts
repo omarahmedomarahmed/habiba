@@ -198,6 +198,17 @@ test("🔴 B3 / B18 a held-back balance shows what the company put in, never a b
   assert.match(body, /underHeadcount: true, fundedCents/);
 });
 
+test("B19 a receipt we cannot issue says why and gives a way to ask, scoped to the company", () => {
+  const page = readSource("app/(sponsor)/sponsor/pot/[txn]/page.tsx");
+  const refusal = page.slice(page.indexOf('"missing" in invoice'));
+  assert.match(refusal.slice(0, refusal.indexOf("</Card>")), /<AskForReceipt txn=\{txn\} \/>/);
+  const actions = readSource("app/(sponsor)/sponsor/pot/actions.ts");
+  const ask = actions.slice(actions.indexOf("export async function askForReceipt"));
+  assert.match(ask, /invoiceFor\(actor\.sponsorId, txn\)/, "the ask must be scoped to the signed-in company");
+  assert.match(ask, /!\("missing" in invoice\)/, "only a receipt that cannot be issued is asked for");
+  assert.match(ask, /kind: "ops\.receiptAsked"/);
+});
+
 test("W2-S10 the reporting floor applies to every aggregate", async () => {
   const l = (await ledgerModule())!;
   const floor = 5;

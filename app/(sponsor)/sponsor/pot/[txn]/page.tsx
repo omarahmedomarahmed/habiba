@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { AskForReceipt } from "@/components/sponsor/ask-for-receipt";
 import { Card } from "@/components/ui";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
@@ -70,6 +71,7 @@ export default async function InvoicePage({
         <p className="mt-1 text-sm leading-relaxed text-slate-600">
           {t("sponsor.inv.notYetBody")}
         </p>
+        <AskForReceipt txn={txn} />
       </Card>
     );
   }
