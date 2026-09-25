@@ -3183,8 +3183,7 @@ export const en = {
   "tver.stillNeeded": "Still needed: {list}.",
   "tver.clearedStillNeeded":
     "We reviewed this twice and could not verify it, so we did not keep the documents. Upload them again and it goes back to our queue. Still needed: {list}.",
-  "tver.changeFirst":
-    "Change what the note above asks for first: replace a document or edit your details. Then you can submit again.",
+  "tver.changeFirst": "Replace a document or change a detail first, then submit again.",
   "portal.nav.more": "More",
   "portal.nav.closeMenu": "Close menu",
   "portal.nav.verify": "Verify",
@@ -7711,8 +7710,7 @@ export const ar: Record<MessageKey, string> = {
   "tver.stillNeeded": "ما زال مطلوبًا: {list}.",
   "tver.clearedStillNeeded":
     "راجعنا هذا مرتين ولم نتمكّن من التحقّق منه، لذلك لم نحتفظ بالمستندات. ارفعها من جديد وسيعود الطلب إلى الطابور. ما زال مطلوبًا: {list}.",
-  "tver.changeFirst":
-    "غيّر أولًا ما تطلبه الملاحظة أعلاه: استبدل مستندًا أو عدّل بياناتك. بعدها يمكنك الإرسال من جديد.",
+  "tver.changeFirst": "استبدل مستندًا أو عدّل أحد البيانات أولًا، ثم أعد الإرسال.",
   "portal.nav.more": "المزيد",
   "portal.nav.closeMenu": "إغلاق القائمة",
   "portal.nav.verify": "التحقّق",

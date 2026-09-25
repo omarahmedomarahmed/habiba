@@ -651,7 +651,8 @@ export async function publicProfile(
       pendingUntil: therapistRadar.pendingUntil,
       pendingSessionId: therapistRadar.pendingSessionId,
       reservedBy: therapistRadar.reservedBy,
-      demo: therapistRadar.demo,
+      /* B4: COALESCEd for a clinician with no radar row yet; a read, never a test (80.3). */
+      demo: sql<boolean>`COALESCE(${therapistRadar.demo}, false)`,
       suspendedUntil: therapistRadar.suspendedUntil,
       lastSeenAt: therapistRadar.lastSeenAt,
       /* 🔴 63.13 — the same CASE as the board, for the same reason. */
@@ -705,7 +706,6 @@ export async function publicProfile(
     specialties: found.specialties ?? [],
     acceptsWalkIns: found.acceptsWalkIns ?? false,
     status: found.status ?? ("offline" as const),
-    demo: found.demo ?? false,
   };
 
   const ratings = await therapistRatings();
