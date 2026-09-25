@@ -44,7 +44,8 @@ entity, the accountant and counsel may change any of these after the fact.
 | 14a | Production demo data | **Full freedom** to delete, reseed, edit or add. Keep logins for every user type. |
 | 14b | Fewer navigation pages | **Yes**, with proof every feature is still reachable and clickable. |
 | 15 | Company enrolment rules | **Email is always required.** A company chooses: work-domain email, email on an uploaded staff list, or either one plus an employee ID. ID alone is removed. The staff list is emails only, stored hashed so no readable list exists, each upload replaces the last, and people no longer on it are paused after a grace period (setting). The company never sees who enrolled. |
-| 13c | Two-person rule kept on two non-urgent actions | Recommended: "confirm a transfer without proof" and manual ledger adjustments keep two people, because either one alone creates money from nothing. |
+| 16 | Patient cancels a paid booking | **Full refund up to 24 hours before; none after, unless the therapist agrees.** The window is a setting. |
+| 13c | Two-person rule kept on two non-urgent actions | **Ruled:** "confirm a transfer without proof" and manual ledger adjustments keep two people, because either one alone creates money from nothing. Switches, on by default. |
 | 7b | Wallet and company money | A replacement-therapist difference goes back to the company pot for the company's share; only the patient's own share goes to the wallet. Spend order: company benefit, then wallet, then card. |
 
 ## Pending
