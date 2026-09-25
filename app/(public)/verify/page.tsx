@@ -71,7 +71,7 @@ export default async function VerifyPage({
           placeholder="XXXX-XXXX-XXXX"
           aria-label={t("verify.codeLabel")}
           dir="ltr"
-          className="h-14 min-w-0 flex-1 rounded-2xl bg-white px-4 font-mono text-[17px] tracking-widest text-navy-700 uppercase outline-none placeholder:text-navy-300 focus:ring-2 focus:ring-brand-400"
+          className="h-14 w-full min-w-0 shrink-0 rounded-2xl bg-white px-4 font-mono sm:w-auto sm:flex-1 text-[17px] tracking-widest text-navy-700 uppercase outline-none placeholder:text-navy-300 focus:ring-2 focus:ring-brand-400"
         />
         <button
           type="submit"
