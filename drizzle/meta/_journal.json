@@ -1058,6 +1058,13 @@
       "when": 1789966046000,
       "tag": "0160_a_month_renews_itself",
       "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1789966047000,
+      "tag": "0161_every_rule_is_a_setting",
+      "breakpoints": true
     }
   ]
 }

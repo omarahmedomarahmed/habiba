@@ -3787,6 +3787,64 @@ export const countrySettings = pgTable("country_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * 🔴 0161 — EVERY SETTING WRITE, WHOLE VALUE BEFORE AND AFTER.
+ *
+ * The founder's rule is that every tax, document, provider and approval rule is
+ * a setting that can change after counsel and the accountant speak. A rule that
+ * changes with no history is one nobody can reconstruct when a figure on last
+ * month's invoice is questioned, so `writeSettingsGroup` and
+ * `writeCountrySettings` write here on every save, whatever form called them.
+ */
+export const settingsHistory = pgTable(
+  "settings_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scope: text("scope").$type<"platform" | "country">().notNull(),
+    /** The group key, or the country code. */
+    key: text("key").notNull(),
+    before: jsonb("before"),
+    after: jsonb("after").notNull(),
+    changedBy: uuid("changed_by").references(() => users.id, { onDelete: "set null" }),
+    changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("settings_history_key_idx").on(t.scope, t.key, t.changedAt)],
+);
+
+/**
+ * 🔴 0161 — A SECOND PERSON'S APPROVAL, FOR THE ACTS THAT KEEP TWO (ruling 13c).
+ *
+ * The first person writes the whole act down (`payload`) with a reason; a
+ * different person carries out exactly that, or declines it. The database
+ * refuses the same person twice and a second open request for the same thing.
+ */
+export const PENDING_APPROVAL_KINDS = ["transfer_without_proof", "ledger_adjustment"] as const;
+export type PendingApprovalKind = (typeof PENDING_APPROVAL_KINDS)[number];
+
+export const pendingApprovals = pgTable(
+  "pending_approvals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").$type<PendingApprovalKind>().notNull(),
+    subjectId: text("subject_id").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    reason: text("reason").notNull(),
+    askedBy: uuid("asked_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    askedAt: timestamp("asked_at", { withTimezone: true }).defaultNow().notNull(),
+    state: text("state").$type<"asked" | "done" | "declined">().notNull().default("asked"),
+    decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "restrict" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("pending_approvals_one_open")
+      .on(t.kind, t.subjectId)
+      .where(sql`${t.state} = 'asked'`),
+  ],
+);
+export type PendingApproval = typeof pendingApprovals.$inferSelect;
+
 export type Organization = typeof organizations.$inferSelect;
 export type PlatformSetting = typeof platformSettings.$inferSelect;
 export type CountrySetting = typeof countrySettings.$inferSelect;

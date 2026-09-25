@@ -80,6 +80,7 @@ export async function POST(request: Request) {
   const answer = await askPartnerCopilot({
     partnerId: guard.key.partnerId,
     externalSubjectRef: subject,
+    environment: guard.key.environment,
     question,
   });
 

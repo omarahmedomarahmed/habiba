@@ -47,6 +47,7 @@ export async function GET(
   const material = await sessionMaterial({
     partnerId: guard.key.partnerId,
     externalSubjectRef: ref,
+    environment: guard.key.environment,
   });
 
   return NextResponse.json({

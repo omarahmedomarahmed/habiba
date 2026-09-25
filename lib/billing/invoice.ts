@@ -223,7 +223,9 @@ async function countryVatBps(entity: string): Promise<number> {
     SELECT vat_bps FROM country_settings WHERE entity = ${entity} AND enabled = true LIMIT 1`);
 
   const row = (rows.rows as { vat_bps: number }[])[0];
-  return Number(row?.vat_bps ?? 0);
+  /* 🔴 0161: the country's rate, unless the top-up VAT rule says exempt (counsel Q2, Q7). */
+  const { getSettings, topUpVatBpsFor } = await import("@/lib/settings");
+  return topUpVatBpsFor((await getSettings()).rules, Number(row?.vat_bps ?? 0));
 }
 
 /**

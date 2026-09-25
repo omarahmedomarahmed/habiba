@@ -190,15 +190,19 @@ export async function sessionTransferMoney(input: {
     .where(eq(organizations.id, input.organizationId))
     .limit(1);
 
-  const { getCountrySettings, vatOn } = await import("@/lib/settings");
-  const country = await getCountrySettings(row?.region ?? null);
+  const { getCountrySettings, getSettings, sessionVatBpsFor, vatOn } = await import("@/lib/settings");
+  const [country, settings] = await Promise.all([
+    getCountrySettings(row?.region ?? null),
+    getSettings(),
+  ]);
 
   /*
    * Zero is a real answer for a country nobody has configured a rate for, and
    * it is the honest one: we do not invent a tax rate for a jurisdiction we
-   * have not set up. Egypt IS set up, at 1400 bps.
+   * have not set up. 🔴 Ruling 2: a session price is healthcare and exempt by
+   * default, so the country's rate only applies when the rule says `standard`.
    */
-  const vatBps = country?.vatBps ?? 0;
+  const vatBps = sessionVatBpsFor(settings.rules, country?.vatBps ?? 0);
   const gross = Math.max(0, Math.round(input.priceCents));
   const vat = vatOn(gross, vatBps);
 

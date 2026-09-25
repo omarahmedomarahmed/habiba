@@ -46,6 +46,7 @@ import { sql } from "drizzle-orm";
 
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
+import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 const { check, finish } = reporter();
 
@@ -433,5 +434,8 @@ async function sweep(db: ReturnType<typeof connect>["db"]): Promise<void> {
       (SELECT id FROM organizations WHERE slug = ${SLUG})`);
   await db.execute(sql`DELETE FROM organizations WHERE slug = ${SLUG}`);
 }
+
+/* 🔴 0161: these checks were written for two people on every queue, so they say so. */
+setRulesForThisCheck(TWO_PEOPLE_EVERYWHERE);
 
 main();

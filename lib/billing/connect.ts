@@ -16,7 +16,7 @@ import {
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
+import { convertAtRate, getCountrySettings, getSettings, sessionMoney, sessionVatBpsFor } from "@/lib/settings";
 import { collectionProblem, vatOn } from "@/lib/settings/defs";
 import { collectionCurrencyFor, collectionRailFor } from "./money";
 import { quoteFor } from "./fx";
@@ -528,7 +528,9 @@ export async function createSessionPaymentCheckout(opts: {
    */
   const patientGross = covered ? covered.patientShareCents : gross;
   const money = sessionMoney({ grossCents: gross, feeBps, vatBps: 0 });
-  const patientVatCents = vatOn(patientGross, country.vatBps);
+  /* 🔴 Ruling 2: exempt by default; the country's rate only when the rule says so. */
+  const sessionVatBps = sessionVatBpsFor(settings.rules, country.vatBps);
+  const patientVatCents = vatOn(patientGross, sessionVatBps);
 
   /*
    * 🔴 WHAT THIS PATIENT IS CHARGED IN, FROM THE RULE RATHER THAN FROM THE ROW.
@@ -722,7 +724,7 @@ export async function createSessionPaymentCheckout(opts: {
                   currency: collectionCurrency,
                   unit_amount: convertAtRate(patientVatCents, quote.rateMicro),
                   product_data: {
-                    name: `VAT (${(country.vatBps / 100).toFixed(country.vatBps % 100 === 0 ? 0 : 1)}%)`,
+                    name: `VAT (${(sessionVatBps / 100).toFixed(sessionVatBps % 100 === 0 ? 0 : 1)}%)`,
                     description: `Charged in ${country.name} and paid to the tax authority there.`,
                   },
                 },
@@ -773,7 +775,7 @@ export async function createSessionPaymentCheckout(opts: {
         payerName: opts.payerName,
         payerEmail: opts.payerEmail ?? null,
         vatCents: patientVatCents,
-        vatBps: country.vatBps,
+        vatBps: sessionVatBps,
         payerCountry: country.code,
         presentedCents: presentedTotalCents,
         presentedCurrency: collectionCurrency,
@@ -792,7 +794,7 @@ export async function createSessionPaymentCheckout(opts: {
       payerEmail: opts.payerEmail ?? null,
       grossCents: gross,
       vatCents: patientVatCents,
-      vatBps: country.vatBps,
+      vatBps: sessionVatBps,
       payerCountry: country.code,
       presentedCents: presentedTotalCents,
       presentedCurrency: collectionCurrency,

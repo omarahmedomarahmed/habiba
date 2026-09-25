@@ -27,6 +27,7 @@ import { sql } from "drizzle-orm";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
+import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 const { check, finish } = reporter();
 
@@ -429,5 +430,8 @@ async function main() {
 
   finish("sprint 69");
 }
+
+/* 🔴 0161: these checks were written for two people on every queue, so they say so. */
+setRulesForThisCheck(TWO_PEOPLE_EVERYWHERE);
 
 main();

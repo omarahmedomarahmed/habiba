@@ -15,6 +15,7 @@ import { sql } from "drizzle-orm";
 import { startMockOpenAi } from "../tests/mock-openai";
 import { readSource, reporter, writesTo } from "./_verify";
 import { connect } from "./db";
+import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 const { check, finish } = reporter();
 
@@ -647,13 +648,34 @@ async function main() {
 
     const { sessionMaterial } = await import("../lib/partner/copilot");
     const leaked = [
-      ...(await sessionMaterial({ partnerId: partner.id, externalSubjectRef: withdrawer })),
-      ...(await sessionMaterial({ partnerId: partner.id, externalSubjectRef: unlinked })),
+      ...(await sessionMaterial({ partnerId: partner.id, externalSubjectRef: withdrawer, environment: "sandbox" })),
+      ...(await sessionMaterial({ partnerId: partner.id, externalSubjectRef: unlinked, environment: "sandbox" })),
     ];
     check(
       "🔴 W1-18 …and the material itself holds nothing for either, whatever route asks next",
       leaked.length === 0,
       `${leaked.length} sessions`,
+    );
+
+    /*
+     * 🔴 25 September inventory: a sandbox key read LIVE notes through memory
+     * and copilot by naming a live subject. A live session, consented and
+     * ended with an approved note, is invisible to the sandbox and visible live.
+     */
+    const liveSubject = `live-subject-${fixture}`;
+    await db.execute(sql`
+      INSERT INTO partner_sessions (partner_id, external_session_ref, external_subject_ref, environment,
+                                    ended_at, note_approved_text)
+      VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'live', now(), 'A real approved note')`);
+    await db.execute(sql`
+      INSERT INTO partner_consents (partner_id, external_session_ref, external_subject_ref, state, answered_at)
+      VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'given', now())`);
+    const fromSandbox = await sessionMaterial({ partnerId: partner.id, externalSubjectRef: liveSubject, environment: "sandbox" });
+    const fromLive = await sessionMaterial({ partnerId: partner.id, externalSubjectRef: liveSubject, environment: "live" });
+    check(
+      "🔴 a sandbox key never reads a live session's note, and a live key does",
+      fromSandbox.length === 0 && fromLive.length === 1,
+      `sandbox ${fromSandbox.length}, live ${fromLive.length}`,
     );
 
     /* ================================================================ */
@@ -934,5 +956,8 @@ async function main() {
 
   finish("wave 1B");
 }
+
+/* 🔴 0161: these checks were written for two people on every queue, so they say so. */
+setRulesForThisCheck(TWO_PEOPLE_EVERYWHERE);
 
 main();

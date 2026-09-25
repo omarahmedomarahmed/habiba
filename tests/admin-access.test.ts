@@ -156,7 +156,7 @@ test("D9: staff read licence documents, and only through the audited route", asy
   assert.equal(localUploadAllowed("licence/b/x.jpg", { userId: "a", role: "staff" } as never), false);
 });
 
-test("D9: four eyes, the same rule for payouts and refunds", async () => {
+test("D9 / 0161: four eyes, the same rule for payouts and refunds, behind a switch", async () => {
   const { fourEyesProblem } = await import("../lib/billing/four-eyes");
   const base = {
     actorUserId: "me",
@@ -166,6 +166,7 @@ test("D9: four eyes, the same rule for payouts and refunds", async () => {
     thresholdCents: 20_000,
     ownerUserId: "colleague",
     movesMoney: true,
+    twoPeople: true,
   };
 
   assert.equal(fourEyesProblem(base), null);
@@ -176,6 +177,12 @@ test("D9: four eyes, the same rule for payouts and refunds", async () => {
   // Below the threshold one person is enough; an act that moves no money needs no second.
   assert.equal(fourEyesProblem({ ...base, ownerUserId: null, amountCents: 20_000 }), null);
   assert.equal(fourEyesProblem({ ...base, ownerUserId: null, movesMoney: false }), null);
+
+  // 🔴 0161 / ruling 13: with the switch off only the payee rule stands, and it always does.
+  const one = { ...base, twoPeople: false };
+  assert.equal(fourEyesProblem({ ...one, editorUserId: "me" }), null);
+  assert.equal(fourEyesProblem({ ...one, ownerUserId: null }), null);
+  assert.equal(fourEyesProblem({ ...one, payeeUserId: "me" }), "payee");
 
   // Every act on a payout asks, not only approval; the refund queue asks the same function.
   const payouts = read("lib/billing/payouts.ts");

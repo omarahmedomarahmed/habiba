@@ -26,6 +26,7 @@ import { writesTo } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
 import { REQUIRED_IN_PRODUCTION } from "../lib/env";
+import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 /*
  * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
@@ -329,15 +330,20 @@ async function main() {
      * agrees with itself. This asserts the rule where it actually lives — the
      * database — by writing the forbidden row directly, past every code path.
      */
+    /*
+     * 🔴 0161: the editor rule is a switch now (ruling 13) and lives in code; the
+     * one rule no switch touches, nobody approves their own payout, is still
+     * asserted where it lives, the database.
+     */
     check(
-      "🔴 C74 CONTROL, the same approval written STRAIGHT TO THE TABLE is refused by a CHECK",
+      "🔴 C74 CONTROL, the clinician approving their own payout STRAIGHT IN THE TABLE is refused by a CHECK",
       await refused(
         () =>
           db
             .update(payoutRequests)
-            .set({ approvedByUserId: alice.id, approvedAt: new Date(), status: "approved" })
+            .set({ approvedByUserId: payee.id, approvedAt: new Date(), status: "approved" })
             .where(eq(payoutRequests.id, request!.id)),
-        "payout_requests_approver_not_editor",
+        "payout_requests_approver_not_payee",
       ),
       "if this passes by not throwing, the rule is only in the code path",
     );
@@ -670,6 +676,9 @@ async function main() {
   );
   process.exit(failures === 0 ? 0 : 1);
 }
+
+/* 🔴 0161: these checks were written for two people on every queue, so they say so. */
+setRulesForThisCheck(TWO_PEOPLE_EVERYWHERE);
 
 main().catch((error) => {
   console.error(error);

@@ -43,6 +43,7 @@ import { sql } from "drizzle-orm";
 
 import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
+import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 const { check, finish } = reporter();
 const fixture = `month-${Date.now().toString(36)}`;
@@ -665,5 +666,8 @@ async function main() {
 
   finish("the money month");
 }
+
+/* 🔴 0161: these checks were written for two people on every queue, so they say so. */
+setRulesForThisCheck(TWO_PEOPLE_EVERYWHERE);
 
 void main();

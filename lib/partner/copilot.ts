@@ -69,6 +69,8 @@ export type PartnerCopilotAnswer = {
 export async function askPartnerCopilot(input: {
   partnerId: string;
   externalSubjectRef: string;
+  /** 🔴 The key's own environment: a sandbox key never reads a live session. */
+  environment: string;
   question: string;
 }): Promise<PartnerCopilotAnswer> {
   const question = input.question.trim().slice(0, 2_000);
@@ -207,6 +209,12 @@ export async function subjectRefusal(input: {
 export async function sessionMaterial(input: {
   partnerId: string;
   externalSubjectRef: string;
+  /**
+   * 🔴 The key's own environment. A sandbox key is self-serve, free and
+   * unlimited; without this it read real approved notes and transcripts by
+   * naming a live subject (25 September inventory).
+   */
+  environment: string;
 }): Promise<
   { ref: string; endedAt: Date | null; note: string | null; transcript: string | null }[]
 > {
@@ -222,6 +230,7 @@ export async function sessionMaterial(input: {
       and(
         eq(partnerSessions.partnerId, input.partnerId),
         eq(partnerSessions.externalSubjectRef, input.externalSubjectRef),
+        eq(partnerSessions.environment, input.environment as "sandbox" | "live"),
         isNotNull(partnerSessions.endedAt),
         /*
          * 🔴 W1-18: the session's own latest answer is still yes, and the

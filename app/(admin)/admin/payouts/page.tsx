@@ -45,6 +45,8 @@ export default async function PayoutsPage() {
   const providerReady = payoutProvider() !== null;
   const { simulatorOn } = await import("@/app/dev/simulator");
   const simulator = simulatorOn("payouts");
+  const { getSettings } = await import("@/lib/settings");
+  const refundsTwo = (await getSettings()).rules.approvals.refunds;
 
   const [manual, books, automated, refunds] = await Promise.all([
     manualQueue(),
@@ -164,9 +166,10 @@ export default async function PayoutsPage() {
             openedLabel: formatDate(row.createdAt, actor.timezone, "en"),
             proofUrl: row.proofUrl,
             destination: row.destination,
-            destinationByMe: row.destinationSetBy === actor.userId,
+            /* 🔴 0161: the same-person hints only while refunds need two people. */
+            destinationByMe: refundsTwo && row.destinationSetBy === actor.userId,
             cancelAsked: row.cancelAsked,
-            cancelAskedByMe: row.cancelAskedBy === actor.userId,
+            cancelAskedByMe: refundsTwo && row.cancelAskedBy === actor.userId,
             sendMinor: row.sendMinor,
             sendCurrency: row.sendCurrency,
           }))}

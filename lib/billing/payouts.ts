@@ -371,11 +371,61 @@ async function fourEyes(
     thresholdCents: settings.payouts.twoPersonThresholdCents,
     ownerUserId: row.ownerUserId,
     movesMoney,
+    twoPeople: settings.rules.approvals.payouts,
   });
   if (!problem) return null;
   return {
     error:
       problem === "payee" ? "aaccess.fourPayee" : problem === "editor" ? "aaccess.fourEditor" : "arefund.errTwo",
+  };
+}
+
+/**
+ * 🔴 0161 / ruling 13 — the approver may also send only when payouts need one
+ * person. With the switch on, whoever approved does not also send.
+ */
+async function approverSends(
+  row: Pick<PayoutRequest, "approvedByUserId">,
+  senderUserId: string,
+): Promise<{ error: string } | null> {
+  const settings = await getSettings();
+  if (!settings.rules.approvals.payouts) return null;
+  if (row.approvedByUserId && row.approvedByUserId === senderUserId) {
+    return { error: "You approved this one. A second person sends it." };
+  }
+  return null;
+}
+
+/**
+ * 🔴 0161 — THE COMPENSATING CONTROL FOR ONE-PERSON PAYOUTS.
+ *
+ * With one person able to approve and send, somebody who changed where a
+ * clinician is paid could pay the next withdrawal to themselves. So a payout
+ * destination somebody other than the clinician changed within
+ * `rules.approvals.payoutDetailsCooldownHours` waits. Zero switches it off.
+ */
+async function detailsCoolingDown(
+  row: Pick<PayoutRequest, "methodId" | "therapistId">,
+  now = new Date(),
+): Promise<{ error: string } | null> {
+  const settings = await getSettings();
+  const hours = settings.rules.approvals.payoutDetailsCooldownHours;
+  if (hours <= 0 || !row.methodId) return null;
+  const [method] = await db
+    .select({ editedAt: payoutMethods.editedAt, editedBy: payoutMethods.editedByUserId })
+    .from(payoutMethods)
+    .where(eq(payoutMethods.id, row.methodId))
+    .limit(1);
+  /*
+   * The clinician changing their own details is not the path ruling 13 opened;
+   * somebody else changing them, then paying alone, is. So the wait applies
+   * when the last edit was not the clinician's own.
+   */
+  if (!method?.editedAt || method.editedBy === row.therapistId) return null;
+  const until = method.editedAt.getTime() + hours * 60 * 60 * 1000;
+  if (until <= now.getTime()) return null;
+  return {
+    error: `These payout details changed less than ${hours} hours ago. This payout can go after ${new Date(until).toISOString().slice(0, 16).replace("T", " ")} UTC.`,
   };
 }
 
@@ -415,6 +465,8 @@ export async function approvePayout(input: {
   // Approval is the act that lets money leave, so the threshold rule is asked here.
   const refused = await fourEyes(row, input.approverUserId, true);
   if (refused) return refused;
+  const cooling = await detailsCoolingDown(row);
+  if (cooling) return cooling;
 
   /*
    * 🔴 AND WHETHER WE HOLD IT (live walkthrough). A request is checked against
@@ -501,13 +553,13 @@ export async function markPayoutSent(input: {
   const refused = await fourEyes(row, input.senderUserId, false);
   if (refused) return refused;
   /*
-   * 🔴 FOUR EYES ON EVERY PAYOUT, the founders' rule: whoever approved it does
-   * not also send it. Below the threshold one person approved, sent and
-   * confirmed alone, and most Egyptian payouts are below it.
+   * 🔴 Whoever approved it does not also send it, while the payouts switch
+   * says two people (ruling 13 turned it off by default).
    */
-  if (row.approvedByUserId && row.approvedByUserId === input.senderUserId) {
-    return { error: "You approved this one. A second person sends it." };
-  }
+  const sameHand = await approverSends(row, input.senderUserId);
+  if (sameHand) return sameHand;
+  const cooling = await detailsCoolingDown(row);
+  if (cooling) return cooling;
   const short = await moreThanHeld(row);
   if (short) return short;
 
@@ -611,10 +663,11 @@ export async function sendViaProvider(input: {
   }
   const refused = await fourEyes(row, input.senderUserId, false);
   if (refused) return refused;
-  /* 🔴 Four eyes on every payout: the approver does not also send it. */
-  if (row.approvedByUserId && row.approvedByUserId === input.senderUserId) {
-    return { error: "You approved this one. A second person sends it." };
-  }
+  /* 🔴 The approver does not also send it, while the payouts switch says two people. */
+  const sameHand = await approverSends(row, input.senderUserId);
+  if (sameHand) return sameHand;
+  const cooling = await detailsCoolingDown(row);
+  if (cooling) return cooling;
   const short = await moreThanHeld(row);
   if (short) return short;
 
@@ -995,7 +1048,9 @@ export async function manualQueue(): Promise<PayoutQueueRow[]> {
       ownerName: null,
       ageHours: Math.round(ageHours * 10) / 10,
       overdue: ageHours >= settings.payouts.alertAfterHours,
-      needsTwoPeople: row.amountCents > settings.payouts.twoPersonThresholdCents,
+      /* 🔴 0161: only while the payouts switch asks for two people. */
+      needsTwoPeople:
+        settings.rules.approvals.payouts && row.amountCents > settings.payouts.twoPersonThresholdCents,
       proofUrl: row.proofUrl,
       providerState: row.providerState,
       providerError: row.providerError,

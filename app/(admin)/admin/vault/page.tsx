@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { HeldBalances } from "@/components/admin/held-balances";
 import { LedgerAdjust } from "@/components/admin/ledger-adjust";
+import { PendingApprovals } from "@/components/admin/pending-approvals";
+import { approvalViews } from "@/lib/billing/approvals";
 import { VaultInvoiceRow } from "@/components/admin/vault-invoice-row";
 import { VaultPaymentRow } from "@/components/admin/vault-payment-row";
 import { Badge, Card } from "@/components/ui";
@@ -219,6 +221,8 @@ export default async function VaultPage() {
         out-of-balance figure, because that number is the only reason to reach
         for it.
       */}
+      {/* 🔴 0161 / ruling 13c: an adjustment waits here for a second admin to post it. */}
+      <PendingApprovals rows={await approvalViews("ledger_adjustment", actor.userId)} />
       <LedgerAdjust organizations={orgs} clinicians={clinicians} />
 
       {/* ------------------------------------------------------------ ledger */}

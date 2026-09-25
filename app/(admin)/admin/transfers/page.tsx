@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { formatMoney } from "@/lib/billing/plans";
 import { OpenCarts } from "@/components/admin/open-carts";
+import { PendingApprovals } from "@/components/admin/pending-approvals";
+import { approvalViews } from "@/lib/billing/approvals";
 import { RailExceptions } from "@/components/admin/rail-exceptions";
 import { TransferQueue } from "@/components/admin/transfer-queue";
 import { PageHeader } from "@/components/ui";
@@ -235,6 +237,8 @@ export default async function TransfersPage({
         title="Transfers"
         subtitle="Bank transfers waiting to be checked."
       />
+      {/* 🔴 0161 / ruling 13c: a transfer confirmed without proof waits here for a second person. */}
+      <PendingApprovals rows={await approvalViews("transfer_without_proof", actor.userId)} />
       {/*
         🔴 76.15 — under the queue, collapsed, and never above it. The queue is
         people waiting on us; this is a reference an operator opens when a bank

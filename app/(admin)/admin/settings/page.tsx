@@ -21,6 +21,33 @@ import { whatPayoutsNeed, whatTheGatewayNeeds } from "@/lib/billing/gateway";
 import { whatEtaNeeds } from "@/lib/billing/eta";
 import { documentsNeedingAttention } from "@/lib/billing/eta/issue";
 import { EtaIssuerEditor } from "@/components/admin/eta-issuer-editor";
+import { RulesEditor, type RulesHistoryRow } from "@/components/admin/rules-editor";
+
+/** The last changes to the rules, oldest value against newest, for the list under the form. */
+async function rulesHistory(): Promise<RulesHistoryRow[]> {
+  const { settingsHistoryFor } = await import("@/lib/settings");
+  const { settingsChanges } = await import("@/lib/settings/changes");
+  const { controlDb } = await import("@/lib/db");
+  const { users } = await import("@/lib/db/schema");
+  const { inArray } = await import("drizzle-orm");
+  const rows = await settingsHistoryFor("platform", "rules", 15);
+  const ids = [...new Set(rows.map((r) => r.changedBy).filter((x): x is string => Boolean(x)))];
+  const people =
+    ids.length > 0
+      ? await controlDb
+          .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+          .from(users)
+          .where(inArray(users.id, ids))
+      : [];
+  return rows.map((r) => {
+    const who = people.find((p) => p.id === r.changedBy);
+    return {
+      when: r.changedAt.toISOString().slice(0, 16).replace("T", " ") + " UTC",
+      who: who ? `${who.firstName} ${who.lastName}` : "System",
+      changes: r.before ? settingsChanges(r.before, r.after) : [],
+    };
+  });
+}
 import { retryEtaDocuments } from "./actions";
 import { countriesMissingACrisisLine } from "@/lib/crisis/line";
 import { Money } from "@/components/ui/money";
@@ -196,6 +223,8 @@ export default async function SettingsPage() {
         tiers={settings.pricing.tiers}
         creditExpiryMonths={settings.pricing.creditExpiryMonths}
       />
+      {/* 🔴 0161: every rule the founder ruled on, with its history (docs/DECISIONS.md). */}
+      <RulesEditor rules={settings.rules} history={await rulesHistory()} />
       <SessionEditor {...settings.session} />
       <CopilotEditor {...settings.copilot} />
       <PayoutsEditor {...settings.payouts} />

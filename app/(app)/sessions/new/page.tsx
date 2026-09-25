@@ -8,7 +8,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { getConnectAccount } from "@/lib/billing/connect";
 import { organizationNeedsTransfer } from "@/lib/billing/manual-entry";
 import { listPatients } from "@/lib/data/patients";
-import { getCountrySettings, getSettings } from "@/lib/settings";
+import { getCountrySettings, getSettings, sessionVatBpsFor } from "@/lib/settings";
 import { fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -65,7 +65,9 @@ export default async function NewSessionPage({
    * would be a second opinion about the tax, and two opinions about a tax is
    * how a clinician is shown one patient total and the patient is asked another.
    */
-  const egyptVatBps = onTransferRail ? ((await getCountrySettings("eg"))?.vatBps ?? 0) : 0;
+  const egyptVatBps = onTransferRail
+    ? sessionVatBpsFor((await getSettings()).rules, (await getCountrySettings("eg"))?.vatBps ?? 0)
+    : 0;
 
   return (
     <div className="mx-auto max-w-lg">

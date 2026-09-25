@@ -549,3 +549,104 @@ export async function retryEtaDocuments(): Promise<void> {
   });
   revalidatePath("/admin/settings");
 }
+
+/**
+ * 🔴 0161 — THE RULES (docs/DECISIONS.md). Every tax, document, provider, timing
+ * and approval rule the founder ruled on, one form, one row. Unticked boxes
+ * are posted as absent, so each switch is read as "present means on".
+ */
+export async function saveRules(_prev: SettingsFormState, formData: FormData): Promise<SettingsFormState> {
+  const actor = await requireRole("super_admin");
+  const { RULES_DEFAULTS, parseGroup } = await import("@/lib/settings/defs");
+  const { settingsChanges } = await import("@/lib/settings/changes");
+  const current = await getSettings();
+
+  const text = (name: string) => String(formData.get(name) ?? "").trim();
+  const on = (name: string) => formData.get(name) === "on";
+  const whole = (name: string, min: number, max: number): number | null => {
+    const n = Number(text(name));
+    return Number.isInteger(n) && n >= min && n <= max ? n : null;
+  };
+
+  const withholdingPercent = Number(text("payoutWithholdingPercent"));
+  if (!Number.isFinite(withholdingPercent) || withholdingPercent < 0 || withholdingPercent > 50) {
+    return { error: "Withholding is a percentage between 0 and 50." };
+  }
+  const numbers = {
+    cooldown: whole("payoutDetailsCooldownHours", 0, 24 * 14),
+    sessionLink: whole("sessionLinkHours", 1, 24 * 7),
+    radarLink: whole("radarLinkHours", 1, 48),
+    bookingLink: whole("bookingLinkHoursAfterStart", 1, 48),
+    cancelWindow: whole("patientCancelWindowHours", 0, 24 * 14),
+    potWeekly: whole("potSessionsPerWeek", 0, 14),
+    walletExpiry: whole("walletExpiryMonths", 0, 120),
+  };
+  if (Object.values(numbers).some((n) => n === null)) {
+    return { error: "Every hour, count and month has to be a whole number in its range." };
+  }
+
+  const value = {
+    tax: {
+      sellerModel: text("sellerModel"),
+      sessionVat: text("sessionVat"),
+      topUpVat: text("topUpVat"),
+      payoutWithholdingBps: Math.round(withholdingPercent * 100),
+      topUpWithholding: on("topUpWithholding"),
+    },
+    documents: { topUpDocument: text("topUpDocument") },
+    approvals: {
+      payouts: on("approvePayouts"),
+      refunds: on("approveRefunds"),
+      potReturns: on("approvePotReturns"),
+      verifications: on("approveVerifications"),
+      transferWithoutProof: on("approveTransferWithoutProof"),
+      ledgerAdjustments: on("approveLedgerAdjustments"),
+      payoutDetailsCooldownHours: numbers.cooldown,
+    },
+    providers: {
+      cardGateway: text("cardGateway") || RULES_DEFAULTS.providers.cardGateway,
+      payouts: text("payoutsProvider") || RULES_DEFAULTS.providers.payouts,
+      etaSigner: text("etaSigner") || RULES_DEFAULTS.providers.etaSigner,
+    },
+    links: {
+      sessionLinkHours: numbers.sessionLink,
+      radarLinkHours: numbers.radarLink,
+      bookingLinkHoursAfterStart: numbers.bookingLink,
+    },
+    refunds: { patientCancelWindowHours: numbers.cancelWindow },
+    inPerson: {
+      payThroughUs: on("inPersonPayThroughUs"),
+      potCover: on("inPersonPotCover"),
+      potSessionsPerWeek: numbers.potWeekly,
+      priceAboveList: on("inPersonPriceAboveList"),
+      refundIfNotStarted: on("inPersonRefundIfNotStarted"),
+      refundTo: text("inPersonRefundTo"),
+    },
+    wallet: { enabled: on("walletEnabled"), expiryMonths: numbers.walletExpiry },
+  };
+
+  /* A choice outside its list is refused, not quietly replaced by a default. */
+  const parsed = parseGroup("rules", value);
+  const choices: [string, string][] = [
+    [value.tax.sellerModel, parsed.tax.sellerModel],
+    [value.tax.sessionVat, parsed.tax.sessionVat],
+    [value.tax.topUpVat, parsed.tax.topUpVat],
+    [value.documents.topUpDocument, parsed.documents.topUpDocument],
+    [value.inPerson.refundTo, parsed.inPerson.refundTo],
+  ];
+  if (choices.some(([asked, got]) => asked !== got)) return { error: "One of the choices is not on its list." };
+
+  const saved = await writeSettingsGroup({ group: "rules", value: parsed, updatedBy: actor.userId });
+  const changes = settingsChanges(current.rules, saved);
+  await audit({
+    actor,
+    category: "admin",
+    action: "settings.rules",
+    resourceType: "platform_settings",
+    resourceId: "rules",
+    reason: (changes.length > 0 ? changes.join("; ") : "no field changed").slice(0, 900),
+  });
+
+  revalidatePath("/admin/settings");
+  return { ok: changes.length > 0 ? `Saved. ${changes.length} changed from now on; nothing already charged is rewritten.` : "Nothing changed." };
+}

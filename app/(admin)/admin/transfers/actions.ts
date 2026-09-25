@@ -98,15 +98,43 @@ export async function confirmUnclaimed(
 ): Promise<TransferState> {
   const actor = await requireStaff();
 
+  const { MIN_REASON } = await import("@/lib/admin/reason");
+  if (reason.trim().length < MIN_REASON) {
+    return { error: "Say what you saw in the bank. This stays on the payment." };
+  }
+
+  /*
+   * 🔴 0161 / ruling 13c: money with no proof is money from nothing when one
+   * person confirms it. While the switch is on, the first person asks and a
+   * second confirms, with the first person's words.
+   */
+  const { getSettings } = await import("@/lib/settings");
+  const { closeApproval, secondPersonGate } = await import("@/lib/billing/approvals");
+  const gate = await secondPersonGate({
+    kind: "transfer_without_proof",
+    subjectId: paymentId,
+    payload: { paymentId },
+    reason,
+    actorUserId: actor.userId,
+    enabled: (await getSettings()).rules.approvals.transferWithoutProof,
+  });
+  if (!gate.go) {
+    revalidatePath("/admin/transfers");
+    return { ok: gate.message };
+  }
+
   const { confirmWithoutProof } = await import("@/lib/billing/manual");
   const result = await confirmWithoutProof({
     paymentId,
     byUserId: actor.userId,
-    reason,
+    reason: gate.reason,
     onConfirmed: grantFor,
   });
 
   if (result.error) return { error: result.error };
+  if (gate.approvalId) {
+    await closeApproval({ approvalId: gate.approvalId, decidedBy: actor.userId, state: "done" });
+  }
 
   revalidatePath("/admin/transfers");
   return { ok: "Credited, and the payer has been told." };

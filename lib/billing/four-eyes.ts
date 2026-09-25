@@ -31,8 +31,15 @@ export function fourEyesProblem(input: {
   ownerUserId: string | null;
   /** Rule 3 applies only to the act that moves money past the threshold. */
   movesMoney: boolean;
+  /**
+   * 🔴 0161 / ruling 13 — whether this queue needs two people at all, from
+   * `settings.rules.approvals`. Off, only rule 1 is asked: nobody ever acts on
+   * money they are the payee of, whatever the switches say.
+   */
+  twoPeople: boolean;
 }): FourEyesProblem | null {
   if (input.payeeUserId && input.payeeUserId === input.actorUserId) return "payee";
+  if (!input.twoPeople) return null;
   if (input.editorUserId && input.editorUserId === input.actorUserId) return "editor";
   if (
     input.movesMoney &&

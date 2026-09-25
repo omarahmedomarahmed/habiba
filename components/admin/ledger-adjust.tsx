@@ -52,7 +52,7 @@ export function LedgerAdjust({
   clinicians: { id: string; name: string; organizationId: string }[];
 }) {
   const [pending, start] = useTransition();
-  const [state, setState] = useState<{ error?: string; ok?: boolean }>({});
+  const [state, setState] = useState<{ error?: string; ok?: boolean; proposed?: boolean }>({});
 
   const [organizationId, setOrganizationId] = useState(organizations[0]?.id ?? "");
   const [account, setAccount] = useState<LedgerAccount>("platform_expense");
@@ -171,7 +171,11 @@ export function LedgerAdjust({
       </div>
 
       {state.error ? <p className="mt-3 text-sm text-red-600">{state.error}</p> : null}
-      {state.ok ? <p className="mt-3 text-sm text-brand-700">Posted.</p> : null}
+      {state.ok ? (
+        <p className="mt-3 text-sm text-brand-700">
+          {state.proposed ? "Asked. A second admin posts it." : "Posted."}
+        </p>
+      ) : null}
 
       <Button
         className="mt-4"
@@ -188,7 +192,7 @@ export function LedgerAdjust({
               reason: reason.trim(),
               idempotencyKey: key,
             });
-            setState(result.error ? { error: result.error } : { ok: true });
+            setState(result.error ? { error: result.error } : { ok: true, proposed: result.proposed });
             if (!result.error) {
               setDollars("");
               setReason("");

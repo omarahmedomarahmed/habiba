@@ -316,7 +316,7 @@ export function PayoutsEditor({
       <p className="text-sm font-semibold text-slate-900">The manual rail</p>
       <p className="mt-1 text-xs text-slate-500">
         A new Egyptian collection provider is configuration, not code. The two-person
-        threshold cannot be switched off; 0 makes every payout need two people.
+        threshold applies while Rules asks for two people on payouts or refunds.
       </p>
 
       <form action={action} className="mt-3 space-y-3">

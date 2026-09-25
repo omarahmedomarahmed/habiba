@@ -4292,6 +4292,14 @@ export const en = {
   "apayout.sendProvider": "Send via provider",
   "apayout.providerSending": "Provider sending",
   "apayout.providerFailed": "Provider failed",
+  // 0161 second-person approvals
+  "appr.title": "Waiting for a second person",
+  "appr.transfer": "Transfer with no proof",
+  "appr.ledger": "Ledger adjustment",
+  "appr.askedBy": "Asked by {name}",
+  "appr.complete": "Complete",
+  "appr.decline": "Decline",
+  "appr.yours": "Yours. Another admin completes it.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -7805,6 +7813,14 @@ export const ar: Record<MessageKey, string> = {
   "apayout.sendProvider": "أرسلها عبر المزوّد",
   "apayout.providerSending": "المزوّد يرسلها",
   "apayout.providerFailed": "تعذّر على المزوّد",
+  // 0161 second-person approvals
+  "appr.title": "بانتظار شخص ثانٍ",
+  "appr.transfer": "تحويل بلا إثبات",
+  "appr.ledger": "تعديل في الدفاتر",
+  "appr.askedBy": "طلبه {name}",
+  "appr.complete": "أكمِله",
+  "appr.decline": "ارفضه",
+  "appr.yours": "طلبك أنت. يكمله مشرف آخر.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

@@ -424,7 +424,10 @@ export async function createSession(
       // outlive the session, because a patient who closed the tab should still
       // be able to rate it days later.
       feedbackToken: randomBytes(24).toString("base64url"),
-      joinTokenExpiresAt: needsLink ? new Date(Date.now() + 12 * 60 * 60 * 1000) : null,
+      /* 🔴 0161: how long a link works is a setting (rules.links). */
+      joinTokenExpiresAt: needsLink
+        ? new Date(Date.now() + (await getSettings()).rules.links.sessionLinkHours * 60 * 60 * 1000)
+        : null,
       priceCents: price,
       /*
        * 🔴 0149 — dollars, the currency the books and every payment path are
@@ -487,7 +490,9 @@ export async function createRadarSession(input: {
       joinToken: randomBytes(24).toString("base64url"),
       feedbackToken: randomBytes(24).toString("base64url"),
       // Short: this is a session starting now, not an invitation for later.
-      joinTokenExpiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
+      joinTokenExpiresAt: new Date(
+        Date.now() + (await getSettings()).rules.links.radarLinkHours * 60 * 60 * 1000,
+      ),
       priceCents: input.priceCents,
       priceCurrency: "usd",
       paymentStatus: input.priceCents > 0 ? "pending" : "not_required",

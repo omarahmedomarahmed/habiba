@@ -11,7 +11,7 @@ import {
 } from "@/lib/billing/manual-entry";
 import { patientOwesFor } from "@/lib/billing/session-owed";
 import { resolveJoinToken } from "@/lib/data/sessions";
-import { convertAtRate, getCountrySettings, getSettings, sessionMoney } from "@/lib/settings";
+import { convertAtRate, getCountrySettings, getSettings, sessionMoney, sessionVatBpsFor } from "@/lib/settings";
 import { uploadDocument } from "@/lib/uploads";
 
 export type PayState = {
@@ -92,10 +92,12 @@ export async function priceFor(token: string, countryCode: string): Promise<Brea
    * jurisdiction of the entity holding it, and taxing it again here would
    * charge the same money twice in a country with no claim on it.
    */
+  /* 🔴 Ruling 2: exempt by default; the country's rate only when the rule says so. */
+  const sessionVatBps = sessionVatBpsFor(settings.rules, country.vatBps);
   const money = sessionMoney({
     grossCents: owed.grossCents,
     feeBps: settings.session.platformFeeBps,
-    vatBps: country.vatBps,
+    vatBps: sessionVatBps,
   });
 
   const quote = await quoteFor("usd", country.currency);
@@ -105,7 +107,7 @@ export async function priceFor(token: string, countryCode: string): Promise<Brea
     countryCode: country.code,
     countryName: country.name,
     currency: country.currency,
-    vatBps: country.vatBps,
+    vatBps: sessionVatBps,
     grossCents: money.grossCents,
     vatCents: money.vatCents,
     totalCents: money.patientTotalCents,

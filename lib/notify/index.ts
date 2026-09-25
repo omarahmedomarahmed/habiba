@@ -163,6 +163,8 @@ export type Message = {
     | "payout.returned"
     /** 🔴 16.3b — the ageing alert. A dashboard at 3am is not an alert. */
     | "payout.overdue"
+    /** 🔴 0161: once a day, every money act one person did alone, to the super admins. */
+    | "ops.oneHandDigest"
     /** 🔴 W1-16: a clinician's licence ran out, or will within 30 days. */
     | "licence.expired"
     | "licence.expiring"

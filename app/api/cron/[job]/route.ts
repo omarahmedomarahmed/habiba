@@ -242,6 +242,10 @@ const JOBS = {
     const { alertAgedPayouts } = await import("@/lib/billing/payouts");
     const aged = await step(failed, "alertAgedPayouts", () => alertAgedPayouts());
 
+    /* 🔴 0161 / ruling 13: every money act one person did alone, told to the super admins daily. */
+    const { sendOneHandDigest } = await import("@/lib/billing/approvals");
+    const oneHand = await step(failed, "sendOneHandDigest", () => sendOneHandDigest());
+
     /*
      * 🔴 53.19b / C247 — the re-verification cycle, and it is here rather than on
      * a schedule of its own for the reason at the top of this file: a job that
@@ -408,6 +412,7 @@ const JOBS = {
       released: released?.released,
       centsMoved: released?.centsMoved,
       payoutsAlerted: aged?.alerted,
+      oneHandActions: oneHand?.lines,
       benefitsPaused: reverified?.paused,
       potsOutOfBalance: potDrift?.length,
       potAlerts: potAlerts?.alerted,

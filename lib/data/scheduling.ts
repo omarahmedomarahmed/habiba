@@ -18,6 +18,7 @@ import {
   type AvailabilitySlot,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
+import { getSettings } from "@/lib/settings";
 import { HOLD_MS, isWholeHour, shouldAutoOffline } from "@/lib/scheduling/hours";
 import { parseDayKey, usable, zonedHourToUtc } from "@/lib/scheduling/tz";
 
@@ -589,7 +590,11 @@ export async function bookSlot(input: {
        * session was due to start.
        */
       joinToken: randomBytes(24).toString("base64url"),
-      joinTokenExpiresAt: new Date(slot.startsAt.getTime() + 4 * 60 * 60 * 1000),
+      /* 🔴 0161: rules.links.bookingLinkHoursAfterStart, four by default. */
+      joinTokenExpiresAt: new Date(
+        slot.startsAt.getTime() +
+          (await getSettings()).rules.links.bookingLinkHoursAfterStart * 60 * 60 * 1000,
+      ),
       priceCents: slot.sessionRateCents ?? 0,
       paymentStatus: (slot.sessionRateCents ?? 0) > 0 ? "pending" : "not_required",
     })
@@ -850,6 +855,19 @@ export async function releaseUnconfirmedBookings(now = new Date()): Promise<Rele
         gt(sessions.priceCents, 0),
         lt(sessions.createdAt, staleBefore),
         gt(availabilitySlots.startsAt, soonest),
+        /*
+         * 🔴 25 September inventory: a transfer the patient declared, or one the
+         * operators are checking, or a card payment that landed or is still in
+         * flight, is money on its way. The booking is not "unconfirmed" and is
+         * never released under it.
+         */
+        sql`NOT EXISTS (SELECT 1 FROM manual_payments m
+                         WHERE m.purpose = 'session' AND m.ref_id = ${qualified(sessions.id)}
+                           AND (m.state IN ('submitted', 'confirmed')
+                                OR (m.state = 'awaiting_proof' AND m.reference IS NOT NULL)))`,
+        sql`NOT EXISTS (SELECT 1 FROM gateway_payments g
+                         WHERE g.ref_id = ${qualified(sessions.id)}
+                           AND (g.state = 'paid' OR g.created_at > now() - interval '1 hour'))`,
       ),
     )
     .limit(200);
@@ -857,6 +875,32 @@ export async function releaseUnconfirmedBookings(now = new Date()): Promise<Rele
   const released: ReleasedBooking[] = [];
 
   for (const row of candidates) {
+    /*
+     * 🔴 A partly covered booking has the company's share taken already. It goes
+     * back to the pot BEFORE the hour is freed, and if it cannot, nothing is
+     * released: a cancelled session holding a company's money is the one
+     * outcome this job must never produce.
+     */
+    const potShare = await db.execute<{ id: string }>(sql`
+      SELECT sp.id FROM session_payments sp
+       WHERE sp.session_id = ${row.sessionId} AND sp.funding_source = 'pot' AND sp.status <> 'refunded'
+       LIMIT 1`);
+    const potPaymentId = (potShare.rows[0] as { id: string } | undefined)?.id;
+    if (potPaymentId) {
+      const { refundToPot } = await import("@/lib/billing/pot");
+      const back = await refundToPot({
+        paymentId: potPaymentId,
+        reason: "Booking released: the patient's share was never paid",
+      });
+      if (back.error) {
+        log.error("unconfirmed booking kept: company share not returned", {
+          session: ref(row.sessionId),
+          reason: back.error,
+        });
+        continue;
+      }
+    }
+
     /*
      * Conditional on everything that made it a candidate, so a payment that
      * landed between the SELECT and here wins. The slot is only freed if this
@@ -888,9 +932,10 @@ export async function releaseUnconfirmedBookings(now = new Date()): Promise<Rele
 
     if (!freed) continue;
 
+    /* The link in the confirmation email dies with the booking (25 September inventory). */
     await db
       .update(sessions)
-      .set({ status: "cancelled", updatedAt: now })
+      .set({ status: "cancelled", joinToken: null, joinTokenExpiresAt: null, updatedAt: now })
       .where(and(eq(sessions.id, row.sessionId), eq(sessions.paymentStatus, "pending")));
 
     released.push(row);

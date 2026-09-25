@@ -50,6 +50,7 @@ import { sql } from "drizzle-orm";
 
 import { readSource, reporter, writesTo } from "./_verify";
 import { connect } from "./db";
+import { setRulesForThisCheck } from "./_rules";
 
 const { check, finish } = reporter();
 
@@ -787,5 +788,12 @@ async function main() {
 
   finish("the money edges");
 }
+
+/*
+ * 🔴 0161: these edges test the VAT arithmetic on a share, so they run on the
+ * country rate. Ruling 2 makes a session exempt by default (verify:rules, verify:cycle);
+ * this keeps the arithmetic proven for the day counsel says otherwise.
+ */
+setRulesForThisCheck({ tax: { sessionVat: "standard" } });
 
 main();

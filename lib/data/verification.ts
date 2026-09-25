@@ -288,8 +288,16 @@ export async function decideVerification(opts: {
     )
     .limit(1);
   if (!current) return null;
+  /*
+   * 🔴 0161 / ruling 13: verification is urgent (a patient may be waiting in
+   * the room), so one reviewer decides unless the switch asks for two. Nobody
+   * ever decides their own: the query above refuses that whatever the switch.
+   */
+  const { getSettings } = await import("@/lib/settings");
+  const twoPeople = (await getSettings()).rules.approvals.verifications;
   const confirms =
-    current.proposedBy !== null && current.proposedBy !== opts.adminUserId && current.proposedApprove === opts.approve;
+    !twoPeople ||
+    (current.proposedBy !== null && current.proposedBy !== opts.adminUserId && current.proposedApprove === opts.approve);
   if (!confirms) {
     await db
       .update(therapistVerifications)

@@ -505,7 +505,234 @@ export type PlatformSettings = {
      */
     measuredSince: string | null;
   };
+  /**
+   * 🔴 0161 — THE RULES, AS SETTINGS (docs/DECISIONS.md, rounds one and two).
+   *
+   * Every tax, document, provider, timing and approval rule the founder ruled
+   * on, and every one counsel or the accountant may still change. Each field
+   * says whether the code applies it today or only stores it until the ruling
+   * that gives it effect (docs/LONG-TERM.md). A stored-only field is shown as
+   * such on the settings screen, so nobody reads a switch as a working rule.
+   *
+   * History: every save lands in `settings_history` with the whole value
+   * before and after, and a change only ever prices what happens next.
+   */
+  rules: RulesSettings;
 };
+
+export type SellerModel = "agent" | "principal";
+export type SessionVatRule = "exempt" | "standard";
+export type TopUpVatRule = "standard" | "exempt";
+export type TopUpDocumentRule = "receipt_and_eta_invoice" | "deposit_and_monthly_invoice";
+export type RefundTo = "wallet" | "card";
+
+export type RulesSettings = {
+  tax: {
+    /** Ruling 1. Stored; decides document wording once counsel answers Q1. */
+    sellerModel: SellerModel;
+    /**
+     * Ruling 2, APPLIED. `exempt` puts no VAT on the session price a patient
+     * pays (VAT Law 67/2016, exempt list item 39). `standard` charges the
+     * country's rate on it, as the product did before 25 September.
+     */
+    sessionVat: SessionVatRule;
+    /**
+     * APPLIED to company top-ups and returns. `standard` is the country rate on
+     * the whole top-up, as today; `exempt` is none. Waiting on counsel Q2 and Q7.
+     */
+    topUpVat: TopUpVatRule;
+    /** Ruling 3, stored only, 0 until counsel answers Q5. Basis points. */
+    payoutWithholdingBps: number;
+    /** Stored only until counsel answers Q6: may a company deduct tax from a top-up. */
+    topUpWithholding: boolean;
+  };
+  documents: {
+    /** Ruling 4. B now; C built behind this switch, waiting on counsel Q7. */
+    topUpDocument: TopUpDocumentRule;
+  };
+  /**
+   * Ruling 13 and 13c, APPLIED. True means that act needs a second person.
+   * Nobody ever approves their own payout, whatever these say.
+   */
+  approvals: {
+    payouts: boolean;
+    refunds: boolean;
+    potReturns: boolean;
+    verifications: boolean;
+    transferWithoutProof: boolean;
+    ledgerAdjustments: boolean;
+    /** Hours a changed payout destination waits before the next payout. APPLIED. */
+    payoutDetailsCooldownHours: number;
+  };
+  /** Ruling 12 and 13b. Names only; keys stay in the environment. */
+  providers: {
+    cardGateway: string;
+    payouts: string;
+    etaSigner: string;
+  };
+  /** How long a link works, APPLIED. */
+  links: {
+    sessionLinkHours: number;
+    radarLinkHours: number;
+    bookingLinkHoursAfterStart: number;
+  };
+  refunds: {
+    /** Ruling 16: a paid booking cancelled this long before its start is refunded in full. */
+    patientCancelWindowHours: number;
+  };
+  /** Rulings 5b to 5e. Applied by the in-person paid flow. */
+  inPerson: {
+    payThroughUs: boolean;
+    potCover: boolean;
+    potSessionsPerWeek: number;
+    priceAboveList: boolean;
+    refundIfNotStarted: boolean;
+    refundTo: RefundTo;
+  };
+  /** Ruling 7. Applied by the wallet. 0 months means credit never expires. */
+  wallet: {
+    enabled: boolean;
+    expiryMonths: number;
+  };
+};
+
+export const RULES_DEFAULTS: RulesSettings = {
+  tax: {
+    sellerModel: "agent",
+    sessionVat: "exempt",
+    topUpVat: "standard",
+    payoutWithholdingBps: 0,
+    topUpWithholding: false,
+  },
+  documents: { topUpDocument: "receipt_and_eta_invoice" },
+  approvals: {
+    payouts: false,
+    refunds: true,
+    potReturns: false,
+    verifications: false,
+    transferWithoutProof: true,
+    ledgerAdjustments: true,
+    payoutDetailsCooldownHours: 24,
+  },
+  providers: { cardGateway: "paymob", payouts: "paymob", etaSigner: "external" },
+  links: { sessionLinkHours: 12, radarLinkHours: 3, bookingLinkHoursAfterStart: 4 },
+  refunds: { patientCancelWindowHours: 24 },
+  inPerson: {
+    payThroughUs: true,
+    potCover: true,
+    potSessionsPerWeek: 2,
+    priceAboveList: false,
+    refundIfNotStarted: true,
+    refundTo: "wallet",
+  },
+  wallet: { enabled: true, expiryMonths: 0 },
+};
+
+function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
+}
+
+function bool(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function parseRules(value: unknown): RulesSettings {
+  const d = RULES_DEFAULTS;
+  const v = record(value);
+  const tax = record(v.tax);
+  const documents = record(v.documents);
+  const approvals = record(v.approvals);
+  const providers = record(v.providers);
+  const links = record(v.links);
+  const refunds = record(v.refunds);
+  const inPerson = record(v.inPerson);
+  const wallet = record(v.wallet);
+  return {
+    tax: {
+      sellerModel: oneOf(tax.sellerModel, ["agent", "principal"] as const, d.tax.sellerModel),
+      sessionVat: oneOf(tax.sessionVat, ["exempt", "standard"] as const, d.tax.sessionVat),
+      topUpVat: oneOf(tax.topUpVat, ["standard", "exempt"] as const, d.tax.topUpVat),
+      payoutWithholdingBps: int(tax.payoutWithholdingBps, d.tax.payoutWithholdingBps, {
+        min: 0,
+        max: 5_000,
+      }),
+      topUpWithholding: bool(tax.topUpWithholding, d.tax.topUpWithholding),
+    },
+    documents: {
+      topUpDocument: oneOf(
+        documents.topUpDocument,
+        ["receipt_and_eta_invoice", "deposit_and_monthly_invoice"] as const,
+        d.documents.topUpDocument,
+      ),
+    },
+    approvals: {
+      payouts: bool(approvals.payouts, d.approvals.payouts),
+      refunds: bool(approvals.refunds, d.approvals.refunds),
+      potReturns: bool(approvals.potReturns, d.approvals.potReturns),
+      verifications: bool(approvals.verifications, d.approvals.verifications),
+      transferWithoutProof: bool(approvals.transferWithoutProof, d.approvals.transferWithoutProof),
+      ledgerAdjustments: bool(approvals.ledgerAdjustments, d.approvals.ledgerAdjustments),
+      payoutDetailsCooldownHours: int(
+        approvals.payoutDetailsCooldownHours,
+        d.approvals.payoutDetailsCooldownHours,
+        { min: 0, max: 24 * 14 },
+      ),
+    },
+    providers: {
+      cardGateway: str(providers.cardGateway, d.providers.cardGateway),
+      payouts: str(providers.payouts, d.providers.payouts),
+      etaSigner: str(providers.etaSigner, d.providers.etaSigner),
+    },
+    links: {
+      sessionLinkHours: int(links.sessionLinkHours, d.links.sessionLinkHours, { min: 1, max: 24 * 7 }),
+      radarLinkHours: int(links.radarLinkHours, d.links.radarLinkHours, { min: 1, max: 48 }),
+      bookingLinkHoursAfterStart: int(
+        links.bookingLinkHoursAfterStart,
+        d.links.bookingLinkHoursAfterStart,
+        { min: 1, max: 48 },
+      ),
+    },
+    refunds: {
+      patientCancelWindowHours: int(
+        refunds.patientCancelWindowHours,
+        d.refunds.patientCancelWindowHours,
+        { min: 0, max: 24 * 14 },
+      ),
+    },
+    inPerson: {
+      payThroughUs: bool(inPerson.payThroughUs, d.inPerson.payThroughUs),
+      potCover: bool(inPerson.potCover, d.inPerson.potCover),
+      potSessionsPerWeek: int(inPerson.potSessionsPerWeek, d.inPerson.potSessionsPerWeek, {
+        min: 0,
+        max: 14,
+      }),
+      priceAboveList: bool(inPerson.priceAboveList, d.inPerson.priceAboveList),
+      refundIfNotStarted: bool(inPerson.refundIfNotStarted, d.inPerson.refundIfNotStarted),
+      refundTo: oneOf(inPerson.refundTo, ["wallet", "card"] as const, d.inPerson.refundTo),
+    },
+    wallet: {
+      enabled: bool(wallet.enabled, d.wallet.enabled),
+      expiryMonths: int(wallet.expiryMonths, d.wallet.expiryMonths, { min: 0, max: 120 }),
+    },
+  };
+}
+
+/**
+ * 🔴 Ruling 2 — the VAT on a session price, from the rule and the country.
+ *
+ * One function, so the pay page, the transfer quote, the card checkout and the
+ * new-session preview can never disagree about whether a patient pays VAT.
+ */
+export function sessionVatBpsFor(rules: RulesSettings, countryVatBps: number): number {
+  return rules.tax.sessionVat === "exempt" ? 0 : Math.max(0, countryVatBps);
+}
+
+/** The VAT on a company top-up or its return, from the rule and the country. */
+export function topUpVatBpsFor(rules: RulesSettings, countryVatBps: number): number {
+  return rules.tax.topUpVat === "exempt" ? 0 : Math.max(0, countryVatBps);
+}
 
 /**
  * The seed, and the fallback.
@@ -709,6 +936,7 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     muteRateHalt: 0.2,
     measuredSince: null,
   },
+  rules: RULES_DEFAULTS,
 };
 
 export type SettingsGroup = keyof PlatformSettings;
@@ -1325,6 +1553,9 @@ export function parseGroup<G extends SettingsGroup>(
         measuredSince: since && !Number.isNaN(since.getTime()) ? since.toISOString() : null,
       } as PlatformSettings[G];
     }
+
+    case "rules":
+      return parseRules(value) as PlatformSettings[G];
 
     default:
       return d[group];

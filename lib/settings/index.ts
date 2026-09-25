@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { cache } from "react";
 
 import { controlDb as db } from "@/lib/db";
-import { countrySettings, platformSettings } from "@/lib/db/schema";
+import { countrySettings, platformSettings, settingsHistory } from "@/lib/db/schema";
 import { log, safeErrorMessage } from "@/lib/logger";
 
 import {
@@ -41,6 +41,28 @@ export * from "./defs";
  * It is one indexed read of four small rows. If it ever shows up in a trace,
  * the fix is a cache with explicit invalidation on write, not a timer.
  */
+/**
+ * 🔴 0161 — a verifier states which position of a rule switch it tests, in its
+ * own process, without writing the shared row (`scripts/_rules.ts`). A value
+ * on `globalThis` rather than an import, so a check can set it before any of
+ * the application's modules (and its environment) have loaded. Never set by
+ * the application, and ignored outright on a deployment.
+ */
+const OVERRIDE_KEY = "__24tRulesOverrideForChecks";
+
+function withOverride(settings: PlatformSettings): PlatformSettings {
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") return settings;
+  const patch = (globalThis as Record<string, unknown>)[OVERRIDE_KEY] as
+    | Partial<Record<string, object>>
+    | undefined;
+  if (!patch) return settings;
+  const rules = { ...settings.rules } as Record<string, object>;
+  for (const [key, part] of Object.entries(patch)) {
+    rules[key] = { ...(rules[key] ?? {}), ...(part ?? {}) };
+  }
+  return { ...settings, rules: rules as PlatformSettings["rules"] };
+}
+
 export const getSettings = cache(async (): Promise<PlatformSettings> => {
   try {
     const rows = await db
@@ -54,7 +76,7 @@ export const getSettings = cache(async (): Promise<PlatformSettings> => {
       // which is exactly what an unseeded database should do.
       out[group] = parseGroup(group, stored.get(group)) as never;
     }
-    return out;
+    return withOverride(out);
   } catch (error) {
     /*
      * The database is unreachable and we still have to answer.
@@ -67,7 +89,7 @@ export const getSettings = cache(async (): Promise<PlatformSettings> => {
      * loud enough to find.
      */
     log.error("settings read failed, using defaults", { reason: safeErrorMessage(error) });
-    return SETTINGS_DEFAULTS;
+    return withOverride(SETTINGS_DEFAULTS);
   }
 });
 
@@ -121,6 +143,11 @@ export async function writeSettingsGroup<G extends SettingsGroup>(input: {
   updatedBy: string | null;
 }): Promise<PlatformSettings[G]> {
   const parsed = parseGroup(input.group, input.value);
+  const [previous] = await db
+    .select({ value: platformSettings.value })
+    .from(platformSettings)
+    .where(eq(platformSettings.key, input.group))
+    .limit(1);
   await db
     .insert(platformSettings)
     .values({
@@ -133,6 +160,17 @@ export async function writeSettingsGroup<G extends SettingsGroup>(input: {
       target: platformSettings.key,
       set: { value: parsed as never, updatedBy: input.updatedBy, updatedAt: new Date() },
     });
+  /*
+   * 🔴 0161 — the whole value before and after, whichever form saved it. A form's
+   * own audit line says what it meant to change; this row says what did.
+   */
+  await db.insert(settingsHistory).values({
+    scope: "platform",
+    key: input.group,
+    before: (previous?.value ?? null) as never,
+    after: parsed as never,
+    changedBy: input.updatedBy,
+  });
   return parsed;
 }
 
@@ -141,6 +179,11 @@ export async function writeCountrySettings(input: {
   updatedBy: string | null;
 }): Promise<void> {
   const c = parseCountry(input.country);
+  const [previous] = await db
+    .select()
+    .from(countrySettings)
+    .where(eq(countrySettings.code, c.code))
+    .limit(1);
   await db
     .insert(countrySettings)
     .values({
@@ -194,6 +237,13 @@ export async function writeCountrySettings(input: {
         updatedAt: new Date(),
       },
     });
+  await db.insert(settingsHistory).values({
+    scope: "country",
+    key: c.code,
+    before: (previous ? parseCountry(previous) : null) as never,
+    after: c as never,
+    changedBy: input.updatedBy,
+  });
 }
 
 /**
@@ -240,6 +290,17 @@ export async function seedSettings(): Promise<{ groups: number; countries: numbe
   }
 
   return { groups, countries };
+}
+
+/** 🔴 0161 — the last changes to one group or country, newest first, for the settings screen. */
+export async function settingsHistoryFor(scope: "platform" | "country", key: string, limit = 20) {
+  const { desc, and } = await import("drizzle-orm");
+  return db
+    .select()
+    .from(settingsHistory)
+    .where(and(eq(settingsHistory.scope, scope), eq(settingsHistory.key, key)))
+    .orderBy(desc(settingsHistory.changedAt))
+    .limit(limit);
 }
 
 /** Used by the reprice script and by tests that need a clean read. */

@@ -220,8 +220,8 @@ async function main() {
     const money = await sessionTransferMoney({ organizationId: org.id, priceCents: 2000 });
 
     check(
-      "🔴 an Egyptian session adds VAT on top, so 1,000 EGP of therapy is 1,140 to send",
-      money.vatCents === 280 && money.settlesCents === 2280,
+      "🔴 ruling 2: therapy is VAT-exempt, so 1,000 EGP of therapy is 1,000 to send",
+      money.vatCents === 0 && money.settlesCents === 2000,
       `$${money.grossCents / 100} + $${money.vatCents / 100} tax = ${egpMinorFor(money.settlesCents, rate) / 100} EGP`,
     );
 

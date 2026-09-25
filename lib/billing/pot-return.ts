@@ -76,6 +76,9 @@ export async function sendPotReturn(input: { id: string; sentBy: string; bankRef
 
   const { journal } = await import("./ledger");
   let sent: { sponsorId: string; netCents: number; vatCents: number; egpMinor: number } | null = null;
+  /* 🔴 0161 / ruling 13: off by default, so the person who asked may also send. */
+  const { getSettings } = await import("@/lib/settings");
+  const twoPeople = (await getSettings()).rules.approvals.potReturns;
   try {
     sent = await db.transaction(async (tx) => {
       const [row] = await tx
@@ -85,7 +88,9 @@ export async function sendPotReturn(input: { id: string; sentBy: string; bankRef
         .for("update")
         .limit(1);
       if (!row) throw new Refused("That return is no longer waiting.");
-      if (row.requestedBy === input.sentBy) throw new Refused("A second person sends what the first one asked for.");
+      if (twoPeople && row.requestedBy === input.sentBy) {
+        throw new Refused("A second person sends what the first one asked for.");
+      }
 
       const fell = await tx.execute(sql`
         UPDATE sponsor_pots

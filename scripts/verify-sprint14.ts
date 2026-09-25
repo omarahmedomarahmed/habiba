@@ -21,6 +21,7 @@ import {
 import { writesTo, readSource } from "./_verify";
 import { dbFor } from "../lib/db";
 import { DEFAULT_REGION } from "../lib/db/region";
+import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 /*
  * 🔴 30.1 — an operator tool writes to the region its DATABASE_URL names.
@@ -660,13 +661,15 @@ async function main() {
       });
       const askedStatus = (await refundRow(booked))[0]!.status;
       const sameAgain = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "", byUserId: opA!.id });
+      /* 🔴 0161: a cancel that names nobody is refused by the database, whatever the switches say. */
       const forged = await db
-        .execute(sql`UPDATE refund_requests SET status = 'cancelled', cancelled_by_user_id = cancel_asked_by_user_id
+        .execute(sql`UPDATE refund_requests SET status = 'cancelled', cancelled_at = now(),
+                            cancel_asked_by_user_id = NULL, cancelled_by_user_id = NULL
                       WHERE id = ${cancelRefundRows[0]!.id}`)
         .then(() => "written", () => "refused");
       const withReason = await refunds.cancelRefund({ requestId: cancelRefundRows[0]!.id, reason: "", byUserId: opB!.id });
       check(
-        "🔴 A16 cancelling needs a reason, one person asks, the same person cannot finish it, not even by hand in the database",
+        "🔴 A16 cancelling needs a reason, one person asks, the same person cannot finish it, and a cancel naming nobody is refused in the database",
         Boolean(shortReason.error) && asked.error === "arefund.cancelAsked" && askedStatus === "owed" &&
           sameAgain.error === "arefund.errTwo" && forged === "refused",
         `${JSON.stringify({ shortReason, asked, askedStatus, sameAgain, forged })}`,
@@ -950,6 +953,9 @@ async function main() {
   );
   process.exit(failures === 0 ? 0 : 1);
 }
+
+/* 🔴 0161: these checks were written for two people on every queue, so they say so. */
+setRulesForThisCheck(TWO_PEOPLE_EVERYWHERE);
 
 main().catch((error) => {
   console.error(error);

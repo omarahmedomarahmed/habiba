@@ -192,7 +192,10 @@ export async function returnPotShare(input: {
   if (!row || row.status !== "owed" || row.reason !== POT_SHARE_REFUND) {
     return { error: "arefund.errMoved" };
   }
-  if (row.requestedByUserId === input.actorUserId) return { error: "arefund.errTwo" };
+  /* 🔴 0161: the opener may not also return it while refunds need two people. */
+  if ((await getSettings()).rules.approvals.refunds && row.requestedByUserId === input.actorUserId) {
+    return { error: "arefund.errTwo" };
+  }
 
   const { refundToPot } = await import("./pot");
   const pot = await refundToPot({
@@ -312,6 +315,10 @@ export async function markRefundSent(input: {
    * recorded destination, whatever was typed this time. At any amount: the
    * threshold below is about how much, this is about where.
    */
+  /* 🔴 0161 / ruling 13: refunds keep two people by default; the switch can drop it to one. */
+  const settings = await getSettings();
+  const twoPeople = settings.rules.approvals.refunds;
+  let recordedNow = false;
   if (!row.payeeIdentifier || !row.payeeSetByUserId) {
     if (!destinationTyped) return { error: "arefund.errProof" };
     await db
@@ -324,22 +331,25 @@ export async function markRefundSent(input: {
         updatedAt: new Date(),
       })
       .where(and(eq(refundRequests.id, input.requestId), eq(refundRequests.status, "owed")));
-    return { error: "arefund.destinationSaved" };
+    if (twoPeople) return { error: "arefund.destinationSaved" };
+    recordedNow = true;
+  } else if (twoPeople && row.payeeSetByUserId === input.senderUserId) {
+    return { error: "arefund.errTwo" };
   }
-  if (row.payeeSetByUserId === input.senderUserId) return { error: "arefund.errTwo" };
   if (proof.length < 5) return { error: "arefund.errProof" };
-  const destination = {
-    method: row.payeeMethod ?? method,
-    identifier: row.payeeIdentifier,
-    accountName: row.payeeAccountName ?? accountName,
-  };
+  const destination = recordedNow
+    ? { method, identifier, accountName }
+    : {
+        method: row.payeeMethod ?? method,
+        identifier: row.payeeIdentifier ?? identifier,
+        accountName: row.payeeAccountName ?? accountName,
+      };
 
   /*
    * W2-A01 / D9: the payout queue's rule, asked of the same function. The
    * person who opened the refund is its "editor": they named what is owed and
    * may not also be the one who sends it.
    */
-  const settings = await getSettings();
   const problem = fourEyesProblem({
     actorUserId: input.senderUserId,
     payeeUserId: null,
@@ -348,6 +358,7 @@ export async function markRefundSent(input: {
     thresholdCents: settings.payouts.twoPersonThresholdCents,
     ownerUserId: row.ownerUserId,
     movesMoney: true,
+    twoPeople,
   });
   if (problem) return { error: "arefund.errTwo" };
 
@@ -479,6 +490,28 @@ export async function cancelRefund(input: { requestId: string; reason: string; b
     .where(eq(refundRequests.id, input.requestId))
     .limit(1);
   if (!row || row.status !== "owed") return { error: "arefund.errMoved" };
+  /* 🔴 0161: one person asks and cancels in one step when refunds need only one. */
+  const twoPeople = (await getSettings()).rules.approvals.refunds;
+
+  if (!row.askedBy && !twoPeople) {
+    const reason = input.reason.trim();
+    if (reason.length < 5) return { error: "arefund.errReason" };
+    const now = new Date();
+    const done = await db
+      .update(refundRequests)
+      .set({
+        status: "cancelled",
+        cancelAskedByUserId: input.byUserId,
+        cancelAskedAt: now,
+        cancelledReason: reason.slice(0, 300),
+        cancelledByUserId: input.byUserId,
+        cancelledAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(refundRequests.id, input.requestId), eq(refundRequests.status, "owed")))
+      .returning({ id: refundRequests.id });
+    return done.length ? { ok: true } : { error: "arefund.errMoved" };
+  }
 
   if (!row.askedBy) {
     const reason = input.reason.trim();
@@ -491,7 +524,7 @@ export async function cancelRefund(input: { requestId: string; reason: string; b
     return asked.length ? { error: "arefund.cancelAsked" } : { error: "arefund.errMoved" };
   }
 
-  if (row.askedBy === input.byUserId) return { error: "arefund.errTwo" };
+  if (twoPeople && row.askedBy === input.byUserId) return { error: "arefund.errTwo" };
   const updated = await db
     .update(refundRequests)
     .set({ status: "cancelled", cancelledByUserId: input.byUserId, cancelledAt: new Date(), updatedAt: new Date() })
@@ -596,7 +629,9 @@ export async function refundQueue(): Promise<RefundQueueRow[]> {
     status: row.status,
     reason: row.reason,
     owned: row.ownerUserId !== null,
-    needsTwoPeople: row.amountCents > settings.payouts.twoPersonThresholdCents,
+    /* 🔴 0161: only while the refunds switch asks for two people. */
+    needsTwoPeople:
+      settings.rules.approvals.refunds && row.amountCents > settings.payouts.twoPersonThresholdCents,
     createdAt: row.createdAt,
     proofUrl: row.proofUrl,
     destination: row.payeeIdentifier

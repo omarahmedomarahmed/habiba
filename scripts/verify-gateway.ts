@@ -33,6 +33,7 @@ import { sql } from "drizzle-orm";
 
 import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
+import { setRulesForThisCheck, TWO_PEOPLE_EVERYWHERE } from "./_rules";
 
 const { check, finish } = reporter();
 const fixture = `gw-${Date.now().toString(36)}`;
@@ -429,5 +430,9 @@ async function main() {
 
   finish("64.1 gateway");
 }
+
+/* 🔴 0161: these checks were written for two people on every queue, so they say so. */
+/* …and the VAT legs are part of what it proves, so it runs on the country rate (ruling 2 is proven in verify:rules). */
+setRulesForThisCheck({ ...TWO_PEOPLE_EVERYWHERE, tax: { sessionVat: "standard" } });
 
 void main();

@@ -642,21 +642,57 @@ export async function adjustLedger(input: {
   if (!LEDGER_ACCOUNTS.includes(input.account)) return { error: "Unknown account." };
 
   /*
+   * 🔴 0161 / ruling 13c: a hand-made ledger entry is money from nothing when
+   * one person makes it. While the switch is on, the first person writes the
+   * whole entry down and a second posts exactly that entry.
+   */
+  const { getSettings } = await import("@/lib/settings");
+  const { closeApproval, secondPersonGate } = await import("@/lib/billing/approvals");
+  const gate = await secondPersonGate({
+    kind: "ledger_adjustment",
+    subjectId: String(input.idempotencyKey ?? ""),
+    payload: {
+      organizationId: input.organizationId,
+      therapistId: typeof input.therapistId === "string" && input.therapistId ? input.therapistId : null,
+      account: input.account,
+      amountCents: input.amountCents,
+      idempotencyKey: String(input.idempotencyKey ?? ""),
+    },
+    reason: input.reason,
+    actorUserId: actor.userId,
+    enabled: (await getSettings()).rules.approvals.ledgerAdjustments,
+  });
+  if (!gate.go) {
+    revalidatePath("/admin/vault");
+    return { ok: true, proposed: true };
+  }
+  const entry = gate.payload as {
+    organizationId: string;
+    therapistId: string | null;
+    account: LedgerAccount;
+    amountCents: number;
+    idempotencyKey: string;
+  };
+
+  /*
    * 🔴 A12: the clinician rules (required on a clinician's balance, refused on
    * ours, and only one of this practice) and the post-once rule are both in
    * `postAdjustment`, not here, so no other caller can skip them.
    */
   const { postAdjustment } = await import("@/lib/billing/ledger");
   const result = await postAdjustment({
-    organizationId: input.organizationId,
-    therapistId: typeof input.therapistId === "string" && input.therapistId ? input.therapistId : null,
-    account: input.account,
-    amountCents: input.amountCents,
-    reason: input.reason,
-    idempotencyKey: String(input.idempotencyKey ?? ""),
+    organizationId: entry.organizationId,
+    therapistId: entry.therapistId,
+    account: entry.account,
+    amountCents: entry.amountCents,
+    reason: gate.reason,
+    idempotencyKey: entry.idempotencyKey,
     adminUserId: actor.userId,
   });
   if (result.error) return { error: result.error };
+  if (gate.approvalId) {
+    await closeApproval({ approvalId: gate.approvalId, decidedBy: actor.userId, state: "done" });
+  }
   /* The same form again: its adjustment and its audit row are already written. */
   if (result.replayed) return { ok: true };
 
@@ -665,8 +701,8 @@ export async function adjustLedger(input: {
     category: "billing",
     action: "ledger.adjust",
     resourceType: "organization",
-    resourceId: input.organizationId,
-    reason: `${input.account} ${input.amountCents}${input.therapistId ? ` clinician ${input.therapistId}` : ""} txn ${input.idempotencyKey}, ${input.reason.trim()}`,
+    resourceId: entry.organizationId,
+    reason: `${entry.account} ${entry.amountCents}${entry.therapistId ? ` clinician ${entry.therapistId}` : ""} txn ${entry.idempotencyKey}, ${gate.reason.trim()}${gate.askedBy ? ` (asked by ${gate.askedBy})` : ""}`,
   });
 
   revalidatePath("/admin/vault");
