@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 
@@ -46,6 +46,17 @@ export function PatientResetForm() {
   const [done, complete] = useActionState(completePatientReset, {});
 
   const [handle, setHandle] = useState("");
+  /*
+   * 🔴 B53 — uncontrolled, and read back once hydrated. A controlled input is
+   * reset to state on hydration, so a number typed while the page was still
+   * loading was wiped and "Send me a code" then submitted an empty field and
+   * sent nothing. The DOM keeps what was typed; this copies it into state for
+   * the second step's hidden field.
+   */
+  const handleInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (handleInput.current?.value) setHandle(handleInput.current.value);
+  }, []);
 
   if (done.sent) {
     return (
@@ -146,7 +157,8 @@ export function PatientResetForm() {
             id="handle"
             name="handle"
             autoComplete="username"
-            value={handle}
+            ref={handleInput}
+            defaultValue={handle}
             onChange={(event) => setHandle(event.target.value)}
             required
           />
