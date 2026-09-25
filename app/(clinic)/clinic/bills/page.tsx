@@ -260,11 +260,16 @@ export default async function ClinicBillsPage({
               <dl className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-slate-500">{t("clinic.platformFee")}</dt>
-                  <dd className="tabular-nums text-slate-700">{money(bill.platformFeeCents, bill.currency)}</dd>
+                  <dd className="tabular-nums text-slate-700">
+                    {bill.platformFeeCents === null ? t("clinic.suppressed") : money(bill.platformFeeCents, bill.currency)}
+                  </dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-slate-500">{t("clinic.aiFee")}</dt>
-                  <dd className="tabular-nums text-slate-700">{money(bill.aiFeeCents, bill.currency)}</dd>
+                  <dd className="tabular-nums text-slate-700">
+                    {/* 🔴 K7 / CE33: withheld with the count, or it is the consents priced. */}
+                    {bill.aiFeeCents === null ? t("clinic.suppressed") : money(bill.aiFeeCents, bill.currency)}
+                  </dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3 border-t border-slate-100 pt-1">
                   <dt className="font-semibold text-slate-900">{t("clinic.total")}</dt>

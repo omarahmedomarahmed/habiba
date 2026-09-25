@@ -577,24 +577,18 @@ async function main() {
     const bills = await clinicBills(principal);
     const bill = required(bills[0], "a bill for the clinic");
 
-    check(
-      "🔴 54.8 the aggregated bill's fee lines are REAL figures, not a CASE that never matched",
-      bill.platformFeeCents > 0 && bill.totalCents > 0,
-      `platform ${bill.platformFeeCents}, ai ${bill.aiFeeCents}, total ${bill.totalCents}`,
-    );
-
     /*
-     * 🔴 CONTROL — and the sum of the named kinds is the whole bill.
-     *
-     * This is the half that catches a mistyped kind that HAPPENS to be non-zero. If a
-     * third line kind ever arrives and this query does not name it, the two figures a
-     * practice reads will not add up to the total they are asked to pay, and that is a
-     * dispute rather than a bug report.
+     * 🔴 K7 / CE33 — two sessions is under the floor, so the count AND the
+     * platform and AI split are withheld, and the total is not: the practice
+     * still pays its bill. The AI fee beside a count the practice can read off
+     * its rota was one patient's recording consent, priced.
      */
+    const { getSettings: floorSettings } = await import("../lib/settings");
+    const floor = (await floorSettings()).sponsor.activityFloor;
     check(
-      "🔴 CONTROL …and the platform and AI figures add up to the total, so no kind is unnamed",
-      bill.platformFeeCents + bill.aiFeeCents === bill.totalCents,
-      `${bill.platformFeeCents} + ${bill.aiFeeCents} = ${bill.totalCents}`,
+      "🔴 K7 under the floor the bill withholds the AI and platform split with the count",
+      bill.sessions === null && bill.platformFeeCents === null && bill.aiFeeCents === null && bill.totalCents > 0,
+      `sessions ${String(bill.sessions)}, platform ${String(bill.platformFeeCents)}, ai ${String(bill.aiFeeCents)}, total ${bill.totalCents}`,
     );
 
     /* ==================================================== */
@@ -752,6 +746,54 @@ async function main() {
       "a practice still has to be able to pay a bill it cannot break down",
     );
 
+    /*
+     * 🔴 54.8 — now clear the floor with plain one-line invoices, so the split
+     * is shown and can be checked as REAL figures rather than a CASE that never
+     * matched. This month holds three invoices so far. Planted last, after
+     * the checks that need this week under the floor, and scheduled long ago so
+     * the rota checks below never see them.
+     */
+    for (let n = 0; n < Math.max(0, floor - 3); n += 1) {
+      const [more] = (
+        await db.execute(sql`
+          INSERT INTO sessions (organization_id, therapist_id, status, modality, scheduled_at,
+                                feedback_token, price_cents)
+          VALUES (${org.id}, ${doctor.id}, 'completed', 'video', now() - interval '400 days', ${`${fixture}-d${n}`}, 3000)
+          RETURNING id`)
+      ).rows as { id: string }[];
+      const [line] = (
+        await db.execute(sql`
+          INSERT INTO invoices (organization_id, kind, session_id, amount_cents, status, description)
+          VALUES (${org.id}, 'session', ${required(more, "a session over the floor").id}, 100, 'due', 'verify54 floor')
+          RETURNING id`)
+      ).rows as { id: string }[];
+      await db.execute(sql`
+        INSERT INTO invoice_lines (invoice_id, kind, amount_cents)
+        VALUES (${required(line, "an invoice over the floor").id}, 'platform', 100)`);
+    }
+    const cleared = required((await clinicBills(principal))[0], "the month over the floor");
+
+    check(
+      "🔴 54.8 the aggregated bill's fee lines are REAL figures, not a CASE that never matched",
+      cleared.sessions !== null && (cleared.platformFeeCents ?? 0) > 0 && (cleared.aiFeeCents ?? 0) > 0,
+      `sessions ${String(cleared.sessions)}, platform ${String(cleared.platformFeeCents)}, ai ${String(cleared.aiFeeCents)}, total ${cleared.totalCents}`,
+    );
+
+    /*
+     * 🔴 CONTROL — and the sum of the named kinds is the whole bill.
+     *
+     * This is the half that catches a mistyped kind that HAPPENS to be non-zero. If a
+     * third line kind ever arrives and this query does not name it, the two figures a
+     * practice reads will not add up to the total they are asked to pay, and that is a
+     * dispute rather than a bug report.
+     */
+    check(
+      "🔴 CONTROL …and the platform and AI figures add up to the total, so no kind is unnamed",
+      (cleared.platformFeeCents ?? 0) + (cleared.aiFeeCents ?? 0) === cleared.totalCents,
+      `${String(cleared.platformFeeCents)} + ${String(cleared.aiFeeCents)} = ${cleared.totalCents}`,
+    );
+
+
     /* ============================================================ */
     /*  54.9 · RENDERED OUTPUT, as a clinic manager                  */
     /* ============================================================ */
@@ -813,7 +855,7 @@ async function main() {
             React.createElement(
               "li",
               { key: row.sessionId },
-              `${row.patientName} ${row.therapistName} ${row.status}`,
+              `${row.patientName} ${row.therapistName} ${row.cancelled ? "cancelled" : ""}`,
             ),
           ),
         ),

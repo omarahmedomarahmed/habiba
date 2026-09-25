@@ -260,7 +260,15 @@ export type ClinicScheduleRow = {
   patientName: string;
   therapistName: string;
   scheduledAt: Date | null;
-  status: string;
+  /**
+   * 🔴 K7 / CE32 — whether it was cancelled, and nothing finer.
+   *
+   * This carried the stored status, so the screen showed "Cancelled" while the
+   * week's CSV (built from these rows) wrote `completed`, `in_progress` and
+   * `scheduled` beside a patient's name: attendance, which the screen never
+   * shows. A boolean is all either may say, so the file cannot say more.
+   */
+  cancelled: boolean;
 };
 
 /**
@@ -403,7 +411,7 @@ export async function clinicSchedule(input: {
       shortenForClinic(...splitGuestName(row.guestName)),
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
     scheduledAt: row.scheduledAt,
-    status: row.status,
+    cancelled: row.status === "cancelled",
   }));
 }
 
@@ -733,8 +741,14 @@ export type ClinicBill = {
   periodStart: Date;
   /** 🔴 Withheld below the C262 floor. Null is suppressed, not zero. */
   sessions: number | null;
-  platformFeeCents: number;
-  aiFeeCents: number;
+  /**
+   * 🔴 K7 / CE33 — withheld WITH the count. The AI fee is the recording
+   * consents priced, so beside a count the practice can read off its own rota
+   * it says which of one or two patients agreed to be recorded. The platform
+   * fee goes too, because the total minus it is the AI fee again.
+   */
+  platformFeeCents: number | null;
+  aiFeeCents: number | null;
   totalCents: number;
   /** 🔴 W2-C03: what of the total is still unpaid, so the page can say so and offer to pay. */
   dueCents: number;
@@ -823,10 +837,13 @@ export async function clinicBills(actor: ClinicPrincipal): Promise<ClinicBill[]>
     }[]
   ).map((row) => ({
     periodStart: new Date(row.period_start),
-    /* 🔴 C262 — the count is withheld below the floor; the money never is. */
+    /*
+     * 🔴 C262 — the count is withheld below the floor and the total never is.
+     * K7: the split into platform and AI goes with the count.
+     */
     sessions: Number(row.sessions) < floor ? null : Number(row.sessions),
-    platformFeeCents: Number(row.platform_fee_cents),
-    aiFeeCents: Number(row.ai_fee_cents),
+    platformFeeCents: Number(row.sessions) < floor ? null : Number(row.platform_fee_cents),
+    aiFeeCents: Number(row.sessions) < floor ? null : Number(row.ai_fee_cents),
     totalCents: Number(row.total_cents),
     dueCents: Number(row.due_cents),
     paidCents: Number(row.paid_cents),
