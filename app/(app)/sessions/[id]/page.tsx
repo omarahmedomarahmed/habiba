@@ -45,6 +45,10 @@ export default async function SessionDetailPage({
   const { note: wanted } = await searchParams;
 
   const row = await getSession(actor, id);
+  /* 🔴 Ruling 6b: the limit a session stops at is the clock's total, never a number typed here. */
+  const { getSettings } = await import("@/lib/settings");
+  const { clock } = await getSettings();
+  const clockTotal = clock.runningMinutes + clock.countdownMinutes;
   if (!row) notFound();
 
   const [notes, transcript] = await Promise.all([
@@ -210,7 +214,7 @@ export default async function SessionDetailPage({
           {row.session.autoEndedReason ? (
             <p className="mt-1 text-xs text-amber-700">
               {row.session.autoEndedReason === "cap"
-                ? "Ended automatically at the 50 minute limit."
+                ? `Ended automatically at the ${clockTotal} minute limit.`
                 : "Ended automatically, the room went quiet after the paid time."}
             </p>
           ) : null}

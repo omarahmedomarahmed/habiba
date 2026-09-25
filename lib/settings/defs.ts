@@ -836,8 +836,12 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     minPriceCents: 500,
     maxPriceCents: 50_000,
   },
+  /*
+   * 🔴 Ruling 6b: one session is 50 minutes IN TOTAL, the countdown included.
+   * So the clock runs 40 quietly, counts the last 10 on both screens, and stops.
+   */
   clock: {
-    runningMinutes: 50,
+    runningMinutes: 40,
     countdownMinutes: 10,
     silenceSeconds: 90,
   },

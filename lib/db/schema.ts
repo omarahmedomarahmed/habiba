@@ -328,7 +328,7 @@ export const users = pgTable(
     /** Mirrored from `account.updated`; never inferred from onboarding returning. */
     chargesEnabled: boolean("charges_enabled").notNull().default(false),
     payoutsEnabled: boolean("payouts_enabled").notNull().default(false),
-    /** What the therapist charges a patient for a 30-minute session, in cents. */
+    /** What the therapist charges a patient for one session (50 minutes, ruling 6), in cents. */
     sessionRateCents: integer("session_rate_cents").notNull().default(0),
     /**
      * 16.5 — the currency the clinician **priced in**, not a display choice.

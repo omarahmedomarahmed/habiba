@@ -190,7 +190,8 @@ async function main() {
     check("1.6 the platform cut is 15%", session.platformFeeBps === 1500);
     check("1.6 the price cap is $500", session.maxPriceCents === 50_000);
 
-    check("1.5 the clock is 50 running + 10 countdown", clock.runningMinutes === 50 && clock.countdownMinutes === 10);
+    /* 🔴 Ruling 6b: 50 minutes in total, the 10-minute countdown included. */
+    check("1.5 the clock is 40 running + 10 countdown, 50 in total", clock.runningMinutes === 40 && clock.countdownMinutes === 10);
     check("C14 copilot is 10 per session per patient", copilot.messagesPerPatientPerSession === 10);
 
     /* ------------------------------------------------------- 1.7 everyone */

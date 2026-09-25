@@ -230,7 +230,7 @@ export function RatingForm({
         <div className="border-t border-slate-100 pt-4">
           <p className="text-sm font-semibold text-slate-900">{t("prating.andSession")}</p>
           <p className="text-xs text-slate-500">
-            Whether this half hour was any use to you, a different question from whether
+            Whether this session was any use to you, a different question from whether
             {" "}
             {therapistFirstName} was the right person.
           </p>

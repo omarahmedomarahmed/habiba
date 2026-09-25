@@ -483,7 +483,7 @@ function Billing({
           <Mini label="Our fees" value={<Money cents={earnings.platformFeesCents} />} />
           <Mini label="Paid sessions" value={String(earnings.paidSessionCount)} />
           <Mini
-            label="Rate · 30 min"
+            label="Price per session"
             value={sessionRateCents > 0 ? <Money cents={sessionRateCents} /> : "Free"}
             sub={payoutsEnabled ? "payouts on" : "payouts off"}
           />

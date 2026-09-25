@@ -222,7 +222,7 @@ export async function payOutNow(): Promise<SettingsState> {
 }
 
 /**
- * The therapist's own 30-minute rate, and whether we may take their 24Therapy
+ * The therapist's own price per session, and whether we may take their 24Therapy
  * bill out of the fee on their next patient payment.
  */
 export async function updatePaymentSettings(

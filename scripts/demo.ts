@@ -57,7 +57,7 @@ const FIXTURES: Fixture[] = [
     first: "Layla", last: "Mansour", country: "AE", region: "Dubai", city: "Dubai",
     lat: "25.1972", lon: "55.2744", practice: "Jumeirah Psychology Clinic", walkIns: true,
     languages: ["Arabic", "English"], specialties: ["Anxiety", "Work stress & burnout", "Relationships"],
-    credentials: "PsyD, CDA-licensed", headline: "Bilingual CBT. I keep a half hour free most evenings.",
+    credentials: "PsyD, CDA-licensed", headline: "Bilingual CBT. I keep a slot free most evenings.",
     rate: 6500, status: "online",
   },
   {

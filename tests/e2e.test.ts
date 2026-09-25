@@ -525,7 +525,7 @@ test("a stranger can book a therapist off the public radar", async () => {
     .waitFor({ timeout: 30_000 });
   await patientPage.getByRole("button", { name: /Robin Ellis/ }).first().click();
 
-  await patientPage.waitForSelector("text=30 minutes, starting now");
+  await patientPage.waitForSelector("text=A session, starting now");
   await patientPage.fill("#radar-name", "Casey");
   await patientPage.getByRole("button", { name: "Start now" }).click();
 
