@@ -36,6 +36,8 @@ export function PotReturns({
   history: { id: string; day: string; state: string; egpMinor: number; reference: string | null }[];
 }) {
   const t = useT();
+  /* B57: sent and cancelled in words, not the state code. */
+  const stateLabel = (state: string) => t(`apot.state.${state}` as MessageKey);
   const [asked, ask] = useActionState<AdminSponsorState, FormData>(askPotReturn, {});
   const [sent, send] = useActionState<AdminSponsorState, FormData>(sendAskedReturn, {});
   const [cancelled, cancel] = useActionState<AdminSponsorState, FormData>(cancelAskedReturn, {});
@@ -109,7 +111,7 @@ export function PotReturns({
         <ul className="mt-3 space-y-1 text-xs text-slate-500">
           {history.map((h) => (
             <li key={h.id}>
-              {h.day} {t(`apot.state.${h.state}` as MessageKey)} <Money cents={h.egpMinor} currency="EGP" asIs />
+              {h.day} {stateLabel(h.state)} <Money cents={h.egpMinor} currency="EGP" asIs />
               {h.reference ? ` · ${h.reference}` : ""}
             </li>
           ))}

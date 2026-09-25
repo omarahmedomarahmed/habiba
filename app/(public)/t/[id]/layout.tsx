@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { profileFor } from "./profile";
+import { publicProfile } from "./profile";
 
 /**
  * 🔴 B35: A PROFILE THAT DOES NOT EXIST IS A 404, DECIDED ABOVE THE BOUNDARY.
@@ -18,6 +18,6 @@ export default async function ProfileLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  if (!(await profileFor(id))) notFound();
+  if (!(await publicProfile(id))) notFound();
   return children;
 }
