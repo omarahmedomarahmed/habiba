@@ -641,6 +641,13 @@ const JOBS = {
      * held until morning is simply released on the next run, because
      * `status = 'open'` makes it no longer a candidate.
      */
+    /* 🔴 Pay before start: unpaid in-person links expire; paid ones that never started are refunded. */
+    const { sweepInPerson } = await import("@/lib/data/in-person");
+    /* Isolated: a failure here must not stop the booking release below. */
+    await sweepInPerson(now).catch((error) =>
+      log.error("in-person sweep failed", { reason: safeErrorMessage(error) }),
+    );
+
     const { releaseUnconfirmedBookings } = await import("@/lib/data/scheduling");
     const released = await releaseUnconfirmedBookings(now);
     let releasesTold = 0;

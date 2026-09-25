@@ -15,7 +15,7 @@ import { useT } from "@/lib/i18n/client";
  * later, possibly not at all, and a clinician who believes otherwise will tell
  * the patient the wrong thing across a desk.
  */
-export function RedeemInvite() {
+export function RedeemInvite({ initialCode = "" }: { initialCode?: string }) {
   const t = useT();
   const [state, submit] = useActionState(useInviteCode, {});
 
@@ -33,6 +33,8 @@ export function RedeemInvite() {
               id="code"
               name="code"
               placeholder="ABC-DEF"
+              /* 🔴 Ruling 5 flow 4: filled from the patient's QR, so the therapist only confirms. */
+              defaultValue={initialCode}
               maxLength={7}
               className="font-mono tracking-widest uppercase"
               required

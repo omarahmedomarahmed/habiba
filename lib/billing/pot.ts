@@ -167,7 +167,16 @@ export type PotSpend =
   | {
       paid: false;
       /** W2-S08: `expired`: the pot's expiry date has passed, so it pays for nothing. */
-      reason: "no_benefit" | "no_pot" | "insufficient" | "nothing_to_pay" | "expired";
+      reason:
+        | "no_benefit"
+        | "no_pot"
+        | "insufficient"
+        | "nothing_to_pay"
+        | "expired"
+        /** 🔴 In person: only the patient, signed in, spends the company's money. */
+        | "patient_must_confirm"
+        /** 🔴 In person: the weekly cap per patient in `rules.inPerson`. */
+        | "in_person_cap";
     };
 
 /**
@@ -256,7 +265,16 @@ export async function benefitShortfall(
  * cannot spend the pot twice — the same construction `settleSessionPayment`
  * uses, and for the same reason.
  */
-export async function payFromPot(sessionId: string): Promise<PotSpend> {
+export async function payFromPot(
+  sessionId: string,
+  /**
+   * 🔴 The patient spending the benefit, from their own signed-in session.
+   * Required for an in-person session: nothing proves one happened, so the
+   * company's money moves only on the patient's own word, never a therapist's
+   * (docs/IN-PERSON-PAID.md). Online sessions leave a room log and need none.
+   */
+  opts: { byPersonId?: string } = {},
+): Promise<PotSpend> {
   const [row] = await controlDb
     .select({
       sessionId: sessions.id,
@@ -264,6 +282,7 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
       therapistId: sessions.therapistId,
       priceCents: sessions.priceCents,
       paymentStatus: sessions.paymentStatus,
+      modality: sessions.modality,
       personId: patients.personId,
       stripeAccountId: users.stripeAccountId,
       payoutsEnabled: users.payoutsEnabled,
@@ -287,6 +306,25 @@ export async function payFromPot(sessionId: string): Promise<PotSpend> {
     return { paid: false, reason: "nothing_to_pay" };
   }
   if (!row.personId) return { paid: false, reason: "no_benefit" };
+
+  if (row.modality === "in_person") {
+    const { getSettings } = await import("@/lib/settings");
+    const rules = (await getSettings()).rules.inPerson;
+    if (!rules.potCover) return { paid: false, reason: "no_benefit" };
+    if (!opts.byPersonId || opts.byPersonId !== row.personId) {
+      return { paid: false, reason: "patient_must_confirm" };
+    }
+    /* The weekly cap: company-paid in-person sessions for this person in the last seven days. */
+    const recent = await controlDb.execute(sql`
+      SELECT count(*)::int AS n FROM session_payments sp
+        JOIN sessions s ON s.id = sp.session_id
+        JOIN patients p ON p.id = s.patient_id
+       WHERE p.person_id = ${row.personId} AND s.modality = 'in_person'
+         AND sp.funding_source = 'pot' AND sp.status <> 'refunded'
+         AND sp.created_at > now() - interval '7 days'`);
+    const used = Number((recent.rows[0] as { n: number } | undefined)?.n ?? 0);
+    if (used >= rules.potSessionsPerWeek) return { paid: false, reason: "in_person_cap" };
+  }
 
   /*
    * 🔴 The ONE primary enrolment, and a paused one funds nothing.

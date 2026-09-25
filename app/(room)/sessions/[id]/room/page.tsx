@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { SessionRoom } from "@/components/session/session-room";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
-import { ensureRoom, getSession, getTranscript } from "@/lib/data/sessions";
+import { ensureRoom, getSession, getTranscript, unpaidInPerson } from "@/lib/data/sessions";
 import { env, features } from "@/lib/env";
 import { capSeconds } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
@@ -20,6 +20,8 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
 
   const row = await getSession(actor, id);
   if (!row) notFound();
+  /* 🔴 Pay before start: an in-person session paid through us waits on its payment screen. */
+  if (row.session.status === "scheduled" && unpaidInPerson(row.session)) redirect(`/sessions/${id}/collect`);
 
   // A finished session has a note, not a room.
   if (row.session.status === "completed" || row.session.status === "cancelled") {

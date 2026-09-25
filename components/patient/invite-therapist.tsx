@@ -7,6 +7,7 @@ import {
   cancelInvite,
   inviteMyTherapist,
   type InviteState,
+  inviteMyTherapistNow,
 } from "@/app/(patient)/patient/consent/actions";
 import { Button, Card } from "@/components/ui";
 import { FlowStrip } from "@/components/visual/primitives";
@@ -45,6 +46,8 @@ export function InviteTherapist({
   const t = useT();
   const router = useRouter();
   const [state, setState] = useState<InviteState>({});
+  /* 🔴 Ruling 5 flow 4: the QR shown in the room, ten minutes, once. */
+  const [quick, setQuick] = useState<{ code?: string; svg?: string; error?: string }>({});
   const [pending, start] = useTransition();
 
   return (
@@ -135,6 +138,32 @@ export function InviteTherapist({
           {state.error}
         </p>
       ) : null}
+
+      {quick.svg ? (
+        <div className="mt-3 rounded-xl bg-white p-3 text-center ring-1 ring-slate-200">
+          <div className="mx-auto w-52" dangerouslySetInnerHTML={{ __html: quick.svg }} />
+          <p className="mt-2 font-mono text-lg font-bold tracking-[0.2em] text-slate-900">{quick.code}</p>
+          <p className="mt-1 text-xs text-slate-500">{t("consent.qrBody")}</p>
+        </div>
+      ) : null}
+      {quick.error ? (
+        <p role="alert" className="mt-3 text-sm text-red-600">
+          {quick.error}
+        </p>
+      ) : null}
+
+      <Button
+        className="mt-3 me-2"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            setQuick(await inviteMyTherapistNow());
+            router.refresh();
+          })
+        }
+      >
+        {t("consent.showQr")}
+      </Button>
 
       <Button
         className="mt-3"

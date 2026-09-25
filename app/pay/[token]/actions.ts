@@ -385,3 +385,30 @@ export async function payByCard(token: string): Promise<void> {
   });
   redirect(result.ok ? result.url : `/pay/${token}?card=unavailable`);
 }
+
+/**
+ * 🔴 PAY BEFORE START, IN PERSON: the patient spends their company benefit.
+ *
+ * Only here, only signed in, and only for the person the session is for:
+ * `payFromPot` refuses an in-person session without `byPersonId` matching, and
+ * counts the weekly cap (docs/IN-PERSON-PAID.md). Whatever the benefit does
+ * not cover is paid by card on the same page.
+ */
+export async function coverWithBenefit(token: string): Promise<void> {
+  /* Imported here, like `payByCard`: verifiers load this file outside Next. */
+  const { redirect } = await import("next/navigation");
+  const { optionalPatient } = await import("@/lib/patient-auth/guard");
+  const actor = await optionalPatient();
+  if (!actor) {
+    redirect(`/patient/login?next=${encodeURIComponent(`/pay/${token}`)}`);
+    return;
+  }
+  const session = await resolveJoinToken(token);
+  if (!session) {
+    redirect(`/pay/${token}`);
+    return;
+  }
+  const { payFromPot } = await import("@/lib/billing/pot");
+  const spent = await payFromPot(session.id, { byPersonId: actor.personId });
+  redirect(`/pay/${token}${spent.paid ? "" : `?benefit=${spent.reason}`}`);
+}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { declareSessionTransfer, openSessionPayment, payByCard } from "./actions";
+import { coverWithBenefit, declareSessionTransfer, openSessionPayment, payByCard } from "./actions";
 import { PaymentPopup } from "@/components/billing/payment-popup";
 import { Button } from "@/components/ui";
 import { PayFlow } from "@/components/pay/pay-flow";
@@ -61,7 +61,7 @@ export default async function PayPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ gateway?: string; card?: string }>;
+  searchParams: Promise<{ gateway?: string; card?: string; benefit?: string }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
@@ -96,6 +96,20 @@ export default async function PayPage({
    * `booked=1` is the flag that already means exactly this, and paying IS
    * having been through the flow.
    */
+  /*
+   * 🔴 IN PERSON, PAID: there is no room to join. The patient is already with
+   * their therapist, whose screen unlocked Start the moment this landed.
+   */
+  const inPerson = session.modality === "in_person";
+  if (inPerson && session.paymentStatus === "paid") {
+    const { t: tt } = await getI18n();
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-3 px-4 py-8 text-center">
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">{tt("pay.inPersonPaid")}</h1>
+        <p className="text-sm text-slate-600">{tt("pay.inPersonPaidBody")}</p>
+      </main>
+    );
+  }
   if (session.priceCents <= 0 || session.paymentStatus === "paid") {
     redirect(`/join/${token}?booked=1`);
   }
@@ -206,6 +220,48 @@ export default async function PayPage({
    * who paid by card as well would have paid twice.
    */
   const cardReady = railIsReady() && rail.live.state !== "submitted";
+
+  /*
+   * 🔴 PAY BEFORE START, IN PERSON (docs/IN-PERSON-PAID.md): card or company
+   * benefit only. A bank transfer takes hours to confirm and the patient is in
+   * the room, so it is not offered here; bookings made in advance keep it.
+   */
+  if (inPerson) {
+    return (
+      <>
+        <SosOrbServer country={sosCountry} />
+        <LanguageCorner />
+        <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pay.title")}</h1>
+            {therapist ? (
+              <p className="mt-1 text-sm text-slate-500">
+                {[therapist.firstName, therapist.lastName].filter(Boolean).join(" ")}
+              </p>
+            ) : null}
+          </div>
+          <form action={coverWithBenefit.bind(null, token)}>
+            <Button type="submit" variant="secondary" full>
+              {t("pay.useBenefit")}
+            </Button>
+            {query.benefit ? <p className="mt-2 text-sm text-slate-600">{t("pay.benefitNot")}</p> : null}
+          </form>
+          {cardReady ? (
+            <form action={payByCard.bind(null, token)}>
+              <Button type="submit" full>
+                {t("pay.byCard")}
+              </Button>
+              {query.card === "unavailable" ? (
+                <p className="mt-2 text-sm text-rose-600">{t("pay.cardFailed")}</p>
+              ) : null}
+            </form>
+          ) : (
+            <p className="text-sm text-slate-600">{t("pay.inPersonNoCard")}</p>
+          )}
+        </main>
+      </>
+    );
+  }
 
   if (rail.needed) {
     return (

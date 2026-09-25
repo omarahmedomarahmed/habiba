@@ -18,8 +18,14 @@ export const dynamic = "force-dynamic";
  * somebody else's initiative arriving, which is a different mental mode from
  * anything else in this product.
  */
-export default async function ConnectPage() {
+export default async function ConnectPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
   const { locale, t } = await getI18n();
+  /* 🔴 Ruling 5 flow 4: the patient's QR opens this page with their code. */
+  const code = String((await searchParams).code ?? "").trim().toUpperCase().slice(0, 7);
   const actor = await requireUser();
   const asks = await asksForTherapist(actor.userId);
 
@@ -30,7 +36,7 @@ export default async function ConnectPage() {
         subtitle={t("portal.connect.subtitle")}
       />
       <div className="space-y-4 px-4 pb-10 sm:px-6">
-        <RedeemInvite />
+        <RedeemInvite initialCode={/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code) ? code : ""} />
         <HistoryAsks
           asks={asks.map((ask) => ({
             id: ask.id,

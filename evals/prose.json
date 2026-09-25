@@ -13,9 +13,9 @@
   },
   "baseline": {
     "shared": 1523,
-    "patient": 3939,
+    "patient": 4009,
     "public": 5622,
-    "clinician": 6545,
+    "clinician": 6585,
     "sponsor": 1150,
     "admin": 3111,
     "clinic": 1080,
@@ -111,5 +111,8 @@
   },
   "ruling15": {
     "comment": "0162 / ruling 15 (2026-09-25): sponsor 1084 to 1150 for the staff list card (upload, count, when, errors) and the rule names that now say an employee ID is only asked alongside an email; patient 3936 to 3939 for the employee ID label; admin 3101 to 3111 for the grace-days setting. Sponsor stays below its origin of 1193, patient below 4719."
+  },
+  "payBeforeStart": {
+    "comment": "Rulings 5b and 5e (2026-09-25), pay before start: clinician 6545 to 6585 for the in-person payment choice, the pay-as-you-go notice and the payment screen the therapist turns to the patient; patient 3939 to 4009 for the in-person pay page (company benefit, card, paid) and the QR a patient shows their therapist. Both stay below origin (7625, 4719)."
   }
 }

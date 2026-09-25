@@ -40,6 +40,7 @@ import {
   patients,
   sessionNotes,
   sessions,
+  users,
   type NoteAddendumKind,
   type NoteContent,
 } from "@/lib/db/schema";
@@ -117,8 +118,22 @@ export async function startNewSession(
     return { error: "Enter a first name so the session has somewhere to go." };
   }
 
-  // Only a video session can be paid for: an in-person session has no link to
-  // put a paywall in front of.
+  /*
+   * 🔴 RULINGS 5 AND 5b: IN PERSON, TWO WAYS TO BE PAID.
+   *
+   * "direct" is the patient paying the therapist in the room, as today: free
+   * through us, price zero, the session starts now. "through_us" is the patient
+   * paying on their own phone, card or company benefit, before the session can
+   * start (pay before start). It carries the therapist's price, which may be
+   * lowered and never raised above what they list, so a company's money cannot
+   * be drawn down by typing a bigger number.
+   */
+  const inPersonPaid = modality === "in_person" && formData.get("inPersonPayment") === "through_us";
+  const settingsNow = await getSettings();
+  if (inPersonPaid && !settingsNow.rules.inPerson.payThroughUs) {
+    return { error: "Charging an in-person session through 24Therapy is switched off." };
+  }
+
   /*
    * 🔴 Typed in pounds, kept in dollars at the operator's rate: the same rate
    * the payment is then asked for at, so the patient pays the pounds typed.
@@ -128,11 +143,22 @@ export async function startNewSession(
   const { usdCentsFor } = await import("@/lib/money/convert");
   const rate = await egpRateMicro();
   const priceCents =
-    modality === "video" && Number.isFinite(pounds) && pounds > 0 && rate > 0
+    (modality === "video" || inPersonPaid) && Number.isFinite(pounds) && pounds > 0 && rate > 0
       ? usdCentsFor(Math.round(pounds * 100), rate)
       : 0;
-  const problem = priceProblem(priceCents, (await getSettings()).session, rate);
+  if (inPersonPaid && priceCents <= 0) return { error: "Enter the price the patient pays." };
+  const problem = priceProblem(priceCents, settingsNow.session, rate);
   if (problem) return { error: problem };
+  if (inPersonPaid && !settingsNow.rules.inPerson.priceAboveList) {
+    const [me] = await db
+      .select({ rate: users.sessionRateCents })
+      .from(users)
+      .where(eq(users.id, actor.userId))
+      .limit(1);
+    if (!me?.rate) return { error: "Set your price per session in Settings first." };
+    /* A cent of rounding either way is the rate, not a raise. */
+    if (priceCents > me.rate + 1) return { error: "That is above your price per session. You can lower it, never raise it." };
+  }
 
   /*
    * A price no longer waits on Stripe.
@@ -207,6 +233,7 @@ export async function startNewSession(
       guestEmail: guestEmail || undefined,
       guestPhone: guestPhone || undefined,
       priceCents,
+      inPersonPaid,
     });
     if (!session) return { error: "That patient is not in your practice." };
     sessionId = session.id;
@@ -338,6 +365,8 @@ export async function startNewSession(
     }
   }
 
+  /* 🔴 Pay before start: an in-person session paid through us waits on its payment screen. */
+  if (inPersonPaid) redirect(`/sessions/${sessionId}/collect`);
   redirect(`/sessions/${sessionId}/room`);
 }
 

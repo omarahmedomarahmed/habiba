@@ -122,9 +122,18 @@ export type InviteResult = { ok: true; invite: Invite } | { ok: false; error: st
  * on a piece of paper, and a patient with eleven live codes has lost track of
  * who holds what, which is the opposite of the control this is supposed to be.
  */
+/**
+ * 🔴 Ruling 5 flow 4: the QR a patient shows their therapist in the room.
+ * Ten minutes and single use, so a photo of it is worthless by the time
+ * anybody could use it, and it asks for 24 hours of access, not open-ended.
+ */
+export const QUICK_INVITE_MINUTES = 10;
+
 export async function createInvite(input: {
   personId: string;
   accountId: string;
+  /** A short-lived code for a QR shown in the room. Days otherwise. */
+  minutes?: number;
 }): Promise<InviteResult> {
   const now = new Date();
 
@@ -155,7 +164,9 @@ export async function createInvite(input: {
           personId: input.personId,
           accountId: input.accountId,
           code: mintCode(),
-          expiresAt: new Date(now.getTime() + INVITE_DAYS * 24 * 60 * 60 * 1000),
+          expiresAt: new Date(
+            now.getTime() + (input.minutes ? input.minutes * 60 * 1000 : INVITE_DAYS * 24 * 60 * 60 * 1000),
+          ),
         })
         .returning({
           id: patientInvites.id,
@@ -246,7 +257,12 @@ export async function redeemInvite(actor: Actor, code: string): Promise<RedeemRe
         gt(patientInvites.expiresAt, now),
       ),
     )
-    .returning({ id: patientInvites.id, personId: patientInvites.personId });
+    .returning({
+      id: patientInvites.id,
+      personId: patientInvites.personId,
+      createdAt: patientInvites.createdAt,
+      expiresAt: patientInvites.expiresAt,
+    });
 
   if (!claimed) {
     /* One answer for expired, used, revoked and never issued. */
@@ -272,6 +288,13 @@ export async function redeemInvite(actor: Actor, code: string): Promise<RedeemRe
    * redeeming a code from somebody who already has a request waiting does not
    * fail: there is already exactly the row this would have created.
    */
+  /*
+   * 🔴 A QR shown in the room (a code that lived an hour or less) asks for 24
+   * hours and puts the patient in this therapist's list at once, so they can
+   * start a session with them there and then. A code handed over for later
+   * asks for open-ended access, as it always did. Either way it only asks.
+   */
+  const quick = claimed.expiresAt.getTime() - claimed.createdAt.getTime() <= 60 * 60 * 1000;
   await db
     .insert(historyGrants)
     .values({
@@ -279,10 +302,21 @@ export async function redeemInvite(actor: Actor, code: string): Promise<RedeemRe
       therapistUserId: actor.userId,
       organizationId: actor.organizationId,
       status: "pending",
-      requestNote: "Invited by you, using a code you gave them.",
+      shape: quick ? "24h" : undefined,
+      requestNote: quick
+        ? "Invited by you in the room, with the QR code you showed them. For 24 hours."
+        : "Invited by you, using a code you gave them.",
       requestedAt: now,
     })
     .onConflictDoNothing();
+  if (quick) {
+    const { patientRowForPerson } = await import("./people");
+    await patientRowForPerson({
+      organizationId: actor.organizationId,
+      therapistId: actor.userId,
+      personId: claimed.personId,
+    });
+  }
 
   await audit({
     actor,

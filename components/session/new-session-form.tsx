@@ -91,6 +91,8 @@ export function NewSessionForm({
   const modality = where === "in_person" ? "in_person" : "video";
   const [existing, setExisting] = useState<string>("");
   const [charge, setCharge] = useState(false);
+  /* 🔴 Rulings 5 and 5b: in person, paid to the therapist directly, or through us before the start. */
+  const [inPersonPayment, setInPersonPayment] = useState<"direct" | "through_us">("direct");
   /* 🔴 Pounds in the box, dollars in the books, at the operator's rate that came with the page. */
   const { rateMicro } = useMoneyDisplay();
   const [price, setPrice] = useState(
@@ -111,7 +113,9 @@ export function NewSessionForm({
     payments && payments.vatBps > 0
       ? Math.round((priceCents * payments.vatBps) / 10_000)
       : 0;
-  const chargeable = modality === "video" && charge && Boolean(payments);
+  const chargeable =
+    Boolean(payments) &&
+    ((modality === "video" && charge) || (modality === "in_person" && inPersonPayment === "through_us"));
 
   return (
     <form action={action} className="space-y-6">
@@ -306,6 +310,45 @@ export function NewSessionForm({
         weeks ago is the kind of default that loses a licence, not a customer.
       */}
       <input type="hidden" name="pricePounds" value={chargeable ? price || "0" : "0"} />
+      <input type="hidden" name="inPersonPayment" value={modality === "in_person" ? inPersonPayment : ""} />
+
+      {modality === "in_person" ? (
+        <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
+          <p className="text-sm font-medium text-slate-800">{t("tnew.howPaid")}</p>
+          {(["direct", "through_us"] as const).map((option) => (
+            <label key={option} className="flex cursor-pointer items-start gap-3">
+              <input
+                type="radio"
+                name="inPersonPaymentChoice"
+                checked={inPersonPayment === option}
+                onChange={() => setInPersonPayment(option)}
+                disabled={option === "through_us" && !payments}
+                className="mt-0.5 h-4 w-4 border-slate-300 text-brand-700 focus:ring-brand-600"
+              />
+              <span className="min-w-0 text-sm text-slate-800">
+                {t(option === "direct" ? "tnew.paidDirect" : "tnew.paidThroughUs")}
+              </span>
+            </label>
+          ))}
+          {inPersonPayment === "through_us" && payments ? (
+            <Field label={t("tnew.price")} htmlFor="price-in-person">
+              <Input
+                id="price-in-person"
+                type="number"
+                inputMode="decimal"
+                step={1}
+                min={1}
+                max={rateMicro > 0 && payments.defaultRateCents ? Math.floor(egpMinorFor(payments.defaultRateCents, rateMicro) / 100) : undefined}
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+                required
+              />
+            </Field>
+          ) : null}
+          {/* 🔴 Ruling 5: the pay-as-you-go notice, before the session starts, either way. */}
+          <p className="text-xs text-slate-500">{t("tnew.paygNotice")}</p>
+        </div>
+      ) : null}
 
       {modality === "video" && payments ? (
         <div className="rounded-2xl border border-slate-200 p-4">

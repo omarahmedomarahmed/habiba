@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireUser } from "@/lib/auth/guard";
+import { requireUser, requireVerified } from "@/lib/auth/guard";
 import { getSession } from "@/lib/data/sessions";
 import { issueIngestToken, revokeIngestToken } from "@/lib/data/session-sources";
 import { bindVoice, unbindVoice } from "@/lib/data/session-voices";
@@ -202,4 +202,62 @@ export async function attributeLine(
 
   revalidatePath(`/sessions/${sessionId}`);
   return { ok: true };
+}
+
+/**
+ * 🔴 PAY BEFORE START: the patient paid the therapist in the room after all.
+ * Only while nothing has been paid or is on its way through us, and it kills
+ * the pay link in the same statement, so no payment can land afterwards.
+ */
+export async function paidDirectly(sessionId: string): Promise<{ error?: string; ok?: boolean }> {
+  const actor = await requireVerified();
+  const { controlDb } = await import("@/lib/db");
+  const { sessions } = await import("@/lib/db/schema");
+  const { and, eq, sql } = await import("drizzle-orm");
+  const moved = await controlDb
+    .update(sessions)
+    .set({ priceCents: 0, paymentStatus: "not_required", joinToken: null, joinTokenExpiresAt: null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.therapistId, actor.userId),
+        eq(sessions.modality, "in_person"),
+        eq(sessions.status, "scheduled"),
+        eq(sessions.paymentStatus, "pending"),
+        sql`NOT EXISTS (SELECT 1 FROM session_payments sp WHERE sp.session_id = ${sessions.id})`,
+        sql`NOT EXISTS (SELECT 1 FROM gateway_payments g WHERE g.ref_id = ${sessions.id}
+                         AND (g.state = 'paid' OR g.created_at > now() - interval '1 hour'))`,
+        sql`NOT EXISTS (SELECT 1 FROM manual_payments m WHERE m.purpose = 'session' AND m.ref_id = ${sessions.id}
+                         AND m.state IN ('submitted', 'confirmed'))`,
+      ),
+    )
+    .returning({ id: sessions.id });
+  if (moved.length === 0) {
+    return { error: "A payment through us has already started or arrived. Wait for it instead." };
+  }
+  const { audit } = await import("@/lib/audit");
+  await audit({ actor, category: "billing", action: "session.paid_directly", resourceType: "session", resourceId: sessionId });
+  return { ok: true };
+}
+
+/** Send the pay link to the patient's email and phone, the same link the QR code holds. */
+export async function sendPayLink(sessionId: string): Promise<{ error?: string; ok?: boolean }> {
+  const actor = await requireVerified();
+  const row = await getSession(actor, sessionId);
+  if (!row?.session.joinToken || row.session.paymentStatus !== "pending") return { error: "There is nothing to pay on this session." };
+  const email = row.patient?.email ?? row.session.guestEmail ?? null;
+  const phone = row.patient?.phone ?? null;
+  if (!email && !phone) return { error: "This patient has no email or phone yet." };
+  const { notify } = await import("@/lib/notify");
+  const { env } = await import("@/lib/env");
+  const delivery = await notify(
+    { email, phone, timezone: row.patient?.timezone ?? null },
+    {
+      kind: "session.invite",
+      subject: "Pay for your session",
+      body: `Your therapist ${actor.firstName} ${actor.lastName} is ready. Pay on your phone and the session starts.`,
+      link: { label: "Pay for the session", url: `${env.appUrl}/pay/${row.session.joinToken}` },
+    },
+  );
+  return delivery.sent ? { ok: true } : { error: "It could not be sent. Show the QR code instead." };
 }

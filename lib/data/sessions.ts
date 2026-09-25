@@ -307,6 +307,11 @@ export async function createSession(
     guestPhone?: string;
     /** Zero means free to join, which is the default and the common case. */
     priceCents?: number;
+    /**
+     * 🔴 Ruling 5b: an in-person session the patient pays for through us. It
+     * gets a pay link like an online one, and it cannot start until paid.
+     */
+    inPersonPaid?: boolean;
   },
 ) {
   let patientId = input.patientId ?? null;
@@ -402,9 +407,14 @@ export async function createSession(
     if (patientId) await ensurePersonForPatient(patientId);
   }
 
-  const needsLink = input.modality === "video";
-  // Belt and braces: a price on an in-person session would be an unreachable
-  // paywall, because there is no link for the patient to pay through.
+  /*
+   * 🔴 An in-person session paid through us gets a link too: it is where the
+   * patient pays, on their own phone, before the session can start. Without
+   * that choice an in-person price would be an unreachable paywall, so it is
+   * still forced to zero (cash, paid to the therapist directly).
+   */
+  const inPersonPaid = input.modality === "in_person" && input.inPersonPaid === true;
+  const needsLink = input.modality === "video" || inPersonPaid;
   const price = needsLink ? Math.max(0, Math.round(input.priceCents ?? 0)) : 0;
 
   const [created] = await db
@@ -446,8 +456,16 @@ export async function createSession(
    * not send that patient a pay link. Same call, same reasons as `bookSlot`; it
    * resolves the benefit from the session id and does nothing when there is none.
    */
-  const { payFromPot } = await import("@/lib/billing/pot");
-  await payFromPot(created!.id);
+  /*
+   * 🔴 …EXCEPT IN PERSON. Company money on a session nothing can prove is the
+   * fraud the pot must be protected from, so for an in-person session only the
+   * patient spends it: on the pay page, signed in to their own account
+   * (docs/IN-PERSON-PAID.md). The therapist creating the session never can.
+   */
+  if (!inPersonPaid) {
+    const { payFromPot } = await import("@/lib/billing/pot");
+    await payFromPot(created!.id);
+  }
 
   await auditPhi(actor, "session.create", {
     resourceType: "session",
@@ -540,13 +558,33 @@ const CANCELLABLE_FROM = Object.entries(TRANSITIONS)
 
 export class TransitionError extends Error {}
 
+/** 🔴 An in-person session with a price that has not been paid. It cannot start. */
+export function unpaidInPerson(row: { modality: string | null; priceCents: number | null; paymentStatus: string | null }): boolean {
+  return row.modality === "in_person" && (row.priceCents ?? 0) > 0 && row.paymentStatus !== "paid";
+}
+
 export async function startSession(actor: Actor, sessionId: string) {
   const [current] = await db
-    .select({ status: sessions.status })
+    .select({
+      status: sessions.status,
+      modality: sessions.modality,
+      priceCents: sessions.priceCents,
+      paymentStatus: sessions.paymentStatus,
+    })
     .from(sessions)
     .where(and(scope(actor), eq(sessions.id, sessionId)))
     .limit(1);
   if (!current) throw new TransitionError("Session not found");
+
+  /*
+   * 🔴 PAY BEFORE START (docs/IN-PERSON-PAID.md). An in-person session the
+   * patient pays for through us never starts unpaid: there is no link to hold
+   * back and nothing proves it happened, so the start is what payment unlocks.
+   * Asked here and again in the UPDATE below, so two tabs cannot race past it.
+   */
+  if (current.status !== "in_progress" && unpaidInPerson(current)) {
+    throw new TransitionError("The patient pays first. The session starts once the payment is in.");
+  }
 
   // Re-entering a live room must be a no-op, not an error. The old client had
   // to special-case `in_progress → in_progress` in a string comparison.
@@ -574,7 +612,14 @@ export async function startSession(actor: Actor, sessionId: string) {
   const started = await db
     .update(sessions)
     .set({ status: "in_progress", startedAt: new Date(), updatedAt: new Date() })
-    .where(and(scope(actor), eq(sessions.id, sessionId), eq(sessions.status, "scheduled")))
+    .where(
+      and(
+        scope(actor),
+        eq(sessions.id, sessionId),
+        eq(sessions.status, "scheduled"),
+        sql`NOT (${sessions.modality} = 'in_person' AND ${sessions.priceCents} > 0 AND ${sessions.paymentStatus} <> 'paid')`,
+      ),
+    )
     .returning({ id: sessions.id });
 
   if (started.length === 0) return;

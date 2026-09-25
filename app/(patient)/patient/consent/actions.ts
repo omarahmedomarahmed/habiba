@@ -174,3 +174,25 @@ export async function unlinkPlatform(subjectId: string): Promise<ConsentState> {
   revalidatePath("/patient/consent");
   return { ok: true };
 }
+
+export type QuickInviteState = { error?: string; code?: string; svg?: string };
+
+/**
+ * 🔴 Ruling 5 flow 4: a QR the patient shows their therapist in the room. Ten
+ * minutes, single use, asks for 24 hours; the therapist scans it into /connect.
+ */
+export async function inviteMyTherapistNow(): Promise<QuickInviteState> {
+  const actor = await requirePatient();
+  const { QUICK_INVITE_MINUTES } = await import("@/lib/data/portability");
+  const result = await createInvite({ personId: actor.personId, accountId: actor.accountId, minutes: QUICK_INVITE_MINUTES });
+  if (!result.ok) return { error: result.error };
+  const { env } = await import("@/lib/env");
+  const QRCode = (await import("qrcode")).default;
+  const svg = await QRCode.toString(`${env.appUrl}/connect?code=${encodeURIComponent(result.invite.code)}`, {
+    type: "svg",
+    margin: 1,
+    errorCorrectionLevel: "M",
+  });
+  revalidatePath("/patient/consent");
+  return { code: result.invite.code, svg };
+}
