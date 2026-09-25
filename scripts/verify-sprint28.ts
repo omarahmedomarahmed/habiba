@@ -111,7 +111,22 @@ async function main() {
    * be switched off within a month, which is the failure mode 24.1 avoided by
    * exempting comments.
    */
+  /*
+   * 🔴 AE60: and in Arabic, which every rule missed while /ar pages published
+   * "the subscription pays for itself".
+   */
+  const arabicFee = honestyProblems("control", "الاشتراك يغطي نفسه");
+  const arabicEarnings = honestyProblems("control", "اربح حتى 500 دولار إضافية كل شهر");
+  check(
+    "🔴 AE60 the same claims are caught in Arabic",
+    arabicFee.some((hit) => hit.rule === "fee") && arabicEarnings.some((hit) => hit.rule === "earnings"),
+    [arabicFee[0]?.text, arabicEarnings[0]?.text].join(" · ") || "THE SCAN IS BLIND IN ARABIC",
+  );
+
   const legitimate = [
+    "ما عليك يُخصم مما تكسبه قبل أن يصل إلى حسابك.",
+    "تغطي شركتك جلساتك، ولا ترى من حضر.",
+    "يمكنك متابعة كل خطوة من صفحة أرباحك.",
     "You can watch every step of that on your earnings page.",
     "What you owe comes out of what you earn before it reaches your account.",
     "Go online and get booked by somebody who needs an hour tonight.",
