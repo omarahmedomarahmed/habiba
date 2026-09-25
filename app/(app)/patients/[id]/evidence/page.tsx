@@ -67,7 +67,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
         <Card className="mt-4 p-6">
           <p className="text-sm text-slate-600">
             {personId
-              ? (explain(access.state, access.gated) ?? t("portal.evidence.noGrant"))
+              ? t(explain(access.state, access.gated) ?? "portal.evidence.noGrant")
               : t("portal.evidence.noPerson")}
           </p>
         </Card>

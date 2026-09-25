@@ -210,19 +210,32 @@ export function capabilitiesFor(state: AccessState, gated = false): Capabilities
   }
 }
 
-/** What the therapist is told, in the banner. Never alarming about the patient. */
-export function explain(state: AccessState, gated = false): string | null {
-  if (state === "unclaimed_bare" && gated) {
-    return "The copilot is waiting on two things for this person: a diagnosis, and a history you type or dictate. Add both and it opens on this record.";
-  }
+/**
+ * What the therapist is told, in the banner. Never alarming about the patient.
+ *
+ * 🔴 A message KEY, rendered by the caller in the reader's language. These were
+ * English sentences returned from a pure module, so every consent banner and
+ * the copilot's refusal stayed English under Arabic. The module stays free of
+ * the dictionaries (a client component imports it); the words live in them.
+ */
+export function explain(
+  state: AccessState,
+  gated = false,
+):
+  | "access.explain.gated"
+  | "access.explain.revoked"
+  | "access.explain.unclaimed"
+  | "access.explain.noRelationship"
+  | null {
+  if (state === "unclaimed_bare" && gated) return "access.explain.gated";
 
   switch (state) {
     case "revoked":
-      return "This person has not granted you access to their profile. You can still see your own sessions, your own notes and your earlier copilot conversation, but not their live profile, their files, or their current diagnosis.";
+      return "access.explain.revoked";
     case "unclaimed_bare":
-      return "This record is yours alone until the person it describes claims it. Add a diagnosis and a history to get the most out of the copilot.";
+      return "access.explain.unclaimed";
     case "no_relationship":
-      return "You have no record for this person, so the copilot only has this session's transcript.";
+      return "access.explain.noRelationship";
     case "unclaimed_documented":
     case "granted":
       return null;
@@ -246,6 +259,17 @@ export const REJECTION_REASONS = [
   "I am no longer seeing them",
 ] as const;
 export type RejectionReason = (typeof REJECTION_REASONS)[number];
+
+/**
+ * The words each preset is SHOWN in. The stored value stays the English preset
+ * above, because it is what the column holds and what `isRejectionReason`
+ * checks; the patient reads it in their own language.
+ */
+export const REJECTION_REASON_KEYS = {
+  "I would rather keep my history private": "consent.reason.private",
+  "I do not remember seeing this therapist": "consent.reason.dontRemember",
+  "I am no longer seeing them": "consent.reason.noLonger",
+} as const satisfies Record<RejectionReason, string>;
 
 export function isRejectionReason(value: unknown): value is RejectionReason {
   return typeof value === "string" && (REJECTION_REASONS as readonly string[]).includes(value);

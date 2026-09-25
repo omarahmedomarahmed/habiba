@@ -64,7 +64,7 @@ export function RiskBanner({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-red-900">
-            {t("risk.detected", { level })}
+            {t("risk.detected", { level: t(`risk.level.${level}`) })}
           </p>
           <p className="mt-0.5 text-sm leading-relaxed text-red-800">
             {t("risk.assess")}

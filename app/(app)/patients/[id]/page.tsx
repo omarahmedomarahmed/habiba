@@ -104,7 +104,8 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   // page with the diagnosis field on it, and that field is the one the revoked
   // state actually refuses to save.
   const consent = await accessFor(actor, id);
-  const consentMessage = explain(consent.state, consent.gated);
+  const consentKey = explain(consent.state, consent.gated);
+  const consentMessage = consentKey ? t(consentKey) : null;
 
   /*
    * 🔴 THE SAME LOADER THE COPILOT PAGE USES. Two surfaces, one thread. It
