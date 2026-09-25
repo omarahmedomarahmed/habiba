@@ -7,6 +7,7 @@ import { hashPassword as hashCode, verifyPassword as verifyCode } from "@/lib/au
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, phoneChangeRequests, users } from "@/lib/db/schema";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
@@ -274,12 +275,20 @@ export async function sendChangeCode(input: {
     })
     .where(eq(phoneChangeRequests.id, row.id));
 
+  /* 🔴 Ruling 8: in the language the account holder chose. */
+  const [account] = await db
+    .select({ personId: patientAccounts.personId })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, row.patientAccountId))
+    .limit(1);
+  const { t, locale } = await wordsFor(account?.personId ? { personId: account.personId } : null);
+
   const delivery = await notify(
-    { phone: row.newPhone, email: null, timezone: null },
+    { phone: row.newPhone, email: null, timezone: null, locale },
     {
       kind: "phone.verify",
-      subject: "Confirm your new number",
-      body: `Your 24Therapy code is ${code}. Enter it in the app to finish moving your account to this number. It lasts ${CODE_HOURS} hours. If you did not ask for this, ignore it and nothing changes.`,
+      subject: t("pmsg.code.phoneSubject"),
+      body: t("pmsg.code.phone", { code, hours: CODE_HOURS }),
       variables: [code],
     },
   );

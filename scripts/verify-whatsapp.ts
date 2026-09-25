@@ -141,6 +141,11 @@ async function main() {
       templateStatus("clinic.removed", approvedTemplates("phone_verify")) === "none" &&
       approvedTemplates(undefined).size === 0,
   );
+  check(
+    "🔴 CONTROL the gate opens: a template named as approved reads approved, and the same name absent reads not approved",
+    templateStatus("payment.rejected", approvedTemplates("payment_rejected")) === "approved" &&
+      templateStatus("payment.rejected", approvedTemplates("")) === "not_approved",
+  );
   const whatsapp = read("lib/notify/whatsapp.ts");
   check(
     "🔴 the WhatsApp sender refuses a template Meta has not approved",

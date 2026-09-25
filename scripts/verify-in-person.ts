@@ -58,6 +58,12 @@ async function main() {
       JSON.stringify(paidRow),
     );
 
+    check(
+      "🔴 CONTROL the unpaid rule is about in person only: an online session at the same price and state is not held by it",
+      !unpaidInPerson({ modality: "video", priceCents: 2000, paymentStatus: "pending" }) &&
+        !unpaidInPerson({ modality: "in_person", priceCents: 2000, paymentStatus: "paid" }),
+    );
+
     const pot = await one<{ n: number }>(sql`SELECT count(*)::int AS n FROM session_payments WHERE session_id = ${paid!.id}`);
     check("🔴 creating it spends no company money: the therapist never can", pot.n === 0);
 

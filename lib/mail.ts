@@ -6,6 +6,22 @@ import { env, features } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
 import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
+import type { Words } from "@/lib/i18n/message-words";
+import type { MessageKey } from "@/lib/i18n/messages";
+
+/**
+ * 🔴 Ruling 8: the words for one email, in the language the caller resolved
+ * for its recipient (`wordsFor`), with admin overrides. Absent is the default.
+ */
+async function mailWords(locale: string | null | undefined): Promise<Words> {
+  const { wordsIn } = await import("@/lib/i18n/message-words");
+  return wordsIn(locale);
+}
+
+/** A footer of two dictionary lines, escaped, the way the shell sets them. */
+function footerOf(words: Words, first: MessageKey, second: MessageKey): string {
+  return `${esc(words.t(first))}<br>${esc(words.t(second))}`;
+}
 
 let resend: Resend | null = null;
 
@@ -37,17 +53,23 @@ function esc(value: unknown): string {
  * on a message we send to a therapist ourselves — and a mismatched footer on a
  * transactional email is exactly what makes a real one look like a phish.
  */
-function layout(title: string, body: string, footer?: string): string {
+function layout(title: string, body: string, footer?: string, words?: Words): string {
+  /* 🔴 Ruling 8: an Arabic message reads right to left, shell and all. */
+  const rtl = words?.locale === "ar";
+  const content = rtl ? `<div dir="rtl" style="text-align:right;">${body}</div>` : body;
+  const fallback = words
+    ? `${esc(words.t("pmsg.mail.fromTherapist"))}<br>${esc(words.t("pmsg.mail.ignore"))}`
+    : undefined;
   return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
+<html${rtl ? ' dir="rtl" lang="ar"' : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
   <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
     <div style="background:#ffffff;border-radius:16px;padding:28px 24px;border:1px solid #e2e8f0;">
       <div style="font-weight:700;font-size:15px;color:#0A2342;letter-spacing:-0.01em;margin-bottom:20px;">24Therapy</div>
-      ${body}
+      ${content}
     </div>
     <p style="text-align:center;color:#64748b;font-size:12px;line-height:1.6;margin:20px 0 0;">
-      ${footer ?? "This message was sent by your therapist through 24Therapy.<br>If you were not expecting it, you can safely ignore it."}
+      ${footer ?? fallback ?? "This message was sent by your therapist through 24Therapy.<br>If you were not expecting it, you can safely ignore it."}
     </p>
   </div>
 </body></html>`;
@@ -283,28 +305,30 @@ export async function sendRatingReminder(opts: {
   sessionDate: Date;
   /** The patient's zone, then the clinician's. 11R.1. */
   timezone?: string | null;
+  /** 🔴 Ruling 8: the patient's language, from `wordsFor`. */
+  locale?: string | null;
 }): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
+  const date = formatCalendarDate(opts.sessionDate, resolveZone(opts.timezone).name, words.locale);
   const html = layout(
-    "Your session summary is ready",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;letter-spacing:-0.02em;">Your summary is ready</p>
+    t("pmsg.rating.subject"),
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;letter-spacing:-0.02em;">${esc(t("pmsg.rating.title"))}</p>
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.7;">
-       ${esc(opts.therapistFirstName)} has finished writing up your session on ${esc(
-         formatCalendarDate(opts.sessionDate, resolveZone(opts.timezone).name, "en"),
-       )}. It is a short summary written for you: what you talked about and what you agreed to try, and it is waiting on the same link you used to join.
+       ${esc(t("pmsg.rating.body", { therapist: opts.therapistFirstName, date }))}
      </p>
-     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open my summary</a>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("pmsg.rating.button"))}</a>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.7;">
-       You will be asked to rate the session first. It takes about a minute, it is anonymous to ${esc(
-         opts.therapistFirstName,
-       )}, and it is the only thing we ask of you.
+       ${esc(t("pmsg.rating.ask", { therapist: opts.therapistFirstName }))}
      </p>
      <p style="margin:10px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
-       The link stops working three days after your session. We will not email you about this again.
+       ${esc(t("pmsg.rating.expiry"))}
      </p>`,
-    "24Therapy sent this because you had a session on the platform.<br>If you were not expecting it, you can safely ignore it.",
+    footerOf(words, "pmsg.rating.footer", "pmsg.mail.ignore"),
+    words,
   );
 
-  return send({ to: opts.to, subject: "Your session summary is ready", html });
+  return send({ to: opts.to, subject: t("pmsg.rating.subject"), html });
 }
 
 /**
@@ -323,7 +347,14 @@ export async function sendTherapistMessage(opts: {
   body: string;
   /** Shown as a footer note so a broadcast does not read as a personal note. */
   announcement?: boolean;
+  /**
+   * 🔴 Ruling 8: the clinician's language, for the greeting and the footer.
+   * An admin's own subject and body go as they were typed.
+   */
+  locale?: string | null;
 }): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
   const paragraphs = opts.body
     .split(/\n{2,}/)
     .map((block) => block.trim())
@@ -336,30 +367,38 @@ export async function sendTherapistMessage(opts: {
 
   const html = layout(
     opts.subject,
-    `<p style="margin:0 0 16px;font-size:18px;font-weight:700;letter-spacing:-0.01em;">Hi ${esc(opts.firstName || "there")},</p>
+    `<p style="margin:0 0 16px;font-size:18px;font-weight:700;letter-spacing:-0.01em;">${esc(
+      opts.firstName ? t("tmsg.mail.hi", { name: opts.firstName }) : t("tmsg.mail.hiThere"),
+    )}</p>
      ${paragraphs}
      <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6;">
-       ${
-         opts.announcement
-           ? "This went to everyone using 24Therapy. Reply to this email if you need us. A person reads it."
-           : "Reply to this email if you need us. A person reads it."
-       }
+       ${esc(opts.announcement ? t("tmsg.mail.announcement") : t("tmsg.mail.reply"))}
      </p>`,
-    "Sent by 24Therapy to the address on your clinician account.",
+    esc(t("tmsg.mail.footer")),
+    words,
   );
 
   return send({ to: opts.to, subject: opts.subject, html });
 }
 
-export async function sendPasswordReset(opts: { to: string; url: string }): Promise<boolean> {
+export async function sendPasswordReset(opts: {
+  to: string;
+  url: string;
+  /** 🔴 Ruling 8: the account holder's language, when they have a `users` row. */
+  locale?: string | null;
+}): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
   const html = layout(
-    "Reset your password",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Reset your password</p>
-     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">This link works once and expires in one hour.</p>
-     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Choose a new password</a>
-     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">If you did not ask for this, nothing has changed and you can ignore this email.</p>`,
+    t("tmsg.reset.title"),
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(t("tmsg.reset.title"))}</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(t("tmsg.reset.expiry"))}</p>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("tmsg.reset.button"))}</a>
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">${esc(t("tmsg.reset.ignore"))}</p>`,
+    undefined,
+    words,
   );
-  return send({ to: opts.to, subject: "Reset your 24Therapy password", html });
+  return send({ to: opts.to, subject: t("tmsg.reset.subject"), html });
 }
 
 /**
@@ -389,15 +428,24 @@ export async function sendPartnerInvite(opts: {
  * The redacted name is shown on the screen, to somebody who is already signed
  * in, and never in an email.
  */
-export async function sendClaimCode(opts: { to: string; code: string }): Promise<boolean> {
+export async function sendClaimCode(opts: {
+  to: string;
+  code: string;
+  /** 🔴 Ruling 8: the patient's language. */
+  locale?: string | null;
+}): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
   const html = layout(
-    "Your verification code",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your code</p>
-     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">It expires in 30 minutes.</p>
-     <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:6px;">${esc(opts.code)}</p>
-     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">If you did not ask for this, ignore this email. Nothing has changed.</p>`,
+    t("pmsg.claimMail.title"),
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(t("pmsg.claimMail.heading"))}</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(t("pmsg.claimMail.expiry"))}</p>
+     <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:6px;" dir="ltr">${esc(opts.code)}</p>
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">${esc(t("pmsg.claimMail.ignore"))}</p>`,
+    undefined,
+    words,
   );
-  return send({ to: opts.to, subject: "Your 24Therapy verification code", html });
+  return send({ to: opts.to, subject: t("pmsg.code.verifySubject"), html });
 }
 
 /**
@@ -412,39 +460,46 @@ export async function sendSessionInvite(opts: {
   therapistName: string;
   joinUrl: string;
   priceCents?: number;
+  /** 🔴 Ruling 8: the patient's language, from `wordsFor`. */
+  locale?: string | null;
 }): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
   const price = Math.max(0, Math.round(opts.priceCents ?? 0));
   const paid = price > 0;
   /* Pounds first, dollars beside them: an email has no hover. */
   const { moneyText } = await import("@/lib/money/text");
   const amount = await moneyText(price);
+  const end = words.locale === "ar" ? "left" : "right";
 
   const priceRow = paid
     ? `<table role="presentation" width="100%" style="margin:0 0 20px;border-collapse:collapse;background:#0A2342;border-radius:12px;">
          <tr>
-           <td style="padding:14px 16px;color:rgba(255,255,255,0.7);font-size:14px;">This session</td>
-           <td style="padding:14px 16px;text-align:right;color:#ffffff;font-size:22px;font-weight:700;">${esc(amount)}</td>
+           <td style="padding:14px 16px;color:rgba(255,255,255,0.7);font-size:14px;">${esc(t("pmsg.inviteMail.price"))}</td>
+           <td style="padding:14px 16px;text-align:${end};color:#ffffff;font-size:22px;font-weight:700;">${esc(amount)}</td>
          </tr>
        </table>`
     : "";
 
   const html = layout(
-    "Your session link",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your session is ready</p>
-     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(opts.therapistName)} has invited you to join. No account or download needed. Just tap the button.</p>
+    t("pmsg.inviteMail.title"),
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(t("pmsg.inviteMail.heading"))}</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(t("pmsg.inviteMail.body", { therapist: opts.therapistName }))}</p>
      ${priceRow}
-     <a href="${esc(opts.joinUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${paid ? `Pay ${esc(amount)} and join` : "Join the session"}</a>
+     <a href="${esc(opts.joinUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(paid ? t("pmsg.inviteMail.pay", { amount }) : t("pmsg.inviteMail.join"))}</a>
      ${
        paid
-         ? `<p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">Payment is handled securely by Stripe and goes to your therapist. You will get a receipt by email.</p>`
+         ? `<p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">${esc(t("pmsg.inviteMail.stripe"))}</p>`
          : ""
      }
-     <p style="margin:${paid ? "10px" : "20px"} 0 0;color:#64748b;font-size:13px;">This link expires in 12 hours.</p>`,
+     <p style="margin:${paid ? "10px" : "20px"} 0 0;color:#64748b;font-size:13px;">${esc(t("pmsg.inviteMail.expiry"))}</p>`,
+    undefined,
+    words,
   );
 
   return send({
     to: opts.to,
-    subject: paid ? `Your therapy session: ${amount}` : "Your therapy session link",
+    subject: paid ? t("pmsg.inviteMail.subjectPaid", { amount }) : t("pmsg.inviteMail.subject"),
     html,
   });
 }
@@ -460,34 +515,36 @@ export async function sendSessionInvite(opts: {
 export async function sendRecordExport(opts: {
   to: string;
   patientName: string;
-  clinicianName: string;
+  /** Their clinician's name; absent says "your therapist" in their language. */
+  clinicianName?: string | null;
   url: string;
   expiresInHours: number;
   /** Blind copy of the same message, for the person who requested it. */
   copyTo?: string;
+  /** 🔴 Ruling 8: the patient's language, from `wordsFor`. */
+  locale?: string | null;
 }): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
+  const clinician = opts.clinicianName || t("pmsg.yourTherapistLower");
   const html = layout(
-    "Your record",
-    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">Your record is ready</p>
+    t("pmsg.exportMail.title"),
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(t("pmsg.exportMail.heading"))}</p>
      <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">
-       ${esc(opts.patientName)}, this is everything held about you in the chart kept by
-       ${esc(opts.clinicianName)}: your details, every session, every note, and the
-       transcript of anything that was recorded.
+       ${esc(t("pmsg.exportMail.body", { patient: opts.patientName, clinician }))}
      </p>
-     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open your record</a>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("pmsg.openRecord"))}</a>
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
-       The link works for ${esc(opts.expiresInHours)} hours and then stops, so save or print
-       the page while it is open. It was generated automatically and nobody at
-       24Therapy read it in order to send it to you.
+       ${esc(t("pmsg.exportMail.expiry", { hours: opts.expiresInHours }))}
      </p>
      <p style="margin:10px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
-       If you did not ask for this, tell ${esc(opts.clinicianName)}, and do not open
-       the link, since it will be replaced the next time a copy is requested.
+       ${esc(t("pmsg.exportMail.notYou", { clinician }))}
      </p>`,
-    "This message was sent by 24Therapy at the request of you or your therapist.<br>It contains a private link, so please do not forward it.",
+    footerOf(words, "pmsg.exportMail.footer", "pmsg.exportMail.private"),
+    words,
   );
 
-  return send({ to: opts.to, bcc: opts.copyTo, subject: "Your 24Therapy record", html });
+  return send({ to: opts.to, bcc: opts.copyTo, subject: t("pmsg.exportMail.subject"), html });
 }
 
 /**
@@ -552,11 +609,18 @@ export async function sendWalkInDirections(opts: {
   practiceName: string | null;
   address: string;
   mapsUrl: string;
+  /**
+   * 🔴 Ruling 8: an anonymous visitor has no saved choice, so this is the
+   * language of the page they asked from.
+   */
+  locale?: string | null;
 }): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
   const html = layout(
-    "Directions",
+    t("pmsg.walkIn.title"),
     `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(opts.therapistName)}</p>
-     <p style="margin:0 0 16px;color:#64748b;font-size:14px;">You asked for the address on 24Therapy.</p>
+     <p style="margin:0 0 16px;color:#64748b;font-size:14px;">${esc(t("pmsg.walkIn.asked"))}</p>
      <table role="presentation" width="100%" style="margin:0 0 18px;border-collapse:collapse;background:#f0fdfa;border-radius:12px;">
        <tr><td style="padding:14px 16px;">
          ${opts.practiceName ? `<p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#0f766e;">${esc(opts.practiceName)}</p>` : ""}
@@ -565,20 +629,20 @@ export async function sendWalkInDirections(opts: {
      </table>
      ${
        opts.mapsUrl
-         ? `<a href="${esc(opts.mapsUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">Open directions</a>`
+         ? `<a href="${esc(opts.mapsUrl)}" style="display:inline-block;background:#2EC4B6;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("pmsg.walkIn.open"))}</a>`
          : ""
      }
      <p style="margin:20px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
-       Turning up is not an appointment, this clinician accepts walk-ins, but they may
-       be with someone. Booking a session on the radar is the only way to be certain.
+       ${esc(t("pmsg.walkIn.note"))}
      </p>
      <p style="margin:10px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
-       If you are in immediate danger, call your local emergency number.
+       ${esc(t("pmsg.walkIn.danger"))}
      </p>`,
-    "You asked for this address on 24Therapy's Crisis Radar.<br>We did not store your email and you are not signed up to anything.",
+    footerOf(words, "pmsg.walkIn.footer", "pmsg.walkIn.footer2"),
+    words,
   );
 
-  return send({ to: opts.to, subject: `Directions to ${opts.therapistName}`, html });
+  return send({ to: opts.to, subject: t("pmsg.walkIn.subject", { therapist: opts.therapistName }), html });
 }
 
 /**
@@ -599,7 +663,10 @@ export async function sendNotification(opts: {
   /** Plain text. Paragraphs split on a blank line. */
   body: string;
   link?: { label: string; url: string } | null;
+  /** 🔴 Ruling 8: the language the caller wrote the subject and body in. */
+  locale?: string | null;
 }): Promise<boolean> {
+  const words = await mailWords(opts.locale);
   const paragraphs = opts.body
     .split("\n\n")
     .map((line) => `<p style="margin:0 0 12px;line-height:1.6;">${esc(line)}</p>`)
@@ -615,7 +682,8 @@ export async function sendNotification(opts: {
     html: layout(
       opts.subject,
       paragraphs + button,
-      "This message was sent by 24Therapy about an appointment you booked.<br>If you were not expecting it, you can safely ignore it.",
+      footerOf(words, "pmsg.mail.aboutBooking", "pmsg.mail.ignore"),
+      words,
     ),
   });
 }

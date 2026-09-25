@@ -7,6 +7,7 @@ import { dbFor } from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 
@@ -88,13 +89,21 @@ export async function issueEmailCode(
     expiresAt: new Date(Date.now() + CODE_MINUTES * 60 * 1000),
   });
 
+  /* 🔴 Ruling 8: in the language the account holder chose. */
+  const [holder] = await db
+    .select({ personId: patientAccounts.personId })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, accountId))
+    .limit(1);
+  const { t, locale } = await wordsFor(holder?.personId ? { personId: holder.personId } : null);
+
   /* To this address only: a code for an address proves nothing if it lands on a phone. */
   await notify(
-    { email, phone: null },
+    { email, phone: null, locale },
     {
       kind: "claim.code",
-      subject: "Your 24Therapy code",
-      body: `${code} is your code to add this address. It expires in ${CODE_MINUTES} minutes. If you did not ask for it, ignore this message.`,
+      subject: t("pmsg.code.subject"),
+      body: t("pmsg.code.addEmail", { code, minutes: CODE_MINUTES }),
       variables: [code],
     },
   );

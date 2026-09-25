@@ -15,6 +15,7 @@ import {
   type PayoutRequest,
   type PayoutStatus,
 } from "@/lib/db/schema";
+import { wordsFor } from "@/lib/i18n/message-words";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { notify } from "@/lib/notify";
@@ -620,16 +621,22 @@ async function recordSent(
     .where(eq(users.id, row.therapistId))
     .limit(1);
 
+  /* 🔴 Ruling 8: in the clinician's own language. */
+  const sentWords = await wordsFor({ userId: row.therapistId });
   await notify(
     {
       email: payee?.email ?? null,
       phone: payee?.profile?.phone ?? null,
       timezone: payee?.timezone ?? null,
+      locale: sentWords.locale,
     },
     {
       kind: "payout.sent",
-      subject: "Your withdrawal is on its way",
-      body: `We have sent ${(row.payoutAmountMinor / 100).toFixed(2)} ${row.payoutCurrency.toUpperCase()} to ${row.accountName}. The transfer receipt is on your earnings page.`,
+      subject: sentWords.t("tmsg.payout.sentSubject"),
+      body: sentWords.t("tmsg.payout.sent", {
+        amount: `${(row.payoutAmountMinor / 100).toFixed(2)} ${row.payoutCurrency.toUpperCase()}`,
+        account: row.accountName,
+      }),
       /* Task 40: the one variable `payout_sent` takes. */
       variables: [`${(row.payoutAmountMinor / 100).toFixed(2)} ${row.payoutCurrency.toUpperCase()}`],
     },
@@ -892,16 +899,19 @@ export async function markPayoutReturned(input: {
     .where(eq(users.id, row.therapistId))
     .limit(1);
 
+  /* 🔴 Ruling 8: in the clinician's own language; the operator's reason as typed. */
+  const returnedWords = await wordsFor({ userId: row.therapistId });
   await notify(
     {
       email: payee?.email ?? null,
       phone: payee?.profile?.phone ?? null,
       timezone: payee?.timezone ?? null,
+      locale: returnedWords.locale,
     },
     {
       kind: "payout.returned",
-      subject: "Your withdrawal did not arrive",
-      body: `${reason} The money is back in your balance, so you can ask for it again.`,
+      subject: returnedWords.t("tmsg.payout.returnedSubject"),
+      body: returnedWords.t("tmsg.payout.returned", { reason }),
       /* Task 40: the one variable `payout_returned` takes. */
       variables: [`$${(row.amountCents / 100).toFixed(2)}`],
     },
@@ -950,18 +960,26 @@ export async function rejectPayout(input: {
   if (result.error) return result;
 
   const [row] = await db
-    .select({ email: users.email, profile: users.profile, timezone: users.timezone, amountCents: payoutRequests.amountCents })
+    .select({
+      userId: users.id,
+      email: users.email,
+      profile: users.profile,
+      timezone: users.timezone,
+      amountCents: payoutRequests.amountCents,
+    })
     .from(payoutRequests)
     .innerJoin(users, eq(users.id, payoutRequests.therapistId))
     .where(eq(payoutRequests.id, input.requestId))
     .limit(1);
 
   if (row) {
+    /* 🔴 Ruling 8: in the clinician's own language; the reason as the operator typed it. */
+    const { t, locale } = await wordsFor({ userId: row.userId });
     await notify(
-      { email: row.email, phone: row.profile?.phone ?? null, timezone: row.timezone },
+      { email: row.email, phone: row.profile?.phone ?? null, timezone: row.timezone, locale },
       {
         kind: "payout.rejected",
-        subject: "We could not process your withdrawal",
+        subject: t("tmsg.payout.rejectedSubject"),
         body: reason,
         /* Task 40: the one variable `payout_rejected` takes. */
         variables: [`$${(row.amountCents / 100).toFixed(2)}`],

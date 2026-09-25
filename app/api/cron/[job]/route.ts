@@ -616,9 +616,8 @@ const JOBS = {
       "@/lib/data/scheduling"
     );
     const { notify } = await import("@/lib/notify");
-    const { formatWhenWithCaveat, isQuietHour, resolveZone } = await import(
-      "@/lib/scheduling/tz"
-    );
+    const { whenFor, wordsFor } = await import("@/lib/i18n/message-words");
+    const { isQuietHour, resolveZone } = await import("@/lib/scheduling/tz");
 
     const now = new Date();
     const ahead = await bookingsNeedingReminder(20, 24);
@@ -650,27 +649,29 @@ const JOBS = {
         .filter(Boolean)
         .join(" ");
       /*
-       * 🔴 37L.9 — `"en"` here is a decision, not a default.
-       *
-       * Emails and WhatsApp templates are 37L.4, which has not been done: the
-       * bodies around this string are still English, and a date rendered in Arabic
-       * inside an English sentence is worse than one that matches it. The locale is
-       * written at the call site so the day 37L.4 lands, this line is the diff.
+       * 🔴 37L.9 / RULING 8: the date is in the patient's language now, because
+       * the sentence around it is too: the words come from `wordsFor`, which
+       * reads the language they chose.
        */
-      const when = formatWhenWithCaveat(booking.startsAt, zone, "en");
+      const words = await wordsFor(booking.personId ? { personId: booking.personId } : null);
+      const when = whenFor(booking.startsAt, zone, words);
+      const door = patientSessionLink(env.appUrl, booking.joinToken);
 
       const delivery = await notify(
         {
+          personId: booking.personId,
           email: booking.patientEmail,
           phone: booking.patientPhone,
           timezone: booking.patientTimezone,
+          locale: words.locale,
         },
         {
+          notice: { kind: "session_invited", key: "pnotice.reminder" },
           kind: "booking.reminder",
-          subject: `Your session with ${therapist}`,
-          body: `A reminder that your session with ${therapist} is ${when}.\n\nIf you cannot make it, tell them as early as you can. The hour goes back on their calendar for somebody else.`,
+          subject: words.t("pmsg.sessionWith", { therapist }),
+          body: words.t("pmsg.reminder.body", { therapist, when }),
           /* 🔴 W2-P05: the patient's own door, not the clinician's session page. */
-          link: patientSessionLink(env.appUrl, booking.joinToken),
+          link: door ? { ...door, label: words.t("pmsg.openSession") } : null,
           variables: [therapist, when],
         },
       );
@@ -718,15 +719,24 @@ const JOBS = {
     for (const row of released) {
       const zone = resolveZone(row.patientTimezone, row.therapistTimezone);
       const therapist = [row.therapistFirstName, row.therapistLastName].filter(Boolean).join(" ");
-      const when = formatWhenWithCaveat(row.startsAt, zone, "en");
+      /* 🔴 Ruling 8: in the patient's own language, the date included. */
+      const words = await wordsFor(row.personId ? { personId: row.personId } : null);
+      const when = whenFor(row.startsAt, zone, words);
 
       const delivery = await notify(
-        { email: row.patientEmail, phone: row.patientPhone, timezone: row.patientTimezone },
         {
+          personId: row.personId,
+          email: row.patientEmail,
+          phone: row.patientPhone,
+          timezone: row.patientTimezone,
+          locale: words.locale,
+        },
+        {
+          notice: { kind: "session_cancelled", key: "pnotice.released", sessionId: row.sessionId },
           kind: "booking.cancelled",
-          subject: `Your session with ${therapist} was not confirmed`,
-          body: `Your session with ${therapist} on ${when} was never paid for, so the hour has gone back on their calendar.\n\nIf you still want it, book again. It may still be free.`,
-          link: { label: "Book again", url: `${env.appUrl}/radar` },
+          subject: words.t("pmsg.released.subject", { therapist }),
+          body: words.t("pmsg.released.body", { therapist, when }),
+          link: { label: words.t("pmsg.bookAgain"), url: `${env.appUrl}/radar` },
           variables: [therapist, when],
         },
       );

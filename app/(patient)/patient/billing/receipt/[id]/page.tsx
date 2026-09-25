@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PatientBack } from "@/components/patient/back";
 import { PrintButton } from "@/components/patient/print-button";
 import { receiptFor } from "@/lib/data/receipts";
 import { BRAND } from "@/lib/brand";
@@ -57,9 +58,7 @@ export default async function ReceiptPage({
       <style>{"@media print { nav, header, [data-print-hide] { display: none !important; } body { background: #fff; } }"}</style>
 
       <div data-print-hide className="flex items-center justify-between gap-3 print:hidden">
-        <Link href="/patient/billing" className="text-sm font-semibold text-slate-600">
-          {t("pbilling.title")}
-        </Link>
+        <PatientBack />
         <div className="flex items-center gap-3">
           <Link href={`/patient/billing/receipt/${receipt.paymentId}?lang=${other}`} className="text-sm text-slate-600 underline">
             {LOCALE_NAMES[other]}
@@ -84,7 +83,7 @@ export default async function ReceiptPage({
         <dl className="mt-3 space-y-1.5 text-sm">
           <Line label={t("preceipt.number")}>{receipt.number}</Line>
           <Line label={t("preceipt.date")}>{formatDate(receipt.paidAt, actor.timezone, locale)}</Line>
-          <Line label={t("preceipt.paidBy")}>{receipt.payerName}</Line>
+          <Line label={t("preceipt.paidBy")}>{[actor.firstName, actor.lastName].filter(Boolean).join(" ")}</Line>
           <Line label={t("preceipt.for")}>
             {t("preceipt.session", {
               name: receipt.therapistName,

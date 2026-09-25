@@ -76,6 +76,9 @@ export async function sendClaimCode(
    * ignored them.
    */
   const { notify } = await import("@/lib/notify");
+  /* 🔴 Ruling 8: in the language the signed-in patient chose. */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const { t, locale } = await wordsFor({ personId: actor.personId });
 
   const delivery = await notify(
     {
@@ -84,16 +87,17 @@ export async function sendClaimCode(
       // 11R.11 — their choice is honoured where it can be, and reported where
       // it cannot.
       prefers: channel,
+      locale,
     },
     {
       kind: "claim.code",
-      subject: "Your 24Therapy verification code",
+      subject: t("pmsg.code.verifySubject"),
       /*
        * 🔴 Says nothing about who holds the record, or that a record exists.
        * Somebody who mistyped an address must not learn from this message that
        * a person by that name is in therapy.
        */
-      body: `${result.code} is your 24Therapy verification code. It expires in 30 minutes.\n\nIf you did not ask for it, ignore this message.`,
+      body: t("pmsg.code.claim", { code: result.code }),
       variables: [result.code],
     },
   );

@@ -1,7 +1,5 @@
 "use server";
 
-import { fullName } from "@/lib/utils";
-
 export type FeedbackState = { error?: string; ok?: boolean; sent?: boolean };
 
 /**
@@ -150,11 +148,16 @@ export async function reportSession(input: {
 
     if (therapist) {
       const { sendTherapistMessage } = await import("@/lib/mail");
+      /* 🔴 Ruling 8: in the clinician's own language. */
+      const { wordsFor } = await import("@/lib/i18n/message-words");
+      const { radarPeriod } = await import("@/lib/data/feedback");
+      const words = await wordsFor({ userId: filed.therapistId });
       await sendTherapistMessage({
         to: therapist.email,
         firstName: therapist.firstName,
-        subject: "You have been taken off the Crisis Radar",
-        body: `A patient reported that you did not join a session they had booked and paid for, and the session record shows you did not start it. They have been refunded, and you are off the radar for ${penalty.label}.\n\nIf this is wrong, reply to this email and we will look at it.\n\nGoing on the radar means being ready to take a session within a minute. If you cannot be, switch yourself off; there is no penalty for being unavailable, only for being unavailable while advertised.\n\n- ${fullName(therapist.firstName, therapist.lastName, "")}`.trim(),
+        subject: words.t("tmsg.radarOff.subject"),
+        body: words.t("tmsg.radarOff.reported", { period: radarPeriod(penalty.hours, words) }),
+        locale: words.locale,
       });
     }
 

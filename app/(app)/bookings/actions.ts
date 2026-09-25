@@ -7,8 +7,9 @@ import { accessFor } from "@/lib/data/grants";
 import { getPatient } from "@/lib/data/patients";
 import { bookSlot, publishHours, withdrawHour } from "@/lib/data/scheduling";
 import { env } from "@/lib/env";
+import { whenFor, wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
-import { formatWhenWithCaveat, resolveZone } from "@/lib/scheduling/tz";
+import { resolveZone } from "@/lib/scheduling/tz";
 import { patientSessionLink } from "@/lib/sessions/patient-link";
 import { fullName } from "@/lib/utils";
 
@@ -119,17 +120,27 @@ export async function invitePatient(input: {
    * learns about an appointment from its reminder was never invited to it.
    */
   const zone = resolveZone(patient.timezone, booked.therapistTimezone);
-  const when = formatWhenWithCaveat(booked.startsAt, zone, "en");
+  /* 🔴 Ruling 8: in the patient's own language, the date included. */
+  const words = await wordsFor(patient.personId ? { personId: patient.personId } : null);
+  const when = whenFor(booked.startsAt, zone, words);
   const therapist = fullName(actor.firstName, actor.lastName, "");
+  const door = patientSessionLink(env.appUrl, booked.joinToken);
 
   const delivery = await notify(
-    { email: patient.email, phone: patient.phone, timezone: patient.timezone },
     {
+      personId: patient.personId,
+      email: patient.email,
+      phone: patient.phone,
+      timezone: patient.timezone,
+      locale: words.locale,
+    },
+    {
+      notice: { kind: "session_invited", key: "pnotice.booked", sessionId: booked.sessionId },
       kind: "booking.confirmed",
-      subject: `A session with ${therapist}`,
-      body: `${therapist} has kept ${when} for you.\n\nIf that does not work, tell them as early as you can and the hour goes back on their calendar for somebody else.`,
+      subject: words.t("pmsg.booked.subject", { therapist }),
+      body: words.t("pmsg.booked.body", { therapist, when }),
       /* 🔴 W2-P05: to the PATIENT, so their own door, never this app's session page. */
-      link: patientSessionLink(env.appUrl, booked.joinToken),
+      link: door ? { ...door, label: words.t("pmsg.openSession") } : null,
       variables: [therapist, when],
     },
   );

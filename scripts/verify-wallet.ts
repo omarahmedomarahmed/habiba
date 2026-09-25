@@ -65,6 +65,17 @@ async function main() {
     const wallet = await import("../lib/billing/wallet");
     const { patientOwesFor, claimSessionPaid } = await import("../lib/billing/session-owed");
 
+    /* CONTROL: an empty wallet holds nothing, and the patient is asked for everything. */
+    const empty = await book(2000);
+    const none = await wallet.holdWallet(empty);
+    const full = await patientOwesFor(empty);
+    check(
+      "🔴 CONTROL an empty wallet holds nothing and the patient owes the whole price",
+      none.heldCents === 0 && !none.paid && full.grossCents === 2000 && full.walletCents === 0 && (await hold(empty)) === undefined,
+      JSON.stringify({ none, full }),
+    );
+    await db.execute(sql`UPDATE sessions SET status = 'cancelled' WHERE id = ${empty}`);
+
     await wallet.creditWallet({
       personId: person.id,
       cents: 500,

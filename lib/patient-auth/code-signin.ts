@@ -7,6 +7,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { whatsappConfigured } from "@/lib/notify/whatsapp";
 import { toE164 } from "@/lib/phone/e164";
@@ -79,6 +80,7 @@ async function findAccount(handle: string, country: string | null) {
       id: patientAccounts.id,
       email: patientAccounts.email,
       phone: patientAccounts.phone,
+      personId: patientAccounts.personId,
     })
     .from(patientAccounts)
     .where(
@@ -133,12 +135,16 @@ export async function requestSignInCode(
      * email typed into this box must not arrive on a phone the account happens
      * to carry: that is how somebody with a stolen address reaches a number.
      */
+    /* 🔴 Ruling 8: in the language they chose. */
+    const { t, locale } = await wordsFor(account.personId ? { personId: account.personId } : null);
     await notify(
-      channel === "email" ? { email: account.email, phone: null } : { email: null, phone: account.phone },
+      channel === "email"
+        ? { email: account.email, phone: null, locale }
+        : { email: null, phone: account.phone, locale },
       {
         kind: "claim.code",
-        subject: "Your 24Therapy code",
-        body: `${code} is your code to sign in. It expires in ${CODE_MINUTES} minutes. If you did not ask for it, ignore this message.`,
+        subject: t("pmsg.code.subject"),
+        body: t("pmsg.code.signIn", { code, minutes: CODE_MINUTES }),
         variables: [code],
       },
     );

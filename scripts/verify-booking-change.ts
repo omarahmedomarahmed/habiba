@@ -45,6 +45,10 @@ async function main() {
   );
   check("a window of 0 hours: free until the start", insideFreeWindow(at, new Date(at.getTime() - 1000), 0));
   check(
+    "🔴 CONTROL the window refuses: an hour before a 24-hour window, and after the start of a 0-hour one",
+    !insideFreeWindow(at, new Date(at.getTime() - HOUR), 24) && !insideFreeWindow(at, new Date(at.getTime() + 1000), 0),
+  );
+  check(
     "an online session moves only to an online or either hour; in person likewise",
     placeFits("video", "online") && placeFits("video", "either") && !placeFits("video", "in_person") &&
       placeFits("in_person", "in_person") && !placeFits("in_person", "online"),

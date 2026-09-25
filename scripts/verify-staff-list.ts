@@ -33,6 +33,13 @@ async function main() {
     JSON.stringify(parsed),
   );
 
+  const clean = parseEmailList("amal@example.com\nomar@example.com");
+  check(
+    "🔴 CONTROL a clean list loses nothing: two good lines, two addresses, none skipped",
+    clean.emails.length === 2 && clean.skipped === 0,
+    JSON.stringify(clean),
+  );
+
   const sponsor = await one<{ id: string }>(sql`
     INSERT INTO sponsors (name, kind, entity, currency, state)
     VALUES (${`List Co ${fixture}`}, 'company', 'eg', 'EGP', 'active') RETURNING id`);

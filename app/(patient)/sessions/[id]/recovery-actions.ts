@@ -16,6 +16,7 @@ import {
 } from "@/lib/data/recovery";
 import { notify } from "@/lib/notify";
 import { env } from "@/lib/env";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { getPatientActor } from "@/lib/patient-auth/session";
 
@@ -228,14 +229,16 @@ export async function takeReplacement(
     .limit(1);
 
   if (taker) {
+    /* 🔴 Ruling 8: in the clinician's own language. */
+    const { t, locale } = await wordsFor({ userId });
     await notify(
-      { email: taker.email, phone: null, timezone: taker.timezone },
+      { email: taker.email, phone: null, timezone: taker.timezone, locale },
       {
         kind: "booking.confirmed",
-        subject: "Somebody needs a session now",
-        body: "A patient was left waiting when their therapist did not join, and they have chosen you. They are in the room now.",
-        link: { label: "Join the session", url: `${env.appUrl}/sessions/${sessionId}` },
-        variables: ["24Therapy", "now"],
+        subject: t("tmsg.recovery.subject"),
+        body: t("tmsg.recovery.body"),
+        link: { label: t("tmsg.recovery.link"), url: `${env.appUrl}/sessions/${sessionId}` },
+        variables: ["24Therapy", t("tmsg.now")],
       },
     );
   }
@@ -262,6 +265,7 @@ export async function takeRefund(proof: RecoveryProof): Promise<RecoveryView | {
       phone: patients.phone,
       timezone: patients.timezone,
       guestEmail: sessions.guestEmail,
+      personId: patients.personId,
     })
     .from(sessions)
     .leftJoin(patients, eq(patients.id, sessions.patientId))
@@ -276,30 +280,33 @@ export async function takeRefund(proof: RecoveryProof): Promise<RecoveryView | {
    */
   /*
    * 🔴 W1-12: the message says what happened to the money, and only that. It
-   * used to say "refunded in full" whatever the refund had done. English, like
-   * the rest of this message.
+   * used to say "refunded in full" whatever the refund had done. Ruling 8: in
+   * the patient's own language, like the rest of this message.
    */
-  const { en } = await import("@/lib/i18n/messages");
+  const { t, locale } = await wordsFor(row?.personId ? { personId: row.personId } : null);
   const moneyLine =
     result.outcome === "refunded"
-      ? "You have been refunded in full, including our fee."
+      ? t("pmsg.noShow.refunded")
       : result.outcome === "refund_owed"
-        ? en["w1a.refundOwedBody"]
-        : en["w1a.noShowCancelledBody"];
+        ? t("w1a.refundOwedBody")
+        : t("w1a.noShowCancelledBody");
 
   if (row) {
     await notify(
       {
+        personId: row.personId ?? null,
         email: row.email ?? row.guestEmail ?? null,
         phone: row.phone ?? null,
         timezone: row.timezone,
+        locale,
       },
       {
+        notice: { kind: "session_cancelled", key: "pnotice.noShow", sessionId },
         kind: "booking.cancelled",
-        subject: "We are sorry. Your session did not happen",
-        body: `Nobody joined your session and we could not find anybody else free. ${moneyLine}\n\nThis is our failure, not yours. Book again whenever you are ready.`,
-        link: { label: "Find somebody now", url: `${env.appUrl}/radar` },
-        variables: ["24Therapy", "your session"],
+        subject: t("pmsg.noShow.subject"),
+        body: t("pmsg.noShow.body", { money: moneyLine }),
+        link: { label: t("pmsg.noShow.link"), url: `${env.appUrl}/radar` },
+        variables: ["24Therapy", t("pmsg.yourSession")],
       },
     );
   }

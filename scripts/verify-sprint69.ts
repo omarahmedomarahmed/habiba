@@ -389,9 +389,13 @@ async function main() {
     );
 
     const adminActions = readSource("app/(admin)/admin/actions.ts");
+    /* Ruling 8: the words are the dictionary's now, in the clinician's language. */
+    const { en: words, ar: arabic } = await import("../lib/i18n/messages");
     check(
       "🔴 C351 …and the email that carries the reason carries the consequence",
-      /documentsCleared[\s\S]{0,400}upload them fresh/i.test(adminActions),
+      /documentsCleared[\s\S]{0,400}"tmsg\.unverified\.cleared"/.test(adminActions) &&
+        /upload them fresh/i.test(words["tmsg.unverified.cleared"]) &&
+        /\{note\}/.test(arabic["tmsg.unverified.cleared"]),
       "the reason exists so they do not have to ask us; so does this",
     );
 

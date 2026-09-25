@@ -18,6 +18,7 @@ import {
   type ReportKind,
 } from "@/lib/db/schema";
 import { patientCopyText } from "@/lib/clinical/patient-copy";
+import type { Words } from "@/lib/i18n/message-words";
 import { log } from "@/lib/logger";
 
 /*
@@ -629,6 +630,18 @@ export function suspensionFor(priorNoShows: number): { hours: number; label: str
   return { hours: 24 * 3650, label: "indefinitely, pending review" };
 }
 
+/**
+ * 🔴 Ruling 8: how long they are off the radar, said in the clinician's
+ * language. `label` above stays English because it is written to our own
+ * record; this is what the clinician reads.
+ */
+export function radarPeriod(hours: number, words: Words): string {
+  if (hours >= 24 * 365) return words.t("tmsg.period.review");
+  if (hours === 24) return words.t("tmsg.period.day");
+  if (hours === 72) return words.t("tmsg.period.days");
+  return words.t("tmsg.period.hours", { hours });
+}
+
 export async function countNoShows(therapistId: string): Promise<number> {
   const [row] = await db
     .select({ total: count() })
@@ -800,6 +813,8 @@ export async function sweepUnratedSessions(
       therapistLast: users.lastName,
       patientZone: patients.timezone,
       therapistZone: users.timezone,
+      /* 🔴 Ruling 8: whose language the reminder is in. */
+      personId: patients.personId,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.therapistId))
@@ -836,7 +851,10 @@ export async function sweepUnratedSessions(
     if (!row.email) continue;
 
     const { sendRatingReminder } = await import("@/lib/mail");
+    const { wordsFor } = await import("@/lib/i18n/message-words");
+    const { locale } = await wordsFor(row.personId ? { personId: row.personId } : null);
     const sent = await sendRatingReminder({
+      locale,
       to: row.email,
       therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
       therapistFirstName: row.therapistFirst,
@@ -946,15 +964,21 @@ export async function sweepAbandonedPatients(
 
     if (therapist) {
       const { sendTherapistMessage } = await import("@/lib/mail");
+      /* 🔴 Ruling 8: in the clinician's own language. */
+      const { wordsFor } = await import("@/lib/i18n/message-words");
+      const words = await wordsFor({ userId: row.therapistId });
+      const { t } = words;
       await sendTherapistMessage({
         to: therapist.email,
         firstName: therapist.firstName,
-        subject: penalty
-          ? "You have been taken off the Crisis Radar"
-          : "A patient was waiting for you",
+        subject: t(penalty ? "tmsg.radarOff.subject" : "tmsg.waiting.subject"),
         body: penalty
-          ? `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session.\n\nThis has happened before, so you are off the radar for ${penalty.label}. Your own patients and the rest of your portal are unaffected.\n\nBeing on the radar is a promise that you are there. If you cannot be, switch yourself off. There is no penalty for being unavailable, only for being unavailable while advertised as available.\n\nIf you believe this is wrong, reply to this email.`
-          : `A patient booked you on the Crisis Radar, joined the room, and waited ${ABANDON_AFTER_MINUTES} minutes. You never started the session, so they left without being seen.\n\nThis is a warning, not a suspension, the first time is usually a laptop that went to sleep or a notification that did not arrive. Please check that notifications and sound are allowed in your browser on the device you keep open.\n\nIf it happens again you will be taken off the radar for 24 hours, and for longer after that. Being on the radar is a promise that you are there; if you cannot be, switch yourself off. There is no penalty for being unavailable.`,
+          ? t("tmsg.radarOff.abandoned", {
+              minutes: ABANDON_AFTER_MINUTES,
+              period: radarPeriod(penalty.hours, words),
+            })
+          : t("tmsg.waiting.body", { minutes: ABANDON_AFTER_MINUTES }),
+        locale: words.locale,
       });
     }
   }

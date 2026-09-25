@@ -92,6 +92,8 @@ export type ExportRequest =
       expiresAt: Date;
       /** 26.9 / C127 — printed on the cover page, checkable on a public page. */
       verificationCode: string;
+      /** 🔴 Ruling 8: whose language the email that carries the link is in. */
+      personId: string | null;
     }
   | { ok: false; error: string };
 
@@ -233,6 +235,7 @@ export async function requestPatientExport(
     patientName: [patient.firstName, patient.lastName].filter(Boolean).join(" "),
     expiresAt,
     verificationCode,
+    personId: personId ?? null,
   };
 }
 
@@ -1225,6 +1228,9 @@ export async function requestOwnExport(input: {
     resourceId: input.personId,
   });
 
+  /* 🔴 Ruling 8: in the patient's own language. */
+  const { wordsFor } = await import("@/lib/i18n/message-words");
+  const { t, locale } = await wordsFor({ personId: input.personId });
   const { notify } = await import("@/lib/notify");
   await notify(
     /*
@@ -1234,13 +1240,17 @@ export async function requestOwnExport(input: {
      * for a reminder and wrong for a medical record. Passing null here means
      * the fallback cannot fire: the ruling is enforced by what this call is
      * given rather than by a branch inside it.
+     *
+     * The in-app line says a copy was sent and carries no link: the link to
+     * a record lives in one inbox only.
      */
-    { email, phone: null, timezone: null },
+    { email, phone: null, timezone: null, personId: input.personId, locale },
     {
+      notice: { kind: "access_requested", key: "pnotice.recordSent" },
       kind: "record.export",
-      subject: "Your record from 24Therapy",
-      body: "You asked for a copy of your record. The link below opens it, and it stops working in three days. Nobody here read it.",
-      link: { label: "Open my record", url: `${env.appUrl}${exportPath(token)}` },
+      subject: t("pmsg.export.subject"),
+      body: t("pmsg.export.body"),
+      link: { label: t("pmsg.export.link"), url: `${env.appUrl}${exportPath(token)}` },
     },
   );
 

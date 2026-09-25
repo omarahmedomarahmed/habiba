@@ -948,8 +948,8 @@ wider than the task says.
 - `docs/simulation/` is 17 documents about a run that **never happened**.
   `docs/simulation/12-THE-LOGINS.md` says so at the top. `verify:runbook` keeps their counts
   honest against the code but cannot tell you they describe a plan rather than a history.
-- `UNWIRED_BASELINE = 18` in `verify:notices`: 18 `notify()` call sites still write nothing a
-  patient can find in the app. The number may only fall.
+- `UNWIRED_BASELINE = 14` in `verify:notices`: 14 `notify()` call sites still write nothing a
+  patient can find in the app (18 until ruling 8). The number may only fall.
 - Two unions report **no CHECK on this database** in `verify:migrations`:
   `manual_payments_state` and `manual_payments_purpose`. Correct, or a gap.
 - 18 of the 106 `scripts/verify-*.ts` files have **no control**, so 18 cannot be shown to

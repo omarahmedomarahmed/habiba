@@ -9,6 +9,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
+import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { whatsappConfigured } from "@/lib/notify/whatsapp";
 import { toE164 } from "@/lib/phone/e164";
@@ -87,6 +88,7 @@ async function findAccount(handle: string, country: string | null) {
       id: patientAccounts.id,
       email: patientAccounts.email,
       phone: patientAccounts.phone,
+      personId: patientAccounts.personId,
     })
     .from(patientAccounts)
     .where(
@@ -148,12 +150,14 @@ export async function requestPatientReset(
       expiresAt: new Date(Date.now() + CODE_MINUTES * 60 * 1000),
     });
 
+    /* 🔴 Ruling 8: in the language they chose. */
+    const { t, locale } = await wordsFor(account.personId ? { personId: account.personId } : null);
     const delivery = await notify(
-      { email: account.email, phone: account.phone },
+      { email: account.email, phone: account.phone, locale },
       {
         kind: "password.reset_code",
-        subject: "Your 24Therapy code",
-        body: `${code} is your code to set a new password. It expires in ${CODE_MINUTES} minutes. If you did not ask for it, ignore this message.`,
+        subject: t("pmsg.code.subject"),
+        body: t("pmsg.code.reset", { code, minutes: CODE_MINUTES }),
         variables: [code],
       },
     );

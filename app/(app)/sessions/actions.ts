@@ -326,14 +326,21 @@ export async function startNewSession(
           .where(eq(sessions.id, session.id))
           .limit(1);
         if (fresh?.joinToken) {
-          after(() =>
-            sendSessionInvite({
+          after(async () => {
+            /* 🔴 Ruling 8: in the patient's language when they have a record here. */
+            const { wordsFor } = await import("@/lib/i18n/message-words");
+            const { personIdForPatient } = await import("@/lib/data/people");
+            const chart = patientId || newPatientId;
+            const personId = chart ? await personIdForPatient(chart) : null;
+            const words = await wordsFor(personId ? { personId } : null);
+            await sendSessionInvite({
               to: guestEmail,
-              therapistName: fullName(actor.firstName, actor.lastName, "Your therapist"),
+              therapistName: fullName(actor.firstName, actor.lastName, "") || words.t("pmsg.yourTherapist"),
               joinUrl: `${env.appUrl}/join/${fresh.joinToken}`,
               priceCents,
-            }),
-          );
+              locale: words.locale,
+            });
+          });
         }
       }
     }
