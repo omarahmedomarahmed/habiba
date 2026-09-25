@@ -8,7 +8,7 @@ import { formatMonthYear } from "@/lib/utils";
 import { publicProfile } from "@/lib/data/radar";
 import { reliabilityFor } from "@/lib/data/recovery";
 import { openHours, practiceFor } from "@/lib/data/scheduling";
-import { Money } from "@/components/ui/money";
+import { SessionPrice } from "@/components/money/session-price";
 
 /**
  * A clinician's page, body only. PLAN.md 11.3, 11.4, 14.7, 16.4, 25.2.
@@ -138,7 +138,8 @@ export async function TherapistPageBody({
       ) : null}
 
       {/*
-        16.4 — every price shows USD with a small EGP toggle beside it. The
+        16.4 — every price shows USD with a small EGP toggle beside it, unless
+        the clinician priced in pounds (B10), when their pounds lead. The
         rate is quoted on the server and handed down as a number: a component
         that fetched its own would show a figure the checkout does not agree
         with, and C37 refuses a pair we cannot price rather than guessing one.
@@ -147,7 +148,13 @@ export async function TherapistPageBody({
         <div className="mx-auto max-w-2xl px-4 pt-2 sm:px-6">
           <p className="flex items-center gap-2 text-sm text-slate-600">
             {t("radar.oneHour")}
-            <PriceTag usdCents={profile.sessionRateCents} rateMicro={egpRate} locale={tag} />
+            {profile.rateEgpMinor !== null ? (
+              <span className="font-semibold text-slate-900">
+                <SessionPrice sessionRateCents={profile.sessionRateCents} rateEgpMinor={profile.rateEgpMinor} />
+              </span>
+            ) : (
+              <PriceTag usdCents={profile.sessionRateCents} rateMicro={egpRate} locale={tag} />
+            )}
           </p>
         </div>
       ) : null}
@@ -158,7 +165,13 @@ export async function TherapistPageBody({
           practice={practice}
           therapistName={profile.firstName}
           therapistTimezone={profile.timezone}
-          rateLabel={profile.sessionRateCents > 0 ? <Money cents={profile.sessionRateCents} /> : t("radar.freeSession")}
+          rateLabel={
+            profile.sessionRateCents > 0 ? (
+              <SessionPrice sessionRateCents={profile.sessionRateCents} rateEgpMinor={profile.rateEgpMinor} />
+            ) : (
+              t("radar.freeSession")
+            )
+          }
           booker={booker}
         />
       </div>
