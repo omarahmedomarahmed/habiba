@@ -95,7 +95,15 @@ async function main() {
    * the list, and this is the only statement in this script that runs before
    * the first DELETE.
    */
-  const name = scenarioFrom(process.argv.slice(2));
+  /*
+   * 🔴 `--empty` IS THE SIMULATION'S STARTING LINE: the same wipe, then only the
+   * platform organisation and the founder's own login, so a month of people can
+   * sign themselves up into a product with nobody in it. The demo's Nile
+   * Practice would otherwise meet the simulation's and `simulate:seed` refuses a
+   * second one by name.
+   */
+  const empty = process.argv.includes("--empty");
+  const name = scenarioFrom(process.argv.slice(2).filter((a) => a !== "--empty"));
   const position = scenario(name);
   const tuning = TUNING[name];
   console.log(`\n  🔴 scenario: ${name}. ${position.title}\n`);
@@ -340,6 +348,16 @@ async function main() {
       VALUES (${platform.id}, 'omarabdelgawad001@gmail.com', 'Omar', 'Abdelgawad', 'super_admin', ${privateHash}, 'active',
               'Africa/Cairo')
       RETURNING id`);
+
+    if (empty) {
+      /* The two demo practices were laid down above with the platform; they are people-shaped, so they go. */
+      await db.execute(sql`DELETE FROM subscriptions WHERE organization_id IN (${solo.id}, ${clinic.id})`);
+      await db.execute(sql`DELETE FROM organizations WHERE id IN (${solo.id}, ${clinic.id})`);
+      console.log("\n🔴 Emptied. The platform organisation and the founder's console login are all that is left.");
+      console.log("   next: npm run on:production -- simulate:seed   (docs/simulation/00-START-HERE.md)\n");
+      void admin;
+      return;
+    }
 
     /*
      * 🔴 80.1 — AND ONE COLLEAGUE WHO IS NOT A FOUNDER.

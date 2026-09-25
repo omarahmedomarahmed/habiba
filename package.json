@@ -194,6 +194,8 @@
     "verify:staff-list": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-staff-list.ts",
     "verify:in-person": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-in-person.ts",
     "sim:inbox": "node --env-file-if-exists=.env.local --import tsx scripts/sim-inbox.ts",
+    "sim:board": "node --import tsx scripts/sim-board.ts",
+    "sim:speech": "node --env-file-if-exists=.env.local --import tsx scripts/sim-speech.mts",
     "verify:outbox": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-outbox.ts",
     "verify:wallet": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-wallet.ts",
     "verify:booking-change": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-booking-change.ts",

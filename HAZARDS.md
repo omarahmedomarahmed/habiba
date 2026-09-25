@@ -17,8 +17,8 @@ is, and the rule that avoids it.
 
 The test for whether something belongs here is **whether it will catch the next person
 too.** A property of the code or the tooling belongs here. Something the product does
-wrong to a user is a defect, and during the run those go in `docs/simulation-run/DEV-LOG.md`
-instead, in the shape `docs/simulation/02-THE-SWARM.md` gives.
+wrong to a user is a defect, and during the run those go in `docs/simulation-run/BUGS.md`
+instead, in the shape `docs/simulation/07-THE-RECORD.md` gives.
 
 Write it at the moment you hit it. The version written a week later is a summary, and the
 useful part is the detail: the symptom that misled you, and what the symptom was really

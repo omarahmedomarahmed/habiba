@@ -15,7 +15,7 @@ is only worth what it is worth on the day it is tested by somebody who did not b
 ### The one rule
 
 **Write down what the screen said, not whether it worked.** `DID / SAW / ROW`, the same rule
-`docs/simulation/00-START-HERE.md` sets: what you did, what you saw, and the reference or id
+`docs/simulation/05-THE-BOARD.md` sets: what you did, what you saw, and the reference or id
 if there was one. "Payment worked" is not evidence. "Pressed Submit, the sheet closed, the orb
 went from amber to teal, reference TEST-SPLIT-01" is.
 

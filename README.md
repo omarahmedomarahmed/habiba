@@ -576,18 +576,17 @@ The five things `npm run plan` prints as unknowable every time it runs:
 
 ## Run the simulation yourself, on your own keys
 
-**You do not have to take any of the above on trust.** The six-month simulation is
-in this repository and it runs against a database you make, on an OpenAI key you
-top up, for about **$5**.
+**You do not have to take any of the above on trust.** The one-month simulation is
+in this repository: an invented cast walks every flow on the live site, in seven
+rounds aged into a month, and every bug it finds is fixed and run again.
 
 ```
-docs/SIMULATION-PROMPT.md      paste into a fresh session. It writes .env.local itself
-docs/simulation/               the seventeen documents it reads first
+docs/simulation/00-START-HERE.md   what it is, the rules, and the order of setup
+docs/simulation/                   the cast, the month, every flow and edge case, the board
 ```
 
-What you need: a Neon branch of your own, an OpenAI key with $10 on it, a Stripe
-**test** key and a Vercel Blob token. The write scripts refuse a production
-endpoint by name.
+The write scripts refuse a production endpoint unless reached through
+`npm run on:production`, whose allow-list is the whole list of what may run there.
 
 What you get: **twenty-one synthetic people** who sign themselves up and use the
 product through its real forms, across one practice and three companies, six
@@ -618,8 +617,7 @@ defects that sixty verifiers had missed.
 | `docs/PROVE-IT.md` | **The day the promises are tested.** Eight people on eight devices, five reseeds, cross-referenced so step 4 on one person's screen depends on step 3 on somebody else's. `verify:prove` fails if a promise is never walked |
 | `docs/DEMO-LOGINS.md` | Who is on the deployed product right now and where each one signs in. Generated: `npm run logins` |
 | `docs/THE-REDESIGN.md` | The current plan: what exists against what the redesign needs, what breaks, and the order to do it in |
-| `docs/SIMULATION-PROMPT.md` | **The prompt that starts the simulation.** Keys, the branch, the steps, and what to report back |
-| `docs/simulation/` | The seventeen documents it reads first: what was hit before it, the cast, the swarm, the money, the Egyptian payment rail, the capture, the ageing, the copilot exam, what the run hands the plan, the forty eight money edges, each person's week by week story, who is allowed to read a record, the logins, the audio, the rehearsal and the deploy. `verify:runbook` checks them against the code |
+| `docs/simulation/` | The one-month simulation: start here, lessons, the cast, the month, every flow and edge case, the board, the audio, the record, and the coverage map |
 | `docs/FINANCIAL-PLAN.md` | The operating plan the simulation rehearses. Egypt, the $20k, the offer, and every number labelled measured, decided or guessed |
 | `docs/BRAND.md` | The 24T mark: proportions, the three inks, and where each is used |
 | `docs/LOGO-BRIEF.md` | The brief the mark was drawn from. Read it before redrawing the identity |

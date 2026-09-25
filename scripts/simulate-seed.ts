@@ -181,9 +181,10 @@ const STAFF = PAYROLL;
  *
  * So the date is written where it belongs rather than left to be moved.
  */
-function sixMonthsAgo(): string {
+/** The run is one month, so the payroll starts on the first day of the previous month. */
+function payrollStart(): string {
   const now = new Date();
-  const then = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
+  const then = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   return then.toISOString().slice(0, 10);
 }
 
@@ -345,7 +346,7 @@ async function main() {
 
     /* ----------------------------------------------------------- the payroll */
 
-    const startedOn = sixMonthsAgo();
+    const startedOn = payrollStart();
 
     /*
      * 🔴 WRITTEN HERE RATHER THAN THROUGH `addEmployee`, and the reason is worth
@@ -413,7 +414,7 @@ async function main() {
        WHERE e.ended_on IS NULL`);
 
     check(
-      "🔴 the payroll is on the books, so /admin/actuals can see what six months cost",
+      "🔴 the payroll is on the books, so /admin/actuals can see what the month cost",
       Number(payroll.rows[0]?.people ?? 0) === STAFF.length,
       `${payroll.rows[0]?.people ?? 0} people from ${startedOn}, ` +
         `$${(Number(payroll.rows[0]?.bill ?? 0) / 100).toFixed(0)} a month`,
@@ -602,28 +603,23 @@ async function main() {
     );
 
     /*
-     * 🔴 AND EVERY APPLICANT IS ON THE `us` ENTITY, WHICH IS ALSO THE TEST.
+     * 🔴 AND EVERY APPLICANT IS ON THE `eg` ENTITY, BECAUSE EGYPT IS THE DEFAULT.
      *
-     * `applyToSponsor` lands every enquiry there, because which of our companies
-     * bills a customer is a decision somebody makes with the paperwork in front
-     * of them. Moving these three to `eg` is an operator's click in wave 1, and
-     * it is the click that puts them on the transfer rail: `sponsorNeedsTransfer`
-     * reads that column.
-     *
-     * Until sprint 74 nothing could make that click, so this is the assertion
-     * that the run starts from the state a real Tuesday starts from.
+     * `applyToSponsor` lands an enquiry on our Egyptian company, which puts it on
+     * the transfer rail (`sponsorNeedsTransfer` reads that column). An enquiry on
+     * any other entity would be offered a card page nobody in Cairo can pay.
      */
     const entities = await db.execute<{ n: string }>(sql`
-      SELECT COUNT(*)::text AS n FROM sponsors WHERE entity <> 'us'`);
+      SELECT COUNT(*)::text AS n FROM sponsors WHERE entity <> 'eg'`);
 
     check(
-      "🔴 CONTROL every applicant starts on the us entity, and an operator moves them",
+      "🔴 every applicant starts on the eg entity, so the transfer rail is theirs from the first day",
       Number(entities.rows[0]?.n ?? 0) === 0,
-      "three enquiries, three still to be placed on the right company's books",
+      `${entities.rows[0]?.n ?? "?"} enquiries on another entity`,
     );
 
     console.log("\n  Next:");
-    console.log("    npm run age -- --marker wave1 --start   before anybody acts\n");
+    console.log("    npm run on:production -- baseline, then round 1 (docs/simulation/02-THE-MONTH.md)\n");
   } finally {
     await pool.end();
   }

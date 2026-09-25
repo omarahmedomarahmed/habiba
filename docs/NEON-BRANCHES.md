@@ -48,7 +48,7 @@ Delete one of these only when its git branch is finished with.
 🔴 **This is the undo for `seed:demo`, and four places say so:**
 `scripts/on-production.ts` (the allow-list entry that permits the only command
 able to delete people), `scripts/logins.ts`, `docs/DEMO-LOGINS.md` and
-`docs/simulation/12-THE-LOGINS.md`.
+`docs/simulation/00-START-HERE.md`.
 
 `seed:demo` wipes the cast off production. The entry authorising it names this
 branch as condition one of three. Deleting it does not merely lose a backup, it

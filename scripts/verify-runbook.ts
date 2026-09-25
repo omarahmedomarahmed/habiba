@@ -5,32 +5,21 @@
  *
  * ## Why this exists
  *
- * `docs/SIMULATION-PROMPT.md` and `docs/simulation/` are six thousand lines of
- * instructions for a six month run on production that nobody undoes afterwards.
- * They are the only thing standing between twenty eight agents and a database
- * they cannot restore, and until this gate they were checked by nobody.
+ * `docs/simulation/` is the instruction set for a month of agents acting on
+ * production. Prose rots under code that moves, and the failures are silent: a
+ * command written without `on:production` operates on dev, a cron job named
+ * wrongly answers 404, a page nobody listed is a page nobody tests.
  *
- * A full read on 2026-09-19 found what that costs:
- *
- *   - **41 commands pointed at the wrong database.** `npm run age --marker
- *     wave1 --start`, written bare, ages DEV. The six month clock never starts
- *     and nothing says so.
- *   - **A governing rule contradicted the run.** `00-START-HERE.md` rule 4 read
- *     *"Nothing runs against production, ever"*, eighty lines after the same
- *     file said the run is on production.
- *   - **Every count disagreed with something.** Gates 11 against 27, documents
- *     "twelve" against fifteen listed against sixteen on disk, edges 48 against
- *     30, walks eleven against twelve.
- *
- * None of that is exotic. It is what prose does when the code under it moves and
- * nothing reads the prose.
+ * So the documents are read here against the code: the production-only commands
+ * from the allow-list, the cron jobs from the route's own map, the page list from
+ * `app/`, and the step and edge ids from the files that define them.
  *
  * ## 🔴 EVERY EXPECTATION IS DERIVED, NOT TYPED
  *
  * The gate count comes from `GATES`. The production-only command list comes from
  * `on-production.ts`'s own allow-list. The document list comes from the
- * directory. The cron jobs come from the route's `JOBS` map. The edge count
- * comes from counting the rows in the file that defines them.
+ * directory. The cron jobs come from the route's `JOBS` map. The page list
+ * comes from `app/`. The step and edge ids come from the tables that define them.
  *
  * A checker holding its own copy of a number is a checker that stops matching
  * the day somebody tunes the real one, and then it is green about a number
@@ -41,8 +30,8 @@
  *
  * It cannot read for sense. A document can be internally consistent, correctly
  * numbered, pointed at the right database, and still describe a screen that was
- * redesigned last week. That needs a person, and `14-THE-REHEARSAL.md` is how
- * this repository does it.
+ * redesigned last week. That needs a person reading the flows against the
+ * live site, which is what round 0 of the run is.
  *
  * It only reads files.
  */
@@ -54,7 +43,6 @@ import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
 
-const PROMPT = "docs/SIMULATION-PROMPT.md";
 const DIR = "docs/simulation";
 
 /**
@@ -76,7 +64,7 @@ function docs(): Doc[] {
 }
 
 function all(): Doc[] {
-  return [{ name: "SIMULATION-PROMPT.md", path: PROMPT, body: readFileSync(PROMPT, "utf8") }, ...docs()];
+  return docs();
 }
 
 /** Lines of a document, one-indexed, for an error somebody can act on. */
@@ -168,36 +156,6 @@ function main() {
       : `found: ${wrongGates.join(", ")}, and the real number is ${String(gateCount)}`,
   );
 
-  /*
-   * The edge count is defined by the file that lists them, so it is counted
-   * from the table rows rather than from the sentence at the top. A document
-   * that says forty eight and lists thirty is the failure this catches.
-   */
-  const edgesDoc = files.find((d) => d.name === "09-THE-EDGES.md");
-  const edgeIds = edgesDoc
-    ? new Set([...edgesDoc.body.matchAll(/^\|\s*`((?:CV|RA|PL|RR)\d+)`/gm)].map((m) => m[1]!))
-    : new Set<string>();
-  const edgeClaims = new Set<string>();
-  for (const d of files) {
-    for (const [, line] of lines(d)) {
-      for (const m of line.matchAll(/(forty[- ]eight|thirty|\b48\b|\b30\b)\s+(?:of |ways|cases|money|things|edge)/gi)) {
-        edgeClaims.add(m[1]!.toLowerCase().replace("-", " "));
-      }
-    }
-  }
-  const okEdge = new Set([String(edgeIds.size), "forty eight"]);
-  const wrongEdges = [...edgeClaims].filter((c) => !okEdge.has(c));
-
-  check(
-    `🔴 every edge-case count matches the ${String(edgeIds.size)} cases 09-THE-EDGES.md actually lists`,
-    edgeIds.size > 0 && wrongEdges.length === 0,
-    edgeIds.size === 0
-      ? "🔴 counted zero cases, so this check measured nothing"
-      : wrongEdges.length === 0
-        ? `${String(edgeIds.size)} cases, every claim agrees`
-        : `found: ${wrongEdges.join(", ")}, and the file lists ${String(edgeIds.size)}`,
-  );
-
   /* ------------------------------------- C · every document reference resolves */
 
   const present = new Set(readdirSync(DIR).filter((f) => f.endsWith(".md")));
@@ -253,7 +211,7 @@ function main() {
    */
   const NOT_YET: Record<string, string> = {
     "docs/simulation-run/":
-      "Where the six month run writes its output. The prompt names it as an instruction, and it appears the day the run produces something.",
+      "Where the one month run writes its board, bugs, shots and report. The documents name it as an instruction, and it appears the day the run posts its first row.",
   };
 
   const POINTERS = /`((?:app|components|lib|scripts|docs|drizzle|evals|tests)\/[A-Za-z0-9._/()[\]-]+)`/g;
@@ -352,6 +310,86 @@ function main() {
       : ghosts.length === 0
         ? `${String(jobs.size)} jobs exist (${[...jobs].sort().join(", ")}), ${String(namedJobs.size)} named, none invented`
         : `named but nonexistent: ${ghosts.join(", ")}`,
+  );
+
+  /* ------------------------------ D2 · every cron job has a place in the month */
+
+  /*
+   * A job the month never fires is a job whose effect nobody sees: a reminder
+   * that never went, a hold that never swept. The rounds are where time passes,
+   * so every job in the route's map has to be named there.
+   */
+  const month = files.find((d) => d.name === "02-THE-MONTH.md");
+  const unfired = [...jobs].filter((j) => !month?.body.includes(`/api/cron/${j}`));
+  check(
+    "🔴 every cron job in the route's map is fired somewhere in 02-THE-MONTH.md",
+    !!month && unfired.length === 0,
+    !month ? "02-THE-MONTH.md is missing" : unfired.length === 0 ? `${String(jobs.size)} jobs, all fired` : `never fired: ${unfired.join(", ")}`,
+  );
+
+  /* ------------------------------ G · every page in the product is walked */
+
+  /*
+   * 🔴 THE PAGE LIST COMES FROM `app/`, SO A NEW PAGE IS UNCOVERED UNTIL SOMEBODY
+   * PLACES IT. A route template (`/patients/[id]`, route groups removed) must
+   * appear in `03-THE-FLOWS.md`, or in `08-COVERAGE.md` with the reason it is not
+   * walked on the live site.
+   */
+  const pages: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name === "page.tsx") {
+        const route = "/" + full.split("/").slice(1, -1).filter((seg) => !/^\(.*\)$/.test(seg)).join("/");
+        pages.push(route === "/" ? "/" : route.replace(/\/$/, ""));
+      }
+    }
+  };
+  walk("app");
+  const flowsDoc = files.find((d) => d.name === "03-THE-FLOWS.md")?.body ?? "";
+  const coverageDoc = files.find((d) => d.name === "08-COVERAGE.md")?.body ?? "";
+  const named = (route: string, body: string) =>
+    new RegExp("`" + route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "`").test(body);
+  const unwalked = pages.filter((r) => !named(r, flowsDoc) && !named(r, coverageDoc));
+  check(
+    `🔴 every one of the ${String(pages.length)} pages in app/ is a step, or excused in 08-COVERAGE.md`,
+    pages.length > 100 && unwalked.length === 0,
+    unwalked.length === 0
+      ? `${String(pages.length)} pages, every one placed`
+      : `${String(unwalked.length)} not placed: ${unwalked.slice(0, 12).join(", ")}${unwalked.length > 12 ? " …" : ""}`,
+  );
+  check(
+    "🔴 CONTROL the page scan found the pages it must",
+    pages.includes("/patient/login") && pages.includes("/sessions/[id]/room") && pages.includes("/"),
+    `${String(pages.length)} page files read from app/`,
+  );
+
+  /* ------------------------------ H · every step and edge id resolves */
+
+  /*
+   * The board, the record and the coverage map all name steps by id. An id that
+   * is not defined is a wait nobody can satisfy.
+   */
+  const defined = new Set<string>();
+  for (const d of files.filter((f) => f.name === "03-THE-FLOWS.md" || f.name === "04-THE-EDGES.md")) {
+    for (const m of d.body.matchAll(/^\|\s*`?([A-Z]{2}\d+(?:\.\d+)?)`?\s*\|/gm)) defined.add(m[1]!);
+  }
+  const ID = /`([A-Z]{2}\d+(?:\.\d+)?)`/g;
+  const dangling_ids: string[] = [];
+  for (const d of files) {
+    for (const [n, line] of lines(d)) {
+      for (const m of line.matchAll(ID)) {
+        if (/^(PA|TH|CL|CO|AD|PT|WB|PE|TE|CE|EE|AE|ME)/.test(m[1]!) && !defined.has(m[1]!)) {
+          dangling_ids.push(`${d.name}:${String(n)} ${m[1]!}`);
+        }
+      }
+    }
+  }
+  check(
+    "🔴 every step or edge id a document names is defined in 03-THE-FLOWS.md or 04-THE-EDGES.md",
+    defined.size > 50 && dangling_ids.length === 0,
+    dangling_ids.length === 0 ? `${String(defined.size)} ids defined, every reference resolves` : dangling_ids.slice(0, 8).join("; "),
   );
 
   /* ------------------------------ E · nothing tells the run production is barred */
@@ -458,7 +496,7 @@ function main() {
       : `🔴 ${LESSONS} is missing. Banning archaeology without a home for it deletes it`,
   );
 
-  finish("sprint 76 runbook");
+  finish("simulation runbook");
 }
 
 main();

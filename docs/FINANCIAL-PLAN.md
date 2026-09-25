@@ -503,8 +503,8 @@ At a hundred it is not, and it is the first thing to build after the beta.
 
 ## Part 7 · What the simulation does with this
 
-`docs/simulation/08-THE-NUMBERS.md` is the brief, and
-`docs/SIMULATION-PROMPT.md` is what starts the run.
+`docs/simulation/00-START-HERE.md` starts the run, and
+`docs/simulation/07-THE-RECORD.md` says what it reports.
 
 The six-month simulation rehearses **this plan**, not a generic one: the same offer,
 the same pot credit, the same prices, the same cadence. What it produces is the

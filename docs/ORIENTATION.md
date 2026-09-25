@@ -184,7 +184,7 @@ thing, so treat it as a floor and re-measure rather than quoting it.
 | What the redesign has to fix | `docs/THE-REDESIGN.md` |
 | What the identity is, and how it was briefed | `docs/BRAND.md`, `docs/LOGO-BRIEF.md` |
 | External state in no file: Neon, Vercel, DNS | `docs/TAKEOVER.md` §5 |
-| The six-month run that has never happened | `docs/simulation/`, `docs/SIMULATION-PROMPT.md` |
+| The one-month simulation on the live site | `docs/simulation/` |
 
 ---
 
@@ -193,8 +193,8 @@ thing, so treat it as a floor and re-measure rather than quoting it.
 Read this before you conclude anything about maturity.
 
 - **Nothing has launched.** Every account that has ever existed here was synthetic.
-- **The six-month simulation has never run.** Seventeen documents in `docs/simulation/`
-  describe a run that was prepared for and never made. `12-THE-LOGINS.md` says so at the top.
+- **The one-month simulation is written, not yet run.** `docs/simulation/` is the plan;
+  `docs/simulation-run/` appears when it runs.
 - **Nobody has read this repository.** Not the session that wrote this file, not any earlier
   one. The open task list therefore describes the defects that were *found*, not the ones that
   exist.
