@@ -470,7 +470,12 @@ async function main() {
       "🔴 CONTROL dividing the balance instead would have given a longer runway",
       b.monthlyBurnCents === null ||
         b.heldForOthersCents <= 0 ||
-        (b.runwayMonths ?? 0) < Math.max(0, b.bankBalanceCents) / b.monthlyBurnCents,
+        /*
+         * Unrounded on both sides. `runwayMonths` is to one decimal, so on a
+         * balance of $75,000 the planted $26.40 held for others rounds away and
+         * the rounded figure can read LONGER than the exact balance one.
+         */
+        Math.max(0, b.oursCents) / b.monthlyBurnCents < Math.max(0, b.bankBalanceCents) / b.monthlyBurnCents,
       b.monthlyBurnCents === null
         ? "no burn"
         : `${String(b.runwayMonths)} months on ours, ` +
@@ -490,6 +495,19 @@ async function main() {
       "🔴 …and the payroll puts a month on the table even with no trading in it",
       after.months.some((m) => m.month === m5),
       `${m5} is in the range, and the only thing in it is a wage bill`,
+    );
+
+    /*
+     * 🔴 AND A CAPPED RANGE KEEPS THE NEWEST MONTHS. It kept the first ones from
+     * the earliest record, so a company older than the cap never saw this month.
+     * Two months against a range planted months back is the same shape.
+     */
+    const capped = await monthlyActuals({ maxMonths: 2 });
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    check(
+      "🔴 a range longer than the cap shows the newest months, ending at this one",
+      capped.months.length === 2 && capped.months.at(-1)?.month === thisMonth && after.months.length > 2,
+      `${capped.months.map((m) => m.month).join(", ")} of ${String(after.months.length)}`,
     );
   } finally {
     /*
