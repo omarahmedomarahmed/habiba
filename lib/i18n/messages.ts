@@ -328,7 +328,7 @@ export const en = {
   "pricing.radarLead": "Get booked on the Crisis Radar.",
   "pricing.radarBody":
     "Patients find you and book you, and we take {percent}% of what that session paid you, and nothing else.",
-  "pricing.netting": "While we hold your earnings the session fee comes out of them. Where Stripe pays you directly, we bill you instead.",
+  "pricing.netting": "While we hold your earnings, the session fee comes out of them.",
   "pricing.sliderLabel": "{name}: how many sessions?",
   "pricing.showEgp": "Show EGP",
   "pricing.showUsd": "Show USD",
@@ -636,7 +636,7 @@ export const en = {
   "auth.clinic.promise": "Your therapists, your seats, your billing.",
   "auth.clinic.p1": "A seat per therapist, prorated the day they join or leave",
   "auth.clinic.p2": "One bill for the clinic, not one per clinician",
-  "auth.clinic.p3": "See the rota and move a patient between your own clinicians",
+  "auth.clinic.p3": "See the rota and each clinician's patient list",
 
   /*
    * The crisis line is deliberately not one number.
@@ -4981,7 +4981,7 @@ export const ar: Record<MessageKey, string> = {
   "pricing.radarLead": "احجز مكانك على رادار الأزمات.",
   "pricing.radarBody":
     "يجدك المرضى ويحجزون معك، ونأخذ {percent}% مما دفعته تلك الجلسة لك، ولا شيء غير ذلك.",
-  "pricing.netting": "ما دمنا نحتفظ بأرباحك تُخصم رسوم الجلسة منها. وحيث تدفع لك سترايب مباشرة نرسل لك فاتورة.",
+  "pricing.netting": "ما دمنا نحتفظ بأرباحك، تُخصم رسوم الجلسة منها.",
   "pricing.sliderLabel": "{name}: كم جلسة؟",
   "pricing.showEgp": "بالجنيه المصري",
   "pricing.showUsd": "بالدولار",
@@ -5196,7 +5196,7 @@ export const ar: Record<MessageKey, string> = {
   "auth.clinic.promise": "معالجوك ومقاعدك وفوترتك.",
   "auth.clinic.p1": "مقعد لكل معالج، محسوب بالتناسب يوم انضمامه أو مغادرته",
   "auth.clinic.p2": "فاتورة واحدة للعيادة، لا فاتورة لكل معالج",
-  "auth.clinic.p3": "اطّلع على الجدول وانقل مريضًا بين معالجيك",
+  "auth.clinic.p3": "اطّلع على الجدول وقائمة مرضى كل معالج",
   "urgent.footer":
     "إذا كنت بحاجة إلى مساعدة عاجلة، اتصل برقم الطوارئ في بلدك في أي وقت.",
 
