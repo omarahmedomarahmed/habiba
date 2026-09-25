@@ -103,9 +103,9 @@ export default async function ContentPage({ params }: { params: Promise<{ slug: 
               {shell.show}
               <ChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" aria-hidden />
             </summary>
-            <div lang="en" dir="ltr" className="-mx-5 pb-4 text-start sm:-mx-6">
-              <h2 className="px-10 text-[26px] font-bold tracking-tight text-navy-700 sm:px-12">{page.title}</h2>
-              <BlockRenderer blocks={body} slug={slug} />
+            <div lang="en" dir="ltr" className="pb-4 text-start">
+              <h2 className="px-5 text-[26px] font-bold tracking-tight text-navy-700 sm:px-6">{page.title}</h2>
+              <BlockRenderer blocks={body} slug={slug} dense />
             </div>
           </details>
         </div>
@@ -123,8 +123,10 @@ export default async function ContentPage({ params }: { params: Promise<{ slug: 
           description={page.description}
           body={leadHero?.body}
         />
-        <div className="mx-auto max-w-3xl py-10 sm:py-14">
-          <BlockRenderer blocks={body} slug={slug} />
+        <div className="bg-white">
+          <div className="mx-auto max-w-3xl py-10 sm:py-14">
+            <BlockRenderer blocks={body} slug={slug} dense />
+          </div>
         </div>
       </article>
     );

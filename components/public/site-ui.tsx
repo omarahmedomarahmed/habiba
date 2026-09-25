@@ -132,12 +132,14 @@ export const btn = {
  * A block that rises into place as it scrolls into view, the mockups' "rise on
  * enter", done by the browser rather than by script.
  *
- * 🔴 VISIBLE WITHOUT JAVASCRIPT, and that is why it is CSS. A script-driven
- * rise renders the block at opacity 0 and waits for hydration to show it, so a
- * slow phone, a crawler or a contrast check reads a blank section. This is a
- * scroll-driven animation: where the browser supports `animation-timeline` the
- * block fades up as it enters; where it does not, the animation has no length
- * and the block is simply there. The global reduced-motion rule stops it.
+ * 🔴 ALWAYS DRAWN, and that is why it moves and never fades. A script-driven
+ * rise renders the block at opacity 0 and waits for hydration to show it, and
+ * a fade tied to scroll leaves everything below the fold transparent, so a
+ * slow phone, a full-page capture, a crawler or a contrast check reads a blank
+ * section. This is a scroll-driven `site-rise` (app/globals.css), transform
+ * only: where the browser supports `animation-timeline` the block slides up as
+ * it enters; where it does not, the animation has no length. The global
+ * reduced-motion rule stops it.
  */
 export function Rise({
   children,
@@ -155,7 +157,7 @@ export function Rise({
       className={className}
       style={
         {
-          animationName: "fade-rise",
+          animationName: "site-rise",
           animationTimingFunction: "ease-out",
           animationFillMode: "both",
           animationTimeline: "view()",

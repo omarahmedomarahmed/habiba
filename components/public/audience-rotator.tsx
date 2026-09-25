@@ -370,7 +370,7 @@ export function AudienceRotator({
             the radar page opens. No point is drawn that the radar does not
             have.
           */}
-          <div className="relative mx-auto aspect-square w-full max-w-[420px] sm:max-w-[560px] lg:-me-16 lg:max-w-[680px]">
+          <div className="relative mx-auto aspect-square w-full max-w-[420px] sm:max-w-[560px] lg:-me-4 lg:max-w-[640px]">
             <Globe
               entries={entries ?? []}
               selected={null}
@@ -443,6 +443,16 @@ export function AudienceRotator({
                   <span className="mt-2 text-[22px] font-bold leading-tight sm:text-[24px]">
                     {one.hrefLabel ?? one.clause}
                   </span>
+                  {one.body ? (
+                    <span
+                      className={cn(
+                        "mt-2 line-clamp-2 max-w-md text-[15px] leading-relaxed",
+                        i === 0 || i === 3 ? "text-white/70" : "text-navy-500",
+                      )}
+                    >
+                      {one.body}
+                    </span>
+                  ) : null}
                 </Link>
               ) : null,
             )}

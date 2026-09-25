@@ -42,6 +42,7 @@ import type { ContentBlock, ContentDemo } from "@/lib/db/schema";
 export async function BlockRenderer({
   blocks,
   locale,
+  dense = false,
 }: {
   blocks: ContentBlock[];
   slug?: string;
@@ -58,6 +59,11 @@ export async function BlockRenderer({
    * language a script happened to default to, which is a test of the script.
    */
   locale?: string;
+  /**
+   * A legal document's body, at reading width: the blocks inside it draw as
+   * part of the text rather than as bands of their own.
+   */
+  dense?: boolean;
 }) {
   /*
    * 18.13 — the words inside the live components are content too, read once
@@ -100,6 +106,7 @@ export async function BlockRenderer({
           demo={demo}
           t={t}
           locale={i18n.locale}
+          dense={dense}
         />
       ))}
     </>
@@ -112,9 +119,11 @@ function Block({
   demo,
   t,
   locale,
+  dense,
 }: {
   block: ContentBlock;
   first: boolean;
+  dense: boolean;
   demo: DemoContent;
   t: Translate;
   /** The language everything below renders in — the row's, or the reader's. */
@@ -136,7 +145,7 @@ function Block({
     case "howItWorks":
       return <HowItWorksBlock block={block} demo={demo} t={t} />;
     case "features":
-      return <Features block={block} />;
+      return <Features block={block} dense={dense} />;
     case "showcase":
       return <Showcase block={block} demo={demo} t={t} />;
     case "faq":
@@ -526,18 +535,22 @@ function Hero({
  */
 function Features({
   block,
+  dense = false,
 }: {
   block: Extract<ContentBlock, { type: "features" }>;
+  dense?: boolean;
 }) {
   const count = block.items.length;
   return (
-    <section className="bg-white px-5 py-16 sm:px-6 sm:py-24">
+    <section className={dense ? "px-5 py-6 sm:px-6" : "bg-white px-5 py-16 sm:px-6 sm:py-24"}>
       <div className="mx-auto max-w-7xl">
-        {block.heading ? <SiteTitle className="max-w-3xl">{block.heading}</SiteTitle> : null}
+        {block.heading ? (
+          <SiteTitle className={dense ? "text-[22px] sm:text-[26px]" : "max-w-3xl"}>{block.heading}</SiteTitle>
+        ) : null}
         <ul
           className={cn(
-            "mt-10 grid gap-4 sm:grid-cols-2",
-            count === 4 ? "" : count % 3 === 0 || count > 4 ? "lg:grid-cols-3" : "",
+            dense ? "mt-5 grid gap-3 sm:grid-cols-2" : "mt-10 grid gap-4 sm:grid-cols-2",
+            !dense && count !== 4 && (count % 3 === 0 || count > 4) && "lg:grid-cols-3",
           )}
         >
           {block.items.map((item, i) => (
