@@ -258,7 +258,7 @@ export default async function AppLayout({
           of tabs (ruling 14b). Its end is left clear for the language corner
           and the bell, which are fixed there on every screen.
         */}
-        <header className="sticky top-0 z-20 flex min-h-16 flex-col justify-center border-b border-navy-100 bg-white/85 backdrop-blur-xl lg:pe-[240px]">
+        <header className="sticky top-0 z-20 flex min-h-16 flex-col justify-center border-b border-navy-100 bg-white/85 backdrop-blur-xl lg:pe-[272px]">
           <div className="flex h-16 items-center px-4 sm:px-6 lg:hidden">
             <Link href="/dashboard" className="inline-flex items-center">
               <Logo ink="navy" height={24} />
