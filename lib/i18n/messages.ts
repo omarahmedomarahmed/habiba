@@ -2183,7 +2183,9 @@ export const en = {
    * that does not happen, and in this market it is most of them.
    */
   "transfer.checking": "We are checking your transfer",
-  "transfer.checkingBody": "Usually a few minutes.",
+  "transfer.checkingBody": "Usually within a few hours.",
+  "transfer.labelTransfer": "Pay by transfer",
+  "transfer.labelBank": "Bank transfer",
   "transfer.closePage": "You can close this page and come back.",
   "transfer.rejected": "We could not confirm that transfer",
   "transfer.rejectedBody": "Send the reference again below, or reply to us.",
@@ -6875,7 +6877,9 @@ export const ar: Record<MessageKey, string> = {
   "feedback.seeBody": "يحتفظ معالجك بهذا السجل في الحالتين. والحساب يغيّر من يقرؤه.",
   "feedback.makeMine": "اجعله ملكي",
   "transfer.checking": "نراجع التحويل الآن",
-  "transfer.checkingBody": "عادة دقائق قليلة.",
+  "transfer.checkingBody": "عادة خلال ساعات قليلة.",
+  "transfer.labelTransfer": "الدفع بالتحويل",
+  "transfer.labelBank": "تحويل بنكي",
   "transfer.closePage": "يمكنك إغلاق الصفحة والعودة إليها.",
   "transfer.rejected": "لم نتمكن من تأكيد هذا التحويل",
   "transfer.rejectedBody": "أرسل الرقم المرجعي مرة أخرى بالأسفل، أو راسلنا.",

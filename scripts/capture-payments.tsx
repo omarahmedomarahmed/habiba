@@ -130,7 +130,7 @@ async function main() {
   const bill = { total: 800 };
 
   const DETAILS = {
-    label: "InstaPay",
+    label: "transfer.labelTransfer" as const,
     cardsComingSoon: true,
     unconfigured: false,
     fields: [

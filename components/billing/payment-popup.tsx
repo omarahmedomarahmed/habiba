@@ -184,9 +184,18 @@ export function PaymentPopup({
    * "the payment screen is broken" by somebody holding a bank app. So the first
    * paint is always the server's answer and this only ever corrects it.
    */
+  /*
+   * 🔴 B46 — AND READ ONCE. The key is the bar's request to open the sheet on
+   * the page it navigates to, so it is spent here. It used to stay set from the
+   * first press, and the sheet then reopened over the page on every load, with
+   * the Pay now button nowhere to be seen.
+   */
   useEffect(() => {
     try {
-      if (window.localStorage.getItem(`pay:${storageKey}`) === "open") setOpen(true);
+      if (window.localStorage.getItem(`pay:${storageKey}`) === "open") {
+        window.localStorage.removeItem(`pay:${storageKey}`);
+        setOpen(true);
+      }
     } catch {
       /* Private window, blocked storage. The server's answer stands. */
     }
@@ -211,8 +220,7 @@ export function PaymentPopup({
      */
     if (next) void onOpen?.().catch(() => undefined);
     try {
-      if (next) window.localStorage.setItem(`pay:${storageKey}`, "open");
-      else window.localStorage.removeItem(`pay:${storageKey}`);
+      if (!next) window.localStorage.removeItem(`pay:${storageKey}`);
     } catch {
       /* Nothing to remember. The payment itself is on the server regardless. */
     }

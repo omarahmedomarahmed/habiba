@@ -48,7 +48,8 @@ import { rich, slot } from "@/lib/i18n/rich";
  * the obvious case of an empty form.
  */
 export type TransferView = {
-  label: string;
+  /** B22: a dictionary key, chosen by the server from the audience. */
+  label: "transfer.labelBank" | "transfer.labelTransfer";
   fields: { key: string; label: string; value: string; hint: string }[];
   cardsComingSoon: boolean;
   unconfigured: boolean;
@@ -295,11 +296,19 @@ export function PayByTransfer({
     <>
     {rejectedBanner}
     <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-900">{details.label}</p>
+      <p className="text-sm font-semibold text-slate-900">{t(details.label)}</p>
       <p className="mt-1 text-sm text-slate-600">
         {askAmount ? (
           <>
-            {rich(t("transfer.sendAtLeast", { amount: slot(0) }), [minimumCents != null ? <Money cents={minimumCents} /> : ""])} · {what}
+            {/*
+              🔴 B46 — the least they SEND, tax included, which is the first rung
+              of the stepper below. The credit floor alone read EGP 5,000 over a
+              stepper whose smallest transfer is EGP 5,700.
+            */}
+            {rich(t("transfer.sendAtLeast", { amount: slot(0) }), [
+              steps?.[0]?.totalEgpLabel ?? (minimumCents != null ? <Money cents={minimumCents} /> : ""),
+            ])}{" "}
+            · {what}
           </>
         ) : (
           <>

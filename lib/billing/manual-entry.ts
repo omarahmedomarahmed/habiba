@@ -254,7 +254,7 @@ export async function manualEntry(input: {
   if (!input.needed) {
     return {
       needed: false,
-      details: { label: "", fields: [], cardsComingSoon: false, unconfigured: true },
+      details: { label: "transfer.labelTransfer", fields: [], cardsComingSoon: false, unconfigured: true },
       live: { state: "none" },
       amountLabel: "",
       taxNote: "",

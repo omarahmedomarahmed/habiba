@@ -142,7 +142,7 @@ export type TransferDetails = {
    * Transfer" and would be confused by a consumer brand on an invoice. Same
    * account details underneath; different word on top.
    */
-  label: string;
+  label: "transfer.labelBank" | "transfer.labelTransfer";
   fields: { key: string; label: string; value: string; hint: string }[];
   cardsComingSoon: boolean;
   /** True when nobody has filled the details in. The screens must say so. */
@@ -159,7 +159,13 @@ export async function transferDetails(audience: Audience): Promise<TransferDetai
     .map((f) => ({ key: f.key, label: f.label, value: f.value, hint: f.hint }));
 
   return {
-    label: audience === "company" ? "Bank Transfer" : "InstaPay / Bank Transfer",
+    /*
+     * 🔴 B22 — a key, and one that promises no rail by name. "InstaPay / Bank
+     * Transfer" headed a sheet whose only line was an InstaPay handle: which
+     * rails appear is the operator's `transferFields`, so the heading cannot
+     * name them. A company still reads "Bank transfer", as above.
+     */
+    label: audience === "company" ? "transfer.labelBank" : "transfer.labelTransfer",
     fields,
     cardsComingSoon: settings.payouts.cardsComingSoon,
     unconfigured: fields.length === 0,
