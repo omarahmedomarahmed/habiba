@@ -17,17 +17,26 @@ import { getI18n } from "@/lib/i18n/server";
 export async function RouteNotFound({
   home = "/",
   withOrb = true,
+  tone = "light",
 }: {
   home?: string;
   withOrb?: boolean;
+  /**
+   * TE55: "dark" for a group whose layout paints a dark ground (the room is
+   * navy), where slate-900 text was unreadable.
+   */
+  tone?: "light" | "dark";
 }) {
   const { locale, t } = await getI18n();
+  const dark = tone === "dark";
 
   return (
     <div className="flex min-h-[60dvh] flex-col items-center justify-center px-6 py-16 text-center">
-      <p className="text-sm font-semibold text-brand-700">404</p>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{t("nf.title")}</h1>
-      <p className="mt-2 max-w-sm text-sm text-slate-500">{t("nf.body")}</p>
+      <p className={dark ? "text-sm font-semibold text-brand-300" : "text-sm font-semibold text-brand-700"}>404</p>
+      <h1 className={dark ? "mt-2 text-2xl font-bold tracking-tight text-white" : "mt-2 text-2xl font-bold tracking-tight text-slate-900"}>
+        {t("nf.title")}
+      </h1>
+      <p className={dark ? "mt-2 max-w-sm text-sm text-white/80" : "mt-2 max-w-sm text-sm text-slate-500"}>{t("nf.body")}</p>
       <Link href={home} className="mt-6">
         <Button>{t("nf.back")}</Button>
       </Link>

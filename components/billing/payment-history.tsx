@@ -86,7 +86,7 @@ export function PaymentHistory({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-[15px] font-semibold text-slate-900">
-                      {payment.patientName || "A patient"}
+                      {payment.patientName || t("tph.aPatient")}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
                       {/*
@@ -104,7 +104,7 @@ export function PaymentHistory({
                       <Money cents={payment.therapistNetCents} />
                     </p>
                     <p className="text-xs text-slate-500 tabular-nums">
-                      of <Money cents={payment.grossCents} />
+                      {rich(t("tph.ofGross", { amount: slot(0) }), [<Money key="gross" cents={payment.grossCents} />])}
                     </p>
                   </div>
                 </div>

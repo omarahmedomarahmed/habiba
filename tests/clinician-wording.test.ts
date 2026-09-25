@@ -105,6 +105,18 @@ test("TE56 / EE32 a malformed id from a URL is not found before it reaches a uui
   }
 });
 
+test("TE60 / TE55 /earnings rows are translated and the room's 404 is readable on navy", () => {
+  const history = strip(readFileSync("components/billing/payment-history.tsx", "utf8"));
+  assert.doesNotMatch(history, /"A patient"|>\s*of </, "English literals on /earnings");
+  assert.match(history, /t\("tph\.aPatient"\)/);
+  assert.ok(ar["tph.ofGross"].includes("{amount}"));
+  const room = readFileSync("app/(room)/not-found.tsx", "utf8");
+  assert.match(room, /tone="dark"/, "the room's 404 draws dark text on its navy ground");
+  // Control: the room's ground really is dark.
+  assert.match(readFileSync("app/(room)/layout.tsx", "utf8"), /bg-navy-600/);
+  assert.match(readFileSync("components/patient/route-not-found.tsx", "utf8"), /dark \? "mt-2 text-2xl font-bold tracking-tight text-white"/);
+});
+
 test("K22 a clinic seat's region change is refused before the rate is saved", () => {
   const actions = strip(readFileSync("app/(app)/settings/actions.ts", "utf8"));
   const body = actions.slice(actions.indexOf("export async function updatePaymentSettings("));
