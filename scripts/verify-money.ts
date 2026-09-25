@@ -288,6 +288,108 @@ function main() {
     );
   }
 
+  /* ================================================================== */
+  /*  Area E · the public site's figures are the product's figures      */
+  /* ================================================================== */
+
+  /*
+   * 🔴 A SAVE THAT CHANGES A PUBLIC FIGURE REFRESHES THE PUBLIC PAGES.
+   *
+   * `/pricing` is `revalidate = false`. Only `savePricing` revalidated it, so a
+   * new cut, per-session fee or pound rate stayed off the site until somebody
+   * published content. The detector cuts one action's body out of the file and
+   * asks whether it reaches the helper.
+   */
+  const settingsActions = readSource("app/(admin)/admin/settings/actions.ts");
+  const body = (src: string, name: string) => {
+    const start = src.indexOf(`export async function ${name}(`);
+    if (start < 0) return "";
+    const end = src.indexOf("\nexport async function ", start + 1);
+    return src.slice(start, end < 0 ? undefined : end);
+  };
+  const refreshes = (fn: string) => /revalidatePublicFigures\(\)/.test(fn);
+  check(
+    "🔴 E saving the cut, the fee or the pound rate refreshes every public page",
+    /function revalidatePublicFigures\(\) \{\s*revalidatePath\("\/", "layout"\);/.test(settingsActions) &&
+      ["savePricing", "saveSession", "savePayouts"].every((name) => refreshes(body(settingsActions, name))) &&
+      /egpRateMicro !== existing\.payouts\.egpRateMicro/.test(body(settingsActions, "savePayouts")),
+    "a stale /pricing quotes a fee the checkout no longer charges",
+  );
+  check(
+    "🔴 CONTROL the detector fails the old saveSession, and finds the actions it cuts",
+    !refreshes('export async function saveSession() {\n  revalidatePath("/admin/settings");\n  return { ok: "Saved." };\n}') &&
+      body(settingsActions, "saveSession").length > 200,
+    "a body cut that found nothing would pass on an empty string",
+  );
+
+  /*
+   * 🔴 THE FEE SPLIT ON THE MARKETING SITE IS THE FEE. It was a literal 15%.
+   */
+  const split = readSource("components/public/audience-demos.tsx");
+  const literalFee = (src: string) => /price \* 0\.\d+|percent: \d+/.test(src);
+  check(
+    "🔴 E the therapist fee split reads platformFeeBps and rounds like the charge",
+    !literalFee(split) &&
+      /settings\.session\.platformFeeBps/.test(split) &&
+      /platformFeeOn\(price, feeBps\)/.test(split),
+    "the page would go on promising 15% the day the fee changed",
+  );
+  check(
+    "🔴 CONTROL the literal detector catches the old line",
+    literalFee("const fee = Math.round(price * 0.15);") && literalFee("percent: 15 }"),
+    "",
+  );
+
+  /*
+   * 🔴 THE RADAR DEMO'S VAT IS THE PRODUCT'S RULE. Sessions are exempt by
+   * default; the demo added a literal 14%. The demo content now carries what
+   * `sessionVatBpsFor` gives for Egypt, the read the new-session preview makes.
+   */
+  const patientApp = readSource("components/demo/patient-app.tsx");
+  const literalVat = (src: string) => /priceCents \* 0\.\d+/.test(src);
+  check(
+    "🔴 E the radar demo computes VAT from the rule it is handed, and hides a zero line",
+    !literalVat(patientApp) &&
+      /sessionVatBps=\{content\?\.sessionVatBps \?\? 0\}/.test(patientApp) &&
+      /\{vat > 0 \? \(/.test(patientApp) &&
+      /sessionVatBpsFor\(settings\.rules, egypt\?\.vatBps \?\? 0\)/.test(readSource("lib/content/demo.ts")),
+    "a demo quoting a total no checkout would ever charge",
+  );
+  check(
+    "🔴 CONTROL the literal detector catches the old line",
+    literalVat("const vat = Math.round(who.priceCents * 0.14);"),
+    "",
+  );
+
+  /*
+   * 🔴 THE HERO'S "FROM" FIGURE IS A `Money`, as the cards under it are.
+   */
+  const hero = readSource("components/radar/radar-hero.tsx");
+  check(
+    "🔴 E the home hero's 'From' price goes through Money, not a dollar string",
+    !/formatUsd/.test(hero) && /<Money cents=\{cheapest\} \/>/.test(hero),
+    "'From $40' above cards reading pounds for the same clinician",
+  );
+
+  /*
+   * 🔴 A TAP ON A PRICE INSIDE A CARD OPENS THE CARD. `Money` swallowed every
+   * click, so tapping the rate on a radar card flipped the currency and never
+   * opened the booking. It may stop the event only when nothing around it acts.
+   */
+  const swallowsAlways = (src: string) =>
+    /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);/.test(src);
+  check(
+    "🔴 E Money leaves a tap to the link or button it sits inside",
+    !swallowsAlways(money) &&
+      /closest\("a, button, \[role='button'\]"\)\) return;\s*event\.stopPropagation\(\);/.test(money),
+    "the booking a person in distress was reaching for did not open",
+  );
+  check(
+    "🔴 CONTROL the detector catches the old handler",
+    swallowsAlways("onClick={(event) => {\n        event.stopPropagation();\n        setOpen((was) => !was);"),
+    "",
+  );
+
   finish("sprint 76 money");
 }
 

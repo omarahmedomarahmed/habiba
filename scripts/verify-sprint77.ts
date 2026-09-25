@@ -30,8 +30,9 @@
  * scanner is a function, it is run against a planted line as well as against
  * the tree, and a pass is only reported when the plant is caught.
  */
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
+import robots from "../app/robots";
 import { CONTENT_DEMOS } from "../lib/db/schema";
 import { readSource, reporter } from "./_verify";
 
@@ -560,6 +561,107 @@ function main() {
       (n) => !/(Demo|Example|Practice)"?$/.test(n),
     ).length === 2,
     "a surname rule that matched everything would clear a real patient's name",
+  );
+
+  /* ================================================================== */
+  /*  Area E · the demos do what the product does                       */
+  /* ================================================================== */
+
+  check(
+    "🔴 E the note demo names its patient through the dictionary, not a literal",
+    /patientLabel=\{t\("hdemo\.patientLabel"\)\}/.test(clinical) && !/patientLabel="/.test(clinical),
+    "an Arabic reader got 'Session note for demo' in English",
+  );
+
+  /*
+   * "This is not me" must not call `next`. The detector reads the Tap that
+   * carries `pclaim.notMe` and asks what its handler does.
+   */
+  const notMeAdvances = (src: string) =>
+    /<Tap[^>]*onClick=\{next\}[^>]*>\s*\{t\("pclaim\.notMe"\)\}/.test(src);
+  const flow = readSource("components/demo/flow-demo.tsx");
+  check(
+    "🔴 E 'This is not me' in the claim demo declines, as `claim-flow.tsx` does",
+    !notMeAdvances(flow) && /set\("declined", true\)/.test(flow) && /pclaim\.noneTitle/.test(flow),
+    "saying no walked the reader into the code screen as if they had said yes",
+  );
+  check(
+    "🔴 CONTROL the detector catches the old handler",
+    notMeAdvances('<Tap variant="secondary" onClick={next}>\n          {t("pclaim.notMe")}'),
+    "a detector that cannot see the old shape proves nothing about the new one",
+  );
+
+  const portal = readSource("components/demo/portal-demo.tsx");
+  const realRota = readSource("app/(clinic)/clinic/page.tsx");
+  check(
+    "🔴 E the clinic demo's rota has no column the real /clinic rota lacks",
+    !/dpo\.where|modality/.test(portal) &&
+      !/modality/.test(readSource("lib/marketing/fixtures.ts")) &&
+      !/modality/.test(realRota),
+    "the demo showed video or in person; the practice's own rota never has",
+  );
+
+  /*
+   * 🔴 An Arabic reader keeps the written Arabic floor over an English row.
+   * Read at the query: a language with its own constant asks for its own row
+   * only, so the English row cannot be the one chosen.
+   */
+  const demoSrc = readSource("lib/content/demo.ts");
+  check(
+    "🔴 E the demo copy prefers the same language, then that language's own floor",
+    /const ownFloor = floor !== DEMO_FALLBACK;/.test(demoSrc) &&
+      /locale === "en" \|\| ownFloor \? \[locale\] : \[locale, "en"\]/.test(demoSrc),
+    "an English CMS demo row won over DEMO_FALLBACK_AR",
+  );
+
+  const mobileNav = readSource("components/public/mobile-nav.tsx");
+  check(
+    "🔴 E the phone menu carries the language switch the header hides below 640px",
+    /<LanguageSwitch[^>]*offered=\{offered\}[^>]*pathname=\{pathname\}/.test(mobileNav) &&
+      /<MobileNav[\s\S]{0,400}offered=\{/.test(readSource("components/public/site-chrome.tsx")) &&
+      /hidden sm:inline-flex/.test(readSource("components/public/site-chrome.tsx")),
+    "a phone reader of the marketing site could not change language",
+  );
+
+  check(
+    "🔴 E the Arabic contact default carries no admin instruction as an address",
+    !/اضبط العنوان/.test(readFileSync("lib/content/defaults-ar.ts", "utf8")),
+    "the Arabic page printed 'set the registered address from the console' as each company's address",
+  );
+
+  /*
+   * 🔴 PRIVACY: robots. Run, not read: the function the site serves, asked about
+   * every door that is not the public site, and about the public pages, which
+   * must stay open (the radar exists to be found).
+   */
+  const rules = robots().rules;
+  const disallow = (Array.isArray(rules) ? rules : [rules]).flatMap((r) =>
+    r.disallow === undefined ? [] : Array.isArray(r.disallow) ? r.disallow : [r.disallow],
+  );
+  const blocked = (path: string, list: string[]) => list.some((prefix) => path.startsWith(prefix));
+  const PRIVATE = [
+    "/patient/journal", "/pay/tok", "/feedback/tok", "/records/tok", "/support/tok",
+    "/welcome/tok", "/clinic", "/clinic/bills", "/sponsor/pot", "/partner/webhooks", "/j/code",
+    "/join/tok", "/sessions/x/room",
+  ];
+  const PUBLIC = ["/", "/pricing", "/radar", "/for-clinics", "/for-patients", "/t/x", "/ar/pricing"];
+  const open = PRIVATE.filter((p) => !blocked(p, disallow));
+  const shut = PUBLIC.filter((p) => blocked(p, disallow));
+  check(
+    process.env.SIMULATION_RUNNING === "1"
+      ? "🔴 E robots: a simulation is running, so everything is shut (the rest is not measured)"
+      : "🔴 E robots disallows every private door and no public page",
+    process.env.SIMULATION_RUNNING === "1" ? disallow.includes("/") : open.length === 0 && shut.length === 0,
+    open.length || shut.length
+      ? `crawlable: ${open.join(", ") || "none"} · wrongly shut: ${shut.join(", ") || "none"}`
+      : `${String(disallow.length)} prefixes`,
+  );
+  check(
+    "🔴 CONTROL the old list leaves the patient record and the capability links crawlable",
+    ["/patient/journal", "/pay/tok", "/records/tok", "/clinic"].every(
+      (p) => !blocked(p, ["/join/", "/dashboard", "/sessions", "/patients", "/billing", "/admin", "/api/"]),
+    ),
+    "a prefix test that blocked everything would pass the check above for the wrong reason",
   );
 
   finish("sprint 77");
