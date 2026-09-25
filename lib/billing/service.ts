@@ -3,6 +3,7 @@ import "server-only";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   aiRequestLogs,
@@ -888,7 +889,17 @@ export async function subscribeByTransfer(input: {
     .where(
       and(
         eq(renewalObligations.organizationId, input.organizationId),
-        eq(renewalObligations.state, "due"),
+        /*
+         * 🔴 K1: a lapsed month whose bill is still due counts too. Paying that
+         * bill now starts the plan (`settleOldestObligationByTransfer`), so a
+         * second month beside it would be a second bill for one plan.
+         */
+        sql`(${renewalObligations.state} = 'due' OR (${renewalObligations.state} = 'lapsed' AND EXISTS (
+          SELECT 1 FROM invoices i
+           WHERE i.organization_id = ${qualified(renewalObligations.organizationId)}
+             AND i.kind = 'subscription'
+             AND i.status = 'due'
+             AND i.period_start = ${qualified(renewalObligations.periodStart)})))`,
       ),
     )
     .limit(1);
@@ -1117,22 +1128,51 @@ export async function settleOldestObligationByTransfer(input: {
   paidAt?: Date;
   /** What the transfer settles, in USD cents. Below the month owed, nothing is granted. */
   settlesCents?: number;
+  /**
+   * 🔴 K1: the invoices this transfer just paid. When given, only a month whose
+   * own subscription invoice is among them is settled, so a transfer that paid
+   * session fees and could not cover the plan's invoice does not grant the plan
+   * on the strength of its total.
+   */
+  paidInvoiceIds?: string[];
 }): Promise<{ settled: boolean }> {
   const { renewalObligations } = await import("@/lib/db/schema");
 
+  /*
+   * 🔴 K1: `due` OR `lapsed`. A plan bought by transfer is due the day it is
+   * raised, and a transfer confirmed after the billing run lapsed it cleared
+   * the bill and never turned the plan on, because only `due` was looked at.
+   * A lapsed month the payer then paid for is a month they bought. `due` is
+   * still preferred, oldest first, for the reason above.
+   */
+  const paidIds = input.paidInvoiceIds;
   const [oldest] = await db
     .select({
+      id: renewalObligations.id,
+      state: renewalObligations.state,
       periodStart: renewalObligations.periodStart,
+      periodEnd: renewalObligations.periodEnd,
       amountCents: renewalObligations.amountCents,
     })
     .from(renewalObligations)
     .where(
       and(
         eq(renewalObligations.organizationId, input.organizationId),
-        eq(renewalObligations.state, "due"),
+        inArray(renewalObligations.state, ["due", "lapsed"]),
+        paidIds === undefined
+          ? undefined
+          : paidIds.length === 0
+            ? sql`false`
+            : sql`EXISTS (
+                SELECT 1 FROM invoices i
+                 WHERE i.organization_id = ${qualified(renewalObligations.organizationId)}
+                   AND i.kind = 'subscription'
+                   AND i.status = 'paid'
+                   AND i.period_start = ${qualified(renewalObligations.periodStart)}
+                   AND i.id IN (${sql.join(paidIds.map((id) => sql`${id}::uuid`), sql`, `)}))`,
       ),
     )
-    .orderBy(renewalObligations.periodStart)
+    .orderBy(sql`(${renewalObligations.state} = 'due') DESC`, renewalObligations.periodStart)
     .limit(1);
 
   if (!oldest) return { settled: false };
@@ -1170,14 +1210,54 @@ export async function settleOldestObligationByTransfer(input: {
     return { settled: false };
   }
 
-  const { settleObligation } = await import("./obligations");
-  return settleObligation({
-    organizationId: input.organizationId,
-    periodStart: oldest.periodStart,
-    via: "manual",
-    ref: input.ref,
-    paidAt: input.paidAt,
-  });
+  if (oldest.state === "due") {
+    const { settleObligation } = await import("./obligations");
+    return settleObligation({
+      organizationId: input.organizationId,
+      periodStart: oldest.periodStart,
+      via: "manual",
+      ref: input.ref,
+      paidAt: input.paidAt,
+    });
+  }
+
+  /*
+   * 🔴 K1: A LAPSED MONTH PAID LATE STARTS WHEN IT IS PAID. Its dates passed
+   * while nobody had paid, so settling it where it stood would grant a month
+   * that is partly or wholly over. The same length, from the payment; its
+   * invoice moves with it so the two still name one period. Guarded on
+   * `lapsed` in the WHERE, so a second confirm moves nothing.
+   */
+  const paidAt = input.paidAt ?? new Date();
+  const start = oldest.periodStart < paidAt ? paidAt : oldest.periodStart;
+  const end = new Date(start.getTime() + (oldest.periodEnd.getTime() - oldest.periodStart.getTime()));
+  const [moved] = await db
+    .update(renewalObligations)
+    .set({
+      state: "paid",
+      periodStart: start,
+      periodEnd: end,
+      paidAt,
+      settledVia: "manual",
+      settledRef: input.ref,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(renewalObligations.id, oldest.id), eq(renewalObligations.state, "lapsed")))
+    .returning({ id: renewalObligations.id });
+  if (!moved) return { settled: false };
+
+  await db
+    .update(invoices)
+    .set({ periodStart: start, periodEnd: end })
+    .where(
+      and(
+        eq(invoices.organizationId, input.organizationId),
+        eq(invoices.kind, "subscription"),
+        eq(invoices.periodStart, oldest.periodStart),
+      ),
+    );
+  log.info("lapsed renewal obligation settled late", { obligation: ref(moved.id) });
+  return { settled: true };
 }
 
 /**

@@ -219,12 +219,34 @@ export async function obligationsDueWithin(days: number): Promise<
  *
  * Run from the billing cron. One statement, guarded on `due`, so running it
  * twice in the same minute lapses nothing twice.
+ *
+ * 🔴 K1: NOT WHILE A TRANSFER FOR IT WAITS ON AN OPERATOR. A plan bought by
+ * transfer is due the moment it is raised, so the 03:05 run lapsed every one
+ * a person had not confirmed yet. The payer has done their part; the wait is
+ * ours. A `submitted` subscription transfer for the organisation holds the
+ * lapse until it is confirmed (which settles it) or rejected (which lets the
+ * next run lapse it).
  */
-export async function lapseOverdue(now = new Date()): Promise<{ lapsed: number }> {
+export async function lapseOverdue(
+  now = new Date(),
+  /** One organisation only: how a verifier asks without lapsing everybody else. */
+  onlyOrganizationId?: string,
+): Promise<{ lapsed: number }> {
   const rows = await controlDb
     .update(renewalObligations)
     .set({ state: "lapsed", updatedAt: new Date() })
-    .where(and(eq(renewalObligations.state, "due"), lte(renewalObligations.dueAt, now)))
+    .where(
+      and(
+        eq(renewalObligations.state, "due"),
+        onlyOrganizationId ? eq(renewalObligations.organizationId, onlyOrganizationId) : undefined,
+        lte(renewalObligations.dueAt, now),
+        sql`NOT EXISTS (
+          SELECT 1 FROM manual_payments mp
+           WHERE mp.purpose = 'subscription'
+             AND mp.state = 'submitted'
+             AND mp.ref_id = ${qualified(renewalObligations.organizationId)})`,
+      ),
+    )
     .returning({ id: renewalObligations.id });
 
   if (rows.length > 0) log.warn("renewal obligations lapsed", { count: rows.length });

@@ -572,6 +572,8 @@ async function grantSubscription(payment: ManualPayment): Promise<void> {
      * somebody tells it how much there was.
      */
     settlesCents: payment.settlesCents,
+    /* K1: only a month whose own invoice this transfer paid. */
+    paidInvoiceIds: settled,
   });
 }
 

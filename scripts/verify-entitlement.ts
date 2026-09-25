@@ -40,6 +40,7 @@ import { reporter, writesTo } from "./_verify";
 import { controlDb as db } from "../lib/db";
 import {
   invoices,
+  manualPayments,
   organizations,
   renewalObligations,
   subscriptions,
@@ -294,6 +295,80 @@ async function main() {
       JSON.stringify(farRun),
     );
 
+    /* ------------------- K1 · a transfer confirmed after the billing run ran */
+
+    /*
+     * 🔴 K1: a plan bought by transfer is due the moment it is raised, so the
+     * 03:05 run lapsed it before anybody could confirm the money, and the
+     * confirmation then cleared the bill and never started the plan.
+     */
+    await db.delete(invoices).where(and(eq(invoices.organizationId, orgId), eq(invoices.kind, "subscription")));
+    await db.delete(renewalObligations).where(eq(renewalObligations.organizationId, orgId));
+    const { lapseOverdue } = await import("../lib/billing/obligations");
+    const { grantFor } = await import("../lib/billing/manual-grants");
+    const k1 = await subscribeByTransfer({ organizationId: orgId, tierKey: TIER });
+    const [waiting] = await db
+      .insert(manualPayments)
+      .values({
+        purpose: "subscription",
+        refId: orgId,
+        organizationId: orgId,
+        amountCents: price * 50,
+        currency: "EGP",
+        settlesCents: price,
+        payerKind: "user",
+        state: "submitted",
+        reference: tag,
+        submittedAt: new Date(),
+      })
+      .returning();
+    const heldLapse = await lapseOverdue(new Date(Date.now() + 60_000), orgId);
+    check(
+      "🔴 K1 a plan whose transfer is waiting on an operator does not lapse at the billing run",
+      k1.ok === true && heldLapse.lapsed === 0,
+      JSON.stringify({ k1, heldLapse }),
+    );
+    await db.delete(manualPayments).where(eq(manualPayments.id, waiting!.id));
+    const lapsedNow = await lapseOverdue(new Date(Date.now() + 60_000), orgId);
+    check(
+      "K1 CONTROL …and with no transfer waiting the same run lapses it, so the hold above was the transfer's",
+      lapsedNow.lapsed === 1,
+      JSON.stringify(lapsedNow),
+    );
+    const stillDue = await db
+      .select({ id: renewalObligations.id })
+      .from(renewalObligations)
+      .where(and(eq(renewalObligations.organizationId, orgId), eq(renewalObligations.state, "due")));
+    check(
+      "K1 CONTROL nothing is `due` any more, which is all the old settle looked at",
+      stillDue.length === 0,
+      `${stillDue.length} due`,
+    );
+    const confirmedAt = new Date();
+    await grantFor({ ...waiting!, state: "confirmed", decidedAt: confirmedAt });
+    const k1Month = await db
+      .select({ state: renewalObligations.state, periodStart: renewalObligations.periodStart })
+      .from(renewalObligations)
+      .where(eq(renewalObligations.organizationId, orgId));
+    const k1Bill = await db
+      .select({ status: invoices.status, periodStart: invoices.periodStart })
+      .from(invoices)
+      .where(and(eq(invoices.organizationId, orgId), eq(invoices.kind, "subscription")));
+    check(
+      "🔴 K1 confirming the transfer after the lapse pays the bill AND starts the plan, from the day it was paid",
+      k1Month.length === 1 && k1Month[0]!.state === "paid" &&
+        +k1Month[0]!.periodStart === +confirmedAt &&
+        k1Bill.length === 1 && k1Bill[0]!.status === "paid" && +k1Bill[0]!.periodStart! === +confirmedAt &&
+        (await currentTier(orgId)).key === TIER,
+      JSON.stringify({ k1Month, k1Bill, tier: (await currentTier(orgId)).key }),
+    );
+    const again = await settleOldestObligationByTransfer({ organizationId: orgId, ref: tag, paidInvoiceIds: [] });
+    check(
+      "K1 a second confirm settles nothing, and a transfer that paid no plan invoice grants no plan",
+      again.settled === false,
+      JSON.stringify(again),
+    );
+
     /*
      * 🔴 CONTROL. Every assertion above is about a row appearing; this one
      * watches the same query find nothing, so a check that passes because it
@@ -310,6 +385,7 @@ async function main() {
     );
   } finally {
     /* In a `finally`, so a failed assertion still leaves the database clean. */
+    await db.delete(manualPayments).where(eq(manualPayments.refId, orgId));
     await db.delete(invoices).where(eq(invoices.organizationId, orgId));
     await db.delete(renewalObligations).where(eq(renewalObligations.organizationId, orgId));
     await db.delete(subscriptions).where(eq(subscriptions.organizationId, orgId));
