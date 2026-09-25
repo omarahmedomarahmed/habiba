@@ -236,7 +236,11 @@ export async function staffFor(clinicOrganizationId: string) {
       lastName: users.lastName,
     })
     .from(clinicStaffAssignments)
-    .innerJoin(users, eq(users.id, clinicStaffAssignments.userId))
+    /* CE17: only clinicians still at this practice; a row left behind names nobody. */
+    .innerJoin(
+      users,
+      and(eq(users.id, clinicStaffAssignments.userId), eq(users.organizationId, clinicOrganizationId)),
+    )
     .where(eq(clinicStaffAssignments.organizationId, clinicOrganizationId));
 
   return people.map((person) => ({

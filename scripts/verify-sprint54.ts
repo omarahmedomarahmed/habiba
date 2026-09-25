@@ -1056,6 +1056,24 @@ async function main() {
     );
 
     /*
+     * 🔴 CE1 — an expired invitation is not rendered, so nobody fills in a form
+     * the submit will refuse. The control is the resolve just above.
+     */
+    await db.execute(sql`
+      UPDATE clinician_invitations SET expires_at = now() - interval '1 day'
+       WHERE token_hash = (SELECT token_hash FROM clinician_invitations
+                            WHERE email = ${`invited-${fixture}@example.test`} AND state = 'sent' LIMIT 1)`);
+    const expiredView = await resolveInvitation(token);
+    await db.execute(sql`
+      UPDATE clinician_invitations SET expires_at = now() + interval '14 days'
+       WHERE email = ${`invited-${fixture}@example.test`} AND state = 'sent'`);
+    check(
+      "🔴 CE1 an expired invitation link renders no form",
+      expiredView === null,
+      expiredView ? "the expired invitation still resolved" : "not resolved once expired",
+    );
+
+    /*
      * 🔴 T4: a practice with no free seat cannot take a clinician in, since the
      * 2026-09-24 checkup. The fixture practice has none, so the refusal is
      * checked first, and then one seat is bought for the acceptance below.
@@ -1143,7 +1161,29 @@ async function main() {
       INSERT INTO therapist_verifications (user_id, organization_id, state)
       VALUES (${doctor.id}, ${org.id}, 'approved')`);
 
+    /* CE17: a staff member who covers this clinician, to see whether it outlives them. */
+    const [cover] = (
+      await db.execute(sql`
+        INSERT INTO clinic_managers (organization_id, email, password_hash, role)
+        VALUES (${org.id}, ${`cover-${fixture}@example.test`}, 'x', 'viewer') RETURNING id`)
+    ).rows as { id: string }[];
+    await db.execute(sql`
+      INSERT INTO clinic_staff_assignments (organization_id, clinic_manager_id, user_id)
+      VALUES (${org.id}, ${required(cover, "a covering staff member").id}, ${doctor.id})`);
+    const coveredBefore = (
+      await db.execute(sql`SELECT 1 FROM clinic_staff_assignments WHERE user_id = ${doctor.id}`)
+    ).rows.length;
+
     const left = await removeClinician({ clinicOrganizationId: org.id, userId: doctor.id });
+
+    const coveredAfter = (
+      await db.execute(sql`SELECT 1 FROM clinic_staff_assignments WHERE user_id = ${doctor.id}`)
+    ).rows.length;
+    check(
+      "🔴 CE17 a clinician who leaves is no longer on any staff member's cover list",
+      coveredBefore === 1 && coveredAfter === 0,
+      `${coveredBefore} assignment before, ${coveredAfter} after`,
+    );
 
     const [after] = (
       await db.execute(sql`

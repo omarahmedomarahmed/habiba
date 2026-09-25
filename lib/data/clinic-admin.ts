@@ -2,12 +2,13 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password";
 import { controlDb } from "@/lib/db";
 import {
   clinicManagers,
+  clinicStaffAssignments,
   clinicianInvitations,
   invoices,
   meetingConnections,
@@ -341,6 +342,12 @@ export async function resolveInvitation(token: string): Promise<InvitationView |
       and(
         eq(clinicianInvitations.tokenHash, hashToken(token)),
         eq(clinicianInvitations.state, "sent"),
+        /*
+         * 🔴 CE1 — an expired invitation is not rendered. The page drew the whole
+         * form and only the submit said it had expired, after the person had
+         * chosen a password for it.
+         */
+        gt(clinicianInvitations.expiresAt, new Date()),
         eq(organizations.kind, "clinic"),
         eq(organizations.clinicState, "active" as ClinicState),
       ),
@@ -384,7 +391,13 @@ export async function acceptInvitation(input: {
   firstName: string;
   lastName: string;
 }): Promise<{ ok?: true; userId?: string; error?: string }> {
-  if (input.password.length < 12) return { error: "Use at least twelve characters." };
+  /*
+   * CE6: the same rule as every other clinician password (`validatePassword`,
+   * ten characters). This asked for twelve while every hint said ten, and the
+   * join form showed no hint at all.
+   */
+  const passwordProblem = validatePassword(input.password);
+  if (passwordProblem) return { error: passwordProblem };
   if (!input.firstName.trim()) return { error: "Tell us your first name." };
 
   const [invitation] = await controlDb
@@ -822,6 +835,20 @@ export async function removeClinician(input: {
     organizationId: input.clinicOrganizationId,
     userId: input.userId,
   });
+
+  /*
+   * 🔴 CE17 — and nobody on the staff covers them any more. The assignment row
+   * outlived the clinician, so the team page still listed a departed colleague
+   * under "Whose work they cover", and a staff member's scope still named them.
+   */
+  await controlDb
+    .delete(clinicStaffAssignments)
+    .where(
+      and(
+        eq(clinicStaffAssignments.organizationId, input.clinicOrganizationId),
+        eq(clinicStaffAssignments.userId, input.userId),
+      ),
+    );
 
   await controlDb
     .update(users)
