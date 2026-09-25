@@ -318,7 +318,31 @@ async function main() {
         request.decided_by === required(b, "b").id,
       JSON.stringify({ discardByAsker, survived, discardBySecond, request }),
     );
+
+    /*
+     * 🔴 AE70: MRR is each active subscription at its own tier's monthly price
+     * from the settings. It was paying organisations times a $99 literal,
+     * counted over organisations holding credits, so adding a subscription
+     * moved nothing and repricing a tier moved nothing either.
+     */
+    const { monthlyRecurringCents } = await import("../lib/data/vault");
+    const { getSettings } = await import("../lib/settings");
+    const practice = (await getSettings()).pricing.tiers.find((tier) => tier.key === "practice");
+    const mrrBefore = await monthlyRecurringCents();
+    await db.execute(sql`
+      INSERT INTO subscriptions (organization_id, plan, status) VALUES (${required(org, "org").id}, 'practice', 'active')`);
+    const mrrAfter = await monthlyRecurringCents();
+    check(
+      "🔴 AE70 one more active subscription adds its tier's monthly price to MRR, from the settings",
+      Boolean(practice) && mrrAfter - mrrBefore === (practice?.monthlyCents ?? -1),
+      `${String(mrrBefore)} → ${String(mrrAfter)}, practice tier ${String(practice?.monthlyCents)}`,
+    );
+    check(
+      "AE70 …and no dollar figure is typed into it",
+      !/\* 9900/.test(read("lib/data/vault.ts")),
+    );
   } finally {
+    await db.execute(sql`DELETE FROM subscriptions WHERE organization_id IN (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM pending_approvals WHERE kind = 'transfer_without_proof' AND asked_by IN
       (SELECT id FROM users WHERE email LIKE ${`%.${fixture}@example.com`})`);
     await db.execute(sql`DELETE FROM manual_payments WHERE user_id IN

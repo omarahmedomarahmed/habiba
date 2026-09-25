@@ -426,7 +426,7 @@ export async function tractionMetrics(): Promise<Traction> {
 
   // MRR counts only recurring subscriptions. Metered revenue is real but is not
   // recurring, and folding it in is how a run-rate becomes fiction.
-  const mrrCents = payingOrgs * 9900;
+  const mrrCents = await monthlyRecurringCents();
 
   return {
     signups,
@@ -458,6 +458,26 @@ export async function tractionMetrics(): Promise<Traction> {
  * 8.59¢ on 209.41¢, about 4%. Small money, systematic error, and it made two
  * admin screens disagree: the usage page already read microcents.
  */
+/**
+ * 🔴 AE70: WHAT THE ACTIVE SUBSCRIPTIONS BRING IN A MONTH, AT TODAY'S PRICES.
+ *
+ * It was paying organisations times $99, a price no tier has had since the
+ * reprice, counted over organisations holding CREDITS rather than a
+ * subscription at all. Now each active subscription is priced from its own
+ * tier in the settings (`pricing.tiers[].monthlyCents`), so changing a price
+ * on /admin/settings moves this figure, and a pay-as-you-go plan adds nothing.
+ */
+export async function monthlyRecurringCents(): Promise<number> {
+  const plans = await db
+    .select({ plan: subscriptions.plan, count: sql<number>`count(*)::int` })
+    .from(subscriptions)
+    .where(eq(subscriptions.status, "active"))
+    .groupBy(subscriptions.plan);
+  const { getSettings } = await import("@/lib/settings");
+  const tiers = (await getSettings()).pricing.tiers;
+  return plans.reduce((sum, row) => sum + row.count * (tiers.find((tier) => tier.key === row.plan)?.monthlyCents ?? 0), 0);
+}
+
 export async function costByKind(days = 30) {
   return db
     .select({
