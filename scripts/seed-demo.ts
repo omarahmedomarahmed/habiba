@@ -493,9 +493,11 @@ async function main() {
       await db.execute(sql`
         INSERT INTO therapist_radar
           (user_id, organization_id, status, demo, headline, languages, specialties, country, region, city,
-           last_seen_at, accepts_walk_ins)
+           last_seen_at, accepts_walk_ins, practice_name, practice_address, practice_confirmed_at)
         VALUES (${user.id}, ${org.id}, 'online', true, ${headline}, '["Arabic","English"]'::jsonb,
-                '["Anxiety","Sleep"]'::jsonb, 'EG', 'Cairo Governorate', 'Cairo', now(), true)`);
+                '["Anxiety","Sleep"]'::jsonb, 'EG', 'Cairo Governorate', 'Cairo', now(), true,
+                /* Ruling 5c: an invented practice, so in-person hours can be booked and shown. */
+                'Demo Practice', '12 Demo Street, Zamalek, Cairo', now())`);
 
       /*
        * 🔴 HOURS TO BOOK, BECAUSE THERE WERE NONE ANYWHERE.
@@ -512,8 +514,9 @@ async function main() {
        * the same skew that hid two payment defects earlier tonight.
        */
       await db.execute(sql`
-        INSERT INTO availability_slots (therapist_user_id, organization_id, starts_at, duration_minutes, status)
-        SELECT ${user.id}, ${org.id}, slot, 60, 'open'
+        INSERT INTO availability_slots (therapist_user_id, organization_id, starts_at, duration_minutes, status, place)
+        /* Ruling 5c: mornings online or in person, afternoons online, so both can be booked. */
+        SELECT ${user.id}, ${org.id}, slot, 60, 'open', CASE WHEN hour <= 12 THEN 'either' ELSE 'online' END
           FROM generate_series(
                  date_trunc('day', now() + interval '1 day'),
                  date_trunc('day', now() + interval '14 days'),
@@ -696,6 +699,21 @@ async function main() {
       orgId: solo.id, therapistId: drOmar.id, personId: omarPerson.id,
       first: "Omar", last: "Ahmad", email: "mr.3omar.a7mad@gmail.com", phone: "+201000000001",
     });
+    /*
+     * 🔴 Ruling 7: something in Omar's wallet, so the wallet line, the hold at
+     * booking and "From your wallet" on the pay page can all be seen. Booked
+     * through `creditWallet`, so the wallet on the books equals what he can spend.
+     */
+    {
+      const { creditWallet } = await import("../lib/billing/wallet");
+      await creditWallet({
+        personId: omarPerson.id,
+        cents: 500,
+        reason: "Demo credit",
+        fromSessionId: null,
+        from: [{ account: "platform_revenue", amountCents: 500, organizationId: solo.id, memo: "Demo wallet credit" }],
+      });
+    }
 
     /*
      * 2 — Laila: a chart the clinician wrote down, with a person behind it and

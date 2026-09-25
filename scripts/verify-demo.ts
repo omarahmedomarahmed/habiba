@@ -352,7 +352,8 @@ async function main() {
        * they existed: it would have gone red on `money` for the pot behaving
        * exactly as `money` asks it to.
        */
-      const share = Math.round((7_500 * tuning.coverageBps) / 10_000);
+      /* The seeded price: 1,200 pounds, 2,400 cents at the manual rate of 50 (a821666d). */
+      const share = Math.round((2_400 * tuning.coverageBps) / 10_000);
       check(
         `and it paid its ${String(tuning.coverageBps / 100)} per cent, not all of it`,
         totals.spentCents === share * totals.sessions,
@@ -546,7 +547,8 @@ async function main() {
        * what happens when the balance is SHORT rather than when it is low: a
        * pot with $40 in it funds a $45 share of nothing.
        */
-      const share = Math.round((7_500 * tuning.coverageBps) / 10_000);
+      /* The seeded price: 1,200 pounds, 2,400 cents at the manual rate of 50 (a821666d). */
+      const share = Math.round((2_400 * tuning.coverageBps) / 10_000);
       const balance = Number(potRow?.balance ?? 0);
       check(
         "the pot cannot fund another session, which is the point of this one",
