@@ -90,3 +90,13 @@ test("T07: the orphan pages are linked", () => {
   assert.match(settings, /href=\{`\/t\/\$\{actor\.userId\}`\}/, "nothing links their own public page");
   assert.match(onCall, /href=\{`\/t\/\$\{actor\.userId\}`\}/, "the radar page does not link their public page");
 });
+
+test("ruling 14b: the clinic's seven pages are four places, every page still in one", () => {
+  const chrome = readFileSync("components/clinic/chrome.tsx", "utf8");
+  const block = chrome.slice(chrome.indexOf("export const CLINIC_GROUPS"), chrome.indexOf("export const CLINIC_PAGES"));
+  for (const href of ["/clinic", "/clinic/people", "/clinic/team", "/clinic/bills", "/clinic/earnings", "/clinic/seats", "/clinic/records"]) {
+    assert.ok(block.includes(`href: "${href}"`), `${href} is missing from the clinic's navigation`);
+  }
+  assert.equal((block.match(/^ {2}\{\s*key: "/gm) ?? []).length, 4, "the clinic's navigation is not four places");
+  assert.match(chrome, /<ClinicTabs capabilities=\{capabilities\} \/>/, "grouped clinic pages have no tab row");
+});

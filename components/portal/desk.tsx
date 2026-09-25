@@ -72,6 +72,8 @@ export type DeskSection = {
   label: string;
   /** True for the portal's root, which `startsWith` would otherwise match always. */
   exact?: boolean;
+  /** 🔴 Ruling 14b: the other pages this section holds, so it reads as active on them too. */
+  also?: readonly string[];
 };
 
 export function Desk({
@@ -135,7 +137,8 @@ export function Desk({
   const routed = usePathname();
   const pathname = routed ?? home;
   const current = (section: DeskSection) =>
-    section.exact ? pathname === section.href : pathname.startsWith(section.href);
+    (section.exact ? pathname === section.href : pathname.startsWith(section.href)) ||
+    (section.also ?? []).some((href) => pathname.startsWith(href));
 
   const wall = <NeverBar label={never.label} items={never.items} />;
   const switcher = routed === null ? null : <LanguageSwitch />;

@@ -837,7 +837,10 @@ async function main() {
   const chrome = readSource("components/clinic/chrome.tsx");
   check(
     "🔴 63.8 the navigation draws only what this principal holds",
-    /TABS\.filter\(\(tab\) => capabilities\.includes\(tab\.needs\)\)/.test(chrome),
+    /* Ruling 14b grouped the tabs; the filter is the same one, on each group's tabs. */
+    /group\.tabs\.filter\(\(tab\) => capabilities\.includes\(tab\.needs\)\)/.test(chrome) &&
+      /sections=\{allowedGroups\(capabilities\)/.test(chrome) &&
+      /<ClinicTabs capabilities=\{capabilities\} \/>/.test(chrome),
     "a courtesy, not the permission: the page and the query both ask again",
   );
 
