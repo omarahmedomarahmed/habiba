@@ -311,7 +311,7 @@ const SCOPE: Record<string, Scope> = {
   "instrument-seeds": { who: ["admin"] },
 
   /*
-   * 🔴 75.5 — minting a back office account. The narrowest scope there is,
+   * 🔴 75.5: minting a back office account. The narrowest scope there is,
    * because it is the module that decides who else gets to be an operator. A
    * `super_admin` is minted only through the owner invite (K3), with a reason
    * and a second owner once one exists.

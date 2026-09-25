@@ -55,7 +55,7 @@ import { Money } from "@/components/ui/money";
 export const metadata: Metadata = { title: "Settings", robots: { index: false } };
 export const dynamic = "force-dynamic";
 /*
- * 🔴 77.14 — the mail check paces every preview at 150ms with a retry, so the
+ * 🔴 77.14: the mail check paces every preview at 150ms with a retry, so the
  * action can run for ten seconds or so. The default ceiling would cut it off
  * partway through and report a count that is a story about a timeout.
  */
