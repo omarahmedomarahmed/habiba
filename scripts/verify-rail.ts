@@ -379,13 +379,19 @@ async function main() {
    *   discardOpenCart          deletes an `awaiting_proof` row only, which
    *                            carries no money and no claim
    *
-   * A fourth export here goes red exactly like one in `actions.ts`.
+   *   refundInsteadOfWallet    K20 (founder's decision): a cancelled booking's
+   *                            transfer sits in the patient's wallet by
+   *                            default; this queues the ordinary refund when
+   *                            they ask, only while the credit is whole. It
+   *                            confirms nothing and changes no amount
+   *
+   * A fifth export here goes red exactly like one in `actions.ts`.
    */
   const exceptionActions = readSource("app/(admin)/admin/transfers/exception-actions.ts");
   const exceptionExports = [...exceptionActions.matchAll(/export async function (\w+)/g)].map((m) => m[1]!);
-  const EXCEPTION_ACTIONS = ["retryException", "resolveTransferException", "discardOpenCart"];
+  const EXCEPTION_ACTIONS = ["retryException", "resolveTransferException", "refundInsteadOfWallet", "discardOpenCart"];
   check(
-    "🔴 W2-A03 the exception acts are retry, resolve and discard, each staff and audited, and nothing else",
+    "🔴 W2-A03 the exception acts are retry, resolve, refund instead and discard, each staff and audited, and nothing else",
     exceptionExports.length === EXCEPTION_ACTIONS.length &&
       EXCEPTION_ACTIONS.every((name) => {
         const body = exceptionActions.slice(exceptionActions.indexOf(`function ${name}`));

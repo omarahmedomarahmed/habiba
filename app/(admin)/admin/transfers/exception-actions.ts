@@ -58,6 +58,30 @@ export async function resolveTransferException(
   return { ok: true };
 }
 
+/**
+ * 🔴 K20: the patient asked for the money back instead of keeping it in their
+ * wallet. Only while that credit is whole; the reason is required and kept on
+ * the transfer and in the audit row. Queued on the refund queue like any other.
+ */
+export async function refundInsteadOfWallet(paymentId: string, reason: string): Promise<ExceptionState> {
+  const actor = await requireStaff();
+  const { refundTransferInstead } = await import("@/lib/billing/transfer-wallet");
+  const result = await refundTransferInstead({ paymentId, byUserId: actor.userId, reason });
+  if (result.error) return { error: result.error };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "transfer.refund_instead_of_wallet",
+    resourceType: "manual_payment",
+    resourceId: paymentId,
+    reason: reason.trim().slice(0, 500),
+  });
+  revalidatePath("/admin/transfers");
+  revalidatePath("/admin/payouts");
+  return { ok: true };
+}
+
 export async function discardOpenCart(paymentId: string): Promise<ExceptionState> {
   const actor = await requireStaff();
   if (!(await discardCart(paymentId))) return { error: await say("arefund.errMoved") };

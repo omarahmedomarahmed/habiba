@@ -49,11 +49,16 @@ export default async function TransfersPage({
   const q = searchTerm(params.q);
   const { page, offset, fetch } = paging(params);
 
-  const [fetched, carts, exceptions] = await Promise.all([
+  const { walletCreditedTransfers } = await import("@/lib/billing/transfer-wallet");
+  const [fetched, carts, open, inWallet] = await Promise.all([
     queue({ q, offset, limit: fetch }),
     openCarts(),
     openExceptions(),
+    /* K20: cancelled bookings' transfers now in a wallet, which staff may still refund instead. */
+    walletCreditedTransfers(),
   ]);
+  const walletIds = new Set(inWallet.map((row) => row.id));
+  const exceptions = [...open, ...inWallet];
   const { rows, hasMore } = pageOf(fetched);
 
   /*
@@ -297,8 +302,9 @@ export default async function TransfersPage({
           amountLabel: formatMoney(e.amountCents, e.currency.toUpperCase(), "en-US"),
           settlesCents: e.settlesCents,
           kind: e.exception!,
-          detail: e.exceptionDetail,
+          detail: walletIds.has(e.id) ? e.exceptionResolution : e.exceptionDetail,
           raisedAt: e.exceptionAt?.toISOString() ?? null,
+          walletCredit: walletIds.has(e.id),
         }))}
       />
 

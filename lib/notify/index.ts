@@ -314,7 +314,9 @@ export type Message = {
     /** 🔴 And the patient's carries the join link, because that is what they bought. */
     | "payment.confirmed"
     /** 🔴 25 September inventory: a rejected transfer, with the operator's reason. */
-    | "payment.rejected";
+    | "payment.rejected"
+    /** 🔴 K20: a transfer for a cancelled booking is in the patient's wallet; they can ask for it back. */
+    | "payment.wallet_credited";
   subject: string;
   /** Plain text. WhatsApp has no HTML and an SMS fallback would not want it. */
   body: string;
