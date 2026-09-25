@@ -5,6 +5,7 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { controlDb as db} from "@/lib/db";
@@ -149,7 +150,17 @@ export async function getPatientActor(): Promise<PatientActor | null> {
   const store = await cookies();
   const token = store.get(PATIENT_COOKIE)?.value;
   if (!token) return null;
+  return actorForToken(token);
+}
 
+/*
+ * 🔴 B49: once per render, keyed on the token. The patient layout asks
+ * (`optionalPatient`) and so does every page under it (`requirePatient`), so a
+ * page view ran this join and its throttled write twice in a row before any
+ * of its own queries started. `cache` only memoises inside a server render;
+ * a server action still reads afresh, and a new token is a new key.
+ */
+const actorForToken = cache(async (token: string): Promise<PatientActor | null> => {
   const now = new Date();
   const [row] = await db
     .select({
@@ -199,7 +210,7 @@ export async function getPatientActor(): Promise<PatientActor | null> {
     lastName: row.lastName,
     emailVerified: row.emailVerifiedAt !== null,
   };
-}
+});
 
 export async function destroyPatientSession(): Promise<void> {
   const store = await cookies();

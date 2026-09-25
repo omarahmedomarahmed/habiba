@@ -144,6 +144,13 @@ export async function SiteHeader() {
   );
 }
 
+const LEGAL_KEYS = {
+  privacy: "footer.privacy",
+  terms: "footer.terms",
+  hipaa: "footer.compliance",
+  security: "footer.security",
+} as const;
+
 export async function SiteFooter() {
   const [nav, footer, i18n] = await Promise.all([getPublicNav(), getFooterLinks(), getI18n()]);
   const { locale, t } = i18n;
@@ -204,7 +211,15 @@ export async function SiteFooter() {
           <FooterColumn title={t("footer.legal")}>
             {footer.map((item) => (
               <FooterLink key={item.slug} href={href(`/${item.slug}`)}>
-                {item.label}
+                {/*
+                  🔴 B50: the legal rows have no Arabic yet, so their CMS label
+                  is English on every Arabic screen with a footer. The four
+                  known pages take their name from the dictionary in any
+                  language but English, where the editor's label still wins.
+                */}
+                {locale !== "en" && item.slug in LEGAL_KEYS
+                  ? t(LEGAL_KEYS[item.slug as keyof typeof LEGAL_KEYS])
+                  : item.label}
               </FooterLink>
             ))}
           </FooterColumn>

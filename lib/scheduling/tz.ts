@@ -130,28 +130,27 @@ export function usable(zone: string | null | undefined): boolean {
  * The last IANA segment with underscores removed. Not the offset: "+03" is
  * correct and unreadable, and it changes under DST while the city does not.
  */
-export function zoneLabel(zone: string, locale: Locale = "en"): string {
-  /*
-   * 🔴 B44 — IN THE READER'S LANGUAGE. The IANA segment is English, so an
-   * Arabic clinic page read "الأوقات بتوقيت Cairo". Arabic takes CLDR's generic
-   * name ("توقيت مصر", "توقيت نيويورك") less its leading word, because every
-   * sentence this ends already says بتوقيت. Server-rendered callers only: a
-   * client component rendering this on both passes would be C84's mismatch.
-   */
-  if (locale === "ar") {
-    if (zone === "UTC") return "غرينتش";
-    try {
-      const name = new Intl.DateTimeFormat("ar", { timeZone: zone, timeZoneName: "shortGeneric" })
-        .formatToParts(new Date())
-        .find((part) => part.type === "timeZoneName")?.value;
-      if (name) return name.replace(/^توقيت\s+/, "");
-    } catch {
-      /* An unknown zone falls through to the English city, which is still true. */
-    }
-  }
+export function zoneLabel(zone: string, locale: string = "en"): string {
   if (zone === "UTC") return "UTC";
   const last = zone.split("/").pop() ?? zone;
-  return last.replace(/_/g, " ");
+  const city = last.replace(/_/g, " ");
+  if (locale === "en") return city;
+  /*
+   * 🔴 B50: in any other language, the zone's own generic name ("توقيت مصر")
+   * from the runtime's CLDR data, because an Arabic sentence ending "(Cairo)"
+   * is the one English word on the line. An offset ("غرينتش+2") is the
+   * unreadable answer this function exists to avoid, so that and an unknown
+   * zone keep the city.
+   */
+  try {
+    const name = new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: "shortGeneric" })
+      .formatToParts(new Date(0))
+      .find((part) => part.type === "timeZoneName")?.value;
+    if (name && !/GMT|UTC|غرينتش|[+\u2212-]\d/.test(name)) return name;
+  } catch {
+    /* An unknown zone: the city is still the honest label. */
+  }
+  return city;
 }
 
 const LOCALE = "en-GB";
@@ -224,7 +223,7 @@ export function formatWeekday(at: Date, zone: string, locale: Locale): string {
  * label they did not need costs them nothing.
  */
 export function formatWhen(at: Date, zone: Zone, locale: Locale): string {
-  return `${formatDay(at, zone.name, locale)}, ${formatTime(at, zone.name)} (${zoneLabel(zone.name)})`;
+  return `${formatDay(at, zone.name, locale)}, ${formatTime(at, zone.name)} (${zoneLabel(zone.name, locale)})`;
 }
 
 /**

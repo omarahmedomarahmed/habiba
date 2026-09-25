@@ -350,6 +350,9 @@ export async function updatePaymentSettings(
 export async function saveMyLanguage(formData: FormData): Promise<void> {
   const actor = await requireUser();
   const { saveLocale } = await import("@/lib/i18n/preference");
-  await saveLocale({ userId: actor.userId }, String(formData.get("locale") ?? ""));
+  const ok = await saveLocale({ userId: actor.userId }, String(formData.get("locale") ?? ""));
   revalidatePath("/", "layout");
+  /* B55: the same confirmation the patient's settings give. */
+  const { redirect } = await import("next/navigation");
+  redirect(ok ? "/settings?lang=saved" : "/settings");
 }

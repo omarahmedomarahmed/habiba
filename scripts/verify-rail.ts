@@ -288,8 +288,21 @@ async function main() {
    */
   check(
     "🔴 the heading is chosen by audience, on the server",
-    /audience === "company" \? "Bank Transfer" : "InstaPay \/ Bank Transfer"/.test(lib),
+    /audience === "company" \? "transfer\.labelBank" : "transfer\.labelTransfer"/.test(lib),
     "the word on top differs; the account underneath does not",
+  );
+  /*
+   * 🔴 B22: and it names no rail. The rails shown are the operator's
+   * `transferFields`, so "InstaPay / Bank Transfer" promised a bank account over
+   * a sheet holding one InstaPay handle. CONTROL: the old heading fails this.
+   */
+  const { en: enWords, ar: arWords } = await import("../lib/i18n/messages");
+  check(
+    "🔴 B22 the payer's heading promises no rail the sheet may not show, in either language",
+    !/InstaPay|Bank/i.test(enWords["transfer.labelTransfer"]) &&
+      !/InstaPay|بنك/i.test(arWords["transfer.labelTransfer"]) &&
+      !/"InstaPay \/ Bank Transfer"/.test(lib),
+    enWords["transfer.labelTransfer"],
   );
 
   /*

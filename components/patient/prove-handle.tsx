@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
@@ -33,11 +33,25 @@ function Submit({ label }: { label: string }) {
   );
 }
 
+function SendCode({ label }: { label: string }) {
+  const t = useT();
+  const { pending } = useFormStatus();
+  return (
+    <Button full size="lg" type="submit" disabled={pending}>
+      {pending ? t("common.sending") : label}
+    </Button>
+  );
+}
+
 export function ProveHandle({ handle }: { handle: string }) {
   const t = useT();
   const router = useRouter();
-  const [asked, setAsked] = useState<{ sent?: boolean; channelDown?: boolean; error?: string }>({});
-  const [sending, startSending] = useTransition();
+  /*
+   * 🔴 B53: a form with the server action, not a button with an onClick. A
+   * press before the page hydrated did nothing at all (thirty seconds of
+   * "Send me a code" not responding on a phone); a form posts either way.
+   */
+  const [asked, ask] = useActionState(requestHandleCode, {});
   const [entered, confirm] = useActionState(confirmHandleCode, {});
 
   if (entered.verified) {
@@ -90,18 +104,9 @@ export function ProveHandle({ handle }: { handle: string }) {
               {asked.error}
             </p>
           ) : null}
-          <Button
-            full
-            size="lg"
-            disabled={sending}
-            onClick={() =>
-              startSending(async () => {
-                setAsked(await requestHandleCode());
-              })
-            }
-          >
-            {sending ? t("common.sending") : t("pprove.sendMeACode")}
-          </Button>
+          <form action={ask}>
+            <SendCode label={t("pprove.sendMeACode")} />
+          </form>
         </>
       )}
     </Card>

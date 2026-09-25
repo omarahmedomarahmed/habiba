@@ -171,11 +171,21 @@ test("B44 the label is in the reader's language, and the English one is unchange
   assert.equal(zoneLabel("Africa/Cairo", "en"), "Cairo");
   const cairo = zoneLabel("Africa/Cairo", "ar");
   assert.doesNotMatch(cairo, /[A-Za-z]/, `Arabic reads ${cairo}`);
-  assert.equal(cairo, "مصر");
-  assert.doesNotMatch(zoneLabel("America/New_York", "ar"), /[A-Za-z]|^توقيت/);
-  assert.equal(zoneLabel("UTC", "ar"), "غرينتش");
+  assert.equal(cairo, "توقيت مصر");
+  assert.doesNotMatch(zoneLabel("America/New_York", "ar"), /[A-Za-z]/);
+  
   const { ar } = await import("../lib/i18n/messages");
-  assert.equal(ar["clinic.timesIn"].replace("{zone}", cairo), "الأوقات بتوقيت مصر");
+  assert.equal(ar["clinic.timesIn"].replace("{zone}", cairo), "الأوقات حسب توقيت مصر");
+});
+
+test("B50: an Arabic reader gets the zone's Arabic name, never an offset", () => {
+  assert.equal(zoneLabel("Africa/Cairo", "ar"), "توقيت مصر");
+  assert.doesNotMatch(zoneLabel("America/New_York", "ar"), /[A-Za-z]/);
+  // An offset zone keeps its honest label rather than "غرينتش-3".
+  assert.equal(zoneLabel("Etc/GMT+3", "ar"), "GMT+3");
+  // And the sentence an Arabic session card ends with carries no English city.
+  const card = formatWhen(new Date("2026-09-26T07:00:00Z"), { name: "Africa/Cairo", source: "reader" }, "ar");
+  assert.doesNotMatch(card, /Cairo/);
 });
 
 /* ------------------------------------------------ 11R.16 the quiet window -- */

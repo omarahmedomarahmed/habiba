@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -140,13 +140,66 @@ async function suggestionsFor(input: {
   const unclaimed = candidates.filter(
     (c) => !c.claimed && c.personId !== input.excludePersonId,
   );
-  return unclaimed.map((c) => ({
+  if (unclaimed.length === 0) return [];
+
+  /*
+   * 🔴 B6: only a record a clinician actually keeps, and only one that CAN be
+   * claimed.
+   *
+   * A claim moves the account onto the claimed record and leaves its signup
+   * row behind, unclaimed and still carrying the patient's number. The screen
+   * then offered that empty row back as "a therapist keeps notes for someone
+   * with your phone number", and claiming it hit `people_claimed_phone_unique`
+   * (one claimed person per number) and showed the error page. Both halves of
+   * the sentence are now checked: a live chart holds the person, and no other
+   * claimed person already holds the number or address it matched on.
+   */
+  const ids = unclaimed.map((c) => c.personId);
+  const [charted, blocked] = await Promise.all([
+    db
+      .selectDistinct({ personId: patients.personId })
+      .from(patients)
+      .where(and(inArray(patients.personId, ids), isNull(patients.deletedAt))),
+    handlesTakenFor(ids),
+  ]);
+  const kept = new Set(charted.map((r) => r.personId));
+
+  return unclaimed.filter((c) => kept.has(c.personId) && !blocked.has(c.personId)).map((c) => ({
     personId: c.personId,
     redactedName: redactName(c.firstName, c.lastName),
     matchedOn: c.matchedOn,
   }));
 }
 
+
+/**
+ * The people in `personIds` that cannot be claimed because another, already
+ * claimed person holds the same number or address. `people_claimed_phone_unique`
+ * and `people_claimed_email_unique` refuse the write; this is the same rule
+ * asked before it, so the answer is a sentence rather than an error page.
+ */
+async function handlesTakenFor(personIds: string[]): Promise<Set<string>> {
+  if (personIds.length === 0) return new Set();
+  const rows = await db.execute<{ id: string }>(sql`
+    SELECT p.id FROM people p
+     WHERE p.id IN (${sql.join(personIds.map((id) => sql`${id}::uuid`), sql`, `)})
+       AND EXISTS (
+         SELECT 1 FROM people o
+          WHERE o.id <> p.id AND o.claimed_at IS NOT NULL
+            AND ((p.phone IS NOT NULL AND o.phone = p.phone)
+              OR (p.email IS NOT NULL AND o.email = p.email)))
+  `);
+  return new Set(rows.rows.map((r) => r.id));
+}
+
+/** Postgres 23505, however the driver wraps it. */
+function uniqueViolation(error: unknown): boolean {
+  const seen = error as { code?: string; cause?: { code?: string } } | null;
+  return seen?.code === "23505" || seen?.cause?.code === "23505";
+}
+
+export const HANDLE_TAKEN =
+  "Your number or address is already on the record you claimed, so this one cannot be added to it. Ask the therapist who holds it to share it with you.";
 
 /**
  * 🔴 22R — the account follows the record it just claimed.
@@ -403,6 +456,11 @@ export async function startClaim(input: {
     return { ok: false, error: "That record does not match a number or address you have confirmed." };
   }
 
+  /* 🔴 B6: the database would refuse the claim at the last step; say so at the first. */
+  if ((await handlesTakenFor([input.personId])).has(input.personId)) {
+    return { ok: false, error: HANDLE_TAKEN };
+  }
+
   const code = verificationCode();
   const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
@@ -518,7 +576,12 @@ export async function verifyClaim(input: {
 
   let patientsMoved = 0;
 
-  await db.transaction(async (tx) => {
+  /*
+   * 🔴 B6: `people_claimed_phone_unique` refusing the stamp below used to
+   * escape as an error page after a valid code. `startClaim` now refuses such
+   * a record up front; this catches the same refusal arriving by a race.
+   */
+  const refused = await db.transaction(async (tx) => {
     /*
      * The claim, conditionally. If another request verified this in the
      * meantime the UPDATE matches nothing and the transaction does nothing
@@ -562,7 +625,12 @@ export async function verifyClaim(input: {
 
     /* 🔴 22R — the same move, on the matching route. */
     await bindAccountToPerson(tx as never, claim.accountId, claim.personId);
+    return false;
+  }).catch((error: unknown) => {
+    if (uniqueViolation(error)) return true;
+    throw error;
   });
+  if (refused) return { ok: false, error: HANDLE_TAKEN };
 
   /*
    * Step 7, acted on at last (sprint 7).
@@ -780,6 +848,10 @@ export async function redeemInvite(input: {
     log.warn("invite refused: account does not carry the invited handle", { person: ref(resolved.personId) });
     return { ok: false, error: INVITE_MISMATCH };
   }
+  /* 🔴 B6: the same refusal as the matching route, before the invite is spent. */
+  if ((await handlesTakenFor([resolved.personId])).has(resolved.personId)) {
+    return { ok: false, error: HANDLE_TAKEN };
+  }
 
   let patientsMoved = 0;
   let claimed = false;
@@ -837,6 +909,10 @@ export async function redeemInvite(input: {
       await bindAccountToPerson(tx as never, input.accountId, resolved.personId);
     })
     .catch((error) => {
+      if (uniqueViolation(error)) {
+        alreadyClaimed = true;
+        return;
+      }
       if (!(error instanceof InviteRaceLost)) throw error;
     });
 

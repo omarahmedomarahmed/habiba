@@ -68,19 +68,21 @@ export default async function PatientLayout({ children }: { children: React.Reac
    * draws the orb and names nobody. A session can be open for a week before it
    * is live, and that week is exactly when the app used to hold nothing.
    */
-  const [live, open] = actor?.personId
+  /* B49: the bell's count joins the other two rather than waiting behind them. */
+  const [live, open, unseen] = actor?.personId
     ? await Promise.all([
         liveSessionForPatient(actor.personId),
         openSessionForPatient(actor.personId),
+        undismissedCount(actor.personId),
       ])
-    : [null, null];
+    : [null, null, 0];
 
   return (
     <PatientChrome nav={actor !== null} phone={actor?.phone ?? null} openSession={open}>
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       {/* 🔴 W2-P09: and beside it, for somebody signed in, what the app has told them. */}
       <LanguageCorner
-        beside={actor ? <NoticeBell count={await undismissedCount(actor.personId)} /> : null}
+        beside={actor ? <NoticeBell count={unseen} /> : null}
       />
       {live ? <SessionStarted href={live.href} therapistName={live.therapistName} /> : null}
       {children}

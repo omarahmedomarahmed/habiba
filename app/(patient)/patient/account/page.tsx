@@ -65,10 +65,10 @@ export const dynamic = "force-dynamic";
 export default async function PatientAccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; lang?: string }>;
 }) {
   const actor = await requirePatient();
-  const { tab } = await searchParams;
+  const { tab, lang } = await searchParams;
   const active: TabKey = TABS.some((entry) => entry.key === tab) ? (tab as TabKey) : "overview";
 
   const [account] = await db
@@ -90,6 +90,19 @@ export default async function PatientAccountPage({
   const locked = account ? lockUntil(account) : null;
   const { t, locale } = await getI18n();
   const tag = localeTag(locale);
+  /*
+   * 🔴 B50: the operator's country names are English. On the server, where the
+   * runtime's region names are the same on every pass, an Arabic reader gets
+   * "مصر" rather than "Egypt"; anything it cannot name keeps the operator's.
+   */
+  const regions = locale === "en" ? null : new Intl.DisplayNames([tag], { type: "region" });
+  const countryName = (code: string, fallback: string) => {
+    try {
+      return regions?.of(code.toUpperCase()) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
 
   const [{ myBenefits }, { sessionDoors, sessionsForPatient }, { summariesForPerson }, { walletBalanceCents }, { savedLocale }] =
     await Promise.all([
@@ -299,7 +312,7 @@ export default async function PatientAccountPage({
 
       {active === "settings" ? (
       <>
-      <LanguageSetting action={savePatientLanguage} saved={chosen} />
+      <LanguageSetting action={savePatientLanguage} saved={chosen} justSaved={lang === "saved"} />
 
       {/* 25.7 / C115 — name and picture, both theirs. */}
       <IdentityEditor
@@ -311,7 +324,7 @@ export default async function PatientAccountPage({
 
       <ChangeNumber
         current={actor.phone}
-        countries={countries.map((c) => ({ code: c.code, name: c.name }))}
+        countries={countries.map((c) => ({ code: c.code, name: countryName(c.code, c.name) }))}
         lockedUntilLabel={locked ? locked.toISOString().slice(0, 10) : null}
         awaitingCode={await awaitingChangeCode(actor.accountId)}
       />

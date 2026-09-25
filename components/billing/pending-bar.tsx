@@ -208,7 +208,8 @@ export function PendingBar({
           onClick={openSheet}
           className="shrink-0 rounded-lg bg-white/25 px-2 py-1 text-xs font-semibold"
         >
-          {t("bar.reopen")}
+          {/* B46: the waiting stage is followed, not reopened. */}
+          {stage === "submitted" ? t("pop.track") : t("bar.reopen")}
         </Link>
       )}
     </div>

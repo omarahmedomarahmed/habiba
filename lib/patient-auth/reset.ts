@@ -151,7 +151,11 @@ export async function requestPatientReset(
     });
 
     /* 🔴 Ruling 8: in the language they chose. */
-    const { t, locale } = await wordsFor(account.personId ? { personId: account.personId } : null);
+    /* B50: and in the language of the screen they asked from, until they save one. */
+    const { t, locale } = await wordsFor(
+      account.personId ? { personId: account.personId } : null,
+      await (await import("@/lib/i18n/server")).getLocale(),
+    );
     const delivery = await notify(
       { email: account.email, phone: account.phone, locale },
       {

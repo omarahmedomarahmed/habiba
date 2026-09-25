@@ -102,6 +102,8 @@ const PORTALS: Record<string, readonly string[]> = {
     "pclaim",
     "pbook",
     "prating",
+    /* B67: the rating form's tag labels, `components/feedback/rating-form.tsx`. */
+    "ftag",
     "pinvite",
     "benefit",
     "checkin",

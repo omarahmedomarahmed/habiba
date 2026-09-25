@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { SosOrb } from "@/components/patient/sos-orb";
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -46,6 +47,8 @@ export function RouteError({
   const t = useT();
 
   useEffect(() => {
+    /* 🔴 B7: a script that did not arrive is fetched again, once, before this page is shown. */
+    if (recoverFromChunkError(error)) return;
     /*
      * The digest is what ties this to a server log line. Nothing else about the
      * error goes to the browser console: an error message on a patient screen

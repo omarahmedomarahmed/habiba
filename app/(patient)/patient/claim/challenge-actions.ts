@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { answerName, answerSeen, type AnswerResult } from "@/lib/data/challenge";
 import { audit } from "@/lib/audit";
+import { claimError } from "@/lib/data/claim-errors";
+import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { callerKey, consume } from "@/lib/rate-limit";
 
@@ -32,7 +34,7 @@ export async function saySeen(patientId: string, seen: boolean): Promise<AnswerR
   });
 
   revalidatePath("/patient/claim");
-  return result;
+  return result.ok ? result : { ...result, error: claimError(result.error, (await getI18n()).t) };
 }
 
 /**
@@ -50,10 +52,7 @@ export async function sayName(patientId: string, name: string): Promise<AnswerRe
 
   const throttle = await consume(await callerKey("claim:name"), 12, 60 * 60);
   if (!throttle.allowed) {
-    return {
-      ok: false,
-      error: "Too many attempts. Try again later, or ask your therapist for an invite link.",
-    };
+    return { ok: false, error: (await getI18n()).t("pclaim.err.tooMany") };
   }
 
   const result = await answerName({ accountId: actor.accountId, patientId, name });
@@ -68,5 +67,5 @@ export async function sayName(patientId: string, name: string): Promise<AnswerRe
   });
 
   revalidatePath("/patient/claim");
-  return result;
+  return result.ok ? result : { ...result, error: claimError(result.error, (await getI18n()).t) };
 }

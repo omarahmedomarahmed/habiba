@@ -176,12 +176,17 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
 
   /* 🔴 The pay page's figure for each unpaid one, never the list price. */
   const { patientOwesTotal } = await import("@/lib/billing/manual-entry");
-  const owed = new Map<string, number>();
-  for (const row of rows) {
-    if (row.priceCents > 0 && row.paymentStatus === "pending" && row.status !== "cancelled") {
-      owed.set(row.id, await patientOwesTotal(row.id));
-    }
-  }
+  /*
+   * 🔴 B49: side by side, not one after another. Each figure is five or six
+   * round trips, and they were awaited in a loop, so a patient with a few
+   * unpaid sessions waited for all of them in series before the list drew.
+   */
+  const unpaid = rows.filter(
+    (row) => row.priceCents > 0 && row.paymentStatus === "pending" && row.status !== "cancelled",
+  );
+  const owed = new Map<string, number>(
+    await Promise.all(unpaid.map(async (row) => [row.id, await patientOwesTotal(row.id)] as const)),
+  );
 
   return rows.map((row) => {
     const at = row.scheduledAt ?? row.endedAt ?? row.startedAt ?? row.createdAt;
@@ -196,6 +201,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
         scheduled: row.scheduledAt !== null,
         fromRadar: row.sessionType === "radar",
         cancelled: row.status === "cancelled",
+        finished: row.status === "completed" || row.endedAt !== null,
       }),
       at,
       therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
@@ -213,7 +219,8 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
         row.startedAt === null &&
         row.scheduledAt !== null &&
         row.scheduledAt.getTime() > now,
-      briefPending: !signed && row.status !== "cancelled" && at.getTime() < now,
+      briefPending:
+        !signed && row.status !== "cancelled" && (at.getTime() < now || row.status === "completed" || row.endedAt !== null),
       briefAddenda: signed
         ? addenda
             .filter((line) => line.sessionId === row.id)
@@ -464,8 +471,14 @@ export function groupOf(input: {
   fromRadar: boolean;
   /** A cancelled session is never coming up, whatever its date (walkthrough). */
   cancelled?: boolean;
+  /**
+   * 🔴 B65: nor is one that has ended. A session held early, before the hour
+   * it was booked for, sat under "Today" after it finished while Past said
+   * "No sessions yet": the booked hour decided and the status was never read.
+   */
+  finished?: boolean;
 }): SessionGroup {
-  const future = input.at.getTime() > input.now && !input.cancelled;
+  const future = input.at.getTime() > input.now && !input.cancelled && !input.finished;
 
   if (future) {
     const withinDay = input.at.getTime() - input.now < 24 * 3_600_000;

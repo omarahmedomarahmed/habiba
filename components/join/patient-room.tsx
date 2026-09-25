@@ -444,7 +444,7 @@ function WhoYouAreWith({
   const t = useT();
   // 47.7 — the list separator is the reader's, not a hardcoded one.
   const locale = useLocale();
-  const [elapsed, setElapsed] = useState("");
+  const [minutes, setMinutes] = useState<number | null>(null);
 
   /*
    * Minutes since the session started.
@@ -456,13 +456,16 @@ function WhoYouAreWith({
   useEffect(() => {
     if (!startedAt) return;
     const tick = () => {
-      const minutes = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
-      setElapsed(minutes < 1 ? "just started" : `${minutes} min so far`);
+      setMinutes(Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000));
     };
     tick();
     const timer = setInterval(tick, 30_000);
     return () => clearInterval(timer);
   }, [startedAt]);
+
+  /* B67: worded at render, in the reader's language like the rest of the room. */
+  const elapsed =
+    minutes === null ? "" : minutes < 1 ? t("room.justStarted") : t("room.minSoFar", { count: minutes });
 
   return (
     <Card className="p-4">

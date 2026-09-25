@@ -116,7 +116,7 @@ export default async function InvitePage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-8">
-      <InviteFlow token={token} redactedName={invite.redactedName} />
+      <InviteFlow token={token} redactedName={invite.redactedName} therapistName={invite.therapistName} />
     </main>
   );
 }

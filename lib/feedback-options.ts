@@ -11,6 +11,8 @@
  * reason the positive ones mean anything.
  */
 
+import type { MessageKey } from "@/lib/i18n/messages";
+
 export const THERAPIST_TAGS = [
   "Listened properly",
   "Felt safe",
@@ -33,6 +35,33 @@ export const SERVICE_TAGS = [
   "Connection problems",
   "Too expensive",
 ] as const;
+
+/**
+ * B67: what each tag reads as. The stored value stays the English string above,
+ * so ratings already given keep matching; only the label is translated.
+ */
+export const TAG_LABEL_KEYS: Record<
+  (typeof THERAPIST_TAGS)[number] | (typeof SERVICE_TAGS)[number],
+  MessageKey
+> = {
+  "Listened properly": "ftag.listened",
+  "Felt safe": "ftag.safe",
+  "Practical advice": "ftag.practical",
+  "Explained things clearly": "ftag.clear",
+  "Non-judgemental": "ftag.nonJudgemental",
+  "Right amount of challenge": "ftag.challenge",
+  "Rushed": "ftag.rushed",
+  "Distracted": "ftag.distracted",
+  "Talked over me": "ftag.talkedOver",
+  "Not the right fit": "ftag.notFit",
+  "Easy to find someone": "ftag.easyFind",
+  "Connected quickly": "ftag.quick",
+  "Good audio and video": "ftag.av",
+  "Worth the money": "ftag.worth",
+  "Hard to use": "ftag.hard",
+  "Connection problems": "ftag.connection",
+  "Too expensive": "ftag.expensive",
+};
 
 /** Languages written right to left — the brief has to know which way to run. */
 export const RTL_LANGUAGE_CODES = new Set(["ar", "he", "fa", "ur"]);

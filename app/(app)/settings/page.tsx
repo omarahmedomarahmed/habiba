@@ -46,11 +46,11 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ payouts?: string }>;
+  searchParams: Promise<{ payouts?: string; lang?: string }>;
 }) {
   const { t } = await getI18n();
   const actor = await requireUser();
-  const { payouts } = await searchParams;
+  const { payouts, lang } = await searchParams;
 
   // Coming back from Stripe proves the form was submitted, not that Stripe
   // accepted it — so re-read the account rather than flipping a flag on the
@@ -161,7 +161,11 @@ export default async function SettingsPage({
           why={t("portal.settings.whyYou")}
         >
           {/* 🔴 0169 / ruling 8: the language they work in, and every message we send them. */}
-          <LanguageSetting action={saveMyLanguage} saved={await savedLocale({ userId: actor.userId })} />
+          <LanguageSetting
+            action={saveMyLanguage}
+            saved={await savedLocale({ userId: actor.userId })}
+            justSaved={lang === "saved"}
+          />
           {/*
             24.4 — the verification state belongs here, and it was on no screen
             a verified clinician ever visits again. "Am I approved?" is a

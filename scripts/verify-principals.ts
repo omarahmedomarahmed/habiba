@@ -217,6 +217,8 @@ const SCOPE: Record<string, Scope> = {
   scheduling: { who: ["clinician", "patient", "admin"], clinical: true },
   "meeting-connections": { who: ["clinician", "admin"], clinical: true },
   challenge: { who: ["clinician", "patient", "admin"], clinical: true },
+  // B6: the claim refusals, translated for the patient screens that show them. No query of its own.
+  "claim-errors": { who: ["patient"] },
   // A patient browses clinicians. What this exposes is a clinician's own
   // published profile, which is the same surface the public radar shows.
   discover: { who: ["clinician", "admin", "patient"], clinical: true },

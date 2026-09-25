@@ -99,7 +99,11 @@ export async function issueEmailCode(
     .from(patientAccounts)
     .where(eq(patientAccounts.id, accountId))
     .limit(1);
-  const { t, locale } = await wordsFor(holder?.personId ? { personId: holder.personId } : null);
+  /* B50: and in the language of the screen they asked from, until they save one. */
+  const { t, locale } = await wordsFor(
+    holder?.personId ? { personId: holder.personId } : null,
+    await (await import("@/lib/i18n/server")).getLocale(),
+  );
 
   /* To this address only: a code for an address proves nothing if it lands on a phone. */
   await notify(

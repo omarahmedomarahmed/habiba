@@ -23,7 +23,15 @@ import { useT } from "@/lib/i18n/client";
  * afterwards; §3 says the patient chooses, and the route they arrived by does
  * not change that.
  */
-export function InviteFlow({ token, redactedName }: { token: string; redactedName: string }) {
+export function InviteFlow({
+  token,
+  redactedName,
+  therapistName,
+}: {
+  token: string;
+  redactedName: string;
+  therapistName: string;
+}) {
   const t = useT();
   const router = useRouter();
   const [keepsAccess, setKeepsAccess] = useState(false);
@@ -56,7 +64,8 @@ export function InviteFlow({ token, redactedName }: { token: string; redactedNam
       <div>
         <p className="text-sm font-semibold text-slate-900">{t("pinvite.takeTitle")}</p>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          {t("pinvite.takeBody", { masked: redactedName })}
+          {/* B21: the therapist keeps the notes; the masked name is what they wrote down. */}
+          {t("pinvite.takeBody", { therapist: therapistName, masked: redactedName })}
         </p>
       </div>
 
