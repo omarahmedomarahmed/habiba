@@ -80,7 +80,7 @@ test("the record-system copy claims no filing while nothing calls fileNote", asy
   if (callers.length === 0) {
     assert.doesNotMatch(`${entry.summary} ${entry.today}`, /works end to end|is filed back|files into the record/i);
     for (const key of ["records.bodySolo", "records.bodyClinic", "records.whatWeHold"] as const) {
-      assert.match(en[key], /not built|Once filing is built/, `${key}: ${en[key]}`);
+      assert.match(en[key], /not built|once filing is built/i, `${key}: ${en[key]}`);
       assert.match(ar[key], /لم يُبنَ|حين يُبنى/, `${key} (ar)`);
     }
   }
