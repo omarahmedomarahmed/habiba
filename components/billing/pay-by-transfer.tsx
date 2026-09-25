@@ -57,7 +57,7 @@ export type TransferView = {
 export type LiveState =
   | { state: "none" }
   | { state: "awaiting_proof"; paymentId: string }
-  | { state: "submitted"; paymentId: string; submittedAt: string | null; proofUrl?: string | null }
+  | { state: "submitted"; paymentId: string; submittedAt: string | null; hasProof?: boolean }
   | { state: "rejected"; reason: string };
 
 export type TransferFormState = { error?: string; ok?: boolean };
@@ -235,13 +235,8 @@ export function PayByTransfer({
           idea", and somebody who cannot tell whether a transfer landed sends a
           second one. There is no processor here to reverse it.
         */}
-        {live.proofUrl ? (
-          <a
-            href={live.proofUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 flex items-center gap-3 rounded-xl bg-white/70 p-3 text-sm font-medium text-amber-900"
-          >
+        {live.hasProof ? (
+          <p className="mt-3 flex items-center gap-3 rounded-xl bg-white/70 p-3 text-sm font-medium text-amber-900">
             <span
               aria-hidden
               className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-200 text-xs font-bold"
@@ -249,7 +244,7 @@ export function PayByTransfer({
               ✓
             </span>
             {t("pop.proofSent")}
-          </a>
+          </p>
         ) : null}
       </Card>
     );

@@ -96,6 +96,8 @@ export type PatientSession = {
   cancelled: boolean;
   /** What they still owe, after their benefit and with VAT. Null when nothing is owed. */
   owedCents: number | null;
+  /** 🔴 Ruling 16: a booking still ahead, which they may cancel or move. */
+  changeable: boolean;
 };
 
 /**
@@ -198,6 +200,11 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       brief: signed ? row.brief : null,
       cancelled: row.status === "cancelled",
       owedCents: owed.get(row.id) ?? null,
+      changeable:
+        row.status === "scheduled" &&
+        row.startedAt === null &&
+        row.scheduledAt !== null &&
+        row.scheduledAt.getTime() > now,
       briefPending: !signed && row.status !== "cancelled" && at.getTime() < now,
       briefAddenda: signed
         ? addenda

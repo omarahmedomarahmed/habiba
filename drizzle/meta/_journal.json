@@ -1107,6 +1107,13 @@
       "when": 1789966053000,
       "tag": "0167_staff_prove_it_twice",
       "breakpoints": true
+    },
+    {
+      "idx": 168,
+      "version": "7",
+      "when": 1789966054000,
+      "tag": "0168_a_booking_can_move",
+      "breakpoints": true
     }
   ]
 }

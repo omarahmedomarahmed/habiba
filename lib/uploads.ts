@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { del, put } from "@vercel/blob";
+import { del, get, put } from "@vercel/blob";
 
 import { env } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
@@ -13,14 +13,16 @@ import { log, safeErrorMessage } from "@/lib/logger";
  * headshot — belonging to a clinician, not clinical data about a patient. That
  * distinction sets the rules:
  *
- *  - **Private, always.** Blobs are created with `access: "public"` in the
- *    sense that they have an unguessable URL, so the only real protection is
- *    that the URL is a secret. We therefore never put a credential URL in a
- *    page a patient can reach, never in an email, and never in a log. The
- *    random 32-byte path prefix is the access control.
- *  - **A headshot is different.** It is meant to be seen — it goes on the
- *    public radar — so it lives under a separate prefix and is treated as
- *    published from the moment it is uploaded.
+ *  - **Private, always.** 🔴 Task 40: every kind except the headshot is
+ *    written with `access: "private"` (`PRIVATE_KINDS`), so the stored URL
+ *    opens nothing on its own: the bytes come back only through `fetchStored`,
+ *    called from a route that has already asked who is reading. It used to be
+ *    `access: "public"` with an unguessable path, which made the URL itself
+ *    the key, and a URL is copied, logged and forwarded. Private blobs live in
+ *    the store named by `BLOB_PRIVATE_READ_WRITE_TOKEN` (a store created as
+ *    private), or in the main store when that one is private itself.
+ *  - **A headshot is different.** It is meant to be seen: it goes on the
+ *    public radar, so it stays public, under its own prefix.
  *
  * If a stricter posture is needed later (signed short-lived URLs, or moving
  * documents to S3 with SSE-KMS under a BAA), the seam is here: every read of a
@@ -45,6 +47,69 @@ export const ALLOWED_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp", "i
  * us a medical record and the door it arrived through does not change that.
  */
 export type UploadKind = "credential" | "headshot" | "support" | "avatar" | "receipt";
+
+/**
+ * 🔴 Task 40: WHICH KINDS ARE PRIVATE, and it is every kind but one.
+ *
+ * A licence, an ID, a support attachment, a patient's own photo and a
+ * transfer receipt are personal data. The headshot is published on purpose.
+ * `verify:blobs` reads this list and every `put(` in the code.
+ */
+export const PRIVATE_KINDS: readonly UploadKind[] = ["credential", "support", "avatar", "receipt"];
+
+function isPrivateKind(kind: UploadKind): boolean {
+  return PRIVATE_KINDS.includes(kind);
+}
+
+/** The token that writes and reads private blobs. */
+function privateToken(): string | undefined {
+  return process.env.BLOB_PRIVATE_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN || undefined;
+}
+
+/** A private blob's address: it answers only with a token. */
+function isPrivateBlobUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.endsWith(".private.blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 🔴 Task 40: WRITE A PRIVATE BLOB. The one way personal bytes reach storage.
+ *
+ * `lib/data/documents.ts` (a patient's documents) calls this too, so there is
+ * one private writer and `verify:blobs` can prove every `put(` is it or the
+ * headshot's.
+ */
+export async function putPrivate(path: string, body: File | Blob | Buffer, contentType: string): Promise<string> {
+  const blob = await put(path, body, {
+    access: "private",
+    addRandomSuffix: false,
+    contentType,
+    cacheControlMaxAge: 0,
+    token: privateToken(),
+  });
+  return blob.url;
+}
+
+/**
+ * 🔴 Task 40: READ A STORED FILE, private or from before the move.
+ *
+ * Called only by routes that have already decided the reader may see it. A
+ * private blob is read with the token; an older public blob is fetched as
+ * before, so nothing already stored becomes unreadable (the move script,
+ * `npm run blobs:private`, copies those across).
+ */
+export async function fetchStored(url: string, init?: RequestInit): Promise<Response> {
+  if (!isPrivateBlobUrl(url)) return fetch(url, init);
+  const result = await get(url, { access: "private", token: privateToken(), useCache: false });
+  if (!result || result.statusCode !== 200) return new Response(null, { status: 404 });
+  return new Response(result.stream, {
+    status: 200,
+    headers: { "content-type": result.blob.contentType ?? "application/octet-stream" },
+  });
+}
 
 /**
  * 25.7 / C115 — a patient's own picture. 2 MB, images only.
@@ -187,11 +252,15 @@ export async function uploadDocument(opts: {
   }
 
   try {
+    if (isPrivateKind(opts.kind)) {
+      return { url: await putPrivate(path, opts.file, opts.file.type) };
+    }
+    /* The headshot only: published on the radar by design. */
     const blob = await put(path, opts.file, {
       access: "public",
       addRandomSuffix: false,
       contentType: opts.file.type,
-      cacheControlMaxAge: opts.kind === "headshot" ? 3600 : 0,
+      cacheControlMaxAge: 3600,
     });
     return { url: blob.url };
   } catch (error) {
@@ -287,7 +356,7 @@ export async function deleteDocument(url: string | null | undefined): Promise<vo
     return;
   }
   try {
-    await del(url);
+    await del(url, isPrivateBlobUrl(url) ? { token: privateToken() } : undefined);
   } catch (error) {
     // A leaked blob is a rounding error; failing the request the user actually
     // made because cleanup failed is not.

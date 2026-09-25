@@ -158,7 +158,7 @@ export default async function PayoutsPage() {
             payeeName: row.payeeName ?? row.patientName,
             status: row.status,
             why:
-              row.reason === "no_show" || row.reason === "clinician_cancel" || row.reason === "pot_share"
+              row.reason === "no_show" || row.reason === "clinician_cancel" || row.reason === "patient_cancel" || row.reason === "pot_share"
                 ? row.reason
                 : "other",
             owned: row.owned,

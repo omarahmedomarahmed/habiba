@@ -183,6 +183,16 @@ export function PatientSessionList({
                         {t(DOOR_LABEL[doors[session.id]!.kind])}
                       </Link>
                     ) : null}
+
+                    {/* 🔴 Ruling 16: cancel or move, free up to the window (a setting). */}
+                    {session.changeable ? (
+                      <Link
+                        href={`/patient/sessions/${session.id}/change`}
+                        className="ms-2 mt-3 inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-slate-600 hover:underline"
+                      >
+                        {t("pchange.open")}
+                      </Link>
+                    ) : null}
                   </Card>
                 </li>
               ))}

@@ -204,16 +204,12 @@ async function storeBlob(
       return { url: `/api/uploads/${path}` };
     }
 
-    const { put } = await import("@vercel/blob");
-    const blob = await put(path, file, {
-      access: "public",
-      addRandomSuffix: false,
-      contentType: file.type,
-      // Never cached at the edge: the bytes are clinical and every read is
-      // supposed to pass through the audited route.
-      cacheControlMaxAge: 0,
-    });
-    return { url: blob.url };
+    /*
+     * 🔴 Task 40: private. Clinical bytes, read only through the audited
+     * route (`fetchStored`); the stored URL opens nothing by itself.
+     */
+    const { putPrivate } = await import("@/lib/uploads");
+    return { url: await putPrivate(path, file, file.type) };
   } catch (error) {
     // Never log the path — for a clinical document it is the credential.
     log.error("document upload failed", { reason: safeErrorMessage(error) });

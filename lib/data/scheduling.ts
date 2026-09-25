@@ -739,7 +739,8 @@ export async function cancelBooking(input: {
   if (cancelled.sessionId) {
     await db
       .update(sessions)
-      .set({ status: "cancelled", updatedAt: now })
+      /* 🔴 0168: who cancelled, and when. */
+      .set({ status: "cancelled", cancelledBy: input.by, cancelledAt: now, updatedAt: now })
       .where(and(eq(sessions.id, cancelled.sessionId), eq(sessions.status, "scheduled")));
   }
 

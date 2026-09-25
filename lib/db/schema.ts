@@ -832,6 +832,18 @@ export const sessions = pgTable(
      * so the notice log itself carries no prose (C231).
      */
     cancelledReason: text("cancelled_reason"),
+    /**
+     * 🔴 0168 / ruling 16: who cancelled, and when. `late_cancel` is `held`
+     * while a patient's late cancellation leaves the money with the clinician,
+     * and `refunded` once the clinician agreed to return it. One conditional
+     * UPDATE moves it, so the refund happens once.
+     */
+    cancelledBy: text("cancelled_by").$type<"patient" | "therapist" | "us">(),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    lateCancel: text("late_cancel").$type<"held" | "refunded">(),
+    /** 🔴 0168: a booking moved to another hour, never charged again. */
+    rescheduledAt: timestamp("rescheduled_at", { withTimezone: true }),
+    rescheduleCount: integer("reschedule_count").notNull().default(0),
 
     /** Patient join link. Random, expiring, revocable. */
     joinToken: text("join_token"),
@@ -1077,6 +1089,8 @@ export const sessions = pgTable(
     index("sessions_org_idx").on(t.organizationId),
     index("sessions_therapist_idx").on(t.therapistId, t.createdAt),
     index("sessions_patient_idx").on(t.patientId),
+    /* 🔴 0168: late cancellations still holding money, per clinician. */
+    index("sessions_late_cancel_idx").on(t.therapistId).where(sql`late_cancel = 'held'`),
   ],
 );
 
@@ -7825,6 +7839,10 @@ export const PATIENT_NOTICE_KINDS = [
    * `enrolments.ledger_told_at` records when.
    */
   "benefit_terms",
+  /** 🔴 0168: a booked session moved to another hour. */
+  "session_rescheduled",
+  /** 🔴 0168: a message no channel could carry (an unapproved WhatsApp template, no email). */
+  "message_fallback",
 ] as const;
 export type PatientNoticeKind = (typeof PATIENT_NOTICE_KINDS)[number];
 

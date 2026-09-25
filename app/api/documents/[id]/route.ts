@@ -66,7 +66,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   });
 
   try {
-    const upstream = await fetch(document.blobUrl);
+    /* 🔴 Task 40: private blobs are read with the token, after the decision above. */
+    const { fetchStored } = await import("@/lib/uploads");
+    const upstream = await fetchStored(document.blobUrl);
     if (!upstream.ok || !upstream.body) {
       log.warn("document fetch failed", { document: ref(id), status: upstream.status });
       return new NextResponse("Unavailable", { status: 502 });

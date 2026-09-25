@@ -167,6 +167,14 @@ const SCOPE: Record<string, Scope> = {
    */
   "clinician-cancel": { who: ["clinician", "admin"], clinical: true },
   /*
+   * 🔴 Task 40 / ruling 16: the patient cancels or moves their own booking;
+   * the clinician moves one of theirs, or agrees to a late refund. Clinical
+   * because it reads the patient's contact details to tell them.
+   */
+  "booking-change": { who: ["patient", "clinician"], clinical: true },
+  /* 🔴 Task 40: a patient's receipt for their own payment, asked by person. */
+  receipts: { who: ["patient"] },
+  /*
    * 🔴 W1-02: whether an organisation is a solo practice or a clinic, so a
    * seat clinician cannot run the clinic's account. It reads one column of
    * the actor's own organisation and nothing about any patient.

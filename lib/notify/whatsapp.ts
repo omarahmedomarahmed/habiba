@@ -3,6 +3,7 @@ import "server-only";
 import { log, safeErrorMessage } from "@/lib/logger";
 
 import type { Message } from "./index";
+import { templateFor, templateStatus } from "./templates";
 
 /**
  * WhatsApp, via the Meta Cloud API. C43, and the second half of PLAN.md 11.7.
@@ -45,92 +46,13 @@ import type { Message } from "./index";
  * email rather than going out malformed.
  */
 
-const TEMPLATES: Partial<Record<Message["kind"], { name: string; variables: number }>> = {
-  // "Your session with {{1}} is confirmed for {{2}}."
-  "booking.confirmed": { name: "session_confirmed", variables: 2 },
-  // "Reminder: your session with {{1}} is {{2}}."
-  "booking.reminder": { name: "session_reminder", variables: 2 },
-  // "Your session with {{1}} on {{2}} has been cancelled."
-  "booking.cancelled": { name: "session_cancelled", variables: 2 },
-  /*
-   * 🔴 76.17 — "{{1}} is in the room and waiting for you."
-   *
-   * ⚠️ NOT YET APPROVED, and that is survivable by design. An unmapped or
-   * unapproved kind falls back to email rather than going out malformed, so
-   * the alert lands either way and this line is what upgrades it the day Meta
-   * says yes. One variable, matching what `noticeSessionStarted` passes.
-   */
-  "session.started": { name: "session_started", variables: 1 },
-  // "Your summary from {{1}} is ready. Open it here: {{2}}"
-  "session.summary_ready": { name: "summary_ready", variables: 2 },
-  /*
-   * 11R.10 — the claim code. "{{1}} is your 24Therapy verification code."
-   *
-   * ⚠️ Meta's **authentication** category, which is a different and stricter
-   * approval track from the utility templates above: one variable, no URLs, no
-   * marketing language, and the body is largely fixed by Meta's own form. It
-   * also bills differently. Create it as an authentication template or it will
-   * be rejected — see `scripts/whatsapp-check.ts`.
-   */
-  "claim.code": { name: "claim_code", variables: 1 },
-  /*
-   * 13.3 — "{{1}} has invited you to set up your 24Therapy account."
-   *
-   * A utility template, not authentication: it carries a link and no code. The
-   * link goes to a page that asks for the number and sends a real code, so a
-   * forwarded message buys nothing.
-   */
-  "claim.invite": { name: "claim_invite", variables: 1 },
-  /*
-   * 🔴 76.40 — "{{1}} has invited you to a session on 24Therapy."
-   *
-   * ⚠️ NOT YET APPROVED, which is survivable: an unmapped or unapproved kind
-   * falls back to email and the invitation still lands. Utility, not
-   * authentication: it carries a link and no code.
-   *
-   * The PRICE is not a variable. Meta approves a fixed body with numbered
-   * slots, and a money amount that changes per message reads as marketing to a
-   * reviewer. The email carries the price, WhatsApp carries the invitation,
-   * and `notify` sends both when both handles exist.
-   */
-  "session.invite": { name: "session_invite", variables: 1 },
-  /*
-   * 🔴 21R.4 — "{{1}} is your code to set a new password."
-   *
-   * ⚠️ **Incomplete until Meta approves it.** Authentication category, like
-   * `claim.code`: one variable, no URL, no marketing language. Until it is
-   * approved `sendWhatsapp` refuses, nothing arrives, and the reset page says
-   * so in those words rather than telling somebody to check a phone that is
-   * never going to buzz.
-   */
-  "password.reset_code": { name: "password_reset_code", variables: 1 },
-  /*
-   * 🔴 76.14 — the Egyptian rail's two moments. Both UTILITY templates: they
-   * report a transaction the person themselves started, carry no code and no
-   * marketing language.
-   *
-   * "We have your transfer of {{1}}. Somebody is checking it now."
-   */
-  "payment.submitted": { name: "payment_submitted", variables: 1 },
-  /*
-   * "Your payment of {{1}} is confirmed."
-   *
-   * 🔴 THE JOIN LINK IS NOT A VARIABLE HERE, and that is deliberate. Meta
-   * approves a template with a fixed body and numbered variables; a URL that
-   * changes per message belongs in a button component rather than a text
-   * variable, and a session link in WhatsApp is forwardable in one tap. The
-   * EMAIL carries the link, WhatsApp carries the fact, and `notify` sends both
-   * whenever both handles exist.
-   */
-  "payment.confirmed": { name: "payment_confirmed", variables: 1 },
-  /*
-   * 🔴 25 September inventory: a phone change sends its code to the NEW number
-   * and to nothing else, so without a template the code never arrived. An
-   * authentication template, "Your 24Therapy code is {{1}}.", to be approved.
-   */
-  "phone.verify": { name: "phone_verify", variables: 1 },
-};
-
+/*
+ * 🔴 Task 40: the templates, their English and Arabic bodies and whether Meta
+ * approved each, live in `./templates.ts`. The notes that used to sit here
+ * (76.17, 11R.10, 13.3, 76.40, 21R.4, 76.14, phone change) still hold: an
+ * authentication template carries one code and no link, and a join link is
+ * never a variable because it is forwardable in one tap.
+ */
 /** The language a template was approved in. Egypt's WhatsApp is largely Arabic. */
 const TEMPLATE_LANGUAGE = process.env.WHATSAPP_TEMPLATE_LANGUAGE ?? "ar";
 
@@ -148,9 +70,17 @@ export function whatsappConfigured(): boolean {
 export async function sendWhatsapp(phone: string, message: Message): Promise<boolean> {
   if (!whatsappConfigured()) return false;
 
-  const template = TEMPLATES[message.kind];
+  const template = templateFor(message.kind);
   if (!template) {
     log.info("no whatsapp template for message kind", { kind: message.kind });
+    return false;
+  }
+  /*
+   * 🔴 Task 40: not approved by Meta yet, so not sent. Meta would refuse it and
+   * the message would be lost; `notify()` sends the email or an in-app notice.
+   */
+  if (templateStatus(message.kind) !== "approved") {
+    log.info("whatsapp template not approved yet", { kind: message.kind, template: template.name });
     return false;
   }
 

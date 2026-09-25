@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 import { Calendar } from "@/components/scheduling/calendar";
+import { LateCancellations } from "@/components/scheduling/late-cancellations";
+import { heldLateCancellations } from "@/lib/data/booking-change";
+import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { getSettings } from "@/lib/settings";
 import { requireUser } from "@/lib/auth/guard";
 import { listPatients } from "@/lib/data/patients";
 import { bookedNames, myHours } from "@/lib/data/scheduling";
@@ -40,13 +44,16 @@ export const dynamic = "force-dynamic";
  */
 export default async function BookingsPage() {
   const actor = await requireUser();
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
 
-  const [hours, patients, bookedBy] = await Promise.all([
+  const [hours, patients, bookedBy, late, settings] = await Promise.all([
     // 60 days, so a month view has something in its last row.
     myHours(actor, 60),
     listPatients(actor),
     bookedNames(actor),
+    /* 🔴 Ruling 16: late cancellations still holding a payment. */
+    heldLateCancellations(actor),
+    getSettings(),
   ]);
 
   const names = new Map(
@@ -61,6 +68,15 @@ export default async function BookingsPage() {
         </h1>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("portal.book.body")}</p>
       </div>
+
+      <LateCancellations
+        windowHours={settings.rules.refunds.patientCancelWindowHours}
+        rows={late.map((row) => ({
+          sessionId: row.sessionId,
+          name: fullName(row.firstName, row.lastName, row.guestName ?? ""),
+          when: row.scheduledAt ? formatWhen(row.scheduledAt, resolveZone(actor.timezone), locale) : "",
+        }))}
+      />
 
       <Calendar
         zone={actor.timezone ?? "UTC"}

@@ -59,8 +59,11 @@ export type ManualEntry = {
          * A payer who sends a receipt, closes the page and comes back has one
          * question: did that go through. Re-rendering the upload form is the
          * answer "no idea", and somebody who cannot tell transfers again.
+         *
+         * 🔴 Task 40: a yes or no, never the stored address. The receipt is a
+         * private blob now, and its URL has no business in a browser.
          */
-        proofUrl: string | null;
+        hasProof: boolean;
       }
     | { state: "rejected"; reason: string };
   /**
@@ -333,7 +336,7 @@ export async function manualEntry(input: {
               state: "submitted",
               paymentId: live.id,
               submittedAt: live.submittedAt?.toISOString() ?? null,
-              proofUrl: live.proofUrl ?? null,
+              hasProof: Boolean(live.proofUrl),
             }
           : { state: "awaiting_proof", paymentId: live.id },
     };

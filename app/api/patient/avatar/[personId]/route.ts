@@ -75,7 +75,7 @@ export async function GET(
    */
   const upstream = row.avatarUrl.startsWith("/")
     ? null
-    : await fetch(row.avatarUrl, { cache: "no-store" }).catch(() => null);
+    : await (await import("@/lib/uploads")).fetchStored(row.avatarUrl, { cache: "no-store" }).catch(() => null);
 
   if (!upstream?.ok) return NextResponse.json({ error: "not_found" }, { status: 404 });
 

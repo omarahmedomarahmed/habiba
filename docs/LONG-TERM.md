@@ -50,18 +50,35 @@ These run on the defaults shown. Any of them can change later in settings.
 - Pay link lifetimes: 12 hours (sessions), 3 hours (radar), start + 4 hours
   (bookings).
 - Refund policy: always the full amount; automatic on no-show, clinician
-  cancel, or a report. No patient cancellation window yet.
+  cancel, or a report. A patient who cancels a paid booking at least 24 hours
+  before (`rules.refunds.patientCancelWindowHours`) is refunded in full, a
+  company's share back to its pot; later, the money stays with the
+  clinician unless they press "Refund anyway" (ruling 16, built).
 
 ## 4. Features deferred (from the audits)
 
 - Partner invoices and payment instructions (partners are billed monthly to
   `partner_receivable` but receive no document yet), and partner docs on
   sandbox vs live keys, approval and per-session price. Not needed for launch.
-- WhatsApp templates to approve with Meta: `phone_verify` (phone-change code),
-  `payment_rejected`, payouts and support messages.
+- WhatsApp templates to approve with Meta. **Written, waiting on Meta.** All
+  21, with English and Arabic bodies, are in `lib/notify/templates.ts`; the
+  ones the launch adds are `phone_verify` (authentication), `payment_rejected`,
+  `payout_sent`, `payout_rejected`, `payout_returned`, `support_reply`,
+  `checkin_asking`, `session_rescheduled`, `patient_cancelled` and
+  `patient_moved`. Approved names go in `WHATSAPP_APPROVED_TEMPLATES`; until a
+  template is listed it is never sent, and the email or an in-app notice
+  carries the message instead (`verify:whatsapp`). Only `phone_verify` has no
+  fallback, by design: the code must reach the new number.
 
-- Patient cancel and reschedule; therapist reschedule.
-- Receipts for patients to download.
+- ~~Patient cancel and reschedule; therapist reschedule.~~ Built (task 40,
+  `verify:booking-change`).
+- ~~Receipts for patients to download.~~ Built: a printable receipt in
+  English or Arabic per payment, from the patient's billing page.
+- Personal files (licences, IDs, receipts, support attachments, patient
+  photos and documents) are private blobs, read only through authorised
+  routes (`verify:blobs`). **Waiting on the operator:** a private Blob store
+  and `BLOB_PRIVATE_READ_WRITE_TOKEN`, then `npm run blobs:private -- --apply`
+  for older files. Runbook in `docs/NEON-BRANCHES.md`.
 - Earnings export for therapists.
 - A "today" view for therapists.
 - Loading and error screens in every portal.
