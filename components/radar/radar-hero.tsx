@@ -152,10 +152,10 @@ export function RadarHero({
             is within a few percent of the hero background and the whole thing
             reads as a faint smudge rather than a planet. */}
         <div
-          className="absolute top-1/2 left-1/2 aspect-square w-[150%] -translate-y-1/2 translate-x-[-28%] rounded-full bg-[radial-gradient(circle,#04101f_38%,rgba(4,16,31,0)_66%)] sm:w-[105%] lg:w-[86%]"
+          className="absolute top-1/2 left-1/2 aspect-square w-[150%] -translate-y-1/2 translate-x-[-28%] rtl:translate-x-[-72%] rounded-full bg-[radial-gradient(circle,#04101f_38%,rgba(4,16,31,0)_66%)] sm:w-[105%] lg:w-[86%]"
           aria-hidden
         />
-        <div className="absolute top-1/2 left-1/2 aspect-square w-[130%] -translate-y-1/2 translate-x-[-32%] sm:w-[92%] lg:w-[74%]">
+        <div className="absolute top-1/2 left-1/2 aspect-square w-[130%] -translate-y-1/2 translate-x-[-32%] rtl:translate-x-[-68%] sm:w-[92%] lg:w-[74%]">
           <Globe
             entries={visible}
             selected={filter.country || null}
