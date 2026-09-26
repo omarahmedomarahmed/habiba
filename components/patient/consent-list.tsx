@@ -135,7 +135,7 @@ function RequestRow({
             <p className="truncate text-[16px] font-bold text-navy-700">{request.therapistName}</p>
             {request.requestedAt ? (
               <p className="mt-0.5 text-[13px] text-navy-400">
-                Asked on {formatDate(request.requestedAt, zone, locale)}
+                {t("consent.askedOn", { date: formatDate(request.requestedAt, zone, locale) })}
               </p>
             ) : null}
           </div>
@@ -242,6 +242,7 @@ function GrantRow({
   const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const live = grant.status === "granted" && (!grant.expiresAt || grant.expiresAt > new Date());
 
@@ -283,20 +284,49 @@ function GrantRow({
           )}
         </div>
 
-        {live ? (
+        {/*
+          🔴 Board 480: Stop acted on the first press. Ending a clinician's
+          access is not undone by pressing again (they must ask anew), so it
+          asks once, naming who and what they keep.
+        */}
+        {live && confirming ? (
+          <div className="mt-3 rounded-2xl bg-navy-50 p-3">
+            <p className="text-sm leading-relaxed text-navy-600">
+              {t("consent.stopConfirm", { name: grant.therapistName })}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    setError(null);
+                    const result = await revoke(grant.id);
+                    if (result.error) setError(result.error);
+                    else setConfirming(false);
+                  })
+                }
+                className="tap-target h-11 rounded-2xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {pending ? t("common.working") : t("consent.stopYes")}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setConfirming(false)}
+                className="tap-target h-11 rounded-2xl px-3 text-sm font-medium text-navy-400"
+              >
+                {t("common.cancel")}
+              </button>
+            </div>
+          </div>
+        ) : live ? (
           <button
             type="button"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                setError(null);
-                const result = await revoke(grant.id);
-                if (result.error) setError(result.error);
-              })
-            }
-            className="tap-target mt-3 h-11 w-full rounded-2xl border border-navy-200 bg-white text-sm font-semibold text-navy-700 hover:bg-navy-50 disabled:opacity-50"
+            onClick={() => setConfirming(true)}
+            className="tap-target mt-3 h-11 w-full rounded-2xl border border-navy-200 bg-white text-sm font-semibold text-navy-700 hover:bg-navy-50"
           >
-            {pending ? t("common.working") : t("consent.stop")}
+            {t("consent.stop")}
           </button>
         ) : null}
 

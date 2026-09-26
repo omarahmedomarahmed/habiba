@@ -331,6 +331,25 @@ test("W2-P04 every self-booking door hands the signed-in person to the data laye
 });
 
 /*
+ * Board 480: the Arabic consent page read "Asked on" in English, "أوقفته" named
+ * a woman clinician as a man, and Stop ended access on the first press.
+ * Board 463: the clinician's speaker buttons were colloquial and assumed a man.
+ */
+test("board 480 / 463 consent and speaker wording is translated, formal and gender-neutral, and Stop asks first", async () => {
+  const source = readFileSync("components/patient/consent-list.tsx", "utf8");
+  assert.doesNotMatch(source, />\s*Asked on /);
+  assert.match(source, /setConfirming\(true\)/);
+  assert.match(source, /t\("consent\.stopConfirm"/);
+  const { translator } = await import("../lib/i18n/server");
+  const ar = translator("ar");
+  assert.equal(ar("consent.askedOn", { date: "x" }), "طُلب في x");
+  assert.doesNotMatch(ar("consent.youEnded", { date: "x" }), /أوقفته/);
+  for (const key of ["tattr.you", "tattr.them", "tattr.unsure", "tattr.blurb", "tattr.oneMic"]) {
+    assert.doesNotMatch(ar(key), /إنت|مش |مين اللي|إحنا|بنسيب|بنستنتج|^هو$/, key);
+  }
+});
+
+/*
  * Board 567: on the Arabic patient home, pressing English disabled both buttons
  * for 20 seconds and the page stayed Arabic. The switch was a cookie-setting
  * server action (which re-renders the page by itself) and then a refresh, so a
