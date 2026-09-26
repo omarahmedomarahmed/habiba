@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PageHeader } from "@/components/clinician/kit";
 import { TeamList } from "@/components/partner/team-list";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
@@ -26,9 +27,10 @@ export default async function PartnerTeamPage() {
   const team = await teamFor(actor.partnerId);
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("dev.teamTitle")}</h1>
+    <div>
+      <PageHeader title={t("dev.teamTitle")} />
 
+      <div className="px-4 sm:px-6">
       <TeamList
         team={team.map((member) => ({
           id: member.id,
@@ -40,6 +42,7 @@ export default async function PartnerTeamPage() {
         }))}
         canEdit={actor.role === "admin"}
       />
+      </div>
     </div>
   );
 }

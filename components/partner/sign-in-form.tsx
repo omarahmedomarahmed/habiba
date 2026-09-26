@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { signInPartner } from "@/app/(partner)/partner/sign-in/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
@@ -29,7 +29,7 @@ export function PartnerSignInForm() {
   const [state, formAction] = useActionState(signInPartner, {});
 
   return (
-    <Card className="p-5">
+    <div>
       <form action={formAction} className="space-y-4">
         <Field label={t("dev.email")} htmlFor="partner-email">
           <Input
@@ -53,13 +53,13 @@ export function PartnerSignInForm() {
         </Field>
 
         {state.error ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="text-sm text-red-700">
             {state.error}
           </p>
         ) : null}
 
         <Submit label={t("dev.signIn")} />
       </form>
-    </Card>
+    </div>
   );
 }

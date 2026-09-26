@@ -43,7 +43,7 @@ export default async function PartnerSignInPage({
           {t("dev.forgot")}
         </Link>
       </p>
-      <p className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-600">
+      <p className="mt-5 border-t border-navy-50 pt-4 text-sm text-navy-500">
         <Link href={PARTNER_APPLY} className="font-semibold text-brand-700 hover:text-brand-800">
           {t("dev.apply.title")}
         </Link>
@@ -55,7 +55,7 @@ export default async function PartnerSignInPage({
 /** 🔴 B29 / B43: `/welcome` lands here with `set=1` once the password is chosen. */
 function PasswordSet({ text }: { text: string }) {
   return (
-    <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+    <p role="status" className="mb-4 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-800 ring-1 ring-brand-100">
       {text}
     </p>
   );

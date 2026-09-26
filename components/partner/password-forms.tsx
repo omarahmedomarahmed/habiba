@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { choosePassword, requestReset } from "@/app/(partner)/partner/sign-in/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -27,9 +27,9 @@ export function PartnerForgotForm() {
   const [state, formAction] = useActionState(requestReset, {});
 
   return (
-    <Card className="p-5">
+    <div>
       {state.sent ? (
-        <p role="status" className="text-sm text-slate-700">
+        <p role="status" className="text-sm text-navy-600">
           {t("dev.linkSent")}
         </p>
       ) : (
@@ -45,14 +45,14 @@ export function PartnerForgotForm() {
             />
           </Field>
           {state.error ? (
-            <p role="alert" className="text-xs text-red-600">
+            <p role="alert" className="text-sm text-red-700">
               {state.error}
             </p>
           ) : null}
           <Submit labelKey="dev.sendLink" />
         </form>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -66,7 +66,7 @@ export function PartnerChoosePasswordForm({ token }: { token: string }) {
   const [state, formAction] = useActionState(choosePassword, {});
 
   return (
-    <Card className="p-5">
+    <div>
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="token" value={token} />
         <Field label={t("dev.newPassword")} htmlFor="partner-new-password">
@@ -80,12 +80,12 @@ export function PartnerChoosePasswordForm({ token }: { token: string }) {
           />
         </Field>
         {state.error ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="text-sm text-red-700">
             {state.error}
           </p>
         ) : null}
         <Submit labelKey="dev.setPassword" />
       </form>
-    </Card>
+    </div>
   );
 }

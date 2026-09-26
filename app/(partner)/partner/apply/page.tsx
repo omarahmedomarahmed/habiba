@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+import { KeyRound, ShieldCheck, Webhook } from "lucide-react";
+
+import { IconTile } from "@/components/clinician/kit";
 import { PartnerApplyForm } from "@/components/partner/apply-form";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -28,29 +31,57 @@ export const dynamic = "force-dynamic";
 export default async function PartnerApplyPage() {
   const { t } = await getI18n();
 
+  /*
+    🔴 C277 and 42.4, said to the buyer before they buy.
+
+    `devs.useCase1Body` used to lead this block and described employment
+    verification, which is no longer a partner product: an HR connection is
+    the sponsor's own, on their own integrations page. The C255 sentence it
+    carried about never syncing a directory went with it, because on this
+    page it now describes a thing this key cannot do.
+
+    Three promises, each on its own line with its own mark, rather than one
+    paragraph of three: a buyer scanning for the deal-breaker finds it.
+  */
+  const promises = [
+    { icon: ShieldCheck, text: t("devs.useCase3Body") },
+    { icon: Webhook, text: t("dev.noContent") },
+    { icon: KeyRound, text: t("devs.keysNote") },
+  ];
+
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4 py-4">
+    <div className="grid gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_minmax(0,28rem)] lg:gap-10 lg:py-6">
+      <div className="lg:pt-4">
+        <h1 className="text-[30px] leading-tight font-bold tracking-tight text-navy-700 sm:text-[36px]">
+          {t("dev.apply.title")}
+        </h1>
+        <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-navy-500">{t("dev.apply.body")}</p>
+
+        <ul className="mt-8 hidden space-y-4 lg:block">
+          {promises.map(({ icon: Icon, text }) => (
+            <li key={text} className="flex gap-3.5">
+              <IconTile tone="dark">
+                <Icon className="h-5 w-5" aria-hidden />
+              </IconTile>
+              <p className="pt-0.5 text-sm leading-relaxed text-navy-500">{text}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("dev.apply.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("dev.apply.body")}</p>
+        <PartnerApplyForm />
       </div>
 
-      <PartnerApplyForm />
-
-      {/*
-        🔴 C277 and 42.4, said to the buyer before they buy.
-
-        `devs.useCase1Body` used to lead this block and described employment
-        verification, which is no longer a partner product: an HR connection is
-        the sponsor's own, on their own integrations page. The C255 sentence it
-        carried about never syncing a directory went with it, because on this
-        page it now describes a thing this key cannot do.
-      */}
-      <div className="space-y-2 rounded-2xl bg-white p-5 text-sm leading-relaxed text-slate-600 ring-1 ring-slate-200">
-        <p>{t("devs.useCase3Body")}</p>
-        <p>{t("dev.noContent")}</p>
-        <p>{t("devs.keysNote")}</p>
-      </div>
+      {/* On a phone the promises follow the form, as they always have. */}
+      <ul className="space-y-4 rounded-3xl bg-navy-900 p-5 lg:hidden">
+        {promises.map(({ icon: Icon, text }) => (
+          <li key={text} className="flex gap-3">
+            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-brand-300" aria-hidden />
+            <p className="text-sm leading-relaxed text-white/80">{text}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
