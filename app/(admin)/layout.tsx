@@ -42,7 +42,6 @@ import { ticketCounts } from "@/lib/data/support";
 import { countOpenReports } from "@/lib/data/radar-admin";
 import { pendingReviewCount } from "@/lib/data/verification";
 import { waitingCount } from "@/lib/billing/manual";
-import { LanguageCorner } from "@/components/i18n/language-corner";
 import { features } from "@/lib/env";
 import { whatsappConfigured } from "@/lib/notify/whatsapp";
 import { StaffOpsAlerts } from "@/components/admin/ops-alerts";
@@ -186,8 +185,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <MoneyDisplayProvider primary={currency}>
     <div className="min-h-dvh">
-      {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
-      <LanguageCorner />
+      {/* 🔴 N17 / board 921: no language switch. The console is English-only for launch. */}
       <header className="border-b border-slate-200 bg-navy-500">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
           <Link href={landingFor(actor.role)} className="text-[15px] font-bold tracking-tight text-white">

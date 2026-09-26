@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { contentSecurityPolicy, cspHeaderName, isVideoRoom } from "@/lib/security/csp";
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
-import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
+import { englishOnly, isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
   bounceNext,
   CLINIC_COOKIE,
@@ -175,6 +175,8 @@ export function middleware(request: NextRequest) {
    * and a crawler that saw it would be right to distrust the rest.
    */
   forwarded.delete(LOCALE_HEADER);
+  /* 🔴 N17 / board 921: the console reads in English whatever the cookie says. */
+  if (englishOnly(rest)) forwarded.set(LOCALE_HEADER, "en");
 
   if (!prefixed) {
     return withPolicy(NextResponse.next({ request: { headers: forwarded } }));
