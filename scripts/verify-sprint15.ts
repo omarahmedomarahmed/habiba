@@ -233,12 +233,14 @@ async function main() {
      * 🔴 `covered` (board 418): a boolean, whether the company's benefit paid
      * the whole session. It cannot hold a sentence.
      */
+    /* 🔴 `missed` (board 729): a boolean, whether the booked hour passed with nobody starting it. */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
       typeof rows[0]?.covered === "boolean" &&
+      typeof rows[0]?.missed === "boolean" &&
       keys ===
-        "at,brief,briefAddenda,briefPending,cancelled,changeable,covered,group,id,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
+        "at,brief,briefAddenda,briefPending,cancelled,changeable,covered,group,id,missed,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
           "provenance,therapistCredentials,therapistId,therapistName",
       keys,
     );
