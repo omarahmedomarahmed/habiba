@@ -889,6 +889,7 @@ export const en = {
   "pprofile.sayInstead": "Want to say how things have been?",
   "pprofile.sayInsteadBody": "Write a journal instead. Readable by a therapist you allow, and far less work.",
   "pprofile.empty": "Nothing here yet. Documents your therapist adds to your record appear here.",
+  "tdocs.empty": "No documents on this record yet.",
 
   /* ---------------------------------------------------------------- browse */
   "browse.title": "Find a therapist",
@@ -6123,6 +6124,7 @@ export const ar: Record<MessageKey, string> = {
   "pprofile.sayInstead": "تريد أن تحكي كيف كانت الأيام؟",
   "pprofile.sayInsteadBody": "اكتب في مذكراتك بدلًا من ذلك. يقرؤها معالج تسمح له، وأسهل كثيرًا.",
   "pprofile.empty": "لا شيء هنا بعد. المستندات التي يضيفها معالجك إلى سجلك تظهر هنا.",
+  "tdocs.empty": "لا توجد مستندات في هذا السجل بعد.",
 
   /* --------------------------------------------------------------- البحث */
   "browse.title": "ابحث عن معالج",

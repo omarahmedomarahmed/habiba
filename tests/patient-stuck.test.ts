@@ -344,9 +344,15 @@ test("board 480 / 463 consent and speaker wording is translated, formal and gend
   const ar = translator("ar");
   assert.equal(ar("consent.askedOn", { date: "x" }), "طُلب في x");
   assert.doesNotMatch(ar("consent.youEnded", { date: "x" }), /أوقفته/);
-  for (const key of ["tattr.you", "tattr.them", "tattr.unsure", "tattr.blurb", "tattr.oneMic"]) {
+  for (const key of ["tattr.you", "tattr.them", "tattr.unsure", "tattr.blurb", "tattr.oneMic"] as const) {
     assert.doesNotMatch(ar(key), /إنت|مش |مين اللي|إحنا|بنسيب|بنستنتج|^هو$/, key);
   }
+});
+
+/* Board 504: the clinician's documents page told the clinician "Documents your therapist adds...". */
+test("board 504 the clinician's empty documents list speaks to the clinician", () => {
+  assert.match(readFileSync("components/documents/document-panel.tsx", "utf8"), /reader="clinician"/);
+  assert.match(readFileSync("components/documents/document-list.tsx", "utf8"), /reader === "clinician" \? "tdocs\.empty"/);
 });
 
 /*
