@@ -26,7 +26,7 @@ fourth full gate.
 
 | # | Stage | Status |
 |---|---|---|
-| S0 | G0 passes; production migrations 0174, 0176, 0178 first; push main; confirm live; Arabic CMS rows that claim clinicians are online fixed through `/admin/content` | in progress |
+| S0 | G0 passes; production migrations 0174, 0176, 0178 first; push main; confirm live; Arabic CMS rows that claim clinicians are online fixed through `/admin/content` | migrations applied, main pushed at ac275b63 (deploy building); then save rules in /admin/settings (N5) and check the Arabic home |
 | S1 | Redesign wave 1 in worktrees, started in parallel: website, patient app, therapist portal, to the `/design` mockups, with the radar globe from the current radar | done, merged into local branch `redesign-integration` (worktree `.claude/worktrees/redesign-integration`) |
 | S2 | Round 2 with round 3 folded in, on the live site: every round 1 bug re-walked, then the round 2 and 3 flows, sessions played by one agent per pair, patient audio through the transcribe upload as the patient track | not started |
 | S3 | Fix every round 2 bug; G1; migrations; push main; confirm live | not started |
