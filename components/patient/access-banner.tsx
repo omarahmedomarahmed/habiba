@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
+import Link from "next/link";
 import { Lock, Send } from "lucide-react";
 
 import { askForAccess } from "@/app/(app)/patients/actions";
@@ -28,12 +29,18 @@ import type { AccessState } from "@/lib/access/state";
 export function AccessBanner({
   patientId,
   state,
+  gated = false,
   message,
   canRequest,
   pendingSince,
 }: {
   patientId: string;
   state: AccessState;
+  /**
+   * Shoot T21: the copilot is waiting on a diagnosis and a history. The
+   * banner said so and left the clinician to find where; it now links to both.
+   */
+  gated?: boolean;
   message: string;
   canRequest: boolean;
   /** Set when a request is already waiting, so we do not offer to send another. */
@@ -68,6 +75,16 @@ export function AccessBanner({
         <Lock className="mt-0.5 h-4 w-4 shrink-0 opacity-70" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-relaxed">{message}</p>
+          {gated ? (
+            <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold">
+              <Link href={`/patients/${patientId}#diagnosis`} className="text-brand-700 underline-offset-2 hover:underline">
+                {t("pban.addDiagnosis")}
+              </Link>
+              <Link href={`/patients/${patientId}#history`} className="text-brand-700 underline-offset-2 hover:underline">
+                {t("pban.addHistory")}
+              </Link>
+            </p>
+          ) : null}
 
           {sent || pendingSince ? (
             <p className="mt-2 text-xs opacity-80">{t("pban.asked")}</p>
