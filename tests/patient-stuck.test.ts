@@ -329,3 +329,16 @@ test("W2-P04 every self-booking door hands the signed-in person to the data laye
     assert.doesNotMatch(code(file), /formData\.get\("personId"\)|input\.personId/);
   }
 });
+
+/*
+ * Board 567: on the Arabic patient home, pressing English disabled both buttons
+ * for 20 seconds and the page stayed Arabic. The switch was a cookie-setting
+ * server action (which re-renders the page by itself) and then a refresh, so a
+ * slow page rendered twice with both buttons locked.
+ */
+test("board 567 the language switch writes its cookie in the browser, renders once, and never locks its buttons", () => {
+  const source = readFileSync("components/i18n/language-switch.tsx", "utf8");
+  assert.doesNotMatch(source, /await setLocale\(/, "no server action round trip before the refresh");
+  assert.match(source, /document\.cookie = `\$\{LOCALE_COOKIE\}=/);
+  assert.doesNotMatch(source, /disabled=\{pending\}/, "a slow page must not leave nothing to press");
+});
