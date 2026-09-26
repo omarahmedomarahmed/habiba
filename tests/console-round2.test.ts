@@ -90,6 +90,18 @@ test("489: an operator's reason ending in a full stop gets no second one", async
   assert.match(notices, /reason: asSentence\(/);
 });
 
+test("475: the sheet's header follows the rung, and the bar opens a sheet already on the page", () => {
+  const sheet = readFileSync("components/billing/pay-by-transfer.tsx", "utf8");
+  assert.match(sheet, /rung && rung\.index > 0 \?/);
+  assert.match(sheet, /onStep=\{onStep\}/);
+  const stepper = readFileSync("components/billing/top-up-stepper.tsx", "utf8");
+  assert.match(stepper, /onStep\?\.\(chosen, i\)/);
+  const bar = readFileSync("components/billing/pending-bar.tsx", "utf8");
+  assert.match(bar, /dispatchEvent\(new CustomEvent\(PAY_OPEN_EVENT/);
+  const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
+  assert.match(popup, /addEventListener\(PAY_OPEN_EVENT/);
+});
+
 test("490: a rejected top-up shows on the page, with what was sent, before anything is pressed", () => {
   const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
   const closed = popup.slice(popup.indexOf("if (!open) {"));

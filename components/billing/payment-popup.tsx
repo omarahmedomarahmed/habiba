@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { PayByTransfer, RejectedTransfer } from "@/components/billing/pay-by-transfer";
+import { PAY_OPEN_EVENT } from "@/components/billing/pay-open";
 import { useT } from "@/lib/i18n/client";
 import type { PotStep } from "@/lib/billing/manual-entry";
 import type {
@@ -206,6 +207,21 @@ export function PaymentPopup({
     } catch {
       /* Private window, blocked storage. The server's answer stands. */
     }
+  }, [storageKey]);
+
+  /* 🔴 Board 475: the bar tapped while this sheet is already on the page. */
+  useEffect(() => {
+    const onAsk = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== storageKey) return;
+      try {
+        window.localStorage.removeItem(`pay:${storageKey}`);
+      } catch {
+        /* Nothing was kept. */
+      }
+      setOpen(true);
+    };
+    window.addEventListener(PAY_OPEN_EVENT, onAsk);
+    return () => window.removeEventListener(PAY_OPEN_EVENT, onAsk);
   }, [storageKey]);
 
   /*

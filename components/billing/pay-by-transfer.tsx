@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
@@ -192,6 +192,9 @@ export function PayByTransfer({
   const locale = useLocale();
   const router = useRouter();
   const [state, submit] = useActionState(action, {} as TransferFormState);
+  /* 🔴 Board 475: the rung the stepper shows, so the header names the same figure. */
+  const [rung, setRung] = useState<{ step: PotStep; index: number } | null>(null);
+  const onStep = useCallback((step: PotStep, index: number) => setRung({ step, index }), []);
 
   /*
    * 🔴 THE WAIT IS WHAT MAKES THIS A PRODUCT RATHER THAN A FORM.
@@ -294,9 +297,20 @@ export function PayByTransfer({
               of the stepper below. The credit floor alone read EGP 5,000 over a
               stepper whose smallest transfer is EGP 5,700.
             */}
-            {rich(t("transfer.sendAtLeast", { amount: slot(0) }), [
-              steps?.[0]?.totalEgpLabel ?? (minimumCents != null ? <Money cents={minimumCents} /> : ""),
-            ])}{" "}
+            {/*
+              🔴 Board 475: and once they step up, the figure they chose. The
+              header kept the floor ("Send at least EGP 5,700") over a $300
+              choice whose lines said "Transfer this EGP 17,100".
+            */}
+            {rung && rung.index > 0 ? (
+              <>
+                {t("transfer.send")} <strong className="text-slate-900">{rung.step.totalEgpLabel}</strong>
+              </>
+            ) : (
+              rich(t("transfer.sendAtLeast", { amount: slot(0) }), [
+                steps?.[0]?.totalEgpLabel ?? (minimumCents != null ? <Money cents={minimumCents} /> : ""),
+              ])
+            )}{" "}
             · {what}
           </>
         ) : (
@@ -400,6 +414,7 @@ export function PayByTransfer({
           <TopUpStepper
             steps={steps}
             onChoose={onChoose}
+            onStep={onStep}
             onConfirm={(step) => (
               <>
                 <input type="hidden" name="amount" value={String(step.creditCents / 100)} />
