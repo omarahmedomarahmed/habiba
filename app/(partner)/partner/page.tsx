@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PageHeader } from "@/components/clinician/kit";
 import { KeyList } from "@/components/partner/key-list";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
@@ -42,9 +43,10 @@ export default async function PartnerKeysPage() {
   const keys = await keysFor(actor.partnerId);
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("dev.keysTitle")}</h1>
+    <div>
+      <PageHeader title={t("dev.keysTitle")} subtitle={t("devs.keysNote")} />
 
+      <div className="px-4 sm:px-6">
       <KeyList
         keys={keys.map((key) => ({
           id: key.id,
@@ -65,6 +67,7 @@ export default async function PartnerKeysPage() {
         }))}
         canMint={actor.role === "admin"}
       />
+      </div>
     </div>
   );
 }

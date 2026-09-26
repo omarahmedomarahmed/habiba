@@ -2,9 +2,12 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { KeyRound, Plus, RotateCw } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { createKey, revoke, rotate } from "@/app/(partner)/partner/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, IconTile, Input } from "@/components/clinician/kit";
+import { CheckChip, ConfirmBox, RowButton, SecretCard, SELECT } from "@/components/partner/parts";
 import { API_SCOPES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 
@@ -16,7 +19,8 @@ import { useT } from "@/lib/i18n/client";
  * It is never fetched, because there is nowhere to fetch it from: `partner_api_keys` holds
  * a SHA-256 and a prefix. So the only render of a working key in this product's history is
  * the one immediately after the POST that made it, and the sentence beside it says so
- * rather than leaving a developer to discover it by reloading.
+ * rather than leaving a developer to discover it by reloading. Every row after that shows
+ * the prefix alone.
  *
  * ## 🔴 NO EMPLOYMENT SENTENCE, because no partner key can hold that scope
  *
@@ -49,10 +53,11 @@ export type KeyRow = {
 };
 
 function Submit({ label }: { label: string }) {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Working…" : label}
+      {pending ? t("common.working") : label}
     </Button>
   );
 }
@@ -78,63 +83,67 @@ export function KeyList({
 
   return (
     <div className="flex flex-col gap-4">
-      {revealed.raw ? (
-        <Card className="border-brand-200 bg-brand-50 p-5">
-          <p className="text-sm font-semibold text-slate-900">{revealed.prefix}</p>
-          <code className="mt-2 block break-all rounded-xl bg-white p-3 font-mono text-xs text-slate-900 ring-1 ring-brand-200">
-            {revealed.raw}
-          </code>
-          <p className="mt-2 text-xs leading-relaxed text-slate-600">{t("dev.keyOnce")}</p>
-        </Card>
-      ) : null}
+      <AnimatePresence>
+        {revealed.raw ? (
+          <motion.div
+            key={revealed.raw}
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          >
+            <SecretCard secret={revealed.raw} title={revealed.prefix} note={t("dev.keyOnce")} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {keys.length === 0 ? (
-        <Card className="p-5">
-          <p className="text-sm text-slate-600">{t("dev.keysEmpty")}</p>
+        <Card>
+          <EmptyState icon={<KeyRound className="h-6 w-6" aria-hidden />} title={t("dev.keysEmpty")} />
         </Card>
       ) : (
         <ul className="flex flex-col gap-3">
           {keys.map((key) => (
             <li key={key.id}>
-              <Card className="p-4">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="text-sm font-semibold text-slate-900">{key.label}</span>
-                  <code className="font-mono text-xs text-slate-500">{key.prefix}</code>
-                  <span className="text-xs font-semibold text-slate-500">
-                    {key.environment === "live" ? t("dev.live") : t("dev.sandbox")}
-                  </span>
-                  {key.revoked ? (
-                    <span className="text-xs font-semibold text-slate-500">
-                      {t("dev.revoked")}
-                    </span>
-                  ) : null}
-                  {key.suspended ? (
-                    <span className="text-xs font-semibold text-red-600">
-                      {t("dev.suspended")}
-                    </span>
-                  ) : null}
+              <Card className={key.revoked ? "p-4 opacity-75" : "p-4"}>
+                <div className="flex items-start gap-3.5">
+                  <IconTile tone={key.suspended ? "red" : key.revoked ? "navy" : key.environment === "live" ? "dark" : "navy"}>
+                    <KeyRound className="h-5 w-5" aria-hidden />
+                  </IconTile>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-[15px] font-bold text-navy-700">{key.label}</span>
+                      <Badge tone={key.environment === "live" ? "brand" : "slate"}>
+                        {key.environment === "live" ? t("dev.live") : t("dev.sandbox")}
+                      </Badge>
+                      {key.revoked ? <Badge tone="slate">{t("dev.revoked")}</Badge> : null}
+                      {key.suspended ? <Badge tone="red">{t("dev.suspended")}</Badge> : null}
+                    </div>
+                    <p className="mt-0.5 font-mono text-[13px] text-navy-500">{key.prefix}</p>
+
+                    {key.scopes.length > 0 ? (
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {key.scopes.map((scope) => (
+                          <li key={scope} className="rounded-lg bg-navy-50 px-2 py-0.5 font-mono text-[12px] text-navy-600">
+                            {scope}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {/* 🔴 C265 — which organisation this key may ask about, named on the row. */}
+                    {key.sponsorName ? <p className="mt-2 text-[13px] text-navy-500">{key.sponsorName}</p> : null}
+
+                    <p className="mt-2 text-[13px] text-navy-400">
+                      {key.lastUsed ? t("dev.lastUsed", { date: key.lastUsed }) : t("dev.neverUsed")}
+                    </p>
+
+                    {key.suspendedReason ? <p className="mt-1 text-[13px] text-red-700">{key.suspendedReason}</p> : null}
+
+                    {key.stopsAt ? (
+                      <p className="mt-1 text-[13px] font-semibold text-amber-800">{t("dev.stopsAt", { date: key.stopsAt })}</p>
+                    ) : null}
+                  </div>
                 </div>
-
-                <p className="mt-1 font-mono text-xs text-slate-500">{key.scopes.join(", ")}</p>
-
-                {/* 🔴 C265 — which organisation this key may ask about, named on the row. */}
-                {key.sponsorName ? (
-                  <p className="mt-1 text-xs text-slate-500">{key.sponsorName}</p>
-                ) : null}
-
-                <p className="mt-1 text-xs text-slate-500">
-                  {key.lastUsed ? t("dev.lastUsed", { date: key.lastUsed }) : t("dev.neverUsed")}
-                </p>
-
-                {key.suspendedReason ? (
-                  <p className="mt-1 text-xs text-red-600">{key.suspendedReason}</p>
-                ) : null}
-
-                {key.stopsAt ? (
-                  <p className="mt-1 text-xs font-semibold text-amber-700">
-                    {t("dev.stopsAt", { date: key.stopsAt })}
-                  </p>
-                ) : null}
 
                 {/*
                  * 🔴 W2-X04: REVOKE ASKS FIRST, AND ROLL SAYS HOW LONG THE OLD KEY LIVES.
@@ -142,79 +151,60 @@ export function KeyList({
                  * question asked. Both acts now open a step on this row with a Cancel.
                  */}
                 {canMint && !key.revoked && asking?.id !== key.id ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-navy-50 pt-3">
                     {key.stopsAt ? null : (
-                      <button
-                        type="button"
-                        onClick={() => setAsking({ id: key.id, act: "rotate" })}
-                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                      >
+                      <RowButton onClick={() => setAsking({ id: key.id, act: "rotate" })}>
+                        <RotateCw className="h-3.5 w-3.5" aria-hidden />
                         {t("dev.rotate")}
-                      </button>
+                      </RowButton>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setAsking({ id: key.id, act: "revoke" })}
-                      className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
-                    >
+                    <RowButton danger onClick={() => setAsking({ id: key.id, act: "revoke" })}>
                       {t("dev.revoke")}
-                    </button>
+                    </RowButton>
                   </div>
                 ) : null}
 
                 {canMint && asking?.id === key.id && asking.act === "revoke" ? (
-                  <form action={revoke} className="mt-3 space-y-2">
-                    <input type="hidden" name="keyId" value={key.id} />
-                    <p className="text-xs text-slate-700">{t("dev.revokeConfirm")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="submit"
-                        className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
-                      >
-                        {t("dev.revokeYes")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAsking(null)}
-                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                      >
-                        {t("dev.cancel")}
-                      </button>
-                    </div>
-                  </form>
+                  <ConfirmBox>
+                    <form action={revoke} className="space-y-3">
+                      <input type="hidden" name="keyId" value={key.id} />
+                      <p className="text-sm text-navy-600">{t("dev.revokeConfirm")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" variant="danger" size="sm">
+                          {t("dev.revokeYes")}
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setAsking(null)}>
+                          {t("dev.cancel")}
+                        </Button>
+                      </div>
+                    </form>
+                  </ConfirmBox>
                 ) : null}
 
                 {canMint && asking?.id === key.id && asking.act === "rotate" ? (
-                  <form action={rotateAction} className="mt-3 space-y-2">
-                    <input type="hidden" name="keyId" value={key.id} />
-                    <Field label={t("dev.overlap")} htmlFor={`overlap-${key.id}`}>
-                      <select
-                        id={`overlap-${key.id}`}
-                        name="overlapHours"
-                        defaultValue={String(24 * 7)}
-                        className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900"
-                      >
-                        <option value={String(24 * 7)}>{t("dev.overlapWeek")}</option>
-                        <option value="24">{t("dev.overlapDay")}</option>
-                        <option value="0">{t("dev.overlapNow")}</option>
-                      </select>
-                    </Field>
-                    {rolled.error ? (
-                      <p role="alert" className="text-xs text-red-600">
-                        {rolled.error}
-                      </p>
-                    ) : null}
-                    <div className="flex flex-wrap gap-2">
-                      <Submit label={t("dev.rotate")} />
-                      <button
-                        type="button"
-                        onClick={() => setAsking(null)}
-                        className="tap-target h-11 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                      >
-                        {t("dev.cancel")}
-                      </button>
-                    </div>
-                  </form>
+                  <ConfirmBox>
+                    <form action={rotateAction} className="space-y-3">
+                      <input type="hidden" name="keyId" value={key.id} />
+                      <Field label={t("dev.overlap")} htmlFor={`overlap-${key.id}`}>
+                        <select id={`overlap-${key.id}`} name="overlapHours" defaultValue={String(24 * 7)} className={SELECT}>
+                          <option value={String(24 * 7)}>{t("dev.overlapWeek")}</option>
+                          <option value="24">{t("dev.overlapDay")}</option>
+                          <option value="0">{t("dev.overlapNow")}</option>
+                        </select>
+                      </Field>
+                      {rolled.error ? (
+                        <p role="alert" className="text-sm text-red-700">
+                          {rolled.error}
+                        </p>
+                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        <Submit label={t("dev.rotate")} />
+                        <Button type="button" variant="ghost" onClick={() => setAsking(null)}>
+                          {t("dev.cancel")}
+                        </Button>
+                      </div>
+                    </form>
+                  </ConfirmBox>
                 ) : null}
               </Card>
             </li>
@@ -224,43 +214,36 @@ export function KeyList({
 
       {canMint ? (
         open ? (
-          <Card className="p-5">
-            <form action={formAction} className="space-y-4">
-              <Field label={t("dev.keyLabel")} htmlFor="key-label">
-                <Input id="key-label" name="label" required />
-              </Field>
+          <Card className="p-5 sm:p-6">
+            <form action={formAction} className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={t("dev.keyLabel")} htmlFor="key-label">
+                  <Input id="key-label" name="label" required />
+                </Field>
 
-              <Field label={t("dev.environment")} htmlFor="key-environment">
-                <select
-                  id="key-environment"
-                  name="environment"
-                  defaultValue="sandbox"
-                  className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900"
-                >
-                  <option value="sandbox">{t("dev.sandbox")}</option>
-                  <option value="live">{t("dev.live")}</option>
-                </select>
-              </Field>
+                <Field label={t("dev.environment")} htmlFor="key-environment">
+                  <select id="key-environment" name="environment" defaultValue="sandbox" className={SELECT}>
+                    <option value="sandbox">{t("dev.sandbox")}</option>
+                    <option value="live">{t("dev.live")}</option>
+                  </select>
+                </Field>
+              </div>
 
-              <fieldset className="space-y-2">
-                <legend className="text-xs font-semibold text-slate-700">{t("dev.scopes")}</legend>
-                {API_SCOPES.map((scope) => (
-                  <label key={scope} className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      name="scopes"
-                      value={scope}
-                      className="h-4 w-4 rounded border-slate-300"
-                    />
-                    <code className="font-mono text-xs">{scope}</code>
-                  </label>
-                ))}
+              <fieldset>
+                <legend className="text-sm font-semibold text-navy-600">{t("dev.scopes")}</legend>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {API_SCOPES.map((scope) => (
+                    <CheckChip key={scope} name="scopes" value={scope}>
+                      {scope}
+                    </CheckChip>
+                  ))}
+                </div>
               </fieldset>
 
               {/* 🔴 C265, on the form, beside the checkbox it is about. */}
 
               {state.error ? (
-                <p role="alert" className="text-xs text-red-600">
+                <p role="alert" className="text-sm text-red-700">
                   {state.error}
                 </p>
               ) : null}
@@ -269,9 +252,12 @@ export function KeyList({
             </form>
           </Card>
         ) : (
-          <Button variant="secondary" onClick={() => setOpen(true)}>
-            {t("dev.newKey")}
-          </Button>
+          <div>
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              {t("dev.newKey")}
+            </Button>
+          </div>
         )
       ) : null}
     </div>

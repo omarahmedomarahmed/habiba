@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 
-import { redeliverOne } from "@/app/(partner)/partner/webhooks/actions";
-import { TryButton } from "@/components/partner/try-button";
-import { Card } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
+import { DeliveryLog } from "@/components/partner/delivery-log";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
 import { deliveriesFor } from "@/lib/partner/webhooks";
@@ -33,6 +32,9 @@ export const dynamic = "force-dynamic";
  *
  * A `requirePartner` rather than an admin guard, because this is the screen a developer
  * needs most. Its one act, Redeliver (W2-X03), is an admin's, checked in the action.
+ *
+ * The rows are drawn by `DeliveryLog`, which adds the mockup's filter over the same list.
+ * Dates are formatted here, so no date arithmetic crosses to the client.
  */
 export default async function PartnerDeliveriesPage() {
   const actor = await requirePartner();
@@ -41,84 +43,33 @@ export default async function PartnerDeliveriesPage() {
   const deliveries = await deliveriesFor(actor.partnerId);
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">
-        {t("dev.deliveriesTitle")}
-      </h1>
+    <div>
+      <PageHeader title={t("dev.deliveriesTitle")} />
 
-      {deliveries.length === 0 ? (
-        <Card className="p-5">
-          <p className="text-sm text-slate-600">{t("dev.deliveriesEmpty")}</p>
-        </Card>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {deliveries.map((delivery) => (
-            <li key={delivery.id}>
-              <Card className="p-4">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <code className="font-mono text-xs font-semibold text-slate-900">
-                    {delivery.event}
-                  </code>
-                  {/*
-                   * 🔴 W2-X03: THREE STATES, AND "PENDING" NO LONGER MEANS "GAVE UP".
-                   * A delivery that used every try says Failed, and one still being
-                   * tried says when the next try is.
-                   */}
-                  <span
-                    className={
-                      delivery.deliveredAt
-                        ? "text-xs font-semibold text-brand-700"
-                        : delivery.failedAt
-                          ? "text-xs font-semibold text-red-600"
-                          : "text-xs font-semibold text-amber-700"
-                    }
-                  >
-                    {delivery.deliveredAt
-                      ? t("dev.delivered")
-                      : delivery.failedAt
-                        ? t("dev.failed")
-                        : t("dev.pending")}
-                  </span>
-                  {!delivery.deliveredAt && !delivery.failedAt && delivery.nextAttemptAt ? (
-                    <span className="text-xs text-slate-500">
-                      {t("dev.nextTry", {
-                        time: formatDateTime(delivery.nextAttemptAt, "UTC", locale),
-                      })}
-                    </span>
-                  ) : null}
-                  {delivery.lastStatus !== null ? (
-                    <span className="font-mono text-xs text-slate-500">{delivery.lastStatus}</span>
-                  ) : null}
-                  <span className="text-xs text-slate-500">
-                    {t("dev.attempts", { count: String(delivery.attempts) })}
-                  </span>
-                </div>
-
-                {/* 🔴 The opaque id, exactly as the body carries it. Never a name. */}
-                <p className="mt-1 break-all font-mono text-xs text-slate-500">
-                  {delivery.subjectId ?? "-"}
-                </p>
-
-                <p className="mt-1 break-all font-mono text-xs text-slate-500">{delivery.url}</p>
-
-                {/* 🔴 `formatDateTime`, not `Intl` (37L.9). */}
-                <p className="mt-1 text-xs text-slate-500">
-                  {formatDateTime(delivery.createdAt, "UTC", locale)}
-                </p>
-
-                {delivery.lastError ? (
-                  <p className="mt-1 text-xs text-red-600">{delivery.lastError}</p>
-                ) : null}
-
-                {/* 🔴 W2-X03: one try now, by hand. An admin act: it sends a signed request. */}
-                {actor.role === "admin" && !delivery.endpointDisabled ? (
-                  <TryButton action={redeliverOne} id={delivery.id} labelKey="dev.redeliver" />
-                ) : null}
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="px-4 sm:px-6">
+        <DeliveryLog
+          deliveries={deliveries.map((delivery) => {
+            const state = delivery.deliveredAt ? "delivered" : delivery.failedAt ? "failed" : "pending";
+            return {
+              id: delivery.id,
+              event: delivery.event,
+              state,
+              nextTry:
+                state === "pending" && delivery.nextAttemptAt
+                  ? /* 🔴 `formatDateTime`, not `Intl` (37L.9). */
+                    formatDateTime(delivery.nextAttemptAt, "UTC", locale)
+                  : null,
+              lastStatus: delivery.lastStatus,
+              attempts: delivery.attempts,
+              subjectId: delivery.subjectId,
+              url: delivery.url,
+              at: formatDateTime(delivery.createdAt, "UTC", locale),
+              lastError: delivery.lastError,
+              canRedeliver: actor.role === "admin" && !delivery.endpointDisabled,
+            } as const;
+          })}
+        />
+      </div>
     </div>
   );
 }

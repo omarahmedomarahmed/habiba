@@ -2,9 +2,10 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { Check } from "lucide-react";
 
 import { apply } from "@/app/(partner)/partner/apply/actions";
-import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, Textarea } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
@@ -37,15 +38,18 @@ export function PartnerApplyForm() {
 
   if (state.sent) {
     return (
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("dev.apply.sent")}</p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("dev.apply.sentBody")}</p>
+      <Card role="status" className="p-5 sm:p-7">
+        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-navy-700">
+          <Check className="h-6 w-6" aria-hidden />
+        </span>
+        <p className="text-[17px] font-bold text-navy-700">{t("dev.apply.sent")}</p>
+        <p className="mt-2 text-sm leading-relaxed text-navy-500">{t("dev.apply.sentBody")}</p>
       </Card>
     );
   }
 
   return (
-    <Card className="p-5">
+    <Card className="p-5 sm:p-7">
       <form action={formAction} className="space-y-4">
         <Field label={t("dev.apply.company")} htmlFor="partner-apply-name">
           <Input id="partner-apply-name" name="name" required />
@@ -74,7 +78,7 @@ export function PartnerApplyForm() {
         </Field>
 
         {state.error ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="text-sm text-red-700">
             {state.error}
           </p>
         ) : null}
