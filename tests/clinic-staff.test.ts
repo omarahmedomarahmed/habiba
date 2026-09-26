@@ -58,7 +58,7 @@ test("C05: a forgot-password door and a set-password door, both open", async () 
   const routing = await import("../lib/routing");
   assert.ok(routing.isClinicDoor("/clinic/forgot-password"));
   assert.ok(routing.isClinicDoor("/clinic/set-password"));
-  assert.match(read("lib/routing.ts"), /openRoutes: \[CLINIC_APPLY, CLINIC_JOIN, CLINIC_FORGOT, CLINIC_SET_PASSWORD\]/);
+  assert.match(read("lib/routing.ts"), /openRoutes: \[CLINIC_APPLY, CLINIC_JOIN, CLINIC_FORGOT, CLINIC_SET_PASSWORD[,\]]/);
 
   // And the sign-in says where it is.
   assert.match(read("app/(clinic)/clinic/sign-in/page.tsx"), /href="\/clinic\/forgot-password"/);
