@@ -28,13 +28,15 @@ fourth full gate.
 |---|---|---|
 | S0 | G0, production migrations, main at ac275b63, confirmed live | done (start-clock settings stay on code defaults, N5/N8) |
 | S1 | Redesign wave 1 in worktrees, started in parallel: website, patient app, therapist portal, to the `/design` mockups, with the radar globe from the current radar | done, merged into local branch `redesign-integration` (worktree `.claude/worktrees/redesign-integration`) |
-| S2 | Round 2 with round 3 folded in, on the live site at day 7 (jobs fired before and after the move, verify:migrations passed) | workflow running (run wf_90d1ff11-9c1, script scratchpad/sim/round2.js) |
-| S3 | Fix every round 2 bug on the redesign branch (N10) | batch 1 (33 rows) fixed and merged into `redesign-integration`; batch 2 (29 rows, board rows 433 to 606) with two fixers; rows after 606 once round 2 ends |
+| S2 | Round 2 with round 3 folded in, on the live site at day 7 | closed (N13): ORG complete, CARE and OPS-WEB partial after a usage limit; recorded in ROUNDS.md |
+| S3 | Fix every round 2 bug on the redesign branch (N10) | batch 1 merged; batch 2 fixers resumed after the usage limit (worktrees agent-a0f4097b..., agent-ac1566c7...); batch 3 (partner) running; then merge all into `redesign-integration` |
 | S4 | Redesign wave 2 (clinic, company, partner); merge waves 1 and 2; G2; push main; confirm live | all six surfaces merged into `redesign-integration` (typechecks); a QA agent is fixing contrast and every verifier on a branch off it; then round 2 fixes merge in, G2, main |
 | S5 | Walkthrough of rounds 1 and 2 compacted on the new design; fix; G3; push main; confirm live | not started |
 | S6 | Report to the founder: rulings table, what needs the founder, what is live | not started |
 
 ## Recovery notes
+
+- 26 Sept 04:20: a usage limit stopped every agent at once. Their worktrees kept their commits; each was resumed with SendMessage. If that happens again, check `git -C .claude/worktrees/agent-<id> log redesign-integration..HEAD` and `status`, commit leftovers, and finish the rest yourself.
 
 - Agents run in worktrees under `.claude/worktrees/`. A worktree that still exists after its agent
   died holds its work: merge its branch (`worktree-agent-<id>`) before removing it.
