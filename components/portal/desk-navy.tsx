@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
 
 import { Logo } from "@/components/brand/logo";
 import { Avatar } from "@/components/clinician/kit";
@@ -17,7 +16,7 @@ import type { DeskSection } from "./desk";
  *
  * The same shell as `Desk`, drawn the way the therapist portal now is: a navy
  * rail with the teal selection, the company's name in a card at its foot, and a
- * sliding navy pill for the sections on a phone. `Desk` renders this when a
+ * navy pill for the sections on a phone. `Desk` renders this when a
  * chrome asks for `look="navy"`, so every rule it documents holds here too:
  *
  * - the wall is in the rail, on screen the whole time, and at the foot of the
@@ -146,16 +145,15 @@ export function NavyDesk({
                     aria-current={on ? "page" : undefined}
                     className={cn(
                       "relative inline-flex h-10 shrink-0 items-center rounded-full px-4 text-[13px] font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                      on ? "text-white" : "bg-white text-navy-500 ring-1 ring-navy-100 hover:text-navy-700",
+                      /*
+                        The ground is on the link itself, not on a sliding layer
+                        behind it: `verify:contrast` reads each word against its
+                        own element's ground, and a layer underneath reads as
+                        white on white.
+                      */
+                      on ? "bg-navy-600 text-white" : "bg-white text-navy-500 ring-1 ring-navy-100 hover:text-navy-700",
                     )}
                   >
-                    {on ? (
-                      <motion.span
-                        layoutId="desk-tab"
-                        transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.9 }}
-                        className="absolute inset-0 rounded-full bg-navy-600"
-                      />
-                    ) : null}
                     <span className="relative">{section.label}</span>
                   </Link>
                 );
