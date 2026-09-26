@@ -7,6 +7,7 @@ import { PendingBar } from "@/components/billing/pending-bar";
 import { pendingPaymentFor } from "@/lib/billing/pending";
 import { getI18n } from "@/lib/i18n/server";
 import { localeTag } from "@/lib/i18n/config";
+import { cancelPotPayment } from "./sponsor/pot/actions";
 
 /**
  * The sponsor shell. PLAN.md 53.4, C230, C259, C264.
@@ -83,6 +84,8 @@ export default async function SponsorLayout({ children }: { children: React.Reac
           stage={pending.stage}
           paymentId={pending.paymentId}
           storageKey={pending.storageKey}
+          /* 🔴 Board 895 (B20): an admin can clear a cart they never paid, from any page. */
+          onCancel={actor?.role === "admin" ? cancelPotPayment : undefined}
         />
         </div>
       ) : null}

@@ -2446,7 +2446,7 @@ export const en = {
    */
   "pop.cancel": "Cancel this payment",
   "pop.cancelSure": "Cancel this payment?",
-  "pop.cancelSureBody": "Nothing is charged, and you can start it again.",
+  "pop.cancelSureBody": "Nothing is charged. You can start it again.",
   "pop.cancelYes": "Yes, cancel it",
   "pop.cancelNo": "Keep it",
   "pop.proofSent": "You sent this receipt",
@@ -2454,6 +2454,7 @@ export const en = {
   "bar.eta": "Usually within a few hours",
   "bar.stateDone": "Paid",
   "bar.reopen": "Open",
+  "bar.notSent": "Not sending it",
   "bar.dismiss": "Dismiss",
 
   /* --------------------------- 🔴 76.16 a clinician picks which bills to pay */
@@ -7454,6 +7455,7 @@ export const ar: Record<MessageKey, string> = {
   "bar.eta": "عادة خلال ساعات قليلة",
   "bar.stateDone": "تم الدفع",
   "bar.reopen": "فتح",
+  "bar.notSent": "مش هحوّل",
   "bar.dismiss": "إخفاء",
 
   /* --------------------------- 🔴 76.16 a clinician picks which bills to pay */

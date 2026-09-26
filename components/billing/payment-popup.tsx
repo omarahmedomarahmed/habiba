@@ -149,6 +149,8 @@ export function PaymentPopup({
   onChoose,
   /** Stable key for remembering open state. The payment's ref, never a person. */
   storageKey,
+  /** 🔴 Board 828: the stepper's first rung, the figure already committed. */
+  startIndex = 0,
 }: {
   subject: PaymentSubject;
   details: TransferView;
@@ -170,6 +172,7 @@ export function PaymentPopup({
   minimised?: "button" | "orb";
   openInitially?: boolean;
   storageKey: string;
+  startIndex?: number;
 }) {
   const t = useT();
   const [open, setOpen] = useState(openInitially);
@@ -275,7 +278,8 @@ export function PaymentPopup({
    * WHERE clause, so this is the second lock rather than the only one.
    */
   const cancelControl =
-    onCancel && (live.state === "awaiting_proof" || (live.state === "none" && started)) ? (
+    onCancel &&
+    (live.state === "awaiting_proof" || ((live.state === "none" || live.state === "rejected") && started)) ? (
       confirmingCancel ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3">
           <p className="text-sm font-semibold text-amber-900">{t("pop.cancelSure")}</p>
@@ -502,6 +506,13 @@ export function PaymentPopup({
           steps={steps}
           lines={lines}
           onChoose={onChoose}
+          startIndex={startIndex}
+          /*
+            🔴 Board 895: AND INSIDE THE SHEET TOO. The entry beside the way in
+            is where a payer who closed it looks; the sheet is where one who
+            opened it from the bar looks, and it offered only Submit.
+          */
+          footer={cancelControl}
         />
 
         {/*

@@ -191,3 +191,33 @@ test("CONTROL the old pot arithmetic credited the gross, and would fail these", 
   assert.equal(right, 20_000, "$200.00 in cents");
   assert.equal(wrong / right, 50, "and the old answer was fifty times it");
 });
+
+/* ------------------------------------------------ board 828 and 895 -- */
+
+test("board 828: 'Send it again' reopens at the turned-down figure, not the floor", async () => {
+  const { potStartRung } = await import("../lib/billing/manual-entry");
+  const steps = [{ settlesCents: 11_400 }, { settlesCents: 17_100 }, { settlesCents: 22_800 }];
+  assert.equal(potStartRung(steps, { state: "rejected", settlesCents: 22_800 }), 2);
+  assert.equal(potStartRung(steps, { state: "awaiting_proof", settlesCents: 17_100 }), 1);
+  /* Nothing committed, or a figure no longer on the ladder: the floor. */
+  assert.equal(potStartRung(steps, { state: "none" }), 0);
+  assert.equal(potStartRung(steps, { state: "rejected", settlesCents: 999 }), 0);
+  assert.equal(potStartRung(steps, { state: "submitted", settlesCents: 22_800 }), 0);
+
+  const { readSource } = await import("../scripts/_verify");
+  const page = readSource("app/(sponsor)/sponsor/pot/page.tsx");
+  assert.match(page, /potStartRung\(/, "the pot page must pick the stepper's first rung from what was committed");
+  assert.doesNotMatch(page, /openPotPayment\.bind\(null, ladder\.steps\[0\]/, "the cart must open at the start rung, not the floor");
+  const entry = readSource("lib/billing/manual-entry.ts");
+  assert.match(entry, /settlesCents: lastRejection\.settlesCents/, "a rejection must carry its figure to the screen");
+});
+
+test("board 895 (B20): an open cart can be cancelled from the sheet and from the bar", async () => {
+  const { readSource } = await import("../scripts/_verify");
+  const popup = readSource("components/billing/payment-popup.tsx");
+  assert.match(popup, /footer=\{cancelControl\}/, "the open sheet offers no way out of a payment never made");
+  const bar = readSource("components/billing/pending-bar.tsx");
+  assert.match(bar, /stage === "open" && onCancel/, "the bar for an open cart offers no way out");
+  const layout = readSource("app/(sponsor)/layout.tsx");
+  assert.match(layout, /onCancel=\{[^}]*cancelPotPayment/, "the company's bar is not given the cancel");
+});
