@@ -229,11 +229,16 @@ async function main() {
      * again", and the letters after the signing clinician's name on the
      * summary. Both describe the clinician, never the patient.
      */
+    /*
+     * 🔴 `covered` (board 418): a boolean, whether the company's benefit paid
+     * the whole session. It cannot hold a sentence.
+     */
     const keys = rows[0] ? Object.keys(rows[0]).sort().join(",") : "";
     check(
       "🔴 15.8 the row has no field that COULD hold a clinical sentence",
+      typeof rows[0]?.covered === "boolean" &&
       keys ===
-        "at,brief,briefAddenda,briefPending,cancelled,changeable,group,id,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
+        "at,brief,briefAddenda,briefPending,cancelled,changeable,covered,group,id,modality,owedCents,paymentStatus,priceCents,priceCurrency," +
           "provenance,therapistCredentials,therapistId,therapistName",
       keys,
     );
