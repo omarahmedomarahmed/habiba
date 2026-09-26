@@ -168,3 +168,10 @@ test("board 884 the floating switch and bell start below the Simulation banner, 
   const layout = readFileSync("app/(app)/layout.tsx", "utf8");
   assert.match(layout, /pb-40 lg:pb-10/);
 });
+
+test("board 791 a booking days away says when it is booked, not that it has not finished", () => {
+  const page = readFileSync("app/(app)/sessions/[id]/page.tsx", "utf8");
+  assert.match(page, /startWindow\(row\.session\.scheduledAt, Date\.now\(\), rules\.start\) === "booked"/);
+  assert.match(page, /ahead \? null : \(\s*<Link href=\{`\/sessions\/\$\{id\}\/room`\}/, "no Open room before the window");
+  assert.match(page, /notStarted\s*\? t\("portal\.session\.notStarted"\)/);
+});
