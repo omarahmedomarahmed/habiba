@@ -47,6 +47,7 @@ import {
   isPrivateLogin,
   privatePassword,
 } from "./_demo-cast";
+import { isEventScenario } from "./_event-cast";
 import { scenario, scenarioFrom, TUNING } from "./_value-statements";
 import { hostOf, reporter } from "./_verify";
 import { connect } from "./db";
@@ -68,6 +69,18 @@ async function main() {
    * Told the wrong name, this goes red on the coverage and the enrolment, which
    * is the useful answer: it says which position the database is actually in.
    */
+  /*
+   * 🔴 THE EVENT CAST IS A DIFFERENT CAST, SO IT HAS ITS OWN VERIFIER.
+   *
+   * Every check below names somebody in the everyday cast, and on the event
+   * database each one would read red about a person who was never seeded.
+   * `--scenario=event` is handed to `verify-event-demo.ts`, which reads the
+   * same list `docs/DEMO-LOGINS.md` is written from.
+   */
+  if (isEventScenario(process.argv.slice(2))) {
+    await import("./verify-event-demo");
+    return;
+  }
   const name = scenarioFrom(process.argv.slice(2));
   const position = scenario(name);
   const tuning = TUNING[name];

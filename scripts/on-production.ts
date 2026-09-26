@@ -181,6 +181,15 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
     writes: false,
     why: "every demo login works and no portal it opens is empty",
   },
+  /*
+   * The half of `seed:demo -- --scenario=event` that reads: the logins handed
+   * to strangers at an event open, and what they open onto is true. SELECTs and
+   * in-memory password hashes only.
+   */
+  "verify:event-demo": {
+    writes: false,
+    why: "every event login in docs/DEMO-LOGINS.md opens, and the cast behind them holds",
+  },
 };
 
 /**
