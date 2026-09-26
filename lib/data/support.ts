@@ -607,7 +607,17 @@ export async function closeTicket(input: {
     };
   }
 
-  const { token, code, set } = await freshAccess();
+  /*
+   * 🔴 Board 957: ONE MESSAGE FOR A REPLY FOLLOWED BY A CLOSE. A reply sends
+   * a link and a code; closing seconds later sent a second link with a second
+   * code, and the person could not tell which to use. When a link sent in the
+   * last day still works, it already shows the whole thread, the close
+   * included, so the close keeps it and sends nothing.
+   */
+  const reuse = liveAccessRecent(ticket, new Date());
+  const { token, code, set } = reuse
+    ? { token: ticket.accessToken!, code: null, set: {} }
+    : await freshAccess();
 
   await db
     .update(supportTickets)
@@ -635,9 +645,27 @@ export async function closeTicket(input: {
    * ticket**. Not the topic, not the summary, not their own message quoted
    * back. That is the rule, and this is the only place it could be broken.
    */
-  await tellAnswered(ticket, link, code);
+  if (code) await tellAnswered(ticket, link, code);
 
   return { ok: true, link };
+}
+
+/** How long codes last, and so how their issue time is read back off the expiry. */
+const ACCESS_MS = 7 * 86_400_000;
+
+/**
+ * 🔴 Board 957: a link and code sent within the last day, still working. Pure,
+ * so the rule is a test.
+ */
+export function liveAccessRecent(
+  ticket: { accessToken: string | null; accessCodeExpiresAt: Date | null },
+  now: Date,
+): boolean {
+  if (!ticket.accessToken || !ticket.accessCodeExpiresAt) return false;
+  const expires = ticket.accessCodeExpiresAt.getTime();
+  if (expires <= now.getTime()) return false;
+  const issued = expires - ACCESS_MS;
+  return now.getTime() - issued < 86_400_000;
 }
 
 /**
@@ -684,7 +712,7 @@ async function freshAccess() {
     set: {
       accessToken: token,
       accessCodeHash: await hashCode(code),
-      accessCodeExpiresAt: new Date(Date.now() + 7 * 86_400_000),
+      accessCodeExpiresAt: new Date(Date.now() + ACCESS_MS),
     },
   };
 }

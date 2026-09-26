@@ -100,3 +100,23 @@ test("every queue button is on the record", () => {
     assert.match(bodyOf(actions, fn), /await audit\(/, `${fn} is not audited`);
   }
 });
+
+test("board 957: a close right after a reply keeps the link already sent and sends no second one", async () => {
+  const { liveAccessRecent } = await import("../lib/data/support");
+  const now = new Date("2026-09-26T08:00:00Z");
+  const day = 86_400_000;
+  const issuedAt = (ms: number) => ({ accessToken: "t", accessCodeExpiresAt: new Date(ms + 7 * day) });
+  assert.equal(liveAccessRecent(issuedAt(now.getTime() - 4_000), now), true, "sent four seconds ago");
+  assert.equal(liveAccessRecent(issuedAt(now.getTime() - 2 * day), now), false, "sent two days ago: tell them again");
+  assert.equal(liveAccessRecent({ accessToken: null, accessCodeExpiresAt: null }, now), false);
+  assert.equal(liveAccessRecent(issuedAt(now.getTime() - 8 * day), now), false, "expired");
+
+  const source = readFileSync("lib/data/support.ts", "utf8");
+  assert.match(source, /if \(code\) await tellAnswered\(ticket, link, code\)/);
+});
+
+test("board 958: the reply box and the close summary ask for different things", () => {
+  const queue = readFileSync("components/admin/support-queue.tsx", "utf8");
+  assert.match(queue, /name="reply"[^>]*placeholder=\{t\("asupport\.answerHint"\)\}/);
+  assert.match(queue, /name="summary"[^>]*placeholder=\{t\("asupport\.replyHint"\)\}/);
+});

@@ -317,7 +317,7 @@ export function PayoutsEditor({
       <p className="text-sm font-semibold text-slate-900">The manual rail</p>
       <p className="mt-1 text-xs text-slate-500">
         A new Egyptian collection provider is configuration, not code. The two-person
-        threshold applies while Rules asks for two people on payouts or refunds.
+        threshold applies while Rules asks for it.
       </p>
 
       <form action={action} className="mt-3 space-y-3">
