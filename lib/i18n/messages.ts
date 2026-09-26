@@ -3383,6 +3383,7 @@ export const en = {
   "tver.underReviewBody": "We check your documents, usually within a working day. Sessions unlock on approval.",
   "tver.rejected": "We could not verify you yet",
   "tver.rejectedBody": "Fix what is above and submit again; it goes to the front of the queue.",
+  "tver.rejectedCleared": "This was the second review, so we deleted the documents you sent; that is why the upload slots below are empty. Upload them again, fix what is above, and submit; it goes to the front of the queue.",
   "tver.noUploads":
     "File storage is not configured on this deployment, so uploads will fail. Set BLOB_READ_WRITE_TOKEN.",
   "tver.aboutPractice": "About your practice",
@@ -8157,6 +8158,7 @@ export const ar: Record<MessageKey, string> = {
   "tver.underReviewBody": "يفحص شخص مستنداتك، عادة خلال يوم عمل. وتُفتح الجلسات فور اعتمادك.",
   "tver.rejected": "لم نتمكّن من التحقّق منك بعد",
   "tver.rejectedBody": "صحّح ما ذُكر أعلاه وأعد الإرسال. ويعود إلى مقدمة الطابور.",
+  "tver.rejectedCleared": "كانت هذه المراجعة الثانية، لذلك حذفنا المستندات التي أرسلتها، ولهذا خانات الرفع أدناه فارغة. ارفعها من جديد، وصحّح ما ذُكر أعلاه، ثم أعد الإرسال. ويعود الطلب إلى مقدمة الطابور.",
   "tver.noUploads":
     "تخزين الملفات غير مُهيّأ في هذه النسخة، لذا سيفشل الرفع. اضبط BLOB_READ_WRITE_TOKEN.",
   "tver.aboutPractice": "عن ممارستك",

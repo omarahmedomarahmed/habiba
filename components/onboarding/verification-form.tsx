@@ -73,8 +73,11 @@ export function VerificationForm({
   uploadsEnabled,
   requirements,
   renewing = false,
+  documentsCleared = false,
 }: {
   state: "draft" | "submitted" | "approved" | "rejected";
+  /** Board 562: after a second rejection the files were deleted, and the card says so. */
+  documentsCleared?: boolean;
   /**
    * 🔴 W1-16: back in review because the licence ran out. The form stays
    * open so the renewal can be entered, where a plain submission is locked.
@@ -245,7 +248,7 @@ export function VerificationForm({
           <p className="text-sm font-semibold text-red-900">{t("tver.rejected")}</p>
           <p className="mt-1 text-sm leading-relaxed text-red-800">{reviewNote}</p>
           <p className="mt-2 text-xs text-red-700">
-            {t("tver.rejectedBody")}
+            {t(documentsCleared ? "tver.rejectedCleared" : "tver.rejectedBody")}
           </p>
         </Card>
       ) : null}
