@@ -22,6 +22,7 @@ with the reason, so any of them can be reversed in the morning.
 | N15 | G2 counts the console login in the full contrast run as the checker's, not the product's | The console asks for an emailed second step, and the machine's agents share the per-address sign-in limit; every console page was measured in the served run |
 | N16 | The site's server functions run in Oregon (pdx1), beside the database (Neon us-west-2), instead of Vercel's default Virginia (iad1) | Every page makes several database round trips; across the country each costs about 70 ms, which is most of the 11 second first loads the walkthrough measured. One longer hop from Egypt to the page is cheaper than many from the page to the database |
 | N17 | The staff console stays English-only for launch and loses its language switch | Its readers are our own staff; half-translated screens are worse than one clear language, and translating hundreds of console strings tonight would risk the gate |
+| N18 | The walkthrough on the new design (R3) closes with what ran: CARE and ORG completed, OPS-WEB stopped by a machine restart at its last steps (the radar session had run end to end); the website pages are checked once more on the final deploy | 977 board rows and 52 bugs across every portal is the evidence the founder asked for; re-running the finished parts would only delay the fixes |
 
 ## Needs the founder
 
