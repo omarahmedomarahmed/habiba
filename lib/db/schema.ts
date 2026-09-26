@@ -1033,6 +1033,26 @@ export const sessions = pgTable(
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
 
     startedAt: timestamp("started_at", { withTimezone: true }),
+    /**
+     * 🔴 0183: WHEN THE SESSION CLOCK STARTED, which is when both people were
+     * there, and not when either of them arrived first.
+     *
+     * `startedAt` is the clinician pressing Start. A patient may open the room
+     * from five minutes before the booked time and wait there, and the fifty
+     * minutes must not be spent while they wait for the clinician; a clinician
+     * who starts early on a video session with nobody on the other end is the
+     * same case the other way round. So the clock has its own instant:
+     *
+     *   - in person (both in one room): the moment the clinician starts;
+     *   - on video: the first poll from the patient's open page after the
+     *     clinician started, which is five seconds at most.
+     *
+     * The cap, the countdown, the "everyone left" check and the recorded
+     * duration all read this, falling back to `startedAt` where it is null
+     * (history before 0183, and the overrun backstop for a room the patient
+     * never opened).
+     */
+    clockStartedAt: timestamp("clock_started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
 
@@ -1107,7 +1127,35 @@ export const sessions = pgTable(
     index("sessions_patient_idx").on(t.patientId),
     /* 🔴 0168: late cancellations still holding money, per clinician. */
     index("sessions_late_cancel_idx").on(t.therapistId).where(sql`late_cancel = 'held'`),
+    /* 🔴 0183: the minute tick's question, "which booked sessions start inside the hour". */
+    index("sessions_scheduled_upcoming_idx").on(t.scheduledAt).where(sql`status = 'scheduled'`),
   ],
+);
+
+/**
+ * 🔴 0183: THE 60, 30 AND 15 MINUTE REMINDERS AND THE "YOU CAN GO IN NOW" AT 5.
+ *
+ * One row per session, per mark, per booked instant, written BEFORE the message
+ * leaves: the insert is the claim (`ON CONFLICT DO NOTHING`), so two ticks that
+ * overlap cannot both send, and a tick that runs again sends nothing twice.
+ * `scheduled_for` is in the key so a booking moved to another hour is reminded
+ * afresh for the new one. A mark whose moment passed more than a few minutes
+ * ago (a booking made inside the hour, or a tick that did not run) is never
+ * claimed at all: the patient is not sent a burst of stale reminders, only the
+ * ones still ahead (`lib/sessions/reminders.ts`).
+ */
+export const sessionReminders = pgTable(
+  "session_reminders",
+  {
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    mark: integer("mark").notNull(),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+    outcome: text("outcome").$type<"sent" | "unreachable" | "failed">().notNull().default("sent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.sessionId, t.mark, t.scheduledFor] })],
 );
 
 export const transcriptSegments = pgTable(

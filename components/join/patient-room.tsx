@@ -56,7 +56,10 @@ export function PatientRoom({
   startedAt,
   clock,
   recovery = null,
+  sessionMinutes = null,
 }: {
+  /** 🔴 0183: the session's length, for "your N minutes start when they join". */
+  sessionMinutes?: number | null;
   /**
    * 🔴 W2-P11: somebody else, or their money back, when the clinician has not
    * come. It lived below the join flow, under this room's full-screen layer,
@@ -72,6 +75,10 @@ export function PatientRoom({
     recording: "granted" | "declined" | null;
     profileShare: "granted" | "declined" | null;
   };
+  /**
+   * 🔴 0183: when the clock started, which is when both people were there,
+   * not when the patient arrived. Null while they wait.
+   */
   startedAt: string | null;
   clock: { stage: ClockStage; remainingSeconds: number } | null;
 }) {
@@ -181,7 +188,7 @@ export function PatientRoom({
         <Headphones className="h-8 w-8 text-brand-300" aria-hidden />
       </span>
       <p className="relative text-[18px] font-bold text-white">
-        {live ? t("room.started") : t("room.waiting")}
+        {live ? t("room.started") : t("room.waitingFor", { name: therapist.name })}
       </p>
       <p className="relative max-w-xs text-[13px] leading-relaxed text-white/65">
         {live ? t("room.audioOnly") : t("room.keepOpen")}
@@ -269,6 +276,24 @@ export function PatientRoom({
         <aside className="space-y-3">
           {/* 🔴 W2-P11: first, because it is the only thing here that changes what happens next. */}
           {!live ? recovery : null}
+          {/*
+            🔴 0183: WHO THEY ARE WAITING FOR, AND THAT THE WAIT COSTS THEM NOTHING.
+            A patient may come in from five minutes before; the minutes they paid
+            for start when the clinician joins. Said here as well as on the call's
+            own face, which a video room covers.
+          */}
+          {!live ? (
+            <Card className="p-4" role="status">
+              <p className="text-sm font-semibold text-navy-700">
+                {t("room.waitingFor", { name: therapist.name })}
+              </p>
+              {sessionMinutes ? (
+                <p className="mt-1 text-xs leading-relaxed text-navy-400">
+                  {t("room.clockWaits", { minutes: sessionMinutes, name: therapist.firstName })}
+                </p>
+              ) : null}
+            </Card>
+          ) : null}
           {/*
             Loudest thing in the panel, and first.
             --------------------------------------

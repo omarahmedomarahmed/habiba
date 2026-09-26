@@ -67,7 +67,10 @@ export function JoinFlow({
   recoveryFrom = null,
   benefitNote = null,
   booking = null,
+  sessionMinutes = null,
 }: {
+  /** 🔴 0183: the session's length, said while the patient waits: it starts when the clinician joins. */
+  sessionMinutes?: number | null;
   /**
    * 🔴 THE START RULING: a booked session's instant, written out in the
    * reader's zone, and the thresholds from `rules.start`. Null for a session
@@ -143,6 +146,8 @@ export function JoinFlow({
     profileShare: "granted" | "declined" | null;
   }>(initialConsent);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  /** 🔴 0183: when both people were there. The minutes so far count from this. */
+  const [clockStartedAt, setClockStartedAt] = useState<string | null>(null);
   /*
    * The countdown, from the same server call that already tells them whether
    * the microphone is on. No second poll: the patient's page makes one request
@@ -198,6 +203,7 @@ export function JoinFlow({
       setRecording(result.recording);
       setConsent(result.consent);
       setStartedAt(result.startedAt);
+      setClockStartedAt(result.clockStartedAt);
       setClock(result.clock);
     }, 5000);
     return () => clearInterval(poll);
@@ -219,6 +225,7 @@ export function JoinFlow({
       setRecording(result.recording);
       setConsent(result.consent);
       setStartedAt(result.startedAt);
+      setClockStartedAt(result.clockStartedAt);
       setClock(result.clock);
     }, 5000);
     return () => clearInterval(poll);
@@ -329,7 +336,8 @@ export function JoinFlow({
         live={live}
         recording={recording}
         consent={consent}
-        startedAt={startedAt}
+        startedAt={clockStartedAt}
+        sessionMinutes={sessionMinutes}
         clock={clock}
         recovery={
           recoveryFrom ? (

@@ -25,6 +25,7 @@ const JOB_WORDS: Record<string, MessageKey> = {
   billing: "aops.job.billing",
   retention: "aops.job.retention",
   extract: "aops.job.extract",
+  tick: "aops.job.tick",
 };
 
 export type AlertWords = { key: MessageKey; values: Record<string, string>; job?: MessageKey };

@@ -21,7 +21,7 @@ import {
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { callMicMuted } from "@/lib/sessions/may-record";
 import { lastSequence, lineId, mergeLiveLines } from "@/lib/sessions/live-lines";
-import { sessionClock, type ClockLimits } from "@/lib/session-clock";
+import { capSeconds, clockAnchor, sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { pressOffRecord } from "@/lib/sessions/off-record";
 import { startWindow, type StartRule, type StartWindow } from "@/lib/sessions/start-window";
 import { cn, formatDuration } from "@/lib/utils";
@@ -53,6 +53,8 @@ type RoomProps = {
   recordingConsent: "granted" | "declined" | null;
   /** ISO, so the countdown survives a refresh mid-session. */
   startedAt: string | null;
+  /** 🔴 0183: when both people were there and the clock began. Null until then. */
+  clockStartedAt: string | null;
   /**
    * 🔴 THE INSTANT THE SERVER RENDERED, and the reason it is a prop.
    *
@@ -143,6 +145,7 @@ export function SessionRoom(props: RoomProps) {
    * actually ends the session.
    */
   const [startedAt, setStartedAt] = useState<string | null>(props.startedAt);
+  const [clockStartedAt, setClockStartedAt] = useState<string | null>(props.clockStartedAt);
   /*
    * 🔴 The SERVER's instant, not one read here.
    *
@@ -427,7 +430,7 @@ export function SessionRoom(props: RoomProps) {
           patientJoined?: boolean;
           patientAwaySeconds?: number | null;
           status?: string;
-          clock?: { endReason?: string | null };
+          clock?: { endReason?: string | null; startedAt?: string | null };
           nextBooking?: { minutes: number; startsAt: string } | null;
           recordingConsent?: "granted" | "declined" | null;
           segments?: { sequence: number; speaker: TranscriptLine["speaker"]; text: string }[];
@@ -442,6 +445,8 @@ export function SessionRoom(props: RoomProps) {
         }
         if (data.recordingConsent !== undefined) applyConsent(data.recordingConsent);
         if (data.patientJoined) setPatientJoined(true);
+        /* 🔴 0183: the clock starts when the patient's page confirms they are here. */
+        if (data.clock?.startedAt) setClockStartedAt(data.clock.startedAt);
         /* 🔴 76.35 — `?? null` and never `|| null`: zero seconds is away. */
         setPatientAway(data.patientAwaySeconds ?? null);
         // 11.6 — somebody is booked soon. On this poll rather than its own, so
@@ -486,7 +491,10 @@ export function SessionRoom(props: RoomProps) {
         return;
       }
       setLive(true);
-      setStartedAt(new Date().toISOString());
+      const startedNow = new Date().toISOString();
+      setStartedAt(startedNow);
+      /* 🔴 0183: in person both people are in one room, so the clock starts now too. */
+      if (props.modality !== "video") setClockStartedAt(startedNow);
     });
   };
 
@@ -563,7 +571,19 @@ export function SessionRoom(props: RoomProps) {
    * and only the server has them, which is also why only the server ends a
    * session.
    */
-  const clock = sessionClock({ startedAt, now: new Date(now), limits: props.clockLimits });
+  /*
+   * 🔴 0183: counted from when both people were there. On video that is the
+   * patient's page confirming it, so a clinician who started early alone sees
+   * "waiting for them" and a full clock, not minutes already spent.
+   */
+  const anchor = clockAnchor({
+    startedAt,
+    clockStartedAt,
+    now: new Date(now),
+    limits: props.clockLimits,
+  });
+  const clock = sessionClock({ startedAt: anchor, now: new Date(now), limits: props.clockLimits });
+  const clockWaiting = live && anchor === null;
 
   return (
     <div data-surface="room" className="relative flex min-h-dvh flex-col overflow-hidden bg-navy-900">
@@ -585,7 +605,7 @@ export function SessionRoom(props: RoomProps) {
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className="text-xs text-white/70 tabular-nums">
               {props.modality === "video" ? t("troom.videoSession") : t("troom.inPerson")}
-              {live ? ` · ${formatDuration(clock.elapsedSeconds)}` : ""}
+              {live && !clockWaiting ? ` · ${formatDuration(clock.elapsedSeconds)}` : ""}
             </p>
             {live ? (
               <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 ring-1 ring-white/15">
@@ -606,6 +626,17 @@ export function SessionRoom(props: RoomProps) {
 
       {live ? (
         <>
+          {clockWaiting ? (
+            <p
+              role="status"
+              className="relative border-b border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white sm:px-6"
+            >
+              {t("troom.waitingClock", {
+                name: props.patientLabel,
+                minutes: Math.round(capSeconds(props.clockLimits) / 60),
+              })}
+            </p>
+          ) : null}
           <SessionClockBar stage={clock.stage} remainingSeconds={clock.remainingSeconds} />
 
           {/*

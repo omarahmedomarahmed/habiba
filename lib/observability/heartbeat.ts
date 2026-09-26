@@ -48,10 +48,24 @@ export const CRON_INTERVAL_HOURS: Record<string, number> = {
   billing: 24,
   retention: 24,
   extract: 24,
+  /** 🔴 0183: the minute tick, the 60, 30, 15 and 5 minute session reminders. */
+  tick: 1 / 60,
 };
 
 /** Late means twice the interval: one missed run is a blip, two is a stopped job. */
 export const OVERDUE_FACTOR = 2;
+
+/**
+ * 🔴 0183: but never sooner than a quarter of an hour. Twice a minute is two
+ * minutes, and Vercel's own cron can skip a minute on a busy deploy; an email
+ * to the super admins for that would be noise, and noise hides the real one.
+ */
+export const MIN_LATE_HOURS = 0.25;
+
+/** How long a job may go without a clean run before it is late. */
+export function lateAfterMs(hours: number): number {
+  return Math.max(OVERDUE_FACTOR * hours, MIN_LATE_HOURS) * 60 * 60 * 1000;
+}
 
 /**
  * After every run, whatever happened. `failedSteps` empty means a clean run;
@@ -151,7 +165,7 @@ export async function findProblems(now = new Date()): Promise<WatchdogProblem[]>
   for (const [job, hours] of Object.entries(CRON_INTERVAL_HOURS)) {
     const beat = byJob.get(job);
     const last = beat?.lastSuccessAt ?? null;
-    const lateBy = OVERDUE_FACTOR * hours * 60 * 60 * 1000;
+    const lateBy = lateAfterMs(hours);
     /*
      * No row at all is late too. The migration seeds a row for every scheduled
      * job, so a missing one means somebody deleted it, and a job nobody can
@@ -163,9 +177,12 @@ export async function findProblems(now = new Date()): Promise<WatchdogProblem[]>
     const lastRun = beat?.lastRunAt ? beat.lastRunAt.toISOString() : "no run recorded";
     problems.push({
       key: `cron-overdue:${job}`,
-      subject: `Scheduled job "${job}" has not run cleanly for ${OVERDUE_FACTOR * hours}+ hours`,
+      subject:
+        hours < 1
+          ? `Scheduled job "${job}" has not run cleanly for ${Math.round(lateBy / 60_000)}+ minutes`
+          : `Scheduled job "${job}" has not run cleanly for ${OVERDUE_FACTOR * hours}+ hours`,
       body: [
-        `The "${job}" job runs every ${hours === 1 ? "hour" : `${hours} hours`}. Its last clean run was ${since}.`,
+        `The "${job}" job runs every ${hours < 1 ? `${Math.round(hours * 60)} minute(s)` : hours === 1 ? "hour" : `${hours} hours`}. Its last clean run was ${since}.`,
         `Last run of any kind: ${lastRun}.`,
         beat?.failedSteps ? `Steps that failed on that run: ${beat.failedSteps}.` : null,
         "",
@@ -283,7 +300,7 @@ export async function jobHealth(now = new Date()): Promise<{
         lastRunAt: row.lastRunAt,
         lastSuccessAt: row.lastSuccessAt,
         failedSteps: row.failedSteps,
-        overdue: now.getTime() - since.getTime() > hours * OVERDUE_FACTOR * 3_600_000,
+        overdue: now.getTime() - since.getTime() > lateAfterMs(hours),
       };
     }),
   };

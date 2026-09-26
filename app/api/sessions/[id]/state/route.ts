@@ -155,6 +155,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         elapsedSeconds: clock.elapsedSeconds,
         remainingSeconds: clock.remainingSeconds,
         endReason: clock.endReason,
+        /*
+         * 🔴 0183: when the fifty minutes started, which is when the patient's
+         * page confirmed they were there too. Null while the room waits for them.
+         */
+        startedAt: clock.clockStartedAt,
       },
     });
   } catch (error) {

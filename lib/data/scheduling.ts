@@ -1146,7 +1146,13 @@ export async function sameDayNeedingReminder() {
     .where(
       and(
         eq(availabilitySlots.status, "booked"),
-        gt(availabilitySlots.startsAt, new Date(now.getTime() + 30 * 60_000)),
+        /*
+         * 🔴 0183: not inside the last ninety minutes. The minute tick sends the
+         * 60, 30, 15 and 5 minute messages for those (`lib/data/session-reminders.ts`),
+         * and an hourly "your session is soon" landing beside them would be two
+         * messages saying one thing.
+         */
+        gt(availabilitySlots.startsAt, new Date(now.getTime() + 90 * 60_000)),
         lt(availabilitySlots.startsAt, soon),
         isNull(availabilitySlots.remindedAt),
       ),
