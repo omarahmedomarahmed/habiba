@@ -159,7 +159,8 @@ export function VerificationReview(props: {
         </p>
       ) : props.rejectionCount >= props.finalAt - 1 && !props.decided ? (
         <p className="border-t border-amber-100 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
-          Turned down once. Rejecting again deletes their documents and they start over.
+          Turned down {props.rejectionCount === 1 ? "once" : `${props.rejectionCount} times`}. Rejecting again
+          deletes their documents and they start over.
         </p>
       ) : props.rejectionCount > 0 ? (
         <p className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-xs text-slate-600">

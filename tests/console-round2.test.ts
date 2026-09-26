@@ -102,6 +102,16 @@ test("475: the sheet's header follows the rung, and the bar opens a sheet alread
   assert.match(popup, /addEventListener\(PAY_OPEN_EVENT/);
 });
 
+test("564: a card says documents were not kept only while none are there", () => {
+  const page = readFileSync("app/(admin)/admin/verifications/page.tsx", "utf8");
+  assert.match(
+    page,
+    /documentsCleared=\{\s*row\.documentsClearedAt !== null && !IDENTITY_KINDS\.some\(\(kind\) => URL_OF\[kind\]\(row\) !== null\)/,
+  );
+  const card = readFileSync("components/admin/verification-review.tsx", "utf8");
+  assert.doesNotMatch(card, />\s*Turned down once\. Rejecting again/, "the count is the real one");
+});
+
 test("490: a rejected top-up shows on the page, with what was sent, before anything is pressed", () => {
   const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
   const closed = popup.slice(popup.indexOf("if (!open) {"));
