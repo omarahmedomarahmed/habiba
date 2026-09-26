@@ -154,6 +154,13 @@ test("board 301: the join page promises a card gateway only when the pay page of
   assert.match(readSource("components/join/join-flow.tsx"), /cardsLive \? "join\.privateNotePaid" : "join\.privateNoteTransfer"/);
 });
 
+test("board 280 / 373: the slow pages ask their independent questions side by side", () => {
+  const onboarding = readSource("app/(app)/onboarding/page.tsx");
+  assert.doesNotMatch(onboarding, /await requirementOverrides\(\)/);
+  assert.doesNotMatch(onboarding, /await licenceChangeView\(actor\)/);
+  assert.match(readSource("lib/billing/session-owed.ts"), /Promise\.all\(\[owedBeforeWallet\(sessionId\), walletCentsOn\(sessionId\)\]\)/);
+});
+
 test("board 334: a session held in our own room names its source", () => {
   assert.match(readSource("app/(app)/sessions/[id]/page.tsx"), /impliedKind=/);
 });
