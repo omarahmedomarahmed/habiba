@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { listPatients } from "@/lib/data/patients";
 import { fullName, initials, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { countKey } from "@/lib/i18n/count-form";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -79,9 +80,9 @@ export default async function PatientsPage() {
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-navy-400">
                       <span className="inline-flex items-center rounded-full bg-navy-50 px-2 py-0.5 font-semibold text-navy-600 tabular-nums">
-                        {patient.sessionCount} session{patient.sessionCount === 1 ? "" : "s"}
+                        {t(countKey("tses.count", patient.sessionCount), { count: patient.sessionCount })}
                       </span>
-                      {patient.lastSessionAt ? <span>{`last ${relativeDay(patient.lastSessionAt, actor.timezone, locale, t)}`}</span> : null}
+                      {patient.lastSessionAt ? <span>{t("tses.last", { when: relativeDay(patient.lastSessionAt, actor.timezone, locale, t) })}</span> : null}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-navy-300 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" aria-hidden />

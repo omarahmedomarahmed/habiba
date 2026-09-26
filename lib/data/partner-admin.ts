@@ -6,6 +6,7 @@ import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { controlDb } from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import {
   organizations,
   partnerApiKeys,
@@ -482,10 +483,24 @@ export async function detachPracticeFromPartner(input: {
   return { ok: true };
 }
 
-/** The practices a partner is billed for, for the console row. Names only. */
-export async function practicesFor(partnerId: string): Promise<PartnerPractice[]> {
+/**
+ * The practices a partner is billed for, for the console row.
+ *
+ * 🔴 Board 934: named by the practice and its first clinician's address, which
+ * is what staff type to attach one, never the internal slug ("demo-8b5623a4").
+ */
+export type PartnerPracticeRow = { id: string; name: string; contactEmail: string | null };
+
+export async function practicesFor(partnerId: string): Promise<PartnerPracticeRow[]> {
   return controlDb
-    .select({ id: organizations.id, name: organizations.name, slug: organizations.slug })
+    .select({
+      id: organizations.id,
+      name: organizations.name,
+      contactEmail: sql<string | null>`(
+        SELECT u.email FROM users u
+         WHERE u.organization_id = ${qualified(organizations.id)} AND u.deleted_at IS NULL
+         ORDER BY u.created_at LIMIT 1)`,
+    })
     .from(organizations)
     .where(
       and(

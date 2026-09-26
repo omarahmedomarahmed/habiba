@@ -287,14 +287,24 @@ export default async function SponsorProfilePage({
                     {row.coverageBps / 100}% of <Money cents={row.grossCents} />
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-slate-900">
-                  <Money cents={row.sponsorShareCents} />
-                </p>
+                {/* 🔴 Board 811: a cancelled booking's share came back, and says so. */}
+                {row.returnedCents >= row.sponsorShareCents ? (
+                  <p className="shrink-0 text-end text-sm text-slate-500">
+                    <span className="line-through">
+                      <Money cents={row.sponsorShareCents} />
+                    </span>
+                    <span className="block text-xs">Returned to the pot</span>
+                  </p>
+                ) : (
+                  <p className="shrink-0 text-sm font-semibold text-slate-900">
+                    <Money cents={row.sponsorShareCents - row.returnedCents} />
+                  </p>
+                )}
               </div>
             ))}
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <p className="text-sm font-semibold text-slate-900">
-                {trace.rows.length} funded
+                {trace.rows.filter((r) => r.returnedCents < r.sponsorShareCents).length} funded
               </p>
               <p className="text-sm font-bold text-slate-900">
                 <Money cents={trace.spentCents} />

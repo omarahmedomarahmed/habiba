@@ -1,5 +1,6 @@
 "use client";
 
+import { splitGrants } from "@/lib/consent/grant-rows";
 import { useState, useTransition } from "react";
 import { Clock, ShieldOff, UserCheck } from "lucide-react";
 
@@ -49,6 +50,7 @@ export function ConsentList({
 }) {
   const locale = useLocale();
   const t = useT();
+  const { live, ended } = splitGrants(grants, Date.now());
 
   /*
    * 12.3, corrected — the only screen in the product where the server does not
@@ -81,7 +83,7 @@ export function ConsentList({
 
       <section>
         <h2 className="px-1 pb-2 text-sm font-semibold text-navy-700">{t("consent.whoHasAccess")}</h2>
-        {grants.length === 0 ? (
+        {live.length === 0 ? (
           <Card className="px-4 py-5">
             <p className="text-sm text-navy-400">
               {t("consent.nobodyCanRead")}
@@ -89,12 +91,24 @@ export function ConsentList({
           </Card>
         ) : (
           <ul className="space-y-3">
-            {grants.map((grant) => (
+            {live.map((grant) => (
               <GrantRow zone={zone} key={grant.id} grant={grant} />
             ))}
           </ul>
         )}
       </section>
+
+      {/* 🔴 Board 749: ended access, once per clinician, under its own heading. */}
+      {ended.length > 0 ? (
+        <section>
+          <h2 className="px-1 pb-2 text-sm font-semibold text-navy-700">{t("consent.endedTitle")}</h2>
+          <ul className="space-y-3">
+            {ended.map((grant) => (
+              <GrantRow zone={zone} key={grant.id} grant={grant} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

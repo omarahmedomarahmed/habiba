@@ -66,6 +66,13 @@ export type PotTraceRow = {
   therapistName: string;
   /** What the employer's pot paid, in USD cents. */
   sponsorShareCents: number;
+  /**
+   * 🔴 Board 811: what came back to the pot for this session, in USD cents. A
+   * cancelled booking's share is returned by `refundToPot` under the spend's
+   * own transaction, and the list kept it as funded: "2 funded $2.40, agrees
+   * with the ledger" over a pot that had only lost $1.20.
+   */
+  returnedCents: number;
   /** What the patient owed after it, in USD cents. */
   patientShareCents: number;
   /** The whole session price, in USD cents. */
@@ -90,6 +97,15 @@ export async function potTrace(
       grossCents: sessionPayments.grossCents,
       coverageBps: sessionPayments.coverageBps,
       at: sessionPayments.createdAt,
+      /* The reversal legs `refundToPot` writes under the spend's own transaction. */
+      returnedCents: sql<number>`COALESCE((
+        SELECT -SUM(back.amount_cents) FROM ledger_entries back
+         WHERE back.account = 'sponsor_pot' AND back.ref_type = 'sponsor'
+           AND back.ref_id = ${sponsorId}::uuid AND back.amount_cents < 0
+           AND back.txn_id IN (
+             SELECT leg.txn_id FROM ledger_entries leg
+              WHERE leg.ref_type = 'session_payment' AND leg.ref_id = ${qualified(sessionPayments.id)})
+      ), 0)::int`,
     })
     .from(sessionPayments)
     .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
@@ -168,12 +184,17 @@ export async function potTrace(
       patientHref: null,
       therapistName: [r.therapistFirst, r.therapistLast].filter(Boolean).join(" ") || "A clinician",
       sponsorShareCents: r.sponsorShareCents ?? 0,
+      returnedCents: Math.min(Number(r.returnedCents ?? 0), r.sponsorShareCents ?? 0),
       patientShareCents: r.patientShareCents ?? 0,
       grossCents: r.grossCents,
       coverageBps: r.coverageBps ?? 0,
       at: r.at,
     })),
-    spentCents: covered.reduce((sum, r) => sum + (r.sponsorShareCents ?? 0), 0),
+    /* Net of what came back, which is what the pot actually lost. */
+    spentCents: covered.reduce(
+      (sum, r) => sum + (r.sponsorShareCents ?? 0) - Math.min(Number(r.returnedCents ?? 0), r.sponsorShareCents ?? 0),
+      0,
+    ),
   };
 }
 
@@ -190,12 +211,30 @@ export async function potSpendAgrees(
   sponsorId: string,
 ): Promise<{ fromSessions: number; fromLedger: number; agrees: boolean }> {
   const { potTotals } = await import("@/lib/billing/pot");
-  const [{ spentCents }, totals] = await Promise.all([
+  const [{ spentCents }, totals, returned] = await Promise.all([
     potTrace(sponsorId, 1000),
     potTotals(sponsorId).catch(() => null),
+    /*
+     * 🔴 Board 811: and the ledger's side net of reversals too. `potTotals`
+     * sums the spends only; a spend's reversal is a negative pot leg in a
+     * transaction that also holds that spend (never a top-up, never a return).
+     */
+    db
+      .execute<{ cents: number | null }>(sql`
+        SELECT COALESCE(-SUM(back.amount_cents), 0)::int AS cents FROM ledger_entries back
+         WHERE back.account = 'sponsor_pot' AND back.ref_type = 'sponsor'
+           AND back.ref_id = ${sponsorId}::uuid AND back.amount_cents < 0
+           AND back.txn_kind <> 'pot_return'
+           AND EXISTS (
+             SELECT 1 FROM ledger_entries spend
+              WHERE spend.txn_id = back.txn_id AND spend.account = 'sponsor_pot'
+                AND spend.ref_type = 'sponsor' AND spend.ref_id = ${sponsorId}::uuid
+                AND spend.amount_cents > 0)`)
+      .then((r) => Number(r.rows[0]?.cents ?? 0))
+      .catch(() => 0),
   ]);
 
-  const fromLedger = totals?.spentCents ?? spentCents;
+  const fromLedger = totals ? totals.spentCents - returned : spentCents;
   return { fromSessions: spentCents, fromLedger, agrees: spentCents === fromLedger };
 }
 

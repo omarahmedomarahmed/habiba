@@ -106,7 +106,12 @@ export default async function DevelopersPage() {
           body={t("devs.useCase3Body")}
           needsLink={t("devs.needsLink")}
           exampleLabel={t("devs.example")}
-          example={`GET /api/partner/v1/subjects/YOUR-REF/readers
+          example={`POST /api/partner/v1/subjects/YOUR-REF/link
+
+201 { "url": "https://.../patient/link/...", "linked": false }
+send it to the patient; they sign in and confirm
+
+GET /api/partner/v1/subjects/YOUR-REF/readers
 
 200 { "readers": [ { "clinicianId": "...", "grantedAt": "..." } ] }
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { AccessBanner } from "@/components/patient/access-banner";
 import { DiagnosisList } from "@/components/documents/diagnosis-list";
@@ -29,7 +29,7 @@ import { liveSessionForPatient } from "@/lib/data/sessions";
 import { personIdForPatient } from "@/lib/data/people";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { sessions, users } from "@/lib/db/schema";
+import { sessionNotes, sessions, users } from "@/lib/db/schema";
 import { formatDate, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -108,13 +108,22 @@ export default async function PatientDocumentsPage({
    * `NoteContent.patientSteps` already drafts these; nothing is ever promoted
    * automatically — see the note at the bottom of migration 0037.
    */
+  /*
+   * 🔴 Board 723: the latest session WITH A NOTE. A newer booking or invitation
+   * has none, and asking it hid the drafted steps or answered for the wrong
+   * session. And a step already open for this person reads as set.
+   */
   const [lastSession] = await db
     .select({ id: sessions.id })
     .from(sessions)
+    .innerJoin(
+      sessionNotes,
+      and(eq(sessionNotes.sessionId, sessions.id), eq(sessionNotes.isPrimary, true)),
+    )
     .where(eq(sessions.patientId, id))
     .orderBy(desc(sessions.createdAt))
     .limit(1);
-  const drafted = lastSession ? await draftedStepsFor(lastSession.id) : [];
+  const drafted = lastSession ? await draftedStepsFor(lastSession.id, personId) : [];
 
   /*
    * 56.4 / 56.5 — the instruments that may be sent, this patient's assessments

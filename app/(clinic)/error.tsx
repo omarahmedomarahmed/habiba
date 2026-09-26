@@ -7,6 +7,7 @@ import { buttonClass } from "@/components/clinician/kit";
 import { cn } from "@/lib/utils";
 
 import { useT } from "@/lib/i18n/client";
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
 
 /**
  * 🔴 T20: THE CLINIC PORTAL'S OWN BOUNDARY.
@@ -31,6 +32,8 @@ export default function ClinicError({
   const t = useT();
 
   useEffect(() => {
+    /* 🔴 Board 929 (B7): a script that did not arrive is fetched again, once, before this is shown. */
+    if (recoverFromChunkError(error)) return;
     if (error.digest) console.error("clinic route error", error.digest);
   }, [error]);
 

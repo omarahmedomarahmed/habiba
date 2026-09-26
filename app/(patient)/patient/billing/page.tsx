@@ -7,13 +7,15 @@ import { Money } from "@/components/ui/money";
 import { BeforeAfter } from "@/components/visual/primitives";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patientCredits, patients, sessionPayments, sessions, users } from "@/lib/db/schema";
+import { patientCredits, patients, sessionPayments, sessions, users, walletHolds } from "@/lib/db/schema";
 import { patientOwesTotal } from "@/lib/billing/manual-entry";
+import { employeeShareArrived } from "@/lib/billing/refunds";
+import { potRowForPatient } from "@/lib/billing/split-refund";
 import { sessionDoors } from "@/lib/data/patient-view";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -58,7 +60,7 @@ export default async function PatientBillingPage() {
   const { locale } = await getI18n();
   const tag = localeTag(locale);
 
-  const [paid, credits, walletBack] = await Promise.all([
+  const [paidRows, credits, walletBack, walletSpent] = await Promise.all([
     db
       .select({
         sessionId: sessions.id,
@@ -86,7 +88,13 @@ export default async function PatientBillingPage() {
          */
         fundingSource: sessionPayments.fundingSource,
         patientShare: sessionPayments.patientShareCents,
+        /* 🔴 Board 808: the split, so a part-covered session says who paid what. */
+        sponsorShare: sessionPayments.sponsorShareCents,
+        coverageBps: sessionPayments.coverageBps,
+        stripePaymentIntentId: sessionPayments.stripePaymentIntentId,
         status: sessionPayments.status,
+        /* 🔴 Board 793: which session, so each line can be matched to one. */
+        sessionAt: sessions.scheduledAt,
         therapistFirst: users.firstName,
         therapistLast: users.lastName,
       })
@@ -131,11 +139,64 @@ export default async function PatientBillingPage() {
      * wallet rather than to the bank, so the row says where it went.
      */
     db
-      .select({ sessionId: patientCredits.fromSessionId })
+      .select({
+        sessionId: patientCredits.fromSessionId,
+        amount: patientCredits.amountCents,
+        currency: patientCredits.currency,
+        at: patientCredits.createdAt,
+        sessionAt: sessions.scheduledAt,
+        therapistFirst: users.firstName,
+        therapistLast: users.lastName,
+      })
       .from(patientCredits)
+      .leftJoin(sessions, eq(sessions.id, patientCredits.fromSessionId))
+      .leftJoin(users, eq(users.id, sessions.therapistId))
       .where(and(eq(patientCredits.personId, actor.personId), isNotNull(patientCredits.fromSessionId))),
+
+    /* 🔴 Board 793: the sessions their wallet paid for, so those lines say so. */
+    db
+      .select({ sessionId: walletHolds.sessionId })
+      .from(walletHolds)
+      .where(and(eq(walletHolds.personId, actor.personId), eq(walletHolds.state, "spent"))),
   ]);
   const backInWallet = new Set(walletBack.map((row) => row.sessionId));
+  const paidFromWallet = new Set(walletSpent.map((row) => row.sessionId));
+
+  /*
+   * 🔴 Board 807/808: a company's row is written `paid` at booking, before the
+   * employee has paid their share. Until their share arrives it is not a
+   * payment of theirs: the session is under "Still open", or, cancelled, was
+   * never owed. A line here (and a receipt) only once it came.
+   */
+  const paid = (
+    await Promise.all(
+      paidRows.map(async (row) => {
+        if (row.fundingSource !== "pot") return { ...row, kind: "own" as const };
+        const split = {
+          grossCents: row.gross ?? 0,
+          coverageBps: row.coverageBps ?? 0,
+          sponsorShareCents: row.sponsorShare ?? 0,
+          patientShareCents: row.patientShare ?? 0,
+        };
+        const shareArrived =
+          backInWallet.has(row.sessionId) ||
+          (await employeeShareArrived({
+            id: row.paymentId,
+            sessionId: row.sessionId,
+            stripePaymentIntentId: row.stripePaymentIntentId,
+          }));
+        return { ...row, kind: potRowForPatient({ ...split, shareArrived }) };
+      }),
+    )
+  ).filter((row) => row.kind !== "share_unpaid");
+
+  /*
+   * 🔴 Board 793: a transfer that arrived for a booking already cancelled goes
+   * straight to the wallet (ruling 18) and never becomes a session payment, so
+   * it had no line here and the credit above traced to nothing.
+   */
+  const paidSessions = new Set(paid.map((row) => row.sessionId));
+  const walletOnly = walletBack.filter((row) => row.sessionId && !paidSessions.has(row.sessionId));
 
   const creditCents = credits.reduce((sum, c) => sum + (c.amount - c.spent), 0);
 
@@ -202,7 +263,7 @@ export default async function PatientBillingPage() {
         </section>
       ) : null}
 
-      {paid.length === 0 && open.length === 0 ? (
+      {paid.length === 0 && open.length === 0 && walletOnly.length === 0 ? (
         <Card className="p-5">
           <p className="text-sm font-semibold text-navy-700">{t("pbilling.none")}</p>
           <p className="mt-1 text-sm leading-relaxed text-navy-400">
@@ -217,9 +278,14 @@ export default async function PatientBillingPage() {
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-[15px] font-bold text-navy-700">
                     {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
-                    {row.status === "refunded" ? (
+                    {/* 🔴 Board 793: every line that is not a plain payment says what it is. */}
+                    {row.status === "refunded" || backInWallet.has(row.sessionId) || paidFromWallet.has(row.sessionId) ? (
                       <span className="ms-2 rounded-full bg-navy-50 px-2 py-0.5 text-xs font-medium text-navy-400">
-                        {backInWallet.has(row.sessionId) ? t("pbilling.toWallet") : t("pbilling.refunded")}
+                        {backInWallet.has(row.sessionId)
+                          ? t("pbilling.toWallet")
+                          : row.status === "refunded"
+                            ? t("pbilling.refunded")
+                            : t("pbilling.fromWallet")}
                       </span>
                     ) : null}
                   </p>
@@ -229,9 +295,9 @@ export default async function PatientBillingPage() {
                       half-covered session showed "Covered" while the patient
                       owed, and after they paid, their half never appeared.
                     */}
-                    {row.fundingSource === "pot" && (row.patientShare ?? 0) > 0
+                    {row.kind === "share_paid"
                       ? <Money cents={(row.patientShare ?? 0) + (row.vat ?? 0)} currency={row.currency ?? "usd"} />
-                      : row.fundingSource === "pot"
+                      : row.kind === "covered"
                       ? t("pbilling.covered")
                       : row.presented !== null && row.presentedCurrency
                         ? <Money cents={row.presented} currency={row.presentedCurrency} />
@@ -239,7 +305,11 @@ export default async function PatientBillingPage() {
                   </p>
                 </div>
                 <p className="mt-0.5 text-xs text-navy-400">
-                  {formatDate(row.at, actor.timezone, locale)}
+                  {/* 🔴 Board 793: the session it paid for, then when it was paid. */}
+                  {row.sessionAt
+                    ? `${t("pbilling.sessionAt", { date: formatDateTime(row.sessionAt, actor.timezone, locale) })} · `
+                    : ""}
+                  {t("pbilling.paidOn", { date: formatDate(row.at, actor.timezone, locale) })}
                   {/* 🔴 P3: in the reader's language, like every other line on this page. */}
                   {row.presented !== null && row.rateMicro
                     ? ` · ${t("pbill.chargedAt", {
@@ -257,11 +327,32 @@ export default async function PatientBillingPage() {
                   PATIENT paid and how it was divided; a person who paid nothing has
                   no split to be shown, and printing one under the word "covered" is
                   the kind of thing somebody reads as a bill they owe.
+
+                  🔴 Board 808: a part-covered session they paid their share of
+                  shows the split: the session, what their benefit paid, what
+                  they paid. It used to read "You owe nothing" under EGP 540.
                 */}
-                {row.fundingSource === "pot" ? (
+                {row.kind === "covered" ? (
                   <p className="mt-3 rounded-2xl bg-navy-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-navy-500">
                     {t("pbilling.coveredBody")}
                   </p>
+                ) : row.kind === "share_paid" ? (
+                  <dl className="mt-3 space-y-1.5 rounded-2xl bg-navy-50 px-3.5 py-2.5 text-[13px]">
+                    <Row label={t("preceipt.sessionPrice")}>
+                      <Money cents={row.gross ?? 0} currency={row.currency ?? "usd"} />
+                    </Row>
+                    <Row label={t("preceipt.covered")}>
+                      <>-<Money cents={row.sponsorShare ?? 0} currency={row.currency ?? "usd"} /></>
+                    </Row>
+                    {(row.vat ?? 0) > 0 ? (
+                      <Row label={t("pbill.vat")}>
+                        <Money cents={row.vat ?? 0} currency={row.currency ?? "usd"} />
+                      </Row>
+                    ) : null}
+                    <Row label={t("preceipt.total")}>
+                      <Money cents={(row.patientShare ?? 0) + (row.vat ?? 0)} currency={row.currency ?? "usd"} />
+                    </Row>
+                  </dl>
                 ) : (
                 <dl className="mt-3 space-y-1.5 rounded-2xl bg-navy-50 px-3.5 py-2.5 text-[13px]">
                   <Row label={t("pbill.therapistFee")}>
@@ -277,7 +368,7 @@ export default async function PatientBillingPage() {
                 )}
 
                 {/* 🔴 Task 40: a receipt for what THEY paid; a session covered in full has none. */}
-                {row.fundingSource !== "pot" || (row.patientShare ?? 0) > 0 ? (
+                {row.kind !== "covered" ? (
                   <Link
                     href={`/patient/billing/receipt/${row.paymentId}`}
                     className="mt-3 inline-flex text-[14px] font-semibold text-brand-700 hover:underline"
@@ -285,6 +376,33 @@ export default async function PatientBillingPage() {
                     {t("preceipt.open")}
                   </Link>
                 ) : null}
+              </Card>
+            </li>
+          ))}
+          {/* 🔴 Board 793: a transfer for a booking already cancelled, now in their wallet. */}
+          {walletOnly.map((row, index) => (
+            <li key={`wallet-${row.sessionId ?? index}`}>
+              <Card className="p-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-[15px] font-bold text-navy-700">
+                    {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
+                    <span className="ms-2 rounded-full bg-navy-50 px-2 py-0.5 text-xs font-medium text-navy-400">
+                      {t("pbilling.toWallet")}
+                    </span>
+                  </p>
+                  <p className="text-[17px] font-bold tabular-nums text-navy-700">
+                    <Money cents={row.amount} currency={row.currency ?? "usd"} />
+                  </p>
+                </div>
+                <p className="mt-0.5 text-xs text-navy-400">
+                  {row.sessionAt
+                    ? `${t("pbilling.sessionAt", { date: formatDateTime(row.sessionAt, actor.timezone, locale) })} · `
+                    : ""}
+                  {formatDate(row.at, actor.timezone, locale)}
+                </p>
+                <p className="mt-3 rounded-2xl bg-navy-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-navy-500">
+                  {t("pchange.refundWallet")}
+                </p>
               </Card>
             </li>
           ))}

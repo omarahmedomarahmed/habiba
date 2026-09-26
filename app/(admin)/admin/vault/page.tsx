@@ -5,6 +5,7 @@ import { LedgerAdjust } from "@/components/admin/ledger-adjust";
 import { PendingApprovals } from "@/components/admin/pending-approvals";
 import { approvalViews } from "@/lib/billing/approvals";
 import { VaultInvoiceRow } from "@/components/admin/vault-invoice-row";
+import { seatBillText } from "@/lib/billing/seat-label";
 import { VaultPaymentRow } from "@/components/admin/vault-payment-row";
 import { Badge, Card } from "@/components/ui";
 import { requireRole } from "@/lib/auth/guard";
@@ -524,7 +525,8 @@ export default async function VaultPage() {
               id={invoice.id}
               organizationId={invoice.organizationId}
               organizationName={invoice.organizationName ?? "-"}
-              description={invoice.description}
+              /* 🔴 Board 962: "1 seat, up from 0", never the stored "1 seats from 0". */
+              description={seatBillText(invoice.description, t)}
               kind={invoice.kind}
               amountCents={invoice.amountCents}
               discountCents={invoice.discountCents}

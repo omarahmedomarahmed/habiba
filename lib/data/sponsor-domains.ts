@@ -7,9 +7,11 @@ import { and, eq, sql } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { sponsorDomains } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { log, safeErrorMessage } from "@/lib/logger";
 
 import { isAdminMailbox, type AdminMailbox } from "@/lib/sponsor/domain-mailboxes";
+import { translator, type Translate } from "@/lib/i18n/server";
 
 /**
  * Proving a company is a company. PLAN.md 61.1 to 61.6, C318, C319, C348, C349.
@@ -56,21 +58,29 @@ export function domainProved(row: {
  * than for us: "prove the domain" is not actionable, "publish this record and
  * click the link we sent" is.
  */
-export function domainProblem(row: {
-  domain: string;
-  mailboxProvedAt: Date | null;
-  dnsProvedAt: Date | null;
-  agreementApprovedAt: Date | null;
-}): string | null {
+export function domainProblem(
+  row: {
+    domain: string;
+    mailboxProvedAt: Date | null;
+    dnsProvedAt: Date | null;
+    agreementApprovedAt: Date | null;
+  },
+  /*
+   * 🔴 Board 711: the reader's own language. These were English template
+   * literals, so an Arabic company read an English sentence under an Arabic
+   * heading. English when no translator is passed (the verifiers).
+   */
+  t?: Translate,
+): string | null {
   if (domainProved(row)) return null;
 
-  if (!row.mailboxProvedAt && !row.dnsProvedAt) {
-    return `${row.domain} is not proved yet. We need two things: somebody at that domain clicks the code we email, and your IT team publishes the record below.`;
-  }
-  if (!row.mailboxProvedAt) {
-    return `${row.domain}: the DNS record is published. We still need somebody at that domain to click the code we emailed, which proves a person there asked for this.`;
-  }
-  return `${row.domain}: somebody at that domain answered our code. We still need the DNS record published, which proves whoever runs the domain agreed to it.`;
+  const key: MessageKey =
+    !row.mailboxProvedAt && !row.dnsProvedAt
+      ? "sponsor.domains.notProved"
+      : !row.mailboxProvedAt
+        ? "sponsor.domains.needMailbox"
+        : "sponsor.domains.needDns";
+  return (t ?? translator("en"))(key, { domain: row.domain });
 }
 
 /**
@@ -300,7 +310,8 @@ export async function markDnsProved(domainId: string): Promise<{ ok: boolean }> 
  * it was always going to come from: a joining code on a poster, an intranet
  * page, an HR email. Nothing is lost by refusing here except the oracle.
  */
-export async function employerLookup(domain: string): Promise<{ message: string }> {
+/* 🔴 Board 674/731: a dictionary key, so the one answer is said in the reader's language. */
+export async function employerLookup(domain: string): Promise<{ message: MessageKey }> {
   const wanted = domain.trim().toLowerCase();
 
   /*
@@ -314,8 +325,5 @@ export async function employerLookup(domain: string): Promise<{ message: string 
     .where(sql`lower(${sponsorDomains.domain}) = ${wanted}`)
     .limit(1);
 
-  return {
-    message:
-      "If your employer or university offers this, they will have given you a joining code: on a poster, an intranet page, or an email from HR. Ask them for it. You can use 24Therapy either way, and nothing about your account depends on having one.",
-  };
+  return { message: "benefit.askAnswer" };
 }

@@ -1,3 +1,6 @@
+import { countKey } from "@/lib/i18n/count-form";
+import type { MessageKey } from "@/lib/i18n/messages";
+
 /**
  * 🔴 Board 268: a seat bill's line, read back into its parts so the screen can
  * say it in the reader's language and with the right form of each count.
@@ -26,4 +29,31 @@ export function parseSeatBill(description: string): SeatBillLabel | null {
   const plan = /^(.+), (\d+) seats, monthly$/.exec(description);
   if (plan) return { kind: "planMonth", plan: plan[1]!, seats: Number(plan[2]) };
   return null;
+}
+
+/**
+ * 🔴 Board 706 / 962: THE SAME LINE, SAID THE SAME WAY EVERYWHERE IT IS READ.
+ *
+ * Only the Seats list on /clinic/bills used the parse above. The "What this
+ * transfer covers" checklist over Pay now (the payment's stored lines) and the
+ * console's vault invoice list still printed "1 seats from 0, for the 5 days
+ * left of this month", and in English on the Arabic page. One function, given
+ * the reader's translator; anything it does not recognise is shown as stored.
+ */
+export function seatBillText(
+  description: string,
+  t: (key: MessageKey, values?: Record<string, string | number>) => string,
+): string {
+  const parsed = parseSeatBill(description);
+  if (!parsed) return description;
+  const seats = (n: number) => t(countKey("clinic.seatBill.seats", n), { count: n });
+  if (parsed.kind === "change") {
+    return t("clinic.seatBill.change", {
+      seats: seats(parsed.toSeats),
+      from: parsed.fromSeats,
+      days: t(countKey("clinic.seatBill.days", parsed.days), { count: parsed.days }),
+    });
+  }
+  if (parsed.kind === "month") return t("clinic.seatBill.month", { seats: seats(parsed.seats) });
+  return t("clinic.seatBill.planMonth", { plan: parsed.plan, seats: seats(parsed.seats) });
 }

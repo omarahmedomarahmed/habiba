@@ -27,7 +27,8 @@ import { saveVoicePreference } from "@/app/(app)/settings/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/clinician/kit";
 import { SessionRecorder } from "@/lib/audio/recorder";
 import type { Citation } from "@/lib/db/schema";
-import { cn, formatDate, formatDuration } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatDuration } from "@/lib/utils";
+import { withoutSessionRefs } from "@/lib/documents/chunk";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -578,6 +579,23 @@ function MessageBubble({
   const t = useT();
   const [openCitation, setOpenCitation] = useState<number | null>(null);
 
+  /*
+   * 🔴 Board 718: which session and which moment. The chip read only the day,
+   * so two sessions on one day read "26 Sept 2026 · 0:16" twice. It names the
+   * session by its day and hour, then the moment in it.
+   * Only the parts a citation has: a stored citation without a date or an
+   * offset printed "- · NaN:NaN" on the chart (live walkthrough).
+   */
+  const citationChip = (citation: Citation): string => {
+    const when =
+      citation.sessionDate && !Number.isNaN(Date.parse(citation.sessionDate))
+        ? formatDateTime(citation.sessionDate, zone, locale)
+        : null;
+    const at = Number.isFinite(citation.atSeconds) ? formatDuration(citation.atSeconds) : null;
+    if (when && at) return t("tcop.chip", { when, at });
+    return when ?? at ?? t("tcop.fromSession");
+  };
+
   if (message.role === "therapist") {
     return (
       <div className="flex justify-end">
@@ -615,7 +633,8 @@ function MessageBubble({
   return (
     <Card className="px-4 py-3.5">
       <p className="text-[15px] leading-relaxed whitespace-pre-line text-navy-700">
-        {message.content}
+        {/* 🔴 Board 718: an answer stored before the codes came out loses them here too. */}
+        {withoutSessionRefs(message.content)}
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -633,18 +652,7 @@ function MessageBubble({
             )}
           >
             <Info className="h-3 w-3" aria-hidden />
-            {/*
-              Only the parts a citation has. A stored citation without a date or
-              an offset printed "- · NaN:NaN" on the chart (live walkthrough).
-            */}
-            {[
-              citation.sessionDate && !Number.isNaN(Date.parse(citation.sessionDate))
-                ? formatDate(citation.sessionDate, zone, locale)
-                : null,
-              Number.isFinite(citation.atSeconds) ? formatDuration(citation.atSeconds) : null,
-            ]
-              .filter(Boolean)
-              .join(" · ") || t("tcop.fromSession")}
+            {citationChip(citation)}
           </button>
         ))}
 
@@ -677,7 +685,7 @@ function MessageBubble({
                   : message.citations[openCitation]!.speaker === "therapist"
                     ? t("tcop.youSaid")
                     : t("tcop.someoneSaid"),
-              date: formatDate(message.citations[openCitation]!.sessionDate, zone, locale),
+              date: formatDateTime(message.citations[openCitation]!.sessionDate, zone, locale),
               time: formatDuration(message.citations[openCitation]!.atSeconds),
             })}
           </p>

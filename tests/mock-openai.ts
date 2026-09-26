@@ -9,7 +9,8 @@ import { createServer, type Server } from "node:http";
  * and it records what the app actually sent so the test can assert on it.
  */
 export type MockState = {
-  transcriptionRequests: { bytes: number; contentType: string }[];
+  /** Board 824 / 868: `fields` is every text part of the form, so a test sees the language asked. */
+  transcriptionRequests: { bytes: number; contentType: string; fields: Record<string, string[]> }[];
   chatRequests: { model: string; body: string }[];
 };
 
@@ -46,6 +47,7 @@ export function startMockOpenAi(port: number): { server: Server; state: MockStat
         state.transcriptionRequests.push({
           bytes: body.length,
           contentType: req.headers["content-type"] ?? "",
+          fields: formFields(body),
         });
         res.writeHead(200, { "content-type": "application/json" });
         res.end(
@@ -164,3 +166,13 @@ export function startMockOpenAi(port: number): { server: Server; state: MockStat
 }
 
 export { NOTE as MOCK_NOTE };
+
+/** The text parts of a multipart body, by name. The file part is left out. */
+function formFields(body: Buffer): Record<string, string[]> {
+  const fields: Record<string, string[]> = {};
+  const text = body.toString("utf8");
+  for (const match of text.matchAll(/Content-Disposition: form-data; name="([^"]+)"\r\n\r\n([^\r]*)\r\n/gi)) {
+    (fields[match[1]!] ??= []).push(match[2]!);
+  }
+  return fields;
+}

@@ -7,6 +7,7 @@ import { PatientEditor } from "@/components/patient/patient-editor";
 import { AccessBanner } from "@/components/patient/access-banner";
 import { AddToHistory } from "@/components/patient/add-to-history";
 import { InviteToSession } from "@/components/patient/invite-to-session";
+import { invitePromiseKey, inviteReach } from "@/lib/data/session-invite";
 import { RecordAccess } from "@/components/patient/record-access";
 import { CopilotChat } from "@/components/copilot/chat";
 import { lockedOn } from "@/lib/data/challenge";
@@ -249,8 +250,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         {/* ============================================================= */}
         <InviteToSession
           patientId={patient.id}
-          hasPhone={Boolean(patient.phone)}
-          hasEmail={Boolean(patient.email)}
+          promiseKey={invitePromiseKey(await inviteReach(patient))}
         />
 
         <PatientEditor

@@ -283,6 +283,26 @@ async function main() {
     const r5b = await patientCancel({ personId: nada.personId, accountId: null, sessionId: covered.sessionId });
     check("🔴 …and a second press returns nothing twice", !r5b.ok && (await balance()) === before);
 
+    /* 🔴 Board 796/807: a company covering 10%, the employee's share never paid. */
+    await db.execute(sql`UPDATE sponsor_pots SET coverage_bps = 1000 WHERE sponsor_id = ${sponsor.id}`);
+    const partial = await book(nada, 60);
+    const partialPay = await one<{ id: string; patient_share_cents: number } | undefined>(sql`
+      SELECT id, patient_share_cents FROM session_payments WHERE session_id = ${partial.sessionId}`);
+    const partialReceipt = partialPay ? await (await import("../lib/data/receipts")).receiptFor(nada.personId, partialPay.id) : "no row";
+    check(
+      "🔴 a 10%-covered booking whose share is unpaid offers no receipt: nothing of theirs was paid",
+      Boolean(partialPay) && partialPay!.patient_share_cents > 0 && partialReceipt === null,
+      JSON.stringify({ partialPay, partialReceipt }),
+    );
+    const r6 = await patientCancel({ personId: nada.personId, accountId: null, sessionId: partial.sessionId });
+    const { cancelledView } = await import("../lib/data/booking-change");
+    const partialView = await cancelledView(nada.personId, partial.sessionId);
+    check(
+      "🔴 …and cancelling it never says their money is on its way back, then or on a reload",
+      r6.ok && r6.refund === "none" && partialView?.money === "none" && (await balance()) === before,
+      JSON.stringify({ r6, money: partialView?.money }),
+    );
+
     /* --------------------------------------------------------- receipts -- */
     const { receiptFor } = await import("../lib/data/receipts");
     const own = await receiptFor(mona.personId, movingPay);

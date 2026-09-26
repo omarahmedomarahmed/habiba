@@ -323,7 +323,7 @@ function TicketCard({ row }: { row: TicketRow }) {
         {/* 🔴 W2-A02: a reply that does not close, behind the same link and code. */}
         <form action={replyAction} className="mt-3 space-y-2 border-t border-slate-100 pt-3">
           <input type="hidden" name="ticketId" value={row.id} />
-          <Textarea name="reply" rows={2} placeholder={t("asupport.replyHint")} required minLength={10} />
+          <Textarea name="reply" rows={2} placeholder={t("asupport.answerHint")} required minLength={10} />
           <Go label={t("asupport.reply")} quiet />
         </form>
 

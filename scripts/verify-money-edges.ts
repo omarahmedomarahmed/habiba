@@ -547,6 +547,31 @@ async function main() {
       `this pot ${String(onBoard)}, the other company ${String(otherOnBoard)}, trace ${ids.length}`,
     );
 
+    /*
+     * 🔴 Board 811: a cancelled booking's share goes back to the pot, and the
+     * trace stops calling it funded. It kept listing it, and the footer agreed
+     * with a ledger that only counted spends, so "$2.40 agrees" sat over a pot
+     * that had lost $1.20.
+     */
+    {
+      const paid = await one<{ id: string }>(sql`
+        SELECT id FROM session_payments WHERE session_id = ${half.sessionId} LIMIT 1`);
+      const { refundToPot } = await import("../lib/billing/pot");
+      const before = await potTrace(sponsor.id);
+      const back = await refundToPot({ paymentId: paid.id, reason: "verify: booking cancelled" });
+      const after = await potTrace(sponsor.id);
+      const row = after.rows.find((r) => r.sessionId === half.sessionId);
+      const agreesAfter = await potSpendAgrees(sponsor.id);
+      check(
+        "🔴 Board 811 a share returned to the pot is shown as returned, and the trace nets it out and still agrees",
+        (back.returnedCents ?? 0) > 0 &&
+          row?.returnedCents === back.returnedCents &&
+          after.spentCents === before.spentCents - (back.returnedCents ?? 0) &&
+          agreesAfter.agrees,
+        `returned ${back.returnedCents}, trace ${before.spentCents} to ${after.spentCents}, sessions ${agreesAfter.fromSessions} against ledger ${agreesAfter.fromLedger}`,
+      );
+    }
+
     /* ================================================================ */
     /*  12 · "I opened it and then decided not to pay"                   */
     /* ================================================================ */
@@ -687,7 +712,8 @@ async function main() {
     check(
       "🔴 B20 the top-up stepper opens no cart until a step is taken; the tap on Pay now does",
       /if \(!onChoose \|\| !chosen \|\| !moved\) return;/.test(stepper) &&
-        /onOpen=\{ladder\?\.steps\[0\] \? openPotPayment\.bind\(null, ladder\.steps\[0\]\.creditCents\)/.test(potPage) &&
+        /* Board 828: at the rung already committed, which is the floor when nothing is. */
+        /onOpen=\{startStep \? openPotPayment\.bind\(null, startStep\.creditCents\)/.test(potPage) &&
         /onCancel=\{cancelPotPayment\}/.test(potPage),
       "stepper guard, onOpen and onCancel on the pot sheet",
     );

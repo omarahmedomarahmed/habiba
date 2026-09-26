@@ -53,10 +53,16 @@ LANGUAGE
 - Report the language you wrote in as a two-letter ISO 639-1 code in "language".
 - If the session mixes languages, use the one the patient mostly spoke in, the record should read naturally to the clinician who was in the room.
 
+GRAMMATICAL GENDER
+- Languages such as Arabic mark the patient's gender in almost every sentence ("المريضة تشعر" or "المريض يشعر"). Never default to the masculine.
+- Use the patient's gender or pronouns when the context gives them. When it does not, take them from the transcript: how the patient speaks of themself (in Arabic, feminine forms such as "أنا تعبانة" or "عارفة") and how the therapist addresses them ("عليكي", "إنتِ" for a woman).
+- Keep that one gender in every field, the clinical record and the patient's copy alike.
+- When neither the context nor the transcript shows it, write so that no gender is assumed: in Arabic, refer to them as "الحالة", which clinical Arabic uses for anyone, and build sentences around nouns and verbal nouns ("أفادت الحالة بشعور بالإرهاق", "وَصفُ الإرهاق") rather than "المريض" with a masculine verb or pronoun, and in the patient's copy address them without gendered endings where you can.
+
 THE PATIENT'S COPY
 Three fields, "patientBrief", "patientSteps", "patientNext", are the only part the patient ever reads, and they are written *to them*: second person, plain words, no clinical vocabulary, no diagnosis, no impressions, no risk language, no labels. Write them in the same language as the rest of the note. All three must be true to the session, and must be something the person could read alone at midnight without feeling described.
 - "patientBrief": two or three short paragraphs. What you talked about, and what you worked out together. Not a transcript and not a compliment. The point is that they recognise their own session in it.
-- "patientSteps": what to actually do before the next session. Two or three items, never more than four. Each one concrete enough to do on a Tuesday evening and small enough to finish: "write down the three times this week you noticed the tight feeling starting" rather than "practise mindfulness". Only include something that was actually agreed or suggested in the session. If nothing was, return an empty array rather than inventing homework.
+- "patientSteps": what to actually do before the next session. Two or three items, never more than four. Each one concrete enough to do on a Tuesday evening and small enough to finish: "write down the three times this week you noticed the tight feeling starting" rather than "practise mindfulness". Only include something that was actually agreed or suggested in the session. If nothing was, return an empty array rather than inventing homework. A step listed under "STEPS ALREADY SET AND STILL OPEN" is already on their list: never draft it again.
 - "patientNext": one sentence about what happens next, when to come back, and what to do in the meantime if things get harder. No risk language: "if it gets heavier before then, book sooner" and not "if you experience suicidal ideation".
 
 Respond with a single JSON object with exactly these keys:
@@ -73,6 +79,27 @@ Respond with a single JSON object with exactly these keys:
   "patientSteps": string[],
   "patientNext": string
 }`;
+
+/**
+ * 🔴 Board 869: the context line for a patient whose gender nobody recorded,
+ * which today is every patient. It points the writer at the GRAMMATICAL GENDER
+ * rule rather than leaving it to default to the masculine.
+ */
+export const PATIENT_GENDER_UNRECORDED =
+  "Patient's gender and pronouns: not recorded. Follow the GRAMMATICAL GENDER rules: take them from the transcript, and where it does not show them, assume none.";
+
+/** The heading over the steps the patient already has open. Board 722. */
+export const OPEN_STEPS_HEADING = "STEPS ALREADY SET AND STILL OPEN";
+
+/**
+ * 🔴 Board 722: the patient's open steps, for the context, so "patientSteps"
+ * does not draft one of them again. Null when there are none.
+ */
+export function openStepsContext(titles: readonly string[]): string | null {
+  const clean = [...new Set(titles.map((t) => t.trim()).filter(Boolean))];
+  if (clean.length === 0) return null;
+  return `${OPEN_STEPS_HEADING} (the patient already has these; never put one of them, or the same step in other words, in "patientSteps"):\n${clean.map((t) => `- ${t}`).join("\n")}`;
+}
 
 const SOAP_SCHEMA_LINE =
   '  "soap": { "subjective": string, "objective": string, "assessment": string, "plan": string },';

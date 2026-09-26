@@ -44,6 +44,24 @@ test("a seat bill's stored English is read back into its parts", () => {
   assert.equal(parseSeatBill("Completed session"), null);
 });
 
+test("board 706 / 962: a stored seat line reads right in both languages, wherever it is shown", async () => {
+  const { seatBillText } = await import("../lib/billing/seat-label");
+  const { translator } = await import("../lib/i18n/server");
+  const stored = "1 seats from 0, for the 5 days left of this month";
+  const english = seatBillText(stored, translator("en"));
+  const arabic = seatBillText(stored, translator("ar"));
+  assert.doesNotMatch(english, /1 seats/);
+  assert.match(english, /1 seat\b/);
+  assert.match(arabic, /[؀-ۿ]/);
+  assert.doesNotMatch(arabic, /seats|days left/);
+  assert.equal(seatBillText("Pot credit", translator("ar")), "Pot credit", "anything else is shown as stored");
+
+  /* And the three places that print one go through it. */
+  for (const file of ["app/(clinic)/clinic/bills/page.tsx", "lib/billing/manual-entry.ts", "app/(admin)/admin/vault/page.tsx"]) {
+    assert.match(readFileSync(file, "utf8"), /seatBillText\(/, file);
+  }
+});
+
 function sources(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {

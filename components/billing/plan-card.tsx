@@ -151,7 +151,7 @@ export function PlanCard({
     <Card className="p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-navy-700">{current.name}</p>
+          <p className="text-sm font-semibold text-navy-700">{tierName(current, t)}</p>
 
           {/*
             🔴 76.34 — THE PRICES MOVED TO THE CARDS AND ARE NOT SAID TWICE.

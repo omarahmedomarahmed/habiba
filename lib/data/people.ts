@@ -274,6 +274,21 @@ export async function personIdForPatient(patientId: string): Promise<string | nu
 }
 
 /**
+ * 🔴 Board 832: the person's own address and number, the ones they gave us
+ * themselves, for a message to them when the chart holds none.
+ */
+export async function personContact(
+  personId: string,
+): Promise<{ email: string | null; phone: string | null } | null> {
+  const [row] = await db
+    .select({ email: people.email, phone: people.phone })
+    .from(people)
+    .where(eq(people.id, personId))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
  * Ensure a patient has a person, creating one if it does not.
  *
  * Every patient created after the backfill needs this. It creates its **own**

@@ -282,7 +282,8 @@ export async function cancelPotPayment(): Promise<void> {
   const actor = await requireSponsorAdmin();
   const { cancelCart } = await import("@/lib/billing/cart");
   await cancelCart({ kind: "sponsor", sponsorId: actor.sponsorId });
-  revalidatePath("/sponsor/pot");
+  /* Board 895: the bar is in the layout, on every page of the portal. */
+  revalidatePath("/sponsor", "layout");
 }
 
 export type TaxState = { ok?: boolean; error?: string };

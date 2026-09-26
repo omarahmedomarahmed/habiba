@@ -9,7 +9,7 @@ import { TopUpForm } from "@/components/sponsor/top-up-form";
 import { companyTaxDetails } from "@/lib/billing/eta/company";
 import { documentsFor } from "@/lib/billing/eta/issue";
 import { potReturnsFor } from "@/lib/billing/pot-return";
-import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
+import { manualEntry, potStartRung, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { localeTag } from "@/lib/i18n/config";
 import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
 import { Card } from "@/components/clinician/kit";
@@ -133,6 +133,15 @@ export default async function SponsorPotPage() {
     : null;
 
   const fmt = (cents: number) => <Money cents={cents} />;
+
+  /*
+   * 🔴 Board 828: the sheet opens at the figure already committed, the open
+   * cart's or the turned-down claim's, and the cart it opens is at that figure
+   * too. It opened at the floor, and a rejected EGP 11,400 top-up was sent again
+   * as an EGP 5,700 claim against the same receipt.
+   */
+  const startIndex = ladder ? potStartRung(ladder.steps, rail.live) : 0;
+  const startStep = ladder?.steps[startIndex];
 
   /* W2-S08: the pot stops paying on its date; say so before, and after. */
   const expiry = expiryState(terms?.expiresAt ?? null);
@@ -265,7 +274,8 @@ export default async function SponsorPotPage() {
             on, and a step taken moves it. It used to open whenever the stepper
             mounted, including when a confirmation refreshed the open sheet.
           */
-          onOpen={ladder?.steps[0] ? openPotPayment.bind(null, ladder.steps[0].creditCents) : undefined}
+          onOpen={startStep ? openPotPayment.bind(null, startStep.creditCents) : undefined}
+          startIndex={startIndex}
           onCancel={cancelPotPayment}
         />
       ) : null}

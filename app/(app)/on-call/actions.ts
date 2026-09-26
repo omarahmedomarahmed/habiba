@@ -31,7 +31,7 @@ import { validateSelections } from "@/lib/data/taxonomy";
 const db = dbFor(pinnedToDefaultRegion("app/(app)/on-call/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export type RadarState = { error?: string; ok?: boolean };
+export type RadarState = { error?: string; ok?: boolean; savedAt?: number };
 
 export async function saveRadarSetup(
   _prev: RadarState,
@@ -74,8 +74,13 @@ export async function saveRadarSetup(
     country: country || null,
   });
 
-  revalidatePath("/on-call");
-  return { ok: true };
+  /*
+   * 🔴 Board 966: no `revalidatePath` here. It re-rendered the whole of
+   * /on-call inside this response, so "Saved" waited for every query on the
+   * page and the first save, on a cold page, looked like nothing happened.
+   * The console refreshes the page itself once this answer is on screen.
+   */
+  return { ok: true, savedAt: Date.now() };
 }
 
 export async function toggleRadar(online: boolean): Promise<RadarState> {

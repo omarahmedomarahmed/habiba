@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { Button } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
 
 /**
  * 🔴 C19: THE PARTNER PORTAL'S OWN ERROR BOUNDARY.
@@ -27,6 +28,8 @@ export default function PartnerError({
   const t = useT();
 
   useEffect(() => {
+    /* 🔴 Board 929 (B7): a script that did not arrive is fetched again, once, before this is shown. */
+    if (recoverFromChunkError(error)) return;
     if (error.digest) console.error("partner route error", error.digest);
   }, [error]);
 

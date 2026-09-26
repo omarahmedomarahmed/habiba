@@ -19,7 +19,7 @@ import { formatDate } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
 import { countKey } from "@/lib/i18n/count-form";
-import { parseSeatBill } from "@/lib/billing/seat-label";
+import { seatBillText } from "@/lib/billing/seat-label";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -135,20 +135,7 @@ export default async function ClinicBillsPage({
    * 🔴 Board 268: a seat line in the reader's language, each count in its own
    * form. "1 seats from 0" was the stored English printed as it was.
    */
-  const seats = (n: number) => t(countKey("clinic.seatBill.seats", n), { count: n });
-  const seatLine = (description: string) => {
-    const parsed = parseSeatBill(description);
-    if (!parsed) return description;
-    if (parsed.kind === "change") {
-      return t("clinic.seatBill.change", {
-        seats: seats(parsed.toSeats),
-        from: parsed.fromSeats,
-        days: t(countKey("clinic.seatBill.days", parsed.days), { count: parsed.days }),
-      });
-    }
-    if (parsed.kind === "month") return t("clinic.seatBill.month", { seats: seats(parsed.seats) });
-    return t("clinic.seatBill.planMonth", { plan: parsed.plan, seats: seats(parsed.seats) });
-  };
+  const seatLine = (description: string) => seatBillText(description, t);
 
   return (
     <div className="space-y-4">

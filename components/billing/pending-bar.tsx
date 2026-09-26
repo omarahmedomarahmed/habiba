@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useT } from "@/lib/i18n/client";
 import { PAY_OPEN_EVENT } from "@/components/billing/pay-open";
@@ -63,6 +64,16 @@ export function PendingBar({
    * place.
    */
   storageKey,
+  /**
+   * 🔴 Board 895 (B20): THE WAY OUT OF A PAYMENT THEY NEVER MADE, ON THE BAR.
+   *
+   * An open cart is a sheet somebody opened, and the bar asks them to finish
+   * it. A company that opened it and decided not to pay had to find a control
+   * on one page to clear a bar shown on every page; with the redesign it was
+   * nowhere they looked. Passed only where the payer may cancel, and the
+   * server deletes only a row with no proof in it (`cancelCart`).
+   */
+  onCancel,
 }: {
   what: string;
   amount: string;
@@ -70,10 +81,15 @@ export function PendingBar({
   stage: "open" | "submitted" | "confirmed";
   paymentId: string;
   storageKey: string;
+  onCancel?: () => Promise<void>;
 }) {
   const done = stage === "confirmed";
   const t = useT();
+  const router = useRouter();
   const [hidden, setHidden] = useState(false);
+  /* Two taps, because the first is easy to hit by accident on a thin bar. */
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   /*
    * Read in an effect, never during render: `localStorage` during render is a
@@ -201,6 +217,37 @@ export function PendingBar({
         </p>
       </Link>
 
+      {stage === "open" && onCancel ? (
+        <button
+          type="button"
+          disabled={cancelling}
+          onClick={() => {
+            if (!confirming) {
+              setConfirming(true);
+              return;
+            }
+            setCancelling(true);
+            void onCancel()
+              .then(() => {
+                try {
+                  window.localStorage.removeItem(`pay:${storageKey}`);
+                } catch {
+                  /* Nothing remembered, nothing to forget. */
+                }
+                setHidden(true);
+                router.refresh();
+              })
+              .catch(() => undefined)
+              .finally(() => {
+                setCancelling(false);
+                setConfirming(false);
+              });
+          }}
+          className="shrink-0 rounded-lg bg-white/25 px-2 py-1 text-xs font-semibold disabled:opacity-40"
+        >
+          {cancelling ? t("common.saving") : confirming ? t("pop.cancelYes") : t("bar.notSent")}
+        </button>
+      ) : null}
       {done ? (
         <button
           type="button"

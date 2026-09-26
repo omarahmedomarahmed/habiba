@@ -100,3 +100,65 @@ test("every queue button is on the record", () => {
     assert.match(bodyOf(actions, fn), /await audit\(/, `${fn} is not audited`);
   }
 });
+
+test("board 957 a reply and a close moments apart send one link and one code, and that link still opens it", async () => {
+  const { reuseAccess, ACCESS_REUSE_MS } = await import("../lib/data/support");
+  const now = Date.now();
+  const week = 7 * 86_400_000;
+  const issued = { accessToken: "t", accessCodeHash: "h", accessCodeExpiresAt: new Date(now - 4000 + week) };
+  assert.equal(reuseAccess(issued, new Date(now - 4000), now), true, "four seconds after a reply");
+  assert.equal(reuseAccess(issued, null, now), false, "the acknowledgement's link never stands for an answer");
+  const late = now - ACCESS_REUSE_MS - 1;
+  assert.equal(
+    reuseAccess({ ...issued, accessCodeExpiresAt: new Date(late + week) }, new Date(late), now),
+    false,
+    "an answer later than the window gets its own link",
+  );
+
+  const { eq, like } = await import("drizzle-orm");
+  const { controlDb: db } = await import("../lib/db");
+  const { simOutbox, supportTicketEvents, supportTickets, users } = await import("../lib/db/schema");
+  const { fileTicket, replyToTicket, closeTicket, readByToken } = await import("../lib/data/support");
+  const [staff] = await db.select({ id: users.id }).from(users).limit(1);
+  assert.ok(staff, "no user to act as staff");
+  const address = `b957-${Date.now()}@example.com`;
+  const filed = await fileTicket({
+    name: "Omar Example",
+    email: address,
+    phone: null,
+    country: null,
+    topic: "a_company",
+    message: "Where is my payout from last week, please?",
+    locale: "en",
+    entity: "us",
+  });
+  try {
+    assert.equal(filed.ok, true);
+    if (!filed.ok) return;
+    const [row] = await db.select().from(supportTickets).where(eq(supportTickets.reference, filed.reference));
+    const replied = await replyToTicket({ ticketId: row!.id, actorUserId: staff!.id, reply: "Which week was it, please?" });
+    assert.ok(replied.ok, replied.error);
+    const closed = await closeTicket({ ticketId: row!.id, actorUserId: staff!.id, summary: "Found the payout and sent it on." });
+    assert.ok(closed.ok, closed.error);
+    const kept = await db.select().from(simOutbox).where(eq(simOutbox.toAddress, address));
+    assert.equal(kept.length, 2, `the acknowledgement and ONE answer, got ${kept.length}`);
+    const answer = kept.find((k) => /Read the reply|answered/i.test(`${k.subject ?? ""} ${k.body}`)) ?? kept.at(-1)!;
+    const token = /\/support\/([A-Za-z0-9_-]+)/.exec(answer.body)?.[1];
+    const code = /\b(\d{6})\b/.exec(answer.body)?.[1];
+    const opened = await readByToken({ token: token!, code: code! });
+    assert.equal(opened.ticket?.status, "closed", "the one link sent opens the closed ticket");
+  } finally {
+    await db.delete(simOutbox).where(eq(simOutbox.toAddress, address));
+    const rows = await db.select({ id: supportTickets.id }).from(supportTickets).where(like(supportTickets.email, address));
+    for (const r of rows) {
+      await db.delete(supportTicketEvents).where(eq(supportTicketEvents.ticketId, r.id));
+      await db.delete(supportTickets).where(eq(supportTickets.id, r.id));
+    }
+  }
+});
+
+test("board 958: the reply box and the close summary ask for different things", () => {
+  const queue = readFileSync("components/admin/support-queue.tsx", "utf8");
+  assert.match(queue, /name="reply"[^>]*placeholder=\{t\("asupport\.answerHint"\)\}/);
+  assert.match(queue, /name="summary"[^>]*placeholder=\{t\("asupport\.replyHint"\)\}/);
+});

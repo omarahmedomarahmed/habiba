@@ -52,6 +52,44 @@ const db = controlDb;
 type Result = { ok?: boolean; error?: MessageKey; id?: string };
 
 /**
+ * 🔴 Board 807/808: whether an employee's share of a pot row ever arrived, for
+ * the patient's own screens, refunded rows included. A refund puts the session
+ * back to `pending`, so the session alone cannot say it once the money went
+ * back; the rails that brought it can: a confirmed transfer, a card charge (on
+ * the row or through the gateway), or their wallet.
+ */
+export async function employeeShareArrived(payment: {
+  id: string;
+  sessionId: string;
+  stripePaymentIntentId: string | null;
+}): Promise<boolean> {
+  if (payment.stripePaymentIntentId) return true;
+  const { paidAttemptFor } = await import("./gateway/session");
+  const { walletSpentOn } = await import("./wallet");
+  const [[session], [transfer], gatewayPaid, walletSpent] = await Promise.all([
+    db
+      .select({ paymentStatus: sessions.paymentStatus })
+      .from(sessions)
+      .where(eq(sessions.id, payment.sessionId))
+      .limit(1),
+    db
+      .select({ id: manualPayments.id })
+      .from(manualPayments)
+      .where(
+        and(
+          eq(manualPayments.refId, payment.sessionId),
+          inArray(manualPayments.purpose, ["session", "payg_session"]),
+          eq(manualPayments.state, "confirmed"),
+        ),
+      )
+      .limit(1),
+    paidAttemptFor(payment.id).then(Boolean),
+    walletSpentOn(payment.sessionId),
+  ]);
+  return session?.paymentStatus === "paid" || Boolean(transfer) || gatewayPaid || walletSpent > 0;
+}
+
+/**
  * 🔴 W2-S12: the employee's half of a pot-funded payment, and which rail it
  * goes back on (`splitRefundPlan`). Their share arrived if the session is paid
  * (a partly covered one is paid only once they pay) or a transfer for it was

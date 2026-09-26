@@ -25,6 +25,7 @@ import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { countKey } from "@/lib/i18n/count-form";
 import { SessionBadge } from "@/components/sessions/status-badge";
 import { NoteOriginNote } from "@/components/notes/provenance";
 import { lateRecordingStart } from "@/lib/consent";
@@ -52,7 +53,7 @@ export default async function SessionDetailPage({
   const row = await getSession(actor, id);
   /* 🔴 Ruling 6b: the limit a session stops at is the clock's total, never a number typed here. */
   const { getSettings } = await import("@/lib/settings");
-  const { clock } = await getSettings();
+  const { clock, rules } = await getSettings();
   const clockTotal = clock.runningMinutes + clock.countdownMinutes;
   if (!row) notFound();
 
@@ -96,6 +97,15 @@ export default async function SessionDetailPage({
   const previousSummary = summaryPersonId ? await latestSummary(summaryPersonId) : null;
 
   const live = row.session.status === "scheduled" || row.session.status === "in_progress";
+  /*
+   * 🔴 Board 791: a booking two days away read "This session has not finished
+   * / Head back into the room" with Open room. A session that has not started
+   * says when it is booked and when its room opens, and offers the room only
+   * inside the start window, the same clock the room itself follows.
+   */
+  const { startWindow } = await import("@/lib/sessions/start-window");
+  const notStarted = row.session.status === "scheduled";
+  const ahead = notStarted && startWindow(row.session.scheduledAt, Date.now(), rules.start) === "booked";
   /* B64: the booked hour first; the end only for a session nobody booked. */
   const sessionTime = row.session.scheduledAt ?? row.session.endedAt ?? row.session.createdAt;
   const startedOffBooking = Boolean(
@@ -240,7 +250,9 @@ export default async function SessionDetailPage({
                   started: formatDateTime(row.session.startedAt, actor.timezone, locale),
                 })
               : formatDateTime(sessionTime, actor.timezone, locale)}
-            {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
+            {row.session.durationMinutes
+              ? ` · ${t(countKey("tses.minutes", row.session.durationMinutes), { count: row.session.durationMinutes })}`
+              : ""}
             {row.session.modality === "video" ? ` · ${t("thist.video")}` : ` · ${t("thist.inPerson")}`}
           </p>
           {/*
@@ -270,16 +282,28 @@ export default async function SessionDetailPage({
               <Glow className="-end-16 -top-16 h-52 w-52 opacity-60" />
               <div className="relative">
                 <p className="text-[17px] font-bold text-white">
-                  {t("portal.session.unfinished")}
+                  {ahead && row.session.scheduledAt
+                    ? t("portal.session.bookedFor", {
+                        when: formatDateTime(row.session.scheduledAt, actor.timezone, locale),
+                      })
+                    : notStarted
+                      ? t("portal.session.notStarted")
+                      : t("portal.session.unfinished")}
                 </p>
-                <p className="mt-0.5 text-sm text-white/75">
-                  {t("portal.session.unfinishedBody")}
-                </p>
+                {notStarted && !ahead ? null : (
+                  <p className="mt-0.5 text-sm text-white/75">
+                    {ahead
+                      ? t("portal.session.roomOpensBefore", { minutes: rules.start.joinEarlyMinutes })
+                      : t("portal.session.unfinishedBody")}
+                  </p>
+                )}
               </div>
-              <Link href={`/sessions/${id}/room`} className={`${buttonClass("primary", "md")} relative`}>
-                {t("portal.session.openRoom")}
-                <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
-              </Link>
+              {ahead ? null : (
+                <Link href={`/sessions/${id}/room`} className={`${buttonClass("primary", "md")} relative`}>
+                  {t("portal.session.openRoom")}
+                  <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
+                </Link>
+              )}
             </div>
 
             {/*

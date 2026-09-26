@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { MoneyDisplayProvider } from "@/components/money/display";
 import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console";
 import { listRadar } from "@/lib/data/radar";
 import { firstOpenHours } from "@/lib/data/scheduling";
@@ -39,6 +40,12 @@ export default async function RadarPage() {
   const { t, locale } = await getI18n();
 
   return (
+    /*
+     * 🔴 Board 968: pounds lead here. The website quotes dollars (the public
+     * layout), but this page is where a person books and pays a session, and
+     * everybody paying reads EGP, with the dollars one tap away.
+     */
+    <MoneyDisplayProvider primary="EGP">
     <div className="bg-[#04101f]">
       {/*
         B31: still no visible heading, for the reason above, but the page has
@@ -62,5 +69,6 @@ export default async function RadarPage() {
       */}
       <SosOrbServer country={crisisCountryFor({ locale })} />
     </div>
+    </MoneyDisplayProvider>
   );
 }

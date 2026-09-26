@@ -27,6 +27,7 @@ import { features } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
+import { invoiceLabel } from "@/lib/billing/invoice-label";
 import { eq } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { organizations, users } from "@/lib/db/schema";
@@ -293,7 +294,7 @@ export default async function BillingPage({
               quote={quoteInvoices}
               invoices={dueInvoices.map((invoice) => ({
                 id: invoice.id,
-                description: invoice.description,
+                description: invoiceLabel(invoice.description, t),
                 cents: invoice.amountCents - invoice.discountCents,
                 issuedAt: formatDate(invoice.issuedAt, actor.timezone, locale),
               }))}
@@ -396,7 +397,7 @@ export default async function BillingPage({
           invoices={(runsAccount ? invoices : []).map((invoice) => ({
             id: invoice.id,
             kind: invoice.kind,
-            description: invoice.description,
+            description: invoiceLabel(invoice.description, t),
             amountCents: invoice.amountCents,
             discountCents: invoice.discountCents,
             discountReason: invoice.discountReason,

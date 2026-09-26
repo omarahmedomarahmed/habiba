@@ -204,7 +204,7 @@ export function SosOrb({
                   </span>
                   <span className="text-[26px] leading-none font-bold tracking-wide">{entry.line.label}</span>
                   <span className="text-[11px] opacity-80">
-                    {COUNTRY_LABEL[entry.country] ?? entry.countryName ?? entry.country}
+                    {countryLabel(entry.country, locale) ?? entry.countryName ?? entry.country}
                   </span>
                   {/*
                     🔴 W1-09: whether somebody is likely to answer, only where a
@@ -262,8 +262,25 @@ export function SosOrb({
   );
 }
 
-/** Names as a reader would say them, beside a flag. */
-const COUNTRY_LABEL: Record<string, string> = { US: "United States", EG: "مصر · Egypt" };
+/**
+ * Names as a reader would say them, beside a flag, in the reader's language.
+ * 🔴 Board 872: "مصر · Egypt" put an English word on the Arabic sheet; the
+ * English sheet says Egypt and the Arabic one مصر.
+ */
+const COUNTRY_LABEL: Record<string, { en: string; ar: string }> = {
+  US: { en: "United States", ar: "الولايات المتحدة" },
+  EG: { en: "Egypt", ar: "مصر" },
+};
+
+function countryLabel(country: string, locale: string): string | null {
+  const known = COUNTRY_LABEL[country];
+  if (known) return locale === "ar" ? known.ar : known.en;
+  try {
+    return new Intl.DisplayNames([locale], { type: "region" }).of(country) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The word for help, in the language of that country.

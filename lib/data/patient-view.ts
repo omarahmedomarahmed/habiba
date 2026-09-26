@@ -5,7 +5,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
 import { qualified } from "@/lib/db/qualified";
-import { doorFor, type SessionDoor } from "@/lib/sessions/doors";
+import { BOOKED_HOUR_MS, doorFor, missedBooking, type SessionDoor } from "@/lib/sessions/doors";
 import {
   manualPayments,
   noteAddenda,
@@ -82,6 +82,8 @@ export type PatientSession = {
    */
   brief: string | null;
   briefPending: boolean;
+  /** 🔴 Board 729: booked, never started, and its hour is over. */
+  missed: boolean;
   /**
    * 🔴 W1-03 / P4: what their clinician added to the brief after releasing
    * it, oldest first. Only `kind = 'patient'` rows, which are written TO them
@@ -233,8 +235,13 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
         row.startedAt === null &&
         row.scheduledAt !== null &&
         row.scheduledAt.getTime() > now,
+      /* 🔴 Board 729: nobody writes a summary of a session that never took place. */
       briefPending:
-        !signed && row.status !== "cancelled" && (at.getTime() < now || row.status === "completed" || row.endedAt !== null),
+        !signed &&
+        row.status !== "cancelled" &&
+        !missedBooking(row, now) &&
+        (row.startedAt !== null || row.status === "completed" || row.endedAt !== null),
+      missed: missedBooking(row, now),
       briefAddenda: signed
         ? addenda
             .filter((line) => line.sessionId === row.id)
@@ -324,6 +331,9 @@ export async function openSessionForPatient(
         inArray(sessions.status, ["scheduled", "in_progress"]),
         isNull(sessions.endedAt),
         isNotNull(sessions.joinToken),
+        /* 🔴 Board 729: not a booking whose hour passed with nobody starting it. */
+        sql`(${sessions.startedAt} IS NOT NULL OR ${sessions.scheduledAt} IS NULL
+             OR ${sessions.scheduledAt} > ${new Date(Date.now() - BOOKED_HOUR_MS).toISOString()}::timestamptz)`,
       ),
     )
     .orderBy(desc(sessions.createdAt))
@@ -417,6 +427,7 @@ export async function sessionDoors(personId: string): Promise<SessionDoorRow[]> 
       status: sessions.status,
       endedAt: sessions.endedAt,
       scheduledAt: sessions.scheduledAt,
+      startedAt: sessions.startedAt,
       createdAt: sessions.createdAt,
       joinToken: sessions.joinToken,
       joinTokenExpiresAt: sessions.joinTokenExpiresAt,
@@ -458,6 +469,8 @@ export async function sessionDoors(personId: string): Promise<SessionDoorRow[]> 
     priceCurrency: row.priceCurrency,
     door: doorFor({
       status: row.status,
+      scheduledAt: row.scheduledAt,
+      startedAt: row.startedAt,
       endedAt: row.endedAt,
       joinToken: row.joinToken,
       joinTokenExpiresAt: row.joinTokenExpiresAt,

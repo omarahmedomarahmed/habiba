@@ -59,7 +59,7 @@ export type AdminPartnerRow = {
   keyCount: number;
   users: { id: string; email: string; role: string }[];
   /** Board 611: the practices on their bill, which their live key can reach. */
-  practices: { id: string; name: string; slug: string }[];
+  practices: { id: string; name: string; contactEmail: string | null }[];
 };
 
 export function PartnerManagerList({ partners }: { partners: AdminPartnerRow[] }) {
@@ -268,7 +268,8 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
                 {partner.practices.map((practice) => (
                   <li key={practice.id} className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
                     <span className="font-medium">{practice.name}</span>
-                    <span className="text-slate-500">{practice.slug}</span>
+                    {/* 🔴 Board 934: the address staff attach it by, not the internal slug. */}
+                    {practice.contactEmail ? <span className="text-slate-500">{practice.contactEmail}</span> : null}
                     <span className="ms-auto">
                       <ConfirmWithReason
                         label={t("apartner.practiceDetach")}

@@ -47,8 +47,8 @@ export async function VideoCheck() {
           </p>
           {health.ok ? null : (
             <p className="mt-2 text-sm leading-relaxed text-slate-700">
-              No video session can start until this is fixed, and nobody will be invited
-              to one. In person still works.
+              No video session can start or be offered until this is fixed. In person
+              still works.
             </p>
           )}
         </div>

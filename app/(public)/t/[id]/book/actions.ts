@@ -9,7 +9,35 @@ import { env } from "@/lib/env";
 import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { optionalPatient } from "@/lib/patient-auth/guard";
+import { getI18n } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { patientSessionLink } from "@/lib/sessions/patient-link";
+
+/**
+ * Board R3: the booking page's refusals in the reader's language. The scheduling
+ * layer answers in English for every caller; this page is the one a patient
+ * reads, so each known answer is looked up here, and an unknown one passes through.
+ */
+const BOOK_ERRORS: Record<string, MessageKey> = {
+  "Too many attempts. Wait a moment and try again.": "bookerr.tooMany",
+  "That time is getting a lot of attempts right now. Try another.": "bookerr.crowded",
+  "That time is no longer on the calendar.": "bookerr.gone",
+  "This calendar is busy. Try again shortly, or use the crisis radar.": "bookerr.busy",
+  "Please enter your first name.": "bookerr.name",
+  "That name is a little long.": "bookerr.nameLong",
+  "Add an email or a phone number so we can send you the link.": "bookerr.contact",
+  "Check that phone number.": "bookerr.phone",
+  "Somebody just took that time. Pick another.": "bookerr.taken",
+  "That time has already passed.": "bookerr.passed",
+  "That booking could not be saved. Try again.": "bookerr.notSaved",
+};
+
+async function said(error: string): Promise<string> {
+  const key = BOOK_ERRORS[error];
+  if (!key) return error;
+  const { t } = await getI18n();
+  return t(key);
+}
 
 export type BookState = {
   error?: string;
@@ -46,7 +74,7 @@ export async function book(input: {
    */
   const throttle = await consume(await callerKey("book"), 6, 60 * 60);
   if (!throttle.allowed) {
-    return { error: "Too many attempts. Wait a moment and try again." };
+    return { error: await said("Too many attempts. Wait a moment and try again.") };
   }
 
   /*
@@ -66,22 +94,22 @@ export async function book(input: {
    */
   const perSlot = await consume(subjectKey("book:slot", input.slotId), 12, 60 * 60);
   if (!perSlot.allowed) {
-    return { error: "That time is getting a lot of attempts right now. Try another." };
+    return { error: await said("That time is getting a lot of attempts right now. Try another.") };
   }
 
   const owner = await slotOwner(input.slotId);
-  if (!owner) return { error: "That time is no longer on the calendar." };
+  if (!owner) return { error: await said("That time is no longer on the calendar.") };
 
   const perTherapist = await consume(subjectKey("book:therapist", owner), 40, 60 * 60);
   if (!perTherapist.allowed) {
     return {
-      error: "This calendar is busy right now. Try again shortly, or use the crisis radar.",
+      error: await said("This calendar is busy. Try again shortly, or use the crisis radar."),
     };
   }
 
   const name = input.name.trim();
-  if (!name) return { error: "Please enter your first name." };
-  if (name.length > 80) return { error: "That name is a little long." };
+  if (!name) return { error: await said("Please enter your first name.") };
+  if (name.length > 80) return { error: await said("That name is a little long.") };
 
   /*
    * 11R.21 — one contact method, required.
@@ -97,8 +125,9 @@ export async function book(input: {
 
   if (!email && !rawPhone) {
     return {
-      error:
-        "We need an email or a phone number, otherwise we cannot send you the link or tell you if anything changes.",
+      error: await said(
+        "Add an email or a phone number so we can send you the link.",
+      ),
     };
   }
 
@@ -110,7 +139,7 @@ export async function book(input: {
   let phone: string | null = null;
   if (rawPhone) {
     const parsed = toE164(rawPhone, input.phoneCountry ?? null);
-    if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
+    if (!parsed.ok) return { error: await said(e164Problem(parsed) ?? "Check that phone number.") };
     phone = parsed.e164;
   }
 
@@ -121,7 +150,7 @@ export async function book(input: {
    * happened to read first.
    */
   const held = await holdSlot(input.slotId);
-  if (!held.ok) return { error: held.error };
+  if (!held.ok) return { error: await said(held.error) };
 
   /*
    * 🔴 W2-P04: a signed-in patient books as themselves, so the hour lands on
@@ -141,7 +170,7 @@ export async function book(input: {
     place: input.place === "in_person" ? "in_person" : "online",
   });
 
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: await said(result.error) };
 
   /*
    * 11.7 — the confirmation.

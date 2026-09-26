@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useSyncExternalStore, useTransition } from "react";
+import { useActionState, useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { BellRing, Radio, Volume2, VolumeX } from "lucide-react";
@@ -80,6 +80,10 @@ export function TherapistConsole(props: ConsoleProps) {
   const router = useRouter();
   const t = useT();
   const [formState, formAction] = useActionState(saveRadarSetup, INITIAL);
+  /* 🔴 Board 966: "Saved" first, then the rest of the page catches up. */
+  useEffect(() => {
+    if (formState.savedAt) router.refresh();
+  }, [formState.savedAt, router]);
   const [status, setStatus] = useState(props.status);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
