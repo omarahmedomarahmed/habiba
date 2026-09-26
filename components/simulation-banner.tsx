@@ -56,7 +56,13 @@ export async function SimulationBanner() {
    * founder reading invented money as real money.
    */
   const onBranch = process.env.VERCEL_GIT_COMMIT_REF === SIMULATION_BRANCH;
-  if (!onBranch && !SIMULATION_RUNNING) return null;
+  /*
+   * The event of 26 Sept 2026: production keeps SIMULATION_RUNNING (so mail to
+   * invented @example.com people stays in the outbox) while strangers test the
+   * product with the demo logins; `SIMULATION_BANNER=0` hides the strip for
+   * that. The simulation branch always shows it.
+   */
+  if (!onBranch && (!SIMULATION_RUNNING || process.env.SIMULATION_BANNER === "0")) return null;
   const { t } = await getI18n();
 
   return (
