@@ -135,6 +135,24 @@ test("506: with Stripe off, a held balance says how the clinician is paid, not '
   assert.match(page, /payoutMethod: payoutBy\.get\(/);
 });
 
+test("497: a wallet credit on the Needs a decision card is shown without its id", async () => {
+  const { WALLET_RESOLUTION, shownResolution } = await import("../lib/billing/transfer-wallet");
+  const stored = `${WALLET_RESOLUTION}a5acbfd8-7883-41b2-a6f9-7df38889c173. Refund instead from here if they ask.`;
+  const shown = shownResolution(stored)!;
+  assert.doesNotMatch(shown, /[0-9a-f]{8}-[0-9a-f]{4}/);
+  assert.equal(shown, "Credited to the patient's wallet. Refund instead from here if they ask.");
+  assert.equal(shownResolution("Refunded by hand"), "Refunded by hand");
+  const page = readFileSync("app/(admin)/admin/transfers/page.tsx", "utf8");
+  assert.match(page, /shownResolution\(e\.exceptionResolution\)/);
+});
+
+test("484: /admin/transfers asks the database in three rounds, not seven", () => {
+  const page = readFileSync("app/(admin)/admin/transfers/page.tsx", "utf8");
+  const awaits = page.match(/await (db|Promise\.all|approvalViews)\b/g) ?? [];
+  assert.ok(awaits.length <= 3, `${awaits.length} serial database rounds: ${awaits.join(", ")}`);
+  assert.doesNotMatch(page, /rows=\{await approvalViews/);
+});
+
 test("490: a rejected top-up shows on the page, with what was sent, before anything is pressed", () => {
   const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
   const closed = popup.slice(popup.indexOf("if (!open) {"));
