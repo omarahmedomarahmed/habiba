@@ -1,3 +1,4 @@
+import { RouteLogoLoader } from "@/components/brand/logo-loader";
 import { SosOrb } from "@/components/patient/sos-orb";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -21,20 +22,14 @@ import { getI18n } from "@/lib/i18n/server";
 export async function RouteLoading({ withOrb = false }: { withOrb?: boolean }) {
   const { t } = await getI18n();
 
+  /*
+    Founder, 26 September: the one branded loader, the 24T mark, in place of
+    the grey blocks. The same mark the page change overlay shows, so a slow
+    stream and a slow round trip look alike. See components/brand/logo-loader.tsx.
+  */
   return (
-    <main
-      className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-8"
-      aria-busy="true"
-    >
-      <span role="status" className="sr-only">
-        {t("common.loading")}
-      </span>
-      <div aria-hidden className="animate-pulse space-y-4">
-        <div className="h-6 w-1/2 rounded-lg bg-slate-200" />
-        <div className="h-4 w-3/4 rounded-lg bg-slate-200" />
-        <div className="h-28 rounded-2xl bg-slate-100" />
-        <div className="h-28 rounded-2xl bg-slate-100" />
-      </div>
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4">
+      <RouteLogoLoader label={t("common.loading")} className="flex-1" />
       {withOrb ? <SosOrb /> : null}
     </main>
   );

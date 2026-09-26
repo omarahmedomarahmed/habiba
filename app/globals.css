@@ -409,4 +409,142 @@
     transform-box: fill-box;
     transform-origin: center;
   }
+
+  /*
+   * 🔴 The page change indicator and the logo loader. Founder, 26 September.
+   * See `components/nav/nav-progress.tsx` and `components/brand/logo-loader.tsx`.
+   *
+   * Opacity and transform only, so every frame is composited and nothing is
+   * laid out. The reduced motion rule above shortens every one of these to
+   * nothing: the bar then stands still at its end, and the mark stops
+   * breathing.
+   */
+  @keyframes nav-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes nav-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  /* Fast at first, then ever slower, and never reaching the end on its own. */
+  @keyframes nav-trickle {
+    from {
+      transform: scaleX(0.06);
+    }
+    to {
+      transform: scaleX(0.92);
+    }
+  }
+
+  @keyframes nav-finish {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /* An 80ms delay, so a navigation that is already cached draws nothing. */
+  .nav-bar[data-nav-progress="idle"],
+  .nav-veil[data-nav-overlay="idle"] {
+    display: none;
+  }
+
+  .nav-bar {
+    opacity: 0;
+  }
+
+  .nav-bar[data-nav-progress="loading"] {
+    animation: nav-in 120ms ease-out 80ms forwards;
+  }
+
+  .nav-bar[data-nav-progress="done"] {
+    opacity: 1;
+    animation: nav-out 220ms ease-in 120ms forwards;
+  }
+
+  .nav-bar > i {
+    position: absolute;
+    inset: 0;
+    background: var(--color-brand-500, #2ec4b6);
+    box-shadow: 0 0 8px rgba(46, 196, 182, 0.55);
+    transform-origin: left center;
+    will-change: transform;
+  }
+
+  [dir="rtl"] .nav-bar > i {
+    transform-origin: right center;
+  }
+
+  .nav-bar-fill {
+    animation: nav-trickle 10s cubic-bezier(0.08, 0.7, 0.15, 1) forwards;
+  }
+
+  .nav-bar-finish {
+    transform: scaleX(0);
+  }
+
+  .nav-bar[data-nav-progress="done"] .nav-bar-finish {
+    animation: nav-finish 160ms ease-out forwards;
+  }
+
+  /* The veil waits 300ms, so only a slow page ever shows the mark over the old one. */
+  .nav-veil {
+    opacity: 0;
+  }
+
+  .nav-veil[data-nav-overlay="loading"] {
+    animation: nav-in 180ms ease-out 300ms forwards;
+  }
+
+  /* The language switch: the whole page is about to be redrawn, so the veil comes at once. */
+  .nav-veil[data-nav-overlay="now"] {
+    animation: nav-in 120ms ease-out forwards;
+  }
+
+  .nav-veil[data-nav-overlay="done"] {
+    opacity: 1;
+    animation: nav-out 200ms ease-in forwards;
+  }
+
+  @keyframes nav-breathe-kf {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(0.94);
+    }
+  }
+
+  .nav-breathe {
+    animation: nav-breathe-kf 1.4s ease-in-out infinite;
+  }
+
+  @keyframes nav-sweep-kf {
+    from {
+      transform: translateX(-110%);
+    }
+    to {
+      transform: translateX(220%);
+    }
+  }
+
+  .nav-sweep {
+    animation: nav-sweep-kf 1.1s ease-in-out infinite;
+  }
 }
