@@ -10,6 +10,9 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, patients } from "@/lib/db/schema";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { openChallenges } from "@/lib/data/challenge";
+import { claimOwnPerson } from "@/lib/data/claims";
+import { whatsappConfigured } from "@/lib/notify/whatsapp";
+import { handleChannel } from "@/lib/patient-auth/handle-delivery";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
@@ -79,6 +82,14 @@ export default async function ClaimPage() {
     .limit(1);
 
   const proven = Boolean(account?.phoneVerifiedAt || account?.emailVerifiedAt);
+  /*
+   * Shoot T21: an account proven before its own record could be claimed by
+   * it gets it now. Idempotent, and a no-op once claimed.
+   */
+  if (proven) await claimOwnPerson(actor.accountId);
+  /* Shoot T21: the handle the code will go to, which is the email while WhatsApp is not live. */
+  const byEmail =
+    handleChannel({ phone: account?.phone ?? null, email: account?.email ?? null }, whatsappConfigured()) === "email";
 
   const [suggestions, challenges, [own]] = proven
     ? await Promise.all([
@@ -118,7 +129,10 @@ export default async function ClaimPage() {
       </div>
 
       {proven ? null : (
-        <ProveHandle handle={account?.phone ?? account?.email ?? t("pclaim.yourNumber")} />
+        <ProveHandle
+          byEmail={byEmail}
+          handle={(byEmail ? account?.email : account?.phone) ?? t("pclaim.yourNumber")}
+        />
       )}
 
       {challenges.length > 0 ? <ClaimChallenge challenges={challenges} /> : null}

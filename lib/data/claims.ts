@@ -1012,3 +1012,63 @@ export async function revokeInvite(inviteId: string, userId: string): Promise<bo
     .returning({ id: personInvites.id });
   return revoked.length > 0;
 }
+
+/* ------------------------------------------- their own record, proven -- */
+
+/**
+ * Shoot T21: whether an account has proved a handle, which is what claiming
+ * its OWN person needs. Pure, for the test.
+ */
+export function ownPersonClaimable(account: {
+  phoneVerifiedAt: Date | null;
+  emailVerifiedAt: Date | null;
+}): boolean {
+  return account.phoneVerifiedAt !== null || account.emailVerifiedAt !== null;
+}
+
+/**
+ * Shoot T21: the person an account made at signup is claimed once the account
+ * has proved a phone OR an email.
+ *
+ * Signup makes a person of your own (`lib/patient-auth/actions.ts`), and a
+ * patient who books while signed in is booked onto it. Nothing ever stamped
+ * it claimed: claims only covered a THERAPIST's record of you. So a clinician
+ * the patient had granted access to read "Nobody has claimed this record"
+ * about a record that was the patient's own account, and the only way out was
+ * a code by SMS, which is not live (decision 23: email meanwhile). A code
+ * confirmed at the patient's email proves the account just as well, and that
+ * is what the claim page now sends and accepts.
+ *
+ * Idempotent and guarded on `claimed_at IS NULL`. A handle another claimed
+ * person already holds (`people_claimed_*_unique`) leaves it unclaimed rather
+ * than failing whatever proved the handle.
+ */
+export async function claimOwnPerson(accountId: string): Promise<boolean> {
+  const [account] = await db
+    .select({
+      personId: patientAccounts.personId,
+      phoneVerifiedAt: patientAccounts.phoneVerifiedAt,
+      emailVerifiedAt: patientAccounts.emailVerifiedAt,
+    })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.id, accountId))
+    .limit(1);
+  if (!account?.personId || !ownPersonClaimable(account)) return false;
+
+  const now = new Date();
+  try {
+    const stamped = await db
+      .update(people)
+      .set({ claimedAt: now, claimedByAccountId: accountId, updatedAt: now })
+      .where(and(eq(people.id, account.personId), isNull(people.claimedAt)))
+      .returning({ id: people.id });
+    if (stamped.length > 0) log.info("own record claimed", { account: ref(accountId) });
+    return stamped.length > 0;
+  } catch (error) {
+    if (uniqueViolation(error)) {
+      log.warn("own record left unclaimed: handle already claimed", { account: ref(accountId) });
+      return false;
+    }
+    throw error;
+  }
+}

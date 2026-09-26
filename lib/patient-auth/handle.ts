@@ -9,6 +9,9 @@ import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/d
 import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { handleDelivery } from "./handle-delivery";
+import { claimOwnPerson } from "@/lib/data/claims";
+import { whatsappConfigured } from "@/lib/notify/whatsapp";
+import { handleChannel } from "./handle-delivery";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 
@@ -100,18 +103,25 @@ export async function requestHandleCode(): Promise<HandleState> {
     .limit(1);
 
   if (!account) return { error: "We could not find your account." };
-  if (account.phoneVerifiedAt || account.emailVerifiedAt) return { verified: true };
+  if (account.phoneVerifiedAt || account.emailVerifiedAt) {
+    /* Shoot T21: proven before this record could be claimed by it. */
+    await claimOwnPerson(account.id);
+    return { verified: true };
+  }
 
   const code = newCode();
-  const channel = account.phone ? ("whatsapp" as const) : ("email" as const);
+  const channel = handleChannel(account, whatsappConfigured());
 
-  await db.insert(patientAuthTokens).values({
-    patientAccountId: account.id,
-    purpose: "handle_verify",
-    tokenHash: hash(code),
-    channel,
-    expiresAt: new Date(Date.now() + CODE_MINUTES * 60 * 1000),
-  });
+  const [token] = await db
+    .insert(patientAuthTokens)
+    .values({
+      patientAccountId: account.id,
+      purpose: "handle_verify",
+      tokenHash: hash(code),
+      channel,
+      expiresAt: new Date(Date.now() + CODE_MINUTES * 60 * 1000),
+    })
+    .returning({ id: patientAuthTokens.id });
 
   /* 🔴 Ruling 8: in the language they chose. */
   /* B50: and in the language of the screen they asked from, until they save one. */
@@ -129,7 +139,22 @@ export async function requestHandleCode(): Promise<HandleState> {
     },
   );
 
-  log.info("handle verification requested", { account: ref(account.id), channel });
+  /*
+   * 🔴 Shoot T21: the token records where the code WENT. With WhatsApp not
+   * live (decision 23) a code meant for the number arrives by email, and the
+   * row still said "whatsapp", so typing it back marked the NUMBER proved on
+   * the strength of an email: the shortcut §3b forbids. Now it proves the
+   * address it reached, which is what lets the claim finish by email.
+   */
+  const reached = handleDelivery(channel, delivery.channels);
+  if (token && !reached.channelDown && reached.channel !== channel) {
+    await db
+      .update(patientAuthTokens)
+      .set({ channel: reached.channel })
+      .where(eq(patientAuthTokens.id, token.id));
+  }
+
+  log.info("handle verification requested", { account: ref(account.id), channel: reached.channel });
 
   /*
    * 🔴 Board 276: what the page says comes from where the code WENT, not from
@@ -137,7 +162,7 @@ export async function requestHandleCode(): Promise<HandleState> {
    * sent by email (WhatsApp is not on, ruling 23) and was told "WhatsApp codes
    * are not on yet, ask your therapist", as if nothing had arrived.
    */
-  return { sent: true, ...handleDelivery(channel, delivery.channels) };
+  return { sent: true, ...reached };
 }
 
 /** Step two: the code. Proving the handle is what unlocks everything else. */
@@ -212,5 +237,7 @@ export async function confirmHandleCode(
   });
 
   log.info("handle verified", { account: ref(actor.accountId), channel: row.channel });
+  /* Shoot T21: a proven handle claims the account's own record. */
+  await claimOwnPerson(actor.accountId);
   return { verified: true, channel: row.channel };
 }
