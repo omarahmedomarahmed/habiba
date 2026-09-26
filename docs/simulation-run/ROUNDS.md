@@ -93,3 +93,58 @@
 - PARTNER-WEB `WB8`: /radar shows 'Nobody is online right now' and /api/radar returns therapists:[], so there is no 'Book now'. Retry once T3 is on call (R3).
 - PARTNER-WEB `WB9`: 'Email me directions' appears only in the booking sheet of a clinician who is online (components/radar/booking-sheet.tsx), and nobody is online.
 - PARTNER-WEB `WB7`: The form was opened but not confirmed on purpose. 02-THE-MONTH plays WB7 in R5, and an unpaid visitor hold would take an hour on a cast clinician's calendar. The lead decides whether to confirm one.
+
+## R2 (round 3 folded in), simulated day 7, 26 Sept 01:32 to 03:05 UTC
+
+Jobs fired before and after the clock move (N7); verify:migrations passed. ORG completed; CARE and OPS-WEB were stopped by a usage limit after about 400 board rows between them (N13). Bugs found: 69 board rows marked BUG, fixed on the redesign branch (N10).
+
+### Round 1 bugs re-walked by ORG
+
+| Bug | Status | Seen |
+|---|---|---|
+| B3 | fixed | /sponsor and /sponsor/pot show 'Put into your pot EGP 30,000' (the welcome credit plus the $500 top-up). The console shows Pot $580 = Ledger after Hoda's booking. |
+| B8 | fixed | SU3 Amal opens /admin/sponsors and sees 'Only an owner can change a sponsor. Open one for its pot, returns and transfers.' with all three companies listed. |
+| B15 | fixed | Hana's day-1 email cannot be re-sent. Practice invites sent today (Tarek, Fatma) carry the practice footers: 'Sent by 24Therapy because a practice invited this address' and 'Sent by 24Therapy to the address on your pract |
+| B16 | fixed | '0 filled, 0 invited', '0 seats, EGP 0 a month.', '1 seat: EGP 4,000 a month, instead of EGP 0.', 'You pay EGP 666.50 now for the 5 days left this month.', 'Change to 1 seat'. /clinic/bills still says '1 seats from 0'. |
+| B17 | fixed | English: 'Connecting a record system is not switched on yet, so there is nothing for you to set up. Your notes stay here meanwhile.' Arabic is fully Arabic. |
+| B18 | fixed | 'At 100% you pay EGP 1,000 of a EGP 1,000 session, so the EGP 30,000 you have put in covers about 30 sessions.' |
+| B19 | still broken | Still no receipt. The page now explains why and offers a way to ask: 'We cannot issue this receipt yet. Our company details for receipts are not complete yet... Ask us for this receipt'. It needs the entity's legal detai |
+| B20 | still broken | On day 7 every sponsor page still showed 'Your pot top-up EGP 5,700 / Sent it? Tap to finish.' for the unpaid cart. A 'Cancel this payment' button now clears it by hand. For a new company, raising the amount replaces the |
+| B23 | fixed | The console code, practice invite, company invite, transfer and confirmation emails all have fitting footers ('...to the address on your company's account', '...because somebody asked for it using this address'). Day-1 e |
+| B24 | fixed | 'Your 24Therapy account at Alexandria Textiles ... added to Alexandria Textiles's company account on 24Therapy as an admin'. The Fatma invite names the practice and 'Front desk'. The sponsor-portal teammate invite names  |
+| B25 | fixed | /admin/clinics loads in 1.3-1.7 s, shows 'Billed from / EG, now / Move to US', and logs no console errors. /admin/sponsors took 11.3 s once (reported separately). |
+| B26 | fixed | Overview shows Practices 5 (Nile Practice plus 4 solo practices) and Clinicians 5 (Amira, Yassin, Karim, Omar, Tarek). |
+| B27 | fixed | After the last row: 'Confirmed. They can carry on.' and, after a reject, 'Rejected, and they have been told why.' |
+| B28 | fixed | 'Your payment is confirmed' reads 'Hi Rania'; 'Open your account' links to /sponsor/pot; company footer. |
+| B29 | not reachable | No partner user was invited. The shared /welcome page for company logins now reads 'At least 12 characters' and confirms with 'Password set. Sign in.' |
+| B43 | fixed | The spent welcome link now reads 'This link has already been used ... Go to sign in'. /welcome reads 'Choose your password' / 'Set password' and confirms on sign-in. The clinic staff first-password page /clinic/set-passw |
+| B44 | fixed | 'الأوقات حسب توقيت مصر' |
+| B45 | fixed | The clinic sign-in form rendered in 3.3-4.4 s on 4 fresh loads. |
+| B47 | fixed | 'We have your transfer': 'Hi Rania', 'Track it' links to /sponsor/pot, company footer. |
+| B48 | fixed | 'Choose your password / At least 12 characters. / Set password', then '/sponsor/sign-in?set=1 Password set. Sign in.' |
+| B56 | fixed | The cards are titled 'HELD FOR CLINICIANS, ONE BY ONE' and 'OWED TO CLINICIANS, IN TOTAL'. |
+| B57 | fixed | Modal subtitle 'A pot top-up, waiting 4 min'. The sponsor Transfers row reads 'CF-TOPUP-0925-001 / Confirmed'. The stray cart is gone. |
+
+### Blocked
+
+| Step | Why |
+|---|---|
+| ME74, ME75, ME76 (the 10% split on the pay page, the transfer sheet and VAT on the share) and P5 paying her share by tra | A newly activated company starts at 100%. Lowering to 10% always waits 30 days ('Changing to 10% on 26 Oct 2026'), even with nobody enrolled, and no console control sets a starting percentage. Nadia's T2 booking was therefore covered 100%, so there was no shar |
+| ME78 in its half-covered form | No part-covered session exists for the same reason. The 100% case was checked instead: Yassin's /earnings shows EGP 510 of EGP 600, so the 15% fee is on the full price. |
+| CO6.3 domain proof | It stopped at the DNS step as expected: 'We cannot see that record yet. DNS changes can take a few minutes to an hour to spread. Check the name and the value match exactly, then try again.' The mailbox half is done. |
+| B29 partner wording | No partner user was invited in this assignment. The shared /welcome page was re-walked for company logins only. |
+
+### Facts later rounds need
+
+- Nile Practice: 2 seats (EGP 7,200 a month), 1 filled by Dr Tarek Demo (tarek.demo@example.com, verified, EG-PSY-10051), 0 invited; bills due EGP 1,200 (EGP 666.50 + EGP 533.50), unpaid
+- Tarek's join link (spent): https://24therapy.app/clinic/join/U9eyRvRh0-3DRqZpjdWX3zhDJlNGnzB7sgyZTINJHtM. Mona Sample's invitation (mona.sample@example.com) was cancelled
+- C1-S Fatma: role 'Front desk' (See who is coming and when, See the clinician list), covers Tarek; password Simulation2026!
+- Cairo Foundry (c4ccf3ae-ab46-4296-98bf-f060032a7c16): code GCTXXP5T; rules = staff-list email + 6-digit employee ID; staff list = hoda.demo@example.com, mostafa.demo@example.com (P3 Mostafa must give a 6-digit staff number); domain example.com added (mailbox half done, DNS never); teammate youssef.finance@example.com invited as Viewer; stray EGP 5,700 cart cancelled; pot $580; 100% now, 80% from 20 Oct 2026
+- P4 Hoda: account +201009000044 / hoda.demo@example.com / Simulation2026!; enrolled with Cairo Foundry (staff no. 104421); booked T1 Amira Sat 26 Sept 08:00 Cairo, session 6799b406-a30d-40aa-aa61-48f46edccf84, join /join/TlMgX8a4OUXWnnOAoOeJwduNNjMf5pt9, covered 100% ($20 from the pot)
+- Alexandria Textiles (262effbb-d93d-4370-af8e-6ea82446d94a): active, pot opened with $100 welcome credit (now $88), expires 26 Sept 2027; code 4CZ6HY9P; staff-list rule, list = nadia.example@example.com; coverage 100% now, 10% from 26 Oct 2026; admin mariam.example@example.com
+- P5 Nadia: account +201009000045 / nadia.example@example.com / Simulation2026!; enrolled with Alexandria; booked T2 Yassin Sun 27 Sept 12:00 Cairo, session c53730be-fd25-41c0-bde2-f13911b44acc, join /join/LWhtRRs3e44K4NvJxl_X2UFWHH6rws6S, covered 100% ($12)
+- Delta Logistics: active, pot opened with no welcome credit, expires 26 Sept 2027; top-up DL-TOPUP-0926-001 ($300 net, EGP 17,100 with VAT) rejected once by SU3 with a reason, resubmitted, confirmed; pot $300; tax invoice 'Being issued'; no code or rules yet; admin rania.example@example.com
+- Console vault: unspent sponsor pots $968 = 580 + 88 + 300; held for clinicians Amira $64, Yassin $40.80
+- The watchdog emailed the founders at 26 Sept 01:32 (cron-overdue for extract, retention, billing, reminders, crisis, plus digest:one-hand and server-errors); every job has run since
+- Browser states kept under keys C1-M, C1-S, C1-A, E1-HR, E2-HR, E3-HR, P4, P5, OP, SU3, SU4, T2-ORG (a separate read-only Yassin browser); a stale clinic or sponsor cookie loops, so open those with {fresh:true} and sign in again
+- Scripts: /tmp/claude-0/-home-user-habiba/89298ea1-e9ec-57f4-b3b1-1c844ea86570/scratchpad/sim/R2/ORG/ (lib.mjs, clinic-signin, sponsor-signin, psignin, enrol, book, co7, su3r, su3c, ad7b, welcome ...); screenshots: /home/user/habiba/docs/simulation-run/shots/R2/
