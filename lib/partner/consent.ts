@@ -140,8 +140,49 @@ export function coverageSentence(fromSeconds: number | null): string {
     return "This session was recorded from the start.";
   }
 
-  const minutes = Math.round(fromSeconds / 60);
-  return `Recording started ${minutes} ${minutes === 1 ? "minute" : "minutes"} into this session. Nothing before that was recorded, and nothing here was written from it.`;
+  return `Recording started ${howFarIn(fromSeconds)} into this session. Nothing before that was recorded, and nothing here was written from it.`;
+}
+
+/**
+ * 🔴 Board 606: WHAT A WITHDRAWAL DOES TO THE BOUNDARY, AS A RULE AND NOT A QUERY.
+ *
+ * A withdrawal stops any new reading and does not erase what was already read. So:
+ *
+ * - While the session runs, a withdrawal ends the consented period and takes back
+ *   what it produced (W1-17): the boundary becomes null and the material is purged.
+ * - After the session ended, everything was already read, noted and perhaps approved
+ *   and delivered. The boundary stays where it was, so the transcript, the note and
+ *   the delivered summary still answer with the true coverage sentence, and only
+ *   new work (drafting, a new summary, the copilot) is refused.
+ *
+ * `consented` is what the log says now, `previous` the boundary the session held.
+ */
+export function boundaryAfterAnswer(input: {
+  consented: number | null;
+  previous: number | null;
+  ended: boolean;
+}): number | null {
+  if (input.consented !== null) return input.consented;
+  return input.ended ? input.previous : null;
+}
+
+/** The sentence a content route gives when it refuses new work after a withdrawal. */
+export const WITHDRAWN_NO_NEW_WORK =
+  "The patient withdrew consent after this session ended. What was already read, approved or delivered stays, and nothing new is written from it.";
+
+/**
+ * 🔴 Board 605: the offset in words, exactly. Rounding to minutes said "0 minutes"
+ * for a yes 20 seconds in, and "1 minute" for 90 seconds would claim 30 seconds of
+ * recording that never happened, so the seconds are said when there are any.
+ */
+export function howFarIn(seconds: number): string {
+  const whole = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(whole / 60);
+  const rest = whole % 60;
+  const m = `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  const s = `${rest} ${rest === 1 ? "second" : "seconds"}`;
+  if (minutes === 0) return s;
+  return rest === 0 ? m : `${m} and ${s}`;
 }
 
 /** Every answer for a session, oldest first, for a partner's own audit screen. */

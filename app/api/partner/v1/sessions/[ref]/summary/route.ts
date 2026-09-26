@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { writePatientSummary } from "@/lib/partner/draft";
 import { transcriptFor } from "@/lib/partner/media";
 import { deliverSummary, noteFor } from "@/lib/partner/notes";
-import { mayAnswer } from "@/lib/partner/platform";
+import { WITHDRAWN_NO_NEW_WORK } from "@/lib/partner/consent";
+import { mayAnswer, mayWriteNew } from "@/lib/partner/platform";
 import { fail, withKey } from "@/lib/partner/route";
 
 export const runtime = "nodejs";
@@ -54,6 +55,10 @@ export async function GET(
     environment: guard.key.environment,
   });
   if (!allowed.ok) return fail(allowed.error, allowed.status);
+  /* 🔴 Board 606: a withdrawal after the session ended stops any new summary. */
+  if (!(await mayWriteNew({ partnerId: guard.key.partnerId, externalSessionRef: ref }))) {
+    return fail(WITHDRAWN_NO_NEW_WORK, 403);
+  }
 
   const note = await noteFor(allowed.session.id);
 
@@ -92,6 +97,10 @@ export async function POST(
     environment: guard.key.environment,
   });
   if (!allowed.ok) return fail(allowed.error, allowed.status);
+  /* 🔴 Board 606: a withdrawal after the session ended stops any new summary. */
+  if (!(await mayWriteNew({ partnerId: guard.key.partnerId, externalSessionRef: ref }))) {
+    return fail(WITHDRAWN_NO_NEW_WORK, 403);
+  }
 
   let body: Record<string, unknown>;
   try {

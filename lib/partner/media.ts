@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { transcribeAudio } from "@/lib/ai/transcribe";
 import { controlDb } from "@/lib/db";
@@ -137,8 +137,8 @@ export async function ingestPartnerAudio(input: {
  *
  * The consent log is append only and says the withdrawal happened; this is the
  * material that was made under the consent: the transcript, the draft and the
- * summary. An approved note is the partner clinician's signed record and stays
- * theirs. Only when the session's effective answer is now no, so a withdrawal
+ * summary, while the session is still running. An approved note is the partner
+ * clinician's signed record and stays theirs. Only when the session's effective answer is now no, so a withdrawal
  * that arrives before a later yes does not wipe a consented session.
  */
 export async function purgeSessionMaterial(input: {
@@ -155,6 +155,11 @@ export async function purgeSessionMaterial(input: {
       and(
         eq(partnerSessions.partnerId, input.partnerId),
         eq(partnerSessions.externalSessionRef, input.externalSessionRef),
+        /*
+         * 🔴 Board 606: only a session still running. After it ended, everything
+         * was already read, and a withdrawal stops new reading without erasing it.
+         */
+        isNull(partnerSessions.endedAt),
       ),
     )
     .returning({ id: partnerSessions.id });
