@@ -198,3 +198,24 @@ test("620: the partner's webhook form says what events do, never our build statu
     assert.ok(ar[key as keyof typeof ar], `${key} has Arabic`);
   }
 });
+
+/* ------------------------------------------------------------ board 932 -- */
+
+test("board 932: a live subject can be linked, by the patient's own act, through a signed link", async () => {
+  const { subjectLinkToken, readSubjectLinkToken } = await import("../lib/partner/subject-link");
+  const id = "0b7a1c2e-3f40-4a5b-8c6d-7e8f90a1b2c3";
+  const later = new Date(Date.now() + 60_000);
+  const token = subjectLinkToken(id, later);
+  assert.deepEqual(readSubjectLinkToken(token), { subjectId: id });
+
+  /* A changed subject, a changed expiry or an old link resolves to nobody. */
+  const [, exp, mac] = token.split(".");
+  assert.equal(readSubjectLinkToken(`0b7a1c2e-3f40-4a5b-8c6d-7e8f90a1b2c4.${exp}.${mac}`), null);
+  assert.equal(readSubjectLinkToken(`${id}.${Number(exp) + 999}.${mac}`), null);
+  assert.equal(readSubjectLinkToken(token, new Date(later.getTime() + 1000)), null);
+
+  /* Only an empty, unrevoked subject is filled, and the person is the session's. */
+  assert.match(readFileSync("lib/partner/subject-link.ts", "utf8"), /isNull\(partnerSubjects\.personId\)/);
+  assert.match(readFileSync("app/(patient)/patient/link/[token]/actions.ts", "utf8"), /personId: actor\.personId/);
+  assert.match(readFileSync("app/api/partner/v1/subjects/[ref]/link/route.ts", "utf8"), /subjectLinkFor\(/);
+});

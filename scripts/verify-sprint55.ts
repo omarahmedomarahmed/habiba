@@ -1371,10 +1371,15 @@ async function main() {
      * of its own could not be used without that one. It still has a scope behind
      * it, which is what this count guards; the count stays exact so the next
      * route has to be argued here too.
+     *
+     * 🔴 Board 932, 2026-09-26: THIRTEEN. `subjects/[ref]/link` holds
+     * `session:write`, the scope of the write-back it unblocks: a subject is
+     * useless to that key until its patient links it, so the key that writes
+     * sessions is the key that asks for the link.
      */
     check(
       "🔴 55.6-55.8 / 68.24 one scope per use case, and a route for each",
-      API_SCOPES.length === 10 && routeFiles.length === 12,
+      API_SCOPES.length === 10 && routeFiles.length === 13,
       `${API_SCOPES.length} scopes, ${routeFiles.length} routes`,
     );
 
