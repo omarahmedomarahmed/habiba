@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { AskForReceipt } from "@/components/sponsor/ask-for-receipt";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 import { invoiceFor } from "@/lib/billing/invoice";
@@ -67,8 +67,8 @@ export default async function InvoicePage({
   if ("missing" in invoice) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("sponsor.inv.notYet")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("sponsor.inv.notYet")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("sponsor.inv.notYetBody")}
         </p>
         <AskForReceipt txn={txn} />
@@ -83,38 +83,38 @@ export default async function InvoicePage({
       <Card className="p-8 print:shadow-none print:ring-0">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div>
-            <p className="text-sm font-bold text-slate-900">{invoice.from.legalName}</p>
-            <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-slate-600">
+            <p className="text-sm font-bold text-navy-700">{invoice.from.legalName}</p>
+            <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-navy-400">
               {invoice.from.address}
             </p>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-1 text-xs text-navy-400">
               {t("sponsor.inv.taxNumber", { id: invoice.from.taxId })}
             </p>
           </div>
 
           <div className="text-end">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-navy-400">
               {t("sponsor.inv.title")}
             </p>
-            <p className="font-mono text-sm font-bold text-slate-900">{invoice.number}</p>
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="font-mono text-sm font-bold text-navy-700">{invoice.number}</p>
+            <p className="mt-1 text-xs text-navy-400">
               {day(invoice.issuedAt)}
             </p>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-slate-200 pt-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className="mt-8 border-t border-navy-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-navy-400">
             {t("sponsor.inv.billedTo")}
           </p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{invoice.sponsorName}</p>
+          <p className="mt-1 text-sm font-semibold text-navy-700">{invoice.sponsorName}</p>
         </div>
 
         <table className="mt-8 w-full text-sm">
           <tbody>
-            <tr className="border-b border-slate-100">
-              <td className="py-2 text-slate-700">{t("sponsor.inv.line")}</td>
-              <td className="py-2 text-end tabular-nums text-slate-900">
+            <tr className="border-b border-navy-100">
+              <td className="py-2 text-navy-600">{t("sponsor.inv.line")}</td>
+              <td className="py-2 text-end tabular-nums text-navy-700">
                 {fmt(invoice.netCents)}
               </td>
             </tr>
@@ -124,19 +124,19 @@ export default async function InvoicePage({
               it is a statement about the jurisdiction, which is what an invoice is
               for.
             */}
-            <tr className="border-b border-slate-100">
-              <td className="py-2 text-slate-700">
+            <tr className="border-b border-navy-100">
+              <td className="py-2 text-navy-600">
                 {t("sponsor.inv.vat", {
                   rate: (invoice.vatBps / 100).toFixed(invoice.vatBps % 100 === 0 ? 0 : 1),
                 })}
               </td>
-              <td className="py-2 text-end tabular-nums text-slate-900">
+              <td className="py-2 text-end tabular-nums text-navy-700">
                 {fmt(invoice.vatCents)}
               </td>
             </tr>
             <tr>
-              <td className="py-3 font-semibold text-slate-900">{t("sponsor.inv.paid")}</td>
-              <td className="py-3 text-end font-semibold tabular-nums text-slate-900">
+              <td className="py-3 font-semibold text-navy-700">{t("sponsor.inv.paid")}</td>
+              <td className="py-3 text-end font-semibold tabular-nums text-navy-700">
                 {fmt(invoice.totalCents)}
               </td>
             </tr>
@@ -147,7 +147,7 @@ export default async function InvoicePage({
           🔴 53.12 — on the document as well as on the screen that took the money.
           Spendable on sessions here and nothing else, no cash out, no transfer.
         */}
-        <p className="mt-8 border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-500">
+        <p className="mt-8 border-t border-navy-100 pt-4 text-xs leading-relaxed text-navy-400">
           {t("sponsor.inv.spendableOnly")}
         </p>
       </Card>

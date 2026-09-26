@@ -12,7 +12,7 @@ import { potReturnsFor } from "@/lib/billing/pot-return";
 import { manualEntry, potTopUpLadder, sponsorNeedsTransfer } from "@/lib/billing/manual-entry";
 import { localeTag } from "@/lib/i18n/config";
 import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { Meter } from "@/components/visual/primitives";
 import { topUpHistory } from "@/lib/billing/invoice";
 
@@ -24,6 +24,7 @@ import { formatDate } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 import { Money } from "@/components/ui/money";
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { rich, slot } from "@/lib/i18n/rich";
 
 /** W3: the tab title in the reader's language. */
@@ -135,7 +136,8 @@ export default async function SponsorPotPage() {
   const expiry = expiryState(terms?.expiresAt ?? null);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4">
+    <div className="space-y-6">
+      <SponsorHeading title={t("sponsor.nav.pot")} />
       {expiry && terms?.expiresAt ? (
         <ExpiryNotice
           text={
@@ -145,6 +147,8 @@ export default async function SponsorPotPage() {
           }
         />
       ) : null}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-4">
       {/*
         🔴 65.12 — THE POT, ITS TERMS AND ITS EXPIRY AS A METER WITH THREE STATES.
 
@@ -162,19 +166,19 @@ export default async function SponsorPotPage() {
           🔴 B3 — what the company paid in, under its own label, because its own
           money in names nobody. Still no meter: a bar needs the spend.
         */
-        <Card className="p-4">
-          <p className="text-xs font-medium text-slate-500">{t("sponsor.funded")}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-slate-900">
+        <Card className="p-5 sm:p-6">
+          <p className="text-[13px] font-semibold text-navy-400">{t("sponsor.funded")}</p>
+          <p className="mt-1 text-[34px] leading-tight font-bold tracking-tight tabular-nums text-navy-700">
             {fmt(pot.fundedCents)}
           </p>
           {pot.underHeadcount ? (
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1 text-xs leading-relaxed text-navy-400">
               {t("sponsor.fundedHeld", { floor: settings.sponsor.activityFloor })}
             </p>
           ) : null}
         </Card>
       ) : (
-        <Card className="p-4">
+        <Card className="p-5 sm:p-6">
           <Meter
             usedLabel={fmt(pot.balanceCents)}
             ofLabel={
@@ -221,6 +225,8 @@ export default async function SponsorPotPage() {
         />
       ) : null}
 
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">
       {/*
         🔴 73.13 — ONE RAIL PER SPONSOR, decided by the same `entity` column
         `topUpPot` refuses on. An Egyptian company cannot be charged a card, so
@@ -276,12 +282,12 @@ export default async function SponsorPotPage() {
           />
         ) : (
           /* A viewer, or anybody on the transfer rail, reads the terms here. */
-          <Card className="p-5">
-            <p className="text-xs font-semibold text-slate-700">{t("sponsor.refundTerms")}</p>
-            <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-slate-600">
+          <Card className="p-5 sm:p-6">
+            <p className="text-sm font-bold text-navy-700">{t("sponsor.refundTerms")}</p>
+            <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-navy-400">
               {terms.refundPolicy}
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-600">
+            <p className="mt-2 text-xs leading-relaxed text-navy-400">
               {t("sponsor.expiresOn", { date: day(terms.expiresAt) })}
             </p>
           </Card>
@@ -290,7 +296,7 @@ export default async function SponsorPotPage() {
 
       {!terms?.refundPolicy || !terms.expiresAt ? (
         <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.noPot")}</p>
+          <p className="text-sm leading-relaxed text-navy-400">{t("sponsor.noPot")}</p>
         </Card>
       ) : null}
 
@@ -304,14 +310,14 @@ export default async function SponsorPotPage() {
         tempting to break.
       */}
       {history.length > 0 ? (
-        <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.invoices")}</p>
-          <ul className="mt-2 space-y-1">
+        <Card className="p-5 sm:p-6">
+          <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.invoices")}</h2>
+          <ul className="mt-3 divide-y divide-navy-100">
             {history.map((entry) => (
               <li key={entry.txnId}>
                 <Link
                   href={`/sponsor/pot/${entry.txnId}`}
-                  className="flex items-baseline justify-between gap-3 py-1 text-sm text-slate-700 hover:underline"
+                  className="flex items-baseline justify-between gap-3 py-2.5 text-sm font-semibold text-navy-600 hover:text-brand-700"
                 >
                   <span>{day(entry.at)}</span>
                   <span className="tabular-nums">{fmt(entry.amountCents)}</span>
@@ -323,16 +329,16 @@ export default async function SponsorPotPage() {
       ) : null}
 
       {returns.some((r) => r.state !== "cancelled") ? (
-        <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.returns.title")}</p>
-          <ul className="mt-2 space-y-1">
+        <Card className="p-5 sm:p-6">
+          <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.returns.title")}</h2>
+          <ul className="mt-3 divide-y divide-navy-100">
             {returns
               .filter((r) => r.state !== "cancelled")
               .map((r) => (
-                <li key={r.id} className="flex items-baseline justify-between gap-3 py-1 text-sm text-slate-700">
+                <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2.5 text-sm text-navy-600">
                   <span>{day(r.decidedAt ?? r.createdAt)}</span>
                   <span className="tabular-nums">{egp(r.egpMinor)}</span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-navy-400">
                     {r.state === "sent" ? t("sponsor.returns.sent") : t("sponsor.returns.requested")}
                   </span>
                 </li>
@@ -350,11 +356,11 @@ export default async function SponsorPotPage() {
         the wait.
       */}
       {etaDocs.length > 0 ? (
-        <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.eta.title")}</p>
-          <ul className="mt-2 space-y-1">
+        <Card className="p-5 sm:p-6">
+          <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.eta.title")}</h2>
+          <ul className="mt-3 divide-y divide-navy-100">
             {etaDocs.map((doc) => (
-              <li key={doc.id} className="flex items-baseline justify-between gap-3 py-1 text-sm text-slate-700">
+              <li key={doc.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2.5 text-sm text-navy-600">
                 <span>
                   {t(doc.kind === "invoice" ? "sponsor.eta.invoice" : "sponsor.eta.creditNote")} · {day(doc.createdAt)}
                 </span>
@@ -364,7 +370,7 @@ export default async function SponsorPotPage() {
                     {t("sponsor.eta.valid")}
                   </a>
                 ) : (
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-navy-400">
                     {doc.state === "waiting"
                       ? t(doc.waitingFor?.startsWith("company") ? "sponsor.eta.waitingYou" : "sponsor.eta.waiting")
                       : t(`sponsor.eta.${doc.state}`)}
@@ -379,6 +385,8 @@ export default async function SponsorPotPage() {
       {actor.role === "admin" && tax.entity === "eg" ? (
         <TaxDetails legalName={tax.legalName} rin={tax.rin} address={tax.address} />
       ) : null}
+      </div>
+      </div>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function SpendHeatmap({ weeks }: { weeks: HeatWeek[] }) {
   const t = useT();
 
   if (weeks.length === 0) {
-    return <p className="mt-2 text-sm text-slate-500">{t("sponsor.suppressed")}</p>;
+    return <p className="mt-2 text-sm text-navy-400">{t("sponsor.suppressed")}</p>;
   }
 
   const reported = weeks
@@ -58,8 +58,8 @@ export function SpendHeatmap({ weeks }: { weeks: HeatWeek[] }) {
   const peak = Math.max(1, ...reported);
 
   return (
-    <div className="mt-3 overflow-x-auto">
-      <div className="flex min-w-max gap-1">
+    <div className="mt-4">
+      <div className="flex flex-wrap gap-1.5">
         {weeks.map((week) => {
           const suppressed = week.spendCents === null;
           const share = suppressed ? 0 : week.spendCents! / peak;
@@ -71,7 +71,7 @@ export function SpendHeatmap({ weeks }: { weeks: HeatWeek[] }) {
            */
           const step = share === 0 ? 0 : share < 0.25 ? 1 : share < 0.5 ? 2 : share < 0.75 ? 3 : 4;
           const shade = [
-            "bg-slate-100",
+            "bg-navy-50 ring-1 ring-inset ring-navy-100",
             "bg-brand-100",
             "bg-brand-200",
             "bg-brand-400",
@@ -93,8 +93,8 @@ export function SpendHeatmap({ weeks }: { weeks: HeatWeek[] }) {
               }
               className={
                 suppressed
-                  ? "h-6 w-6 shrink-0 rounded border border-dashed border-slate-300 bg-[repeating-linear-gradient(45deg,#f1f5f9_0,#f1f5f9_2px,#fff_2px,#fff_4px)]"
-                  : `h-6 w-6 shrink-0 rounded ${shade}`
+                  ? "h-8 w-8 shrink-0 rounded-lg border border-dashed border-navy-200 bg-[repeating-linear-gradient(45deg,#dde3ea,#dde3ea_3px,#fff_3px,#fff_7px)] sm:h-9 sm:w-9"
+                  : `h-8 w-8 shrink-0 rounded-lg sm:h-9 sm:w-9 ${shade}`
               }
             />
           );

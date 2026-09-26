@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { setCoveragePercent, type CoverageState } from "@/app/(sponsor)/sponsor/pot/actions";
-import { Button, Card } from "@/components/ui";
+import { Button, buttonClass, Card } from "@/components/clinician/kit";
+import { cn } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
 import { rich, slot } from "@/lib/i18n/rich";
@@ -66,12 +67,12 @@ export function CoverageForm({
   const [draft, setDraft] = useState(current);
 
   return (
-    <Card className="p-5">
-      <h2 className="text-sm font-semibold text-slate-900">{t("sponsor.cov.title")}</h2>
+    <Card className="p-5 sm:p-6">
+      <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.cov.title")}</h2>
 
-      <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-3xl font-bold tracking-tight text-slate-900">{current}%</span>
-        <span className="text-sm text-slate-500">
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-[40px] leading-none font-bold tracking-tight tabular-nums text-navy-700">{current}%</span>
+        <span className="text-sm text-navy-400">
           {t("sponsor.cov.ofSession", { rest: 100 - current })}
         </span>
       </div>
@@ -100,8 +101,8 @@ export function CoverageForm({
         exactly what the change buys.
       */}
       {editing ? (
-        <form action={action} className="mt-4 rounded-2xl bg-slate-50 p-4">
-          <label htmlFor="coverage-slider" className="text-xs font-medium text-slate-600">
+        <form action={action} className="mt-5 rounded-2xl bg-navy-50 p-4 ring-1 ring-navy-100 sm:p-5">
+          <label htmlFor="coverage-slider" className="text-xs font-medium text-navy-400">
             {t("sponsor.cov.moveIt")}
           </label>
           <input type="hidden" name="percent" value={String(draft)} />
@@ -114,11 +115,28 @@ export function CoverageForm({
               step={5}
               value={draft}
               onChange={(e) => setDraft(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-700"
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-navy-100 accent-brand-700"
             />
-            <span className="w-14 shrink-0 text-end text-lg font-bold tabular-nums text-slate-900">
+            <span className="w-16 shrink-0 text-end text-2xl font-bold tabular-nums text-navy-700">
               {draft}%
             </span>
+          </div>
+
+          {/*
+            The split of one session, as in the approved mockup: what the company
+            pays in navy, what the person pays in teal, sized by the draft. The
+            same figures as the sentence under it, drawn rather than read.
+          */}
+          <div aria-hidden className="mt-4 flex h-12 overflow-hidden rounded-2xl ring-1 ring-navy-100">
+            <div
+              className="flex items-center justify-center bg-navy-700 text-[13px] font-bold tabular-nums text-white transition-[width] duration-300"
+              style={{ width: `${draft}%` }}
+            >
+              {draft >= 22 ? <Money cents={Math.round(sessionPriceUsd * draft)} /> : null}
+            </div>
+            <div className="flex flex-1 items-center justify-center bg-brand-100 text-[13px] font-bold tabular-nums text-navy-700">
+              {draft <= 78 ? <Money cents={Math.round(sessionPriceUsd * (100 - draft))} /> : null}
+            </div>
           </div>
 
           {/*
@@ -128,7 +146,7 @@ export function CoverageForm({
             decision a finance team can take, and it is the same arithmetic
             they would do on paper before agreeing to anything.
           */}
-          <p className="mt-3 rounded-xl bg-white p-3 text-sm leading-relaxed text-slate-700">
+          <p className="mt-3 rounded-xl bg-white p-3 text-sm leading-relaxed text-navy-600">
             {draft === 0
               ? t("sponsor.cov.zero")
               : rich(
@@ -140,9 +158,9 @@ export function CoverageForm({
                     count: Math.floor((balanceUsd ?? fundedUsd) / ((sessionPriceUsd * draft) / 100)),
                   }),
                   [
-                    <strong key="share" className="text-slate-900"><Money cents={Math.round(((sessionPriceUsd * draft) / 100) * 100)} /></strong>,
+                    <strong key="share" className="text-navy-700"><Money cents={Math.round(((sessionPriceUsd * draft) / 100) * 100)} /></strong>,
                     <Money key="price" cents={Math.round(sessionPriceUsd * 100)} />,
-                    <strong key="balance" className="text-slate-900"><Money cents={Math.round((balanceUsd ?? fundedUsd) * 100)} /></strong>,
+                    <strong key="balance" className="text-navy-700"><Money cents={Math.round((balanceUsd ?? fundedUsd) * 100)} /></strong>,
                   ],
                 )}
           </p>
@@ -155,7 +173,7 @@ export function CoverageForm({
                 setDraft(current);
                 setEditing(false);
               }}
-              className="h-12 rounded-xl px-4 text-sm font-semibold text-slate-600"
+              className="h-12 rounded-xl px-4 text-sm font-semibold text-navy-400"
             >
               {t("common.cancel")}
             </button>
@@ -165,19 +183,19 @@ export function CoverageForm({
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="mt-4 h-12 rounded-xl bg-slate-100 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+          className={cn(buttonClass("secondary", "md"), "mt-5 h-12")}
         >
           {t("sponsor.cov.edit")}
         </button>
       )}
 
-      <div className="mt-4 space-y-2 text-xs leading-relaxed text-slate-500">
+      <div className="mt-4 space-y-2 text-xs leading-relaxed text-navy-400">
         <p>
-          <strong className="font-semibold text-slate-700">{t("sponsor.cov.raiseNow")}</strong>{" "}
+          <strong className="font-semibold text-navy-600">{t("sponsor.cov.raiseNow")}</strong>{" "}
           {t("sponsor.cov.lowerTakes", { days: noticeDays })}
         </p>
         <p>
-          <strong className="font-semibold text-slate-700">{t("sponsor.cov.zeroAllowed")}</strong>{" "}
+          <strong className="font-semibold text-navy-600">{t("sponsor.cov.zeroAllowed")}</strong>{" "}
           {t("sponsor.cov.zeroBody")}
         </p>
         <p>{t("sponsor.cov.quoted")}</p>

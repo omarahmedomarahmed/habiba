@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { addGate, dropGate } from "@/app/(sponsor)/sponsor/settings/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import Link from "next/link";
 
 import type { IdentifierKind } from "@/lib/db/schema";
@@ -107,10 +107,10 @@ export function GateSettings({
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <p className="text-base font-bold tracking-tight text-slate-900">
+        <p className="text-base font-bold tracking-tight text-navy-700">
           {t("sponsor.identifierTitle")}
         </p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("sponsor.identifierBody")}
         </p>
 
@@ -124,13 +124,13 @@ export function GateSettings({
             {fields.map((field) => (
               <li
                 key={field.id}
-                className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3"
+                className="flex flex-wrap items-center gap-2 rounded-xl bg-navy-50 p-3"
               >
-                <span className="text-sm text-slate-800">
+                <span className="text-sm text-navy-700">
                   {t(KIND_KEYS[field.kind] ?? "sponsor.kind.id_number")}
                 </span>
                 {field.domain ? (
-                  <span className="font-mono text-xs text-slate-500">{field.domain}</span>
+                  <span className="font-mono text-xs text-navy-400">{field.domain}</span>
                 ) : null}
                 {field.unproved ? (
                   <Link
@@ -167,7 +167,7 @@ export function GateSettings({
               <p
                 role="status"
                 className={
-                  admitted ? "mt-1 text-xs text-brand-700" : "mt-1 text-xs text-slate-600"
+                  admitted ? "mt-1 text-xs text-brand-700" : "mt-1 text-xs text-navy-400"
                 }
               >
                 {admitted ? t("sponsor.gateTryYes") : t("sponsor.gateTryNo")}
@@ -177,13 +177,13 @@ export function GateSettings({
         ) : null}
 
         {atCap ? (
-          <p className="mt-4 text-xs text-slate-500">{t("sponsor.fieldCap")}</p>
+          <p className="mt-4 text-xs text-navy-400">{t("sponsor.fieldCap")}</p>
         ) : (
-          <form action={formAction} className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+          <form action={formAction} className="mt-4 space-y-4 border-t border-navy-100 pt-4">
             <fieldset>
               <div className="flex flex-col gap-2">
                 {Object.entries(KIND_KEYS).map(([value, key]) => (
-                  <label key={value} className="flex items-center gap-2 text-sm text-slate-700">
+                  <label key={value} className="flex items-center gap-2 text-sm text-navy-600">
                     <input
                       type="radio"
                       name="kind"
@@ -214,7 +214,7 @@ export function GateSettings({
                     name="preset"
                     value={preset}
                     onChange={(event) => setPreset(event.target.value)}
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                    className="h-10 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
                   >
                     <option value="digits">{t("sponsor.presetDigits")}</option>
                     <option value="prefixed">{t("sponsor.presetPrefixed")}</option>
@@ -235,7 +235,7 @@ export function GateSettings({
               <Input id="gate-hint" name="shapeHint" />
             </Field>
             {/* 🔴 C248 — said on the form that collects it. */}
-            <p className="text-xs leading-relaxed text-slate-500">{t("sponsor.shapeHintBody")}</p>
+            <p className="text-xs leading-relaxed text-navy-400">{t("sponsor.shapeHintBody")}</p>
 
             {state.error ? (
               <p role="alert" className="text-xs text-red-600">

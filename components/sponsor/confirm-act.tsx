@@ -51,7 +51,7 @@ export function ConfirmAct({
       <button
         type="button"
         onClick={() => setStage("confirm")}
-        className={`tap-target h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 ${className ?? ""}`}
+        className={`tap-target h-9 rounded-full px-3 text-xs font-semibold text-navy-500 ring-1 ring-navy-100 hover:bg-navy-50 hover:text-navy-700 ${className ?? ""}`}
       >
         {label}
       </button>
@@ -60,7 +60,7 @@ export function ConfirmAct({
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className ?? ""}`}>
-      <span className="text-xs leading-relaxed text-slate-600">{body}</span>
+      <span className="text-xs leading-relaxed text-navy-400">{body}</span>
       <button
         type="button"
         disabled={pending}
@@ -85,7 +85,7 @@ export function ConfirmAct({
           setError(null);
           setStage("idle");
         }}
-        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-navy-400 hover:bg-navy-50"
       >
         {t("sponsor.cancel")}
       </button>

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { uploadStaffList, type ListState } from "@/app/(sponsor)/sponsor/settings/actions";
-import { Button, Card, Field, Textarea } from "@/components/ui";
+import { Button, Card, Field, Textarea } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -16,11 +16,11 @@ export function StaffList({ onList, lastUpload, graceDays }: { onList: number; l
   const [state, action, pending] = useActionState(uploadStaffList, {} as ListState);
   return (
     <Card className="p-5">
-      <p className="text-base font-bold tracking-tight text-slate-900">{t("sponsor.list.title")}</p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">
+      <p className="text-base font-bold tracking-tight text-navy-700">{t("sponsor.list.title")}</p>
+      <p className="mt-1 text-sm leading-relaxed text-navy-400">
         {t("sponsor.list.body", { days: graceDays })}
       </p>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-navy-400">
         {lastUpload ? t("sponsor.list.count", { count: onList, date: lastUpload }) : t("sponsor.list.none")}
       </p>
       <form action={action} className="mt-3 space-y-3">

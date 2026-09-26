@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { askForReset, setPasswordFromLink } from "@/app/(sponsor)/sponsor/sign-in/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -30,7 +30,7 @@ export function ForgotPasswordForm() {
   if (state.sent) {
     return (
       <Card className="p-5">
-        <p role="status" className="text-sm leading-relaxed text-slate-700">
+        <p role="status" className="text-sm leading-relaxed text-navy-600">
           {t("sponsor.forgotSent")}
         </p>
       </Card>

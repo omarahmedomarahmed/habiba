@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ConfirmDomain } from "@/components/sponsor/confirm-domain";
-import { PageHeader } from "@/components/ui";
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { getI18n } from "@/lib/i18n/server";
 
 /** W3: the tab title in the reader's language. */
@@ -44,8 +44,8 @@ export default async function ConfirmDomainPage({
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto max-w-md px-4 py-12 sm:px-6">
-      <PageHeader
+    <main className="mx-auto flex max-w-md flex-col gap-5 py-6">
+      <SponsorHeading
         title={t("sponsor.confirm.title")}
         subtitle={t("sponsor.confirm.subtitle")}
       />

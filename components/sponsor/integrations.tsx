@@ -7,7 +7,7 @@ import {
   revokeHrKey,
   setVerification,
 } from "@/app/(sponsor)/sponsor/integrations/actions";
-import { Button, Card, Field } from "@/components/ui";
+import { Button, Card, Field } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -87,13 +87,13 @@ export function SponsorIntegrations({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("sint.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sint.body")}</p>
+        <h1 className="text-xl font-bold tracking-tight text-navy-700">{t("sint.title")}</h1>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("sint.body")}</p>
       </div>
 
       {/* ------------------------------------------------------ the switch -- */}
       <Card className="p-5">
-        <p className="text-base font-bold tracking-tight text-slate-900">
+        <p className="text-base font-bold tracking-tight text-navy-700">
           {t("sint.enableTitle")}
         </p>
 
@@ -104,8 +104,8 @@ export function SponsorIntegrations({
           Saying what this one does instead, in front of the control rather than in a
           help page, is the difference between a promise and a footnote.
         */}
-        <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
-          <p className="font-semibold text-slate-900">{t("sint.neverTitle")}</p>
+        <div className="mt-2 space-y-2 rounded-xl bg-navy-50 p-4 text-sm leading-relaxed text-navy-600">
+          <p className="font-semibold text-navy-700">{t("sint.neverTitle")}</p>
           <p>{t("sint.neverBody")}</p>
         </div>
 
@@ -117,7 +117,7 @@ export function SponsorIntegrations({
                   id="hr-system"
                   value={system}
                   onChange={(event) => setSystem(event.target.value)}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                  className="h-11 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm text-navy-700"
                 >
                   {systems.map((candidate) => (
                     <option key={candidate.key} value={candidate.key}>
@@ -150,7 +150,7 @@ export function SponsorIntegrations({
               tomorrow needs to know they will be minting a new one.
             */}
             {enabled ? (
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">{t("sint.offRevokes")}</p>
+              <p className="mt-2 text-xs leading-relaxed text-navy-400">{t("sint.offRevokes")}</p>
             ) : null}
           </>
         ) : null}
@@ -172,10 +172,10 @@ export function SponsorIntegrations({
                 className={
                   live
                     ? "h-2.5 w-2.5 rounded-full bg-brand-500"
-                    : "h-2.5 w-2.5 rounded-full bg-slate-300"
+                    : "h-2.5 w-2.5 rounded-full bg-navy-200"
                 }
               />
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-navy-700">
                 {live ? t("sint.connected") : t("sint.notConnected")}
               </p>
             </div>
@@ -187,7 +187,7 @@ export function SponsorIntegrations({
               With the time of the last successful answer beside it, an admin whose
               integration broke on Tuesday can see that it did.
             */}
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-navy-400">
               {live
                 ? t("sint.lastAnswered", { when: live.lastSuccessAt ?? "" })
                 : t("sint.keyUnused")}
@@ -196,20 +196,20 @@ export function SponsorIntegrations({
 
           {/* ------------------------------------------------- the steps -- */}
           <Card className="p-5">
-            <p className="text-base font-bold tracking-tight text-slate-900">
+            <p className="text-base font-bold tracking-tight text-navy-700">
               {t("sint.stepsTitle")}
             </p>
 
             <ol className="mt-4 space-y-4">
               {STEPS.map((step, i) => (
                 <li key={step.title} className="flex gap-4">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy-700 text-xs font-bold text-white">
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900">{t(step.title)}</p>
+                    <p className="text-sm font-semibold text-navy-700">{t(step.title)}</p>
                     {step.body ? (
-                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
+                      <p className="mt-0.5 text-sm leading-relaxed text-navy-400">
                         {t(step.body)}
                       </p>
                     ) : null}
@@ -219,7 +219,7 @@ export function SponsorIntegrations({
                       generated at the step that needs it.
                     */}
                     {i === 1 ? (
-                      <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-900 p-3 text-xs leading-relaxed text-slate-100">
+                      <pre className="mt-2 overflow-x-auto rounded-xl bg-navy-700 p-3 text-xs leading-relaxed text-navy-50">
 {`POST https://24therapy.app/api/hr/v1/employment
 Authorization: Bearer <your key>
 Content-Type: application/json
@@ -268,14 +268,14 @@ Content-Type: application/json
           {/* --------------------------------------------------- the keys -- */}
           {keys.length > 0 ? (
             <Card className="p-5">
-              <p className="text-base font-bold tracking-tight text-slate-900">
+              <p className="text-base font-bold tracking-tight text-navy-700">
                 {t("sint.keysTitle")}
               </p>
-              <ul className="mt-3 divide-y divide-slate-100">
+              <ul className="mt-3 divide-y divide-navy-100">
                 {keys.map((key) => (
                   <li key={key.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5">
-                    <span className="font-mono text-xs text-slate-700">{key.prefix}…</span>
-                    <span className="text-xs text-slate-500">
+                    <span className="font-mono text-xs text-navy-600">{key.prefix}…</span>
+                    <span className="text-xs text-navy-400">
                       {key.revoked
                         ? t("sint.keyRevoked")
                         : key.suspendedReason
@@ -311,17 +311,17 @@ Content-Type: application/json
 
           {/* --------------------------------------------- the deliveries -- */}
           <Card className="p-5">
-            <p className="text-base font-bold tracking-tight text-slate-900">
+            <p className="text-base font-bold tracking-tight text-navy-700">
               {t("sint.logTitle")}
             </p>
 
             {deliveries.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">{t("sint.logEmpty")}</p>
+              <p className="mt-3 text-sm text-navy-400">{t("sint.logEmpty")}</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-start text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="border-b border-navy-100 text-start text-xs uppercase tracking-wide text-navy-400">
                       <th scope="col" className="py-2 pe-4 text-start font-medium">
                         {t("sint.logWhen")}
                       </th>
@@ -338,14 +338,14 @@ Content-Type: application/json
                   </thead>
                   <tbody>
                     {deliveries.map((delivery) => (
-                      <tr key={delivery.id} className="border-b border-slate-100 last:border-0">
-                        <td className="whitespace-nowrap py-2 pe-4 text-slate-600">
+                      <tr key={delivery.id} className="border-b border-navy-100 last:border-0">
+                        <td className="whitespace-nowrap py-2 pe-4 text-navy-400">
                           {delivery.at}
                         </td>
-                        <td className="py-2 pe-4 font-mono text-xs text-slate-700">
+                        <td className="py-2 pe-4 font-mono text-xs text-navy-600">
                           {delivery.event}
                         </td>
-                        <td className="py-2 pe-4 tabular-nums text-slate-700">
+                        <td className="py-2 pe-4 tabular-nums text-navy-600">
                           {/* 🔴 Empty, not a dash: C117 bans one and a placeholder
                               glyph for "we never heard back" says less than nothing. */}
                           {delivery.status ?? ""}
@@ -360,7 +360,7 @@ Content-Type: application/json
             )}
 
             {/* 🔴 66.9 — why there is no name in this table, in the table's own words. */}
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">{t("sint.logNoNames")}</p>
+            <p className="mt-3 text-xs leading-relaxed text-navy-400">{t("sint.logNoNames")}</p>
           </Card>
         </>
       ) : null}

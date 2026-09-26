@@ -75,6 +75,7 @@ export default async function SponsorLayout({ children }: { children: React.Reac
       role={actor?.role ?? null}
     >
       {pending ? (
+        <div className="mb-6 empty:hidden print:hidden">
         <PendingBar
           what={pending.what}
           amount={pending.amount}
@@ -83,6 +84,7 @@ export default async function SponsorLayout({ children }: { children: React.Reac
           paymentId={pending.paymentId}
           storageKey={pending.storageKey}
         />
+        </div>
       ) : null}
       {children}
     </SponsorChrome>

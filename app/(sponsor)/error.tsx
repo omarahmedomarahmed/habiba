@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { Button } from "@/components/ui";
+import { Button } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -34,7 +34,7 @@ export default function SponsorError({
 
   return (
     <div role="alert" className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
-      <p className="max-w-sm text-sm leading-relaxed text-slate-600">{t("common.somethingWrong")}</p>
+      <p className="max-w-sm text-sm leading-relaxed text-navy-400">{t("common.somethingWrong")}</p>
       <Button type="button" onClick={reset}>
         {t("sponsor.retry")}
       </Button>
