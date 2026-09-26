@@ -6,9 +6,10 @@ import { ChevronDown, Loader2, PanelLeftClose, PanelRightClose, Radio } from "lu
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
 import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components/radar/filters";
+import { OfflineCard } from "@/components/radar/offline-card";
 import { RadarList } from "@/components/radar/radar-list";
 import { TherapistCard } from "@/components/radar/therapist-card";
-import type { RadarEntry } from "@/components/radar/types";
+import type { RadarEntry, RadarOfflineEntry } from "@/components/radar/types";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { FirstHour } from "@/lib/data/scheduling";
 import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
@@ -54,20 +55,32 @@ const Globe = dynamicImport(() => import("@/components/radar/globe").then((m) =>
   ),
 });
 
+/** A stable empty list: a fresh `[]` default would re-run the sync effect every render. */
+const NO_OFFLINE: RadarOfflineEntry[] = [];
+
 /** Availability changes in seconds. Four is the difference between free and busy. */
 const REFRESH_MS = 4_000;
 
 export function RadarConsole({
   initial,
+  initialOffline = NO_OFFLINE,
   firstHours = [],
 }: {
   initial: RadarEntry[];
+  /**
+   * 🔴 Verified clinicians who are not on shift: dim dots on the globe that
+   * open "Offline, book a time". Never in the live list, never in a count,
+   * never handed to the booking sheet.
+   */
+  initialOffline?: RadarOfflineEntry[];
   /** 🔴 W2-P12: what to book when nobody is on shift, from `firstOpenHours`. */
   firstHours?: FirstHour[];
 }) {
   const t = useT();
   const [entries, setEntries] = useState(initial);
+  const [offline, setOffline] = useState(initialOffline);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [offlineId, setOfflineId] = useState<string | null>(null);
   const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
   const [refreshing, setRefreshing] = useState(false);
   const [viewer] = useState(() => viewerId());
@@ -86,6 +99,7 @@ export function RadarConsole({
   const [view, setView] = useState<"map" | "list">("map");
 
   useEffect(() => setEntries(initial), [initial]);
+  useEffect(() => setOffline(initialOffline), [initialOffline]);
 
   useEffect(() => {
     const tick = async () => {
@@ -95,7 +109,14 @@ export function RadarConsole({
         const response = await fetch(`/api/radar?v=${encodeURIComponent(viewer)}`, {
           cache: "no-store",
         });
-        if (response.ok) setEntries((await response.json()).therapists as RadarEntry[]);
+        if (response.ok) {
+          const body = (await response.json()) as {
+            therapists: RadarEntry[];
+            offline?: RadarOfflineEntry[];
+          };
+          setEntries(body.therapists);
+          setOffline(body.offline ?? []);
+        }
       } catch {
         // A failed refresh leaves the last good list on screen.
       } finally {
@@ -115,7 +136,17 @@ export function RadarConsole({
   // online and you have merely picked a narrow filter is a lie that sends
   // somebody away.
   const onlineCount = entries.filter((entry) => entry.status === "online").length;
+  /*
+   * 🔴 The booking sheet is looked up in the LIVE list only. An offline id can
+   * never open it, and a clinician who went offline while their dot was being
+   * tapped simply has no sheet rather than a "now" they cannot keep.
+   */
   const selected = entries.find((entry) => entry.userId === selectedId) ?? null;
+  const visibleOffline = useMemo(
+    () => offline.filter((entry) => matches(entry, filter)),
+    [offline, filter],
+  );
+  const offlinePicked = offline.find((entry) => entry.userId === offlineId) ?? null;
   const activeFilters = [filter.language, filter.specialty, filter.country].filter(Boolean).length;
 
   const filterSummary =
@@ -171,9 +202,14 @@ export function RadarConsole({
         {view === "map" ? (
           <Globe
             entries={visible}
+            offline={visibleOffline}
             selected={filter.country || null}
             onSelect={(code) => setFilter((f) => ({ ...f, country: code ?? "", region: "" }))}
-            onPick={(entry) => setSelectedId(entry.userId)}
+            onPick={(entry) => {
+              setOfflineId(null);
+              setSelectedId(entry.userId);
+            }}
+            onPickOffline={(entry) => setOfflineId(entry.userId)}
             className="h-full w-full"
           />
         ) : (
@@ -233,6 +269,24 @@ export function RadarConsole({
             <Loader2 className="h-3 w-3 animate-spin text-white/30" aria-hidden />
           ) : null}
         </div>
+
+        {/*
+          🔴 THE LEGEND, only when there is an offline dot to explain. A bright
+          dot is live and bookable now; a hollow one is offline and books a
+          time. Without it the dim dots would read as "busy".
+        */}
+        {view === "map" && offline.length > 0 ? (
+          <div className="pointer-events-none absolute top-14 start-3 flex items-center gap-3 rounded-full bg-[#04101f]/70 px-3 py-1 text-[11px] text-white/85 backdrop-blur sm:top-16 sm:start-[21rem]">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-teal-400" aria-hidden />
+              {t("radar.legendLive")}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full border border-slate-400" aria-hidden />
+              {t("radar.legendOffline")}
+            </span>
+          </div>
+        ) : null}
 
         <div className="flex items-center gap-2">
           {view === "map" ? (
@@ -345,6 +399,9 @@ export function RadarConsole({
       </section>
 
       {selected ? <BookingSheet entry={selected} onClose={() => setSelectedId(null)} /> : null}
+      {offlinePicked && !selected ? (
+        <OfflineCard entry={offlinePicked} onClose={() => setOfflineId(null)} />
+      ) : null}
     </div>
   );
 }

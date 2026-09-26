@@ -118,7 +118,7 @@ async function main() {
 
   /* --------------------------------------- 2. every surface, with the divergence in */
 
-  const { listRadar, radarCount, publicProfile, invalidateRadarBoard } = await import(
+  const { listRadar, listRadarOffline, radarCount, publicProfile, invalidateRadarBoard } = await import(
     "../lib/data/radar"
   );
 
@@ -185,6 +185,18 @@ async function main() {
     "🔴 C285 an unverified clinician is not on the radar board a patient picks from",
     !onBoardBefore,
     "listRadar had no verification filter at all before this; only publicProfile did",
+  );
+
+  /*
+   * 🔴 2026-09-26: offline clinicians are dots on the map now, so "not on the
+   * board" has a second list to be absent from. The same rule, asked of both.
+   */
+  invalidateRadarBoard();
+  const dimBefore = (await listRadarOffline()).some((row) => row.userId === user.id);
+  check(
+    "🔴 C285 …nor drawn as an offline dot, which is the radar too",
+    !dimBefore,
+    "the offline list reads isVerifiedClinician() exactly as the live board does",
   );
 
   check(

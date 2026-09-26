@@ -174,7 +174,7 @@ export function Avatar({
   dark,
   large,
 }: {
-  entry: RadarEntry;
+  entry: Pick<RadarEntry, "photoUrl" | "firstName" | "lastName">;
   dark?: boolean;
   large?: boolean;
 }) {

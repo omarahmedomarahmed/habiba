@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { listRadar } from "@/lib/data/radar";
+import { listRadar, listRadarOffline } from "@/lib/data/radar";
 import { callerKey, consume, globalCeiling } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -51,10 +51,17 @@ export async function GET(request: Request) {
    * `lib/viewer.ts`.
    */
   const viewer = new URL(request.url).searchParams.get("v");
-  const therapists = await listRadar(viewer);
+  /*
+   * 🔴 TWO LISTS, NEVER ONE WITH A FLAG. `therapists` is the live board and
+   * every existing reader (counts, the booking sheet, the hero's price) reads
+   * only it, exactly as before. `offline` is everybody else who is verified and
+   * listed, drawn as a dim dot that opens their profile to book a time. A
+   * client that ignores it is still telling the truth.
+   */
+  const [therapists, offline] = await Promise.all([listRadar(viewer), listRadarOffline()]);
 
   return NextResponse.json(
-    { therapists },
+    { therapists, offline },
     {
       headers: {
         // Availability that is even ten seconds stale sends someone to a

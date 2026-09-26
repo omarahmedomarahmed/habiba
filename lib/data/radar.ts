@@ -152,6 +152,28 @@ export type RadarTherapist = {
 };
 
 /**
+ * 🔴 A VERIFIED CLINICIAN WHO IS NOT ON SHIFT, DRAWN AS A DIM DOT.
+ *
+ * The founders' ruling (2026-09-26): every verified clinician with a radar
+ * profile is on the map, and the ones who are not live are drawn hollow and say
+ * "Offline, book a time". The live board is unchanged and stays the only thing
+ * the crisis promise reads.
+ *
+ * 🔴 A SEPARATE TYPE, NOT A FOURTH STATUS ON `RadarTherapist`. Every surface that
+ * books "now" (the booking sheet, `startRadarBooking`, the hero's cheapest
+ * price, every live count) takes `RadarTherapist`, so an offline clinician cannot
+ * reach any of them by a missed `status !== "offline"`: the compiler refuses it.
+ * No `reservedByYou` (nobody can hold them) and no `organizationId` (the dot
+ * needs nothing the profile page does not already publish).
+ *
+ * Location is exactly what the live board publishes: country, region and city,
+ * and a practice pin only when walk-ins are on and the pin was confirmed.
+ */
+export type RadarOfflineTherapist = Omit<RadarTherapist, "status" | "reservedByYou" | "organizationId"> & {
+  status: "offline";
+};
+
+/**
  * Everyone currently bookable, plus those mid-booking and mid-session.
  *
  * Pending and in-session clinicians are returned deliberately rather than
@@ -253,6 +275,8 @@ const BOARD_TTL_MS = 2_000;
 
 type Board = {
   rows: Awaited<ReturnType<typeof queryBoard>>;
+  /** Every listable clinician, live or not. The live ones are subtracted when shaped. */
+  listed: Awaited<ReturnType<typeof queryListed>>;
   ratings: Map<string, { average: number; count: number }>;
   /**
    * 50.4 — languages an admin has hidden.
@@ -285,13 +309,14 @@ async function loadBoard(): Promise<Board> {
    * for. Storing the in-flight promise means they all wait on the first one.
    */
   const value = (async () => {
-    const [rows, ratings, hiddenLanguages, nextOpen] = await Promise.all([
+    const [rows, listed, ratings, hiddenLanguages, nextOpen] = await Promise.all([
       queryBoard(),
+      queryListed(),
       therapistRatings(),
       closedCodes("language"),
       nextOpenHours(),
     ]);
-    return { rows, ratings, hiddenLanguages, nextOpen };
+    return { rows, listed, ratings, hiddenLanguages, nextOpen };
   })();
 
   board = { at: fresh, value };
@@ -309,6 +334,145 @@ export async function listRadar(viewer?: string | null): Promise<RadarTherapist[
   const viewerHash = viewer ? hashViewer(viewer) : null;
   const { rows, ratings, hiddenLanguages, nextOpen } = await loadBoard();
   return shapeBoard(rows, ratings, viewerHash, hiddenLanguages, nextOpen);
+}
+
+/**
+ * 🔴 THE OFFLINE DOTS: every listed clinician who is NOT on the live board.
+ *
+ * Computed by subtracting the live board's ids rather than by a second
+ * definition of "not reachable", so a clinician is on exactly one of the two
+ * lists, always: the live one decides, this one is the rest. A heartbeat that
+ * went stale, a booked hour about to start, a status of `offline`: all of them
+ * land here and none of them can be booked "now" from here.
+ *
+ * Same cached load as `listRadar`, so the two can never disagree about a
+ * person inside one poll.
+ */
+export async function listRadarOffline(): Promise<RadarOfflineTherapist[]> {
+  const { rows, listed, ratings, hiddenLanguages, nextOpen } = await loadBoard();
+  return shapeOffline(rows, listed, ratings, hiddenLanguages, nextOpen);
+}
+
+/**
+ * Who may be drawn at all: the same conditions as the live board minus
+ * presence. Verified (asked every time, C285), active, not deleted, not
+ * suspended (a suspended clinician is not shown offline either, see below),
+ * and not in a country an operator closed.
+ *
+ * Capped at 500: the globe draws a dim dot per row with no glow and no
+ * animation, which a phone handles, and the cap keeps the payload bounded.
+ */
+async function queryListed() {
+  const now = new Date();
+  const closed = [...(await closedCodes("country"))];
+
+  return db
+    .select({
+      userId: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      profile: users.profile,
+      sessionRateCents: users.sessionRateCents,
+      headline: therapistRadar.headline,
+      photoUrl: therapistRadar.photoUrl,
+      languages: therapistRadar.languages,
+      specialties: therapistRadar.specialties,
+      country: therapistRadar.country,
+      region: therapistRadar.region,
+      city: therapistRadar.city,
+      practiceName: therapistRadar.practiceName,
+      practiceAddress: therapistRadar.practiceAddress,
+      practiceLat: therapistRadar.practiceLat,
+      practiceLon: therapistRadar.practiceLon,
+      practiceConfirmedAt: therapistRadar.practiceConfirmedAt,
+      acceptsWalkIns: therapistRadar.acceptsWalkIns,
+      demo: therapistRadar.demo,
+      clinicName: sql<string | null>`CASE WHEN ${organizations.kind} = 'clinic' THEN ${organizations.name} END`,
+    })
+    .from(therapistRadar)
+    .innerJoin(users, eq(users.id, therapistRadar.userId))
+    .innerJoin(organizations, eq(organizations.id, users.organizationId))
+    .where(
+      and(
+        isNull(users.deletedAt),
+        eq(users.status, "active"),
+        isVerifiedClinician(),
+        or(isNull(therapistRadar.suspendedUntil), lt(therapistRadar.suspendedUntil, now)),
+        closed.length > 0
+          ? or(isNull(therapistRadar.country), notInArray(therapistRadar.country, closed))
+          : undefined,
+      ),
+    )
+    .orderBy(users.firstName)
+    .limit(500);
+}
+
+function shapeOffline(
+  live: Awaited<ReturnType<typeof queryBoard>>,
+  listed: Awaited<ReturnType<typeof queryListed>>,
+  ratings: Map<string, { average: number; count: number }>,
+  hiddenLanguages: Set<string> = new Set(),
+  nextOpen: Map<string, Date> = new Map(),
+): RadarOfflineTherapist[] {
+  const onBoard = new Set(live.map((row) => row.userId));
+
+  return listed
+    .filter((row) => !onBoard.has(row.userId))
+    .map((row) => {
+      const found = ratings.get(row.userId);
+      return {
+        userId: row.userId,
+        demo: row.demo,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        credentials: row.profile?.credentials ?? null,
+        headline: row.headline,
+        photoUrl: row.photoUrl,
+        languages: (row.languages ?? []).filter((language) => !hiddenLanguages.has(language)),
+        specialties: row.specialties ?? [],
+        country: row.country,
+        region: row.region,
+        city: row.city,
+        practice:
+          row.acceptsWalkIns && row.practiceConfirmedAt && row.practiceAddress
+            ? { name: row.practiceName, address: row.practiceAddress, lat: row.practiceLat, lon: row.practiceLon }
+            : null,
+        clinicName: row.clinicName,
+        sessionRateCents: row.sessionRateCents,
+        rating:
+          found && found.count >= RATINGS_VISIBLE_AFTER
+            ? { average: Math.round(found.average * 10) / 10, count: found.count }
+            : null,
+        nextOpenAt: nextOpen.get(row.userId)?.toISOString() ?? null,
+        status: "offline" as const,
+      };
+    });
+}
+
+/**
+ * 🔴 A VERIFIED CLINICIAN IS VISIBLE WITHOUT OPENING /on-call FIRST.
+ *
+ * The directory (`discover.ts`) and the offline dots both read `therapist_radar`,
+ * and that row used to be made only by `ensureRadarProfile` when the clinician
+ * first opened /on-call. So a clinician approved at noon was invisible to every
+ * patient until they happened to visit a page they had no reason to know about.
+ *
+ * Called at approval. The row starts `offline`, with the country, languages and
+ * specialties the clinician already gave the reviewer (the verification's own
+ * columns, the only place those exist before /on-call), so their dot lands in
+ * their country rather than nowhere. Idempotent: an existing row, which the
+ * clinician may have edited, is never touched. Migration 0181 did the same once
+ * for everybody approved before this existed.
+ */
+export async function ensureRadarRowForApproved(userId: string): Promise<void> {
+  await db.execute(sql`
+    INSERT INTO therapist_radar (user_id, organization_id, status, country, languages, specialties)
+    SELECT u.id, u.organization_id, 'offline', v.country, v.languages, v.specialties
+      FROM users u
+      JOIN therapist_verifications v ON v.user_id = u.id AND v.state = 'approved'
+     WHERE u.id = ${userId}
+     LIMIT 1
+    ON CONFLICT (user_id) DO NOTHING`);
 }
 
 /**
