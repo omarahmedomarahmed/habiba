@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { MoneyDisplayProvider } from "@/components/money/display";
+
 import { publicProfile } from "./profile";
 
 /**
@@ -19,5 +21,6 @@ export default async function ProfileLayout({
 }) {
   const { id } = await params;
   if (!(await publicProfile(id))) notFound();
-  return children;
+  /* 🔴 Board 968: a clinician's page is where a session is booked, so pounds lead, as on /radar. */
+  return <MoneyDisplayProvider primary="EGP">{children}</MoneyDisplayProvider>;
 }

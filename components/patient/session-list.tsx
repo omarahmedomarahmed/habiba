@@ -179,6 +179,11 @@ export function PatientSessionList({
                       </div>
                     ))}
 
+                    {/* 🔴 Board 729: said plainly, instead of a door into an hour that is over. */}
+                    {session.missed ? (
+                      <p className="mt-2 text-xs text-navy-400">{t("psessions.missed")}</p>
+                    ) : null}
+
                     {session.briefPending ? (
                       <p className="mt-2 flex items-center gap-1.5 text-xs text-navy-400">
                         <FileText className="h-3 w-3" aria-hidden />

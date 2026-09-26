@@ -7,6 +7,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { sponsorDomains } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { log, safeErrorMessage } from "@/lib/logger";
 
 import { isAdminMailbox, type AdminMailbox } from "@/lib/sponsor/domain-mailboxes";
@@ -300,7 +301,8 @@ export async function markDnsProved(domainId: string): Promise<{ ok: boolean }> 
  * it was always going to come from: a joining code on a poster, an intranet
  * page, an HR email. Nothing is lost by refusing here except the oracle.
  */
-export async function employerLookup(domain: string): Promise<{ message: string }> {
+/* 🔴 Board 674/731: a dictionary key, so the one answer is said in the reader's language. */
+export async function employerLookup(domain: string): Promise<{ message: MessageKey }> {
   const wanted = domain.trim().toLowerCase();
 
   /*
@@ -314,8 +316,5 @@ export async function employerLookup(domain: string): Promise<{ message: string 
     .where(sql`lower(${sponsorDomains.domain}) = ${wanted}`)
     .limit(1);
 
-  return {
-    message:
-      "If your employer or university offers this, they will have given you a joining code: on a poster, an intranet page, or an email from HR. Ask them for it. You can use 24Therapy either way, and nothing about your account depends on having one.",
-  };
+  return { message: "benefit.askAnswer" };
 }

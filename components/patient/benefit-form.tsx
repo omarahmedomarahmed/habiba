@@ -14,6 +14,7 @@ import {
 import { Button, Field, Input } from "@/components/ui";
 import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 /**
@@ -417,7 +418,7 @@ export function BenefitForm({
 export function AskAboutEmployer() {
   const t = useT();
   const [pending, start] = useTransition();
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<MessageKey | null>(null);
   const [domain, setDomain] = useState("");
 
   return (
@@ -443,12 +444,12 @@ export function AskAboutEmployer() {
             });
           }}
         >
-          {pending ? "…" : "Ask"}
+          {pending ? "…" : t("benefit.ask")}
         </Button>
       </div>
 
       {answer ? (
-        <p className="mt-3 text-sm leading-relaxed text-navy-400">{answer}</p>
+        <p className="mt-3 text-sm leading-relaxed text-navy-400">{t(answer)}</p>
       ) : null}
     </Card>
   );

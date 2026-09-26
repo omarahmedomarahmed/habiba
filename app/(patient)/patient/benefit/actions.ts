@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { enrol, lookupCode, reconfirmEnrolment, setPrimarySponsor } from "@/lib/data/enrolment";
 import { confirmEnrolmentCode } from "@/lib/data/enrolment-verify";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
 export type BenefitState = {
@@ -143,7 +144,7 @@ export async function choosePrimary(enrolmentId: string): Promise<BenefitState> 
  * somebody through their employer: a code on a poster, an intranet page, an
  * email from HR. What is lost is the oracle.
  */
-export async function askAboutEmployer(domain: string): Promise<{ message: string }> {
+export async function askAboutEmployer(domain: string): Promise<{ message: MessageKey }> {
   await requirePatient();
 
   const { employerLookup } = await import("@/lib/data/sponsor-domains");

@@ -149,6 +149,8 @@ async function moneyOn(sessionId: string): Promise<{ transferWaiting: boolean; c
 async function moneyAfterCancel(booking: Booking): Promise<MoneyAfterCancel> {
   const money = await moneyOn(booking.id);
   if (money.covered) return "covered";
+  /* 🔴 Board 796: nothing of theirs was in it, so nothing of theirs is held or coming back. */
+  if (await shareUnpaid(booking.id)) return money.transferWaiting ? "waiting" : "none";
   if (booking.lateCancel === "held") return "held";
   const [payment] = await db
     .select({ id: sessionPayments.id, status: sessionPayments.status })
@@ -165,6 +167,37 @@ async function moneyAfterCancel(booking: Booking): Promise<MoneyAfterCancel> {
   if (payment?.status === "refunded") return "refunded";
   if (payment?.status === "paid") return "queued";
   return "none";
+}
+
+/**
+ * 🔴 Board 796/808: a company's payment row whose employee share never
+ * arrived. `payFromPot` writes it `paid` at booking, so "there is a paid
+ * payment" is true of a session the patient has paid nothing towards, and
+ * cancelling one said "Your money is on its way back" to somebody who had sent
+ * none. Their money is only ever the share, and only once it came.
+ */
+async function shareUnpaid(sessionId: string): Promise<boolean> {
+  const [row] = await db
+    .select({
+      id: sessionPayments.id,
+      sessionId: sessionPayments.sessionId,
+      fundingSource: sessionPayments.fundingSource,
+      grossCents: sessionPayments.grossCents,
+      coverageBps: sessionPayments.coverageBps,
+      sponsorShareCents: sessionPayments.sponsorShareCents,
+      patientShareCents: sessionPayments.patientShareCents,
+      stripePaymentIntentId: sessionPayments.stripePaymentIntentId,
+    })
+    .from(sessionPayments)
+    .where(and(eq(sessionPayments.sessionId, sessionId), sql`${sessionPayments.status} IN ('paid', 'refunded')`))
+    .limit(1);
+  if (!row || row.fundingSource !== "pot") return false;
+  const { potRowForPatient } = await import("@/lib/billing/split-refund");
+  const { employeeShareArrived } = await import("@/lib/billing/refunds");
+  return (
+    potRowForPatient({ ...row, coverageBps: row.coverageBps ?? 0, shareArrived: await employeeShareArrived(row) }) ===
+    "share_unpaid"
+  );
 }
 
 async function paidPaymentOf(sessionId: string): Promise<string | null> {
@@ -294,6 +327,8 @@ export async function patientCancel(input: {
   const hours = (await getSettings()).rules.refunds.patientCancelWindowHours;
   const free = insideFreeWindow(booking.scheduledAt, now, hours);
   const paymentId = await paidPaymentOf(booking.id);
+  /* Read before any refund, which puts the session back to pending. */
+  const nothingOfTheirs = paymentId ? await shareUnpaid(booking.id) : false;
 
   /*
    * 🔴 THE ONE WRITE THAT DECIDES. `status = 'scheduled'` and no start in the
@@ -353,6 +388,14 @@ export async function patientCancel(input: {
     /* 🔴 Board 407: ruling 18, it goes to the wallet when it arrives. */
     refund = "waiting";
   }
+  /*
+   * 🔴 Board 796: the company's share went back to its pot (or stays with the
+   * clinician on a late cancellation), and the patient had paid nothing, so
+   * nothing of theirs is "on its way back" or "held".
+   */
+  /* The clinician's message is about the hour, not whose money it was. */
+  const lateForClinician = refund === "held";
+  if (nothingOfTheirs && refund !== "covered") refund = money.transferWaiting ? "waiting" : "none";
 
   await audit({
     actor: null,
@@ -369,7 +412,7 @@ export async function patientCancel(input: {
     therapistId: booking.therapistId,
     kind: "booking.patient_cancelled",
     title: "tchange.patientCancelled",
-    body: refund === "held" ? "tchange.patientCancelledLate" : "tchange.patientCancelledFree",
+    body: lateForClinician ? "tchange.patientCancelledLate" : "tchange.patientCancelledFree",
     when: booking.scheduledAt,
   });
 
@@ -673,7 +716,13 @@ export async function changeView(personId: string, sessionId: string, now = new 
   const settings = await getSettings();
   const hours = settings.rules.refunds.patientCancelWindowHours;
   const free = insideFreeWindow(booking.scheduledAt, now, hours);
-  const [paid, money] = await Promise.all([paidPaymentOf(booking.id).then(Boolean), moneyOn(booking.id)]);
+  /* 🔴 Board 796: a company's row with their share still owed is not money they paid. */
+  const [paidRow, unpaidShare, money] = await Promise.all([
+    paidPaymentOf(booking.id).then(Boolean),
+    shareUnpaid(booking.id),
+    moneyOn(booking.id),
+  ]);
+  const paid = paidRow && !unpaidShare;
   const therapist = await therapistContact(booking.therapistId);
   const { openHours } = await import("./scheduling");
   /* Only a booking made on an hour can move to another hour. */

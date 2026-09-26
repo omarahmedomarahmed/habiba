@@ -159,6 +159,26 @@ test("W2-P06 a session card opens what it is waiting on: join, pay, the transfer
   assert.equal(doorFor({ ...base, joinTokenExpiresAt: new Date(now - 1) }), null);
   assert.equal(doorFor({ ...base, status: "completed", endedAt: new Date(now - 1) }), null);
 
+  /* 🔴 Board 729: a booked hour over with nobody starting it opens nothing, link or not. */
+  const booked = new Date(now - 2 * 3_600_000 - 26 * 60_000);
+  assert.equal(doorFor({ ...base, scheduledAt: booked, startedAt: null, joinTokenExpiresAt: new Date(now + 3_600_000) }), null);
+  assert.equal(
+    doorFor({ ...base, priceCents: 2000, paymentStatus: "pending", scheduledAt: booked, startedAt: null }),
+    null,
+    "nor asks to be paid for",
+  );
+  /* CONTROL: inside the hour it still opens, and a session under way is never missed. */
+  assert.deepEqual(doorFor({ ...base, scheduledAt: new Date(now - 30 * 60_000), startedAt: null }), {
+    kind: "join",
+    href: "/join/tok",
+  });
+  assert.deepEqual(doorFor({ ...base, status: "in_progress", scheduledAt: booked, startedAt: booked }), {
+    kind: "join",
+    href: "/join/tok",
+  });
+  assert.match(code("lib/data/patient-view.ts"), /!missedBooking\(row, now\)/, "no summary is being written");
+  assert.match(code("app/join/[token]/page.tsx"), /missedBooking\(/);
+
   assert.match(code("components/patient/session-list.tsx"), /doors\[session\.id\]/);
   assert.match(code("app/(patient)/patient/sessions/page.tsx"), /sessionDoors\(/);
 });
@@ -299,7 +319,13 @@ test("W2-P16 the dead ends have a way back", () => {
   assert.match(dead, /href="\/radar"/);
 
   assert.match(code("app/feedback/[token]/page.tsx"), /href="\/patient\/summary"/);
-  assert.match(code("components/assessments/patient-questionnaire.tsx"), /href="\/patient"/);
+  /* Board 744: to their answers, not a second Home above the bottom bar's. */
+  const questionnaire = code("components/assessments/patient-questionnaire.tsx");
+  assert.match(questionnaire, /href="\/patient\/assessments"/);
+  assert.doesNotMatch(questionnaire, /tab\.home/);
+  /* Board 744: an instrument not published in Arabic says so in Arabic, once, and is marked English. */
+  assert.match(questionnaire, /passess\.englishForm/);
+  assert.match(questionnaire, /lang: "en", dir: "ltr"/);
   for (const flow of ["components/patient/invite-flow.tsx", "components/patient/claim-flow.tsx"]) {
     assert.match(
       code(flow),

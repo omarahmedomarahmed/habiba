@@ -308,7 +308,7 @@ export function BookingSheet({
             <div className="flex items-baseline justify-between rounded-2xl bg-navy-500 px-4 py-3 text-white">
               <span className="text-sm text-white/85">{t("radar.thirtyMinutes")}</span>
               <span className="text-2xl font-bold tracking-tight">
-                {entry.sessionRateCents > 0 ? <Money cents={entry.sessionRateCents} /> : "Free"}
+                {entry.sessionRateCents > 0 ? <Money cents={entry.sessionRateCents} /> : t("radar.free")}
               </span>
             </div>
 

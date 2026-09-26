@@ -197,3 +197,24 @@ export function cancelledPaymentRoute(input: {
   if (!input.hasPerson || !input.walletEnabled) return "rail";
   return "wallet";
 }
+
+/**
+ * 🔴 Board 807/808: WHAT A PATIENT'S OWN MONEY SCREENS SAY ABOUT A POT ROW.
+ *
+ * `payFromPot` writes the session's only payment row at booking, `paid`, with
+ * the company's share spent and the employee's share still owed. Read as "a
+ * payment", that row offered a receipt reading "You paid" before anything was
+ * paid; read as "covered", it said "You owe nothing" on a session the patient
+ * went on to pay nine tenths of. Three different things, so three answers:
+ *
+ *   covered       the company paid all of it: no receipt, nothing of theirs
+ *   share_unpaid  their share has not arrived: still open, or (on a cancelled
+ *                 booking) never owed; no paid line and no receipt
+ *   share_paid    their share arrived: the split, and a receipt for it
+ */
+export type PotRowForPatient = "covered" | "share_unpaid" | "share_paid";
+
+export function potRowForPatient(split: FrozenSplit & { shareArrived: boolean }): PotRowForPatient {
+  if (sharesOf(split).employeeCents <= 0) return "covered";
+  return split.shareArrived ? "share_paid" : "share_unpaid";
+}
