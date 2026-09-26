@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Radio, Receipt, ShieldCheck, Wallet } from "lucide-react";
+import { BadgeCheck, Download, FileText, Lock, NotebookPen, Radio, Receipt, ShieldCheck, Wallet } from "lucide-react";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { ChangeNumber } from "@/components/patient/change-number";
 import { PatientSessionList } from "@/components/patient/session-list";
@@ -10,10 +10,10 @@ import { LanguageSetting } from "@/components/settings/language-setting";
 import { CloseAccount } from "@/components/patient/close-account";
 import { EmailEditor } from "@/components/patient/email-editor";
 import { IdentityEditor } from "@/components/patient/identity-editor";
-import { Card, Hero } from "@/components/patient/kit";
+import { Card, Hero, RowLink } from "@/components/patient/kit";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patientAccounts, people } from "@/lib/db/schema";
+import { patientAccounts, patients, people } from "@/lib/db/schema";
 import { awaitingChangeCode, lockUntil } from "@/lib/data/phone-change";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
@@ -81,10 +81,22 @@ export default async function PatientAccountPage({
     .limit(1);
 
   const [person] = await db
-    .select({ avatarUrl: people.avatarUrl })
+    .select({ avatarUrl: people.avatarUrl, claimedAt: people.claimedAt })
     .from(people)
     .where(eq(people.id, actor.personId))
     .limit(1);
+
+  /*
+   * 🔴 22R — counted in its own query, because the correlated one returned 0.
+   * Moved here with the record card (founder, 26 Sep). A subquery inside the
+   * select above once said "No therapist files are attached" to somebody with
+   * one, on the day they claimed it.
+   */
+  const attached = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(patients)
+    .where(eq(patients.personId, actor.personId))
+    .then((rows) => Number(rows[0]?.n ?? 0));
 
   const countries = await getCountries();
   const locked = account ? lockUntil(account) : null;
@@ -215,11 +227,19 @@ export default async function PatientAccountPage({
               </div>
             ) : (
               next.slice(0, 5).map((session) => {
-                const door = doorOf[session.id] ?? null;
-                const live = door?.kind === "join" && session.at.getTime() <= now;
+                const open = doorOf[session.id] ?? null;
+                const live = open?.kind === "join" && (session.live || session.at.getTime() <= now);
+                /*
+                 * 🔴 Founder, 26 Sep: the room from five minutes before, or while
+                 * it runs. Before that the button opens the session's own page.
+                 */
+                const door =
+                  open?.kind === "join" && !session.live && session.at.getTime() - now > 5 * 60_000
+                    ? { kind: "summary" as const, href: `/patient/sessions/${session.id}` }
+                    : open;
                 return (
                   <div key={session.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
+                    <Link href={`/patient/sessions/${session.id}`} className="min-w-0">
                       <p className="truncate text-sm font-medium text-navy-700">{session.therapistName}</p>
                       <p className={cn("text-xs", live ? "font-semibold text-rose-600" : "text-navy-400")}>
                         {live ? (
@@ -231,7 +251,7 @@ export default async function PatientAccountPage({
                           startsIn(session.at)
                         )}
                       </p>
-                    </div>
+                    </Link>
                     {door ? (
                       <Link
                         href={door.href}
@@ -271,6 +291,58 @@ export default async function PatientAccountPage({
               {latestSummary ? latestSummary.body : t("pyou.summaryNone")}
             </p>
           </Card>
+
+          {/*
+            🔴 Founder, 26 Sep: "the homepage bottom shows buttons to things
+            that belong to their profile". The record card and the four rows
+            under it lived at the foot of Home; they are the patient's own, so
+            they live here now, on the tab that is theirs.
+          */}
+          <h2 className="mt-1 text-[17px] font-bold text-navy-700">{t("pyou.yoursTitle")}</h2>
+          <Card className="p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy-600 text-white">
+                <Lock className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[16px] font-bold text-navy-700">{t("home.yourRecord")}</p>
+                  {person?.claimedAt ? (
+                    <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-[12px] font-semibold text-brand-800">
+                      {t("home.yours")}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[12px] font-semibold text-navy-500">
+                      {t("home.notClaimed")}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[14px] leading-relaxed text-navy-500">
+                  {attached === 0
+                    ? t("home.noFiles")
+                    : attached === 1
+                      ? t("home.filesAttached", { count: attached })
+                      : t("home.filesAttachedMany", { count: attached })}
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
+                  <Link href="/patient/claim" className="text-[14px] font-semibold text-brand-700">
+                    {person?.claimedAt ? t("home.claimAnother") : t("home.haveRecords")}
+                  </Link>
+                  <Link href="/patient/profile" className="text-[14px] font-semibold text-brand-700">
+                    {t("home.openProfile")}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* 26.5 / 26.1 / 26.9 — the things on this app that are unambiguously theirs. */}
+          <div className="grid gap-2">
+            <RowLink href="/patient/journal" icon={<NotebookPen className="h-5 w-5" aria-hidden />} label={t("home.journal")} />
+            <RowLink href="/patient/summary" icon={<FileText className="h-5 w-5" aria-hidden />} label={t("home.summary")} />
+            <RowLink href="/patient/consent" icon={<ShieldCheck className="h-5 w-5" aria-hidden />} label={t("home.whoCanRead")} />
+            <RowLink href="/patient/record" icon={<Download className="h-5 w-5" aria-hidden />} label={t("home.getCopy")} />
+          </div>
         </>
       ) : null}
 

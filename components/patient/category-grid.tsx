@@ -83,6 +83,7 @@ export function CategoryGrid({
 }) {
   return (
     <IconGrid
+      dense
       items={categories.map((category) => ({
         key: category.code,
         label: category.label,
