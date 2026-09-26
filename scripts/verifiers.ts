@@ -108,6 +108,13 @@ const DATABASE_SHAPED = new Set([
    * means something.
    */
   "verify:demo",
+  /*
+   * And `verify:event-demo`, its twin for `seed:demo -- --scenario=event`: it
+   * asks whether the Techne Summit logins exist, which only a database seeded
+   * with that scenario can answer. It is run with
+   * `npm run on:production -- verify:event-demo`, straight after the seed.
+   */
+  "verify:event-demo",
 ]);
 
 function verifierNames(): string[] {
