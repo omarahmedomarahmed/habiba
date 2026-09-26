@@ -86,7 +86,7 @@ export function UsageMeter({
         ) : null}
 
         <div className="grid gap-4 lg:grid-cols-5">
-          <div className="relative overflow-hidden rounded-3xl bg-navy-900 p-6 text-white lg:col-span-3">
+          <div className={cn("relative overflow-hidden rounded-3xl bg-navy-900 p-6 text-white", lastMonth ? "lg:col-span-3" : "lg:col-span-5")}>
             <Glow className="-end-16 -top-16 h-52 w-52 opacity-60" />
             <div className="relative flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <p className="text-[44px] leading-none font-bold tabular-nums">{used}</p>

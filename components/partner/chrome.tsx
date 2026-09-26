@@ -179,11 +179,13 @@ export function PartnerChrome({
         {nav ? (
           <header className={cn("sticky top-0 z-20 border-b border-navy-100 bg-white/85 backdrop-blur-xl", railed && "lg:hidden")}>
             {/* The end of this row is left clear for the language corner, fixed there on every screen. */}
-            <div className="flex h-16 items-center gap-3 ps-4 pe-[132px]">
-              <Link href="/partner" className="inline-flex shrink-0 items-center">
-                <Logo ink="navy" height={24} />
-              </Link>
-              <span className="min-w-0 flex-1 truncate text-sm font-bold text-navy-600">{partnerName}</span>
+            <div className={cn("flex h-16 items-center gap-3 ps-4", railed ? "pe-[188px]" : "pe-4")}>
+              <div className="min-w-0 flex-1">
+                <Link href="/partner" className="inline-flex items-center">
+                  <Logo ink="navy" height={22} />
+                </Link>
+                <p className="truncate text-xs font-bold text-navy-500">{partnerName}</p>
+              </div>
               {signOut(false)}
             </div>
             {/*
@@ -225,7 +227,7 @@ export function PartnerChrome({
         {bare ? (
           children
         ) : (
-          <main className={cn("mx-auto max-w-5xl pb-12", nav ? "lg:pt-6" : "pt-10")}>{children}</main>
+          <main className={cn("mx-auto max-w-5xl pb-12", nav ? "lg:pt-6" : "pt-20 lg:pt-16")}>{children}</main>
         )}
 
         {/* No rail below `lg`, so the wall goes to the foot of the page. */}
