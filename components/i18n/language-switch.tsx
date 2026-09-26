@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Languages } from "lucide-react";
+import { Languages, Loader2 } from "lucide-react";
 
 import { LOCALE_COOKIE, LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
 import { useLocale } from "@/lib/i18n/client";
-import { isLocalisable, localisedPath } from "@/lib/i18n/paths";
+import { isLocalisable, localisedPath, splitLocale } from "@/lib/i18n/paths";
+import { doneNavProgress, startNavProgress } from "@/lib/nav-progress";
 import { cn } from "@/lib/utils";
 
 /**
@@ -91,14 +92,88 @@ export function LanguageSwitch({
    * still the preference either way: a reader who chose Arabic on a public page
    * stays in Arabic when they sign in.
    */
+  /*
+   * 🔴 THE HEADER AND FOOTER STAYED IN THE OLD LANGUAGE. Founder, 26 September.
+   *
+   * On the website the switch was `router.push("/ar/pricing")`. A client
+   * navigation re-renders only the segments that CHANGE, and `/ar/pricing` is
+   * a middleware rewrite of `/pricing`: the same route, the same layouts. So
+   * Next rendered the page again (the page segment always is) and kept every
+   * layout it already had: the root layout with `<html lang dir>` and the
+   * translator every client component reads, and the website layout with the
+   * header and footer. The page's heading turned Arabic and everything around
+   * it stayed English and left to right.
+   *
+   * Now the whole tree is rendered again with `router.refresh()`, the one
+   * request that re-renders every layout from the root, so the chrome,
+   * `<html lang dir>` and the client translator arrive in the new language
+   * together, in one round trip, with no reload and nothing dropped from a
+   * live call. That is every switch in the signed-in apps and the portals, and
+   * every switch INTO Arabic on the website: the cookie is written, the
+   * unprefixed page is refreshed (the cookie now decides it), and once the
+   * Arabic page is on screen `/ar/pricing` is written into the address bar
+   * through `history`, which Next's router adopts without a request.
+   *
+   * 🔴 OUT of an `/ar/...` address on the website it is a full page load of
+   * the English address, and that is the one case, measured rather than
+   * assumed. A refresh re-renders the address the router is ON, where the
+   * prefix beats the cookie, so the router has to leave `/ar/pricing` first.
+   * But Next remembers the address every page was drawn at and, on any
+   * refresh, fetches that address again for it when it differs from the
+   * current one: `/ar/pricing`, in Arabic, laid over the English refresh.
+   * Tried as a `pushState` and as a `router.push` before the refresh; both
+   * ended in Arabic. The website's pages are public and static and hold no
+   * call or form in flight, so a load of `/pricing` costs a reader nothing.
+   */
+  const [target, setTarget] = useState<Locale | null>(null);
+  const addressAfter = useRef<string | null>(null);
+  const leaving = useRef(false);
   const choose = (next: Locale) => {
-    if (next === current && !isLocalisable(here)) return;
+    if (next === current || target !== null) return;
+    setTarget(next);
     writeLocaleCookie(next);
-    startTransition(() => {
-      if (isLocalisable(here)) router.push(localisedPath(here, next));
-      else router.refresh();
-    });
+    /* The veil at once: the whole page is about to be redrawn in the other language. */
+    startNavProgress({ hold: true, veilNow: true });
+    addressAfter.current = null;
+
+    if (isLocalisable(here)) {
+      const tail = `${window.location.search}${window.location.hash}`;
+      const bare = splitLocale(here).rest;
+      if (bare !== window.location.pathname) {
+        leaving.current = true;
+        window.location.assign(`${localisedPath(here, next)}${tail}`);
+        return;
+      }
+      const goal = localisedPath(here, next);
+      if (goal !== bare) addressAfter.current = `${goal}${tail}`;
+    }
+    startTransition(() => router.refresh());
   };
+
+  /* The refresh has landed: the address, the button and the page change indicator settle together. */
+  useEffect(() => {
+    /* A full page load is under way: the spinner stays until the new document replaces this one. */
+    if (pending || target === null || leaving.current) return;
+    const to = addressAfter.current;
+    addressAfter.current = null;
+    if (to && to !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      window.history.pushState(null, "", to);
+    }
+    setTarget(null);
+    doneNavProgress();
+  }, [pending, target]);
+
+  /* Back to this page from the browser's page cache after that full load: not still switching. */
+  useEffect(() => {
+    const onShow = (event: PageTransitionEvent) => {
+      if (!event.persisted || !leaving.current) return;
+      leaving.current = false;
+      setTarget(null);
+      doneNavProgress();
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   return (
     <div
@@ -110,32 +185,47 @@ export function LanguageSwitch({
       role="group"
       aria-label={current === "ar" ? "اللغة" : "Language"}
     >
-      <Languages className={cn("ms-2 h-3.5 w-3.5 shrink-0", dark ? "text-white/85" : "text-slate-600")} aria-hidden />
-      {(offered?.map((row) => row.code as Locale) ?? LOCALES).map((locale) => (
-        <button
-          key={locale}
-          type="button"
-          /* Board 567: never disabled, so a slow page cannot leave nothing to press. */
-          aria-busy={pending}
-          onClick={() => choose(locale)}
-          aria-pressed={locale === current}
-          lang={locale}
-          className={cn(
-            // 44px minimum: this is a real control, not an inline link, and the
-            // WCAG exemption for links in a sentence does not cover it.
-            "flex min-h-11 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50",
-            locale === current
-              ? dark
-                ? "bg-white text-navy-700 shadow-sm"
-                : "bg-white text-slate-900 shadow-sm"
-              : dark
-                ? "text-white/85 hover:text-white"
-                : "text-slate-600 hover:text-slate-900",
-          )}
-        >
-          {LOCALE_NAMES[locale]}
-        </button>
-      ))}
+      {/* The globe turns into a spinner the moment a language is pressed, so the press is answered at once. */}
+      {target ? (
+        <Loader2
+          className={cn("ms-2 h-3.5 w-3.5 shrink-0 animate-spin", dark ? "text-brand-300" : "text-brand-700")}
+          aria-hidden
+        />
+      ) : (
+        <Languages className={cn("ms-2 h-3.5 w-3.5 shrink-0", dark ? "text-white/85" : "text-slate-600")} aria-hidden />
+      )}
+      {(offered?.map((row) => row.code as Locale) ?? LOCALES).map((locale) => {
+        const loading = target === locale;
+        /* The chosen language lights up on the press, not when the page in it has arrived. */
+        const selected = target ? loading : locale === current;
+        return (
+          <button
+            key={locale}
+            type="button"
+            /* Board 567: never disabled, so a slow page cannot leave nothing to press. */
+            aria-busy={loading}
+            onClick={() => choose(locale)}
+            aria-pressed={selected}
+            lang={locale}
+            data-loading={loading ? "" : undefined}
+            className={cn(
+              // 44px minimum: this is a real control, not an inline link, and the
+              // WCAG exemption for links in a sentence does not cover it.
+              "flex min-h-11 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors",
+              selected
+                ? dark
+                  ? "bg-white text-navy-700 shadow-sm"
+                  : "bg-white text-slate-900 shadow-sm"
+                : dark
+                  ? "text-white/85 hover:text-white"
+                  : "text-slate-600 hover:text-slate-900",
+              loading && "ring-2 ring-brand-400",
+            )}
+          >
+            {LOCALE_NAMES[locale]}
+          </button>
+        );
+      })}
     </div>
   );
 }

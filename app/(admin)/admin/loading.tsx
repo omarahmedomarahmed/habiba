@@ -1,3 +1,4 @@
+import { RouteLogoLoader } from "@/components/brand/logo-loader";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -15,14 +16,10 @@ import { getI18n } from "@/lib/i18n/server";
  */
 export default async function AdminLoading() {
   const { t } = await getI18n();
-  return (
-    <div role="status" aria-busy="true" className="space-y-4">
-      <span className="sr-only">{t("common.loading")}</span>
-      <div className="h-7 w-48 animate-pulse rounded-lg bg-slate-200" />
-      <div className="h-4 w-72 max-w-full animate-pulse rounded bg-slate-100" />
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-24 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
-      ))}
-    </div>
-  );
+  /*
+    Founder, 26 September: the one branded loader, the 24T mark, in place of
+    the grey blocks. The same mark the page change overlay shows, so a slow
+    stream and a slow round trip look alike. See components/brand/logo-loader.tsx.
+  */
+  return <RouteLogoLoader label={t("common.loading")} />;
 }

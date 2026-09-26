@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 
+import { NavProgress } from "@/components/nav/nav-progress";
 import { SimulationBanner } from "@/components/simulation-banner";
 import { env } from "@/lib/env";
 import "./globals.css";
@@ -99,6 +100,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             record below was invented. See the component.
           */}
           <SimulationBanner />
+          {/*
+            The page change indicator for every screen in the product: the
+            website, both apps and every portal. Renders nothing until a link
+            is followed. See the component.
+          */}
+          <NavProgress />
           {children}
           </MoneyDisplayProvider>
         </I18nProvider>

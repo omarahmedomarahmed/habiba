@@ -1,3 +1,4 @@
+import { RouteLogoLoader } from "@/components/brand/logo-loader";
 import { getI18n } from "@/lib/i18n/server";
 
 /**
@@ -24,15 +25,10 @@ import { getI18n } from "@/lib/i18n/server";
 export async function ClinicianLoading() {
   const { t } = await getI18n();
 
-  return (
-    <div role="status" aria-live="polite" className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
-      <span className="sr-only">{t("common.loading")}</span>
-      <div aria-hidden className="animate-pulse space-y-3">
-        <div className="h-6 w-40 rounded-lg bg-navy-100" />
-        <div className="h-16 rounded-2xl bg-navy-50" />
-        <div className="h-16 rounded-2xl bg-navy-50" />
-        <div className="h-16 rounded-2xl bg-navy-50" />
-      </div>
-    </div>
-  );
+  /*
+    Founder, 26 September: the one branded loader, the 24T mark, in place of
+    the grey blocks. The same mark the page change overlay shows, so a slow
+    stream and a slow round trip look alike. See components/brand/logo-loader.tsx.
+  */
+  return <RouteLogoLoader label={t("common.loading")} />;
 }
