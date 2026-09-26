@@ -46,3 +46,13 @@ fourth full gate.
   died holds its work: merge its branch (`worktree-agent-<id>`) before removing it.
 - The founder's console login is saved in `.sim-state/FOUNDER.json` for 12 hours from 18:39 UTC.
 - The clock file is `.simulation-clock.json`; the board is `docs/simulation-run/BOARD.md`.
+
+## 26 Sep, Techne Summit event build (done, live at d7756a78)
+
+| Step | State |
+|---|---|
+| Event cast seeded on production (seed:demo --scenario=event) | done, verify:event-demo 85 of 85 |
+| Migration 0181 on production before main | done |
+| Home audiences copy synced (content:sync home audiences) | done |
+| Gates on the merged branch | passed (verifiers re-run alone after N4) |
+| Live walk: 17 logins, radar offline dots, go live and back, SOS drag and tap | passed |
