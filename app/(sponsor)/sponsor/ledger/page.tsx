@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Card } from "@/components/ui";
+import { Download } from "lucide-react";
+
+import { Card, Stat } from "@/components/clinician/kit";
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { topUpHistory } from "@/lib/billing/invoice";
 import { publishedLedger } from "@/lib/data/sponsor-ledger";
 import { reportablePot } from "@/lib/data/sponsors";
@@ -97,25 +100,26 @@ export default async function SponsorLedgerPage({
       dir: query.sort === sort && query.dir === "desc" ? "asc" : "desc",
     });
 
-  const figure = (label: string, value: React.ReactNode) => (
-    <Card className="p-4">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-bold tabular-nums text-navy-500">{value}</p>
-    </Card>
+  const figure = (label: string, value: React.ReactNode, dark = false) => (
+    <Stat label={label} tone={dark ? "dark" : "light"} className="p-4 sm:p-5">
+      <span className="text-[22px]">{value}</span>
+    </Stat>
   );
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("sponsor.nav.ledger")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {t("sponsor.ledgerBody")}{" "}
-          {publishing === "weekly" ? t("sponsor.ledgerWeekly") : t("sponsor.ledgerLive")}
-        </p>
-      </div>
+    <div className="space-y-5">
+      <SponsorHeading
+        title={t("sponsor.nav.ledger")}
+        subtitle={
+          <>
+            {t("sponsor.ledgerBody")}{" "}
+            {publishing === "weekly" ? t("sponsor.ledgerWeekly") : t("sponsor.ledgerLive")}
+          </>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {figure(t("sponsor.spentTotal"), money(stats.spendCents))}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {figure(t("sponsor.spentTotal"), money(stats.spendCents), true)}
         {figure(t("sponsor.ledgerAverage"), money(stats.averagePriceCents))}
         {figure(t("sponsor.ledgerEmployees"), money(stats.employeeShareCents))}
         {figure(
@@ -127,13 +131,13 @@ export default async function SponsorLedgerPage({
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
-        <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.ledgerByMonth")}</p>
-          <ul className="mt-2 space-y-1 text-sm tabular-nums">
+        <Card className="p-5">
+          <h2 className="text-[16px] font-bold text-navy-700">{t("sponsor.ledgerByMonth")}</h2>
+          <ul className="mt-3 divide-y divide-navy-100 text-sm tabular-nums">
             {stats.months.map((m) => (
-              <li key={m.month} className="flex justify-between gap-3">
-                <span className="text-slate-600">{m.month}</span>
-                <span className="text-slate-900">
+              <li key={m.month} className="flex justify-between gap-3 py-2">
+                <span className="text-navy-400">{m.month}</span>
+                <span className="text-navy-700">
                   {m.spendCents === null
                     ? t("sponsor.figureSuppressed")
                     : <>{money(m.spendCents)} · {m.sessions ?? 0}</>}
@@ -141,18 +145,18 @@ export default async function SponsorLedgerPage({
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-navy-400">
             {t("sponsor.ledgerBurn")}: {money(stats.burnCents)}
           </p>
         </Card>
 
-        <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.ledgerMix")}</p>
-          <ul className="mt-2 space-y-1 text-sm tabular-nums">
+        <Card className="p-5">
+          <h2 className="text-[16px] font-bold text-navy-700">{t("sponsor.ledgerMix")}</h2>
+          <ul className="mt-3 divide-y divide-navy-100 text-sm tabular-nums">
             {stats.coverageMix.map((bucket) => (
-              <li key={bucket.coverageBps} className="flex justify-between gap-3">
-                <span className="text-slate-600">{bucket.coverageBps / 100}%</span>
-                <span className="text-slate-900">
+              <li key={bucket.coverageBps} className="flex justify-between gap-3 py-2">
+                <span className="text-navy-400">{bucket.coverageBps / 100}%</span>
+                <span className="text-navy-700">
                   {bucket.sessions ?? t("sponsor.figureSuppressed")}
                 </span>
               </li>
@@ -160,17 +164,17 @@ export default async function SponsorLedgerPage({
           </ul>
         </Card>
 
-        <Card className="p-4">
+        <Card className="p-5">
           {/* The company's own top-ups name nobody, so they are shown as they are. */}
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.ledgerTopUps")}</p>
-          <p className="mt-2 text-lg font-bold tabular-nums text-navy-500">
+          <h2 className="text-[16px] font-bold text-navy-700">{t("sponsor.ledgerTopUps")}</h2>
+          <p className="mt-3 text-[26px] font-bold tabular-nums text-navy-700">
             {money(stats.topUps.totalCents)}
           </p>
-          <p className="text-xs tabular-nums text-slate-500">× {stats.topUps.count}</p>
+          <p className="text-xs tabular-nums text-navy-400">× {stats.topUps.count}</p>
         </Card>
       </div>
 
-      <Card className="p-4">
+      <Card className="p-4 sm:p-5">
         <form method="get" className="flex flex-wrap items-end gap-3 text-xs">
           <Filter name="from" label={t("sponsor.ledgerFrom")} value={query.from} type="month" />
           <Filter name="to" label={t("sponsor.ledgerTo")} value={query.to} type="month" />
@@ -196,17 +200,21 @@ export default async function SponsorLedgerPage({
           <input type="hidden" name="dir" value={query.dir} />
           <button
             type="submit"
-            className="tap-target h-9 rounded-xl bg-slate-900 px-4 font-semibold text-white"
+            className="tap-target h-10 rounded-xl bg-navy-700 px-4 font-semibold text-white hover:bg-navy-600"
           >
             {t("sponsor.ledgerFilter")}
           </button>
-          <Link href="/sponsor/ledger" className="tap-target h-9 px-2 py-2 font-semibold text-slate-600">
+          <Link
+            href="/sponsor/ledger"
+            className="tap-target inline-flex h-10 items-center px-2 font-semibold text-navy-400 hover:text-navy-700"
+          >
             {t("sponsor.ledgerClear")}
           </Link>
           <a
             href={href("/sponsor/ledger/export", {})}
-            className="tap-target ms-auto h-9 rounded-xl bg-slate-100 px-4 py-2 font-semibold text-slate-700"
+            className="tap-target ms-auto inline-flex h-10 items-center gap-1.5 rounded-xl border border-navy-100 bg-white px-4 font-semibold text-navy-600 hover:bg-navy-50"
           >
+            <Download className="h-4 w-4" aria-hidden />
             {t("sponsor.ledgerCsv")}
           </a>
         </form>
@@ -214,7 +222,7 @@ export default async function SponsorLedgerPage({
 
       <Card className="overflow-x-auto p-0">
         {rows.length === 0 ? (
-          <p className="p-4 text-sm text-slate-600">
+          <p className="p-4 text-sm text-navy-400">
             {pot.underHeadcount
               ? t("sponsor.suppressedBody")
               : heldBack
@@ -224,10 +232,10 @@ export default async function SponsorLedgerPage({
         ) : (
           <table className="w-full text-sm tabular-nums">
             <thead>
-              <tr className="border-b border-slate-200 text-xs text-slate-500">
+              <tr className="border-b border-navy-100 bg-navy-50 text-xs text-navy-400">
                 {LEDGER_SORTS.map((sort) => (
-                  <th key={sort} scope="col" className="px-4 py-2 text-start font-medium">
-                    <Link href={sortLink(sort)} className="hover:text-slate-900">
+                  <th key={sort} scope="col" className="px-4 py-3 text-start font-semibold whitespace-nowrap">
+                    <Link href={sortLink(sort)} className="hover:text-navy-700">
                       {t(COLUMN[sort])}
                       {query.sort === sort ? (query.dir === "asc" ? " ↑" : " ↓") : ""}
                     </Link>
@@ -239,16 +247,16 @@ export default async function SponsorLedgerPage({
               {rows.slice(0, SHOWN).map((row, i) => {
                 const sign = row.kind === "refund" ? -1 : 1;
                 return (
-                  <tr key={i} className="border-b border-slate-100">
-                    <td className="px-4 py-2 text-slate-600">
+                  <tr key={i} className="border-b border-navy-100 last:border-0">
+                    <td className="px-4 py-3 text-navy-400">
                       {week(row.weekStart)}
                       {row.weekEnd ? ` → ${week(row.weekEnd)}` : ""}
                       {row.kind === "refund" ? ` · ${t("sponsor.ledgerRefund")}` : ""}
                     </td>
-                    <td className="px-4 py-2">{money(row.priceCents)}</td>
-                    <td className="px-4 py-2">{row.coverageBps / 100}%</td>
-                    <td className="px-4 py-2">{money(sign * row.coveredCents)}</td>
-                    <td className="px-4 py-2">{money(sign * row.employeeCents)}</td>
+                    <td className="px-4 py-3 text-navy-700">{money(row.priceCents)}</td>
+                    <td className="px-4 py-3 text-navy-700">{row.coverageBps / 100}%</td>
+                    <td className="px-4 py-3 font-semibold text-navy-700">{money(sign * row.coveredCents)}</td>
+                    <td className="px-4 py-3 text-navy-700">{money(sign * row.employeeCents)}</td>
                   </tr>
                 );
               })}
@@ -256,7 +264,7 @@ export default async function SponsorLedgerPage({
           </table>
         )}
         {rows.length > SHOWN ? (
-          <p className="p-4 text-xs text-slate-500">{t("sponsor.ledgerMore")}</p>
+          <p className="p-4 text-xs text-navy-400">{t("sponsor.ledgerMore")}</p>
         ) : null}
       </Card>
     </div>
@@ -283,14 +291,14 @@ function Filter({
   type: "month" | "number";
 }) {
   return (
-    <label className="flex flex-col gap-1 text-slate-600">
+    <label className="flex flex-col gap-1 font-semibold text-navy-400">
       {label}
       <input
         name={name}
         type={type}
         min={type === "number" ? 0 : undefined}
         defaultValue={value ?? ""}
-        className="h-9 w-32 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-900"
+        className="h-10 w-32 rounded-xl border border-navy-100 bg-white px-3 text-sm text-navy-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
       />
     </label>
   );

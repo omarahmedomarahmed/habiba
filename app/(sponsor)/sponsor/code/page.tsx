@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import QRCode from "qrcode";
 
 import { CodeCard, CreateCode } from "@/components/sponsor/code-card";
-import { Card } from "@/components/ui";
+import { SponsorHeading } from "@/components/sponsor/heading";
+import { Card } from "@/components/clinician/kit";
 import { attemptsOnCode, liveCode, SPIKE_THRESHOLD } from "@/lib/data/sponsors";
 import { env } from "@/lib/env";
 import { getI18n } from "@/lib/i18n/server";
@@ -66,11 +67,8 @@ export default async function SponsorCodePage() {
     : null;
 
   return (
-    <div className="space-y-4">
-      <div className="print:hidden">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("sponsor.code")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sponsor.codeBody")}</p>
-      </div>
+    <div className="mx-auto max-w-xl space-y-5">
+      <SponsorHeading className="print:hidden" title={t("sponsor.code")} subtitle={t("sponsor.codeBody")} />
 
       {code && qr && url ? (
         <CodeCard
@@ -90,7 +88,7 @@ export default async function SponsorCodePage() {
         />
       ) : (
         <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.codeNone")}</p>
+          <p className="text-sm leading-relaxed text-navy-400">{t("sponsor.codeNone")}</p>
           {/*
             W2-S03: the company makes its own first code. This was a dead end:
             only an operator could mint one.

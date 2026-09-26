@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { SponsorApplyForm } from "@/components/sponsor/apply-form";
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { SeesWhat } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -25,12 +26,7 @@ export default async function SponsorApplyPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {t("sponsor.apply.title")}
-        </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sponsor.apply.body")}</p>
-      </div>
+      <SponsorHeading title={t("sponsor.apply.title")} subtitle={t("sponsor.apply.body")} />
 
       <SponsorApplyForm />
 
@@ -39,7 +35,7 @@ export default async function SponsorApplyPage() {
         Somebody drafting an attendance policy should find out here that it
         cannot be enforced through us, not after a contract is signed.
       */}
-      <div className="space-y-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+      <div className="space-y-4 rounded-3xl bg-white p-5 ring-1 ring-navy-100 sm:p-6">
         {/*
           🔴 65.12 — THE WALL AS A TABLE, before a contract rather than after one.
 

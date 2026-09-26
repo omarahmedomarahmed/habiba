@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { ForgotPasswordForm } from "@/components/sponsor/password-forms";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -19,7 +20,7 @@ export default async function SponsorForgotPasswordPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 py-4">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("sponsor.forgotTitle")}</h1>
+      <SponsorHeading title={t("sponsor.forgotTitle")} />
       <ForgotPasswordForm />
     </div>
   );
