@@ -467,7 +467,15 @@ export function PayByTransfer({
           </p>
         ) : null}
 
-        <Declare />
+        {/*
+          Shoot C2: Submit stays in view. The sheet scrolls, and with the bank
+          details, the stepper and the reference above it the button sat below
+          the fold, so the one act the red box asks for was the one control not
+          on screen. It sticks to the bottom of the sheet as it scrolls.
+        */}
+        <div className="sticky bottom-0 z-10 -mx-5 border-t border-slate-100 bg-white px-5 pt-3 pb-3">
+          <Declare />
+        </div>
       </form>
       {footer ? <div className="mt-3">{footer}</div> : null}
     </Card>

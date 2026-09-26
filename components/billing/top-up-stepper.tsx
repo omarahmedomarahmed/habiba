@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useT } from "@/lib/i18n/client";
+import { cn } from "@/lib/utils";
 import type { PotStep } from "@/lib/billing/manual-entry";
 import { countKey } from "@/lib/i18n/count-form";
 
@@ -114,7 +115,7 @@ export function TopUpStepper({
       </p>
 
       {/* ---------------------------------------------------- the stepper -- */}
-      <div className="mt-4 flex items-center justify-between gap-4">
+      <div className="mt-4 flex items-center justify-between gap-2">
         <StepButton
           label={t("topup.less")}
           sign="minus"
@@ -130,7 +131,12 @@ export function TopUpStepper({
             rather than leaving a finance team to convert at a rate we did not
             agree. It led in dollars until the live walkthrough.
           */}
-          <p className="text-4xl font-bold tracking-tight text-slate-900 tabular-nums">
+          <p
+            className={cn(
+              "font-bold tracking-tight whitespace-nowrap text-slate-900 tabular-nums",
+              amountSize(step.egpLabel),
+            )}
+          >
             {step.egpLabel}
           </p>
           <p className="mt-1 text-sm text-slate-500 tabular-nums">{step.usdLabel}</p>
@@ -176,6 +182,21 @@ export function TopUpStepper({
       <div className="mt-4">{onConfirm(step)}</div>
     </div>
   );
+}
+
+/**
+ * Shoot C2: the figure's size follows its length.
+ *
+ * It was always `text-4xl`, which fits "EGP 5,000" and not "EGP 100,000": at
+ * six figures the last zero ran under the + button. The stepper sits in a
+ * sheet at most 448px wide (and a phone's 390), less two 56px buttons, so the
+ * longer the label the smaller it is set, and it never wraps.
+ */
+export function amountSize(label: string): string {
+  const length = label.length;
+  if (length <= 9) return "text-4xl";
+  if (length <= 11) return "text-2xl sm:text-3xl";
+  return "text-xl sm:text-2xl";
 }
 
 function Row({ label, value }: { label: string; value: string }) {
