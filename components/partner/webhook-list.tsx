@@ -9,8 +9,9 @@ import { addWebhook, disable, sendTest } from "@/app/(partner)/partner/webhooks/
 import { Badge, Button, Card, EmptyState, Field, IconTile, Input } from "@/components/clinician/kit";
 import { CheckChip, ConfirmBox, RowButton, SecretCard } from "@/components/partner/parts";
 import { TryButton } from "@/components/partner/try-button";
-import { WEBHOOK_EVENTS } from "@/lib/db/schema";
+import { WEBHOOK_EVENTS, type WebhookEvent } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * The endpoints, and the form that adds one. PLAN.md 42.4, 55.10.
@@ -29,6 +30,15 @@ import { useT } from "@/lib/i18n/client";
  * only on the docs page, because the moment somebody needs it is the moment they are
  * holding the secret they cannot see again.
  */
+
+/** Board 620: each event said in plain words, one key per event so none is missed. */
+const EVENT_WORDS: Record<WebhookEvent, MessageKey> = {
+  "session.completed": "dev.event.sessionCompleted",
+  "note.approved": "dev.event.noteApproved",
+  "grant.revoked": "dev.event.grantRevoked",
+  "record.claimed": "dev.event.recordClaimed",
+  "subject.unlinked": "dev.event.subjectUnlinked",
+};
 
 export type WebhookRow = {
   id: string;
@@ -164,10 +174,14 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
 
               <fieldset>
                 <legend className="text-sm font-semibold text-navy-600">{t("dev.events")}</legend>
-                {/* 🔴 W3 / D6: every event needs a linked patient, and nothing links one yet. */}
-                <p className="mt-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[13px] text-amber-900 ring-1 ring-amber-200">
-                  {t("devs.needsLink")}
-                </p>
+                {/*
+                 * 🔴 Board 620: what each event tells them, in plain words. This
+                 * said "Not live yet ... which is not built", which is our build
+                 * status and no business of a customer's. Every event is about a
+                 * patient who has linked their record to the partner, so that is
+                 * what the line says; Send test checks an endpoint meanwhile.
+                 */}
+                <p className="mt-1.5 text-[13px] leading-relaxed text-navy-500">{t("dev.eventsIntro")}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {WEBHOOK_EVENTS.map((event) => (
                     <CheckChip key={event} name="events" value={event}>
@@ -175,6 +189,16 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
                     </CheckChip>
                   ))}
                 </div>
+                <dl className="mt-3 space-y-1.5 text-[13px] leading-relaxed text-navy-500">
+                  {WEBHOOK_EVENTS.map((event) => (
+                    <div key={event}>
+                      <dt className="inline font-mono font-semibold text-navy-600" dir="ltr">
+                        {event}
+                      </dt>{" "}
+                      <dd className="inline">{t(EVENT_WORDS[event])}</dd>
+                    </div>
+                  ))}
+                </dl>
               </fieldset>
 
               {state.error ? (

@@ -8,7 +8,9 @@ import { emailAccountLink } from "@/lib/auth/account-links";
 import { requireRole } from "@/lib/auth/guard";
 import {
   approveForProduction,
+  attachPracticeToPartner,
   createPartnerUser,
+  detachPracticeFromPartner,
   setPartnerDocuments,
   setPartnerState,
   withdrawApproval,
@@ -71,6 +73,74 @@ export async function setState(
     resourceType: "partner",
     resourceId: partnerId,
     reason: reasonText(reason),
+  });
+
+  revalidatePath("/admin/partners");
+  return { ok: true };
+}
+
+/**
+ * 🔴 Board 611: put an existing practice on this partner's bill, which is what
+ * lets their live key write back, launch and deliver notes for its clinicians.
+ * Ours to do, never theirs: this file is the only caller, behind the console's
+ * role, and the reason is on the record because it grants a partner reach into
+ * real sessions.
+ */
+export async function attachPractice(
+  _prev: AdminPartnerState,
+  formData: FormData,
+): Promise<AdminPartnerState> {
+  const actor = await requireRole("super_admin");
+  const partnerId = String(formData.get("partnerId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+
+  const result = await attachPracticeToPartner({
+    partnerId,
+    needle: String(formData.get("practice") ?? ""),
+  });
+  if (!result.practice) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t(result.error ?? "apartner.practiceNotFound") };
+  }
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "partner.practice_attached",
+    resourceType: "organization",
+    resourceId: result.practice.id,
+    reason: `partner ${partnerId}, billing partner_billed. ${reasonText(reason)}`,
+  });
+
+  revalidatePath("/admin/partners");
+  return { ok: true };
+}
+
+/** And back on its own bill. The partner's key stops reaching its clinicians. */
+export async function detachPractice(
+  partnerId: string,
+  organizationId: string,
+  reason: string,
+): Promise<AdminPartnerState> {
+  const actor = await requireRole("super_admin");
+  const refused = await reasonRefused(reason);
+  if (refused) return { error: refused };
+
+  const result = await detachPracticeFromPartner({ partnerId, organizationId });
+  if (result.error) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t(result.error) };
+  }
+
+  await audit({
+    actor,
+    category: "admin",
+    action: "partner.practice_detached",
+    resourceType: "organization",
+    resourceId: organizationId,
+    reason: `partner ${partnerId}, billing back to self. ${reasonText(reason)}`,
   });
 
   revalidatePath("/admin/partners");
